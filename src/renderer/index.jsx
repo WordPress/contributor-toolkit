@@ -463,6 +463,13 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
     state.historyIndex = nextHistory.length;
   }, []);
 
+  const printHelp = useCallback(() => {
+    writeToTerminal('Available commands:\n');
+    writeToTerminal('  help                        Show this help text\n');
+    writeToTerminal('  npm install                 Run npm install in the site directory\n');
+    writeToTerminal('  npm run <script>            Run one of: ' + TERMINAL_ALLOWED_SCRIPTS.join(', ') + '\n');
+  }, [writeToTerminal]);
+
   const executeTerminalCommand = useCallback((rawCommand) => {
     const command = rawCommand.trim();
     const state = terminalStateRef.current;
@@ -475,6 +482,12 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
 
     if (state.running) {
       writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      return;
+    }
+
+    if (command === 'help') {
+      printHelp();
+      showPrompt(false);
       return;
     }
 
@@ -522,9 +535,9 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
       return;
     }
 
-    writeToTerminal(`Unsupported command: ${command}\nTry one of: npm install, npm run ${TERMINAL_ALLOWED_SCRIPTS.join(', ')}\n`);
+    writeToTerminal(`Unsupported command: ${command}\nTry "help" for the list of supported commands.\n`);
     showPrompt(false);
-  }, [addCommandToHistory, killCurrent, runInstall, runScript, showPrompt, writeToTerminal]);
+  }, [addCommandToHistory, killCurrent, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
 
   const handleTerminalData = useCallback((data) => {
     const term = terminalRef.current;
@@ -605,7 +618,8 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
     });
     terminalRef.current = term;
     term.open(container);
-    term.write(normalizeForTerminal('WordPress npm helper terminal. Supported commands: npm install, npm run build, npm run build:dev, npm run dev, npm run test, npm run watch, npm run grunt\n'));
+    term.write(normalizeForTerminal('WordPress npm helper terminal.\n'));
+    printHelp();
     showPrompt(false);
     const dataDisposable = term.onData((d) => terminalInputHandlerRef.current(d));
     const scrollDisposable = term.onScroll(() => {
@@ -620,7 +634,7 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
       terminalRef.current = null;
       terminalStickRef.current = true;
     };
-  }, [normalizeForTerminal, showPrompt]);
+  }, [normalizeForTerminal, printHelp, showPrompt]);
   const toggleServer = async ()=>{
     if(!running){
       if (!skipInit && !hasBuilt) { alert('Please complete the first full build before starting the dev server. You can also skip the wizard.'); return; }
@@ -790,24 +804,6 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
-      <Card>
-        <CardBody>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Terminal</div>
-          <div
-            ref={terminalContainerRef}
-            style={{
-              height: 220,
-              background: '#111',
-              borderRadius: 6,
-              overflow: 'hidden',
-              border: '1px solid #1b1b1f'
-            }}
-          />
-          <div style={{ marginTop: 8, fontSize: 12, color: '#3c434a' }}>
-            Supported commands: <code>npm install</code>, <code>npm run build</code>, <code>npm run build:dev</code>, <code>npm run dev</code>, <code>npm run test</code>, <code>npm run watch</code>, <code>npm run grunt</code>. Press <code>Ctrl+C</code> to stop the current command.
-          </div>
-        </CardBody>
-      </Card>
       <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 440px', minWidth: 0 }}>
           <h1 style={{ margin: 0, fontSize: 28, lineHeight: 1.2 }}>{siteName}</h1>
@@ -885,9 +881,7 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
           </div>
         </div>
       ) : (
-        <div style={{ padding: 16, border: '1px solid #dcdcde', borderRadius: 8, background: '#fff', color: '#3c434a', fontSize: 12 }}>
-            Initialization finished. Use the Run command menu for installs/builds.
-        </div>
+        null
       )}
       {skipInit ? (
         <Flex style={{ gap: 8, justifyContent: 'flex-start' }}>
@@ -914,8 +908,20 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
       ) : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Npm logs</div>
-          <div ref={npmRef} onScroll={makeOnScroll('npm')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{npmLogs}</div>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Terminal</div>
+          <div
+            ref={terminalContainerRef}
+            style={{
+              height: 220,
+              background: '#111',
+              borderRadius: 6,
+              overflow: 'hidden',
+              border: '1px solid #1b1b1f'
+            }}
+          />
+          <div style={{ marginTop: 8, fontSize: 12, color: '#3c434a' }}>
+            Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
+          </div>
         </div>
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Server logs</div>

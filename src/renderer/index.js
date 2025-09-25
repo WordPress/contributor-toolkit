@@ -53447,6 +53447,12 @@ ${name} exited with code ${code}
       state.history = nextHistory;
       state.historyIndex = nextHistory.length;
     }, []);
+    const printHelp = (0, import_react68.useCallback)(() => {
+      writeToTerminal("Available commands:\n");
+      writeToTerminal("  help                        Show this help text\n");
+      writeToTerminal("  npm install                 Run npm install in the site directory\n");
+      writeToTerminal("  npm run <script>            Run one of: " + TERMINAL_ALLOWED_SCRIPTS.join(", ") + "\n");
+    }, [writeToTerminal]);
     const executeTerminalCommand = (0, import_react68.useCallback)((rawCommand) => {
       const command = rawCommand.trim();
       const state = terminalStateRef.current;
@@ -53457,6 +53463,11 @@ ${name} exited with code ${code}
       addCommandToHistory(command);
       if (state.running) {
         writeToTerminal("A command is already running. Press Ctrl+C to stop it.\n");
+        return;
+      }
+      if (command === "help") {
+        printHelp();
+        showPrompt(false);
         return;
       }
       const lower = command.toLowerCase();
@@ -53512,10 +53523,10 @@ ${name} exited with code ${code}
         return;
       }
       writeToTerminal(`Unsupported command: ${command}
-Try one of: npm install, npm run ${TERMINAL_ALLOWED_SCRIPTS.join(", ")}
+Try "help" for the list of supported commands.
 `);
       showPrompt(false);
-    }, [addCommandToHistory, killCurrent, runInstall, runScript, showPrompt, writeToTerminal]);
+    }, [addCommandToHistory, killCurrent, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
     const handleTerminalData = (0, import_react68.useCallback)((data) => {
       const term = terminalRef.current;
       if (!term) return;
@@ -53584,7 +53595,8 @@ Try one of: npm install, npm run ${TERMINAL_ALLOWED_SCRIPTS.join(", ")}
       });
       terminalRef.current = term;
       term.open(container);
-      term.write(normalizeForTerminal("WordPress npm helper terminal. Supported commands: npm install, npm run build, npm run build:dev, npm run dev, npm run test, npm run watch, npm run grunt\n"));
+      term.write(normalizeForTerminal("WordPress npm helper terminal.\n"));
+      printHelp();
       showPrompt(false);
       const dataDisposable = term.onData((d) => terminalInputHandlerRef.current(d));
       const scrollDisposable = term.onScroll(() => {
@@ -53599,7 +53611,7 @@ Try one of: npm install, npm run ${TERMINAL_ALLOWED_SCRIPTS.join(", ")}
         terminalRef.current = null;
         terminalStickRef.current = true;
       };
-    }, [normalizeForTerminal, showPrompt]);
+    }, [normalizeForTerminal, printHelp, showPrompt]);
     const toggleServer = async () => {
       if (!running) {
         if (!skipInit && !hasBuilt) {
@@ -53800,41 +53812,6 @@ Try one of: npm install, npm run ${TERMINAL_ALLOWED_SCRIPTS.join(", ")}
       return { ...step, status };
     });
     return /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("section", { style: { display: "flex", flexDirection: "column", gap: 24, paddingBottom: 48 }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default7, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default9, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Terminal" }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
-          "div",
-          {
-            ref: terminalContainerRef,
-            style: {
-              height: 220,
-              background: "#111",
-              borderRadius: 6,
-              overflow: "hidden",
-              border: "1px solid #1b1b1f"
-            }
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { marginTop: 8, fontSize: 12, color: "#3c434a" }, children: [
-          "Supported commands: ",
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("code", { children: "npm install" }),
-          ", ",
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("code", { children: "npm run build" }),
-          ", ",
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("code", { children: "npm run build:dev" }),
-          ", ",
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("code", { children: "npm run dev" }),
-          ", ",
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("code", { children: "npm run test" }),
-          ", ",
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("code", { children: "npm run watch" }),
-          ", ",
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("code", { children: "npm run grunt" }),
-          ". Press ",
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("code", { children: "Ctrl+C" }),
-          " to stop the current command."
-        ] })
-      ] }) }),
       /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default3, { align: "flex-start", justify: "space-between", style: { gap: 16, flexWrap: "wrap" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { flex: "1 1 440px", minWidth: 0 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("h1", { style: { margin: 0, fontSize: 28, lineHeight: 1.2 }, children: siteName }),
@@ -53906,7 +53883,7 @@ Try one of: npm install, npm run ${TERMINAL_ALLOWED_SCRIPTS.join(", ")}
           );
         }) }),
         /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { marginTop: 12 }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "link", onClick: markSkipWizard, style: { textDecoration: "underline" }, children: "Skip initialization wizard" }) })
-      ] }) : /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { padding: 16, border: "1px solid #dcdcde", borderRadius: 8, background: "#fff", color: "#3c434a", fontSize: 12 }, children: "Initialization finished. Use the Run command menu for installs/builds." }),
+      ] }) : null,
       skipInit ? /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default3, { style: { gap: 8, justifyContent: "flex-start" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "secondary", onClick: () => window.api.openDirectory(sitePath), children: "Open directory" }) }),
         /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default4, { children: [
@@ -53933,8 +53910,27 @@ Try one of: npm install, npm run ${TERMINAL_ALLOWED_SCRIPTS.join(", ")}
       ] }) : null,
       /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 16 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Npm logs" }),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { ref: npmRef, onScroll: makeOnScroll("npm"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 180, overflow: "auto" }, children: npmLogs })
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Terminal" }),
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+            "div",
+            {
+              ref: terminalContainerRef,
+              style: {
+                height: 220,
+                background: "#111",
+                borderRadius: 6,
+                overflow: "hidden",
+                border: "1px solid #1b1b1f"
+              }
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { marginTop: 8, fontSize: 12, color: "#3c434a" }, children: [
+            "Type ",
+            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("code", { children: "help" }),
+            " to list supported commands. Press ",
+            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("code", { children: "Ctrl+C" }),
+            " to stop the current command."
+          ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
           /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Server logs" }),
