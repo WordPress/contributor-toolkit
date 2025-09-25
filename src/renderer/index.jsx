@@ -12,6 +12,11 @@ import {
 } from '@wordpress/components';
 import { plus, chevronDown, chevronLeft, chevronRight, copy as copyIcon } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
+import { Terminal } from 'xterm';
+import 'xterm/css/xterm.css';
+
+const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
+const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 
 function useSites() {
   const [sites, setSites] = useState([]);
@@ -286,7 +291,6 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
   const [starting, setStarting] = useState(false);
   const [running, setRunning] = useState(false);
   const [installing, setInstalling] = useState(false);
-  const [selectedTab, setSelectedTab] = useState('npm');
   const [npmLogs, setNpmLogs] = useState('');
   const [serverLogs, setServerLogs] = useState('');
   const [wpLogs, setWpLogs] = useState('');
@@ -305,16 +309,33 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
 
-  // sticky refs
-  const npmRef = useRef(null); const serverRef = useRef(null); const wpRef = useRef(null);
-  const [stick, setStick] = useState(true); const threshold = 8;
-  useEffect(() => { const ref = selectedTab==='npm'?npmRef:selectedTab==='server'?serverRef:wpRef; if (stick && ref.current) ref.current.scrollTop = ref.current.scrollHeight; }, [npmLogs,serverLogs,wpLogs,selectedTab,stick]);
-  const makeOnScroll = (tab) => (e) => { const el=e.currentTarget; const atBottom=el.scrollTop+el.clientHeight>=el.scrollHeight-threshold; if(atBottom) setStick(true); else if(selectedTab===tab && stick) setStick(false); };
+  // sticky refs per log
+  const npmRef = useRef(null);
+  const serverRef = useRef(null);
+  const wpRef = useRef(null);
+  const threshold = 8;
+  const [logStick, setLogStick] = useState({ npm: true, server: true, wp: true });
+  const updateStick = useCallback((key, value) => {
+    setLogStick((prev) => (prev[key] === value ? prev : { ...prev, [key]: value }));
+  }, []);
+  const ensureStick = useCallback((key) => {
+    setLogStick((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+  }, []);
+  useEffect(() => { if (logStick.npm && npmRef.current) npmRef.current.scrollTop = npmRef.current.scrollHeight; }, [npmLogs, logStick.npm]);
+  useEffect(() => { if (logStick.server && serverRef.current) serverRef.current.scrollTop = serverRef.current.scrollHeight; }, [serverLogs, logStick.server]);
+  useEffect(() => { if (logStick.wp && wpRef.current) wpRef.current.scrollTop = wpRef.current.scrollHeight; }, [wpLogs, logStick.wp]);
+  const makeOnScroll = useCallback((key) => (e) => {
+    const el = e.currentTarget;
+    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
+    updateStick(key, atBottom);
+  }, [threshold, updateStick]);
 
   const siteName = sitePath.split('/').pop();
   const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : '';
 
-  const appendNpm = (s)=>setNpmLogs(v=>v+s); const appendServer=(s)=>setServerLogs(v=>v+s); const appendWp=(s)=>setWpLogs(v=>v+s);
+  const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
+  const appendServer = useCallback((s)=>setServerLogs((v)=>v+s),[]);
+  const appendWp = useCallback((s)=>setWpLogs((v)=>v+s),[]);
   const sortEmails = useCallback((list)=>[...list].sort((a,b)=>new Date(b.sentAt||b.date||0)-new Date(a.sentAt||a.date||0)),[]);
   const openEmail = useCallback((m)=>{ setActiveEmail(m); setEmailViewTab('rendered'); setIsEmailOpen(true); },[]);
   const clearEmails = useCallback(async ()=>{ await window.api.clearEmails(sitePath); setEmails([]); }, [sitePath]);
@@ -330,39 +351,282 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
   }, [sitePath]);
   useEffect(()=>{ loadStatus(); }, [loadStatus]);
 
-  const runInstall = () => {
-    setInstalling(true); setSelectedTab('npm'); setStick(true); window.api.runNpmInstall(sitePath, ({ data }) => appendNpm(data), async ({ code }) => {
-      appendNpm(`\ninstall exited with code ${code}\n`); setInstalling(false);
+  const runInstall = useCallback((options = {}) => {
+    const { onLog, onDone } = options;
+    setInstalling(true);
+    ensureStick('npm');
+    window.api.runNpmInstall(sitePath, ({ data }) => {
+      appendNpm(data);
+      if (onLog) onLog(data);
+    }, async ({ code }) => {
+      appendNpm(`\ninstall exited with code ${code}\n`);
+      setInstalling(false);
       /**
        * Still let us through when this happens on Windows:
        * 
        * npm verbose stack Error: command failed
-       * npm verbose stack     at promiseSpawn (C:\Users\Adam\AppData\Local\Programs\electron-setup-wordpress-core\resources\app.asar\node_modules\npm\node_modules\@npmcli\promise-spawn\lib\index.js:22:22)
-       * npm verbose stack     at spawnWithShell (C:\Users\Adam\AppData\Local\Programs\electron-setup-wordpress-core\resources\app.asar\node_modules\npm\node_modules\@npmcli\promise-spawn\lib\index.js:124:10)
-       * npm verbose stack     at promiseSpawn (C:\Users\Adam\AppData\Local\Programs\electron-setup-wordpress-core\resources\app.asar\node_modules\npm\node_modules\@npmcli\promise-spawn\lib\index.js:12:12)
-       * npm verbose stack     at runScriptPkg (C:\Users\Adam\AppData\Local\Programs\electron-setup-wordpress-core\resources\app.asar\node_modules\npm\node_modules\@npmcli\run-script\lib\run-script-pkg.js:79:13)
-       * npm verbose stack     at runScript (C:\Users\Adam\AppData\Local\Programs\electron-setup-wordpress-core\resources\app.asar\node_modules\npm\node_modules\@npmcli\run-script\lib\run-script.js:9:12)
-       * npm verbose stack     at C:\Users\Adam\AppData\Local\Programs\electron-setup-wordpress-core\resources\app.asar\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\rebuild.js:329:17
-       * npm verbose stack     at run (C:\Users\Adam\AppData\Local\Programs\electron-setup-wordpress-core\resources\app.asar\node_modules\npm\node_modules\promise-call-limit\dist\commonjs\index.js:67:22)
-       * npm verbose stack     at C:\Users\Adam\AppData\Local\Programs\electron-setup-wordpress-core\resources\app.asar\node_modules\npm\node_modules\promise-call-limit\dist\commonjs\index.js:84:9
+       * npm verbose stack     at promiseSpawn (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\promise-spawn\\lib\\index.js:22:22)
+       * npm verbose stack     at spawnWithShell (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\promise-spawn\\lib\\index.js:124:10)
+       * npm verbose stack     at promiseSpawn (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\promise-spawn\\lib\\index.js:12:12)
+       * npm verbose stack     at runScriptPkg (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\run-script\\lib\\run-script-pkg.js:79:13)
+       * npm verbose stack     at runScript (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\run-script\\lib\\run-script.js:9:12)
+       * npm verbose stack     at C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\arborist\\lib\\arborist\\rebuild.js:329:17
+       * npm verbose stack     at run (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\promise-call-limit\\dist\\commonjs\\index.js:67:22)
+       * npm verbose stack     at C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\promise-call-limit\\dist\\commonjs\\index.js:84:9
        * npm verbose stack     at new Promise (<anonymous>)
-       * npm verbose stack     at callLimit (C:\Users\Adam\AppData\Local\Programs\electron-setup-wordpress-core\resources\app.asar\node_modules\npm\node_modules\promise-call-limit\dist\commonjs\index.js:35:69)
+       * npm verbose stack     at callLimit (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\promise-call-limit\\dist\\commonjs\\index.js:35:69)
        * npm verbose pkgid core-js-pure@3.35.1
        * npm error code 1
-       * npm error path C:\wp\wordpress-develop-trunk\node_modules\core-js-pure
+       * npm error path C:\\wp\\wordpress-develop-trunk\\node_modules\\core-js-pure
        * 
        * @TODO: Do not mark as initialized if the installation fails.
        */
       if (1 || code === 0) { try { await window.api.markSiteInitialized(sitePath); } catch {} onInitialized(sitePath); }
       try { await loadStatus(); } catch {}
+      if (onDone) onDone({ code });
     });
-  };
-  const runScript = (name)=>{ setSelectedTab('npm'); setStick(true); if (name === 'build') setBuilding(true); window.api.runNpmScript(sitePath,name,[],({data})=>appendNpm(data),async ({code})=>{ appendNpm(`\n${name} exited with code ${code}\n`); if (name === 'build') { setBuilding(false); try { await loadStatus(); } catch {} } }); };
-  const killCurrent = async ()=>{ await window.api.npmKill({ directoryPath: sitePath }); };
+  }, [appendNpm, ensureStick, loadStatus, onInitialized, sitePath]);
+
+  const runScript = useCallback((name, options = {}) => {
+    const { onLog, onDone } = options;
+    ensureStick('npm');
+    if (name === 'build') setBuilding(true);
+    window.api.runNpmScript(sitePath, name, [], ({ data }) => {
+      appendNpm(data);
+      if (onLog) onLog(data);
+    }, async ({ code }) => {
+      appendNpm(`\n${name} exited with code ${code}\n`);
+      if (name === 'build') {
+        setBuilding(false);
+        try { await loadStatus(); } catch {}
+      }
+      if (onDone) onDone({ code });
+    });
+  }, [appendNpm, ensureStick, loadStatus, sitePath]);
+
+  const killCurrent = useCallback(async ()=>{ await window.api.npmKill({ directoryPath: sitePath }); }, [sitePath]);
+
+  // terminal refs/state (after run helpers so dependencies are available)
+  const terminalContainerRef = useRef(null);
+  const terminalRef = useRef(null);
+  const terminalStickRef = useRef(true);
+  const terminalInputHandlerRef = useRef(() => {});
+  const terminalKillRef = useRef(null);
+  const terminalStateRef = useRef({ input: '', history: [], historyIndex: 0, running: false });
+
+  const normalizeForTerminal = useCallback((text) => String(text ?? '').replace(/\r?\n/g, '\r\n'), []);
+
+  const writeToTerminal = useCallback((text) => {
+    const term = terminalRef.current;
+    if (!term) return;
+    term.write(normalizeForTerminal(text));
+    if (terminalStickRef.current) term.scrollToBottom();
+  }, [normalizeForTerminal]);
+
+  const showPrompt = useCallback((prependNewLine = true) => {
+    const term = terminalRef.current;
+    if (!term) return;
+    const state = terminalStateRef.current;
+    if (prependNewLine) term.write('\r\n');
+    term.write('$ ');
+    state.input = '';
+    state.historyIndex = state.history.length;
+    if (terminalStickRef.current) term.scrollToBottom();
+  }, []);
+
+  const replaceTerminalInput = useCallback((next) => {
+    const term = terminalRef.current;
+    if (!term) return;
+    const state = terminalStateRef.current;
+    const current = state.input;
+    if (current && current.length) {
+      for (let i = 0; i < current.length; i += 1) {
+        term.write('\b \b');
+      }
+    }
+    state.input = next;
+    if (next) term.write(next);
+    if (terminalStickRef.current) term.scrollToBottom();
+  }, []);
+
+  const addCommandToHistory = useCallback((value) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    const state = terminalStateRef.current;
+    if (state.history[state.history.length - 1] === trimmed) {
+      state.historyIndex = state.history.length;
+      return;
+    }
+    const nextHistory = [...state.history, trimmed];
+    if (nextHistory.length > 50) nextHistory.shift();
+    state.history = nextHistory;
+    state.historyIndex = nextHistory.length;
+  }, []);
+
+  const executeTerminalCommand = useCallback((rawCommand) => {
+    const command = rawCommand.trim();
+    const state = terminalStateRef.current;
+    if (!command) {
+      showPrompt(false);
+      return;
+    }
+
+    addCommandToHistory(command);
+
+    if (state.running) {
+      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      return;
+    }
+
+    const lower = command.toLowerCase();
+    if (TERMINAL_INSTALL_ALIASES.includes(lower)) {
+      state.running = true;
+      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+      writeToTerminal('Running npm install…\n');
+      runInstall({
+        onLog: (chunk) => writeToTerminal(chunk),
+        onDone: ({ code }) => {
+          writeToTerminal(`npm install exited with code ${code}\n`);
+          state.running = false;
+          terminalKillRef.current = null;
+          showPrompt(false);
+        }
+      });
+      return;
+    }
+
+    if (lower.startsWith('npm run ')) {
+      const script = command.slice(8).trim();
+      if (!script) {
+        writeToTerminal('Missing script name. Example: npm run build\n');
+        showPrompt(false);
+        return;
+      }
+      if (!TERMINAL_ALLOWED_SCRIPTS.includes(script)) {
+        writeToTerminal(`Unsupported script "${script}". Allowed scripts: ${TERMINAL_ALLOWED_SCRIPTS.join(', ')}\n`);
+        showPrompt(false);
+        return;
+      }
+      state.running = true;
+      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+      writeToTerminal(`Running npm run ${script}…\n`);
+      runScript(script, {
+        onLog: (chunk) => writeToTerminal(chunk),
+        onDone: ({ code }) => {
+          writeToTerminal(`npm run ${script} exited with code ${code}\n`);
+          state.running = false;
+          terminalKillRef.current = null;
+          showPrompt(false);
+        }
+      });
+      return;
+    }
+
+    writeToTerminal(`Unsupported command: ${command}\nTry one of: npm install, npm run ${TERMINAL_ALLOWED_SCRIPTS.join(', ')}\n`);
+    showPrompt(false);
+  }, [addCommandToHistory, killCurrent, runInstall, runScript, showPrompt, writeToTerminal]);
+
+  const handleTerminalData = useCallback((data) => {
+    const term = terminalRef.current;
+    if (!term) return;
+    const state = terminalStateRef.current;
+
+    if (data === '\u0003') { // Ctrl+C
+      term.write('^C\r\n');
+      state.input = '';
+      state.historyIndex = state.history.length;
+      if (state.running) {
+        if (terminalKillRef.current) terminalKillRef.current();
+      } else {
+        showPrompt(false);
+      }
+      return;
+    }
+
+    if (state.running) {
+      // Ignore all other input while command is running
+      return;
+    }
+
+    if (data === '\r') { // Enter
+      const current = state.input;
+      state.input = '';
+      term.write('\r\n');
+      state.historyIndex = state.history.length;
+      executeTerminalCommand(current);
+      return;
+    }
+
+    if (data === '\u007f') { // Backspace
+      if (state.input.length > 0) {
+        state.input = state.input.slice(0, -1);
+        term.write('\b \b');
+      }
+      return;
+    }
+
+    if (data === '\u001b[A' || data === '\u001b[B') { // history navigation
+      if (!state.history.length) return;
+      if (data === '\u001b[A') {
+        state.historyIndex = Math.max(0, state.historyIndex - 1);
+      } else {
+        state.historyIndex = Math.min(state.history.length, state.historyIndex + 1);
+      }
+      const nextValue = state.historyIndex >= state.history.length ? '' : state.history[state.historyIndex];
+      replaceTerminalInput(nextValue);
+      return;
+    }
+
+    if (data.startsWith('\u001b')) {
+      // Ignore other escape sequences
+      return;
+    }
+
+    state.input += data;
+    term.write(data);
+    if (terminalStickRef.current) term.scrollToBottom();
+  }, [executeTerminalCommand, replaceTerminalInput, showPrompt]);
+
+  useEffect(() => {
+    terminalInputHandlerRef.current = handleTerminalData;
+  }, [handleTerminalData]);
+
+  useEffect(() => {
+    const container = terminalContainerRef.current;
+    if (!container) return undefined;
+    const term = new Terminal({
+      rows: 12,
+      cursorBlink: true,
+      scrollback: 4000,
+      convertEol: false,
+      theme: { background: '#111', foreground: '#f5f5f5' },
+      fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
+      fontSize: 13
+    });
+    terminalRef.current = term;
+    term.open(container);
+    term.write(normalizeForTerminal('WordPress npm helper terminal. Supported commands: npm install, npm run build, npm run build:dev, npm run dev, npm run test, npm run watch, npm run grunt\n'));
+    showPrompt(false);
+    const dataDisposable = term.onData((d) => terminalInputHandlerRef.current(d));
+    const scrollDisposable = term.onScroll(() => {
+      const buffer = term.buffer.active;
+      const atBottom = buffer.baseY + buffer.cursorY >= buffer.length - term.rows;
+      terminalStickRef.current = atBottom;
+    });
+    return () => {
+      dataDisposable.dispose();
+      scrollDisposable.dispose();
+      term.dispose();
+      terminalRef.current = null;
+      terminalStickRef.current = true;
+    };
+  }, [normalizeForTerminal, showPrompt]);
   const toggleServer = async ()=>{
     if(!running){
       if (!skipInit && !hasBuilt) { alert('Please complete the first full build before starting the dev server. You can also skip the wizard.'); return; }
-      setStarting(true); setSelectedTab('server'); setStick(true);
+      setStarting(true);
+      ensureStick('server');
+      ensureStick('wp');
       // Subscribe to SMTP events before starting to avoid missing early events
       if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port)=>setSmtpPort(port||0));
       if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg)=>setEmails((prev)=>sortEmails([msg, ...prev])));
@@ -459,7 +723,7 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
         <Button
           isBusy={installing}
           variant={hasNodeModules ? 'secondary' : 'primary'}
-          onClick={runInstall}
+          onClick={() => runInstall()}
           disabled={statusLoading || installing || hasNodeModules}
         >{hasNodeModules ? 'Dependencies installed' : 'Install dependencies'}</Button>
       )
@@ -526,6 +790,24 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
+      <Card>
+        <CardBody>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Terminal</div>
+          <div
+            ref={terminalContainerRef}
+            style={{
+              height: 220,
+              background: '#111',
+              borderRadius: 6,
+              overflow: 'hidden',
+              border: '1px solid #1b1b1f'
+            }}
+          />
+          <div style={{ marginTop: 8, fontSize: 12, color: '#3c434a' }}>
+            Supported commands: <code>npm install</code>, <code>npm run build</code>, <code>npm run build:dev</code>, <code>npm run dev</code>, <code>npm run test</code>, <code>npm run watch</code>, <code>npm run grunt</code>. Press <code>Ctrl+C</code> to stop the current command.
+          </div>
+        </CardBody>
+      </Card>
       <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 440px', minWidth: 0 }}>
           <h1 style={{ margin: 0, fontSize: 28, lineHeight: 1.2 }}>{siteName}</h1>
