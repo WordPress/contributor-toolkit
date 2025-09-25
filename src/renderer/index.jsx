@@ -379,6 +379,10 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
     }
   };
   const toggleDevServer = async ()=>{ if(!running){ runScript('dev'); } await toggleServer(); };
+  const markSkipWizard = useCallback(async () => {
+    await window.api.setSkipInitWizard(sitePath, true);
+    setSkipInit(true);
+  }, [sitePath]);
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
 
   const openPatchModal = async ()=>{
@@ -401,6 +405,125 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
     ? { background: '#e7f6e7', color: '#0f5132' }
     : { background: '#fff4ce', color: '#8a6d1c' };
 
+  const checklistVisuals = {
+    complete: {
+      label: 'Completed',
+      color: '#0f5132',
+      background: '#f4fbf4',
+      border: '#94d3ae',
+      indicatorBg: '#0f5132',
+      indicatorColor: '#fff',
+      indicatorBorder: 'none',
+      indicatorContent: '✓'
+    },
+    current: {
+      label: 'In progress',
+      color: '#0b5d95',
+      background: '#f0f6fc',
+      border: '#66afe9',
+      indicatorBg: '#007cba',
+      indicatorColor: '#fff',
+      indicatorBorder: 'none',
+      indicatorContent: '•'
+    },
+    pending: {
+      label: 'Pending',
+      color: '#6c6f72',
+      background: '#fff',
+      border: '#dcdcde',
+      indicatorBg: '#6c6f72',
+      indicatorColor: '#fff',
+      indicatorBorder: 'none',
+      indicatorContent: '•'
+    },
+    locked: {
+      label: 'Locked',
+      color: '#6c6f72',
+      background: '#fafafa',
+      border: '#dcdcde',
+      indicatorBg: 'transparent',
+      indicatorColor: '#6c6f72',
+      indicatorBorder: '2px solid #c3c4c7',
+      indicatorContent: '–'
+    }
+  };
+
+  const baseSteps = [
+    {
+      key: 'install',
+      label: 'Install dependencies',
+      description: 'Install npm packages so commands can run.',
+      done: hasNodeModules,
+      ready: true,
+      action: (
+        <Button
+          isBusy={installing}
+          variant={hasNodeModules ? 'secondary' : 'primary'}
+          onClick={runInstall}
+          disabled={statusLoading || installing || hasNodeModules}
+        >{hasNodeModules ? 'Dependencies installed' : 'Install dependencies'}</Button>
+      )
+    },
+    {
+      key: 'build',
+      label: 'Run first full build',
+      description: 'Compile WordPress Core once to generate the initial dist files.',
+      done: hasBuilt,
+      ready: hasNodeModules,
+      action: (
+        <Button
+          isBusy={building}
+          variant={hasBuilt ? 'secondary' : 'primary'}
+          onClick={()=>runScript('build')}
+          disabled={statusLoading || building || (!hasNodeModules) || hasBuilt}
+        >{hasBuilt ? 'First build complete' : 'Run first full build'}</Button>
+      )
+    },
+    {
+      key: 'dev',
+      label: 'Start dev server & finish wizard',
+      description: 'Launch the development server once to complete the WordPress setup wizard.',
+      done: false,
+      ready: hasBuilt,
+      action: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Button
+            isBusy={starting}
+            variant={running ? 'secondary' : 'primary'}
+            onClick={async () => {
+              await markSkipWizard();
+              await toggleDevServer();
+            }}
+            disabled={statusLoading || starting || (!hasBuilt)}
+          >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
+          {starting || serverUrl ? (
+            <span style={{ fontSize: 12 }}>
+              {starting ? 'Starting...' : (serverUrl ? (
+                <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
+              ) : null)}
+            </span>
+          ) : null}
+        </div>
+      )
+    }
+  ];
+
+  let currentStepCaptured = false;
+  const stepItems = baseSteps.map((step) => {
+    let status;
+    if (step.done) {
+      status = 'complete';
+    } else if (!currentStepCaptured && step.ready) {
+      status = 'current';
+      currentStepCaptured = true;
+    } else if (step.ready) {
+      status = 'pending';
+    } else {
+      status = 'locked';
+    }
+    return { ...step, status };
+  });
+
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
       <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
@@ -421,40 +544,60 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
         </div>
       </Flex>
       {!skipInit ? (
-        <div style={{ padding: 16, border: '1px solid #dcdcde', borderRadius: 8, background: '#fff' }}>
-          <div style={{ marginBottom: 12, color: '#1d2327' }}>First, install the dependencies, then run a full build. After that, start the dev server.</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Button
-              isBusy={installing}
-              variant={hasNodeModules ? 'secondary' : 'primary'}
-              onClick={runInstall}
-              disabled={installing || hasNodeModules}
-            >{hasNodeModules ? 'Dependencies installed' : 'Install dependencies'}</Button>
-            <span style={{ color: '#999' }}>→</span>
-            <Button
-              isBusy={building}
-              variant={hasBuilt ? 'secondary' : 'primary'}
-              onClick={()=>runScript('build')}
-              disabled={building || (!hasNodeModules) || hasBuilt}
-            >{hasBuilt ? 'First build complete' : 'First full build'}</Button>
-            <span style={{ color: '#999' }}>→</span>
-            <Button
-              isBusy={starting}
-              variant={running ? 'secondary' : 'primary'}
-              onClick={async () => {
-                await window.api.setSkipInitWizard(sitePath, true);
-                setSkipInit(true);
-                toggleDevServer();
-              }}
-              disabled={starting || (!hasBuilt)}
-            >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
-            <div style={{ marginLeft: 'auto' }}>
-              <Button variant="link" onClick={async ()=>{ await window.api.setSkipInitWizard(sitePath, true); setSkipInit(true); }} style={{ textDecoration: 'underline' }}>Skip initialization wizard</Button>
-            </div>
+        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Initial setup checklist</div>
+          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>Complete each step to prepare this site for development.</div>
+          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {stepItems.map((step) => {
+              const visuals = checklistVisuals[step.status] || checklistVisuals.locked;
+              return (
+                <div
+                  key={step.key}
+                  style={{
+                    border: `1px solid ${visuals.border}`,
+                    background: visuals.background,
+                    borderRadius: 10,
+                    padding: '14px 16px',
+                    display: 'flex',
+                    gap: 16,
+                    alignItems: 'flex-start'
+                  }}
+                >
+                  <div style={{ width: 28 }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        background: visuals.indicatorBg,
+                        color: visuals.indicatorColor,
+                        border: visuals.indicatorBorder || 'none'
+                      }}
+                    >
+                      {visuals.indicatorContent}
+                    </span>
+                  </div>
+                  <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                      <div style={{ fontWeight: 600, color: '#1d2327' }}>{step.label}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: visuals.color }}>{visuals.label}</div>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#3c434a' }}>{step.description}</div>
+                  </div>
+                  <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center' }}>
+                    {step.action}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div style={{ marginTop: 12, fontSize: 12, color: '#3c434a' }}>
-            <span>node_modules: {hasNodeModules ? '✓' : '✗'}</span>
-            <span style={{ marginLeft: 12 }}>dist present: {hasBuilt ? '✓' : '✗'}</span>
+          <div style={{ marginTop: 12 }}>
+            <Button variant="link" onClick={markSkipWizard} style={{ textDecoration: 'underline' }}>Skip initialization wizard</Button>
           </div>
         </div>
       ) : (

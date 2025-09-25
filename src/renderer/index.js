@@ -47483,6 +47483,10 @@ ${name} exited with code ${code}
       }
       await toggleServer();
     };
+    const markSkipWizard = (0, import_react68.useCallback)(async () => {
+      await window.api.setSkipInitWizard(sitePath, true);
+      setSkipInit(true);
+    }, [sitePath]);
     const confirmAnd = async (m, a) => {
       if (window.confirm(m)) await a();
     };
@@ -47504,6 +47508,125 @@ ${name} exited with code ${code}
       }
     };
     const statusStyles = initialized ? { background: "#e7f6e7", color: "#0f5132" } : { background: "#fff4ce", color: "#8a6d1c" };
+    const checklistVisuals = {
+      complete: {
+        label: "Completed",
+        color: "#0f5132",
+        background: "#f4fbf4",
+        border: "#94d3ae",
+        indicatorBg: "#0f5132",
+        indicatorColor: "#fff",
+        indicatorBorder: "none",
+        indicatorContent: "\u2713"
+      },
+      current: {
+        label: "In progress",
+        color: "#0b5d95",
+        background: "#f0f6fc",
+        border: "#66afe9",
+        indicatorBg: "#007cba",
+        indicatorColor: "#fff",
+        indicatorBorder: "none",
+        indicatorContent: "\u2022"
+      },
+      pending: {
+        label: "Pending",
+        color: "#6c6f72",
+        background: "#fff",
+        border: "#dcdcde",
+        indicatorBg: "#6c6f72",
+        indicatorColor: "#fff",
+        indicatorBorder: "none",
+        indicatorContent: "\u2022"
+      },
+      locked: {
+        label: "Locked",
+        color: "#6c6f72",
+        background: "#fafafa",
+        border: "#dcdcde",
+        indicatorBg: "transparent",
+        indicatorColor: "#6c6f72",
+        indicatorBorder: "2px solid #c3c4c7",
+        indicatorContent: "\u2013"
+      }
+    };
+    const baseSteps = [
+      {
+        key: "install",
+        label: "Install dependencies",
+        description: "Install npm packages so commands can run.",
+        done: hasNodeModules,
+        ready: true,
+        action: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+          button_default,
+          {
+            isBusy: installing,
+            variant: hasNodeModules ? "secondary" : "primary",
+            onClick: runInstall,
+            disabled: statusLoading || installing || hasNodeModules,
+            children: hasNodeModules ? "Dependencies installed" : "Install dependencies"
+          }
+        )
+      },
+      {
+        key: "build",
+        label: "Run first full build",
+        description: "Compile WordPress Core once to generate the initial dist files.",
+        done: hasBuilt,
+        ready: hasNodeModules,
+        action: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+          button_default,
+          {
+            isBusy: building,
+            variant: hasBuilt ? "secondary" : "primary",
+            onClick: () => runScript("build"),
+            disabled: statusLoading || building || !hasNodeModules || hasBuilt,
+            children: hasBuilt ? "First build complete" : "Run first full build"
+          }
+        )
+      },
+      {
+        key: "dev",
+        label: "Start dev server & finish wizard",
+        description: "Launch the development server once to complete the WordPress setup wizard.",
+        done: false,
+        ready: hasBuilt,
+        action: /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+            button_default,
+            {
+              isBusy: starting,
+              variant: running ? "secondary" : "primary",
+              onClick: async () => {
+                await markSkipWizard();
+                await toggleDevServer();
+              },
+              disabled: statusLoading || starting || !hasBuilt,
+              children: running ? "Stop dev server" : "Start dev server and finish the wizard"
+            }
+          ),
+          starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { fontSize: 12 }, children: starting ? "Starting..." : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("a", { href: serverUrl, onClick: (e) => {
+            e.preventDefault();
+            window.api.openExternal(serverUrl);
+          }, children: serverUrl }) : null }) : null
+        ] })
+      }
+    ];
+    let currentStepCaptured = false;
+    const stepItems = baseSteps.map((step) => {
+      let status;
+      if (step.done) {
+        status = "complete";
+      } else if (!currentStepCaptured && step.ready) {
+        status = "current";
+        currentStepCaptured = true;
+      } else if (step.ready) {
+        status = "pending";
+      } else {
+        status = "locked";
+      }
+      return { ...step, status };
+    });
     return /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("section", { style: { display: "flex", flexDirection: "column", gap: 24, paddingBottom: 48 }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default3, { align: "flex-start", justify: "space-between", style: { gap: 16, flexWrap: "wrap" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { flex: "1 1 440px", minWidth: 0 }, children: [
@@ -47523,60 +47646,57 @@ ${name} exited with code ${code}
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { display: "flex", alignItems: "flex-start", gap: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(dropdown_menu_default, { label: "More", text: "", controls: [{ title: "Forget this site", onClick: () => confirmAnd("Remove this site from the list?", () => onForget(sitePath)) }, { title: "Delete this site", onClick: () => confirmAnd("Delete this site from disk? This cannot be undone.", () => onDelete(sitePath)) }] }) })
       ] }),
-      !skipInit ? /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { padding: 16, border: "1px solid #dcdcde", borderRadius: 8, background: "#fff" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { marginBottom: 12, color: "#1d2327" }, children: "First, install the dependencies, then run a full build. After that, start the dev server." }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
-            button_default,
+      !skipInit ? /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { padding: 20, border: "1px solid #dcdcde", borderRadius: 12, background: "#fff" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, fontSize: 16, color: "#1d2327" }, children: "Initial setup checklist" }),
+        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { marginTop: 4, fontSize: 13, color: "#3c434a" }, children: "Complete each step to prepare this site for development." }),
+        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }, children: stepItems.map((step) => {
+          const visuals = checklistVisuals[step.status] || checklistVisuals.locked;
+          return /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(
+            "div",
             {
-              isBusy: installing,
-              variant: hasNodeModules ? "secondary" : "primary",
-              onClick: runInstall,
-              disabled: installing || hasNodeModules,
-              children: hasNodeModules ? "Dependencies installed" : "Install dependencies"
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { color: "#999" }, children: "\u2192" }),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
-            button_default,
-            {
-              isBusy: building,
-              variant: hasBuilt ? "secondary" : "primary",
-              onClick: () => runScript("build"),
-              disabled: building || !hasNodeModules || hasBuilt,
-              children: hasBuilt ? "First build complete" : "First full build"
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { color: "#999" }, children: "\u2192" }),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
-            button_default,
-            {
-              isBusy: starting,
-              variant: running ? "secondary" : "primary",
-              onClick: async () => {
-                await window.api.setSkipInitWizard(sitePath, true);
-                setSkipInit(true);
-                toggleDevServer();
+              style: {
+                border: `1px solid ${visuals.border}`,
+                background: visuals.background,
+                borderRadius: 10,
+                padding: "14px 16px",
+                display: "flex",
+                gap: 16,
+                alignItems: "flex-start"
               },
-              disabled: starting || !hasBuilt,
-              children: running ? "Stop dev server" : "Start dev server and finish the wizard"
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { marginLeft: "auto" }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "link", onClick: async () => {
-            await window.api.setSkipInitWizard(sitePath, true);
-            setSkipInit(true);
-          }, style: { textDecoration: "underline" }, children: "Skip initialization wizard" }) })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { marginTop: 12, fontSize: 12, color: "#3c434a" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("span", { children: [
-            "node_modules: ",
-            hasNodeModules ? "\u2713" : "\u2717"
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("span", { style: { marginLeft: 12 }, children: [
-            "dist present: ",
-            hasBuilt ? "\u2713" : "\u2717"
-          ] })
-        ] })
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { width: 28 }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+                  "span",
+                  {
+                    style: {
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 24,
+                      height: 24,
+                      borderRadius: "50%",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      background: visuals.indicatorBg,
+                      color: visuals.indicatorColor,
+                      border: visuals.indicatorBorder || "none"
+                    },
+                    children: visuals.indicatorContent
+                  }
+                ) }),
+                /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, color: "#1d2327" }, children: step.label }),
+                    /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: visuals.color }, children: visuals.label })
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontSize: 12, color: "#3c434a" }, children: step.description })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { flex: "0 0 auto", display: "flex", alignItems: "center" }, children: step.action })
+              ]
+            },
+            step.key
+          );
+        }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { marginTop: 12 }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "link", onClick: markSkipWizard, style: { textDecoration: "underline" }, children: "Skip initialization wizard" }) })
       ] }) : /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { padding: 16, border: "1px solid #dcdcde", borderRadius: 8, background: "#fff", color: "#3c434a", fontSize: 12 }, children: "Initialization finished. Use the Run command menu for installs/builds." }),
       skipInit ? /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default3, { style: { gap: 8, justifyContent: "flex-start" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "secondary", onClick: () => window.api.openDirectory(sitePath), children: "Open directory" }) }),
