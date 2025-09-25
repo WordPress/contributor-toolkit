@@ -10,7 +10,7 @@ import {
   DropdownMenu,
   Modal
 } from '@wordpress/components';
-import { plus, chevronDown, copy as copyIcon } from '@wordpress/icons';
+import { plus, chevronDown, chevronLeft, chevronRight, copy as copyIcon } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
 
 function useSites() {
@@ -40,6 +40,8 @@ function App() {
   useEffect(() => { if (webLogRef.current) webLogRef.current.scrollTop = webLogRef.current.scrollHeight; }, [webLogs]);
   const [webAvailable, setWebAvailable] = useState(false);
   useEffect(() => { (async () => { try { setWebAvailable(Boolean(await window.api.playgroundWebAvailable())); } catch {} })(); }, []);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeSite, setActiveSite] = useState(null);
 
   useEffect(() => {
     const unsubProg = window.api.subscribeSetupProgress((p) => {
@@ -112,80 +114,167 @@ function App() {
     await refresh();
   }, [refresh]);
 
+  const sortedSites = useMemo(() => {
+    if (!sites || !sites.length) return [];
+    return [...sites].sort((a, b) => (siteMeta?.[b]?.createdAt || 0) - (siteMeta?.[a]?.createdAt || 0));
+  }, [sites, siteMeta]);
+
+  useEffect(() => {
+    if (!sortedSites.length) {
+      setActiveSite(null);
+      return;
+    }
+    setActiveSite((current) => (current && sortedSites.includes(current) ? current : sortedSites[0]));
+  }, [sortedSites]);
+
+  const handleSelectSite = useCallback((sitePath) => {
+    setActiveSite(sitePath);
+  }, []);
+
   return (
-    <div style={{ margin: 16, fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>
-      <Flex align="center" justify="space-between" style={{ marginBottom: 12 }}>
-        <h2 style={{ margin: 0 }}>WordPress Core Sites</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {sites.length > 0 ? (
-            <Button icon={plus} variant="primary" onClick={chooseAndSetup}>Create WordPress Core site</Button>
-          ) : null}
-          {webAvailable ? (<>
+    <div style={{ display: 'flex', height: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>
+      <div style={{ width: sidebarCollapsed ? 56 : 280, background: '#1f1f1f', color: '#f7f7f7', display: 'flex', flexDirection: 'column', transition: 'width 0.2s ease', borderRight: '1px solid #2b2b2b' }}>
+        <div style={{ padding: sidebarCollapsed ? '12px 8px' : '16px', borderBottom: '1px solid #2b2b2b' }}>
+          <Flex align="center" justify="space-between">
+            {!sidebarCollapsed ? (<div style={{ fontWeight: 600 }}>WordPress Core</div>) : null}
             <Button
-              isBusy={webStarting}
-              variant={webUrl ? 'secondary' : 'primary'}
-              onClick={togglePlaygroundWeb}
-            >{webUrl ? 'Stop Playground web server' : 'Start Playground web server'}</Button>
-            {webStarting || webUrl ? (
-            <span style={{ marginLeft: 4, fontSize: 12 }}>
-              {webStarting ? 'Starting…' : (
-                <a href={webUrl || 'http://127.0.0.1:39372/'} onClick={(e) => { e.preventDefault(); window.api.openExternal(webUrl || 'http://127.0.0.1:39372/'); }}>{webUrl || 'http://127.0.0.1:39372/'}</a>
-              )}
-            </span>
-            ) : null}
-          </>) : null}
+              icon={sidebarCollapsed ? chevronRight : chevronLeft}
+              onClick={() => setSidebarCollapsed((v) => !v)}
+              variant="tertiary"
+              aria-label={sidebarCollapsed ? 'Expand site list' : 'Collapse site list'}
+              isSmall
+              style={{ color: '#f7f7f7' }}
+            >
+              {!sidebarCollapsed ? 'Collapse' : null}
+            </Button>
+          </Flex>
         </div>
-      </Flex>
+        <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? '12px 8px' : '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {sortedSites.length > 0 ? sortedSites.map((sitePath) => {
+            const meta = siteMeta?.[sitePath] || {};
+            const siteName = sitePath.split('/').pop() || sitePath;
+            const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : '';
+            const isActive = activeSite === sitePath;
+            const statusLabel = meta.initialized ? 'Initialized' : 'Not initialized';
+            return (
+              <Button
+                key={sitePath}
+                onClick={() => handleSelectSite(sitePath)}
+                variant="tertiary"
+                isSmall
+                isPressed={isActive}
+                style={{
+                  width: '100%',
+                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                  background: isActive ? 'rgba(255,255,255,0.16)' : 'transparent',
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  color: '#f7f7f7',
+                  padding: sidebarCollapsed ? '8px 0' : '10px 12px',
+                  borderRadius: 6,
+                }}
+              >
+                {sidebarCollapsed ? (
+                  <span style={{ fontWeight: 600 }}>{siteName.slice(0, 1).toUpperCase()}</span>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+                    <span style={{ fontWeight: 600 }}>{siteName}</span>
+                  </div>
+                )}
+              </Button>
+            );
+          }) : (!sidebarCollapsed ? (
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>No sites yet.</div>
+          ) : null)}
+        </div>
+        <div style={{ padding: sidebarCollapsed ? '12px 8px' : '16px', borderTop: '1px solid #2b2b2b' }}>
+          <Button
+            icon={plus}
+            variant="primary"
+            onClick={chooseAndSetup}
+            style={{ width: '100%', justifyContent: 'center' }}
+            aria-label="Create WordPress Core site"
+          >
+            {!sidebarCollapsed ? 'Create WordPress Core site' : null}
+          </Button>
+        </div>
+      </div>
+      <div style={{ flex: 1, background: '#fff', color: '#1d2327', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 32px 48px' }}>
+          <div style={{ maxWidth: 1040, margin: '0 auto' }}>
+            {webAvailable ? (
+              <Flex align="center" justify="flex-end" style={{ gap: 8, marginBottom: 24 }}>
+                <Button
+                  isBusy={webStarting}
+                  variant={webUrl ? 'secondary' : 'primary'}
+                  onClick={togglePlaygroundWeb}
+                >{webUrl ? 'Stop Playground web server' : 'Start Playground web server'}</Button>
+                {webStarting || webUrl ? (
+                  <span style={{ fontSize: 12 }}>
+                    {webStarting ? 'Starting…' : (
+                      <a href={webUrl || 'http://127.0.0.1:39372/'} onClick={(e) => { e.preventDefault(); window.api.openExternal(webUrl || 'http://127.0.0.1:39372/'); }}>{webUrl || 'http://127.0.0.1:39372/'}</a>
+                    )}
+                  </span>
+                ) : null}
+              </Flex>
+            ) : null}
 
-      {/* Playground web server status + logs */}
-      {(webStarting || webUrl || webError || webLogs) ? (
-        <Card style={{ marginBottom: 12 }}>
-          <CardBody>
-            <div style={{ display:'flex', alignItems:'center', gap:8, justifyContent:'space-between' }}>
-              <div style={{ fontWeight: 600 }}>Playground web server</div>
-              <div style={{ fontSize:12, color:'#666' }}>
-                {webStarting ? 'Starting…' : (webUrl ? (
-                  <a href={webUrl} onClick={(e)=>{ e.preventDefault(); window.api.openExternal(webUrl); }}>{webUrl}</a>
-                ) : 'Stopped')}
-              </div>
+            {/* Playground web server status + logs */}
+            {(webStarting || webUrl || webError || webLogs) ? (
+              <Card style={{ marginBottom: 24 }}>
+                <CardBody>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, justifyContent:'space-between' }}>
+                    <div style={{ fontWeight: 600 }}>Playground web server</div>
+                    <div style={{ fontSize:12, color:'#666' }}>
+                      {webStarting ? 'Starting…' : (webUrl ? (
+                        <a href={webUrl} onClick={(e)=>{ e.preventDefault(); window.api.openExternal(webUrl); }}>{webUrl}</a>
+                      ) : 'Stopped')}
+                    </div>
+                  </div>
+                  {webError ? (<div style={{ marginTop:6, color:'#C00', fontSize:12 }}>{webError}</div>) : null}
+                  <div ref={webLogRef} style={{ marginTop:8, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:8, borderRadius:6, height:140, overflow:'auto' }}>{webLogs}</div>
+                </CardBody>
+              </Card>
+            ) : null}
+
+            <div id="sites">
+              {pendingSite && (
+                <Card style={{ marginBottom: 24 }}>
+                  <CardBody>
+                    <div style={{ fontWeight: 600 }}>Setting up new site…</div>
+                    {downloadPhase && <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>{downloadPhase}</div>}
+                    <div ref={termRef} style={{ whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 8, borderRadius: 6, height: 140, overflow: 'auto' }}>{terminalMsgs}</div>
+                  </CardBody>
+                </Card>
+              )}
+
+              {sortedSites.length > 0 ? (
+                sortedSites.map((s) => (
+                  <div
+                    key={s}
+                    style={{ display: activeSite === s ? 'block' : 'none' }}
+                    aria-hidden={activeSite === s ? false : true}
+                  >
+                    <SiteRow
+                      sitePath={s}
+                      initialized={Boolean(siteMeta?.[s]?.initialized)}
+                      createdAt={siteMeta?.[s]?.createdAt}
+                      onInitialized={onInitialized}
+                      onForget={onForget}
+                      onDelete={onDelete}
+                    />
+                  </div>
+                ))
+              ) : (
+                <Card>
+                  <CardBody>
+                    <div style={{ marginBottom: 8 }}>No sites yet.</div>
+                    <div>Use the sidebar to create your first site.</div>
+                  </CardBody>
+                </Card>
+              )}
             </div>
-            {webError ? (<div style={{ marginTop:6, color:'#C00', fontSize:12 }}>{webError}</div>) : null}
-            <div ref={webLogRef} style={{ marginTop:8, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:8, borderRadius:6, height:140, overflow:'auto' }}>{webLogs}</div>
-          </CardBody>
-        </Card>
-      ) : null}
-
-      <div id="sites">
-        {pendingSite && (
-          <Card style={{ marginBottom: 12 }}>
-            <CardBody>
-              <div style={{ fontWeight: 600 }}>Setting up new site…</div>
-              {downloadPhase && <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>{downloadPhase}</div>}
-              <div ref={termRef} style={{ whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 8, borderRadius: 6, height: 140, overflow: 'auto' }}>{terminalMsgs}</div>
-            </CardBody>
-          </Card>
-        )}
-
-        {sites.length > 0 ? (
-          sites.sort((a, b) => (siteMeta?.[b]?.createdAt || 0) - (siteMeta?.[a]?.createdAt || 0)).map((s) => (
-            <SiteRow
-              key={s}
-              sitePath={s}
-              initialized={Boolean(siteMeta?.[s]?.initialized)}
-              createdAt={siteMeta?.[s]?.createdAt}
-              onInitialized={onInitialized}
-              onForget={onForget}
-              onDelete={onDelete}
-            />
-          ))
-        ) : (
-          <Card>
-            <CardBody>
-              <div style={{ marginBottom: 8 }}>No sites yet.</div>
-              <Button icon={plus} variant="primary" onClick={chooseAndSetup}>Setup your first site</Button>
-            </CardBody>
-          </Card>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -308,177 +397,184 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
     try { await navigator.clipboard.writeText(patchText); } catch {}
   };
 
+  const statusStyles = initialized
+    ? { background: '#e7f6e7', color: '#0f5132' }
+    : { background: '#fff4ce', color: '#8a6d1c' };
+
   return (
-    <Card style={{ marginBottom: 12 }}>
-      <CardBody>
-        <Flex align="center" justify="space-between">
-          <div style={{ fontWeight: 600 }}>{siteName}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ fontSize: 12, color: '#666' }}>
-              {initialized ? 'Initialized' : 'Uninitialized'}{createdLabel ? ` • Created ${createdLabel}` : ''}
-            </div>
-            <DropdownMenu label="More" text="" controls={[{ title:'Forget this site', onClick:()=>confirmAnd('Remove this site from the list?', ()=>onForget(sitePath)) },{ title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }]} />
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
+      <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 440px', minWidth: 0 }}>
+          <h1 style={{ margin: 0, fontSize: 28, lineHeight: 1.2 }}>{siteName}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: '#3c434a', flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', ...statusStyles }}>
+              {initialized ? 'Initialized' : 'Uninitialized'}
+            </span>
+            {createdLabel ? <span>Created {createdLabel}</span> : null}
           </div>
-        </Flex>
-        <div className="path" style={{ marginTop: 4, fontFamily: 'Menlo, monospace', fontSize: 12, color: '#333', wordBreak: 'break-all' }}><span style={{ color: '#666' }}>Path:</span> {sitePath}</div>
-        {!skipInit ? (
-          <div style={{ marginTop: 8, padding: 8, border: '1px solid #eee', borderRadius: 6, background: '#fafafa' }}>
-            <div style={{ marginBottom: 6, color: '#333' }}>First, install the dependencies, then run a full build. After that, start the dev server.</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <Button
-                isBusy={installing}
-                variant={hasNodeModules ? 'secondary' : 'primary'}
-                onClick={runInstall}
-                disabled={installing || hasNodeModules}
-              >{hasNodeModules ? 'Dependencies installed' : 'Install dependencies'}</Button>
-              <span style={{ color: '#999' }}>→</span>
-              <Button
-                isBusy={building}
-                variant={hasBuilt ? 'secondary' : 'primary'}
-                onClick={()=>runScript('build')}
-                disabled={building || (!hasNodeModules) || hasBuilt}
-              >{hasBuilt ? 'First build complete' : 'First full build'}</Button>
-              <span style={{ color: '#999' }}>→</span>
-              <Button
-                isBusy={starting}
-                variant={running ? 'secondary' : 'primary'}
-                onClick={async () => {
-                  await window.api.setSkipInitWizard(sitePath, true);
-                  setSkipInit(true);
-                  toggleDevServer();
-                }}
-                disabled={starting || (!hasBuilt)}
-              >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
-              <div style={{ marginLeft: 'auto' }}>
-                <Button variant="link" onClick={async ()=>{ await window.api.setSkipInitWizard(sitePath, true); setSkipInit(true); }} style={{ textDecoration: 'underline' }}>Skip initialization wizard</Button>
-              </div>
-            </div>
-            <div style={{ marginTop: 6, fontSize: 12, color: '#555' }}>
-              <span>node_modules: {hasNodeModules ? '✓' : '✗'}</span>
-              <span style={{ marginLeft: 12 }}>dist present: {hasBuilt ? '✓' : '✗'}</span>
-            </div>
+          <div className="path" style={{ marginTop: 12, fontFamily: 'Menlo, monospace', fontSize: 13, color: '#2c3338', wordBreak: 'break-all' }}>
+            <span style={{ color: '#787c82', marginRight: 6 }}>Path:</span> {sitePath}
           </div>
-        ) : (
-          <div style={{ marginTop: 8, padding: 8, border: '1px solid #eee', borderRadius: 6, background: '#fafafa', color: '#555', fontSize: 12 }}>
-            Initialization finished. Use the Run command menu for installs/builds.
-          </div>
-        )}
-        {skipInit ? (
-          <Flex style={{ marginTop: 8, gap: 8, justifyContent: 'flex-start' }}>
-            <FlexItem><Button variant="secondary" onClick={()=>window.api.openDirectory(sitePath)}>Open directory</Button></FlexItem>
-            <FlexItem>
-              <Button isBusy={starting} variant={running ? 'secondary' : 'primary'} onClick={toggleDevServer}>{running ? 'Stop dev server' : 'Start dev server'}</Button>
-              {starting || serverUrl ? (
-                <span style={{ marginLeft: 8 }}>{starting ? 'Starting...' : serverUrl ? (<a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>) : null}</span>
-              ) : null}
-              {running && serverUrl ? (
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    const adminer = (serverUrl || '').replace(/\/$/, '/') + 'adminer.php';
-                    window.api.openExternal(adminer);
-                  }}
-                  style={{ marginLeft: 8 }}
-                >Open Adminer</Button>
-              ) : null}
-            </FlexItem>
-            <FlexItem><Button variant="secondary" onClick={openPatchModal}>Create patch</Button></FlexItem>
-            <FlexItem><DropdownMenu icon={chevronDown} label="Run command" text="Run command" controls={[{title:'npm run build',onClick:()=>runScript('build')},{title:'npm run build:dev',onClick:()=>runScript('build:dev')},{title:'npm run dev',onClick:()=>runScript('dev')},{title:'npm run test',onClick:()=>runScript('test')},{title:'npm run watch',onClick:()=>runScript('watch')},{title:'npm run grunt',onClick:()=>runScript('grunt')},{title:'Kill running command',onClick:killCurrent}]}/></FlexItem>
-          </Flex>
-        ) : null}
-        <div style={{ marginTop: 12 }}>
-          <TabPanel className="log-tabs" activeClass="is-active" onSelect={(n)=>{setSelectedTab(n);setStick(true);}} tabs={[{name:'npm',title:'Npm logs'},{name:'server',title:'Server logs'},{name:'wp',title:'WordPress logs'},{name:'mail',title:'Mail'}]}>
-            {(tab)=>(<div>
-              {tab.name==='npm' && (<div ref={npmRef} onScroll={makeOnScroll('npm')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{npmLogs}</div>)}
-              {tab.name==='server' && (<div ref={serverRef} onScroll={makeOnScroll('server')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{serverLogs}</div>)}
-              {tab.name==='wp' && (<div ref={wpRef} onScroll={makeOnScroll('wp')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{wpLogs}</div>)}
-              {tab.name==='mail' && (
-                <div>
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                    <div style={{ fontSize:12, color:'#666' }}>{smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : 'SMTP will start with the dev server.'}</div>
-                    <div><Button size="small" variant="secondary" onClick={clearEmails}>Clear emails</Button></div>
-                  </div>
-                  <div style={{ border:'1px solid #ddd', borderRadius:6, maxHeight:220, overflow:'auto' }}>
-                    {emails && emails.length ? emails.map((m)=>{
-                      const when = m.sentAt || m.date; const whenStr = when ? new Date(when).toLocaleString() : '';
-                      return (
-                        <div key={m.id}
-                          onClick={()=>openEmail(m)}
-                          style={{ padding:'8px 10px', cursor:'pointer', borderBottom:'1px solid #eee', display:'flex', gap:8 }}
-                        >
-                          <div style={{ flex:'0 0 180px', color:'#555', fontSize:12 }}>{whenStr}</div>
-                          <div style={{ flex:'0 0 220px', color:'#333', fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.from || ''}</div>
-                          <div style={{ flex:'1 1 auto', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.subject || '(no subject)'}</div>
-                        </div>
-                      );
-                    }) : (
-                      <div style={{ padding:12, color:'#666' }}>No emails yet.</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>)}
-          </TabPanel>
         </div>
-        {isPatchOpen && (
-          <Modal
-            title="Patch"
-            onRequestClose={()=>setIsPatchOpen(false)}
-            shouldCloseOnClickOutside
-            isFullScreen
-          >
-            <div style={{ position:'relative', height:'80vh' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <DropdownMenu label="More" text="" controls={[{ title:'Forget this site', onClick:()=>confirmAnd('Remove this site from the list?', ()=>onForget(sitePath)) },{ title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }]} />
+        </div>
+      </Flex>
+      {!skipInit ? (
+        <div style={{ padding: 16, border: '1px solid #dcdcde', borderRadius: 8, background: '#fff' }}>
+          <div style={{ marginBottom: 12, color: '#1d2327' }}>First, install the dependencies, then run a full build. After that, start the dev server.</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Button
+              isBusy={installing}
+              variant={hasNodeModules ? 'secondary' : 'primary'}
+              onClick={runInstall}
+              disabled={installing || hasNodeModules}
+            >{hasNodeModules ? 'Dependencies installed' : 'Install dependencies'}</Button>
+            <span style={{ color: '#999' }}>→</span>
+            <Button
+              isBusy={building}
+              variant={hasBuilt ? 'secondary' : 'primary'}
+              onClick={()=>runScript('build')}
+              disabled={building || (!hasNodeModules) || hasBuilt}
+            >{hasBuilt ? 'First build complete' : 'First full build'}</Button>
+            <span style={{ color: '#999' }}>→</span>
+            <Button
+              isBusy={starting}
+              variant={running ? 'secondary' : 'primary'}
+              onClick={async () => {
+                await window.api.setSkipInitWizard(sitePath, true);
+                setSkipInit(true);
+                toggleDevServer();
+              }}
+              disabled={starting || (!hasBuilt)}
+            >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
+            <div style={{ marginLeft: 'auto' }}>
+              <Button variant="link" onClick={async ()=>{ await window.api.setSkipInitWizard(sitePath, true); setSkipInit(true); }} style={{ textDecoration: 'underline' }}>Skip initialization wizard</Button>
+            </div>
+          </div>
+          <div style={{ marginTop: 12, fontSize: 12, color: '#3c434a' }}>
+            <span>node_modules: {hasNodeModules ? '✓' : '✗'}</span>
+            <span style={{ marginLeft: 12 }}>dist present: {hasBuilt ? '✓' : '✗'}</span>
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: 16, border: '1px solid #dcdcde', borderRadius: 8, background: '#fff', color: '#3c434a', fontSize: 12 }}>
+            Initialization finished. Use the Run command menu for installs/builds.
+        </div>
+      )}
+      {skipInit ? (
+        <Flex style={{ gap: 8, justifyContent: 'flex-start' }}>
+          <FlexItem><Button variant="secondary" onClick={()=>window.api.openDirectory(sitePath)}>Open directory</Button></FlexItem>
+          <FlexItem>
+            <Button isBusy={starting} variant={running ? 'secondary' : 'primary'} onClick={toggleDevServer}>{running ? 'Stop dev server' : 'Start dev server'}</Button>
+            {starting || serverUrl ? (
+              <span style={{ marginLeft: 8 }}>{starting ? 'Starting...' : serverUrl ? (<a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>) : null}</span>
+            ) : null}
+            {running && serverUrl ? (
               <Button
-                icon={copyIcon}
-                label="Copy"
-                onClick={copyPatch}
-                style={{
-                  position:'absolute', top:8, right:8, zIndex:2,
-                  background:'#fff', border:'1px solid #ddd', color:'#111', boxShadow:'none'
+                variant="secondary"
+                onClick={() => {
+                  const adminer = (serverUrl || '').replace(/\/$/, '/') + 'adminer.php';
+                  window.api.openExternal(adminer);
                 }}
-              />
-              <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', overflow:'auto' }}>
-                {patchText && patchText.trim().length ? patchText : 'No changes.'}
-              </pre>
-            </div>
-          </Modal>
-        )}
-        {isEmailOpen && activeEmail && (
-          <Modal
-            title={activeEmail.subject || 'Email'}
-            onRequestClose={()=>{ setIsEmailOpen(false); setActiveEmail(null); }}
-            shouldCloseOnClickOutside
-            isFullScreen
-          >
-            <div style={{ padding: 8 }}>
-              <div style={{ marginBottom: 8, fontSize:12, color:'#444' }}>
-                <div><strong>From:</strong> {activeEmail.from || ''}</div>
-                <div><strong>To:</strong> {activeEmail.to || ''}</div>
-                {activeEmail.cc ? (<div><strong>CC:</strong> {activeEmail.cc}</div>) : null}
-                <div><strong>Date:</strong> {activeEmail.sentAt ? new Date(activeEmail.sentAt).toLocaleString() : (activeEmail.date ? new Date(activeEmail.date).toLocaleString() : '')}</div>
+                style={{ marginLeft: 8 }}
+              >Open Adminer</Button>
+            ) : null}
+          </FlexItem>
+          <FlexItem><Button variant="secondary" onClick={openPatchModal}>Create patch</Button></FlexItem>
+          <FlexItem><DropdownMenu icon={chevronDown} label="Run command" text="Run command" controls={[{title:'npm run build',onClick:()=>runScript('build')},{title:'npm run build:dev',onClick:()=>runScript('build:dev')},{title:'npm run dev',onClick:()=>runScript('dev')},{title:'npm run test',onClick:()=>runScript('test')},{title:'npm run watch',onClick:()=>runScript('watch')},{title:'npm run grunt',onClick:()=>runScript('grunt')},{title:'Kill running command',onClick:killCurrent}]}/></FlexItem>
+        </Flex>
+      ) : null}
+      <div>
+        <TabPanel className="log-tabs" activeClass="is-active" onSelect={(n)=>{setSelectedTab(n);setStick(true);}} tabs={[{name:'npm',title:'Npm logs'},{name:'server',title:'Server logs'},{name:'wp',title:'WordPress logs'},{name:'mail',title:'Mail'}]}>
+          {(tab)=>(<div>
+            {tab.name==='npm' && (<div ref={npmRef} onScroll={makeOnScroll('npm')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{npmLogs}</div>)}
+            {tab.name==='server' && (<div ref={serverRef} onScroll={makeOnScroll('server')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{serverLogs}</div>)}
+            {tab.name==='wp' && (<div ref={wpRef} onScroll={makeOnScroll('wp')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{wpLogs}</div>)}
+            {tab.name==='mail' && (
+              <div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                  <div style={{ fontSize:12, color:'#666' }}>{smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : 'SMTP will start with the dev server.'}</div>
+                  <div><Button size="small" variant="secondary" onClick={clearEmails}>Clear emails</Button></div>
+                </div>
+                <div style={{ border:'1px solid #ddd', borderRadius:6, maxHeight:220, overflow:'auto' }}>
+                  {emails && emails.length ? emails.map((m)=>{
+                    const when = m.sentAt || m.date; const whenStr = when ? new Date(when).toLocaleString() : '';
+                    return (
+                      <div key={m.id}
+                        onClick={()=>openEmail(m)}
+                        style={{ padding:'8px 10px', cursor:'pointer', borderBottom:'1px solid #eee', display:'flex', gap:8 }}
+                      >
+                        <div style={{ flex:'0 0 180px', color:'#555', fontSize:12 }}>{whenStr}</div>
+                        <div style={{ flex:'0 0 220px', color:'#333', fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.from || ''}</div>
+                        <div style={{ flex:'1 1 auto', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.subject || '(no subject)'}</div>
+                      </div>
+                    );
+                  }) : (
+                    <div style={{ padding:12, color:'#666' }}>No emails yet.</div>
+                  )}
+                </div>
               </div>
-              <TabPanel className="email-tabs" activeClass="is-active" onSelect={(n)=>setEmailViewTab(n)} tabs={[{name:'rendered',title:'Rendered'},{name:'raw',title:'Raw'}]}>
-                {(tab)=> tab.name==='rendered' ? (
-                  <div style={{ border:'1px solid #ddd', borderRadius:6, padding:12, minHeight:'60vh', background:'#fff' }}>
-                    {activeEmail.html ? (
-                      <div dangerouslySetInnerHTML={{ __html: String(activeEmail.html) }} />
-                    ) : (
-                      <pre style={{ whiteSpace:'pre-wrap', margin:0 }}>{activeEmail.text || ''}</pre>
-                    )}
-                  </div>
-                ) : (
-                  <pre style={{ whiteSpace:'pre-wrap', margin:0, background:'#111', color:'#eee', padding:12, borderRadius:6, minHeight:'60vh', overflow:'auto' }}>{activeEmail.raw || activeEmail.text || ''}</pre>
-                )}
-              </TabPanel>
+            )}
+          </div>)}
+        </TabPanel>
+      </div>
+      {isPatchOpen && (
+        <Modal
+          title="Patch"
+          onRequestClose={()=>setIsPatchOpen(false)}
+          shouldCloseOnClickOutside
+          isFullScreen
+        >
+          <div style={{ position:'relative', height:'80vh' }}>
+            <Button
+              icon={copyIcon}
+              label="Copy"
+              onClick={copyPatch}
+              style={{
+                position:'absolute', top:8, right:8, zIndex:2,
+                background:'#fff', border:'1px solid #ddd', color:'#111', boxShadow:'none'
+              }}
+            />
+            <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', overflow:'auto' }}>
+              {patchText && patchText.trim().length ? patchText : 'No changes.'}
+            </pre>
+          </div>
+        </Modal>
+      )}
+      {isEmailOpen && activeEmail && (
+        <Modal
+          title={activeEmail.subject || 'Email'}
+          onRequestClose={()=>{ setIsEmailOpen(false); setActiveEmail(null); }}
+          shouldCloseOnClickOutside
+          isFullScreen
+        >
+          <div style={{ padding: 8 }}>
+            <div style={{ marginBottom: 8, fontSize:12, color:'#444' }}>
+              <div><strong>From:</strong> {activeEmail.from || ''}</div>
+              <div><strong>To:</strong> {activeEmail.to || ''}</div>
+              {activeEmail.cc ? (<div><strong>CC:</strong> {activeEmail.cc}</div>) : null}
+              <div><strong>Date:</strong> {activeEmail.sentAt ? new Date(activeEmail.sentAt).toLocaleString() : (activeEmail.date ? new Date(activeEmail.date).toLocaleString() : '')}</div>
             </div>
-          </Modal>
-        )}
-      </CardBody>
-    </Card>
+            <TabPanel className="email-tabs" activeClass="is-active" onSelect={(n)=>setEmailViewTab(n)} tabs={[{name:'rendered',title:'Rendered'},{name:'raw',title:'Raw'}]}>
+              {(tab)=> tab.name==='rendered' ? (
+                <div style={{ border:'1px solid #ddd', borderRadius:6, padding:12, minHeight:'60vh', background:'#fff' }}>
+                  {activeEmail.html ? (
+                    <div dangerouslySetInnerHTML={{ __html: String(activeEmail.html) }} />
+                  ) : (
+                    <pre style={{ whiteSpace:'pre-wrap', margin:0 }}>{activeEmail.text || ''}</pre>
+                  )}
+                </div>
+              ) : (
+                <pre style={{ whiteSpace:'pre-wrap', margin:0, background:'#111', color:'#eee', padding:12, borderRadius:6, minHeight:'60vh', overflow:'auto' }}>{activeEmail.raw || activeEmail.text || ''}</pre>
+              )}
+            </TabPanel>
+          </div>
+        </Modal>
+      )}
+    </section>
   );
 }
 
 const root = createRoot(document.getElementById('root'));
 root.render(<App />);
-
-
