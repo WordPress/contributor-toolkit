@@ -419,7 +419,7 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
     current: {
       label: 'In progress',
       color: '#0b5d95',
-      background: '#f0f6fc',
+      background: '#e8f3ff',
       border: '#66afe9',
       indicatorBg: '#007cba',
       indicatorColor: '#fff',
@@ -429,7 +429,7 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
     pending: {
       label: 'Pending',
       color: '#6c6f72',
-      background: '#fff',
+      background: '#f8f9f9',
       border: '#dcdcde',
       indicatorBg: '#6c6f72',
       indicatorColor: '#fff',
@@ -439,7 +439,7 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
     locked: {
       label: 'Locked',
       color: '#6c6f72',
-      background: '#fafafa',
+      background: '#f5f5f7',
       border: '#dcdcde',
       indicatorBg: 'transparent',
       indicatorColor: '#6c6f72',
@@ -558,12 +558,15 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
                     background: visuals.background,
                     borderRadius: 10,
                     padding: '14px 16px',
-                    display: 'flex',
-                    gap: 16,
-                    alignItems: 'flex-start'
+                    display: 'grid',
+                    gridTemplateColumns: 'auto 1fr auto',
+                    gridTemplateRows: 'auto auto',
+                    columnGap: 16,
+                    rowGap: 8,
+                    alignItems: 'center'
                   }}
                 >
-                  <div style={{ width: 28 }}>
+                  <div style={{ gridRow: '1 / span 2', alignSelf: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28 }}>
                     <span
                       style={{
                         display: 'inline-flex',
@@ -574,6 +577,7 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
                         borderRadius: '50%',
                         fontSize: 12,
                         fontWeight: 700,
+                        lineHeight: 1,
                         background: visuals.indicatorBg,
                         color: visuals.indicatorColor,
                         border: visuals.indicatorBorder || 'none'
@@ -582,14 +586,12 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
                       {visuals.indicatorContent}
                     </span>
                   </div>
-                  <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                      <div style={{ fontWeight: 600, color: '#1d2327' }}>{step.label}</div>
-                      <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: visuals.color }}>{visuals.label}</div>
-                    </div>
-                    <div style={{ fontSize: 12, color: '#3c434a' }}>{step.description}</div>
+                  <div style={{ gridColumn: '2 / 3', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, minWidth: 0, flexWrap: 'wrap' }}>
+                    <div style={{ fontWeight: 600, color: '#1d2327', lineHeight: 1.4 }}>{step.label}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: visuals.color, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{visuals.label}</div>
                   </div>
-                  <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center' }}>
+                  <div style={{ gridColumn: '2 / 3', fontSize: 12, color: '#3c434a', lineHeight: 1.5 }}>{step.description}</div>
+                  <div style={{ gridRow: '1 / span 2', gridColumn: '3 / 4', alignSelf: 'center', display: 'flex', alignItems: 'center' }}>
                     {step.action}
                   </div>
                 </div>
