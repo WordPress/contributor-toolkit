@@ -630,39 +630,43 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
           <FlexItem><DropdownMenu icon={chevronDown} label="Run command" text="Run command" controls={[{title:'npm run build',onClick:()=>runScript('build')},{title:'npm run build:dev',onClick:()=>runScript('build:dev')},{title:'npm run dev',onClick:()=>runScript('dev')},{title:'npm run test',onClick:()=>runScript('test')},{title:'npm run watch',onClick:()=>runScript('watch')},{title:'npm run grunt',onClick:()=>runScript('grunt')},{title:'Kill running command',onClick:killCurrent}]}/></FlexItem>
         </Flex>
       ) : null}
-      <div>
-        <TabPanel className="log-tabs" activeClass="is-active" onSelect={(n)=>{setSelectedTab(n);setStick(true);}} tabs={[{name:'npm',title:'Npm logs'},{name:'server',title:'Server logs'},{name:'wp',title:'WordPress logs'},{name:'mail',title:'Mail'}]}>
-          {(tab)=>(<div>
-            {tab.name==='npm' && (<div ref={npmRef} onScroll={makeOnScroll('npm')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{npmLogs}</div>)}
-            {tab.name==='server' && (<div ref={serverRef} onScroll={makeOnScroll('server')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{serverLogs}</div>)}
-            {tab.name==='wp' && (<div ref={wpRef} onScroll={makeOnScroll('wp')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{wpLogs}</div>)}
-            {tab.name==='mail' && (
-              <div>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                  <div style={{ fontSize:12, color:'#666' }}>{smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : 'SMTP will start with the dev server.'}</div>
-                  <div><Button size="small" variant="secondary" onClick={clearEmails}>Clear emails</Button></div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Npm logs</div>
+          <div ref={npmRef} onScroll={makeOnScroll('npm')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{npmLogs}</div>
+        </div>
+        <div>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Server logs</div>
+          <div ref={serverRef} onScroll={makeOnScroll('server')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{serverLogs}</div>
+        </div>
+        <div>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>WordPress logs</div>
+          <div ref={wpRef} onScroll={makeOnScroll('wp')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{wpLogs}</div>
+        </div>
+        <div>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Mail</div>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+            <div style={{ fontSize:12, color:'#666' }}>{smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : 'SMTP will start with the dev server.'}</div>
+            <div><Button size="small" variant="secondary" onClick={clearEmails}>Clear emails</Button></div>
+          </div>
+          <div style={{ border:'1px solid #ddd', borderRadius:6, maxHeight:220, overflow:'auto' }}>
+            {emails && emails.length ? emails.map((m)=>{
+              const when = m.sentAt || m.date; const whenStr = when ? new Date(when).toLocaleString() : '';
+              return (
+                <div key={m.id}
+                  onClick={()=>openEmail(m)}
+                  style={{ padding:'8px 10px', cursor:'pointer', borderBottom:'1px solid #eee', display:'flex', gap:8 }}
+                >
+                  <div style={{ flex:'0 0 180px', color:'#555', fontSize:12 }}>{whenStr}</div>
+                  <div style={{ flex:'0 0 220px', color:'#333', fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.from || ''}</div>
+                  <div style={{ flex:'1 1 auto', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.subject || '(no subject)'}</div>
                 </div>
-                <div style={{ border:'1px solid #ddd', borderRadius:6, maxHeight:220, overflow:'auto' }}>
-                  {emails && emails.length ? emails.map((m)=>{
-                    const when = m.sentAt || m.date; const whenStr = when ? new Date(when).toLocaleString() : '';
-                    return (
-                      <div key={m.id}
-                        onClick={()=>openEmail(m)}
-                        style={{ padding:'8px 10px', cursor:'pointer', borderBottom:'1px solid #eee', display:'flex', gap:8 }}
-                      >
-                        <div style={{ flex:'0 0 180px', color:'#555', fontSize:12 }}>{whenStr}</div>
-                        <div style={{ flex:'0 0 220px', color:'#333', fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.from || ''}</div>
-                        <div style={{ flex:'1 1 auto', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.subject || '(no subject)'}</div>
-                      </div>
-                    );
-                  }) : (
-                    <div style={{ padding:12, color:'#666' }}>No emails yet.</div>
-                  )}
-                </div>
-              </div>
+              );
+            }) : (
+              <div style={{ padding:12, color:'#666' }}>No emails yet.</div>
             )}
-          </div>)}
-        </TabPanel>
+          </div>
+        </div>
       </div>
       {isPatchOpen && (
         <Modal

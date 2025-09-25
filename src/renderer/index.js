@@ -47724,14 +47724,21 @@ ${name} exited with code ${code}
         /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "secondary", onClick: openPatchModal, children: "Create patch" }) }),
         /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(dropdown_menu_default, { icon: chevron_down_default, label: "Run command", text: "Run command", controls: [{ title: "npm run build", onClick: () => runScript("build") }, { title: "npm run build:dev", onClick: () => runScript("build:dev") }, { title: "npm run dev", onClick: () => runScript("dev") }, { title: "npm run test", onClick: () => runScript("test") }, { title: "npm run watch", onClick: () => runScript("watch") }, { title: "npm run grunt", onClick: () => runScript("grunt") }, { title: "Kill running command", onClick: killCurrent }] }) })
       ] }) : null,
-      /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(tab_panel_default, { className: "log-tabs", activeClass: "is-active", onSelect: (n) => {
-        setSelectedTab(n);
-        setStick(true);
-      }, tabs: [{ name: "npm", title: "Npm logs" }, { name: "server", title: "Server logs" }, { name: "wp", title: "WordPress logs" }, { name: "mail", title: "Mail" }], children: (tab) => /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
-        tab.name === "npm" && /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { ref: npmRef, onScroll: makeOnScroll("npm"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 180, overflow: "auto" }, children: npmLogs }),
-        tab.name === "server" && /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { ref: serverRef, onScroll: makeOnScroll("server"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 180, overflow: "auto" }, children: serverLogs }),
-        tab.name === "wp" && /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { ref: wpRef, onScroll: makeOnScroll("wp"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 180, overflow: "auto" }, children: wpLogs }),
-        tab.name === "mail" && /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 16 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Npm logs" }),
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { ref: npmRef, onScroll: makeOnScroll("npm"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 180, overflow: "auto" }, children: npmLogs })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Server logs" }),
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { ref: serverRef, onScroll: makeOnScroll("server"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 180, overflow: "auto" }, children: serverLogs })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "WordPress logs" }),
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { ref: wpRef, onScroll: makeOnScroll("wp"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 180, overflow: "auto" }, children: wpLogs })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Mail" }),
           /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : "SMTP will start with the dev server." }),
             /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { size: "small", variant: "secondary", onClick: clearEmails, children: "Clear emails" }) })
@@ -47754,7 +47761,7 @@ ${name} exited with code ${code}
             );
           }) : /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { padding: 12, color: "#666" }, children: "No emails yet." }) })
         ] })
-      ] }) }) }),
+      ] }),
       isPatchOpen && /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
         modal_default,
         {
