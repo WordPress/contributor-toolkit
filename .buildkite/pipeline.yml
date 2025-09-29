@@ -2,7 +2,7 @@
 
 ---
 steps:
-  - label: "build windows"
+  - label: ":windows: Windows Build"
     agents: { queue: windows }
     plugins:
      - automattic/a8c-ci-toolkit#5.5.0: ~
@@ -10,7 +10,7 @@ steps:
          version: 'v20'
     command: |
       echo "~~~ Install dependencies"
-      npm ci
+      bash .buildkite/commands/install_node_dependencies.sh
 
       echo "~~~ Build renderer"
       npm run build:once
