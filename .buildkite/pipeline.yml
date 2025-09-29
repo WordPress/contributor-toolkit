@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/buildkite/pipeline-schema/main/schema.json
+
+---
+steps:
+  - label: "build windows"
+    agents: { queue: windows }
+    plugins:
+     - automattic/a8c-ci-toolkit#5.5.0: ~
+     - automattic/nvm#0.6.0:
+         version: 'v20'
+    command: |
+      echo "~~~ Install dependencies"
+      npm ci
+
+      echo "~~~ Build renderer"
+      npm run build:once
+
+      echo "~~~ Build Windows artifact"
+      npm run dist:win
+    artifact_paths:
+      - dist\*.exe
+      - dist\*.msi
