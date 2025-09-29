@@ -1,5 +1,6 @@
 {
   "name": "electron-setup-wordpress-core",
+  "author": "Adam Zieliński",
   "version": "0.1.0",
   "private": true,
   "description": "Electron app to setup WordPress develop structure and run npm install",
