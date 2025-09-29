@@ -9,6 +9,9 @@ steps:
      - automattic/nvm#0.6.0:
          version: 'v20'
     command: |
+      echo "~~~ Setup code signing"
+      .buildkite/commands/setup_code_signing.ps1
+
       echo "~~~ Install dependencies"
       bash .buildkite/commands/install_node_dependencies.sh
 
