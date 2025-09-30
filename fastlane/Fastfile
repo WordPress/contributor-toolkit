@@ -2,12 +2,23 @@
 
 UI.user_error!('Please run fastlane via `bundle exec`') unless FastlaneCore::Helper.bundler?
 
+############
+# Constants 
+############
 APPLE_BUNDLE_IDENTIFIER = 'org.wordpress.contributor.toolkit'
 APP_BASENAME = 'WordPress Contributor Toolkit'
 APPLE_TEAM_ID = 'PZYM8XX95Q'
 
 PROJECT_ROOT_FOLDER = File.dirname(File.expand_path(__dir__))
 BUILDS_FOLDER = File.join(PROJECT_ROOT_FOLDER, 'dist')
+
+############
+# Lanes
+############
+
+before_all do |_lane|
+  setup_ci # Fixes Keychain access on CI
+end
 
 desc 'Download the development signing certificates to this machine'
 lane :setup_code_signing do |readonly: true|
@@ -41,6 +52,10 @@ lane :notarize_binary do
     )
   end
 end
+
+############
+# Helpers
+############
 
 def check_env_vars!
   required_vars = %w[APP_STORE_CONNECT_API_KEY_KEY_ID APP_STORE_CONNECT_API_KEY_ISSUER_ID APP_STORE_CONNECT_API_KEY_KEY]
