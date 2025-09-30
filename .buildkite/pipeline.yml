@@ -21,7 +21,7 @@ steps:
       - dist\*.exe
       - dist\*.msi
 
-  - label: ":apple: macOS Build"
+  - label: ":mac: macOS Build"
     agents: { queue: mac }
     env:
       IMAGE_ID: $IMAGE_ID
