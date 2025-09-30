@@ -36,5 +36,5 @@ steps:
       echo "~~~ Build macOS artifact"
       npm run dist
     artifact_paths:
-      - dist\*.dmg
-      - dist\*.zip
+      - dist/*.dmg
+      - dist/*.zip
