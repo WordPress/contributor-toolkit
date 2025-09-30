@@ -1,9 +1,17 @@
-node_modules
-.DS_STORE
-dist
+# Misc
+.DS_Store
 smtpd
 
+# Node
+node_modules
+dist
+
+# Local environment variable definitions (potentially containing secrets)
 .env
 
+# Fastlane
 fastlane/README.md
 fastlane/report.xml
+
+# Bundler
+vendor/bundle
