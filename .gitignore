@@ -3,3 +3,7 @@ node_modules
 dist
 smtpd
 
+.env
+
+fastlane/README.md
+fastlane/report.xml

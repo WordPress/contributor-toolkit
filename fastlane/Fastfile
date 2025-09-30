@@ -1,0 +1,50 @@
+# frozen_string_literal: true
+
+UI.user_error!('Please run fastlane via `bundle exec`') unless FastlaneCore::Helper.bundler?
+
+APPLE_BUNDLE_IDENTIFIER = 'org.wordpress.contributor.toolkit'
+APP_BASENAME = 'WordPress Contributor Toolkit'
+APPLE_TEAM_ID = 'PZYM8XX95Q'
+
+PROJECT_ROOT_FOLDER = File.dirname(File.expand_path(__dir__))
+BUILDS_FOLDER = File.join(PROJECT_ROOT_FOLDER, 'dist')
+
+desc 'Download the development signing certificates to this machine'
+lane :setup_code_signing do |readonly: true|
+  check_env_vars!
+  app_store_connect_api_key
+
+  sync_code_signing(
+    platform: 'macos',
+    app_identifier: APPLE_BUNDLE_IDENTIFIER,
+    team_id: APPLE_TEAM_ID,
+    type: 'developer_id',
+    storage_mode: 's3',
+    s3_bucket: 'a8c-fastlane-match',
+    readonly: readonly
+  )
+end
+
+desc 'Notarize the compiled binary'
+lane :notarize_binary do
+  check_env_vars!
+  app_store_connect_api_key
+
+  Dir[File.join(BUILDS_FOLDER, '**', "#{APP_BASENAME}.app")].each do |path|
+    notarize(package: path)
+  end
+
+  Dir[File.join(BUILDS_FOLDER, '**', "#{APP_BASENAME}-*.dmg")].each do |path|
+    notarize(
+      bundle_id: APPLE_BUNDLE_IDENTIFIER,
+      package: path
+    )
+  end
+end
+
+def check_env_vars!
+  required_vars = %w[APP_STORE_CONNECT_API_KEY_KEY_ID APP_STORE_CONNECT_API_KEY_ISSUER_ID APP_STORE_CONNECT_API_KEY_KEY]
+  required_vars.each do |var|
+    UI.user_error!("The environment variable `#{var}` is required but not set") unless ENV.key?(var)
+  end
+end
