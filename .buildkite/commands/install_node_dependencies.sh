@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-# Borrowed from https://github.com/Automattic/studio/blob/trunk/.buildkite/commands/install-node-dependencies.sh
+# Borrowed from WPStudio — https://github.com/Automattic/studio/blob/trunk/.buildkite/commands/install-node-dependencies.sh
 # Intended to be migrated to ci-toolkit plugin at some point (see https://github.com/Automattic/a8c-ci-toolkit-buildkite-plugin/pull/96)
 
 PLATFORM=$(uname -s)

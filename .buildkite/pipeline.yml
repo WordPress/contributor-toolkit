@@ -4,13 +4,10 @@
 steps:
   - label: ":windows: Windows Build"
     agents: { queue: windows }
-    plugins:
-     - automattic/a8c-ci-toolkit#5.5.0: ~
-     - automattic/nvm#0.6.0:
-         version: 'v20'
+    plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
     command: |
       echo "~~~ Setup code signing"
-      .buildkite/commands/setup_code_signing.ps1
+      .buildkite/commands/setup_windows_code_signing.ps1
 
       echo "~~~ Install dependencies"
       bash .buildkite/commands/install_node_dependencies.sh
