@@ -8,7 +8,7 @@ dist
 
 # Files with potential secrets
 .env
-.apple_api_key
+.codesigning/
 
 # Fastlane
 fastlane/README.md

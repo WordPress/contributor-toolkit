@@ -28,7 +28,7 @@
       ]
     },
     "mac": {
-      "provisioningProfile": "fastlane/org.wordpress.contributor.toolkit.provisionprofile",
+      "provisioningProfile": ".codesigning/org.wordpress.contributor.toolkit.provisionprofile",
       "notarize": true
     }
   },

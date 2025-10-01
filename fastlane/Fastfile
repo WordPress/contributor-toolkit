@@ -37,7 +37,9 @@ lane :setup_code_signing do |readonly: true|
 
   # Copy the installed profile to the path set in `package.json`'s `build.mac.provisioningProfile` key, so that `electron-builder` can find it
   installed_profile_path = ENV["sigh_#{APPLE_BUNDLE_IDENTIFIER}_developer_id_macos_profile-path"]
-  FileUtils.cp(installed_profile_path, File.join(PROJECT_ROOT_FOLDER, 'fastlane', "#{APPLE_BUNDLE_IDENTIFIER}.provisionprofile"))
+  destination_path = File.join(PROJECT_ROOT_FOLDER, '.codesigning', "#{APPLE_BUNDLE_IDENTIFIER}.provisionprofile")
+  FileUtils.mkdir_p(File.dirname(destination_path))
+  FileUtils.cp(installed_profile_path, destination_path)
 end
 
 ############
