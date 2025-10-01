@@ -1,7 +1,9 @@
 # Stop script execution when a non-terminating error occurs
 $ErrorActionPreference = "Stop"
 
-& "prepare_windows_host_for_app_distribution.ps1" # via CI toolkit plugin. Amongst other things, it decrypts the certificate.pfx file.
+# This is from the `a8c-ci-toolkit`. Installs the Windows SDK + the native compilation tools
+# (needed for when `npm` needs to re-compile some native node modules), as well as the `certificate.pfx` file.
+& "prepare_windows_host_for_app_distribution.ps1" -InstallNativeCompilationTools
 
 Write-Host "--- :windows: Configure Windows code signing"
 
