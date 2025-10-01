@@ -41,3 +41,20 @@ steps:
     artifact_paths:
       - dist/*.dmg
       - dist/*.zip
+
+  - label: ":linux: Linux Build"
+    agents: { queue: default }
+    plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
+    command: |
+      echo "~~~ Install dependencies"
+      .buildkite/commands/install_node_dependencies.sh
+
+      echo "~~~ Build renderer"
+      npm run build:once
+
+      echo "~~~ Build Linux artifact"
+      npm run dist
+    artifact_paths:
+      - dist/*.AppImage
+      - dist/*.deb
+      - dist/*.snap
