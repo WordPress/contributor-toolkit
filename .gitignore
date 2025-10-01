@@ -6,8 +6,9 @@ smtpd
 node_modules
 dist
 
-# Local environment variable definitions (potentially containing secrets)
+# Files with potential secrets
 .env
+.apple_api_key
 
 # Fastlane
 fastlane/README.md
