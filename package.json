@@ -28,7 +28,7 @@
       ]
     },
     "mac": {
-      "provisioningProfile": "/Users/builder/Library/MobileDevice/Provisioning Profiles/dfe4fbdc-9647-45ba-8c34-29322a1fdbb0.provisionprofile",
+      "provisioningProfile": "fastlane/org.wordpress.contributor.toolkit.provisionprofile",
       "notarize": true
     }
   },

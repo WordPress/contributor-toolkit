@@ -34,6 +34,10 @@ lane :setup_code_signing do |readonly: true|
     s3_bucket: 'a8c-fastlane-match',
     readonly: readonly
   )
+
+  # Copy the installed profile to the path set in `package.json`'s `build.mac.provisioningProfile` key, so that `electron-builder` can find it
+  installed_profile_path = ENV["sigh_#{APPLE_BUNDLE_IDENTIFIER}_developer_id_macos_profile-path"]
+  FileUtils.cp(installed_profile_path, File.join(PROJECT_ROOT_FOLDER, 'fastlane', "#{APPLE_BUNDLE_IDENTIFIER}.provisionprofile"))
 end
 
 desc 'Notarize the compiled binary'
