@@ -40,23 +40,6 @@ lane :setup_code_signing do |readonly: true|
   FileUtils.cp(installed_profile_path, File.join(PROJECT_ROOT_FOLDER, 'fastlane', "#{APPLE_BUNDLE_IDENTIFIER}.provisionprofile"))
 end
 
-desc 'Notarize the compiled binary'
-lane :notarize_binary do
-  check_env_vars!
-  app_store_connect_api_key
-
-  Dir[File.join(BUILDS_FOLDER, '**', "#{APP_BASENAME}.app")].each do |path|
-    notarize(package: path)
-  end
-
-  Dir[File.join(BUILDS_FOLDER, '**', "#{APP_BASENAME}-*.dmg")].each do |path|
-    notarize(
-      bundle_id: APPLE_BUNDLE_IDENTIFIER,
-      package: path
-    )
-  end
-end
-
 ############
 # Helpers
 ############
