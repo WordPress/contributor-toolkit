@@ -2,6 +2,9 @@
 
 ---
 steps:
+  ########################################################
+  # Windows build
+  ########################################################
   - label: ":windows: Windows Build"
     agents: { queue: windows }
     plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
@@ -20,7 +23,12 @@ steps:
     artifact_paths:
       - dist\*.exe
       - dist\*.msi
+    notify:
+      - github_commit_status: { context: "Windows Build" }
 
+  ########################################################
+  # macOS build
+  ########################################################
   - label: ":mac: macOS Build"
     agents: { queue: mac }
     env:
@@ -41,7 +49,12 @@ steps:
     artifact_paths:
       - dist/*.dmg
       - dist/*.zip
+    notify:
+      - github_commit_status: { context: "macOS Build" }
 
+  ########################################################
+  # Linux build
+  ########################################################
   - label: ":linux: Linux Build"
     agents: { queue: default }
     plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
@@ -58,3 +71,5 @@ steps:
       - dist/*.AppImage
       - dist/*.deb
       - dist/*.snap
+    notify:
+      - github_commit_status: { context: "Linux Build" }
