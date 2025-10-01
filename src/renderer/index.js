@@ -53275,8 +53275,7 @@ If there's a particular need for this, please submit a feature request at https:
     const [running, setRunning] = (0, import_react68.useState)(false);
     const [installing, setInstalling] = (0, import_react68.useState)(false);
     const [npmLogs, setNpmLogs] = (0, import_react68.useState)("");
-    const [serverLogs, setServerLogs] = (0, import_react68.useState)("");
-    const [wpLogs, setWpLogs] = (0, import_react68.useState)("");
+    const [runtimeLogs, setRuntimeLogs] = (0, import_react68.useState)("");
     const [isPatchOpen, setIsPatchOpen] = (0, import_react68.useState)(false);
     const [patchText, setPatchText] = (0, import_react68.useState)("");
     const [emails, setEmails] = (0, import_react68.useState)([]);
@@ -53292,10 +53291,9 @@ If there's a particular need for this, please submit a feature request at https:
     const [skipInit, setSkipInit] = (0, import_react68.useState)(false);
     const [statusLoading, setStatusLoading] = (0, import_react68.useState)(true);
     const npmRef = (0, import_react68.useRef)(null);
-    const serverRef = (0, import_react68.useRef)(null);
-    const wpRef = (0, import_react68.useRef)(null);
+    const runtimeRef = (0, import_react68.useRef)(null);
     const threshold = 8;
-    const [logStick, setLogStick] = (0, import_react68.useState)({ npm: true, server: true, wp: true });
+    const [logStick, setLogStick] = (0, import_react68.useState)({ npm: true, runtime: true });
     const updateStick = (0, import_react68.useCallback)((key, value) => {
       setLogStick((prev2) => prev2[key] === value ? prev2 : { ...prev2, [key]: value });
     }, []);
@@ -53306,11 +53304,8 @@ If there's a particular need for this, please submit a feature request at https:
       if (logStick.npm && npmRef.current) npmRef.current.scrollTop = npmRef.current.scrollHeight;
     }, [npmLogs, logStick.npm]);
     (0, import_react68.useEffect)(() => {
-      if (logStick.server && serverRef.current) serverRef.current.scrollTop = serverRef.current.scrollHeight;
-    }, [serverLogs, logStick.server]);
-    (0, import_react68.useEffect)(() => {
-      if (logStick.wp && wpRef.current) wpRef.current.scrollTop = wpRef.current.scrollHeight;
-    }, [wpLogs, logStick.wp]);
+      if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight;
+    }, [runtimeLogs, logStick.runtime]);
     const makeOnScroll = (0, import_react68.useCallback)((key) => (e) => {
       const el = e.currentTarget;
       const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
@@ -53319,8 +53314,7 @@ If there's a particular need for this, please submit a feature request at https:
     const siteName = sitePath.split("/").pop();
     const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : "";
     const appendNpm = (0, import_react68.useCallback)((s) => setNpmLogs((v) => v + s), []);
-    const appendServer = (0, import_react68.useCallback)((s) => setServerLogs((v) => v + s), []);
-    const appendWp = (0, import_react68.useCallback)((s) => setWpLogs((v) => v + s), []);
+    const appendRuntime = (0, import_react68.useCallback)((s) => setRuntimeLogs((v) => v + String(s ?? "")), []);
     const sortEmails = (0, import_react68.useCallback)((list) => [...list].sort((a, b) => new Date(b.sentAt || b.date || 0) - new Date(a.sentAt || a.date || 0)), []);
     const openEmail = (0, import_react68.useCallback)((m) => {
       setActiveEmail(m);
@@ -53612,18 +53606,18 @@ Try "help" for the list of supported commands.
         terminalStickRef.current = true;
       };
     }, [normalizeForTerminal, printHelp, showPrompt]);
-    const toggleServer = async () => {
+    const toggleDevServer = async () => {
       if (!running) {
+        runScript("dev");
         if (!skipInit && !hasBuilt) {
           alert("Please complete the first full build before starting the dev server. You can also skip the wizard.");
           return;
         }
         setStarting(true);
-        ensureStick("server");
-        ensureStick("wp");
+        ensureStick("runtime");
         if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port) => setSmtpPort(port || 0));
         if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg) => setEmails((prev2) => sortEmails([msg, ...prev2])));
-        await window.api.startServer(sitePath, (p) => appendServer(p.data), (url) => {
+        await window.api.startServer(sitePath, (p) => appendRuntime(p.data || ""), (url) => {
           const u = url.replace(/\/$/, "/");
           setServerUrl(u);
           window.api.openExternal(u);
@@ -53633,7 +53627,7 @@ Try "help" for the list of supported commands.
           setRunning(false);
           setServerUrl("");
         });
-        window.api.startWpDebug(sitePath, (d) => appendWp(d));
+        window.api.startWpDebug(sitePath, (d) => appendRuntime(d || ""));
         try {
           const { port, emails: emails2 } = await window.api.getEmails(sitePath);
           if (port) setSmtpPort(port);
@@ -53660,12 +53654,6 @@ Try "help" for the list of supported commands.
         }
         setSmtpPort(0);
       }
-    };
-    const toggleDevServer = async () => {
-      if (!running) {
-        runScript("dev");
-      }
-      await toggleServer();
     };
     const markSkipWizard = (0, import_react68.useCallback)(async () => {
       await window.api.setSkipInitWizard(sitePath, true);
@@ -53933,12 +53921,8 @@ Try "help" for the list of supported commands.
           ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Server logs" }),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { ref: serverRef, onScroll: makeOnScroll("server"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 180, overflow: "auto" }, children: serverLogs })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "WordPress logs" }),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { ref: wpRef, onScroll: makeOnScroll("wp"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 180, overflow: "auto" }, children: wpLogs })
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Server & WordPress logs" }),
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { ref: runtimeRef, onScroll: makeOnScroll("runtime"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 220, overflow: "auto" }, children: runtimeLogs })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
           /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Mail" }),

@@ -292,8 +292,7 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
   const [running, setRunning] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [npmLogs, setNpmLogs] = useState('');
-  const [serverLogs, setServerLogs] = useState('');
-  const [wpLogs, setWpLogs] = useState('');
+  const [runtimeLogs, setRuntimeLogs] = useState('');
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [patchText, setPatchText] = useState('');
   const [emails, setEmails] = useState([]);
@@ -311,10 +310,9 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
 
   // sticky refs per log
   const npmRef = useRef(null);
-  const serverRef = useRef(null);
-  const wpRef = useRef(null);
+  const runtimeRef = useRef(null);
   const threshold = 8;
-  const [logStick, setLogStick] = useState({ npm: true, server: true, wp: true });
+  const [logStick, setLogStick] = useState({ npm: true, runtime: true });
   const updateStick = useCallback((key, value) => {
     setLogStick((prev) => (prev[key] === value ? prev : { ...prev, [key]: value }));
   }, []);
@@ -322,8 +320,7 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
     setLogStick((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
   }, []);
   useEffect(() => { if (logStick.npm && npmRef.current) npmRef.current.scrollTop = npmRef.current.scrollHeight; }, [npmLogs, logStick.npm]);
-  useEffect(() => { if (logStick.server && serverRef.current) serverRef.current.scrollTop = serverRef.current.scrollHeight; }, [serverLogs, logStick.server]);
-  useEffect(() => { if (logStick.wp && wpRef.current) wpRef.current.scrollTop = wpRef.current.scrollHeight; }, [wpLogs, logStick.wp]);
+  useEffect(() => { if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight; }, [runtimeLogs, logStick.runtime]);
   const makeOnScroll = useCallback((key) => (e) => {
     const el = e.currentTarget;
     const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
@@ -334,8 +331,7 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
   const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : '';
 
   const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
-  const appendServer = useCallback((s)=>setServerLogs((v)=>v+s),[]);
-  const appendWp = useCallback((s)=>setWpLogs((v)=>v+s),[]);
+  const appendRuntime = useCallback((s)=>setRuntimeLogs((v)=>v + String(s ?? '')),[]);
   const sortEmails = useCallback((list)=>[...list].sort((a,b)=>new Date(b.sentAt||b.date||0)-new Date(a.sentAt||a.date||0)),[]);
   const openEmail = useCallback((m)=>{ setActiveEmail(m); setEmailViewTab('rendered'); setIsEmailOpen(true); },[]);
   const clearEmails = useCallback(async ()=>{ await window.api.clearEmails(sitePath); setEmails([]); }, [sitePath]);
@@ -635,17 +631,17 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
       terminalStickRef.current = true;
     };
   }, [normalizeForTerminal, printHelp, showPrompt]);
-  const toggleServer = async ()=>{
-    if(!running){
+  const toggleDevServer = async ()=>{
+    if (!running) {
+      runScript('dev');
       if (!skipInit && !hasBuilt) { alert('Please complete the first full build before starting the dev server. You can also skip the wizard.'); return; }
       setStarting(true);
-      ensureStick('server');
-      ensureStick('wp');
+      ensureStick('runtime');
       // Subscribe to SMTP events before starting to avoid missing early events
       if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port)=>setSmtpPort(port||0));
       if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg)=>setEmails((prev)=>sortEmails([msg, ...prev])));
-      await window.api.startServer(sitePath, (p)=>appendServer(p.data), (url)=>{ const u=url.replace(/\/$/,'/'); setServerUrl(u); window.api.openExternal(u); setRunning(true); setStarting(false); }, ()=>{ setRunning(false); setServerUrl(''); });
-      window.api.startWpDebug(sitePath,(d)=>appendWp(d));
+      await window.api.startServer(sitePath, (p)=>appendRuntime(p.data || ''), (url)=>{ const u=url.replace(/\/$/,'/'); setServerUrl(u); window.api.openExternal(u); setRunning(true); setStarting(false); }, ()=>{ setRunning(false); setServerUrl(''); });
+      window.api.startWpDebug(sitePath,(d)=>appendRuntime(d || ''));
       try { const { port, emails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(emails||[]); } catch {}
     } else {
       await window.api.stopServer(sitePath);
@@ -656,7 +652,6 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
       setSmtpPort(0);
     }
   };
-  const toggleDevServer = async ()=>{ if(!running){ runScript('dev'); } await toggleServer(); };
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
@@ -924,12 +919,8 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
           </div>
         </div>
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Server logs</div>
-          <div ref={serverRef} onScroll={makeOnScroll('server')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{serverLogs}</div>
-        </div>
-        <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>WordPress logs</div>
-          <div ref={wpRef} onScroll={makeOnScroll('wp')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:180, overflow:'auto' }}>{wpLogs}</div>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Server & WordPress logs</div>
+          <div ref={runtimeRef} onScroll={makeOnScroll('runtime')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:220, overflow:'auto' }}>{runtimeLogs}</div>
         </div>
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Mail</div>
