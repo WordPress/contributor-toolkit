@@ -1,5 +1,18 @@
-node_modules
-.DS_STORE
-dist
+# Misc
+.DS_Store
 smtpd
 
+# Node
+node_modules
+dist
+
+# Files with potential secrets
+.env
+.codesigning/
+
+# Fastlane
+fastlane/README.md
+fastlane/report.xml
+
+# Bundler
+vendor/bundle
