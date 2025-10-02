@@ -53380,7 +53380,8 @@ install exited with code ${code}
       const { onLog, onDone } = options;
       ensureStick("npm");
       if (name === "build") setBuilding(true);
-      window.api.runNpmScript(sitePath, name, [], ({ data }) => {
+      currentRunIdRef.current = null;
+      return window.api.runNpmScript(sitePath, name, [], ({ data }) => {
         appendNpm(data);
         if (onLog) onLog(data);
       }, async ({ code }) => {
@@ -53394,11 +53395,26 @@ ${name} exited with code ${code}
           } catch {
           }
         }
+        currentRunIdRef.current = null;
         if (onDone) onDone({ code });
+      }).then(({ runId }) => {
+        currentRunIdRef.current = runId;
+      }).catch((error) => {
+        currentRunIdRef.current = null;
+        appendNpm(`
+Failed to start npm run ${name}: ${error && error.message ? error.message : String(error)}
+`);
+        if (name === "build") setBuilding(false);
+        if (onDone) onDone({ code: -1 });
       });
     }, [appendNpm, ensureStick, loadStatus, sitePath]);
     const killCurrent = (0, import_react68.useCallback)(async () => {
-      await window.api.npmKill({ directoryPath: sitePath });
+      const runId = currentRunIdRef.current;
+      try {
+        await window.api.npmKill({ runId, directoryPath: sitePath });
+      } finally {
+        currentRunIdRef.current = null;
+      }
     }, [sitePath]);
     const terminalContainerRef = (0, import_react68.useRef)(null);
     const terminalRef = (0, import_react68.useRef)(null);
@@ -53409,6 +53425,16 @@ ${name} exited with code ${code}
     const terminalStateRef = (0, import_react68.useRef)({ input: "", history: [], historyIndex: 0, running: false });
     const watchBufferRef = (0, import_react68.useRef)("");
     const serverStartRequestedRef = (0, import_react68.useRef)(false);
+    const currentRunIdRef = (0, import_react68.useRef)(null);
+    const stoppingRef = (0, import_react68.useRef)(false);
+    const runningRef = (0, import_react68.useRef)(false);
+    const waitingForWatchRef = (0, import_react68.useRef)(false);
+    (0, import_react68.useEffect)(() => {
+      runningRef.current = running;
+    }, [running]);
+    (0, import_react68.useEffect)(() => {
+      waitingForWatchRef.current = waitingForWatch;
+    }, [waitingForWatch]);
     const normalizeForTerminal = (0, import_react68.useCallback)((text) => String(text ?? "").replace(/\r?\n/g, "\r\n"), []);
     const writeToTerminal = (0, import_react68.useCallback)((text) => {
       const term = terminalRef.current;
@@ -53618,10 +53644,54 @@ Try "help" for the list of supported commands.
         terminalStickRef.current = true;
       };
     }, [normalizeForTerminal, printHelp, showPrompt]);
+    const stopDevServer = (0, import_react68.useCallback)(async () => {
+      if (stoppingRef.current) return;
+      stoppingRef.current = true;
+      setWaitingForWatch(false);
+      waitingForWatchRef.current = false;
+      serverStartRequestedRef.current = false;
+      watchBufferRef.current = "";
+      setStarting(false);
+      try {
+        await window.api.stopServer(sitePath);
+      } catch {
+      }
+      try {
+        window.api.stopWpDebug(sitePath);
+      } catch {
+      }
+      try {
+        if (newEmailUnsubRef.current) {
+          newEmailUnsubRef.current();
+          newEmailUnsubRef.current = null;
+        }
+      } catch {
+      }
+      try {
+        if (smtpStartedUnsubRef.current) {
+          smtpStartedUnsubRef.current();
+          smtpStartedUnsubRef.current = null;
+        }
+      } catch {
+      }
+      setRunning(false);
+      runningRef.current = false;
+      setServerUrl("");
+      setSmtpPort(0);
+      stoppingRef.current = false;
+      waitingForWatchRef.current = false;
+      terminalKillRef.current = null;
+      terminalStateRef.current.running = false;
+      currentRunIdRef.current = null;
+    }, [setRunning, setServerUrl, setSmtpPort, setStarting, setWaitingForWatch, sitePath]);
     const startPhpServer = (0, import_react68.useCallback)(async () => {
-      if (serverStartRequestedRef.current) return;
+      if (serverStartRequestedRef.current || stoppingRef.current || !terminalStateRef.current.running) {
+        serverStartRequestedRef.current = false;
+        return;
+      }
       serverStartRequestedRef.current = true;
       setWaitingForWatch(false);
+      waitingForWatchRef.current = false;
       ensureStick("runtime");
       setStarting(true);
       if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port) => setSmtpPort(port || 0));
@@ -53631,15 +53701,23 @@ Try "help" for the list of supported commands.
           sitePath,
           (p) => appendRuntime(p.data || ""),
           (url) => {
+            if (stoppingRef.current) {
+              serverStartRequestedRef.current = false;
+              return;
+            }
             const u = url.replace(/\/$/, "/");
             setServerUrl(u);
             window.api.openExternal(u);
             setRunning(true);
+            runningRef.current = true;
             setStarting(false);
+            serverStartRequestedRef.current = false;
           },
           () => {
             setRunning(false);
+            runningRef.current = false;
             setServerUrl("");
+            serverStartRequestedRef.current = false;
           }
         );
       } catch (error) {
@@ -53647,6 +53725,7 @@ Try "help" for the list of supported commands.
 `);
         setStarting(false);
         serverStartRequestedRef.current = false;
+        runningRef.current = false;
         return;
       }
       window.api.startWpDebug(sitePath, (d) => appendRuntime(d || ""));
@@ -53672,16 +53751,20 @@ Try "help" for the list of supported commands.
         terminalKillRef.current = () => {
           killCurrent().catch(() => {
           });
+          stopDevServer().catch(() => {
+          });
         };
         watchBufferRef.current = "";
         serverStartRequestedRef.current = false;
         setWaitingForWatch(true);
+        waitingForWatchRef.current = true;
         setStarting(true);
         writeToTerminal("\nRunning npm run dev\u2026\n");
         runScript("dev", {
           onLog: (chunk) => {
+            if (stoppingRef.current || !terminalStateRef.current.running && !waitingForWatchRef.current) return;
             writeToTerminal(chunk);
-            if (serverStartRequestedRef.current) return;
+            if (serverStartRequestedRef.current || runningRef.current || !terminalStateRef.current.running) return;
             const text = String(chunk ?? "");
             if (!text) return;
             watchBufferRef.current = `${watchBufferRef.current}${text}`.slice(-200);
@@ -53696,36 +53779,23 @@ Try "help" for the list of supported commands.
             const currentState = terminalStateRef.current;
             currentState.running = false;
             terminalKillRef.current = null;
-            setWaitingForWatch(false);
-            setStarting(false);
-            serverStartRequestedRef.current = false;
-            watchBufferRef.current = "";
+            if (!stoppingRef.current && (runningRef.current || serverStartRequestedRef.current || waitingForWatchRef.current)) {
+              stopDevServer().catch(() => {
+              });
+            } else {
+              setWaitingForWatch(false);
+              waitingForWatchRef.current = false;
+              setStarting(false);
+              serverStartRequestedRef.current = false;
+              watchBufferRef.current = "";
+            }
             showPrompt(false);
           }
         });
       } else {
-        setWaitingForWatch(false);
-        serverStartRequestedRef.current = false;
-        watchBufferRef.current = "";
-        setStarting(false);
-        await window.api.stopServer(sitePath);
-        window.api.stopWpDebug(sitePath);
-        await window.api.npmKill({ directoryPath: sitePath });
-        try {
-          if (newEmailUnsubRef.current) {
-            newEmailUnsubRef.current();
-            newEmailUnsubRef.current = null;
-          }
-        } catch {
-        }
-        try {
-          if (smtpStartedUnsubRef.current) {
-            smtpStartedUnsubRef.current();
-            smtpStartedUnsubRef.current = null;
-          }
-        } catch {
-        }
-        setSmtpPort(0);
+        await killCurrent().catch(() => {
+        });
+        await stopDevServer();
       }
     };
     const markSkipWizard = (0, import_react68.useCallback)(async () => {

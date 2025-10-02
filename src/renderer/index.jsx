@@ -393,7 +393,8 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
     const { onLog, onDone } = options;
     ensureStick('npm');
     if (name === 'build') setBuilding(true);
-    window.api.runNpmScript(sitePath, name, [], ({ data }) => {
+    currentRunIdRef.current = null;
+    return window.api.runNpmScript(sitePath, name, [], ({ data }) => {
       appendNpm(data);
       if (onLog) onLog(data);
     }, async ({ code }) => {
@@ -402,11 +403,26 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
         setBuilding(false);
         try { await loadStatus(); } catch {}
       }
+      currentRunIdRef.current = null;
       if (onDone) onDone({ code });
+    }).then(({ runId }) => {
+      currentRunIdRef.current = runId;
+    }).catch((error) => {
+      currentRunIdRef.current = null;
+      appendNpm(`\nFailed to start npm run ${name}: ${error && error.message ? error.message : String(error)}\n`);
+      if (name === 'build') setBuilding(false);
+      if (onDone) onDone({ code: -1 });
     });
   }, [appendNpm, ensureStick, loadStatus, sitePath]);
 
-  const killCurrent = useCallback(async ()=>{ await window.api.npmKill({ directoryPath: sitePath }); }, [sitePath]);
+  const killCurrent = useCallback(async () => {
+    const runId = currentRunIdRef.current;
+    try {
+      await window.api.npmKill({ runId, directoryPath: sitePath });
+    } finally {
+      currentRunIdRef.current = null;
+    }
+  }, [sitePath]);
 
   // terminal refs/state (after run helpers so dependencies are available)
   const terminalContainerRef = useRef(null);
@@ -417,6 +433,13 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
   const terminalStateRef = useRef({ input: '', history: [], historyIndex: 0, running: false });
   const watchBufferRef = useRef('');
   const serverStartRequestedRef = useRef(false);
+  const currentRunIdRef = useRef(null);
+  const stoppingRef = useRef(false);
+  const runningRef = useRef(false);
+  const waitingForWatchRef = useRef(false);
+
+  useEffect(() => { runningRef.current = running; }, [running]);
+  useEffect(() => { waitingForWatchRef.current = waitingForWatch; }, [waitingForWatch]);
 
   const normalizeForTerminal = useCallback((text) => String(text ?? '').replace(/\r?\n/g, '\r\n'), []);
 
@@ -639,10 +662,37 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
       terminalStickRef.current = true;
     };
   }, [normalizeForTerminal, printHelp, showPrompt]);
+  const stopDevServer = useCallback(async () => {
+    if (stoppingRef.current) return;
+    stoppingRef.current = true;
+    setWaitingForWatch(false);
+    waitingForWatchRef.current = false;
+    serverStartRequestedRef.current = false;
+    watchBufferRef.current = '';
+    setStarting(false);
+    try { await window.api.stopServer(sitePath); } catch {}
+    try { window.api.stopWpDebug(sitePath); } catch {}
+    try { if (newEmailUnsubRef.current) { newEmailUnsubRef.current(); newEmailUnsubRef.current = null; } } catch {}
+    try { if (smtpStartedUnsubRef.current) { smtpStartedUnsubRef.current(); smtpStartedUnsubRef.current = null; } } catch {}
+    setRunning(false);
+    runningRef.current = false;
+    setServerUrl('');
+    setSmtpPort(0);
+    stoppingRef.current = false;
+    waitingForWatchRef.current = false;
+    terminalKillRef.current = null;
+    terminalStateRef.current.running = false;
+    currentRunIdRef.current = null;
+  }, [setRunning, setServerUrl, setSmtpPort, setStarting, setWaitingForWatch, sitePath]);
+
   const startPhpServer = useCallback(async () => {
-    if (serverStartRequestedRef.current) return;
+    if (serverStartRequestedRef.current || stoppingRef.current || !terminalStateRef.current.running) {
+      serverStartRequestedRef.current = false;
+      return;
+    }
     serverStartRequestedRef.current = true;
     setWaitingForWatch(false);
+    waitingForWatchRef.current = false;
     ensureStick('runtime');
     setStarting(true);
     // Subscribe to SMTP events before starting to avoid missing early events
@@ -652,13 +702,26 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
       await window.api.startServer(
         sitePath,
         (p)=>appendRuntime(p.data || ''),
-        (url)=>{ const u=url.replace(/\/$/,'/'); setServerUrl(u); window.api.openExternal(u); setRunning(true); setStarting(false); },
-        ()=>{ setRunning(false); setServerUrl(''); }
+        (url)=>{
+          if (stoppingRef.current) {
+            serverStartRequestedRef.current = false;
+            return;
+          }
+          const u = url.replace(/\/$/,'/');
+          setServerUrl(u);
+          window.api.openExternal(u);
+          setRunning(true);
+          runningRef.current = true;
+          setStarting(false);
+          serverStartRequestedRef.current = false;
+        },
+        ()=>{ setRunning(false); runningRef.current = false; setServerUrl(''); serverStartRequestedRef.current = false; }
       );
     } catch (error) {
       appendRuntime(`Failed to start PHP server: ${error && error.message ? error.message : String(error)}\n`);
       setStarting(false);
       serverStartRequestedRef.current = false;
+      runningRef.current = false;
       return;
     }
     window.api.startWpDebug(sitePath,(d)=>appendRuntime(d || ''));
@@ -674,16 +737,21 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
         return;
       }
       state.running = true;
-      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+      terminalKillRef.current = () => {
+        killCurrent().catch(() => {});
+        stopDevServer().catch(() => {});
+      };
       watchBufferRef.current = '';
       serverStartRequestedRef.current = false;
       setWaitingForWatch(true);
+      waitingForWatchRef.current = true;
       setStarting(true);
       writeToTerminal('\nRunning npm run dev…\n');
       runScript('dev', {
         onLog: (chunk) => {
+          if (stoppingRef.current || (!terminalStateRef.current.running && !waitingForWatchRef.current)) return;
           writeToTerminal(chunk);
-          if (serverStartRequestedRef.current) return;
+          if (serverStartRequestedRef.current || runningRef.current || !terminalStateRef.current.running) return;
           const text = String(chunk ?? '');
           if (!text) return;
           watchBufferRef.current = `${watchBufferRef.current}${text}`.slice(-200);
@@ -696,24 +764,21 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
           const currentState = terminalStateRef.current;
           currentState.running = false;
           terminalKillRef.current = null;
-          setWaitingForWatch(false);
-          setStarting(false);
-          serverStartRequestedRef.current = false;
-          watchBufferRef.current = '';
+          if (!stoppingRef.current && (runningRef.current || serverStartRequestedRef.current || waitingForWatchRef.current)) {
+            stopDevServer().catch(() => {});
+          } else {
+            setWaitingForWatch(false);
+            waitingForWatchRef.current = false;
+            setStarting(false);
+            serverStartRequestedRef.current = false;
+            watchBufferRef.current = '';
+          }
           showPrompt(false);
         }
       });
     } else {
-      setWaitingForWatch(false);
-      serverStartRequestedRef.current = false;
-      watchBufferRef.current = '';
-      setStarting(false);
-      await window.api.stopServer(sitePath);
-      window.api.stopWpDebug(sitePath);
-      await window.api.npmKill({ directoryPath: sitePath });
-      try { if (newEmailUnsubRef.current) { newEmailUnsubRef.current(); newEmailUnsubRef.current=null; } } catch {}
-      try { if (smtpStartedUnsubRef.current) { smtpStartedUnsubRef.current(); smtpStartedUnsubRef.current=null; } } catch {}
-      setSmtpPort(0);
+      await killCurrent().catch(() => {});
+      await stopDevServer();
     }
   };
   const markSkipWizard = useCallback(async () => {
