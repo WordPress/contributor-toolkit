@@ -938,9 +938,12 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
               {initialized ? 'Initialized' : 'Uninitialized'}
             </span>
             {createdLabel ? <span>Created {createdLabel}</span> : null}
-          </div>
-          <div className="path" style={{ marginTop: 12, fontFamily: 'Menlo, monospace', fontSize: 13, color: '#2c3338', wordBreak: 'break-all' }}>
-            <span style={{ color: '#787c82', marginRight: 6 }}>Path:</span> {sitePath}
+            <Button
+              variant="tertiary"
+              isSmall
+              onClick={() => window.api.openDirectory(sitePath)}
+              style={{ marginLeft: 4 }}
+            >Open directory</Button>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -1011,14 +1014,13 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
       )}
       {skipInit ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, flexWrap: 'wrap' }}>
             <Button
               isBusy={isServerStarting}
               variant={isDevProcessActive ? 'secondary' : 'primary'}
               onClick={toggleDevServer}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 10, minWidth: 220, justifyContent: 'center' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 10, minWidth: 220, justifyContent: 'center', padding: '12px 20px', fontSize: 15, borderRadius: 12 }}
             >
-              <span style={{ fontWeight: 600 }}>{isDevProcessActive ? 'Stop dev server' : 'Start dev server'}</span>
               {isDevProcessActive ? (
                 <span
                   aria-hidden="true"
@@ -1028,27 +1030,34 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
                     height: 10,
                     borderRadius: '50%',
                     background: '#d63638',
-                    boxShadow: '0 0 0 4px rgba(214,54,56,0.15)'
+                    boxShadow: '0 0 0 4px rgba(214,54,56,0.15)',
+                    marginRight: 6
                   }}
                 />
               ) : null}
+              <span style={{ fontWeight: 600 }}>{isDevProcessActive ? 'Stop dev server' : 'Start dev server'}</span>
             </Button>
-            {(isServerStarting || serverUrl) ? (
-              <div style={{ fontSize: 13, color: '#1d2327' }}>
-                {serverUrl ? (
-                  <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
-                ) : (
-                  'Dev server is starting…'
-                )}
-              </div>
-            ) : null}
+            <Button
+              variant="secondary"
+              onClick={openPatchModal}
+              style={{ padding: '10px 16px', borderRadius: 10 }}
+            >Create patch</Button>
           </div>
-          <Flex style={{ gap: 8, justifyContent: 'flex-start', flexWrap: 'wrap' }}>
-            <FlexItem><Button variant="secondary" onClick={()=>window.api.openDirectory(sitePath)}>Open directory</Button></FlexItem>
+          {(isServerStarting || serverUrl) ? (
+            <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2 }}>
+              {serverUrl ? (
+                <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
+              ) : (
+                'Dev server is starting…'
+              )}
+            </div>
+          ) : null}
+          <Flex style={{ gap: 10, justifyContent: 'flex-start', flexWrap: 'wrap' }}>
             {running && serverUrl ? (
               <FlexItem>
                 <Button
                   variant="secondary"
+                  style={{ padding: '10px 16px', borderRadius: 10 }}
                   onClick={() => {
                     const adminer = (serverUrl || '').replace(/\/$/, '/') + 'adminer.php';
                     window.api.openExternal(adminer);
@@ -1056,8 +1065,6 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
                 >Open Adminer</Button>
               </FlexItem>
             ) : null}
-            <FlexItem><Button variant="secondary" onClick={openPatchModal}>Create patch</Button></FlexItem>
-            <FlexItem><DropdownMenu icon={chevronDown} label="Run command" text="Run command" controls={[{title:'npm run build',onClick:()=>runScript('build')},{title:'npm run build:dev',onClick:()=>runScript('build:dev')},{title:'npm run dev',onClick:()=>runScript('dev')},{title:'npm run test',onClick:()=>runScript('test')},{title:'npm run watch',onClick:()=>runScript('watch')},{title:'npm run grunt',onClick:()=>runScript('grunt')},{title:'Kill running command',onClick:killCurrent}]}/></FlexItem>
           </Flex>
         </div>
       ) : null}

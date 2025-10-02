@@ -41555,10 +41555,10 @@ If there's a particular need for this, please submit a feature request at https:
     }
     return React6.createElement.apply(null, createElementArgArray);
   };
-  (function(_jsx38) {
+  (function(_jsx37) {
     var JSX;
     /* @__PURE__ */ (function(_JSX) {
-    })(JSX || (JSX = _jsx38.JSX || (_jsx38.JSX = {})));
+    })(JSX || (JSX = _jsx37.JSX || (_jsx37.JSX = {})));
   })(jsx17 || (jsx17 = {}));
   function css() {
     for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
@@ -50247,56 +50247,45 @@ If there's a particular need for this, please submit a feature request at https:
   var Spacer = contextConnect(UnconnectedSpacer, "Spacer");
   var component_default5 = Spacer;
 
-  // node_modules/@wordpress/icons/build-module/library/chevron-down.js
-  var import_jsx_runtime28 = __toESM(require_jsx_runtime());
-  var chevronDown = /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(SVG, {
-    viewBox: "0 0 24 24",
-    xmlns: "http://www.w3.org/2000/svg",
-    children: /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(Path, {
-      d: "M17.5 11.6L12 16l-5.5-4.4.9-1.2L12 14l4.5-3.6 1 1.2z"
-    })
-  });
-  var chevron_down_default = chevronDown;
-
   // node_modules/@wordpress/icons/build-module/library/chevron-left.js
-  var import_jsx_runtime29 = __toESM(require_jsx_runtime());
-  var chevronLeft = /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(SVG, {
+  var import_jsx_runtime28 = __toESM(require_jsx_runtime());
+  var chevronLeft = /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(Path, {
       d: "M14.6 7l-1.2-1L8 12l5.4 6 1.2-1-4.6-5z"
     })
   });
   var chevron_left_default = chevronLeft;
 
   // node_modules/@wordpress/icons/build-module/library/chevron-right.js
-  var import_jsx_runtime30 = __toESM(require_jsx_runtime());
-  var chevronRight = /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(SVG, {
+  var import_jsx_runtime29 = __toESM(require_jsx_runtime());
+  var chevronRight = /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(Path, {
       d: "M10.6 6L9.4 7l4.6 5-4.6 5 1.2 1 5.4-6z"
     })
   });
   var chevron_right_default = chevronRight;
 
   // node_modules/@wordpress/icons/build-module/library/close.js
-  var import_jsx_runtime31 = __toESM(require_jsx_runtime());
-  var close = /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(SVG, {
+  var import_jsx_runtime30 = __toESM(require_jsx_runtime());
+  var close = /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(Path, {
       d: "m13.06 12 6.47-6.47-1.06-1.06L12 10.94 5.53 4.47 4.47 5.53 10.94 12l-6.47 6.47 1.06 1.06L12 13.06l6.47 6.47 1.06-1.06L13.06 12Z"
     })
   });
   var close_default = close;
 
   // node_modules/@wordpress/icons/build-module/library/copy.js
-  var import_jsx_runtime32 = __toESM(require_jsx_runtime());
-  var copy2 = /* @__PURE__ */ (0, import_jsx_runtime32.jsx)(SVG, {
+  var import_jsx_runtime31 = __toESM(require_jsx_runtime());
+  var copy2 = /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime32.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(Path, {
       fillRule: "evenodd",
       clipRule: "evenodd",
       d: "M5 4.5h11a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5ZM3 5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Zm17 3v10.75c0 .69-.56 1.25-1.25 1.25H6v1.5h12.75a2.75 2.75 0 0 0 2.75-2.75V8H20Z"
@@ -50305,22 +50294,22 @@ If there's a particular need for this, please submit a feature request at https:
   var copy_default = copy2;
 
   // node_modules/@wordpress/icons/build-module/library/menu.js
-  var import_jsx_runtime33 = __toESM(require_jsx_runtime());
-  var menu = /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(SVG, {
+  var import_jsx_runtime32 = __toESM(require_jsx_runtime());
+  var menu = /* @__PURE__ */ (0, import_jsx_runtime32.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime32.jsx)(Path, {
       d: "M5 5v1.5h14V5H5zm0 7.8h14v-1.5H5v1.5zM5 19h14v-1.5H5V19z"
     })
   });
   var menu_default = menu;
 
   // node_modules/@wordpress/icons/build-module/library/plus.js
-  var import_jsx_runtime34 = __toESM(require_jsx_runtime());
-  var plus = /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(SVG, {
+  var import_jsx_runtime33 = __toESM(require_jsx_runtime());
+  var plus = /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(Path, {
       d: "M11 12.5V17.5H12.5V12.5H17.5V11H12.5V6H11V11H6V12.5H11Z"
     })
   });
@@ -50343,7 +50332,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/dashicon/index.js
-  var import_jsx_runtime35 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime34 = __toESM(require_jsx_runtime());
   function Dashicon({
     icon,
     className,
@@ -50365,7 +50354,7 @@ If there's a particular need for this, please submit a feature request at https:
       ...sizeStyles,
       ...style
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime35.jsx)("span", {
+    return /* @__PURE__ */ (0, import_jsx_runtime34.jsx)("span", {
       className: iconClass,
       style: styles,
       ...extraProps
@@ -50374,14 +50363,14 @@ If there's a particular need for this, please submit a feature request at https:
   var dashicon_default = Dashicon;
 
   // node_modules/@wordpress/components/build-module/icon/index.js
-  var import_jsx_runtime36 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime35 = __toESM(require_jsx_runtime());
   function Icon({
     icon = null,
     size: size4 = "string" === typeof icon ? 20 : 24,
     ...additionalProps
   }) {
     if ("string" === typeof icon) {
-      return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(dashicon_default, {
+      return /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(dashicon_default, {
         icon,
         size: size4,
         ...additionalProps
@@ -50405,7 +50394,7 @@ If there's a particular need for this, please submit a feature request at https:
         height: size4,
         ...additionalProps
       };
-      return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(SVG, {
+      return /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(SVG, {
         ...appliedProps
       });
     }
@@ -50421,7 +50410,7 @@ If there's a particular need for this, please submit a feature request at https:
   var icon_default = Icon;
 
   // node_modules/@wordpress/components/build-module/button/index.js
-  var import_jsx_runtime37 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime36 = __toESM(require_jsx_runtime());
   var disabledEventsOnDisabledButton = ["onMouseDown", "onClick"];
   function useDeprecatedProps2({
     __experimentalIsFocusable,
@@ -50573,24 +50562,24 @@ If there's a particular need for this, please submit a feature request at https:
       "aria-describedby": describedById,
       ref
     };
-    const elementChildren = /* @__PURE__ */ (0, import_jsx_runtime37.jsxs)(import_jsx_runtime37.Fragment, {
-      children: [icon && iconPosition === "left" && /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(icon_default, {
+    const elementChildren = /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)(import_jsx_runtime36.Fragment, {
+      children: [icon && iconPosition === "left" && /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(icon_default, {
         icon,
         size: iconSize
-      }), text && /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(import_jsx_runtime37.Fragment, {
+      }), text && /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(import_jsx_runtime36.Fragment, {
         children: text
-      }), children, icon && iconPosition === "right" && /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(icon_default, {
+      }), children, icon && iconPosition === "right" && /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(icon_default, {
         icon,
         size: iconSize
       })]
     });
-    const element = Tag === "a" ? /* @__PURE__ */ (0, import_jsx_runtime37.jsx)("a", {
+    const element = Tag === "a" ? /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("a", {
       ...anchorProps,
       ...additionalProps,
       ...disableEventProps,
       ...commonProps,
       children: elementChildren
-    }) : /* @__PURE__ */ (0, import_jsx_runtime37.jsx)("button", {
+    }) : /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("button", {
       ...buttonProps,
       ...additionalProps,
       ...disableEventProps,
@@ -50603,12 +50592,12 @@ If there's a particular need for this, please submit a feature request at https:
       placement: tooltipPosition && // Convert legacy `position` values to be used with the new `placement` prop
       positionToPlacement(tooltipPosition)
     } : {};
-    return /* @__PURE__ */ (0, import_jsx_runtime37.jsxs)(import_jsx_runtime37.Fragment, {
-      children: [/* @__PURE__ */ (0, import_jsx_runtime37.jsx)(tooltip_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)(import_jsx_runtime36.Fragment, {
+      children: [/* @__PURE__ */ (0, import_jsx_runtime36.jsx)(tooltip_default, {
         ...tooltipProps,
         children: element
-      }), description && /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(component_default2, {
-        children: /* @__PURE__ */ (0, import_jsx_runtime37.jsx)("span", {
+      }), description && /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(component_default2, {
+        children: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("span", {
           id: descriptionId,
           children: description
         })
@@ -50985,7 +50974,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/slot-fill/slot.js
-  var import_jsx_runtime38 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime37 = __toESM(require_jsx_runtime());
   function isFunction(maybeFunc) {
     return typeof maybeFunc === "function";
   }
@@ -51026,7 +51015,7 @@ If there's a particular need for this, please submit a feature request at https:
       // it allows us to render wrappers only when the fills are actually present.
       (element) => !isEmptyElement(element)
     );
-    return /* @__PURE__ */ (0, import_jsx_runtime38.jsx)(import_jsx_runtime38.Fragment, {
+    return /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(import_jsx_runtime37.Fragment, {
       children: isFunction(children) ? children(fills) : fills
     });
   }
@@ -51102,7 +51091,7 @@ If there's a particular need for this, please submit a feature request at https:
   var v4_default = v4;
 
   // node_modules/@wordpress/components/build-module/style-provider/index.js
-  var import_jsx_runtime39 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime38 = __toESM(require_jsx_runtime());
   var uuidCache = /* @__PURE__ */ new Set();
   var containerCacheMap = /* @__PURE__ */ new WeakMap();
   var memoizedCreateCacheWithContainer = (container) => {
@@ -51130,7 +51119,7 @@ If there's a particular need for this, please submit a feature request at https:
       return null;
     }
     const cache2 = memoizedCreateCacheWithContainer(document2.head);
-    return /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(CacheProvider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime38.jsx)(CacheProvider, {
       value: cache2,
       children
     });
@@ -51138,7 +51127,7 @@ If there's a particular need for this, please submit a feature request at https:
   var style_provider_default = StyleProvider;
 
   // node_modules/@wordpress/components/build-module/slot-fill/bubbles-virtually/fill.js
-  var import_jsx_runtime40 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime39 = __toESM(require_jsx_runtime());
   function Fill2({
     name,
     children
@@ -51160,7 +51149,7 @@ If there's a particular need for this, please submit a feature request at https:
     if (!slot || !slot.ref.current) {
       return null;
     }
-    const wrappedChildren = /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(style_provider_default, {
+    const wrappedChildren = /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(style_provider_default, {
       document: slot.ref.current.ownerDocument,
       children: typeof children === "function" ? children((_slot$fillProps = slot.fillProps) !== null && _slot$fillProps !== void 0 ? _slot$fillProps : {}) : children
     });
@@ -51168,7 +51157,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/slot-fill/bubbles-virtually/slot.js
-  var import_jsx_runtime41 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime40 = __toESM(require_jsx_runtime());
   function Slot2(props, forwardedRef) {
     const {
       name,
@@ -51198,7 +51187,7 @@ If there's a particular need for this, please submit a feature request at https:
     (0, import_react.useLayoutEffect)(() => {
       registry.updateSlot(name, ref, fillPropsRef.current);
     });
-    return /* @__PURE__ */ (0, import_jsx_runtime41.jsx)(component_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(component_default, {
       as,
       ref: useMergeRefs([forwardedRef, ref]),
       ...restProps
@@ -51207,7 +51196,7 @@ If there's a particular need for this, please submit a feature request at https:
   var slot_default2 = (0, import_react.forwardRef)(Slot2);
 
   // node_modules/@wordpress/components/build-module/slot-fill/bubbles-virtually/slot-fill-provider.js
-  var import_jsx_runtime42 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime41 = __toESM(require_jsx_runtime());
   function createSlotRegistry() {
     const slots = observableMap();
     const fills = observableMap();
@@ -51270,14 +51259,14 @@ If there's a particular need for this, please submit a feature request at https:
     children
   }) {
     const [registry] = (0, import_react.useState)(createSlotRegistry);
-    return /* @__PURE__ */ (0, import_jsx_runtime42.jsx)(slot_fill_context_default.Provider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime41.jsx)(slot_fill_context_default.Provider, {
       value: registry,
       children
     });
   }
 
   // node_modules/@wordpress/components/build-module/slot-fill/provider.js
-  var import_jsx_runtime43 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime42 = __toESM(require_jsx_runtime());
   function createSlotRegistry2() {
     const slots = {};
     const fills = {};
@@ -51345,7 +51334,7 @@ If there's a particular need for this, please submit a feature request at https:
     children
   }) {
     const [contextValue] = (0, import_react.useState)(createSlotRegistry2);
-    return /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(context_default.Provider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime42.jsx)(context_default.Provider, {
       value: contextValue,
       children
     });
@@ -51353,7 +51342,7 @@ If there's a particular need for this, please submit a feature request at https:
   var provider_default = SlotFillProvider2;
 
   // node_modules/@wordpress/components/build-module/slot-fill/index.js
-  var import_jsx_runtime44 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime43 = __toESM(require_jsx_runtime());
 
   // node_modules/@wordpress/components/build-module/slot-fill/bubbles-virtually/use-slot.js
   function useSlot2(name) {
@@ -51366,10 +51355,10 @@ If there's a particular need for this, please submit a feature request at https:
 
   // node_modules/@wordpress/components/build-module/slot-fill/index.js
   function Fill3(props) {
-    return /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)(import_jsx_runtime44.Fragment, {
-      children: [/* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Fill, {
+    return /* @__PURE__ */ (0, import_jsx_runtime43.jsxs)(import_jsx_runtime43.Fragment, {
+      children: [/* @__PURE__ */ (0, import_jsx_runtime43.jsx)(Fill, {
         ...props
-      }), /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Fill2, {
+      }), /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(Fill2, {
         ...props
       })]
     });
@@ -51380,12 +51369,12 @@ If there's a particular need for this, please submit a feature request at https:
       ...restProps
     } = props;
     if (bubblesVirtually) {
-      return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(slot_default2, {
+      return /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(slot_default2, {
         ...restProps,
         ref
       });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(slot_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(slot_default, {
       ...restProps
     });
   }
@@ -51396,12 +51385,12 @@ If there's a particular need for this, please submit a feature request at https:
   }) {
     const parent = (0, import_react.useContext)(slot_fill_context_default);
     if (!parent.isDefault && passthrough) {
-      return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(import_jsx_runtime44.Fragment, {
+      return /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(import_jsx_runtime43.Fragment, {
         children
       });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(provider_default, {
-      children: /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(SlotFillProvider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(provider_default, {
+      children: /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(SlotFillProvider, {
         children
       })
     });
@@ -51438,17 +51427,17 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/popover/index.js
-  var import_jsx_runtime45 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime44 = __toESM(require_jsx_runtime());
   var SLOT_NAME = "Popover";
-  var ArrowTriangle = () => /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)(SVG, {
+  var ArrowTriangle = () => /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 100 100",
     className: "components-popover__triangle",
     role: "presentation",
-    children: [/* @__PURE__ */ (0, import_jsx_runtime45.jsx)(Path, {
+    children: [/* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Path, {
       className: "components-popover__triangle-bg",
       d: "M 0 0 L 50 50 L 100 0"
-    }), /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(Path, {
+    }), /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Path, {
       className: "components-popover__triangle-border",
       d: "M 0 0 L 50 50 L 100 0",
       vectorEffect: "non-scaling-stroke"
@@ -51658,7 +51647,7 @@ If there's a particular need for this, please submit a feature request at https:
       }
     };
     const isPositioned = (!shouldAnimate || animationFinished) && x !== null && y !== null;
-    let content = /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)(motion.div, {
+    let content = /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)(motion.div, {
       className: clsx_default(className, {
         "is-expanded": isExpanded,
         "is-positioned": isPositioned,
@@ -51670,40 +51659,40 @@ If there's a particular need for this, please submit a feature request at https:
       ref: mergedFloatingRef,
       ...dialogProps,
       tabIndex: -1,
-      children: [isExpanded && /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(scroll_lock_default, {}), isExpanded && /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)("div", {
+      children: [isExpanded && /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(scroll_lock_default, {}), isExpanded && /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)("div", {
         className: "components-popover__header",
-        children: [/* @__PURE__ */ (0, import_jsx_runtime45.jsx)("span", {
+        children: [/* @__PURE__ */ (0, import_jsx_runtime44.jsx)("span", {
           className: "components-popover__header-title",
           children: headerTitle
-        }), /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(button_default, {
+        }), /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(button_default, {
           className: "components-popover__close",
           size: "small",
           icon: close_default,
           onClick: onClose,
           label: __("Close")
         })]
-      }), /* @__PURE__ */ (0, import_jsx_runtime45.jsx)("div", {
+      }), /* @__PURE__ */ (0, import_jsx_runtime44.jsx)("div", {
         className: "components-popover__content",
         children
-      }), hasArrow && /* @__PURE__ */ (0, import_jsx_runtime45.jsx)("div", {
+      }), hasArrow && /* @__PURE__ */ (0, import_jsx_runtime44.jsx)("div", {
         ref: arrowCallbackRef,
         className: ["components-popover__arrow", `is-${computedPlacement.split("-")[0]}`].join(" "),
         style: {
           left: typeof arrowData?.x !== "undefined" && Number.isFinite(arrowData.x) ? `${arrowData.x}px` : "",
           top: typeof arrowData?.y !== "undefined" && Number.isFinite(arrowData.y) ? `${arrowData.y}px` : ""
         },
-        children: /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(ArrowTriangle, {})
+        children: /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(ArrowTriangle, {})
       })]
     });
     const shouldRenderWithinSlot = slot.ref && !inline3;
     const hasAnchor = anchorRef || anchorRect || anchor;
     if (shouldRenderWithinSlot) {
-      content = /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(Fill3, {
+      content = /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Fill3, {
         name: slotName,
         children: content
       });
     } else if (!inline3) {
-      content = (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime45.jsx)(StyleProvider, {
+      content = (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime44.jsx)(StyleProvider, {
         document,
         children: content
       }), getPopoverFallbackContainer());
@@ -51711,8 +51700,8 @@ If there's a particular need for this, please submit a feature request at https:
     if (hasAnchor) {
       return content;
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)(import_jsx_runtime45.Fragment, {
-      children: [/* @__PURE__ */ (0, import_jsx_runtime45.jsx)("span", {
+    return /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)(import_jsx_runtime44.Fragment, {
+      children: [/* @__PURE__ */ (0, import_jsx_runtime44.jsx)("span", {
         ref: anchorRefFallback
       }), content]
     });
@@ -51721,7 +51710,7 @@ If there's a particular need for this, please submit a feature request at https:
   function PopoverSlot({
     name = SLOT_NAME
   }, ref) {
-    return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(Slot3, {
+    return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Slot3, {
       bubblesVirtually: true,
       name,
       className: "popover-slot",
@@ -51733,7 +51722,7 @@ If there's a particular need for this, please submit a feature request at https:
   var popover_default = Popover3;
 
   // node_modules/@wordpress/components/build-module/dropdown/index.js
-  var import_jsx_runtime46 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime45 = __toESM(require_jsx_runtime());
   var UnconnectedDropdown = (props, forwardedRef) => {
     const {
       renderContent,
@@ -51792,12 +51781,12 @@ If there's a particular need for this, please submit a feature request at https:
     const popoverPropsHaveAnchor = !!popoverProps?.anchor || // Note: `anchorRef`, `getAnchorRect` and `anchorRect` are deprecated and
     // be removed from `Popover` from WordPress 6.3
     !!popoverProps?.anchorRef || !!popoverProps?.getAnchorRect || !!popoverProps?.anchorRect;
-    return /* @__PURE__ */ (0, import_jsx_runtime46.jsxs)("div", {
+    return /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)("div", {
       className,
       ref: useMergeRefs([containerRef, forwardedRef, setFallbackPopoverAnchor]),
       tabIndex: -1,
       style,
-      children: [renderToggle(args), isOpen && /* @__PURE__ */ (0, import_jsx_runtime46.jsx)(popover_default, {
+      children: [renderToggle(args), isOpen && /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(popover_default, {
         position: position2,
         onClose: close2,
         onFocusOutside: closeIfFocusOutside,
@@ -51887,10 +51876,10 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/elevation/component.js
-  var import_jsx_runtime47 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime46 = __toESM(require_jsx_runtime());
   function UnconnectedElevation(props, forwardedRef) {
     const elevationProps = useElevation(props);
-    return /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime46.jsx)(component_default, {
       ...elevationProps,
       ref: forwardedRef
     });
@@ -52077,7 +52066,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/card/card/component.js
-  var import_jsx_runtime48 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime47 = __toESM(require_jsx_runtime());
   function UnconnectedCard(props, forwardedRef) {
     const {
       children,
@@ -52103,19 +52092,19 @@ If there's a particular need for this, please submit a feature request at https:
         CardFooter: contextProps
       };
     }, [isBorderless, size4]);
-    return /* @__PURE__ */ (0, import_jsx_runtime48.jsx)(ContextSystemProvider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(ContextSystemProvider, {
       value: contextProviderValue,
-      children: /* @__PURE__ */ (0, import_jsx_runtime48.jsxs)(component_default, {
+      children: /* @__PURE__ */ (0, import_jsx_runtime47.jsxs)(component_default, {
         ...otherProps,
         ref: forwardedRef,
-        children: [/* @__PURE__ */ (0, import_jsx_runtime48.jsx)(component_default, {
+        children: [/* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default, {
           className: cx3(Content),
           children
-        }), /* @__PURE__ */ (0, import_jsx_runtime48.jsx)(component_default6, {
+        }), /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default6, {
           className: elevationClassName,
           isInteractive: false,
           value: elevation ? 1 : 0
-        }), /* @__PURE__ */ (0, import_jsx_runtime48.jsx)(component_default6, {
+        }), /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default6, {
           className: elevationClassName,
           isInteractive: false,
           value: elevation
@@ -52194,10 +52183,10 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/scrollable/component.js
-  var import_jsx_runtime49 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime48 = __toESM(require_jsx_runtime());
   function UnconnectedScrollable(props, forwardedRef) {
     const scrollableProps = useScrollable(props);
-    return /* @__PURE__ */ (0, import_jsx_runtime49.jsx)(component_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime48.jsx)(component_default, {
       ...scrollableProps,
       ref: forwardedRef
     });
@@ -52232,19 +52221,19 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/card/card-body/component.js
-  var import_jsx_runtime50 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime49 = __toESM(require_jsx_runtime());
   function UnconnectedCardBody(props, forwardedRef) {
     const {
       isScrollable,
       ...otherProps
     } = useCardBody(props);
     if (isScrollable) {
-      return /* @__PURE__ */ (0, import_jsx_runtime50.jsx)(component_default8, {
+      return /* @__PURE__ */ (0, import_jsx_runtime49.jsx)(component_default8, {
         ...otherProps,
         ref: forwardedRef
       });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime50.jsx)(component_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime49.jsx)(component_default, {
       ...otherProps,
       ref: forwardedRef
     });
@@ -52253,7 +52242,7 @@ If there's a particular need for this, please submit a feature request at https:
   var component_default9 = CardBody;
 
   // node_modules/@wordpress/components/build-module/navigable-container/container.js
-  var import_jsx_runtime51 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime50 = __toESM(require_jsx_runtime());
   var noop5 = () => {
   };
   var MENU_ITEM_ROLES = ["menuitem", "menuitemradio", "menuitemcheckbox"];
@@ -52377,7 +52366,7 @@ If there's a particular need for this, please submit a feature request at https:
         forwardedRef,
         ...restProps
       } = this.props;
-      return /* @__PURE__ */ (0, import_jsx_runtime51.jsx)("div", {
+      return /* @__PURE__ */ (0, import_jsx_runtime50.jsx)("div", {
         ref: this.bindContainer,
         ...restProps,
         children
@@ -52385,7 +52374,7 @@ If there's a particular need for this, please submit a feature request at https:
     }
   };
   var forwardedNavigableContainer = (props, ref) => {
-    return /* @__PURE__ */ (0, import_jsx_runtime51.jsx)(NavigableContainer, {
+    return /* @__PURE__ */ (0, import_jsx_runtime50.jsx)(NavigableContainer, {
       ...props,
       forwardedRef: ref
     });
@@ -52394,7 +52383,7 @@ If there's a particular need for this, please submit a feature request at https:
   var container_default = (0, import_react.forwardRef)(forwardedNavigableContainer);
 
   // node_modules/@wordpress/components/build-module/navigable-container/menu.js
-  var import_jsx_runtime52 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime51 = __toESM(require_jsx_runtime());
   function UnforwardedNavigableMenu({
     role = "menu",
     orientation = "vertical",
@@ -52423,7 +52412,7 @@ If there's a particular need for this, please submit a feature request at https:
       }
       return void 0;
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime52.jsx)(container_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime51.jsx)(container_default, {
       ref,
       stopNavigationEvents: true,
       onlyBrowserTabstops: false,
@@ -52437,7 +52426,7 @@ If there's a particular need for this, please submit a feature request at https:
   var menu_default2 = NavigableMenu;
 
   // node_modules/@wordpress/components/build-module/dropdown-menu/index.js
-  var import_jsx_runtime53 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime52 = __toESM(require_jsx_runtime());
   function mergeProps2(defaultProps = {}, props = {}) {
     const mergedProps = {
       ...defaultProps,
@@ -52484,7 +52473,7 @@ If there's a particular need for this, please submit a feature request at https:
       className: "components-dropdown-menu__popover",
       variant
     }, popoverProps);
-    return /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(dropdown_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime52.jsx)(dropdown_default, {
       className,
       popoverProps: mergedPopoverProps,
       renderToggle: ({
@@ -52510,7 +52499,7 @@ If there's a particular need for this, please submit a feature request at https:
             "is-opened": isOpen
           })
         }, restToggleProps);
-        return /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(Toggle, {
+        return /* @__PURE__ */ (0, import_jsx_runtime52.jsx)(Toggle, {
           ...mergedToggleProps,
           icon,
           onClick: (event) => {
@@ -52540,10 +52529,10 @@ If there's a particular need for this, please submit a feature request at https:
             "no-icons": noIcons
           })
         }, menuProps);
-        return /* @__PURE__ */ (0, import_jsx_runtime53.jsxs)(menu_default2, {
+        return /* @__PURE__ */ (0, import_jsx_runtime52.jsxs)(menu_default2, {
           ...mergedMenuProps,
           role: "menu",
-          children: [isFunction2(children) ? children(props) : null, controlSets?.flatMap((controlSet, indexOfSet) => controlSet.map((control, indexOfControl) => /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(button_default, {
+          children: [isFunction2(children) ? children(props) : null, controlSets?.flatMap((controlSet, indexOfSet) => controlSet.map((control, indexOfControl) => /* @__PURE__ */ (0, import_jsx_runtime52.jsx)(button_default, {
             onClick: (event) => {
               event.stopPropagation();
               props.onClose();
@@ -52662,7 +52651,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/modal/index.js
-  var import_jsx_runtime54 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime53 = __toESM(require_jsx_runtime());
   var ModalContext = (0, import_react.createContext)(/* @__PURE__ */ new Set());
   var bodyOpenClasses = /* @__PURE__ */ new Map();
   function UnforwardedModal(props, forwardedRef) {
@@ -52819,14 +52808,14 @@ If there's a particular need for this, please submit a feature request at https:
     };
     const modal = (
       // eslint-disable-next-line jsx-a11y/no-static-element-interactions
-      /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("div", {
+      /* @__PURE__ */ (0, import_jsx_runtime53.jsx)("div", {
         ref: useMergeRefs([ref, forwardedRef]),
         className: clsx_default("components-modal__screen-overlay", overlayClassname, overlayClassnameProp),
         onKeyDown: withIgnoreIMEEvents(handleEscapeKeyDown),
         ...shouldCloseOnClickOutside ? overlayPressHandlers : {},
-        children: /* @__PURE__ */ (0, import_jsx_runtime54.jsx)(style_provider_default, {
+        children: /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(style_provider_default, {
           document,
-          children: /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("div", {
+          children: /* @__PURE__ */ (0, import_jsx_runtime53.jsx)("div", {
             className: clsx_default("components-modal__frame", sizeClass, className),
             style: {
               ...frameStyle,
@@ -52839,7 +52828,7 @@ If there's a particular need for this, please submit a feature request at https:
             "aria-describedby": aria.describedby,
             tabIndex: -1,
             onKeyDown,
-            children: /* @__PURE__ */ (0, import_jsx_runtime54.jsxs)("div", {
+            children: /* @__PURE__ */ (0, import_jsx_runtime53.jsxs)("div", {
               className: clsx_default("components-modal__content", {
                 "hide-header": __experimentalHideHeader,
                 "is-scrollable": hasScrollableContent,
@@ -52850,31 +52839,31 @@ If there's a particular need for this, please submit a feature request at https:
               ref: contentRef,
               "aria-label": hasScrollableContent ? __("Scrollable section") : void 0,
               tabIndex: hasScrollableContent ? 0 : void 0,
-              children: [!__experimentalHideHeader && /* @__PURE__ */ (0, import_jsx_runtime54.jsxs)("div", {
+              children: [!__experimentalHideHeader && /* @__PURE__ */ (0, import_jsx_runtime53.jsxs)("div", {
                 className: "components-modal__header",
-                children: [/* @__PURE__ */ (0, import_jsx_runtime54.jsxs)("div", {
+                children: [/* @__PURE__ */ (0, import_jsx_runtime53.jsxs)("div", {
                   className: "components-modal__header-heading-container",
-                  children: [icon && /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("span", {
+                  children: [icon && /* @__PURE__ */ (0, import_jsx_runtime53.jsx)("span", {
                     className: "components-modal__icon-container",
                     "aria-hidden": true,
                     children: icon
-                  }), title && /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("h1", {
+                  }), title && /* @__PURE__ */ (0, import_jsx_runtime53.jsx)("h1", {
                     id: headingId,
                     className: "components-modal__header-heading",
                     children: title
                   })]
-                }), headerActions, isDismissible && /* @__PURE__ */ (0, import_jsx_runtime54.jsxs)(import_jsx_runtime54.Fragment, {
-                  children: [/* @__PURE__ */ (0, import_jsx_runtime54.jsx)(component_default5, {
+                }), headerActions, isDismissible && /* @__PURE__ */ (0, import_jsx_runtime53.jsxs)(import_jsx_runtime53.Fragment, {
+                  children: [/* @__PURE__ */ (0, import_jsx_runtime53.jsx)(component_default5, {
                     marginBottom: 0,
                     marginLeft: 2
-                  }), /* @__PURE__ */ (0, import_jsx_runtime54.jsx)(button_default, {
+                  }), /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(button_default, {
                     size: "compact",
                     onClick: (event) => closeModal().then(() => onRequestClose(event)),
                     icon: close_default,
                     label: closeButtonLabel || __("Close")
                   })]
                 })]
-              }), /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("div", {
+              }), /* @__PURE__ */ (0, import_jsx_runtime53.jsx)("div", {
                 ref: useMergeRefs([childrenContainerRef, focusOnMount === "firstContentElement" ? focusOnMountRef : null]),
                 children
               })]
@@ -52883,7 +52872,7 @@ If there's a particular need for this, please submit a feature request at https:
         })
       })
     );
-    return (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime54.jsx)(ModalContext.Provider, {
+    return (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime53.jsx)(ModalContext.Provider, {
       value: nestedDismissers,
       children: modal
     }), document.body);
@@ -52892,7 +52881,7 @@ If there's a particular need for this, please submit a feature request at https:
   var modal_default = Modal;
 
   // node_modules/@wordpress/components/build-module/tab-panel/index.js
-  var import_jsx_runtime55 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime54 = __toESM(require_jsx_runtime());
   var extractTabName = (id3) => {
     if (typeof id3 === "undefined" || id3 === null) {
       return;
@@ -52975,21 +52964,21 @@ If there's a particular need for this, please submit a feature request at https:
         setTabStoreSelectedId(firstEnabledTab.name);
       }
     }, [tabs, selectedTab?.disabled, setTabStoreSelectedId, instanceId]);
-    return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", {
+    return /* @__PURE__ */ (0, import_jsx_runtime54.jsxs)("div", {
       className,
       ref,
-      children: [/* @__PURE__ */ (0, import_jsx_runtime55.jsx)(TabList, {
+      children: [/* @__PURE__ */ (0, import_jsx_runtime54.jsx)(TabList, {
         store: tabStore,
         className: "components-tab-panel__tabs",
         children: tabs.map((tab) => {
-          return /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(Tab, {
+          return /* @__PURE__ */ (0, import_jsx_runtime54.jsx)(Tab, {
             id: prependInstanceId(tab.name),
             className: clsx_default("components-tab-panel__tabs-item", tab.className, {
               [activeClass]: tab.name === selectedTabName
             }),
             disabled: tab.disabled,
             "aria-controls": `${prependInstanceId(tab.name)}-view`,
-            render: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(button_default, {
+            render: /* @__PURE__ */ (0, import_jsx_runtime54.jsx)(button_default, {
               __next40pxDefaultSize: true,
               icon: tab.icon,
               label: tab.icon && tab.title,
@@ -52998,7 +52987,7 @@ If there's a particular need for this, please submit a feature request at https:
             children: !tab.icon && tab.title
           }, tab.name);
         })
-      }), selectedTab && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(TabPanel, {
+      }), selectedTab && /* @__PURE__ */ (0, import_jsx_runtime54.jsx)(TabPanel, {
         id: `${prependInstanceId(selectedTab.name)}-view`,
         store: tabStore,
         tabId: prependInstanceId(selectedTab.name),
@@ -53012,7 +53001,7 @@ If there's a particular need for this, please submit a feature request at https:
 
   // src/renderer/index.jsx
   var import_xterm = __toESM(require_xterm());
-  var import_jsx_runtime56 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime55 = __toESM(require_jsx_runtime());
   var TERMINAL_ALLOWED_SCRIPTS = ["build", "build:dev", "dev", "test", "watch", "grunt"];
   var TERMINAL_INSTALL_ALIASES = ["npm install", "npm i", "install"];
   function useSites() {
@@ -53154,11 +53143,11 @@ If there's a particular need for this, please submit a feature request at https:
     const handleSelectSite = (0, import_react68.useCallback)((sitePath) => {
       setActiveSite(sitePath);
     }, []);
-    return /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", height: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { width: sidebarCollapsed ? 56 : 280, background: "#1f1f1f", color: "#f7f7f7", display: "flex", flexDirection: "column", transition: "width 0.2s ease", borderRight: "1px solid #2b2b2b" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { padding: sidebarCollapsed ? "12px 8px" : "16px", borderBottom: "1px solid #2b2b2b" }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default3, { align: "center", justify: "space-between", children: [
-          !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600 }, children: "WordPress Core" }) : null,
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", height: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { width: sidebarCollapsed ? 56 : 280, background: "#1f1f1f", color: "#f7f7f7", display: "flex", flexDirection: "column", transition: "width 0.2s ease", borderRight: "1px solid #2b2b2b" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { padding: sidebarCollapsed ? "12px 8px" : "16px", borderBottom: "1px solid #2b2b2b" }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default3, { align: "center", justify: "space-between", children: [
+          !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600 }, children: "WordPress Core" }) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
             button_default,
             {
               icon: sidebarCollapsed ? chevron_right_default : chevron_left_default,
@@ -53171,13 +53160,13 @@ If there's a particular need for this, please submit a feature request at https:
             }
           )
         ] }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 8px" : "12px 16px", display: "flex", flexDirection: "column", gap: 8 }, children: sortedSites.length > 0 ? sortedSites.map((sitePath) => {
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 8px" : "12px 16px", display: "flex", flexDirection: "column", gap: 8 }, children: sortedSites.length > 0 ? sortedSites.map((sitePath) => {
           const meta = siteMeta?.[sitePath] || {};
           const siteName = sitePath.split("/").pop() || sitePath;
           const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : "";
           const isActive = activeSite === sitePath;
           const statusLabel = meta.initialized ? "Initialized" : "Not initialized";
-          return /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+          return /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
             button_default,
             {
               onClick: () => handleSelectSite(sitePath),
@@ -53193,19 +53182,19 @@ If there's a particular need for this, please submit a feature request at https:
                 padding: sidebarCollapsed ? "8px 0" : "10px 12px",
                 borderRadius: 6
               },
-              children: sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { fontWeight: 600 }, children: siteName.slice(0, 1).toUpperCase() }) : /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { fontWeight: 600 }, children: siteName }) })
+              children: sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { fontWeight: 600 }, children: siteName.slice(0, 1).toUpperCase() }) : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { fontWeight: 600 }, children: siteName }) })
             },
             sitePath
           );
-        }) : !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: "No sites yet." }) : null }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+        }) : !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: "No sites yet." }) : null }),
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
           "div",
           {
             style: {
               padding: sidebarCollapsed ? "12px 8px 20px" : "16px 16px 24px",
               borderTop: "1px solid #2b2b2b"
             },
-            children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+            children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
               button_default,
               {
                 icon: plus_default,
@@ -53219,9 +53208,9 @@ If there's a particular need for this, please submit a feature request at https:
           }
         )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { flex: 1, background: "#fff", color: "#1d2327", display: "flex", flexDirection: "column" }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: "32px 32px 48px" }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { maxWidth: 1040, margin: "0 auto" }, children: [
-        webAvailable ? /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default3, { align: "center", justify: "flex-end", style: { gap: 8, marginBottom: 24 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { flex: 1, background: "#fff", color: "#1d2327", display: "flex", flexDirection: "column" }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: "32px 32px 48px" }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { maxWidth: 1040, margin: "0 auto" }, children: [
+        webAvailable ? /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default3, { align: "center", justify: "flex-end", style: { gap: 8, marginBottom: 24 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
             button_default,
             {
               isBusy: webStarting,
@@ -53230,34 +53219,34 @@ If there's a particular need for this, please submit a feature request at https:
               children: webUrl ? "Stop Playground web server" : "Start Playground web server"
             }
           ),
-          webStarting || webUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { fontSize: 12 }, children: webStarting ? "Starting\u2026" : /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("a", { href: webUrl || "http://127.0.0.1:39372/", onClick: (e) => {
+          webStarting || webUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { fontSize: 12 }, children: webStarting ? "Starting\u2026" : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("a", { href: webUrl || "http://127.0.0.1:39372/", onClick: (e) => {
             e.preventDefault();
             window.api.openExternal(webUrl || "http://127.0.0.1:39372/");
           }, children: webUrl || "http://127.0.0.1:39372/" }) }) : null
         ] }) : null,
-        webStarting || webUrl || webError || webLogs ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default7, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default9, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600 }, children: "Playground web server" }),
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: webStarting ? "Starting\u2026" : webUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("a", { href: webUrl, onClick: (e) => {
+        webStarting || webUrl || webError || webLogs ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default7, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default9, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600 }, children: "Playground web server" }),
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: webStarting ? "Starting\u2026" : webUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("a", { href: webUrl, onClick: (e) => {
               e.preventDefault();
               window.api.openExternal(webUrl);
             }, children: webUrl }) : "Stopped" })
           ] }),
-          webError ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { marginTop: 6, color: "#C00", fontSize: 12 }, children: webError }) : null,
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { ref: webLogRef, style: { marginTop: 8, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: webLogs })
+          webError ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { marginTop: 6, color: "#C00", fontSize: 12 }, children: webError }) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { ref: webLogRef, style: { marginTop: 8, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: webLogs })
         ] }) }) : null,
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { id: "sites", children: [
-          pendingSite && /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default7, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default9, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600 }, children: "Setting up new site\u2026" }),
-            downloadPhase && /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontSize: 12, color: "#555", marginBottom: 6 }, children: downloadPhase }),
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { ref: termRef, style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: terminalMsgs })
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { id: "sites", children: [
+          pendingSite && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default7, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default9, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600 }, children: "Setting up new site\u2026" }),
+            downloadPhase && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 12, color: "#555", marginBottom: 6 }, children: downloadPhase }),
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { ref: termRef, style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: terminalMsgs })
           ] }) }),
-          sortedSites.length > 0 ? sortedSites.map((s) => /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+          sortedSites.length > 0 ? sortedSites.map((s) => /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
             "div",
             {
               style: { display: activeSite === s ? "block" : "none" },
               "aria-hidden": activeSite === s ? false : true,
-              children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+              children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
                 SiteRow,
                 {
                   sitePath: s,
@@ -53270,9 +53259,9 @@ If there's a particular need for this, please submit a feature request at https:
               )
             },
             s
-          )) : /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default7, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default9, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { marginBottom: 8 }, children: "No sites yet." }),
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { children: "Use the sidebar to create your first site." })
+          )) : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default7, { children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default9, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { marginBottom: 8 }, children: "No sites yet." }),
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { children: "Use the sidebar to create your first site." })
           ] }) })
         ] })
       ] }) }) })
@@ -53874,7 +53863,7 @@ Try "help" for the list of supported commands.
         description: "Install npm packages so commands can run.",
         done: hasNodeModules,
         ready: true,
-        action: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+        action: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
           button_default,
           {
             isBusy: installing,
@@ -53891,7 +53880,7 @@ Try "help" for the list of supported commands.
         description: "Compile WordPress Core once to generate the initial dist files.",
         done: hasBuilt,
         ready: hasNodeModules,
-        action: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+        action: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
           button_default,
           {
             isBusy: building,
@@ -53908,8 +53897,8 @@ Try "help" for the list of supported commands.
         description: "Launch the development server once to complete the WordPress setup wizard.",
         done: false,
         ready: hasBuilt,
-        action: /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+        action: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
             button_default,
             {
               isBusy: starting,
@@ -53922,7 +53911,7 @@ Try "help" for the list of supported commands.
               children: running ? "Stop dev server" : "Start dev server and finish the wizard"
             }
           ),
-          starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { fontSize: 12 }, children: starting ? "Starting..." : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("a", { href: serverUrl, onClick: (e) => {
+          starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { fontSize: 12 }, children: starting ? "Starting..." : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("a", { href: serverUrl, onClick: (e) => {
             e.preventDefault();
             window.api.openExternal(serverUrl);
           }, children: serverUrl }) : null }) : null
@@ -53944,31 +53933,36 @@ Try "help" for the list of supported commands.
       }
       return { ...step, status };
     });
-    return /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("section", { style: { display: "flex", flexDirection: "column", gap: 24, paddingBottom: 48 }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default3, { align: "flex-start", justify: "space-between", style: { gap: 16, flexWrap: "wrap" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { flex: "1 1 440px", minWidth: 0 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("h1", { style: { margin: 0, fontSize: 28, lineHeight: 1.2 }, children: siteName }),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12, color: "#3c434a", flexWrap: "wrap" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", ...statusStyles }, children: initialized ? "Initialized" : "Uninitialized" }),
-            createdLabel ? /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("span", { children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("section", { style: { display: "flex", flexDirection: "column", gap: 24, paddingBottom: 48 }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default3, { align: "flex-start", justify: "space-between", style: { gap: 16, flexWrap: "wrap" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { flex: "1 1 440px", minWidth: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("h1", { style: { margin: 0, fontSize: 28, lineHeight: 1.2 }, children: siteName }),
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12, color: "#3c434a", flexWrap: "wrap" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", ...statusStyles }, children: initialized ? "Initialized" : "Uninitialized" }),
+            createdLabel ? /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("span", { children: [
               "Created ",
               createdLabel
-            ] }) : null
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { className: "path", style: { marginTop: 12, fontFamily: "Menlo, monospace", fontSize: 13, color: "#2c3338", wordBreak: "break-all" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { color: "#787c82", marginRight: 6 }, children: "Path:" }),
-            " ",
-            sitePath
+            ] }) : null,
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+              button_default,
+              {
+                variant: "tertiary",
+                isSmall: true,
+                onClick: () => window.api.openDirectory(sitePath),
+                style: { marginLeft: 4 },
+                children: "Open directory"
+              }
+            )
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { display: "flex", alignItems: "flex-start", gap: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(dropdown_menu_default, { label: "More", text: "", controls: [{ title: "Forget this site", onClick: () => confirmAnd("Remove this site from the list?", () => onForget(sitePath)) }, { title: "Delete this site", onClick: () => confirmAnd("Delete this site from disk? This cannot be undone.", () => onDelete(sitePath)) }] }) })
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { display: "flex", alignItems: "flex-start", gap: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(dropdown_menu_default, { label: "More", text: "", controls: [{ title: "Forget this site", onClick: () => confirmAnd("Remove this site from the list?", () => onForget(sitePath)) }, { title: "Delete this site", onClick: () => confirmAnd("Delete this site from disk? This cannot be undone.", () => onDelete(sitePath)) }] }) })
       ] }),
-      !skipInit ? /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { padding: 20, border: "1px solid #dcdcde", borderRadius: 12, background: "#fff" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, fontSize: 16, color: "#1d2327" }, children: "Initial setup checklist" }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { marginTop: 4, fontSize: 13, color: "#3c434a" }, children: "Complete each step to prepare this site for development." }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }, children: stepItems.map((step) => {
+      !skipInit ? /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { padding: 20, border: "1px solid #dcdcde", borderRadius: 12, background: "#fff" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600, fontSize: 16, color: "#1d2327" }, children: "Initial setup checklist" }),
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { marginTop: 4, fontSize: 13, color: "#3c434a" }, children: "Complete each step to prepare this site for development." }),
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }, children: stepItems.map((step) => {
           const visuals = checklistVisuals[step.status] || checklistVisuals.locked;
-          return /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(
+          return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(
             "div",
             {
               style: {
@@ -53984,7 +53978,7 @@ Try "help" for the list of supported commands.
                 alignItems: "center"
               },
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { gridRow: "1 / span 2", alignSelf: "center", display: "flex", alignItems: "center", justifyContent: "center", width: 28 }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { gridRow: "1 / span 2", alignSelf: "center", display: "flex", alignItems: "center", justifyContent: "center", width: 28 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
                   "span",
                   {
                     style: {
@@ -54004,31 +53998,30 @@ Try "help" for the list of supported commands.
                     children: visuals.indicatorContent
                   }
                 ) }),
-                /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { gridColumn: "2 / 3", display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, minWidth: 0, flexWrap: "wrap" }, children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, color: "#1d2327", lineHeight: 1.4 }, children: step.label }),
-                  /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: visuals.color, marginLeft: "auto", whiteSpace: "nowrap" }, children: visuals.label })
+                /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { gridColumn: "2 / 3", display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, minWidth: 0, flexWrap: "wrap" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600, color: "#1d2327", lineHeight: 1.4 }, children: step.label }),
+                  /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: visuals.color, marginLeft: "auto", whiteSpace: "nowrap" }, children: visuals.label })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { gridColumn: "2 / 3", fontSize: 12, color: "#3c434a", lineHeight: 1.5 }, children: step.description }),
-                /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { gridRow: "1 / span 2", gridColumn: "3 / 4", alignSelf: "center", display: "flex", alignItems: "center" }, children: step.action })
+                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { gridColumn: "2 / 3", fontSize: 12, color: "#3c434a", lineHeight: 1.5 }, children: step.description }),
+                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { gridRow: "1 / span 2", gridColumn: "3 / 4", alignSelf: "center", display: "flex", alignItems: "center" }, children: step.action })
               ]
             },
             step.key
           );
         }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { marginTop: 12 }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "link", onClick: markSkipWizard, style: { textDecoration: "underline" }, children: "Skip initialization wizard" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { marginTop: 12 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(button_default, { variant: "link", onClick: markSkipWizard, style: { textDecoration: "underline" }, children: "Skip initialization wizard" }) })
       ] }) : null,
-      skipInit ? /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 12 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(
+      skipInit ? /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 12 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "stretch", gap: 12, flexWrap: "wrap" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(
             button_default,
             {
               isBusy: isServerStarting,
               variant: isDevProcessActive ? "secondary" : "primary",
               onClick: toggleDevServer,
-              style: { display: "inline-flex", alignItems: "center", gap: 10, minWidth: 220, justifyContent: "center" },
+              style: { display: "inline-flex", alignItems: "center", gap: 10, minWidth: 220, justifyContent: "center", padding: "12px 20px", fontSize: 15, borderRadius: 12 },
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { fontWeight: 600 }, children: isDevProcessActive ? "Stop dev server" : "Start dev server" }),
-                isDevProcessActive ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+                isDevProcessActive ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
                   "span",
                   {
                     "aria-hidden": "true",
@@ -54038,39 +54031,46 @@ Try "help" for the list of supported commands.
                       height: 10,
                       borderRadius: "50%",
                       background: "#d63638",
-                      boxShadow: "0 0 0 4px rgba(214,54,56,0.15)"
+                      boxShadow: "0 0 0 4px rgba(214,54,56,0.15)",
+                      marginRight: 6
                     }
                   }
-                ) : null
+                ) : null,
+                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { fontWeight: 600 }, children: isDevProcessActive ? "Stop dev server" : "Start dev server" })
               ]
             }
           ),
-          isServerStarting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontSize: 13, color: "#1d2327" }, children: serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("a", { href: serverUrl, onClick: (e) => {
-            e.preventDefault();
-            window.api.openExternal(serverUrl);
-          }, children: serverUrl }) : "Dev server is starting\u2026" }) : null
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default3, { style: { gap: 8, justifyContent: "flex-start", flexWrap: "wrap" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "secondary", onClick: () => window.api.openDirectory(sitePath), children: "Open directory" }) }),
-          running && serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
             button_default,
             {
               variant: "secondary",
-              onClick: () => {
-                const adminer = (serverUrl || "").replace(/\/$/, "/") + "adminer.php";
-                window.api.openExternal(adminer);
-              },
-              children: "Open Adminer"
+              onClick: openPatchModal,
+              style: { padding: "10px 16px", borderRadius: 10 },
+              children: "Create patch"
             }
-          ) }) : null,
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "secondary", onClick: openPatchModal, children: "Create patch" }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(dropdown_menu_default, { icon: chevron_down_default, label: "Run command", text: "Run command", controls: [{ title: "npm run build", onClick: () => runScript("build") }, { title: "npm run build:dev", onClick: () => runScript("build:dev") }, { title: "npm run dev", onClick: () => runScript("dev") }, { title: "npm run test", onClick: () => runScript("test") }, { title: "npm run watch", onClick: () => runScript("watch") }, { title: "npm run grunt", onClick: () => runScript("grunt") }, { title: "Kill running command", onClick: killCurrent }] }) })
-        ] })
+          )
+        ] }),
+        isServerStarting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 13, color: "#1d2327", paddingLeft: 2 }, children: serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("a", { href: serverUrl, onClick: (e) => {
+          e.preventDefault();
+          window.api.openExternal(serverUrl);
+        }, children: serverUrl }) : "Dev server is starting\u2026" }) : null,
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default3, { style: { gap: 10, justifyContent: "flex-start", flexWrap: "wrap" }, children: running && serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+          button_default,
+          {
+            variant: "secondary",
+            style: { padding: "10px 16px", borderRadius: 10 },
+            onClick: () => {
+              const adminer = (serverUrl || "").replace(/\/$/, "/") + "adminer.php";
+              window.api.openExternal(adminer);
+            },
+            children: "Open Adminer"
+          }
+        ) }) : null })
       ] }) : null,
-      /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 16 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Terminal" }),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 16 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Terminal" }),
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
             "div",
             {
               ref: terminalContainerRef,
@@ -54083,52 +54083,52 @@ Try "help" for the list of supported commands.
               }
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { marginTop: 8, fontSize: 12, color: "#3c434a" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { marginTop: 8, fontSize: 12, color: "#3c434a" }, children: [
             "Type ",
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("code", { children: "help" }),
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("code", { children: "help" }),
             " to list supported commands. Press ",
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("code", { children: "Ctrl+C" }),
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("code", { children: "Ctrl+C" }),
             " to stop the current command."
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Server & WordPress logs" }),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { ref: runtimeRef, onScroll: makeOnScroll("runtime"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 220, overflow: "auto" }, children: runtimeLogs })
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Server & WordPress logs" }),
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { ref: runtimeRef, onScroll: makeOnScroll("runtime"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 220, overflow: "auto" }, children: runtimeLogs })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Mail" }),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : "SMTP will start with the dev server." }),
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { size: "small", variant: "secondary", onClick: clearEmails, children: "Clear emails" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Mail" }),
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : "SMTP will start with the dev server." }),
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(button_default, { size: "small", variant: "secondary", onClick: clearEmails, children: "Clear emails" }) })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { border: "1px solid #ddd", borderRadius: 6, maxHeight: 220, overflow: "auto" }, children: emails && emails.length ? emails.map((m) => {
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { border: "1px solid #ddd", borderRadius: 6, maxHeight: 220, overflow: "auto" }, children: emails && emails.length ? emails.map((m) => {
             const when = m.sentAt || m.date;
             const whenStr = when ? new Date(when).toLocaleString() : "";
-            return /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(
+            return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(
               "div",
               {
                 onClick: () => openEmail(m),
                 style: { padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #eee", display: "flex", gap: 8 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { flex: "0 0 180px", color: "#555", fontSize: 12 }, children: whenStr }),
-                  /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { flex: "0 0 220px", color: "#333", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: m.from || "" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { flex: "1 1 auto", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: m.subject || "(no subject)" })
+                  /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { flex: "0 0 180px", color: "#555", fontSize: 12 }, children: whenStr }),
+                  /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { flex: "0 0 220px", color: "#333", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: m.from || "" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { flex: "1 1 auto", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: m.subject || "(no subject)" })
                 ]
               },
               m.id
             );
-          }) : /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { padding: 12, color: "#666" }, children: "No emails yet." }) })
+          }) : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { padding: 12, color: "#666" }, children: "No emails yet." }) })
         ] })
       ] }),
-      isPatchOpen && /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+      isPatchOpen && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
         modal_default,
         {
           title: "Patch",
           onRequestClose: () => setIsPatchOpen(false),
           shouldCloseOnClickOutside: true,
           isFullScreen: true,
-          children: /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { position: "relative", height: "80vh" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+          children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { position: "relative", height: "80vh" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
               button_default,
               {
                 icon: copy_default,
@@ -54146,11 +54146,11 @@ Try "help" for the list of supported commands.
                 }
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("pre", { style: { margin: 0, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: "100%", overflow: "auto" }, children: patchText && patchText.trim().length ? patchText : "No changes." })
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("pre", { style: { margin: 0, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: "100%", overflow: "auto" }, children: patchText && patchText.trim().length ? patchText : "No changes." })
           ] })
         }
       ),
-      isEmailOpen && activeEmail && /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+      isEmailOpen && activeEmail && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
         modal_default,
         {
           title: activeEmail.subject || "Email",
@@ -54160,37 +54160,37 @@ Try "help" for the list of supported commands.
           },
           shouldCloseOnClickOutside: true,
           isFullScreen: true,
-          children: /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { padding: 8 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { marginBottom: 8, fontSize: 12, color: "#444" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("strong", { children: "From:" }),
+          children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { padding: 8 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { marginBottom: 8, fontSize: 12, color: "#444" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("strong", { children: "From:" }),
                 " ",
                 activeEmail.from || ""
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("strong", { children: "To:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("strong", { children: "To:" }),
                 " ",
                 activeEmail.to || ""
               ] }),
-              activeEmail.cc ? /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("strong", { children: "CC:" }),
+              activeEmail.cc ? /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("strong", { children: "CC:" }),
                 " ",
                 activeEmail.cc
               ] }) : null,
-              /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("strong", { children: "Date:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("strong", { children: "Date:" }),
                 " ",
                 activeEmail.sentAt ? new Date(activeEmail.sentAt).toLocaleString() : activeEmail.date ? new Date(activeEmail.date).toLocaleString() : ""
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(tab_panel_default, { className: "email-tabs", activeClass: "is-active", onSelect: (n) => setEmailViewTab(n), tabs: [{ name: "rendered", title: "Rendered" }, { name: "raw", title: "Raw" }], children: (tab) => tab.name === "rendered" ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { border: "1px solid #ddd", borderRadius: 6, padding: 12, minHeight: "60vh", background: "#fff" }, children: activeEmail.html ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { dangerouslySetInnerHTML: { __html: String(activeEmail.html) } }) : /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("pre", { style: { whiteSpace: "pre-wrap", margin: 0 }, children: activeEmail.text || "" }) }) : /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("pre", { style: { whiteSpace: "pre-wrap", margin: 0, background: "#111", color: "#eee", padding: 12, borderRadius: 6, minHeight: "60vh", overflow: "auto" }, children: activeEmail.raw || activeEmail.text || "" }) })
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(tab_panel_default, { className: "email-tabs", activeClass: "is-active", onSelect: (n) => setEmailViewTab(n), tabs: [{ name: "rendered", title: "Rendered" }, { name: "raw", title: "Raw" }], children: (tab) => tab.name === "rendered" ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { border: "1px solid #ddd", borderRadius: 6, padding: 12, minHeight: "60vh", background: "#fff" }, children: activeEmail.html ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { dangerouslySetInnerHTML: { __html: String(activeEmail.html) } }) : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("pre", { style: { whiteSpace: "pre-wrap", margin: 0 }, children: activeEmail.text || "" }) }) : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("pre", { style: { whiteSpace: "pre-wrap", margin: 0, background: "#111", color: "#eee", padding: 12, borderRadius: 6, minHeight: "60vh", overflow: "auto" }, children: activeEmail.raw || activeEmail.text || "" }) })
           ] })
         }
       )
     ] });
   }
   var root = (0, import_client2.createRoot)(document.getElementById("root"));
-  root.render(/* @__PURE__ */ (0, import_jsx_runtime56.jsx)(App, {}));
+  root.render(/* @__PURE__ */ (0, import_jsx_runtime55.jsx)(App, {}));
 })();
 /*! Bundled license information:
 
