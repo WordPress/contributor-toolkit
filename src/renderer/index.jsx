@@ -312,6 +312,7 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
   const [hasBuilt, setHasBuilt] = useState(false);
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
+  const [waitingForWatch, setWaitingForWatch] = useState(false);
 
   // sticky refs per log
   const npmRef = useRef(null);
@@ -414,6 +415,8 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
   const terminalInputHandlerRef = useRef(() => {});
   const terminalKillRef = useRef(null);
   const terminalStateRef = useRef({ input: '', history: [], historyIndex: 0, running: false });
+  const watchBufferRef = useRef('');
+  const serverStartRequestedRef = useRef(false);
 
   const normalizeForTerminal = useCallback((text) => String(text ?? '').replace(/\r?\n/g, '\r\n'), []);
 
@@ -636,6 +639,32 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
       terminalStickRef.current = true;
     };
   }, [normalizeForTerminal, printHelp, showPrompt]);
+  const startPhpServer = useCallback(async () => {
+    if (serverStartRequestedRef.current) return;
+    serverStartRequestedRef.current = true;
+    setWaitingForWatch(false);
+    ensureStick('runtime');
+    setStarting(true);
+    // Subscribe to SMTP events before starting to avoid missing early events
+    if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port)=>setSmtpPort(port||0));
+    if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg)=>setEmails((prev)=>sortEmails([msg, ...prev])));
+    try {
+      await window.api.startServer(
+        sitePath,
+        (p)=>appendRuntime(p.data || ''),
+        (url)=>{ const u=url.replace(/\/$/,'/'); setServerUrl(u); window.api.openExternal(u); setRunning(true); setStarting(false); },
+        ()=>{ setRunning(false); setServerUrl(''); }
+      );
+    } catch (error) {
+      appendRuntime(`Failed to start PHP server: ${error && error.message ? error.message : String(error)}\n`);
+      setStarting(false);
+      serverStartRequestedRef.current = false;
+      return;
+    }
+    window.api.startWpDebug(sitePath,(d)=>appendRuntime(d || ''));
+    try { const { port, emails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(emails||[]); } catch {}
+  }, [appendRuntime, ensureStick, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails]);
+
   const toggleDevServer = async ()=>{
     if (!running) {
       if (!skipInit && !hasBuilt) { alert('Please complete the first full build before starting the dev server. You can also skip the wizard.'); return; }
@@ -646,26 +675,39 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
       }
       state.running = true;
       terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+      watchBufferRef.current = '';
+      serverStartRequestedRef.current = false;
+      setWaitingForWatch(true);
+      setStarting(true);
       writeToTerminal('\nRunning npm run dev…\n');
       runScript('dev', {
-        onLog: (chunk) => writeToTerminal(chunk),
+        onLog: (chunk) => {
+          writeToTerminal(chunk);
+          if (serverStartRequestedRef.current) return;
+          const text = String(chunk ?? '');
+          if (!text) return;
+          watchBufferRef.current = `${watchBufferRef.current}${text}`.slice(-200);
+          if (watchBufferRef.current.includes('Running "_watch" task')) {
+            startPhpServer().catch(() => {});
+          }
+        },
         onDone: ({ code }) => {
           writeToTerminal(`npm run dev exited with code ${code}\n`);
           const currentState = terminalStateRef.current;
           currentState.running = false;
           terminalKillRef.current = null;
+          setWaitingForWatch(false);
+          setStarting(false);
+          serverStartRequestedRef.current = false;
+          watchBufferRef.current = '';
           showPrompt(false);
         }
       });
-      setStarting(true);
-      ensureStick('runtime');
-      // Subscribe to SMTP events before starting to avoid missing early events
-      if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port)=>setSmtpPort(port||0));
-      if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg)=>setEmails((prev)=>sortEmails([msg, ...prev])));
-      await window.api.startServer(sitePath, (p)=>appendRuntime(p.data || ''), (url)=>{ const u=url.replace(/\/$/,'/'); setServerUrl(u); window.api.openExternal(u); setRunning(true); setStarting(false); }, ()=>{ setRunning(false); setServerUrl(''); });
-      window.api.startWpDebug(sitePath,(d)=>appendRuntime(d || ''));
-      try { const { port, emails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(emails||[]); } catch {}
     } else {
+      setWaitingForWatch(false);
+      serverStartRequestedRef.current = false;
+      watchBufferRef.current = '';
+      setStarting(false);
       await window.api.stopServer(sitePath);
       window.api.stopWpDebug(sitePath);
       await window.api.npmKill({ directoryPath: sitePath });
@@ -905,8 +947,16 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
           <FlexItem><Button variant="secondary" onClick={()=>window.api.openDirectory(sitePath)}>Open directory</Button></FlexItem>
           <FlexItem>
             <Button isBusy={starting} variant={running ? 'secondary' : 'primary'} onClick={toggleDevServer}>{running ? 'Stop dev server' : 'Start dev server'}</Button>
-            {starting || serverUrl ? (
-              <span style={{ marginLeft: 8 }}>{starting ? 'Starting...' : serverUrl ? (<a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>) : null}</span>
+            {(waitingForWatch || starting || serverUrl) ? (
+              <span style={{ marginLeft: 8 }}>
+                {waitingForWatch
+                  ? 'Waiting for Grunt watch task to be ready…'
+                  : starting && !serverUrl
+                    ? 'Starting PHP dev server…'
+                    : serverUrl
+                      ? (<a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>)
+                      : null}
+              </span>
             ) : null}
             {running && serverUrl ? (
               <Button

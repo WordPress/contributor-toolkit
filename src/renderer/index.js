@@ -53299,6 +53299,7 @@ If there's a particular need for this, please submit a feature request at https:
     const [hasBuilt, setHasBuilt] = (0, import_react68.useState)(false);
     const [skipInit, setSkipInit] = (0, import_react68.useState)(false);
     const [statusLoading, setStatusLoading] = (0, import_react68.useState)(true);
+    const [waitingForWatch, setWaitingForWatch] = (0, import_react68.useState)(false);
     const npmRef = (0, import_react68.useRef)(null);
     const runtimeRef = (0, import_react68.useRef)(null);
     const threshold = 8;
@@ -53406,6 +53407,8 @@ ${name} exited with code ${code}
     });
     const terminalKillRef = (0, import_react68.useRef)(null);
     const terminalStateRef = (0, import_react68.useRef)({ input: "", history: [], historyIndex: 0, running: false });
+    const watchBufferRef = (0, import_react68.useRef)("");
+    const serverStartRequestedRef = (0, import_react68.useRef)(false);
     const normalizeForTerminal = (0, import_react68.useCallback)((text) => String(text ?? "").replace(/\r?\n/g, "\r\n"), []);
     const writeToTerminal = (0, import_react68.useCallback)((text) => {
       const term = terminalRef.current;
@@ -53615,6 +53618,45 @@ Try "help" for the list of supported commands.
         terminalStickRef.current = true;
       };
     }, [normalizeForTerminal, printHelp, showPrompt]);
+    const startPhpServer = (0, import_react68.useCallback)(async () => {
+      if (serverStartRequestedRef.current) return;
+      serverStartRequestedRef.current = true;
+      setWaitingForWatch(false);
+      ensureStick("runtime");
+      setStarting(true);
+      if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port) => setSmtpPort(port || 0));
+      if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg) => setEmails((prev2) => sortEmails([msg, ...prev2])));
+      try {
+        await window.api.startServer(
+          sitePath,
+          (p) => appendRuntime(p.data || ""),
+          (url) => {
+            const u = url.replace(/\/$/, "/");
+            setServerUrl(u);
+            window.api.openExternal(u);
+            setRunning(true);
+            setStarting(false);
+          },
+          () => {
+            setRunning(false);
+            setServerUrl("");
+          }
+        );
+      } catch (error) {
+        appendRuntime(`Failed to start PHP server: ${error && error.message ? error.message : String(error)}
+`);
+        setStarting(false);
+        serverStartRequestedRef.current = false;
+        return;
+      }
+      window.api.startWpDebug(sitePath, (d) => appendRuntime(d || ""));
+      try {
+        const { port, emails: emails2 } = await window.api.getEmails(sitePath);
+        if (port) setSmtpPort(port);
+        setEmails(emails2 || []);
+      } catch {
+      }
+    }, [appendRuntime, ensureStick, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails]);
     const toggleDevServer = async () => {
       if (!running) {
         if (!skipInit && !hasBuilt) {
@@ -53631,40 +53673,41 @@ Try "help" for the list of supported commands.
           killCurrent().catch(() => {
           });
         };
+        watchBufferRef.current = "";
+        serverStartRequestedRef.current = false;
+        setWaitingForWatch(true);
+        setStarting(true);
         writeToTerminal("\nRunning npm run dev\u2026\n");
         runScript("dev", {
-          onLog: (chunk) => writeToTerminal(chunk),
+          onLog: (chunk) => {
+            writeToTerminal(chunk);
+            if (serverStartRequestedRef.current) return;
+            const text = String(chunk ?? "");
+            if (!text) return;
+            watchBufferRef.current = `${watchBufferRef.current}${text}`.slice(-200);
+            if (watchBufferRef.current.includes('Running "_watch" task')) {
+              startPhpServer().catch(() => {
+              });
+            }
+          },
           onDone: ({ code }) => {
             writeToTerminal(`npm run dev exited with code ${code}
 `);
             const currentState = terminalStateRef.current;
             currentState.running = false;
             terminalKillRef.current = null;
+            setWaitingForWatch(false);
+            setStarting(false);
+            serverStartRequestedRef.current = false;
+            watchBufferRef.current = "";
             showPrompt(false);
           }
         });
-        setStarting(true);
-        ensureStick("runtime");
-        if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port) => setSmtpPort(port || 0));
-        if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg) => setEmails((prev2) => sortEmails([msg, ...prev2])));
-        await window.api.startServer(sitePath, (p) => appendRuntime(p.data || ""), (url) => {
-          const u = url.replace(/\/$/, "/");
-          setServerUrl(u);
-          window.api.openExternal(u);
-          setRunning(true);
-          setStarting(false);
-        }, () => {
-          setRunning(false);
-          setServerUrl("");
-        });
-        window.api.startWpDebug(sitePath, (d) => appendRuntime(d || ""));
-        try {
-          const { port, emails: emails2 } = await window.api.getEmails(sitePath);
-          if (port) setSmtpPort(port);
-          setEmails(emails2 || []);
-        } catch {
-        }
       } else {
+        setWaitingForWatch(false);
+        serverStartRequestedRef.current = false;
+        watchBufferRef.current = "";
+        setStarting(false);
         await window.api.stopServer(sitePath);
         window.api.stopWpDebug(sitePath);
         await window.api.npmKill({ directoryPath: sitePath });
@@ -53906,7 +53949,7 @@ Try "help" for the list of supported commands.
         /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "secondary", onClick: () => window.api.openDirectory(sitePath), children: "Open directory" }) }),
         /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default4, { children: [
           /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { isBusy: starting, variant: running ? "secondary" : "primary", onClick: toggleDevServer, children: running ? "Stop dev server" : "Start dev server" }),
-          starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { marginLeft: 8 }, children: starting ? "Starting..." : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("a", { href: serverUrl, onClick: (e) => {
+          waitingForWatch || starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { marginLeft: 8 }, children: waitingForWatch ? "Waiting for Grunt watch task to be ready\u2026" : starting && !serverUrl ? "Starting PHP dev server\u2026" : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("a", { href: serverUrl, onClick: (e) => {
             e.preventDefault();
             window.api.openExternal(serverUrl);
           }, children: serverUrl }) : null }) : null,
