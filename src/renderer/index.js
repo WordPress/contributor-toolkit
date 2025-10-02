@@ -53302,6 +53302,7 @@ If there's a particular need for this, please submit a feature request at https:
     const [waitingForWatch, setWaitingForWatch] = (0, import_react68.useState)(false);
     const npmRef = (0, import_react68.useRef)(null);
     const runtimeRef = (0, import_react68.useRef)(null);
+    const currentRunIdRef = (0, import_react68.useRef)(null);
     const threshold = 8;
     const [logStick, setLogStick] = (0, import_react68.useState)({ npm: true, runtime: true });
     const updateStick = (0, import_react68.useCallback)((key, value) => {
@@ -53425,7 +53426,6 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
     const terminalStateRef = (0, import_react68.useRef)({ input: "", history: [], historyIndex: 0, running: false });
     const watchBufferRef = (0, import_react68.useRef)("");
     const serverStartRequestedRef = (0, import_react68.useRef)(false);
-    const currentRunIdRef = (0, import_react68.useRef)(null);
     const stoppingRef = (0, import_react68.useRef)(false);
     const runningRef = (0, import_react68.useRef)(false);
     const waitingForWatchRef = (0, import_react68.useRef)(false);
@@ -53798,6 +53798,8 @@ Try "help" for the list of supported commands.
         await stopDevServer();
       }
     };
+    const isServerStarting = waitingForWatch || starting && !serverUrl;
+    const isDevProcessActive = running || isServerStarting;
     const markSkipWizard = (0, import_react68.useCallback)(async () => {
       await window.api.setSkipInitWizard(sitePath, true);
       setSkipInit(true);
@@ -54015,15 +54017,42 @@ Try "help" for the list of supported commands.
         }) }),
         /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { marginTop: 12 }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "link", onClick: markSkipWizard, style: { textDecoration: "underline" }, children: "Skip initialization wizard" }) })
       ] }) : null,
-      skipInit ? /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default3, { style: { gap: 8, justifyContent: "flex-start" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "secondary", onClick: () => window.api.openDirectory(sitePath), children: "Open directory" }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default4, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { isBusy: starting, variant: running ? "secondary" : "primary", onClick: toggleDevServer, children: running ? "Stop dev server" : "Start dev server" }),
-          waitingForWatch || starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { marginLeft: 8 }, children: waitingForWatch ? "Waiting for Grunt watch task to be ready\u2026" : starting && !serverUrl ? "Starting PHP dev server\u2026" : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("a", { href: serverUrl, onClick: (e) => {
+      skipInit ? /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 12 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(
+            button_default,
+            {
+              isBusy: isServerStarting,
+              variant: isDevProcessActive ? "secondary" : "primary",
+              onClick: toggleDevServer,
+              style: { display: "inline-flex", alignItems: "center", gap: 10, minWidth: 220, justifyContent: "center" },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", { style: { fontWeight: 600 }, children: isDevProcessActive ? "Stop dev server" : "Start dev server" }),
+                isDevProcessActive ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+                  "span",
+                  {
+                    "aria-hidden": "true",
+                    style: {
+                      display: "inline-block",
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      background: "#d63638",
+                      boxShadow: "0 0 0 4px rgba(214,54,56,0.15)"
+                    }
+                  }
+                ) : null
+              ]
+            }
+          ),
+          isServerStarting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontSize: 13, color: "#1d2327" }, children: serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("a", { href: serverUrl, onClick: (e) => {
             e.preventDefault();
             window.api.openExternal(serverUrl);
-          }, children: serverUrl }) : null }) : null,
-          running && serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+          }, children: serverUrl }) : "Dev server is starting\u2026" }) : null
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default3, { style: { gap: 8, justifyContent: "flex-start", flexWrap: "wrap" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "secondary", onClick: () => window.api.openDirectory(sitePath), children: "Open directory" }) }),
+          running && serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
             button_default,
             {
               variant: "secondary",
@@ -54031,13 +54060,12 @@ Try "help" for the list of supported commands.
                 const adminer = (serverUrl || "").replace(/\/$/, "/") + "adminer.php";
                 window.api.openExternal(adminer);
               },
-              style: { marginLeft: 8 },
               children: "Open Adminer"
             }
-          ) : null
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "secondary", onClick: openPatchModal, children: "Create patch" }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(dropdown_menu_default, { icon: chevron_down_default, label: "Run command", text: "Run command", controls: [{ title: "npm run build", onClick: () => runScript("build") }, { title: "npm run build:dev", onClick: () => runScript("build:dev") }, { title: "npm run dev", onClick: () => runScript("dev") }, { title: "npm run test", onClick: () => runScript("test") }, { title: "npm run watch", onClick: () => runScript("watch") }, { title: "npm run grunt", onClick: () => runScript("grunt") }, { title: "Kill running command", onClick: killCurrent }] }) })
+          ) }) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, { variant: "secondary", onClick: openPatchModal, children: "Create patch" }) }),
+          /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(dropdown_menu_default, { icon: chevron_down_default, label: "Run command", text: "Run command", controls: [{ title: "npm run build", onClick: () => runScript("build") }, { title: "npm run build:dev", onClick: () => runScript("build:dev") }, { title: "npm run dev", onClick: () => runScript("dev") }, { title: "npm run test", onClick: () => runScript("test") }, { title: "npm run watch", onClick: () => runScript("watch") }, { title: "npm run grunt", onClick: () => runScript("grunt") }, { title: "Kill running command", onClick: killCurrent }] }) })
+        ] })
       ] }) : null,
       /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 16 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { children: [

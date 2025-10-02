@@ -317,6 +317,7 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
   // sticky refs per log
   const npmRef = useRef(null);
   const runtimeRef = useRef(null);
+  const currentRunIdRef = useRef(null);
   const threshold = 8;
   const [logStick, setLogStick] = useState({ npm: true, runtime: true });
   const updateStick = useCallback((key, value) => {
@@ -433,7 +434,6 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
   const terminalStateRef = useRef({ input: '', history: [], historyIndex: 0, running: false });
   const watchBufferRef = useRef('');
   const serverStartRequestedRef = useRef(false);
-  const currentRunIdRef = useRef(null);
   const stoppingRef = useRef(false);
   const runningRef = useRef(false);
   const waitingForWatchRef = useRef(false);
@@ -781,6 +781,8 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
       await stopDevServer();
     }
   };
+  const isServerStarting = waitingForWatch || (starting && !serverUrl);
+  const isDevProcessActive = running || isServerStarting;
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
@@ -1008,35 +1010,56 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
         null
       )}
       {skipInit ? (
-        <Flex style={{ gap: 8, justifyContent: 'flex-start' }}>
-          <FlexItem><Button variant="secondary" onClick={()=>window.api.openDirectory(sitePath)}>Open directory</Button></FlexItem>
-          <FlexItem>
-            <Button isBusy={starting} variant={running ? 'secondary' : 'primary'} onClick={toggleDevServer}>{running ? 'Stop dev server' : 'Start dev server'}</Button>
-            {(waitingForWatch || starting || serverUrl) ? (
-              <span style={{ marginLeft: 8 }}>
-                {waitingForWatch
-                  ? 'Waiting for Grunt watch task to be ready…'
-                  : starting && !serverUrl
-                    ? 'Starting PHP dev server…'
-                    : serverUrl
-                      ? (<a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>)
-                      : null}
-              </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <Button
+              isBusy={isServerStarting}
+              variant={isDevProcessActive ? 'secondary' : 'primary'}
+              onClick={toggleDevServer}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 10, minWidth: 220, justifyContent: 'center' }}
+            >
+              <span style={{ fontWeight: 600 }}>{isDevProcessActive ? 'Stop dev server' : 'Start dev server'}</span>
+              {isDevProcessActive ? (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: 'inline-block',
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    background: '#d63638',
+                    boxShadow: '0 0 0 4px rgba(214,54,56,0.15)'
+                  }}
+                />
+              ) : null}
+            </Button>
+            {(isServerStarting || serverUrl) ? (
+              <div style={{ fontSize: 13, color: '#1d2327' }}>
+                {serverUrl ? (
+                  <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
+                ) : (
+                  'Dev server is starting…'
+                )}
+              </div>
             ) : null}
+          </div>
+          <Flex style={{ gap: 8, justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+            <FlexItem><Button variant="secondary" onClick={()=>window.api.openDirectory(sitePath)}>Open directory</Button></FlexItem>
             {running && serverUrl ? (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  const adminer = (serverUrl || '').replace(/\/$/, '/') + 'adminer.php';
-                  window.api.openExternal(adminer);
-                }}
-                style={{ marginLeft: 8 }}
-              >Open Adminer</Button>
+              <FlexItem>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    const adminer = (serverUrl || '').replace(/\/$/, '/') + 'adminer.php';
+                    window.api.openExternal(adminer);
+                  }}
+                >Open Adminer</Button>
+              </FlexItem>
             ) : null}
-          </FlexItem>
-          <FlexItem><Button variant="secondary" onClick={openPatchModal}>Create patch</Button></FlexItem>
-          <FlexItem><DropdownMenu icon={chevronDown} label="Run command" text="Run command" controls={[{title:'npm run build',onClick:()=>runScript('build')},{title:'npm run build:dev',onClick:()=>runScript('build:dev')},{title:'npm run dev',onClick:()=>runScript('dev')},{title:'npm run test',onClick:()=>runScript('test')},{title:'npm run watch',onClick:()=>runScript('watch')},{title:'npm run grunt',onClick:()=>runScript('grunt')},{title:'Kill running command',onClick:killCurrent}]}/></FlexItem>
-        </Flex>
+            <FlexItem><Button variant="secondary" onClick={openPatchModal}>Create patch</Button></FlexItem>
+            <FlexItem><DropdownMenu icon={chevronDown} label="Run command" text="Run command" controls={[{title:'npm run build',onClick:()=>runScript('build')},{title:'npm run build:dev',onClick:()=>runScript('build:dev')},{title:'npm run dev',onClick:()=>runScript('dev')},{title:'npm run test',onClick:()=>runScript('test')},{title:'npm run watch',onClick:()=>runScript('watch')},{title:'npm run grunt',onClick:()=>runScript('grunt')},{title:'Kill running command',onClick:killCurrent}]}/></FlexItem>
+          </Flex>
+        </div>
       ) : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
