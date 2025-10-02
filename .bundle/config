@@ -1,0 +1,5 @@
+---
+BUNDLE_PATH: "vendor/bundle"
+BUNDLE_SPECIFIC_PLATFORM: "false"
+BUNDLE_JOBS: "3"
+BUNDLE_RETRY: "3"
