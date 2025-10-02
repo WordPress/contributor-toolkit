@@ -6,11 +6,10 @@ import {
   Card,
   CardBody,
   Flex,
-  FlexItem,
   DropdownMenu,
   Modal
 } from '@wordpress/components';
-import { plus, chevronDown, chevronLeft, chevronRight, copy as copyIcon } from '@wordpress/icons';
+import { plus, chevronLeft, chevronRight, copy as copyIcon, edit } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
@@ -63,12 +62,30 @@ function App() {
   }, []);
 
   const chooseAndSetup = useCallback(async () => {
-    const dir = await window.api.chooseDirectory();
-    if (!dir) return;
+    const enteredName = prompt('Name your new WordPress site');
+    if (!enteredName) return;
+    const siteLabel = enteredName.trim();
+    if (!siteLabel) return;
+
+    const destRoot = await window.api.chooseDirectory();
+    if (!destRoot) return;
+
+    const cleanFolder = siteLabel
+      .replace(/[\\/:*?"<>|]+/g, '-')
+      .replace(/\s+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      || 'wordpress-site';
+
+    const normalizedRoot = destRoot.replace(/[\\/]+$/, '');
+    const separator = /\\/.test(normalizedRoot) && !normalizedRoot.includes('/') ? '\\' : '/';
+    const targetDir = `${normalizedRoot}${separator}${cleanFolder}`;
     try {
       setTerminalMsgs('');
-      setPendingSite({ targetDir: dir });
-      await window.api.setupWordPress(dir);
+      setPendingSite({ targetDir });
+      const createdPath = await window.api.setupWordPress(destRoot, { siteName: cleanFolder, siteLabel });
+      if (createdPath && createdPath !== targetDir) {
+        setPendingSite({ targetDir: createdPath });
+      }
       await refresh();
     } catch (e) {
       setPendingSite(null);
@@ -119,6 +136,18 @@ function App() {
     await refresh();
   }, [refresh]);
 
+  const onRename = useCallback(async (sitePath, newLabel) => {
+    try {
+      await window.api.setSiteLabel(sitePath, newLabel);
+      setSiteMeta((meta) => ({
+        ...(meta || {}),
+        [sitePath]: { ...(meta?.[sitePath] || {}), label: newLabel }
+      }));
+    } catch (err) {
+      alert(String(err));
+    }
+  }, [setSiteMeta]);
+
   const sortedSites = useMemo(() => {
     if (!sites || !sites.length) return [];
     return [...sites].sort((a, b) => (siteMeta?.[b]?.createdAt || 0) - (siteMeta?.[a]?.createdAt || 0));
@@ -157,7 +186,7 @@ function App() {
         <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? '12px 8px' : '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sortedSites.length > 0 ? sortedSites.map((sitePath) => {
             const meta = siteMeta?.[sitePath] || {};
-            const siteName = sitePath.split('/').pop() || sitePath;
+            const siteName = (meta.label && meta.label.trim()) || sitePath.split('/').pop() || sitePath;
             const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : '';
             const isActive = activeSite === sitePath;
             const statusLabel = meta.initialized ? 'Initialized' : 'Not initialized';
@@ -268,9 +297,11 @@ function App() {
                       sitePath={s}
                       initialized={Boolean(siteMeta?.[s]?.initialized)}
                       createdAt={siteMeta?.[s]?.createdAt}
+                      label={siteMeta?.[s]?.label}
                       onInitialized={onInitialized}
                       onForget={onForget}
                       onDelete={onDelete}
+                      onRename={onRename}
                     />
                   </div>
                 ))
@@ -290,7 +321,8 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, onDelete }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename }) {
+  const safeOnRename = onRename || (() => {});
   // state
   const [serverUrl, setServerUrl] = useState('');
   const [starting, setStarting] = useState(false);
@@ -335,6 +367,7 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
   }, [threshold, updateStick]);
 
   const siteName = sitePath.split('/').pop();
+  const displayName = (label && label.trim()) || siteName;
   const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : '';
 
   const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
@@ -928,11 +961,34 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
     return { ...step, status };
   });
 
+  const handleRename = useCallback(async () => {
+    const current = displayName;
+    const next = prompt('Edit site name', current);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === current) return;
+    try {
+      await safeOnRename(sitePath, trimmed);
+    } catch (err) {
+      alert(String(err));
+    }
+  }, [displayName, safeOnRename, sitePath]);
+
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
       <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 440px', minWidth: 0 }}>
-          <h1 style={{ margin: 0, fontSize: 28, lineHeight: 1.2 }}>{siteName}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <h1 style={{ margin: 0, fontSize: 28, lineHeight: 1.2 }}>{displayName}</h1>
+            <Button
+              icon={edit}
+              label="Rename site"
+              aria-label="Rename site"
+              onClick={handleRename}
+              variant="tertiary"
+              isSmall
+            />
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: '#3c434a', flexWrap: 'wrap' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', ...statusStyles }}>
               {initialized ? 'Initialized' : 'Uninitialized'}
@@ -942,12 +998,33 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
               variant="tertiary"
               isSmall
               onClick={() => window.api.openDirectory(sitePath)}
-              style={{ marginLeft: 4 }}
-            >Open directory</Button>
+              style={{ marginLeft: 4, fontSize: 12 }}
+            >Open site directory</Button>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-          <DropdownMenu label="More" text="" controls={[{ title:'Forget this site', onClick:()=>confirmAnd('Remove this site from the list?', ()=>onForget(sitePath)) },{ title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }]} />
+          <DropdownMenu
+            label="More"
+            text=""
+            controls={[
+              {
+                title: 'Copy path',
+                onClick: async () => {
+                  try {
+                    if (navigator?.clipboard?.writeText) {
+                      await navigator.clipboard.writeText(sitePath);
+                    } else {
+                      throw new Error('Clipboard access is not available in this environment');
+                    }
+                  } catch (err) {
+                    alert('Unable to copy path: ' + err);
+                  }
+                }
+              },
+              { title:'Forget this site', onClick:()=>confirmAnd('Remove this site from the list?', ()=>onForget(sitePath)) },
+              { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
+            ]}
+          />
         </div>
       </Flex>
       {!skipInit ? (
@@ -1035,37 +1112,33 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
                   }}
                 />
               ) : null}
-              <span style={{ fontWeight: 600 }}>{isDevProcessActive ? 'Stop dev server' : 'Start dev server'}</span>
+              <span style={{ fontWeight: 600 }}>{isDevProcessActive ? (isServerStarting ? 'Starting dev server...' : 'Stop dev server') : 'Start dev server'}</span>
             </Button>
             <Button
               variant="secondary"
               onClick={openPatchModal}
               style={{ padding: '10px 16px', borderRadius: 10 }}
             >Create patch</Button>
+            {running && serverUrl ? (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const adminer = (serverUrl || '').replace(/\/$/, '/') + 'adminer.php';
+                  window.api.openExternal(adminer);
+                }}
+                style={{ padding: '10px 16px', borderRadius: 10 }}
+              >Open Adminer</Button>
+            ) : null}
           </div>
           {(isServerStarting || serverUrl) ? (
             <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2 }}>
               {serverUrl ? (
                 <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
               ) : (
-                'Dev server is starting…'
+                null
               )}
             </div>
           ) : null}
-          <Flex style={{ gap: 10, justifyContent: 'flex-start', flexWrap: 'wrap' }}>
-            {running && serverUrl ? (
-              <FlexItem>
-                <Button
-                  variant="secondary"
-                  style={{ padding: '10px 16px', borderRadius: 10 }}
-                  onClick={() => {
-                    const adminer = (serverUrl || '').replace(/\/$/, '/') + 'adminer.php';
-                    window.api.openExternal(adminer);
-                  }}
-                >Open Adminer</Button>
-              </FlexItem>
-            ) : null}
-          </Flex>
         </div>
       ) : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

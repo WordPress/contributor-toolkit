@@ -30965,7 +30965,7 @@ WARNING: This link could potentially be dangerous`)) {
   });
 
   // src/renderer/index.jsx
-  var import_react68 = __toESM(require_react());
+  var import_react67 = __toESM(require_react());
   var import_client2 = __toESM(require_client());
 
   // node_modules/clsx/dist/clsx.mjs
@@ -50046,24 +50046,6 @@ If there's a particular need for this, please submit a feature request at https:
     map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvZmxleC9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBS3VCIiwiZmlsZSI6IkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvZmxleC9zdHlsZXMudHMiLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIEV4dGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBjc3MgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbmV4cG9ydCBjb25zdCBGbGV4ID0gY3NzYFxuXHRkaXNwbGF5OiBmbGV4O1xuYDtcblxuZXhwb3J0IGNvbnN0IEl0ZW0gPSBjc3NgXG5cdGRpc3BsYXk6IGJsb2NrO1xuXHRtYXgtaGVpZ2h0OiAxMDAlO1xuXHRtYXgtd2lkdGg6IDEwMCU7XG5cdG1pbi1oZWlnaHQ6IDA7XG5cdG1pbi13aWR0aDogMDtcbmA7XG5cbmV4cG9ydCBjb25zdCBibG9jayA9IGNzc2Bcblx0ZmxleDogMTtcbmA7XG5cbi8qKlxuICogV29ya2Fyb3VuZCB0byBvcHRpbWl6ZSBET00gcmVuZGVyaW5nLlxuICogV2UnbGwgZW5oYW5jZSBhbGlnbm1lbnQgd2l0aCBuYWl2ZSBwYXJlbnQgZmxleCBhc3N1bXB0aW9ucy5cbiAqXG4gKiBUcmFkZS1vZmY6XG4gKiBGYXIgbGVzcyBET00gbGVzcy4gSG93ZXZlciwgVUkgcmVuZGVyaW5nIGlzIG5vdCBhcyByZWxpYWJsZS5cbiAqL1xuXG4vKipcbiAqIEltcHJvdmVzIHN0YWJpbGl0eSBvZiB3aWR0aC9oZWlnaHQgcmVuZGVyaW5nLlxuICogaHR0cHM6Ly9naXRodWIuY29tL0l0c0pvblEvZzIvcHVsbC8xNDlcbiAqL1xuZXhwb3J0IGNvbnN0IEl0ZW1zQ29sdW1uID0gY3NzYFxuXHQ+ICoge1xuXHRcdG1pbi1oZWlnaHQ6IDA7XG5cdH1cbmA7XG5cbmV4cG9ydCBjb25zdCBJdGVtc1JvdyA9IGNzc2Bcblx0PiAqIHtcblx0XHRtaW4td2lkdGg6IDA7XG5cdH1cbmA7XG4iXX0= */",
     toString: _EMOTION_STRINGIFIED_CSS_ERROR__
   };
-  var Item = false ? {
-    name: "qgaee5",
-    styles: "display:block;max-height:100%;max-width:100%;min-height:0;min-width:0"
-  } : {
-    name: "14ac8g8-Item",
-    styles: "display:block;max-height:100%;max-width:100%;min-height:0;min-width:0;label:Item;",
-    map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvZmxleC9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBU3VCIiwiZmlsZSI6IkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvZmxleC9zdHlsZXMudHMiLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIEV4dGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBjc3MgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbmV4cG9ydCBjb25zdCBGbGV4ID0gY3NzYFxuXHRkaXNwbGF5OiBmbGV4O1xuYDtcblxuZXhwb3J0IGNvbnN0IEl0ZW0gPSBjc3NgXG5cdGRpc3BsYXk6IGJsb2NrO1xuXHRtYXgtaGVpZ2h0OiAxMDAlO1xuXHRtYXgtd2lkdGg6IDEwMCU7XG5cdG1pbi1oZWlnaHQ6IDA7XG5cdG1pbi13aWR0aDogMDtcbmA7XG5cbmV4cG9ydCBjb25zdCBibG9jayA9IGNzc2Bcblx0ZmxleDogMTtcbmA7XG5cbi8qKlxuICogV29ya2Fyb3VuZCB0byBvcHRpbWl6ZSBET00gcmVuZGVyaW5nLlxuICogV2UnbGwgZW5oYW5jZSBhbGlnbm1lbnQgd2l0aCBuYWl2ZSBwYXJlbnQgZmxleCBhc3N1bXB0aW9ucy5cbiAqXG4gKiBUcmFkZS1vZmY6XG4gKiBGYXIgbGVzcyBET00gbGVzcy4gSG93ZXZlciwgVUkgcmVuZGVyaW5nIGlzIG5vdCBhcyByZWxpYWJsZS5cbiAqL1xuXG4vKipcbiAqIEltcHJvdmVzIHN0YWJpbGl0eSBvZiB3aWR0aC9oZWlnaHQgcmVuZGVyaW5nLlxuICogaHR0cHM6Ly9naXRodWIuY29tL0l0c0pvblEvZzIvcHVsbC8xNDlcbiAqL1xuZXhwb3J0IGNvbnN0IEl0ZW1zQ29sdW1uID0gY3NzYFxuXHQ+ICoge1xuXHRcdG1pbi1oZWlnaHQ6IDA7XG5cdH1cbmA7XG5cbmV4cG9ydCBjb25zdCBJdGVtc1JvdyA9IGNzc2Bcblx0PiAqIHtcblx0XHRtaW4td2lkdGg6IDA7XG5cdH1cbmA7XG4iXX0= */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__
-  };
-  var block = false ? {
-    name: "82a6rk",
-    styles: "flex:1"
-  } : {
-    name: "1ya6i3g-block",
-    styles: "flex:1;label:block;",
-    map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvZmxleC9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBaUJ3QiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL2ZsZXgvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG5leHBvcnQgY29uc3QgRmxleCA9IGNzc2Bcblx0ZGlzcGxheTogZmxleDtcbmA7XG5cbmV4cG9ydCBjb25zdCBJdGVtID0gY3NzYFxuXHRkaXNwbGF5OiBibG9jaztcblx0bWF4LWhlaWdodDogMTAwJTtcblx0bWF4LXdpZHRoOiAxMDAlO1xuXHRtaW4taGVpZ2h0OiAwO1xuXHRtaW4td2lkdGg6IDA7XG5gO1xuXG5leHBvcnQgY29uc3QgYmxvY2sgPSBjc3NgXG5cdGZsZXg6IDE7XG5gO1xuXG4vKipcbiAqIFdvcmthcm91bmQgdG8gb3B0aW1pemUgRE9NIHJlbmRlcmluZy5cbiAqIFdlJ2xsIGVuaGFuY2UgYWxpZ25tZW50IHdpdGggbmFpdmUgcGFyZW50IGZsZXggYXNzdW1wdGlvbnMuXG4gKlxuICogVHJhZGUtb2ZmOlxuICogRmFyIGxlc3MgRE9NIGxlc3MuIEhvd2V2ZXIsIFVJIHJlbmRlcmluZyBpcyBub3QgYXMgcmVsaWFibGUuXG4gKi9cblxuLyoqXG4gKiBJbXByb3ZlcyBzdGFiaWxpdHkgb2Ygd2lkdGgvaGVpZ2h0IHJlbmRlcmluZy5cbiAqIGh0dHBzOi8vZ2l0aHViLmNvbS9JdHNKb25RL2cyL3B1bGwvMTQ5XG4gKi9cbmV4cG9ydCBjb25zdCBJdGVtc0NvbHVtbiA9IGNzc2Bcblx0PiAqIHtcblx0XHRtaW4taGVpZ2h0OiAwO1xuXHR9XG5gO1xuXG5leHBvcnQgY29uc3QgSXRlbXNSb3cgPSBjc3NgXG5cdD4gKiB7XG5cdFx0bWluLXdpZHRoOiAwO1xuXHR9XG5gO1xuIl19 */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__
-  };
   var ItemsColumn = false ? {
     name: "13nosa1",
     styles: ">*{min-height:0;}"
@@ -50139,7 +50121,6 @@ If there's a particular need for this, please submit a feature request at https:
   var FlexContext = (0, import_react.createContext)({
     flexItemDisplay: void 0
   });
-  var useFlexContext = () => (0, import_react.useContext)(FlexContext);
 
   // node_modules/@wordpress/components/build-module/flex/flex/component.js
   var import_jsx_runtime25 = __toESM(require_jsx_runtime());
@@ -50162,39 +50143,6 @@ If there's a particular need for this, please submit a feature request at https:
   }
   var Flex2 = contextConnect(UnconnectedFlex, "Flex");
   var component_default3 = Flex2;
-
-  // node_modules/@wordpress/components/build-module/flex/flex-item/hook.js
-  function useFlexItem(props) {
-    const {
-      className,
-      display: displayProp,
-      isBlock = false,
-      ...otherProps
-    } = useContextSystem(props, "FlexItem");
-    const sx = {};
-    const contextDisplay = useFlexContext().flexItemDisplay;
-    sx.Base = /* @__PURE__ */ css({
-      display: displayProp || contextDisplay
-    }, false ? "" : ";label:sx-Base;", false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvZmxleC9mbGV4LWl0ZW0vaG9vay50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFnQ1ciLCJmaWxlIjoiQHdvcmRwcmVzcy9jb21wb25lbnRzL3NyYy9mbGV4L2ZsZXgtaXRlbS9ob29rLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHR5cGUgeyBTZXJpYWxpemVkU3R5bGVzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vKipcbiAqIEludGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgdHlwZSB7IFdvcmRQcmVzc0NvbXBvbmVudFByb3BzIH0gZnJvbSAnLi4vLi4vY29udGV4dCc7XG5pbXBvcnQgeyB1c2VDb250ZXh0U3lzdGVtIH0gZnJvbSAnLi4vLi4vY29udGV4dCc7XG5pbXBvcnQgeyB1c2VGbGV4Q29udGV4dCB9IGZyb20gJy4uL2NvbnRleHQnO1xuaW1wb3J0ICogYXMgc3R5bGVzIGZyb20gJy4uL3N0eWxlcyc7XG5pbXBvcnQgeyB1c2VDeCB9IGZyb20gJy4uLy4uL3V0aWxzL2hvb2tzL3VzZS1jeCc7XG5pbXBvcnQgdHlwZSB7IEZsZXhJdGVtUHJvcHMgfSBmcm9tICcuLi90eXBlcyc7XG5cbmV4cG9ydCBmdW5jdGlvbiB1c2VGbGV4SXRlbShcblx0cHJvcHM6IFdvcmRQcmVzc0NvbXBvbmVudFByb3BzPCBGbGV4SXRlbVByb3BzLCAnZGl2JyA+XG4pIHtcblx0Y29uc3Qge1xuXHRcdGNsYXNzTmFtZSxcblx0XHRkaXNwbGF5OiBkaXNwbGF5UHJvcCxcblx0XHRpc0Jsb2NrID0gZmFsc2UsXG5cdFx0Li4ub3RoZXJQcm9wc1xuXHR9ID0gdXNlQ29udGV4dFN5c3RlbSggcHJvcHMsICdGbGV4SXRlbScgKTtcblxuXHRjb25zdCBzeDoge1xuXHRcdEJhc2U/OiBTZXJpYWxpemVkU3R5bGVzO1xuXHR9ID0ge307XG5cblx0Y29uc3QgY29udGV4dERpc3BsYXkgPSB1c2VGbGV4Q29udGV4dCgpLmZsZXhJdGVtRGlzcGxheTtcblxuXHRzeC5CYXNlID0gY3NzKCB7XG5cdFx0ZGlzcGxheTogZGlzcGxheVByb3AgfHwgY29udGV4dERpc3BsYXksXG5cdH0gKTtcblxuXHRjb25zdCBjeCA9IHVzZUN4KCk7XG5cblx0Y29uc3QgY2xhc3NlcyA9IGN4KFxuXHRcdHN0eWxlcy5JdGVtLFxuXHRcdHN4LkJhc2UsXG5cdFx0aXNCbG9jayAmJiBzdHlsZXMuYmxvY2ssXG5cdFx0Y2xhc3NOYW1lXG5cdCk7XG5cblx0cmV0dXJuIHtcblx0XHQuLi5vdGhlclByb3BzLFxuXHRcdGNsYXNzTmFtZTogY2xhc3Nlcyxcblx0fTtcbn1cbiJdfQ== */");
-    const cx3 = useCx();
-    const classes = cx3(Item, sx.Base, isBlock && block, className);
-    return {
-      ...otherProps,
-      className: classes
-    };
-  }
-
-  // node_modules/@wordpress/components/build-module/flex/flex-item/component.js
-  var import_jsx_runtime26 = __toESM(require_jsx_runtime());
-  function UnconnectedFlexItem(props, forwardedRef) {
-    const flexItemProps = useFlexItem(props);
-    return /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(component_default, {
-      ...flexItemProps,
-      ref: forwardedRef
-    });
-  }
-  var FlexItem = contextConnect(UnconnectedFlexItem, "FlexItem");
-  var component_default4 = FlexItem;
 
   // node_modules/@wordpress/components/build-module/spacer/hook.js
   function isDefined(o) {
@@ -50236,62 +50184,76 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/spacer/component.js
-  var import_jsx_runtime27 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime26 = __toESM(require_jsx_runtime());
   function UnconnectedSpacer(props, forwardedRef) {
     const spacerProps = useSpacer(props);
-    return /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(component_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(component_default, {
       ...spacerProps,
       ref: forwardedRef
     });
   }
   var Spacer = contextConnect(UnconnectedSpacer, "Spacer");
-  var component_default5 = Spacer;
+  var component_default4 = Spacer;
 
   // node_modules/@wordpress/icons/build-module/library/chevron-left.js
-  var import_jsx_runtime28 = __toESM(require_jsx_runtime());
-  var chevronLeft = /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(SVG, {
+  var import_jsx_runtime27 = __toESM(require_jsx_runtime());
+  var chevronLeft = /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Path, {
       d: "M14.6 7l-1.2-1L8 12l5.4 6 1.2-1-4.6-5z"
     })
   });
   var chevron_left_default = chevronLeft;
 
   // node_modules/@wordpress/icons/build-module/library/chevron-right.js
-  var import_jsx_runtime29 = __toESM(require_jsx_runtime());
-  var chevronRight = /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(SVG, {
+  var import_jsx_runtime28 = __toESM(require_jsx_runtime());
+  var chevronRight = /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(Path, {
       d: "M10.6 6L9.4 7l4.6 5-4.6 5 1.2 1 5.4-6z"
     })
   });
   var chevron_right_default = chevronRight;
 
   // node_modules/@wordpress/icons/build-module/library/close.js
-  var import_jsx_runtime30 = __toESM(require_jsx_runtime());
-  var close = /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(SVG, {
+  var import_jsx_runtime29 = __toESM(require_jsx_runtime());
+  var close = /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(Path, {
       d: "m13.06 12 6.47-6.47-1.06-1.06L12 10.94 5.53 4.47 4.47 5.53 10.94 12l-6.47 6.47 1.06 1.06L12 13.06l6.47 6.47 1.06-1.06L13.06 12Z"
     })
   });
   var close_default = close;
 
   // node_modules/@wordpress/icons/build-module/library/copy.js
-  var import_jsx_runtime31 = __toESM(require_jsx_runtime());
-  var copy2 = /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(SVG, {
+  var import_jsx_runtime30 = __toESM(require_jsx_runtime());
+  var copy2 = /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(Path, {
       fillRule: "evenodd",
       clipRule: "evenodd",
       d: "M5 4.5h11a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5ZM3 5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Zm17 3v10.75c0 .69-.56 1.25-1.25 1.25H6v1.5h12.75a2.75 2.75 0 0 0 2.75-2.75V8H20Z"
     })
   });
   var copy_default = copy2;
+
+  // node_modules/@wordpress/icons/build-module/library/pencil.js
+  var import_jsx_runtime31 = __toESM(require_jsx_runtime());
+  var pencil = /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(SVG, {
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 24 24",
+    children: /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(Path, {
+      d: "m19 7-3-3-8.5 8.5-1 4 4-1L19 7Zm-7 11.5H5V20h7v-1.5Z"
+    })
+  });
+  var pencil_default = pencil;
+
+  // node_modules/@wordpress/icons/build-module/library/edit.js
+  var edit_default = pencil_default;
 
   // node_modules/@wordpress/icons/build-module/library/menu.js
   var import_jsx_runtime32 = __toESM(require_jsx_runtime());
@@ -50609,12 +50571,12 @@ If there's a particular need for this, please submit a feature request at https:
 
   // node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
   var React8 = __toESM(require_react(), 1);
-  var import_react60 = __toESM(require_react(), 1);
+  var import_react59 = __toESM(require_react(), 1);
   var ReactDOM = __toESM(require_react_dom(), 1);
   var isClient = typeof document !== "undefined";
   var noop3 = function noop4() {
   };
-  var index = isClient ? import_react60.useLayoutEffect : noop3;
+  var index = isClient ? import_react59.useLayoutEffect : noop3;
   function deepEqual(a, b) {
     if (a === b) {
       return true;
@@ -51885,7 +51847,7 @@ If there's a particular need for this, please submit a feature request at https:
     });
   }
   var Elevation2 = contextConnect(UnconnectedElevation, "Elevation");
-  var component_default6 = Elevation2;
+  var component_default5 = Elevation2;
 
   // node_modules/@wordpress/components/build-module/card/styles.js
   function _EMOTION_STRINGIFIED_CSS_ERROR__3() {
@@ -52100,11 +52062,11 @@ If there's a particular need for this, please submit a feature request at https:
         children: [/* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default, {
           className: cx3(Content),
           children
-        }), /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default6, {
+        }), /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default5, {
           className: elevationClassName,
           isInteractive: false,
           value: elevation ? 1 : 0
-        }), /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default6, {
+        }), /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default5, {
           className: elevationClassName,
           isInteractive: false,
           value: elevation
@@ -52113,7 +52075,7 @@ If there's a particular need for this, please submit a feature request at https:
     });
   }
   var Card2 = contextConnect(UnconnectedCard, "Card");
-  var component_default7 = Card2;
+  var component_default6 = Card2;
 
   // node_modules/@wordpress/components/build-module/scrollable/styles.js
   function _EMOTION_STRINGIFIED_CSS_ERROR__4() {
@@ -52192,7 +52154,7 @@ If there's a particular need for this, please submit a feature request at https:
     });
   }
   var Scrollable2 = contextConnect(UnconnectedScrollable, "Scrollable");
-  var component_default8 = Scrollable2;
+  var component_default7 = Scrollable2;
 
   // node_modules/@wordpress/components/build-module/card/card-body/hook.js
   function useCardBody(props) {
@@ -52228,7 +52190,7 @@ If there's a particular need for this, please submit a feature request at https:
       ...otherProps
     } = useCardBody(props);
     if (isScrollable) {
-      return /* @__PURE__ */ (0, import_jsx_runtime49.jsx)(component_default8, {
+      return /* @__PURE__ */ (0, import_jsx_runtime49.jsx)(component_default7, {
         ...otherProps,
         ref: forwardedRef
       });
@@ -52239,7 +52201,7 @@ If there's a particular need for this, please submit a feature request at https:
     });
   }
   var CardBody = contextConnect(UnconnectedCardBody, "CardBody");
-  var component_default9 = CardBody;
+  var component_default8 = CardBody;
 
   // node_modules/@wordpress/components/build-module/navigable-container/container.js
   var import_jsx_runtime50 = __toESM(require_jsx_runtime());
@@ -52853,7 +52815,7 @@ If there's a particular need for this, please submit a feature request at https:
                     children: title
                   })]
                 }), headerActions, isDismissible && /* @__PURE__ */ (0, import_jsx_runtime53.jsxs)(import_jsx_runtime53.Fragment, {
-                  children: [/* @__PURE__ */ (0, import_jsx_runtime53.jsx)(component_default5, {
+                  children: [/* @__PURE__ */ (0, import_jsx_runtime53.jsx)(component_default4, {
                     marginBottom: 0,
                     marginLeft: 2
                   }), /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(button_default, {
@@ -53005,37 +52967,37 @@ If there's a particular need for this, please submit a feature request at https:
   var TERMINAL_ALLOWED_SCRIPTS = ["build", "build:dev", "dev", "test", "watch", "grunt"];
   var TERMINAL_INSTALL_ALIASES = ["npm install", "npm i", "install"];
   function useSites() {
-    const [sites, setSites] = (0, import_react68.useState)([]);
-    const [siteMeta, setSiteMeta] = (0, import_react68.useState)({});
-    const refresh = (0, import_react68.useCallback)(async () => {
+    const [sites, setSites] = (0, import_react67.useState)([]);
+    const [siteMeta, setSiteMeta] = (0, import_react67.useState)({});
+    const refresh = (0, import_react67.useCallback)(async () => {
       const { sites: list, siteMeta: meta } = await window.api.getSitesWithMeta();
       setSites(list);
       setSiteMeta(meta || {});
     }, []);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react67.useEffect)(() => {
       refresh();
     }, [refresh]);
     return { sites, siteMeta, refresh, setSiteMeta, setSites };
   }
   function App() {
     const { sites, siteMeta, refresh, setSiteMeta, setSites } = useSites();
-    const [downloadPhase, setDownloadPhase] = (0, import_react68.useState)("");
-    const [pendingSite, setPendingSite] = (0, import_react68.useState)(null);
-    const [terminalMsgs, setTerminalMsgs] = (0, import_react68.useState)("");
-    const termRef = (0, import_react68.useRef)(null);
-    (0, import_react68.useEffect)(() => {
+    const [downloadPhase, setDownloadPhase] = (0, import_react67.useState)("");
+    const [pendingSite, setPendingSite] = (0, import_react67.useState)(null);
+    const [terminalMsgs, setTerminalMsgs] = (0, import_react67.useState)("");
+    const termRef = (0, import_react67.useRef)(null);
+    (0, import_react67.useEffect)(() => {
       if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight;
     }, [terminalMsgs]);
-    const [webStarting, setWebStarting] = (0, import_react68.useState)(false);
-    const [webUrl, setWebUrl] = (0, import_react68.useState)("");
-    const [webLogs, setWebLogs] = (0, import_react68.useState)("");
-    const [webError, setWebError] = (0, import_react68.useState)("");
-    const webLogRef = (0, import_react68.useRef)(null);
-    (0, import_react68.useEffect)(() => {
+    const [webStarting, setWebStarting] = (0, import_react67.useState)(false);
+    const [webUrl, setWebUrl] = (0, import_react67.useState)("");
+    const [webLogs, setWebLogs] = (0, import_react67.useState)("");
+    const [webError, setWebError] = (0, import_react67.useState)("");
+    const webLogRef = (0, import_react67.useRef)(null);
+    (0, import_react67.useEffect)(() => {
       if (webLogRef.current) webLogRef.current.scrollTop = webLogRef.current.scrollHeight;
     }, [webLogs]);
-    const [webAvailable, setWebAvailable] = (0, import_react68.useState)(false);
-    (0, import_react68.useEffect)(() => {
+    const [webAvailable, setWebAvailable] = (0, import_react67.useState)(false);
+    (0, import_react67.useEffect)(() => {
       (async () => {
         try {
           setWebAvailable(Boolean(await window.api.playgroundWebAvailable()));
@@ -53043,9 +53005,9 @@ If there's a particular need for this, please submit a feature request at https:
         }
       })();
     }, []);
-    const [sidebarCollapsed, setSidebarCollapsed] = (0, import_react68.useState)(false);
-    const [activeSite, setActiveSite] = (0, import_react68.useState)(null);
-    (0, import_react68.useEffect)(() => {
+    const [sidebarCollapsed, setSidebarCollapsed] = (0, import_react67.useState)(false);
+    const [activeSite, setActiveSite] = (0, import_react67.useState)(null);
+    (0, import_react67.useEffect)(() => {
       const unsubProg = window.api.subscribeSetupProgress((p) => {
         if (p && p.message) setTerminalMsgs((v) => v + p.message + "\n");
         if (p && p.target) setPendingSite((prev2) => prev2 || { targetDir: p.target });
@@ -53065,20 +53027,31 @@ If there's a particular need for this, please submit a feature request at https:
         unsubStat && unsubStat();
       };
     }, []);
-    const chooseAndSetup = (0, import_react68.useCallback)(async () => {
-      const dir = await window.api.chooseDirectory();
-      if (!dir) return;
+    const chooseAndSetup = (0, import_react67.useCallback)(async () => {
+      const enteredName = prompt("Name your new WordPress site");
+      if (!enteredName) return;
+      const siteLabel = enteredName.trim();
+      if (!siteLabel) return;
+      const destRoot = await window.api.chooseDirectory();
+      if (!destRoot) return;
+      const cleanFolder = siteLabel.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").replace(/^-+|-+$/g, "") || "wordpress-site";
+      const normalizedRoot = destRoot.replace(/[\\/]+$/, "");
+      const separator = /\\/.test(normalizedRoot) && !normalizedRoot.includes("/") ? "\\" : "/";
+      const targetDir = `${normalizedRoot}${separator}${cleanFolder}`;
       try {
         setTerminalMsgs("");
-        setPendingSite({ targetDir: dir });
-        await window.api.setupWordPress(dir);
+        setPendingSite({ targetDir });
+        const createdPath = await window.api.setupWordPress(destRoot, { siteName: cleanFolder, siteLabel });
+        if (createdPath && createdPath !== targetDir) {
+          setPendingSite({ targetDir: createdPath });
+        }
         await refresh();
       } catch (e) {
         setPendingSite(null);
         alert(String(e));
       }
     }, [refresh]);
-    const togglePlaygroundWeb = (0, import_react68.useCallback)(async () => {
+    const togglePlaygroundWeb = (0, import_react67.useCallback)(async () => {
       if (!webUrl) {
         setWebStarting(true);
         setWebError("");
@@ -53118,29 +53091,40 @@ If there's a particular need for this, please submit a feature request at https:
         setWebUrl("");
       }
     }, [webUrl]);
-    const onInitialized = (0, import_react68.useCallback)((sitePath) => {
+    const onInitialized = (0, import_react67.useCallback)((sitePath) => {
       setSiteMeta((m) => ({ ...m || {}, [sitePath]: { ...m?.[sitePath] || {}, initialized: true } }));
     }, [setSiteMeta]);
-    const onForget = (0, import_react68.useCallback)(async (sitePath) => {
+    const onForget = (0, import_react67.useCallback)(async (sitePath) => {
       await window.api.forgetSite(sitePath);
       await refresh();
     }, [refresh]);
-    const onDelete = (0, import_react68.useCallback)(async (sitePath) => {
+    const onDelete = (0, import_react67.useCallback)(async (sitePath) => {
       await window.api.deleteSite(sitePath);
       await refresh();
     }, [refresh]);
-    const sortedSites = (0, import_react68.useMemo)(() => {
+    const onRename = (0, import_react67.useCallback)(async (sitePath, newLabel) => {
+      try {
+        await window.api.setSiteLabel(sitePath, newLabel);
+        setSiteMeta((meta) => ({
+          ...meta || {},
+          [sitePath]: { ...meta?.[sitePath] || {}, label: newLabel }
+        }));
+      } catch (err) {
+        alert(String(err));
+      }
+    }, [setSiteMeta]);
+    const sortedSites = (0, import_react67.useMemo)(() => {
       if (!sites || !sites.length) return [];
       return [...sites].sort((a, b) => (siteMeta?.[b]?.createdAt || 0) - (siteMeta?.[a]?.createdAt || 0));
     }, [sites, siteMeta]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react67.useEffect)(() => {
       if (!sortedSites.length) {
         setActiveSite(null);
         return;
       }
       setActiveSite((current) => current && sortedSites.includes(current) ? current : sortedSites[0]);
     }, [sortedSites]);
-    const handleSelectSite = (0, import_react68.useCallback)((sitePath) => {
+    const handleSelectSite = (0, import_react67.useCallback)((sitePath) => {
       setActiveSite(sitePath);
     }, []);
     return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", height: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" }, children: [
@@ -53162,7 +53146,7 @@ If there's a particular need for this, please submit a feature request at https:
         ] }) }),
         /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 8px" : "12px 16px", display: "flex", flexDirection: "column", gap: 8 }, children: sortedSites.length > 0 ? sortedSites.map((sitePath) => {
           const meta = siteMeta?.[sitePath] || {};
-          const siteName = sitePath.split("/").pop() || sitePath;
+          const siteName = meta.label && meta.label.trim() || sitePath.split("/").pop() || sitePath;
           const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : "";
           const isActive = activeSite === sitePath;
           const statusLabel = meta.initialized ? "Initialized" : "Not initialized";
@@ -53224,7 +53208,7 @@ If there's a particular need for this, please submit a feature request at https:
             window.api.openExternal(webUrl || "http://127.0.0.1:39372/");
           }, children: webUrl || "http://127.0.0.1:39372/" }) }) : null
         ] }) : null,
-        webStarting || webUrl || webError || webLogs ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default7, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default9, { children: [
+        webStarting || webUrl || webError || webLogs ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default8, { children: [
           /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600 }, children: "Playground web server" }),
             /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: webStarting ? "Starting\u2026" : webUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("a", { href: webUrl, onClick: (e) => {
@@ -53236,7 +53220,7 @@ If there's a particular need for this, please submit a feature request at https:
           /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { ref: webLogRef, style: { marginTop: 8, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: webLogs })
         ] }) }) : null,
         /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { id: "sites", children: [
-          pendingSite && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default7, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default9, { children: [
+          pendingSite && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default8, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600 }, children: "Setting up new site\u2026" }),
             downloadPhase && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 12, color: "#555", marginBottom: 6 }, children: downloadPhase }),
             /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { ref: termRef, style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: terminalMsgs })
@@ -53252,14 +53236,16 @@ If there's a particular need for this, please submit a feature request at https:
                   sitePath: s,
                   initialized: Boolean(siteMeta?.[s]?.initialized),
                   createdAt: siteMeta?.[s]?.createdAt,
+                  label: siteMeta?.[s]?.label,
                   onInitialized,
                   onForget,
-                  onDelete
+                  onDelete,
+                  onRename
                 }
               )
             },
             s
-          )) : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default7, { children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default9, { children: [
+          )) : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default6, { children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default8, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { marginBottom: 8 }, children: "No sites yet." }),
             /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { children: "Use the sidebar to create your first site." })
           ] }) })
@@ -53267,65 +53253,68 @@ If there's a particular need for this, please submit a feature request at https:
       ] }) }) })
     ] });
   }
-  function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, onDelete }) {
-    const [serverUrl, setServerUrl] = (0, import_react68.useState)("");
-    const [starting, setStarting] = (0, import_react68.useState)(false);
-    const [running, setRunning] = (0, import_react68.useState)(false);
-    const [installing, setInstalling] = (0, import_react68.useState)(false);
-    const [npmLogs, setNpmLogs] = (0, import_react68.useState)("");
-    const [runtimeLogs, setRuntimeLogs] = (0, import_react68.useState)("");
-    const [isPatchOpen, setIsPatchOpen] = (0, import_react68.useState)(false);
-    const [patchText, setPatchText] = (0, import_react68.useState)("");
-    const [emails, setEmails] = (0, import_react68.useState)([]);
-    const [smtpPort, setSmtpPort] = (0, import_react68.useState)(0);
-    const newEmailUnsubRef = (0, import_react68.useRef)(null);
-    const smtpStartedUnsubRef = (0, import_react68.useRef)(null);
-    const [isEmailOpen, setIsEmailOpen] = (0, import_react68.useState)(false);
-    const [activeEmail, setActiveEmail] = (0, import_react68.useState)(null);
-    const [emailViewTab, setEmailViewTab] = (0, import_react68.useState)("rendered");
-    const [building, setBuilding] = (0, import_react68.useState)(false);
-    const [hasNodeModules, setHasNodeModules] = (0, import_react68.useState)(false);
-    const [hasBuilt, setHasBuilt] = (0, import_react68.useState)(false);
-    const [skipInit, setSkipInit] = (0, import_react68.useState)(false);
-    const [statusLoading, setStatusLoading] = (0, import_react68.useState)(true);
-    const [waitingForWatch, setWaitingForWatch] = (0, import_react68.useState)(false);
-    const npmRef = (0, import_react68.useRef)(null);
-    const runtimeRef = (0, import_react68.useRef)(null);
-    const currentRunIdRef = (0, import_react68.useRef)(null);
+  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename }) {
+    const safeOnRename = onRename || (() => {
+    });
+    const [serverUrl, setServerUrl] = (0, import_react67.useState)("");
+    const [starting, setStarting] = (0, import_react67.useState)(false);
+    const [running, setRunning] = (0, import_react67.useState)(false);
+    const [installing, setInstalling] = (0, import_react67.useState)(false);
+    const [npmLogs, setNpmLogs] = (0, import_react67.useState)("");
+    const [runtimeLogs, setRuntimeLogs] = (0, import_react67.useState)("");
+    const [isPatchOpen, setIsPatchOpen] = (0, import_react67.useState)(false);
+    const [patchText, setPatchText] = (0, import_react67.useState)("");
+    const [emails, setEmails] = (0, import_react67.useState)([]);
+    const [smtpPort, setSmtpPort] = (0, import_react67.useState)(0);
+    const newEmailUnsubRef = (0, import_react67.useRef)(null);
+    const smtpStartedUnsubRef = (0, import_react67.useRef)(null);
+    const [isEmailOpen, setIsEmailOpen] = (0, import_react67.useState)(false);
+    const [activeEmail, setActiveEmail] = (0, import_react67.useState)(null);
+    const [emailViewTab, setEmailViewTab] = (0, import_react67.useState)("rendered");
+    const [building, setBuilding] = (0, import_react67.useState)(false);
+    const [hasNodeModules, setHasNodeModules] = (0, import_react67.useState)(false);
+    const [hasBuilt, setHasBuilt] = (0, import_react67.useState)(false);
+    const [skipInit, setSkipInit] = (0, import_react67.useState)(false);
+    const [statusLoading, setStatusLoading] = (0, import_react67.useState)(true);
+    const [waitingForWatch, setWaitingForWatch] = (0, import_react67.useState)(false);
+    const npmRef = (0, import_react67.useRef)(null);
+    const runtimeRef = (0, import_react67.useRef)(null);
+    const currentRunIdRef = (0, import_react67.useRef)(null);
     const threshold = 8;
-    const [logStick, setLogStick] = (0, import_react68.useState)({ npm: true, runtime: true });
-    const updateStick = (0, import_react68.useCallback)((key, value) => {
+    const [logStick, setLogStick] = (0, import_react67.useState)({ npm: true, runtime: true });
+    const updateStick = (0, import_react67.useCallback)((key, value) => {
       setLogStick((prev2) => prev2[key] === value ? prev2 : { ...prev2, [key]: value });
     }, []);
-    const ensureStick = (0, import_react68.useCallback)((key) => {
+    const ensureStick = (0, import_react67.useCallback)((key) => {
       setLogStick((prev2) => prev2[key] ? prev2 : { ...prev2, [key]: true });
     }, []);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react67.useEffect)(() => {
       if (logStick.npm && npmRef.current) npmRef.current.scrollTop = npmRef.current.scrollHeight;
     }, [npmLogs, logStick.npm]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react67.useEffect)(() => {
       if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight;
     }, [runtimeLogs, logStick.runtime]);
-    const makeOnScroll = (0, import_react68.useCallback)((key) => (e) => {
+    const makeOnScroll = (0, import_react67.useCallback)((key) => (e) => {
       const el = e.currentTarget;
       const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
       updateStick(key, atBottom);
     }, [threshold, updateStick]);
     const siteName = sitePath.split("/").pop();
+    const displayName = label && label.trim() || siteName;
     const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : "";
-    const appendNpm = (0, import_react68.useCallback)((s) => setNpmLogs((v) => v + s), []);
-    const appendRuntime = (0, import_react68.useCallback)((s) => setRuntimeLogs((v) => v + String(s ?? "")), []);
-    const sortEmails = (0, import_react68.useCallback)((list) => [...list].sort((a, b) => new Date(b.sentAt || b.date || 0) - new Date(a.sentAt || a.date || 0)), []);
-    const openEmail = (0, import_react68.useCallback)((m) => {
+    const appendNpm = (0, import_react67.useCallback)((s) => setNpmLogs((v) => v + s), []);
+    const appendRuntime = (0, import_react67.useCallback)((s) => setRuntimeLogs((v) => v + String(s ?? "")), []);
+    const sortEmails = (0, import_react67.useCallback)((list) => [...list].sort((a, b) => new Date(b.sentAt || b.date || 0) - new Date(a.sentAt || a.date || 0)), []);
+    const openEmail = (0, import_react67.useCallback)((m) => {
       setActiveEmail(m);
       setEmailViewTab("rendered");
       setIsEmailOpen(true);
     }, []);
-    const clearEmails = (0, import_react68.useCallback)(async () => {
+    const clearEmails = (0, import_react67.useCallback)(async () => {
       await window.api.clearEmails(sitePath);
       setEmails([]);
     }, [sitePath]);
-    const loadStatus = (0, import_react68.useCallback)(async () => {
+    const loadStatus = (0, import_react67.useCallback)(async () => {
       try {
         setStatusLoading(true);
         const s = await window.api.getSiteStatus(sitePath);
@@ -53337,10 +53326,10 @@ If there's a particular need for this, please submit a feature request at https:
         setStatusLoading(false);
       }
     }, [sitePath]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react67.useEffect)(() => {
       loadStatus();
     }, [loadStatus]);
-    const runInstall = (0, import_react68.useCallback)((options = {}) => {
+    const runInstall = (0, import_react67.useCallback)((options = {}) => {
       const { onLog, onDone } = options;
       setInstalling(true);
       ensureStick("npm");
@@ -53366,7 +53355,7 @@ install exited with code ${code}
         if (onDone) onDone({ code });
       });
     }, [appendNpm, ensureStick, loadStatus, onInitialized, sitePath]);
-    const runScript = (0, import_react68.useCallback)((name, options = {}) => {
+    const runScript = (0, import_react67.useCallback)((name, options = {}) => {
       const { onLog, onDone } = options;
       ensureStick("npm");
       if (name === "build") setBuilding(true);
@@ -53398,7 +53387,7 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
         if (onDone) onDone({ code: -1 });
       });
     }, [appendNpm, ensureStick, loadStatus, sitePath]);
-    const killCurrent = (0, import_react68.useCallback)(async () => {
+    const killCurrent = (0, import_react67.useCallback)(async () => {
       const runId = currentRunIdRef.current;
       try {
         await window.api.npmKill({ runId, directoryPath: sitePath });
@@ -53406,32 +53395,32 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
         currentRunIdRef.current = null;
       }
     }, [sitePath]);
-    const terminalContainerRef = (0, import_react68.useRef)(null);
-    const terminalRef = (0, import_react68.useRef)(null);
-    const terminalStickRef = (0, import_react68.useRef)(true);
-    const terminalInputHandlerRef = (0, import_react68.useRef)(() => {
+    const terminalContainerRef = (0, import_react67.useRef)(null);
+    const terminalRef = (0, import_react67.useRef)(null);
+    const terminalStickRef = (0, import_react67.useRef)(true);
+    const terminalInputHandlerRef = (0, import_react67.useRef)(() => {
     });
-    const terminalKillRef = (0, import_react68.useRef)(null);
-    const terminalStateRef = (0, import_react68.useRef)({ input: "", history: [], historyIndex: 0, running: false });
-    const watchBufferRef = (0, import_react68.useRef)("");
-    const serverStartRequestedRef = (0, import_react68.useRef)(false);
-    const stoppingRef = (0, import_react68.useRef)(false);
-    const runningRef = (0, import_react68.useRef)(false);
-    const waitingForWatchRef = (0, import_react68.useRef)(false);
-    (0, import_react68.useEffect)(() => {
+    const terminalKillRef = (0, import_react67.useRef)(null);
+    const terminalStateRef = (0, import_react67.useRef)({ input: "", history: [], historyIndex: 0, running: false });
+    const watchBufferRef = (0, import_react67.useRef)("");
+    const serverStartRequestedRef = (0, import_react67.useRef)(false);
+    const stoppingRef = (0, import_react67.useRef)(false);
+    const runningRef = (0, import_react67.useRef)(false);
+    const waitingForWatchRef = (0, import_react67.useRef)(false);
+    (0, import_react67.useEffect)(() => {
       runningRef.current = running;
     }, [running]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react67.useEffect)(() => {
       waitingForWatchRef.current = waitingForWatch;
     }, [waitingForWatch]);
-    const normalizeForTerminal = (0, import_react68.useCallback)((text) => String(text ?? "").replace(/\r?\n/g, "\r\n"), []);
-    const writeToTerminal = (0, import_react68.useCallback)((text) => {
+    const normalizeForTerminal = (0, import_react67.useCallback)((text) => String(text ?? "").replace(/\r?\n/g, "\r\n"), []);
+    const writeToTerminal = (0, import_react67.useCallback)((text) => {
       const term = terminalRef.current;
       if (!term) return;
       term.write(normalizeForTerminal(text));
       if (terminalStickRef.current) term.scrollToBottom();
     }, [normalizeForTerminal]);
-    const showPrompt = (0, import_react68.useCallback)((prependNewLine = true) => {
+    const showPrompt = (0, import_react67.useCallback)((prependNewLine = true) => {
       const term = terminalRef.current;
       if (!term) return;
       const state = terminalStateRef.current;
@@ -53441,7 +53430,7 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
       state.historyIndex = state.history.length;
       if (terminalStickRef.current) term.scrollToBottom();
     }, []);
-    const replaceTerminalInput = (0, import_react68.useCallback)((next2) => {
+    const replaceTerminalInput = (0, import_react67.useCallback)((next2) => {
       const term = terminalRef.current;
       if (!term) return;
       const state = terminalStateRef.current;
@@ -53455,7 +53444,7 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
       if (next2) term.write(next2);
       if (terminalStickRef.current) term.scrollToBottom();
     }, []);
-    const addCommandToHistory = (0, import_react68.useCallback)((value) => {
+    const addCommandToHistory = (0, import_react67.useCallback)((value) => {
       const trimmed = value.trim();
       if (!trimmed) return;
       const state = terminalStateRef.current;
@@ -53468,13 +53457,13 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
       state.history = nextHistory;
       state.historyIndex = nextHistory.length;
     }, []);
-    const printHelp = (0, import_react68.useCallback)(() => {
+    const printHelp = (0, import_react67.useCallback)(() => {
       writeToTerminal("Available commands:\n");
       writeToTerminal("  help                        Show this help text\n");
       writeToTerminal("  npm install                 Run npm install in the site directory\n");
       writeToTerminal("  npm run <script>            Run one of: " + TERMINAL_ALLOWED_SCRIPTS.join(", ") + "\n");
     }, [writeToTerminal]);
-    const executeTerminalCommand = (0, import_react68.useCallback)((rawCommand) => {
+    const executeTerminalCommand = (0, import_react67.useCallback)((rawCommand) => {
       const command = rawCommand.trim();
       const state = terminalStateRef.current;
       if (!command) {
@@ -53548,7 +53537,7 @@ Try "help" for the list of supported commands.
 `);
       showPrompt(false);
     }, [addCommandToHistory, killCurrent, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
-    const handleTerminalData = (0, import_react68.useCallback)((data) => {
+    const handleTerminalData = (0, import_react67.useCallback)((data) => {
       const term = terminalRef.current;
       if (!term) return;
       const state = terminalStateRef.current;
@@ -53599,10 +53588,10 @@ Try "help" for the list of supported commands.
       term.write(data);
       if (terminalStickRef.current) term.scrollToBottom();
     }, [executeTerminalCommand, replaceTerminalInput, showPrompt]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react67.useEffect)(() => {
       terminalInputHandlerRef.current = handleTerminalData;
     }, [handleTerminalData]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react67.useEffect)(() => {
       const container = terminalContainerRef.current;
       if (!container) return void 0;
       const term = new import_xterm.Terminal({
@@ -53633,7 +53622,7 @@ Try "help" for the list of supported commands.
         terminalStickRef.current = true;
       };
     }, [normalizeForTerminal, printHelp, showPrompt]);
-    const stopDevServer = (0, import_react68.useCallback)(async () => {
+    const stopDevServer = (0, import_react67.useCallback)(async () => {
       if (stoppingRef.current) return;
       stoppingRef.current = true;
       setWaitingForWatch(false);
@@ -53673,7 +53662,7 @@ Try "help" for the list of supported commands.
       terminalStateRef.current.running = false;
       currentRunIdRef.current = null;
     }, [setRunning, setServerUrl, setSmtpPort, setStarting, setWaitingForWatch, sitePath]);
-    const startPhpServer = (0, import_react68.useCallback)(async () => {
+    const startPhpServer = (0, import_react67.useCallback)(async () => {
       if (serverStartRequestedRef.current || stoppingRef.current || !terminalStateRef.current.running) {
         serverStartRequestedRef.current = false;
         return;
@@ -53789,7 +53778,7 @@ Try "help" for the list of supported commands.
     };
     const isServerStarting = waitingForWatch || starting && !serverUrl;
     const isDevProcessActive = running || isServerStarting;
-    const markSkipWizard = (0, import_react68.useCallback)(async () => {
+    const markSkipWizard = (0, import_react67.useCallback)(async () => {
       await window.api.setSkipInitWizard(sitePath, true);
       setSkipInit(true);
     }, [sitePath]);
@@ -53933,10 +53922,35 @@ Try "help" for the list of supported commands.
       }
       return { ...step, status };
     });
+    const handleRename = (0, import_react67.useCallback)(async () => {
+      const current = displayName;
+      const next2 = prompt("Edit site name", current);
+      if (next2 === null) return;
+      const trimmed = next2.trim();
+      if (!trimmed || trimmed === current) return;
+      try {
+        await safeOnRename(sitePath, trimmed);
+      } catch (err) {
+        alert(String(err));
+      }
+    }, [displayName, safeOnRename, sitePath]);
     return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("section", { style: { display: "flex", flexDirection: "column", gap: 24, paddingBottom: 48 }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default3, { align: "flex-start", justify: "space-between", style: { gap: 16, flexWrap: "wrap" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { flex: "1 1 440px", minWidth: 0 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("h1", { style: { margin: 0, fontSize: 28, lineHeight: 1.2 }, children: siteName }),
+          /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("h1", { style: { margin: 0, fontSize: 28, lineHeight: 1.2 }, children: displayName }),
+            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+              button_default,
+              {
+                icon: edit_default,
+                label: "Rename site",
+                "aria-label": "Rename site",
+                onClick: handleRename,
+                variant: "tertiary",
+                isSmall: true
+              }
+            )
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12, color: "#3c434a", flexWrap: "wrap" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", ...statusStyles }, children: initialized ? "Initialized" : "Uninitialized" }),
             createdLabel ? /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("span", { children: [
@@ -53955,7 +53969,31 @@ Try "help" for the list of supported commands.
             )
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { display: "flex", alignItems: "flex-start", gap: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(dropdown_menu_default, { label: "More", text: "", controls: [{ title: "Forget this site", onClick: () => confirmAnd("Remove this site from the list?", () => onForget(sitePath)) }, { title: "Delete this site", onClick: () => confirmAnd("Delete this site from disk? This cannot be undone.", () => onDelete(sitePath)) }] }) })
+        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { display: "flex", alignItems: "flex-start", gap: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+          dropdown_menu_default,
+          {
+            label: "More",
+            text: "",
+            controls: [
+              {
+                title: "Copy path",
+                onClick: async () => {
+                  try {
+                    if (navigator?.clipboard?.writeText) {
+                      await navigator.clipboard.writeText(sitePath);
+                    } else {
+                      throw new Error("Clipboard access is not available in this environment");
+                    }
+                  } catch (err) {
+                    alert("Unable to copy path: " + err);
+                  }
+                }
+              },
+              { title: "Forget this site", onClick: () => confirmAnd("Remove this site from the list?", () => onForget(sitePath)) },
+              { title: "Delete this site", onClick: () => confirmAnd("Delete this site from disk? This cannot be undone.", () => onDelete(sitePath)) }
+            ]
+          }
+        ) })
       ] }),
       !skipInit ? /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { padding: 20, border: "1px solid #dcdcde", borderRadius: 12, background: "#fff" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600, fontSize: 16, color: "#1d2327" }, children: "Initial setup checklist" }),
@@ -54036,7 +54074,7 @@ Try "help" for the list of supported commands.
                     }
                   }
                 ) : null,
-                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { fontWeight: 600 }, children: isDevProcessActive ? "Stop dev server" : "Start dev server" })
+                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { fontWeight: 600 }, children: isDevProcessActive ? isServerStarting ? "Starting dev server..." : "Stop dev server" : "Start dev server" })
               ]
             }
           ),
@@ -54048,24 +54086,24 @@ Try "help" for the list of supported commands.
               style: { padding: "10px 16px", borderRadius: 10 },
               children: "Create patch"
             }
-          )
+          ),
+          running && serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+            button_default,
+            {
+              variant: "secondary",
+              onClick: () => {
+                const adminer = (serverUrl || "").replace(/\/$/, "/") + "adminer.php";
+                window.api.openExternal(adminer);
+              },
+              style: { padding: "10px 16px", borderRadius: 10 },
+              children: "Open Adminer"
+            }
+          ) : null
         ] }),
         isServerStarting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 13, color: "#1d2327", paddingLeft: 2 }, children: serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("a", { href: serverUrl, onClick: (e) => {
           e.preventDefault();
           window.api.openExternal(serverUrl);
-        }, children: serverUrl }) : "Dev server is starting\u2026" }) : null,
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default3, { style: { gap: 10, justifyContent: "flex-start", flexWrap: "wrap" }, children: running && serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default4, { children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
-          button_default,
-          {
-            variant: "secondary",
-            style: { padding: "10px 16px", borderRadius: 10 },
-            onClick: () => {
-              const adminer = (serverUrl || "").replace(/\/$/, "/") + "adminer.php";
-              window.api.openExternal(adminer);
-            },
-            children: "Open Adminer"
-          }
-        ) }) : null })
+        }, children: serverUrl }) : null }) : null
       ] }) : null,
       /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 16 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
