@@ -638,8 +638,25 @@ function SiteRow({ sitePath, initialized, createdAt, onInitialized, onForget, on
   }, [normalizeForTerminal, printHelp, showPrompt]);
   const toggleDevServer = async ()=>{
     if (!running) {
-      runScript('dev');
       if (!skipInit && !hasBuilt) { alert('Please complete the first full build before starting the dev server. You can also skip the wizard.'); return; }
+      const state = terminalStateRef.current;
+      if (state.running) {
+        writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+        return;
+      }
+      state.running = true;
+      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+      writeToTerminal('\nRunning npm run dev…\n');
+      runScript('dev', {
+        onLog: (chunk) => writeToTerminal(chunk),
+        onDone: ({ code }) => {
+          writeToTerminal(`npm run dev exited with code ${code}\n`);
+          const currentState = terminalStateRef.current;
+          currentState.running = false;
+          terminalKillRef.current = null;
+          showPrompt(false);
+        }
+      });
       setStarting(true);
       ensureStick('runtime');
       // Subscribe to SMTP events before starting to avoid missing early events
