@@ -53198,17 +53198,26 @@ If there's a particular need for this, please submit a feature request at https:
             sitePath
           );
         }) : !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: "No sites yet." }) : null }),
-        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { padding: sidebarCollapsed ? "12px 8px" : "16px", borderTop: "1px solid #2b2b2b" }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
-          button_default,
+        /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+          "div",
           {
-            icon: plus_default,
-            variant: "primary",
-            onClick: chooseAndSetup,
-            style: { width: "100%", justifyContent: "center" },
-            "aria-label": "Create WordPress Core site",
-            children: !sidebarCollapsed ? "Create WordPress Core site" : null
+            style: {
+              padding: sidebarCollapsed ? "12px 8px 20px" : "16px 16px 24px",
+              borderTop: "1px solid #2b2b2b"
+            },
+            children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(
+              button_default,
+              {
+                icon: plus_default,
+                variant: "primary",
+                onClick: chooseAndSetup,
+                style: { width: "100%", justifyContent: "center" },
+                "aria-label": "Create WordPress Core site",
+                children: !sidebarCollapsed ? "Create WordPress Core site" : null
+              }
+            )
           }
-        ) })
+        )
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { flex: 1, background: "#fff", color: "#1d2327", display: "flex", flexDirection: "column" }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: "32px 32px 48px" }, children: /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", { style: { maxWidth: 1040, margin: "0 auto" }, children: [
         webAvailable ? /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(component_default3, { align: "center", justify: "flex-end", style: { gap: 8, marginBottom: 24 }, children: [

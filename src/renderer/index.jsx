@@ -191,7 +191,12 @@ function App() {
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>No sites yet.</div>
           ) : null)}
         </div>
-        <div style={{ padding: sidebarCollapsed ? '12px 8px' : '16px', borderTop: '1px solid #2b2b2b' }}>
+        <div
+          style={{
+            padding: sidebarCollapsed ? '12px 8px 20px' : '16px 16px 24px',
+            borderTop: '1px solid #2b2b2b'
+          }}
+        >
           <Button
             icon={plus}
             variant="primary"
