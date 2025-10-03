@@ -75,6 +75,16 @@ async function getStore() {
 	return store;
 }
 
+function findAvailableDirName(rootDir, baseName) {
+	const sanitizedBase = baseName || 'wordpress-develop-trunk';
+	let candidate = sanitizedBase;
+	let counter = 2;
+	while (fs.existsSync(path.join(rootDir, candidate))) {
+		candidate = `${sanitizedBase}-${counter++}`;
+	}
+	return candidate;
+}
+
 /** @type {Record<string, import('child_process').ChildProcess>} */
 const runningInstalls = {};
 /** @type {Record<string, import('child_process').ChildProcess>} */
@@ -372,7 +382,8 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 
 	const requestedName = typeof options.siteName === 'string' ? options.siteName.trim() : '';
 	const sanitizedName = requestedName.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').replace(/^-+|-+$/g, '') || 'wordpress-develop-trunk';
-	const siteDir = path.join(destDir, sanitizedName);
+	const uniqueName = findAvailableDirName(destDir, sanitizedName);
+	const siteDir = path.join(destDir, uniqueName);
 	await fse.ensureDir(siteDir);
 	event.sender.send('download:status', { phase: 'cloning', target: siteDir });
 	try {
@@ -403,7 +414,7 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 		const meta = s.get('siteMeta');
 		const siteLabel = typeof options.siteLabel === 'string' && options.siteLabel.trim().length
 			? options.siteLabel.trim()
-			: sanitizedName;
+			: uniqueName;
 		meta[siteDir] = { initialized: false, createdAt: new Date().toISOString(), label: siteLabel };
 		s.set('siteMeta', meta);
 	}

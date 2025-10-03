@@ -2697,8 +2697,8 @@
               false
             );
           });
-          [["acceptCharset", "accept-charset"], ["className", "class"], ["htmlFor", "for"], ["httpEquiv", "http-equiv"]].forEach(function(_ref) {
-            var name = _ref[0], attributeName = _ref[1];
+          [["acceptCharset", "accept-charset"], ["className", "class"], ["htmlFor", "for"], ["httpEquiv", "http-equiv"]].forEach(function(_ref2) {
+            var name = _ref2[0], attributeName = _ref2[1];
             properties[name] = new PropertyInfoRecord(
               name,
               STRING,
@@ -30965,7 +30965,7 @@ WARNING: This link could potentially be dangerous`)) {
   });
 
   // src/renderer/index.jsx
-  var import_react67 = __toESM(require_react());
+  var import_react68 = __toESM(require_react());
   var import_client2 = __toESM(require_client());
 
   // node_modules/clsx/dist/clsx.mjs
@@ -37583,11 +37583,11 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@floating-ui/core/dist/floating-ui.core.mjs
-  function computeCoordsFromPlacement(_ref, placement, rtl2) {
+  function computeCoordsFromPlacement(_ref2, placement, rtl2) {
     let {
       reference,
       floating
-    } = _ref;
+    } = _ref2;
     const sideAxis = getSideAxis(placement);
     const alignmentAxis = getAlignmentAxis(placement);
     const alignLength = getAxisLength(alignmentAxis);
@@ -38033,11 +38033,11 @@ If there's a particular need for this, please submit a feature request at https:
           mainAxis: checkMainAxis = true,
           crossAxis: checkCrossAxis = false,
           limiter = {
-            fn: (_ref) => {
+            fn: (_ref2) => {
               let {
                 x: x2,
                 y: y2
-              } = _ref;
+              } = _ref2;
               return {
                 x: x2,
                 y: y2
@@ -38247,8 +38247,8 @@ If there's a particular need for this, please submit a feature request at https:
     return (node2 == null || (_node$ownerDocument = node2.ownerDocument) == null ? void 0 : _node$ownerDocument.defaultView) || window;
   }
   function getDocumentElement(node2) {
-    var _ref;
-    return (_ref = (isNode(node2) ? node2.ownerDocument : node2.document) || window.document) == null ? void 0 : _ref.documentElement;
+    var _ref2;
+    return (_ref2 = (isNode(node2) ? node2.ownerDocument : node2.document) || window.document) == null ? void 0 : _ref2.documentElement;
   }
   function isNode(value) {
     if (!hasWindow()) {
@@ -38519,13 +38519,13 @@ If there's a particular need for this, please submit a feature request at https:
       y
     };
   }
-  function convertOffsetParentRelativeRectToViewportRelativeRect(_ref) {
+  function convertOffsetParentRelativeRectToViewportRelativeRect(_ref2) {
     let {
       elements: elements2,
       rect,
       offsetParent,
       strategy
-    } = _ref;
+    } = _ref2;
     const isFixed = strategy === "fixed";
     const documentElement = getDocumentElement(offsetParent);
     const topLayer = elements2 ? isTopLayer(elements2.floating) : false;
@@ -38686,13 +38686,13 @@ If there's a particular need for this, please submit a feature request at https:
     cache2.set(element, result);
     return result;
   }
-  function getClippingRect(_ref) {
+  function getClippingRect(_ref2) {
     let {
       element,
       boundary,
       rootBoundary,
       strategy
-    } = _ref;
+    } = _ref2;
     const elementClippingAncestors = boundary === "clippingAncestors" ? isTopLayer(element) ? [] : getClippingElementAncestors(element, this._c) : [].concat(boundary);
     const clippingAncestors = [...elementClippingAncestors, rootBoundary];
     const firstClippingAncestor = clippingAncestors[0];
@@ -38928,8 +38928,8 @@ If there's a particular need for this, please submit a feature request at https:
     let reobserveFrame = -1;
     let resizeObserver = null;
     if (elementResize) {
-      resizeObserver = new ResizeObserver((_ref) => {
-        let [firstEntry] = _ref;
+      resizeObserver = new ResizeObserver((_ref2) => {
+        let [firstEntry] = _ref2;
         if (firstEntry && firstEntry.target === referenceEl && resizeObserver) {
           resizeObserver.unobserve(floating);
           cancelAnimationFrame(reobserveFrame);
@@ -41497,8 +41497,8 @@ If there's a particular need for this, please submit a feature request at https:
     newProps[typePropName] = type;
     return newProps;
   };
-  var Insertion = function Insertion2(_ref) {
-    var cache2 = _ref.cache, serialized = _ref.serialized, isStringTag = _ref.isStringTag;
+  var Insertion = function Insertion2(_ref2) {
+    var cache2 = _ref2.cache, serialized = _ref2.serialized, isStringTag = _ref2.isStringTag;
     registerStyles(cache2, serialized, isStringTag);
     useInsertionEffectAlwaysWithSyncFallback(function() {
       return insertStyles(cache2, serialized, isStringTag);
@@ -41555,10 +41555,10 @@ If there's a particular need for this, please submit a feature request at https:
     }
     return React6.createElement.apply(null, createElementArgArray);
   };
-  (function(_jsx37) {
+  (function(_jsx39) {
     var JSX;
     /* @__PURE__ */ (function(_JSX) {
-    })(JSX || (JSX = _jsx37.JSX || (_jsx37.JSX = {})));
+    })(JSX || (JSX = _jsx39.JSX || (_jsx39.JSX = {})));
   })(jsx17 || (jsx17 = {}));
   function css() {
     for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
@@ -41710,6 +41710,20 @@ If there's a particular need for this, please submit a feature request at https:
     return cx3;
   };
 
+  // node_modules/@wordpress/components/build-module/utils/box-sizing.js
+  function _EMOTION_STRINGIFIED_CSS_ERROR__() {
+    return "You have tried to stringify object returned from `css` function. It isn't supposed to be used directly (e.g. as value of the `className` prop), but rather handed to emotion so it can handle it (e.g. as value of `css` prop).";
+  }
+  var boxSizingReset = false ? {
+    name: "kv6lnz",
+    styles: "box-sizing:border-box;*,*::before,*::after{box-sizing:inherit;}"
+  } : {
+    name: "1pa5nhz-boxSizingReset",
+    styles: "box-sizing:border-box;*,*::before,*::after{box-sizing:inherit;};label:boxSizingReset;",
+    map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvdXRpbHMvYm94LXNpemluZy50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFLaUMiLCJmaWxlIjoiQHdvcmRwcmVzcy9jb21wb25lbnRzL3NyYy91dGlscy9ib3gtc2l6aW5nLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG5leHBvcnQgY29uc3QgYm94U2l6aW5nUmVzZXQgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cblx0Kixcblx0Kjo6YmVmb3JlLFxuXHQqOjphZnRlciB7XG5cdFx0Ym94LXNpemluZzogaW5oZXJpdDtcblx0fVxuYDtcbiJdfQ== */",
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__
+  };
+
   // node_modules/memize/dist/index.js
   function memize(fn, options) {
     var size4 = 0;
@@ -41816,6 +41830,20 @@ If there's a particular need for this, please submit a feature request at https:
     };
   }
   rtl.watch = () => isRTL();
+
+  // node_modules/@wordpress/components/build-module/utils/font-values.js
+  var font_values_default = {
+    "default.fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif",
+    "default.fontSize": "13px",
+    "helpText.fontSize": "12px",
+    mobileTextMinFontSize: "16px"
+  };
+
+  // node_modules/@wordpress/components/build-module/utils/font.js
+  function font(value) {
+    var _FONT$value;
+    return (_FONT$value = font_values_default[value]) !== null && _FONT$value !== void 0 ? _FONT$value : "";
+  }
 
   // node_modules/@wordpress/components/build-module/utils/space.js
   var GRID_BASE = "4px";
@@ -41981,6 +42009,20 @@ If there's a particular need for this, please submit a feature request at https:
     transitionTimingFunction: "cubic-bezier(0.08, 0.52, 0.52, 1)",
     transitionTimingFunctionControl: "cubic-bezier(0.12, 0.8, 0.32, 1)"
   });
+
+  // node_modules/@wordpress/components/build-module/utils/base-label.js
+  function _EMOTION_STRINGIFIED_CSS_ERROR__2() {
+    return "You have tried to stringify object returned from `css` function. It isn't supposed to be used directly (e.g. as value of the `className` prop), but rather handed to emotion so it can handle it (e.g. as value of `css` prop).";
+  }
+  var baseLabelTypography = false ? {
+    name: "9amh4a",
+    styles: "font-size:11px;font-weight:500;line-height:1.4;text-transform:uppercase"
+  } : {
+    name: "1awj7qe-baseLabelTypography",
+    styles: "font-size:11px;font-weight:500;line-height:1.4;text-transform:uppercase;label:baseLabelTypography;",
+    map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvdXRpbHMvYmFzZS1sYWJlbC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFPc0MiLCJmaWxlIjoiQHdvcmRwcmVzcy9jb21wb25lbnRzL3NyYy91dGlscy9iYXNlLWxhYmVsLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vLyBUaGlzIGlzIGEgdmVyeSBsb3ctbGV2ZWwgbWl4aW4gd2hpY2ggeW91IHNob3VsZG4ndCBoYXZlIHRvIHVzZSBkaXJlY3RseS5cbi8vIFRyeSB0byB1c2UgQmFzZUNvbnRyb2wncyBTdHlsZWRMYWJlbCBvciBCYXNlQ29udHJvbC5WaXN1YWxMYWJlbCBpZiB5b3UgY2FuLlxuZXhwb3J0IGNvbnN0IGJhc2VMYWJlbFR5cG9ncmFwaHkgPSBjc3NgXG5cdGZvbnQtc2l6ZTogMTFweDtcblx0Zm9udC13ZWlnaHQ6IDUwMDtcblx0bGluZS1oZWlnaHQ6IDEuNDtcblx0dGV4dC10cmFuc2Zvcm06IHVwcGVyY2FzZTtcbmA7XG4iXX0= */",
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__2
+  };
 
   // node_modules/@wordpress/components/build-module/context/context-system-provider.js
   var import_jsx_runtime20 = __toESM(require_jsx_runtime());
@@ -42150,8 +42192,8 @@ If there's a particular need for this, please submit a feature request at https:
     }
     return shouldForwardProp;
   };
-  var Insertion3 = function Insertion4(_ref) {
-    var cache2 = _ref.cache, serialized = _ref.serialized, isStringTag = _ref.isStringTag;
+  var Insertion3 = function Insertion4(_ref2) {
+    var cache2 = _ref2.cache, serialized = _ref2.serialized, isStringTag = _ref2.isStringTag;
     registerStyles(cache2, serialized, isStringTag);
     useInsertionEffectAlwaysWithSyncFallback(function() {
       return insertStyles(cache2, serialized, isStringTag);
@@ -50034,7 +50076,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/flex/styles.js
-  function _EMOTION_STRINGIFIED_CSS_ERROR__() {
+  function _EMOTION_STRINGIFIED_CSS_ERROR__3() {
     return "You have tried to stringify object returned from `css` function. It isn't supposed to be used directly (e.g. as value of the `className` prop), but rather handed to emotion so it can handle it (e.g. as value of `css` prop).";
   }
   var Flex = false ? {
@@ -50044,7 +50086,7 @@ If there's a particular need for this, please submit a feature request at https:
     name: "a57899-Flex",
     styles: "display:flex;label:Flex;",
     map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvZmxleC9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBS3VCIiwiZmlsZSI6IkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvZmxleC9zdHlsZXMudHMiLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIEV4dGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBjc3MgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbmV4cG9ydCBjb25zdCBGbGV4ID0gY3NzYFxuXHRkaXNwbGF5OiBmbGV4O1xuYDtcblxuZXhwb3J0IGNvbnN0IEl0ZW0gPSBjc3NgXG5cdGRpc3BsYXk6IGJsb2NrO1xuXHRtYXgtaGVpZ2h0OiAxMDAlO1xuXHRtYXgtd2lkdGg6IDEwMCU7XG5cdG1pbi1oZWlnaHQ6IDA7XG5cdG1pbi13aWR0aDogMDtcbmA7XG5cbmV4cG9ydCBjb25zdCBibG9jayA9IGNzc2Bcblx0ZmxleDogMTtcbmA7XG5cbi8qKlxuICogV29ya2Fyb3VuZCB0byBvcHRpbWl6ZSBET00gcmVuZGVyaW5nLlxuICogV2UnbGwgZW5oYW5jZSBhbGlnbm1lbnQgd2l0aCBuYWl2ZSBwYXJlbnQgZmxleCBhc3N1bXB0aW9ucy5cbiAqXG4gKiBUcmFkZS1vZmY6XG4gKiBGYXIgbGVzcyBET00gbGVzcy4gSG93ZXZlciwgVUkgcmVuZGVyaW5nIGlzIG5vdCBhcyByZWxpYWJsZS5cbiAqL1xuXG4vKipcbiAqIEltcHJvdmVzIHN0YWJpbGl0eSBvZiB3aWR0aC9oZWlnaHQgcmVuZGVyaW5nLlxuICogaHR0cHM6Ly9naXRodWIuY29tL0l0c0pvblEvZzIvcHVsbC8xNDlcbiAqL1xuZXhwb3J0IGNvbnN0IEl0ZW1zQ29sdW1uID0gY3NzYFxuXHQ+ICoge1xuXHRcdG1pbi1oZWlnaHQ6IDA7XG5cdH1cbmA7XG5cbmV4cG9ydCBjb25zdCBJdGVtc1JvdyA9IGNzc2Bcblx0PiAqIHtcblx0XHRtaW4td2lkdGg6IDA7XG5cdH1cbmA7XG4iXX0= */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__3
   };
   var ItemsColumn = false ? {
     name: "13nosa1",
@@ -50053,7 +50095,7 @@ If there's a particular need for this, please submit a feature request at https:
     name: "9k4k7f-ItemsColumn",
     styles: ">*{min-height:0;};label:ItemsColumn;",
     map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvZmxleC9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBaUM4QiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL2ZsZXgvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG5leHBvcnQgY29uc3QgRmxleCA9IGNzc2Bcblx0ZGlzcGxheTogZmxleDtcbmA7XG5cbmV4cG9ydCBjb25zdCBJdGVtID0gY3NzYFxuXHRkaXNwbGF5OiBibG9jaztcblx0bWF4LWhlaWdodDogMTAwJTtcblx0bWF4LXdpZHRoOiAxMDAlO1xuXHRtaW4taGVpZ2h0OiAwO1xuXHRtaW4td2lkdGg6IDA7XG5gO1xuXG5leHBvcnQgY29uc3QgYmxvY2sgPSBjc3NgXG5cdGZsZXg6IDE7XG5gO1xuXG4vKipcbiAqIFdvcmthcm91bmQgdG8gb3B0aW1pemUgRE9NIHJlbmRlcmluZy5cbiAqIFdlJ2xsIGVuaGFuY2UgYWxpZ25tZW50IHdpdGggbmFpdmUgcGFyZW50IGZsZXggYXNzdW1wdGlvbnMuXG4gKlxuICogVHJhZGUtb2ZmOlxuICogRmFyIGxlc3MgRE9NIGxlc3MuIEhvd2V2ZXIsIFVJIHJlbmRlcmluZyBpcyBub3QgYXMgcmVsaWFibGUuXG4gKi9cblxuLyoqXG4gKiBJbXByb3ZlcyBzdGFiaWxpdHkgb2Ygd2lkdGgvaGVpZ2h0IHJlbmRlcmluZy5cbiAqIGh0dHBzOi8vZ2l0aHViLmNvbS9JdHNKb25RL2cyL3B1bGwvMTQ5XG4gKi9cbmV4cG9ydCBjb25zdCBJdGVtc0NvbHVtbiA9IGNzc2Bcblx0PiAqIHtcblx0XHRtaW4taGVpZ2h0OiAwO1xuXHR9XG5gO1xuXG5leHBvcnQgY29uc3QgSXRlbXNSb3cgPSBjc3NgXG5cdD4gKiB7XG5cdFx0bWluLXdpZHRoOiAwO1xuXHR9XG5gO1xuIl19 */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__3
   };
   var ItemsRow = false ? {
     name: "1pwxzk4",
@@ -50062,7 +50104,7 @@ If there's a particular need for this, please submit a feature request at https:
     name: "1ozeagb-ItemsRow",
     styles: ">*{min-width:0;};label:ItemsRow;",
     map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvZmxleC9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBdUMyQiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL2ZsZXgvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG5leHBvcnQgY29uc3QgRmxleCA9IGNzc2Bcblx0ZGlzcGxheTogZmxleDtcbmA7XG5cbmV4cG9ydCBjb25zdCBJdGVtID0gY3NzYFxuXHRkaXNwbGF5OiBibG9jaztcblx0bWF4LWhlaWdodDogMTAwJTtcblx0bWF4LXdpZHRoOiAxMDAlO1xuXHRtaW4taGVpZ2h0OiAwO1xuXHRtaW4td2lkdGg6IDA7XG5gO1xuXG5leHBvcnQgY29uc3QgYmxvY2sgPSBjc3NgXG5cdGZsZXg6IDE7XG5gO1xuXG4vKipcbiAqIFdvcmthcm91bmQgdG8gb3B0aW1pemUgRE9NIHJlbmRlcmluZy5cbiAqIFdlJ2xsIGVuaGFuY2UgYWxpZ25tZW50IHdpdGggbmFpdmUgcGFyZW50IGZsZXggYXNzdW1wdGlvbnMuXG4gKlxuICogVHJhZGUtb2ZmOlxuICogRmFyIGxlc3MgRE9NIGxlc3MuIEhvd2V2ZXIsIFVJIHJlbmRlcmluZyBpcyBub3QgYXMgcmVsaWFibGUuXG4gKi9cblxuLyoqXG4gKiBJbXByb3ZlcyBzdGFiaWxpdHkgb2Ygd2lkdGgvaGVpZ2h0IHJlbmRlcmluZy5cbiAqIGh0dHBzOi8vZ2l0aHViLmNvbS9JdHNKb25RL2cyL3B1bGwvMTQ5XG4gKi9cbmV4cG9ydCBjb25zdCBJdGVtc0NvbHVtbiA9IGNzc2Bcblx0PiAqIHtcblx0XHRtaW4taGVpZ2h0OiAwO1xuXHR9XG5gO1xuXG5leHBvcnQgY29uc3QgSXRlbXNSb3cgPSBjc3NgXG5cdD4gKiB7XG5cdFx0bWluLXdpZHRoOiAwO1xuXHR9XG5gO1xuIl19 */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__3
   };
 
   // node_modules/@wordpress/components/build-module/flex/flex/hook.js
@@ -50293,8 +50335,150 @@ If there's a particular need for this, please submit a feature request at https:
     };
   }
 
-  // node_modules/@wordpress/components/build-module/dashicon/index.js
+  // node_modules/@wordpress/components/build-module/base-control/styles/base-control-styles.js
+  function _EMOTION_STRINGIFIED_CSS_ERROR__4() {
+    return "You have tried to stringify object returned from `css` function. It isn't supposed to be used directly (e.g. as value of the `className` prop), but rather handed to emotion so it can handle it (e.g. as value of `css` prop).";
+  }
+  var Wrapper = /* @__PURE__ */ createStyled("div", false ? {
+    target: "ej5x27r4"
+  } : {
+    target: "ej5x27r4",
+    label: "Wrapper"
+  })("font-family:", font("default.fontFamily"), ";font-size:", font("default.fontSize"), ";", boxSizingReset, ";" + (false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvYmFzZS1jb250cm9sL3N0eWxlcy9iYXNlLWNvbnRyb2wtc3R5bGVzLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQVlpQyIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL2Jhc2UtY29udHJvbC9zdHlsZXMvYmFzZS1jb250cm9sLXN0eWxlcy50cyIsInNvdXJjZXNDb250ZW50IjpbIi8qKlxuICogRXh0ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCBzdHlsZWQgZnJvbSAnQGVtb3Rpb24vc3R5bGVkJztcbmltcG9ydCB7IGNzcyB9IGZyb20gJ0BlbW90aW9uL3JlYWN0JztcblxuLyoqXG4gKiBJbnRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgYmFzZUxhYmVsVHlwb2dyYXBoeSwgYm94U2l6aW5nUmVzZXQsIGZvbnQsIENPTE9SUyB9IGZyb20gJy4uLy4uL3V0aWxzJztcbmltcG9ydCB7IHNwYWNlIH0gZnJvbSAnLi4vLi4vdXRpbHMvc3BhY2UnO1xuXG5leHBvcnQgY29uc3QgV3JhcHBlciA9IHN0eWxlZC5kaXZgXG5cdGZvbnQtZmFtaWx5OiAkeyBmb250KCAnZGVmYXVsdC5mb250RmFtaWx5JyApIH07XG5cdGZvbnQtc2l6ZTogJHsgZm9udCggJ2RlZmF1bHQuZm9udFNpemUnICkgfTtcblxuXHQkeyBib3hTaXppbmdSZXNldCB9XG5gO1xuXG5jb25zdCBkZXByZWNhdGVkTWFyZ2luRmllbGQgPSAoIHsgX19uZXh0SGFzTm9NYXJnaW5Cb3R0b20gPSBmYWxzZSB9ICkgPT4ge1xuXHRyZXR1cm4gKFxuXHRcdCEgX19uZXh0SGFzTm9NYXJnaW5Cb3R0b20gJiZcblx0XHRjc3NgXG5cdFx0XHRtYXJnaW4tYm90dG9tOiAkeyBzcGFjZSggMiApIH07XG5cdFx0YFxuXHQpO1xufTtcblxuZXhwb3J0IGNvbnN0IFN0eWxlZEZpZWxkID0gc3R5bGVkLmRpdmBcblx0JHsgZGVwcmVjYXRlZE1hcmdpbkZpZWxkIH1cblxuXHQuY29tcG9uZW50cy1wYW5lbF9fcm93ICYge1xuXHRcdG1hcmdpbi1ib3R0b206IGluaGVyaXQ7XG5cdH1cbmA7XG5cbmNvbnN0IGxhYmVsU3R5bGVzID0gY3NzYFxuXHQkeyBiYXNlTGFiZWxUeXBvZ3JhcGh5IH07XG5cblx0ZGlzcGxheTogYmxvY2s7XG5cdG1hcmdpbi1ib3R0b206ICR7IHNwYWNlKCAyICkgfTtcblx0LyoqXG5cdCAqIFJlbW92ZXMgQ2hyb21lL1NhZmFyaS9GaXJlZm94IHVzZXIgYWdlbnQgc3R5bGVzaGVldCBwYWRkaW5nIGZyb21cblx0ICogU3R5bGVkTGFiZWwgd2hlbiBpdCBpcyByZW5kZXJlZCBhcyBhIGxlZ2VuZC5cblx0ICovXG5cdHBhZGRpbmc6IDA7XG5gO1xuXG5leHBvcnQgY29uc3QgU3R5bGVkTGFiZWwgPSBzdHlsZWQubGFiZWxgXG5cdCR7IGxhYmVsU3R5bGVzIH1cbmA7XG5cbmNvbnN0IGRlcHJlY2F0ZWRNYXJnaW5IZWxwID0gKCB7IF9fbmV4dEhhc05vTWFyZ2luQm90dG9tID0gZmFsc2UgfSApID0+IHtcblx0cmV0dXJuIChcblx0XHQhIF9fbmV4dEhhc05vTWFyZ2luQm90dG9tICYmXG5cdFx0Y3NzYFxuXHRcdFx0bWFyZ2luLWJvdHRvbTogcmV2ZXJ0O1xuXHRcdGBcblx0KTtcbn07XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRIZWxwID0gc3R5bGVkLnBgXG5cdG1hcmdpbi10b3A6ICR7IHNwYWNlKCAyICkgfTtcblx0bWFyZ2luLWJvdHRvbTogMDtcblx0Zm9udC1zaXplOiAkeyBmb250KCAnaGVscFRleHQuZm9udFNpemUnICkgfTtcblx0Zm9udC1zdHlsZTogbm9ybWFsO1xuXHRjb2xvcjogJHsgQ09MT1JTLmdyYXlbIDcwMCBdIH07XG5cblx0JHsgZGVwcmVjYXRlZE1hcmdpbkhlbHAgfVxuYDtcblxuZXhwb3J0IGNvbnN0IFN0eWxlZFZpc3VhbExhYmVsID0gc3R5bGVkLnNwYW5gXG5cdCR7IGxhYmVsU3R5bGVzIH1cbmA7XG4iXX0= */"));
+  var deprecatedMarginField = ({
+    __nextHasNoMarginBottom = false
+  }) => {
+    return !__nextHasNoMarginBottom && /* @__PURE__ */ css("margin-bottom:", space(2), ";" + (false ? "" : ";label:deprecatedMarginField;"), false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvYmFzZS1jb250cm9sL3N0eWxlcy9iYXNlLWNvbnRyb2wtc3R5bGVzLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQXNCSyIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL2Jhc2UtY29udHJvbC9zdHlsZXMvYmFzZS1jb250cm9sLXN0eWxlcy50cyIsInNvdXJjZXNDb250ZW50IjpbIi8qKlxuICogRXh0ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCBzdHlsZWQgZnJvbSAnQGVtb3Rpb24vc3R5bGVkJztcbmltcG9ydCB7IGNzcyB9IGZyb20gJ0BlbW90aW9uL3JlYWN0JztcblxuLyoqXG4gKiBJbnRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgYmFzZUxhYmVsVHlwb2dyYXBoeSwgYm94U2l6aW5nUmVzZXQsIGZvbnQsIENPTE9SUyB9IGZyb20gJy4uLy4uL3V0aWxzJztcbmltcG9ydCB7IHNwYWNlIH0gZnJvbSAnLi4vLi4vdXRpbHMvc3BhY2UnO1xuXG5leHBvcnQgY29uc3QgV3JhcHBlciA9IHN0eWxlZC5kaXZgXG5cdGZvbnQtZmFtaWx5OiAkeyBmb250KCAnZGVmYXVsdC5mb250RmFtaWx5JyApIH07XG5cdGZvbnQtc2l6ZTogJHsgZm9udCggJ2RlZmF1bHQuZm9udFNpemUnICkgfTtcblxuXHQkeyBib3hTaXppbmdSZXNldCB9XG5gO1xuXG5jb25zdCBkZXByZWNhdGVkTWFyZ2luRmllbGQgPSAoIHsgX19uZXh0SGFzTm9NYXJnaW5Cb3R0b20gPSBmYWxzZSB9ICkgPT4ge1xuXHRyZXR1cm4gKFxuXHRcdCEgX19uZXh0SGFzTm9NYXJnaW5Cb3R0b20gJiZcblx0XHRjc3NgXG5cdFx0XHRtYXJnaW4tYm90dG9tOiAkeyBzcGFjZSggMiApIH07XG5cdFx0YFxuXHQpO1xufTtcblxuZXhwb3J0IGNvbnN0IFN0eWxlZEZpZWxkID0gc3R5bGVkLmRpdmBcblx0JHsgZGVwcmVjYXRlZE1hcmdpbkZpZWxkIH1cblxuXHQuY29tcG9uZW50cy1wYW5lbF9fcm93ICYge1xuXHRcdG1hcmdpbi1ib3R0b206IGluaGVyaXQ7XG5cdH1cbmA7XG5cbmNvbnN0IGxhYmVsU3R5bGVzID0gY3NzYFxuXHQkeyBiYXNlTGFiZWxUeXBvZ3JhcGh5IH07XG5cblx0ZGlzcGxheTogYmxvY2s7XG5cdG1hcmdpbi1ib3R0b206ICR7IHNwYWNlKCAyICkgfTtcblx0LyoqXG5cdCAqIFJlbW92ZXMgQ2hyb21lL1NhZmFyaS9GaXJlZm94IHVzZXIgYWdlbnQgc3R5bGVzaGVldCBwYWRkaW5nIGZyb21cblx0ICogU3R5bGVkTGFiZWwgd2hlbiBpdCBpcyByZW5kZXJlZCBhcyBhIGxlZ2VuZC5cblx0ICovXG5cdHBhZGRpbmc6IDA7XG5gO1xuXG5leHBvcnQgY29uc3QgU3R5bGVkTGFiZWwgPSBzdHlsZWQubGFiZWxgXG5cdCR7IGxhYmVsU3R5bGVzIH1cbmA7XG5cbmNvbnN0IGRlcHJlY2F0ZWRNYXJnaW5IZWxwID0gKCB7IF9fbmV4dEhhc05vTWFyZ2luQm90dG9tID0gZmFsc2UgfSApID0+IHtcblx0cmV0dXJuIChcblx0XHQhIF9fbmV4dEhhc05vTWFyZ2luQm90dG9tICYmXG5cdFx0Y3NzYFxuXHRcdFx0bWFyZ2luLWJvdHRvbTogcmV2ZXJ0O1xuXHRcdGBcblx0KTtcbn07XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRIZWxwID0gc3R5bGVkLnBgXG5cdG1hcmdpbi10b3A6ICR7IHNwYWNlKCAyICkgfTtcblx0bWFyZ2luLWJvdHRvbTogMDtcblx0Zm9udC1zaXplOiAkeyBmb250KCAnaGVscFRleHQuZm9udFNpemUnICkgfTtcblx0Zm9udC1zdHlsZTogbm9ybWFsO1xuXHRjb2xvcjogJHsgQ09MT1JTLmdyYXlbIDcwMCBdIH07XG5cblx0JHsgZGVwcmVjYXRlZE1hcmdpbkhlbHAgfVxuYDtcblxuZXhwb3J0IGNvbnN0IFN0eWxlZFZpc3VhbExhYmVsID0gc3R5bGVkLnNwYW5gXG5cdCR7IGxhYmVsU3R5bGVzIH1cbmA7XG4iXX0= */");
+  };
+  var StyledField = /* @__PURE__ */ createStyled("div", false ? {
+    target: "ej5x27r3"
+  } : {
+    target: "ej5x27r3",
+    label: "StyledField"
+  })(deprecatedMarginField, " .components-panel__row &{margin-bottom:inherit;}" + (false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvYmFzZS1jb250cm9sL3N0eWxlcy9iYXNlLWNvbnRyb2wtc3R5bGVzLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQTRCcUMiLCJmaWxlIjoiQHdvcmRwcmVzcy9jb21wb25lbnRzL3NyYy9iYXNlLWNvbnRyb2wvc3R5bGVzL2Jhc2UtY29udHJvbC1zdHlsZXMudHMiLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIEV4dGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgc3R5bGVkIGZyb20gJ0BlbW90aW9uL3N0eWxlZCc7XG5pbXBvcnQgeyBjc3MgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbi8qKlxuICogSW50ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCB7IGJhc2VMYWJlbFR5cG9ncmFwaHksIGJveFNpemluZ1Jlc2V0LCBmb250LCBDT0xPUlMgfSBmcm9tICcuLi8uLi91dGlscyc7XG5pbXBvcnQgeyBzcGFjZSB9IGZyb20gJy4uLy4uL3V0aWxzL3NwYWNlJztcblxuZXhwb3J0IGNvbnN0IFdyYXBwZXIgPSBzdHlsZWQuZGl2YFxuXHRmb250LWZhbWlseTogJHsgZm9udCggJ2RlZmF1bHQuZm9udEZhbWlseScgKSB9O1xuXHRmb250LXNpemU6ICR7IGZvbnQoICdkZWZhdWx0LmZvbnRTaXplJyApIH07XG5cblx0JHsgYm94U2l6aW5nUmVzZXQgfVxuYDtcblxuY29uc3QgZGVwcmVjYXRlZE1hcmdpbkZpZWxkID0gKCB7IF9fbmV4dEhhc05vTWFyZ2luQm90dG9tID0gZmFsc2UgfSApID0+IHtcblx0cmV0dXJuIChcblx0XHQhIF9fbmV4dEhhc05vTWFyZ2luQm90dG9tICYmXG5cdFx0Y3NzYFxuXHRcdFx0bWFyZ2luLWJvdHRvbTogJHsgc3BhY2UoIDIgKSB9O1xuXHRcdGBcblx0KTtcbn07XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRGaWVsZCA9IHN0eWxlZC5kaXZgXG5cdCR7IGRlcHJlY2F0ZWRNYXJnaW5GaWVsZCB9XG5cblx0LmNvbXBvbmVudHMtcGFuZWxfX3JvdyAmIHtcblx0XHRtYXJnaW4tYm90dG9tOiBpbmhlcml0O1xuXHR9XG5gO1xuXG5jb25zdCBsYWJlbFN0eWxlcyA9IGNzc2Bcblx0JHsgYmFzZUxhYmVsVHlwb2dyYXBoeSB9O1xuXG5cdGRpc3BsYXk6IGJsb2NrO1xuXHRtYXJnaW4tYm90dG9tOiAkeyBzcGFjZSggMiApIH07XG5cdC8qKlxuXHQgKiBSZW1vdmVzIENocm9tZS9TYWZhcmkvRmlyZWZveCB1c2VyIGFnZW50IHN0eWxlc2hlZXQgcGFkZGluZyBmcm9tXG5cdCAqIFN0eWxlZExhYmVsIHdoZW4gaXQgaXMgcmVuZGVyZWQgYXMgYSBsZWdlbmQuXG5cdCAqL1xuXHRwYWRkaW5nOiAwO1xuYDtcblxuZXhwb3J0IGNvbnN0IFN0eWxlZExhYmVsID0gc3R5bGVkLmxhYmVsYFxuXHQkeyBsYWJlbFN0eWxlcyB9XG5gO1xuXG5jb25zdCBkZXByZWNhdGVkTWFyZ2luSGVscCA9ICggeyBfX25leHRIYXNOb01hcmdpbkJvdHRvbSA9IGZhbHNlIH0gKSA9PiB7XG5cdHJldHVybiAoXG5cdFx0ISBfX25leHRIYXNOb01hcmdpbkJvdHRvbSAmJlxuXHRcdGNzc2Bcblx0XHRcdG1hcmdpbi1ib3R0b206IHJldmVydDtcblx0XHRgXG5cdCk7XG59O1xuXG5leHBvcnQgY29uc3QgU3R5bGVkSGVscCA9IHN0eWxlZC5wYFxuXHRtYXJnaW4tdG9wOiAkeyBzcGFjZSggMiApIH07XG5cdG1hcmdpbi1ib3R0b206IDA7XG5cdGZvbnQtc2l6ZTogJHsgZm9udCggJ2hlbHBUZXh0LmZvbnRTaXplJyApIH07XG5cdGZvbnQtc3R5bGU6IG5vcm1hbDtcblx0Y29sb3I6ICR7IENPTE9SUy5ncmF5WyA3MDAgXSB9O1xuXG5cdCR7IGRlcHJlY2F0ZWRNYXJnaW5IZWxwIH1cbmA7XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRWaXN1YWxMYWJlbCA9IHN0eWxlZC5zcGFuYFxuXHQkeyBsYWJlbFN0eWxlcyB9XG5gO1xuIl19 */"));
+  var labelStyles = /* @__PURE__ */ css(baseLabelTypography, ";display:block;margin-bottom:", space(2), ";padding:0;" + (false ? "" : ";label:labelStyles;"), false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvYmFzZS1jb250cm9sL3N0eWxlcy9iYXNlLWNvbnRyb2wtc3R5bGVzLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQW9DdUIiLCJmaWxlIjoiQHdvcmRwcmVzcy9jb21wb25lbnRzL3NyYy9iYXNlLWNvbnRyb2wvc3R5bGVzL2Jhc2UtY29udHJvbC1zdHlsZXMudHMiLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIEV4dGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgc3R5bGVkIGZyb20gJ0BlbW90aW9uL3N0eWxlZCc7XG5pbXBvcnQgeyBjc3MgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbi8qKlxuICogSW50ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCB7IGJhc2VMYWJlbFR5cG9ncmFwaHksIGJveFNpemluZ1Jlc2V0LCBmb250LCBDT0xPUlMgfSBmcm9tICcuLi8uLi91dGlscyc7XG5pbXBvcnQgeyBzcGFjZSB9IGZyb20gJy4uLy4uL3V0aWxzL3NwYWNlJztcblxuZXhwb3J0IGNvbnN0IFdyYXBwZXIgPSBzdHlsZWQuZGl2YFxuXHRmb250LWZhbWlseTogJHsgZm9udCggJ2RlZmF1bHQuZm9udEZhbWlseScgKSB9O1xuXHRmb250LXNpemU6ICR7IGZvbnQoICdkZWZhdWx0LmZvbnRTaXplJyApIH07XG5cblx0JHsgYm94U2l6aW5nUmVzZXQgfVxuYDtcblxuY29uc3QgZGVwcmVjYXRlZE1hcmdpbkZpZWxkID0gKCB7IF9fbmV4dEhhc05vTWFyZ2luQm90dG9tID0gZmFsc2UgfSApID0+IHtcblx0cmV0dXJuIChcblx0XHQhIF9fbmV4dEhhc05vTWFyZ2luQm90dG9tICYmXG5cdFx0Y3NzYFxuXHRcdFx0bWFyZ2luLWJvdHRvbTogJHsgc3BhY2UoIDIgKSB9O1xuXHRcdGBcblx0KTtcbn07XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRGaWVsZCA9IHN0eWxlZC5kaXZgXG5cdCR7IGRlcHJlY2F0ZWRNYXJnaW5GaWVsZCB9XG5cblx0LmNvbXBvbmVudHMtcGFuZWxfX3JvdyAmIHtcblx0XHRtYXJnaW4tYm90dG9tOiBpbmhlcml0O1xuXHR9XG5gO1xuXG5jb25zdCBsYWJlbFN0eWxlcyA9IGNzc2Bcblx0JHsgYmFzZUxhYmVsVHlwb2dyYXBoeSB9O1xuXG5cdGRpc3BsYXk6IGJsb2NrO1xuXHRtYXJnaW4tYm90dG9tOiAkeyBzcGFjZSggMiApIH07XG5cdC8qKlxuXHQgKiBSZW1vdmVzIENocm9tZS9TYWZhcmkvRmlyZWZveCB1c2VyIGFnZW50IHN0eWxlc2hlZXQgcGFkZGluZyBmcm9tXG5cdCAqIFN0eWxlZExhYmVsIHdoZW4gaXQgaXMgcmVuZGVyZWQgYXMgYSBsZWdlbmQuXG5cdCAqL1xuXHRwYWRkaW5nOiAwO1xuYDtcblxuZXhwb3J0IGNvbnN0IFN0eWxlZExhYmVsID0gc3R5bGVkLmxhYmVsYFxuXHQkeyBsYWJlbFN0eWxlcyB9XG5gO1xuXG5jb25zdCBkZXByZWNhdGVkTWFyZ2luSGVscCA9ICggeyBfX25leHRIYXNOb01hcmdpbkJvdHRvbSA9IGZhbHNlIH0gKSA9PiB7XG5cdHJldHVybiAoXG5cdFx0ISBfX25leHRIYXNOb01hcmdpbkJvdHRvbSAmJlxuXHRcdGNzc2Bcblx0XHRcdG1hcmdpbi1ib3R0b206IHJldmVydDtcblx0XHRgXG5cdCk7XG59O1xuXG5leHBvcnQgY29uc3QgU3R5bGVkSGVscCA9IHN0eWxlZC5wYFxuXHRtYXJnaW4tdG9wOiAkeyBzcGFjZSggMiApIH07XG5cdG1hcmdpbi1ib3R0b206IDA7XG5cdGZvbnQtc2l6ZTogJHsgZm9udCggJ2hlbHBUZXh0LmZvbnRTaXplJyApIH07XG5cdGZvbnQtc3R5bGU6IG5vcm1hbDtcblx0Y29sb3I6ICR7IENPTE9SUy5ncmF5WyA3MDAgXSB9O1xuXG5cdCR7IGRlcHJlY2F0ZWRNYXJnaW5IZWxwIH1cbmA7XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRWaXN1YWxMYWJlbCA9IHN0eWxlZC5zcGFuYFxuXHQkeyBsYWJlbFN0eWxlcyB9XG5gO1xuIl19 */");
+  var StyledLabel = /* @__PURE__ */ createStyled("label", false ? {
+    target: "ej5x27r2"
+  } : {
+    target: "ej5x27r2",
+    label: "StyledLabel"
+  })(labelStyles, ";" + (false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvYmFzZS1jb250cm9sL3N0eWxlcy9iYXNlLWNvbnRyb2wtc3R5bGVzLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQWdEdUMiLCJmaWxlIjoiQHdvcmRwcmVzcy9jb21wb25lbnRzL3NyYy9iYXNlLWNvbnRyb2wvc3R5bGVzL2Jhc2UtY29udHJvbC1zdHlsZXMudHMiLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIEV4dGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgc3R5bGVkIGZyb20gJ0BlbW90aW9uL3N0eWxlZCc7XG5pbXBvcnQgeyBjc3MgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbi8qKlxuICogSW50ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCB7IGJhc2VMYWJlbFR5cG9ncmFwaHksIGJveFNpemluZ1Jlc2V0LCBmb250LCBDT0xPUlMgfSBmcm9tICcuLi8uLi91dGlscyc7XG5pbXBvcnQgeyBzcGFjZSB9IGZyb20gJy4uLy4uL3V0aWxzL3NwYWNlJztcblxuZXhwb3J0IGNvbnN0IFdyYXBwZXIgPSBzdHlsZWQuZGl2YFxuXHRmb250LWZhbWlseTogJHsgZm9udCggJ2RlZmF1bHQuZm9udEZhbWlseScgKSB9O1xuXHRmb250LXNpemU6ICR7IGZvbnQoICdkZWZhdWx0LmZvbnRTaXplJyApIH07XG5cblx0JHsgYm94U2l6aW5nUmVzZXQgfVxuYDtcblxuY29uc3QgZGVwcmVjYXRlZE1hcmdpbkZpZWxkID0gKCB7IF9fbmV4dEhhc05vTWFyZ2luQm90dG9tID0gZmFsc2UgfSApID0+IHtcblx0cmV0dXJuIChcblx0XHQhIF9fbmV4dEhhc05vTWFyZ2luQm90dG9tICYmXG5cdFx0Y3NzYFxuXHRcdFx0bWFyZ2luLWJvdHRvbTogJHsgc3BhY2UoIDIgKSB9O1xuXHRcdGBcblx0KTtcbn07XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRGaWVsZCA9IHN0eWxlZC5kaXZgXG5cdCR7IGRlcHJlY2F0ZWRNYXJnaW5GaWVsZCB9XG5cblx0LmNvbXBvbmVudHMtcGFuZWxfX3JvdyAmIHtcblx0XHRtYXJnaW4tYm90dG9tOiBpbmhlcml0O1xuXHR9XG5gO1xuXG5jb25zdCBsYWJlbFN0eWxlcyA9IGNzc2Bcblx0JHsgYmFzZUxhYmVsVHlwb2dyYXBoeSB9O1xuXG5cdGRpc3BsYXk6IGJsb2NrO1xuXHRtYXJnaW4tYm90dG9tOiAkeyBzcGFjZSggMiApIH07XG5cdC8qKlxuXHQgKiBSZW1vdmVzIENocm9tZS9TYWZhcmkvRmlyZWZveCB1c2VyIGFnZW50IHN0eWxlc2hlZXQgcGFkZGluZyBmcm9tXG5cdCAqIFN0eWxlZExhYmVsIHdoZW4gaXQgaXMgcmVuZGVyZWQgYXMgYSBsZWdlbmQuXG5cdCAqL1xuXHRwYWRkaW5nOiAwO1xuYDtcblxuZXhwb3J0IGNvbnN0IFN0eWxlZExhYmVsID0gc3R5bGVkLmxhYmVsYFxuXHQkeyBsYWJlbFN0eWxlcyB9XG5gO1xuXG5jb25zdCBkZXByZWNhdGVkTWFyZ2luSGVscCA9ICggeyBfX25leHRIYXNOb01hcmdpbkJvdHRvbSA9IGZhbHNlIH0gKSA9PiB7XG5cdHJldHVybiAoXG5cdFx0ISBfX25leHRIYXNOb01hcmdpbkJvdHRvbSAmJlxuXHRcdGNzc2Bcblx0XHRcdG1hcmdpbi1ib3R0b206IHJldmVydDtcblx0XHRgXG5cdCk7XG59O1xuXG5leHBvcnQgY29uc3QgU3R5bGVkSGVscCA9IHN0eWxlZC5wYFxuXHRtYXJnaW4tdG9wOiAkeyBzcGFjZSggMiApIH07XG5cdG1hcmdpbi1ib3R0b206IDA7XG5cdGZvbnQtc2l6ZTogJHsgZm9udCggJ2hlbHBUZXh0LmZvbnRTaXplJyApIH07XG5cdGZvbnQtc3R5bGU6IG5vcm1hbDtcblx0Y29sb3I6ICR7IENPTE9SUy5ncmF5WyA3MDAgXSB9O1xuXG5cdCR7IGRlcHJlY2F0ZWRNYXJnaW5IZWxwIH1cbmA7XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRWaXN1YWxMYWJlbCA9IHN0eWxlZC5zcGFuYFxuXHQkeyBsYWJlbFN0eWxlcyB9XG5gO1xuIl19 */"));
+  var _ref = false ? {
+    name: "11yad0w",
+    styles: "margin-bottom:revert"
+  } : {
+    name: "1xen9ob-deprecatedMarginHelp",
+    styles: "margin-bottom:revert;label:deprecatedMarginHelp;",
+    map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvYmFzZS1jb250cm9sL3N0eWxlcy9iYXNlLWNvbnRyb2wtc3R5bGVzLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQXVESyIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL2Jhc2UtY29udHJvbC9zdHlsZXMvYmFzZS1jb250cm9sLXN0eWxlcy50cyIsInNvdXJjZXNDb250ZW50IjpbIi8qKlxuICogRXh0ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCBzdHlsZWQgZnJvbSAnQGVtb3Rpb24vc3R5bGVkJztcbmltcG9ydCB7IGNzcyB9IGZyb20gJ0BlbW90aW9uL3JlYWN0JztcblxuLyoqXG4gKiBJbnRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgYmFzZUxhYmVsVHlwb2dyYXBoeSwgYm94U2l6aW5nUmVzZXQsIGZvbnQsIENPTE9SUyB9IGZyb20gJy4uLy4uL3V0aWxzJztcbmltcG9ydCB7IHNwYWNlIH0gZnJvbSAnLi4vLi4vdXRpbHMvc3BhY2UnO1xuXG5leHBvcnQgY29uc3QgV3JhcHBlciA9IHN0eWxlZC5kaXZgXG5cdGZvbnQtZmFtaWx5OiAkeyBmb250KCAnZGVmYXVsdC5mb250RmFtaWx5JyApIH07XG5cdGZvbnQtc2l6ZTogJHsgZm9udCggJ2RlZmF1bHQuZm9udFNpemUnICkgfTtcblxuXHQkeyBib3hTaXppbmdSZXNldCB9XG5gO1xuXG5jb25zdCBkZXByZWNhdGVkTWFyZ2luRmllbGQgPSAoIHsgX19uZXh0SGFzTm9NYXJnaW5Cb3R0b20gPSBmYWxzZSB9ICkgPT4ge1xuXHRyZXR1cm4gKFxuXHRcdCEgX19uZXh0SGFzTm9NYXJnaW5Cb3R0b20gJiZcblx0XHRjc3NgXG5cdFx0XHRtYXJnaW4tYm90dG9tOiAkeyBzcGFjZSggMiApIH07XG5cdFx0YFxuXHQpO1xufTtcblxuZXhwb3J0IGNvbnN0IFN0eWxlZEZpZWxkID0gc3R5bGVkLmRpdmBcblx0JHsgZGVwcmVjYXRlZE1hcmdpbkZpZWxkIH1cblxuXHQuY29tcG9uZW50cy1wYW5lbF9fcm93ICYge1xuXHRcdG1hcmdpbi1ib3R0b206IGluaGVyaXQ7XG5cdH1cbmA7XG5cbmNvbnN0IGxhYmVsU3R5bGVzID0gY3NzYFxuXHQkeyBiYXNlTGFiZWxUeXBvZ3JhcGh5IH07XG5cblx0ZGlzcGxheTogYmxvY2s7XG5cdG1hcmdpbi1ib3R0b206ICR7IHNwYWNlKCAyICkgfTtcblx0LyoqXG5cdCAqIFJlbW92ZXMgQ2hyb21lL1NhZmFyaS9GaXJlZm94IHVzZXIgYWdlbnQgc3R5bGVzaGVldCBwYWRkaW5nIGZyb21cblx0ICogU3R5bGVkTGFiZWwgd2hlbiBpdCBpcyByZW5kZXJlZCBhcyBhIGxlZ2VuZC5cblx0ICovXG5cdHBhZGRpbmc6IDA7XG5gO1xuXG5leHBvcnQgY29uc3QgU3R5bGVkTGFiZWwgPSBzdHlsZWQubGFiZWxgXG5cdCR7IGxhYmVsU3R5bGVzIH1cbmA7XG5cbmNvbnN0IGRlcHJlY2F0ZWRNYXJnaW5IZWxwID0gKCB7IF9fbmV4dEhhc05vTWFyZ2luQm90dG9tID0gZmFsc2UgfSApID0+IHtcblx0cmV0dXJuIChcblx0XHQhIF9fbmV4dEhhc05vTWFyZ2luQm90dG9tICYmXG5cdFx0Y3NzYFxuXHRcdFx0bWFyZ2luLWJvdHRvbTogcmV2ZXJ0O1xuXHRcdGBcblx0KTtcbn07XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRIZWxwID0gc3R5bGVkLnBgXG5cdG1hcmdpbi10b3A6ICR7IHNwYWNlKCAyICkgfTtcblx0bWFyZ2luLWJvdHRvbTogMDtcblx0Zm9udC1zaXplOiAkeyBmb250KCAnaGVscFRleHQuZm9udFNpemUnICkgfTtcblx0Zm9udC1zdHlsZTogbm9ybWFsO1xuXHRjb2xvcjogJHsgQ09MT1JTLmdyYXlbIDcwMCBdIH07XG5cblx0JHsgZGVwcmVjYXRlZE1hcmdpbkhlbHAgfVxuYDtcblxuZXhwb3J0IGNvbnN0IFN0eWxlZFZpc3VhbExhYmVsID0gc3R5bGVkLnNwYW5gXG5cdCR7IGxhYmVsU3R5bGVzIH1cbmA7XG4iXX0= */",
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__4
+  };
+  var deprecatedMarginHelp = ({
+    __nextHasNoMarginBottom = false
+  }) => {
+    return !__nextHasNoMarginBottom && _ref;
+  };
+  var StyledHelp = /* @__PURE__ */ createStyled("p", false ? {
+    target: "ej5x27r1"
+  } : {
+    target: "ej5x27r1",
+    label: "StyledHelp"
+  })("margin-top:", space(2), ";margin-bottom:0;font-size:", font("helpText.fontSize"), ";font-style:normal;color:", COLORS.gray[700], ";", deprecatedMarginHelp, ";" + (false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvYmFzZS1jb250cm9sL3N0eWxlcy9iYXNlLWNvbnRyb2wtc3R5bGVzLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQTZEa0MiLCJmaWxlIjoiQHdvcmRwcmVzcy9jb21wb25lbnRzL3NyYy9iYXNlLWNvbnRyb2wvc3R5bGVzL2Jhc2UtY29udHJvbC1zdHlsZXMudHMiLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIEV4dGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgc3R5bGVkIGZyb20gJ0BlbW90aW9uL3N0eWxlZCc7XG5pbXBvcnQgeyBjc3MgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbi8qKlxuICogSW50ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCB7IGJhc2VMYWJlbFR5cG9ncmFwaHksIGJveFNpemluZ1Jlc2V0LCBmb250LCBDT0xPUlMgfSBmcm9tICcuLi8uLi91dGlscyc7XG5pbXBvcnQgeyBzcGFjZSB9IGZyb20gJy4uLy4uL3V0aWxzL3NwYWNlJztcblxuZXhwb3J0IGNvbnN0IFdyYXBwZXIgPSBzdHlsZWQuZGl2YFxuXHRmb250LWZhbWlseTogJHsgZm9udCggJ2RlZmF1bHQuZm9udEZhbWlseScgKSB9O1xuXHRmb250LXNpemU6ICR7IGZvbnQoICdkZWZhdWx0LmZvbnRTaXplJyApIH07XG5cblx0JHsgYm94U2l6aW5nUmVzZXQgfVxuYDtcblxuY29uc3QgZGVwcmVjYXRlZE1hcmdpbkZpZWxkID0gKCB7IF9fbmV4dEhhc05vTWFyZ2luQm90dG9tID0gZmFsc2UgfSApID0+IHtcblx0cmV0dXJuIChcblx0XHQhIF9fbmV4dEhhc05vTWFyZ2luQm90dG9tICYmXG5cdFx0Y3NzYFxuXHRcdFx0bWFyZ2luLWJvdHRvbTogJHsgc3BhY2UoIDIgKSB9O1xuXHRcdGBcblx0KTtcbn07XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRGaWVsZCA9IHN0eWxlZC5kaXZgXG5cdCR7IGRlcHJlY2F0ZWRNYXJnaW5GaWVsZCB9XG5cblx0LmNvbXBvbmVudHMtcGFuZWxfX3JvdyAmIHtcblx0XHRtYXJnaW4tYm90dG9tOiBpbmhlcml0O1xuXHR9XG5gO1xuXG5jb25zdCBsYWJlbFN0eWxlcyA9IGNzc2Bcblx0JHsgYmFzZUxhYmVsVHlwb2dyYXBoeSB9O1xuXG5cdGRpc3BsYXk6IGJsb2NrO1xuXHRtYXJnaW4tYm90dG9tOiAkeyBzcGFjZSggMiApIH07XG5cdC8qKlxuXHQgKiBSZW1vdmVzIENocm9tZS9TYWZhcmkvRmlyZWZveCB1c2VyIGFnZW50IHN0eWxlc2hlZXQgcGFkZGluZyBmcm9tXG5cdCAqIFN0eWxlZExhYmVsIHdoZW4gaXQgaXMgcmVuZGVyZWQgYXMgYSBsZWdlbmQuXG5cdCAqL1xuXHRwYWRkaW5nOiAwO1xuYDtcblxuZXhwb3J0IGNvbnN0IFN0eWxlZExhYmVsID0gc3R5bGVkLmxhYmVsYFxuXHQkeyBsYWJlbFN0eWxlcyB9XG5gO1xuXG5jb25zdCBkZXByZWNhdGVkTWFyZ2luSGVscCA9ICggeyBfX25leHRIYXNOb01hcmdpbkJvdHRvbSA9IGZhbHNlIH0gKSA9PiB7XG5cdHJldHVybiAoXG5cdFx0ISBfX25leHRIYXNOb01hcmdpbkJvdHRvbSAmJlxuXHRcdGNzc2Bcblx0XHRcdG1hcmdpbi1ib3R0b206IHJldmVydDtcblx0XHRgXG5cdCk7XG59O1xuXG5leHBvcnQgY29uc3QgU3R5bGVkSGVscCA9IHN0eWxlZC5wYFxuXHRtYXJnaW4tdG9wOiAkeyBzcGFjZSggMiApIH07XG5cdG1hcmdpbi1ib3R0b206IDA7XG5cdGZvbnQtc2l6ZTogJHsgZm9udCggJ2hlbHBUZXh0LmZvbnRTaXplJyApIH07XG5cdGZvbnQtc3R5bGU6IG5vcm1hbDtcblx0Y29sb3I6ICR7IENPTE9SUy5ncmF5WyA3MDAgXSB9O1xuXG5cdCR7IGRlcHJlY2F0ZWRNYXJnaW5IZWxwIH1cbmA7XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRWaXN1YWxMYWJlbCA9IHN0eWxlZC5zcGFuYFxuXHQkeyBsYWJlbFN0eWxlcyB9XG5gO1xuIl19 */"));
+  var StyledVisualLabel = /* @__PURE__ */ createStyled("span", false ? {
+    target: "ej5x27r0"
+  } : {
+    target: "ej5x27r0",
+    label: "StyledVisualLabel"
+  })(labelStyles, ";" + (false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvYmFzZS1jb250cm9sL3N0eWxlcy9iYXNlLWNvbnRyb2wtc3R5bGVzLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQXVFNEMiLCJmaWxlIjoiQHdvcmRwcmVzcy9jb21wb25lbnRzL3NyYy9iYXNlLWNvbnRyb2wvc3R5bGVzL2Jhc2UtY29udHJvbC1zdHlsZXMudHMiLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIEV4dGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgc3R5bGVkIGZyb20gJ0BlbW90aW9uL3N0eWxlZCc7XG5pbXBvcnQgeyBjc3MgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbi8qKlxuICogSW50ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCB7IGJhc2VMYWJlbFR5cG9ncmFwaHksIGJveFNpemluZ1Jlc2V0LCBmb250LCBDT0xPUlMgfSBmcm9tICcuLi8uLi91dGlscyc7XG5pbXBvcnQgeyBzcGFjZSB9IGZyb20gJy4uLy4uL3V0aWxzL3NwYWNlJztcblxuZXhwb3J0IGNvbnN0IFdyYXBwZXIgPSBzdHlsZWQuZGl2YFxuXHRmb250LWZhbWlseTogJHsgZm9udCggJ2RlZmF1bHQuZm9udEZhbWlseScgKSB9O1xuXHRmb250LXNpemU6ICR7IGZvbnQoICdkZWZhdWx0LmZvbnRTaXplJyApIH07XG5cblx0JHsgYm94U2l6aW5nUmVzZXQgfVxuYDtcblxuY29uc3QgZGVwcmVjYXRlZE1hcmdpbkZpZWxkID0gKCB7IF9fbmV4dEhhc05vTWFyZ2luQm90dG9tID0gZmFsc2UgfSApID0+IHtcblx0cmV0dXJuIChcblx0XHQhIF9fbmV4dEhhc05vTWFyZ2luQm90dG9tICYmXG5cdFx0Y3NzYFxuXHRcdFx0bWFyZ2luLWJvdHRvbTogJHsgc3BhY2UoIDIgKSB9O1xuXHRcdGBcblx0KTtcbn07XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRGaWVsZCA9IHN0eWxlZC5kaXZgXG5cdCR7IGRlcHJlY2F0ZWRNYXJnaW5GaWVsZCB9XG5cblx0LmNvbXBvbmVudHMtcGFuZWxfX3JvdyAmIHtcblx0XHRtYXJnaW4tYm90dG9tOiBpbmhlcml0O1xuXHR9XG5gO1xuXG5jb25zdCBsYWJlbFN0eWxlcyA9IGNzc2Bcblx0JHsgYmFzZUxhYmVsVHlwb2dyYXBoeSB9O1xuXG5cdGRpc3BsYXk6IGJsb2NrO1xuXHRtYXJnaW4tYm90dG9tOiAkeyBzcGFjZSggMiApIH07XG5cdC8qKlxuXHQgKiBSZW1vdmVzIENocm9tZS9TYWZhcmkvRmlyZWZveCB1c2VyIGFnZW50IHN0eWxlc2hlZXQgcGFkZGluZyBmcm9tXG5cdCAqIFN0eWxlZExhYmVsIHdoZW4gaXQgaXMgcmVuZGVyZWQgYXMgYSBsZWdlbmQuXG5cdCAqL1xuXHRwYWRkaW5nOiAwO1xuYDtcblxuZXhwb3J0IGNvbnN0IFN0eWxlZExhYmVsID0gc3R5bGVkLmxhYmVsYFxuXHQkeyBsYWJlbFN0eWxlcyB9XG5gO1xuXG5jb25zdCBkZXByZWNhdGVkTWFyZ2luSGVscCA9ICggeyBfX25leHRIYXNOb01hcmdpbkJvdHRvbSA9IGZhbHNlIH0gKSA9PiB7XG5cdHJldHVybiAoXG5cdFx0ISBfX25leHRIYXNOb01hcmdpbkJvdHRvbSAmJlxuXHRcdGNzc2Bcblx0XHRcdG1hcmdpbi1ib3R0b206IHJldmVydDtcblx0XHRgXG5cdCk7XG59O1xuXG5leHBvcnQgY29uc3QgU3R5bGVkSGVscCA9IHN0eWxlZC5wYFxuXHRtYXJnaW4tdG9wOiAkeyBzcGFjZSggMiApIH07XG5cdG1hcmdpbi1ib3R0b206IDA7XG5cdGZvbnQtc2l6ZTogJHsgZm9udCggJ2hlbHBUZXh0LmZvbnRTaXplJyApIH07XG5cdGZvbnQtc3R5bGU6IG5vcm1hbDtcblx0Y29sb3I6ICR7IENPTE9SUy5ncmF5WyA3MDAgXSB9O1xuXG5cdCR7IGRlcHJlY2F0ZWRNYXJnaW5IZWxwIH1cbmA7XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRWaXN1YWxMYWJlbCA9IHN0eWxlZC5zcGFuYFxuXHQkeyBsYWJlbFN0eWxlcyB9XG5gO1xuIl19 */"));
+
+  // node_modules/@wordpress/components/build-module/base-control/index.js
   var import_jsx_runtime34 = __toESM(require_jsx_runtime());
+  var UnconnectedBaseControl = (props) => {
+    const {
+      __nextHasNoMarginBottom = false,
+      __associatedWPComponentName = "BaseControl",
+      id: id3,
+      label,
+      hideLabelFromVision = false,
+      help,
+      className,
+      children
+    } = useContextSystem(props, "BaseControl");
+    if (!__nextHasNoMarginBottom) {
+      deprecated(`Bottom margin styles for wp.components.${__associatedWPComponentName}`, {
+        since: "6.7",
+        version: "7.0",
+        hint: "Set the `__nextHasNoMarginBottom` prop to true to start opting into the new styles, which will become the default in a future version."
+      });
+    }
+    return /* @__PURE__ */ (0, import_jsx_runtime34.jsxs)(Wrapper, {
+      className,
+      children: [/* @__PURE__ */ (0, import_jsx_runtime34.jsxs)(StyledField, {
+        className: "components-base-control__field",
+        __nextHasNoMarginBottom,
+        children: [label && id3 && (hideLabelFromVision ? /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(component_default2, {
+          as: "label",
+          htmlFor: id3,
+          children: label
+        }) : /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(StyledLabel, {
+          className: "components-base-control__label",
+          htmlFor: id3,
+          children: label
+        })), label && !id3 && (hideLabelFromVision ? /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(component_default2, {
+          as: "label",
+          children: label
+        }) : /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(VisualLabel, {
+          children: label
+        })), children]
+      }), !!help && /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(StyledHelp, {
+        id: id3 ? id3 + "__help" : void 0,
+        className: "components-base-control__help",
+        __nextHasNoMarginBottom,
+        children: help
+      })]
+    });
+  };
+  var UnforwardedVisualLabel = (props, ref) => {
+    const {
+      className,
+      children,
+      ...restProps
+    } = props;
+    return /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(StyledVisualLabel, {
+      ref,
+      ...restProps,
+      className: clsx_default("components-base-control__label", className),
+      children
+    });
+  };
+  var VisualLabel = (0, import_react.forwardRef)(UnforwardedVisualLabel);
+  var BaseControl = Object.assign(contextConnectWithoutRef(UnconnectedBaseControl, "BaseControl"), {
+    /**
+     * `BaseControl.VisualLabel` is used to render a purely visual label inside a `BaseControl` component.
+     *
+     * It should only be used in cases where the children being rendered inside `BaseControl` are already accessibly labeled,
+     * e.g., a button, but we want an additional visual label for that section equivalent to the labels `BaseControl` would
+     * otherwise use if the `label` prop was passed.
+     *
+     * ```jsx
+     * import { BaseControl } from '@wordpress/components';
+     *
+     * const MyBaseControl = () => (
+     * 	<BaseControl
+     * 		__nextHasNoMarginBottom
+     * 		help="This button is already accessibly labeled."
+     * 	>
+     * 		<BaseControl.VisualLabel>Author</BaseControl.VisualLabel>
+     * 		<Button>Select an author</Button>
+     * 	</BaseControl>
+     * );
+     * ```
+     */
+    VisualLabel
+  });
+  var base_control_default = BaseControl;
+
+  // node_modules/@wordpress/components/build-module/dashicon/index.js
+  var import_jsx_runtime35 = __toESM(require_jsx_runtime());
   function Dashicon({
     icon,
     className,
@@ -50316,7 +50500,7 @@ If there's a particular need for this, please submit a feature request at https:
       ...sizeStyles,
       ...style
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime34.jsx)("span", {
+    return /* @__PURE__ */ (0, import_jsx_runtime35.jsx)("span", {
       className: iconClass,
       style: styles,
       ...extraProps
@@ -50325,14 +50509,14 @@ If there's a particular need for this, please submit a feature request at https:
   var dashicon_default = Dashicon;
 
   // node_modules/@wordpress/components/build-module/icon/index.js
-  var import_jsx_runtime35 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime36 = __toESM(require_jsx_runtime());
   function Icon({
     icon = null,
     size: size4 = "string" === typeof icon ? 20 : 24,
     ...additionalProps
   }) {
     if ("string" === typeof icon) {
-      return /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(dashicon_default, {
+      return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(dashicon_default, {
         icon,
         size: size4,
         ...additionalProps
@@ -50356,7 +50540,7 @@ If there's a particular need for this, please submit a feature request at https:
         height: size4,
         ...additionalProps
       };
-      return /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(SVG, {
+      return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(SVG, {
         ...appliedProps
       });
     }
@@ -50372,7 +50556,7 @@ If there's a particular need for this, please submit a feature request at https:
   var icon_default = Icon;
 
   // node_modules/@wordpress/components/build-module/button/index.js
-  var import_jsx_runtime36 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime37 = __toESM(require_jsx_runtime());
   var disabledEventsOnDisabledButton = ["onMouseDown", "onClick"];
   function useDeprecatedProps2({
     __experimentalIsFocusable,
@@ -50524,24 +50708,24 @@ If there's a particular need for this, please submit a feature request at https:
       "aria-describedby": describedById,
       ref
     };
-    const elementChildren = /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)(import_jsx_runtime36.Fragment, {
-      children: [icon && iconPosition === "left" && /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(icon_default, {
+    const elementChildren = /* @__PURE__ */ (0, import_jsx_runtime37.jsxs)(import_jsx_runtime37.Fragment, {
+      children: [icon && iconPosition === "left" && /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(icon_default, {
         icon,
         size: iconSize
-      }), text && /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(import_jsx_runtime36.Fragment, {
+      }), text && /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(import_jsx_runtime37.Fragment, {
         children: text
-      }), children, icon && iconPosition === "right" && /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(icon_default, {
+      }), children, icon && iconPosition === "right" && /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(icon_default, {
         icon,
         size: iconSize
       })]
     });
-    const element = Tag === "a" ? /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("a", {
+    const element = Tag === "a" ? /* @__PURE__ */ (0, import_jsx_runtime37.jsx)("a", {
       ...anchorProps,
       ...additionalProps,
       ...disableEventProps,
       ...commonProps,
       children: elementChildren
-    }) : /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("button", {
+    }) : /* @__PURE__ */ (0, import_jsx_runtime37.jsx)("button", {
       ...buttonProps,
       ...additionalProps,
       ...disableEventProps,
@@ -50554,12 +50738,12 @@ If there's a particular need for this, please submit a feature request at https:
       placement: tooltipPosition && // Convert legacy `position` values to be used with the new `placement` prop
       positionToPlacement(tooltipPosition)
     } : {};
-    return /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)(import_jsx_runtime36.Fragment, {
-      children: [/* @__PURE__ */ (0, import_jsx_runtime36.jsx)(tooltip_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime37.jsxs)(import_jsx_runtime37.Fragment, {
+      children: [/* @__PURE__ */ (0, import_jsx_runtime37.jsx)(tooltip_default, {
         ...tooltipProps,
         children: element
-      }), description && /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(component_default2, {
-        children: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("span", {
+      }), description && /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(component_default2, {
+        children: /* @__PURE__ */ (0, import_jsx_runtime37.jsx)("span", {
           id: descriptionId,
           children: description
         })
@@ -50571,12 +50755,12 @@ If there's a particular need for this, please submit a feature request at https:
 
   // node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs
   var React8 = __toESM(require_react(), 1);
-  var import_react59 = __toESM(require_react(), 1);
+  var import_react60 = __toESM(require_react(), 1);
   var ReactDOM = __toESM(require_react_dom(), 1);
   var isClient = typeof document !== "undefined";
   var noop3 = function noop4() {
   };
-  var index = isClient ? import_react59.useLayoutEffect : noop3;
+  var index = isClient ? import_react60.useLayoutEffect : noop3;
   function deepEqual(a, b) {
     if (a === b) {
       return true;
@@ -50936,7 +51120,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/slot-fill/slot.js
-  var import_jsx_runtime37 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime38 = __toESM(require_jsx_runtime());
   function isFunction(maybeFunc) {
     return typeof maybeFunc === "function";
   }
@@ -50977,7 +51161,7 @@ If there's a particular need for this, please submit a feature request at https:
       // it allows us to render wrappers only when the fills are actually present.
       (element) => !isEmptyElement(element)
     );
-    return /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(import_jsx_runtime37.Fragment, {
+    return /* @__PURE__ */ (0, import_jsx_runtime38.jsx)(import_jsx_runtime38.Fragment, {
       children: isFunction(children) ? children(fills) : fills
     });
   }
@@ -51053,7 +51237,7 @@ If there's a particular need for this, please submit a feature request at https:
   var v4_default = v4;
 
   // node_modules/@wordpress/components/build-module/style-provider/index.js
-  var import_jsx_runtime38 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime39 = __toESM(require_jsx_runtime());
   var uuidCache = /* @__PURE__ */ new Set();
   var containerCacheMap = /* @__PURE__ */ new WeakMap();
   var memoizedCreateCacheWithContainer = (container) => {
@@ -51081,7 +51265,7 @@ If there's a particular need for this, please submit a feature request at https:
       return null;
     }
     const cache2 = memoizedCreateCacheWithContainer(document2.head);
-    return /* @__PURE__ */ (0, import_jsx_runtime38.jsx)(CacheProvider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(CacheProvider, {
       value: cache2,
       children
     });
@@ -51089,7 +51273,7 @@ If there's a particular need for this, please submit a feature request at https:
   var style_provider_default = StyleProvider;
 
   // node_modules/@wordpress/components/build-module/slot-fill/bubbles-virtually/fill.js
-  var import_jsx_runtime39 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime40 = __toESM(require_jsx_runtime());
   function Fill2({
     name,
     children
@@ -51111,7 +51295,7 @@ If there's a particular need for this, please submit a feature request at https:
     if (!slot || !slot.ref.current) {
       return null;
     }
-    const wrappedChildren = /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(style_provider_default, {
+    const wrappedChildren = /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(style_provider_default, {
       document: slot.ref.current.ownerDocument,
       children: typeof children === "function" ? children((_slot$fillProps = slot.fillProps) !== null && _slot$fillProps !== void 0 ? _slot$fillProps : {}) : children
     });
@@ -51119,7 +51303,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/slot-fill/bubbles-virtually/slot.js
-  var import_jsx_runtime40 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime41 = __toESM(require_jsx_runtime());
   function Slot2(props, forwardedRef) {
     const {
       name,
@@ -51149,7 +51333,7 @@ If there's a particular need for this, please submit a feature request at https:
     (0, import_react.useLayoutEffect)(() => {
       registry.updateSlot(name, ref, fillPropsRef.current);
     });
-    return /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(component_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime41.jsx)(component_default, {
       as,
       ref: useMergeRefs([forwardedRef, ref]),
       ...restProps
@@ -51158,7 +51342,7 @@ If there's a particular need for this, please submit a feature request at https:
   var slot_default2 = (0, import_react.forwardRef)(Slot2);
 
   // node_modules/@wordpress/components/build-module/slot-fill/bubbles-virtually/slot-fill-provider.js
-  var import_jsx_runtime41 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime42 = __toESM(require_jsx_runtime());
   function createSlotRegistry() {
     const slots = observableMap();
     const fills = observableMap();
@@ -51221,14 +51405,14 @@ If there's a particular need for this, please submit a feature request at https:
     children
   }) {
     const [registry] = (0, import_react.useState)(createSlotRegistry);
-    return /* @__PURE__ */ (0, import_jsx_runtime41.jsx)(slot_fill_context_default.Provider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime42.jsx)(slot_fill_context_default.Provider, {
       value: registry,
       children
     });
   }
 
   // node_modules/@wordpress/components/build-module/slot-fill/provider.js
-  var import_jsx_runtime42 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime43 = __toESM(require_jsx_runtime());
   function createSlotRegistry2() {
     const slots = {};
     const fills = {};
@@ -51296,7 +51480,7 @@ If there's a particular need for this, please submit a feature request at https:
     children
   }) {
     const [contextValue] = (0, import_react.useState)(createSlotRegistry2);
-    return /* @__PURE__ */ (0, import_jsx_runtime42.jsx)(context_default.Provider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(context_default.Provider, {
       value: contextValue,
       children
     });
@@ -51304,7 +51488,7 @@ If there's a particular need for this, please submit a feature request at https:
   var provider_default = SlotFillProvider2;
 
   // node_modules/@wordpress/components/build-module/slot-fill/index.js
-  var import_jsx_runtime43 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime44 = __toESM(require_jsx_runtime());
 
   // node_modules/@wordpress/components/build-module/slot-fill/bubbles-virtually/use-slot.js
   function useSlot2(name) {
@@ -51317,10 +51501,10 @@ If there's a particular need for this, please submit a feature request at https:
 
   // node_modules/@wordpress/components/build-module/slot-fill/index.js
   function Fill3(props) {
-    return /* @__PURE__ */ (0, import_jsx_runtime43.jsxs)(import_jsx_runtime43.Fragment, {
-      children: [/* @__PURE__ */ (0, import_jsx_runtime43.jsx)(Fill, {
+    return /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)(import_jsx_runtime44.Fragment, {
+      children: [/* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Fill, {
         ...props
-      }), /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(Fill2, {
+      }), /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Fill2, {
         ...props
       })]
     });
@@ -51331,12 +51515,12 @@ If there's a particular need for this, please submit a feature request at https:
       ...restProps
     } = props;
     if (bubblesVirtually) {
-      return /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(slot_default2, {
+      return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(slot_default2, {
         ...restProps,
         ref
       });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(slot_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(slot_default, {
       ...restProps
     });
   }
@@ -51347,12 +51531,12 @@ If there's a particular need for this, please submit a feature request at https:
   }) {
     const parent = (0, import_react.useContext)(slot_fill_context_default);
     if (!parent.isDefault && passthrough) {
-      return /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(import_jsx_runtime43.Fragment, {
+      return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(import_jsx_runtime44.Fragment, {
         children
       });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(provider_default, {
-      children: /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(SlotFillProvider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(provider_default, {
+      children: /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(SlotFillProvider, {
         children
       })
     });
@@ -51389,17 +51573,17 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/popover/index.js
-  var import_jsx_runtime44 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime45 = __toESM(require_jsx_runtime());
   var SLOT_NAME = "Popover";
-  var ArrowTriangle = () => /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)(SVG, {
+  var ArrowTriangle = () => /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 100 100",
     className: "components-popover__triangle",
     role: "presentation",
-    children: [/* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Path, {
+    children: [/* @__PURE__ */ (0, import_jsx_runtime45.jsx)(Path, {
       className: "components-popover__triangle-bg",
       d: "M 0 0 L 50 50 L 100 0"
-    }), /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Path, {
+    }), /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(Path, {
       className: "components-popover__triangle-border",
       d: "M 0 0 L 50 50 L 100 0",
       vectorEffect: "non-scaling-stroke"
@@ -51609,7 +51793,7 @@ If there's a particular need for this, please submit a feature request at https:
       }
     };
     const isPositioned = (!shouldAnimate || animationFinished) && x !== null && y !== null;
-    let content = /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)(motion.div, {
+    let content = /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)(motion.div, {
       className: clsx_default(className, {
         "is-expanded": isExpanded,
         "is-positioned": isPositioned,
@@ -51621,40 +51805,40 @@ If there's a particular need for this, please submit a feature request at https:
       ref: mergedFloatingRef,
       ...dialogProps,
       tabIndex: -1,
-      children: [isExpanded && /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(scroll_lock_default, {}), isExpanded && /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)("div", {
+      children: [isExpanded && /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(scroll_lock_default, {}), isExpanded && /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)("div", {
         className: "components-popover__header",
-        children: [/* @__PURE__ */ (0, import_jsx_runtime44.jsx)("span", {
+        children: [/* @__PURE__ */ (0, import_jsx_runtime45.jsx)("span", {
           className: "components-popover__header-title",
           children: headerTitle
-        }), /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(button_default, {
+        }), /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(button_default, {
           className: "components-popover__close",
           size: "small",
           icon: close_default,
           onClick: onClose,
           label: __("Close")
         })]
-      }), /* @__PURE__ */ (0, import_jsx_runtime44.jsx)("div", {
+      }), /* @__PURE__ */ (0, import_jsx_runtime45.jsx)("div", {
         className: "components-popover__content",
         children
-      }), hasArrow && /* @__PURE__ */ (0, import_jsx_runtime44.jsx)("div", {
+      }), hasArrow && /* @__PURE__ */ (0, import_jsx_runtime45.jsx)("div", {
         ref: arrowCallbackRef,
         className: ["components-popover__arrow", `is-${computedPlacement.split("-")[0]}`].join(" "),
         style: {
           left: typeof arrowData?.x !== "undefined" && Number.isFinite(arrowData.x) ? `${arrowData.x}px` : "",
           top: typeof arrowData?.y !== "undefined" && Number.isFinite(arrowData.y) ? `${arrowData.y}px` : ""
         },
-        children: /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(ArrowTriangle, {})
+        children: /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(ArrowTriangle, {})
       })]
     });
     const shouldRenderWithinSlot = slot.ref && !inline3;
     const hasAnchor = anchorRef || anchorRect || anchor;
     if (shouldRenderWithinSlot) {
-      content = /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Fill3, {
+      content = /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(Fill3, {
         name: slotName,
         children: content
       });
     } else if (!inline3) {
-      content = (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime44.jsx)(StyleProvider, {
+      content = (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime45.jsx)(StyleProvider, {
         document,
         children: content
       }), getPopoverFallbackContainer());
@@ -51662,8 +51846,8 @@ If there's a particular need for this, please submit a feature request at https:
     if (hasAnchor) {
       return content;
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)(import_jsx_runtime44.Fragment, {
-      children: [/* @__PURE__ */ (0, import_jsx_runtime44.jsx)("span", {
+    return /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)(import_jsx_runtime45.Fragment, {
+      children: [/* @__PURE__ */ (0, import_jsx_runtime45.jsx)("span", {
         ref: anchorRefFallback
       }), content]
     });
@@ -51672,7 +51856,7 @@ If there's a particular need for this, please submit a feature request at https:
   function PopoverSlot({
     name = SLOT_NAME
   }, ref) {
-    return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Slot3, {
+    return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(Slot3, {
       bubblesVirtually: true,
       name,
       className: "popover-slot",
@@ -51683,8 +51867,25 @@ If there's a particular need for this, please submit a feature request at https:
   Popover3.__unstableSlotNameProvider = slotNameContext.Provider;
   var popover_default = Popover3;
 
+  // node_modules/@wordpress/components/build-module/utils/deprecated-36px-size.js
+  function maybeWarnDeprecated36pxSize({
+    componentName,
+    __next40pxDefaultSize,
+    size: size4,
+    __shouldNotWarnDeprecated36pxSize
+  }) {
+    if (__shouldNotWarnDeprecated36pxSize || __next40pxDefaultSize || size4 !== void 0 && size4 !== "default") {
+      return;
+    }
+    deprecated(`36px default size for wp.components.${componentName}`, {
+      since: "6.8",
+      version: "7.1",
+      hint: "Set the `__next40pxDefaultSize` prop to true to start opting into the new default size, which will become the default in a future version."
+    });
+  }
+
   // node_modules/@wordpress/components/build-module/dropdown/index.js
-  var import_jsx_runtime45 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime46 = __toESM(require_jsx_runtime());
   var UnconnectedDropdown = (props, forwardedRef) => {
     const {
       renderContent,
@@ -51743,12 +51944,12 @@ If there's a particular need for this, please submit a feature request at https:
     const popoverPropsHaveAnchor = !!popoverProps?.anchor || // Note: `anchorRef`, `getAnchorRect` and `anchorRect` are deprecated and
     // be removed from `Popover` from WordPress 6.3
     !!popoverProps?.anchorRef || !!popoverProps?.getAnchorRect || !!popoverProps?.anchorRect;
-    return /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)("div", {
+    return /* @__PURE__ */ (0, import_jsx_runtime46.jsxs)("div", {
       className,
       ref: useMergeRefs([containerRef, forwardedRef, setFallbackPopoverAnchor]),
       tabIndex: -1,
       style,
-      children: [renderToggle(args), isOpen && /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(popover_default, {
+      children: [renderToggle(args), isOpen && /* @__PURE__ */ (0, import_jsx_runtime46.jsx)(popover_default, {
         position: position2,
         onClose: close2,
         onFocusOutside: closeIfFocusOutside,
@@ -51768,7 +51969,7 @@ If there's a particular need for this, please submit a feature request at https:
   var dropdown_default = Dropdown;
 
   // node_modules/@wordpress/components/build-module/elevation/styles.js
-  function _EMOTION_STRINGIFIED_CSS_ERROR__2() {
+  function _EMOTION_STRINGIFIED_CSS_ERROR__5() {
     return "You have tried to stringify object returned from `css` function. It isn't supposed to be used directly (e.g. as value of the `className` prop), but rather handed to emotion so it can handle it (e.g. as value of `css` prop).";
   }
   var Elevation = false ? {
@@ -51778,7 +51979,7 @@ If there's a particular need for this, please submit a feature request at https:
     name: "1n58bsy-Elevation",
     styles: "background:transparent;display:block;margin:0!important;pointer-events:none;position:absolute;will-change:box-shadow;label:Elevation;",
     map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvZWxldmF0aW9uL3N0eWxlcy50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFLNEIiLCJmaWxlIjoiQHdvcmRwcmVzcy9jb21wb25lbnRzL3NyYy9lbGV2YXRpb24vc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG5leHBvcnQgY29uc3QgRWxldmF0aW9uID0gY3NzYFxuXHRiYWNrZ3JvdW5kOiB0cmFuc3BhcmVudDtcblx0ZGlzcGxheTogYmxvY2s7XG5cdG1hcmdpbjogMCAhaW1wb3J0YW50O1xuXHRwb2ludGVyLWV2ZW50czogbm9uZTtcblx0cG9zaXRpb246IGFic29sdXRlO1xuXHR3aWxsLWNoYW5nZTogYm94LXNoYWRvdztcbmA7XG4iXX0= */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__2
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__5
   };
 
   // node_modules/@wordpress/components/build-module/elevation/hook.js
@@ -51838,10 +52039,10 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/elevation/component.js
-  var import_jsx_runtime46 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime47 = __toESM(require_jsx_runtime());
   function UnconnectedElevation(props, forwardedRef) {
     const elevationProps = useElevation(props);
-    return /* @__PURE__ */ (0, import_jsx_runtime46.jsx)(component_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default, {
       ...elevationProps,
       ref: forwardedRef
     });
@@ -51850,7 +52051,7 @@ If there's a particular need for this, please submit a feature request at https:
   var component_default5 = Elevation2;
 
   // node_modules/@wordpress/components/build-module/card/styles.js
-  function _EMOTION_STRINGIFIED_CSS_ERROR__3() {
+  function _EMOTION_STRINGIFIED_CSS_ERROR__6() {
     return "You have tried to stringify object returned from `css` function. It isn't supposed to be used directly (e.g. as value of the `className` prop), but rather handed to emotion so it can handle it (e.g. as value of `css` prop).";
   }
   var adjustedBorderRadius = `calc(${config_values_default.radiusLarge} - 1px)`;
@@ -51862,7 +52063,7 @@ If there's a particular need for this, please submit a feature request at https:
     name: "1ruapvy-Content",
     styles: "height:100%;label:Content;",
     map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvY2FyZC9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBdUMwQiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL2NhcmQvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vKipcbiAqIEludGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBDT0xPUlMsIENPTkZJRyB9IGZyb20gJy4uL3V0aWxzJztcblxuLy8gU2luY2UgdGhlIGJvcmRlciBmb3IgYENhcmRgIGlzIHJlbmRlcmVkIHZpYSB0aGUgYGJveC1zaGFkb3dgIHByb3BlcnR5XG4vLyAoYXMgb3Bwb3NlZCB0byB0aGUgYGJvcmRlcmAgcHJvcGVydHkpLCB0aGUgdmFsdWUgb2YgdGhlIGJvcmRlciByYWRpdXMgbmVlZHNcbi8vIHRvIGJlIGFkanVzdGVkIGJ5IHJlbW92aW5nIDFweCAodGhpcyBpcyBiZWNhdXNlIHRoZSBgYm94LXNoYWRvd2AgcmVuZGVyc1xuLy8gYXMgYW4gXCJvdXRlciByYWRpdXNcIikuXG5jb25zdCBhZGp1c3RlZEJvcmRlclJhZGl1cyA9IGBjYWxjKCR7IENPTkZJRy5yYWRpdXNMYXJnZSB9IC0gMXB4KWA7XG5cbmV4cG9ydCBjb25zdCBDYXJkID0gY3NzYFxuXHRib3gtc2hhZG93OiAwIDAgMCAxcHggJHsgQ09ORklHLnN1cmZhY2VCb3JkZXJDb2xvciB9O1xuXHRvdXRsaW5lOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IEhlYWRlciA9IGNzc2Bcblx0Ym9yZGVyLWJvdHRvbTogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6bGFzdC1jaGlsZCB7XG5cdFx0Ym9yZGVyLWJvdHRvbTogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IEZvb3RlciA9IGNzc2Bcblx0Ym9yZGVyLXRvcDogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcDogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IENvbnRlbnQgPSBjc3NgXG5cdGhlaWdodDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBCb2R5ID0gY3NzYFxuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXHRoZWlnaHQ6IGF1dG87XG5cdG1heC1oZWlnaHQ6IDEwMCU7XG5gO1xuXG5leHBvcnQgY29uc3QgTWVkaWEgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdG92ZXJmbG93OiBoaWRkZW47XG5cblx0JiA+IGltZyxcblx0JiA+IGlmcmFtZSB7XG5cdFx0ZGlzcGxheTogYmxvY2s7XG5cdFx0aGVpZ2h0OiBhdXRvO1xuXHRcdG1heC13aWR0aDogMTAwJTtcblx0XHR3aWR0aDogMTAwJTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IERpdmlkZXIgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdGRpc3BsYXk6IGJsb2NrO1xuXHR3aWR0aDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBib3JkZXJSYWRpdXMgPSBjc3NgXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcC1sZWZ0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0XHRib3JkZXItdG9wLXJpZ2h0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0fVxuXG5cdCY6bGFzdC1vZi10eXBlIHtcblx0XHRib3JkZXItYm90dG9tLWxlZnQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHRcdGJvcmRlci1ib3R0b20tcmlnaHQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHR9XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVyQ29sb3IgPSBjc3NgXG5cdGJvcmRlci1jb2xvcjogJHsgQ09ORklHLmNvbG9yRGl2aWRlciB9O1xuYDtcblxuZXhwb3J0IGNvbnN0IGJveFNoYWRvd2xlc3MgPSBjc3NgXG5cdGJveC1zaGFkb3c6IG5vbmU7XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVybGVzcyA9IGNzc2Bcblx0Ym9yZGVyOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IHJvdW5kZWQgPSBjc3NgXG5cdGJvcmRlci1yYWRpdXM6ICR7IGFkanVzdGVkQm9yZGVyUmFkaXVzIH07XG5gO1xuXG5jb25zdCB4U21hbGxDYXJkUGFkZGluZyA9IGNzc2Bcblx0cGFkZGluZzogJHsgQ09ORklHLmNhcmRQYWRkaW5nWFNtYWxsIH07XG5gO1xuXG5leHBvcnQgY29uc3QgY2FyZFBhZGRpbmdzID0ge1xuXHRsYXJnZTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ0xhcmdlIH07XG5cdGAsXG5cdG1lZGl1bTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ01lZGl1bSB9O1xuXHRgLFxuXHRzbWFsbDogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ1NtYWxsIH07XG5cdGAsXG5cdHhTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG5cdC8vIFRoZSBgZXh0cmFTbWFsbGAgc2l6ZSBpcyBub3Qgb2ZmaWNpYWxseSBkb2N1bWVudGVkLCBidXQgdGhlIGZvbGxvd2luZyBzdHlsZXNcblx0Ly8gYXJlIGtlcHQgZm9yIGxlZ2FjeSByZWFzb25zIHRvIHN1cHBvcnQgb2xkZXIgdmFsdWVzIG9mIHRoZSBgc2l6ZWAgcHJvcC5cblx0ZXh0cmFTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG59O1xuXG5leHBvcnQgY29uc3Qgc2hhZHkgPSBjc3NgXG5cdGJhY2tncm91bmQtY29sb3I6ICR7IENPTE9SUy51aS5iYWNrZ3JvdW5kRGlzYWJsZWQgfTtcbmA7XG4iXX0= */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__3
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__6
   };
   var Body = false ? {
     name: "6ywzd",
@@ -51871,7 +52072,7 @@ If there's a particular need for this, please submit a feature request at https:
     name: "1klm29z-Body",
     styles: "box-sizing:border-box;height:auto;max-height:100%;label:Body;",
     map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvY2FyZC9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBMkN1QiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL2NhcmQvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vKipcbiAqIEludGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBDT0xPUlMsIENPTkZJRyB9IGZyb20gJy4uL3V0aWxzJztcblxuLy8gU2luY2UgdGhlIGJvcmRlciBmb3IgYENhcmRgIGlzIHJlbmRlcmVkIHZpYSB0aGUgYGJveC1zaGFkb3dgIHByb3BlcnR5XG4vLyAoYXMgb3Bwb3NlZCB0byB0aGUgYGJvcmRlcmAgcHJvcGVydHkpLCB0aGUgdmFsdWUgb2YgdGhlIGJvcmRlciByYWRpdXMgbmVlZHNcbi8vIHRvIGJlIGFkanVzdGVkIGJ5IHJlbW92aW5nIDFweCAodGhpcyBpcyBiZWNhdXNlIHRoZSBgYm94LXNoYWRvd2AgcmVuZGVyc1xuLy8gYXMgYW4gXCJvdXRlciByYWRpdXNcIikuXG5jb25zdCBhZGp1c3RlZEJvcmRlclJhZGl1cyA9IGBjYWxjKCR7IENPTkZJRy5yYWRpdXNMYXJnZSB9IC0gMXB4KWA7XG5cbmV4cG9ydCBjb25zdCBDYXJkID0gY3NzYFxuXHRib3gtc2hhZG93OiAwIDAgMCAxcHggJHsgQ09ORklHLnN1cmZhY2VCb3JkZXJDb2xvciB9O1xuXHRvdXRsaW5lOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IEhlYWRlciA9IGNzc2Bcblx0Ym9yZGVyLWJvdHRvbTogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6bGFzdC1jaGlsZCB7XG5cdFx0Ym9yZGVyLWJvdHRvbTogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IEZvb3RlciA9IGNzc2Bcblx0Ym9yZGVyLXRvcDogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcDogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IENvbnRlbnQgPSBjc3NgXG5cdGhlaWdodDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBCb2R5ID0gY3NzYFxuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXHRoZWlnaHQ6IGF1dG87XG5cdG1heC1oZWlnaHQ6IDEwMCU7XG5gO1xuXG5leHBvcnQgY29uc3QgTWVkaWEgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdG92ZXJmbG93OiBoaWRkZW47XG5cblx0JiA+IGltZyxcblx0JiA+IGlmcmFtZSB7XG5cdFx0ZGlzcGxheTogYmxvY2s7XG5cdFx0aGVpZ2h0OiBhdXRvO1xuXHRcdG1heC13aWR0aDogMTAwJTtcblx0XHR3aWR0aDogMTAwJTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IERpdmlkZXIgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdGRpc3BsYXk6IGJsb2NrO1xuXHR3aWR0aDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBib3JkZXJSYWRpdXMgPSBjc3NgXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcC1sZWZ0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0XHRib3JkZXItdG9wLXJpZ2h0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0fVxuXG5cdCY6bGFzdC1vZi10eXBlIHtcblx0XHRib3JkZXItYm90dG9tLWxlZnQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHRcdGJvcmRlci1ib3R0b20tcmlnaHQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHR9XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVyQ29sb3IgPSBjc3NgXG5cdGJvcmRlci1jb2xvcjogJHsgQ09ORklHLmNvbG9yRGl2aWRlciB9O1xuYDtcblxuZXhwb3J0IGNvbnN0IGJveFNoYWRvd2xlc3MgPSBjc3NgXG5cdGJveC1zaGFkb3c6IG5vbmU7XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVybGVzcyA9IGNzc2Bcblx0Ym9yZGVyOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IHJvdW5kZWQgPSBjc3NgXG5cdGJvcmRlci1yYWRpdXM6ICR7IGFkanVzdGVkQm9yZGVyUmFkaXVzIH07XG5gO1xuXG5jb25zdCB4U21hbGxDYXJkUGFkZGluZyA9IGNzc2Bcblx0cGFkZGluZzogJHsgQ09ORklHLmNhcmRQYWRkaW5nWFNtYWxsIH07XG5gO1xuXG5leHBvcnQgY29uc3QgY2FyZFBhZGRpbmdzID0ge1xuXHRsYXJnZTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ0xhcmdlIH07XG5cdGAsXG5cdG1lZGl1bTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ01lZGl1bSB9O1xuXHRgLFxuXHRzbWFsbDogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ1NtYWxsIH07XG5cdGAsXG5cdHhTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG5cdC8vIFRoZSBgZXh0cmFTbWFsbGAgc2l6ZSBpcyBub3Qgb2ZmaWNpYWxseSBkb2N1bWVudGVkLCBidXQgdGhlIGZvbGxvd2luZyBzdHlsZXNcblx0Ly8gYXJlIGtlcHQgZm9yIGxlZ2FjeSByZWFzb25zIHRvIHN1cHBvcnQgb2xkZXIgdmFsdWVzIG9mIHRoZSBgc2l6ZWAgcHJvcC5cblx0ZXh0cmFTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG59O1xuXG5leHBvcnQgY29uc3Qgc2hhZHkgPSBjc3NgXG5cdGJhY2tncm91bmQtY29sb3I6ICR7IENPTE9SUy51aS5iYWNrZ3JvdW5kRGlzYWJsZWQgfTtcbmA7XG4iXX0= */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__3
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__6
   };
   var borderRadius = /* @__PURE__ */ css("&:first-of-type{border-top-left-radius:", adjustedBorderRadius, ";border-top-right-radius:", adjustedBorderRadius, ";}&:last-of-type{border-bottom-left-radius:", adjustedBorderRadius, ";border-bottom-right-radius:", adjustedBorderRadius, ";}" + (false ? "" : ";label:borderRadius;"), false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvY2FyZC9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBb0UrQiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL2NhcmQvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vKipcbiAqIEludGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBDT0xPUlMsIENPTkZJRyB9IGZyb20gJy4uL3V0aWxzJztcblxuLy8gU2luY2UgdGhlIGJvcmRlciBmb3IgYENhcmRgIGlzIHJlbmRlcmVkIHZpYSB0aGUgYGJveC1zaGFkb3dgIHByb3BlcnR5XG4vLyAoYXMgb3Bwb3NlZCB0byB0aGUgYGJvcmRlcmAgcHJvcGVydHkpLCB0aGUgdmFsdWUgb2YgdGhlIGJvcmRlciByYWRpdXMgbmVlZHNcbi8vIHRvIGJlIGFkanVzdGVkIGJ5IHJlbW92aW5nIDFweCAodGhpcyBpcyBiZWNhdXNlIHRoZSBgYm94LXNoYWRvd2AgcmVuZGVyc1xuLy8gYXMgYW4gXCJvdXRlciByYWRpdXNcIikuXG5jb25zdCBhZGp1c3RlZEJvcmRlclJhZGl1cyA9IGBjYWxjKCR7IENPTkZJRy5yYWRpdXNMYXJnZSB9IC0gMXB4KWA7XG5cbmV4cG9ydCBjb25zdCBDYXJkID0gY3NzYFxuXHRib3gtc2hhZG93OiAwIDAgMCAxcHggJHsgQ09ORklHLnN1cmZhY2VCb3JkZXJDb2xvciB9O1xuXHRvdXRsaW5lOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IEhlYWRlciA9IGNzc2Bcblx0Ym9yZGVyLWJvdHRvbTogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6bGFzdC1jaGlsZCB7XG5cdFx0Ym9yZGVyLWJvdHRvbTogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IEZvb3RlciA9IGNzc2Bcblx0Ym9yZGVyLXRvcDogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcDogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IENvbnRlbnQgPSBjc3NgXG5cdGhlaWdodDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBCb2R5ID0gY3NzYFxuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXHRoZWlnaHQ6IGF1dG87XG5cdG1heC1oZWlnaHQ6IDEwMCU7XG5gO1xuXG5leHBvcnQgY29uc3QgTWVkaWEgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdG92ZXJmbG93OiBoaWRkZW47XG5cblx0JiA+IGltZyxcblx0JiA+IGlmcmFtZSB7XG5cdFx0ZGlzcGxheTogYmxvY2s7XG5cdFx0aGVpZ2h0OiBhdXRvO1xuXHRcdG1heC13aWR0aDogMTAwJTtcblx0XHR3aWR0aDogMTAwJTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IERpdmlkZXIgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdGRpc3BsYXk6IGJsb2NrO1xuXHR3aWR0aDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBib3JkZXJSYWRpdXMgPSBjc3NgXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcC1sZWZ0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0XHRib3JkZXItdG9wLXJpZ2h0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0fVxuXG5cdCY6bGFzdC1vZi10eXBlIHtcblx0XHRib3JkZXItYm90dG9tLWxlZnQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHRcdGJvcmRlci1ib3R0b20tcmlnaHQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHR9XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVyQ29sb3IgPSBjc3NgXG5cdGJvcmRlci1jb2xvcjogJHsgQ09ORklHLmNvbG9yRGl2aWRlciB9O1xuYDtcblxuZXhwb3J0IGNvbnN0IGJveFNoYWRvd2xlc3MgPSBjc3NgXG5cdGJveC1zaGFkb3c6IG5vbmU7XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVybGVzcyA9IGNzc2Bcblx0Ym9yZGVyOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IHJvdW5kZWQgPSBjc3NgXG5cdGJvcmRlci1yYWRpdXM6ICR7IGFkanVzdGVkQm9yZGVyUmFkaXVzIH07XG5gO1xuXG5jb25zdCB4U21hbGxDYXJkUGFkZGluZyA9IGNzc2Bcblx0cGFkZGluZzogJHsgQ09ORklHLmNhcmRQYWRkaW5nWFNtYWxsIH07XG5gO1xuXG5leHBvcnQgY29uc3QgY2FyZFBhZGRpbmdzID0ge1xuXHRsYXJnZTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ0xhcmdlIH07XG5cdGAsXG5cdG1lZGl1bTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ01lZGl1bSB9O1xuXHRgLFxuXHRzbWFsbDogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ1NtYWxsIH07XG5cdGAsXG5cdHhTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG5cdC8vIFRoZSBgZXh0cmFTbWFsbGAgc2l6ZSBpcyBub3Qgb2ZmaWNpYWxseSBkb2N1bWVudGVkLCBidXQgdGhlIGZvbGxvd2luZyBzdHlsZXNcblx0Ly8gYXJlIGtlcHQgZm9yIGxlZ2FjeSByZWFzb25zIHRvIHN1cHBvcnQgb2xkZXIgdmFsdWVzIG9mIHRoZSBgc2l6ZWAgcHJvcC5cblx0ZXh0cmFTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG59O1xuXG5leHBvcnQgY29uc3Qgc2hhZHkgPSBjc3NgXG5cdGJhY2tncm91bmQtY29sb3I6ICR7IENPTE9SUy51aS5iYWNrZ3JvdW5kRGlzYWJsZWQgfTtcbmA7XG4iXX0= */");
   var borderColor = /* @__PURE__ */ css("border-color:", config_values_default.colorDivider, ";" + (false ? "" : ";label:borderColor;"), false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvY2FyZC9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBZ0Y4QiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL2NhcmQvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vKipcbiAqIEludGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBDT0xPUlMsIENPTkZJRyB9IGZyb20gJy4uL3V0aWxzJztcblxuLy8gU2luY2UgdGhlIGJvcmRlciBmb3IgYENhcmRgIGlzIHJlbmRlcmVkIHZpYSB0aGUgYGJveC1zaGFkb3dgIHByb3BlcnR5XG4vLyAoYXMgb3Bwb3NlZCB0byB0aGUgYGJvcmRlcmAgcHJvcGVydHkpLCB0aGUgdmFsdWUgb2YgdGhlIGJvcmRlciByYWRpdXMgbmVlZHNcbi8vIHRvIGJlIGFkanVzdGVkIGJ5IHJlbW92aW5nIDFweCAodGhpcyBpcyBiZWNhdXNlIHRoZSBgYm94LXNoYWRvd2AgcmVuZGVyc1xuLy8gYXMgYW4gXCJvdXRlciByYWRpdXNcIikuXG5jb25zdCBhZGp1c3RlZEJvcmRlclJhZGl1cyA9IGBjYWxjKCR7IENPTkZJRy5yYWRpdXNMYXJnZSB9IC0gMXB4KWA7XG5cbmV4cG9ydCBjb25zdCBDYXJkID0gY3NzYFxuXHRib3gtc2hhZG93OiAwIDAgMCAxcHggJHsgQ09ORklHLnN1cmZhY2VCb3JkZXJDb2xvciB9O1xuXHRvdXRsaW5lOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IEhlYWRlciA9IGNzc2Bcblx0Ym9yZGVyLWJvdHRvbTogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6bGFzdC1jaGlsZCB7XG5cdFx0Ym9yZGVyLWJvdHRvbTogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IEZvb3RlciA9IGNzc2Bcblx0Ym9yZGVyLXRvcDogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcDogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IENvbnRlbnQgPSBjc3NgXG5cdGhlaWdodDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBCb2R5ID0gY3NzYFxuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXHRoZWlnaHQ6IGF1dG87XG5cdG1heC1oZWlnaHQ6IDEwMCU7XG5gO1xuXG5leHBvcnQgY29uc3QgTWVkaWEgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdG92ZXJmbG93OiBoaWRkZW47XG5cblx0JiA+IGltZyxcblx0JiA+IGlmcmFtZSB7XG5cdFx0ZGlzcGxheTogYmxvY2s7XG5cdFx0aGVpZ2h0OiBhdXRvO1xuXHRcdG1heC13aWR0aDogMTAwJTtcblx0XHR3aWR0aDogMTAwJTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IERpdmlkZXIgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdGRpc3BsYXk6IGJsb2NrO1xuXHR3aWR0aDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBib3JkZXJSYWRpdXMgPSBjc3NgXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcC1sZWZ0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0XHRib3JkZXItdG9wLXJpZ2h0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0fVxuXG5cdCY6bGFzdC1vZi10eXBlIHtcblx0XHRib3JkZXItYm90dG9tLWxlZnQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHRcdGJvcmRlci1ib3R0b20tcmlnaHQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHR9XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVyQ29sb3IgPSBjc3NgXG5cdGJvcmRlci1jb2xvcjogJHsgQ09ORklHLmNvbG9yRGl2aWRlciB9O1xuYDtcblxuZXhwb3J0IGNvbnN0IGJveFNoYWRvd2xlc3MgPSBjc3NgXG5cdGJveC1zaGFkb3c6IG5vbmU7XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVybGVzcyA9IGNzc2Bcblx0Ym9yZGVyOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IHJvdW5kZWQgPSBjc3NgXG5cdGJvcmRlci1yYWRpdXM6ICR7IGFkanVzdGVkQm9yZGVyUmFkaXVzIH07XG5gO1xuXG5jb25zdCB4U21hbGxDYXJkUGFkZGluZyA9IGNzc2Bcblx0cGFkZGluZzogJHsgQ09ORklHLmNhcmRQYWRkaW5nWFNtYWxsIH07XG5gO1xuXG5leHBvcnQgY29uc3QgY2FyZFBhZGRpbmdzID0ge1xuXHRsYXJnZTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ0xhcmdlIH07XG5cdGAsXG5cdG1lZGl1bTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ01lZGl1bSB9O1xuXHRgLFxuXHRzbWFsbDogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ1NtYWxsIH07XG5cdGAsXG5cdHhTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG5cdC8vIFRoZSBgZXh0cmFTbWFsbGAgc2l6ZSBpcyBub3Qgb2ZmaWNpYWxseSBkb2N1bWVudGVkLCBidXQgdGhlIGZvbGxvd2luZyBzdHlsZXNcblx0Ly8gYXJlIGtlcHQgZm9yIGxlZ2FjeSByZWFzb25zIHRvIHN1cHBvcnQgb2xkZXIgdmFsdWVzIG9mIHRoZSBgc2l6ZWAgcHJvcC5cblx0ZXh0cmFTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG59O1xuXG5leHBvcnQgY29uc3Qgc2hhZHkgPSBjc3NgXG5cdGJhY2tncm91bmQtY29sb3I6ICR7IENPTE9SUy51aS5iYWNrZ3JvdW5kRGlzYWJsZWQgfTtcbmA7XG4iXX0= */");
@@ -51882,7 +52083,7 @@ If there's a particular need for this, please submit a feature request at https:
     name: "14zofrl-boxShadowless",
     styles: "box-shadow:none;label:boxShadowless;",
     map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvY2FyZC9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBb0ZnQyIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL2NhcmQvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vKipcbiAqIEludGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBDT0xPUlMsIENPTkZJRyB9IGZyb20gJy4uL3V0aWxzJztcblxuLy8gU2luY2UgdGhlIGJvcmRlciBmb3IgYENhcmRgIGlzIHJlbmRlcmVkIHZpYSB0aGUgYGJveC1zaGFkb3dgIHByb3BlcnR5XG4vLyAoYXMgb3Bwb3NlZCB0byB0aGUgYGJvcmRlcmAgcHJvcGVydHkpLCB0aGUgdmFsdWUgb2YgdGhlIGJvcmRlciByYWRpdXMgbmVlZHNcbi8vIHRvIGJlIGFkanVzdGVkIGJ5IHJlbW92aW5nIDFweCAodGhpcyBpcyBiZWNhdXNlIHRoZSBgYm94LXNoYWRvd2AgcmVuZGVyc1xuLy8gYXMgYW4gXCJvdXRlciByYWRpdXNcIikuXG5jb25zdCBhZGp1c3RlZEJvcmRlclJhZGl1cyA9IGBjYWxjKCR7IENPTkZJRy5yYWRpdXNMYXJnZSB9IC0gMXB4KWA7XG5cbmV4cG9ydCBjb25zdCBDYXJkID0gY3NzYFxuXHRib3gtc2hhZG93OiAwIDAgMCAxcHggJHsgQ09ORklHLnN1cmZhY2VCb3JkZXJDb2xvciB9O1xuXHRvdXRsaW5lOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IEhlYWRlciA9IGNzc2Bcblx0Ym9yZGVyLWJvdHRvbTogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6bGFzdC1jaGlsZCB7XG5cdFx0Ym9yZGVyLWJvdHRvbTogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IEZvb3RlciA9IGNzc2Bcblx0Ym9yZGVyLXRvcDogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcDogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IENvbnRlbnQgPSBjc3NgXG5cdGhlaWdodDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBCb2R5ID0gY3NzYFxuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXHRoZWlnaHQ6IGF1dG87XG5cdG1heC1oZWlnaHQ6IDEwMCU7XG5gO1xuXG5leHBvcnQgY29uc3QgTWVkaWEgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdG92ZXJmbG93OiBoaWRkZW47XG5cblx0JiA+IGltZyxcblx0JiA+IGlmcmFtZSB7XG5cdFx0ZGlzcGxheTogYmxvY2s7XG5cdFx0aGVpZ2h0OiBhdXRvO1xuXHRcdG1heC13aWR0aDogMTAwJTtcblx0XHR3aWR0aDogMTAwJTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IERpdmlkZXIgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdGRpc3BsYXk6IGJsb2NrO1xuXHR3aWR0aDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBib3JkZXJSYWRpdXMgPSBjc3NgXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcC1sZWZ0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0XHRib3JkZXItdG9wLXJpZ2h0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0fVxuXG5cdCY6bGFzdC1vZi10eXBlIHtcblx0XHRib3JkZXItYm90dG9tLWxlZnQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHRcdGJvcmRlci1ib3R0b20tcmlnaHQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHR9XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVyQ29sb3IgPSBjc3NgXG5cdGJvcmRlci1jb2xvcjogJHsgQ09ORklHLmNvbG9yRGl2aWRlciB9O1xuYDtcblxuZXhwb3J0IGNvbnN0IGJveFNoYWRvd2xlc3MgPSBjc3NgXG5cdGJveC1zaGFkb3c6IG5vbmU7XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVybGVzcyA9IGNzc2Bcblx0Ym9yZGVyOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IHJvdW5kZWQgPSBjc3NgXG5cdGJvcmRlci1yYWRpdXM6ICR7IGFkanVzdGVkQm9yZGVyUmFkaXVzIH07XG5gO1xuXG5jb25zdCB4U21hbGxDYXJkUGFkZGluZyA9IGNzc2Bcblx0cGFkZGluZzogJHsgQ09ORklHLmNhcmRQYWRkaW5nWFNtYWxsIH07XG5gO1xuXG5leHBvcnQgY29uc3QgY2FyZFBhZGRpbmdzID0ge1xuXHRsYXJnZTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ0xhcmdlIH07XG5cdGAsXG5cdG1lZGl1bTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ01lZGl1bSB9O1xuXHRgLFxuXHRzbWFsbDogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ1NtYWxsIH07XG5cdGAsXG5cdHhTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG5cdC8vIFRoZSBgZXh0cmFTbWFsbGAgc2l6ZSBpcyBub3Qgb2ZmaWNpYWxseSBkb2N1bWVudGVkLCBidXQgdGhlIGZvbGxvd2luZyBzdHlsZXNcblx0Ly8gYXJlIGtlcHQgZm9yIGxlZ2FjeSByZWFzb25zIHRvIHN1cHBvcnQgb2xkZXIgdmFsdWVzIG9mIHRoZSBgc2l6ZWAgcHJvcC5cblx0ZXh0cmFTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG59O1xuXG5leHBvcnQgY29uc3Qgc2hhZHkgPSBjc3NgXG5cdGJhY2tncm91bmQtY29sb3I6ICR7IENPTE9SUy51aS5iYWNrZ3JvdW5kRGlzYWJsZWQgfTtcbmA7XG4iXX0= */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__3
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__6
   };
   var rounded = /* @__PURE__ */ css("border-radius:", adjustedBorderRadius, ";" + (false ? "" : ";label:rounded;"), false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvY2FyZC9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBNEYwQiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL2NhcmQvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vKipcbiAqIEludGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBDT0xPUlMsIENPTkZJRyB9IGZyb20gJy4uL3V0aWxzJztcblxuLy8gU2luY2UgdGhlIGJvcmRlciBmb3IgYENhcmRgIGlzIHJlbmRlcmVkIHZpYSB0aGUgYGJveC1zaGFkb3dgIHByb3BlcnR5XG4vLyAoYXMgb3Bwb3NlZCB0byB0aGUgYGJvcmRlcmAgcHJvcGVydHkpLCB0aGUgdmFsdWUgb2YgdGhlIGJvcmRlciByYWRpdXMgbmVlZHNcbi8vIHRvIGJlIGFkanVzdGVkIGJ5IHJlbW92aW5nIDFweCAodGhpcyBpcyBiZWNhdXNlIHRoZSBgYm94LXNoYWRvd2AgcmVuZGVyc1xuLy8gYXMgYW4gXCJvdXRlciByYWRpdXNcIikuXG5jb25zdCBhZGp1c3RlZEJvcmRlclJhZGl1cyA9IGBjYWxjKCR7IENPTkZJRy5yYWRpdXNMYXJnZSB9IC0gMXB4KWA7XG5cbmV4cG9ydCBjb25zdCBDYXJkID0gY3NzYFxuXHRib3gtc2hhZG93OiAwIDAgMCAxcHggJHsgQ09ORklHLnN1cmZhY2VCb3JkZXJDb2xvciB9O1xuXHRvdXRsaW5lOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IEhlYWRlciA9IGNzc2Bcblx0Ym9yZGVyLWJvdHRvbTogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6bGFzdC1jaGlsZCB7XG5cdFx0Ym9yZGVyLWJvdHRvbTogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IEZvb3RlciA9IGNzc2Bcblx0Ym9yZGVyLXRvcDogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcDogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IENvbnRlbnQgPSBjc3NgXG5cdGhlaWdodDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBCb2R5ID0gY3NzYFxuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXHRoZWlnaHQ6IGF1dG87XG5cdG1heC1oZWlnaHQ6IDEwMCU7XG5gO1xuXG5leHBvcnQgY29uc3QgTWVkaWEgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdG92ZXJmbG93OiBoaWRkZW47XG5cblx0JiA+IGltZyxcblx0JiA+IGlmcmFtZSB7XG5cdFx0ZGlzcGxheTogYmxvY2s7XG5cdFx0aGVpZ2h0OiBhdXRvO1xuXHRcdG1heC13aWR0aDogMTAwJTtcblx0XHR3aWR0aDogMTAwJTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IERpdmlkZXIgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdGRpc3BsYXk6IGJsb2NrO1xuXHR3aWR0aDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBib3JkZXJSYWRpdXMgPSBjc3NgXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcC1sZWZ0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0XHRib3JkZXItdG9wLXJpZ2h0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0fVxuXG5cdCY6bGFzdC1vZi10eXBlIHtcblx0XHRib3JkZXItYm90dG9tLWxlZnQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHRcdGJvcmRlci1ib3R0b20tcmlnaHQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHR9XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVyQ29sb3IgPSBjc3NgXG5cdGJvcmRlci1jb2xvcjogJHsgQ09ORklHLmNvbG9yRGl2aWRlciB9O1xuYDtcblxuZXhwb3J0IGNvbnN0IGJveFNoYWRvd2xlc3MgPSBjc3NgXG5cdGJveC1zaGFkb3c6IG5vbmU7XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVybGVzcyA9IGNzc2Bcblx0Ym9yZGVyOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IHJvdW5kZWQgPSBjc3NgXG5cdGJvcmRlci1yYWRpdXM6ICR7IGFkanVzdGVkQm9yZGVyUmFkaXVzIH07XG5gO1xuXG5jb25zdCB4U21hbGxDYXJkUGFkZGluZyA9IGNzc2Bcblx0cGFkZGluZzogJHsgQ09ORklHLmNhcmRQYWRkaW5nWFNtYWxsIH07XG5gO1xuXG5leHBvcnQgY29uc3QgY2FyZFBhZGRpbmdzID0ge1xuXHRsYXJnZTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ0xhcmdlIH07XG5cdGAsXG5cdG1lZGl1bTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ01lZGl1bSB9O1xuXHRgLFxuXHRzbWFsbDogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ1NtYWxsIH07XG5cdGAsXG5cdHhTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG5cdC8vIFRoZSBgZXh0cmFTbWFsbGAgc2l6ZSBpcyBub3Qgb2ZmaWNpYWxseSBkb2N1bWVudGVkLCBidXQgdGhlIGZvbGxvd2luZyBzdHlsZXNcblx0Ly8gYXJlIGtlcHQgZm9yIGxlZ2FjeSByZWFzb25zIHRvIHN1cHBvcnQgb2xkZXIgdmFsdWVzIG9mIHRoZSBgc2l6ZWAgcHJvcC5cblx0ZXh0cmFTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG59O1xuXG5leHBvcnQgY29uc3Qgc2hhZHkgPSBjc3NgXG5cdGJhY2tncm91bmQtY29sb3I6ICR7IENPTE9SUy51aS5iYWNrZ3JvdW5kRGlzYWJsZWQgfTtcbmA7XG4iXX0= */");
   var xSmallCardPadding = /* @__PURE__ */ css("padding:", config_values_default.cardPaddingXSmall, ";" + (false ? "" : ";label:xSmallCardPadding;"), false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvY2FyZC9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBZ0c2QiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL2NhcmQvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vKipcbiAqIEludGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBDT0xPUlMsIENPTkZJRyB9IGZyb20gJy4uL3V0aWxzJztcblxuLy8gU2luY2UgdGhlIGJvcmRlciBmb3IgYENhcmRgIGlzIHJlbmRlcmVkIHZpYSB0aGUgYGJveC1zaGFkb3dgIHByb3BlcnR5XG4vLyAoYXMgb3Bwb3NlZCB0byB0aGUgYGJvcmRlcmAgcHJvcGVydHkpLCB0aGUgdmFsdWUgb2YgdGhlIGJvcmRlciByYWRpdXMgbmVlZHNcbi8vIHRvIGJlIGFkanVzdGVkIGJ5IHJlbW92aW5nIDFweCAodGhpcyBpcyBiZWNhdXNlIHRoZSBgYm94LXNoYWRvd2AgcmVuZGVyc1xuLy8gYXMgYW4gXCJvdXRlciByYWRpdXNcIikuXG5jb25zdCBhZGp1c3RlZEJvcmRlclJhZGl1cyA9IGBjYWxjKCR7IENPTkZJRy5yYWRpdXNMYXJnZSB9IC0gMXB4KWA7XG5cbmV4cG9ydCBjb25zdCBDYXJkID0gY3NzYFxuXHRib3gtc2hhZG93OiAwIDAgMCAxcHggJHsgQ09ORklHLnN1cmZhY2VCb3JkZXJDb2xvciB9O1xuXHRvdXRsaW5lOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IEhlYWRlciA9IGNzc2Bcblx0Ym9yZGVyLWJvdHRvbTogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6bGFzdC1jaGlsZCB7XG5cdFx0Ym9yZGVyLWJvdHRvbTogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IEZvb3RlciA9IGNzc2Bcblx0Ym9yZGVyLXRvcDogMXB4IHNvbGlkO1xuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcDogbm9uZTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IENvbnRlbnQgPSBjc3NgXG5cdGhlaWdodDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBCb2R5ID0gY3NzYFxuXHRib3gtc2l6aW5nOiBib3JkZXItYm94O1xuXHRoZWlnaHQ6IGF1dG87XG5cdG1heC1oZWlnaHQ6IDEwMCU7XG5gO1xuXG5leHBvcnQgY29uc3QgTWVkaWEgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdG92ZXJmbG93OiBoaWRkZW47XG5cblx0JiA+IGltZyxcblx0JiA+IGlmcmFtZSB7XG5cdFx0ZGlzcGxheTogYmxvY2s7XG5cdFx0aGVpZ2h0OiBhdXRvO1xuXHRcdG1heC13aWR0aDogMTAwJTtcblx0XHR3aWR0aDogMTAwJTtcblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IERpdmlkZXIgPSBjc3NgXG5cdGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cdGRpc3BsYXk6IGJsb2NrO1xuXHR3aWR0aDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBib3JkZXJSYWRpdXMgPSBjc3NgXG5cdCY6Zmlyc3Qtb2YtdHlwZSB7XG5cdFx0Ym9yZGVyLXRvcC1sZWZ0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0XHRib3JkZXItdG9wLXJpZ2h0LXJhZGl1czogJHsgYWRqdXN0ZWRCb3JkZXJSYWRpdXMgfTtcblx0fVxuXG5cdCY6bGFzdC1vZi10eXBlIHtcblx0XHRib3JkZXItYm90dG9tLWxlZnQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHRcdGJvcmRlci1ib3R0b20tcmlnaHQtcmFkaXVzOiAkeyBhZGp1c3RlZEJvcmRlclJhZGl1cyB9O1xuXHR9XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVyQ29sb3IgPSBjc3NgXG5cdGJvcmRlci1jb2xvcjogJHsgQ09ORklHLmNvbG9yRGl2aWRlciB9O1xuYDtcblxuZXhwb3J0IGNvbnN0IGJveFNoYWRvd2xlc3MgPSBjc3NgXG5cdGJveC1zaGFkb3c6IG5vbmU7XG5gO1xuXG5leHBvcnQgY29uc3QgYm9yZGVybGVzcyA9IGNzc2Bcblx0Ym9yZGVyOiBub25lO1xuYDtcblxuZXhwb3J0IGNvbnN0IHJvdW5kZWQgPSBjc3NgXG5cdGJvcmRlci1yYWRpdXM6ICR7IGFkanVzdGVkQm9yZGVyUmFkaXVzIH07XG5gO1xuXG5jb25zdCB4U21hbGxDYXJkUGFkZGluZyA9IGNzc2Bcblx0cGFkZGluZzogJHsgQ09ORklHLmNhcmRQYWRkaW5nWFNtYWxsIH07XG5gO1xuXG5leHBvcnQgY29uc3QgY2FyZFBhZGRpbmdzID0ge1xuXHRsYXJnZTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ0xhcmdlIH07XG5cdGAsXG5cdG1lZGl1bTogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ01lZGl1bSB9O1xuXHRgLFxuXHRzbWFsbDogY3NzYFxuXHRcdHBhZGRpbmc6ICR7IENPTkZJRy5jYXJkUGFkZGluZ1NtYWxsIH07XG5cdGAsXG5cdHhTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG5cdC8vIFRoZSBgZXh0cmFTbWFsbGAgc2l6ZSBpcyBub3Qgb2ZmaWNpYWxseSBkb2N1bWVudGVkLCBidXQgdGhlIGZvbGxvd2luZyBzdHlsZXNcblx0Ly8gYXJlIGtlcHQgZm9yIGxlZ2FjeSByZWFzb25zIHRvIHN1cHBvcnQgb2xkZXIgdmFsdWVzIG9mIHRoZSBgc2l6ZWAgcHJvcC5cblx0ZXh0cmFTbWFsbDogeFNtYWxsQ2FyZFBhZGRpbmcsXG59O1xuXG5leHBvcnQgY29uc3Qgc2hhZHkgPSBjc3NgXG5cdGJhY2tncm91bmQtY29sb3I6ICR7IENPTE9SUy51aS5iYWNrZ3JvdW5kRGlzYWJsZWQgfTtcbmA7XG4iXX0= */");
@@ -52028,7 +52229,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/card/card/component.js
-  var import_jsx_runtime47 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime48 = __toESM(require_jsx_runtime());
   function UnconnectedCard(props, forwardedRef) {
     const {
       children,
@@ -52054,19 +52255,19 @@ If there's a particular need for this, please submit a feature request at https:
         CardFooter: contextProps
       };
     }, [isBorderless, size4]);
-    return /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(ContextSystemProvider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime48.jsx)(ContextSystemProvider, {
       value: contextProviderValue,
-      children: /* @__PURE__ */ (0, import_jsx_runtime47.jsxs)(component_default, {
+      children: /* @__PURE__ */ (0, import_jsx_runtime48.jsxs)(component_default, {
         ...otherProps,
         ref: forwardedRef,
-        children: [/* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default, {
+        children: [/* @__PURE__ */ (0, import_jsx_runtime48.jsx)(component_default, {
           className: cx3(Content),
           children
-        }), /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default5, {
+        }), /* @__PURE__ */ (0, import_jsx_runtime48.jsx)(component_default5, {
           className: elevationClassName,
           isInteractive: false,
           value: elevation ? 1 : 0
-        }), /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default5, {
+        }), /* @__PURE__ */ (0, import_jsx_runtime48.jsx)(component_default5, {
           className: elevationClassName,
           isInteractive: false,
           value: elevation
@@ -52078,7 +52279,7 @@ If there's a particular need for this, please submit a feature request at https:
   var component_default6 = Card2;
 
   // node_modules/@wordpress/components/build-module/scrollable/styles.js
-  function _EMOTION_STRINGIFIED_CSS_ERROR__4() {
+  function _EMOTION_STRINGIFIED_CSS_ERROR__7() {
     return "You have tried to stringify object returned from `css` function. It isn't supposed to be used directly (e.g. as value of the `className` prop), but rather handed to emotion so it can handle it (e.g. as value of `css` prop).";
   }
   var scrollableScrollbar = /* @__PURE__ */ css("@media only screen and ( min-device-width: 40em ){&::-webkit-scrollbar{height:12px;width:12px;}&::-webkit-scrollbar-track{background-color:transparent;}&::-webkit-scrollbar-track{background:", config_values_default.colorScrollbarTrack, ";border-radius:8px;}&::-webkit-scrollbar-thumb{background-clip:padding-box;background-color:", config_values_default.colorScrollbarThumb, ";border:2px solid rgba( 0, 0, 0, 0 );border-radius:7px;}&:hover::-webkit-scrollbar-thumb{background-color:", config_values_default.colorScrollbarThumbHover, ";}}" + (false ? "" : ";label:scrollableScrollbar;"), false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvc2Nyb2xsYWJsZS9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBVXNDIiwiZmlsZSI6IkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvc2Nyb2xsYWJsZS9zdHlsZXMudHMiLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIEV4dGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBjc3MgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbi8qKlxuICogSW50ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCB7IENPTkZJRyB9IGZyb20gJy4uL3V0aWxzJztcblxuZXhwb3J0IGNvbnN0IHNjcm9sbGFibGVTY3JvbGxiYXIgPSBjc3NgXG5cdEBtZWRpYSBvbmx5IHNjcmVlbiBhbmQgKCBtaW4tZGV2aWNlLXdpZHRoOiA0MGVtICkge1xuXHRcdCY6Oi13ZWJraXQtc2Nyb2xsYmFyIHtcblx0XHRcdGhlaWdodDogMTJweDtcblx0XHRcdHdpZHRoOiAxMnB4O1xuXHRcdH1cblxuXHRcdCY6Oi13ZWJraXQtc2Nyb2xsYmFyLXRyYWNrIHtcblx0XHRcdGJhY2tncm91bmQtY29sb3I6IHRyYW5zcGFyZW50O1xuXHRcdH1cblxuXHRcdCY6Oi13ZWJraXQtc2Nyb2xsYmFyLXRyYWNrIHtcblx0XHRcdGJhY2tncm91bmQ6ICR7IENPTkZJRy5jb2xvclNjcm9sbGJhclRyYWNrIH07XG5cdFx0XHRib3JkZXItcmFkaXVzOiA4cHg7XG5cdFx0fVxuXG5cdFx0Jjo6LXdlYmtpdC1zY3JvbGxiYXItdGh1bWIge1xuXHRcdFx0YmFja2dyb3VuZC1jbGlwOiBwYWRkaW5nLWJveDtcblx0XHRcdGJhY2tncm91bmQtY29sb3I6ICR7IENPTkZJRy5jb2xvclNjcm9sbGJhclRodW1iIH07XG5cdFx0XHRib3JkZXI6IDJweCBzb2xpZCByZ2JhKCAwLCAwLCAwLCAwICk7XG5cdFx0XHRib3JkZXItcmFkaXVzOiA3cHg7XG5cdFx0fVxuXG5cdFx0Jjpob3Zlcjo6LXdlYmtpdC1zY3JvbGxiYXItdGh1bWIge1xuXHRcdFx0YmFja2dyb3VuZC1jb2xvcjogJHsgQ09ORklHLmNvbG9yU2Nyb2xsYmFyVGh1bWJIb3ZlciB9O1xuXHRcdH1cblx0fVxuYDtcblxuZXhwb3J0IGNvbnN0IFNjcm9sbGFibGUgPSBjc3NgXG5cdGhlaWdodDogMTAwJTtcbmA7XG5cbmV4cG9ydCBjb25zdCBDb250ZW50ID0gY3NzYFxuXHRwb3NpdGlvbjogcmVsYXRpdmU7XG5gO1xuXG5leHBvcnQgY29uc3Qgc21vb3RoU2Nyb2xsID0gY3NzYFxuXHRzY3JvbGwtYmVoYXZpb3I6IHNtb290aDtcbmA7XG5cbmV4cG9ydCBjb25zdCBzY3JvbGxYID0gY3NzYFxuXHRvdmVyZmxvdy14OiBhdXRvO1xuXHRvdmVyZmxvdy15OiBoaWRkZW47XG5gO1xuXG5leHBvcnQgY29uc3Qgc2Nyb2xsWSA9IGNzc2Bcblx0b3ZlcmZsb3cteDogaGlkZGVuO1xuXHRvdmVyZmxvdy15OiBhdXRvO1xuYDtcblxuZXhwb3J0IGNvbnN0IHNjcm9sbEF1dG8gPSBjc3NgXG5cdG92ZXJmbG93LXk6IGF1dG87XG5gO1xuIl19 */");
@@ -52089,7 +52290,7 @@ If there's a particular need for this, please submit a feature request at https:
     name: "drdujb-Scrollable",
     styles: "height:100%;label:Scrollable;",
     map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvc2Nyb2xsYWJsZS9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBdUM2QiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL3Njcm9sbGFibGUvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vKipcbiAqIEludGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBDT05GSUcgfSBmcm9tICcuLi91dGlscyc7XG5cbmV4cG9ydCBjb25zdCBzY3JvbGxhYmxlU2Nyb2xsYmFyID0gY3NzYFxuXHRAbWVkaWEgb25seSBzY3JlZW4gYW5kICggbWluLWRldmljZS13aWR0aDogNDBlbSApIHtcblx0XHQmOjotd2Via2l0LXNjcm9sbGJhciB7XG5cdFx0XHRoZWlnaHQ6IDEycHg7XG5cdFx0XHR3aWR0aDogMTJweDtcblx0XHR9XG5cblx0XHQmOjotd2Via2l0LXNjcm9sbGJhci10cmFjayB7XG5cdFx0XHRiYWNrZ3JvdW5kLWNvbG9yOiB0cmFuc3BhcmVudDtcblx0XHR9XG5cblx0XHQmOjotd2Via2l0LXNjcm9sbGJhci10cmFjayB7XG5cdFx0XHRiYWNrZ3JvdW5kOiAkeyBDT05GSUcuY29sb3JTY3JvbGxiYXJUcmFjayB9O1xuXHRcdFx0Ym9yZGVyLXJhZGl1czogOHB4O1xuXHRcdH1cblxuXHRcdCY6Oi13ZWJraXQtc2Nyb2xsYmFyLXRodW1iIHtcblx0XHRcdGJhY2tncm91bmQtY2xpcDogcGFkZGluZy1ib3g7XG5cdFx0XHRiYWNrZ3JvdW5kLWNvbG9yOiAkeyBDT05GSUcuY29sb3JTY3JvbGxiYXJUaHVtYiB9O1xuXHRcdFx0Ym9yZGVyOiAycHggc29saWQgcmdiYSggMCwgMCwgMCwgMCApO1xuXHRcdFx0Ym9yZGVyLXJhZGl1czogN3B4O1xuXHRcdH1cblxuXHRcdCY6aG92ZXI6Oi13ZWJraXQtc2Nyb2xsYmFyLXRodW1iIHtcblx0XHRcdGJhY2tncm91bmQtY29sb3I6ICR7IENPTkZJRy5jb2xvclNjcm9sbGJhclRodW1iSG92ZXIgfTtcblx0XHR9XG5cdH1cbmA7XG5cbmV4cG9ydCBjb25zdCBTY3JvbGxhYmxlID0gY3NzYFxuXHRoZWlnaHQ6IDEwMCU7XG5gO1xuXG5leHBvcnQgY29uc3QgQ29udGVudCA9IGNzc2Bcblx0cG9zaXRpb246IHJlbGF0aXZlO1xuYDtcblxuZXhwb3J0IGNvbnN0IHNtb290aFNjcm9sbCA9IGNzc2Bcblx0c2Nyb2xsLWJlaGF2aW9yOiBzbW9vdGg7XG5gO1xuXG5leHBvcnQgY29uc3Qgc2Nyb2xsWCA9IGNzc2Bcblx0b3ZlcmZsb3cteDogYXV0bztcblx0b3ZlcmZsb3cteTogaGlkZGVuO1xuYDtcblxuZXhwb3J0IGNvbnN0IHNjcm9sbFkgPSBjc3NgXG5cdG92ZXJmbG93LXg6IGhpZGRlbjtcblx0b3ZlcmZsb3cteTogYXV0bztcbmA7XG5cbmV4cG9ydCBjb25zdCBzY3JvbGxBdXRvID0gY3NzYFxuXHRvdmVyZmxvdy15OiBhdXRvO1xuYDtcbiJdfQ== */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__4
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__7
   };
   var smoothScroll = false ? {
     name: "7zq9w",
@@ -52098,7 +52299,7 @@ If there's a particular need for this, please submit a feature request at https:
     name: "rnnynm-smoothScroll",
     styles: "scroll-behavior:smooth;label:smoothScroll;",
     map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvc2Nyb2xsYWJsZS9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBK0MrQiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL3Njcm9sbGFibGUvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vKipcbiAqIEludGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBDT05GSUcgfSBmcm9tICcuLi91dGlscyc7XG5cbmV4cG9ydCBjb25zdCBzY3JvbGxhYmxlU2Nyb2xsYmFyID0gY3NzYFxuXHRAbWVkaWEgb25seSBzY3JlZW4gYW5kICggbWluLWRldmljZS13aWR0aDogNDBlbSApIHtcblx0XHQmOjotd2Via2l0LXNjcm9sbGJhciB7XG5cdFx0XHRoZWlnaHQ6IDEycHg7XG5cdFx0XHR3aWR0aDogMTJweDtcblx0XHR9XG5cblx0XHQmOjotd2Via2l0LXNjcm9sbGJhci10cmFjayB7XG5cdFx0XHRiYWNrZ3JvdW5kLWNvbG9yOiB0cmFuc3BhcmVudDtcblx0XHR9XG5cblx0XHQmOjotd2Via2l0LXNjcm9sbGJhci10cmFjayB7XG5cdFx0XHRiYWNrZ3JvdW5kOiAkeyBDT05GSUcuY29sb3JTY3JvbGxiYXJUcmFjayB9O1xuXHRcdFx0Ym9yZGVyLXJhZGl1czogOHB4O1xuXHRcdH1cblxuXHRcdCY6Oi13ZWJraXQtc2Nyb2xsYmFyLXRodW1iIHtcblx0XHRcdGJhY2tncm91bmQtY2xpcDogcGFkZGluZy1ib3g7XG5cdFx0XHRiYWNrZ3JvdW5kLWNvbG9yOiAkeyBDT05GSUcuY29sb3JTY3JvbGxiYXJUaHVtYiB9O1xuXHRcdFx0Ym9yZGVyOiAycHggc29saWQgcmdiYSggMCwgMCwgMCwgMCApO1xuXHRcdFx0Ym9yZGVyLXJhZGl1czogN3B4O1xuXHRcdH1cblxuXHRcdCY6aG92ZXI6Oi13ZWJraXQtc2Nyb2xsYmFyLXRodW1iIHtcblx0XHRcdGJhY2tncm91bmQtY29sb3I6ICR7IENPTkZJRy5jb2xvclNjcm9sbGJhclRodW1iSG92ZXIgfTtcblx0XHR9XG5cdH1cbmA7XG5cbmV4cG9ydCBjb25zdCBTY3JvbGxhYmxlID0gY3NzYFxuXHRoZWlnaHQ6IDEwMCU7XG5gO1xuXG5leHBvcnQgY29uc3QgQ29udGVudCA9IGNzc2Bcblx0cG9zaXRpb246IHJlbGF0aXZlO1xuYDtcblxuZXhwb3J0IGNvbnN0IHNtb290aFNjcm9sbCA9IGNzc2Bcblx0c2Nyb2xsLWJlaGF2aW9yOiBzbW9vdGg7XG5gO1xuXG5leHBvcnQgY29uc3Qgc2Nyb2xsWCA9IGNzc2Bcblx0b3ZlcmZsb3cteDogYXV0bztcblx0b3ZlcmZsb3cteTogaGlkZGVuO1xuYDtcblxuZXhwb3J0IGNvbnN0IHNjcm9sbFkgPSBjc3NgXG5cdG92ZXJmbG93LXg6IGhpZGRlbjtcblx0b3ZlcmZsb3cteTogYXV0bztcbmA7XG5cbmV4cG9ydCBjb25zdCBzY3JvbGxBdXRvID0gY3NzYFxuXHRvdmVyZmxvdy15OiBhdXRvO1xuYDtcbiJdfQ== */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__4
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__7
   };
   var scrollX = false ? {
     name: "q33xhg",
@@ -52107,7 +52308,7 @@ If there's a particular need for this, please submit a feature request at https:
     name: "17z0rvw-scrollX",
     styles: "overflow-x:auto;overflow-y:hidden;label:scrollX;",
     map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvc2Nyb2xsYWJsZS9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBbUQwQiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL3Njcm9sbGFibGUvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vKipcbiAqIEludGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBDT05GSUcgfSBmcm9tICcuLi91dGlscyc7XG5cbmV4cG9ydCBjb25zdCBzY3JvbGxhYmxlU2Nyb2xsYmFyID0gY3NzYFxuXHRAbWVkaWEgb25seSBzY3JlZW4gYW5kICggbWluLWRldmljZS13aWR0aDogNDBlbSApIHtcblx0XHQmOjotd2Via2l0LXNjcm9sbGJhciB7XG5cdFx0XHRoZWlnaHQ6IDEycHg7XG5cdFx0XHR3aWR0aDogMTJweDtcblx0XHR9XG5cblx0XHQmOjotd2Via2l0LXNjcm9sbGJhci10cmFjayB7XG5cdFx0XHRiYWNrZ3JvdW5kLWNvbG9yOiB0cmFuc3BhcmVudDtcblx0XHR9XG5cblx0XHQmOjotd2Via2l0LXNjcm9sbGJhci10cmFjayB7XG5cdFx0XHRiYWNrZ3JvdW5kOiAkeyBDT05GSUcuY29sb3JTY3JvbGxiYXJUcmFjayB9O1xuXHRcdFx0Ym9yZGVyLXJhZGl1czogOHB4O1xuXHRcdH1cblxuXHRcdCY6Oi13ZWJraXQtc2Nyb2xsYmFyLXRodW1iIHtcblx0XHRcdGJhY2tncm91bmQtY2xpcDogcGFkZGluZy1ib3g7XG5cdFx0XHRiYWNrZ3JvdW5kLWNvbG9yOiAkeyBDT05GSUcuY29sb3JTY3JvbGxiYXJUaHVtYiB9O1xuXHRcdFx0Ym9yZGVyOiAycHggc29saWQgcmdiYSggMCwgMCwgMCwgMCApO1xuXHRcdFx0Ym9yZGVyLXJhZGl1czogN3B4O1xuXHRcdH1cblxuXHRcdCY6aG92ZXI6Oi13ZWJraXQtc2Nyb2xsYmFyLXRodW1iIHtcblx0XHRcdGJhY2tncm91bmQtY29sb3I6ICR7IENPTkZJRy5jb2xvclNjcm9sbGJhclRodW1iSG92ZXIgfTtcblx0XHR9XG5cdH1cbmA7XG5cbmV4cG9ydCBjb25zdCBTY3JvbGxhYmxlID0gY3NzYFxuXHRoZWlnaHQ6IDEwMCU7XG5gO1xuXG5leHBvcnQgY29uc3QgQ29udGVudCA9IGNzc2Bcblx0cG9zaXRpb246IHJlbGF0aXZlO1xuYDtcblxuZXhwb3J0IGNvbnN0IHNtb290aFNjcm9sbCA9IGNzc2Bcblx0c2Nyb2xsLWJlaGF2aW9yOiBzbW9vdGg7XG5gO1xuXG5leHBvcnQgY29uc3Qgc2Nyb2xsWCA9IGNzc2Bcblx0b3ZlcmZsb3cteDogYXV0bztcblx0b3ZlcmZsb3cteTogaGlkZGVuO1xuYDtcblxuZXhwb3J0IGNvbnN0IHNjcm9sbFkgPSBjc3NgXG5cdG92ZXJmbG93LXg6IGhpZGRlbjtcblx0b3ZlcmZsb3cteTogYXV0bztcbmA7XG5cbmV4cG9ydCBjb25zdCBzY3JvbGxBdXRvID0gY3NzYFxuXHRvdmVyZmxvdy15OiBhdXRvO1xuYDtcbiJdfQ== */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__4
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__7
   };
   var scrollY = false ? {
     name: "103x71s",
@@ -52116,7 +52317,7 @@ If there's a particular need for this, please submit a feature request at https:
     name: "flie1-scrollY",
     styles: "overflow-x:hidden;overflow-y:auto;label:scrollY;",
     map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvc2Nyb2xsYWJsZS9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBd0QwQiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL3Njcm9sbGFibGUvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vKipcbiAqIEludGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBDT05GSUcgfSBmcm9tICcuLi91dGlscyc7XG5cbmV4cG9ydCBjb25zdCBzY3JvbGxhYmxlU2Nyb2xsYmFyID0gY3NzYFxuXHRAbWVkaWEgb25seSBzY3JlZW4gYW5kICggbWluLWRldmljZS13aWR0aDogNDBlbSApIHtcblx0XHQmOjotd2Via2l0LXNjcm9sbGJhciB7XG5cdFx0XHRoZWlnaHQ6IDEycHg7XG5cdFx0XHR3aWR0aDogMTJweDtcblx0XHR9XG5cblx0XHQmOjotd2Via2l0LXNjcm9sbGJhci10cmFjayB7XG5cdFx0XHRiYWNrZ3JvdW5kLWNvbG9yOiB0cmFuc3BhcmVudDtcblx0XHR9XG5cblx0XHQmOjotd2Via2l0LXNjcm9sbGJhci10cmFjayB7XG5cdFx0XHRiYWNrZ3JvdW5kOiAkeyBDT05GSUcuY29sb3JTY3JvbGxiYXJUcmFjayB9O1xuXHRcdFx0Ym9yZGVyLXJhZGl1czogOHB4O1xuXHRcdH1cblxuXHRcdCY6Oi13ZWJraXQtc2Nyb2xsYmFyLXRodW1iIHtcblx0XHRcdGJhY2tncm91bmQtY2xpcDogcGFkZGluZy1ib3g7XG5cdFx0XHRiYWNrZ3JvdW5kLWNvbG9yOiAkeyBDT05GSUcuY29sb3JTY3JvbGxiYXJUaHVtYiB9O1xuXHRcdFx0Ym9yZGVyOiAycHggc29saWQgcmdiYSggMCwgMCwgMCwgMCApO1xuXHRcdFx0Ym9yZGVyLXJhZGl1czogN3B4O1xuXHRcdH1cblxuXHRcdCY6aG92ZXI6Oi13ZWJraXQtc2Nyb2xsYmFyLXRodW1iIHtcblx0XHRcdGJhY2tncm91bmQtY29sb3I6ICR7IENPTkZJRy5jb2xvclNjcm9sbGJhclRodW1iSG92ZXIgfTtcblx0XHR9XG5cdH1cbmA7XG5cbmV4cG9ydCBjb25zdCBTY3JvbGxhYmxlID0gY3NzYFxuXHRoZWlnaHQ6IDEwMCU7XG5gO1xuXG5leHBvcnQgY29uc3QgQ29udGVudCA9IGNzc2Bcblx0cG9zaXRpb246IHJlbGF0aXZlO1xuYDtcblxuZXhwb3J0IGNvbnN0IHNtb290aFNjcm9sbCA9IGNzc2Bcblx0c2Nyb2xsLWJlaGF2aW9yOiBzbW9vdGg7XG5gO1xuXG5leHBvcnQgY29uc3Qgc2Nyb2xsWCA9IGNzc2Bcblx0b3ZlcmZsb3cteDogYXV0bztcblx0b3ZlcmZsb3cteTogaGlkZGVuO1xuYDtcblxuZXhwb3J0IGNvbnN0IHNjcm9sbFkgPSBjc3NgXG5cdG92ZXJmbG93LXg6IGhpZGRlbjtcblx0b3ZlcmZsb3cteTogYXV0bztcbmA7XG5cbmV4cG9ydCBjb25zdCBzY3JvbGxBdXRvID0gY3NzYFxuXHRvdmVyZmxvdy15OiBhdXRvO1xuYDtcbiJdfQ== */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__4
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__7
   };
   var scrollAuto = false ? {
     name: "umwchj",
@@ -52125,7 +52326,7 @@ If there's a particular need for this, please submit a feature request at https:
     name: "1lcuu7v-scrollAuto",
     styles: "overflow-y:auto;label:scrollAuto;",
     map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvc2Nyb2xsYWJsZS9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBNkQ2QiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL3Njcm9sbGFibGUvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHsgY3NzIH0gZnJvbSAnQGVtb3Rpb24vcmVhY3QnO1xuXG4vKipcbiAqIEludGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgeyBDT05GSUcgfSBmcm9tICcuLi91dGlscyc7XG5cbmV4cG9ydCBjb25zdCBzY3JvbGxhYmxlU2Nyb2xsYmFyID0gY3NzYFxuXHRAbWVkaWEgb25seSBzY3JlZW4gYW5kICggbWluLWRldmljZS13aWR0aDogNDBlbSApIHtcblx0XHQmOjotd2Via2l0LXNjcm9sbGJhciB7XG5cdFx0XHRoZWlnaHQ6IDEycHg7XG5cdFx0XHR3aWR0aDogMTJweDtcblx0XHR9XG5cblx0XHQmOjotd2Via2l0LXNjcm9sbGJhci10cmFjayB7XG5cdFx0XHRiYWNrZ3JvdW5kLWNvbG9yOiB0cmFuc3BhcmVudDtcblx0XHR9XG5cblx0XHQmOjotd2Via2l0LXNjcm9sbGJhci10cmFjayB7XG5cdFx0XHRiYWNrZ3JvdW5kOiAkeyBDT05GSUcuY29sb3JTY3JvbGxiYXJUcmFjayB9O1xuXHRcdFx0Ym9yZGVyLXJhZGl1czogOHB4O1xuXHRcdH1cblxuXHRcdCY6Oi13ZWJraXQtc2Nyb2xsYmFyLXRodW1iIHtcblx0XHRcdGJhY2tncm91bmQtY2xpcDogcGFkZGluZy1ib3g7XG5cdFx0XHRiYWNrZ3JvdW5kLWNvbG9yOiAkeyBDT05GSUcuY29sb3JTY3JvbGxiYXJUaHVtYiB9O1xuXHRcdFx0Ym9yZGVyOiAycHggc29saWQgcmdiYSggMCwgMCwgMCwgMCApO1xuXHRcdFx0Ym9yZGVyLXJhZGl1czogN3B4O1xuXHRcdH1cblxuXHRcdCY6aG92ZXI6Oi13ZWJraXQtc2Nyb2xsYmFyLXRodW1iIHtcblx0XHRcdGJhY2tncm91bmQtY29sb3I6ICR7IENPTkZJRy5jb2xvclNjcm9sbGJhclRodW1iSG92ZXIgfTtcblx0XHR9XG5cdH1cbmA7XG5cbmV4cG9ydCBjb25zdCBTY3JvbGxhYmxlID0gY3NzYFxuXHRoZWlnaHQ6IDEwMCU7XG5gO1xuXG5leHBvcnQgY29uc3QgQ29udGVudCA9IGNzc2Bcblx0cG9zaXRpb246IHJlbGF0aXZlO1xuYDtcblxuZXhwb3J0IGNvbnN0IHNtb290aFNjcm9sbCA9IGNzc2Bcblx0c2Nyb2xsLWJlaGF2aW9yOiBzbW9vdGg7XG5gO1xuXG5leHBvcnQgY29uc3Qgc2Nyb2xsWCA9IGNzc2Bcblx0b3ZlcmZsb3cteDogYXV0bztcblx0b3ZlcmZsb3cteTogaGlkZGVuO1xuYDtcblxuZXhwb3J0IGNvbnN0IHNjcm9sbFkgPSBjc3NgXG5cdG92ZXJmbG93LXg6IGhpZGRlbjtcblx0b3ZlcmZsb3cteTogYXV0bztcbmA7XG5cbmV4cG9ydCBjb25zdCBzY3JvbGxBdXRvID0gY3NzYFxuXHRvdmVyZmxvdy15OiBhdXRvO1xuYDtcbiJdfQ== */",
-    toString: _EMOTION_STRINGIFIED_CSS_ERROR__4
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__7
   };
 
   // node_modules/@wordpress/components/build-module/scrollable/hook.js
@@ -52145,10 +52346,10 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/scrollable/component.js
-  var import_jsx_runtime48 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime49 = __toESM(require_jsx_runtime());
   function UnconnectedScrollable(props, forwardedRef) {
     const scrollableProps = useScrollable(props);
-    return /* @__PURE__ */ (0, import_jsx_runtime48.jsx)(component_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime49.jsx)(component_default, {
       ...scrollableProps,
       ref: forwardedRef
     });
@@ -52183,19 +52384,19 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/card/card-body/component.js
-  var import_jsx_runtime49 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime50 = __toESM(require_jsx_runtime());
   function UnconnectedCardBody(props, forwardedRef) {
     const {
       isScrollable,
       ...otherProps
     } = useCardBody(props);
     if (isScrollable) {
-      return /* @__PURE__ */ (0, import_jsx_runtime49.jsx)(component_default7, {
+      return /* @__PURE__ */ (0, import_jsx_runtime50.jsx)(component_default7, {
         ...otherProps,
         ref: forwardedRef
       });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime49.jsx)(component_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime50.jsx)(component_default, {
       ...otherProps,
       ref: forwardedRef
     });
@@ -52204,7 +52405,7 @@ If there's a particular need for this, please submit a feature request at https:
   var component_default8 = CardBody;
 
   // node_modules/@wordpress/components/build-module/navigable-container/container.js
-  var import_jsx_runtime50 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime51 = __toESM(require_jsx_runtime());
   var noop5 = () => {
   };
   var MENU_ITEM_ROLES = ["menuitem", "menuitemradio", "menuitemcheckbox"];
@@ -52328,7 +52529,7 @@ If there's a particular need for this, please submit a feature request at https:
         forwardedRef,
         ...restProps
       } = this.props;
-      return /* @__PURE__ */ (0, import_jsx_runtime50.jsx)("div", {
+      return /* @__PURE__ */ (0, import_jsx_runtime51.jsx)("div", {
         ref: this.bindContainer,
         ...restProps,
         children
@@ -52336,7 +52537,7 @@ If there's a particular need for this, please submit a feature request at https:
     }
   };
   var forwardedNavigableContainer = (props, ref) => {
-    return /* @__PURE__ */ (0, import_jsx_runtime50.jsx)(NavigableContainer, {
+    return /* @__PURE__ */ (0, import_jsx_runtime51.jsx)(NavigableContainer, {
       ...props,
       forwardedRef: ref
     });
@@ -52345,7 +52546,7 @@ If there's a particular need for this, please submit a feature request at https:
   var container_default = (0, import_react.forwardRef)(forwardedNavigableContainer);
 
   // node_modules/@wordpress/components/build-module/navigable-container/menu.js
-  var import_jsx_runtime51 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime52 = __toESM(require_jsx_runtime());
   function UnforwardedNavigableMenu({
     role = "menu",
     orientation = "vertical",
@@ -52374,7 +52575,7 @@ If there's a particular need for this, please submit a feature request at https:
       }
       return void 0;
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime51.jsx)(container_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime52.jsx)(container_default, {
       ref,
       stopNavigationEvents: true,
       onlyBrowserTabstops: false,
@@ -52388,7 +52589,7 @@ If there's a particular need for this, please submit a feature request at https:
   var menu_default2 = NavigableMenu;
 
   // node_modules/@wordpress/components/build-module/dropdown-menu/index.js
-  var import_jsx_runtime52 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime53 = __toESM(require_jsx_runtime());
   function mergeProps2(defaultProps = {}, props = {}) {
     const mergedProps = {
       ...defaultProps,
@@ -52435,7 +52636,7 @@ If there's a particular need for this, please submit a feature request at https:
       className: "components-dropdown-menu__popover",
       variant
     }, popoverProps);
-    return /* @__PURE__ */ (0, import_jsx_runtime52.jsx)(dropdown_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(dropdown_default, {
       className,
       popoverProps: mergedPopoverProps,
       renderToggle: ({
@@ -52461,7 +52662,7 @@ If there's a particular need for this, please submit a feature request at https:
             "is-opened": isOpen
           })
         }, restToggleProps);
-        return /* @__PURE__ */ (0, import_jsx_runtime52.jsx)(Toggle, {
+        return /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(Toggle, {
           ...mergedToggleProps,
           icon,
           onClick: (event) => {
@@ -52491,10 +52692,10 @@ If there's a particular need for this, please submit a feature request at https:
             "no-icons": noIcons
           })
         }, menuProps);
-        return /* @__PURE__ */ (0, import_jsx_runtime52.jsxs)(menu_default2, {
+        return /* @__PURE__ */ (0, import_jsx_runtime53.jsxs)(menu_default2, {
           ...mergedMenuProps,
           role: "menu",
-          children: [isFunction2(children) ? children(props) : null, controlSets?.flatMap((controlSet, indexOfSet) => controlSet.map((control, indexOfControl) => /* @__PURE__ */ (0, import_jsx_runtime52.jsx)(button_default, {
+          children: [isFunction2(children) ? children(props) : null, controlSets?.flatMap((controlSet, indexOfSet) => controlSet.map((control, indexOfControl) => /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(button_default, {
             onClick: (event) => {
               event.stopPropagation();
               props.onClose();
@@ -52613,7 +52814,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/modal/index.js
-  var import_jsx_runtime53 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime54 = __toESM(require_jsx_runtime());
   var ModalContext = (0, import_react.createContext)(/* @__PURE__ */ new Set());
   var bodyOpenClasses = /* @__PURE__ */ new Map();
   function UnforwardedModal(props, forwardedRef) {
@@ -52770,14 +52971,14 @@ If there's a particular need for this, please submit a feature request at https:
     };
     const modal = (
       // eslint-disable-next-line jsx-a11y/no-static-element-interactions
-      /* @__PURE__ */ (0, import_jsx_runtime53.jsx)("div", {
+      /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("div", {
         ref: useMergeRefs([ref, forwardedRef]),
         className: clsx_default("components-modal__screen-overlay", overlayClassname, overlayClassnameProp),
         onKeyDown: withIgnoreIMEEvents(handleEscapeKeyDown),
         ...shouldCloseOnClickOutside ? overlayPressHandlers : {},
-        children: /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(style_provider_default, {
+        children: /* @__PURE__ */ (0, import_jsx_runtime54.jsx)(style_provider_default, {
           document,
-          children: /* @__PURE__ */ (0, import_jsx_runtime53.jsx)("div", {
+          children: /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("div", {
             className: clsx_default("components-modal__frame", sizeClass, className),
             style: {
               ...frameStyle,
@@ -52790,7 +52991,7 @@ If there's a particular need for this, please submit a feature request at https:
             "aria-describedby": aria.describedby,
             tabIndex: -1,
             onKeyDown,
-            children: /* @__PURE__ */ (0, import_jsx_runtime53.jsxs)("div", {
+            children: /* @__PURE__ */ (0, import_jsx_runtime54.jsxs)("div", {
               className: clsx_default("components-modal__content", {
                 "hide-header": __experimentalHideHeader,
                 "is-scrollable": hasScrollableContent,
@@ -52801,31 +53002,31 @@ If there's a particular need for this, please submit a feature request at https:
               ref: contentRef,
               "aria-label": hasScrollableContent ? __("Scrollable section") : void 0,
               tabIndex: hasScrollableContent ? 0 : void 0,
-              children: [!__experimentalHideHeader && /* @__PURE__ */ (0, import_jsx_runtime53.jsxs)("div", {
+              children: [!__experimentalHideHeader && /* @__PURE__ */ (0, import_jsx_runtime54.jsxs)("div", {
                 className: "components-modal__header",
-                children: [/* @__PURE__ */ (0, import_jsx_runtime53.jsxs)("div", {
+                children: [/* @__PURE__ */ (0, import_jsx_runtime54.jsxs)("div", {
                   className: "components-modal__header-heading-container",
-                  children: [icon && /* @__PURE__ */ (0, import_jsx_runtime53.jsx)("span", {
+                  children: [icon && /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("span", {
                     className: "components-modal__icon-container",
                     "aria-hidden": true,
                     children: icon
-                  }), title && /* @__PURE__ */ (0, import_jsx_runtime53.jsx)("h1", {
+                  }), title && /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("h1", {
                     id: headingId,
                     className: "components-modal__header-heading",
                     children: title
                   })]
-                }), headerActions, isDismissible && /* @__PURE__ */ (0, import_jsx_runtime53.jsxs)(import_jsx_runtime53.Fragment, {
-                  children: [/* @__PURE__ */ (0, import_jsx_runtime53.jsx)(component_default4, {
+                }), headerActions, isDismissible && /* @__PURE__ */ (0, import_jsx_runtime54.jsxs)(import_jsx_runtime54.Fragment, {
+                  children: [/* @__PURE__ */ (0, import_jsx_runtime54.jsx)(component_default4, {
                     marginBottom: 0,
                     marginLeft: 2
-                  }), /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(button_default, {
+                  }), /* @__PURE__ */ (0, import_jsx_runtime54.jsx)(button_default, {
                     size: "compact",
                     onClick: (event) => closeModal().then(() => onRequestClose(event)),
                     icon: close_default,
                     label: closeButtonLabel || __("Close")
                   })]
                 })]
-              }), /* @__PURE__ */ (0, import_jsx_runtime53.jsx)("div", {
+              }), /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("div", {
                 ref: useMergeRefs([childrenContainerRef, focusOnMount === "firstContentElement" ? focusOnMountRef : null]),
                 children
               })]
@@ -52834,7 +53035,7 @@ If there's a particular need for this, please submit a feature request at https:
         })
       })
     );
-    return (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime53.jsx)(ModalContext.Provider, {
+    return (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime54.jsx)(ModalContext.Provider, {
       value: nestedDismissers,
       children: modal
     }), document.body);
@@ -52843,7 +53044,7 @@ If there's a particular need for this, please submit a feature request at https:
   var modal_default = Modal;
 
   // node_modules/@wordpress/components/build-module/tab-panel/index.js
-  var import_jsx_runtime54 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime55 = __toESM(require_jsx_runtime());
   var extractTabName = (id3) => {
     if (typeof id3 === "undefined" || id3 === null) {
       return;
@@ -52926,21 +53127,21 @@ If there's a particular need for this, please submit a feature request at https:
         setTabStoreSelectedId(firstEnabledTab.name);
       }
     }, [tabs, selectedTab?.disabled, setTabStoreSelectedId, instanceId]);
-    return /* @__PURE__ */ (0, import_jsx_runtime54.jsxs)("div", {
+    return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", {
       className,
       ref,
-      children: [/* @__PURE__ */ (0, import_jsx_runtime54.jsx)(TabList, {
+      children: [/* @__PURE__ */ (0, import_jsx_runtime55.jsx)(TabList, {
         store: tabStore,
         className: "components-tab-panel__tabs",
         children: tabs.map((tab) => {
-          return /* @__PURE__ */ (0, import_jsx_runtime54.jsx)(Tab, {
+          return /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(Tab, {
             id: prependInstanceId(tab.name),
             className: clsx_default("components-tab-panel__tabs-item", tab.className, {
               [activeClass]: tab.name === selectedTabName
             }),
             disabled: tab.disabled,
             "aria-controls": `${prependInstanceId(tab.name)}-view`,
-            render: /* @__PURE__ */ (0, import_jsx_runtime54.jsx)(button_default, {
+            render: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(button_default, {
               __next40pxDefaultSize: true,
               icon: tab.icon,
               label: tab.icon && tab.title,
@@ -52949,7 +53150,7 @@ If there's a particular need for this, please submit a feature request at https:
             children: !tab.icon && tab.title
           }, tab.name);
         })
-      }), selectedTab && /* @__PURE__ */ (0, import_jsx_runtime54.jsx)(TabPanel, {
+      }), selectedTab && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(TabPanel, {
         id: `${prependInstanceId(selectedTab.name)}-view`,
         store: tabStore,
         tabId: prependInstanceId(selectedTab.name),
@@ -52961,43 +53162,95 @@ If there's a particular need for this, please submit a feature request at https:
   var TabPanel3 = (0, import_react.forwardRef)(UnforwardedTabPanel);
   var tab_panel_default = TabPanel3;
 
+  // node_modules/@wordpress/components/build-module/text-control/index.js
+  var import_jsx_runtime56 = __toESM(require_jsx_runtime());
+  function UnforwardedTextControl(props, ref) {
+    const {
+      __nextHasNoMarginBottom,
+      __next40pxDefaultSize = false,
+      label,
+      hideLabelFromVision,
+      value,
+      help,
+      id: idProp,
+      className,
+      onChange,
+      type = "text",
+      ...additionalProps
+    } = props;
+    const id3 = use_instance_id_default(TextControl, "inspector-text-control", idProp);
+    const onChangeValue = (event) => onChange(event.target.value);
+    maybeWarnDeprecated36pxSize({
+      componentName: "TextControl",
+      size: void 0,
+      __next40pxDefaultSize
+    });
+    return /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(base_control_default, {
+      __nextHasNoMarginBottom,
+      __associatedWPComponentName: "TextControl",
+      label,
+      hideLabelFromVision,
+      id: id3,
+      help,
+      className,
+      children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("input", {
+        className: clsx_default("components-text-control__input", {
+          "is-next-40px-default-size": __next40pxDefaultSize
+        }),
+        type,
+        id: id3,
+        value,
+        onChange: onChangeValue,
+        "aria-describedby": !!help ? id3 + "__help" : void 0,
+        ref,
+        ...additionalProps
+      })
+    });
+  }
+  var TextControl = (0, import_react.forwardRef)(UnforwardedTextControl);
+  var text_control_default = TextControl;
+
   // src/renderer/index.jsx
   var import_xterm = __toESM(require_xterm());
-  var import_jsx_runtime55 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime57 = __toESM(require_jsx_runtime());
   var TERMINAL_ALLOWED_SCRIPTS = ["build", "build:dev", "dev", "test", "watch", "grunt"];
   var TERMINAL_INSTALL_ALIASES = ["npm install", "npm i", "install"];
+  var RENAME_INPUT_ID = "rename-site-name-input";
+  var CREATE_SITE_NAME_INPUT_ID = "create-site-name-input";
+  var CREATE_SITE_LOCATION_INPUT_ID = "create-site-location-input";
   function useSites() {
-    const [sites, setSites] = (0, import_react67.useState)([]);
-    const [siteMeta, setSiteMeta] = (0, import_react67.useState)({});
-    const refresh = (0, import_react67.useCallback)(async () => {
+    const [sites, setSites] = (0, import_react68.useState)([]);
+    const [siteMeta, setSiteMeta] = (0, import_react68.useState)({});
+    const refresh = (0, import_react68.useCallback)(async () => {
       const { sites: list, siteMeta: meta } = await window.api.getSitesWithMeta();
       setSites(list);
       setSiteMeta(meta || {});
     }, []);
-    (0, import_react67.useEffect)(() => {
+    (0, import_react68.useEffect)(() => {
       refresh();
     }, [refresh]);
     return { sites, siteMeta, refresh, setSiteMeta, setSites };
   }
   function App() {
     const { sites, siteMeta, refresh, setSiteMeta, setSites } = useSites();
-    const [downloadPhase, setDownloadPhase] = (0, import_react67.useState)("");
-    const [pendingSite, setPendingSite] = (0, import_react67.useState)(null);
-    const [terminalMsgs, setTerminalMsgs] = (0, import_react67.useState)("");
-    const termRef = (0, import_react67.useRef)(null);
-    (0, import_react67.useEffect)(() => {
+    const [downloadPhase, setDownloadPhase] = (0, import_react68.useState)("");
+    const [pendingSite, setPendingSite] = (0, import_react68.useState)(null);
+    const [terminalMsgs, setTerminalMsgs] = (0, import_react68.useState)("");
+    const termRef = (0, import_react68.useRef)(null);
+    const createDirInputRef = (0, import_react68.useRef)(null);
+    (0, import_react68.useEffect)(() => {
       if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight;
     }, [terminalMsgs]);
-    const [webStarting, setWebStarting] = (0, import_react67.useState)(false);
-    const [webUrl, setWebUrl] = (0, import_react67.useState)("");
-    const [webLogs, setWebLogs] = (0, import_react67.useState)("");
-    const [webError, setWebError] = (0, import_react67.useState)("");
-    const webLogRef = (0, import_react67.useRef)(null);
-    (0, import_react67.useEffect)(() => {
+    const [webStarting, setWebStarting] = (0, import_react68.useState)(false);
+    const [webUrl, setWebUrl] = (0, import_react68.useState)("");
+    const [webLogs, setWebLogs] = (0, import_react68.useState)("");
+    const [webError, setWebError] = (0, import_react68.useState)("");
+    const webLogRef = (0, import_react68.useRef)(null);
+    (0, import_react68.useEffect)(() => {
       if (webLogRef.current) webLogRef.current.scrollTop = webLogRef.current.scrollHeight;
     }, [webLogs]);
-    const [webAvailable, setWebAvailable] = (0, import_react67.useState)(false);
-    (0, import_react67.useEffect)(() => {
+    const [webAvailable, setWebAvailable] = (0, import_react68.useState)(false);
+    (0, import_react68.useEffect)(() => {
       (async () => {
         try {
           setWebAvailable(Boolean(await window.api.playgroundWebAvailable()));
@@ -53005,16 +53258,95 @@ If there's a particular need for this, please submit a feature request at https:
         }
       })();
     }, []);
-    const [sidebarCollapsed, setSidebarCollapsed] = (0, import_react67.useState)(false);
-    const [activeSite, setActiveSite] = (0, import_react67.useState)(null);
-    (0, import_react67.useEffect)(() => {
+    const [sidebarCollapsed, setSidebarCollapsed] = (0, import_react68.useState)(false);
+    const [activeSite, setActiveSite] = (0, import_react68.useState)(null);
+    const [createModalOpen, setCreateModalOpen] = (0, import_react68.useState)(false);
+    const [createSiteName, setCreateSiteName] = (0, import_react68.useState)("");
+    const [createSiteDir, setCreateSiteDir] = (0, import_react68.useState)("");
+    const [createSiteError, setCreateSiteError] = (0, import_react68.useState)("");
+    const [createSubmitting, setCreateSubmitting] = (0, import_react68.useState)(false);
+    const [setupLogsBySite, setSetupLogsBySite] = (0, import_react68.useState)({});
+    const setupLogAliasRef = (0, import_react68.useRef)({});
+    const appendSetupLog = (0, import_react68.useCallback)((siteTarget, message) => {
+      const key = siteTarget ? String(siteTarget) : "";
+      if (!key) return;
+      const chunk = message != null ? String(message) : "";
+      if (!chunk) return;
+      let resolvedKey = key;
+      const aliasMap = setupLogAliasRef.current;
+      const seen = /* @__PURE__ */ new Set();
+      while (resolvedKey && aliasMap[resolvedKey] && !seen.has(resolvedKey)) {
+        seen.add(resolvedKey);
+        resolvedKey = aliasMap[resolvedKey];
+      }
+      if (!resolvedKey) return;
+      setSetupLogsBySite((prev2) => {
+        const prevText = prev2[resolvedKey] || "";
+        return { ...prev2, [resolvedKey]: prevText + chunk };
+      });
+    }, []);
+    const removeSetupLog = (0, import_react68.useCallback)((siteTarget) => {
+      const key = siteTarget ? String(siteTarget) : "";
+      if (!key) return;
+      const aliasMap = setupLogAliasRef.current;
+      delete aliasMap[key];
+      Object.keys(aliasMap).forEach((aliasKey) => {
+        if (aliasMap[aliasKey] === key) delete aliasMap[aliasKey];
+      });
+      setSetupLogsBySite((prev2) => {
+        if (!prev2[key]) return prev2;
+        const next2 = { ...prev2 };
+        delete next2[key];
+        return next2;
+      });
+    }, []);
+    const moveSetupLog = (0, import_react68.useCallback)((from2, to) => {
+      const source = from2 ? String(from2) : "";
+      const target = to ? String(to) : "";
+      if (!source || !target || source === target) return;
+      setupLogAliasRef.current[source] = target;
+      setSetupLogsBySite((prev2) => {
+        if (!prev2[source]) return prev2;
+        const next2 = { ...prev2 };
+        const combined = (prev2[target] || "") + prev2[source];
+        delete next2[source];
+        next2[target] = combined;
+        return next2;
+      });
+    }, []);
+    (0, import_react68.useEffect)(() => {
+      if (!createModalOpen) return;
+      const input = document.getElementById(CREATE_SITE_NAME_INPUT_ID);
+      if (input) {
+        input.focus();
+        if (typeof input.select === "function") input.select();
+      }
+    }, [createModalOpen]);
+    (0, import_react68.useEffect)(() => {
+      if (createModalOpen) return;
+      if (createDirInputRef.current) {
+        createDirInputRef.current.value = "";
+      }
+    }, [createModalOpen]);
+    (0, import_react68.useEffect)(() => {
       const unsubProg = window.api.subscribeSetupProgress((p) => {
-        if (p && p.message) setTerminalMsgs((v) => v + p.message + "\n");
-        if (p && p.target) setPendingSite((prev2) => prev2 || { targetDir: p.target });
+        if (p && p.message) {
+          setTerminalMsgs((v) => v + p.message + "\n");
+          appendSetupLog(p.target, `${p.message}
+`);
+        }
+        if (p && p.target) setPendingSite({ targetDir: p.target });
       });
       const unsubStat = window.api.subscribeSetupStatus((s) => {
         if (!s) return;
-        setPendingSite((prev2) => prev2 || { targetDir: s.target });
+        if (s.target) setPendingSite({ targetDir: s.target });
+        const key = s.sitePath || s.target;
+        if (key) {
+          const phaseLabel = s.phase ? `Status: ${s.phase}` : "Status update";
+          appendSetupLog(key, `${phaseLabel}
+`);
+          if (s.phase === "done") appendSetupLog(key, "Setup finished.\n");
+        }
         if (s.phase === "cloning") setDownloadPhase("Cloning repository\u2026");
         else if (s.phase === "done") {
           setDownloadPhase("");
@@ -53026,32 +53358,127 @@ If there's a particular need for this, please submit a feature request at https:
         unsubProg && unsubProg();
         unsubStat && unsubStat();
       };
+    }, [appendSetupLog]);
+    const chooseAndSetup = (0, import_react68.useCallback)(() => {
+      setCreateSiteName("");
+      setCreateSiteDir("");
+      setCreateSiteError("");
+      setCreateModalOpen(true);
     }, []);
-    const chooseAndSetup = (0, import_react67.useCallback)(async () => {
-      const enteredName = prompt("Name your new WordPress site");
-      if (!enteredName) return;
-      const siteLabel = enteredName.trim();
-      if (!siteLabel) return;
-      const destRoot = await window.api.chooseDirectory();
-      if (!destRoot) return;
-      const cleanFolder = siteLabel.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").replace(/^-+|-+$/g, "") || "wordpress-site";
-      const normalizedRoot = destRoot.replace(/[\\/]+$/, "");
+    const sanitizeSiteFolder = (0, import_react68.useCallback)((value) => value.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").replace(/^-+|-+$/g, "") || "wordpress-site", []);
+    const resolveTargetDir = (0, import_react68.useCallback)((root2, folder) => {
+      if (!root2) return folder;
+      const normalizedRoot = root2.replace(/[\\/]+$/, "");
       const separator = /\\/.test(normalizedRoot) && !normalizedRoot.includes("/") ? "\\" : "/";
-      const targetDir = `${normalizedRoot}${separator}${cleanFolder}`;
+      return `${normalizedRoot}${separator}${folder}`;
+    }, []);
+    const openDirectoryPicker = (0, import_react68.useCallback)(async () => {
       try {
+        const dir = await window.api.chooseDirectory();
+        if (dir) {
+          setCreateSiteDir(dir);
+          setCreateSiteError("");
+        }
+      } catch {
+      }
+    }, []);
+    const handleCreateDirInputChange = (0, import_react68.useCallback)((event) => {
+      const inputEl = event.target;
+      createDirInputRef.current = inputEl;
+      const finalize = (rawDir) => {
+        const normalized = typeof rawDir === "string" ? rawDir.replace(/[\\/]+$/, "") : "";
+        if (normalized) {
+          setCreateSiteDir(normalized);
+          setCreateSiteError("");
+        } else {
+          setCreateSiteDir("");
+        }
+      };
+      const files = inputEl.files;
+      if (!files || files.length === 0) {
+        inputEl.value = "";
+        return;
+      }
+      const first = files[0];
+      const relative = first?.webkitRelativePath || "";
+      const rawPath = first?.path || "";
+      let resolved = "";
+      if (rawPath) {
+        if (relative) {
+          resolved = rawPath.slice(0, rawPath.length - relative.length);
+        } else {
+          resolved = rawPath.replace(/[\\/][^\\/]*$/, "");
+        }
+      }
+      if (!resolved && inputEl.value) {
+        resolved = inputEl.value.replace(/[^\\/]*$/, "");
+      }
+      resolved = resolved.replace(/[\\/]+$/, "");
+      finalize(resolved);
+      inputEl.value = "";
+    }, [setCreateSiteDir, setCreateSiteError]);
+    const handleCreateSiteSubmit = (0, import_react68.useCallback)(async () => {
+      const nameTrimmed = createSiteName.trim();
+      if (!nameTrimmed) {
+        setCreateSiteError("Please provide a site name.");
+        return;
+      }
+      if (!createSiteDir) {
+        setCreateSiteError("Please choose where to create the site.");
+        return;
+      }
+      const cleanFolder = sanitizeSiteFolder(nameTrimmed);
+      const targetDir = resolveTargetDir(createSiteDir, cleanFolder);
+      let finalSitePath = targetDir;
+      try {
+        setCreateSubmitting(true);
+        setCreateSiteError("");
         setTerminalMsgs("");
         setPendingSite({ targetDir });
-        const createdPath = await window.api.setupWordPress(destRoot, { siteName: cleanFolder, siteLabel });
-        if (createdPath && createdPath !== targetDir) {
-          setPendingSite({ targetDir: createdPath });
+        appendSetupLog(targetDir, "Starting site setup\u2026\n");
+        const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
+        if (createdPath) {
+          finalSitePath = createdPath;
+          if (createdPath !== targetDir) {
+            setPendingSite({ targetDir: createdPath });
+            moveSetupLog(targetDir, createdPath);
+          }
         }
         await refresh();
+        setCreateModalOpen(false);
+        setCreateSiteName("");
+        setCreateSiteDir("");
+        setActiveSite(finalSitePath);
+        appendSetupLog(finalSitePath, "Site setup request completed.\n");
       } catch (e) {
         setPendingSite(null);
-        alert(String(e));
+        setCreateSiteError(String(e));
+        appendSetupLog(targetDir, `Setup failed: ${String(e)}
+`);
+      } finally {
+        setCreateSubmitting(false);
       }
-    }, [refresh]);
-    const togglePlaygroundWeb = (0, import_react67.useCallback)(async () => {
+    }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder]);
+    const closeCreateModal = (0, import_react68.useCallback)(() => {
+      if (createSubmitting) return;
+      setCreateModalOpen(false);
+    }, [createSubmitting]);
+    const handleCreateModalSubmit = (0, import_react68.useCallback)((event) => {
+      event.preventDefault();
+      handleCreateSiteSubmit();
+    }, [handleCreateSiteSubmit]);
+    const handleCreateModalKeyDown = (0, import_react68.useCallback)((event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        closeCreateModal();
+      }
+    }, [closeCreateModal]);
+    const handleCreateDirInputClick = (0, import_react68.useCallback)((event) => {
+      event.preventDefault();
+      void openDirectoryPicker();
+    }, [openDirectoryPicker]);
+    const togglePlaygroundWeb = (0, import_react68.useCallback)(async () => {
       if (!webUrl) {
         setWebStarting(true);
         setWebError("");
@@ -53091,18 +53518,20 @@ If there's a particular need for this, please submit a feature request at https:
         setWebUrl("");
       }
     }, [webUrl]);
-    const onInitialized = (0, import_react67.useCallback)((sitePath) => {
+    const onInitialized = (0, import_react68.useCallback)((sitePath) => {
       setSiteMeta((m) => ({ ...m || {}, [sitePath]: { ...m?.[sitePath] || {}, initialized: true } }));
     }, [setSiteMeta]);
-    const onForget = (0, import_react67.useCallback)(async (sitePath) => {
+    const onForget = (0, import_react68.useCallback)(async (sitePath) => {
       await window.api.forgetSite(sitePath);
       await refresh();
-    }, [refresh]);
-    const onDelete = (0, import_react67.useCallback)(async (sitePath) => {
+      removeSetupLog(sitePath);
+    }, [refresh, removeSetupLog]);
+    const onDelete = (0, import_react68.useCallback)(async (sitePath) => {
       await window.api.deleteSite(sitePath);
       await refresh();
-    }, [refresh]);
-    const onRename = (0, import_react67.useCallback)(async (sitePath, newLabel) => {
+      removeSetupLog(sitePath);
+    }, [refresh, removeSetupLog]);
+    const onRename = (0, import_react68.useCallback)(async (sitePath, newLabel) => {
       try {
         await window.api.setSiteLabel(sitePath, newLabel);
         setSiteMeta((meta) => ({
@@ -53113,25 +53542,31 @@ If there's a particular need for this, please submit a feature request at https:
         alert(String(err));
       }
     }, [setSiteMeta]);
-    const sortedSites = (0, import_react67.useMemo)(() => {
+    const sortedSites = (0, import_react68.useMemo)(() => {
       if (!sites || !sites.length) return [];
-      return [...sites].sort((a, b) => (siteMeta?.[b]?.createdAt || 0) - (siteMeta?.[a]?.createdAt || 0));
+      const getCreatedAt = (sitePath) => {
+        const value = siteMeta?.[sitePath]?.createdAt;
+        if (!value) return 0;
+        const timestamp = new Date(value).getTime();
+        return Number.isFinite(timestamp) ? timestamp : 0;
+      };
+      return [...sites].sort((a, b) => getCreatedAt(b) - getCreatedAt(a));
     }, [sites, siteMeta]);
-    (0, import_react67.useEffect)(() => {
+    (0, import_react68.useEffect)(() => {
       if (!sortedSites.length) {
         setActiveSite(null);
         return;
       }
       setActiveSite((current) => current && sortedSites.includes(current) ? current : sortedSites[0]);
     }, [sortedSites]);
-    const handleSelectSite = (0, import_react67.useCallback)((sitePath) => {
+    const handleSelectSite = (0, import_react68.useCallback)((sitePath) => {
       setActiveSite(sitePath);
     }, []);
-    return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", height: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { width: sidebarCollapsed ? 56 : 280, background: "#1f1f1f", color: "#f7f7f7", display: "flex", flexDirection: "column", transition: "width 0.2s ease", borderRight: "1px solid #2b2b2b" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { padding: sidebarCollapsed ? "12px 8px" : "16px", borderBottom: "1px solid #2b2b2b" }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default3, { align: "center", justify: "space-between", children: [
-          !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600 }, children: "WordPress Core" }) : null,
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", height: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { width: sidebarCollapsed ? 56 : 280, background: "#1f1f1f", color: "#f7f7f7", display: "flex", flexDirection: "column", transition: "width 0.2s ease", borderRight: "1px solid #2b2b2b" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { padding: sidebarCollapsed ? "12px 8px" : "16px", borderBottom: "1px solid #2b2b2b" }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(component_default3, { align: "center", justify: "space-between", children: [
+          !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600 }, children: "WordPress Core" }) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
             button_default,
             {
               icon: sidebarCollapsed ? chevron_right_default : chevron_left_default,
@@ -53144,13 +53579,13 @@ If there's a particular need for this, please submit a feature request at https:
             }
           )
         ] }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 8px" : "12px 16px", display: "flex", flexDirection: "column", gap: 8 }, children: sortedSites.length > 0 ? sortedSites.map((sitePath) => {
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 8px" : "12px 16px", display: "flex", flexDirection: "column", gap: 8 }, children: sortedSites.length > 0 ? sortedSites.map((sitePath) => {
           const meta = siteMeta?.[sitePath] || {};
           const siteName = meta.label && meta.label.trim() || sitePath.split("/").pop() || sitePath;
           const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : "";
           const isActive = activeSite === sitePath;
           const statusLabel = meta.initialized ? "Initialized" : "Not initialized";
-          return /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+          return /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
             button_default,
             {
               onClick: () => handleSelectSite(sitePath),
@@ -53166,19 +53601,19 @@ If there's a particular need for this, please submit a feature request at https:
                 padding: sidebarCollapsed ? "8px 0" : "10px 12px",
                 borderRadius: 6
               },
-              children: sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { fontWeight: 600 }, children: siteName.slice(0, 1).toUpperCase() }) : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { fontWeight: 600 }, children: siteName }) })
+              children: sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontWeight: 600 }, children: siteName.slice(0, 1).toUpperCase() }) : /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontWeight: 600 }, children: siteName }) })
             },
             sitePath
           );
-        }) : !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: "No sites yet." }) : null }),
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+        }) : !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: "No sites yet." }) : null }),
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
           "div",
           {
             style: {
               padding: sidebarCollapsed ? "12px 8px 20px" : "16px 16px 24px",
               borderTop: "1px solid #2b2b2b"
             },
-            children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+            children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
               button_default,
               {
                 icon: plus_default,
@@ -53192,9 +53627,9 @@ If there's a particular need for this, please submit a feature request at https:
           }
         )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { flex: 1, background: "#fff", color: "#1d2327", display: "flex", flexDirection: "column" }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: "32px 32px 48px" }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { maxWidth: 1040, margin: "0 auto" }, children: [
-        webAvailable ? /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default3, { align: "center", justify: "flex-end", style: { gap: 8, marginBottom: 24 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { flex: 1, background: "#fff", color: "#1d2327", display: "flex", flexDirection: "column" }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: "32px 32px 48px" }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { maxWidth: 1040, margin: "0 auto" }, children: [
+        webAvailable ? /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(component_default3, { align: "center", justify: "flex-end", style: { gap: 8, marginBottom: 24 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
             button_default,
             {
               isBusy: webStarting,
@@ -53203,34 +53638,34 @@ If there's a particular need for this, please submit a feature request at https:
               children: webUrl ? "Stop Playground web server" : "Start Playground web server"
             }
           ),
-          webStarting || webUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { fontSize: 12 }, children: webStarting ? "Starting\u2026" : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("a", { href: webUrl || "http://127.0.0.1:39372/", onClick: (e) => {
+          webStarting || webUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontSize: 12 }, children: webStarting ? "Starting\u2026" : /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("a", { href: webUrl || "http://127.0.0.1:39372/", onClick: (e) => {
             e.preventDefault();
             window.api.openExternal(webUrl || "http://127.0.0.1:39372/");
           }, children: webUrl || "http://127.0.0.1:39372/" }) }) : null
         ] }) : null,
-        webStarting || webUrl || webError || webLogs ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default8, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600 }, children: "Playground web server" }),
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: webStarting ? "Starting\u2026" : webUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("a", { href: webUrl, onClick: (e) => {
+        webStarting || webUrl || webError || webLogs ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(component_default8, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600 }, children: "Playground web server" }),
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: webStarting ? "Starting\u2026" : webUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("a", { href: webUrl, onClick: (e) => {
               e.preventDefault();
               window.api.openExternal(webUrl);
             }, children: webUrl }) : "Stopped" })
           ] }),
-          webError ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { marginTop: 6, color: "#C00", fontSize: 12 }, children: webError }) : null,
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { ref: webLogRef, style: { marginTop: 8, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: webLogs })
+          webError ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { marginTop: 6, color: "#C00", fontSize: 12 }, children: webError }) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { ref: webLogRef, style: { marginTop: 8, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: webLogs })
         ] }) }) : null,
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { id: "sites", children: [
-          pendingSite && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default8, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600 }, children: "Setting up new site\u2026" }),
-            downloadPhase && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 12, color: "#555", marginBottom: 6 }, children: downloadPhase }),
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { ref: termRef, style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: terminalMsgs })
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { id: "sites", children: [
+          pendingSite && /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(component_default8, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600 }, children: "Setting up new site\u2026" }),
+            downloadPhase && /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 12, color: "#555", marginBottom: 6 }, children: downloadPhase }),
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { ref: termRef, style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: terminalMsgs })
           ] }) }),
-          sortedSites.length > 0 ? sortedSites.map((s) => /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+          sortedSites.length > 0 ? sortedSites.map((s) => /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
             "div",
             {
               style: { display: activeSite === s ? "block" : "none" },
               "aria-hidden": activeSite === s ? false : true,
-              children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+              children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
                 SiteRow,
                 {
                   sitePath: s,
@@ -53240,81 +53675,194 @@ If there's a particular need for this, please submit a feature request at https:
                   onInitialized,
                   onForget,
                   onDelete,
-                  onRename
+                  onRename,
+                  setupLogs: setupLogsBySite[s] || ""
                 }
               )
             },
             s
-          )) : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(component_default6, { children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default8, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { marginBottom: 8 }, children: "No sites yet." }),
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { children: "Use the sidebar to create your first site." })
+          )) : /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(component_default6, { children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(component_default8, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { marginBottom: 8 }, children: "No sites yet." }),
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { children: "Use the sidebar to create your first site." })
           ] }) })
         ] })
-      ] }) }) })
+      ] }) }) }),
+      createModalOpen ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+        modal_default,
+        {
+          title: "Create WordPress Core site",
+          onRequestClose: closeCreateModal,
+          shouldCloseOnClickOutside: !createSubmitting,
+          children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(
+            "form",
+            {
+              onSubmit: handleCreateModalSubmit,
+              onKeyDown: handleCreateModalKeyDown,
+              style: { display: "flex", flexDirection: "column", gap: 16 },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+                  text_control_default,
+                  {
+                    id: CREATE_SITE_NAME_INPUT_ID,
+                    label: "Site name",
+                    value: createSiteName,
+                    onChange: (value) => setCreateSiteName(value),
+                    disabled: createSubmitting,
+                    placeholder: "My WordPress site",
+                    autoFocus: true
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+                    "input",
+                    {
+                      ref: createDirInputRef,
+                      id: CREATE_SITE_LOCATION_INPUT_ID,
+                      type: "file",
+                      webkitdirectory: "",
+                      directory: "",
+                      multiple: true,
+                      onChange: handleCreateDirInputChange,
+                      onClick: handleCreateDirInputClick,
+                      onKeyDown: (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          void openDirectoryPicker();
+                        }
+                      },
+                      disabled: createSubmitting,
+                      style: { height: 40 }
+                    }
+                  ),
+                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontSize: 12, color: "#3c434a" }, children: createSiteDir || "No folder selected yet." })
+                ] }),
+                createSiteError ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { color: "#d63638", fontSize: 12 }, children: createSiteError }) : null,
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", justifyContent: "flex-end", gap: 8 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(button_default, { type: "button", variant: "secondary", onClick: closeCreateModal, disabled: createSubmitting, children: "Cancel" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(button_default, { type: "submit", variant: "primary", isBusy: createSubmitting, disabled: createSubmitting, children: "Create site" })
+                ] })
+              ]
+            }
+          )
+        }
+      ) : null
     ] });
   }
-  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename }) {
+  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = "" }) {
     const safeOnRename = onRename || (() => {
     });
-    const [serverUrl, setServerUrl] = (0, import_react67.useState)("");
-    const [starting, setStarting] = (0, import_react67.useState)(false);
-    const [running, setRunning] = (0, import_react67.useState)(false);
-    const [installing, setInstalling] = (0, import_react67.useState)(false);
-    const [npmLogs, setNpmLogs] = (0, import_react67.useState)("");
-    const [runtimeLogs, setRuntimeLogs] = (0, import_react67.useState)("");
-    const [isPatchOpen, setIsPatchOpen] = (0, import_react67.useState)(false);
-    const [patchText, setPatchText] = (0, import_react67.useState)("");
-    const [emails, setEmails] = (0, import_react67.useState)([]);
-    const [smtpPort, setSmtpPort] = (0, import_react67.useState)(0);
-    const newEmailUnsubRef = (0, import_react67.useRef)(null);
-    const smtpStartedUnsubRef = (0, import_react67.useRef)(null);
-    const [isEmailOpen, setIsEmailOpen] = (0, import_react67.useState)(false);
-    const [activeEmail, setActiveEmail] = (0, import_react67.useState)(null);
-    const [emailViewTab, setEmailViewTab] = (0, import_react67.useState)("rendered");
-    const [building, setBuilding] = (0, import_react67.useState)(false);
-    const [hasNodeModules, setHasNodeModules] = (0, import_react67.useState)(false);
-    const [hasBuilt, setHasBuilt] = (0, import_react67.useState)(false);
-    const [skipInit, setSkipInit] = (0, import_react67.useState)(false);
-    const [statusLoading, setStatusLoading] = (0, import_react67.useState)(true);
-    const [waitingForWatch, setWaitingForWatch] = (0, import_react67.useState)(false);
-    const npmRef = (0, import_react67.useRef)(null);
-    const runtimeRef = (0, import_react67.useRef)(null);
-    const currentRunIdRef = (0, import_react67.useRef)(null);
+    const [serverUrl, setServerUrl] = (0, import_react68.useState)("");
+    const [starting, setStarting] = (0, import_react68.useState)(false);
+    const [running, setRunning] = (0, import_react68.useState)(false);
+    const [installing, setInstalling] = (0, import_react68.useState)(false);
+    const [npmLogs, setNpmLogs] = (0, import_react68.useState)("");
+    const [runtimeLogs, setRuntimeLogs] = (0, import_react68.useState)("");
+    const [isPatchOpen, setIsPatchOpen] = (0, import_react68.useState)(false);
+    const [patchText, setPatchText] = (0, import_react68.useState)("");
+    const [emails, setEmails] = (0, import_react68.useState)([]);
+    const [smtpPort, setSmtpPort] = (0, import_react68.useState)(0);
+    const newEmailUnsubRef = (0, import_react68.useRef)(null);
+    const smtpStartedUnsubRef = (0, import_react68.useRef)(null);
+    const [isEmailOpen, setIsEmailOpen] = (0, import_react68.useState)(false);
+    const [activeEmail, setActiveEmail] = (0, import_react68.useState)(null);
+    const [emailViewTab, setEmailViewTab] = (0, import_react68.useState)("rendered");
+    const [building, setBuilding] = (0, import_react68.useState)(false);
+    const [hasNodeModules, setHasNodeModules] = (0, import_react68.useState)(false);
+    const [hasBuilt, setHasBuilt] = (0, import_react68.useState)(false);
+    const [skipInit, setSkipInit] = (0, import_react68.useState)(false);
+    const [statusLoading, setStatusLoading] = (0, import_react68.useState)(true);
+    const [waitingForWatch, setWaitingForWatch] = (0, import_react68.useState)(false);
+    const setupLogsRef = (0, import_react68.useRef)("");
+    const npmRef = (0, import_react68.useRef)(null);
+    const runtimeRef = (0, import_react68.useRef)(null);
+    const currentRunIdRef = (0, import_react68.useRef)(null);
     const threshold = 8;
-    const [logStick, setLogStick] = (0, import_react67.useState)({ npm: true, runtime: true });
-    const updateStick = (0, import_react67.useCallback)((key, value) => {
+    const [logStick, setLogStick] = (0, import_react68.useState)({ npm: true, runtime: true });
+    const updateStick = (0, import_react68.useCallback)((key, value) => {
       setLogStick((prev2) => prev2[key] === value ? prev2 : { ...prev2, [key]: value });
     }, []);
-    const ensureStick = (0, import_react67.useCallback)((key) => {
+    const ensureStick = (0, import_react68.useCallback)((key) => {
       setLogStick((prev2) => prev2[key] ? prev2 : { ...prev2, [key]: true });
     }, []);
-    (0, import_react67.useEffect)(() => {
+    (0, import_react68.useEffect)(() => {
       if (logStick.npm && npmRef.current) npmRef.current.scrollTop = npmRef.current.scrollHeight;
     }, [npmLogs, logStick.npm]);
-    (0, import_react67.useEffect)(() => {
+    (0, import_react68.useEffect)(() => {
       if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight;
     }, [runtimeLogs, logStick.runtime]);
-    const makeOnScroll = (0, import_react67.useCallback)((key) => (e) => {
+    const makeOnScroll = (0, import_react68.useCallback)((key) => (e) => {
       const el = e.currentTarget;
       const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
       updateStick(key, atBottom);
     }, [threshold, updateStick]);
     const siteName = sitePath.split("/").pop();
     const displayName = label && label.trim() || siteName;
+    const [renameModalOpen, setRenameModalOpen] = (0, import_react68.useState)(false);
+    const [renameValue, setRenameValue] = (0, import_react68.useState)(displayName);
+    const [renameError, setRenameError] = (0, import_react68.useState)("");
+    const [renaming, setRenaming] = (0, import_react68.useState)(false);
+    (0, import_react68.useEffect)(() => {
+      setRenameValue(displayName);
+    }, [displayName]);
+    (0, import_react68.useEffect)(() => {
+      if (!renameModalOpen) return;
+      const input = document.getElementById(RENAME_INPUT_ID);
+      if (input) {
+        input.focus();
+        if (typeof input.select === "function") input.select();
+      }
+    }, [renameModalOpen]);
+    const openRenameModal = (0, import_react68.useCallback)(() => {
+      setRenameValue(displayName);
+      setRenameError("");
+      setRenameModalOpen(true);
+    }, [displayName]);
+    const closeRenameModal = (0, import_react68.useCallback)(() => {
+      if (renaming) return;
+      setRenameModalOpen(false);
+    }, [renaming]);
+    const submitRename = (0, import_react68.useCallback)(async () => {
+      const trimmed = renameValue.trim();
+      if (!trimmed) {
+        setRenameError("Site name cannot be empty.");
+        return;
+      }
+      try {
+        setRenaming(true);
+        setRenameError("");
+        await safeOnRename(sitePath, trimmed);
+        setRenameModalOpen(false);
+      } catch (err) {
+        setRenameError(String(err));
+      } finally {
+        setRenaming(false);
+      }
+    }, [renameValue, safeOnRename, sitePath]);
+    const handleRenameSubmit = (0, import_react68.useCallback)((event) => {
+      event.preventDefault();
+      submitRename();
+    }, [submitRename]);
+    const handleRenameFormKeyDown = (0, import_react68.useCallback)((event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        closeRenameModal();
+      }
+    }, [closeRenameModal]);
     const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : "";
-    const appendNpm = (0, import_react67.useCallback)((s) => setNpmLogs((v) => v + s), []);
-    const appendRuntime = (0, import_react67.useCallback)((s) => setRuntimeLogs((v) => v + String(s ?? "")), []);
-    const sortEmails = (0, import_react67.useCallback)((list) => [...list].sort((a, b) => new Date(b.sentAt || b.date || 0) - new Date(a.sentAt || a.date || 0)), []);
-    const openEmail = (0, import_react67.useCallback)((m) => {
+    const appendNpm = (0, import_react68.useCallback)((s) => setNpmLogs((v) => v + s), []);
+    const appendRuntime = (0, import_react68.useCallback)((s) => setRuntimeLogs((v) => v + String(s ?? "")), []);
+    const sortEmails = (0, import_react68.useCallback)((list) => [...list].sort((a, b) => new Date(b.sentAt || b.date || 0) - new Date(a.sentAt || a.date || 0)), []);
+    const openEmail = (0, import_react68.useCallback)((m) => {
       setActiveEmail(m);
       setEmailViewTab("rendered");
       setIsEmailOpen(true);
     }, []);
-    const clearEmails = (0, import_react67.useCallback)(async () => {
+    const clearEmails = (0, import_react68.useCallback)(async () => {
       await window.api.clearEmails(sitePath);
       setEmails([]);
     }, [sitePath]);
-    const loadStatus = (0, import_react67.useCallback)(async () => {
+    const loadStatus = (0, import_react68.useCallback)(async () => {
       try {
         setStatusLoading(true);
         const s = await window.api.getSiteStatus(sitePath);
@@ -53326,10 +53874,10 @@ If there's a particular need for this, please submit a feature request at https:
         setStatusLoading(false);
       }
     }, [sitePath]);
-    (0, import_react67.useEffect)(() => {
+    (0, import_react68.useEffect)(() => {
       loadStatus();
     }, [loadStatus]);
-    const runInstall = (0, import_react67.useCallback)((options = {}) => {
+    const runInstall = (0, import_react68.useCallback)((options = {}) => {
       const { onLog, onDone } = options;
       setInstalling(true);
       ensureStick("npm");
@@ -53355,7 +53903,7 @@ install exited with code ${code}
         if (onDone) onDone({ code });
       });
     }, [appendNpm, ensureStick, loadStatus, onInitialized, sitePath]);
-    const runScript = (0, import_react67.useCallback)((name, options = {}) => {
+    const runScript = (0, import_react68.useCallback)((name, options = {}) => {
       const { onLog, onDone } = options;
       ensureStick("npm");
       if (name === "build") setBuilding(true);
@@ -53387,7 +53935,7 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
         if (onDone) onDone({ code: -1 });
       });
     }, [appendNpm, ensureStick, loadStatus, sitePath]);
-    const killCurrent = (0, import_react67.useCallback)(async () => {
+    const killCurrent = (0, import_react68.useCallback)(async () => {
       const runId = currentRunIdRef.current;
       try {
         await window.api.npmKill({ runId, directoryPath: sitePath });
@@ -53395,32 +53943,42 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
         currentRunIdRef.current = null;
       }
     }, [sitePath]);
-    const terminalContainerRef = (0, import_react67.useRef)(null);
-    const terminalRef = (0, import_react67.useRef)(null);
-    const terminalStickRef = (0, import_react67.useRef)(true);
-    const terminalInputHandlerRef = (0, import_react67.useRef)(() => {
+    const terminalContainerRef = (0, import_react68.useRef)(null);
+    const terminalRef = (0, import_react68.useRef)(null);
+    const terminalStickRef = (0, import_react68.useRef)(true);
+    const terminalInputHandlerRef = (0, import_react68.useRef)(() => {
     });
-    const terminalKillRef = (0, import_react67.useRef)(null);
-    const terminalStateRef = (0, import_react67.useRef)({ input: "", history: [], historyIndex: 0, running: false });
-    const watchBufferRef = (0, import_react67.useRef)("");
-    const serverStartRequestedRef = (0, import_react67.useRef)(false);
-    const stoppingRef = (0, import_react67.useRef)(false);
-    const runningRef = (0, import_react67.useRef)(false);
-    const waitingForWatchRef = (0, import_react67.useRef)(false);
-    (0, import_react67.useEffect)(() => {
+    const terminalKillRef = (0, import_react68.useRef)(null);
+    const terminalStateRef = (0, import_react68.useRef)({ input: "", history: [], historyIndex: 0, running: false });
+    const watchBufferRef = (0, import_react68.useRef)("");
+    const serverStartRequestedRef = (0, import_react68.useRef)(false);
+    const stoppingRef = (0, import_react68.useRef)(false);
+    const runningRef = (0, import_react68.useRef)(false);
+    const waitingForWatchRef = (0, import_react68.useRef)(false);
+    (0, import_react68.useEffect)(() => {
       runningRef.current = running;
     }, [running]);
-    (0, import_react67.useEffect)(() => {
+    (0, import_react68.useEffect)(() => {
       waitingForWatchRef.current = waitingForWatch;
     }, [waitingForWatch]);
-    const normalizeForTerminal = (0, import_react67.useCallback)((text) => String(text ?? "").replace(/\r?\n/g, "\r\n"), []);
-    const writeToTerminal = (0, import_react67.useCallback)((text) => {
+    const normalizeForTerminal = (0, import_react68.useCallback)((text) => String(text ?? "").replace(/\r?\n/g, "\r\n"), []);
+    const writeToTerminal = (0, import_react68.useCallback)((text) => {
       const term = terminalRef.current;
       if (!term) return;
       term.write(normalizeForTerminal(text));
       if (terminalStickRef.current) term.scrollToBottom();
     }, [normalizeForTerminal]);
-    const showPrompt = (0, import_react67.useCallback)((prependNewLine = true) => {
+    const runInstallWithTerminal = (0, import_react68.useCallback)(() => {
+      writeToTerminal("Running npm install\u2026\n");
+      runInstall({
+        onLog: (chunk) => writeToTerminal(chunk),
+        onDone: ({ code }) => {
+          writeToTerminal(`npm install exited with code ${code}
+`);
+        }
+      });
+    }, [runInstall, writeToTerminal]);
+    const showPrompt = (0, import_react68.useCallback)((prependNewLine = true) => {
       const term = terminalRef.current;
       if (!term) return;
       const state = terminalStateRef.current;
@@ -53430,7 +53988,7 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
       state.historyIndex = state.history.length;
       if (terminalStickRef.current) term.scrollToBottom();
     }, []);
-    const replaceTerminalInput = (0, import_react67.useCallback)((next2) => {
+    const replaceTerminalInput = (0, import_react68.useCallback)((next2) => {
       const term = terminalRef.current;
       if (!term) return;
       const state = terminalStateRef.current;
@@ -53444,7 +54002,7 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
       if (next2) term.write(next2);
       if (terminalStickRef.current) term.scrollToBottom();
     }, []);
-    const addCommandToHistory = (0, import_react67.useCallback)((value) => {
+    const addCommandToHistory = (0, import_react68.useCallback)((value) => {
       const trimmed = value.trim();
       if (!trimmed) return;
       const state = terminalStateRef.current;
@@ -53457,13 +54015,13 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
       state.history = nextHistory;
       state.historyIndex = nextHistory.length;
     }, []);
-    const printHelp = (0, import_react67.useCallback)(() => {
+    const printHelp = (0, import_react68.useCallback)(() => {
       writeToTerminal("Available commands:\n");
       writeToTerminal("  help                        Show this help text\n");
       writeToTerminal("  npm install                 Run npm install in the site directory\n");
       writeToTerminal("  npm run <script>            Run one of: " + TERMINAL_ALLOWED_SCRIPTS.join(", ") + "\n");
     }, [writeToTerminal]);
-    const executeTerminalCommand = (0, import_react67.useCallback)((rawCommand) => {
+    const executeTerminalCommand = (0, import_react68.useCallback)((rawCommand) => {
       const command = rawCommand.trim();
       const state = terminalStateRef.current;
       if (!command) {
@@ -53537,7 +54095,7 @@ Try "help" for the list of supported commands.
 `);
       showPrompt(false);
     }, [addCommandToHistory, killCurrent, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
-    const handleTerminalData = (0, import_react67.useCallback)((data) => {
+    const handleTerminalData = (0, import_react68.useCallback)((data) => {
       const term = terminalRef.current;
       if (!term) return;
       const state = terminalStateRef.current;
@@ -53588,10 +54146,10 @@ Try "help" for the list of supported commands.
       term.write(data);
       if (terminalStickRef.current) term.scrollToBottom();
     }, [executeTerminalCommand, replaceTerminalInput, showPrompt]);
-    (0, import_react67.useEffect)(() => {
+    (0, import_react68.useEffect)(() => {
       terminalInputHandlerRef.current = handleTerminalData;
     }, [handleTerminalData]);
-    (0, import_react67.useEffect)(() => {
+    (0, import_react68.useEffect)(() => {
       const container = terminalContainerRef.current;
       if (!container) return void 0;
       const term = new import_xterm.Terminal({
@@ -53622,7 +54180,19 @@ Try "help" for the list of supported commands.
         terminalStickRef.current = true;
       };
     }, [normalizeForTerminal, printHelp, showPrompt]);
-    const stopDevServer = (0, import_react67.useCallback)(async () => {
+    (0, import_react68.useEffect)(() => {
+      const incoming = setupLogs || "";
+      if (!incoming) return;
+      const prev2 = setupLogsRef.current;
+      if (incoming === prev2) return;
+      const diff = incoming.startsWith(prev2) ? incoming.slice(prev2.length) : incoming;
+      if (diff) {
+        appendNpm(diff);
+        writeToTerminal(diff);
+      }
+      setupLogsRef.current = incoming;
+    }, [appendNpm, setupLogs, writeToTerminal]);
+    const stopDevServer = (0, import_react68.useCallback)(async () => {
       if (stoppingRef.current) return;
       stoppingRef.current = true;
       setWaitingForWatch(false);
@@ -53662,7 +54232,7 @@ Try "help" for the list of supported commands.
       terminalStateRef.current.running = false;
       currentRunIdRef.current = null;
     }, [setRunning, setServerUrl, setSmtpPort, setStarting, setWaitingForWatch, sitePath]);
-    const startPhpServer = (0, import_react67.useCallback)(async () => {
+    const startPhpServer = (0, import_react68.useCallback)(async () => {
       if (serverStartRequestedRef.current || stoppingRef.current || !terminalStateRef.current.running) {
         serverStartRequestedRef.current = false;
         return;
@@ -53778,7 +54348,7 @@ Try "help" for the list of supported commands.
     };
     const isServerStarting = waitingForWatch || starting && !serverUrl;
     const isDevProcessActive = running || isServerStarting;
-    const markSkipWizard = (0, import_react67.useCallback)(async () => {
+    const markSkipWizard = (0, import_react68.useCallback)(async () => {
       await window.api.setSkipInitWizard(sitePath, true);
       setSkipInit(true);
     }, [sitePath]);
@@ -53847,19 +54417,26 @@ Try "help" for the list of supported commands.
     };
     const baseSteps = [
       {
+        key: "download",
+        label: "Download WordPress development version",
+        description: "Clone the WordPress develop repository.",
+        done: true,
+        ready: true
+      },
+      {
         key: "install",
-        label: "Install dependencies",
+        label: "Install npm dependencies",
         description: "Install npm packages so commands can run.",
         done: hasNodeModules,
         ready: true,
-        action: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+        action: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
           button_default,
           {
             isBusy: installing,
             variant: hasNodeModules ? "secondary" : "primary",
-            onClick: () => runInstall(),
+            onClick: runInstallWithTerminal,
             disabled: statusLoading || installing || hasNodeModules,
-            children: hasNodeModules ? "Dependencies installed" : "Install dependencies"
+            children: hasNodeModules ? "Dependencies installed" : "Install npm dependencies"
           }
         )
       },
@@ -53869,7 +54446,7 @@ Try "help" for the list of supported commands.
         description: "Compile WordPress Core once to generate the initial dist files.",
         done: hasBuilt,
         ready: hasNodeModules,
-        action: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+        action: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
           button_default,
           {
             isBusy: building,
@@ -53886,8 +54463,8 @@ Try "help" for the list of supported commands.
         description: "Launch the development server once to complete the WordPress setup wizard.",
         done: false,
         ready: hasBuilt,
-        action: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+        action: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
             button_default,
             {
               isBusy: starting,
@@ -53900,7 +54477,7 @@ Try "help" for the list of supported commands.
               children: running ? "Stop dev server" : "Start dev server and finish the wizard"
             }
           ),
-          starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { fontSize: 12 }, children: starting ? "Starting..." : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("a", { href: serverUrl, onClick: (e) => {
+          starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontSize: 12 }, children: starting ? "Starting..." : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("a", { href: serverUrl, onClick: (e) => {
             e.preventDefault();
             window.api.openExternal(serverUrl);
           }, children: serverUrl }) : null }) : null
@@ -53922,54 +54499,42 @@ Try "help" for the list of supported commands.
       }
       return { ...step, status };
     });
-    const handleRename = (0, import_react67.useCallback)(async () => {
-      const current = displayName;
-      const next2 = prompt("Edit site name", current);
-      if (next2 === null) return;
-      const trimmed = next2.trim();
-      if (!trimmed || trimmed === current) return;
-      try {
-        await safeOnRename(sitePath, trimmed);
-      } catch (err) {
-        alert(String(err));
-      }
-    }, [displayName, safeOnRename, sitePath]);
-    return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("section", { style: { display: "flex", flexDirection: "column", gap: 24, paddingBottom: 48 }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(component_default3, { align: "flex-start", justify: "space-between", style: { gap: 16, flexWrap: "wrap" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { flex: "1 1 440px", minWidth: 0 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("h1", { style: { margin: 0, fontSize: 28, lineHeight: 1.2 }, children: displayName }),
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("section", { style: { display: "flex", flexDirection: "column", gap: 24, paddingBottom: 48 }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(component_default3, { align: "flex-start", justify: "space-between", style: { gap: 16, flexWrap: "wrap" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { flex: "1 1 440px", minWidth: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("h1", { style: { margin: 0, fontSize: 28, lineHeight: 1.2 }, children: displayName }),
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
               button_default,
               {
                 icon: edit_default,
                 label: "Rename site",
                 "aria-label": "Rename site",
-                onClick: handleRename,
+                onClick: openRenameModal,
                 variant: "tertiary",
                 isSmall: true
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12, color: "#3c434a", flexWrap: "wrap" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", ...statusStyles }, children: initialized ? "Initialized" : "Uninitialized" }),
-            createdLabel ? /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("span", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12, color: "#3c434a", flexWrap: "wrap" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", ...statusStyles }, children: initialized ? "Initialized" : "Uninitialized" }),
+            createdLabel ? /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("span", { children: [
               "Created ",
               createdLabel
             ] }) : null,
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
               button_default,
               {
                 variant: "tertiary",
                 isSmall: true,
                 onClick: () => window.api.openDirectory(sitePath),
-                style: { marginLeft: 4 },
+                style: { marginLeft: 4, fontSize: 12 },
                 children: "Open directory"
               }
             )
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { display: "flex", alignItems: "flex-start", gap: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { display: "flex", alignItems: "flex-start", gap: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
           dropdown_menu_default,
           {
             label: "More",
@@ -53995,12 +54560,12 @@ Try "help" for the list of supported commands.
           }
         ) })
       ] }),
-      !skipInit ? /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { padding: 20, border: "1px solid #dcdcde", borderRadius: 12, background: "#fff" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600, fontSize: 16, color: "#1d2327" }, children: "Initial setup checklist" }),
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { marginTop: 4, fontSize: 13, color: "#3c434a" }, children: "Complete each step to prepare this site for development." }),
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }, children: stepItems.map((step) => {
+      !skipInit ? /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { padding: 20, border: "1px solid #dcdcde", borderRadius: 12, background: "#fff" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600, fontSize: 16, color: "#1d2327" }, children: "Initial setup checklist" }),
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { marginTop: 4, fontSize: 13, color: "#3c434a" }, children: "Complete each step to prepare this site for development." }),
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }, children: stepItems.map((step) => {
           const visuals = checklistVisuals[step.status] || checklistVisuals.locked;
-          return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(
+          return /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(
             "div",
             {
               style: {
@@ -54016,7 +54581,7 @@ Try "help" for the list of supported commands.
                 alignItems: "center"
               },
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { gridRow: "1 / span 2", alignSelf: "center", display: "flex", alignItems: "center", justifyContent: "center", width: 28 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { gridRow: "1 / span 2", alignSelf: "center", display: "flex", alignItems: "center", justifyContent: "center", width: 28 }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
                   "span",
                   {
                     style: {
@@ -54036,22 +54601,22 @@ Try "help" for the list of supported commands.
                     children: visuals.indicatorContent
                   }
                 ) }),
-                /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { gridColumn: "2 / 3", display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, minWidth: 0, flexWrap: "wrap" }, children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600, color: "#1d2327", lineHeight: 1.4 }, children: step.label }),
-                  /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: visuals.color, marginLeft: "auto", whiteSpace: "nowrap" }, children: visuals.label })
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { gridColumn: "2 / 3", display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, minWidth: 0, flexWrap: "wrap" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600, color: "#1d2327", lineHeight: 1.4 }, children: step.label }),
+                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: visuals.color, marginLeft: "auto", whiteSpace: "nowrap" }, children: visuals.label })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { gridColumn: "2 / 3", fontSize: 12, color: "#3c434a", lineHeight: 1.5 }, children: step.description }),
-                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { gridRow: "1 / span 2", gridColumn: "3 / 4", alignSelf: "center", display: "flex", alignItems: "center" }, children: step.action })
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { gridColumn: "2 / 3", fontSize: 12, color: "#3c434a", lineHeight: 1.5 }, children: step.description }),
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { gridRow: "1 / span 2", gridColumn: "3 / 4", alignSelf: "center", display: "flex", alignItems: "center" }, children: step.action })
               ]
             },
             step.key
           );
         }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { marginTop: 12 }, children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(button_default, { variant: "link", onClick: markSkipWizard, style: { textDecoration: "underline" }, children: "Skip initialization wizard" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { marginTop: 12 }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(button_default, { variant: "link", onClick: markSkipWizard, style: { textDecoration: "underline" }, children: "Skip initialization wizard" }) })
       ] }) : null,
-      skipInit ? /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 12 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "stretch", gap: 12, flexWrap: "wrap" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(
+      skipInit ? /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 12 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "stretch", gap: 12, flexWrap: "wrap" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(
             button_default,
             {
               isBusy: isServerStarting,
@@ -54059,7 +54624,7 @@ Try "help" for the list of supported commands.
               onClick: toggleDevServer,
               style: { display: "inline-flex", alignItems: "center", gap: 10, minWidth: 220, justifyContent: "center", padding: "12px 20px", fontSize: 15, borderRadius: 12 },
               children: [
-                isDevProcessActive ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+                isDevProcessActive ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
                   "span",
                   {
                     "aria-hidden": "true",
@@ -54074,11 +54639,11 @@ Try "help" for the list of supported commands.
                     }
                   }
                 ) : null,
-                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("span", { style: { fontWeight: 600 }, children: isDevProcessActive ? isServerStarting ? "Starting dev server..." : "Stop dev server" : "Start dev server" })
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontWeight: 600 }, children: isDevProcessActive ? isServerStarting ? "Starting dev server..." : "Stop dev server" : "Start dev server" })
               ]
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
             button_default,
             {
               variant: "secondary",
@@ -54087,7 +54652,7 @@ Try "help" for the list of supported commands.
               children: "Create patch"
             }
           ),
-          running && serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+          running && serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
             button_default,
             {
               variant: "secondary",
@@ -54100,15 +54665,15 @@ Try "help" for the list of supported commands.
             }
           ) : null
         ] }),
-        isServerStarting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 13, color: "#1d2327", paddingLeft: 2 }, children: serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("a", { href: serverUrl, onClick: (e) => {
+        isServerStarting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 13, color: "#1d2327", paddingLeft: 2 }, children: serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("a", { href: serverUrl, onClick: (e) => {
           e.preventDefault();
           window.api.openExternal(serverUrl);
-        }, children: serverUrl }) : null }) : null
+        }, children: serverUrl }) : "Dev server is starting\u2026" }) : null
       ] }) : null,
-      /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 16 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Terminal" }),
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 16 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Terminal" }),
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
             "div",
             {
               ref: terminalContainerRef,
@@ -54121,52 +54686,86 @@ Try "help" for the list of supported commands.
               }
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { marginTop: 8, fontSize: 12, color: "#3c434a" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { marginTop: 8, fontSize: 12, color: "#3c434a" }, children: [
             "Type ",
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("code", { children: "help" }),
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("code", { children: "help" }),
             " to list supported commands. Press ",
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("code", { children: "Ctrl+C" }),
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("code", { children: "Ctrl+C" }),
             " to stop the current command."
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Server & WordPress logs" }),
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { ref: runtimeRef, onScroll: makeOnScroll("runtime"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 220, overflow: "auto" }, children: runtimeLogs })
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Server & WordPress logs" }),
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { ref: runtimeRef, onScroll: makeOnScroll("runtime"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 220, overflow: "auto" }, children: runtimeLogs })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Mail" }),
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : "SMTP will start with the dev server." }),
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(button_default, { size: "small", variant: "secondary", onClick: clearEmails, children: "Clear emails" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Mail" }),
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : "SMTP will start with the dev server." }),
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(button_default, { size: "small", variant: "secondary", onClick: clearEmails, children: "Clear emails" }) })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { border: "1px solid #ddd", borderRadius: 6, maxHeight: 220, overflow: "auto" }, children: emails && emails.length ? emails.map((m) => {
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { border: "1px solid #ddd", borderRadius: 6, maxHeight: 220, overflow: "auto" }, children: emails && emails.length ? emails.map((m) => {
             const when = m.sentAt || m.date;
             const whenStr = when ? new Date(when).toLocaleString() : "";
-            return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(
+            return /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(
               "div",
               {
                 onClick: () => openEmail(m),
                 style: { padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #eee", display: "flex", gap: 8 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { flex: "0 0 180px", color: "#555", fontSize: 12 }, children: whenStr }),
-                  /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { flex: "0 0 220px", color: "#333", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: m.from || "" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { flex: "1 1 auto", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: m.subject || "(no subject)" })
+                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { flex: "0 0 180px", color: "#555", fontSize: 12 }, children: whenStr }),
+                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { flex: "0 0 220px", color: "#333", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: m.from || "" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { flex: "1 1 auto", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: m.subject || "(no subject)" })
                 ]
               },
               m.id
             );
-          }) : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { padding: 12, color: "#666" }, children: "No emails yet." }) })
+          }) : /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { padding: 12, color: "#666" }, children: "No emails yet." }) })
         ] })
       ] }),
-      isPatchOpen && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+      renameModalOpen ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+        modal_default,
+        {
+          title: "Rename site",
+          onRequestClose: closeRenameModal,
+          shouldCloseOnClickOutside: !renaming,
+          children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(
+            "form",
+            {
+              onSubmit: handleRenameSubmit,
+              onKeyDown: handleRenameFormKeyDown,
+              style: { display: "flex", flexDirection: "column", gap: 12 },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+                  text_control_default,
+                  {
+                    id: RENAME_INPUT_ID,
+                    label: "Site name",
+                    value: renameValue,
+                    onChange: (value) => setRenameValue(value),
+                    disabled: renaming,
+                    autoFocus: true
+                  }
+                ),
+                renameError ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { color: "#d63638", fontSize: 12 }, children: renameError }) : null,
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", justifyContent: "flex-end", gap: 8 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(button_default, { type: "button", variant: "secondary", onClick: closeRenameModal, disabled: renaming, children: "Cancel" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(button_default, { type: "submit", variant: "primary", isBusy: renaming, disabled: renaming, children: "Save" })
+                ] })
+              ]
+            }
+          )
+        }
+      ) : null,
+      isPatchOpen && /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
         modal_default,
         {
           title: "Patch",
           onRequestClose: () => setIsPatchOpen(false),
           shouldCloseOnClickOutside: true,
           isFullScreen: true,
-          children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { position: "relative", height: "80vh" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+          children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { position: "relative", height: "80vh" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
               button_default,
               {
                 icon: copy_default,
@@ -54184,11 +54783,11 @@ Try "help" for the list of supported commands.
                 }
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("pre", { style: { margin: 0, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: "100%", overflow: "auto" }, children: patchText && patchText.trim().length ? patchText : "No changes." })
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("pre", { style: { margin: 0, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: "100%", overflow: "auto" }, children: patchText && patchText.trim().length ? patchText : "No changes." })
           ] })
         }
       ),
-      isEmailOpen && activeEmail && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(
+      isEmailOpen && activeEmail && /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
         modal_default,
         {
           title: activeEmail.subject || "Email",
@@ -54198,37 +54797,37 @@ Try "help" for the list of supported commands.
           },
           shouldCloseOnClickOutside: true,
           isFullScreen: true,
-          children: /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { padding: 8 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { style: { marginBottom: 8, fontSize: 12, color: "#444" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("strong", { children: "From:" }),
+          children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { padding: 8 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { marginBottom: 8, fontSize: 12, color: "#444" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("strong", { children: "From:" }),
                 " ",
                 activeEmail.from || ""
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("strong", { children: "To:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("strong", { children: "To:" }),
                 " ",
                 activeEmail.to || ""
               ] }),
-              activeEmail.cc ? /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("strong", { children: "CC:" }),
+              activeEmail.cc ? /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("strong", { children: "CC:" }),
                 " ",
                 activeEmail.cc
               ] }) : null,
-              /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("strong", { children: "Date:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("strong", { children: "Date:" }),
                 " ",
                 activeEmail.sentAt ? new Date(activeEmail.sentAt).toLocaleString() : activeEmail.date ? new Date(activeEmail.date).toLocaleString() : ""
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(tab_panel_default, { className: "email-tabs", activeClass: "is-active", onSelect: (n) => setEmailViewTab(n), tabs: [{ name: "rendered", title: "Rendered" }, { name: "raw", title: "Raw" }], children: (tab) => tab.name === "rendered" ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { style: { border: "1px solid #ddd", borderRadius: 6, padding: 12, minHeight: "60vh", background: "#fff" }, children: activeEmail.html ? /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("div", { dangerouslySetInnerHTML: { __html: String(activeEmail.html) } }) : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("pre", { style: { whiteSpace: "pre-wrap", margin: 0 }, children: activeEmail.text || "" }) }) : /* @__PURE__ */ (0, import_jsx_runtime55.jsx)("pre", { style: { whiteSpace: "pre-wrap", margin: 0, background: "#111", color: "#eee", padding: 12, borderRadius: 6, minHeight: "60vh", overflow: "auto" }, children: activeEmail.raw || activeEmail.text || "" }) })
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(tab_panel_default, { className: "email-tabs", activeClass: "is-active", onSelect: (n) => setEmailViewTab(n), tabs: [{ name: "rendered", title: "Rendered" }, { name: "raw", title: "Raw" }], children: (tab) => tab.name === "rendered" ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { border: "1px solid #ddd", borderRadius: 6, padding: 12, minHeight: "60vh", background: "#fff" }, children: activeEmail.html ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { dangerouslySetInnerHTML: { __html: String(activeEmail.html) } }) : /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("pre", { style: { whiteSpace: "pre-wrap", margin: 0 }, children: activeEmail.text || "" }) }) : /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("pre", { style: { whiteSpace: "pre-wrap", margin: 0, background: "#111", color: "#eee", padding: 12, borderRadius: 6, minHeight: "60vh", overflow: "auto" }, children: activeEmail.raw || activeEmail.text || "" }) })
           ] })
         }
       )
     ] });
   }
   var root = (0, import_client2.createRoot)(document.getElementById("root"));
-  root.render(/* @__PURE__ */ (0, import_jsx_runtime55.jsx)(App, {}));
+  root.render(/* @__PURE__ */ (0, import_jsx_runtime57.jsx)(App, {}));
 })();
 /*! Bundled license information:
 

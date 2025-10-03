@@ -7,7 +7,8 @@ import {
   CardBody,
   Flex,
   DropdownMenu,
-  Modal
+  Modal,
+  TextControl
 } from '@wordpress/components';
 import { plus, chevronLeft, chevronRight, copy as copyIcon, edit } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
@@ -16,6 +17,9 @@ import 'xterm/css/xterm.css';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
+const RENAME_INPUT_ID = 'rename-site-name-input';
+const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
+const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
 
 function useSites() {
   const [sites, setSites] = useState([]);
@@ -35,6 +39,7 @@ function App() {
   const [pendingSite, setPendingSite] = useState(null);
   const [terminalMsgs, setTerminalMsgs] = useState('');
   const termRef = useRef(null);
+  const createDirInputRef = useRef(null);
   useEffect(() => { if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight; }, [terminalMsgs]);
   const [webStarting, setWebStarting] = useState(false);
   const [webUrl, setWebUrl] = useState('');
@@ -46,52 +51,241 @@ function App() {
   useEffect(() => { (async () => { try { setWebAvailable(Boolean(await window.api.playgroundWebAvailable())); } catch {} })(); }, []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeSite, setActiveSite] = useState(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createSiteName, setCreateSiteName] = useState('');
+  const [createSiteDir, setCreateSiteDir] = useState('');
+  const [createSiteError, setCreateSiteError] = useState('');
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [setupLogsBySite, setSetupLogsBySite] = useState({});
+  const setupLogAliasRef = useRef({});
+
+  const appendSetupLog = useCallback((siteTarget, message) => {
+    const key = siteTarget ? String(siteTarget) : '';
+    if (!key) return;
+    const chunk = message != null ? String(message) : '';
+    if (!chunk) return;
+    let resolvedKey = key;
+    const aliasMap = setupLogAliasRef.current;
+    const seen = new Set();
+    while (resolvedKey && aliasMap[resolvedKey] && !seen.has(resolvedKey)) {
+      seen.add(resolvedKey);
+      resolvedKey = aliasMap[resolvedKey];
+    }
+    if (!resolvedKey) return;
+    setSetupLogsBySite((prev) => {
+      const prevText = prev[resolvedKey] || '';
+      return { ...prev, [resolvedKey]: prevText + chunk };
+    });
+  }, []);
+
+  const removeSetupLog = useCallback((siteTarget) => {
+    const key = siteTarget ? String(siteTarget) : '';
+    if (!key) return;
+    const aliasMap = setupLogAliasRef.current;
+    delete aliasMap[key];
+    Object.keys(aliasMap).forEach((aliasKey) => {
+      if (aliasMap[aliasKey] === key) delete aliasMap[aliasKey];
+    });
+    setSetupLogsBySite((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
+  const moveSetupLog = useCallback((from, to) => {
+    const source = from ? String(from) : '';
+    const target = to ? String(to) : '';
+    if (!source || !target || source === target) return;
+    setupLogAliasRef.current[source] = target;
+    setSetupLogsBySite((prev) => {
+      if (!prev[source]) return prev;
+      const next = { ...prev };
+      const combined = (prev[target] || '') + prev[source];
+      delete next[source];
+      next[target] = combined;
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!createModalOpen) return;
+    const input = document.getElementById(CREATE_SITE_NAME_INPUT_ID);
+    if (input) {
+      input.focus();
+      if (typeof input.select === 'function') input.select();
+    }
+  }, [createModalOpen]);
+
+  useEffect(() => {
+    if (createModalOpen) return;
+    if (createDirInputRef.current) {
+      createDirInputRef.current.value = '';
+    }
+  }, [createModalOpen]);
 
   useEffect(() => {
     const unsubProg = window.api.subscribeSetupProgress((p) => {
-      if (p && p.message) setTerminalMsgs((v) => v + p.message + '\n');
-      if (p && p.target) setPendingSite((prev) => prev || { targetDir: p.target });
+      if (p && p.message) {
+        setTerminalMsgs((v) => v + p.message + '\n');
+        appendSetupLog(p.target, `${p.message}\n`);
+      }
+      if (p && p.target) setPendingSite({ targetDir: p.target });
     });
     const unsubStat = window.api.subscribeSetupStatus((s) => {
       if (!s) return;
-      setPendingSite((prev) => prev || { targetDir: s.target });
+      if (s.target) setPendingSite({ targetDir: s.target });
+      const key = s.sitePath || s.target;
+      if (key) {
+        const phaseLabel = s.phase ? `Status: ${s.phase}` : 'Status update';
+        appendSetupLog(key, `${phaseLabel}\n`);
+        if (s.phase === 'done') appendSetupLog(key, 'Setup finished.\n');
+      }
       if (s.phase === 'cloning') setDownloadPhase('Cloning repository…');
       else if (s.phase === 'done') { setDownloadPhase(''); setPendingSite(null); setTerminalMsgs(''); }
     });
     return () => { unsubProg && unsubProg(); unsubStat && unsubStat(); };
+  }, [appendSetupLog]);
+
+  const chooseAndSetup = useCallback(() => {
+    setCreateSiteName('');
+    setCreateSiteDir('');
+    setCreateSiteError('');
+    setCreateModalOpen(true);
   }, []);
 
-  const chooseAndSetup = useCallback(async () => {
-    const enteredName = prompt('Name your new WordPress site');
-    if (!enteredName) return;
-    const siteLabel = enteredName.trim();
-    if (!siteLabel) return;
-
-    const destRoot = await window.api.chooseDirectory();
-    if (!destRoot) return;
-
-    const cleanFolder = siteLabel
+  const sanitizeSiteFolder = useCallback((value) => (
+    value
       .replace(/[\\/:*?"<>|]+/g, '-')
       .replace(/\s+/g, '-')
       .replace(/^-+|-+$/g, '')
-      || 'wordpress-site';
+      || 'wordpress-site'
+  ), []);
 
-    const normalizedRoot = destRoot.replace(/[\\/]+$/, '');
+  const resolveTargetDir = useCallback((root, folder) => {
+    if (!root) return folder;
+    const normalizedRoot = root.replace(/[\\/]+$/, '');
     const separator = /\\/.test(normalizedRoot) && !normalizedRoot.includes('/') ? '\\' : '/';
-    const targetDir = `${normalizedRoot}${separator}${cleanFolder}`;
+    return `${normalizedRoot}${separator}${folder}`;
+  }, []);
+
+  const openDirectoryPicker = useCallback(async () => {
     try {
+      const dir = await window.api.chooseDirectory();
+      if (dir) {
+        setCreateSiteDir(dir);
+        setCreateSiteError('');
+      }
+    } catch {}
+  }, []);
+
+  const handleCreateDirInputChange = useCallback((event) => {
+    const inputEl = event.target;
+    createDirInputRef.current = inputEl;
+    const finalize = (rawDir) => {
+      const normalized = typeof rawDir === 'string' ? rawDir.replace(/[\\/]+$/, '') : '';
+      if (normalized) {
+        setCreateSiteDir(normalized);
+        setCreateSiteError('');
+      } else {
+        setCreateSiteDir('');
+      }
+    };
+    const files = inputEl.files;
+    if (!files || files.length === 0) {
+      inputEl.value = '';
+      return;
+    }
+
+    const first = files[0];
+    const relative = first?.webkitRelativePath || '';
+    const rawPath = first?.path || '';
+    let resolved = '';
+
+    if (rawPath) {
+      if (relative) {
+        resolved = rawPath.slice(0, rawPath.length - relative.length);
+      } else {
+        resolved = rawPath.replace(/[\\/][^\\/]*$/, '');
+      }
+    }
+
+    if (!resolved && inputEl.value) {
+      resolved = inputEl.value.replace(/[^\\/]*$/, '');
+    }
+
+    resolved = resolved.replace(/[\\/]+$/, '');
+    finalize(resolved);
+    inputEl.value = '';
+  }, [setCreateSiteDir, setCreateSiteError]);
+
+  const handleCreateSiteSubmit = useCallback(async () => {
+    const nameTrimmed = createSiteName.trim();
+    if (!nameTrimmed) {
+      setCreateSiteError('Please provide a site name.');
+      return;
+    }
+    if (!createSiteDir) {
+      setCreateSiteError('Please choose where to create the site.');
+      return;
+    }
+
+    const cleanFolder = sanitizeSiteFolder(nameTrimmed);
+    const targetDir = resolveTargetDir(createSiteDir, cleanFolder);
+    let finalSitePath = targetDir;
+
+    try {
+      setCreateSubmitting(true);
+      setCreateSiteError('');
       setTerminalMsgs('');
       setPendingSite({ targetDir });
-      const createdPath = await window.api.setupWordPress(destRoot, { siteName: cleanFolder, siteLabel });
-      if (createdPath && createdPath !== targetDir) {
-        setPendingSite({ targetDir: createdPath });
+      appendSetupLog(targetDir, 'Starting site setup…\n');
+      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
+      if (createdPath) {
+        finalSitePath = createdPath;
+        if (createdPath !== targetDir) {
+          setPendingSite({ targetDir: createdPath });
+          moveSetupLog(targetDir, createdPath);
+        }
       }
       await refresh();
+      setCreateModalOpen(false);
+      setCreateSiteName('');
+      setCreateSiteDir('');
+      setActiveSite(finalSitePath);
+      appendSetupLog(finalSitePath, 'Site setup request completed.\n');
     } catch (e) {
       setPendingSite(null);
-      alert(String(e));
+      setCreateSiteError(String(e));
+      appendSetupLog(targetDir, `Setup failed: ${String(e)}\n`);
+    } finally {
+      setCreateSubmitting(false);
     }
-  }, [refresh]);
+  }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder]);
+
+  const closeCreateModal = useCallback(() => {
+    if (createSubmitting) return;
+    setCreateModalOpen(false);
+  }, [createSubmitting]);
+
+  const handleCreateModalSubmit = useCallback((event) => {
+    event.preventDefault();
+    handleCreateSiteSubmit();
+  }, [handleCreateSiteSubmit]);
+
+  const handleCreateModalKeyDown = useCallback((event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeCreateModal();
+    }
+  }, [closeCreateModal]);
+
+  const handleCreateDirInputClick = useCallback((event) => {
+    event.preventDefault();
+    void openDirectoryPicker();
+  }, [openDirectoryPicker]);
 
   const togglePlaygroundWeb = useCallback(async () => {
     if (!webUrl) {
@@ -129,12 +323,14 @@ function App() {
   const onForget = useCallback(async (sitePath) => {
     await window.api.forgetSite(sitePath);
     await refresh();
-  }, [refresh]);
+    removeSetupLog(sitePath);
+  }, [refresh, removeSetupLog]);
 
   const onDelete = useCallback(async (sitePath) => {
     await window.api.deleteSite(sitePath);
     await refresh();
-  }, [refresh]);
+    removeSetupLog(sitePath);
+  }, [refresh, removeSetupLog]);
 
   const onRename = useCallback(async (sitePath, newLabel) => {
     try {
@@ -150,7 +346,13 @@ function App() {
 
   const sortedSites = useMemo(() => {
     if (!sites || !sites.length) return [];
-    return [...sites].sort((a, b) => (siteMeta?.[b]?.createdAt || 0) - (siteMeta?.[a]?.createdAt || 0));
+    const getCreatedAt = (sitePath) => {
+      const value = siteMeta?.[sitePath]?.createdAt;
+      if (!value) return 0;
+      const timestamp = new Date(value).getTime();
+      return Number.isFinite(timestamp) ? timestamp : 0;
+    };
+    return [...sites].sort((a, b) => getCreatedAt(b) - getCreatedAt(a));
   }, [sites, siteMeta]);
 
   useEffect(() => {
@@ -302,6 +504,7 @@ function App() {
                       onForget={onForget}
                       onDelete={onDelete}
                       onRename={onRename}
+                      setupLogs={setupLogsBySite[s] || ''}
                     />
                   </div>
                 ))
@@ -317,11 +520,62 @@ function App() {
           </div>
         </div>
       </div>
+      {createModalOpen ? (
+        <Modal
+          title="Create WordPress Core site"
+          onRequestClose={closeCreateModal}
+          shouldCloseOnClickOutside={!createSubmitting}
+        >
+          <form
+            onSubmit={handleCreateModalSubmit}
+            onKeyDown={handleCreateModalKeyDown}
+            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
+            <TextControl
+              id={CREATE_SITE_NAME_INPUT_ID}
+              label="Site name"
+              value={createSiteName}
+              onChange={(value) => setCreateSiteName(value)}
+              disabled={createSubmitting}
+              placeholder="My WordPress site"
+              autoFocus
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <input
+                ref={createDirInputRef}
+                id={CREATE_SITE_LOCATION_INPUT_ID}
+                type="file"
+                webkitdirectory=""
+                directory=""
+                multiple
+                onChange={handleCreateDirInputChange}
+                onClick={handleCreateDirInputClick}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    void openDirectoryPicker();
+                  }
+                }}
+                disabled={createSubmitting}
+                style={{ height: 40 }}
+              />
+              <span style={{ fontSize: 12, color: '#3c434a' }}>{createSiteDir || 'No folder selected yet.'}</span>
+            </div>
+            {createSiteError ? (
+              <div style={{ color: '#d63638', fontSize: 12 }}>{createSiteError}</div>
+            ) : null}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button type="button" variant="secondary" onClick={closeCreateModal} disabled={createSubmitting}>Cancel</Button>
+              <Button type="submit" variant="primary" isBusy={createSubmitting} disabled={createSubmitting}>Create site</Button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
     </div>
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '' }) {
   const safeOnRename = onRename || (() => {});
   // state
   const [serverUrl, setServerUrl] = useState('');
@@ -345,6 +599,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
+  const setupLogsRef = useRef('');
 
   // sticky refs per log
   const npmRef = useRef(null);
@@ -368,6 +623,61 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
 
   const siteName = sitePath.split('/').pop();
   const displayName = (label && label.trim()) || siteName;
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState(displayName);
+  const [renameError, setRenameError] = useState('');
+  const [renaming, setRenaming] = useState(false);
+  useEffect(() => { setRenameValue(displayName); }, [displayName]);
+  useEffect(() => {
+    if (!renameModalOpen) return;
+    const input = document.getElementById(RENAME_INPUT_ID);
+    if (input) {
+      input.focus();
+      if (typeof input.select === 'function') input.select();
+    }
+  }, [renameModalOpen]);
+
+  const openRenameModal = useCallback(() => {
+    setRenameValue(displayName);
+    setRenameError('');
+    setRenameModalOpen(true);
+  }, [displayName]);
+
+  const closeRenameModal = useCallback(() => {
+    if (renaming) return;
+    setRenameModalOpen(false);
+  }, [renaming]);
+
+  const submitRename = useCallback(async () => {
+    const trimmed = renameValue.trim();
+    if (!trimmed) {
+      setRenameError('Site name cannot be empty.');
+      return;
+    }
+    try {
+      setRenaming(true);
+      setRenameError('');
+      await safeOnRename(sitePath, trimmed);
+      setRenameModalOpen(false);
+    } catch (err) {
+      setRenameError(String(err));
+    } finally {
+      setRenaming(false);
+    }
+  }, [renameValue, safeOnRename, sitePath]);
+
+  const handleRenameSubmit = useCallback((event) => {
+    event.preventDefault();
+    submitRename();
+  }, [submitRename]);
+
+  const handleRenameFormKeyDown = useCallback((event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeRenameModal();
+    }
+  }, [closeRenameModal]);
   const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : '';
 
   const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
@@ -482,6 +792,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     term.write(normalizeForTerminal(text));
     if (terminalStickRef.current) term.scrollToBottom();
   }, [normalizeForTerminal]);
+
+  const runInstallWithTerminal = useCallback(() => {
+    writeToTerminal('Running npm install…\n');
+    runInstall({
+      onLog: (chunk) => writeToTerminal(chunk),
+      onDone: ({ code }) => {
+        writeToTerminal(`npm install exited with code ${code}\n`);
+      }
+    });
+  }, [runInstall, writeToTerminal]);
 
   const showPrompt = useCallback((prependNewLine = true) => {
     const term = terminalRef.current;
@@ -695,6 +1015,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       terminalStickRef.current = true;
     };
   }, [normalizeForTerminal, printHelp, showPrompt]);
+
+  useEffect(() => {
+    const incoming = setupLogs || '';
+    if (!incoming) return;
+    const prev = setupLogsRef.current;
+    if (incoming === prev) return;
+    const diff = incoming.startsWith(prev) ? incoming.slice(prev.length) : incoming;
+    if (diff) {
+      appendNpm(diff);
+      writeToTerminal(diff);
+    }
+    setupLogsRef.current = incoming;
+  }, [appendNpm, setupLogs, writeToTerminal]);
   const stopDevServer = useCallback(async () => {
     if (stoppingRef.current) return;
     stoppingRef.current = true;
@@ -887,8 +1220,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
 
   const baseSteps = [
     {
+      key: 'download',
+      label: 'Download WordPress development version',
+      description: 'Clone the WordPress develop repository.',
+      done: true,
+      ready: true
+    },
+    {
       key: 'install',
-      label: 'Install dependencies',
+      label: 'Install npm dependencies',
       description: 'Install npm packages so commands can run.',
       done: hasNodeModules,
       ready: true,
@@ -896,9 +1236,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
         <Button
           isBusy={installing}
           variant={hasNodeModules ? 'secondary' : 'primary'}
-          onClick={() => runInstall()}
+          onClick={runInstallWithTerminal}
           disabled={statusLoading || installing || hasNodeModules}
-        >{hasNodeModules ? 'Dependencies installed' : 'Install dependencies'}</Button>
+        >{hasNodeModules ? 'Dependencies installed' : 'Install npm dependencies'}</Button>
       )
     },
     {
@@ -961,19 +1301,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     return { ...step, status };
   });
 
-  const handleRename = useCallback(async () => {
-    const current = displayName;
-    const next = prompt('Edit site name', current);
-    if (next === null) return;
-    const trimmed = next.trim();
-    if (!trimmed || trimmed === current) return;
-    try {
-      await safeOnRename(sitePath, trimmed);
-    } catch (err) {
-      alert(String(err));
-    }
-  }, [displayName, safeOnRename, sitePath]);
-
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
       <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
@@ -984,7 +1311,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               icon={edit}
               label="Rename site"
               aria-label="Rename site"
-              onClick={handleRename}
+              onClick={openRenameModal}
               variant="tertiary"
               isSmall
             />
@@ -999,7 +1326,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               isSmall
               onClick={() => window.api.openDirectory(sitePath)}
               style={{ marginLeft: 4, fontSize: 12 }}
-            >Open site directory</Button>
+            >Open directory</Button>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -1135,7 +1462,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               {serverUrl ? (
                 <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
               ) : (
-                null
+                'Dev server is starting…'
               )}
             </div>
           ) : null}
@@ -1187,6 +1514,33 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           </div>
         </div>
       </div>
+      {renameModalOpen ? (
+        <Modal
+          title="Rename site"
+          onRequestClose={closeRenameModal}
+          shouldCloseOnClickOutside={!renaming}
+        >
+          <form
+            onSubmit={handleRenameSubmit}
+            onKeyDown={handleRenameFormKeyDown}
+            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+          >
+            <TextControl
+              id={RENAME_INPUT_ID}
+              label="Site name"
+              value={renameValue}
+              onChange={(value) => setRenameValue(value)}
+              disabled={renaming}
+              autoFocus
+            />
+            {renameError ? <div style={{ color: '#d63638', fontSize: 12 }}>{renameError}</div> : null}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button type="button" variant="secondary" onClick={closeRenameModal} disabled={renaming}>Cancel</Button>
+              <Button type="submit" variant="primary" isBusy={renaming} disabled={renaming}>Save</Button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
       {isPatchOpen && (
         <Modal
           title="Patch"
