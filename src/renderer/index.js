@@ -53218,6 +53218,7 @@ If there's a particular need for this, please submit a feature request at https:
   var RENAME_INPUT_ID = "rename-site-name-input";
   var CREATE_SITE_NAME_INPUT_ID = "create-site-name-input";
   var CREATE_SITE_LOCATION_INPUT_ID = "create-site-location-input";
+  var CREATE_SITE_MODAL_STYLE_ID = "create-site-modal-theme";
   function useSites() {
     const [sites, setSites] = (0, import_react68.useState)([]);
     const [siteMeta, setSiteMeta] = (0, import_react68.useState)({});
@@ -53313,6 +53314,19 @@ If there's a particular need for this, please submit a feature request at https:
         next2[target] = combined;
         return next2;
       });
+    }, []);
+    (0, import_react68.useEffect)(() => {
+      let styleEl = document.getElementById(CREATE_SITE_MODAL_STYLE_ID);
+      if (!styleEl) {
+        styleEl = document.createElement("style");
+        styleEl.id = CREATE_SITE_MODAL_STYLE_ID;
+        styleEl.textContent = `
+.create-site-modal .components-modal__header-heading { color: #1d2327; }
+.create-site-modal .components-modal__header { border-bottom: 1px solid #e2e4e7; }
+.create-site-modal .components-modal__content { color: #1d2327; }
+`;
+        document.head.appendChild(styleEl);
+      }
     }, []);
     (0, import_react68.useEffect)(() => {
       if (!createModalOpen) return;
@@ -53725,6 +53739,7 @@ If there's a particular need for this, please submit a feature request at https:
       createModalOpen ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
         modal_default,
         {
+          className: "create-site-modal",
           title: "Create WordPress Core site",
           onRequestClose: closeCreateModal,
           shouldCloseOnClickOutside: !createSubmitting,
@@ -53733,7 +53748,7 @@ If there's a particular need for this, please submit a feature request at https:
             {
               onSubmit: handleCreateModalSubmit,
               onKeyDown: handleCreateModalKeyDown,
-              style: { display: "flex", flexDirection: "column", gap: 16 },
+              style: { display: "flex", flexDirection: "column", gap: 16, color: "#1d2327", colorScheme: "light" },
               children: [
                 /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
                   text_control_default,
@@ -53766,7 +53781,7 @@ If there's a particular need for this, please submit a feature request at https:
                         }
                       },
                       disabled: createSubmitting,
-                      style: { height: 40 }
+                      style: { height: 40, color: "#1d2327", background: "#fff", border: "1px solid #8c8f94", borderRadius: 4, padding: "6px 10px" }
                     }
                   ),
                   /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontSize: 12, color: "#3c434a" }, children: createSiteDir || "No folder selected yet." })

@@ -20,6 +20,7 @@ const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
 const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
+const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
 
 function useSites() {
   const [sites, setSites] = useState([]);
@@ -107,6 +108,20 @@ function App() {
       next[target] = combined;
       return next;
     });
+  }, []);
+
+  useEffect(() => {
+    let styleEl = document.getElementById(CREATE_SITE_MODAL_STYLE_ID);
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = CREATE_SITE_MODAL_STYLE_ID;
+      styleEl.textContent = `
+.create-site-modal .components-modal__header-heading { color: #1d2327; }
+.create-site-modal .components-modal__header { border-bottom: 1px solid #e2e4e7; }
+.create-site-modal .components-modal__content { color: #1d2327; }
+`;
+      document.head.appendChild(styleEl);
+    }
   }, []);
 
   useEffect(() => {
@@ -558,6 +573,7 @@ function App() {
       </div>
       {createModalOpen ? (
         <Modal
+          className="create-site-modal"
           title="Create WordPress Core site"
           onRequestClose={closeCreateModal}
           shouldCloseOnClickOutside={!createSubmitting}
@@ -565,7 +581,7 @@ function App() {
           <form
             onSubmit={handleCreateModalSubmit}
             onKeyDown={handleCreateModalKeyDown}
-            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 16, color: '#1d2327', colorScheme: 'light' }}
           >
             <TextControl
               id={CREATE_SITE_NAME_INPUT_ID}
@@ -593,7 +609,7 @@ function App() {
                   }
                 }}
                 disabled={createSubmitting}
-                style={{ height: 40 }}
+                style={{ height: 40, color: '#1d2327', background: '#fff', border: '1px solid #8c8f94', borderRadius: 4, padding: '6px 10px' }}
               />
               <span style={{ fontSize: 12, color: '#3c434a' }}>{createSiteDir || 'No folder selected yet.'}</span>
             </div>

@@ -51,11 +51,11 @@ https://github.com/user-attachments/assets/59ef930b-cbe1-4aee-879e-21dcf9999d0c
 
 1) Download the latest packaged build for your platform from the [workflows page](https://github.com/adamziel/wordpress-contributor-toolkit/actions/workflows/build.yml).
 2) Open the app
-3) If on mac, sign it and remove it from the quarantine – the app is not officially signed at this point. First, make sure you have a code signing identity: [apple guide](https://support.apple.com/guide/keychain-access/create-self-signed-certificates-kyca8916/mac), [StackOverflow thread](https://stackoverflow.com/questions/27474751/how-can-i-codesign-an-app-without-being-in-the-mac-developer-program). Then, follow these steps with the downloaded .app file:
+3) If on mac, sign it and remove it from the quarantine – the app is not officially signed at this point. First, make sure you have a code signing identity: [apple guide](https://support.apple.com/guide/keychain-access/create-self-signed-certificates-kyca8916/mac), [StackOverflow thread](https://stackoverflow.com/questions/27474751/how-can-i-codesign-an-app-without-being-in-the-mac-developer-program). Then, follow these steps with the downloaded WordPress Contributor Toolkit .app file:
     ```
     ❯ security find-identity -p codesigning
-    ❯ codesign --deep --force --verify --verbose --sign "selfsigned" electron-setup-wordpress-core.app
-    ❯ xattr -d com.apple.quarantine electron-setup-wordpress-core.app
+    ❯ codesign --deep --force --verify --verbose --sign "selfsigned" "WordPress Contributor Toolkit.app"
+    ❯ xattr -d com.apple.quarantine "WordPress Contributor Toolkit.app"
     ```
 5) Click "Create WordPress Core site" and choose a destination folder for your site.
 6) Click "Install dependencies"
@@ -81,6 +81,15 @@ npm run dist:win:arm64
 ```
 
 Output goes to `dist/` (e.g., Windows installer `.exe`).
+
+### App icon
+
+This app uses the official WordPress “W mark” as its icon.
+
+- Source SVG: `build/wordpress-wmark.svg`
+- Packaged icons: `build/icon.icns` (macOS), `build/icon.png` (Linux), `build/icon.ico` (Windows)
+
+Electron Builder picks these up via `build` configuration in `package.json`.
 
 ## Technical notes
 
