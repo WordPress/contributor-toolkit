@@ -20,6 +20,7 @@ const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
 const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
+const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
 const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
 
 function useSites() {
@@ -593,6 +594,7 @@ function App() {
               placeholder="My WordPress site"
               autoFocus
             />
+            <label htmlFor={CREATE_SITE_LOCATION_INPUT_ID} style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#1d2327' }}>Site location</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <input
                 ref={createDirInputRef}
@@ -610,9 +612,13 @@ function App() {
                   }
                 }}
                 disabled={createSubmitting}
+                aria-describedby={CREATE_SITE_LOCATION_HELP_ID}
                 style={{ height: 40, color: '#1d2327', background: '#fff', border: '1px solid #8c8f94', borderRadius: 4, padding: '6px 10px' }}
               />
               <span style={{ fontSize: 12, color: '#3c434a' }}>{createSiteDir || 'No folder selected yet.'}</span>
+            </div>
+            <div id={CREATE_SITE_LOCATION_HELP_ID} style={{ fontSize: 12, color: '#3c434a', marginTop: -4 }}>
+              Choose the parent folder where you want this new site created. We&apos;ll add a new directory inside it for the project.
             </div>
             {createSiteError ? (
               <div style={{ color: '#d63638', fontSize: 12 }}>{createSiteError}</div>
@@ -1512,9 +1518,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
             ) : null}
           </div>
           {(isServerStarting || serverUrl) ? (
-            <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2 }}>
+            <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
               {serverUrl ? (
-                <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
+                <>
+                  <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
+                  <span style={{ fontSize: 12, color: '#3c434a' }}>Log in with <code>admin</code> / <code>admin</code>.</span>
+                </>
               ) : (
                 'Dev server is starting…'
               )}

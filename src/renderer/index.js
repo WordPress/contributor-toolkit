@@ -2442,7 +2442,7 @@
           var HostPortal = 4;
           var HostComponent = 5;
           var HostText = 6;
-          var Fragment9 = 7;
+          var Fragment10 = 7;
           var Mode = 8;
           var ContextConsumer = 9;
           var ContextProvider = 10;
@@ -3599,7 +3599,7 @@
                 return "DehydratedFragment";
               case ForwardRef:
                 return getWrappedName$1(type, type.render, "ForwardRef");
-              case Fragment9:
+              case Fragment10:
                 return "Fragment";
               case HostComponent:
                 return type;
@@ -12028,7 +12028,7 @@
               }
             }
             function updateFragment2(returnFiber, current2, fragment, lanes, key) {
-              if (current2 === null || current2.tag !== Fragment9) {
+              if (current2 === null || current2.tag !== Fragment10) {
                 var created = createFiberFromFragment(fragment, returnFiber.mode, lanes, key);
                 created.return = returnFiber;
                 return created;
@@ -12431,7 +12431,7 @@
                 if (child.key === key) {
                   var elementType = element.type;
                   if (elementType === REACT_FRAGMENT_TYPE) {
-                    if (child.tag === Fragment9) {
+                    if (child.tag === Fragment10) {
                       deleteRemainingChildren(returnFiber, child.sibling);
                       var existing = useFiber(child, element.props.children);
                       existing.return = returnFiber;
@@ -17907,7 +17907,7 @@
                 var _resolvedProps2 = workInProgress2.elementType === type ? _unresolvedProps2 : resolveDefaultProps(type, _unresolvedProps2);
                 return updateForwardRef(current2, workInProgress2, type, _resolvedProps2, renderLanes2);
               }
-              case Fragment9:
+              case Fragment10:
                 return updateFragment(current2, workInProgress2, renderLanes2);
               case Mode:
                 return updateMode(current2, workInProgress2, renderLanes2);
@@ -18179,7 +18179,7 @@
               case SimpleMemoComponent:
               case FunctionComponent:
               case ForwardRef:
-              case Fragment9:
+              case Fragment10:
               case Mode:
               case Profiler:
               case ContextConsumer:
@@ -22440,7 +22440,7 @@
             return fiber;
           }
           function createFiberFromFragment(elements2, mode, lanes, key) {
-            var fiber = createFiber(Fragment9, elements2, key, mode);
+            var fiber = createFiber(Fragment10, elements2, key, mode);
             fiber.lanes = lanes;
             return fiber;
           }
@@ -24811,7 +24811,7 @@
           var ContextProvider = REACT_PROVIDER_TYPE;
           var Element2 = REACT_ELEMENT_TYPE;
           var ForwardRef = REACT_FORWARD_REF_TYPE;
-          var Fragment9 = REACT_FRAGMENT_TYPE;
+          var Fragment10 = REACT_FRAGMENT_TYPE;
           var Lazy = REACT_LAZY_TYPE;
           var Memo = REACT_MEMO_TYPE;
           var Portal3 = REACT_PORTAL_TYPE;
@@ -24870,7 +24870,7 @@
           exports.ContextProvider = ContextProvider;
           exports.Element = Element2;
           exports.ForwardRef = ForwardRef;
-          exports.Fragment = Fragment9;
+          exports.Fragment = Fragment10;
           exports.Lazy = Lazy;
           exports.Memo = Memo;
           exports.Portal = Portal3;
@@ -53218,6 +53218,7 @@ If there's a particular need for this, please submit a feature request at https:
   var RENAME_INPUT_ID = "rename-site-name-input";
   var CREATE_SITE_NAME_INPUT_ID = "create-site-name-input";
   var CREATE_SITE_LOCATION_INPUT_ID = "create-site-location-input";
+  var CREATE_SITE_LOCATION_HELP_ID = "create-site-location-help";
   var CREATE_SITE_MODAL_STYLE_ID = "create-site-modal-theme";
   function useSites() {
     const [sites, setSites] = (0, import_react68.useState)([]);
@@ -53763,6 +53764,7 @@ If there's a particular need for this, please submit a feature request at https:
                     autoFocus: true
                   }
                 ),
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("label", { htmlFor: CREATE_SITE_LOCATION_INPUT_ID, style: { fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", color: "#1d2327" }, children: "Site location" }),
                 /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, children: [
                   /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
                     "input",
@@ -53782,11 +53784,13 @@ If there's a particular need for this, please submit a feature request at https:
                         }
                       },
                       disabled: createSubmitting,
+                      "aria-describedby": CREATE_SITE_LOCATION_HELP_ID,
                       style: { height: 40, color: "#1d2327", background: "#fff", border: "1px solid #8c8f94", borderRadius: 4, padding: "6px 10px" }
                     }
                   ),
                   /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontSize: 12, color: "#3c434a" }, children: createSiteDir || "No folder selected yet." })
                 ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { id: CREATE_SITE_LOCATION_HELP_ID, style: { fontSize: 12, color: "#3c434a", marginTop: -4 }, children: "Choose the parent folder where you want this new site created. We'll add a new directory inside it for the project." }),
                 createSiteError ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { color: "#d63638", fontSize: 12 }, children: createSiteError }) : null,
                 /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", justifyContent: "flex-end", gap: 8 }, children: [
                   /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(button_default, { type: "button", variant: "secondary", onClick: closeCreateModal, disabled: createSubmitting, children: "Cancel" }),
@@ -54717,10 +54721,19 @@ Try "help" for the list of supported commands.
             }
           ) : null
         ] }),
-        isServerStarting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 13, color: "#1d2327", paddingLeft: 2 }, children: serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("a", { href: serverUrl, onClick: (e) => {
-          e.preventDefault();
-          window.api.openExternal(serverUrl);
-        }, children: serverUrl }) : "Dev server is starting\u2026" }) : null
+        isServerStarting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 13, color: "#1d2327", paddingLeft: 2, display: "flex", flexDirection: "column", gap: 4 }, children: serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(import_jsx_runtime57.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("a", { href: serverUrl, onClick: (e) => {
+            e.preventDefault();
+            window.api.openExternal(serverUrl);
+          }, children: serverUrl }),
+          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("span", { style: { fontSize: 12, color: "#3c434a" }, children: [
+            "Log in with ",
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("code", { children: "admin" }),
+            " / ",
+            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("code", { children: "admin" }),
+            "."
+          ] })
+        ] }) : "Dev server is starting\u2026" }) : null
       ] }) : null,
       /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 16 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
