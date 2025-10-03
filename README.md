@@ -5,7 +5,7 @@ This is a **rough, experimental** Electron app to get started with WordPress Cor
 It handles the following tasks:
 
 - **Clones** the `wordpress-develop` repository into a local folder – without requiring a system install of `git`.
-- **Runs** `npm install`, `npm run build`, `npm run dev` – without requiring a system install of `node` or `npm`.
+- **Runs** `npm install`, `npm run build`, `npm run watch --dev` – without requiring a system install of `node` or `npm`.
 - **Launches** a local WordPress dev server – without requiring a system install of `apache`, `php` or `mysql`.
 - **Generates** a Core patch from your local changes
 

@@ -313,7 +313,7 @@ function App() {
     } finally {
       setCreateSubmitting(false);
     }
-  }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setCreateModalOpen, setCreateSiteDir, setCreateSiteName, setSiteMeta, setSites]);
+  }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
@@ -628,7 +628,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '', isPending = false }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '' }) {
   const safeOnRename = onRename || (() => {});
   // state
   const [serverUrl, setServerUrl] = useState('');
@@ -787,11 +787,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   }, [appendNpm, ensureStick, loadStatus, onInitialized, sitePath]);
 
   const runScript = useCallback((name, options = {}) => {
-    const { onLog, onDone } = options;
+    const { onLog, onDone, args = [] } = options;
     ensureStick('npm');
     if (name === 'build') setBuilding(true);
     currentRunIdRef.current = null;
-    return window.api.runNpmScript(sitePath, name, [], ({ data }) => {
+    return window.api.runNpmScript(sitePath, name, args, ({ data }) => {
       appendNpm(data);
       if (onLog) onLog(data);
     }, async ({ code }) => {
@@ -855,16 +855,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       }
     });
   }, [runInstall, writeToTerminal]);
-
-  const runBuildWithTerminal = useCallback(() => {
-    writeToTerminal('Running npm run build…\n');
-    runScript('build', {
-      onLog: (chunk) => writeToTerminal(chunk),
-      onDone: ({ code }) => {
-        writeToTerminal(`npm run build exited with code ${code}\n`);
-      }
-    }).catch(() => {});
-  }, [runScript, writeToTerminal]);
 
   const showPrompt = useCallback((prependNewLine = true) => {
     const term = terminalRef.current;
@@ -1175,8 +1165,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       setWaitingForWatch(true);
       waitingForWatchRef.current = true;
       setStarting(true);
-      writeToTerminal('\nRunning npm run dev…\n');
-      runScript('dev', {
+      writeToTerminal('\nRunning npm run watch --dev…\n');
+      runScript('watch', {
+        args: ['--dev'],
         onLog: (chunk) => {
           if (stoppingRef.current || (!terminalStateRef.current.running && !waitingForWatchRef.current)) return;
           writeToTerminal(chunk);
@@ -1189,7 +1180,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           }
         },
         onDone: ({ code }) => {
-          writeToTerminal(`npm run dev exited with code ${code}\n`);
+          writeToTerminal(`npm run watch --dev exited with code ${code}\n`);
           const currentState = terminalStateRef.current;
           currentState.running = false;
           terminalKillRef.current = null;
@@ -1286,7 +1277,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       key: 'download',
       label: 'Download WordPress development version',
       description: 'Clone the WordPress develop repository.',
-      done: !isPending,
+      done: true,
       ready: true
     },
     {
@@ -1294,13 +1285,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       label: 'Install npm dependencies',
       description: 'Install npm packages so commands can run.',
       done: hasNodeModules,
-      ready: !isPending,
+      ready: true,
       action: (
         <Button
           isBusy={installing}
           variant={hasNodeModules ? 'secondary' : 'primary'}
           onClick={runInstallWithTerminal}
-          disabled={statusLoading || installing || hasNodeModules || isPending}
+          disabled={statusLoading || installing || hasNodeModules}
         >{hasNodeModules ? 'Dependencies installed' : 'Install npm dependencies'}</Button>
       )
     },
@@ -1309,13 +1300,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       label: 'Run first full build',
       description: 'Compile WordPress Core once to generate the initial dist files.',
       done: hasBuilt,
-      ready: !isPending && hasNodeModules,
+      ready: hasNodeModules,
       action: (
         <Button
           isBusy={building}
           variant={hasBuilt ? 'secondary' : 'primary'}
-          onClick={runBuildWithTerminal}
-          disabled={statusLoading || building || (!hasNodeModules) || hasBuilt || isPending}
+          onClick={()=>runScript('build')}
+          disabled={statusLoading || building || (!hasNodeModules) || hasBuilt}
         >{hasBuilt ? 'First build complete' : 'Run first full build'}</Button>
       )
     },
@@ -1324,7 +1315,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       label: 'Start dev server & finish wizard',
       description: 'Launch the development server once to complete the WordPress setup wizard.',
       done: false,
-      ready: !isPending && hasBuilt,
+      ready: hasBuilt,
       action: (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Button
@@ -1334,7 +1325,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               await markSkipWizard();
               await toggleDevServer();
             }}
-            disabled={statusLoading || starting || (!hasBuilt) || isPending}
+            disabled={statusLoading || starting || (!hasBuilt)}
           >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
           {starting || serverUrl ? (
             <span style={{ fontSize: 12 }}>

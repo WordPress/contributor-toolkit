@@ -53507,7 +53507,7 @@ If there's a particular need for this, please submit a feature request at https:
       } finally {
         setCreateSubmitting(false);
       }
-    }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setCreateModalOpen, setCreateSiteDir, setCreateSiteName, setSiteMeta, setSites]);
+    }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
     const closeCreateModal = (0, import_react68.useCallback)(() => {
       if (createSubmitting) return;
       setCreateModalOpen(false);
@@ -53799,7 +53799,7 @@ If there's a particular need for this, please submit a feature request at https:
       ) : null
     ] });
   }
-  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = "", isPending = false }) {
+  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = "" }) {
     const safeOnRename = onRename || (() => {
     });
     const [serverUrl, setServerUrl] = (0, import_react68.useState)("");
@@ -53955,11 +53955,11 @@ install exited with code ${code}
       });
     }, [appendNpm, ensureStick, loadStatus, onInitialized, sitePath]);
     const runScript = (0, import_react68.useCallback)((name, options = {}) => {
-      const { onLog, onDone } = options;
+      const { onLog, onDone, args = [] } = options;
       ensureStick("npm");
       if (name === "build") setBuilding(true);
       currentRunIdRef.current = null;
-      return window.api.runNpmScript(sitePath, name, [], ({ data }) => {
+      return window.api.runNpmScript(sitePath, name, args, ({ data }) => {
         appendNpm(data);
         if (onLog) onLog(data);
       }, async ({ code }) => {
@@ -54029,17 +54029,6 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
         }
       });
     }, [runInstall, writeToTerminal]);
-    const runBuildWithTerminal = (0, import_react68.useCallback)(() => {
-      writeToTerminal("Running npm run build\u2026\n");
-      runScript("build", {
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          writeToTerminal(`npm run build exited with code ${code}
-`);
-        }
-      }).catch(() => {
-      });
-    }, [runScript, writeToTerminal]);
     const showPrompt = (0, import_react68.useCallback)((prependNewLine = true) => {
       const term = terminalRef.current;
       if (!term) return;
@@ -54369,8 +54358,9 @@ Try "help" for the list of supported commands.
         setWaitingForWatch(true);
         waitingForWatchRef.current = true;
         setStarting(true);
-        writeToTerminal("\nRunning npm run dev\u2026\n");
-        runScript("dev", {
+        writeToTerminal("\nRunning npm run watch --dev\u2026\n");
+        runScript("watch", {
+          args: ["--dev"],
           onLog: (chunk) => {
             if (stoppingRef.current || !terminalStateRef.current.running && !waitingForWatchRef.current) return;
             writeToTerminal(chunk);
@@ -54384,7 +54374,7 @@ Try "help" for the list of supported commands.
             }
           },
           onDone: ({ code }) => {
-            writeToTerminal(`npm run dev exited with code ${code}
+            writeToTerminal(`npm run watch --dev exited with code ${code}
 `);
             const currentState = terminalStateRef.current;
             currentState.running = false;
@@ -54482,7 +54472,7 @@ Try "help" for the list of supported commands.
         key: "download",
         label: "Download WordPress development version",
         description: "Clone the WordPress develop repository.",
-        done: !isPending,
+        done: true,
         ready: true
       },
       {
@@ -54490,14 +54480,14 @@ Try "help" for the list of supported commands.
         label: "Install npm dependencies",
         description: "Install npm packages so commands can run.",
         done: hasNodeModules,
-        ready: !isPending,
+        ready: true,
         action: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
           button_default,
           {
             isBusy: installing,
             variant: hasNodeModules ? "secondary" : "primary",
             onClick: runInstallWithTerminal,
-            disabled: statusLoading || installing || hasNodeModules || isPending,
+            disabled: statusLoading || installing || hasNodeModules,
             children: hasNodeModules ? "Dependencies installed" : "Install npm dependencies"
           }
         )
@@ -54507,14 +54497,14 @@ Try "help" for the list of supported commands.
         label: "Run first full build",
         description: "Compile WordPress Core once to generate the initial dist files.",
         done: hasBuilt,
-        ready: !isPending && hasNodeModules,
+        ready: hasNodeModules,
         action: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
           button_default,
           {
             isBusy: building,
             variant: hasBuilt ? "secondary" : "primary",
-            onClick: runBuildWithTerminal,
-            disabled: statusLoading || building || !hasNodeModules || hasBuilt || isPending,
+            onClick: () => runScript("build"),
+            disabled: statusLoading || building || !hasNodeModules || hasBuilt,
             children: hasBuilt ? "First build complete" : "Run first full build"
           }
         )
@@ -54524,7 +54514,7 @@ Try "help" for the list of supported commands.
         label: "Start dev server & finish wizard",
         description: "Launch the development server once to complete the WordPress setup wizard.",
         done: false,
-        ready: !isPending && hasBuilt,
+        ready: hasBuilt,
         action: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
             button_default,
@@ -54535,7 +54525,7 @@ Try "help" for the list of supported commands.
                 await markSkipWizard();
                 await toggleDevServer();
               },
-              disabled: statusLoading || starting || !hasBuilt || isPending,
+              disabled: statusLoading || starting || !hasBuilt,
               children: running ? "Stop dev server" : "Start dev server and finish the wizard"
             }
           ),
