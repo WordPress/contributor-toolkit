@@ -262,6 +262,9 @@ function App() {
       }
     }));
     setActiveSite(targetDir);
+    setCreateModalOpen(false);
+    setCreateSiteName('');
+    setCreateSiteDir('');
 
     try {
       setCreateSubmitting(true);
@@ -294,9 +297,6 @@ function App() {
         }
       }
       await refresh();
-      setCreateModalOpen(false);
-      setCreateSiteName('');
-      setCreateSiteDir('');
       setActiveSite(finalSitePath);
       appendSetupLog(finalSitePath, 'Site setup request completed.\n');
     } catch (e) {
@@ -313,7 +313,7 @@ function App() {
     } finally {
       setCreateSubmitting(false);
     }
-  }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
+  }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setCreateModalOpen, setCreateSiteDir, setCreateSiteName, setSiteMeta, setSites]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
@@ -555,6 +555,7 @@ function App() {
                       onForget={onForget}
                       onDelete={onDelete}
                       onRename={onRename}
+                      isPending={Boolean(pendingSite && pendingSite.targetDir === s)}
                       setupLogs={setupLogsBySite[s] || ''}
                     />
                   </div>
@@ -627,7 +628,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '' }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '', isPending = false }) {
   const safeOnRename = onRename || (() => {});
   // state
   const [serverUrl, setServerUrl] = useState('');
@@ -1275,7 +1276,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       key: 'download',
       label: 'Download WordPress development version',
       description: 'Clone the WordPress develop repository.',
-      done: true,
+      done: !isPending,
       ready: true
     },
     {
@@ -1283,13 +1284,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       label: 'Install npm dependencies',
       description: 'Install npm packages so commands can run.',
       done: hasNodeModules,
-      ready: true,
+      ready: !isPending,
       action: (
         <Button
           isBusy={installing}
           variant={hasNodeModules ? 'secondary' : 'primary'}
           onClick={runInstallWithTerminal}
-          disabled={statusLoading || installing || hasNodeModules}
+          disabled={statusLoading || installing || hasNodeModules || isPending}
         >{hasNodeModules ? 'Dependencies installed' : 'Install npm dependencies'}</Button>
       )
     },
@@ -1298,13 +1299,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       label: 'Run first full build',
       description: 'Compile WordPress Core once to generate the initial dist files.',
       done: hasBuilt,
-      ready: hasNodeModules,
+      ready: !isPending && hasNodeModules,
       action: (
         <Button
           isBusy={building}
           variant={hasBuilt ? 'secondary' : 'primary'}
           onClick={()=>runScript('build')}
-          disabled={statusLoading || building || (!hasNodeModules) || hasBuilt}
+          disabled={statusLoading || building || (!hasNodeModules) || hasBuilt || isPending}
         >{hasBuilt ? 'First build complete' : 'Run first full build'}</Button>
       )
     },
@@ -1313,7 +1314,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       label: 'Start dev server & finish wizard',
       description: 'Launch the development server once to complete the WordPress setup wizard.',
       done: false,
-      ready: hasBuilt,
+      ready: !isPending && hasBuilt,
       action: (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Button
@@ -1323,7 +1324,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               await markSkipWizard();
               await toggleDevServer();
             }}
-            disabled={statusLoading || starting || (!hasBuilt)}
+            disabled={statusLoading || starting || (!hasBuilt) || isPending}
           >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
           {starting || serverUrl ? (
             <span style={{ fontSize: 12 }}>

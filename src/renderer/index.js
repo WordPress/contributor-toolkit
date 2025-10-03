@@ -53456,6 +53456,9 @@ If there's a particular need for this, please submit a feature request at https:
         }
       }));
       setActiveSite(targetDir);
+      setCreateModalOpen(false);
+      setCreateSiteName("");
+      setCreateSiteDir("");
       try {
         setCreateSubmitting(true);
         setCreateSiteError("");
@@ -53487,9 +53490,6 @@ If there's a particular need for this, please submit a feature request at https:
           }
         }
         await refresh();
-        setCreateModalOpen(false);
-        setCreateSiteName("");
-        setCreateSiteDir("");
         setActiveSite(finalSitePath);
         appendSetupLog(finalSitePath, "Site setup request completed.\n");
       } catch (e) {
@@ -53507,7 +53507,7 @@ If there's a particular need for this, please submit a feature request at https:
       } finally {
         setCreateSubmitting(false);
       }
-    }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
+    }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setCreateModalOpen, setCreateSiteDir, setCreateSiteName, setSiteMeta, setSites]);
     const closeCreateModal = (0, import_react68.useCallback)(() => {
       if (createSubmitting) return;
       setCreateModalOpen(false);
@@ -53725,6 +53725,7 @@ If there's a particular need for this, please submit a feature request at https:
                   onForget,
                   onDelete,
                   onRename,
+                  isPending: Boolean(pendingSite && pendingSite.targetDir === s),
                   setupLogs: setupLogsBySite[s] || ""
                 }
               )
@@ -53798,7 +53799,7 @@ If there's a particular need for this, please submit a feature request at https:
       ) : null
     ] });
   }
-  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = "" }) {
+  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = "", isPending = false }) {
     const safeOnRename = onRename || (() => {
     });
     const [serverUrl, setServerUrl] = (0, import_react68.useState)("");
@@ -54470,7 +54471,7 @@ Try "help" for the list of supported commands.
         key: "download",
         label: "Download WordPress development version",
         description: "Clone the WordPress develop repository.",
-        done: true,
+        done: !isPending,
         ready: true
       },
       {
@@ -54478,14 +54479,14 @@ Try "help" for the list of supported commands.
         label: "Install npm dependencies",
         description: "Install npm packages so commands can run.",
         done: hasNodeModules,
-        ready: true,
+        ready: !isPending,
         action: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
           button_default,
           {
             isBusy: installing,
             variant: hasNodeModules ? "secondary" : "primary",
             onClick: runInstallWithTerminal,
-            disabled: statusLoading || installing || hasNodeModules,
+            disabled: statusLoading || installing || hasNodeModules || isPending,
             children: hasNodeModules ? "Dependencies installed" : "Install npm dependencies"
           }
         )
@@ -54495,14 +54496,14 @@ Try "help" for the list of supported commands.
         label: "Run first full build",
         description: "Compile WordPress Core once to generate the initial dist files.",
         done: hasBuilt,
-        ready: hasNodeModules,
+        ready: !isPending && hasNodeModules,
         action: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
           button_default,
           {
             isBusy: building,
             variant: hasBuilt ? "secondary" : "primary",
             onClick: () => runScript("build"),
-            disabled: statusLoading || building || !hasNodeModules || hasBuilt,
+            disabled: statusLoading || building || !hasNodeModules || hasBuilt || isPending,
             children: hasBuilt ? "First build complete" : "Run first full build"
           }
         )
@@ -54512,7 +54513,7 @@ Try "help" for the list of supported commands.
         label: "Start dev server & finish wizard",
         description: "Launch the development server once to complete the WordPress setup wizard.",
         done: false,
-        ready: hasBuilt,
+        ready: !isPending && hasBuilt,
         action: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
             button_default,
@@ -54523,7 +54524,7 @@ Try "help" for the list of supported commands.
                 await markSkipWizard();
                 await toggleDevServer();
               },
-              disabled: statusLoading || starting || !hasBuilt,
+              disabled: statusLoading || starting || !hasBuilt || isPending,
               children: running ? "Stop dev server" : "Start dev server and finish the wizard"
             }
           ),
