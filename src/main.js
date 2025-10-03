@@ -222,9 +222,10 @@ async function stopSmtpServerForSite(sitePath) {
 }
 
 function createWindow() {
-	const mainWindow = new BrowserWindow({
+    const mainWindow = new BrowserWindow({
 		width: 1000,
 		height: 700,
+        icon: process.platform === 'linux' ? path.join(__dirname, '..', 'build', 'icon.png') : undefined,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
 			contextIsolation: true,

@@ -17,7 +17,12 @@
   "build": {
     "appId": "org.wordpress.contributor.toolkit",
     "productName": "WordPress Contributor Toolkit",
+    "directories": {
+      "buildResources": "build"
+    },
+    "icon": "build/icon.png",
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -28,6 +33,7 @@
       ]
     },
     "mac": {
+      "icon": "build/icon.icns",
       "provisioningProfile": ".codesigning/org.wordpress.contributor.toolkit.provisionprofile",
       "notarize": true
     }

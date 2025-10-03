@@ -53430,6 +53430,18 @@ If there's a particular need for this, please submit a feature request at https:
       const cleanFolder = sanitizeSiteFolder(nameTrimmed);
       const targetDir = resolveTargetDir(createSiteDir, cleanFolder);
       let finalSitePath = targetDir;
+      const placeholderCreatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      setSites((prev2) => prev2.includes(targetDir) ? prev2 : [...prev2, targetDir]);
+      setSiteMeta((prev2 = {}) => ({
+        ...prev2,
+        [targetDir]: {
+          ...prev2[targetDir] || {},
+          label: nameTrimmed,
+          createdAt: prev2[targetDir]?.createdAt || placeholderCreatedAt,
+          initialized: false
+        }
+      }));
+      setActiveSite(targetDir);
       try {
         setCreateSubmitting(true);
         setCreateSiteError("");
@@ -53442,6 +53454,22 @@ If there's a particular need for this, please submit a feature request at https:
           if (createdPath !== targetDir) {
             setPendingSite({ targetDir: createdPath });
             moveSetupLog(targetDir, createdPath);
+            setSites((prev2) => {
+              const filtered = prev2.filter((path) => path !== targetDir);
+              return filtered.includes(createdPath) ? filtered : [...filtered, createdPath];
+            });
+            setSiteMeta((prev2 = {}) => {
+              const next2 = { ...prev2 };
+              const placeholder = next2[targetDir] || { createdAt: placeholderCreatedAt, initialized: false };
+              delete next2[targetDir];
+              next2[createdPath] = {
+                ...placeholder,
+                label: nameTrimmed,
+                createdAt: placeholder.createdAt || placeholderCreatedAt,
+                initialized: false
+              };
+              return next2;
+            });
           }
         }
         await refresh();
@@ -53455,10 +53483,17 @@ If there's a particular need for this, please submit a feature request at https:
         setCreateSiteError(String(e));
         appendSetupLog(targetDir, `Setup failed: ${String(e)}
 `);
+        setSites((prev2) => prev2.filter((path) => path !== targetDir));
+        setSiteMeta((prev2 = {}) => {
+          if (!prev2[targetDir]) return prev2;
+          const next2 = { ...prev2 };
+          delete next2[targetDir];
+          return next2;
+        });
       } finally {
         setCreateSubmitting(false);
       }
-    }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder]);
+    }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
     const closeCreateModal = (0, import_react68.useCallback)(() => {
       if (createSubmitting) return;
       setCreateModalOpen(false);

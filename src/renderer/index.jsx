@@ -234,6 +234,19 @@ function App() {
     const cleanFolder = sanitizeSiteFolder(nameTrimmed);
     const targetDir = resolveTargetDir(createSiteDir, cleanFolder);
     let finalSitePath = targetDir;
+    const placeholderCreatedAt = new Date().toISOString();
+
+    setSites((prev) => (prev.includes(targetDir) ? prev : [...prev, targetDir]));
+    setSiteMeta((prev = {}) => ({
+      ...prev,
+      [targetDir]: {
+        ...(prev[targetDir] || {}),
+        label: nameTrimmed,
+        createdAt: prev[targetDir]?.createdAt || placeholderCreatedAt,
+        initialized: false
+      }
+    }));
+    setActiveSite(targetDir);
 
     try {
       setCreateSubmitting(true);
@@ -247,6 +260,22 @@ function App() {
         if (createdPath !== targetDir) {
           setPendingSite({ targetDir: createdPath });
           moveSetupLog(targetDir, createdPath);
+          setSites((prev) => {
+            const filtered = prev.filter((path) => path !== targetDir);
+            return filtered.includes(createdPath) ? filtered : [...filtered, createdPath];
+          });
+          setSiteMeta((prev = {}) => {
+            const next = { ...prev };
+            const placeholder = next[targetDir] || { createdAt: placeholderCreatedAt, initialized: false };
+            delete next[targetDir];
+            next[createdPath] = {
+              ...placeholder,
+              label: nameTrimmed,
+              createdAt: placeholder.createdAt || placeholderCreatedAt,
+              initialized: false
+            };
+            return next;
+          });
         }
       }
       await refresh();
@@ -259,10 +288,17 @@ function App() {
       setPendingSite(null);
       setCreateSiteError(String(e));
       appendSetupLog(targetDir, `Setup failed: ${String(e)}\n`);
+      setSites((prev) => prev.filter((path) => path !== targetDir));
+      setSiteMeta((prev = {}) => {
+        if (!prev[targetDir]) return prev;
+        const next = { ...prev };
+        delete next[targetDir];
+        return next;
+      });
     } finally {
       setCreateSubmitting(false);
     }
-  }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder]);
+  }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
