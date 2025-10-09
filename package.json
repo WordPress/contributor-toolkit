@@ -43,7 +43,7 @@
     "@emotion/styled": "^11.13.0",
     "@wordpress/components": "^28.2.0",
     "@wordpress/icons": "^10.7.0",
-    "@wp-playground/cli": "^2.0.14",
+    "@wp-playground/cli": "^3.0.8",
     "@xterm/xterm": "^5.5.0",
     "diff": "^5.2.0",
     "electron-store": "^10.0.1",
