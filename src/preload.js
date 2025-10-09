@@ -5,7 +5,7 @@ contextBridge.exposeInMainWorld('api', {
 	getSitesWithMeta: () => ipcRenderer.invoke('sites:getAll'),
 	addSite: (dir) => ipcRenderer.invoke('sites:add', dir),
 	chooseDirectory: () => ipcRenderer.invoke('dialog:choose-dir'),
-	setupWordPress: (dir) => ipcRenderer.invoke('wordpress:setup', dir),
+	setupWordPress: (dir, options = {}) => ipcRenderer.invoke('wordpress:setup', dir, options),
 	openDirectory: (dir) => ipcRenderer.invoke('dir:open', dir),
 	runNpmInstall: async (dir, onLog, onDone) => {
 		const { installId } = await ipcRenderer.invoke('npm:install', dir);
@@ -49,6 +49,9 @@ contextBridge.exposeInMainWorld('api', {
 	forgetSite: (sitePath) => ipcRenderer.invoke('sites:forget', sitePath)
 ,
 	deleteSite: (sitePath) => ipcRenderer.invoke('sites:delete', sitePath)
+
+,
+	setSiteLabel: (sitePath, label) => ipcRenderer.invoke('sites:set-label', sitePath, label)
 ,
 	subscribeSetupProgress: (handler) => {
 		const h = (_e, payload) => handler && handler(payload);
@@ -164,5 +167,4 @@ contextBridge.exposeInMainWorld('api', {
 		return () => ipcRenderer.removeListener('smtp:started', h);
 	}
 });
-
 

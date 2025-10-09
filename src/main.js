@@ -75,6 +75,16 @@ async function getStore() {
 	return store;
 }
 
+function findAvailableDirName(rootDir, baseName) {
+	const sanitizedBase = baseName || 'wordpress-develop-trunk';
+	let candidate = sanitizedBase;
+	let counter = 2;
+	while (fs.existsSync(path.join(rootDir, candidate))) {
+		candidate = `${sanitizedBase}-${counter++}`;
+	}
+	return candidate;
+}
+
 /** @type {Record<string, import('child_process').ChildProcess>} */
 const runningInstalls = {};
 /** @type {Record<string, import('child_process').ChildProcess>} */
@@ -212,9 +222,10 @@ async function stopSmtpServerForSite(sitePath) {
 }
 
 function createWindow() {
-	const mainWindow = new BrowserWindow({
+    const mainWindow = new BrowserWindow({
 		width: 1000,
 		height: 700,
+        icon: process.platform === 'linux' ? path.join(__dirname, '..', 'build', 'icon.png') : undefined,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
 			contextIsolation: true,
@@ -345,7 +356,11 @@ ipcMain.handle('sites:add', async (_e, sitePath) => {
 		sites.push(sitePath);
 		s.set('sites', sites);
 		const meta = s.get('siteMeta');
-		meta[sitePath] = meta[sitePath] || { initialized: false, createdAt: new Date().toISOString() };
+		meta[sitePath] = meta[sitePath] || {
+			initialized: false,
+			createdAt: new Date().toISOString(),
+			label: path.basename(sitePath)
+		};
 		s.set('siteMeta', meta);
 	}
 	return sites;
@@ -359,17 +374,19 @@ ipcMain.handle('dialog:choose-dir', async () => {
 	return result.filePaths[0];
 });
 
-ipcMain.handle('wordpress:setup', async (event, destDir) => {
+ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 	if (!destDir) {
 		throw new Error('No destination directory specified');
 	}
 
 	await fse.ensureDir(destDir);
 
-	// Perform shallow clone of trunk into a subfolder named 'wordpress-develop-trunk'
-	const siteDir = path.join(destDir, 'wordpress-develop-trunk');
+	const requestedName = typeof options.siteName === 'string' ? options.siteName.trim() : '';
+	const sanitizedName = requestedName.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').replace(/^-+|-+$/g, '') || 'wordpress-develop-trunk';
+	const uniqueName = findAvailableDirName(destDir, sanitizedName);
+	const siteDir = path.join(destDir, uniqueName);
 	await fse.ensureDir(siteDir);
-	event.sender.send('download:status', { phase: 'cloning', target: destDir });
+	event.sender.send('download:status', { phase: 'cloning', target: siteDir });
 	try {
 		await git.clone({
 			http,
@@ -382,7 +399,7 @@ ipcMain.handle('wordpress:setup', async (event, destDir) => {
 			onProgress: (evt) => {
 				// evt: {phase,total,loaded,lengthComputable} - forward as terminal-like output
 				const msg = `${evt.phase || 'clone'} ${evt.loaded || 0}/${evt.total || 0}`;
-				event.sender.send('download:progress', { target: destDir, message: msg });
+				event.sender.send('download:progress', { target: siteDir, message: msg });
 			}
 		});
 	} catch (e) {
@@ -396,10 +413,13 @@ ipcMain.handle('wordpress:setup', async (event, destDir) => {
 		sites.push(siteDir);
 		s.set('sites', sites);
 		const meta = s.get('siteMeta');
-		meta[siteDir] = { initialized: false, createdAt: new Date().toISOString() };
+		const siteLabel = typeof options.siteLabel === 'string' && options.siteLabel.trim().length
+			? options.siteLabel.trim()
+			: uniqueName;
+		meta[siteDir] = { initialized: false, createdAt: new Date().toISOString(), label: siteLabel };
 		s.set('siteMeta', meta);
 	}
-	event.sender.send('download:status', { phase: 'done', target: destDir, sitePath: siteDir });
+	event.sender.send('download:status', { phase: 'done', target: siteDir, sitePath: siteDir });
 	return siteDir;
 });
 
@@ -429,6 +449,15 @@ ipcMain.handle('sites:delete', async (_e, sitePath) => {
 	delete meta[sitePath];
 	s.set('siteMeta', meta);
 	try { await fse.remove(sitePath); } catch {}
+	return true;
+});
+
+ipcMain.handle('sites:set-label', async (_e, sitePath, label) => {
+	const s = await getStore();
+	const meta = s.get('siteMeta') || {};
+	const trimmed = typeof label === 'string' ? label.trim() : '';
+	meta[sitePath] = { ...(meta[sitePath] || {}), label: trimmed || null };
+	s.set('siteMeta', meta);
 	return true;
 });
 
@@ -914,5 +943,3 @@ function downloadFile(url, dest, onProgress) {
 		}
 	});
 }
-
-

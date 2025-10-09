@@ -22,7 +22,7 @@ async function main() {
 			'npm',
 			'run',
 			scriptName,
-			'--',
+			// '--',
 			...scriptArgs
 		];
 		process.env.npm_config_loglevel = process.env.npm_config_loglevel || 'verbose';
