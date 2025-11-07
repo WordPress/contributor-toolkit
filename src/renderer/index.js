@@ -54882,7 +54882,7 @@ Try "help" for the list of supported commands.
               variant: "secondary",
               onClick: openPatchModal,
               style: { padding: "10px 16px", borderRadius: 10 },
-              children: "Create patch"
+              children: "Submit patch"
             }
           ),
           running && serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(

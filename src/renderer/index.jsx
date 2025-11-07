@@ -1575,7 +1575,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               variant="secondary"
               onClick={openPatchModal}
               style={{ padding: '10px 16px', borderRadius: 10 }}
-            >Create patch</Button>
+            >Submit patch</Button>
             {running && serverUrl ? (
               <Button
                 variant="secondary"
