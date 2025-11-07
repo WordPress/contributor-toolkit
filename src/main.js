@@ -260,9 +260,22 @@ async function createMinimalPatchForDir(dir) {
         try { headOid = await git.resolveRef({ fs, dir, ref: 'refs/heads/trunk' }); } catch {}
     }
 
-    // Compare working tree vs HEAD (which points to trunk tip after clone)
+    // Add untracked files to the index (except those in .gitignore)
     const matrix = await git.statusMatrix({ fs, dir });
-    const changed = matrix.filter(([filepath, head, workdir, stage]) => head !== workdir);
+    for (const [filepath, head, workdir, stage] of matrix) {
+        // If file is untracked (head=0, workdir=2, stage=0)
+        if (head === 0 && workdir === 2 && stage === 0) {
+            try {
+                await git.add({ fs, dir, filepath });
+            } catch (e) {
+                // Ignore errors for files that can't be added (e.g., in .gitignore)
+            }
+        }
+    }
+
+    // Compare working tree vs HEAD (which points to trunk tip after clone)
+    const matrixAfterAdd = await git.statusMatrix({ fs, dir });
+    const changed = matrixAfterAdd.filter(([filepath, head, workdir, stage]) => head !== workdir);
     let patch = '';
     for (const [filepath, head, workdir] of changed) {
         const abs = require('path').join(dir, filepath);
@@ -297,6 +310,29 @@ ipcMain.handle('git:create-patch', async (_e, sitePath) => {
     } catch (e) {
         const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
         win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml('Failed to generate diff: ' + String(e))));
+        return { ok: false, error: String(e) };
+    }
+});
+
+ipcMain.handle('git:save-patch', async (_e, sitePath) => {
+    try {
+        const patch = await createMinimalPatchForDir(sitePath);
+        const { filePath, canceled } = await dialog.showSaveDialog({
+            title: 'Save Diff File',
+            defaultPath: path.join(os.homedir(), 'wordpress.patch'),
+            filters: [
+                { name: 'Patch Files', extensions: ['patch', 'diff'] },
+                { name: 'All Files', extensions: ['*'] }
+            ]
+        });
+
+        if (canceled || !filePath) {
+            return { ok: false, canceled: true };
+        }
+
+        await fs.promises.writeFile(filePath, patch, 'utf8');
+        return { ok: true, filePath };
+    } catch (e) {
         return { ok: false, error: String(e) };
     }
 });
@@ -465,6 +501,91 @@ ipcMain.handle('dir:open', async (_e, directoryPath) => {
 	if (!directoryPath) return false;
 	const result = await shell.openPath(directoryPath);
 	return result === '';
+});
+
+const editorCommands = {
+	vscode: {
+		darwin: 'code',
+		linux: 'code',
+		win32: 'code.cmd'
+	},
+	phpstorm: {
+		darwin: '/Applications/PhpStorm.app/Contents/MacOS/phpstorm',
+		linux: 'phpstorm',
+		win32: 'phpstorm64.exe'
+	},
+	cursor: {
+		darwin: '/Applications/Cursor.app/Contents/MacOS/Cursor',
+		linux: 'cursor',
+		win32: 'cursor.cmd'
+	}
+};
+
+async function checkEditorAvailable(editor) {
+	const platform = process.platform;
+	const editorConfig = editorCommands[editor];
+
+	if (!editorConfig) return false;
+
+	const command = editorConfig[platform];
+	if (!command) return false;
+
+	// For macOS app bundles, check if the path exists
+	if (platform === 'darwin' && command.startsWith('/Applications')) {
+		try {
+			await fs.promises.access(command, fs.constants.X_OK);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	// For command-line tools, try to find them in PATH
+	return new Promise((resolve) => {
+		const which = platform === 'win32' ? 'where' : 'which';
+		const proc = spawn(which, [command], { stdio: 'ignore' });
+		proc.on('close', (code) => resolve(code === 0));
+		proc.on('error', () => resolve(false));
+	});
+}
+
+ipcMain.handle('editor:check-available', async (_e) => {
+	const editors = ['vscode', 'phpstorm', 'cursor'];
+	const results = {};
+
+	for (const editor of editors) {
+		results[editor] = await checkEditorAvailable(editor);
+	}
+
+	return results;
+});
+
+ipcMain.handle('editor:open', async (_e, directoryPath, editor) => {
+	if (!directoryPath || !editor) return { ok: false, error: 'Missing path or editor' };
+
+	const platform = process.platform;
+	const editorConfig = editorCommands[editor];
+
+	if (!editorConfig) {
+		return { ok: false, error: `Unknown editor: ${editor}` };
+	}
+
+	const command = editorConfig[platform];
+	if (!command) {
+		return { ok: false, error: `Editor ${editor} not supported on ${platform}` };
+	}
+
+	try {
+		// Try to spawn the editor with the directory path
+		const proc = spawn(command, [directoryPath], {
+			detached: true,
+			stdio: 'ignore'
+		});
+		proc.unref();
+		return { ok: true };
+	} catch (e) {
+		return { ok: false, error: `Failed to open ${editor}: ${e.message}` };
+	}
 });
 
 ipcMain.handle('url:open', async (_e, url) => {
