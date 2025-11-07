@@ -55011,7 +55011,10 @@ Try "help" for the list of supported commands.
             !patchLoading && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { padding: "12px 16px", background: "#f0f6fc", border: "1px solid #d0d7de", borderRadius: 6, fontSize: 14, lineHeight: 1.5, color: "#24292f" }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("strong", { children: "Next steps:" }),
               " Save this patch and submit it to the relevant WordPress Trac ticket at ",
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("a", { href: "https://core.trac.wordpress.org", target: "_blank", rel: "noopener noreferrer", style: { color: "#0969da" }, children: "core.trac.wordpress.org" })
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("a", { href: "#", onClick: (e) => {
+                e.preventDefault();
+                window.api.openExternal("https://core.trac.wordpress.org");
+              }, style: { color: "#0969da", cursor: "pointer" }, children: "core.trac.wordpress.org" })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "relative", flex: 1, minHeight: 0 }, children: patchLoading ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 16 }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(spinner_default, {}),

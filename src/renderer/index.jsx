@@ -1685,7 +1685,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
             {!patchLoading && (
               <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
-                <strong>Next steps:</strong> Save this patch and submit it to the relevant WordPress Trac ticket at <a href="https://core.trac.wordpress.org" target="_blank" rel="noopener noreferrer" style={{color:'#0969da'}}>core.trac.wordpress.org</a>
+                <strong>Next steps:</strong> Save this patch and submit it to the relevant WordPress Trac ticket at <a href="#" onClick={(e) => { e.preventDefault(); window.api.openExternal('https://core.trac.wordpress.org'); }} style={{color:'#0969da', cursor:'pointer'}}>core.trac.wordpress.org</a>
               </div>
             )}
             <div style={{ position:'relative', flex:1, minHeight:0 }}>
