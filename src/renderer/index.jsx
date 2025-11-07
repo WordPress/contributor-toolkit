@@ -382,10 +382,13 @@ function App() {
   }, [refresh, removeSetupLog]);
 
   const onDelete = useCallback(async (sitePath) => {
+    // Remove from UI immediately
+    setSites(prevSites => prevSites.filter(s => s !== sitePath));
+    removeSetupLog(sitePath);
+    // Delete from filesystem in background
     await window.api.deleteSite(sitePath);
     await refresh();
-    removeSetupLog(sitePath);
-  }, [refresh, removeSetupLog]);
+  }, [refresh, removeSetupLog, setSites]);
 
   const onRename = useCallback(async (sitePath, newLabel) => {
     try {
@@ -664,6 +667,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
   const setupLogsRef = useRef('');
+  const [prSubmitting, setPRSubmitting] = useState(false);
+  const [prModalOpen, setPRModalOpen] = useState(false);
+  const [prProgress, setPRProgress] = useState({ step: '', message: '' });
+  const [prAuthCode, setPRAuthCode] = useState(null);
+  const [prProgressLog, setPRProgressLog] = useState([]);
+  const prAbortController = useRef(null);
+  const [gitHubConnected, setGitHubConnected] = useState(false);
+
+  // Check GitHub connection status
+  useEffect(() => {
+    window.api.isGitHubConnected().then(setGitHubConnected);
+  }, []);
 
   // sticky refs per log
   const npmRef = useRef(null);
@@ -1254,6 +1269,90 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     }
   };
 
+  const startPRSubmission = async () => {
+    setPRSubmitting(true);
+    setPRModalOpen(true);
+    setPRProgress({ step: '', message: 'Starting...' });
+    setPRAuthCode(null);
+    setPRProgressLog([]);
+    prAbortController.current = { aborted: false };
+
+    const addLog = (message, command = null) => {
+      setPRProgressLog(prev => [...prev, { message, command, timestamp: Date.now() }]);
+    };
+
+    try {
+      const result = await window.api.submitPR(sitePath, (progress) => {
+        setPRProgress(progress);
+
+        if (prAbortController.current?.aborted) {
+          throw new Error('Aborted by user');
+        }
+
+        if (progress.step === 'auth_code') {
+          setPRAuthCode({
+            code: progress.user_code,
+            uri: progress.verification_uri
+          });
+        } else if (progress.step === 'auth' || progress.step === 'fork') {
+          setPRAuthCode(null);
+          addLog(progress.message);
+        } else if (progress.step === 'branch' || progress.step === 'commit' || progress.step === 'push') {
+          addLog(progress.message, progress.gitCommand);
+        } else if (progress.step === 'done') {
+          // Message will be added after opening the URL
+        }
+      });
+
+      if (result.ok) {
+        // Open PR URL in browser
+        await window.api.openExternal(result.prUrl);
+        addLog('✓ PR page opened successfully!');
+        setPRProgress({ step: 'done', message: 'Success!' });
+        setGitHubConnected(true); // Mark as connected after successful PR
+        setTimeout(() => {
+          setPRModalOpen(false);
+          setPRSubmitting(false);
+          setPRAuthCode(null);
+          setPRProgressLog([]);
+        }, 3000);
+      } else {
+        addLog(`✗ Error: ${result.error}`);
+        setPRProgress({ step: 'error', message: `Error: ${result.error}` });
+        setPRSubmitting(false);
+      }
+    } catch (e) {
+      if (e.message !== 'Aborted by user') {
+        addLog(`✗ Error: ${e.message || String(e)}`);
+      } else {
+        addLog('Stopped by user');
+      }
+      setPRProgress({ step: 'error', message: e.message === 'Aborted by user' ? 'Stopped' : `Error: ${e.message || String(e)}` });
+      setPRSubmitting(false);
+    }
+  };
+
+  const stopPRSubmission = () => {
+    if (prAbortController.current) {
+      prAbortController.current.aborted = true;
+    }
+    setPRSubmitting(false);
+  };
+
+  const closePRModal = () => {
+    setPRModalOpen(false);
+    if (prSubmitting && prProgress.step !== 'error' && prProgress.step !== 'done') {
+      // If closing while still running, abort it
+      if (prAbortController.current) {
+        prAbortController.current.aborted = true;
+      }
+    }
+    setPRSubmitting(false);
+    setPRAuthCode(null);
+    setPRProgress({ step: '', message: '' });
+    setPRProgressLog([]);
+  };
+
   const statusStyles = initialized
     ? { background: '#e7f6e7', color: '#0f5132' }
     : { background: '#fff4ce', color: '#8a6d1c' };
@@ -1404,59 +1503,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               {initialized ? 'Initialized' : 'Uninitialized'}
             </span>
             {createdLabel ? <span>Created {createdLabel}</span> : null}
-            <DropdownMenu
-              label="Open directory in"
-              text="Open directory in"
-              variant="tertiary"
-              size="small"
-              icon={chevronDown}
-              iconPosition="right"
-              style={{ marginLeft: 4, fontSize: 12 }}
-              controls={[
-                {
-                  title: 'Finder',
-                  onClick: () => window.api.openDirectory(sitePath)
-                },
-                ...[
-                  {
-                    key: 'vscode',
-                    title: availableEditors.vscode ? 'VS Code' : 'VS Code (not installed)',
-                    onClick: async () => {
-                      const res = await window.api.openInEditor(sitePath, 'vscode');
-                      if (res && !res.ok) {
-                        alert(`Failed to open in VS Code: ${res.error || 'Unknown error'}`);
-                      }
-                    },
-                    isDisabled: !availableEditors.vscode,
-                    available: availableEditors.vscode
-                  },
-                  {
-                    key: 'phpstorm',
-                    title: availableEditors.phpstorm ? 'PHPStorm' : 'PHPStorm (not installed)',
-                    onClick: async () => {
-                      const res = await window.api.openInEditor(sitePath, 'phpstorm');
-                      if (res && !res.ok) {
-                        alert(`Failed to open in PHPStorm: ${res.error || 'Unknown error'}`);
-                      }
-                    },
-                    isDisabled: !availableEditors.phpstorm,
-                    available: availableEditors.phpstorm
-                  },
-                  {
-                    key: 'cursor',
-                    title: availableEditors.cursor ? 'Cursor' : 'Cursor (not installed)',
-                    onClick: async () => {
-                      const res = await window.api.openInEditor(sitePath, 'cursor');
-                      if (res && !res.ok) {
-                        alert(`Failed to open in Cursor: ${res.error || 'Unknown error'}`);
-                      }
-                    },
-                    isDisabled: !availableEditors.cursor,
-                    available: availableEditors.cursor
-                  }
-                ].sort((a, b) => (b.available ? 1 : 0) - (a.available ? 1 : 0))
-              ]}
-            />
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -1571,11 +1617,106 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               ) : null}
               <span style={{ fontWeight: 600 }}>{isDevProcessActive ? (isServerStarting ? 'Starting dev server...' : 'Stop dev server') : 'Start dev server'}</span>
             </Button>
-            <Button
-              variant="secondary"
-              onClick={openPatchModal}
-              style={{ padding: '10px 16px', borderRadius: 10 }}
-            >Submit patch</Button>
+            <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
+              <Button
+                variant="secondary"
+                onClick={async () => {
+                  // Main button action - open in first available IDE or directory
+                  const firstAvailable = availableEditors.cursor ? 'cursor' :
+                                       availableEditors.vscode ? 'vscode' :
+                                       availableEditors.phpstorm ? 'phpstorm' : null;
+                  if (firstAvailable) {
+                    const res = await window.api.openInEditor(sitePath, firstAvailable);
+                    if (res && !res.ok) {
+                      alert(`Failed to open: ${res.error || 'Unknown error'}`);
+                    }
+                  } else {
+                    window.api.openDirectory(sitePath);
+                  }
+                }}
+                style={{ padding: '10px 16px', borderRadius: '10px 0 0 10px', borderRight: '1px solid rgba(0,0,0,0.1)', marginRight: 0 }}
+              >
+                {(() => {
+                  const firstAvailable = availableEditors.cursor ? 'Cursor' :
+                                       availableEditors.vscode ? 'VS Code' :
+                                       availableEditors.phpstorm ? 'PHPStorm' : null;
+                  return firstAvailable ? `Open in ${firstAvailable}` : 'Open directory';
+                })()}
+              </Button>
+              <DropdownMenu
+                label="Open in options"
+                variant="secondary"
+                icon={chevronDown}
+                style={{ borderRadius: '0 10px 10px 0' }}
+                popoverProps={{ placement: 'bottom-end' }}
+                controls={[
+                  {
+                    title: 'Finder',
+                    onClick: () => window.api.openDirectory(sitePath)
+                  },
+                  {
+                    title: availableEditors.cursor ? 'Cursor' : 'Cursor (not installed)',
+                    onClick: async () => {
+                      const res = await window.api.openInEditor(sitePath, 'cursor');
+                      if (res && !res.ok) {
+                        alert(`Failed to open in Cursor: ${res.error || 'Unknown error'}`);
+                      }
+                    },
+                    isDisabled: !availableEditors.cursor
+                  },
+                  {
+                    title: availableEditors.vscode ? 'VS Code' : 'VS Code (not installed)',
+                    onClick: async () => {
+                      const res = await window.api.openInEditor(sitePath, 'vscode');
+                      if (res && !res.ok) {
+                        alert(`Failed to open in VS Code: ${res.error || 'Unknown error'}`);
+                      }
+                    },
+                    isDisabled: !availableEditors.vscode
+                  },
+                  {
+                    title: availableEditors.phpstorm ? 'PHPStorm' : 'PHPStorm (not installed)',
+                    onClick: async () => {
+                      const res = await window.api.openInEditor(sitePath, 'phpstorm');
+                      if (res && !res.ok) {
+                        alert(`Failed to open in PHPStorm: ${res.error || 'Unknown error'}`);
+                      }
+                    },
+                    isDisabled: !availableEditors.phpstorm
+                  }
+                ]}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
+              <Button
+                variant="secondary"
+                onClick={openPatchModal}
+                style={{ padding: '10px 16px', borderRadius: '10px 0 0 10px', borderRight: '1px solid rgba(0,0,0,0.1)', marginRight: 0 }}
+              >Submit patch</Button>
+              <DropdownMenu
+                label="Submit options"
+                variant="secondary"
+                icon={chevronDown}
+                style={{ borderRadius: '0 10px 10px 0' }}
+                popoverProps={{ placement: 'bottom-end' }}
+                controls={[
+                  {
+                    title: 'Submit PR (GitHub)',
+                    onClick: startPRSubmission,
+                    isDisabled: prSubmitting
+                  },
+                  ...(gitHubConnected ? [{
+                    title: 'Disconnect GitHub',
+                    onClick: async () => {
+                      if (confirm('Are you sure you want to disconnect GitHub? You will need to re-authorize on your next PR submission.')) {
+                        await window.api.disconnectGitHub();
+                        setGitHubConnected(false);
+                      }
+                    }
+                  }] : [])
+                ]}
+              />
+            </div>
             {running && serverUrl ? (
               <Button
                 variant="secondary"
@@ -1685,7 +1826,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
             {!patchLoading && (
               <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
-                <strong>Next steps:</strong> Save this patch and submit it to the relevant WordPress Trac ticket at <a href="#" onClick={(e) => { e.preventDefault(); window.api.openExternal('https://core.trac.wordpress.org'); }} style={{color:'#0969da', cursor:'pointer'}}>core.trac.wordpress.org</a>
+                <strong>Next steps:</strong> Save this patch and submit it to the relevant WordPress Trac ticket. <a href="#" onClick={(e) => { e.preventDefault(); window.api.openExternal('https://adamadam.blog/how-to-contribute-your-first-patch-to-wordpress-core-via-trac/'); }} style={{color:'#0969da', cursor:'pointer'}}>Learn how to contribute your first patch</a>
               </div>
             )}
             <div style={{ position:'relative', flex:1, minHeight:0 }}>
@@ -1720,6 +1861,86 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
                 </>
               )}
             </div>
+          </div>
+        </Modal>
+      )}
+      {prModalOpen && (
+        <Modal
+          title="Submit Pull Request"
+          onRequestClose={closePRModal}
+          shouldCloseOnClickOutside={true}
+        >
+          <div style={{ padding: '20px', minWidth: '600px', maxWidth: '800px' }}>
+            {prAuthCode ? (
+              <div>
+                <div style={{ marginBottom: 16, padding: '16px', background: '#f6f8fa', borderRadius: 6, border: '1px solid #d0d7de' }}>
+                  <div style={{ fontSize: 14, marginBottom: 8, fontWeight: 600 }}>Visit:</div>
+                  <a
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); window.api.openExternal(prAuthCode.uri); }}
+                    style={{ fontSize: 14, color: '#0969da', cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    {prAuthCode.uri}
+                  </a>
+                  <div style={{ fontSize: 14, marginTop: 16, marginBottom: 8, fontWeight: 600 }}>Enter code:</div>
+                  <div style={{ fontSize: 24, fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.2em', color: '#24292f' }}>
+                    {prAuthCode.code}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16 }}>
+                  <Spinner />
+                  <span style={{ fontSize: 14, color: '#666' }}>Waiting for authorization...</span>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ marginBottom: 16, maxHeight: '400px', overflowY: 'auto', background: '#f6f8fa', padding: '12px', borderRadius: 6, border: '1px solid #d0d7de' }}>
+                  {prProgressLog.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                      <Spinner />
+                      <div style={{ marginTop: 12 }}>Starting...</div>
+                    </div>
+                  ) : (
+                    <div style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 1.8 }}>
+                      {prProgressLog.map((log, idx) => (
+                        <div key={idx} style={{ marginBottom: 8 }}>
+                          <div style={{ color: '#24292f', fontWeight: 500 }}>{log.message}</div>
+                          {log.command && (
+                            <div style={{ marginLeft: 16, marginTop: 4, color: '#666', fontSize: 12 }}>
+                              $ {log.command}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {prSubmitting && prProgress.step !== 'error' && prProgress.step !== 'done' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                          <Spinner />
+                          <span style={{ color: '#666' }}>Working...</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  {prSubmitting && prProgress.step !== 'error' && prProgress.step !== 'done' ? (
+                    <Button
+                      variant="secondary"
+                      onClick={stopPRSubmission}
+                      style={{ color: '#cf222e' }}
+                    >
+                      Stop
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      onClick={closePRModal}
+                    >
+                      Close
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </Modal>
       )}

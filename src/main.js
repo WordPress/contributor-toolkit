@@ -15,6 +15,27 @@ const { simpleParser } = require('mailparser');
 
 const WORDPRESS_ZIP_URL = 'https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip';
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
+const GITHUB_CLIENT_ID = '05eaaa972c8117f72465'; // GitHub OAuth App Client ID for device flow
+
+// GitHub authentication state
+let githubToken = null;
+
+// Load GitHub token from store on startup
+async function loadGitHubToken() {
+	const s = await getStore();
+	githubToken = s.get('githubToken') || null;
+}
+
+// Save GitHub token to store
+async function saveGitHubToken(token) {
+	githubToken = token;
+	const s = await getStore();
+	if (token === null || token === undefined) {
+		s.delete('githubToken');
+	} else {
+		s.set('githubToken', token);
+	}
+}
 
 // Provide a PATH shim so npm's spawned scripts can find a 'node' binary that maps to Electron's Node
 let nodeShimDir = null;
@@ -292,6 +313,354 @@ async function createMinimalPatchForDir(dir) {
     return patch || 'No changes.';
 }
 
+// GitHub API helper functions
+function githubAPI(path, options = {}) {
+	return new Promise((resolve, reject) => {
+		const url = new URL(path, 'https://api.github.com');
+		const reqOptions = {
+			hostname: url.hostname,
+			path: url.pathname + url.search,
+			method: options.method || 'GET',
+			headers: {
+				'User-Agent': 'WordPress-Dev-App',
+				'Accept': 'application/vnd.github+json',
+				...(githubToken && { 'Authorization': `Bearer ${githubToken}` }),
+				...(options.headers || {})
+			}
+		};
+
+		const req = https.request(reqOptions, (res) => {
+			let data = '';
+			res.on('data', (chunk) => data += chunk);
+			res.on('end', () => {
+				try {
+					const json = JSON.parse(data);
+					if (res.statusCode >= 200 && res.statusCode < 300) {
+						resolve(json);
+					} else {
+						reject(new Error(json.message || `HTTP ${res.statusCode}`));
+					}
+				} catch (e) {
+					reject(e);
+				}
+			});
+		});
+
+		req.on('error', reject);
+
+		if (options.body) {
+			req.write(JSON.stringify(options.body));
+		}
+
+		req.end();
+	});
+}
+
+// GitHub Device OAuth Flow - uses github.com not api.github.com
+function githubOAuthRequest(path, body) {
+	return new Promise((resolve, reject) => {
+		const data = JSON.stringify(body);
+		const reqOptions = {
+			hostname: 'github.com',
+			path: path,
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Accept': 'application/json',
+				'Content-Length': data.length
+			}
+		};
+
+		const req = https.request(reqOptions, (res) => {
+			let responseData = '';
+			res.on('data', (chunk) => responseData += chunk);
+			res.on('end', () => {
+				try {
+					resolve(JSON.parse(responseData));
+				} catch (e) {
+					reject(e);
+				}
+			});
+		});
+
+		req.on('error', reject);
+		req.write(data);
+		req.end();
+	});
+}
+
+async function initiateDeviceOAuth() {
+	const response = await githubOAuthRequest('/login/device/code', {
+		client_id: GITHUB_CLIENT_ID,
+		scope: 'repo'
+	});
+
+	return {
+		device_code: response.device_code,
+		user_code: response.user_code,
+		verification_uri: response.verification_uri,
+		expires_in: response.expires_in,
+		interval: response.interval || 5
+	};
+}
+
+async function pollDeviceOAuth(deviceCode, interval) {
+	const response = await githubOAuthRequest('/login/oauth/access_token', {
+		client_id: GITHUB_CLIENT_ID,
+		device_code: deviceCode,
+		grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
+	});
+
+	if (response.error) {
+		if (response.error === 'authorization_pending') {
+			await new Promise(resolve => setTimeout(resolve, interval * 1000));
+			return pollDeviceOAuth(deviceCode, interval);
+		}
+		throw new Error(response.error_description || response.error);
+	}
+
+	return response.access_token;
+}
+
+// Check if user has a fork
+async function checkForFork(username) {
+	try {
+		await githubAPI(`/repos/${username}/wordpress-develop`);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+// Create a fork
+async function createFork() {
+	await githubAPI('/repos/WordPress/wordpress-develop/forks', {
+		method: 'POST'
+	});
+
+	// Wait a bit for fork to be ready
+	await new Promise(resolve => setTimeout(resolve, 3000));
+}
+
+// Get authenticated user
+async function getAuthenticatedUser() {
+	const user = await githubAPI('/user');
+	return user.login;
+}
+
+// Submit PR workflow
+async function submitPR(sitePath, onProgress) {
+	try {
+		// Step 1: Authenticate if needed (or if token is invalid)
+		const needsAuth = async () => {
+			if (!githubToken) return true;
+			// Test if token is valid
+			try {
+				await githubAPI('/user');
+				return false;
+			} catch (e) {
+				// Token is invalid, clear it
+				await saveGitHubToken(null);
+				return true;
+			}
+		};
+
+		if (await needsAuth()) {
+			onProgress({ step: 'auth', message: 'Starting GitHub authentication...' });
+			const deviceAuth = await initiateDeviceOAuth();
+
+			onProgress({
+				step: 'auth_code',
+				message: `Please visit ${deviceAuth.verification_uri} and enter code: ${deviceAuth.user_code}`,
+				verification_uri: deviceAuth.verification_uri,
+				user_code: deviceAuth.user_code
+			});
+
+			githubToken = await pollDeviceOAuth(deviceAuth.device_code, deviceAuth.interval);
+			await saveGitHubToken(githubToken);
+			onProgress({ step: 'auth', message: 'Authenticated successfully!' });
+		}
+
+		// Step 2: Get username and check for fork
+		onProgress({ step: 'fork', message: 'Checking for fork...' });
+		const username = await getAuthenticatedUser();
+		const hasFork = await checkForFork(username);
+
+		if (!hasFork) {
+			onProgress({ step: 'fork', message: 'Creating fork...' });
+			await createFork();
+			onProgress({ step: 'fork', message: `Fork created: https://github.com/${username}/wordpress-develop` });
+		} else {
+			onProgress({ step: 'fork', message: `Using existing fork: https://github.com/${username}/wordpress-develop` });
+		}
+
+		// Step 3: Create a new branch with timestamp
+		const branchName = `patch-${Date.now()}`;
+		onProgress({
+			step: 'branch',
+			message: `Creating branch: ${branchName}`,
+			gitCommand: `git checkout -b ${branchName}`
+		});
+
+		await git.branch({ fs, dir: sitePath, ref: branchName, checkout: true });
+
+		// Step 4: Stage and commit all changes
+		onProgress({
+			step: 'commit',
+			message: 'Staging all changes...',
+			gitCommand: 'git add .'
+		});
+
+		// First, unstage everything to ensure we only commit what we explicitly stage
+		const allFiles = await git.statusMatrix({ fs, dir: sitePath });
+		for (const [filepath] of allFiles) {
+			try {
+				await git.resetIndex({ fs, dir: sitePath, filepath });
+			} catch (e) {
+				// Ignore errors
+			}
+		}
+
+		// Now get fresh status and add only the files we want
+		const matrix = await git.statusMatrix({ fs, dir: sitePath });
+
+		// Add untracked files (same as createMinimalPatchForDir)
+		for (const [filepath, head, workdir, stage] of matrix) {
+			// Skip .github/workflows/ files - they require special workflow scope
+			if (filepath.startsWith('.github/workflows/')) {
+				continue;
+			}
+
+			// If file is untracked (head=0, workdir=2, stage=0)
+			if (head === 0 && workdir === 2 && stage === 0) {
+				try {
+					await git.add({ fs, dir: sitePath, filepath });
+				} catch (e) {
+					// Ignore errors for files that can't be added (e.g., in .gitignore)
+				}
+			}
+		}
+
+		// Now stage only files with actual changes (same logic as createMinimalPatchForDir)
+		const matrixAfterAdd = await git.statusMatrix({ fs, dir: sitePath });
+		const changed = matrixAfterAdd.filter(([filepath, head, workdir]) => head !== workdir);
+		for (const [filepath, head, workdir] of changed) {
+			try {
+				// Skip .github/workflows/ files - they require special workflow scope
+				if (filepath.startsWith('.github/workflows/')) {
+					continue;
+				}
+
+				// For deleted files (workdir === 0), use remove instead of add
+				if (workdir === 0) {
+					await git.remove({ fs, dir: sitePath, filepath });
+				} else {
+					await git.add({ fs, dir: sitePath, filepath });
+				}
+			} catch (e) {
+				// Ignore errors for files that can't be staged
+			}
+		}
+
+		onProgress({
+			step: 'commit',
+			message: 'Committing changes...',
+			gitCommand: 'git commit -m "WordPress core patch"'
+		});
+
+		await git.commit({
+			fs,
+			dir: sitePath,
+			message: 'WordPress core patch',
+			author: {
+				name: username,
+				email: `${username}@users.noreply.github.com`
+			}
+		});
+
+		// Step 5: Add fork remote if it doesn't exist
+		const remotes = await git.listRemotes({ fs, dir: sitePath });
+		const forkRemote = remotes.find(r => r.remote === 'fork');
+
+		if (!forkRemote) {
+			onProgress({
+				step: 'push',
+				message: 'Adding fork remote...',
+				gitCommand: `git remote add fork https://github.com/${username}/wordpress-develop.git`
+			});
+			await git.addRemote({
+				fs,
+				dir: sitePath,
+				remote: 'fork',
+				url: `https://github.com/${username}/wordpress-develop.git`
+			});
+		}
+
+		// Step 6: Push to fork
+		onProgress({
+			step: 'push',
+			message: `Pushing to fork...`,
+			gitCommand: `git push fork ${branchName}`
+		});
+
+		console.log('[git push] Starting push operation');
+		console.log('[git push] Remote:', 'fork');
+		console.log('[git push] Branch:', branchName);
+		console.log('[git push] Token length:', githubToken ? githubToken.length : 0);
+
+		try {
+			const pushResult = await git.push({
+				fs,
+				http,
+				dir: sitePath,
+				remote: 'fork',
+				ref: branchName,
+				onAuth: () => {
+					console.log('[git push] Auth callback invoked');
+					return { username: githubToken, password: 'x-oauth-basic' };
+				},
+				onAuthFailure: ({ url, auth }) => {
+					console.error('[git push] Auth failed for URL:', url);
+					console.error('[git push] Auth used:', auth);
+				},
+				onAuthSuccess: ({ url, auth }) => {
+					console.log('[git push] Auth succeeded for URL:', url);
+				},
+				onMessage: (msg) => {
+					console.log('[git push message]', msg);
+					onProgress({ step: 'push', message: msg });
+				},
+				onProgress: (evt) => {
+					console.log('[git push progress]', evt);
+					const { phase, loaded, total } = evt;
+					if (phase) {
+						const msg = total ? `${phase}: ${loaded}/${total}` : phase;
+						onProgress({ step: 'push', message: msg });
+					}
+				}
+			});
+			console.log('[git push] Push completed successfully', pushResult);
+		} catch (pushError) {
+			console.error('[git push error]', pushError);
+			console.error('[git push error stack]', pushError.stack);
+			// If push fails with 403, it might be a token permission issue
+			if (pushError.message && pushError.message.includes('403')) {
+				throw new Error('Push failed: Token may not have correct permissions. Please re-authorize the app with full repository access.');
+			}
+			throw pushError;
+		}
+
+		// Step 7: Open PR URL
+		const prUrl = `https://github.com/WordPress/wordpress-develop/compare/trunk...${username}:wordpress-develop:${branchName}?expand=1`;
+		onProgress({ step: 'done', message: 'Opening PR page...', prUrl });
+
+		return { ok: true, prUrl, branch: branchName };
+
+	} catch (error) {
+		return { ok: false, error: error.message };
+	}
+}
+
 ipcMain.handle('git:get-patch', async (_e, sitePath) => {
     try {
         const patch = await createMinimalPatchForDir(sitePath);
@@ -337,7 +706,24 @@ ipcMain.handle('git:save-patch', async (_e, sitePath) => {
     }
 });
 
-app.whenReady().then(() => {
+ipcMain.handle('git:submit-pr', async (event, sitePath) => {
+	const result = await submitPR(sitePath, (progress) => {
+		event.sender.send('git:submit-pr:progress', progress);
+	});
+	return result;
+});
+
+ipcMain.handle('github:clear-token', async () => {
+	await saveGitHubToken(null);
+	return true;
+});
+
+ipcMain.handle('github:is-connected', async () => {
+	return githubToken !== null && githubToken !== undefined;
+});
+
+app.whenReady().then(async () => {
+	await loadGitHubToken();
 	createWindow();
 
 	app.on('activate', function () {
