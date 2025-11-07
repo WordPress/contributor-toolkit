@@ -8,9 +8,10 @@ import {
   Flex,
   DropdownMenu,
   Modal,
-  TextControl
+  TextControl,
+  Spinner
 } from '@wordpress/components';
-import { plus, chevronLeft, chevronRight, copy as copyIcon, edit } from '@wordpress/icons';
+import { plus, chevronLeft, chevronRight, copy as copyIcon, edit, download } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
@@ -645,6 +646,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const [runtimeLogs, setRuntimeLogs] = useState('');
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [patchText, setPatchText] = useState('');
+  const [patchLoading, setPatchLoading] = useState(false);
   const [emails, setEmails] = useState([]);
   const [smtpPort, setSmtpPort] = useState(0);
   const newEmailUnsubRef = useRef(null);
@@ -1217,18 +1219,36 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
 
   const openPatchModal = async ()=>{
     setIsPatchOpen(true);
-    setPatchText('Generating patch…');
+    setPatchLoading(true);
+    setPatchText('');
     try {
       const res = await window.api.getPatch(sitePath);
       if (res && res.ok) setPatchText((res.patch && res.patch.trim().length) ? res.patch : 'No changes.');
       else setPatchText(res && res.error ? `Error: ${res.error}` : 'Failed to generate patch');
     } catch (e) {
       setPatchText(`Error: ${e && e.message ? e.message : String(e)}`);
+    } finally {
+      setPatchLoading(false);
     }
   };
 
   const copyPatch = async ()=>{
     try { await navigator.clipboard.writeText(patchText); } catch {}
+  };
+
+  const savePatch = async ()=>{
+    try {
+      const res = await window.api.savePatch(sitePath);
+      if (res && res.ok && res.filePath) {
+        alert(`Diff saved to: ${res.filePath}`);
+      } else if (res && res.canceled) {
+        // User canceled, do nothing
+      } else {
+        alert(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
+      }
+    } catch (e) {
+      alert(`Error saving diff: ${e && e.message ? e.message : String(e)}`);
+    }
   };
 
   const statusStyles = initialized
@@ -1610,20 +1630,46 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           onRequestClose={()=>setIsPatchOpen(false)}
           shouldCloseOnClickOutside
           isFullScreen
+          headerClassName="patch-modal-header"
         >
-          <div style={{ position:'relative', height:'80vh' }}>
-            <Button
-              icon={copyIcon}
-              label="Copy"
-              onClick={copyPatch}
-              style={{
-                position:'absolute', top:8, right:8, zIndex:2,
-                background:'#fff', border:'1px solid #ddd', color:'#111', boxShadow:'none'
-              }}
-            />
-            <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', overflow:'auto' }}>
-              {patchText && patchText.trim().length ? patchText : 'No changes.'}
-            </pre>
+          <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
+            {!patchLoading && (
+              <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
+                <strong>Next steps:</strong> Save or copy this patch and submit it to the relevant WordPress Trac ticket at <a href="https://core.trac.wordpress.org" target="_blank" rel="noopener noreferrer" style={{color:'#0969da'}}>core.trac.wordpress.org</a>
+              </div>
+            )}
+            <div style={{ position:'relative', flex:1, minHeight:0 }}>
+              {patchLoading ? (
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:16 }}>
+                  <Spinner />
+                  <div style={{ color:'#666', fontSize:14 }}>Generating patch...</div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ position:'absolute', top:8, right:8, zIndex:2, display:'flex', gap:8 }}>
+                    <Button
+                      icon={download}
+                      label="Save"
+                      onClick={savePatch}
+                      style={{
+                        background:'#fff', border:'1px solid #ddd', color:'#111', boxShadow:'none'
+                      }}
+                    />
+                    <Button
+                      icon={copyIcon}
+                      label="Copy"
+                      onClick={copyPatch}
+                      style={{
+                        background:'#fff', border:'1px solid #ddd', color:'#111', boxShadow:'none'
+                      }}
+                    />
+                  </div>
+                  <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', overflowY:'auto' }}>
+                    {patchText && patchText.trim().length ? patchText : 'No changes.'}
+                  </pre>
+                </>
+              )}
+            </div>
           </div>
         </Modal>
       )}

@@ -69,6 +69,8 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	getPatch: (sitePath) => ipcRenderer.invoke('git:get-patch', sitePath)
 ,
+	savePatch: (sitePath) => ipcRenderer.invoke('git:save-patch', sitePath)
+,
 	startWpDebug: async (sitePath, onData) => {
 		const handler = (_e, payload) => {
 			if (payload.sitePath === sitePath) onData && onData(payload.data);

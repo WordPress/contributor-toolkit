@@ -260,9 +260,22 @@ async function createMinimalPatchForDir(dir) {
         try { headOid = await git.resolveRef({ fs, dir, ref: 'refs/heads/trunk' }); } catch {}
     }
 
-    // Compare working tree vs HEAD (which points to trunk tip after clone)
+    // Add untracked files to the index (except those in .gitignore)
     const matrix = await git.statusMatrix({ fs, dir });
-    const changed = matrix.filter(([filepath, head, workdir, stage]) => head !== workdir);
+    for (const [filepath, head, workdir, stage] of matrix) {
+        // If file is untracked (head=0, workdir=2, stage=0)
+        if (head === 0 && workdir === 2 && stage === 0) {
+            try {
+                await git.add({ fs, dir, filepath });
+            } catch (e) {
+                // Ignore errors for files that can't be added (e.g., in .gitignore)
+            }
+        }
+    }
+
+    // Compare working tree vs HEAD (which points to trunk tip after clone)
+    const matrixAfterAdd = await git.statusMatrix({ fs, dir });
+    const changed = matrixAfterAdd.filter(([filepath, head, workdir, stage]) => head !== workdir);
     let patch = '';
     for (const [filepath, head, workdir] of changed) {
         const abs = require('path').join(dir, filepath);
@@ -297,6 +310,29 @@ ipcMain.handle('git:create-patch', async (_e, sitePath) => {
     } catch (e) {
         const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
         win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml('Failed to generate diff: ' + String(e))));
+        return { ok: false, error: String(e) };
+    }
+});
+
+ipcMain.handle('git:save-patch', async (_e, sitePath) => {
+    try {
+        const patch = await createMinimalPatchForDir(sitePath);
+        const { filePath, canceled } = await dialog.showSaveDialog({
+            title: 'Save Diff File',
+            defaultPath: path.join(os.homedir(), 'wordpress.patch'),
+            filters: [
+                { name: 'Patch Files', extensions: ['patch', 'diff'] },
+                { name: 'All Files', extensions: ['*'] }
+            ]
+        });
+
+        if (canceled || !filePath) {
+            return { ok: false, canceled: true };
+        }
+
+        await fs.promises.writeFile(filePath, patch, 'utf8');
+        return { ok: true, filePath };
+    } catch (e) {
         return { ok: false, error: String(e) };
     }
 });
