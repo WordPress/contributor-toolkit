@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('api', {
 	chooseDirectory: () => ipcRenderer.invoke('dialog:choose-dir'),
 	setupWordPress: (dir, options = {}) => ipcRenderer.invoke('wordpress:setup', dir, options),
 	openDirectory: (dir) => ipcRenderer.invoke('dir:open', dir),
+	openInEditor: (dir, editor) => ipcRenderer.invoke('editor:open', dir, editor),
+	checkEditorsAvailable: () => ipcRenderer.invoke('editor:check-available'),
 	runNpmInstall: async (dir, onLog, onDone) => {
 		const { installId } = await ipcRenderer.invoke('npm:install', dir);
 		const logHandler = (_e, payload) => {

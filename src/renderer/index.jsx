@@ -11,7 +11,7 @@ import {
   TextControl,
   Spinner
 } from '@wordpress/components';
-import { plus, chevronLeft, chevronRight, copy as copyIcon, edit, download } from '@wordpress/icons';
+import { plus, chevronLeft, chevronRight, copy as copyIcon, edit, download, chevronDown } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
@@ -52,6 +52,8 @@ function App() {
   useEffect(() => { if (webLogRef.current) webLogRef.current.scrollTop = webLogRef.current.scrollHeight; }, [webLogs]);
   const [webAvailable, setWebAvailable] = useState(false);
   useEffect(() => { (async () => { try { setWebAvailable(Boolean(await window.api.playgroundWebAvailable())); } catch {} })(); }, []);
+  const [availableEditors, setAvailableEditors] = useState({});
+  useEffect(() => { (async () => { try { setAvailableEditors(await window.api.checkEditorsAvailable()); } catch {} })(); }, []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeSite, setActiveSite] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -559,6 +561,7 @@ function App() {
                       onRename={onRename}
                       isPending={Boolean(pendingSite && pendingSite.targetDir === s)}
                       setupLogs={setupLogsBySite[s] || ''}
+                      availableEditors={availableEditors}
                     />
                   </div>
                 ))
@@ -635,7 +638,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '' }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '', availableEditors = {} }) {
   const safeOnRename = onRename || (() => {});
   // state
   const [serverUrl, setServerUrl] = useState('');
@@ -1401,12 +1404,59 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               {initialized ? 'Initialized' : 'Uninitialized'}
             </span>
             {createdLabel ? <span>Created {createdLabel}</span> : null}
-            <Button
+            <DropdownMenu
+              label="Open directory in"
+              text="Open directory in"
               variant="tertiary"
-              isSmall
-              onClick={() => window.api.openDirectory(sitePath)}
+              size="small"
+              icon={chevronDown}
+              iconPosition="right"
               style={{ marginLeft: 4, fontSize: 12 }}
-            >Open directory</Button>
+              controls={[
+                {
+                  title: 'Finder',
+                  onClick: () => window.api.openDirectory(sitePath)
+                },
+                ...[
+                  {
+                    key: 'vscode',
+                    title: availableEditors.vscode ? 'VS Code' : 'VS Code (not installed)',
+                    onClick: async () => {
+                      const res = await window.api.openInEditor(sitePath, 'vscode');
+                      if (res && !res.ok) {
+                        alert(`Failed to open in VS Code: ${res.error || 'Unknown error'}`);
+                      }
+                    },
+                    isDisabled: !availableEditors.vscode,
+                    available: availableEditors.vscode
+                  },
+                  {
+                    key: 'phpstorm',
+                    title: availableEditors.phpstorm ? 'PHPStorm' : 'PHPStorm (not installed)',
+                    onClick: async () => {
+                      const res = await window.api.openInEditor(sitePath, 'phpstorm');
+                      if (res && !res.ok) {
+                        alert(`Failed to open in PHPStorm: ${res.error || 'Unknown error'}`);
+                      }
+                    },
+                    isDisabled: !availableEditors.phpstorm,
+                    available: availableEditors.phpstorm
+                  },
+                  {
+                    key: 'cursor',
+                    title: availableEditors.cursor ? 'Cursor' : 'Cursor (not installed)',
+                    onClick: async () => {
+                      const res = await window.api.openInEditor(sitePath, 'cursor');
+                      if (res && !res.ok) {
+                        alert(`Failed to open in Cursor: ${res.error || 'Unknown error'}`);
+                      }
+                    },
+                    isDisabled: !availableEditors.cursor,
+                    available: availableEditors.cursor
+                  }
+                ].sort((a, b) => (b.available ? 1 : 0) - (a.available ? 1 : 0))
+              ]}
+            />
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -1635,7 +1685,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
             {!patchLoading && (
               <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
-                <strong>Next steps:</strong> Save or copy this patch and submit it to the relevant WordPress Trac ticket at <a href="https://core.trac.wordpress.org" target="_blank" rel="noopener noreferrer" style={{color:'#0969da'}}>core.trac.wordpress.org</a>
+                <strong>Next steps:</strong> Save this patch and submit it to the relevant WordPress Trac ticket at <a href="https://core.trac.wordpress.org" target="_blank" rel="noopener noreferrer" style={{color:'#0969da'}}>core.trac.wordpress.org</a>
               </div>
             )}
             <div style={{ position:'relative', flex:1, minHeight:0 }}>

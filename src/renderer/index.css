@@ -18,7 +18,6 @@
     58,
     214;
   --wp-admin-border-width-focus: 2px;
-  color: #000;
 }
 @media (min-resolution: 192dpi) {
   :root {
@@ -1583,9 +1582,6 @@ body.is-dragging-components-draggable {
   .components-guide {
     width: 600px;
   }
-}
-.components-guide .components-modal {
-  color: #000;
 }
 .components-guide .components-modal__content {
   padding: 0;
