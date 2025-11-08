@@ -59,6 +59,7 @@ function App() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createSiteName, setCreateSiteName] = useState('');
   const [createSiteDir, setCreateSiteDir] = useState('');
+  const [createSiteType, setCreateSiteType] = useState('wordpress');
   const [createSiteError, setCreateSiteError] = useState('');
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
@@ -251,6 +252,9 @@ function App() {
     }
 
     const cleanFolder = sanitizeSiteFolder(nameTrimmed);
+    const projectKey = createSiteType === 'gutenberg' ? 'gutenberg' : 'wordpress';
+    const projectLabel = projectKey === 'gutenberg' ? 'Gutenberg' : 'WordPress Core';
+    const setupHandler = projectKey === 'gutenberg' ? window.api.setupGutenberg : window.api.setupWordPress;
     const targetDir = resolveTargetDir(createSiteDir, cleanFolder);
     let finalSitePath = targetDir;
     const placeholderCreatedAt = new Date().toISOString();
@@ -262,7 +266,8 @@ function App() {
         ...(prev[targetDir] || {}),
         label: nameTrimmed,
         createdAt: prev[targetDir]?.createdAt || placeholderCreatedAt,
-        initialized: false
+        initialized: false,
+        type: projectKey
       }
     }));
     setActiveSite(targetDir);
@@ -275,8 +280,8 @@ function App() {
       setCreateSiteError('');
       setTerminalMsgs('');
       setPendingSite({ targetDir });
-      appendSetupLog(targetDir, 'Starting site setup…\n');
-      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
+      appendSetupLog(targetDir, `Starting ${projectLabel} site setup…\n`);
+      const createdPath = await setupHandler(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
       if (createdPath) {
         finalSitePath = createdPath;
         if (createdPath !== targetDir) {
@@ -294,7 +299,8 @@ function App() {
               ...placeholder,
               label: nameTrimmed,
               createdAt: placeholder.createdAt || placeholderCreatedAt,
-              initialized: false
+              initialized: false,
+              type: projectKey
             };
             return next;
           });
@@ -302,7 +308,7 @@ function App() {
       }
       await refresh();
       setActiveSite(finalSitePath);
-      appendSetupLog(finalSitePath, 'Site setup request completed.\n');
+      appendSetupLog(finalSitePath, `${projectLabel} site setup completed.\n`);
     } catch (e) {
       setPendingSite(null);
       setCreateSiteError(String(e));
@@ -317,7 +323,7 @@ function App() {
     } finally {
       setCreateSubmitting(false);
     }
-  }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
+  }, [appendSetupLog, createSiteDir, createSiteName, createSiteType, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
@@ -450,6 +456,18 @@ function App() {
             const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : '';
             const isActive = activeSite === sitePath;
             const statusLabel = meta.initialized ? 'Initialized' : 'Not initialized';
+            const siteType = meta.type === 'gutenberg' ? 'gutenberg' : 'wordpress';
+            const envLabel = siteType === 'gutenberg' ? 'Gutenberg' : 'WordPress Core';
+            const envBadgeStyle = {
+              fontSize: 10,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              fontWeight: 600,
+              padding: '2px 8px',
+              borderRadius: 999,
+              background: siteType === 'gutenberg' ? '#efe5ff' : '#e0f2ff',
+              color: siteType === 'gutenberg' ? '#5a189a' : '#0f172a'
+            };
             return (
               <Button
                 key={sitePath}
@@ -472,6 +490,7 @@ function App() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
                     <span style={{ fontWeight: 600 }}>{siteName}</span>
+                    <span style={envBadgeStyle}>{envLabel}</span>
                   </div>
                 )}
               </Button>
@@ -491,9 +510,9 @@ function App() {
             variant="primary"
             onClick={chooseAndSetup}
             style={{ width: '100%', justifyContent: 'center' }}
-            aria-label="Create WordPress Core site"
+            aria-label="Create site"
           >
-            {!sidebarCollapsed ? 'Create WordPress Core site' : null}
+            {!sidebarCollapsed ? 'Create site' : null}
           </Button>
         </div>
       </div>
@@ -555,6 +574,7 @@ function App() {
                   >
                     <SiteRow
                       sitePath={s}
+                      siteType={siteMeta?.[s]?.type === 'gutenberg' ? 'gutenberg' : 'wordpress'}
                       initialized={Boolean(siteMeta?.[s]?.initialized)}
                       createdAt={siteMeta?.[s]?.createdAt}
                       label={siteMeta?.[s]?.label}
@@ -583,7 +603,7 @@ function App() {
       {createModalOpen ? (
         <Modal
           className="create-site-modal"
-          title="Create WordPress Core site"
+          title={createSiteType === 'gutenberg' ? 'Create Gutenberg site' : 'Create WordPress Core site'}
           onRequestClose={closeCreateModal}
           shouldCloseOnClickOutside={!createSubmitting}
         >
@@ -592,13 +612,28 @@ function App() {
             onKeyDown={handleCreateModalKeyDown}
             style={{ display: 'flex', flexDirection: 'column', gap: 16, color: '#1d2327', colorScheme: 'light' }}
           >
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#1d2327', marginBottom: 6 }}>Project type</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Button
+                  variant={createSiteType === 'wordpress' ? 'primary' : 'secondary'}
+                  onClick={() => setCreateSiteType('wordpress')}
+                  disabled={createSubmitting}
+                >WordPress Core</Button>
+                <Button
+                  variant={createSiteType === 'gutenberg' ? 'primary' : 'secondary'}
+                  onClick={() => setCreateSiteType('gutenberg')}
+                  disabled={createSubmitting}
+                >Gutenberg</Button>
+              </div>
+            </div>
             <TextControl
               id={CREATE_SITE_NAME_INPUT_ID}
               label="Site name"
               value={createSiteName}
               onChange={(value) => setCreateSiteName(value)}
               disabled={createSubmitting}
-              placeholder="My WordPress site"
+              placeholder={createSiteType === 'gutenberg' ? 'My Gutenberg site' : 'My WordPress site'}
               autoFocus
             />
             <label htmlFor={CREATE_SITE_LOCATION_INPUT_ID} style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#1d2327' }}>Site location</label>
@@ -641,9 +676,11 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '', availableEditors = {} }) {
+function SiteRow({ sitePath, siteType = 'wordpress', initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '', availableEditors = {} }) {
   const safeOnRename = onRename || (() => {});
   // state
+  const isGutenberg = siteType === 'gutenberg';
+  const environmentLabel = isGutenberg ? 'Gutenberg' : 'WordPress Core';
   const [serverUrl, setServerUrl] = useState('');
   const [starting, setStarting] = useState(false);
   const [running, setRunning] = useState(false);
@@ -660,9 +697,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const [building, setBuilding] = useState(false);
   const [hasNodeModules, setHasNodeModules] = useState(false);
   const [hasBuilt, setHasBuilt] = useState(false);
-  const [skipInit, setSkipInit] = useState(false);
+  const [skipInit, setSkipInit] = useState(isGutenberg);
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
+  const [gutenbergDevRan, setGutenbergDevRan] = useState(false);
+  const [gutenbergDevRunning, setGutenbergDevRunning] = useState(false);
   const setupLogsRef = useRef('');
   const [prSubmitting, setPRSubmitting] = useState(false);
   const [prModalOpen, setPRModalOpen] = useState(false);
@@ -781,11 +820,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       setStatusLoading(true);
       const s = await window.api.getSiteStatus(sitePath);
       setHasNodeModules(Boolean(s?.hasNodeModules));
-      setHasBuilt(Boolean(s?.hasBuilt));
-      setSkipInit(Boolean(s?.skipInitWizard));
+      if (isGutenberg) {
+        setHasBuilt(false);
+        setSkipInit(true);
+        setGutenbergDevRan(Boolean(s?.hasGutenbergDev));
+      } else {
+        setHasBuilt(Boolean(s?.hasBuilt));
+        setSkipInit(Boolean(s?.skipInitWizard));
+      }
     } catch {}
     finally { setStatusLoading(false); }
-  }, [sitePath]);
+  }, [isGutenberg, sitePath]);
   useEffect(()=>{ loadStatus(); }, [loadStatus]);
 
   const runInstall = useCallback((options = {}) => {
@@ -893,6 +938,30 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       }
     });
   }, [runInstall, writeToTerminal]);
+
+  const markGutenbergDevRan = useCallback(async () => {
+    try { await window.api.updateSiteMeta(sitePath, { gutenbergDevRan: true }); } catch {}
+    setGutenbergDevRan(true);
+  }, [sitePath]);
+
+  const startGutenbergDev = useCallback(() => {
+    if (gutenbergDevRunning) return;
+    writeToTerminal('Running npm run dev…\n');
+    setGutenbergDevRunning(true);
+    runScript('dev', {
+      onLog: (chunk) => writeToTerminal(chunk),
+      onDone: async ({ code }) => {
+        setGutenbergDevRunning(false);
+        if (code === 0) {
+          await markGutenbergDevRan();
+        }
+      }
+    }).catch(() => setGutenbergDevRunning(false));
+  }, [gutenbergDevRunning, markGutenbergDevRan, runScript, writeToTerminal]);
+
+  const stopGutenbergDev = useCallback(() => {
+    killCurrent();
+  }, [killCurrent]);
 
   const showPrompt = useCallback((prependNewLine = true) => {
     const term = terminalRef.current;
@@ -1089,7 +1158,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     });
     terminalRef.current = term;
     term.open(container);
-    term.write(normalizeForTerminal('WordPress npm helper terminal.\n'));
+    term.write(normalizeForTerminal(`${environmentLabel} npm helper terminal.\n`));
     printHelp();
     showPrompt(false);
     const dataDisposable = term.onData((d) => terminalInputHandlerRef.current(d));
@@ -1105,7 +1174,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       terminalRef.current = null;
       terminalStickRef.current = true;
     };
-  }, [normalizeForTerminal, printHelp, showPrompt]);
+  }, [environmentLabel, normalizeForTerminal, printHelp, showPrompt]);
 
   useEffect(() => {
     const incoming = setupLogs || '';
@@ -1248,6 +1317,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
 
   const downloadPatchFile = async ()=>{
+    if (isGutenberg) return;
     if (prReviewLoading || !hasReviewDiff) return;
     try {
       const res = await window.api.savePatchContent(sitePath, prReviewPatch || '');
@@ -1363,7 +1433,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     setPRProgressLog([]);
 
     try {
-      const result = await window.api.submitPR(sitePath, (progress) => {
+      const result = await window.api.submitPR(sitePath, siteType, (progress) => {
         setPRProgress(progress);
 
         if (progress.step === 'auth_code') {
@@ -1433,6 +1503,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const statusStyles = initialized
     ? { background: '#e7f6e7', color: '#0f5132' }
     : { background: '#fff4ce', color: '#8a6d1c' };
+  const environmentBadgeStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '2px 8px',
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    background: isGutenberg ? '#ede5ff' : '#d8f1ff',
+    color: isGutenberg ? '#5a189a' : '#0d3b66'
+  };
 
   const checklistVisuals = {
     complete: {
@@ -1477,88 +1559,158 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     }
   };
 
-  const baseSteps = [
-    {
-      key: 'download',
-      label: 'Download WordPress development version',
-      description: 'Clone the WordPress develop repository.',
-      done: true,
-      ready: true
-    },
-    {
-      key: 'install',
-      label: 'Install npm dependencies',
-      description: 'Install npm packages so commands can run.',
-      done: hasNodeModules,
-      ready: true,
-      action: (
-        <Button
-          isBusy={installing}
-          variant={hasNodeModules ? 'secondary' : 'primary'}
-          onClick={runInstallWithTerminal}
-          disabled={statusLoading || installing || hasNodeModules}
-        >{hasNodeModules ? 'Dependencies installed' : 'Install npm dependencies'}</Button>
-      )
-    },
-    {
-      key: 'build',
-      label: 'Run first full build',
-      description: 'Compile WordPress Core once to generate the initial dist files.',
-      done: hasBuilt,
-      ready: hasNodeModules,
-      action: (
-        <Button
-          isBusy={building}
-          variant={hasBuilt ? 'secondary' : 'primary'}
-          onClick={()=>runScript('build')}
-          disabled={statusLoading || building || (!hasNodeModules) || hasBuilt}
-        >{hasBuilt ? 'First build complete' : 'Run first full build'}</Button>
-      )
-    },
-    {
-      key: 'dev',
-      label: 'Start dev server & finish wizard',
-      description: 'Launch the development server once to complete the WordPress setup wizard.',
-      done: false,
-      ready: hasBuilt,
-      action: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Button
-            isBusy={starting}
-            variant={running ? 'secondary' : 'primary'}
-            onClick={async () => {
-              await markSkipWizard();
-              await toggleDevServer();
-            }}
-            disabled={statusLoading || starting || (!hasBuilt)}
-          >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
-          {starting || serverUrl ? (
-            <span style={{ fontSize: 12 }}>
-              {starting ? 'Starting...' : (serverUrl ? (
-                <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
-              ) : null)}
-            </span>
-          ) : null}
-        </div>
-      )
-    }
-  ];
+  const showChecklist = isGutenberg || !skipInit;
+  const checklistTitle = isGutenberg ? 'Gutenberg setup checklist' : 'Initial setup checklist';
+  const checklistSubtitle = isGutenberg ? 'Complete these steps to prepare your Gutenberg workspace.' : 'Complete each step to prepare this site for development.';
+  const submissionButtonLabel = isGutenberg ? 'Submit PR (GitHub)' : 'Submit patch / PR';
+  const submissionHelpText = gitHubConnected ? '' : (isGutenberg ? 'Submitting a PR will prompt you to sign in to GitHub.' : 'Submitting a PR will guide you through GitHub sign-in.');
+  const logSectionTitle = isGutenberg ? 'Dev logs' : 'Server & WordPress logs';
+  const diffHeading = isGutenberg ? 'Review diff against Gutenberg trunk' : 'Review diff against WordPress trunk';
+  const diffSubheading = isGutenberg ? 'Comparing your workspace with the latest WordPress/gutenberg trunk.' : 'Comparing your workspace with the latest wordpress-develop/trunk.';
+  const noChangesText = isGutenberg ? 'No changes detected relative to Gutenberg trunk.' : 'No changes detected relative to trunk.';
+  const contributionAudience = isGutenberg ? 'Gutenberg team' : 'WordPress Core team';
 
-  let currentStepCaptured = false;
-  const stepItems = baseSteps.map((step) => {
-    let status;
-    if (step.done) {
-      status = 'complete';
-    } else if (!currentStepCaptured && step.ready) {
-      status = 'current';
-      currentStepCaptured = true;
-    } else if (step.ready) {
-      status = 'pending';
-    } else {
-      status = 'locked';
+  const baseSteps = useMemo(() => {
+    if (isGutenberg) {
+      return [
+        {
+          key: 'download',
+          label: 'Clone Gutenberg repository',
+          description: 'This happened automatically when you created the site.',
+          done: true,
+          ready: true
+        },
+        {
+          key: 'install',
+          label: 'Install npm dependencies',
+          description: 'Install packages so Gutenberg scripts can run.',
+          done: hasNodeModules,
+          ready: true,
+          action: (
+            <Button
+              isBusy={installing}
+              variant={hasNodeModules ? 'secondary' : 'primary'}
+              onClick={runInstallWithTerminal}
+              disabled={statusLoading || installing || hasNodeModules}
+            >{hasNodeModules ? 'Dependencies installed' : 'Install npm dependencies'}</Button>
+          )
+        },
+        {
+          key: 'dev',
+          label: 'Run npm run dev',
+          description: 'Start Gutenberg’s development environment at least once.',
+          done: gutenbergDevRan,
+          ready: hasNodeModules,
+          action: (
+            <Button
+              isBusy={gutenbergDevRunning}
+              variant={gutenbergDevRan ? 'secondary' : 'primary'}
+              onClick={gutenbergDevRunning ? stopGutenbergDev : startGutenbergDev}
+              disabled={statusLoading || !hasNodeModules}
+            >{gutenbergDevRunning ? 'Stop npm run dev' : (gutenbergDevRan ? 'Run npm run dev again' : 'Run npm run dev')}</Button>
+          )
+        },
+        {
+          key: 'pr',
+          label: 'Open a GitHub pull request',
+          description: 'Review your diff and share it with the Gutenberg team.',
+          done: false,
+          ready: hasNodeModules,
+          action: (
+            <Button
+              variant="primary"
+              onClick={openPRModal}
+              disabled={statusLoading || !hasNodeModules}
+            >Review & submit PR</Button>
+          )
+        }
+      ];
     }
-    return { ...step, status };
-  });
+    return [
+      {
+        key: 'download',
+        label: 'Download WordPress development version',
+        description: 'Clone the WordPress develop repository.',
+        done: true,
+        ready: true
+      },
+      {
+        key: 'install',
+        label: 'Install npm dependencies',
+        description: 'Install npm packages so commands can run.',
+        done: hasNodeModules,
+        ready: true,
+        action: (
+          <Button
+            isBusy={installing}
+            variant={hasNodeModules ? 'secondary' : 'primary'}
+            onClick={runInstallWithTerminal}
+            disabled={statusLoading || installing || hasNodeModules}
+          >{hasNodeModules ? 'Dependencies installed' : 'Install npm dependencies'}</Button>
+        )
+      },
+      {
+        key: 'build',
+        label: 'Run first full build',
+        description: 'Compile WordPress Core once to generate the initial dist files.',
+        done: hasBuilt,
+        ready: hasNodeModules,
+        action: (
+          <Button
+            isBusy={building}
+            variant={hasBuilt ? 'secondary' : 'primary'}
+            onClick={()=>runScript('build')}
+            disabled={statusLoading || building || (!hasNodeModules) || hasBuilt}
+          >{hasBuilt ? 'First build complete' : 'Run first full build'}</Button>
+        )
+      },
+      {
+        key: 'dev',
+        label: 'Start dev server & finish wizard',
+        description: 'Launch the development server once to complete the WordPress setup wizard.',
+        done: false,
+        ready: hasBuilt,
+        action: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button
+              isBusy={starting}
+              variant={running ? 'secondary' : 'primary'}
+              onClick={async () => {
+                await markSkipWizard();
+                await toggleDevServer();
+              }}
+              disabled={statusLoading || starting || (!hasBuilt)}
+            >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
+            {starting || serverUrl ? (
+              <span style={{ fontSize: 12 }}>
+                {starting ? 'Starting...' : (serverUrl ? (
+                  <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
+                ) : null)}
+              </span>
+            ) : null}
+          </div>
+        )
+      }
+    ];
+  }, [building, hasBuilt, hasNodeModules, installing, isGutenberg, gutenbergDevRan, gutenbergDevRunning, markSkipWizard, openPRModal, runInstallWithTerminal, runScript, serverUrl, starting, statusLoading, stopGutenbergDev, startGutenbergDev, toggleDevServer, running]);
+
+  const stepItems = useMemo(() => {
+    let currentStepCaptured = false;
+    return baseSteps.map((step) => {
+      let status;
+      if (step.done) {
+        status = 'complete';
+      } else if (!currentStepCaptured && step.ready) {
+        status = 'current';
+        currentStepCaptured = true;
+      } else if (step.ready) {
+        status = 'pending';
+      } else {
+        status = 'locked';
+      }
+      return { ...step, status };
+    });
+  }, [baseSteps]);
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
@@ -1579,6 +1731,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
             <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', ...statusStyles }}>
               {initialized ? 'Initialized' : 'Uninitialized'}
             </span>
+            <span style={environmentBadgeStyle}>{environmentLabel}</span>
             {createdLabel ? <span>Created {createdLabel}</span> : null}
           </div>
         </div>
@@ -1625,10 +1778,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           />
         </div>
       </Flex>
-      {!skipInit ? (
+      {showChecklist ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Initial setup checklist</div>
-          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>Complete each step to prepare this site for development.</div>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{checklistTitle}</div>
+          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{checklistSubtitle}</div>
           <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {stepItems.map((step) => {
               const visuals = checklistVisuals[step.status] || checklistVisuals.locked;
@@ -1789,7 +1942,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
                 onClick={openPRModal}
                 isBusy={prSubmitting && prModalOpen}
                 style={{ padding: '10px 20px', borderRadius: 10, alignSelf: 'flex-start' }}
-              >Submit patch / PR</Button>
+              >{submissionButtonLabel}</Button>
               {gitHubConnected ? (
                 <Button
                   variant="link"
@@ -1802,10 +1955,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
                   style={{ alignSelf: 'flex-start', padding: 0, textDecoration: 'underline' }}
                 >Disconnect GitHub</Button>
               ) : (
-                <span style={{ fontSize: 12, color: '#3c434a', paddingLeft: 2 }}></span>
+                <span style={{ fontSize: 12, color: '#3c434a', paddingLeft: 2 }}>{submissionHelpText}</span>
               )}
             </div>
-            {running && serverUrl ? (
+            {!isGutenberg && running && serverUrl ? (
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -1816,7 +1969,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               >Open Adminer</Button>
             ) : null}
           </div>
-          {(isServerStarting || serverUrl) ? (
+          {(!isGutenberg && (isServerStarting || serverUrl)) ? (
             <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
               {serverUrl ? (
                 <>
@@ -1848,9 +2001,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           </div>
         </div>
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Server & WordPress logs</div>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>{logSectionTitle}</div>
           <div ref={runtimeRef} onScroll={makeOnScroll('runtime')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:220, overflow:'auto' }}>{runtimeLogs}</div>
         </div>
+        {!isGutenberg ? (
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Mail</div>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
@@ -1875,6 +2029,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
             )}
           </div>
         </div>
+        ) : null}
       </div>
       {renameModalOpen ? (
         <Modal
@@ -1905,7 +2060,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       ) : null}
       {prModalOpen && (
         <Modal
-          title="Contribute your code changes to WordPress Core"
+          title={isGutenberg ? 'Submit your Gutenberg changes' : 'Submit your WordPress Core changes'}
           onRequestClose={closePRModal}
           shouldCloseOnClickOutside={prMode === 'review' && !prSubmitting}
           isFullScreen
@@ -1917,10 +2072,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
                 <div style={{ display: 'flex', gap: 24, flex: 1, minHeight: 0, overflow: 'hidden' }}>
                   <div style={{ flex: 2, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
-                      <div>
-                        <div style={{ fontSize: 16, fontWeight: 600 }}>Review diff against trunk</div>
-                        <div style={{ fontSize: 12, color: '#63707b' }}>Comparing to the latest wordpress-develop/trunk.</div>
-                      </div>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 600 }}>{diffHeading}</div>
+                      <div style={{ fontSize: 12, color: '#63707b' }}>{diffSubheading}</div>
+                    </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <Button
                           variant="secondary"
@@ -1950,10 +2105,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
                       )}
                     </div>
                     {!prReviewLoading && !hasReviewDiff ? (
-                      <div style={{ fontSize: 13, color: '#6c6f72', marginTop: 8 }}>No changes detected relative to trunk.</div>
+                      <div style={{ fontSize: 13, color: '#6c6f72', marginTop: 8 }}>{noChangesText}</div>
                     ) : null}
                   </div>
                   <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
+                    {!isGutenberg && (
                     <div style={{ border: '1px solid #d0d7de', borderRadius: 12, padding: 16, background: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div>
                         <div style={{ fontSize: 15, fontWeight: 600 }}>Submit patch via Trac</div>
@@ -1975,6 +2131,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
                         Need a refresher? <a href="#" onClick={(e) => { e.preventDefault(); window.api.openExternal('https://adamadam.blog/how-to-contribute-your-first-patch-to-wordpress-core-via-trac/'); }} style={{ color: '#0969da' }}>How to upload patches to Trac</a>.
                       </div>
                     </div>
+                    )}
                     <div style={{ border: '1px solid #d0d7de', borderRadius: 12, padding: 16, background: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div>
                         <div style={{ fontSize: 15, fontWeight: 600 }}>Submit via GitHub</div>
@@ -2138,3 +2295,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
 
 const root = createRoot(document.getElementById('root'));
 root.render(<App />);
+  useEffect(() => {
+    if (isGutenberg) {
+      setSkipInit(true);
+      setHasBuilt(false);
+    }
+  }, [isGutenberg]);
+
+  useEffect(() => {
+    if (!isGutenberg) {
+      setGutenbergDevRunning(false);
+      setGutenbergDevRan(false);
+    }
+  }, [isGutenberg]);

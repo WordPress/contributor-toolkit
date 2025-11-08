@@ -15,6 +15,30 @@ const { simpleParser } = require('mailparser');
 
 const WORDPRESS_ZIP_URL = 'https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip';
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
+const GUTENBERG_GIT_URL = 'https://github.com/WordPress/gutenberg.git';
+
+const PROJECT_CONFIGS = {
+	wordpress: {
+		key: 'wordpress',
+		displayName: 'WordPress Core',
+		repoUrl: WORDPRESS_GIT_URL,
+		upstreamSlug: 'WordPress/wordpress-develop',
+		repoName: 'wordpress-develop',
+		defaultBranch: 'trunk',
+		defaultDir: 'wordpress-develop-trunk'
+	},
+	gutenberg: {
+		key: 'gutenberg',
+		displayName: 'Gutenberg',
+		repoUrl: GUTENBERG_GIT_URL,
+		upstreamSlug: 'WordPress/gutenberg',
+		repoName: 'gutenberg',
+		defaultBranch: 'trunk',
+		defaultDir: 'gutenberg-trunk'
+	}
+};
+
+const DEFAULT_SITE_TYPE = 'wordpress';
 const GITHUB_CLIENT_ID = '05eaaa972c8117f72465'; // GitHub OAuth App Client ID for device flow
 
 // GitHub authentication state
@@ -96,14 +120,32 @@ async function getStore() {
 	return store;
 }
 
+async function mergeSiteMeta(sitePath, updates = {}) {
+	const s = await getStore();
+	const meta = s.get('siteMeta') || {};
+	const current = meta[sitePath] || {};
+	const next = { ...current, ...updates };
+	meta[sitePath] = next;
+	s.set('siteMeta', meta);
+	return next;
+}
+
+function resolveSiteType(metaEntry) {
+	return metaEntry?.type === 'gutenberg' ? 'gutenberg' : DEFAULT_SITE_TYPE;
+}
+
 function findAvailableDirName(rootDir, baseName) {
-	const sanitizedBase = baseName || 'wordpress-develop-trunk';
+	const sanitizedBase = baseName || project.defaultDir;
 	let candidate = sanitizedBase;
 	let counter = 2;
 	while (fs.existsSync(path.join(rootDir, candidate))) {
 		candidate = `${sanitizedBase}-${counter++}`;
 	}
 	return candidate;
+}
+
+function getProjectConfig(type) {
+	return PROJECT_CONFIGS[type] || PROJECT_CONFIGS.wordpress;
 }
 
 /** @type {Record<string, import('child_process').ChildProcess>} */
@@ -455,9 +497,9 @@ async function pollDeviceOAuth(deviceCode, interval, shouldAbort) {
 }
 
 // Check if user has a fork
-async function checkForFork(username) {
+async function checkForFork(username, repoName) {
 	try {
-		await githubAPI(`/repos/${username}/wordpress-develop`);
+		await githubAPI(`/repos/${username}/${repoName}`);
 		return true;
 	} catch {
 		return false;
@@ -465,8 +507,8 @@ async function checkForFork(username) {
 }
 
 // Create a fork
-async function createFork() {
-	await githubAPI('/repos/WordPress/wordpress-develop/forks', {
+async function createFork(upstreamSlug) {
+	await githubAPI(`/repos/${upstreamSlug}/forks`, {
 		method: 'POST'
 	});
 
@@ -481,8 +523,9 @@ async function getAuthenticatedUser() {
 }
 
 // Submit PR workflow
-async function submitPR(sitePath, onProgress, abortState) {
+async function submitPR(sitePath, projectConfig, onProgress, abortState) {
     try {
+        const repoConfig = typeof projectConfig === 'string' ? getProjectConfig(projectConfig) : (projectConfig || getProjectConfig('wordpress'));
         const ensureNotAborted = () => {
             if (abortState?.aborted) {
                 const err = new Error('Aborted by user');
@@ -530,14 +573,14 @@ async function submitPR(sitePath, onProgress, abortState) {
 		// Step 2: Get username and check for fork
 		safeProgress({ step: 'fork', message: 'Checking for fork...' });
 		const username = await getAuthenticatedUser();
-		const hasFork = await checkForFork(username);
+		const hasFork = await checkForFork(username, repoConfig.repoName);
 
 		if (!hasFork) {
 			safeProgress({ step: 'fork', message: 'Creating fork...' });
-			await createFork();
-			safeProgress({ step: 'fork', message: `Fork created: https://github.com/${username}/wordpress-develop` });
+			await createFork(repoConfig.upstreamSlug);
+				safeProgress({ step: 'fork', message: `Fork created: https://github.com/${username}/${repoConfig.repoName}` });
 		} else {
-			safeProgress({ step: 'fork', message: `Using existing fork: https://github.com/${username}/wordpress-develop` });
+			safeProgress({ step: 'fork', message: `Using existing fork: https://github.com/${username}/${repoConfig.repoName}` });
 		}
 
 		ensureNotAborted();
@@ -615,22 +658,28 @@ async function submitPR(sitePath, onProgress, abortState) {
 			}
 		}
 
-		safeProgress({
-			step: 'commit',
-			message: 'Committing changes...',
-			gitCommand: 'git commit -m "WordPress core patch"'
-		});
+		const commitMessage = repoConfig.key === 'gutenberg' ? 'Gutenberg contribution' : 'WordPress core patch';
+		const hasChanges = changed.length > 0;
+		if (!hasChanges) {
+			safeProgress({ step: 'commit', message: 'No changes detected. Skipping commit.' });
+		} else {
+			safeProgress({
+				step: 'commit',
+				message: 'Committing changes...',
+				gitCommand: `git commit -m "${commitMessage}"`
+			});
 
-		ensureNotAborted();
-		await git.commit({
-			fs,
-			dir: sitePath,
-			message: 'WordPress core patch',
-			author: {
-				name: username,
-				email: `${username}@users.noreply.github.com`
-			}
-		});
+			ensureNotAborted();
+			await git.commit({
+				fs,
+				dir: sitePath,
+				message: commitMessage,
+				author: {
+					name: username,
+					email: `${username}@users.noreply.github.com`
+				}
+			});
+		}
 
 		// Step 5: Add fork remote if it doesn't exist
 		ensureNotAborted();
@@ -641,14 +690,14 @@ async function submitPR(sitePath, onProgress, abortState) {
 			safeProgress({
 				step: 'push',
 				message: 'Adding fork remote...',
-				gitCommand: `git remote add fork https://github.com/${username}/wordpress-develop.git`
+				gitCommand: `git remote add fork https://github.com/${username}/${repoConfig.repoName}.git`
 			});
 			ensureNotAborted();
 			await git.addRemote({
 				fs,
 				dir: sitePath,
 				remote: 'fork',
-				url: `https://github.com/${username}/wordpress-develop.git`
+				url: `https://github.com/${username}/${repoConfig.repoName}.git`
 			});
 		}
 
@@ -731,7 +780,7 @@ async function submitPR(sitePath, onProgress, abortState) {
 		}
 
 		// Step 7: Open PR URL
-		const prUrl = `https://github.com/WordPress/wordpress-develop/compare/trunk...${username}:wordpress-develop:${branchName}?expand=1`;
+		const prUrl = `https://github.com/${repoConfig.upstreamSlug}/compare/${repoConfig.defaultBranch}...${username}:${repoConfig.repoName}:${branchName}?expand=1`;
 		safeProgress({ step: 'done', message: 'Opening PR page...', prUrl });
 
 		return { ok: true, prUrl, branch: branchName };
@@ -801,11 +850,20 @@ ipcMain.handle('git:save-patch-content', async (_e, payload) => {
 	}
 });
 
-ipcMain.handle('git:submit-pr', async (event, sitePath) => {
+ipcMain.handle('git:submit-pr', async (event, payload) => {
+	const input = (payload && typeof payload === 'object' && 'sitePath' in payload) ? payload : { sitePath: payload };
+	const sitePath = input?.sitePath;
+	if (!sitePath) throw new Error('Missing site path for PR submission');
+	const s = await getStore();
+	const meta = s.get('siteMeta') || {};
+	const entry = meta[sitePath] || {};
+	const resolvedType = input.siteType || resolveSiteType(entry);
+	const projectConfig = getProjectConfig(resolvedType);
+
 	const abortState = { aborted: false, controller: null };
 	submitPrAbortStates.set(event.sender.id, abortState);
 	try {
-		const result = await submitPR(sitePath, (progress) => {
+		const result = await submitPR(sitePath, projectConfig, (progress) => {
 			event.sender.send('git:submit-pr:progress', progress);
 		}, abortState);
 		return result;
@@ -859,21 +917,38 @@ ipcMain.handle('sites:getAll', async () => {
 	return { sites: s.get('sites'), siteMeta: s.get('siteMeta') };
 });
 
+ipcMain.handle('sites:update-meta', async (_e, sitePath, updates = {}) => {
+	if (!sitePath || typeof sitePath !== 'string') return null;
+	return mergeSiteMeta(sitePath, updates);
+});
+
 ipcMain.handle('site:status', async (_e, sitePath) => {
 	try {
 		const nmDir = path.join(sitePath, 'node_modules');
 		const hasNodeModules = fs.existsSync(nmDir) && (() => { try { return fs.readdirSync(nmDir).length > 0; } catch { return false; } })();
 
-		const distDir = path.join(sitePath, 'build', 'wp-includes', 'js', 'dist');
-		const hasBuilt = fs.existsSync(distDir);
-
 		const s = await getStore();
 		const meta = s.get('siteMeta') || {};
 		const m = meta[sitePath] || {};
+		const siteType = resolveSiteType(m);
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized) };
+		if (siteType === 'gutenberg') {
+			return {
+				type: siteType,
+				hasNodeModules,
+				hasBuilt: false,
+				skipInitWizard: false,
+				initialized: Boolean(m.initialized),
+				hasGutenbergDev: Boolean(m.gutenbergDevRan)
+			};
+		}
+
+		const distDir = path.join(sitePath, 'build', 'wp-includes', 'js', 'dist');
+		const hasBuilt = fs.existsSync(distDir);
+
+		return { type: siteType, hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized) };
 	} catch (e) {
-		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false };
+		return { type: DEFAULT_SITE_TYPE, hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false };
 	}
 });
 
@@ -895,7 +970,8 @@ ipcMain.handle('sites:add', async (_e, sitePath) => {
 		meta[sitePath] = meta[sitePath] || {
 			initialized: false,
 			createdAt: new Date().toISOString(),
-			label: path.basename(sitePath)
+			label: path.basename(sitePath),
+			type: DEFAULT_SITE_TYPE
 		};
 		s.set('siteMeta', meta);
 	}
@@ -917,6 +993,8 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 
 	await fse.ensureDir(destDir);
 
+	const project = getProjectConfig('wordpress');
+
 	const requestedName = typeof options.siteName === 'string' ? options.siteName.trim() : '';
 	const sanitizedName = requestedName.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').replace(/^-+|-+$/g, '') || 'wordpress-develop-trunk';
 	const uniqueName = findAvailableDirName(destDir, sanitizedName);
@@ -927,11 +1005,11 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 		await git.clone({
 			http,
 			fs,
-			url: WORDPRESS_GIT_URL,
+			url: project.repoUrl,
 			dir: siteDir,
 			singleBranch: true,
 			depth: 1,
-			ref: 'trunk',
+			ref: project.defaultBranch,
 			onProgress: (evt) => {
 				// evt: {phase,total,loaded,lengthComputable} - forward as terminal-like output
 				const msg = `${evt.phase || 'clone'} ${evt.loaded || 0}/${evt.total || 0}`;
@@ -952,7 +1030,51 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 		const siteLabel = typeof options.siteLabel === 'string' && options.siteLabel.trim().length
 			? options.siteLabel.trim()
 			: uniqueName;
-		meta[siteDir] = { initialized: false, createdAt: new Date().toISOString(), label: siteLabel };
+		meta[siteDir] = { initialized: false, createdAt: new Date().toISOString(), label: siteLabel, type: 'wordpress' };
+		s.set('siteMeta', meta);
+	}
+	event.sender.send('download:status', { phase: 'done', target: siteDir, sitePath: siteDir });
+	return siteDir;
+});
+
+ipcMain.handle('gutenberg:setup', async (event, destDir, options = {}) => {
+	if (!destDir) {
+		throw new Error('No destination directory specified');
+	}
+
+	await fse.ensureDir(destDir);
+
+	const project = getProjectConfig('gutenberg');
+	const requestedName = typeof options.siteName === 'string' ? options.siteName.trim() : '';
+	const sanitizedName = requestedName.replace(/[\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').replace(/^-+|-+$/g, '') || project.defaultDir;
+	const uniqueName = findAvailableDirName(destDir, sanitizedName);
+	const siteDir = path.join(destDir, uniqueName);
+	await fse.ensureDir(siteDir);
+	event.sender.send('download:status', { phase: 'cloning', target: siteDir });
+	await git.clone({
+		http,
+		fs,
+		url: project.repoUrl,
+		dir: siteDir,
+		singleBranch: true,
+		depth: 1,
+		ref: project.defaultBranch,
+		onProgress: (evt) => {
+			const msg = `${evt.phase || 'clone'} ${evt.loaded || 0}/${evt.total || 0}`;
+			event.sender.send('download:progress', { target: siteDir, message: msg });
+		}
+	});
+
+	const s = await getStore();
+	const sites = s.get('sites');
+	if (!sites.includes(siteDir)) {
+		sites.push(siteDir);
+		s.set('sites', sites);
+		const meta = s.get('siteMeta');
+		const siteLabel = typeof options.siteLabel === 'string' && options.siteLabel.trim().length
+			? options.siteLabel.trim()
+			: uniqueName;
+		meta[siteDir] = { initialized: false, createdAt: new Date().toISOString(), label: siteLabel, type: 'gutenberg' };
 		s.set('siteMeta', meta);
 	}
 	event.sender.send('download:status', { phase: 'done', target: siteDir, sitePath: siteDir });

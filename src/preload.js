@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('api', {
 	addSite: (dir) => ipcRenderer.invoke('sites:add', dir),
 	chooseDirectory: () => ipcRenderer.invoke('dialog:choose-dir'),
 	setupWordPress: (dir, options = {}) => ipcRenderer.invoke('wordpress:setup', dir, options),
+	setupGutenberg: (dir, options = {}) => ipcRenderer.invoke('gutenberg:setup', dir, options),
 	openDirectory: (dir) => ipcRenderer.invoke('dir:open', dir),
 	openInEditor: (dir, editor) => ipcRenderer.invoke('editor:open', dir, editor),
 	checkEditorsAvailable: () => ipcRenderer.invoke('editor:check-available'),
@@ -75,16 +76,24 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	savePatchContent: (sitePath, patchText) => ipcRenderer.invoke('git:save-patch-content', { sitePath, patch: patchText })
 ,
-	submitPR: async (sitePath, onProgress) => {
+	submitPR: async (sitePath, maybeType, onProgress) => {
+		let siteType = maybeType;
+		let progressHandlerInput = onProgress;
+		if (typeof maybeType === 'function' && onProgress === undefined) {
+			progressHandlerInput = maybeType;
+			siteType = undefined;
+		}
 		const progressHandler = (_e, progress) => {
-			if (onProgress) onProgress(progress);
+			if (progressHandlerInput) progressHandlerInput(progress);
 		};
 		ipcRenderer.on('git:submit-pr:progress', progressHandler);
-		const result = await ipcRenderer.invoke('git:submit-pr', sitePath);
+		const result = await ipcRenderer.invoke('git:submit-pr', { sitePath, siteType });
 		ipcRenderer.removeListener('git:submit-pr:progress', progressHandler);
 		return result;
 	},
 	abortSubmitPR: () => ipcRenderer.invoke('git:submit-pr:abort')
+,
+	updateSiteMeta: (sitePath, updates) => ipcRenderer.invoke('sites:update-meta', sitePath, updates)
 ,
 	startWpDebug: async (sitePath, onData) => {
 		const handler = (_e, payload) => {

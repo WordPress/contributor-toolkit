@@ -53354,6 +53354,7 @@ If there's a particular need for this, please submit a feature request at https:
     const [createModalOpen, setCreateModalOpen] = (0, import_react69.useState)(false);
     const [createSiteName, setCreateSiteName] = (0, import_react69.useState)("");
     const [createSiteDir, setCreateSiteDir] = (0, import_react69.useState)("");
+    const [createSiteType, setCreateSiteType] = (0, import_react69.useState)("wordpress");
     const [createSiteError, setCreateSiteError] = (0, import_react69.useState)("");
     const [createSubmitting, setCreateSubmitting] = (0, import_react69.useState)(false);
     const [setupLogsBySite, setSetupLogsBySite] = (0, import_react69.useState)({});
@@ -53532,6 +53533,9 @@ If there's a particular need for this, please submit a feature request at https:
         return;
       }
       const cleanFolder = sanitizeSiteFolder(nameTrimmed);
+      const projectKey = createSiteType === "gutenberg" ? "gutenberg" : "wordpress";
+      const projectLabel = projectKey === "gutenberg" ? "Gutenberg" : "WordPress Core";
+      const setupHandler = projectKey === "gutenberg" ? window.api.setupGutenberg : window.api.setupWordPress;
       const targetDir = resolveTargetDir(createSiteDir, cleanFolder);
       let finalSitePath = targetDir;
       const placeholderCreatedAt = (/* @__PURE__ */ new Date()).toISOString();
@@ -53542,7 +53546,8 @@ If there's a particular need for this, please submit a feature request at https:
           ...prev2[targetDir] || {},
           label: nameTrimmed,
           createdAt: prev2[targetDir]?.createdAt || placeholderCreatedAt,
-          initialized: false
+          initialized: false,
+          type: projectKey
         }
       }));
       setActiveSite(targetDir);
@@ -53554,8 +53559,9 @@ If there's a particular need for this, please submit a feature request at https:
         setCreateSiteError("");
         setTerminalMsgs("");
         setPendingSite({ targetDir });
-        appendSetupLog(targetDir, "Starting site setup\u2026\n");
-        const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
+        appendSetupLog(targetDir, `Starting ${projectLabel} site setup\u2026
+`);
+        const createdPath = await setupHandler(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
         if (createdPath) {
           finalSitePath = createdPath;
           if (createdPath !== targetDir) {
@@ -53573,7 +53579,8 @@ If there's a particular need for this, please submit a feature request at https:
                 ...placeholder,
                 label: nameTrimmed,
                 createdAt: placeholder.createdAt || placeholderCreatedAt,
-                initialized: false
+                initialized: false,
+                type: projectKey
               };
               return next2;
             });
@@ -53581,7 +53588,8 @@ If there's a particular need for this, please submit a feature request at https:
         }
         await refresh();
         setActiveSite(finalSitePath);
-        appendSetupLog(finalSitePath, "Site setup request completed.\n");
+        appendSetupLog(finalSitePath, `${projectLabel} site setup completed.
+`);
       } catch (e) {
         setPendingSite(null);
         setCreateSiteError(String(e));
@@ -53597,7 +53605,7 @@ If there's a particular need for this, please submit a feature request at https:
       } finally {
         setCreateSubmitting(false);
       }
-    }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
+    }, [appendSetupLog, createSiteDir, createSiteName, createSiteType, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
     const closeCreateModal = (0, import_react69.useCallback)(() => {
       if (createSubmitting) return;
       setCreateModalOpen(false);
@@ -53725,6 +53733,18 @@ If there's a particular need for this, please submit a feature request at https:
           const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : "";
           const isActive = activeSite === sitePath;
           const statusLabel = meta.initialized ? "Initialized" : "Not initialized";
+          const siteType = meta.type === "gutenberg" ? "gutenberg" : "wordpress";
+          const envLabel = siteType === "gutenberg" ? "Gutenberg" : "WordPress Core";
+          const envBadgeStyle = {
+            fontSize: 10,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            fontWeight: 600,
+            padding: "2px 8px",
+            borderRadius: 999,
+            background: siteType === "gutenberg" ? "#efe5ff" : "#e0f2ff",
+            color: siteType === "gutenberg" ? "#5a189a" : "#0f172a"
+          };
           return /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
             button_default,
             {
@@ -53741,7 +53761,10 @@ If there's a particular need for this, please submit a feature request at https:
                 padding: sidebarCollapsed ? "8px 0" : "10px 12px",
                 borderRadius: 6
               },
-              children: sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("span", { style: { fontWeight: 600 }, children: siteName.slice(0, 1).toUpperCase() }) : /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }, children: /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("span", { style: { fontWeight: 600 }, children: siteName }) })
+              children: sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("span", { style: { fontWeight: 600 }, children: siteName.slice(0, 1).toUpperCase() }) : /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("span", { style: { fontWeight: 600 }, children: siteName }),
+                /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("span", { style: envBadgeStyle, children: envLabel })
+              ] })
             },
             sitePath
           );
@@ -53760,8 +53783,8 @@ If there's a particular need for this, please submit a feature request at https:
                 variant: "primary",
                 onClick: chooseAndSetup,
                 style: { width: "100%", justifyContent: "center" },
-                "aria-label": "Create WordPress Core site",
-                children: !sidebarCollapsed ? "Create WordPress Core site" : null
+                "aria-label": "Create site",
+                children: !sidebarCollapsed ? "Create site" : null
               }
             )
           }
@@ -53809,6 +53832,7 @@ If there's a particular need for this, please submit a feature request at https:
                 SiteRow,
                 {
                   sitePath: s,
+                  siteType: siteMeta?.[s]?.type === "gutenberg" ? "gutenberg" : "wordpress",
                   initialized: Boolean(siteMeta?.[s]?.initialized),
                   createdAt: siteMeta?.[s]?.createdAt,
                   label: siteMeta?.[s]?.label,
@@ -53833,7 +53857,7 @@ If there's a particular need for this, please submit a feature request at https:
         modal_default,
         {
           className: "create-site-modal",
-          title: "Create WordPress Core site",
+          title: createSiteType === "gutenberg" ? "Create Gutenberg site" : "Create WordPress Core site",
           onRequestClose: closeCreateModal,
           shouldCloseOnClickOutside: !createSubmitting,
           children: /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)(
@@ -53843,6 +53867,29 @@ If there's a particular need for this, please submit a feature request at https:
               onKeyDown: handleCreateModalKeyDown,
               style: { display: "flex", flexDirection: "column", gap: 16, color: "#1d2327", colorScheme: "light" },
               children: [
+                /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", color: "#1d2327", marginBottom: 6 }, children: "Project type" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
+                      button_default,
+                      {
+                        variant: createSiteType === "wordpress" ? "primary" : "secondary",
+                        onClick: () => setCreateSiteType("wordpress"),
+                        disabled: createSubmitting,
+                        children: "WordPress Core"
+                      }
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
+                      button_default,
+                      {
+                        variant: createSiteType === "gutenberg" ? "primary" : "secondary",
+                        onClick: () => setCreateSiteType("gutenberg"),
+                        disabled: createSubmitting,
+                        children: "Gutenberg"
+                      }
+                    )
+                  ] })
+                ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
                   text_control_default,
                   {
@@ -53851,7 +53898,7 @@ If there's a particular need for this, please submit a feature request at https:
                     value: createSiteName,
                     onChange: (value) => setCreateSiteName(value),
                     disabled: createSubmitting,
-                    placeholder: "My WordPress site",
+                    placeholder: createSiteType === "gutenberg" ? "My Gutenberg site" : "My WordPress site",
                     autoFocus: true
                   }
                 ),
@@ -53894,9 +53941,11 @@ If there's a particular need for this, please submit a feature request at https:
       ) : null
     ] });
   }
-  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = "", availableEditors = {} }) {
+  function SiteRow({ sitePath, siteType = "wordpress", initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = "", availableEditors = {} }) {
     const safeOnRename = onRename || (() => {
     });
+    const isGutenberg2 = siteType === "gutenberg";
+    const environmentLabel = isGutenberg2 ? "Gutenberg" : "WordPress Core";
     const [serverUrl, setServerUrl] = (0, import_react69.useState)("");
     const [starting, setStarting] = (0, import_react69.useState)(false);
     const [running, setRunning] = (0, import_react69.useState)(false);
@@ -53912,10 +53961,12 @@ If there's a particular need for this, please submit a feature request at https:
     const [emailViewTab, setEmailViewTab] = (0, import_react69.useState)("rendered");
     const [building, setBuilding] = (0, import_react69.useState)(false);
     const [hasNodeModules, setHasNodeModules] = (0, import_react69.useState)(false);
-    const [hasBuilt, setHasBuilt] = (0, import_react69.useState)(false);
-    const [skipInit, setSkipInit] = (0, import_react69.useState)(false);
+    const [hasBuilt, setHasBuilt2] = (0, import_react69.useState)(false);
+    const [skipInit, setSkipInit2] = (0, import_react69.useState)(isGutenberg2);
     const [statusLoading, setStatusLoading] = (0, import_react69.useState)(true);
     const [waitingForWatch, setWaitingForWatch] = (0, import_react69.useState)(false);
+    const [gutenbergDevRan, setGutenbergDevRan2] = (0, import_react69.useState)(false);
+    const [gutenbergDevRunning, setGutenbergDevRunning2] = (0, import_react69.useState)(false);
     const setupLogsRef = (0, import_react69.useRef)("");
     const [prSubmitting, setPRSubmitting] = (0, import_react69.useState)(false);
     const [prModalOpen, setPRModalOpen] = (0, import_react69.useState)(false);
@@ -54035,13 +54086,19 @@ If there's a particular need for this, please submit a feature request at https:
         setStatusLoading(true);
         const s = await window.api.getSiteStatus(sitePath);
         setHasNodeModules(Boolean(s?.hasNodeModules));
-        setHasBuilt(Boolean(s?.hasBuilt));
-        setSkipInit(Boolean(s?.skipInitWizard));
+        if (isGutenberg2) {
+          setHasBuilt2(false);
+          setSkipInit2(true);
+          setGutenbergDevRan2(Boolean(s?.hasGutenbergDev));
+        } else {
+          setHasBuilt2(Boolean(s?.hasBuilt));
+          setSkipInit2(Boolean(s?.skipInitWizard));
+        }
       } catch {
       } finally {
         setStatusLoading(false);
       }
-    }, [sitePath]);
+    }, [isGutenberg2, sitePath]);
     (0, import_react69.useEffect)(() => {
       loadStatus();
     }, [loadStatus]);
@@ -54146,6 +54203,30 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
         }
       });
     }, [runInstall, writeToTerminal]);
+    const markGutenbergDevRan = (0, import_react69.useCallback)(async () => {
+      try {
+        await window.api.updateSiteMeta(sitePath, { gutenbergDevRan: true });
+      } catch {
+      }
+      setGutenbergDevRan2(true);
+    }, [sitePath]);
+    const startGutenbergDev = (0, import_react69.useCallback)(() => {
+      if (gutenbergDevRunning) return;
+      writeToTerminal("Running npm run dev\u2026\n");
+      setGutenbergDevRunning2(true);
+      runScript("dev", {
+        onLog: (chunk) => writeToTerminal(chunk),
+        onDone: async ({ code }) => {
+          setGutenbergDevRunning2(false);
+          if (code === 0) {
+            await markGutenbergDevRan();
+          }
+        }
+      }).catch(() => setGutenbergDevRunning2(false));
+    }, [gutenbergDevRunning, markGutenbergDevRan, runScript, writeToTerminal]);
+    const stopGutenbergDev = (0, import_react69.useCallback)(() => {
+      killCurrent();
+    }, [killCurrent]);
     const showPrompt = (0, import_react69.useCallback)((prependNewLine = true) => {
       const term = terminalRef.current;
       if (!term) return;
@@ -54331,7 +54412,8 @@ Try "help" for the list of supported commands.
       });
       terminalRef.current = term;
       term.open(container);
-      term.write(normalizeForTerminal("WordPress npm helper terminal.\n"));
+      term.write(normalizeForTerminal(`${environmentLabel} npm helper terminal.
+`));
       printHelp();
       showPrompt(false);
       const dataDisposable = term.onData((d) => terminalInputHandlerRef.current(d));
@@ -54347,7 +54429,7 @@ Try "help" for the list of supported commands.
         terminalRef.current = null;
         terminalStickRef.current = true;
       };
-    }, [normalizeForTerminal, printHelp, showPrompt]);
+    }, [environmentLabel, normalizeForTerminal, printHelp, showPrompt]);
     (0, import_react69.useEffect)(() => {
       const incoming = setupLogs || "";
       if (!incoming) return;
@@ -54519,12 +54601,13 @@ Try "help" for the list of supported commands.
     const isDevProcessActive = running || isServerStarting;
     const markSkipWizard = (0, import_react69.useCallback)(async () => {
       await window.api.setSkipInitWizard(sitePath, true);
-      setSkipInit(true);
+      setSkipInit2(true);
     }, [sitePath]);
     const confirmAnd = async (m, a) => {
       if (window.confirm(m)) await a();
     };
     const downloadPatchFile = async () => {
+      if (isGutenberg2) return;
       if (prReviewLoading || !hasReviewDiff) return;
       try {
         const res = await window.api.savePatchContent(sitePath, prReviewPatch || "");
@@ -54633,7 +54716,7 @@ Try "help" for the list of supported commands.
       setPRAuthCode(null);
       setPRProgressLog([]);
       try {
-        const result = await window.api.submitPR(sitePath, (progress2) => {
+        const result = await window.api.submitPR(sitePath, siteType, (progress2) => {
           setPRProgress(progress2);
           if (progress2.step === "auth_code") {
             setPRAuthCode({
@@ -54696,6 +54779,18 @@ Try "help" for the list of supported commands.
       }
     };
     const statusStyles = initialized ? { background: "#e7f6e7", color: "#0f5132" } : { background: "#fff4ce", color: "#8a6d1c" };
+    const environmentBadgeStyle = {
+      display: "inline-flex",
+      alignItems: "center",
+      padding: "2px 8px",
+      borderRadius: 999,
+      fontSize: 11,
+      fontWeight: 600,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      background: isGutenberg2 ? "#ede5ff" : "#d8f1ff",
+      color: isGutenberg2 ? "#5a189a" : "#0d3b66"
+    };
     const checklistVisuals = {
       complete: {
         label: "Completed",
@@ -54738,90 +54833,165 @@ Try "help" for the list of supported commands.
         indicatorContent: "\u2013"
       }
     };
-    const baseSteps = [
-      {
-        key: "download",
-        label: "Download WordPress development version",
-        description: "Clone the WordPress develop repository.",
-        done: true,
-        ready: true
-      },
-      {
-        key: "install",
-        label: "Install npm dependencies",
-        description: "Install npm packages so commands can run.",
-        done: hasNodeModules,
-        ready: true,
-        action: /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
-          button_default,
+    const showChecklist = isGutenberg2 || !skipInit;
+    const checklistTitle = isGutenberg2 ? "Gutenberg setup checklist" : "Initial setup checklist";
+    const checklistSubtitle = isGutenberg2 ? "Complete these steps to prepare your Gutenberg workspace." : "Complete each step to prepare this site for development.";
+    const submissionButtonLabel = isGutenberg2 ? "Submit PR (GitHub)" : "Submit patch / PR";
+    const submissionHelpText = gitHubConnected ? "" : isGutenberg2 ? "Submitting a PR will prompt you to sign in to GitHub." : "Submitting a PR will guide you through GitHub sign-in.";
+    const logSectionTitle = isGutenberg2 ? "Dev logs" : "Server & WordPress logs";
+    const diffHeading = isGutenberg2 ? "Review diff against Gutenberg trunk" : "Review diff against WordPress trunk";
+    const diffSubheading = isGutenberg2 ? "Comparing your workspace with the latest WordPress/gutenberg trunk." : "Comparing your workspace with the latest wordpress-develop/trunk.";
+    const noChangesText = isGutenberg2 ? "No changes detected relative to Gutenberg trunk." : "No changes detected relative to trunk.";
+    const contributionAudience = isGutenberg2 ? "Gutenberg team" : "WordPress Core team";
+    const baseSteps = (0, import_react69.useMemo)(() => {
+      if (isGutenberg2) {
+        return [
           {
-            isBusy: installing,
-            variant: hasNodeModules ? "secondary" : "primary",
-            onClick: runInstallWithTerminal,
-            disabled: statusLoading || installing || hasNodeModules,
-            children: hasNodeModules ? "Dependencies installed" : "Install npm dependencies"
-          }
-        )
-      },
-      {
-        key: "build",
-        label: "Run first full build",
-        description: "Compile WordPress Core once to generate the initial dist files.",
-        done: hasBuilt,
-        ready: hasNodeModules,
-        action: /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
-          button_default,
+            key: "download",
+            label: "Clone Gutenberg repository",
+            description: "This happened automatically when you created the site.",
+            done: true,
+            ready: true
+          },
           {
-            isBusy: building,
-            variant: hasBuilt ? "secondary" : "primary",
-            onClick: () => runScript("build"),
-            disabled: statusLoading || building || !hasNodeModules || hasBuilt,
-            children: hasBuilt ? "First build complete" : "Run first full build"
+            key: "install",
+            label: "Install npm dependencies",
+            description: "Install packages so Gutenberg scripts can run.",
+            done: hasNodeModules,
+            ready: true,
+            action: /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
+              button_default,
+              {
+                isBusy: installing,
+                variant: hasNodeModules ? "secondary" : "primary",
+                onClick: runInstallWithTerminal,
+                disabled: statusLoading || installing || hasNodeModules,
+                children: hasNodeModules ? "Dependencies installed" : "Install npm dependencies"
+              }
+            )
+          },
+          {
+            key: "dev",
+            label: "Run npm run dev",
+            description: "Start Gutenberg\u2019s development environment at least once.",
+            done: gutenbergDevRan,
+            ready: hasNodeModules,
+            action: /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
+              button_default,
+              {
+                isBusy: gutenbergDevRunning,
+                variant: gutenbergDevRan ? "secondary" : "primary",
+                onClick: gutenbergDevRunning ? stopGutenbergDev : startGutenbergDev,
+                disabled: statusLoading || !hasNodeModules,
+                children: gutenbergDevRunning ? "Stop npm run dev" : gutenbergDevRan ? "Run npm run dev again" : "Run npm run dev"
+              }
+            )
+          },
+          {
+            key: "pr",
+            label: "Open a GitHub pull request",
+            description: "Review your diff and share it with the Gutenberg team.",
+            done: false,
+            ready: hasNodeModules,
+            action: /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
+              button_default,
+              {
+                variant: "primary",
+                onClick: openPRModal,
+                disabled: statusLoading || !hasNodeModules,
+                children: "Review & submit PR"
+              }
+            )
           }
-        )
-      },
-      {
-        key: "dev",
-        label: "Start dev server & finish wizard",
-        description: "Launch the development server once to complete the WordPress setup wizard.",
-        done: false,
-        ready: hasBuilt,
-        action: /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
+        ];
+      }
+      return [
+        {
+          key: "download",
+          label: "Download WordPress development version",
+          description: "Clone the WordPress develop repository.",
+          done: true,
+          ready: true
+        },
+        {
+          key: "install",
+          label: "Install npm dependencies",
+          description: "Install npm packages so commands can run.",
+          done: hasNodeModules,
+          ready: true,
+          action: /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
             button_default,
             {
-              isBusy: starting,
-              variant: running ? "secondary" : "primary",
-              onClick: async () => {
-                await markSkipWizard();
-                await toggleDevServer();
-              },
-              disabled: statusLoading || starting || !hasBuilt,
-              children: running ? "Stop dev server" : "Start dev server and finish the wizard"
+              isBusy: installing,
+              variant: hasNodeModules ? "secondary" : "primary",
+              onClick: runInstallWithTerminal,
+              disabled: statusLoading || installing || hasNodeModules,
+              children: hasNodeModules ? "Dependencies installed" : "Install npm dependencies"
             }
-          ),
-          starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("span", { style: { fontSize: 12 }, children: starting ? "Starting..." : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("a", { href: serverUrl, onClick: (e) => {
-            e.preventDefault();
-            window.api.openExternal(serverUrl);
-          }, children: serverUrl }) : null }) : null
-        ] })
-      }
-    ];
-    let currentStepCaptured = false;
-    const stepItems = baseSteps.map((step) => {
-      let status;
-      if (step.done) {
-        status = "complete";
-      } else if (!currentStepCaptured && step.ready) {
-        status = "current";
-        currentStepCaptured = true;
-      } else if (step.ready) {
-        status = "pending";
-      } else {
-        status = "locked";
-      }
-      return { ...step, status };
-    });
+          )
+        },
+        {
+          key: "build",
+          label: "Run first full build",
+          description: "Compile WordPress Core once to generate the initial dist files.",
+          done: hasBuilt,
+          ready: hasNodeModules,
+          action: /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
+            button_default,
+            {
+              isBusy: building,
+              variant: hasBuilt ? "secondary" : "primary",
+              onClick: () => runScript("build"),
+              disabled: statusLoading || building || !hasNodeModules || hasBuilt,
+              children: hasBuilt ? "First build complete" : "Run first full build"
+            }
+          )
+        },
+        {
+          key: "dev",
+          label: "Start dev server & finish wizard",
+          description: "Launch the development server once to complete the WordPress setup wizard.",
+          done: false,
+          ready: hasBuilt,
+          action: /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
+              button_default,
+              {
+                isBusy: starting,
+                variant: running ? "secondary" : "primary",
+                onClick: async () => {
+                  await markSkipWizard();
+                  await toggleDevServer();
+                },
+                disabled: statusLoading || starting || !hasBuilt,
+                children: running ? "Stop dev server" : "Start dev server and finish the wizard"
+              }
+            ),
+            starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("span", { style: { fontSize: 12 }, children: starting ? "Starting..." : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("a", { href: serverUrl, onClick: (e) => {
+              e.preventDefault();
+              window.api.openExternal(serverUrl);
+            }, children: serverUrl }) : null }) : null
+          ] })
+        }
+      ];
+    }, [building, hasBuilt, hasNodeModules, installing, isGutenberg2, gutenbergDevRan, gutenbergDevRunning, markSkipWizard, openPRModal, runInstallWithTerminal, runScript, serverUrl, starting, statusLoading, stopGutenbergDev, startGutenbergDev, toggleDevServer, running]);
+    const stepItems = (0, import_react69.useMemo)(() => {
+      let currentStepCaptured = false;
+      return baseSteps.map((step) => {
+        let status;
+        if (step.done) {
+          status = "complete";
+        } else if (!currentStepCaptured && step.ready) {
+          status = "current";
+          currentStepCaptured = true;
+        } else if (step.ready) {
+          status = "pending";
+        } else {
+          status = "locked";
+        }
+        return { ...step, status };
+      });
+    }, [baseSteps]);
     return /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("section", { style: { display: "flex", flexDirection: "column", gap: 24, paddingBottom: 48 }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)(component_default3, { align: "flex-start", justify: "space-between", style: { gap: 16, flexWrap: "wrap" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { flex: "1 1 440px", minWidth: 0 }, children: [
@@ -54841,6 +55011,7 @@ Try "help" for the list of supported commands.
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12, color: "#3c434a", flexWrap: "wrap" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("span", { style: { display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", ...statusStyles }, children: initialized ? "Initialized" : "Uninitialized" }),
+            /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("span", { style: environmentBadgeStyle, children: environmentLabel }),
             createdLabel ? /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("span", { children: [
               "Created ",
               createdLabel
@@ -54891,9 +55062,9 @@ Try "help" for the list of supported commands.
           }
         ) })
       ] }),
-      !skipInit ? /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { padding: 20, border: "1px solid #dcdcde", borderRadius: 12, background: "#fff" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontWeight: 600, fontSize: 16, color: "#1d2327" }, children: "Initial setup checklist" }),
-        /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { marginTop: 4, fontSize: 13, color: "#3c434a" }, children: "Complete each step to prepare this site for development." }),
+      showChecklist ? /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { padding: 20, border: "1px solid #dcdcde", borderRadius: 12, background: "#fff" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontWeight: 600, fontSize: 16, color: "#1d2327" }, children: checklistTitle }),
+        /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { marginTop: 4, fontSize: 13, color: "#3c434a" }, children: checklistSubtitle }),
         /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }, children: stepItems.map((step) => {
           const visuals = checklistVisuals[step.status] || checklistVisuals.locked;
           return /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)(
@@ -55053,7 +55224,7 @@ Try "help" for the list of supported commands.
                 onClick: openPRModal,
                 isBusy: prSubmitting && prModalOpen,
                 style: { padding: "10px 20px", borderRadius: 10, alignSelf: "flex-start" },
-                children: "Submit patch / PR"
+                children: submissionButtonLabel
               }
             ),
             gitHubConnected ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
@@ -55069,9 +55240,9 @@ Try "help" for the list of supported commands.
                 style: { alignSelf: "flex-start", padding: 0, textDecoration: "underline" },
                 children: "Disconnect GitHub"
               }
-            ) : /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("span", { style: { fontSize: 12, color: "#3c434a", paddingLeft: 2 } })
+            ) : /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("span", { style: { fontSize: 12, color: "#3c434a", paddingLeft: 2 }, children: submissionHelpText })
           ] }),
-          running && serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
+          !isGutenberg2 && running && serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
             button_default,
             {
               variant: "secondary",
@@ -55084,7 +55255,7 @@ Try "help" for the list of supported commands.
             }
           ) : null
         ] }),
-        isServerStarting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontSize: 13, color: "#1d2327", paddingLeft: 2, display: "flex", flexDirection: "column", gap: 4 }, children: serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)(import_jsx_runtime58.Fragment, { children: [
+        !isGutenberg2 && (isServerStarting || serverUrl) ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontSize: 13, color: "#1d2327", paddingLeft: 2, display: "flex", flexDirection: "column", gap: 4 }, children: serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)(import_jsx_runtime58.Fragment, { children: [
           /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("a", { href: serverUrl, onClick: (e) => {
             e.preventDefault();
             window.api.openExternal(serverUrl);
@@ -55123,10 +55294,10 @@ Try "help" for the list of supported commands.
           ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Server & WordPress logs" }),
+          /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: logSectionTitle }),
           /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { ref: runtimeRef, onScroll: makeOnScroll("runtime"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 220, overflow: "auto" }, children: runtimeLogs })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { children: [
+        !isGutenberg2 ? /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { children: [
           /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Mail" }),
           /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : "SMTP will start with the dev server." }),
@@ -55149,7 +55320,7 @@ Try "help" for the list of supported commands.
               m.id
             );
           }) : /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { padding: 12, color: "#666" }, children: "No emails yet." }) })
-        ] })
+        ] }) : null
       ] }),
       renameModalOpen ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
         modal_default,
@@ -55188,7 +55359,7 @@ Try "help" for the list of supported commands.
       prModalOpen && /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
         modal_default,
         {
-          title: "Contribute your code changes to WordPress Core",
+          title: isGutenberg2 ? "Submit your Gutenberg changes" : "Submit your WordPress Core changes",
           onRequestClose: closePRModal,
           shouldCloseOnClickOutside: prMode === "review" && !prSubmitting,
           isFullScreen: true,
@@ -55197,8 +55368,8 @@ Try "help" for the list of supported commands.
             /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { flex: 2, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 8 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontSize: 16, fontWeight: 600 }, children: "Review diff against trunk" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontSize: 12, color: "#63707b" }, children: "Comparing to the latest wordpress-develop/trunk." })
+                  /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontSize: 16, fontWeight: 600 }, children: diffHeading }),
+                  /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontSize: 12, color: "#63707b" }, children: diffSubheading })
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: [
                   /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(
@@ -55226,10 +55397,10 @@ Try "help" for the list of supported commands.
                 /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(spinner_default, {}),
                 /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("span", { children: "Generating diff\u2026" })
               ] }) : prReviewError ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { padding: 16, color: "#d63638", background: "#fff1f0", borderRadius: 8 }, children: prReviewError }) : /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("pre", { style: { margin: 0, whiteSpace: "pre-wrap", padding: 16, color: "#f6f8fa", height: "100%", overflowY: "auto", fontSize: 13 }, children: prReviewPatch || "No changes." }) }),
-              !prReviewLoading && !hasReviewDiff ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontSize: 13, color: "#6c6f72", marginTop: 8 }, children: "No changes detected relative to trunk." }) : null
+              !prReviewLoading && !hasReviewDiff ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontSize: 13, color: "#6c6f72", marginTop: 8 }, children: noChangesText }) : null
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { flex: "0 0 320px", display: "flex", flexDirection: "column", gap: 16, overflow: "hidden" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { border: "1px solid #d0d7de", borderRadius: 12, padding: 16, background: "#fff", display: "flex", flexDirection: "column", gap: 12 }, children: [
+              !isGutenberg2 && /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { border: "1px solid #d0d7de", borderRadius: 12, padding: 16, background: "#fff", display: "flex", flexDirection: "column", gap: 12 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { children: [
                   /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontSize: 15, fontWeight: 600 }, children: "Submit patch via Trac" }),
                   /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { fontSize: 13, color: "#495157", marginTop: 4 }, children: "Download the diff and attach it to a WordPress Core Trac ticket." })
@@ -55415,6 +55586,18 @@ Try "help" for the list of supported commands.
   }
   var root = (0, import_client2.createRoot)(document.getElementById("root"));
   root.render(/* @__PURE__ */ (0, import_jsx_runtime58.jsx)(App, {}));
+  (0, import_react69.useEffect)(() => {
+    if (isGutenberg) {
+      setSkipInit(true);
+      setHasBuilt(false);
+    }
+  }, [isGutenberg]);
+  (0, import_react69.useEffect)(() => {
+    if (!isGutenberg) {
+      setGutenbergDevRunning(false);
+      setGutenbergDevRan(false);
+    }
+  }, [isGutenberg]);
 })();
 /*! Bundled license information:
 
