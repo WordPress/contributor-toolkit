@@ -11,7 +11,7 @@ import {
   TextControl,
   Spinner
 } from '@wordpress/components';
-import { plus, chevronLeft, chevronRight, copy as copyIcon, edit, download, chevronDown } from '@wordpress/icons';
+import { plus, chevronLeft, chevronRight, edit, chevronDown, menu } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
@@ -650,9 +650,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const [installing, setInstalling] = useState(false);
   const [npmLogs, setNpmLogs] = useState('');
   const [runtimeLogs, setRuntimeLogs] = useState('');
-  const [isPatchOpen, setIsPatchOpen] = useState(false);
-  const [patchText, setPatchText] = useState('');
-  const [patchLoading, setPatchLoading] = useState(false);
   const [emails, setEmails] = useState([]);
   const [smtpPort, setSmtpPort] = useState(0);
   const newEmailUnsubRef = useRef(null);
@@ -669,15 +666,30 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const setupLogsRef = useRef('');
   const [prSubmitting, setPRSubmitting] = useState(false);
   const [prModalOpen, setPRModalOpen] = useState(false);
+  const [prMode, setPRMode] = useState('review');
   const [prProgress, setPRProgress] = useState({ step: '', message: '' });
   const [prAuthCode, setPRAuthCode] = useState(null);
   const [prProgressLog, setPRProgressLog] = useState([]);
-  const prAbortController = useRef(null);
+  const prLogContainerRef = useRef(null);
+  useEffect(() => {
+    if (prMode === 'submitting' && prLogContainerRef.current) {
+      prLogContainerRef.current.scrollTop = prLogContainerRef.current.scrollHeight;
+    }
+  }, [prProgressLog, prMode]);
+  const [prReviewPatch, setPRReviewPatch] = useState('');
+  const [prReviewLoading, setPRReviewLoading] = useState(false);
+  const [prReviewError, setPRReviewError] = useState('');
+  const [prStopPending, setPRStopPending] = useState(false);
   const [gitHubConnected, setGitHubConnected] = useState(false);
 
   // Check GitHub connection status
   useEffect(() => {
     window.api.isGitHubConnected().then(setGitHubConnected);
+  }, []);
+
+  const addPRLog = useCallback((message, command = null, extra = {}) => {
+    if (!message && !command) return;
+    setPRProgressLog((prev) => [...prev, { message, command, timestamp: extra.timestamp || Date.now(), ...extra }]);
   }, []);
 
   // sticky refs per log
@@ -1235,28 +1247,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   }, [sitePath]);
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
 
-  const openPatchModal = async ()=>{
-    setIsPatchOpen(true);
-    setPatchLoading(true);
-    setPatchText('');
+  const downloadPatchFile = async ()=>{
+    if (prReviewLoading || !hasReviewDiff) return;
     try {
-      const res = await window.api.getPatch(sitePath);
-      if (res && res.ok) setPatchText((res.patch && res.patch.trim().length) ? res.patch : 'No changes.');
-      else setPatchText(res && res.error ? `Error: ${res.error}` : 'Failed to generate patch');
-    } catch (e) {
-      setPatchText(`Error: ${e && e.message ? e.message : String(e)}`);
-    } finally {
-      setPatchLoading(false);
-    }
-  };
-
-  const copyPatch = async ()=>{
-    try { await navigator.clipboard.writeText(patchText); } catch {}
-  };
-
-  const savePatch = async ()=>{
-    try {
-      const res = await window.api.savePatch(sitePath);
+      const res = await window.api.savePatchContent(sitePath, prReviewPatch || '');
       if (res && res.ok && res.filePath) {
         alert(`Diff saved to: ${res.filePath}`);
       } else if (res && res.canceled) {
@@ -1269,25 +1263,108 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     }
   };
 
-  const startPRSubmission = async () => {
-    setPRSubmitting(true);
+  const refreshPRReviewPatch = useCallback(async () => {
+    setPRReviewLoading(true);
+    setPRReviewError('');
+    try {
+      const res = await window.api.getPatch(sitePath);
+      if (res && res.ok) {
+        const patchString = res.patch && res.patch.trim().length ? res.patch : 'No changes.';
+        setPRReviewPatch(patchString);
+      } else {
+        throw new Error(res && res.error ? res.error : 'Failed to generate diff');
+      }
+    } catch (e) {
+      setPRReviewError(e && e.message ? e.message : String(e));
+    } finally {
+      setPRReviewLoading(false);
+    }
+  }, [sitePath]);
+
+  const copyPRReviewPatch = useCallback(async () => {
+    if (!prReviewPatch) return;
+    try { await navigator.clipboard.writeText(prReviewPatch); } catch {}
+  }, [prReviewPatch]);
+
+  const hasReviewDiff = useMemo(() => {
+    const trimmed = (prReviewPatch || '').trim();
+    if (!trimmed) return false;
+    return trimmed !== 'No changes.';
+  }, [prReviewPatch]);
+
+  const resetPRModalState = useCallback(() => {
+    setPRModalOpen(false);
+    setPRSubmitting(false);
+    setPRMode('review');
+    setPRProgress({ step: '', message: '' });
+    setPRAuthCode(null);
+    setPRProgressLog([]);
+    setPRReviewPatch('');
+    setPRReviewError('');
+    setPRReviewLoading(false);
+    setPRStopPending(false);
+  }, []);
+
+  const stopPRSubmission = useCallback(async ({ returnToReview = true, refreshDiff = false, afterStop } = {}) => {
+    if (!prSubmitting) {
+      if (afterStop) afterStop();
+      return;
+    }
+    if (prStopPending) return;
+    setPRStopPending(true);
+    try {
+      await window.api.abortSubmitPR();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPRStopPending(false);
+    }
+    setPRSubmitting(false);
+    setPRAuthCode(null);
+    addPRLog('Stopped by user');
+    setPRProgress({ step: 'error', message: 'Stopped' });
+    if (returnToReview) {
+      setPRMode('review');
+      if (refreshDiff) {
+        refreshPRReviewPatch();
+      }
+    }
+    if (afterStop) afterStop();
+  }, [prSubmitting, prStopPending, addPRLog, refreshPRReviewPatch]);
+
+  const closePRModal = useCallback(() => {
+    if (prSubmitting && prProgress.step !== 'error' && prProgress.step !== 'done') {
+      stopPRSubmission({ returnToReview: false, afterStop: resetPRModalState });
+    } else {
+      resetPRModalState();
+    }
+  }, [prSubmitting, prProgress.step, resetPRModalState, stopPRSubmission]);
+
+  const openPRModal = useCallback(() => {
     setPRModalOpen(true);
+    setPRMode('review');
+    setPRSubmitting(false);
+    setPRProgress({ step: 'review', message: '' });
+    setPRAuthCode(null);
+    setPRProgressLog([]);
+    setPRReviewPatch('');
+    setPRReviewError('');
+    setPRReviewLoading(true);
+    setPRStopPending(false);
+    refreshPRReviewPatch();
+  }, [refreshPRReviewPatch]);
+
+  const beginPRSubmission = useCallback(async () => {
+    if (prSubmitting) return;
+    setPRMode('submitting');
+    setPRSubmitting(true);
     setPRProgress({ step: '', message: 'Starting...' });
     setPRAuthCode(null);
     setPRProgressLog([]);
-    prAbortController.current = { aborted: false };
-
-    const addLog = (message, command = null) => {
-      setPRProgressLog(prev => [...prev, { message, command, timestamp: Date.now() }]);
-    };
 
     try {
       const result = await window.api.submitPR(sitePath, (progress) => {
         setPRProgress(progress);
-
-        if (prAbortController.current?.aborted) {
-          throw new Error('Aborted by user');
-        }
 
         if (progress.step === 'auth_code') {
           setPRAuthCode({
@@ -1296,62 +1373,47 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           });
         } else if (progress.step === 'auth' || progress.step === 'fork') {
           setPRAuthCode(null);
-          addLog(progress.message);
-        } else if (progress.step === 'branch' || progress.step === 'commit' || progress.step === 'push') {
-          addLog(progress.message, progress.gitCommand);
-        } else if (progress.step === 'done') {
-          // Message will be added after opening the URL
+          addPRLog(progress.message, null, { logType: 'info', timestamp: progress.timestamp });
+        } else if (progress.step === 'branch' || progress.step === 'commit') {
+          addPRLog(progress.message, progress.gitCommand, { logType: 'info', timestamp: progress.timestamp });
+        } else if (progress.step === 'push') {
+          const logMeta = {
+            logType: progress.logType || 'info',
+            phase: progress.phase,
+            loaded: progress.loaded,
+            total: progress.total,
+            timestamp: progress.timestamp
+          };
+          addPRLog(progress.message, progress.gitCommand, logMeta);
         }
       });
 
       if (result.ok) {
-        // Open PR URL in browser
         await window.api.openExternal(result.prUrl);
-        addLog('✓ PR page opened successfully!');
+        addPRLog('✓ PR page opened successfully!');
         setPRProgress({ step: 'done', message: 'Success!' });
-        setGitHubConnected(true); // Mark as connected after successful PR
+        setGitHubConnected(true);
+        setPRSubmitting(false);
         setTimeout(() => {
-          setPRModalOpen(false);
-          setPRSubmitting(false);
-          setPRAuthCode(null);
-          setPRProgressLog([]);
+          resetPRModalState();
         }, 3000);
       } else {
-        addLog(`✗ Error: ${result.error}`);
+        addPRLog(`✗ Error: ${result.error}`);
         setPRProgress({ step: 'error', message: `Error: ${result.error}` });
         setPRSubmitting(false);
       }
     } catch (e) {
       if (e.message !== 'Aborted by user') {
-        addLog(`✗ Error: ${e.message || String(e)}`);
+        addPRLog(`✗ Error: ${e.message || String(e)}`);
+        setPRProgress({ step: 'error', message: `Error: ${e.message || String(e)}` });
       } else {
-        addLog('Stopped by user');
+        setPRProgress({ step: 'error', message: 'Stopped' });
+        setPRMode('review');
       }
-      setPRProgress({ step: 'error', message: e.message === 'Aborted by user' ? 'Stopped' : `Error: ${e.message || String(e)}` });
       setPRSubmitting(false);
+      setPRAuthCode(null);
     }
-  };
-
-  const stopPRSubmission = () => {
-    if (prAbortController.current) {
-      prAbortController.current.aborted = true;
-    }
-    setPRSubmitting(false);
-  };
-
-  const closePRModal = () => {
-    setPRModalOpen(false);
-    if (prSubmitting && prProgress.step !== 'error' && prProgress.step !== 'done') {
-      // If closing while still running, abort it
-      if (prAbortController.current) {
-        prAbortController.current.aborted = true;
-      }
-    }
-    setPRSubmitting(false);
-    setPRAuthCode(null);
-    setPRProgress({ step: '', message: '' });
-    setPRProgressLog([]);
-  };
+  }, [addPRLog, prSubmitting, resetPRModalState, setGitHubConnected, sitePath]);
 
   const statusStyles = initialized
     ? { background: '#e7f6e7', color: '#0f5132' }
@@ -1507,8 +1569,26 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
           <DropdownMenu
-            label="More"
-            text=""
+            icon={menu}
+            id="site-actions-menu"
+            label="Site actions"
+            toggleProps={{
+              'aria-label': 'Site actions menu',
+              style: {
+                border: 'none',
+                borderRadius: 999,
+                boxShadow: 'none',
+                background: '',
+                padding: 0,
+                width: 36,
+                height: 36,
+                minWidth: 36,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }
+            }}
+            popoverProps={{ placement: 'bottom-end' }}
             controls={[
               {
                 title: 'Copy path',
@@ -1646,6 +1726,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               <DropdownMenu
                 label="Open in options"
                 variant="secondary"
+                className="dropdown-with-sidekick"
                 icon={chevronDown}
                 style={{ borderRadius: '0 10px 10px 0' }}
                 popoverProps={{ placement: 'bottom-end' }}
@@ -1687,35 +1768,27 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
                 ]}
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <Button
                 variant="secondary"
-                onClick={openPatchModal}
-                style={{ padding: '10px 16px', borderRadius: '10px 0 0 10px', borderRight: '1px solid rgba(0,0,0,0.1)', marginRight: 0 }}
-              >Submit patch</Button>
-              <DropdownMenu
-                label="Submit options"
-                variant="secondary"
-                icon={chevronDown}
-                style={{ borderRadius: '0 10px 10px 0' }}
-                popoverProps={{ placement: 'bottom-end' }}
-                controls={[
-                  {
-                    title: 'Submit PR (GitHub)',
-                    onClick: startPRSubmission,
-                    isDisabled: prSubmitting
-                  },
-                  ...(gitHubConnected ? [{
-                    title: 'Disconnect GitHub',
-                    onClick: async () => {
-                      if (confirm('Are you sure you want to disconnect GitHub? You will need to re-authorize on your next PR submission.')) {
-                        await window.api.disconnectGitHub();
-                        setGitHubConnected(false);
-                      }
+                onClick={openPRModal}
+                isBusy={prSubmitting && prModalOpen}
+                style={{ padding: '10px 20px', borderRadius: 10, alignSelf: 'flex-start' }}
+              >Submit patch / PR</Button>
+              {gitHubConnected ? (
+                <Button
+                  variant="link"
+                  onClick={async () => {
+                    if (confirm('Disconnect GitHub? You will need to re-authorize on your next PR submission.')) {
+                      await window.api.disconnectGitHub();
+                      setGitHubConnected(false);
                     }
-                  }] : [])
-                ]}
-              />
+                  }}
+                  style={{ alignSelf: 'flex-start', padding: 0, textDecoration: 'underline' }}
+                >Disconnect GitHub</Button>
+              ) : (
+                <span style={{ fontSize: 12, color: '#3c434a', paddingLeft: 2 }}></span>
+              )}
             </div>
             {running && serverUrl ? (
               <Button
@@ -1815,117 +1888,186 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           </form>
         </Modal>
       ) : null}
-      {isPatchOpen && (
-        <Modal
-          title="Patch"
-          onRequestClose={()=>setIsPatchOpen(false)}
-          shouldCloseOnClickOutside
-          isFullScreen
-          headerClassName="patch-modal-header"
-        >
-          <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
-            {!patchLoading && (
-              <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
-                <strong>Next steps:</strong> Save this patch and submit it to the relevant WordPress Trac ticket. <a href="#" onClick={(e) => { e.preventDefault(); window.api.openExternal('https://adamadam.blog/how-to-contribute-your-first-patch-to-wordpress-core-via-trac/'); }} style={{color:'#0969da', cursor:'pointer'}}>Learn how to contribute your first patch</a>
-              </div>
-            )}
-            <div style={{ position:'relative', flex:1, minHeight:0 }}>
-              {patchLoading ? (
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:16 }}>
-                  <Spinner />
-                  <div style={{ color:'#666', fontSize:14 }}>Generating patch...</div>
-                </div>
-              ) : (
-                <>
-                  <div style={{ position:'absolute', top:8, right:8, zIndex:2, display:'flex', gap:8 }}>
-                    <Button
-                      icon={download}
-                      label="Save"
-                      onClick={savePatch}
-                      style={{
-                        background:'#fff', border:'1px solid #ddd', color:'#111', boxShadow:'none'
-                      }}
-                    />
-                    <Button
-                      icon={copyIcon}
-                      label="Copy"
-                      onClick={copyPatch}
-                      style={{
-                        background:'#fff', border:'1px solid #ddd', color:'#111', boxShadow:'none'
-                      }}
-                    />
-                  </div>
-                  <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', overflowY:'auto' }}>
-                    {patchText && patchText.trim().length ? patchText : 'No changes.'}
-                  </pre>
-                </>
-              )}
-            </div>
-          </div>
-        </Modal>
-      )}
       {prModalOpen && (
         <Modal
-          title="Submit Pull Request"
+          title="Contribute your code changes to WordPress Core"
           onRequestClose={closePRModal}
-          shouldCloseOnClickOutside={true}
+          shouldCloseOnClickOutside={prMode === 'review' && !prSubmitting}
+          isFullScreen
         >
-          <div style={{ padding: '20px', minWidth: '600px', maxWidth: '800px' }}>
-            {prAuthCode ? (
-              <div>
-                <div style={{ marginBottom: 16, padding: '16px', background: '#f6f8fa', borderRadius: 6, border: '1px solid #d0d7de' }}>
-                  <div style={{ fontSize: 14, marginBottom: 8, fontWeight: 600 }}>Visit:</div>
+          <div style={{ padding: 24, height: '100%', display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
+            {prMode === 'review' ? (
+              <>
+                <div style={{ display: 'flex', gap: 24, flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                  <div style={{ flex: 2, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontSize: 16, fontWeight: 600 }}>Review diff against trunk</div>
+                        <div style={{ fontSize: 12, color: '#63707b' }}>Comparing to the latest wordpress-develop/trunk.</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <Button
+                          variant="secondary"
+                          onClick={refreshPRReviewPatch}
+                          isBusy={prReviewLoading}
+                          disabled={prReviewLoading}
+                        >Refresh diff</Button>
+                        <Button
+                          variant="secondary"
+                          onClick={copyPRReviewPatch}
+                          disabled={!hasReviewDiff || prReviewLoading}
+                        >Copy diff</Button>
+                      </div>
+                    </div>
+                    <div style={{ border: '1px solid #d0d7de', borderRadius: 8, background: '#0b0d12', flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+                      {prReviewLoading ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#f6f8fa', gap: 8 }}>
+                          <Spinner />
+                          <span>Generating diff…</span>
+                        </div>
+                      ) : prReviewError ? (
+                        <div style={{ padding: 16, color: '#d63638', background: '#fff1f0', borderRadius: 8 }}>{prReviewError}</div>
+                      ) : (
+                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', padding: 16, color: '#f6f8fa', height: '100%', overflowY: 'auto', fontSize: 13 }}>
+                          {prReviewPatch || 'No changes.'}
+                        </pre>
+                      )}
+                    </div>
+                    {!prReviewLoading && !hasReviewDiff ? (
+                      <div style={{ fontSize: 13, color: '#6c6f72', marginTop: 8 }}>No changes detected relative to trunk.</div>
+                    ) : null}
+                  </div>
+                  <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
+                    <div style={{ border: '1px solid #d0d7de', borderRadius: 12, padding: 16, background: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 600 }}>Submit patch via Trac</div>
+                        <div style={{ fontSize: 13, color: '#495157', marginTop: 4 }}>Download the diff and attach it to a WordPress Core Trac ticket.</div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <Button
+                          variant="secondary"
+                          onClick={downloadPatchFile}
+                          disabled={prReviewLoading || !hasReviewDiff}
+                        >Download .patch</Button>
+                        <Button
+                          variant="secondary"
+                          onClick={copyPRReviewPatch}
+                          disabled={!hasReviewDiff || prReviewLoading}
+                        >Copy diff</Button>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#6c6f72' }}>
+                        Need a refresher? <a href="#" onClick={(e) => { e.preventDefault(); window.api.openExternal('https://adamadam.blog/how-to-contribute-your-first-patch-to-wordpress-core-via-trac/'); }} style={{ color: '#0969da' }}>How to upload patches to Trac</a>.
+                      </div>
+                    </div>
+                    <div style={{ border: '1px solid #d0d7de', borderRadius: 12, padding: 16, background: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 600 }}>Submit via GitHub</div>
+                        <div style={{ fontSize: 13, color: '#495157', marginTop: 4 }}>We’ll authenticate with GitHub, push a topic branch to your fork, and open the PR form for you.</div>
+                      </div>
+                      <Button
+                        variant="primary"
+                        onClick={beginPRSubmission}
+                        disabled={prReviewLoading || !hasReviewDiff}
+                        isBusy={prSubmitting}
+                      >Submit as a pull request</Button>
+                      <div style={{ fontSize: 12, color: '#6c6f72' }}>
+                        {gitHubConnected ? 'Connected to GitHub. You can disconnect from the main screen.' : ''}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : prAuthCode ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, height: '100%', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+                <div style={{ padding: 24, background: '#f6f8fa', borderRadius: 12, border: '1px solid #d0d7de', maxWidth: 420 }}>
+                  <div style={{ fontSize: 14, marginBottom: 8, fontWeight: 600 }}>Visit this page on any device:</div>
                   <a
                     href="#"
                     onClick={(e) => { e.preventDefault(); window.api.openExternal(prAuthCode.uri); }}
-                    style={{ fontSize: 14, color: '#0969da', cursor: 'pointer', textDecoration: 'underline' }}
+                    style={{ fontSize: 16, color: '#0969da', cursor: 'pointer', textDecoration: 'underline' }}
                   >
                     {prAuthCode.uri}
                   </a>
-                  <div style={{ fontSize: 14, marginTop: 16, marginBottom: 8, fontWeight: 600 }}>Enter code:</div>
-                  <div style={{ fontSize: 24, fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.2em', color: '#24292f' }}>
+                  <div style={{ fontSize: 14, marginTop: 24, marginBottom: 8, fontWeight: 600 }}>Enter the code:</div>
+                  <div style={{ fontSize: 28, fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '0.2em', color: '#24292f' }}>
                     {prAuthCode.code}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: '#666' }}>
                   <Spinner />
-                  <span style={{ fontSize: 14, color: '#666' }}>Waiting for authorization...</span>
+                  Waiting for authorization…
                 </div>
+                <Button variant="secondary" onClick={() => stopPRSubmission({ refreshDiff: true })} style={{ color: '#cf222e' }}>Cancel</Button>
               </div>
             ) : (
-              <div>
-                <div style={{ marginBottom: 16, maxHeight: '400px', overflowY: 'auto', background: '#f6f8fa', padding: '12px', borderRadius: 6, border: '1px solid #d0d7de' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <div
+                  ref={prLogContainerRef}
+                  style={{ flex: 1, border: '1px solid #d0d7de', borderRadius: 8, background: '#f6f8fa', padding: 16, overflowY: 'auto' }}
+                >
                   {prProgressLog.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
                       <Spinner />
-                      <div style={{ marginTop: 12 }}>Starting...</div>
+                      <div style={{ marginTop: 12 }}>Starting…</div>
                     </div>
                   ) : (
                     <div style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 1.8 }}>
                       {prProgressLog.map((log, idx) => (
-                        <div key={idx} style={{ marginBottom: 8 }}>
-                          <div style={{ color: '#24292f', fontWeight: 500 }}>{log.message}</div>
+                        <div key={idx} style={{ marginBottom: 12 }}>
+                          <div
+                            style={{
+                              color: log.logType === 'remote' ? '#0f172a' : (log.logType === 'progress' ? '#1f2328' : '#24292f'),
+                              fontWeight: log.logType === 'info' ? 600 : 400,
+                              whiteSpace: 'pre-wrap'
+                            }}
+                          >{log.message}</div>
                           {log.command && (
                             <div style={{ marginLeft: 16, marginTop: 4, color: '#666', fontSize: 12 }}>
                               $ {log.command}
                             </div>
                           )}
+                          {log.logType === 'progress' && typeof log.loaded === 'number' && typeof log.total === 'number' ? (
+                            <div style={{ marginTop: 4, height: 4, background: '#d8dee4', borderRadius: 999 }}>
+                              <div
+                                style={{
+                                  width: `${Math.min(100, Math.round((log.loaded / Math.max(log.total, 1)) * 100))}%`,
+                                  height: '100%',
+                                  background: '#0969da',
+                                  borderRadius: 999
+                                }}
+                              />
+                            </div>
+                          ) : null}
+                          {log.timestamp ? (
+                            <div style={{ marginTop: 4, fontSize: 11, color: '#6e7781' }}>
+                              {new Date(log.timestamp).toLocaleTimeString([], { hour12: false })}
+                            </div>
+                          ) : null}
                         </div>
                       ))}
                       {prSubmitting && prProgress.step !== 'error' && prProgress.step !== 'done' && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                          <Spinner />
-                          <span style={{ color: '#666' }}>Working...</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Spinner />
+                            <span style={{ color: '#666' }}>Working…</span>
+                          </div>
+                          {prProgress.step === 'push' && prProgress.message ? (
+                            <div style={{ fontSize: 12, color: '#444', fontFamily: 'monospace' }}>
+                              {prProgress.message}
+                            </div>
+                          ) : null}
                         </div>
                       )}
                     </div>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
                   {prSubmitting && prProgress.step !== 'error' && prProgress.step !== 'done' ? (
                     <Button
                       variant="secondary"
-                      onClick={stopPRSubmission}
+                      onClick={() => stopPRSubmission({ refreshDiff: true })}
+                      isBusy={prStopPending}
+                      disabled={prStopPending}
                       style={{ color: '#cf222e' }}
                     >
                       Stop
@@ -1935,7 +2077,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
                       variant="secondary"
                       onClick={closePRModal}
                     >
-                      Close
+                      Dismiss
                     </Button>
                   )}
                 </div>

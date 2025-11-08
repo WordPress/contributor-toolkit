@@ -120,6 +120,8 @@ const wpDebugWatchers = {};
 const smtpServers = {};
 /** @type {{ child: import('child_process').ChildProcess, url?: string } | null */
 let playgroundWebServer = null;
+/** @type {Map<number, { aborted: boolean, controller?: AbortController | null }>} */
+const submitPrAbortStates = new Map();
 
 function smtpStoreKey(sitePath) {
     return `siteMail:${sitePath}`;
@@ -243,9 +245,9 @@ async function stopSmtpServerForSite(sitePath) {
 }
 
 function createWindow() {
-    const mainWindow = new BrowserWindow({
-		width: 1000,
-		height: 700,
+	const mainWindow = new BrowserWindow({
+		width: 1440,
+		height: 960,
         icon: process.platform === 'linux' ? path.join(__dirname, '..', 'build', 'icon.png') : undefined,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
@@ -271,46 +273,58 @@ function buildPatchHtml(content) {
 }
 
 async function createMinimalPatchForDir(dir) {
-    // Ensure we have origin/trunk and HEAD reference
-    try { await git.resolveRef({ fs, dir, ref: 'refs/remotes/origin/trunk' }); }
-    catch { await git.fetch({ fs, http, dir, url: WORDPRESS_GIT_URL, depth: 1, singleBranch: true, ref: 'trunk' }); }
-    let headOid = null;
-    try { headOid = await git.resolveRef({ fs, dir, ref: 'HEAD' }); } catch {}
-    if (!headOid) {
-        // fallback to local trunk if HEAD missing
-        try { headOid = await git.resolveRef({ fs, dir, ref: 'refs/heads/trunk' }); } catch {}
-    }
+	let baseOid = null;
+	let baseRef = null;
 
-    // Add untracked files to the index (except those in .gitignore)
-    const matrix = await git.statusMatrix({ fs, dir });
-    for (const [filepath, head, workdir, stage] of matrix) {
-        // If file is untracked (head=0, workdir=2, stage=0)
-        if (head === 0 && workdir === 2 && stage === 0) {
-            try {
-                await git.add({ fs, dir, filepath });
-            } catch (e) {
-                // Ignore errors for files that can't be added (e.g., in .gitignore)
-            }
-        }
-    }
+	const tryResolve = async (ref) => {
+		try {
+			const oid = await git.resolveRef({ fs, dir, ref });
+			return oid;
+		} catch {
+			return null;
+		}
+	};
 
-    // Compare working tree vs HEAD (which points to trunk tip after clone)
-    const matrixAfterAdd = await git.statusMatrix({ fs, dir });
-    const changed = matrixAfterAdd.filter(([filepath, head, workdir, stage]) => head !== workdir);
-    let patch = '';
-    for (const [filepath, head, workdir] of changed) {
-        const abs = require('path').join(dir, filepath);
-        const workBuf = workdir ? await fs.promises.readFile(abs).catch(() => null) : null;
-        const base = head && headOid ? await git.readBlob({ fs, dir, oid: headOid, filepath }).catch(() => null) : null;
-        const a = base ? Buffer.from(base.blob).toString('utf8') : '';
-        const b = workBuf ? workBuf.toString('utf8') : a;
-        if (a === b) continue;
-        // Skip likely-binary
-        if ((a.indexOf('\0') !== -1) || (b.indexOf('\0') !== -1)) continue;
-        const filePatch = JsDiff.createTwoFilesPatch(`a/${filepath}`, `b/${filepath}`, a, b, '', '', { context: 3 });
-        patch += filePatch + '\n';
-    }
-    return patch || 'No changes.';
+	const candidateRefs = ['trunk', 'refs/heads/trunk', 'HEAD'];
+	for (const ref of candidateRefs) {
+		if (baseOid) break;
+		const oid = await tryResolve(ref);
+		if (oid) {
+			baseOid = oid;
+			baseRef = ref;
+		}
+	}
+
+	if (!baseOid) {
+		throw new Error('Unable to resolve local trunk for diff generation.');
+	}
+
+	// Add untracked files to the index (except those in .gitignore)
+	const statusOpts = baseRef ? { fs, dir, ref: baseRef } : { fs, dir };
+	const matrix = await git.statusMatrix(statusOpts);
+	for (const [filepath, head, workdir, stage] of matrix) {
+		if (head === 0 && workdir === 2 && stage === 0) {
+			try {
+				await git.add({ fs, dir, filepath });
+			} catch (e) {}
+		}
+	}
+
+	const matrixAfterAdd = await git.statusMatrix(statusOpts);
+	const changed = matrixAfterAdd.filter(([filepath, head, workdir]) => head !== workdir);
+	let patch = '';
+	for (const [filepath, head, workdir] of changed) {
+		const abs = require('path').join(dir, filepath);
+		const workBuf = workdir ? await fs.promises.readFile(abs).catch(() => null) : null;
+		const base = head && baseOid ? await git.readBlob({ fs, dir, oid: baseOid, filepath }).catch(() => null) : null;
+		const a = base ? Buffer.from(base.blob).toString('utf8') : '';
+		const b = workBuf ? workBuf.toString('utf8') : a;
+		if (a === b) continue;
+		if ((a.indexOf('\0') !== -1) || (b.indexOf('\0') !== -1)) continue;
+		const filePatch = JsDiff.createTwoFilesPatch(`a/${filepath}`, `b/${filepath}`, a, b, '', '', { context: 3 });
+		patch += filePatch + '\n';
+	}
+	return patch || 'No changes.';
 }
 
 // GitHub API helper functions
@@ -389,6 +403,21 @@ function githubOAuthRequest(path, body) {
 	});
 }
 
+async function waitWithAbort(ms, shouldAbort) {
+	const start = Date.now();
+	while (Date.now() - start < ms) {
+		if (typeof shouldAbort === 'function' && shouldAbort()) {
+			const err = new Error('Aborted by user');
+			err.code = 'PR_ABORTED';
+			throw err;
+		}
+		const elapsed = Date.now() - start;
+		const remaining = Math.max(ms - elapsed, 0);
+		const slice = Math.min(remaining, 250);
+		await new Promise((resolve) => setTimeout(resolve, slice));
+	}
+}
+
 async function initiateDeviceOAuth() {
 	const response = await githubOAuthRequest('/login/device/code', {
 		client_id: GITHUB_CLIENT_ID,
@@ -404,7 +433,10 @@ async function initiateDeviceOAuth() {
 	};
 }
 
-async function pollDeviceOAuth(deviceCode, interval) {
+async function pollDeviceOAuth(deviceCode, interval, shouldAbort) {
+	if (typeof shouldAbort === 'function' && shouldAbort()) {
+		throw new Error('Aborted by user');
+	}
 	const response = await githubOAuthRequest('/login/oauth/access_token', {
 		client_id: GITHUB_CLIENT_ID,
 		device_code: deviceCode,
@@ -413,8 +445,8 @@ async function pollDeviceOAuth(deviceCode, interval) {
 
 	if (response.error) {
 		if (response.error === 'authorization_pending') {
-			await new Promise(resolve => setTimeout(resolve, interval * 1000));
-			return pollDeviceOAuth(deviceCode, interval);
+			await waitWithAbort(interval * 1000, shouldAbort);
+			return pollDeviceOAuth(deviceCode, interval, shouldAbort);
 		}
 		throw new Error(response.error_description || response.error);
 	}
@@ -449,10 +481,24 @@ async function getAuthenticatedUser() {
 }
 
 // Submit PR workflow
-async function submitPR(sitePath, onProgress) {
-	try {
+async function submitPR(sitePath, onProgress, abortState) {
+    try {
+        const ensureNotAborted = () => {
+            if (abortState?.aborted) {
+                const err = new Error('Aborted by user');
+                err.code = 'PR_ABORTED';
+                throw err;
+            }
+        };
+        const safeProgress = (payload) => {
+            if (abortState?.aborted) return;
+            onProgress(payload);
+        };
+
+        ensureNotAborted();
 		// Step 1: Authenticate if needed (or if token is invalid)
 		const needsAuth = async () => {
+			ensureNotAborted();
 			if (!githubToken) return true;
 			// Test if token is valid
 			try {
@@ -466,37 +512,39 @@ async function submitPR(sitePath, onProgress) {
 		};
 
 		if (await needsAuth()) {
-			onProgress({ step: 'auth', message: 'Starting GitHub authentication...' });
+			safeProgress({ step: 'auth', message: 'Starting GitHub authentication...' });
 			const deviceAuth = await initiateDeviceOAuth();
 
-			onProgress({
+			safeProgress({
 				step: 'auth_code',
 				message: `Please visit ${deviceAuth.verification_uri} and enter code: ${deviceAuth.user_code}`,
 				verification_uri: deviceAuth.verification_uri,
 				user_code: deviceAuth.user_code
 			});
 
-			githubToken = await pollDeviceOAuth(deviceAuth.device_code, deviceAuth.interval);
+			githubToken = await pollDeviceOAuth(deviceAuth.device_code, deviceAuth.interval, () => abortState?.aborted);
 			await saveGitHubToken(githubToken);
-			onProgress({ step: 'auth', message: 'Authenticated successfully!' });
+			safeProgress({ step: 'auth', message: 'Authenticated successfully!' });
 		}
 
 		// Step 2: Get username and check for fork
-		onProgress({ step: 'fork', message: 'Checking for fork...' });
+		safeProgress({ step: 'fork', message: 'Checking for fork...' });
 		const username = await getAuthenticatedUser();
 		const hasFork = await checkForFork(username);
 
 		if (!hasFork) {
-			onProgress({ step: 'fork', message: 'Creating fork...' });
+			safeProgress({ step: 'fork', message: 'Creating fork...' });
 			await createFork();
-			onProgress({ step: 'fork', message: `Fork created: https://github.com/${username}/wordpress-develop` });
+			safeProgress({ step: 'fork', message: `Fork created: https://github.com/${username}/wordpress-develop` });
 		} else {
-			onProgress({ step: 'fork', message: `Using existing fork: https://github.com/${username}/wordpress-develop` });
+			safeProgress({ step: 'fork', message: `Using existing fork: https://github.com/${username}/wordpress-develop` });
 		}
+
+		ensureNotAborted();
 
 		// Step 3: Create a new branch with timestamp
 		const branchName = `patch-${Date.now()}`;
-		onProgress({
+		safeProgress({
 			step: 'branch',
 			message: `Creating branch: ${branchName}`,
 			gitCommand: `git checkout -b ${branchName}`
@@ -504,16 +552,19 @@ async function submitPR(sitePath, onProgress) {
 
 		await git.branch({ fs, dir: sitePath, ref: branchName, checkout: true });
 
+		ensureNotAborted();
+
 		// Step 4: Stage and commit all changes
-		onProgress({
+		safeProgress({
 			step: 'commit',
 			message: 'Staging all changes...',
 			gitCommand: 'git add .'
 		});
 
-		// First, unstage everything to ensure we only commit what we explicitly stage
+		// First, unstage anything that is currently staged so we only commit what we explicitly add
 		const allFiles = await git.statusMatrix({ fs, dir: sitePath });
-		for (const [filepath] of allFiles) {
+		const stagedFiles = allFiles.filter(([, , , stage]) => stage === 2);
+		for (const [filepath] of stagedFiles) {
 			try {
 				await git.resetIndex({ fs, dir: sitePath, filepath });
 			} catch (e) {
@@ -521,6 +572,7 @@ async function submitPR(sitePath, onProgress) {
 			}
 		}
 
+		ensureNotAborted();
 		// Now get fresh status and add only the files we want
 		const matrix = await git.statusMatrix({ fs, dir: sitePath });
 
@@ -542,6 +594,7 @@ async function submitPR(sitePath, onProgress) {
 		}
 
 		// Now stage only files with actual changes (same logic as createMinimalPatchForDir)
+		ensureNotAborted();
 		const matrixAfterAdd = await git.statusMatrix({ fs, dir: sitePath });
 		const changed = matrixAfterAdd.filter(([filepath, head, workdir]) => head !== workdir);
 		for (const [filepath, head, workdir] of changed) {
@@ -562,12 +615,13 @@ async function submitPR(sitePath, onProgress) {
 			}
 		}
 
-		onProgress({
+		safeProgress({
 			step: 'commit',
 			message: 'Committing changes...',
 			gitCommand: 'git commit -m "WordPress core patch"'
 		});
 
+		ensureNotAborted();
 		await git.commit({
 			fs,
 			dir: sitePath,
@@ -579,15 +633,17 @@ async function submitPR(sitePath, onProgress) {
 		});
 
 		// Step 5: Add fork remote if it doesn't exist
+		ensureNotAborted();
 		const remotes = await git.listRemotes({ fs, dir: sitePath });
 		const forkRemote = remotes.find(r => r.remote === 'fork');
 
 		if (!forkRemote) {
-			onProgress({
+			safeProgress({
 				step: 'push',
 				message: 'Adding fork remote...',
 				gitCommand: `git remote add fork https://github.com/${username}/wordpress-develop.git`
 			});
+			ensureNotAborted();
 			await git.addRemote({
 				fs,
 				dir: sitePath,
@@ -597,24 +653,38 @@ async function submitPR(sitePath, onProgress) {
 		}
 
 		// Step 6: Push to fork
-		onProgress({
-			step: 'push',
+		const emitPushProgress = (payload) => {
+			if (abortState?.aborted) return;
+			safeProgress({
+				step: 'push',
+				timestamp: Date.now(),
+				...payload
+			});
+		};
+		emitPushProgress({
 			message: `Pushing to fork...`,
-			gitCommand: `git push fork ${branchName}`
+			gitCommand: `git push fork ${branchName}`,
+			logType: 'info'
 		});
+
+		ensureNotAborted();
 
 		console.log('[git push] Starting push operation');
 		console.log('[git push] Remote:', 'fork');
 		console.log('[git push] Branch:', branchName);
 		console.log('[git push] Token length:', githubToken ? githubToken.length : 0);
 
+		let pushAbortController = null;
 		try {
+			pushAbortController = new AbortController();
+			if (abortState) abortState.controller = pushAbortController;
 			const pushResult = await git.push({
 				fs,
 				http,
 				dir: sitePath,
 				remote: 'fork',
 				ref: branchName,
+				signal: pushAbortController.signal,
 				onAuth: () => {
 					console.log('[git push] Auth callback invoked');
 					return { username: githubToken, password: 'x-oauth-basic' };
@@ -628,14 +698,19 @@ async function submitPR(sitePath, onProgress) {
 				},
 				onMessage: (msg) => {
 					console.log('[git push message]', msg);
-					onProgress({ step: 'push', message: msg });
+					const normalized = String(msg || '')
+						.replace(/\r/g, '\n')
+						.split(/\n+/)
+						.map((line) => line.trim())
+						.filter(Boolean);
+					normalized.forEach((line) => emitPushProgress({ message: line, logType: 'remote' }));
 				},
 				onProgress: (evt) => {
 					console.log('[git push progress]', evt);
 					const { phase, loaded, total } = evt;
 					if (phase) {
 						const msg = total ? `${phase}: ${loaded}/${total}` : phase;
-						onProgress({ step: 'push', message: msg });
+						emitPushProgress({ message: msg, logType: 'progress', phase, loaded, total });
 					}
 				}
 			});
@@ -643,16 +718,21 @@ async function submitPR(sitePath, onProgress) {
 		} catch (pushError) {
 			console.error('[git push error]', pushError);
 			console.error('[git push error stack]', pushError.stack);
+			if (pushError.name === 'AbortError' || abortState?.aborted) {
+				throw new Error('Aborted by user');
+			}
 			// If push fails with 403, it might be a token permission issue
 			if (pushError.message && pushError.message.includes('403')) {
 				throw new Error('Push failed: Token may not have correct permissions. Please re-authorize the app with full repository access.');
 			}
 			throw pushError;
+		} finally {
+			if (abortState) abortState.controller = null;
 		}
 
 		// Step 7: Open PR URL
 		const prUrl = `https://github.com/WordPress/wordpress-develop/compare/trunk...${username}:wordpress-develop:${branchName}?expand=1`;
-		onProgress({ step: 'done', message: 'Opening PR page...', prUrl });
+		safeProgress({ step: 'done', message: 'Opening PR page...', prUrl });
 
 		return { ok: true, prUrl, branch: branchName };
 
@@ -683,34 +763,68 @@ ipcMain.handle('git:create-patch', async (_e, sitePath) => {
     }
 });
 
+async function promptAndSavePatchFile(patchText) {
+	const { filePath, canceled } = await dialog.showSaveDialog({
+		title: 'Save Diff File',
+		defaultPath: path.join(os.homedir(), 'wordpress.patch'),
+		filters: [
+			{ name: 'Patch Files', extensions: ['patch', 'diff'] },
+			{ name: 'All Files', extensions: ['*'] }
+		]
+	});
+
+	if (canceled || !filePath) {
+		return { ok: false, canceled: true };
+	}
+
+	await fs.promises.writeFile(filePath, patchText, 'utf8');
+	return { ok: true, filePath };
+}
+
 ipcMain.handle('git:save-patch', async (_e, sitePath) => {
     try {
         const patch = await createMinimalPatchForDir(sitePath);
-        const { filePath, canceled } = await dialog.showSaveDialog({
-            title: 'Save Diff File',
-            defaultPath: path.join(os.homedir(), 'wordpress.patch'),
-            filters: [
-                { name: 'Patch Files', extensions: ['patch', 'diff'] },
-                { name: 'All Files', extensions: ['*'] }
-            ]
-        });
-
-        if (canceled || !filePath) {
-            return { ok: false, canceled: true };
-        }
-
-        await fs.promises.writeFile(filePath, patch, 'utf8');
-        return { ok: true, filePath };
+        return await promptAndSavePatchFile(patch);
     } catch (e) {
         return { ok: false, error: String(e) };
     }
 });
 
+ipcMain.handle('git:save-patch-content', async (_e, payload) => {
+	try {
+		const patchText = (payload && typeof payload.patch === 'string' && payload.patch.length)
+			? payload.patch
+			: await createMinimalPatchForDir(payload?.sitePath);
+		return await promptAndSavePatchFile(patchText || 'No changes.');
+	} catch (e) {
+		return { ok: false, error: String(e) };
+	}
+});
+
 ipcMain.handle('git:submit-pr', async (event, sitePath) => {
-	const result = await submitPR(sitePath, (progress) => {
-		event.sender.send('git:submit-pr:progress', progress);
-	});
-	return result;
+	const abortState = { aborted: false, controller: null };
+	submitPrAbortStates.set(event.sender.id, abortState);
+	try {
+		const result = await submitPR(sitePath, (progress) => {
+			event.sender.send('git:submit-pr:progress', progress);
+		}, abortState);
+		return result;
+	} finally {
+		submitPrAbortStates.delete(event.sender.id);
+	}
+});
+
+ipcMain.handle('git:submit-pr:abort', async (event) => {
+	const abortState = submitPrAbortStates.get(event.sender.id);
+	if (abortState) {
+		abortState.aborted = true;
+		if (abortState.controller && typeof abortState.controller.abort === 'function') {
+			try { abortState.controller.abort(); } catch (e) {
+				console.warn('[git push] abort signal failed', e && e.message ? e.message : e);
+			}
+		}
+	}
+	return true;
 });
 
 ipcMain.handle('github:clear-token', async () => {

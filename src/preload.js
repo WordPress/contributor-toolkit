@@ -73,6 +73,8 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	savePatch: (sitePath) => ipcRenderer.invoke('git:save-patch', sitePath)
 ,
+	savePatchContent: (sitePath, patchText) => ipcRenderer.invoke('git:save-patch-content', { sitePath, patch: patchText })
+,
 	submitPR: async (sitePath, onProgress) => {
 		const progressHandler = (_e, progress) => {
 			if (onProgress) onProgress(progress);
@@ -81,7 +83,8 @@ contextBridge.exposeInMainWorld('api', {
 		const result = await ipcRenderer.invoke('git:submit-pr', sitePath);
 		ipcRenderer.removeListener('git:submit-pr:progress', progressHandler);
 		return result;
-	}
+	},
+	abortSubmitPR: () => ipcRenderer.invoke('git:submit-pr:abort')
 ,
 	startWpDebug: async (sitePath, onData) => {
 		const handler = (_e, payload) => {
@@ -185,4 +188,3 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	isGitHubConnected: () => ipcRenderer.invoke('github:is-connected')
 });
-
