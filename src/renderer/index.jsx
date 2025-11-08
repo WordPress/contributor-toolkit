@@ -1415,6 +1415,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     }
   }, [addPRLog, prSubmitting, resetPRModalState, setGitHubConnected, sitePath]);
 
+  const savePatch = async ()=>{
+    try {
+      const res = await window.api.savePatch(sitePath);
+      if (res && res.ok && res.filePath) {
+        alert(`Diff saved to: ${res.filePath}`);
+      } else if (res && res.canceled) {
+        // User canceled, do nothing
+      } else {
+        alert(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
+      }
+    } catch (e) {
+      alert(`Error saving diff: ${e && e.message ? e.message : String(e)}`);
+    }
+  };
+
   const statusStyles = initialized
     ? { background: '#e7f6e7', color: '#0f5132' }
     : { background: '#fff4ce', color: '#8a6d1c' };
@@ -1894,6 +1909,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           onRequestClose={closePRModal}
           shouldCloseOnClickOutside={prMode === 'review' && !prSubmitting}
           isFullScreen
+          headerClassName="patch-modal-header"
         >
           <div style={{ padding: 24, height: '100%', display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
             {prMode === 'review' ? (

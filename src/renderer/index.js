@@ -54682,6 +54682,19 @@ Try "help" for the list of supported commands.
         setPRAuthCode(null);
       }
     }, [addPRLog, prSubmitting, resetPRModalState, setGitHubConnected, sitePath]);
+    const savePatch = async () => {
+      try {
+        const res = await window.api.savePatch(sitePath);
+        if (res && res.ok && res.filePath) {
+          alert(`Diff saved to: ${res.filePath}`);
+        } else if (res && res.canceled) {
+        } else {
+          alert(`Error saving diff: ${res && res.error ? res.error : "Unknown error"}`);
+        }
+      } catch (e) {
+        alert(`Error saving diff: ${e && e.message ? e.message : String(e)}`);
+      }
+    };
     const statusStyles = initialized ? { background: "#e7f6e7", color: "#0f5132" } : { background: "#fff4ce", color: "#8a6d1c" };
     const checklistVisuals = {
       complete: {
@@ -55179,6 +55192,7 @@ Try "help" for the list of supported commands.
           onRequestClose: closePRModal,
           shouldCloseOnClickOutside: prMode === "review" && !prSubmitting,
           isFullScreen: true,
+          headerClassName: "patch-modal-header",
           children: /* @__PURE__ */ (0, import_jsx_runtime58.jsx)("div", { style: { padding: 24, height: "100%", display: "flex", flexDirection: "column", gap: 16, overflow: "hidden" }, children: prMode === "review" ? /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(import_jsx_runtime58.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { display: "flex", gap: 24, flex: 1, minHeight: 0, overflow: "hidden" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { flex: 2, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 8 }, children: [
