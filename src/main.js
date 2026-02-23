@@ -16,6 +16,47 @@ const { simpleParser } = require('mailparser');
 const WORDPRESS_ZIP_URL = 'https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip';
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
+/**
+ * Pre-populate the .gutenberg-hash file and create the gutenberg/build directory
+ * so that sync-gutenberg.js treats Gutenberg as already-synced and skips the
+ * expensive (and Electron-incompatible) `npm ci` step.
+ *
+ * The wordpress-develop repo ships pre-built Gutenberg blocks in src/wp-includes/,
+ * so skipping the sync is safe for running the dev server.
+ *
+ * @param {string} siteDir - Absolute path to the WordPress develop site directory.
+ */
+async function skipGutenbergSync(siteDir) {
+	try {
+		// Only apply when the site has a gutenberg.ref in its package.json.
+		const pkgJsonPath = path.join(siteDir, 'package.json');
+		if (!fs.existsSync(pkgJsonPath)) return;
+
+		const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+		const gutenbergRef = pkgJson?.gutenberg?.ref;
+		if (!gutenbergRef) return;
+
+		// Always keep .gutenberg-hash in sync with the ref in package.json so
+		// that sync-gutenberg.js considers Gutenberg up-to-date and skips the
+		// clone + `npm ci` + build sequence (which fails in the Electron env).
+		const hashFilePath = path.join(siteDir, '.gutenberg-hash');
+		const existingHash = fs.existsSync(hashFilePath) ? fs.readFileSync(hashFilePath, 'utf8').trim() : null;
+		if (existingHash !== gutenbergRef) {
+			fs.writeFileSync(hashFilePath, gutenbergRef + '\n');
+		}
+
+		// Create an empty gutenberg/build directory so hasBuild() returns true,
+		// satisfying the second condition in sync-gutenberg.js's early-exit check.
+		const gutenbergBuildDir = path.join(siteDir, 'gutenberg', 'build');
+		if (!fs.existsSync(gutenbergBuildDir)) {
+			fse.ensureDirSync(gutenbergBuildDir);
+		}
+	} catch {
+		// Silently ignore errors: this is a best-effort optimisation and should
+		// never prevent the main install/watch flow from continuing.
+	}
+}
+
 // Provide a PATH shim so npm's spawned scripts can find a 'node' binary that maps to Electron's Node
 let nodeShimDir = null;
 function ensureNodeShimDir() {
@@ -443,6 +484,11 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 		throw e;
 	}
 
+	// Skip the gutenberg-sync grunt task on first run: the cloned repo already
+	// contains pre-built Gutenberg blocks in src/wp-includes/, so the expensive
+	// npm ci + build step is not needed for running the dev server.
+	await skipGutenbergSync(siteDir);
+
 	const s = await getStore();
 	const sites = s.get('sites');
 	if (!sites.includes(siteDir)) {
@@ -597,6 +643,10 @@ ipcMain.handle('url:open', async (_e, url) => {
 ipcMain.handle('npm:install', async (event, directoryPath) => {
 	if (!directoryPath) throw new Error('directoryPath is required');
 
+	// Ensure the gutenberg-sync grunt task is skipped (it requires cloning the
+	// full Gutenberg repo + npm ci, which fails in the Electron environment).
+	await skipGutenbergSync(directoryPath);
+
 	const installId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 	const runnerPath = path.join(__dirname, 'install-runner.js');
 
@@ -638,6 +688,12 @@ ipcMain.handle('npm:install', async (event, directoryPath) => {
 ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, scriptArgs = []) => {
 	if (!directoryPath) throw new Error('directoryPath is required');
 	if (!scriptName) throw new Error('scriptName is required');
+
+	// For watch/build scripts, ensure gutenberg-sync is pre-empted so it
+	// doesn't abort the grunt run when npm ci fails inside Electron.
+	if (scriptName === 'watch' || scriptName === 'build') {
+		await skipGutenbergSync(directoryPath);
+	}
 
 	const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 	const runnerPath = path.join(__dirname, 'script-runner.js');
