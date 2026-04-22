@@ -20,6 +20,16 @@ async function main() {
 			skipWordPressSetup: true,
 			verbosity: 'debug',
 			blueprint: {
+				// Run the WordPress installation wizard so the site is pre-configured on
+				// first boot. On subsequent boots WordPress detects it is already installed
+				// and skips this step, so the persistent SQLite database is preserved.
+				login: true,
+				steps: [
+					{
+						step: 'runWpInstallationWizard',
+						options: {}
+					}
+				],
 				constants: {
 					'WP_MAIL_SMTP_HOST': process.env.WP_MAIL_SMTP_HOST || '127.0.0.1',
 					'WP_MAIL_SMTP_PORT': Number(process.env.WP_MAIL_SMTP_PORT || 25),
