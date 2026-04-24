@@ -1,69 +1,70 @@
 ## WordPress Contributor Toolkit (Electron)
 
-This is a **rough, experimental** Electron app to get started with WordPress Core development. It's meant to work on Windows, macOS, and Linux with zero system dependencies.
+The [WordPress Core Dev Environment Toolkit](https://github.com/WordPress/experimental-wp-dev-env) is a desktop electron application (available for macOS, Windows, and Linux) that sets up a full WordPress core development environment with zero prerequisites.
 
-It handles the following tasks:
+You install it, choose a directory for `wordpress-develop`, click a button, and you have:
 
-- **Clones** the `wordpress-develop` repository into a local folder – without requiring a system install of `git`.
-- **Runs** `npm install`, `npm run build`, `npm run watch --dev` – without requiring a system install of `node` or `npm`.
-- **Launches** a local WordPress dev server – without requiring a system install of `apache`, `php` or `mysql`.
-- **Generates** a Core patch from your local changes
+- A cloned `wordpress-develop` repository
+- A running WordPress dev server
+- The ability to make code changes and generate a patch
 
-See *[How does it work?](#how-does-it-work)* for more details.
+No Git, no Node.js, no npm, no Docker needed. Everything is bundled inside the application as JS/WASM, powered by [WordPress Playground](https://wordpress.github.io/wordpress-playground/).
 
 ### Why
 
-Getting a Core dev environment running (Node, npm, git, PHP/MySQL or an alternative) is a common source of friction for new contributors. This app removes most of that friction by bundling the tooling and using WordPress Playground locally for the server.
+One of the most common complaints from Contributor Day facilitators is this: participants spend the entire session trying to set up their local environment and never get to actually contribute.
 
-### Screenshots
+Before writing a single line of code, a first-time WordPress core contributor typically needs to install Git, Node.js, npm, Docker, configure everything correctly, and troubleshoot whatever breaks along the way. At in-person events, this alone can take hours — sometimes the full day.
 
-#### Video demo
+The **WordPress Core Dev Environment Toolkit** aims to eliminate this friction entirely.
 
-https://github.com/user-attachments/assets/59ef930b-cbe1-4aee-879e-21dcf9999d0c
+## What does it do?
 
-#### UI
+Once installed, the app lets you:
 
-<img src="docs/1.%20UI.png" width="300" alt="UI">
+- Clone `wordpress-develop` into a directory of your choice
+- Run `npm install`, `npm run build`, and `npm run dev` automatically
+- Start a WordPress dev server using Playground’s CLI
+- Make changes to core files directly
+- Generate a patch from your changes, ready to attach to a Trac ticket
 
-#### Choosing a destination folder for the site
+The entire toolchain — npm, Node, Git — runs as JavaScript/WASM bundled with the app. There’s no terminal work required for the basic contributor workflow.
 
-<img src="docs/2.%20Create%20first%20site.png" width="300" alt="UI">
+Here’s the full setup flow — from a fresh install to a running WordPress development environment:
 
-#### Cloning the git repository
+[![](./docs/setup-start.png)](https://www.youtube.com/watch?v=e00PAh8WNOI)
 
-<img src="docs/3.%20Cloned%20git%20repo.png" width="300" alt="UI">
+[_Watch Video_](https://www.youtube.com/watch?v=e00PAh8WNOI)
 
-#### Running `npm install`
+Once your environment is running, generating a patch to submit to Trac takes just a few clicks:
 
-<img src="docs/4.%20npm%20install.png" width="300" alt="UI">
+[![](./docs/create-patch.png)](https://youtu.be/yodwdm7Z9vo?si=2Wk7Wuc6lTuaSeSf)
 
-#### Starting the dev server
-
-<img src="docs/5.%20dev%20server.png" width="300" alt="UI">
-
-#### Generating a patch
-
-<img src="docs/6.%20patch.png" width="300" alt="UI">
+[_Watch Video_](https://youtu.be/yodwdm7Z9vo?si=2Wk7Wuc6lTuaSeSf)
 
 ## Getting started
 
 ### Just using the app
 
-1) Download the latest packaged build for your platform from the [workflows page](https://github.com/adamziel/wordpress-contributor-toolkit/actions/workflows/build.yml).
-2) Open the app
-3) If on mac, sign it and remove it from the quarantine – the app is not officially signed at this point. First, make sure you have a code signing identity: [apple guide](https://support.apple.com/guide/keychain-access/create-self-signed-certificates-kyca8916/mac), [StackOverflow thread](https://stackoverflow.com/questions/27474751/how-can-i-codesign-an-app-without-being-in-the-mac-developer-program). Then, follow these steps with the downloaded WordPress Contributor Toolkit .app file:
-    ```
-    ❯ security find-identity -p codesigning
-    ❯ codesign --deep --force --verify --verbose --sign "selfsigned" "WordPress Contributor Toolkit.app"
-    ❯ xattr -d com.apple.quarantine "WordPress Contributor Toolkit.app"
-    ```
-5) Click "Create WordPress Core site" and choose a destination folder for your site.
-6) Click "Install dependencies"
-7) Click "Run command > npm run build"
-8) Click "Start dev server"
-9) A browser window should open automatically. If not, you can manually open it by clicking "Launch site".
-10) Make changes in the code
-11) Click "Generate patch" to create a diff of your changes.
+1. Download the latest packaged build for your platform from the [Releases page](https://github.com/WordPress/experimental-wp-dev-env/releases/latest). Pick the file that matches your OS:
+    - **macOS:** `mac-release-*.dmg`
+    - **Windows:** `windows-release-*.exe`
+    - **Linux:** `linux-release-*.AppImage`
+2. Open the app
+3. **macOS only:** The app is signed and notarized by Automattic. macOS should open it without issues. If Gatekeeper still blocks the app (this can happen when the file was downloaded via a browser), try either of these:
+    - Right-click the `.app` file and choose **Open**, then confirm in the dialog that appears.
+    - Or remove the quarantine attribute from the `.app` bundle itself:
+      ```
+      xattr -d com.apple.quarantine "WordPress Contributor Toolkit.app"
+      ```
+      > **Note:** Use `-d`, **not** `-dr`. The app is code-signed; using the recursive flag (`-r`) tries to strip attributes from files inside the sealed bundle, which macOS will reject with permission errors. Removing the attribute from the top-level bundle is sufficient.
+4. Click "Create WordPress Core site" and choose a destination folder for your site.
+5. Click "Install dependencies"
+6. Click "Run command > npm run build"
+7. Click "Start dev server"
+8. A browser window should open automatically. If not, you can manually open it by clicking "Launch site".
+9.  Make changes in the code
+10. Click "Generate patch" to create a diff of your changes.
 
 ### Build from source
 

@@ -8,9 +8,10 @@ import {
   Flex,
   DropdownMenu,
   Modal,
-  TextControl
+  TextControl,
+  Spinner
 } from '@wordpress/components';
-import { plus, chevronLeft, chevronRight, copy as copyIcon, edit } from '@wordpress/icons';
+import { plus, chevronLeft, chevronRight, copy as copyIcon, edit, download, chevronDown } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
@@ -51,6 +52,8 @@ function App() {
   useEffect(() => { if (webLogRef.current) webLogRef.current.scrollTop = webLogRef.current.scrollHeight; }, [webLogs]);
   const [webAvailable, setWebAvailable] = useState(false);
   useEffect(() => { (async () => { try { setWebAvailable(Boolean(await window.api.playgroundWebAvailable())); } catch {} })(); }, []);
+  const [availableEditors, setAvailableEditors] = useState({});
+  useEffect(() => { (async () => { try { setAvailableEditors(await window.api.checkEditorsAvailable()); } catch {} })(); }, []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeSite, setActiveSite] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -558,6 +561,7 @@ function App() {
                       onRename={onRename}
                       isPending={Boolean(pendingSite && pendingSite.targetDir === s)}
                       setupLogs={setupLogsBySite[s] || ''}
+                      availableEditors={availableEditors}
                     />
                   </div>
                 ))
@@ -634,7 +638,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '' }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '', availableEditors = {} }) {
   const safeOnRename = onRename || (() => {});
   // state
   const [serverUrl, setServerUrl] = useState('');
@@ -645,6 +649,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const [runtimeLogs, setRuntimeLogs] = useState('');
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [patchText, setPatchText] = useState('');
+  const [patchLoading, setPatchLoading] = useState(false);
   const [emails, setEmails] = useState([]);
   const [smtpPort, setSmtpPort] = useState(0);
   const newEmailUnsubRef = useRef(null);
@@ -1217,18 +1222,36 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
 
   const openPatchModal = async ()=>{
     setIsPatchOpen(true);
-    setPatchText('Generating patch…');
+    setPatchLoading(true);
+    setPatchText('');
     try {
       const res = await window.api.getPatch(sitePath);
       if (res && res.ok) setPatchText((res.patch && res.patch.trim().length) ? res.patch : 'No changes.');
       else setPatchText(res && res.error ? `Error: ${res.error}` : 'Failed to generate patch');
     } catch (e) {
       setPatchText(`Error: ${e && e.message ? e.message : String(e)}`);
+    } finally {
+      setPatchLoading(false);
     }
   };
 
   const copyPatch = async ()=>{
     try { await navigator.clipboard.writeText(patchText); } catch {}
+  };
+
+  const savePatch = async ()=>{
+    try {
+      const res = await window.api.savePatch(sitePath);
+      if (res && res.ok && res.filePath) {
+        alert(`Diff saved to: ${res.filePath}`);
+      } else if (res && res.canceled) {
+        // User canceled, do nothing
+      } else {
+        alert(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
+      }
+    } catch (e) {
+      alert(`Error saving diff: ${e && e.message ? e.message : String(e)}`);
+    }
   };
 
   const statusStyles = initialized
@@ -1381,12 +1404,59 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               {initialized ? 'Initialized' : 'Uninitialized'}
             </span>
             {createdLabel ? <span>Created {createdLabel}</span> : null}
-            <Button
+            <DropdownMenu
+              label="Open directory in"
+              text="Open directory in"
               variant="tertiary"
-              isSmall
-              onClick={() => window.api.openDirectory(sitePath)}
+              size="small"
+              icon={chevronDown}
+              iconPosition="right"
               style={{ marginLeft: 4, fontSize: 12 }}
-            >Open directory</Button>
+              controls={[
+                {
+                  title: 'Finder',
+                  onClick: () => window.api.openDirectory(sitePath)
+                },
+                ...[
+                  {
+                    key: 'vscode',
+                    title: availableEditors.vscode ? 'VS Code' : 'VS Code (not installed)',
+                    onClick: async () => {
+                      const res = await window.api.openInEditor(sitePath, 'vscode');
+                      if (res && !res.ok) {
+                        alert(`Failed to open in VS Code: ${res.error || 'Unknown error'}`);
+                      }
+                    },
+                    isDisabled: !availableEditors.vscode,
+                    available: availableEditors.vscode
+                  },
+                  {
+                    key: 'phpstorm',
+                    title: availableEditors.phpstorm ? 'PHPStorm' : 'PHPStorm (not installed)',
+                    onClick: async () => {
+                      const res = await window.api.openInEditor(sitePath, 'phpstorm');
+                      if (res && !res.ok) {
+                        alert(`Failed to open in PHPStorm: ${res.error || 'Unknown error'}`);
+                      }
+                    },
+                    isDisabled: !availableEditors.phpstorm,
+                    available: availableEditors.phpstorm
+                  },
+                  {
+                    key: 'cursor',
+                    title: availableEditors.cursor ? 'Cursor' : 'Cursor (not installed)',
+                    onClick: async () => {
+                      const res = await window.api.openInEditor(sitePath, 'cursor');
+                      if (res && !res.ok) {
+                        alert(`Failed to open in Cursor: ${res.error || 'Unknown error'}`);
+                      }
+                    },
+                    isDisabled: !availableEditors.cursor,
+                    available: availableEditors.cursor
+                  }
+                ].sort((a, b) => (b.available ? 1 : 0) - (a.available ? 1 : 0))
+              ]}
+            />
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -1505,7 +1575,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               variant="secondary"
               onClick={openPatchModal}
               style={{ padding: '10px 16px', borderRadius: 10 }}
-            >Create patch</Button>
+            >Submit patch</Button>
             {running && serverUrl ? (
               <Button
                 variant="secondary"
@@ -1610,20 +1680,46 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           onRequestClose={()=>setIsPatchOpen(false)}
           shouldCloseOnClickOutside
           isFullScreen
+          headerClassName="patch-modal-header"
         >
-          <div style={{ position:'relative', height:'80vh' }}>
-            <Button
-              icon={copyIcon}
-              label="Copy"
-              onClick={copyPatch}
-              style={{
-                position:'absolute', top:8, right:8, zIndex:2,
-                background:'#fff', border:'1px solid #ddd', color:'#111', boxShadow:'none'
-              }}
-            />
-            <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', overflow:'auto' }}>
-              {patchText && patchText.trim().length ? patchText : 'No changes.'}
-            </pre>
+          <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
+            {!patchLoading && (
+              <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
+                <strong>Next steps:</strong> Save this patch and submit it to the relevant WordPress Trac ticket at <a href="#" onClick={(e) => { e.preventDefault(); window.api.openExternal('https://core.trac.wordpress.org'); }} style={{color:'#0969da', cursor:'pointer'}}>core.trac.wordpress.org</a>
+              </div>
+            )}
+            <div style={{ position:'relative', flex:1, minHeight:0 }}>
+              {patchLoading ? (
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:16 }}>
+                  <Spinner />
+                  <div style={{ color:'#666', fontSize:14 }}>Generating patch...</div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ position:'absolute', top:8, right:8, zIndex:2, display:'flex', gap:8 }}>
+                    <Button
+                      icon={download}
+                      label="Save"
+                      onClick={savePatch}
+                      style={{
+                        background:'#fff', border:'1px solid #ddd', color:'#111', boxShadow:'none'
+                      }}
+                    />
+                    <Button
+                      icon={copyIcon}
+                      label="Copy"
+                      onClick={copyPatch}
+                      style={{
+                        background:'#fff', border:'1px solid #ddd', color:'#111', boxShadow:'none'
+                      }}
+                    />
+                  </div>
+                  <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', overflowY:'auto' }}>
+                    {patchText && patchText.trim().length ? patchText : 'No changes.'}
+                  </pre>
+                </>
+              )}
+            </div>
           </div>
         </Modal>
       )}

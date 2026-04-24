@@ -30965,7 +30965,7 @@ WARNING: This link could potentially be dangerous`)) {
   });
 
   // src/renderer/index.jsx
-  var import_react68 = __toESM(require_react());
+  var import_react69 = __toESM(require_react());
   var import_client2 = __toESM(require_client());
 
   // node_modules/clsx/dist/clsx.mjs
@@ -41327,14 +41327,14 @@ If there's a particular need for this, please submit a feature request at https:
         return "";
       }
       case "object": {
-        var keyframes3 = interpolation;
-        if (keyframes3.anim === 1) {
+        var keyframes4 = interpolation;
+        if (keyframes4.anim === 1) {
           cursor = {
-            name: keyframes3.name,
-            styles: keyframes3.styles,
+            name: keyframes4.name,
+            styles: keyframes4.styles,
             next: cursor
           };
-          return keyframes3.name;
+          return keyframes4.name;
         }
         var serializedStyles = interpolation;
         if (serializedStyles.styles !== void 0) {
@@ -41555,16 +41555,28 @@ If there's a particular need for this, please submit a feature request at https:
     }
     return React6.createElement.apply(null, createElementArgArray);
   };
-  (function(_jsx39) {
+  (function(_jsx42) {
     var JSX;
     /* @__PURE__ */ (function(_JSX) {
-    })(JSX || (JSX = _jsx39.JSX || (_jsx39.JSX = {})));
+    })(JSX || (JSX = _jsx42.JSX || (_jsx42.JSX = {})));
   })(jsx17 || (jsx17 = {}));
   function css() {
     for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
       args[_key] = arguments[_key];
     }
     return serializeStyles(args);
+  }
+  function keyframes() {
+    var insertable = css.apply(void 0, arguments);
+    var name = "animation-" + insertable.name;
+    return {
+      name,
+      styles: "@keyframes " + name + "{" + insertable.styles + "}",
+      anim: 1,
+      toString: function toString() {
+        return "_EMO_" + this.name + "_" + this.styles + "_EMO_";
+      }
+    };
   }
 
   // node_modules/@emotion/css/create-instance/dist/emotion-css-create-instance.esm.js
@@ -41595,7 +41607,7 @@ If there's a particular need for this, please submit a feature request at https:
       insertStyles(cache2, serialized, false);
       return cache2.key + "-" + serialized.name;
     };
-    var keyframes3 = function keyframes4() {
+    var keyframes4 = function keyframes5() {
       for (var _len2 = arguments.length, args = new Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
         args[_key2] = arguments[_key2];
       }
@@ -41624,7 +41636,7 @@ If there's a particular need for this, please submit a feature request at https:
       css: css4,
       cx: cx3,
       injectGlobal: injectGlobal2,
-      keyframes: keyframes3,
+      keyframes: keyframes4,
       hydrate: function hydrate3(ids) {
         ids.forEach(function(key) {
           cache2.inserted[key] = true;
@@ -41686,7 +41698,7 @@ If there's a particular need for this, please submit a feature request at https:
   var merge2 = _createEmotion.merge;
   var getRegisteredStyles2 = _createEmotion.getRegisteredStyles;
   var injectGlobal = _createEmotion.injectGlobal;
-  var keyframes = _createEmotion.keyframes;
+  var keyframes2 = _createEmotion.keyframes;
   var css2 = _createEmotion.css;
   var sheet = _createEmotion.sheet;
   var cache = _createEmotion.cache;
@@ -45126,35 +45138,35 @@ If there's a particular need for this, please submit a feature request at https:
   };
 
   // node_modules/framer-motion/dist/es/animation/animators/utils/can-animate.mjs
-  function hasKeyframesChanged(keyframes3) {
-    const current = keyframes3[0];
-    if (keyframes3.length === 1)
+  function hasKeyframesChanged(keyframes4) {
+    const current = keyframes4[0];
+    if (keyframes4.length === 1)
       return true;
-    for (let i = 0; i < keyframes3.length; i++) {
-      if (keyframes3[i] !== current)
+    for (let i = 0; i < keyframes4.length; i++) {
+      if (keyframes4[i] !== current)
         return true;
     }
   }
-  function canAnimate(keyframes3, name, type, velocity) {
-    const originKeyframe = keyframes3[0];
+  function canAnimate(keyframes4, name, type, velocity) {
+    const originKeyframe = keyframes4[0];
     if (originKeyframe === null)
       return false;
     if (name === "display" || name === "visibility")
       return true;
-    const targetKeyframe = keyframes3[keyframes3.length - 1];
+    const targetKeyframe = keyframes4[keyframes4.length - 1];
     const isOriginAnimatable = isAnimatable(originKeyframe, name);
     const isTargetAnimatable = isAnimatable(targetKeyframe, name);
     warning2(isOriginAnimatable === isTargetAnimatable, `You are trying to animate ${name} from "${originKeyframe}" to "${targetKeyframe}". ${originKeyframe} is not an animatable value - to enable this animation set ${originKeyframe} to a value animatable to ${targetKeyframe} via the \`style\` property.`);
     if (!isOriginAnimatable || !isTargetAnimatable) {
       return false;
     }
-    return hasKeyframesChanged(keyframes3) || (type === "spring" || isGenerator(type)) && velocity;
+    return hasKeyframesChanged(keyframes4) || (type === "spring" || isGenerator(type)) && velocity;
   }
 
   // node_modules/framer-motion/dist/es/animation/animators/waapi/utils/get-final-keyframe.mjs
   var isNotNull = (value) => value !== null;
-  function getFinalKeyframe(keyframes3, { repeat, repeatType = "loop" }, finalKeyframe) {
-    const resolvedKeyframes = keyframes3.filter(isNotNull);
+  function getFinalKeyframe(keyframes4, { repeat, repeatType = "loop" }, finalKeyframe) {
+    const resolvedKeyframes = keyframes4.filter(isNotNull);
     const index2 = repeat && repeatType !== "loop" && repeat % 2 === 1 ? 0 : resolvedKeyframes.length - 1;
     return !index2 || finalKeyframe === void 0 ? resolvedKeyframes[index2] : finalKeyframe;
   }
@@ -45208,13 +45220,13 @@ If there's a particular need for this, please submit a feature request at https:
      * will check if its possible to run the animation and, if not, skip it.
      * Otherwise, it will call initPlayback on the implementing class.
      */
-    onKeyframesResolved(keyframes3, finalKeyframe) {
+    onKeyframesResolved(keyframes4, finalKeyframe) {
       this.resolvedAt = time.now();
       this.hasAttemptedResolve = true;
       const { name, type, velocity, delay: delay2, onComplete, onUpdate, isGenerator: isGenerator2 } = this.options;
-      if (!isGenerator2 && !canAnimate(keyframes3, name, type, velocity)) {
+      if (!isGenerator2 && !canAnimate(keyframes4, name, type, velocity)) {
         if (instantAnimationState.current || !delay2) {
-          onUpdate && onUpdate(getFinalKeyframe(keyframes3, this.options, finalKeyframe));
+          onUpdate && onUpdate(getFinalKeyframe(keyframes4, this.options, finalKeyframe));
           onComplete && onComplete();
           this.resolveFinishedPromise();
           return;
@@ -45222,11 +45234,11 @@ If there's a particular need for this, please submit a feature request at https:
           this.options.duration = 0;
         }
       }
-      const resolvedAnimation = this.initPlayback(keyframes3, finalKeyframe);
+      const resolvedAnimation = this.initPlayback(keyframes4, finalKeyframe);
       if (resolvedAnimation === false)
         return;
       this._resolved = {
-        keyframes: keyframes3,
+        keyframes: keyframes4,
         finalKeyframe,
         ...resolvedAnimation
       };
@@ -45643,8 +45655,8 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/framer-motion/dist/es/animation/generators/inertia.mjs
-  function inertia({ keyframes: keyframes3, velocity = 0, power = 0.8, timeConstant = 325, bounceDamping = 10, bounceStiffness = 500, modifyTarget, min: min2, max: max2, restDelta = 0.5, restSpeed }) {
-    const origin2 = keyframes3[0];
+  function inertia({ keyframes: keyframes4, velocity = 0, power = 0.8, timeConstant = 325, bounceDamping = 10, bounceStiffness = 500, modifyTarget, min: min2, max: max2, restDelta = 0.5, restSpeed }) {
+    const origin2 = keyframes4[0];
     const state = {
       done: false,
       value: origin2
@@ -45812,7 +45824,7 @@ If there's a particular need for this, please submit a feature request at https:
   function defaultEasing(values, easing) {
     return values.map(() => easing || easeInOut).splice(0, values.length - 1);
   }
-  function keyframes2({ duration = 300, keyframes: keyframeValues, times, ease: ease2 = "easeInOut" }) {
+  function keyframes3({ duration = 300, keyframes: keyframeValues, times, ease: ease2 = "easeInOut" }) {
     const easingFunctions = isEasingArray(ease2) ? ease2.map(easingDefinitionToFunction) : easingDefinitionToFunction(ease2);
     const state = {
       done: false,
@@ -45855,8 +45867,8 @@ If there's a particular need for this, please submit a feature request at https:
   var generators = {
     decay: inertia,
     inertia,
-    tween: keyframes2,
-    keyframes: keyframes2,
+    tween: keyframes3,
+    keyframes: keyframes3,
     spring
   };
   var percentToProgress = (percent2) => percent2 / 100;
@@ -45879,10 +45891,10 @@ If there's a particular need for this, please submit a feature request at https:
         const { onStop } = this.options;
         onStop && onStop();
       };
-      const { name, motionValue: motionValue2, element, keyframes: keyframes3 } = this.options;
+      const { name, motionValue: motionValue2, element, keyframes: keyframes4 } = this.options;
       const KeyframeResolver$1 = (element === null || element === void 0 ? void 0 : element.KeyframeResolver) || KeyframeResolver;
       const onResolved = (resolvedKeyframes, finalKeyframe) => this.onKeyframesResolved(resolvedKeyframes, finalKeyframe);
-      this.resolver = new KeyframeResolver$1(keyframes3, onResolved, name, motionValue2, element);
+      this.resolver = new KeyframeResolver$1(keyframes4, onResolved, name, motionValue2, element);
       this.resolver.scheduleResolve();
     }
     flatten() {
@@ -45893,10 +45905,10 @@ If there's a particular need for this, please submit a feature request at https:
     }
     initPlayback(keyframes$1) {
       const { type = "keyframes", repeat = 0, repeatDelay = 0, repeatType, velocity = 0 } = this.options;
-      const generatorFactory = isGenerator(type) ? type : generators[type] || keyframes2;
+      const generatorFactory = isGenerator(type) ? type : generators[type] || keyframes3;
       let mapPercentToKeyframes;
       let mirroredGenerator;
-      if (generatorFactory !== keyframes2 && typeof keyframes$1[0] !== "number") {
+      if (generatorFactory !== keyframes3 && typeof keyframes$1[0] !== "number") {
         if (true) {
           invariant2(keyframes$1.length === 2, `Only two keyframes currently supported with spring and inertia animations. Trying to animate ${keyframes$1}`);
         }
@@ -45938,10 +45950,10 @@ If there's a particular need for this, please submit a feature request at https:
     tick(timestamp, sample = false) {
       const { resolved } = this;
       if (!resolved) {
-        const { keyframes: keyframes4 } = this.options;
-        return { done: true, value: keyframes4[keyframes4.length - 1] };
+        const { keyframes: keyframes5 } = this.options;
+        return { done: true, value: keyframes5[keyframes5.length - 1] };
       }
-      const { finalKeyframe, generator, mirroredGenerator, mapPercentToKeyframes, keyframes: keyframes3, calculatedDuration, totalDuration, resolvedDuration } = resolved;
+      const { finalKeyframe, generator, mirroredGenerator, mapPercentToKeyframes, keyframes: keyframes4, calculatedDuration, totalDuration, resolvedDuration } = resolved;
       if (this.startTime === null)
         return generator.next(0);
       const { delay: delay2, repeat, repeatType, repeatDelay, onUpdate } = this.options;
@@ -45987,7 +45999,7 @@ If there's a particular need for this, please submit a feature request at https:
         }
         elapsed = clamp2(0, 1, iterationProgress) * resolvedDuration;
       }
-      const state = isInDelayPhase ? { done: false, value: keyframes3[0] } : frameGenerator.next(elapsed);
+      const state = isInDelayPhase ? { done: false, value: keyframes4[0] } : frameGenerator.next(elapsed);
       if (mapPercentToKeyframes) {
         state.value = mapPercentToKeyframes(state.value);
       }
@@ -45997,7 +46009,7 @@ If there's a particular need for this, please submit a feature request at https:
       }
       const isAnimationFinished = this.holdTime === null && (this.state === "finished" || this.state === "running" && done);
       if (isAnimationFinished && finalKeyframe !== void 0) {
-        state.value = getFinalKeyframe(keyframes3, this.options, finalKeyframe);
+        state.value = getFinalKeyframe(keyframes4, this.options, finalKeyframe);
       }
       if (onUpdate) {
         onUpdate(state.value);
@@ -46125,8 +46137,8 @@ If there's a particular need for this, please submit a feature request at https:
   ]);
 
   // node_modules/framer-motion/dist/es/animation/animators/waapi/index.mjs
-  function startWaapiAnimation(element, valueName, keyframes3, { delay: delay2 = 0, duration = 300, repeat = 0, repeatType = "loop", ease: ease2 = "easeInOut", times } = {}) {
-    const keyframeOptions = { [valueName]: keyframes3 };
+  function startWaapiAnimation(element, valueName, keyframes4, { delay: delay2 = 0, duration = 300, repeat = 0, repeatType = "loop", ease: ease2 = "easeInOut", times } = {}) {
+    const keyframeOptions = { [valueName]: keyframes4 };
     if (times)
       keyframeOptions.offset = times;
     const easing = mapEasingToNativeEasing(ease2, duration);
@@ -46151,15 +46163,15 @@ If there's a particular need for this, please submit a feature request at https:
   function requiresPregeneratedKeyframes(options) {
     return isGenerator(options.type) || options.type === "spring" || !isWaapiSupportedEasing(options.ease);
   }
-  function pregenerateKeyframes(keyframes3, options) {
+  function pregenerateKeyframes(keyframes4, options) {
     const sampleAnimation = new MainThreadAnimation({
       ...options,
-      keyframes: keyframes3,
+      keyframes: keyframes4,
       repeat: 0,
       delay: 0,
       isGenerator: true
     });
-    let state = { done: false, value: keyframes3[0] };
+    let state = { done: false, value: keyframes4[0] };
     const pregeneratedKeyframes = [];
     let t = 0;
     while (!state.done && t < maxDuration) {
@@ -46185,11 +46197,11 @@ If there's a particular need for this, please submit a feature request at https:
   var AcceleratedAnimation = class extends BaseAnimation {
     constructor(options) {
       super(options);
-      const { name, motionValue: motionValue2, element, keyframes: keyframes3 } = this.options;
-      this.resolver = new DOMKeyframesResolver(keyframes3, (resolvedKeyframes, finalKeyframe) => this.onKeyframesResolved(resolvedKeyframes, finalKeyframe), name, motionValue2, element);
+      const { name, motionValue: motionValue2, element, keyframes: keyframes4 } = this.options;
+      this.resolver = new DOMKeyframesResolver(keyframes4, (resolvedKeyframes, finalKeyframe) => this.onKeyframesResolved(resolvedKeyframes, finalKeyframe), name, motionValue2, element);
       this.resolver.scheduleResolve();
     }
-    initPlayback(keyframes3, finalKeyframe) {
+    initPlayback(keyframes4, finalKeyframe) {
       let { duration = 300, times, ease: ease2, type, motionValue: motionValue2, name, startTime } = this.options;
       if (!motionValue2.owner || !motionValue2.owner.current) {
         return false;
@@ -46199,17 +46211,17 @@ If there's a particular need for this, please submit a feature request at https:
       }
       if (requiresPregeneratedKeyframes(this.options)) {
         const { onComplete, onUpdate, motionValue: motionValue3, element, ...options } = this.options;
-        const pregeneratedAnimation = pregenerateKeyframes(keyframes3, options);
-        keyframes3 = pregeneratedAnimation.keyframes;
-        if (keyframes3.length === 1) {
-          keyframes3[1] = keyframes3[0];
+        const pregeneratedAnimation = pregenerateKeyframes(keyframes4, options);
+        keyframes4 = pregeneratedAnimation.keyframes;
+        if (keyframes4.length === 1) {
+          keyframes4[1] = keyframes4[0];
         }
         duration = pregeneratedAnimation.duration;
         times = pregeneratedAnimation.times;
         ease2 = pregeneratedAnimation.ease;
         type = "keyframes";
       }
-      const animation = startWaapiAnimation(motionValue2.owner.current, name, keyframes3, { ...this.options, duration, times, ease: ease2 });
+      const animation = startWaapiAnimation(motionValue2.owner.current, name, keyframes4, { ...this.options, duration, times, ease: ease2 });
       animation.startTime = startTime !== null && startTime !== void 0 ? startTime : this.calcStartTime();
       if (this.pendingTimeline) {
         attachTimeline(animation, this.pendingTimeline);
@@ -46217,7 +46229,7 @@ If there's a particular need for this, please submit a feature request at https:
       } else {
         animation.onfinish = () => {
           const { onComplete } = this.options;
-          motionValue2.set(getFinalKeyframe(keyframes3, this.options, finalKeyframe));
+          motionValue2.set(getFinalKeyframe(keyframes4, this.options, finalKeyframe));
           onComplete && onComplete();
           this.cancel();
           this.resolveFinishedPromise();
@@ -46229,7 +46241,7 @@ If there's a particular need for this, please submit a feature request at https:
         times,
         type,
         ease: ease2,
-        keyframes: keyframes3
+        keyframes: keyframes4
       };
     }
     get duration() {
@@ -46326,7 +46338,7 @@ If there's a particular need for this, please submit a feature request at https:
       const { resolved } = this;
       if (!resolved)
         return;
-      const { animation, keyframes: keyframes3, duration, type, ease: ease2, times } = resolved;
+      const { animation, keyframes: keyframes4, duration, type, ease: ease2, times } = resolved;
       if (animation.playState === "idle" || animation.playState === "finished") {
         return;
       }
@@ -46334,7 +46346,7 @@ If there's a particular need for this, please submit a feature request at https:
         const { motionValue: motionValue2, onUpdate, onComplete, element, ...options } = this.options;
         const sampleAnimation = new MainThreadAnimation({
           ...options,
-          keyframes: keyframes3,
+          keyframes: keyframes4,
           duration,
           type,
           ease: ease2,
@@ -46396,11 +46408,11 @@ If there's a particular need for this, please submit a feature request at https:
     ease: [0.25, 0.1, 0.35, 1],
     duration: 0.3
   };
-  var getDefaultTransition = (valueKey, { keyframes: keyframes3 }) => {
-    if (keyframes3.length > 2) {
+  var getDefaultTransition = (valueKey, { keyframes: keyframes4 }) => {
+    if (keyframes4.length > 2) {
       return keyframesTransition;
     } else if (transformProps.has(valueKey)) {
-      return valueKey.startsWith("scale") ? criticallyDampedSpring(keyframes3[1]) : underDampedSpring;
+      return valueKey.startsWith("scale") ? criticallyDampedSpring(keyframes4[1]) : underDampedSpring;
     }
     return ease;
   };
@@ -47896,9 +47908,9 @@ If there's a particular need for this, please submit a feature request at https:
   };
 
   // node_modules/framer-motion/dist/es/animation/animate/single-value.mjs
-  function animateSingleValue(value, keyframes3, options) {
+  function animateSingleValue(value, keyframes4, options) {
     const motionValue$1 = isMotionValue(value) ? value : motionValue(value);
-    motionValue$1.start(animateMotionValue("", motionValue$1, keyframes3, options));
+    motionValue$1.start(animateMotionValue("", motionValue$1, keyframes4, options));
     return motionValue$1.animation;
   }
 
@@ -50237,45 +50249,56 @@ If there's a particular need for this, please submit a feature request at https:
   var Spacer = contextConnect(UnconnectedSpacer, "Spacer");
   var component_default4 = Spacer;
 
-  // node_modules/@wordpress/icons/build-module/library/chevron-left.js
+  // node_modules/@wordpress/icons/build-module/library/chevron-down.js
   var import_jsx_runtime27 = __toESM(require_jsx_runtime());
-  var chevronLeft = /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(SVG, {
+  var chevronDown = /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(SVG, {
+    viewBox: "0 0 24 24",
+    xmlns: "http://www.w3.org/2000/svg",
+    children: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Path, {
+      d: "M17.5 11.6L12 16l-5.5-4.4.9-1.2L12 14l4.5-3.6 1 1.2z"
+    })
+  });
+  var chevron_down_default = chevronDown;
+
+  // node_modules/@wordpress/icons/build-module/library/chevron-left.js
+  var import_jsx_runtime28 = __toESM(require_jsx_runtime());
+  var chevronLeft = /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(Path, {
       d: "M14.6 7l-1.2-1L8 12l5.4 6 1.2-1-4.6-5z"
     })
   });
   var chevron_left_default = chevronLeft;
 
   // node_modules/@wordpress/icons/build-module/library/chevron-right.js
-  var import_jsx_runtime28 = __toESM(require_jsx_runtime());
-  var chevronRight = /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(SVG, {
+  var import_jsx_runtime29 = __toESM(require_jsx_runtime());
+  var chevronRight = /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(Path, {
       d: "M10.6 6L9.4 7l4.6 5-4.6 5 1.2 1 5.4-6z"
     })
   });
   var chevron_right_default = chevronRight;
 
   // node_modules/@wordpress/icons/build-module/library/close.js
-  var import_jsx_runtime29 = __toESM(require_jsx_runtime());
-  var close = /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(SVG, {
+  var import_jsx_runtime30 = __toESM(require_jsx_runtime());
+  var close = /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(Path, {
       d: "m13.06 12 6.47-6.47-1.06-1.06L12 10.94 5.53 4.47 4.47 5.53 10.94 12l-6.47 6.47 1.06 1.06L12 13.06l6.47 6.47 1.06-1.06L13.06 12Z"
     })
   });
   var close_default = close;
 
   // node_modules/@wordpress/icons/build-module/library/copy.js
-  var import_jsx_runtime30 = __toESM(require_jsx_runtime());
-  var copy2 = /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(SVG, {
+  var import_jsx_runtime31 = __toESM(require_jsx_runtime());
+  var copy2 = /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(Path, {
       fillRule: "evenodd",
       clipRule: "evenodd",
       d: "M5 4.5h11a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5ZM3 5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Zm17 3v10.75c0 .69-.56 1.25-1.25 1.25H6v1.5h12.75a2.75 2.75 0 0 0 2.75-2.75V8H20Z"
@@ -50283,12 +50306,23 @@ If there's a particular need for this, please submit a feature request at https:
   });
   var copy_default = copy2;
 
-  // node_modules/@wordpress/icons/build-module/library/pencil.js
-  var import_jsx_runtime31 = __toESM(require_jsx_runtime());
-  var pencil = /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(SVG, {
+  // node_modules/@wordpress/icons/build-module/library/download.js
+  var import_jsx_runtime32 = __toESM(require_jsx_runtime());
+  var download = /* @__PURE__ */ (0, import_jsx_runtime32.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime32.jsx)(Path, {
+      d: "M18 11.3l-1-1.1-4 4V3h-1.5v11.3L7 10.2l-1 1.1 6.2 5.8 5.8-5.8zm.5 3.7v3.5h-13V15H4v5h16v-5h-1.5z"
+    })
+  });
+  var download_default = download;
+
+  // node_modules/@wordpress/icons/build-module/library/pencil.js
+  var import_jsx_runtime33 = __toESM(require_jsx_runtime());
+  var pencil = /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(SVG, {
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 24 24",
+    children: /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(Path, {
       d: "m19 7-3-3-8.5 8.5-1 4 4-1L19 7Zm-7 11.5H5V20h7v-1.5Z"
     })
   });
@@ -50298,22 +50332,22 @@ If there's a particular need for this, please submit a feature request at https:
   var edit_default = pencil_default;
 
   // node_modules/@wordpress/icons/build-module/library/menu.js
-  var import_jsx_runtime32 = __toESM(require_jsx_runtime());
-  var menu = /* @__PURE__ */ (0, import_jsx_runtime32.jsx)(SVG, {
+  var import_jsx_runtime34 = __toESM(require_jsx_runtime());
+  var menu = /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime32.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(Path, {
       d: "M5 5v1.5h14V5H5zm0 7.8h14v-1.5H5v1.5zM5 19h14v-1.5H5V19z"
     })
   });
   var menu_default = menu;
 
   // node_modules/@wordpress/icons/build-module/library/plus.js
-  var import_jsx_runtime33 = __toESM(require_jsx_runtime());
-  var plus = /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(SVG, {
+  var import_jsx_runtime35 = __toESM(require_jsx_runtime());
+  var plus = /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    children: /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(Path, {
+    children: /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(Path, {
       d: "M11 12.5V17.5H12.5V12.5H17.5V11H12.5V6H11V11H6V12.5H11Z"
     })
   });
@@ -50391,7 +50425,7 @@ If there's a particular need for this, please submit a feature request at https:
   })(labelStyles, ";" + (false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvYmFzZS1jb250cm9sL3N0eWxlcy9iYXNlLWNvbnRyb2wtc3R5bGVzLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQXVFNEMiLCJmaWxlIjoiQHdvcmRwcmVzcy9jb21wb25lbnRzL3NyYy9iYXNlLWNvbnRyb2wvc3R5bGVzL2Jhc2UtY29udHJvbC1zdHlsZXMudHMiLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIEV4dGVybmFsIGRlcGVuZGVuY2llc1xuICovXG5pbXBvcnQgc3R5bGVkIGZyb20gJ0BlbW90aW9uL3N0eWxlZCc7XG5pbXBvcnQgeyBjc3MgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbi8qKlxuICogSW50ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCB7IGJhc2VMYWJlbFR5cG9ncmFwaHksIGJveFNpemluZ1Jlc2V0LCBmb250LCBDT0xPUlMgfSBmcm9tICcuLi8uLi91dGlscyc7XG5pbXBvcnQgeyBzcGFjZSB9IGZyb20gJy4uLy4uL3V0aWxzL3NwYWNlJztcblxuZXhwb3J0IGNvbnN0IFdyYXBwZXIgPSBzdHlsZWQuZGl2YFxuXHRmb250LWZhbWlseTogJHsgZm9udCggJ2RlZmF1bHQuZm9udEZhbWlseScgKSB9O1xuXHRmb250LXNpemU6ICR7IGZvbnQoICdkZWZhdWx0LmZvbnRTaXplJyApIH07XG5cblx0JHsgYm94U2l6aW5nUmVzZXQgfVxuYDtcblxuY29uc3QgZGVwcmVjYXRlZE1hcmdpbkZpZWxkID0gKCB7IF9fbmV4dEhhc05vTWFyZ2luQm90dG9tID0gZmFsc2UgfSApID0+IHtcblx0cmV0dXJuIChcblx0XHQhIF9fbmV4dEhhc05vTWFyZ2luQm90dG9tICYmXG5cdFx0Y3NzYFxuXHRcdFx0bWFyZ2luLWJvdHRvbTogJHsgc3BhY2UoIDIgKSB9O1xuXHRcdGBcblx0KTtcbn07XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRGaWVsZCA9IHN0eWxlZC5kaXZgXG5cdCR7IGRlcHJlY2F0ZWRNYXJnaW5GaWVsZCB9XG5cblx0LmNvbXBvbmVudHMtcGFuZWxfX3JvdyAmIHtcblx0XHRtYXJnaW4tYm90dG9tOiBpbmhlcml0O1xuXHR9XG5gO1xuXG5jb25zdCBsYWJlbFN0eWxlcyA9IGNzc2Bcblx0JHsgYmFzZUxhYmVsVHlwb2dyYXBoeSB9O1xuXG5cdGRpc3BsYXk6IGJsb2NrO1xuXHRtYXJnaW4tYm90dG9tOiAkeyBzcGFjZSggMiApIH07XG5cdC8qKlxuXHQgKiBSZW1vdmVzIENocm9tZS9TYWZhcmkvRmlyZWZveCB1c2VyIGFnZW50IHN0eWxlc2hlZXQgcGFkZGluZyBmcm9tXG5cdCAqIFN0eWxlZExhYmVsIHdoZW4gaXQgaXMgcmVuZGVyZWQgYXMgYSBsZWdlbmQuXG5cdCAqL1xuXHRwYWRkaW5nOiAwO1xuYDtcblxuZXhwb3J0IGNvbnN0IFN0eWxlZExhYmVsID0gc3R5bGVkLmxhYmVsYFxuXHQkeyBsYWJlbFN0eWxlcyB9XG5gO1xuXG5jb25zdCBkZXByZWNhdGVkTWFyZ2luSGVscCA9ICggeyBfX25leHRIYXNOb01hcmdpbkJvdHRvbSA9IGZhbHNlIH0gKSA9PiB7XG5cdHJldHVybiAoXG5cdFx0ISBfX25leHRIYXNOb01hcmdpbkJvdHRvbSAmJlxuXHRcdGNzc2Bcblx0XHRcdG1hcmdpbi1ib3R0b206IHJldmVydDtcblx0XHRgXG5cdCk7XG59O1xuXG5leHBvcnQgY29uc3QgU3R5bGVkSGVscCA9IHN0eWxlZC5wYFxuXHRtYXJnaW4tdG9wOiAkeyBzcGFjZSggMiApIH07XG5cdG1hcmdpbi1ib3R0b206IDA7XG5cdGZvbnQtc2l6ZTogJHsgZm9udCggJ2hlbHBUZXh0LmZvbnRTaXplJyApIH07XG5cdGZvbnQtc3R5bGU6IG5vcm1hbDtcblx0Y29sb3I6ICR7IENPTE9SUy5ncmF5WyA3MDAgXSB9O1xuXG5cdCR7IGRlcHJlY2F0ZWRNYXJnaW5IZWxwIH1cbmA7XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRWaXN1YWxMYWJlbCA9IHN0eWxlZC5zcGFuYFxuXHQkeyBsYWJlbFN0eWxlcyB9XG5gO1xuIl19 */"));
 
   // node_modules/@wordpress/components/build-module/base-control/index.js
-  var import_jsx_runtime34 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime36 = __toESM(require_jsx_runtime());
   var UnconnectedBaseControl = (props) => {
     const {
       __nextHasNoMarginBottom = false,
@@ -50410,26 +50444,26 @@ If there's a particular need for this, please submit a feature request at https:
         hint: "Set the `__nextHasNoMarginBottom` prop to true to start opting into the new styles, which will become the default in a future version."
       });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime34.jsxs)(Wrapper, {
+    return /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)(Wrapper, {
       className,
-      children: [/* @__PURE__ */ (0, import_jsx_runtime34.jsxs)(StyledField, {
+      children: [/* @__PURE__ */ (0, import_jsx_runtime36.jsxs)(StyledField, {
         className: "components-base-control__field",
         __nextHasNoMarginBottom,
-        children: [label && id3 && (hideLabelFromVision ? /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(component_default2, {
+        children: [label && id3 && (hideLabelFromVision ? /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(component_default2, {
           as: "label",
           htmlFor: id3,
           children: label
-        }) : /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(StyledLabel, {
+        }) : /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(StyledLabel, {
           className: "components-base-control__label",
           htmlFor: id3,
           children: label
-        })), label && !id3 && (hideLabelFromVision ? /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(component_default2, {
+        })), label && !id3 && (hideLabelFromVision ? /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(component_default2, {
           as: "label",
           children: label
-        }) : /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(VisualLabel, {
+        }) : /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(VisualLabel, {
           children: label
         })), children]
-      }), !!help && /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(StyledHelp, {
+      }), !!help && /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(StyledHelp, {
         id: id3 ? id3 + "__help" : void 0,
         className: "components-base-control__help",
         __nextHasNoMarginBottom,
@@ -50443,7 +50477,7 @@ If there's a particular need for this, please submit a feature request at https:
       children,
       ...restProps
     } = props;
-    return /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(StyledVisualLabel, {
+    return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(StyledVisualLabel, {
       ref,
       ...restProps,
       className: clsx_default("components-base-control__label", className),
@@ -50478,7 +50512,7 @@ If there's a particular need for this, please submit a feature request at https:
   var base_control_default = BaseControl;
 
   // node_modules/@wordpress/components/build-module/dashicon/index.js
-  var import_jsx_runtime35 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime37 = __toESM(require_jsx_runtime());
   function Dashicon({
     icon,
     className,
@@ -50500,7 +50534,7 @@ If there's a particular need for this, please submit a feature request at https:
       ...sizeStyles,
       ...style
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime35.jsx)("span", {
+    return /* @__PURE__ */ (0, import_jsx_runtime37.jsx)("span", {
       className: iconClass,
       style: styles,
       ...extraProps
@@ -50509,14 +50543,14 @@ If there's a particular need for this, please submit a feature request at https:
   var dashicon_default = Dashicon;
 
   // node_modules/@wordpress/components/build-module/icon/index.js
-  var import_jsx_runtime36 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime38 = __toESM(require_jsx_runtime());
   function Icon({
     icon = null,
     size: size4 = "string" === typeof icon ? 20 : 24,
     ...additionalProps
   }) {
     if ("string" === typeof icon) {
-      return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(dashicon_default, {
+      return /* @__PURE__ */ (0, import_jsx_runtime38.jsx)(dashicon_default, {
         icon,
         size: size4,
         ...additionalProps
@@ -50540,7 +50574,7 @@ If there's a particular need for this, please submit a feature request at https:
         height: size4,
         ...additionalProps
       };
-      return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(SVG, {
+      return /* @__PURE__ */ (0, import_jsx_runtime38.jsx)(SVG, {
         ...appliedProps
       });
     }
@@ -50556,7 +50590,7 @@ If there's a particular need for this, please submit a feature request at https:
   var icon_default = Icon;
 
   // node_modules/@wordpress/components/build-module/button/index.js
-  var import_jsx_runtime37 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime39 = __toESM(require_jsx_runtime());
   var disabledEventsOnDisabledButton = ["onMouseDown", "onClick"];
   function useDeprecatedProps2({
     __experimentalIsFocusable,
@@ -50708,24 +50742,24 @@ If there's a particular need for this, please submit a feature request at https:
       "aria-describedby": describedById,
       ref
     };
-    const elementChildren = /* @__PURE__ */ (0, import_jsx_runtime37.jsxs)(import_jsx_runtime37.Fragment, {
-      children: [icon && iconPosition === "left" && /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(icon_default, {
+    const elementChildren = /* @__PURE__ */ (0, import_jsx_runtime39.jsxs)(import_jsx_runtime39.Fragment, {
+      children: [icon && iconPosition === "left" && /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(icon_default, {
         icon,
         size: iconSize
-      }), text && /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(import_jsx_runtime37.Fragment, {
+      }), text && /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(import_jsx_runtime39.Fragment, {
         children: text
-      }), children, icon && iconPosition === "right" && /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(icon_default, {
+      }), children, icon && iconPosition === "right" && /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(icon_default, {
         icon,
         size: iconSize
       })]
     });
-    const element = Tag === "a" ? /* @__PURE__ */ (0, import_jsx_runtime37.jsx)("a", {
+    const element = Tag === "a" ? /* @__PURE__ */ (0, import_jsx_runtime39.jsx)("a", {
       ...anchorProps,
       ...additionalProps,
       ...disableEventProps,
       ...commonProps,
       children: elementChildren
-    }) : /* @__PURE__ */ (0, import_jsx_runtime37.jsx)("button", {
+    }) : /* @__PURE__ */ (0, import_jsx_runtime39.jsx)("button", {
       ...buttonProps,
       ...additionalProps,
       ...disableEventProps,
@@ -50738,12 +50772,12 @@ If there's a particular need for this, please submit a feature request at https:
       placement: tooltipPosition && // Convert legacy `position` values to be used with the new `placement` prop
       positionToPlacement(tooltipPosition)
     } : {};
-    return /* @__PURE__ */ (0, import_jsx_runtime37.jsxs)(import_jsx_runtime37.Fragment, {
-      children: [/* @__PURE__ */ (0, import_jsx_runtime37.jsx)(tooltip_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime39.jsxs)(import_jsx_runtime39.Fragment, {
+      children: [/* @__PURE__ */ (0, import_jsx_runtime39.jsx)(tooltip_default, {
         ...tooltipProps,
         children: element
-      }), description && /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(component_default2, {
-        children: /* @__PURE__ */ (0, import_jsx_runtime37.jsx)("span", {
+      }), description && /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(component_default2, {
+        children: /* @__PURE__ */ (0, import_jsx_runtime39.jsx)("span", {
           id: descriptionId,
           children: description
         })
@@ -51120,7 +51154,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/slot-fill/slot.js
-  var import_jsx_runtime38 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime40 = __toESM(require_jsx_runtime());
   function isFunction(maybeFunc) {
     return typeof maybeFunc === "function";
   }
@@ -51161,7 +51195,7 @@ If there's a particular need for this, please submit a feature request at https:
       // it allows us to render wrappers only when the fills are actually present.
       (element) => !isEmptyElement(element)
     );
-    return /* @__PURE__ */ (0, import_jsx_runtime38.jsx)(import_jsx_runtime38.Fragment, {
+    return /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(import_jsx_runtime40.Fragment, {
       children: isFunction(children) ? children(fills) : fills
     });
   }
@@ -51237,7 +51271,7 @@ If there's a particular need for this, please submit a feature request at https:
   var v4_default = v4;
 
   // node_modules/@wordpress/components/build-module/style-provider/index.js
-  var import_jsx_runtime39 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime41 = __toESM(require_jsx_runtime());
   var uuidCache = /* @__PURE__ */ new Set();
   var containerCacheMap = /* @__PURE__ */ new WeakMap();
   var memoizedCreateCacheWithContainer = (container) => {
@@ -51265,7 +51299,7 @@ If there's a particular need for this, please submit a feature request at https:
       return null;
     }
     const cache2 = memoizedCreateCacheWithContainer(document2.head);
-    return /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(CacheProvider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime41.jsx)(CacheProvider, {
       value: cache2,
       children
     });
@@ -51273,7 +51307,7 @@ If there's a particular need for this, please submit a feature request at https:
   var style_provider_default = StyleProvider;
 
   // node_modules/@wordpress/components/build-module/slot-fill/bubbles-virtually/fill.js
-  var import_jsx_runtime40 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime42 = __toESM(require_jsx_runtime());
   function Fill2({
     name,
     children
@@ -51295,7 +51329,7 @@ If there's a particular need for this, please submit a feature request at https:
     if (!slot || !slot.ref.current) {
       return null;
     }
-    const wrappedChildren = /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(style_provider_default, {
+    const wrappedChildren = /* @__PURE__ */ (0, import_jsx_runtime42.jsx)(style_provider_default, {
       document: slot.ref.current.ownerDocument,
       children: typeof children === "function" ? children((_slot$fillProps = slot.fillProps) !== null && _slot$fillProps !== void 0 ? _slot$fillProps : {}) : children
     });
@@ -51303,7 +51337,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/slot-fill/bubbles-virtually/slot.js
-  var import_jsx_runtime41 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime43 = __toESM(require_jsx_runtime());
   function Slot2(props, forwardedRef) {
     const {
       name,
@@ -51333,7 +51367,7 @@ If there's a particular need for this, please submit a feature request at https:
     (0, import_react.useLayoutEffect)(() => {
       registry.updateSlot(name, ref, fillPropsRef.current);
     });
-    return /* @__PURE__ */ (0, import_jsx_runtime41.jsx)(component_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(component_default, {
       as,
       ref: useMergeRefs([forwardedRef, ref]),
       ...restProps
@@ -51342,7 +51376,7 @@ If there's a particular need for this, please submit a feature request at https:
   var slot_default2 = (0, import_react.forwardRef)(Slot2);
 
   // node_modules/@wordpress/components/build-module/slot-fill/bubbles-virtually/slot-fill-provider.js
-  var import_jsx_runtime42 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime44 = __toESM(require_jsx_runtime());
   function createSlotRegistry() {
     const slots = observableMap();
     const fills = observableMap();
@@ -51405,14 +51439,14 @@ If there's a particular need for this, please submit a feature request at https:
     children
   }) {
     const [registry] = (0, import_react.useState)(createSlotRegistry);
-    return /* @__PURE__ */ (0, import_jsx_runtime42.jsx)(slot_fill_context_default.Provider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(slot_fill_context_default.Provider, {
       value: registry,
       children
     });
   }
 
   // node_modules/@wordpress/components/build-module/slot-fill/provider.js
-  var import_jsx_runtime43 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime45 = __toESM(require_jsx_runtime());
   function createSlotRegistry2() {
     const slots = {};
     const fills = {};
@@ -51480,7 +51514,7 @@ If there's a particular need for this, please submit a feature request at https:
     children
   }) {
     const [contextValue] = (0, import_react.useState)(createSlotRegistry2);
-    return /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(context_default.Provider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(context_default.Provider, {
       value: contextValue,
       children
     });
@@ -51488,7 +51522,7 @@ If there's a particular need for this, please submit a feature request at https:
   var provider_default = SlotFillProvider2;
 
   // node_modules/@wordpress/components/build-module/slot-fill/index.js
-  var import_jsx_runtime44 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime46 = __toESM(require_jsx_runtime());
 
   // node_modules/@wordpress/components/build-module/slot-fill/bubbles-virtually/use-slot.js
   function useSlot2(name) {
@@ -51501,10 +51535,10 @@ If there's a particular need for this, please submit a feature request at https:
 
   // node_modules/@wordpress/components/build-module/slot-fill/index.js
   function Fill3(props) {
-    return /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)(import_jsx_runtime44.Fragment, {
-      children: [/* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Fill, {
+    return /* @__PURE__ */ (0, import_jsx_runtime46.jsxs)(import_jsx_runtime46.Fragment, {
+      children: [/* @__PURE__ */ (0, import_jsx_runtime46.jsx)(Fill, {
         ...props
-      }), /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(Fill2, {
+      }), /* @__PURE__ */ (0, import_jsx_runtime46.jsx)(Fill2, {
         ...props
       })]
     });
@@ -51515,12 +51549,12 @@ If there's a particular need for this, please submit a feature request at https:
       ...restProps
     } = props;
     if (bubblesVirtually) {
-      return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(slot_default2, {
+      return /* @__PURE__ */ (0, import_jsx_runtime46.jsx)(slot_default2, {
         ...restProps,
         ref
       });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(slot_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime46.jsx)(slot_default, {
       ...restProps
     });
   }
@@ -51531,12 +51565,12 @@ If there's a particular need for this, please submit a feature request at https:
   }) {
     const parent = (0, import_react.useContext)(slot_fill_context_default);
     if (!parent.isDefault && passthrough) {
-      return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(import_jsx_runtime44.Fragment, {
+      return /* @__PURE__ */ (0, import_jsx_runtime46.jsx)(import_jsx_runtime46.Fragment, {
         children
       });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(provider_default, {
-      children: /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(SlotFillProvider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime46.jsx)(provider_default, {
+      children: /* @__PURE__ */ (0, import_jsx_runtime46.jsx)(SlotFillProvider, {
         children
       })
     });
@@ -51573,17 +51607,17 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/popover/index.js
-  var import_jsx_runtime45 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime47 = __toESM(require_jsx_runtime());
   var SLOT_NAME = "Popover";
-  var ArrowTriangle = () => /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)(SVG, {
+  var ArrowTriangle = () => /* @__PURE__ */ (0, import_jsx_runtime47.jsxs)(SVG, {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 100 100",
     className: "components-popover__triangle",
     role: "presentation",
-    children: [/* @__PURE__ */ (0, import_jsx_runtime45.jsx)(Path, {
+    children: [/* @__PURE__ */ (0, import_jsx_runtime47.jsx)(Path, {
       className: "components-popover__triangle-bg",
       d: "M 0 0 L 50 50 L 100 0"
-    }), /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(Path, {
+    }), /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(Path, {
       className: "components-popover__triangle-border",
       d: "M 0 0 L 50 50 L 100 0",
       vectorEffect: "non-scaling-stroke"
@@ -51793,7 +51827,7 @@ If there's a particular need for this, please submit a feature request at https:
       }
     };
     const isPositioned = (!shouldAnimate || animationFinished) && x !== null && y !== null;
-    let content = /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)(motion.div, {
+    let content = /* @__PURE__ */ (0, import_jsx_runtime47.jsxs)(motion.div, {
       className: clsx_default(className, {
         "is-expanded": isExpanded,
         "is-positioned": isPositioned,
@@ -51805,40 +51839,40 @@ If there's a particular need for this, please submit a feature request at https:
       ref: mergedFloatingRef,
       ...dialogProps,
       tabIndex: -1,
-      children: [isExpanded && /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(scroll_lock_default, {}), isExpanded && /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)("div", {
+      children: [isExpanded && /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(scroll_lock_default, {}), isExpanded && /* @__PURE__ */ (0, import_jsx_runtime47.jsxs)("div", {
         className: "components-popover__header",
-        children: [/* @__PURE__ */ (0, import_jsx_runtime45.jsx)("span", {
+        children: [/* @__PURE__ */ (0, import_jsx_runtime47.jsx)("span", {
           className: "components-popover__header-title",
           children: headerTitle
-        }), /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(button_default, {
+        }), /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(button_default, {
           className: "components-popover__close",
           size: "small",
           icon: close_default,
           onClick: onClose,
           label: __("Close")
         })]
-      }), /* @__PURE__ */ (0, import_jsx_runtime45.jsx)("div", {
+      }), /* @__PURE__ */ (0, import_jsx_runtime47.jsx)("div", {
         className: "components-popover__content",
         children
-      }), hasArrow && /* @__PURE__ */ (0, import_jsx_runtime45.jsx)("div", {
+      }), hasArrow && /* @__PURE__ */ (0, import_jsx_runtime47.jsx)("div", {
         ref: arrowCallbackRef,
         className: ["components-popover__arrow", `is-${computedPlacement.split("-")[0]}`].join(" "),
         style: {
           left: typeof arrowData?.x !== "undefined" && Number.isFinite(arrowData.x) ? `${arrowData.x}px` : "",
           top: typeof arrowData?.y !== "undefined" && Number.isFinite(arrowData.y) ? `${arrowData.y}px` : ""
         },
-        children: /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(ArrowTriangle, {})
+        children: /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(ArrowTriangle, {})
       })]
     });
     const shouldRenderWithinSlot = slot.ref && !inline3;
     const hasAnchor = anchorRef || anchorRect || anchor;
     if (shouldRenderWithinSlot) {
-      content = /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(Fill3, {
+      content = /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(Fill3, {
         name: slotName,
         children: content
       });
     } else if (!inline3) {
-      content = (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime45.jsx)(StyleProvider, {
+      content = (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime47.jsx)(StyleProvider, {
         document,
         children: content
       }), getPopoverFallbackContainer());
@@ -51846,8 +51880,8 @@ If there's a particular need for this, please submit a feature request at https:
     if (hasAnchor) {
       return content;
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime45.jsxs)(import_jsx_runtime45.Fragment, {
-      children: [/* @__PURE__ */ (0, import_jsx_runtime45.jsx)("span", {
+    return /* @__PURE__ */ (0, import_jsx_runtime47.jsxs)(import_jsx_runtime47.Fragment, {
+      children: [/* @__PURE__ */ (0, import_jsx_runtime47.jsx)("span", {
         ref: anchorRefFallback
       }), content]
     });
@@ -51856,7 +51890,7 @@ If there's a particular need for this, please submit a feature request at https:
   function PopoverSlot({
     name = SLOT_NAME
   }, ref) {
-    return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(Slot3, {
+    return /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(Slot3, {
       bubblesVirtually: true,
       name,
       className: "popover-slot",
@@ -51885,7 +51919,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/dropdown/index.js
-  var import_jsx_runtime46 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime48 = __toESM(require_jsx_runtime());
   var UnconnectedDropdown = (props, forwardedRef) => {
     const {
       renderContent,
@@ -51944,12 +51978,12 @@ If there's a particular need for this, please submit a feature request at https:
     const popoverPropsHaveAnchor = !!popoverProps?.anchor || // Note: `anchorRef`, `getAnchorRect` and `anchorRect` are deprecated and
     // be removed from `Popover` from WordPress 6.3
     !!popoverProps?.anchorRef || !!popoverProps?.getAnchorRect || !!popoverProps?.anchorRect;
-    return /* @__PURE__ */ (0, import_jsx_runtime46.jsxs)("div", {
+    return /* @__PURE__ */ (0, import_jsx_runtime48.jsxs)("div", {
       className,
       ref: useMergeRefs([containerRef, forwardedRef, setFallbackPopoverAnchor]),
       tabIndex: -1,
       style,
-      children: [renderToggle(args), isOpen && /* @__PURE__ */ (0, import_jsx_runtime46.jsx)(popover_default, {
+      children: [renderToggle(args), isOpen && /* @__PURE__ */ (0, import_jsx_runtime48.jsx)(popover_default, {
         position: position2,
         onClose: close2,
         onFocusOutside: closeIfFocusOutside,
@@ -52039,10 +52073,10 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/elevation/component.js
-  var import_jsx_runtime47 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime49 = __toESM(require_jsx_runtime());
   function UnconnectedElevation(props, forwardedRef) {
     const elevationProps = useElevation(props);
-    return /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(component_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime49.jsx)(component_default, {
       ...elevationProps,
       ref: forwardedRef
     });
@@ -52229,7 +52263,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/card/card/component.js
-  var import_jsx_runtime48 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime50 = __toESM(require_jsx_runtime());
   function UnconnectedCard(props, forwardedRef) {
     const {
       children,
@@ -52255,19 +52289,19 @@ If there's a particular need for this, please submit a feature request at https:
         CardFooter: contextProps
       };
     }, [isBorderless, size4]);
-    return /* @__PURE__ */ (0, import_jsx_runtime48.jsx)(ContextSystemProvider, {
+    return /* @__PURE__ */ (0, import_jsx_runtime50.jsx)(ContextSystemProvider, {
       value: contextProviderValue,
-      children: /* @__PURE__ */ (0, import_jsx_runtime48.jsxs)(component_default, {
+      children: /* @__PURE__ */ (0, import_jsx_runtime50.jsxs)(component_default, {
         ...otherProps,
         ref: forwardedRef,
-        children: [/* @__PURE__ */ (0, import_jsx_runtime48.jsx)(component_default, {
+        children: [/* @__PURE__ */ (0, import_jsx_runtime50.jsx)(component_default, {
           className: cx3(Content),
           children
-        }), /* @__PURE__ */ (0, import_jsx_runtime48.jsx)(component_default5, {
+        }), /* @__PURE__ */ (0, import_jsx_runtime50.jsx)(component_default5, {
           className: elevationClassName,
           isInteractive: false,
           value: elevation ? 1 : 0
-        }), /* @__PURE__ */ (0, import_jsx_runtime48.jsx)(component_default5, {
+        }), /* @__PURE__ */ (0, import_jsx_runtime50.jsx)(component_default5, {
           className: elevationClassName,
           isInteractive: false,
           value: elevation
@@ -52346,10 +52380,10 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/scrollable/component.js
-  var import_jsx_runtime49 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime51 = __toESM(require_jsx_runtime());
   function UnconnectedScrollable(props, forwardedRef) {
     const scrollableProps = useScrollable(props);
-    return /* @__PURE__ */ (0, import_jsx_runtime49.jsx)(component_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime51.jsx)(component_default, {
       ...scrollableProps,
       ref: forwardedRef
     });
@@ -52384,19 +52418,19 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/card/card-body/component.js
-  var import_jsx_runtime50 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime52 = __toESM(require_jsx_runtime());
   function UnconnectedCardBody(props, forwardedRef) {
     const {
       isScrollable,
       ...otherProps
     } = useCardBody(props);
     if (isScrollable) {
-      return /* @__PURE__ */ (0, import_jsx_runtime50.jsx)(component_default7, {
+      return /* @__PURE__ */ (0, import_jsx_runtime52.jsx)(component_default7, {
         ...otherProps,
         ref: forwardedRef
       });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime50.jsx)(component_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime52.jsx)(component_default, {
       ...otherProps,
       ref: forwardedRef
     });
@@ -52405,7 +52439,7 @@ If there's a particular need for this, please submit a feature request at https:
   var component_default8 = CardBody;
 
   // node_modules/@wordpress/components/build-module/navigable-container/container.js
-  var import_jsx_runtime51 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime53 = __toESM(require_jsx_runtime());
   var noop5 = () => {
   };
   var MENU_ITEM_ROLES = ["menuitem", "menuitemradio", "menuitemcheckbox"];
@@ -52529,7 +52563,7 @@ If there's a particular need for this, please submit a feature request at https:
         forwardedRef,
         ...restProps
       } = this.props;
-      return /* @__PURE__ */ (0, import_jsx_runtime51.jsx)("div", {
+      return /* @__PURE__ */ (0, import_jsx_runtime53.jsx)("div", {
         ref: this.bindContainer,
         ...restProps,
         children
@@ -52537,7 +52571,7 @@ If there's a particular need for this, please submit a feature request at https:
     }
   };
   var forwardedNavigableContainer = (props, ref) => {
-    return /* @__PURE__ */ (0, import_jsx_runtime51.jsx)(NavigableContainer, {
+    return /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(NavigableContainer, {
       ...props,
       forwardedRef: ref
     });
@@ -52546,7 +52580,7 @@ If there's a particular need for this, please submit a feature request at https:
   var container_default = (0, import_react.forwardRef)(forwardedNavigableContainer);
 
   // node_modules/@wordpress/components/build-module/navigable-container/menu.js
-  var import_jsx_runtime52 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime54 = __toESM(require_jsx_runtime());
   function UnforwardedNavigableMenu({
     role = "menu",
     orientation = "vertical",
@@ -52575,7 +52609,7 @@ If there's a particular need for this, please submit a feature request at https:
       }
       return void 0;
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime52.jsx)(container_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime54.jsx)(container_default, {
       ref,
       stopNavigationEvents: true,
       onlyBrowserTabstops: false,
@@ -52589,7 +52623,7 @@ If there's a particular need for this, please submit a feature request at https:
   var menu_default2 = NavigableMenu;
 
   // node_modules/@wordpress/components/build-module/dropdown-menu/index.js
-  var import_jsx_runtime53 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime55 = __toESM(require_jsx_runtime());
   function mergeProps2(defaultProps = {}, props = {}) {
     const mergedProps = {
       ...defaultProps,
@@ -52636,7 +52670,7 @@ If there's a particular need for this, please submit a feature request at https:
       className: "components-dropdown-menu__popover",
       variant
     }, popoverProps);
-    return /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(dropdown_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(dropdown_default, {
       className,
       popoverProps: mergedPopoverProps,
       renderToggle: ({
@@ -52662,7 +52696,7 @@ If there's a particular need for this, please submit a feature request at https:
             "is-opened": isOpen
           })
         }, restToggleProps);
-        return /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(Toggle, {
+        return /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(Toggle, {
           ...mergedToggleProps,
           icon,
           onClick: (event) => {
@@ -52692,10 +52726,10 @@ If there's a particular need for this, please submit a feature request at https:
             "no-icons": noIcons
           })
         }, menuProps);
-        return /* @__PURE__ */ (0, import_jsx_runtime53.jsxs)(menu_default2, {
+        return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)(menu_default2, {
           ...mergedMenuProps,
           role: "menu",
-          children: [isFunction2(children) ? children(props) : null, controlSets?.flatMap((controlSet, indexOfSet) => controlSet.map((control, indexOfControl) => /* @__PURE__ */ (0, import_jsx_runtime53.jsx)(button_default, {
+          children: [isFunction2(children) ? children(props) : null, controlSets?.flatMap((controlSet, indexOfSet) => controlSet.map((control, indexOfControl) => /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(button_default, {
             onClick: (event) => {
               event.stopPropagation();
               props.onClose();
@@ -52814,7 +52848,7 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // node_modules/@wordpress/components/build-module/modal/index.js
-  var import_jsx_runtime54 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime56 = __toESM(require_jsx_runtime());
   var ModalContext = (0, import_react.createContext)(/* @__PURE__ */ new Set());
   var bodyOpenClasses = /* @__PURE__ */ new Map();
   function UnforwardedModal(props, forwardedRef) {
@@ -52971,14 +53005,14 @@ If there's a particular need for this, please submit a feature request at https:
     };
     const modal = (
       // eslint-disable-next-line jsx-a11y/no-static-element-interactions
-      /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("div", {
+      /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", {
         ref: useMergeRefs([ref, forwardedRef]),
         className: clsx_default("components-modal__screen-overlay", overlayClassname, overlayClassnameProp),
         onKeyDown: withIgnoreIMEEvents(handleEscapeKeyDown),
         ...shouldCloseOnClickOutside ? overlayPressHandlers : {},
-        children: /* @__PURE__ */ (0, import_jsx_runtime54.jsx)(style_provider_default, {
+        children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(style_provider_default, {
           document,
-          children: /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("div", {
+          children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", {
             className: clsx_default("components-modal__frame", sizeClass, className),
             style: {
               ...frameStyle,
@@ -52991,7 +53025,7 @@ If there's a particular need for this, please submit a feature request at https:
             "aria-describedby": aria.describedby,
             tabIndex: -1,
             onKeyDown,
-            children: /* @__PURE__ */ (0, import_jsx_runtime54.jsxs)("div", {
+            children: /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", {
               className: clsx_default("components-modal__content", {
                 "hide-header": __experimentalHideHeader,
                 "is-scrollable": hasScrollableContent,
@@ -53002,31 +53036,31 @@ If there's a particular need for this, please submit a feature request at https:
               ref: contentRef,
               "aria-label": hasScrollableContent ? __("Scrollable section") : void 0,
               tabIndex: hasScrollableContent ? 0 : void 0,
-              children: [!__experimentalHideHeader && /* @__PURE__ */ (0, import_jsx_runtime54.jsxs)("div", {
+              children: [!__experimentalHideHeader && /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", {
                 className: "components-modal__header",
-                children: [/* @__PURE__ */ (0, import_jsx_runtime54.jsxs)("div", {
+                children: [/* @__PURE__ */ (0, import_jsx_runtime56.jsxs)("div", {
                   className: "components-modal__header-heading-container",
-                  children: [icon && /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("span", {
+                  children: [icon && /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("span", {
                     className: "components-modal__icon-container",
                     "aria-hidden": true,
                     children: icon
-                  }), title && /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("h1", {
+                  }), title && /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("h1", {
                     id: headingId,
                     className: "components-modal__header-heading",
                     children: title
                   })]
-                }), headerActions, isDismissible && /* @__PURE__ */ (0, import_jsx_runtime54.jsxs)(import_jsx_runtime54.Fragment, {
-                  children: [/* @__PURE__ */ (0, import_jsx_runtime54.jsx)(component_default4, {
+                }), headerActions, isDismissible && /* @__PURE__ */ (0, import_jsx_runtime56.jsxs)(import_jsx_runtime56.Fragment, {
+                  children: [/* @__PURE__ */ (0, import_jsx_runtime56.jsx)(component_default4, {
                     marginBottom: 0,
                     marginLeft: 2
-                  }), /* @__PURE__ */ (0, import_jsx_runtime54.jsx)(button_default, {
+                  }), /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(button_default, {
                     size: "compact",
                     onClick: (event) => closeModal().then(() => onRequestClose(event)),
                     icon: close_default,
                     label: closeButtonLabel || __("Close")
                   })]
                 })]
-              }), /* @__PURE__ */ (0, import_jsx_runtime54.jsx)("div", {
+              }), /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("div", {
                 ref: useMergeRefs([childrenContainerRef, focusOnMount === "firstContentElement" ? focusOnMountRef : null]),
                 children
               })]
@@ -53035,7 +53069,7 @@ If there's a particular need for this, please submit a feature request at https:
         })
       })
     );
-    return (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime54.jsx)(ModalContext.Provider, {
+    return (0, import_react_dom.createPortal)(/* @__PURE__ */ (0, import_jsx_runtime56.jsx)(ModalContext.Provider, {
       value: nestedDismissers,
       children: modal
     }), document.body);
@@ -53043,8 +53077,78 @@ If there's a particular need for this, please submit a feature request at https:
   var Modal = (0, import_react.forwardRef)(UnforwardedModal);
   var modal_default = Modal;
 
+  // node_modules/@wordpress/components/build-module/spinner/styles.js
+  function _EMOTION_STRINGIFIED_CSS_ERROR__8() {
+    return "You have tried to stringify object returned from `css` function. It isn't supposed to be used directly (e.g. as value of the `className` prop), but rather handed to emotion so it can handle it (e.g. as value of `css` prop).";
+  }
+  var spinAnimation = keyframes`
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+ `;
+  var StyledSpinner = /* @__PURE__ */ createStyled("svg", false ? {
+    target: "ea4tfvq2"
+  } : {
+    target: "ea4tfvq2",
+    label: "StyledSpinner"
+  })("width:", config_values_default.spinnerSize, "px;height:", config_values_default.spinnerSize, "px;display:inline-block;margin:5px 11px 0;position:relative;color:", COLORS.theme.accent, ";overflow:visible;opacity:1;background-color:transparent;" + (false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvc3Bpbm5lci9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBb0J1QyIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL3NwaW5uZXIvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHN0eWxlZCBmcm9tICdAZW1vdGlvbi9zdHlsZWQnO1xuaW1wb3J0IHsgY3NzLCBrZXlmcmFtZXMgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbi8qKlxuICogSW50ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCB7IENPTE9SUywgQ09ORklHIH0gZnJvbSAnLi4vdXRpbHMnO1xuXG5jb25zdCBzcGluQW5pbWF0aW9uID0ga2V5ZnJhbWVzYFxuXHRmcm9tIHtcblx0XHR0cmFuc2Zvcm06IHJvdGF0ZSgwZGVnKTtcblx0fVxuXHR0byB7XG5cdFx0dHJhbnNmb3JtOiByb3RhdGUoMzYwZGVnKTtcblx0fVxuIGA7XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRTcGlubmVyID0gc3R5bGVkLnN2Z2Bcblx0d2lkdGg6ICR7IENPTkZJRy5zcGlubmVyU2l6ZSB9cHg7XG5cdGhlaWdodDogJHsgQ09ORklHLnNwaW5uZXJTaXplIH1weDtcblx0ZGlzcGxheTogaW5saW5lLWJsb2NrO1xuXHRtYXJnaW46IDVweCAxMXB4IDA7XG5cdHBvc2l0aW9uOiByZWxhdGl2ZTtcblx0Y29sb3I6ICR7IENPTE9SUy50aGVtZS5hY2NlbnQgfTtcblx0b3ZlcmZsb3c6IHZpc2libGU7XG5cdG9wYWNpdHk6IDE7XG5cdGJhY2tncm91bmQtY29sb3I6IHRyYW5zcGFyZW50O1xuYDtcblxuY29uc3QgY29tbW9uUGF0aFByb3BzID0gY3NzYFxuXHRmaWxsOiB0cmFuc3BhcmVudDtcblx0c3Ryb2tlLXdpZHRoOiAxLjVweDtcbmA7XG5cbmV4cG9ydCBjb25zdCBTcGlubmVyVHJhY2sgPSBzdHlsZWQuY2lyY2xlYFxuXHQkeyBjb21tb25QYXRoUHJvcHMgfTtcblx0c3Ryb2tlOiAkeyBDT0xPUlMuZ3JheVsgMzAwIF0gfTtcbmA7XG5cbmV4cG9ydCBjb25zdCBTcGlubmVySW5kaWNhdG9yID0gc3R5bGVkLnBhdGhgXG5cdCR7IGNvbW1vblBhdGhQcm9wcyB9O1xuXHRzdHJva2U6IGN1cnJlbnRDb2xvcjtcblx0c3Ryb2tlLWxpbmVjYXA6IHJvdW5kO1xuXHR0cmFuc2Zvcm0tb3JpZ2luOiA1MCUgNTAlO1xuXHRhbmltYXRpb246IDEuNHMgbGluZWFyIGluZmluaXRlIGJvdGggJHsgc3BpbkFuaW1hdGlvbiB9O1xuYDtcbiJdfQ== */"));
+  var commonPathProps = false ? {
+    name: "9s4963",
+    styles: "fill:transparent;stroke-width:1.5px"
+  } : {
+    name: "o2zng0-commonPathProps",
+    styles: "fill:transparent;stroke-width:1.5px;label:commonPathProps;",
+    map: "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvc3Bpbm5lci9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBZ0MyQiIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL3NwaW5uZXIvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHN0eWxlZCBmcm9tICdAZW1vdGlvbi9zdHlsZWQnO1xuaW1wb3J0IHsgY3NzLCBrZXlmcmFtZXMgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbi8qKlxuICogSW50ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCB7IENPTE9SUywgQ09ORklHIH0gZnJvbSAnLi4vdXRpbHMnO1xuXG5jb25zdCBzcGluQW5pbWF0aW9uID0ga2V5ZnJhbWVzYFxuXHRmcm9tIHtcblx0XHR0cmFuc2Zvcm06IHJvdGF0ZSgwZGVnKTtcblx0fVxuXHR0byB7XG5cdFx0dHJhbnNmb3JtOiByb3RhdGUoMzYwZGVnKTtcblx0fVxuIGA7XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRTcGlubmVyID0gc3R5bGVkLnN2Z2Bcblx0d2lkdGg6ICR7IENPTkZJRy5zcGlubmVyU2l6ZSB9cHg7XG5cdGhlaWdodDogJHsgQ09ORklHLnNwaW5uZXJTaXplIH1weDtcblx0ZGlzcGxheTogaW5saW5lLWJsb2NrO1xuXHRtYXJnaW46IDVweCAxMXB4IDA7XG5cdHBvc2l0aW9uOiByZWxhdGl2ZTtcblx0Y29sb3I6ICR7IENPTE9SUy50aGVtZS5hY2NlbnQgfTtcblx0b3ZlcmZsb3c6IHZpc2libGU7XG5cdG9wYWNpdHk6IDE7XG5cdGJhY2tncm91bmQtY29sb3I6IHRyYW5zcGFyZW50O1xuYDtcblxuY29uc3QgY29tbW9uUGF0aFByb3BzID0gY3NzYFxuXHRmaWxsOiB0cmFuc3BhcmVudDtcblx0c3Ryb2tlLXdpZHRoOiAxLjVweDtcbmA7XG5cbmV4cG9ydCBjb25zdCBTcGlubmVyVHJhY2sgPSBzdHlsZWQuY2lyY2xlYFxuXHQkeyBjb21tb25QYXRoUHJvcHMgfTtcblx0c3Ryb2tlOiAkeyBDT0xPUlMuZ3JheVsgMzAwIF0gfTtcbmA7XG5cbmV4cG9ydCBjb25zdCBTcGlubmVySW5kaWNhdG9yID0gc3R5bGVkLnBhdGhgXG5cdCR7IGNvbW1vblBhdGhQcm9wcyB9O1xuXHRzdHJva2U6IGN1cnJlbnRDb2xvcjtcblx0c3Ryb2tlLWxpbmVjYXA6IHJvdW5kO1xuXHR0cmFuc2Zvcm0tb3JpZ2luOiA1MCUgNTAlO1xuXHRhbmltYXRpb246IDEuNHMgbGluZWFyIGluZmluaXRlIGJvdGggJHsgc3BpbkFuaW1hdGlvbiB9O1xuYDtcbiJdfQ== */",
+    toString: _EMOTION_STRINGIFIED_CSS_ERROR__8
+  };
+  var SpinnerTrack = /* @__PURE__ */ createStyled("circle", false ? {
+    target: "ea4tfvq1"
+  } : {
+    target: "ea4tfvq1",
+    label: "SpinnerTrack"
+  })(commonPathProps, ";stroke:", COLORS.gray[300], ";" + (false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvc3Bpbm5lci9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBcUN5QyIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL3NwaW5uZXIvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHN0eWxlZCBmcm9tICdAZW1vdGlvbi9zdHlsZWQnO1xuaW1wb3J0IHsgY3NzLCBrZXlmcmFtZXMgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbi8qKlxuICogSW50ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCB7IENPTE9SUywgQ09ORklHIH0gZnJvbSAnLi4vdXRpbHMnO1xuXG5jb25zdCBzcGluQW5pbWF0aW9uID0ga2V5ZnJhbWVzYFxuXHRmcm9tIHtcblx0XHR0cmFuc2Zvcm06IHJvdGF0ZSgwZGVnKTtcblx0fVxuXHR0byB7XG5cdFx0dHJhbnNmb3JtOiByb3RhdGUoMzYwZGVnKTtcblx0fVxuIGA7XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRTcGlubmVyID0gc3R5bGVkLnN2Z2Bcblx0d2lkdGg6ICR7IENPTkZJRy5zcGlubmVyU2l6ZSB9cHg7XG5cdGhlaWdodDogJHsgQ09ORklHLnNwaW5uZXJTaXplIH1weDtcblx0ZGlzcGxheTogaW5saW5lLWJsb2NrO1xuXHRtYXJnaW46IDVweCAxMXB4IDA7XG5cdHBvc2l0aW9uOiByZWxhdGl2ZTtcblx0Y29sb3I6ICR7IENPTE9SUy50aGVtZS5hY2NlbnQgfTtcblx0b3ZlcmZsb3c6IHZpc2libGU7XG5cdG9wYWNpdHk6IDE7XG5cdGJhY2tncm91bmQtY29sb3I6IHRyYW5zcGFyZW50O1xuYDtcblxuY29uc3QgY29tbW9uUGF0aFByb3BzID0gY3NzYFxuXHRmaWxsOiB0cmFuc3BhcmVudDtcblx0c3Ryb2tlLXdpZHRoOiAxLjVweDtcbmA7XG5cbmV4cG9ydCBjb25zdCBTcGlubmVyVHJhY2sgPSBzdHlsZWQuY2lyY2xlYFxuXHQkeyBjb21tb25QYXRoUHJvcHMgfTtcblx0c3Ryb2tlOiAkeyBDT0xPUlMuZ3JheVsgMzAwIF0gfTtcbmA7XG5cbmV4cG9ydCBjb25zdCBTcGlubmVySW5kaWNhdG9yID0gc3R5bGVkLnBhdGhgXG5cdCR7IGNvbW1vblBhdGhQcm9wcyB9O1xuXHRzdHJva2U6IGN1cnJlbnRDb2xvcjtcblx0c3Ryb2tlLWxpbmVjYXA6IHJvdW5kO1xuXHR0cmFuc2Zvcm0tb3JpZ2luOiA1MCUgNTAlO1xuXHRhbmltYXRpb246IDEuNHMgbGluZWFyIGluZmluaXRlIGJvdGggJHsgc3BpbkFuaW1hdGlvbiB9O1xuYDtcbiJdfQ== */"));
+  var SpinnerIndicator = /* @__PURE__ */ createStyled("path", false ? {
+    target: "ea4tfvq0"
+  } : {
+    target: "ea4tfvq0",
+    label: "SpinnerIndicator"
+  })(commonPathProps, ";stroke:currentColor;stroke-linecap:round;transform-origin:50% 50%;animation:1.4s linear infinite both ", spinAnimation, ";" + (false ? "" : "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIkB3b3JkcHJlc3MvY29tcG9uZW50cy9zcmMvc3Bpbm5lci9zdHlsZXMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBMEMyQyIsImZpbGUiOiJAd29yZHByZXNzL2NvbXBvbmVudHMvc3JjL3NwaW5uZXIvc3R5bGVzLnRzIiwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBFeHRlcm5hbCBkZXBlbmRlbmNpZXNcbiAqL1xuaW1wb3J0IHN0eWxlZCBmcm9tICdAZW1vdGlvbi9zdHlsZWQnO1xuaW1wb3J0IHsgY3NzLCBrZXlmcmFtZXMgfSBmcm9tICdAZW1vdGlvbi9yZWFjdCc7XG5cbi8qKlxuICogSW50ZXJuYWwgZGVwZW5kZW5jaWVzXG4gKi9cbmltcG9ydCB7IENPTE9SUywgQ09ORklHIH0gZnJvbSAnLi4vdXRpbHMnO1xuXG5jb25zdCBzcGluQW5pbWF0aW9uID0ga2V5ZnJhbWVzYFxuXHRmcm9tIHtcblx0XHR0cmFuc2Zvcm06IHJvdGF0ZSgwZGVnKTtcblx0fVxuXHR0byB7XG5cdFx0dHJhbnNmb3JtOiByb3RhdGUoMzYwZGVnKTtcblx0fVxuIGA7XG5cbmV4cG9ydCBjb25zdCBTdHlsZWRTcGlubmVyID0gc3R5bGVkLnN2Z2Bcblx0d2lkdGg6ICR7IENPTkZJRy5zcGlubmVyU2l6ZSB9cHg7XG5cdGhlaWdodDogJHsgQ09ORklHLnNwaW5uZXJTaXplIH1weDtcblx0ZGlzcGxheTogaW5saW5lLWJsb2NrO1xuXHRtYXJnaW46IDVweCAxMXB4IDA7XG5cdHBvc2l0aW9uOiByZWxhdGl2ZTtcblx0Y29sb3I6ICR7IENPTE9SUy50aGVtZS5hY2NlbnQgfTtcblx0b3ZlcmZsb3c6IHZpc2libGU7XG5cdG9wYWNpdHk6IDE7XG5cdGJhY2tncm91bmQtY29sb3I6IHRyYW5zcGFyZW50O1xuYDtcblxuY29uc3QgY29tbW9uUGF0aFByb3BzID0gY3NzYFxuXHRmaWxsOiB0cmFuc3BhcmVudDtcblx0c3Ryb2tlLXdpZHRoOiAxLjVweDtcbmA7XG5cbmV4cG9ydCBjb25zdCBTcGlubmVyVHJhY2sgPSBzdHlsZWQuY2lyY2xlYFxuXHQkeyBjb21tb25QYXRoUHJvcHMgfTtcblx0c3Ryb2tlOiAkeyBDT0xPUlMuZ3JheVsgMzAwIF0gfTtcbmA7XG5cbmV4cG9ydCBjb25zdCBTcGlubmVySW5kaWNhdG9yID0gc3R5bGVkLnBhdGhgXG5cdCR7IGNvbW1vblBhdGhQcm9wcyB9O1xuXHRzdHJva2U6IGN1cnJlbnRDb2xvcjtcblx0c3Ryb2tlLWxpbmVjYXA6IHJvdW5kO1xuXHR0cmFuc2Zvcm0tb3JpZ2luOiA1MCUgNTAlO1xuXHRhbmltYXRpb246IDEuNHMgbGluZWFyIGluZmluaXRlIGJvdGggJHsgc3BpbkFuaW1hdGlvbiB9O1xuYDtcbiJdfQ== */"));
+
+  // node_modules/@wordpress/components/build-module/spinner/index.js
+  var import_jsx_runtime57 = __toESM(require_jsx_runtime());
+  function UnforwardedSpinner({
+    className,
+    ...props
+  }, forwardedRef) {
+    return /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(StyledSpinner, {
+      className: clsx_default("components-spinner", className),
+      viewBox: "0 0 100 100",
+      width: "16",
+      height: "16",
+      xmlns: "http://www.w3.org/2000/svg",
+      role: "presentation",
+      focusable: "false",
+      ...props,
+      ref: forwardedRef,
+      children: [/* @__PURE__ */ (0, import_jsx_runtime57.jsx)(SpinnerTrack, {
+        cx: "50",
+        cy: "50",
+        r: "50",
+        vectorEffect: "non-scaling-stroke"
+      }), /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(SpinnerIndicator, {
+        d: "m 50 0 a 50 50 0 0 1 50 50",
+        vectorEffect: "non-scaling-stroke"
+      })]
+    });
+  }
+  var Spinner = (0, import_react.forwardRef)(UnforwardedSpinner);
+  var spinner_default = Spinner;
+
   // node_modules/@wordpress/components/build-module/tab-panel/index.js
-  var import_jsx_runtime55 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime58 = __toESM(require_jsx_runtime());
   var extractTabName = (id3) => {
     if (typeof id3 === "undefined" || id3 === null) {
       return;
@@ -53127,21 +53231,21 @@ If there's a particular need for this, please submit a feature request at https:
         setTabStoreSelectedId(firstEnabledTab.name);
       }
     }, [tabs, selectedTab?.disabled, setTabStoreSelectedId, instanceId]);
-    return /* @__PURE__ */ (0, import_jsx_runtime55.jsxs)("div", {
+    return /* @__PURE__ */ (0, import_jsx_runtime58.jsxs)("div", {
       className,
       ref,
-      children: [/* @__PURE__ */ (0, import_jsx_runtime55.jsx)(TabList, {
+      children: [/* @__PURE__ */ (0, import_jsx_runtime58.jsx)(TabList, {
         store: tabStore,
         className: "components-tab-panel__tabs",
         children: tabs.map((tab) => {
-          return /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(Tab, {
+          return /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(Tab, {
             id: prependInstanceId(tab.name),
             className: clsx_default("components-tab-panel__tabs-item", tab.className, {
               [activeClass]: tab.name === selectedTabName
             }),
             disabled: tab.disabled,
             "aria-controls": `${prependInstanceId(tab.name)}-view`,
-            render: /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(button_default, {
+            render: /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(button_default, {
               __next40pxDefaultSize: true,
               icon: tab.icon,
               label: tab.icon && tab.title,
@@ -53150,7 +53254,7 @@ If there's a particular need for this, please submit a feature request at https:
             children: !tab.icon && tab.title
           }, tab.name);
         })
-      }), selectedTab && /* @__PURE__ */ (0, import_jsx_runtime55.jsx)(TabPanel, {
+      }), selectedTab && /* @__PURE__ */ (0, import_jsx_runtime58.jsx)(TabPanel, {
         id: `${prependInstanceId(selectedTab.name)}-view`,
         store: tabStore,
         tabId: prependInstanceId(selectedTab.name),
@@ -53163,7 +53267,7 @@ If there's a particular need for this, please submit a feature request at https:
   var tab_panel_default = TabPanel3;
 
   // node_modules/@wordpress/components/build-module/text-control/index.js
-  var import_jsx_runtime56 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime59 = __toESM(require_jsx_runtime());
   function UnforwardedTextControl(props, ref) {
     const {
       __nextHasNoMarginBottom,
@@ -53185,7 +53289,7 @@ If there's a particular need for this, please submit a feature request at https:
       size: void 0,
       __next40pxDefaultSize
     });
-    return /* @__PURE__ */ (0, import_jsx_runtime56.jsx)(base_control_default, {
+    return /* @__PURE__ */ (0, import_jsx_runtime59.jsx)(base_control_default, {
       __nextHasNoMarginBottom,
       __associatedWPComponentName: "TextControl",
       label,
@@ -53193,7 +53297,7 @@ If there's a particular need for this, please submit a feature request at https:
       id: id3,
       help,
       className,
-      children: /* @__PURE__ */ (0, import_jsx_runtime56.jsx)("input", {
+      children: /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("input", {
         className: clsx_default("components-text-control__input", {
           "is-next-40px-default-size": __next40pxDefaultSize
         }),
@@ -53212,7 +53316,7 @@ If there's a particular need for this, please submit a feature request at https:
 
   // src/renderer/index.jsx
   var import_xterm = __toESM(require_xterm());
-  var import_jsx_runtime57 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime60 = __toESM(require_jsx_runtime());
   var TERMINAL_ALLOWED_SCRIPTS = ["build", "build:dev", "dev", "test", "watch", "grunt"];
   var TERMINAL_INSTALL_ALIASES = ["npm install", "npm i", "install"];
   var RENAME_INPUT_ID = "rename-site-name-input";
@@ -53221,38 +53325,38 @@ If there's a particular need for this, please submit a feature request at https:
   var CREATE_SITE_LOCATION_HELP_ID = "create-site-location-help";
   var CREATE_SITE_MODAL_STYLE_ID = "create-site-modal-theme";
   function useSites() {
-    const [sites, setSites] = (0, import_react68.useState)([]);
-    const [siteMeta, setSiteMeta] = (0, import_react68.useState)({});
-    const refresh = (0, import_react68.useCallback)(async () => {
+    const [sites, setSites] = (0, import_react69.useState)([]);
+    const [siteMeta, setSiteMeta] = (0, import_react69.useState)({});
+    const refresh = (0, import_react69.useCallback)(async () => {
       const { sites: list, siteMeta: meta } = await window.api.getSitesWithMeta();
       setSites(list);
       setSiteMeta(meta || {});
     }, []);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       refresh();
     }, [refresh]);
     return { sites, siteMeta, refresh, setSiteMeta, setSites };
   }
   function App() {
     const { sites, siteMeta, refresh, setSiteMeta, setSites } = useSites();
-    const [downloadPhase, setDownloadPhase] = (0, import_react68.useState)("");
-    const [pendingSite, setPendingSite] = (0, import_react68.useState)(null);
-    const [terminalMsgs, setTerminalMsgs] = (0, import_react68.useState)("");
-    const termRef = (0, import_react68.useRef)(null);
-    const createDirInputRef = (0, import_react68.useRef)(null);
-    (0, import_react68.useEffect)(() => {
+    const [downloadPhase, setDownloadPhase] = (0, import_react69.useState)("");
+    const [pendingSite, setPendingSite] = (0, import_react69.useState)(null);
+    const [terminalMsgs, setTerminalMsgs] = (0, import_react69.useState)("");
+    const termRef = (0, import_react69.useRef)(null);
+    const createDirInputRef = (0, import_react69.useRef)(null);
+    (0, import_react69.useEffect)(() => {
       if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight;
     }, [terminalMsgs]);
-    const [webStarting, setWebStarting] = (0, import_react68.useState)(false);
-    const [webUrl, setWebUrl] = (0, import_react68.useState)("");
-    const [webLogs, setWebLogs] = (0, import_react68.useState)("");
-    const [webError, setWebError] = (0, import_react68.useState)("");
-    const webLogRef = (0, import_react68.useRef)(null);
-    (0, import_react68.useEffect)(() => {
+    const [webStarting, setWebStarting] = (0, import_react69.useState)(false);
+    const [webUrl, setWebUrl] = (0, import_react69.useState)("");
+    const [webLogs, setWebLogs] = (0, import_react69.useState)("");
+    const [webError, setWebError] = (0, import_react69.useState)("");
+    const webLogRef = (0, import_react69.useRef)(null);
+    (0, import_react69.useEffect)(() => {
       if (webLogRef.current) webLogRef.current.scrollTop = webLogRef.current.scrollHeight;
     }, [webLogs]);
-    const [webAvailable, setWebAvailable] = (0, import_react68.useState)(false);
-    (0, import_react68.useEffect)(() => {
+    const [webAvailable, setWebAvailable] = (0, import_react69.useState)(false);
+    (0, import_react69.useEffect)(() => {
       (async () => {
         try {
           setWebAvailable(Boolean(await window.api.playgroundWebAvailable()));
@@ -53260,16 +53364,25 @@ If there's a particular need for this, please submit a feature request at https:
         }
       })();
     }, []);
-    const [sidebarCollapsed, setSidebarCollapsed] = (0, import_react68.useState)(false);
-    const [activeSite, setActiveSite] = (0, import_react68.useState)(null);
-    const [createModalOpen, setCreateModalOpen] = (0, import_react68.useState)(false);
-    const [createSiteName, setCreateSiteName] = (0, import_react68.useState)("");
-    const [createSiteDir, setCreateSiteDir] = (0, import_react68.useState)("");
-    const [createSiteError, setCreateSiteError] = (0, import_react68.useState)("");
-    const [createSubmitting, setCreateSubmitting] = (0, import_react68.useState)(false);
-    const [setupLogsBySite, setSetupLogsBySite] = (0, import_react68.useState)({});
-    const setupLogAliasRef = (0, import_react68.useRef)({});
-    const appendSetupLog = (0, import_react68.useCallback)((siteTarget, message) => {
+    const [availableEditors, setAvailableEditors] = (0, import_react69.useState)({});
+    (0, import_react69.useEffect)(() => {
+      (async () => {
+        try {
+          setAvailableEditors(await window.api.checkEditorsAvailable());
+        } catch {
+        }
+      })();
+    }, []);
+    const [sidebarCollapsed, setSidebarCollapsed] = (0, import_react69.useState)(false);
+    const [activeSite, setActiveSite] = (0, import_react69.useState)(null);
+    const [createModalOpen, setCreateModalOpen] = (0, import_react69.useState)(false);
+    const [createSiteName, setCreateSiteName] = (0, import_react69.useState)("");
+    const [createSiteDir, setCreateSiteDir] = (0, import_react69.useState)("");
+    const [createSiteError, setCreateSiteError] = (0, import_react69.useState)("");
+    const [createSubmitting, setCreateSubmitting] = (0, import_react69.useState)(false);
+    const [setupLogsBySite, setSetupLogsBySite] = (0, import_react69.useState)({});
+    const setupLogAliasRef = (0, import_react69.useRef)({});
+    const appendSetupLog = (0, import_react69.useCallback)((siteTarget, message) => {
       const key = siteTarget ? String(siteTarget) : "";
       if (!key) return;
       const chunk = message != null ? String(message) : "";
@@ -53287,7 +53400,7 @@ If there's a particular need for this, please submit a feature request at https:
         return { ...prev2, [resolvedKey]: prevText + chunk };
       });
     }, []);
-    const removeSetupLog = (0, import_react68.useCallback)((siteTarget) => {
+    const removeSetupLog = (0, import_react69.useCallback)((siteTarget) => {
       const key = siteTarget ? String(siteTarget) : "";
       if (!key) return;
       const aliasMap = setupLogAliasRef.current;
@@ -53302,7 +53415,7 @@ If there's a particular need for this, please submit a feature request at https:
         return next2;
       });
     }, []);
-    const moveSetupLog = (0, import_react68.useCallback)((from2, to) => {
+    const moveSetupLog = (0, import_react69.useCallback)((from2, to) => {
       const source = from2 ? String(from2) : "";
       const target = to ? String(to) : "";
       if (!source || !target || source === target) return;
@@ -53316,7 +53429,7 @@ If there's a particular need for this, please submit a feature request at https:
         return next2;
       });
     }, []);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       let styleEl = document.getElementById(CREATE_SITE_MODAL_STYLE_ID);
       if (!styleEl) {
         styleEl = document.createElement("style");
@@ -53329,7 +53442,7 @@ If there's a particular need for this, please submit a feature request at https:
         document.head.appendChild(styleEl);
       }
     }, []);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       if (!createModalOpen) return;
       const input = document.getElementById(CREATE_SITE_NAME_INPUT_ID);
       if (input) {
@@ -53337,13 +53450,13 @@ If there's a particular need for this, please submit a feature request at https:
         if (typeof input.select === "function") input.select();
       }
     }, [createModalOpen]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       if (createModalOpen) return;
       if (createDirInputRef.current) {
         createDirInputRef.current.value = "";
       }
     }, [createModalOpen]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       const unsubProg = window.api.subscribeSetupProgress((p) => {
         if (p && p.message) {
           setTerminalMsgs((v) => v + p.message + "\n");
@@ -53374,20 +53487,20 @@ If there's a particular need for this, please submit a feature request at https:
         unsubStat && unsubStat();
       };
     }, [appendSetupLog]);
-    const chooseAndSetup = (0, import_react68.useCallback)(() => {
+    const chooseAndSetup = (0, import_react69.useCallback)(() => {
       setCreateSiteName("");
       setCreateSiteDir("");
       setCreateSiteError("");
       setCreateModalOpen(true);
     }, []);
-    const sanitizeSiteFolder = (0, import_react68.useCallback)((value) => value.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").replace(/^-+|-+$/g, "") || "wordpress-site", []);
-    const resolveTargetDir = (0, import_react68.useCallback)((root2, folder) => {
+    const sanitizeSiteFolder = (0, import_react69.useCallback)((value) => value.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").replace(/^-+|-+$/g, "") || "wordpress-site", []);
+    const resolveTargetDir = (0, import_react69.useCallback)((root2, folder) => {
       if (!root2) return folder;
       const normalizedRoot = root2.replace(/[\\/]+$/, "");
       const separator = /\\/.test(normalizedRoot) && !normalizedRoot.includes("/") ? "\\" : "/";
       return `${normalizedRoot}${separator}${folder}`;
     }, []);
-    const openDirectoryPicker = (0, import_react68.useCallback)(async () => {
+    const openDirectoryPicker = (0, import_react69.useCallback)(async () => {
       try {
         const dir = await window.api.chooseDirectory();
         if (dir) {
@@ -53397,7 +53510,7 @@ If there's a particular need for this, please submit a feature request at https:
       } catch {
       }
     }, []);
-    const handleCreateDirInputChange = (0, import_react68.useCallback)((event) => {
+    const handleCreateDirInputChange = (0, import_react69.useCallback)((event) => {
       const inputEl = event.target;
       createDirInputRef.current = inputEl;
       const finalize = (rawDir) => {
@@ -53432,7 +53545,7 @@ If there's a particular need for this, please submit a feature request at https:
       finalize(resolved);
       inputEl.value = "";
     }, [setCreateSiteDir, setCreateSiteError]);
-    const handleCreateSiteSubmit = (0, import_react68.useCallback)(async () => {
+    const handleCreateSiteSubmit = (0, import_react69.useCallback)(async () => {
       const nameTrimmed = createSiteName.trim();
       if (!nameTrimmed) {
         setCreateSiteError("Please provide a site name.");
@@ -53509,26 +53622,26 @@ If there's a particular need for this, please submit a feature request at https:
         setCreateSubmitting(false);
       }
     }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
-    const closeCreateModal = (0, import_react68.useCallback)(() => {
+    const closeCreateModal = (0, import_react69.useCallback)(() => {
       if (createSubmitting) return;
       setCreateModalOpen(false);
     }, [createSubmitting]);
-    const handleCreateModalSubmit = (0, import_react68.useCallback)((event) => {
+    const handleCreateModalSubmit = (0, import_react69.useCallback)((event) => {
       event.preventDefault();
       handleCreateSiteSubmit();
     }, [handleCreateSiteSubmit]);
-    const handleCreateModalKeyDown = (0, import_react68.useCallback)((event) => {
+    const handleCreateModalKeyDown = (0, import_react69.useCallback)((event) => {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
         closeCreateModal();
       }
     }, [closeCreateModal]);
-    const handleCreateDirInputClick = (0, import_react68.useCallback)((event) => {
+    const handleCreateDirInputClick = (0, import_react69.useCallback)((event) => {
       event.preventDefault();
       void openDirectoryPicker();
     }, [openDirectoryPicker]);
-    const togglePlaygroundWeb = (0, import_react68.useCallback)(async () => {
+    const togglePlaygroundWeb = (0, import_react69.useCallback)(async () => {
       if (!webUrl) {
         setWebStarting(true);
         setWebError("");
@@ -53568,20 +53681,20 @@ If there's a particular need for this, please submit a feature request at https:
         setWebUrl("");
       }
     }, [webUrl]);
-    const onInitialized = (0, import_react68.useCallback)((sitePath) => {
+    const onInitialized = (0, import_react69.useCallback)((sitePath) => {
       setSiteMeta((m) => ({ ...m || {}, [sitePath]: { ...m?.[sitePath] || {}, initialized: true } }));
     }, [setSiteMeta]);
-    const onForget = (0, import_react68.useCallback)(async (sitePath) => {
+    const onForget = (0, import_react69.useCallback)(async (sitePath) => {
       await window.api.forgetSite(sitePath);
       await refresh();
       removeSetupLog(sitePath);
     }, [refresh, removeSetupLog]);
-    const onDelete = (0, import_react68.useCallback)(async (sitePath) => {
+    const onDelete = (0, import_react69.useCallback)(async (sitePath) => {
       await window.api.deleteSite(sitePath);
       await refresh();
       removeSetupLog(sitePath);
     }, [refresh, removeSetupLog]);
-    const onRename = (0, import_react68.useCallback)(async (sitePath, newLabel) => {
+    const onRename = (0, import_react69.useCallback)(async (sitePath, newLabel) => {
       try {
         await window.api.setSiteLabel(sitePath, newLabel);
         setSiteMeta((meta) => ({
@@ -53592,7 +53705,7 @@ If there's a particular need for this, please submit a feature request at https:
         alert(String(err));
       }
     }, [setSiteMeta]);
-    const sortedSites = (0, import_react68.useMemo)(() => {
+    const sortedSites = (0, import_react69.useMemo)(() => {
       if (!sites || !sites.length) return [];
       const getCreatedAt = (sitePath) => {
         const value = siteMeta?.[sitePath]?.createdAt;
@@ -53602,21 +53715,21 @@ If there's a particular need for this, please submit a feature request at https:
       };
       return [...sites].sort((a, b) => getCreatedAt(b) - getCreatedAt(a));
     }, [sites, siteMeta]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       if (!sortedSites.length) {
         setActiveSite(null);
         return;
       }
       setActiveSite((current) => current && sortedSites.includes(current) ? current : sortedSites[0]);
     }, [sortedSites]);
-    const handleSelectSite = (0, import_react68.useCallback)((sitePath) => {
+    const handleSelectSite = (0, import_react69.useCallback)((sitePath) => {
       setActiveSite(sitePath);
     }, []);
-    return /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", height: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { width: sidebarCollapsed ? 56 : 280, background: "#1f1f1f", color: "#f7f7f7", display: "flex", flexDirection: "column", transition: "width 0.2s ease", borderRight: "1px solid #2b2b2b" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { padding: sidebarCollapsed ? "12px 8px" : "16px", borderBottom: "1px solid #2b2b2b" }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(component_default3, { align: "center", justify: "space-between", children: [
-          !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600 }, children: "WordPress Core" }) : null,
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", height: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { width: sidebarCollapsed ? 56 : 280, background: "#1f1f1f", color: "#f7f7f7", display: "flex", flexDirection: "column", transition: "width 0.2s ease", borderRight: "1px solid #2b2b2b" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { padding: sidebarCollapsed ? "12px 8px" : "16px", borderBottom: "1px solid #2b2b2b" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(component_default3, { align: "center", justify: "space-between", children: [
+          !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontWeight: 600 }, children: "WordPress Core" }) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
             button_default,
             {
               icon: sidebarCollapsed ? chevron_right_default : chevron_left_default,
@@ -53629,13 +53742,13 @@ If there's a particular need for this, please submit a feature request at https:
             }
           )
         ] }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 8px" : "12px 16px", display: "flex", flexDirection: "column", gap: 8 }, children: sortedSites.length > 0 ? sortedSites.map((sitePath) => {
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 8px" : "12px 16px", display: "flex", flexDirection: "column", gap: 8 }, children: sortedSites.length > 0 ? sortedSites.map((sitePath) => {
           const meta = siteMeta?.[sitePath] || {};
           const siteName = meta.label && meta.label.trim() || sitePath.split("/").pop() || sitePath;
           const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : "";
           const isActive = activeSite === sitePath;
           const statusLabel = meta.initialized ? "Initialized" : "Not initialized";
-          return /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+          return /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
             button_default,
             {
               onClick: () => handleSelectSite(sitePath),
@@ -53651,19 +53764,19 @@ If there's a particular need for this, please submit a feature request at https:
                 padding: sidebarCollapsed ? "8px 0" : "10px 12px",
                 borderRadius: 6
               },
-              children: sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontWeight: 600 }, children: siteName.slice(0, 1).toUpperCase() }) : /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontWeight: 600 }, children: siteName }) })
+              children: sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontWeight: 600 }, children: siteName.slice(0, 1).toUpperCase() }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontWeight: 600 }, children: siteName }) })
             },
             sitePath
           );
-        }) : !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: "No sites yet." }) : null }),
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+        }) : !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" }, children: "No sites yet." }) : null }),
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
           "div",
           {
             style: {
               padding: sidebarCollapsed ? "12px 8px 20px" : "16px 16px 24px",
               borderTop: "1px solid #2b2b2b"
             },
-            children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+            children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
               button_default,
               {
                 icon: plus_default,
@@ -53677,9 +53790,9 @@ If there's a particular need for this, please submit a feature request at https:
           }
         )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { flex: 1, background: "#fff", color: "#1d2327", display: "flex", flexDirection: "column" }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: "32px 32px 48px" }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { maxWidth: 1040, margin: "0 auto" }, children: [
-        webAvailable ? /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(component_default3, { align: "center", justify: "flex-end", style: { gap: 8, marginBottom: 24 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { flex: 1, background: "#fff", color: "#1d2327", display: "flex", flexDirection: "column" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: "32px 32px 48px" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { maxWidth: 1040, margin: "0 auto" }, children: [
+        webAvailable ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(component_default3, { align: "center", justify: "flex-end", style: { gap: 8, marginBottom: 24 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
             button_default,
             {
               isBusy: webStarting,
@@ -53688,34 +53801,34 @@ If there's a particular need for this, please submit a feature request at https:
               children: webUrl ? "Stop Playground web server" : "Start Playground web server"
             }
           ),
-          webStarting || webUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontSize: 12 }, children: webStarting ? "Starting\u2026" : /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("a", { href: webUrl || "http://127.0.0.1:39372/", onClick: (e) => {
+          webStarting || webUrl ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: 12 }, children: webStarting ? "Starting\u2026" : /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("a", { href: webUrl || "http://127.0.0.1:39372/", onClick: (e) => {
             e.preventDefault();
             window.api.openExternal(webUrl || "http://127.0.0.1:39372/");
           }, children: webUrl || "http://127.0.0.1:39372/" }) }) : null
         ] }) : null,
-        webStarting || webUrl || webError || webLogs ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(component_default8, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600 }, children: "Playground web server" }),
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: webStarting ? "Starting\u2026" : webUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("a", { href: webUrl, onClick: (e) => {
+        webStarting || webUrl || webError || webLogs ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(component_default8, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontWeight: 600 }, children: "Playground web server" }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: webStarting ? "Starting\u2026" : webUrl ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("a", { href: webUrl, onClick: (e) => {
               e.preventDefault();
               window.api.openExternal(webUrl);
             }, children: webUrl }) : "Stopped" })
           ] }),
-          webError ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { marginTop: 6, color: "#C00", fontSize: 12 }, children: webError }) : null,
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { ref: webLogRef, style: { marginTop: 8, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: webLogs })
+          webError ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { marginTop: 6, color: "#C00", fontSize: 12 }, children: webError }) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { ref: webLogRef, style: { marginTop: 8, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: webLogs })
         ] }) }) : null,
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { id: "sites", children: [
-          pendingSite && /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(component_default8, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600 }, children: "Setting up new site\u2026" }),
-            downloadPhase && /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 12, color: "#555", marginBottom: 6 }, children: downloadPhase }),
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { ref: termRef, style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: terminalMsgs })
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { id: "sites", children: [
+          pendingSite && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(component_default8, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontWeight: 600 }, children: "Setting up new site\u2026" }),
+            downloadPhase && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: 12, color: "#555", marginBottom: 6 }, children: downloadPhase }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { ref: termRef, style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: terminalMsgs })
           ] }) }),
-          sortedSites.length > 0 ? sortedSites.map((s) => /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+          sortedSites.length > 0 ? sortedSites.map((s) => /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
             "div",
             {
               style: { display: activeSite === s ? "block" : "none" },
               "aria-hidden": activeSite === s ? false : true,
-              children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+              children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
                 SiteRow,
                 {
                   sitePath: s,
@@ -53727,32 +53840,33 @@ If there's a particular need for this, please submit a feature request at https:
                   onDelete,
                   onRename,
                   isPending: Boolean(pendingSite && pendingSite.targetDir === s),
-                  setupLogs: setupLogsBySite[s] || ""
+                  setupLogs: setupLogsBySite[s] || "",
+                  availableEditors
                 }
               )
             },
             s
-          )) : /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(component_default6, { children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(component_default8, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { marginBottom: 8 }, children: "No sites yet." }),
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { children: "Use the sidebar to create your first site." })
+          )) : /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(component_default6, { children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(component_default8, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { marginBottom: 8 }, children: "No sites yet." }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { children: "Use the sidebar to create your first site." })
           ] }) })
         ] })
       ] }) }) }),
-      createModalOpen ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+      createModalOpen ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
         modal_default,
         {
           className: "create-site-modal",
           title: "Create WordPress Core site",
           onRequestClose: closeCreateModal,
           shouldCloseOnClickOutside: !createSubmitting,
-          children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(
+          children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(
             "form",
             {
               onSubmit: handleCreateModalSubmit,
               onKeyDown: handleCreateModalKeyDown,
               style: { display: "flex", flexDirection: "column", gap: 16, color: "#1d2327", colorScheme: "light" },
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
                   text_control_default,
                   {
                     id: CREATE_SITE_NAME_INPUT_ID,
@@ -53764,9 +53878,9 @@ If there's a particular need for this, please submit a feature request at https:
                     autoFocus: true
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("label", { htmlFor: CREATE_SITE_LOCATION_INPUT_ID, style: { fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", color: "#1d2327" }, children: "Site location" }),
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("label", { htmlFor: CREATE_SITE_LOCATION_INPUT_ID, style: { fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", color: "#1d2327" }, children: "Site location" }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
                     "input",
                     {
                       ref: createDirInputRef,
@@ -53788,13 +53902,13 @@ If there's a particular need for this, please submit a feature request at https:
                       style: { height: 40, color: "#1d2327", background: "#fff", border: "1px solid #8c8f94", borderRadius: 4, padding: "6px 10px" }
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontSize: 12, color: "#3c434a" }, children: createSiteDir || "No folder selected yet." })
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: 12, color: "#3c434a" }, children: createSiteDir || "No folder selected yet." })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { id: CREATE_SITE_LOCATION_HELP_ID, style: { fontSize: 12, color: "#3c434a", marginTop: -4 }, children: "Choose the parent folder where you want this new site created. We'll add a new directory inside it for the project." }),
-                createSiteError ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { color: "#d63638", fontSize: 12 }, children: createSiteError }) : null,
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", justifyContent: "flex-end", gap: 8 }, children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(button_default, { type: "button", variant: "secondary", onClick: closeCreateModal, disabled: createSubmitting, children: "Cancel" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(button_default, { type: "submit", variant: "primary", isBusy: createSubmitting, disabled: createSubmitting, children: "Create site" })
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { id: CREATE_SITE_LOCATION_HELP_ID, style: { fontSize: 12, color: "#3c434a", marginTop: -4 }, children: "Choose the parent folder where you want this new site created. We'll add a new directory inside it for the project." }),
+                createSiteError ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { color: "#d63638", fontSize: 12 }, children: createSiteError }) : null,
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "flex-end", gap: 8 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(button_default, { type: "button", variant: "secondary", onClick: closeCreateModal, disabled: createSubmitting, children: "Cancel" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(button_default, { type: "submit", variant: "primary", isBusy: createSubmitting, disabled: createSubmitting, children: "Create site" })
                 ] })
               ]
             }
@@ -53803,63 +53917,64 @@ If there's a particular need for this, please submit a feature request at https:
       ) : null
     ] });
   }
-  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = "" }) {
+  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = "", availableEditors = {} }) {
     const safeOnRename = onRename || (() => {
     });
-    const [serverUrl, setServerUrl] = (0, import_react68.useState)("");
-    const [starting, setStarting] = (0, import_react68.useState)(false);
-    const [running, setRunning] = (0, import_react68.useState)(false);
-    const [installing, setInstalling] = (0, import_react68.useState)(false);
-    const [npmLogs, setNpmLogs] = (0, import_react68.useState)("");
-    const [runtimeLogs, setRuntimeLogs] = (0, import_react68.useState)("");
-    const [isPatchOpen, setIsPatchOpen] = (0, import_react68.useState)(false);
-    const [patchText, setPatchText] = (0, import_react68.useState)("");
-    const [emails, setEmails] = (0, import_react68.useState)([]);
-    const [smtpPort, setSmtpPort] = (0, import_react68.useState)(0);
-    const newEmailUnsubRef = (0, import_react68.useRef)(null);
-    const smtpStartedUnsubRef = (0, import_react68.useRef)(null);
-    const [isEmailOpen, setIsEmailOpen] = (0, import_react68.useState)(false);
-    const [activeEmail, setActiveEmail] = (0, import_react68.useState)(null);
-    const [emailViewTab, setEmailViewTab] = (0, import_react68.useState)("rendered");
-    const [building, setBuilding] = (0, import_react68.useState)(false);
-    const [hasNodeModules, setHasNodeModules] = (0, import_react68.useState)(false);
-    const [hasBuilt, setHasBuilt] = (0, import_react68.useState)(false);
-    const [skipInit, setSkipInit] = (0, import_react68.useState)(false);
-    const [statusLoading, setStatusLoading] = (0, import_react68.useState)(true);
-    const [waitingForWatch, setWaitingForWatch] = (0, import_react68.useState)(false);
-    const setupLogsRef = (0, import_react68.useRef)("");
-    const npmRef = (0, import_react68.useRef)(null);
-    const runtimeRef = (0, import_react68.useRef)(null);
-    const currentRunIdRef = (0, import_react68.useRef)(null);
+    const [serverUrl, setServerUrl] = (0, import_react69.useState)("");
+    const [starting, setStarting] = (0, import_react69.useState)(false);
+    const [running, setRunning] = (0, import_react69.useState)(false);
+    const [installing, setInstalling] = (0, import_react69.useState)(false);
+    const [npmLogs, setNpmLogs] = (0, import_react69.useState)("");
+    const [runtimeLogs, setRuntimeLogs] = (0, import_react69.useState)("");
+    const [isPatchOpen, setIsPatchOpen] = (0, import_react69.useState)(false);
+    const [patchText, setPatchText] = (0, import_react69.useState)("");
+    const [patchLoading, setPatchLoading] = (0, import_react69.useState)(false);
+    const [emails, setEmails] = (0, import_react69.useState)([]);
+    const [smtpPort, setSmtpPort] = (0, import_react69.useState)(0);
+    const newEmailUnsubRef = (0, import_react69.useRef)(null);
+    const smtpStartedUnsubRef = (0, import_react69.useRef)(null);
+    const [isEmailOpen, setIsEmailOpen] = (0, import_react69.useState)(false);
+    const [activeEmail, setActiveEmail] = (0, import_react69.useState)(null);
+    const [emailViewTab, setEmailViewTab] = (0, import_react69.useState)("rendered");
+    const [building, setBuilding] = (0, import_react69.useState)(false);
+    const [hasNodeModules, setHasNodeModules] = (0, import_react69.useState)(false);
+    const [hasBuilt, setHasBuilt] = (0, import_react69.useState)(false);
+    const [skipInit, setSkipInit] = (0, import_react69.useState)(false);
+    const [statusLoading, setStatusLoading] = (0, import_react69.useState)(true);
+    const [waitingForWatch, setWaitingForWatch] = (0, import_react69.useState)(false);
+    const setupLogsRef = (0, import_react69.useRef)("");
+    const npmRef = (0, import_react69.useRef)(null);
+    const runtimeRef = (0, import_react69.useRef)(null);
+    const currentRunIdRef = (0, import_react69.useRef)(null);
     const threshold = 8;
-    const [logStick, setLogStick] = (0, import_react68.useState)({ npm: true, runtime: true });
-    const updateStick = (0, import_react68.useCallback)((key, value) => {
+    const [logStick, setLogStick] = (0, import_react69.useState)({ npm: true, runtime: true });
+    const updateStick = (0, import_react69.useCallback)((key, value) => {
       setLogStick((prev2) => prev2[key] === value ? prev2 : { ...prev2, [key]: value });
     }, []);
-    const ensureStick = (0, import_react68.useCallback)((key) => {
+    const ensureStick = (0, import_react69.useCallback)((key) => {
       setLogStick((prev2) => prev2[key] ? prev2 : { ...prev2, [key]: true });
     }, []);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       if (logStick.npm && npmRef.current) npmRef.current.scrollTop = npmRef.current.scrollHeight;
     }, [npmLogs, logStick.npm]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight;
     }, [runtimeLogs, logStick.runtime]);
-    const makeOnScroll = (0, import_react68.useCallback)((key) => (e) => {
+    const makeOnScroll = (0, import_react69.useCallback)((key) => (e) => {
       const el = e.currentTarget;
       const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
       updateStick(key, atBottom);
     }, [threshold, updateStick]);
     const siteName = sitePath.split("/").pop();
     const displayName = label && label.trim() || siteName;
-    const [renameModalOpen, setRenameModalOpen] = (0, import_react68.useState)(false);
-    const [renameValue, setRenameValue] = (0, import_react68.useState)(displayName);
-    const [renameError, setRenameError] = (0, import_react68.useState)("");
-    const [renaming, setRenaming] = (0, import_react68.useState)(false);
-    (0, import_react68.useEffect)(() => {
+    const [renameModalOpen, setRenameModalOpen] = (0, import_react69.useState)(false);
+    const [renameValue, setRenameValue] = (0, import_react69.useState)(displayName);
+    const [renameError, setRenameError] = (0, import_react69.useState)("");
+    const [renaming, setRenaming] = (0, import_react69.useState)(false);
+    (0, import_react69.useEffect)(() => {
       setRenameValue(displayName);
     }, [displayName]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       if (!renameModalOpen) return;
       const input = document.getElementById(RENAME_INPUT_ID);
       if (input) {
@@ -53867,16 +53982,16 @@ If there's a particular need for this, please submit a feature request at https:
         if (typeof input.select === "function") input.select();
       }
     }, [renameModalOpen]);
-    const openRenameModal = (0, import_react68.useCallback)(() => {
+    const openRenameModal = (0, import_react69.useCallback)(() => {
       setRenameValue(displayName);
       setRenameError("");
       setRenameModalOpen(true);
     }, [displayName]);
-    const closeRenameModal = (0, import_react68.useCallback)(() => {
+    const closeRenameModal = (0, import_react69.useCallback)(() => {
       if (renaming) return;
       setRenameModalOpen(false);
     }, [renaming]);
-    const submitRename = (0, import_react68.useCallback)(async () => {
+    const submitRename = (0, import_react69.useCallback)(async () => {
       const trimmed = renameValue.trim();
       if (!trimmed) {
         setRenameError("Site name cannot be empty.");
@@ -53893,11 +54008,11 @@ If there's a particular need for this, please submit a feature request at https:
         setRenaming(false);
       }
     }, [renameValue, safeOnRename, sitePath]);
-    const handleRenameSubmit = (0, import_react68.useCallback)((event) => {
+    const handleRenameSubmit = (0, import_react69.useCallback)((event) => {
       event.preventDefault();
       submitRename();
     }, [submitRename]);
-    const handleRenameFormKeyDown = (0, import_react68.useCallback)((event) => {
+    const handleRenameFormKeyDown = (0, import_react69.useCallback)((event) => {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
@@ -53905,19 +54020,19 @@ If there's a particular need for this, please submit a feature request at https:
       }
     }, [closeRenameModal]);
     const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : "";
-    const appendNpm = (0, import_react68.useCallback)((s) => setNpmLogs((v) => v + s), []);
-    const appendRuntime = (0, import_react68.useCallback)((s) => setRuntimeLogs((v) => v + String(s ?? "")), []);
-    const sortEmails = (0, import_react68.useCallback)((list) => [...list].sort((a, b) => new Date(b.sentAt || b.date || 0) - new Date(a.sentAt || a.date || 0)), []);
-    const openEmail = (0, import_react68.useCallback)((m) => {
+    const appendNpm = (0, import_react69.useCallback)((s) => setNpmLogs((v) => v + s), []);
+    const appendRuntime = (0, import_react69.useCallback)((s) => setRuntimeLogs((v) => v + String(s ?? "")), []);
+    const sortEmails = (0, import_react69.useCallback)((list) => [...list].sort((a, b) => new Date(b.sentAt || b.date || 0) - new Date(a.sentAt || a.date || 0)), []);
+    const openEmail = (0, import_react69.useCallback)((m) => {
       setActiveEmail(m);
       setEmailViewTab("rendered");
       setIsEmailOpen(true);
     }, []);
-    const clearEmails = (0, import_react68.useCallback)(async () => {
+    const clearEmails = (0, import_react69.useCallback)(async () => {
       await window.api.clearEmails(sitePath);
       setEmails([]);
     }, [sitePath]);
-    const loadStatus = (0, import_react68.useCallback)(async () => {
+    const loadStatus = (0, import_react69.useCallback)(async () => {
       try {
         setStatusLoading(true);
         const s = await window.api.getSiteStatus(sitePath);
@@ -53929,10 +54044,10 @@ If there's a particular need for this, please submit a feature request at https:
         setStatusLoading(false);
       }
     }, [sitePath]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       loadStatus();
     }, [loadStatus]);
-    const runInstall = (0, import_react68.useCallback)((options = {}) => {
+    const runInstall = (0, import_react69.useCallback)((options = {}) => {
       const { onLog, onDone } = options;
       setInstalling(true);
       ensureStick("npm");
@@ -53958,7 +54073,7 @@ install exited with code ${code}
         if (onDone) onDone({ code });
       });
     }, [appendNpm, ensureStick, loadStatus, onInitialized, sitePath]);
-    const runScript = (0, import_react68.useCallback)((name, options = {}) => {
+    const runScript = (0, import_react69.useCallback)((name, options = {}) => {
       const { onLog, onDone, args = [] } = options;
       ensureStick("npm");
       if (name === "build") setBuilding(true);
@@ -53990,7 +54105,7 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
         if (onDone) onDone({ code: -1 });
       });
     }, [appendNpm, ensureStick, loadStatus, sitePath]);
-    const killCurrent = (0, import_react68.useCallback)(async () => {
+    const killCurrent = (0, import_react69.useCallback)(async () => {
       const runId = currentRunIdRef.current;
       try {
         await window.api.npmKill({ runId, directoryPath: sitePath });
@@ -53998,32 +54113,32 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
         currentRunIdRef.current = null;
       }
     }, [sitePath]);
-    const terminalContainerRef = (0, import_react68.useRef)(null);
-    const terminalRef = (0, import_react68.useRef)(null);
-    const terminalStickRef = (0, import_react68.useRef)(true);
-    const terminalInputHandlerRef = (0, import_react68.useRef)(() => {
+    const terminalContainerRef = (0, import_react69.useRef)(null);
+    const terminalRef = (0, import_react69.useRef)(null);
+    const terminalStickRef = (0, import_react69.useRef)(true);
+    const terminalInputHandlerRef = (0, import_react69.useRef)(() => {
     });
-    const terminalKillRef = (0, import_react68.useRef)(null);
-    const terminalStateRef = (0, import_react68.useRef)({ input: "", history: [], historyIndex: 0, running: false });
-    const watchBufferRef = (0, import_react68.useRef)("");
-    const serverStartRequestedRef = (0, import_react68.useRef)(false);
-    const stoppingRef = (0, import_react68.useRef)(false);
-    const runningRef = (0, import_react68.useRef)(false);
-    const waitingForWatchRef = (0, import_react68.useRef)(false);
-    (0, import_react68.useEffect)(() => {
+    const terminalKillRef = (0, import_react69.useRef)(null);
+    const terminalStateRef = (0, import_react69.useRef)({ input: "", history: [], historyIndex: 0, running: false });
+    const watchBufferRef = (0, import_react69.useRef)("");
+    const serverStartRequestedRef = (0, import_react69.useRef)(false);
+    const stoppingRef = (0, import_react69.useRef)(false);
+    const runningRef = (0, import_react69.useRef)(false);
+    const waitingForWatchRef = (0, import_react69.useRef)(false);
+    (0, import_react69.useEffect)(() => {
       runningRef.current = running;
     }, [running]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       waitingForWatchRef.current = waitingForWatch;
     }, [waitingForWatch]);
-    const normalizeForTerminal = (0, import_react68.useCallback)((text) => String(text ?? "").replace(/\r?\n/g, "\r\n"), []);
-    const writeToTerminal = (0, import_react68.useCallback)((text) => {
+    const normalizeForTerminal = (0, import_react69.useCallback)((text) => String(text ?? "").replace(/\r?\n/g, "\r\n"), []);
+    const writeToTerminal = (0, import_react69.useCallback)((text) => {
       const term = terminalRef.current;
       if (!term) return;
       term.write(normalizeForTerminal(text));
       if (terminalStickRef.current) term.scrollToBottom();
     }, [normalizeForTerminal]);
-    const runInstallWithTerminal = (0, import_react68.useCallback)(() => {
+    const runInstallWithTerminal = (0, import_react69.useCallback)(() => {
       writeToTerminal("Running npm install\u2026\n");
       runInstall({
         onLog: (chunk) => writeToTerminal(chunk),
@@ -54033,7 +54148,7 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
         }
       });
     }, [runInstall, writeToTerminal]);
-    const showPrompt = (0, import_react68.useCallback)((prependNewLine = true) => {
+    const showPrompt = (0, import_react69.useCallback)((prependNewLine = true) => {
       const term = terminalRef.current;
       if (!term) return;
       const state = terminalStateRef.current;
@@ -54043,7 +54158,7 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
       state.historyIndex = state.history.length;
       if (terminalStickRef.current) term.scrollToBottom();
     }, []);
-    const replaceTerminalInput = (0, import_react68.useCallback)((next2) => {
+    const replaceTerminalInput = (0, import_react69.useCallback)((next2) => {
       const term = terminalRef.current;
       if (!term) return;
       const state = terminalStateRef.current;
@@ -54057,7 +54172,7 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
       if (next2) term.write(next2);
       if (terminalStickRef.current) term.scrollToBottom();
     }, []);
-    const addCommandToHistory = (0, import_react68.useCallback)((value) => {
+    const addCommandToHistory = (0, import_react69.useCallback)((value) => {
       const trimmed = value.trim();
       if (!trimmed) return;
       const state = terminalStateRef.current;
@@ -54070,13 +54185,13 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
       state.history = nextHistory;
       state.historyIndex = nextHistory.length;
     }, []);
-    const printHelp = (0, import_react68.useCallback)(() => {
+    const printHelp = (0, import_react69.useCallback)(() => {
       writeToTerminal("Available commands:\n");
       writeToTerminal("  help                        Show this help text\n");
       writeToTerminal("  npm install                 Run npm install in the site directory\n");
       writeToTerminal("  npm run <script>            Run one of: " + TERMINAL_ALLOWED_SCRIPTS.join(", ") + "\n");
     }, [writeToTerminal]);
-    const executeTerminalCommand = (0, import_react68.useCallback)((rawCommand) => {
+    const executeTerminalCommand = (0, import_react69.useCallback)((rawCommand) => {
       const command = rawCommand.trim();
       const state = terminalStateRef.current;
       if (!command) {
@@ -54150,7 +54265,7 @@ Try "help" for the list of supported commands.
 `);
       showPrompt(false);
     }, [addCommandToHistory, killCurrent, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
-    const handleTerminalData = (0, import_react68.useCallback)((data) => {
+    const handleTerminalData = (0, import_react69.useCallback)((data) => {
       const term = terminalRef.current;
       if (!term) return;
       const state = terminalStateRef.current;
@@ -54201,10 +54316,10 @@ Try "help" for the list of supported commands.
       term.write(data);
       if (terminalStickRef.current) term.scrollToBottom();
     }, [executeTerminalCommand, replaceTerminalInput, showPrompt]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       terminalInputHandlerRef.current = handleTerminalData;
     }, [handleTerminalData]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       const container = terminalContainerRef.current;
       if (!container) return void 0;
       const term = new import_xterm.Terminal({
@@ -54235,7 +54350,7 @@ Try "help" for the list of supported commands.
         terminalStickRef.current = true;
       };
     }, [normalizeForTerminal, printHelp, showPrompt]);
-    (0, import_react68.useEffect)(() => {
+    (0, import_react69.useEffect)(() => {
       const incoming = setupLogs || "";
       if (!incoming) return;
       const prev2 = setupLogsRef.current;
@@ -54247,7 +54362,7 @@ Try "help" for the list of supported commands.
       }
       setupLogsRef.current = incoming;
     }, [appendNpm, setupLogs, writeToTerminal]);
-    const stopDevServer = (0, import_react68.useCallback)(async () => {
+    const stopDevServer = (0, import_react69.useCallback)(async () => {
       if (stoppingRef.current) return;
       stoppingRef.current = true;
       setWaitingForWatch(false);
@@ -54287,7 +54402,7 @@ Try "help" for the list of supported commands.
       terminalStateRef.current.running = false;
       currentRunIdRef.current = null;
     }, [setRunning, setServerUrl, setSmtpPort, setStarting, setWaitingForWatch, sitePath]);
-    const startPhpServer = (0, import_react68.useCallback)(async () => {
+    const startPhpServer = (0, import_react69.useCallback)(async () => {
       if (serverStartRequestedRef.current || stoppingRef.current || !terminalStateRef.current.running) {
         serverStartRequestedRef.current = false;
         return;
@@ -54404,7 +54519,7 @@ Try "help" for the list of supported commands.
     };
     const isServerStarting = waitingForWatch || starting && !serverUrl;
     const isDevProcessActive = running || isServerStarting;
-    const markSkipWizard = (0, import_react68.useCallback)(async () => {
+    const markSkipWizard = (0, import_react69.useCallback)(async () => {
       await window.api.setSkipInitWizard(sitePath, true);
       setSkipInit(true);
     }, [sitePath]);
@@ -54413,19 +54528,35 @@ Try "help" for the list of supported commands.
     };
     const openPatchModal = async () => {
       setIsPatchOpen(true);
-      setPatchText("Generating patch\u2026");
+      setPatchLoading(true);
+      setPatchText("");
       try {
         const res = await window.api.getPatch(sitePath);
         if (res && res.ok) setPatchText(res.patch && res.patch.trim().length ? res.patch : "No changes.");
         else setPatchText(res && res.error ? `Error: ${res.error}` : "Failed to generate patch");
       } catch (e) {
         setPatchText(`Error: ${e && e.message ? e.message : String(e)}`);
+      } finally {
+        setPatchLoading(false);
       }
     };
     const copyPatch = async () => {
       try {
         await navigator.clipboard.writeText(patchText);
       } catch {
+      }
+    };
+    const savePatch = async () => {
+      try {
+        const res = await window.api.savePatch(sitePath);
+        if (res && res.ok && res.filePath) {
+          alert(`Diff saved to: ${res.filePath}`);
+        } else if (res && res.canceled) {
+        } else {
+          alert(`Error saving diff: ${res && res.error ? res.error : "Unknown error"}`);
+        }
+      } catch (e) {
+        alert(`Error saving diff: ${e && e.message ? e.message : String(e)}`);
       }
     };
     const statusStyles = initialized ? { background: "#e7f6e7", color: "#0f5132" } : { background: "#fff4ce", color: "#8a6d1c" };
@@ -54485,7 +54616,7 @@ Try "help" for the list of supported commands.
         description: "Install npm packages so commands can run.",
         done: hasNodeModules,
         ready: true,
-        action: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+        action: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
           button_default,
           {
             isBusy: installing,
@@ -54502,7 +54633,7 @@ Try "help" for the list of supported commands.
         description: "Compile WordPress Core once to generate the initial dist files.",
         done: hasBuilt,
         ready: hasNodeModules,
-        action: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+        action: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
           button_default,
           {
             isBusy: building,
@@ -54519,8 +54650,8 @@ Try "help" for the list of supported commands.
         description: "Launch the development server once to complete the WordPress setup wizard.",
         done: false,
         ready: hasBuilt,
-        action: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+        action: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
             button_default,
             {
               isBusy: starting,
@@ -54533,7 +54664,7 @@ Try "help" for the list of supported commands.
               children: running ? "Stop dev server" : "Start dev server and finish the wizard"
             }
           ),
-          starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontSize: 12 }, children: starting ? "Starting..." : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("a", { href: serverUrl, onClick: (e) => {
+          starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: 12 }, children: starting ? "Starting..." : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("a", { href: serverUrl, onClick: (e) => {
             e.preventDefault();
             window.api.openExternal(serverUrl);
           }, children: serverUrl }) : null }) : null
@@ -54555,12 +54686,12 @@ Try "help" for the list of supported commands.
       }
       return { ...step, status };
     });
-    return /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("section", { style: { display: "flex", flexDirection: "column", gap: 24, paddingBottom: 48 }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(component_default3, { align: "flex-start", justify: "space-between", style: { gap: 16, flexWrap: "wrap" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { flex: "1 1 440px", minWidth: 0 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("h1", { style: { margin: 0, fontSize: 28, lineHeight: 1.2 }, children: displayName }),
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("section", { style: { display: "flex", flexDirection: "column", gap: 24, paddingBottom: 48 }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(component_default3, { align: "flex-start", justify: "space-between", style: { gap: 16, flexWrap: "wrap" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { flex: "1 1 440px", minWidth: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("h1", { style: { margin: 0, fontSize: 28, lineHeight: 1.2 }, children: displayName }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
               button_default,
               {
                 icon: edit_default,
@@ -54572,25 +54703,71 @@ Try "help" for the list of supported commands.
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12, color: "#3c434a", flexWrap: "wrap" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", ...statusStyles }, children: initialized ? "Initialized" : "Uninitialized" }),
-            createdLabel ? /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("span", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12, color: "#3c434a", flexWrap: "wrap" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em", ...statusStyles }, children: initialized ? "Initialized" : "Uninitialized" }),
+            createdLabel ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { children: [
               "Created ",
               createdLabel
             ] }) : null,
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
-              button_default,
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+              dropdown_menu_default,
               {
+                label: "Open directory in",
+                text: "Open directory in",
                 variant: "tertiary",
-                isSmall: true,
-                onClick: () => window.api.openDirectory(sitePath),
+                size: "small",
+                icon: chevron_down_default,
+                iconPosition: "right",
                 style: { marginLeft: 4, fontSize: 12 },
-                children: "Open directory"
+                controls: [
+                  {
+                    title: "Finder",
+                    onClick: () => window.api.openDirectory(sitePath)
+                  },
+                  ...[
+                    {
+                      key: "vscode",
+                      title: availableEditors.vscode ? "VS Code" : "VS Code (not installed)",
+                      onClick: async () => {
+                        const res = await window.api.openInEditor(sitePath, "vscode");
+                        if (res && !res.ok) {
+                          alert(`Failed to open in VS Code: ${res.error || "Unknown error"}`);
+                        }
+                      },
+                      isDisabled: !availableEditors.vscode,
+                      available: availableEditors.vscode
+                    },
+                    {
+                      key: "phpstorm",
+                      title: availableEditors.phpstorm ? "PHPStorm" : "PHPStorm (not installed)",
+                      onClick: async () => {
+                        const res = await window.api.openInEditor(sitePath, "phpstorm");
+                        if (res && !res.ok) {
+                          alert(`Failed to open in PHPStorm: ${res.error || "Unknown error"}`);
+                        }
+                      },
+                      isDisabled: !availableEditors.phpstorm,
+                      available: availableEditors.phpstorm
+                    },
+                    {
+                      key: "cursor",
+                      title: availableEditors.cursor ? "Cursor" : "Cursor (not installed)",
+                      onClick: async () => {
+                        const res = await window.api.openInEditor(sitePath, "cursor");
+                        if (res && !res.ok) {
+                          alert(`Failed to open in Cursor: ${res.error || "Unknown error"}`);
+                        }
+                      },
+                      isDisabled: !availableEditors.cursor,
+                      available: availableEditors.cursor
+                    }
+                  ].sort((a, b) => (b.available ? 1 : 0) - (a.available ? 1 : 0))
+                ]
               }
             )
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { display: "flex", alignItems: "flex-start", gap: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { display: "flex", alignItems: "flex-start", gap: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
           dropdown_menu_default,
           {
             label: "More",
@@ -54616,12 +54793,12 @@ Try "help" for the list of supported commands.
           }
         ) })
       ] }),
-      !skipInit ? /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { padding: 20, border: "1px solid #dcdcde", borderRadius: 12, background: "#fff" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600, fontSize: 16, color: "#1d2327" }, children: "Initial setup checklist" }),
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { marginTop: 4, fontSize: 13, color: "#3c434a" }, children: "Complete each step to prepare this site for development." }),
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }, children: stepItems.map((step) => {
+      !skipInit ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { padding: 20, border: "1px solid #dcdcde", borderRadius: 12, background: "#fff" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontWeight: 600, fontSize: 16, color: "#1d2327" }, children: "Initial setup checklist" }),
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { marginTop: 4, fontSize: 13, color: "#3c434a" }, children: "Complete each step to prepare this site for development." }),
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }, children: stepItems.map((step) => {
           const visuals = checklistVisuals[step.status] || checklistVisuals.locked;
-          return /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(
+          return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(
             "div",
             {
               style: {
@@ -54637,7 +54814,7 @@ Try "help" for the list of supported commands.
                 alignItems: "center"
               },
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { gridRow: "1 / span 2", alignSelf: "center", display: "flex", alignItems: "center", justifyContent: "center", width: 28 }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { gridRow: "1 / span 2", alignSelf: "center", display: "flex", alignItems: "center", justifyContent: "center", width: 28 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
                   "span",
                   {
                     style: {
@@ -54657,22 +54834,22 @@ Try "help" for the list of supported commands.
                     children: visuals.indicatorContent
                   }
                 ) }),
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { gridColumn: "2 / 3", display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, minWidth: 0, flexWrap: "wrap" }, children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600, color: "#1d2327", lineHeight: 1.4 }, children: step.label }),
-                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: visuals.color, marginLeft: "auto", whiteSpace: "nowrap" }, children: visuals.label })
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { gridColumn: "2 / 3", display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, minWidth: 0, flexWrap: "wrap" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontWeight: 600, color: "#1d2327", lineHeight: 1.4 }, children: step.label }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: visuals.color, marginLeft: "auto", whiteSpace: "nowrap" }, children: visuals.label })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { gridColumn: "2 / 3", fontSize: 12, color: "#3c434a", lineHeight: 1.5 }, children: step.description }),
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { gridRow: "1 / span 2", gridColumn: "3 / 4", alignSelf: "center", display: "flex", alignItems: "center" }, children: step.action })
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { gridColumn: "2 / 3", fontSize: 12, color: "#3c434a", lineHeight: 1.5 }, children: step.description }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { gridRow: "1 / span 2", gridColumn: "3 / 4", alignSelf: "center", display: "flex", alignItems: "center" }, children: step.action })
               ]
             },
             step.key
           );
         }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { marginTop: 12 }, children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(button_default, { variant: "link", onClick: markSkipWizard, style: { textDecoration: "underline" }, children: "Skip initialization wizard" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { marginTop: 12 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(button_default, { variant: "link", onClick: markSkipWizard, style: { textDecoration: "underline" }, children: "Skip initialization wizard" }) })
       ] }) : null,
-      skipInit ? /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 12 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "stretch", gap: 12, flexWrap: "wrap" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(
+      skipInit ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 12 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", alignItems: "stretch", gap: 12, flexWrap: "wrap" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(
             button_default,
             {
               isBusy: isServerStarting,
@@ -54680,7 +54857,7 @@ Try "help" for the list of supported commands.
               onClick: toggleDevServer,
               style: { display: "inline-flex", alignItems: "center", gap: 10, minWidth: 220, justifyContent: "center", padding: "12px 20px", fontSize: 15, borderRadius: 12 },
               children: [
-                isDevProcessActive ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+                isDevProcessActive ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
                   "span",
                   {
                     "aria-hidden": "true",
@@ -54695,20 +54872,20 @@ Try "help" for the list of supported commands.
                     }
                   }
                 ) : null,
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("span", { style: { fontWeight: 600 }, children: isDevProcessActive ? isServerStarting ? "Starting dev server..." : "Stop dev server" : "Start dev server" })
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontWeight: 600 }, children: isDevProcessActive ? isServerStarting ? "Starting dev server..." : "Stop dev server" : "Start dev server" })
               ]
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
             button_default,
             {
               variant: "secondary",
               onClick: openPatchModal,
               style: { padding: "10px 16px", borderRadius: 10 },
-              children: "Create patch"
+              children: "Submit patch"
             }
           ),
-          running && serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+          running && serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
             button_default,
             {
               variant: "secondary",
@@ -54721,24 +54898,24 @@ Try "help" for the list of supported commands.
             }
           ) : null
         ] }),
-        isServerStarting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 13, color: "#1d2327", paddingLeft: 2, display: "flex", flexDirection: "column", gap: 4 }, children: serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(import_jsx_runtime57.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("a", { href: serverUrl, onClick: (e) => {
+        isServerStarting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: 13, color: "#1d2327", paddingLeft: 2, display: "flex", flexDirection: "column", gap: 4 }, children: serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_jsx_runtime60.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("a", { href: serverUrl, onClick: (e) => {
             e.preventDefault();
             window.api.openExternal(serverUrl);
           }, children: serverUrl }),
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("span", { style: { fontSize: 12, color: "#3c434a" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { fontSize: 12, color: "#3c434a" }, children: [
             "Log in with ",
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("code", { children: "admin" }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("code", { children: "admin" }),
             " / ",
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("code", { children: "admin" }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("code", { children: "admin" }),
             "."
           ] })
         ] }) : "Dev server is starting\u2026" }) : null
       ] }) : null,
-      /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 16 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Terminal" }),
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 16 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Terminal" }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
             "div",
             {
               ref: terminalContainerRef,
@@ -54751,57 +54928,57 @@ Try "help" for the list of supported commands.
               }
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { marginTop: 8, fontSize: 12, color: "#3c434a" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { marginTop: 8, fontSize: 12, color: "#3c434a" }, children: [
             "Type ",
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("code", { children: "help" }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("code", { children: "help" }),
             " to list supported commands. Press ",
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("code", { children: "Ctrl+C" }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("code", { children: "Ctrl+C" }),
             " to stop the current command."
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Server & WordPress logs" }),
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { ref: runtimeRef, onScroll: makeOnScroll("runtime"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 220, overflow: "auto" }, children: runtimeLogs })
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Server & WordPress logs" }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { ref: runtimeRef, onScroll: makeOnScroll("runtime"), style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: 220, overflow: "auto" }, children: runtimeLogs })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Mail" }),
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : "SMTP will start with the dev server." }),
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(button_default, { size: "small", variant: "secondary", onClick: clearEmails, children: "Clear emails" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontWeight: 600, marginBottom: 8 }, children: "Mail" }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: 12, color: "#666" }, children: smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : "SMTP will start with the dev server." }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(button_default, { size: "small", variant: "secondary", onClick: clearEmails, children: "Clear emails" }) })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { border: "1px solid #ddd", borderRadius: 6, maxHeight: 220, overflow: "auto" }, children: emails && emails.length ? emails.map((m) => {
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { border: "1px solid #ddd", borderRadius: 6, maxHeight: 220, overflow: "auto" }, children: emails && emails.length ? emails.map((m) => {
             const when = m.sentAt || m.date;
             const whenStr = when ? new Date(when).toLocaleString() : "";
-            return /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(
+            return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(
               "div",
               {
                 onClick: () => openEmail(m),
                 style: { padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #eee", display: "flex", gap: 8 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { flex: "0 0 180px", color: "#555", fontSize: 12 }, children: whenStr }),
-                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { flex: "0 0 220px", color: "#333", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: m.from || "" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { flex: "1 1 auto", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: m.subject || "(no subject)" })
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { flex: "0 0 180px", color: "#555", fontSize: 12 }, children: whenStr }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { flex: "0 0 220px", color: "#333", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: m.from || "" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { flex: "1 1 auto", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: m.subject || "(no subject)" })
                 ]
               },
               m.id
             );
-          }) : /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { padding: 12, color: "#666" }, children: "No emails yet." }) })
+          }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { padding: 12, color: "#666" }, children: "No emails yet." }) })
         ] })
       ] }),
-      renameModalOpen ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+      renameModalOpen ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
         modal_default,
         {
           title: "Rename site",
           onRequestClose: closeRenameModal,
           shouldCloseOnClickOutside: !renaming,
-          children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)(
+          children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(
             "form",
             {
               onSubmit: handleRenameSubmit,
               onKeyDown: handleRenameFormKeyDown,
               style: { display: "flex", flexDirection: "column", gap: 12 },
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
                   text_control_default,
                   {
                     id: RENAME_INPUT_ID,
@@ -54812,47 +54989,73 @@ Try "help" for the list of supported commands.
                     autoFocus: true
                   }
                 ),
-                renameError ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { color: "#d63638", fontSize: 12 }, children: renameError }) : null,
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { display: "flex", justifyContent: "flex-end", gap: 8 }, children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(button_default, { type: "button", variant: "secondary", onClick: closeRenameModal, disabled: renaming, children: "Cancel" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(button_default, { type: "submit", variant: "primary", isBusy: renaming, disabled: renaming, children: "Save" })
+                renameError ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { color: "#d63638", fontSize: 12 }, children: renameError }) : null,
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "flex-end", gap: 8 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(button_default, { type: "button", variant: "secondary", onClick: closeRenameModal, disabled: renaming, children: "Cancel" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(button_default, { type: "submit", variant: "primary", isBusy: renaming, disabled: renaming, children: "Save" })
                 ] })
               ]
             }
           )
         }
       ) : null,
-      isPatchOpen && /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+      isPatchOpen && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
         modal_default,
         {
           title: "Patch",
           onRequestClose: () => setIsPatchOpen(false),
           shouldCloseOnClickOutside: true,
           isFullScreen: true,
-          children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { position: "relative", height: "80vh" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
-              button_default,
-              {
-                icon: copy_default,
-                label: "Copy",
-                onClick: copyPatch,
-                style: {
-                  position: "absolute",
-                  top: 8,
-                  right: 8,
-                  zIndex: 2,
-                  background: "#fff",
-                  border: "1px solid #ddd",
-                  color: "#111",
-                  boxShadow: "none"
-                }
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("pre", { style: { margin: 0, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: "100%", overflow: "auto" }, children: patchText && patchText.trim().length ? patchText : "No changes." })
+          headerClassName: "patch-modal-header",
+          children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", height: "80vh", gap: 12 }, children: [
+            !patchLoading && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { padding: "12px 16px", background: "#f0f6fc", border: "1px solid #d0d7de", borderRadius: 6, fontSize: 14, lineHeight: 1.5, color: "#24292f" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("strong", { children: "Next steps:" }),
+              " Save this patch and submit it to the relevant WordPress Trac ticket at ",
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("a", { href: "#", onClick: (e) => {
+                e.preventDefault();
+                window.api.openExternal("https://core.trac.wordpress.org");
+              }, style: { color: "#0969da", cursor: "pointer" }, children: "core.trac.wordpress.org" })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "relative", flex: 1, minHeight: 0 }, children: patchLoading ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 16 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(spinner_default, {}),
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { color: "#666", fontSize: 14 }, children: "Generating patch..." })
+            ] }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_jsx_runtime60.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "absolute", top: 8, right: 8, zIndex: 2, display: "flex", gap: 8 }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+                  button_default,
+                  {
+                    icon: download_default,
+                    label: "Save",
+                    onClick: savePatch,
+                    style: {
+                      background: "#fff",
+                      border: "1px solid #ddd",
+                      color: "#111",
+                      boxShadow: "none"
+                    }
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+                  button_default,
+                  {
+                    icon: copy_default,
+                    label: "Copy",
+                    onClick: copyPatch,
+                    style: {
+                      background: "#fff",
+                      border: "1px solid #ddd",
+                      color: "#111",
+                      boxShadow: "none"
+                    }
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("pre", { style: { margin: 0, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 12, borderRadius: 6, height: "100%", overflowY: "auto" }, children: patchText && patchText.trim().length ? patchText : "No changes." })
+            ] }) })
           ] })
         }
       ),
-      isEmailOpen && activeEmail && /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(
+      isEmailOpen && activeEmail && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
         modal_default,
         {
           title: activeEmail.subject || "Email",
@@ -54862,37 +55065,37 @@ Try "help" for the list of supported commands.
           },
           shouldCloseOnClickOutside: true,
           isFullScreen: true,
-          children: /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { padding: 8 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { style: { marginBottom: 8, fontSize: 12, color: "#444" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("strong", { children: "From:" }),
+          children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { padding: 8 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { marginBottom: 8, fontSize: 12, color: "#444" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("strong", { children: "From:" }),
                 " ",
                 activeEmail.from || ""
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("strong", { children: "To:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("strong", { children: "To:" }),
                 " ",
                 activeEmail.to || ""
               ] }),
-              activeEmail.cc ? /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("strong", { children: "CC:" }),
+              activeEmail.cc ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("strong", { children: "CC:" }),
                 " ",
                 activeEmail.cc
               ] }) : null,
-              /* @__PURE__ */ (0, import_jsx_runtime57.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("strong", { children: "Date:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("strong", { children: "Date:" }),
                 " ",
                 activeEmail.sentAt ? new Date(activeEmail.sentAt).toLocaleString() : activeEmail.date ? new Date(activeEmail.date).toLocaleString() : ""
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime57.jsx)(tab_panel_default, { className: "email-tabs", activeClass: "is-active", onSelect: (n) => setEmailViewTab(n), tabs: [{ name: "rendered", title: "Rendered" }, { name: "raw", title: "Raw" }], children: (tab) => tab.name === "rendered" ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { style: { border: "1px solid #ddd", borderRadius: 6, padding: 12, minHeight: "60vh", background: "#fff" }, children: activeEmail.html ? /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("div", { dangerouslySetInnerHTML: { __html: String(activeEmail.html) } }) : /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("pre", { style: { whiteSpace: "pre-wrap", margin: 0 }, children: activeEmail.text || "" }) }) : /* @__PURE__ */ (0, import_jsx_runtime57.jsx)("pre", { style: { whiteSpace: "pre-wrap", margin: 0, background: "#111", color: "#eee", padding: 12, borderRadius: 6, minHeight: "60vh", overflow: "auto" }, children: activeEmail.raw || activeEmail.text || "" }) })
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(tab_panel_default, { className: "email-tabs", activeClass: "is-active", onSelect: (n) => setEmailViewTab(n), tabs: [{ name: "rendered", title: "Rendered" }, { name: "raw", title: "Raw" }], children: (tab) => tab.name === "rendered" ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { border: "1px solid #ddd", borderRadius: 6, padding: 12, minHeight: "60vh", background: "#fff" }, children: activeEmail.html ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { dangerouslySetInnerHTML: { __html: String(activeEmail.html) } }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("pre", { style: { whiteSpace: "pre-wrap", margin: 0 }, children: activeEmail.text || "" }) }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("pre", { style: { whiteSpace: "pre-wrap", margin: 0, background: "#111", color: "#eee", padding: 12, borderRadius: 6, minHeight: "60vh", overflow: "auto" }, children: activeEmail.raw || activeEmail.text || "" }) })
           ] })
         }
       )
     ] });
   }
   var root = (0, import_client2.createRoot)(document.getElementById("root"));
-  root.render(/* @__PURE__ */ (0, import_jsx_runtime57.jsx)(App, {}));
+  root.render(/* @__PURE__ */ (0, import_jsx_runtime60.jsx)(App, {}));
 })();
 /*! Bundled license information:
 
