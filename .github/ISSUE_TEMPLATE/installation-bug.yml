@@ -1,0 +1,72 @@
+name: Installation issue
+description: Report a problem installing or launching the WordPress Core Dev Contributor Kit
+labels: ["bug", "installation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an installation issue!
+        Please fill in as much detail as you can — it helps us diagnose the problem much faster.
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      description: "macOS: run `sw_vers` in Terminal. Windows: Settings > System > About."
+      placeholder: "e.g. macOS 15.4"
+    validations:
+      required: true
+
+  - type: input
+    id: architecture
+    attributes:
+      label: Architecture (macOS only)
+      description: "Run `uname -m` in Terminal — returns `arm64` (Apple Silicon) or `x86_64` (Intel)."
+      placeholder: "e.g. arm64"
+
+  - type: input
+    id: download-source
+    attributes:
+      label: Where did you download the app from?
+      description: Please provide the exact URL or describe where you got it (e.g. GitHub Releases page, a blog post link, etc.).
+      placeholder: "e.g. https://github.com/WordPress/experimental-wp-dev-env/releases/tag/v1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Shown in the app's About screen or in the downloaded filename.
+      placeholder: "e.g. v1.0.0"
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the problem. Include the exact error message or attach a screenshot.
+      placeholder: "When I try to open the app I see..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: gatekeeper
+    attributes:
+      label: Gatekeeper status (macOS only, optional)
+      description: |
+        If you see a message like "can't be opened because Apple cannot check it for malicious software", run the following and paste the output here:
+        ```
+        spctl -a -vv /path/to/App.app
+        ```
+      render: shell
