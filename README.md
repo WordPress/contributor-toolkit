@@ -51,12 +51,13 @@ Once your environment is running, generating a patch to submit to Trac takes jus
     - **Windows:** `windows-release-*.exe`
     - **Linux:** `linux-release-*.AppImage`
 2. Open the app
-3. If on mac, sign it and remove it from the quarantine – the app is not officially signed at this point. First, make sure you have a code signing identity: [apple guide](https://support.apple.com/guide/keychain-access/create-self-signed-certificates-kyca8916/mac), [StackOverflow thread](https://stackoverflow.com/questions/27474751/how-can-i-codesign-an-app-without-being-in-the-mac-developer-program). Then, follow these steps with the downloaded WordPress Contributor Toolkit .app file:
-    ```
-    ❯ security find-identity -p codesigning
-    ❯ codesign --deep --force --verify --verbose --sign "selfsigned" "WordPress Contributor Toolkit.app"
-    ❯ xattr -d com.apple.quarantine "WordPress Contributor Toolkit.app"
-    ```
+3. **macOS only:** The app is signed and notarized by Automattic. macOS should open it without issues. If Gatekeeper still blocks the app (this can happen when the file was downloaded via a browser), try either of these:
+    - Right-click the `.app` file and choose **Open**, then confirm in the dialog that appears.
+    - Or remove the quarantine attribute from the `.app` bundle itself:
+      ```
+      xattr -d com.apple.quarantine "WordPress Contributor Toolkit.app"
+      ```
+      > **Note:** Use `-d`, **not** `-dr`. The app is code-signed; using the recursive flag (`-r`) tries to strip attributes from files inside the sealed bundle, which macOS will reject with permission errors. Removing the attribute from the top-level bundle is sufficient.
 4. Click "Create WordPress Core site" and choose a destination folder for your site.
 5. Click "Install dependencies"
 6. Click "Run command > npm run build"
