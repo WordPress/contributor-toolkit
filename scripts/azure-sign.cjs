@@ -12,17 +12,18 @@ const { spawnSync } = require('node:child_process');
 
 const REQUIRED_ENV_VARS = ['SIGNTOOL_PATH', 'AZURE_CODE_SIGNING_DLIB', 'AZURE_METADATA_JSON'];
 
+function nonBlank(value) {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
+}
+
 function shouldSign(env) {
-  return REQUIRED_ENV_VARS.every((name) => {
-    const value = env[name];
-    return typeof value === 'string' && value.trim() !== '';
-  });
+  return REQUIRED_ENV_VARS.every((name) => nonBlank(env[name]) !== undefined);
 }
 
 function buildSigntoolArgs(file, env) {
-  const fileDigest = env.AZURE_FILE_DIGEST || 'SHA256';
-  const timestampServer = env.AZURE_TIMESTAMP_SERVER || 'http://timestamp.acs.microsoft.com';
-  const timestampDigest = env.AZURE_TIMESTAMP_DIGEST || 'SHA256';
+  const fileDigest = nonBlank(env.AZURE_FILE_DIGEST) || 'SHA256';
+  const timestampServer = nonBlank(env.AZURE_TIMESTAMP_SERVER) || 'http://timestamp.acs.microsoft.com';
+  const timestampDigest = nonBlank(env.AZURE_TIMESTAMP_DIGEST) || 'SHA256';
 
   // `/debug` surfaces Azure auth/quota/network diagnostics on failure instead of a generic
   // SignTool error.

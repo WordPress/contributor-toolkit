@@ -43,6 +43,19 @@ test('buildSigntoolArgs signs SHA256-only with dlib, metadata, timestamp, and ta
   assert.ok(!args.includes('SHA1'));
 });
 
+test('buildSigntoolArgs falls back to defaults when overrides are blank', () => {
+  const args = buildSigntoolArgs('app.exe', {
+    ...FULL_ENV,
+    AZURE_FILE_DIGEST: '   ',
+    AZURE_TIMESTAMP_SERVER: '',
+    AZURE_TIMESTAMP_DIGEST: '\t',
+  });
+
+  assert.equal(valueAfter(args, '/fd'), 'SHA256');
+  assert.equal(valueAfter(args, '/tr'), 'http://timestamp.acs.microsoft.com');
+  assert.equal(valueAfter(args, '/td'), 'SHA256');
+});
+
 test('buildSigntoolArgs honors the toolkit-exported digest/timestamp overrides', () => {
   const args = buildSigntoolArgs('app.exe', {
     ...FULL_ENV,
