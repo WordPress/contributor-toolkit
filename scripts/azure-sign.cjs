@@ -34,8 +34,8 @@ function buildSigntoolArgs(file, env) {
     '/fd', fileDigest,
     '/tr', timestampServer,
     '/td', timestampDigest,
-    '/dlib', env.AZURE_CODE_SIGNING_DLIB,
-    '/dmdf', env.AZURE_METADATA_JSON,
+    '/dlib', nonBlank(env.AZURE_CODE_SIGNING_DLIB),
+    '/dmdf', nonBlank(env.AZURE_METADATA_JSON),
     file,
   ];
 }
@@ -52,7 +52,7 @@ module.exports = async function sign(configuration) {
   }
 
   console.log(`[azure-sign] Signing ${file} with Azure Trusted Signing`);
-  const result = spawnSync(env.SIGNTOOL_PATH, buildSigntoolArgs(file, env), { stdio: 'inherit' });
+  const result = spawnSync(nonBlank(env.SIGNTOOL_PATH), buildSigntoolArgs(file, env), { stdio: 'inherit' });
 
   if (result.error) {
     throw result.error;

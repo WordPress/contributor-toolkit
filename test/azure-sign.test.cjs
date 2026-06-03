@@ -43,6 +43,17 @@ test('buildSigntoolArgs signs SHA256-only with dlib, metadata, timestamp, and ta
   assert.ok(!args.includes('SHA1'));
 });
 
+test('buildSigntoolArgs trims surrounding whitespace from dlib and metadata paths', () => {
+  const args = buildSigntoolArgs('app.exe', {
+    ...FULL_ENV,
+    AZURE_CODE_SIGNING_DLIB: '  C:/pkg/Azure.CodeSigning.Dlib.dll  ',
+    AZURE_METADATA_JSON: '\tC:/tmp/metadata.json\n',
+  });
+
+  assert.equal(valueAfter(args, '/dlib'), 'C:/pkg/Azure.CodeSigning.Dlib.dll');
+  assert.equal(valueAfter(args, '/dmdf'), 'C:/tmp/metadata.json');
+});
+
 test('buildSigntoolArgs falls back to defaults when overrides are blank', () => {
   const args = buildSigntoolArgs('app.exe', {
     ...FULL_ENV,
