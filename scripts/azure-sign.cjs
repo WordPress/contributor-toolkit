@@ -57,6 +57,9 @@ module.exports = async function sign(configuration) {
   if (result.error) {
     throw result.error;
   }
+  if (result.signal) {
+    throw new Error(`[azure-sign] signtool terminated by signal ${result.signal} signing ${file}`);
+  }
   if (result.status !== 0) {
     throw new Error(`[azure-sign] signtool exited with code ${result.status} signing ${file}`);
   }
