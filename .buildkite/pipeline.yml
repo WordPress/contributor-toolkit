@@ -20,6 +20,12 @@ steps:
 
       echo "~~~ Build Windows artifact"
       npm run dist:win
+
+      echo "~~~ Verify Azure Trusted Signing signature"
+      Get-ChildItem dist\*.exe | ForEach-Object {
+        & $env:SIGNTOOL_PATH verify /pa /v $_.FullName
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      }
     artifact_paths:
       - dist\*.exe
       - dist\*.msi
