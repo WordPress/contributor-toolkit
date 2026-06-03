@@ -12,7 +12,8 @@
     "postinstall": "electron-builder install-app-deps",
     "dist:win": "electron-builder --win --publish never",
     "dist:win:arm64": "electron-builder --win --arm64 --publish never",
-    "dist": "electron-builder --publish never"
+    "dist": "electron-builder --publish never",
+    "test": "node --test"
   },
   "build": {
     "appId": "org.wordpress.contributor.toolkit",
@@ -23,6 +24,10 @@
     "icon": "build/icon.png",
     "win": {
       "icon": "build/icon.ico",
+      "sign": "./scripts/azure-sign.cjs",
+      "signingHashAlgorithms": [
+        "sha256"
+      ],
       "target": [
         {
           "target": "nsis",
