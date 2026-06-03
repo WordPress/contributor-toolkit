@@ -28,7 +28,6 @@ steps:
       }
     artifact_paths:
       - dist\*.exe
-      - dist\*.msi
     notify:
       - github_commit_status: { context: "Windows Build" }
 
