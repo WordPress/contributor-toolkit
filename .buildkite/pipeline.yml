@@ -54,6 +54,9 @@ steps:
 
       echo "~~~ Build macOS artifact"
       npm run dist
+
+      echo "~~~ Verify macOS code signing"
+      bundle exec fastlane verify_code_signing
     artifact_paths:
       - dist/*.dmg
       - dist/*.zip
