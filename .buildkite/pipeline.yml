@@ -43,9 +43,6 @@ steps:
       echo "~~~ Setup code signing"
       source .buildkite/commands/setup_macos_code_signing.sh
 
-      echo "~~~ Code signing diagnostics (AINFRA-2597 probe)"
-      .buildkite/commands/diagnose_macos_code_signing.sh
-
       echo "~~~ Install dependencies"
       .buildkite/commands/install_node_dependencies.sh
 
