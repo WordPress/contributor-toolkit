@@ -505,7 +505,10 @@ ipcMain.handle('dir:open', async (_e, directoryPath) => {
 
 const editorCommands = {
 	vscode: {
-		darwin: 'code',
+		// 'code' is only resolved as a fixed app-bundle path is not checked; the
+		// CLI shim path is added as a fallback since apps launched from Finder/Dock
+		// don't inherit the shell PATH where VS Code's "code" shim usually lives.
+		darwin: ['code', '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code'],
 		linux: 'code',
 		win32: 'code.cmd'
 	},
@@ -521,32 +524,50 @@ const editorCommands = {
 	}
 };
 
+// GUI apps launched from Finder/Dock on macOS get a minimal default PATH and
+// don't inherit the shell-populated PATH (nvm, Homebrew, VS Code's own
+// "install 'code' command in PATH" shim, etc). Augment PATH with the common
+// install locations so `which` can still find these commands.
+const MAC_FALLBACK_BIN_DIRS = ['/usr/local/bin', '/opt/homebrew/bin', path.join(os.homedir(), '.local/bin')];
+
+async function commandExistsInPath(command, platform) {
+	return new Promise((resolve) => {
+		const which = platform === 'win32' ? 'where' : 'which';
+		const env = platform === 'darwin'
+			? { ...process.env, PATH: `${MAC_FALLBACK_BIN_DIRS.join(':')}:${process.env.PATH || ''}` }
+			: process.env;
+		const proc = spawn(which, [command], { stdio: 'ignore', env });
+		proc.on('close', (code) => resolve(code === 0));
+		proc.on('error', () => resolve(false));
+	});
+}
+
 async function checkEditorAvailable(editor) {
 	const platform = process.platform;
 	const editorConfig = editorCommands[editor];
 
 	if (!editorConfig) return false;
 
-	const command = editorConfig[platform];
-	if (!command) return false;
+	const commands = editorConfig[platform];
+	if (!commands) return false;
 
-	// For macOS app bundles, check if the path exists
-	if (platform === 'darwin' && command.startsWith('/Applications')) {
-		try {
-			await fs.promises.access(command, fs.constants.X_OK);
-			return true;
-		} catch {
-			return false;
+	const candidates = Array.isArray(commands) ? commands : [commands];
+
+	for (const command of candidates) {
+		// For macOS app bundles, check if the path exists directly
+		if (platform === 'darwin' && command.startsWith('/Applications')) {
+			try {
+				await fs.promises.access(command, fs.constants.X_OK);
+				return true;
+			} catch {
+				continue;
+			}
 		}
+
+		if (await commandExistsInPath(command, platform)) return true;
 	}
 
-	// For command-line tools, try to find them in PATH
-	return new Promise((resolve) => {
-		const which = platform === 'win32' ? 'where' : 'which';
-		const proc = spawn(which, [command], { stdio: 'ignore' });
-		proc.on('close', (code) => resolve(code === 0));
-		proc.on('error', () => resolve(false));
-	});
+	return false;
 }
 
 ipcMain.handle('editor:check-available', async (_e) => {
