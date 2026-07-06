@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { shouldSign, buildSigntoolArgs } = require('../scripts/azure-sign.cjs');
+const { shouldSign, buildSigntoolArgs, signtoolTimeoutMs } = require('../scripts/azure-sign.cjs');
 
 const FULL_ENV = {
   SIGNTOOL_PATH: 'C:/sdk/x64/signtool.exe',
@@ -41,6 +41,13 @@ test('buildSigntoolArgs signs SHA256-only with dlib, metadata, timestamp, and ta
   assert.equal(valueAfter(args, '/dmdf'), FULL_ENV.AZURE_METADATA_JSON);
   assert.equal(args.at(-1), 'app.exe');
   assert.ok(!args.includes('SHA1'));
+  assert.ok(!args.includes('/debug'));
+});
+
+test('buildSigntoolArgs includes debug diagnostics only when enabled', () => {
+  const args = buildSigntoolArgs('app.exe', { ...FULL_ENV, AZURE_SIGN_DEBUG: 'true' });
+
+  assert.ok(args.includes('/debug'));
 });
 
 test('buildSigntoolArgs trims surrounding whitespace from dlib and metadata paths', () => {
@@ -78,4 +85,18 @@ test('buildSigntoolArgs honors the toolkit-exported digest/timestamp overrides',
   assert.equal(valueAfter(args, '/fd'), 'SHA384');
   assert.equal(valueAfter(args, '/tr'), 'http://ts.example/test');
   assert.equal(valueAfter(args, '/td'), 'SHA512');
+});
+
+test('signtoolTimeoutMs defaults to ten minutes', () => {
+  assert.equal(signtoolTimeoutMs({}), 10 * 60 * 1000);
+});
+
+test('signtoolTimeoutMs honors positive SIGNTOOL_TIMEOUT values', () => {
+  assert.equal(signtoolTimeoutMs({ SIGNTOOL_TIMEOUT: '30000' }), 30000);
+});
+
+test('signtoolTimeoutMs ignores blank, invalid, and zero SIGNTOOL_TIMEOUT values', () => {
+  assert.equal(signtoolTimeoutMs({ SIGNTOOL_TIMEOUT: '   ' }), 10 * 60 * 1000);
+  assert.equal(signtoolTimeoutMs({ SIGNTOOL_TIMEOUT: 'soon' }), 10 * 60 * 1000);
+  assert.equal(signtoolTimeoutMs({ SIGNTOOL_TIMEOUT: '0' }), 10 * 60 * 1000);
 });

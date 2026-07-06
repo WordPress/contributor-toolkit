@@ -11,6 +11,7 @@
 const { spawnSync } = require('node:child_process');
 
 const REQUIRED_ENV_VARS = ['SIGNTOOL_PATH', 'AZURE_CODE_SIGNING_DLIB', 'AZURE_METADATA_JSON'];
+const DEFAULT_SIGNTOOL_TIMEOUT_MS = 10 * 60 * 1000;
 
 function nonBlank(value) {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
@@ -20,17 +21,28 @@ function shouldSign(env) {
   return REQUIRED_ENV_VARS.every((name) => nonBlank(env[name]) !== undefined);
 }
 
+function signtoolTimeoutMs(env) {
+  const rawTimeout = nonBlank(env.SIGNTOOL_TIMEOUT);
+  if (rawTimeout === undefined || !/^\d+$/.test(rawTimeout)) {
+    return DEFAULT_SIGNTOOL_TIMEOUT_MS;
+  }
+
+  const timeout = Number.parseInt(rawTimeout, 10);
+  return timeout > 0 ? timeout : DEFAULT_SIGNTOOL_TIMEOUT_MS;
+}
+
+function debugEnabled(env) {
+  return ['1', 'true', 'yes'].includes((nonBlank(env.AZURE_SIGN_DEBUG) || '').toLowerCase());
+}
+
 function buildSigntoolArgs(file, env) {
   const fileDigest = nonBlank(env.AZURE_FILE_DIGEST) || 'SHA256';
   const timestampServer = nonBlank(env.AZURE_TIMESTAMP_SERVER) || 'http://timestamp.acs.microsoft.com';
   const timestampDigest = nonBlank(env.AZURE_TIMESTAMP_DIGEST) || 'SHA256';
 
-  // `/debug` surfaces Azure auth/quota/network diagnostics on failure instead of a generic
-  // SignTool error.
-  return [
+  const args = [
     'sign',
     '/v',
-    '/debug',
     '/fd', fileDigest,
     '/tr', timestampServer,
     '/td', timestampDigest,
@@ -38,6 +50,13 @@ function buildSigntoolArgs(file, env) {
     '/dmdf', nonBlank(env.AZURE_METADATA_JSON),
     file,
   ];
+
+  // `/debug` can expose Azure account/profile diagnostics in CI logs, so keep it opt-in.
+  if (debugEnabled(env)) {
+    args.splice(2, 0, '/debug');
+  }
+
+  return args;
 }
 
 module.exports = async function sign(configuration) {
@@ -52,9 +71,16 @@ module.exports = async function sign(configuration) {
   }
 
   console.log(`[azure-sign] Signing ${file} with Azure Trusted Signing`);
-  const result = spawnSync(nonBlank(env.SIGNTOOL_PATH), buildSigntoolArgs(file, env), { stdio: 'inherit' });
+  const timeout = signtoolTimeoutMs(env);
+  const result = spawnSync(nonBlank(env.SIGNTOOL_PATH), buildSigntoolArgs(file, env), {
+    stdio: 'inherit',
+    timeout,
+  });
 
   if (result.error) {
+    if (result.error.code === 'ETIMEDOUT') {
+      throw new Error(`[azure-sign] signtool timed out after ${timeout}ms signing ${file}`);
+    }
     throw result.error;
   }
   if (result.signal) {
@@ -67,3 +93,4 @@ module.exports = async function sign(configuration) {
 
 module.exports.shouldSign = shouldSign;
 module.exports.buildSigntoolArgs = buildSigntoolArgs;
+module.exports.signtoolTimeoutMs = signtoolTimeoutMs;
