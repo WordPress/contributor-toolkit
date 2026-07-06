@@ -9,27 +9,53 @@ steps:
     agents: { queue: windows }
     plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
     command: |
+      $ErrorActionPreference = "Stop"
+
+      function Invoke-NativeCommand {
+        param (
+          [Parameter(Mandatory = $true)]
+          [string]$FilePath,
+          [Parameter(ValueFromRemainingArguments = $true)]
+          [string[]]$ArgumentList
+        )
+
+        & $FilePath @ArgumentList
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      }
+
       echo "~~~ Setup code signing"
       .buildkite/commands/setup_windows_code_signing.ps1
 
       echo "~~~ Install dependencies"
-      bash .buildkite/commands/install_node_dependencies.sh
+      Invoke-NativeCommand bash .buildkite/commands/install_node_dependencies.sh
 
       echo "~~~ Build renderer"
-      npm run build:once
+      Invoke-NativeCommand npm run build:once
 
       echo "~~~ Build Windows artifact"
-      npm run dist:win
+      Invoke-NativeCommand npm run dist:win
 
       echo "~~~ Verify Azure Trusted Signing signature"
-      Get-ChildItem dist\*.exe | ForEach-Object {
-        & $env:SIGNTOOL_PATH verify /pa /v $_.FullName
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      }
+      .buildkite/commands/verify_windows_signature.ps1
     artifact_paths:
       - dist\*.exe
     notify:
       - github_commit_status: { context: "Windows Build" }
+
+  ########################################################
+  # Tests
+  ########################################################
+  - label: ":node: Tests"
+    agents: { queue: default }
+    plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
+    command: |
+      echo "~~~ Install dependencies"
+      .buildkite/commands/install_node_dependencies.sh
+
+      echo "~~~ Run tests"
+      npm test
+    notify:
+      - github_commit_status: { context: "Tests" }
 
   ########################################################
   # macOS build
