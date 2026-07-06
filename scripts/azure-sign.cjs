@@ -12,6 +12,7 @@ const { spawnSync } = require('node:child_process');
 
 const REQUIRED_ENV_VARS = ['SIGNTOOL_PATH', 'AZURE_CODE_SIGNING_DLIB', 'AZURE_METADATA_JSON'];
 const DEFAULT_SIGNTOOL_TIMEOUT_MS = 10 * 60 * 1000;
+const MAX_SIGNTOOL_TIMEOUT_MS = 60 * 60 * 1000;
 
 function nonBlank(value) {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
@@ -28,7 +29,11 @@ function signtoolTimeoutMs(env) {
   }
 
   const timeout = Number.parseInt(rawTimeout, 10);
-  return timeout > 0 ? timeout : DEFAULT_SIGNTOOL_TIMEOUT_MS;
+  if (!Number.isSafeInteger(timeout) || timeout <= 0 || timeout > MAX_SIGNTOOL_TIMEOUT_MS) {
+    return DEFAULT_SIGNTOOL_TIMEOUT_MS;
+  }
+
+  return timeout;
 }
 
 function debugEnabled(env) {
@@ -43,6 +48,7 @@ function buildSigntoolArgs(file, env) {
   const args = [
     'sign',
     '/v',
+    ...(debugEnabled(env) ? ['/debug'] : []),
     '/fd', fileDigest,
     '/tr', timestampServer,
     '/td', timestampDigest,
@@ -50,11 +56,6 @@ function buildSigntoolArgs(file, env) {
     '/dmdf', nonBlank(env.AZURE_METADATA_JSON),
     file,
   ];
-
-  // `/debug` can expose Azure account/profile diagnostics in CI logs, so keep it opt-in.
-  if (debugEnabled(env)) {
-    args.splice(2, 0, '/debug');
-  }
 
   return args;
 }

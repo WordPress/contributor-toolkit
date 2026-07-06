@@ -48,6 +48,7 @@ test('buildSigntoolArgs includes debug diagnostics only when enabled', () => {
   const args = buildSigntoolArgs('app.exe', { ...FULL_ENV, AZURE_SIGN_DEBUG: 'true' });
 
   assert.ok(args.includes('/debug'));
+  assert.deepEqual(args.slice(0, 6), ['sign', '/v', '/debug', '/fd', 'SHA256', '/tr']);
 });
 
 test('buildSigntoolArgs trims surrounding whitespace from dlib and metadata paths', () => {
@@ -99,4 +100,9 @@ test('signtoolTimeoutMs ignores blank, invalid, and zero SIGNTOOL_TIMEOUT values
   assert.equal(signtoolTimeoutMs({ SIGNTOOL_TIMEOUT: '   ' }), 10 * 60 * 1000);
   assert.equal(signtoolTimeoutMs({ SIGNTOOL_TIMEOUT: 'soon' }), 10 * 60 * 1000);
   assert.equal(signtoolTimeoutMs({ SIGNTOOL_TIMEOUT: '0' }), 10 * 60 * 1000);
+});
+
+test('signtoolTimeoutMs ignores unsafe and over-limit SIGNTOOL_TIMEOUT values', () => {
+  assert.equal(signtoolTimeoutMs({ SIGNTOOL_TIMEOUT: '3600001' }), 10 * 60 * 1000);
+  assert.equal(signtoolTimeoutMs({ SIGNTOOL_TIMEOUT: '999999999999999999999999999999999999999' }), 10 * 60 * 1000);
 });
