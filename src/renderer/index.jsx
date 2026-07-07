@@ -740,6 +740,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     }
   }, [closeRenameModal]);
   const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : '';
+  const [pathCopied, setPathCopied] = useState(false);
+  const copyPath = useCallback(async () => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(sitePath);
+        setPathCopied(true);
+        setTimeout(() => setPathCopied(false), 1500);
+      } else {
+        throw new Error('Clipboard access is not available in this environment');
+      }
+    } catch (err) {
+      alert('Unable to copy path: ' + err);
+    }
+  }, [sitePath]);
 
   const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
   const appendRuntime = useCallback((s)=>setRuntimeLogs((v)=>v + String(s ?? '')),[]);
@@ -1402,26 +1416,26 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
             </span>
             {createdLabel ? <span>Created {createdLabel}</span> : null}
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
+            <code style={{ fontSize: 12, color: '#3c434a', background: '#f0f0f1', padding: '2px 6px', borderRadius: 4, overflowWrap: 'anywhere' }}>
+              {sitePath}
+            </code>
+            <Button
+              icon={copyIcon}
+              label={pathCopied ? 'Copied!' : 'Copy path'}
+              aria-label="Copy path"
+              onClick={copyPath}
+              variant="tertiary"
+              isSmall
+            />
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
           <DropdownMenu
             label="More"
             text=""
             controls={[
-              {
-                title: 'Copy path',
-                onClick: async () => {
-                  try {
-                    if (navigator?.clipboard?.writeText) {
-                      await navigator.clipboard.writeText(sitePath);
-                    } else {
-                      throw new Error('Clipboard access is not available in this environment');
-                    }
-                  } catch (err) {
-                    alert('Unable to copy path: ' + err);
-                  }
-                }
-              },
+              { title: 'Copy path', onClick: copyPath },
               { title:'Forget this site', onClick:()=>confirmAnd('Remove this site from the list?', ()=>onForget(sitePath)) },
               { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
             ]}

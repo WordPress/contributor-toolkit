@@ -53999,6 +53999,20 @@ If there's a particular need for this, please submit a feature request at https:
       }
     }, [closeRenameModal]);
     const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : "";
+    const [pathCopied, setPathCopied] = (0, import_react69.useState)(false);
+    const copyPath = (0, import_react69.useCallback)(async () => {
+      try {
+        if (navigator?.clipboard?.writeText) {
+          await navigator.clipboard.writeText(sitePath);
+          setPathCopied(true);
+          setTimeout(() => setPathCopied(false), 1500);
+        } else {
+          throw new Error("Clipboard access is not available in this environment");
+        }
+      } catch (err) {
+        alert("Unable to copy path: " + err);
+      }
+    }, [sitePath]);
     const appendNpm = (0, import_react69.useCallback)((s) => setNpmLogs((v) => v + s), []);
     const appendRuntime = (0, import_react69.useCallback)((s) => setRuntimeLogs((v) => v + String(s ?? "")), []);
     const sortEmails = (0, import_react69.useCallback)((list) => [...list].sort((a, b) => new Date(b.sentAt || b.date || 0) - new Date(a.sentAt || a.date || 0)), []);
@@ -54688,6 +54702,20 @@ Try "help" for the list of supported commands.
               "Created ",
               createdLabel
             ] }) : null
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 4, marginTop: 6 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("code", { style: { fontSize: 12, color: "#3c434a", background: "#f0f0f1", padding: "2px 6px", borderRadius: 4, overflowWrap: "anywhere" }, children: sitePath }),
+            /* @__PURE__ */ (0, import_jsx_runtime59.jsx)(
+              button_default,
+              {
+                icon: copy_default,
+                label: pathCopied ? "Copied!" : "Copy path",
+                "aria-label": "Copy path",
+                onClick: copyPath,
+                variant: "tertiary",
+                isSmall: true
+              }
+            )
           ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { style: { display: "flex", alignItems: "flex-start", gap: 8 }, children: /* @__PURE__ */ (0, import_jsx_runtime59.jsx)(
@@ -54696,20 +54724,7 @@ Try "help" for the list of supported commands.
             label: "More",
             text: "",
             controls: [
-              {
-                title: "Copy path",
-                onClick: async () => {
-                  try {
-                    if (navigator?.clipboard?.writeText) {
-                      await navigator.clipboard.writeText(sitePath);
-                    } else {
-                      throw new Error("Clipboard access is not available in this environment");
-                    }
-                  } catch (err) {
-                    alert("Unable to copy path: " + err);
-                  }
-                }
-              },
+              { title: "Copy path", onClick: copyPath },
               { title: "Forget this site", onClick: () => confirmAnd("Remove this site from the list?", () => onForget(sitePath)) },
               { title: "Delete this site", onClick: () => confirmAnd("Delete this site from disk? This cannot be undone.", () => onDelete(sitePath)) }
             ]
