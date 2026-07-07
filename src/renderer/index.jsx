@@ -1423,7 +1423,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
             <Button
               icon={copyIcon}
               label={pathCopied ? 'Copied!' : 'Copy path'}
-              aria-label="Copy path"
+              aria-label={pathCopied ? 'Copied!' : 'Copy path'}
               onClick={copyPath}
               variant="tertiary"
               isSmall
