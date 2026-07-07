@@ -54000,17 +54000,21 @@ If there's a particular need for this, please submit a feature request at https:
     }, [closeRenameModal]);
     const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : "";
     const [pathCopied, setPathCopied] = (0, import_react69.useState)(false);
+    const copyTimeoutRef = (0, import_react69.useRef)(null);
+    (0, import_react69.useEffect)(() => () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    }, []);
     const copyPath = (0, import_react69.useCallback)(async () => {
       try {
-        if (navigator?.clipboard?.writeText) {
-          await navigator.clipboard.writeText(sitePath);
-          setPathCopied(true);
-          setTimeout(() => setPathCopied(false), 1500);
-        } else {
+        if (!navigator?.clipboard?.writeText) {
           throw new Error("Clipboard access is not available in this environment");
         }
+        await navigator.clipboard.writeText(sitePath);
+        setPathCopied(true);
+        if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+        copyTimeoutRef.current = setTimeout(() => setPathCopied(false), 1500);
       } catch (err) {
-        alert("Unable to copy path: " + err);
+        alert("Unable to copy path: " + (err?.message ?? String(err)));
       }
     }, [sitePath]);
     const appendNpm = (0, import_react69.useCallback)((s) => setNpmLogs((v) => v + s), []);
@@ -54710,7 +54714,7 @@ Try "help" for the list of supported commands.
               {
                 icon: copy_default,
                 label: pathCopied ? "Copied!" : "Copy path",
-                "aria-label": "Copy path",
+                "aria-label": pathCopied ? "Copied!" : "Copy path",
                 onClick: copyPath,
                 variant: "tertiary",
                 isSmall: true
