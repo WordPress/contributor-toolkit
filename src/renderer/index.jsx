@@ -11,7 +11,7 @@ import {
   TextControl,
   Spinner
 } from '@wordpress/components';
-import { plus, chevronLeft, chevronRight, copy as copyIcon, edit, download } from '@wordpress/icons';
+import { plus, chevronLeft, chevronRight, copy as copyIcon, check as checkIcon, edit, download } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
@@ -1427,7 +1427,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               {sitePath}
             </code>
             <Button
-              icon={copyIcon}
+              icon={pathCopied ? checkIcon : copyIcon}
               label={pathCopied ? 'Copied!' : 'Copy path'}
               aria-label={pathCopied ? 'Copied!' : 'Copy path'}
               onClick={copyPath}
