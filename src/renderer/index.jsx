@@ -741,17 +741,23 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   }, [closeRenameModal]);
   const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : '';
   const [pathCopied, setPathCopied] = useState(false);
+  const copyTimeoutRef = useRef(null);
+
+  useEffect(() => () => {
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+  }, []);
+
   const copyPath = useCallback(async () => {
     try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(sitePath);
-        setPathCopied(true);
-        setTimeout(() => setPathCopied(false), 1500);
-      } else {
+      if (!navigator?.clipboard?.writeText) {
         throw new Error('Clipboard access is not available in this environment');
       }
+      await navigator.clipboard.writeText(sitePath);
+      setPathCopied(true);
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => setPathCopied(false), 1500);
     } catch (err) {
-      alert('Unable to copy path: ' + err);
+      alert('Unable to copy path: ' + (err?.message ?? String(err)));
     }
   }, [sitePath]);
 
