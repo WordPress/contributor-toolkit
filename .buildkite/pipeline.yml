@@ -46,7 +46,6 @@ steps:
   # Tests
   ########################################################
   - label: ":node: Tests"
-    agents: { queue: default }
     plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
     command: |
       echo "~~~ Install dependencies"
