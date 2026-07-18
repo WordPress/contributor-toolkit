@@ -5,4 +5,4 @@
 
 export CI_TOOLKIT=automattic/a8c-ci-toolkit#6.1.0
 export NVM_PLUGIN=automattic/nvm#0.6.0
-export IMAGE_ID=xcode-26.0
+export IMAGE_ID=xcode-26.6
