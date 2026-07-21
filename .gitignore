@@ -1,6 +1,7 @@
 # Misc
 .DS_Store
 smtpd
+CLAUDE.local.md
 
 # Node
 node_modules
