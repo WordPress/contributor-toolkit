@@ -53,6 +53,8 @@ function App() {
   const [webAvailable, setWebAvailable] = useState(false);
   useEffect(() => { (async () => { try { setWebAvailable(Boolean(await window.api.playgroundWebAvailable())); } catch {} })(); }, []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [feedbackFormUrl, setFeedbackFormUrl] = useState(null);
+  useEffect(() => { (async () => { try { setFeedbackFormUrl(await window.api.getFeedbackFormUrl()); } catch {} })(); }, []);
   const [activeSite, setActiveSite] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createSiteName, setCreateSiteName] = useState('');
@@ -559,6 +561,7 @@ function App() {
                       onRename={onRename}
                       isPending={Boolean(pendingSite && pendingSite.targetDir === s)}
                       setupLogs={setupLogsBySite[s] || ''}
+                      feedbackFormUrl={feedbackFormUrl}
                     />
                   </div>
                 ))
@@ -635,7 +638,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '' }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '', feedbackFormUrl }) {
   const safeOnRename = onRename || (() => {});
   // state
   const [serverUrl, setServerUrl] = useState('');
@@ -1550,6 +1553,25 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
                 style={{ padding: '10px 16px', borderRadius: 10 }}
               >Open Adminer</Button>
             ) : null}
+            <a
+              href="#"
+              onClick={(e) => { e.preventDefault(); if (feedbackFormUrl) window.api.openExternal(feedbackFormUrl); }}
+              onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
+              title={feedbackFormUrl ? undefined : 'Feedback form not configured (missing FEEDBACK_FORM_URL)'}
+              style={{
+                marginLeft: 'auto',
+                alignSelf: 'center',
+                color: feedbackFormUrl ? '#3858e9' : '#757575',
+                cursor: feedbackFormUrl ? 'pointer' : 'default',
+                textDecoration: 'none',
+                fontFamily: 'inherit',
+                fontWeight: 600,
+                fontSize: 15
+              }}
+            >
+              💬 Share feedback
+            </a>
           </div>
           {(isServerStarting || serverUrl) ? (
             <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>

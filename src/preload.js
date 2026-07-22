@@ -43,6 +43,8 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	openExternal: (url) => ipcRenderer.invoke('url:open', url)
 ,
+	getFeedbackFormUrl: () => ipcRenderer.invoke('config:get-feedback-form-url')
+,
 	markSiteInitialized: (sitePath) => ipcRenderer.invoke('sites:mark-initialized', sitePath)
 ,
 	forgetSite: (sitePath) => ipcRenderer.invoke('sites:forget', sitePath)

@@ -503,6 +503,8 @@ ipcMain.handle('url:open', async (_e, url) => {
 	return true;
 });
 
+ipcMain.handle('config:get-feedback-form-url', () => 'https://forms.gle/ixXg4ogq9MwgnXHe7');
+
 ipcMain.handle('npm:install', async (event, directoryPath) => {
 	if (!directoryPath) throw new Error('directoryPath is required');
 

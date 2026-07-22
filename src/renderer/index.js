@@ -53365,6 +53365,15 @@ If there's a particular need for this, please submit a feature request at https:
       })();
     }, []);
     const [sidebarCollapsed, setSidebarCollapsed] = (0, import_react69.useState)(false);
+    const [feedbackFormUrl, setFeedbackFormUrl] = (0, import_react69.useState)(null);
+    (0, import_react69.useEffect)(() => {
+      (async () => {
+        try {
+          setFeedbackFormUrl(await window.api.getFeedbackFormUrl());
+        } catch {
+        }
+      })();
+    }, []);
     const [activeSite, setActiveSite] = (0, import_react69.useState)(null);
     const [createModalOpen, setCreateModalOpen] = (0, import_react69.useState)(false);
     const [createSiteName, setCreateSiteName] = (0, import_react69.useState)("");
@@ -53831,7 +53840,8 @@ If there's a particular need for this, please submit a feature request at https:
                   onDelete,
                   onRename,
                   isPending: Boolean(pendingSite && pendingSite.targetDir === s),
-                  setupLogs: setupLogsBySite[s] || ""
+                  setupLogs: setupLogsBySite[s] || "",
+                  feedbackFormUrl
                 }
               )
             },
@@ -53907,7 +53917,7 @@ If there's a particular need for this, please submit a feature request at https:
       ) : null
     ] });
   }
-  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = "" }) {
+  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = "", feedbackFormUrl }) {
     const safeOnRename = onRename || (() => {
     });
     const [serverUrl, setServerUrl] = (0, import_react69.useState)("");
@@ -54849,7 +54859,35 @@ Try "help" for the list of supported commands.
               style: { padding: "10px 16px", borderRadius: 10 },
               children: "Open Adminer"
             }
-          ) : null
+          ) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+            "a",
+            {
+              href: "#",
+              onClick: (e) => {
+                e.preventDefault();
+                if (feedbackFormUrl) window.api.openExternal(feedbackFormUrl);
+              },
+              onMouseEnter: (e) => {
+                e.currentTarget.style.textDecoration = "underline";
+              },
+              onMouseLeave: (e) => {
+                e.currentTarget.style.textDecoration = "none";
+              },
+              title: feedbackFormUrl ? void 0 : "Feedback form not configured (missing FEEDBACK_FORM_URL)",
+              style: {
+                marginLeft: "auto",
+                alignSelf: "center",
+                color: feedbackFormUrl ? "#3858e9" : "#757575",
+                cursor: feedbackFormUrl ? "pointer" : "default",
+                textDecoration: "none",
+                fontFamily: "inherit",
+                fontWeight: 600,
+                fontSize: 15
+              },
+              children: "\u{1F4AC} Share feedback"
+            }
+          )
         ] }),
         isServerStarting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: 13, color: "#1d2327", paddingLeft: 2, display: "flex", flexDirection: "column", gap: 4 }, children: serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_jsx_runtime60.Fragment, { children: [
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("a", { href: serverUrl, onClick: (e) => {
