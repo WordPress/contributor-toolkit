@@ -12,7 +12,7 @@ import {
   TextControl,
   Spinner
 } from '@wordpress/components';
-import { plus, chevronLeft, chevronRight, copy as copyIcon, check as checkIcon, edit, download } from '@wordpress/icons';
+import { plus, chevronLeft, chevronRight, copy as copyIcon, check as checkIcon, edit, download, comment } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
@@ -446,24 +446,25 @@ function App() {
             }}
             renderToggle={({ isOpen, onToggle }) => (
               <Button
-                variant="tertiary"
+                variant="secondary"
                 onClick={onToggle}
                 aria-expanded={isOpen}
                 aria-haspopup="dialog"
                 aria-label="Share feedback"
+                icon={comment}
                 isSmall
                 style={{
                   width: '100%',
                   justifyContent: 'center',
-                  gap: sidebarCollapsed ? 0 : 8,
                   marginTop: 12,
-                  border: '1px solid rgba(255,255,255,0.45)',
-                  color: '#f7f7f7',
-                  borderRadius: 6
+                  background: '#e8e8e8',
+                  color: '#1e1e1e',
+                  borderColor: '#e8e8e8',
+                  padding: sidebarCollapsed ? '10px 0' : '10px 12px',
+                  borderRadius: 0
                 }}
               >
-                <span aria-hidden="true">💬</span>
-                {!sidebarCollapsed ? <span>Share feedback</span> : null}
+                {!sidebarCollapsed ? 'Share feedback' : null}
               </Button>
             )}
             renderContent={({ onClose }) => (
