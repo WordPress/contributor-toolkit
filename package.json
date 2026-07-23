@@ -64,7 +64,7 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "electron": "^31.7.7",
+    "electron": "^32.3.3",
     "electron-builder": "^24.13.3",
     "esbuild": "^0.23.0"
   }
