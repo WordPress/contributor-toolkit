@@ -5,6 +5,7 @@ import {
   TabPanel,
   Card,
   CardBody,
+  Dropdown,
   Flex,
   DropdownMenu,
   Modal,
@@ -23,6 +24,7 @@ const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
 const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
 const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
 const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
+const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
 function useSites() {
   const [sites, setSites] = useState([]);
@@ -437,6 +439,51 @@ function App() {
               {!sidebarCollapsed ? 'Collapse' : null}
             </Button>
           </Flex>
+          <Dropdown
+            popoverProps={{
+              placement: sidebarCollapsed ? 'right-start' : 'bottom-start',
+              offset: 8
+            }}
+            renderToggle={({ isOpen, onToggle }) => (
+              <Button
+                variant="tertiary"
+                onClick={onToggle}
+                aria-expanded={isOpen}
+                aria-haspopup="dialog"
+                aria-label="Share feedback"
+                isSmall
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  gap: sidebarCollapsed ? 0 : 8,
+                  marginTop: 12,
+                  border: '1px solid rgba(255,255,255,0.45)',
+                  color: '#f7f7f7',
+                  borderRadius: 6
+                }}
+              >
+                <span aria-hidden="true">💬</span>
+                {!sidebarCollapsed ? <span>Share feedback</span> : null}
+              </Button>
+            )}
+            renderContent={({ onClose }) => (
+              <div style={{ width: 320, padding: 16, color: '#1d2327' }}>
+                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Share feedback</div>
+                <p style={{ margin: '0 0 12px', lineHeight: 1.5 }}>Your feedback helps decide what to build next.</p>
+                <p style={{ margin: '0 0 16px', lineHeight: 1.5 }}>Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.</p>
+                <Button
+                  variant="link"
+                  onClick={() => {
+                    onClose();
+                    window.api.openExternal(FEEDBACK_FORM_URL);
+                  }}
+                  style={{ padding: 0, height: 'auto' }}
+                >
+                  Open the feedback form ↗
+                </Button>
+              </div>
+            )}
+          />
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? '12px 8px' : '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sortedSites.length > 0 ? sortedSites.map((sitePath) => {

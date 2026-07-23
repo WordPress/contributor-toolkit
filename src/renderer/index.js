@@ -53324,6 +53324,7 @@ If there's a particular need for this, please submit a feature request at https:
   var CREATE_SITE_LOCATION_INPUT_ID = "create-site-location-input";
   var CREATE_SITE_LOCATION_HELP_ID = "create-site-location-help";
   var CREATE_SITE_MODAL_STYLE_ID = "create-site-modal-theme";
+  var FEEDBACK_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform";
   function useSites() {
     const [sites, setSites] = (0, import_react69.useState)([]);
     const [siteMeta, setSiteMeta] = (0, import_react69.useState)({});
@@ -53718,21 +53719,73 @@ If there's a particular need for this, please submit a feature request at https:
     }, []);
     return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", height: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { width: sidebarCollapsed ? 56 : 280, background: "#1f1f1f", color: "#f7f7f7", display: "flex", flexDirection: "column", transition: "width 0.2s ease", borderRight: "1px solid #2b2b2b" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { padding: sidebarCollapsed ? "12px 8px" : "16px", borderBottom: "1px solid #2b2b2b" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(component_default3, { align: "center", justify: "space-between", children: [
-          !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontWeight: 600 }, children: "WordPress Core" }) : null,
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { padding: sidebarCollapsed ? "12px 8px" : "16px", borderBottom: "1px solid #2b2b2b" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(component_default3, { align: "center", justify: "space-between", children: [
+            !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontWeight: 600 }, children: "WordPress Core" }) : null,
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+              button_default,
+              {
+                icon: sidebarCollapsed ? chevron_right_default : chevron_left_default,
+                onClick: () => setSidebarCollapsed((v) => !v),
+                variant: "tertiary",
+                "aria-label": sidebarCollapsed ? "Expand site list" : "Collapse site list",
+                isSmall: true,
+                style: { color: "#f7f7f7" },
+                children: !sidebarCollapsed ? "Collapse" : null
+              }
+            )
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
-            button_default,
+            dropdown_default,
             {
-              icon: sidebarCollapsed ? chevron_right_default : chevron_left_default,
-              onClick: () => setSidebarCollapsed((v) => !v),
-              variant: "tertiary",
-              "aria-label": sidebarCollapsed ? "Expand site list" : "Collapse site list",
-              isSmall: true,
-              style: { color: "#f7f7f7" },
-              children: !sidebarCollapsed ? "Collapse" : null
+              popoverProps: {
+                placement: sidebarCollapsed ? "right-start" : "bottom-start",
+                offset: 8
+              },
+              renderToggle: ({ isOpen, onToggle }) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(
+                button_default,
+                {
+                  variant: "tertiary",
+                  onClick: onToggle,
+                  "aria-expanded": isOpen,
+                  "aria-haspopup": "dialog",
+                  "aria-label": "Share feedback",
+                  isSmall: true,
+                  style: {
+                    width: "100%",
+                    justifyContent: "center",
+                    gap: sidebarCollapsed ? 0 : 8,
+                    marginTop: 12,
+                    border: "1px solid rgba(255,255,255,0.45)",
+                    color: "#f7f7f7",
+                    borderRadius: 6
+                  },
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { "aria-hidden": "true", children: "\u{1F4AC}" }),
+                    !sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { children: "Share feedback" }) : null
+                  ]
+                }
+              ),
+              renderContent: ({ onClose }) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { width: 320, padding: 16, color: "#1d2327" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: 16, fontWeight: 600, marginBottom: 8 }, children: "Share feedback" }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("p", { style: { margin: "0 0 12px", lineHeight: 1.5 }, children: "Your feedback helps decide what to build next." }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("p", { style: { margin: "0 0 16px", lineHeight: 1.5 }, children: "Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email." }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+                  button_default,
+                  {
+                    variant: "link",
+                    onClick: () => {
+                      onClose();
+                      window.api.openExternal(FEEDBACK_FORM_URL);
+                    },
+                    style: { padding: 0, height: "auto" },
+                    children: "Open the feedback form \u2197"
+                  }
+                )
+              ] })
             }
           )
-        ] }) }),
+        ] }),
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 8px" : "12px 16px", display: "flex", flexDirection: "column", gap: 8 }, children: sortedSites.length > 0 ? sortedSites.map((sitePath) => {
           const meta = siteMeta?.[sitePath] || {};
           const siteName = meta.label && meta.label.trim() || sitePath.split("/").pop() || sitePath;
