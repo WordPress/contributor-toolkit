@@ -66,17 +66,21 @@ function buildChildEnv({
 } = {}) {
 	const isWindows = platform === 'win32';
 	const separator = isWindows ? ';' : ':';
+	const basePath = isWindows
+		? (baseEnv.Path || baseEnv.PATH || '')
+		: (baseEnv.PATH || '');
+	const joinedPath = basePath ? `${shimDir}${separator}${basePath}` : String(shimDir);
 	const env = {
 		...baseEnv,
 		ELECTRON_RUN_AS_NODE: '1',
 		NODE: execPath,
 		npm_config_production: 'false',
 		NODE_ENV: 'development',
-		PATH: `${shimDir}${separator}${baseEnv.PATH || ''}`,
+		PATH: joinedPath,
 		PATHEXT: isWindows ? WINDOWS_PATHEXT : baseEnv.PATHEXT
 	};
 	if (isWindows) {
-		env.Path = `${shimDir};${baseEnv.Path || baseEnv.PATH || ''}`;
+		env.Path = joinedPath;
 	}
 	return { ...env, ...extraEnv };
 }
