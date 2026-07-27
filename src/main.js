@@ -12,6 +12,12 @@ const JsDiff = require('diff');
 const { spawn } = require('child_process');
 const { SMTPServer } = require('smtp-server');
 const { simpleParser } = require('mailparser');
+const {
+	createEngineMismatchDetector,
+	shouldRetryWithRelaxedEngines,
+	buildChildEnv,
+	RELAXED_ENGINES_ENV
+} = require('./npm-runner');
 
 const WORDPRESS_ZIP_URL = 'https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip';
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
@@ -89,6 +95,8 @@ function findAvailableDirName(rootDir, baseName) {
 const runningInstalls = {};
 /** @type {Record<string, import('child_process').ChildProcess>} */
 const runningScripts = {};
+// Children the user explicitly stopped, so a failed run is not retried.
+const cancelledChildren = new WeakSet();
 /** @type {Record<string, string>} */
 const runIdByDirectory = {};
 /** @type {Record<string, { child: import('child_process').ChildProcess, url?: string }>} */
@@ -503,42 +511,74 @@ ipcMain.handle('url:open', async (_e, url) => {
 	return true;
 });
 
+const ENGINE_RETRY_NOTICE = '\n⚠ This site requires a newer Node.js than this app bundles.\n  Retrying with engine checks relaxed…\n\n';
+
+// Spawns an npm runner, and if it fails specifically because a dependency
+// demands a newer Node than Electron bundles, retries once with engine checks
+// relaxed. The first failure's output still reaches the log, so the real reason
+// stays visible instead of being silently papered over.
+function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register }) {
+	const start = (relaxEngines) => {
+		const child = spawn(process.execPath, [runnerPath, ...args], {
+			cwd,
+			env: buildChildEnv({
+				shimDir: ensureNodeShimDir(),
+				extraEnv: relaxEngines ? RELAXED_ENGINES_ENV : {}
+			}),
+			shell: false,
+			windowsHide: true
+		});
+		register(child);
+
+		const detector = createEngineMismatchDetector();
+		const forward = (stream, type) => {
+			stream.on('data', (data) => {
+				const text = data.toString();
+				if (!relaxEngines) detector.push(text);
+				onLog(type, text);
+			});
+		};
+		forward(child.stdout, 'stdout');
+		forward(child.stderr, 'stderr');
+
+		child.on('close', (code, signal) => {
+			const retry = shouldRetryWithRelaxedEngines({
+				code,
+				signal,
+				sawEngineMismatch: detector.found,
+				alreadyRelaxed: relaxEngines,
+				cancelled: cancelledChildren.has(child)
+			});
+			if (retry) {
+				onLog('stdout', ENGINE_RETRY_NOTICE);
+				start(true);
+				return;
+			}
+			onDone(code);
+		});
+	};
+	start(false);
+}
+
 ipcMain.handle('npm:install', async (event, directoryPath) => {
 	if (!directoryPath) throw new Error('directoryPath is required');
 
 	const installId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-	const runnerPath = path.join(__dirname, 'install-runner.js');
 
-	const child = spawn(process.execPath, [runnerPath, directoryPath], {
+	runNpmWithEngineRetry({
+		runnerPath: path.join(__dirname, 'install-runner.js'),
+		args: [directoryPath],
 		cwd: directoryPath,
-		env: {
-			...process.env,
-			ELECTRON_RUN_AS_NODE: '1',
-			NODE: process.execPath,
-			npm_config_production: 'false',
-			NODE_ENV: 'development',
-			// On Windows, ensure both PATH and Path are set, and PATHEXT includes .CMD/.BAT
-			PATH: process.platform === 'win32' ? `${ensureNodeShimDir()};${process.env.PATH || ''}` : `${ensureNodeShimDir()}:${process.env.PATH || ''}`,
-			Path: process.platform === 'win32' ? `${ensureNodeShimDir()};${process.env.Path || process.env.PATH || ''}` : undefined,
-			PATHEXT: process.platform === 'win32' ? [
-				'.COM','.EXE','.BAT','.CMD','.VBS','.VBE','.JS','.JSE','.WSF','.WSH','.MSC'
-			].join(';') : process.env.PATHEXT
+		register: (child) => {
+			runningInstalls[installId] = child;
 		},
-		shell: false,
-		windowsHide: true
-	});
-
-	runningInstalls[installId] = child;
-
-	child.stdout.on('data', (data) => {
-		event.sender.send('npm:install:log', { installId, type: 'stdout', data: data.toString() });
-	});
-	child.stderr.on('data', (data) => {
-		event.sender.send('npm:install:log', { installId, type: 'stderr', data: data.toString() });
-	});
-	child.on('close', (code) => {
-		event.sender.send('npm:install:done', { installId, code });
-		delete runningInstalls[installId];
+		onLog: (type, data) => {
+			event.sender.send('npm:install:log', { installId, type, data });
+		},
+		onDone: (code) => {
+			event.sender.send('npm:install:done', { installId, code });
+			delete runningInstalls[installId];
+		}
 	});
 
 	return { installId };
@@ -549,40 +589,24 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 	if (!scriptName) throw new Error('scriptName is required');
 
 	const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-	const runnerPath = path.join(__dirname, 'script-runner.js');
 
-	const child = spawn(process.execPath, [runnerPath, directoryPath, scriptName, ...scriptArgs], {
+	runNpmWithEngineRetry({
+		runnerPath: path.join(__dirname, 'script-runner.js'),
+		args: [directoryPath, scriptName, ...scriptArgs],
 		cwd: directoryPath,
-		env: {
-			...process.env,
-			ELECTRON_RUN_AS_NODE: '1',
-			NODE: process.execPath,
-			npm_config_production: 'false',
-			NODE_ENV: 'development',
-			PATH: process.platform === 'win32' ? `${ensureNodeShimDir()};${process.env.PATH || ''}` : `${ensureNodeShimDir()}:${process.env.PATH || ''}`,
-			Path: process.platform === 'win32' ? `${ensureNodeShimDir()};${process.env.Path || process.env.PATH || ''}` : undefined,
-			PATHEXT: process.platform === 'win32' ? [
-				'.COM','.EXE','.BAT','.CMD','.VBS','.VBE','.JS','.JSE','.WSF','.WSH','.MSC'
-			].join(';') : process.env.PATHEXT
+		register: (child) => {
+			runningScripts[runId] = child;
+			runIdByDirectory[directoryPath] = runId;
 		},
-		shell: false,
-		windowsHide: true
-	});
-
-	runningScripts[runId] = child;
-	runIdByDirectory[directoryPath] = runId;
-
-	child.stdout.on('data', (data) => {
-		event.sender.send('npm:run-script:log', { runId, type: 'stdout', data: data.toString() });
-	});
-	child.stderr.on('data', (data) => {
-		event.sender.send('npm:run-script:log', { runId, type: 'stderr', data: data.toString() });
-	});
-	child.on('close', (code) => {
-		event.sender.send('npm:run-script:done', { runId, code });
-		delete runningScripts[runId];
-		if (runIdByDirectory[directoryPath] === runId) {
-			delete runIdByDirectory[directoryPath];
+		onLog: (type, data) => {
+			event.sender.send('npm:run-script:log', { runId, type, data });
+		},
+		onDone: (code) => {
+			event.sender.send('npm:run-script:done', { runId, code });
+			delete runningScripts[runId];
+			if (runIdByDirectory[directoryPath] === runId) {
+				delete runIdByDirectory[directoryPath];
+			}
 		}
 	});
 
@@ -599,6 +623,7 @@ ipcMain.handle('npm:kill', async (_event, { runId, directoryPath }) => {
 	}
 	if (!child) return { ok: false, error: 'No running script' };
 	try {
+		cancelledChildren.add(child);
 		child.kill('SIGTERM');
 		setTimeout(() => child.kill('SIGKILL'), 3000);
 		return { ok: true };
