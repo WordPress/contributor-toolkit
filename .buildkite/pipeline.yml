@@ -65,16 +65,15 @@ steps:
   ########################################################
   - label: ":linux: Linux Build"
     agents: { queue: default }
+    env:
+      CC: gcc14-gcc
+      CXX: gcc14-g++
     plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
     command: |
-      echo "~~~ Inspect compiler availability"
-      cat /etc/os-release || true
-      gcc --version || true
-      g++ --version || true
-      clang --version || true
-      clang++ --version || true
-      command -v gcc-13 || true
-      command -v g++-13 || true
+      echo "~~~ Install GCC 14"
+      sudo dnf install -y gcc14 gcc14-c++
+      gcc14-gcc --version
+      gcc14-g++ --version
 
       echo "~~~ Install dependencies"
       .buildkite/commands/install_node_dependencies.sh
