@@ -513,11 +513,10 @@ ipcMain.handle('url:open', async (_e, url) => {
 
 const ENGINE_RETRY_NOTICE = '\n⚠ This site requires a newer Node.js than this app bundles.\n  Retrying with engine checks relaxed…\n\n';
 
-// Spawns an npm runner, and if it fails specifically because a dependency
-// demands a newer Node than Electron bundles, retries once with engine checks
-// relaxed. The first failure's output still reaches the log, so the real reason
-// stays visible instead of being silently papered over.
-function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register }) {
+// Spawns an npm runner. Callers may opt into one retry with engine checks
+// relaxed after an engines failure. npm scripts remain one-shot so a partially
+// executed build, test, or grunt task is never started over automatically.
+function runNpmRunner({ runnerPath, args, cwd, onLog, onDone, register, retryOnEngineMismatch = false }) {
 	const start = (relaxEngines) => {
 		const child = spawn(process.execPath, [runnerPath, ...args], {
 			cwd,
@@ -530,11 +529,13 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register 
 		});
 		register(child);
 
-		const detector = createEngineMismatchDetector();
+		const detector = retryOnEngineMismatch && !relaxEngines
+			? createEngineMismatchDetector()
+			: null;
 		const forward = (stream, type) => {
 			stream.on('data', (data) => {
 				const text = data.toString();
-				if (!relaxEngines) detector.push(text);
+				if (detector) detector.push(text);
 				onLog(type, text);
 			});
 		};
@@ -545,9 +546,10 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register 
 			const retry = shouldRetryWithRelaxedEngines({
 				code,
 				signal,
-				sawEngineMismatch: detector.found,
+				sawEngineMismatch: detector?.found || false,
 				alreadyRelaxed: relaxEngines,
-				cancelled: cancelledChildren.has(child)
+				cancelled: cancelledChildren.has(child),
+				retryEnabled: retryOnEngineMismatch
 			});
 			if (retry) {
 				onLog('stdout', ENGINE_RETRY_NOTICE);
@@ -565,10 +567,11 @@ ipcMain.handle('npm:install', async (event, directoryPath) => {
 
 	const installId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-	runNpmWithEngineRetry({
+	runNpmRunner({
 		runnerPath: path.join(__dirname, 'install-runner.js'),
 		args: [directoryPath],
 		cwd: directoryPath,
+		retryOnEngineMismatch: true,
 		register: (child) => {
 			runningInstalls[installId] = child;
 		},
@@ -590,10 +593,11 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 
 	const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-	runNpmWithEngineRetry({
+	runNpmRunner({
 		runnerPath: path.join(__dirname, 'script-runner.js'),
 		args: [directoryPath, scriptName, ...scriptArgs],
 		cwd: directoryPath,
+		retryOnEngineMismatch: false,
 		register: (child) => {
 			runningScripts[runId] = child;
 			runIdByDirectory[directoryPath] = runId;

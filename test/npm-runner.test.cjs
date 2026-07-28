@@ -16,7 +16,8 @@ const ENGINE_FAILURE = {
 	signal: null,
 	sawEngineMismatch: true,
 	alreadyRelaxed: false,
-	cancelled: false
+	cancelled: false,
+	retryEnabled: true
 };
 
 // Verbatim from the failure reported in issue #37.
@@ -51,6 +52,14 @@ test('createEngineMismatchDetector survives a marker split across chunks', () =>
 	const detector = createEngineMismatchDetector();
 	assert.equal(detector.push('npm error code EBADEN'), false);
 	assert.equal(detector.push('GINE\nnpm error engine Unsupported engine'), true);
+	assert.equal(detector.found, true);
+});
+
+test('createEngineMismatchDetector survives a marker split across three chunks', () => {
+	const detector = createEngineMismatchDetector();
+	assert.equal(detector.push('EBA'), false);
+	assert.equal(detector.push('DEN'), false);
+	assert.equal(detector.push('GINE'), true);
 	assert.equal(detector.found, true);
 });
 
@@ -91,6 +100,10 @@ test('shouldRetryWithRelaxedEngines never restarts a cancelled run', () => {
 test('shouldRetryWithRelaxedEngines leaves other outcomes alone', () => {
 	assert.equal(shouldRetryWithRelaxedEngines({ ...ENGINE_FAILURE, code: 0 }), false);
 	assert.equal(shouldRetryWithRelaxedEngines({ ...ENGINE_FAILURE, sawEngineMismatch: false }), false);
+});
+
+test('shouldRetryWithRelaxedEngines respects a caller opting out of retries', () => {
+	assert.equal(shouldRetryWithRelaxedEngines({ ...ENGINE_FAILURE, retryEnabled: false }), false);
 });
 
 test('buildChildEnv points child processes at Electron\'s Node', () => {

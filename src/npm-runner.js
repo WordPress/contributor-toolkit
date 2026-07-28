@@ -31,8 +31,9 @@ function createEngineMismatchDetector() {
 	let found = false;
 	return {
 		push(text) {
-			if (!found && isEngineMismatch(tail + text)) found = true;
-			tail = String(text || '').slice(-CHUNK_OVERLAP);
+			const combined = tail + String(text || '');
+			if (!found && isEngineMismatch(combined)) found = true;
+			tail = combined.slice(-CHUNK_OVERLAP);
 			return found;
 		},
 		get found() {
@@ -45,7 +46,8 @@ function createEngineMismatchDetector() {
 // relaxed. Retrying is only ever right for an engines failure that the process
 // reached on its own: a run the user cancelled (or the OS killed) must stay
 // dead, otherwise pressing "stop" would silently start the work over.
-function shouldRetryWithRelaxedEngines({ code, signal, sawEngineMismatch, alreadyRelaxed, cancelled }) {
+function shouldRetryWithRelaxedEngines({ code, signal, sawEngineMismatch, alreadyRelaxed, cancelled, retryEnabled = true }) {
+	if (!retryEnabled) return false;
 	if (alreadyRelaxed) return false;
 	if (cancelled) return false;
 	// A non-null signal means the process was terminated rather than exiting.
