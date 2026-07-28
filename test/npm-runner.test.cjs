@@ -54,6 +54,16 @@ test('createEngineMismatchDetector survives a marker split across chunks', () =>
 	assert.equal(detector.found, true);
 });
 
+test('createEngineMismatchDetector survives a marker split across three chunks', () => {
+	// Regression: the retained tail must come from the combined text, not just
+	// the newest chunk, or a marker spread over three chunks is never seen.
+	const detector = createEngineMismatchDetector();
+	assert.equal(detector.push('EBA'), false);
+	assert.equal(detector.push('DEN'), false);
+	assert.equal(detector.push('GINE'), true);
+	assert.equal(detector.found, true);
+});
+
 test('createEngineMismatchDetector latches and stays quiet on clean output', () => {
 	const clean = createEngineMismatchDetector();
 	clean.push('added 1294 packages in 47s\n');

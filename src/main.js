@@ -517,7 +517,13 @@ const ENGINE_RETRY_NOTICE = '\n⚠ This site requires a newer Node.js than this 
 // demands a newer Node than Electron bundles, retries once with engine checks
 // relaxed. The first failure's output still reaches the log, so the real reason
 // stays visible instead of being silently papered over.
-function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register }) {
+//
+// The automatic retry is opt-in and only npm:install enables it. Scripts
+// (build, grunt, …) can fail partway through with side effects already on
+// disk, and npm prints EBADENGINE as a mere warning when engine-strict is off
+// — so a warning followed by an unrelated non-zero exit would wrongly restart
+// a half-finished script. An install, by contrast, is idempotent to re-run.
+function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register, retryOnEngineMismatch = false }) {
 	const start = (relaxEngines) => {
 		const child = spawn(process.execPath, [runnerPath, ...args], {
 			cwd,
@@ -534,7 +540,7 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register 
 		const forward = (stream, type) => {
 			stream.on('data', (data) => {
 				const text = data.toString();
-				if (!relaxEngines) detector.push(text);
+				if (retryOnEngineMismatch && !relaxEngines) detector.push(text);
 				onLog(type, text);
 			});
 		};
@@ -542,7 +548,7 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register 
 		forward(child.stderr, 'stderr');
 
 		child.on('close', (code, signal) => {
-			const retry = shouldRetryWithRelaxedEngines({
+			const retry = retryOnEngineMismatch && shouldRetryWithRelaxedEngines({
 				code,
 				signal,
 				sawEngineMismatch: detector.found,
@@ -569,6 +575,7 @@ ipcMain.handle('npm:install', async (event, directoryPath) => {
 		runnerPath: path.join(__dirname, 'install-runner.js'),
 		args: [directoryPath],
 		cwd: directoryPath,
+		retryOnEngineMismatch: true,
 		register: (child) => {
 			runningInstalls[installId] = child;
 		},

@@ -31,8 +31,11 @@ function createEngineMismatchDetector() {
 	let found = false;
 	return {
 		push(text) {
-			if (!found && isEngineMismatch(tail + text)) found = true;
-			tail = String(text || '').slice(-CHUNK_OVERLAP);
+			// The retained tail must be a suffix of the combined text, not of the
+			// newest chunk alone, or a marker spread over three+ chunks is lost.
+			const combined = tail + String(text || '');
+			if (!found && isEngineMismatch(combined)) found = true;
+			tail = combined.slice(-CHUNK_OVERLAP);
 			return found;
 		},
 		get found() {
