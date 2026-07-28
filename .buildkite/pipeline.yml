@@ -90,7 +90,6 @@ steps:
       - $DOCKER_PLUGIN:
           image: "$NODE_DOCKER_IMAGE"
           always-pull: true
-          chown: true
     artifact_paths:
       - dist/*.AppImage
       - dist/*.deb
