@@ -1,9 +1,10 @@
 {
   "name": "electron-setup-wordpress-core",
-  "author": "Adam Zieliński",
+  "author": "WordPress.org",
   "version": "0.1.0",
   "private": true,
   "description": "Electron app to setup WordPress develop structure and run npm install",
+  "homepage": "https://github.com/WordPress/experimental-wp-dev-env",
   "main": "src/main.js",
   "scripts": {
     "start": "concurrently -k \"npm:build:watch\" \"electron .\"",
@@ -22,6 +23,14 @@
       "buildResources": "build"
     },
     "icon": "build/icon.png",
+    "linux": {
+      "maintainer": "WordPress.org",
+      "target": [
+        "AppImage",
+        "snap",
+        "deb"
+      ]
+    },
     "win": {
       "icon": "build/icon.ico",
       "signtoolOptions": {

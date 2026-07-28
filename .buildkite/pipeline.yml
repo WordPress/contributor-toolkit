@@ -74,10 +74,6 @@ steps:
       gcc --version
       g++ --version
 
-      echo "~~~ Install Linux packaging dependencies"
-      apt-get -o Acquire::Retries=3 update
-      apt-get install -y --no-install-recommends fakeroot
-
       echo "~~~ Install Node dependencies"
       npm ci --no-audit --no-progress --maxsockets 1
 
