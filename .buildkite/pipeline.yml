@@ -65,24 +65,32 @@ steps:
   ########################################################
   - label: ":linux: Linux Build"
     agents: { queue: default }
-    env:
-      CC: gcc14-gcc
-      CXX: gcc14-g++
-    plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
     command: |
-      echo "~~~ Install GCC 14"
-      sudo dnf install -y gcc14 gcc14-c++
-      gcc14-gcc --version
-      gcc14-g++ --version
+      set -eu
 
-      echo "~~~ Install dependencies"
-      .buildkite/commands/install_node_dependencies.sh
+      echo "~~~ Verify build environment"
+      cat /etc/os-release
+      node --version
+      gcc --version
+      g++ --version
+
+      echo "~~~ Install Linux packaging dependencies"
+      apt-get -o Acquire::Retries=3 update
+      apt-get install -y --no-install-recommends fakeroot
+
+      echo "~~~ Install Node dependencies"
+      npm ci --no-audit --no-progress --maxsockets 1
 
       echo "~~~ Build renderer"
       npm run build:once
 
       echo "~~~ Build Linux artifact"
       npm run dist
+    plugins:
+      - $DOCKER_PLUGIN:
+          image: "$NODE_DOCKER_IMAGE"
+          always-pull: true
+          chown: true
     artifact_paths:
       - dist/*.AppImage
       - dist/*.deb
