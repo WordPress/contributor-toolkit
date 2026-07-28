@@ -65,8 +65,16 @@ steps:
   ########################################################
   - label: ":linux: Linux Build"
     agents: { queue: default }
+    env:
+      CC: gcc-13
+      CXX: g++-13
     plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
     command: |
+      echo "~~~ Verify compiler"
+      command -v gcc-13
+      command -v g++-13
+      g++-13 --version
+
       echo "~~~ Install dependencies"
       .buildkite/commands/install_node_dependencies.sh
 
