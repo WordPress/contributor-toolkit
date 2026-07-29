@@ -95,9 +95,18 @@ function buildChildEnv({
 		env.Path = joinedPath;
 	}
 	if (isWindows && spawnPatchPath) {
+		// Forward slashes, always. Node does not read NODE_OPTIONS literally: it
+		// tokenises it with shell-like rules, and inside quotes a backslash is an
+		// escape character. A native path would arrive at the preloader as
+		// C:UsersJuanMaAppData… and die with MODULE_NOT_FOUND before the child
+		// runs a single line. Windows resolves forward slashes fine, and unlike
+		// doubling the backslashes this does not depend on how many layers of
+		// unescaping the value passes through. The quotes stay, for paths with
+		// spaces in them.
+		const requirePath = String(spawnPatchPath).replace(/\\/g, '/');
 		// Appended, never replaced: an inherited NODE_OPTIONS may carry settings
 		// the build relies on (wordpress-develop bumps --max-old-space-size).
-		const requireFlag = `--require "${spawnPatchPath}"`;
+		const requireFlag = `--require "${requirePath}"`;
 		env.NODE_OPTIONS = baseEnv.NODE_OPTIONS
 			? `${baseEnv.NODE_OPTIONS} ${requireFlag}`
 			: requireFlag;
