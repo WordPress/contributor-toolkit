@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const fs = require('fs');
 const fse = require('fs-extra');
 const https = require('https');
@@ -570,14 +571,44 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 		forward(child.stdout, 'stdout');
 		forward(child.stderr, 'stderr');
 
+		// 'error' and 'close' are independent events, and Node documents that the
+		// exit events "may or may not" follow a spawn failure. In practice close
+		// does arrive (verified on Electron's Node 20: error, then close with code
+		// -2), so the normal path below is left to win — it is the one that knows
+		// about the engines retry. This only settles the request when close
+		// genuinely never comes, which would otherwise leave the caller waiting
+		// forever and the child registry never cleaned up.
+		let settled = false;
+		// The single exit point, so the caller is told exactly once no matter which
+		// event gets there first.
+		const settle = (code) => {
+			if (settled) return;
+			settled = true;
+			onDone(code);
+		};
+
 		child.on('error', (err) => {
 			logError(logScope, `spawn failed: ${String(err)}`);
+			// Deferred by a turn so that close — which knows about the engines
+			// retry — wins whenever it does arrive. A spawn failure is the very
+			// case this logging exists to expose, so it must not also become a
+			// silent hang with the request never settled.
+			setTimeout(() => {
+				if (settled) return;
+				flushChildOutput(logScope);
+				logEvent(logScope, 'never started; no exit reported');
+				settle(null);
+			}, 0);
 		});
 
 		child.on('close', (code, signal) => {
 			flushChildOutput(logScope);
 			logEvent(logScope, `exited with code ${code}${signal ? ` (signal ${signal})` : ''}`);
-			const retry = retryOnEngineMismatch && shouldRetryWithRelaxedEngines({
+			// `!settled` guards the case where the error path got there first: the
+			// caller has already been told the run finished, so starting a second
+			// attempt behind its back would report output for a run it considers
+			// over.
+			const retry = !settled && retryOnEngineMismatch && shouldRetryWithRelaxedEngines({
 				code,
 				signal,
 				sawEngineMismatch: detector.found,
@@ -589,7 +620,7 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 				start(true);
 				return;
 			}
-			onDone(code);
+			settle(code);
 		});
 	};
 	start(false);
@@ -672,6 +703,16 @@ ipcMain.handle('npm:kill', async (_event, { runId, directoryPath }) => {
 	}
 });
 
+// Servers for several sites can run at once, and two sites can share a folder
+// name under different parents. The log's line buffers are keyed by scope, so a
+// bare basename would let two servers' partial lines interleave into corrupted
+// ones. The path hash disambiguates without putting an absolute path on every
+// line; the full path is logged once at spawn.
+function playgroundLogScope(sitePath) {
+	const suffix = crypto.createHash('sha1').update(String(sitePath)).digest('hex').slice(0, 4);
+	return `playground:${path.basename(sitePath)}#${suffix}`;
+}
+
 ipcMain.handle('playground:start', async (event, sitePath) => {
 	// Ensure a per-site SMTP server is running alongside the dev server and get its port
 	const smtp = await ensureSmtpServerForSite(sitePath).catch(() => null);
@@ -680,7 +721,7 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 		return { ok: true, url: playgroundServers[sitePath].url };
 	}
 	const runnerPath = path.join(__dirname, 'server-runner.js');
-	const logScope = `playground:${path.basename(sitePath)}`;
+	const logScope = playgroundLogScope(sitePath);
 	logEvent(logScope, `starting server for ${buildDir} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
 	const child = spawn(process.execPath, [runnerPath, buildDir], {
 		cwd: buildDir,

@@ -1,5 +1,5 @@
 // The app's on-disk log. This is the only module that touches electron-log, so
-// the rest of the codebase depends on these four functions rather than on the
+// the rest of the codebase depends on this module's exports rather than on the
 // library.
 //
 // Why a file at all: in a packaged GUI build the main process has no terminal,
