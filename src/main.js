@@ -536,6 +536,21 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 		});
 		register(child);
 
+		// A failed spawn (ENOENT/EPERM — most likely on Windows) emits 'error'
+		// and may never emit 'close'. Without this the renderer never receives a
+		// :done event and the UI stays stuck "installing"/"building" forever.
+		let finished = false;
+		const finish = (code) => {
+			if (finished) return;
+			finished = true;
+			onDone(code);
+		};
+
+		child.on('error', (err) => {
+			onLog('stderr', `\nFailed to start: ${err && err.message ? err.message : String(err)}\n`);
+			finish(-1);
+		});
+
 		const detector = createEngineMismatchDetector();
 		const forward = (stream, type) => {
 			stream.on('data', (data) => {
@@ -548,6 +563,7 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 		forward(child.stderr, 'stderr');
 
 		child.on('close', (code, signal) => {
+			if (finished) return;
 			const retry = retryOnEngineMismatch && shouldRetryWithRelaxedEngines({
 				code,
 				signal,
@@ -556,11 +572,12 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 				cancelled: cancelledChildren.has(child)
 			});
 			if (retry) {
+				finished = true;
 				onLog('stdout', ENGINE_RETRY_NOTICE);
 				start(true);
 				return;
 			}
-			onDone(code);
+			finish(code);
 		});
 	};
 	start(false);
