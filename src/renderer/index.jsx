@@ -944,6 +944,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     });
   }, [runInstall, writeToTerminal]);
 
+  const runBuildWithTerminal = useCallback(() => {
+    writeToTerminal('Running npm run build…\n');
+    runScript('build', {
+      onLog: (chunk) => writeToTerminal(chunk),
+      onDone: ({ code }) => {
+        writeToTerminal(`npm run build exited with code ${code}\n`);
+      }
+    });
+  }, [runScript, writeToTerminal]);
+
   const showPrompt = useCallback((prependNewLine = true) => {
     const term = terminalRef.current;
     if (!term) return;
@@ -1420,7 +1430,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
         <Button
           isBusy={building}
           variant={hasBuilt ? 'secondary' : 'primary'}
-          onClick={()=>runScript('build')}
+          onClick={runBuildWithTerminal}
           disabled={stepState.build.disabled}
         >{hasBuilt ? 'First build complete' : 'Run first full build'}</Button>
       )

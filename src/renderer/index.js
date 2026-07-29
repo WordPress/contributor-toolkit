@@ -54263,6 +54263,16 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
         }
       });
     }, [runInstall, writeToTerminal]);
+    const runBuildWithTerminal = (0, import_react69.useCallback)(() => {
+      writeToTerminal("Running npm run build\u2026\n");
+      runScript("build", {
+        onLog: (chunk) => writeToTerminal(chunk),
+        onDone: ({ code }) => {
+          writeToTerminal(`npm run build exited with code ${code}
+`);
+        }
+      });
+    }, [runScript, writeToTerminal]);
     const showPrompt = (0, import_react69.useCallback)((prependNewLine = true) => {
       const term = terminalRef.current;
       if (!term) return;
@@ -54759,7 +54769,7 @@ Try "help" for the list of supported commands.
           {
             isBusy: building,
             variant: hasBuilt ? "secondary" : "primary",
-            onClick: () => runScript("build"),
+            onClick: runBuildWithTerminal,
             disabled: stepState.build.disabled,
             children: hasBuilt ? "First build complete" : "Run first full build"
           }
