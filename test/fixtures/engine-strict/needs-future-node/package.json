@@ -1,0 +1,9 @@
+{
+  "name": "needs-future-node",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Declares a Node version that will never exist, so this fixture keeps reproducing EBADENGINE no matter how new the Node running the tests is. A real registry package would stop failing once CI's Node caught up, silently turning the test green.",
+  "engines": {
+    "node": ">=99.0.0"
+  }
+}

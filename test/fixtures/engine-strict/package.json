@@ -1,0 +1,9 @@
+{
+  "name": "engine-strict-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reproduces the EBADENGINE failure from issue #37 without cloning wordpress-develop.",
+  "dependencies": {
+    "needs-future-node": "file:./needs-future-node"
+  }
+}
