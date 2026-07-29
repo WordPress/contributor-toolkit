@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const fs = require('fs');
 const fse = require('fs-extra');
 const https = require('https');
@@ -18,6 +19,15 @@ const {
 	buildChildEnv,
 	RELAXED_ENGINES_ENV
 } = require('./npm-runner');
+const {
+	initLogging,
+	getLogFilePath,
+	logChildOutput,
+	flushChildOutput,
+	logEvent,
+	logError
+} = require('./logging');
+const { buildMenuTemplate } = require('./menu');
 
 const WORDPRESS_ZIP_URL = 'https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip';
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
@@ -346,6 +356,15 @@ ipcMain.handle('git:save-patch', async (_e, sitePath) => {
 });
 
 app.whenReady().then(() => {
+	// Before createWindow(): initLogging preloads the IPC bridge that carries
+	// renderer output into the log file, which only applies to windows created
+	// afterwards.
+	initLogging();
+	Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
+		onOpenLog: () => shell.openPath(getLogFilePath()),
+		onShowLogsFolder: () => shell.showItemInFolder(getLogFilePath())
+	})));
+
 	createWindow();
 
 	app.on('activate', function () {
@@ -523,8 +542,12 @@ const ENGINE_RETRY_NOTICE = '\n⚠ This site requires a newer Node.js than this 
 // disk, and npm prints EBADENGINE as a mere warning when engine-strict is off
 // — so a warning followed by an unrelated non-zero exit would wrongly restart
 // a half-finished script. An install, by contrast, is idempotent to re-run.
-function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register, retryOnEngineMismatch = false }) {
+function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register, logScope, retryOnEngineMismatch = false }) {
 	const start = (relaxEngines) => {
+		// Logged before the spawn: a child that fails to start at all (EPERM on
+		// Windows) produces no output, so without this the log would show nothing
+		// where the failure was.
+		logEvent(logScope, `spawn ${path.basename(runnerPath)} ${args.join(' ')} in ${cwd}${relaxEngines ? ' (relaxed engines)' : ''}`);
 		const child = spawn(process.execPath, [runnerPath, ...args], {
 			cwd,
 			env: buildChildEnv({
@@ -541,14 +564,51 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 			stream.on('data', (data) => {
 				const text = data.toString();
 				if (retryOnEngineMismatch && !relaxEngines) detector.push(text);
+				logChildOutput(logScope, type, text);
 				onLog(type, text);
 			});
 		};
 		forward(child.stdout, 'stdout');
 		forward(child.stderr, 'stderr');
 
+		// 'error' and 'close' are independent events, and Node documents that the
+		// exit events "may or may not" follow a spawn failure. In practice close
+		// does arrive (verified on Electron's Node 20: error, then close with code
+		// -2), so the normal path below is left to win — it is the one that knows
+		// about the engines retry. This only settles the request when close
+		// genuinely never comes, which would otherwise leave the caller waiting
+		// forever and the child registry never cleaned up.
+		let settled = false;
+		// The single exit point, so the caller is told exactly once no matter which
+		// event gets there first.
+		const settle = (code) => {
+			if (settled) return;
+			settled = true;
+			onDone(code);
+		};
+
+		child.on('error', (err) => {
+			logError(logScope, `spawn failed: ${String(err)}`);
+			// Deferred by a turn so that close — which knows about the engines
+			// retry — wins whenever it does arrive. A spawn failure is the very
+			// case this logging exists to expose, so it must not also become a
+			// silent hang with the request never settled.
+			setTimeout(() => {
+				if (settled) return;
+				flushChildOutput(logScope);
+				logEvent(logScope, 'never started; no exit reported');
+				settle(null);
+			}, 0);
+		});
+
 		child.on('close', (code, signal) => {
-			const retry = retryOnEngineMismatch && shouldRetryWithRelaxedEngines({
+			flushChildOutput(logScope);
+			logEvent(logScope, `exited with code ${code}${signal ? ` (signal ${signal})` : ''}`);
+			// `!settled` guards the case where the error path got there first: the
+			// caller has already been told the run finished, so starting a second
+			// attempt behind its back would report output for a run it considers
+			// over.
+			const retry = !settled && retryOnEngineMismatch && shouldRetryWithRelaxedEngines({
 				code,
 				signal,
 				sawEngineMismatch: detector.found,
@@ -560,7 +620,7 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 				start(true);
 				return;
 			}
-			onDone(code);
+			settle(code);
 		});
 	};
 	start(false);
@@ -575,6 +635,9 @@ ipcMain.handle('npm:install', async (event, directoryPath) => {
 		runnerPath: path.join(__dirname, 'install-runner.js'),
 		args: [directoryPath],
 		cwd: directoryPath,
+		// Suffixed with the correlation id so two installs running at once stay
+		// distinguishable in the log instead of interleaving.
+		logScope: `install#${installId.slice(-4)}`,
 		retryOnEngineMismatch: true,
 		register: (child) => {
 			runningInstalls[installId] = child;
@@ -601,6 +664,7 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 		runnerPath: path.join(__dirname, 'script-runner.js'),
 		args: [directoryPath, scriptName, ...scriptArgs],
 		cwd: directoryPath,
+		logScope: `${scriptName}#${runId.slice(-4)}`,
 		register: (child) => {
 			runningScripts[runId] = child;
 			runIdByDirectory[directoryPath] = runId;
@@ -639,6 +703,16 @@ ipcMain.handle('npm:kill', async (_event, { runId, directoryPath }) => {
 	}
 });
 
+// Servers for several sites can run at once, and two sites can share a folder
+// name under different parents. The log's line buffers are keyed by scope, so a
+// bare basename would let two servers' partial lines interleave into corrupted
+// ones. The path hash disambiguates without putting an absolute path on every
+// line; the full path is logged once at spawn.
+function playgroundLogScope(sitePath) {
+	const suffix = crypto.createHash('sha1').update(String(sitePath)).digest('hex').slice(0, 4);
+	return `playground:${path.basename(sitePath)}#${suffix}`;
+}
+
 ipcMain.handle('playground:start', async (event, sitePath) => {
 	// Ensure a per-site SMTP server is running alongside the dev server and get its port
 	const smtp = await ensureSmtpServerForSite(sitePath).catch(() => null);
@@ -647,6 +721,8 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 		return { ok: true, url: playgroundServers[sitePath].url };
 	}
 	const runnerPath = path.join(__dirname, 'server-runner.js');
+	const logScope = playgroundLogScope(sitePath);
+	logEvent(logScope, `starting server for ${buildDir} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
 	const child = spawn(process.execPath, [runnerPath, buildDir], {
 		cwd: buildDir,
 		env: {
@@ -671,13 +747,13 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	child.stderr.setEncoding('utf8');
 	child.stdout.on('data', (data) => {
 		const text = String(data);
-		console.log("STDOUT", text);
+		logChildOutput(logScope, 'stdout', text);
 		event.sender.send('playground:log', { sitePath, type: 'stdout', data: text });
 		const match = text.match(/SERVER_URL:(.*)/);
 		if (match && !resolved) {
 			resolved = true;
 			playgroundServers[sitePath].url = match[1].trim();
-			console.log("URL", playgroundServers[sitePath].url);
+			logEvent(logScope, `server ready at ${playgroundServers[sitePath].url}`);
 			event.sender.send('playground:url', { sitePath, url: playgroundServers[sitePath].url });
 			if (typeof pendingResolve === 'function') {
 				clearTimeout(timeoutId);
@@ -687,14 +763,18 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 		}
 	});
 	child.stderr.on('data', (data) => {
-		console.log("STDERR", data);
+		logChildOutput(logScope, 'stderr', String(data));
 		event.sender.send('playground:log', { sitePath, type: 'stderr', data: String(data) });
 	});
 	child.on('error', (err) => {
-		console.log("ERROR", err);
+		logError(logScope, `spawn failed: ${String(err)}`);
 		event.sender.send('playground:log', { sitePath, type: 'stderr', data: String(err) + '\n' });
 	});
-	child.on('close', (code) => {
+	// `signal` is logged as well as `code`: a killed process reports a null code,
+	// and "exited with code null" tells a reader nothing about why it stopped.
+	child.on('close', (code, signal) => {
+		flushChildOutput(logScope);
+		logEvent(logScope, `server exited with code ${code}${signal ? ` (signal ${signal})` : ''}`);
 		delete playgroundServers[sitePath];
 		event.sender.send('playground:stopped', { sitePath, code });
 		// Stop WP debug tail if running
@@ -727,6 +807,9 @@ ipcMain.handle('playground:stop', async (_event, sitePath) => {
 });
 
 // --- Global Playground web server (serves local-playground-web) ---
+// A single global server, so unlike the per-site ones its log scope is constant.
+const WEB_LOG_SCOPE = 'playground-web';
+
 ipcMain.handle('playground-web:available', async () => {
     const webDirCandidates = [
         path.join(app.getAppPath(), 'local-playground-web'),
@@ -767,6 +850,7 @@ ipcMain.handle('playground-web:start', async (event) => {
     }
 
     const runnerPath = path.join(__dirname, 'playground-web-runner.js');
+    logEvent(WEB_LOG_SCOPE, `starting web server for ${webDir} on port 39372`);
     const child = spawn(process.execPath, [runnerPath, webDir, '39372'], {
         cwd: webDir,
         env: {
@@ -786,11 +870,13 @@ ipcMain.handle('playground-web:start', async (event) => {
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (data) => {
         const text = String(data);
+        logChildOutput(WEB_LOG_SCOPE, 'stdout', text);
         try { broadcastToAll('playground-web:log', { type: 'stdout', data: text }); } catch {}
         const match = text.match(/WEB_SERVER_URL:(.*)/);
         if (match && !resolved) {
             resolved = true;
             playgroundWebServer.url = match[1].trim();
+            logEvent(WEB_LOG_SCOPE, `web server ready at ${playgroundWebServer.url}`);
             broadcastToAll('playground-web:url', { url: playgroundWebServer.url });
             if (typeof pendingResolve === 'function') {
                 clearTimeout(timeoutId);
@@ -801,12 +887,16 @@ ipcMain.handle('playground-web:start', async (event) => {
         }
     });
     child.stderr.on('data', (data) => {
+        logChildOutput(WEB_LOG_SCOPE, 'stderr', String(data));
         try { broadcastToAll('playground-web:log', { type: 'stderr', data: String(data) }); } catch {}
     });
     child.on('error', (err) => {
+        logError(WEB_LOG_SCOPE, `spawn failed: ${String(err)}`);
         try { broadcastToAll('playground-web:log', { type: 'stderr', data: String(err) + '\n' }); } catch {}
     });
-    child.on('close', (code) => {
+    child.on('close', (code, signal) => {
+        flushChildOutput(WEB_LOG_SCOPE);
+        logEvent(WEB_LOG_SCOPE, `web server exited with code ${code}${signal ? ` (signal ${signal})` : ''}`);
         const stillPending = !resolved && typeof pendingResolve === 'function';
         playgroundWebServer = null;
         if (stillPending) {
