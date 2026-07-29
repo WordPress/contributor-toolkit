@@ -24,6 +24,12 @@ const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
 // Provide a PATH shim so npm's spawned scripts can find a 'node' binary that maps to Electron's Node
 let nodeShimDir = null;
+// Windows-only: absolute path of the child_process patch copied next to the
+// shims, preloaded into descendant Node processes via NODE_OPTIONS so that a
+// bare spawn('node') hitting node.cmd does not fail with EINVAL.
+let spawnPatchPath = null;
+let npmCliPath = null;
+let npxCliPath = null;
 function ensureNodeShimDir() {
     if (nodeShimDir) return nodeShimDir;
     nodeShimDir = path.join(os.tmpdir(), `electron-node-shims-${process.pid}`);
@@ -39,12 +45,23 @@ function ensureNodeShimDir() {
                 const npmRootDir = path.dirname(npmPkgJsonPath);
                 const npmCliAbsPath = path.join(npmRootDir, 'bin', 'npm-cli.js');
                 const npxCliAbsPath = path.join(npmRootDir, 'bin', 'npx-cli.js');
+                npmCliPath = npmCliAbsPath;
+                npxCliPath = npxCliAbsPath;
                 const npmCmd = `@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n"${process.execPath}" "${npmCliAbsPath}" %*\r\n`;
                 const npxCmd = `@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n"${process.execPath}" "${npxCliAbsPath}" %*\r\n`;
                 fs.writeFileSync(path.join(nodeShimDir, 'npm.cmd'), npmCmd);
                 fs.writeFileSync(path.join(nodeShimDir, 'npm.bat'), npmCmd);
                 fs.writeFileSync(path.join(nodeShimDir, 'npx.cmd'), npxCmd);
                 fs.writeFileSync(path.join(nodeShimDir, 'npx.bat'), npxCmd);
+            } catch {}
+            // Copy the child_process patch out of the app bundle: it is loaded with
+            // --require by child Node processes, and a path inside app.asar is not
+            // reliably resolvable under ELECTRON_RUN_AS_NODE. A failure here only
+            // means we are back to the pre-patch behaviour, so it stays non-fatal.
+            try {
+                const dest = path.join(nodeShimDir, 'win-spawn-patch.js');
+                fs.copyFileSync(path.join(__dirname, 'win-spawn-patch.js'), dest);
+                spawnPatchPath = dest;
             } catch {}
             // Intentionally do NOT create node.exe here, as Electron's exe depends on adjacent DLLs.
             // Using node.exe from a temp dir causes STATUS_DLL_NOT_FOUND (0xC0000135) when spawned by npm.
@@ -529,6 +546,9 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 			cwd,
 			env: buildChildEnv({
 				shimDir: ensureNodeShimDir(),
+				spawnPatchPath,
+				npmCliPath,
+				npxCliPath,
 				extraEnv: relaxEngines ? RELAXED_ENGINES_ENV : {}
 			}),
 			shell: false,
