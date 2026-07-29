@@ -15,7 +15,26 @@ const { app } = require('electron');
 const log = require('electron-log/main');
 const { createLineBuffer } = require('./log-lines');
 
-// Rotated to main.old.log past this size, so an app left running through many
+// Friendly platform names rather than process.platform's own values: 'win32'
+// reads as 32-bit to most people, and this string ends up in front of
+// contributors rather than only in code.
+const PLATFORM_NAMES = {
+	darwin: 'macos',
+	win32: 'windows',
+	linux: 'linux'
+};
+
+// Not electron-log's default of main.log. The point of this file is that people
+// attach it to bug reports, at which moment it is separated from the app-named
+// folder that would otherwise identify it — so the name has to stand alone in a
+// list of attachments. The platform is in there because a single issue thread
+// often collects logs from several contributors, and which OS a log came from is
+// the first thing anyone reading it needs to know.
+function logFileName(platform = process.platform) {
+	return `wordpress-contributor-toolkit-${PLATFORM_NAMES[platform] || platform}.log`;
+}
+
+// Rotated to <name>.old.log past this size, so an app left running through many
 // npm installs cannot grow the file without bound.
 const MAX_LOG_SIZE = 5 * 1024 * 1024;
 
@@ -33,7 +52,7 @@ function initLogging() {
 	// what it was sent.
 	log.initialize({ spyRendererConsole: true });
 
-	log.transports.file.resolvePathFn = () => path.join(app.getPath('logs'), 'main.log');
+	log.transports.file.resolvePathFn = () => path.join(app.getPath('logs'), logFileName());
 	log.transports.file.maxSize = MAX_LOG_SIZE;
 
 	// Redirects the existing console.* calls throughout the main process into
