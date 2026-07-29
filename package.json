@@ -1,9 +1,10 @@
 {
   "name": "electron-setup-wordpress-core",
-  "author": "Adam Zieliński",
+  "author": "WordPress.org",
   "version": "0.1.0",
   "private": true,
   "description": "Electron app to setup WordPress develop structure and run npm install",
+  "homepage": "https://github.com/WordPress/experimental-wp-dev-env",
   "main": "src/main.js",
   "scripts": {
     "start": "concurrently -k \"npm:build:watch\" \"electron .\"",
@@ -22,12 +23,22 @@
       "buildResources": "build"
     },
     "icon": "build/icon.png",
+    "linux": {
+      "maintainer": "WordPress.org",
+      "target": [
+        "AppImage",
+        "snap",
+        "deb"
+      ]
+    },
     "win": {
       "icon": "build/icon.ico",
-      "sign": "./scripts/azure-sign.cjs",
-      "signingHashAlgorithms": [
-        "sha256"
-      ],
+      "signtoolOptions": {
+        "sign": "./scripts/azure-sign.cjs",
+        "signingHashAlgorithms": [
+          "sha256"
+        ]
+      },
       "target": [
         {
           "target": "nsis",
@@ -48,7 +59,7 @@
     "@emotion/styled": "^11.13.0",
     "@wordpress/components": "^28.2.0",
     "@wordpress/icons": "^10.7.0",
-    "@wp-playground/cli": "^3.0.8",
+    "@wp-playground/cli": "^3.1.47",
     "@xterm/xterm": "^5.5.0",
     "diff": "^5.2.0",
     "electron-log": "^5.4.4",
@@ -65,13 +76,14 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "electron": "^32.3.3",
-    "electron-builder": "^24.13.3",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.23.0"
   },
   "allowScripts": {
-    "electron@32.3.3": true,
+    "electron@43.2.0": true,
+    "electron-winstaller@5.4.0": true,
     "esbuild@0.23.1": true,
-    "fs-ext@2.1.1": true
+    "fs-ext-extra-prebuilt@2.2.7": true
   }
 }
