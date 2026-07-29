@@ -16,6 +16,7 @@ import { plus, chevronLeft, chevronRight, copy as copyIcon, check as checkIcon, 
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
+import { computeSetupStepState } from './setup-steps.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
@@ -41,7 +42,15 @@ function useSites() {
 function App() {
   const { sites, siteMeta, refresh, setSiteMeta, setSites } = useSites();
   const [downloadPhase, setDownloadPhase] = useState('');
-  const [pendingSite, setPendingSite] = useState(null);
+  // Directories whose clone is still running. An array rather than a single
+  // path because the main process may settle on a different (deduplicated)
+  // directory than the one the renderer optimistically created a row for.
+  const [pendingSites, setPendingSites] = useState([]);
+  const addPendingSite = useCallback((dir) => {
+    if (!dir) return;
+    setPendingSites((prev) => (prev.includes(dir) ? prev : [...prev, dir]));
+  }, []);
+  const clearPendingSites = useCallback(() => setPendingSites([]), []);
   const [terminalMsgs, setTerminalMsgs] = useState('');
   const termRef = useRef(null);
   const createDirInputRef = useRef(null);
@@ -150,11 +159,11 @@ function App() {
         setTerminalMsgs((v) => v + p.message + '\n');
         appendSetupLog(p.target, `${p.message}\n`);
       }
-      if (p && p.target) setPendingSite({ targetDir: p.target });
+      if (p && p.target) addPendingSite(p.target);
     });
     const unsubStat = window.api.subscribeSetupStatus((s) => {
       if (!s) return;
-      if (s.target) setPendingSite({ targetDir: s.target });
+      if (s.target && s.phase !== 'done') addPendingSite(s.target);
       const key = s.sitePath || s.target;
       if (key) {
         const phaseLabel = s.phase ? `Status: ${s.phase}` : 'Status update';
@@ -162,10 +171,10 @@ function App() {
         if (s.phase === 'done') appendSetupLog(key, 'Setup finished.\n');
       }
       if (s.phase === 'cloning') setDownloadPhase('Cloning repository…');
-      else if (s.phase === 'done') { setDownloadPhase(''); setPendingSite(null); setTerminalMsgs(''); }
+      else if (s.phase === 'done') { setDownloadPhase(''); clearPendingSites(); setTerminalMsgs(''); }
     });
     return () => { unsubProg && unsubProg(); unsubStat && unsubStat(); };
-  }, [appendSetupLog]);
+  }, [addPendingSite, appendSetupLog, clearPendingSites]);
 
   const chooseAndSetup = useCallback(() => {
     setCreateSiteName('');
@@ -274,13 +283,13 @@ function App() {
       setCreateSubmitting(true);
       setCreateSiteError('');
       setTerminalMsgs('');
-      setPendingSite({ targetDir });
+      addPendingSite(targetDir);
       appendSetupLog(targetDir, 'Starting site setup…\n');
       const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
       if (createdPath) {
         finalSitePath = createdPath;
         if (createdPath !== targetDir) {
-          setPendingSite({ targetDir: createdPath });
+          addPendingSite(createdPath);
           moveSetupLog(targetDir, createdPath);
           setSites((prev) => {
             const filtered = prev.filter((path) => path !== targetDir);
@@ -304,7 +313,6 @@ function App() {
       setActiveSite(finalSitePath);
       appendSetupLog(finalSitePath, 'Site setup request completed.\n');
     } catch (e) {
-      setPendingSite(null);
       setCreateSiteError(String(e));
       appendSetupLog(targetDir, `Setup failed: ${String(e)}\n`);
       setSites((prev) => prev.filter((path) => path !== targetDir));
@@ -315,9 +323,13 @@ function App() {
         return next;
       });
     } finally {
+      // `setupWordPress` resolving (or throwing) *is* the clone finishing, so
+      // clearing here guarantees the checklist can never stay locked even if
+      // the `done` status event is missed.
+      clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
+  }, [addPendingSite, appendSetupLog, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
@@ -579,7 +591,7 @@ function App() {
             ) : null}
 
             <div id="sites">
-              {pendingSite && (
+              {pendingSites.length > 0 && (
                 <Card style={{ marginBottom: 24 }}>
                   <CardBody>
                     <div style={{ fontWeight: 600 }}>Setting up new site…</div>
@@ -605,7 +617,7 @@ function App() {
                       onForget={onForget}
                       onDelete={onDelete}
                       onRename={onRename}
-                      isPending={Boolean(pendingSite && pendingSite.targetDir === s)}
+                      isPending={pendingSites.includes(s)}
                       setupLogs={setupLogsBySite[s] || ''}
                     />
                   </div>
@@ -683,7 +695,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '' }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, isPending = false, setupLogs = '' }) {
   const safeOnRename = onRename || (() => {});
   // state
   const [serverUrl, setServerUrl] = useState('');
@@ -1376,26 +1388,36 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     }
   };
 
+  const stepState = computeSetupStepState({
+    isPending,
+    statusLoading,
+    hasNodeModules,
+    hasBuilt,
+    installing,
+    building,
+    starting
+  });
+
   const baseSteps = [
     {
       key: 'download',
       label: 'Download WordPress development version',
-      description: 'Clone the WordPress develop repository.',
-      done: true,
-      ready: true
+      description: isPending
+        ? 'Cloning the WordPress develop repository… the next step unlocks when it finishes.'
+        : 'Clone the WordPress develop repository.',
+      ...stepState.download
     },
     {
       key: 'install',
       label: 'Install npm dependencies',
       description: 'Install npm packages so commands can run.',
-      done: hasNodeModules,
-      ready: true,
+      ...stepState.install,
       action: (
         <Button
           isBusy={installing}
           variant={hasNodeModules ? 'secondary' : 'primary'}
           onClick={runInstallWithTerminal}
-          disabled={statusLoading || installing || hasNodeModules}
+          disabled={stepState.install.disabled}
         >{hasNodeModules ? 'Dependencies installed' : 'Install npm dependencies'}</Button>
       )
     },
@@ -1403,14 +1425,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       key: 'build',
       label: 'Run first full build',
       description: 'Compile WordPress Core once to generate the initial dist files.',
-      done: hasBuilt,
-      ready: hasNodeModules,
+      ...stepState.build,
       action: (
         <Button
           isBusy={building}
           variant={hasBuilt ? 'secondary' : 'primary'}
           onClick={runBuildWithTerminal}
-          disabled={statusLoading || building || (!hasNodeModules) || hasBuilt}
+          disabled={stepState.build.disabled}
         >{hasBuilt ? 'First build complete' : 'Run first full build'}</Button>
       )
     },
@@ -1418,8 +1439,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       key: 'dev',
       label: 'Start dev server & finish wizard',
       description: 'Launch the development server once to complete the WordPress setup wizard.',
-      done: false,
-      ready: hasBuilt,
+      ...stepState.dev,
       action: (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Button
@@ -1429,7 +1449,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               await markSkipWizard();
               await toggleDevServer();
             }}
-            disabled={statusLoading || starting || (!hasBuilt)}
+            disabled={stepState.dev.disabled}
           >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
           {starting || serverUrl ? (
             <span style={{ fontSize: 12 }}>
