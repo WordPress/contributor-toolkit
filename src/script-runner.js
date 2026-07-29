@@ -1,4 +1,9 @@
 const path = require('path');
+const { hideChildWindows } = require('./hide-child-windows');
+
+// Must run before npm's CLI is required: it is what spawns cmd.exe for the
+// script body, and those spawns would otherwise pop up console windows.
+hideChildWindows();
 
 async function main() {
 	const targetDir = process.argv[2];
