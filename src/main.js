@@ -553,12 +553,21 @@ const ENGINE_RETRY_NOTICE = '\n⚠ This site requires a newer Node.js than this 
 // relaxed. The first failure's output still reaches the log, so the real reason
 // stays visible instead of being silently papered over.
 //
-// The automatic retry is opt-in and only npm:install enables it. Scripts
-// (build, grunt, …) can fail partway through with side effects already on
-// disk, and npm prints EBADENGINE as a mere warning when engine-strict is off
-// — so a warning followed by an unrelated non-zero exit would wrongly restart
-// a half-finished script. An install, by contrast, is idempotent to re-run.
-function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register, logScope, retryOnEngineMismatch = false }) {
+// Two independent knobs, and each command uses exactly one of them:
+//
+// `retryOnEngineMismatch` (npm:install) runs strict first and retries relaxed.
+// Scripts (build, grunt, …) must not do this: they can fail partway through
+// with side effects already on disk, and npm prints EBADENGINE as a mere
+// warning when engine-strict is off — so a warning followed by an unrelated
+// non-zero exit would wrongly restart a half-finished script. An install, by
+// contrast, is idempotent to re-run.
+//
+// `relaxEnginesFromStart` (npm:run-script) is the opposite trade and is safe
+// for exactly that reason: nothing is ever restarted, engine checks are simply
+// off from the first process onward. Scripts need it because they spawn nested
+// installs that inherit this environment — wordpress-develop's Gruntfile calls
+// install-changed at load time, which execSync's its own `npm install` (#54).
+function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register, logScope, retryOnEngineMismatch = false, relaxEnginesFromStart = false }) {
 	const start = (relaxEngines) => {
 		// Logged before the spawn: a child that fails to start at all (EPERM on
 		// Windows) produces no output, so without this the log would show nothing
@@ -626,7 +635,7 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 			finish(code);
 		});
 	};
-	start(false);
+	start(relaxEnginesFromStart);
 }
 
 ipcMain.handle('npm:install', async (event, directoryPath) => {
@@ -668,6 +677,10 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 		args: [directoryPath, scriptName, ...scriptArgs],
 		cwd: directoryPath,
 		logScope: `${scriptName}#${runId.slice(-4)}`,
+		// Baseline-relax rather than retry — see runNpmWithEngineRetry. Without
+		// this the nested `npm install` a build task spawns fails with EBADENGINE
+		// before grunt even starts (#54).
+		relaxEnginesFromStart: true,
 		register: (child) => {
 			runningScripts[runId] = child;
 			runIdByDirectory[directoryPath] = runId;
