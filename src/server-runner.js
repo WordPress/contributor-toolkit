@@ -55,6 +55,16 @@ async function main() {
 			await playgroundWriteFiles(result.playground, '/wordpress', {
 				'adminer.php': `<?php
 
+				// PHP defaults session.save_path to /home/web_user, which doesn't exist in
+				// the Playground VFS (we mount the build dir and skip WordPress setup), so
+				// Adminer's session_start() emits warnings and its later header() calls die.
+				// Point sessions at a directory we create ourselves instead.
+				$sessionDir = '/tmp/adminer-sessions';
+				if (!is_dir($sessionDir)) {
+					mkdir($sessionDir, 0777, true);
+				}
+				ini_set('session.save_path', $sessionDir);
+
 				if ($_SERVER['QUERY_STRING'] === '' || empty($_COOKIE['adminer_permanent'])) {
 					$_POST['auth'] = [
 						'driver'    => 'sqlite',
