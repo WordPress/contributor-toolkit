@@ -1,5 +1,11 @@
 const path = require('path');
 const fs = require('fs');
+const { hideChildWindows } = require('./hide-child-windows');
+
+// Must run before the Playground CLI is required, so anything it spawns is
+// covered too.
+hideChildWindows();
+
 const { writeFiles: playgroundWriteFiles } = require('@php-wasm/universal');
 
 async function main() {

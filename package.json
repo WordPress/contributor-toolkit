@@ -51,6 +51,7 @@
     "@wp-playground/cli": "^3.0.8",
     "@xterm/xterm": "^5.5.0",
     "diff": "^5.2.0",
+    "electron-log": "^5.4.4",
     "electron-store": "^10.0.1",
     "extract-zip": "^2.0.1",
     "fs-extra": "^11.2.0",
