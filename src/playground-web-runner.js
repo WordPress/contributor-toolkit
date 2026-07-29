@@ -1,4 +1,9 @@
 const path = require('path');
+const { hideChildWindows } = require('./hide-child-windows');
+
+// Must run before the Playground CLI is required, so anything it spawns is
+// covered too.
+hideChildWindows();
 
 async function main() {
     const hostMountDir = process.argv[2];
