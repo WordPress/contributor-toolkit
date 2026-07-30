@@ -60,12 +60,21 @@ function shouldRetryWithRelaxedEngines({ code, signal, sawEngineMismatch, alread
 
 // The env block for a spawned npm runner. On Windows both PATH and Path are set
 // and PATHEXT is extended so child npm processes can find the node shim.
+//
+// On Windows the node shim is a .cmd, which Node >= 20.12.2 refuses to spawn
+// without `shell: true` — so `spawnPatchPath` is preloaded into every descendant
+// Node process via NODE_OPTIONS to rewrite those spawns. See win-spawn-patch.js.
+// Electron only honours NODE_OPTIONS when ELECTRON_RUN_AS_NODE is set, which it
+// is just below.
 function buildChildEnv({
 	shimDir,
 	extraEnv = {},
 	baseEnv = process.env,
 	platform = process.platform,
-	execPath = process.execPath
+	execPath = process.execPath,
+	spawnPatchPath = null,
+	npmCliPath = null,
+	npxCliPath = null
 } = {}) {
 	const isWindows = platform === 'win32';
 	const separator = isWindows ? ';' : ':';
@@ -84,6 +93,26 @@ function buildChildEnv({
 	};
 	if (isWindows) {
 		env.Path = joinedPath;
+	}
+	if (isWindows && spawnPatchPath) {
+		// Forward slashes, always. Node does not read NODE_OPTIONS literally: it
+		// tokenises it with shell-like rules, and inside quotes a backslash is an
+		// escape character. A native path would arrive at the preloader as
+		// C:UsersJuanMaAppData… and die with MODULE_NOT_FOUND before the child
+		// runs a single line. Windows resolves forward slashes fine, and unlike
+		// doubling the backslashes this does not depend on how many layers of
+		// unescaping the value passes through. The quotes stay, for paths with
+		// spaces in them.
+		const requirePath = String(spawnPatchPath).replace(/\\/g, '/');
+		// Appended, never replaced: an inherited NODE_OPTIONS may carry settings
+		// the build relies on (wordpress-develop bumps --max-old-space-size).
+		const requireFlag = `--require "${requirePath}"`;
+		env.NODE_OPTIONS = baseEnv.NODE_OPTIONS
+			? `${baseEnv.NODE_OPTIONS} ${requireFlag}`
+			: requireFlag;
+		env.WPTK_SPAWN_PATCH = '1';
+		if (npmCliPath) env.WPTK_NPM_CLI = npmCliPath;
+		if (npxCliPath) env.WPTK_NPX_CLI = npxCliPath;
 	}
 	return { ...env, ...extraEnv };
 }

@@ -146,6 +146,74 @@ test('buildChildEnv sets both PATH casings and PATHEXT on Windows only', () => {
 	assert.equal(posix.PATHEXT, undefined);
 });
 
+test('buildChildEnv preloads the spawn patch on Windows, appending to NODE_OPTIONS', () => {
+	const env = buildChildEnv({
+		shimDir: 'C:\\shims',
+		baseEnv: { PATH: 'C:\\Windows', NODE_OPTIONS: '--max-old-space-size=4096' },
+		platform: 'win32',
+		execPath: 'C:\\App\\App.exe',
+		spawnPatchPath: 'C:\\shims\\win-spawn-patch.js',
+		npmCliPath: 'C:\\App\\npm-cli.js',
+		npxCliPath: 'C:\\App\\npx-cli.js'
+	});
+
+	// An inherited NODE_OPTIONS must survive: the build relies on its own flags.
+	assert.equal(env.NODE_OPTIONS, '--max-old-space-size=4096 --require "C:/shims/win-spawn-patch.js"');
+	assert.equal(env.WPTK_SPAWN_PATCH, '1');
+	assert.equal(env.WPTK_NPM_CLI, 'C:\\App\\npm-cli.js');
+	assert.equal(env.WPTK_NPX_CLI, 'C:\\App\\npx-cli.js');
+
+	const noInherited = buildChildEnv({
+		shimDir: 'C:\\shims',
+		baseEnv: { PATH: 'C:\\Windows' },
+		platform: 'win32',
+		execPath: 'C:\\App\\App.exe',
+		spawnPatchPath: 'C:\\shims\\win-spawn-patch.js'
+	});
+	assert.equal(noInherited.NODE_OPTIONS, '--require "C:/shims/win-spawn-patch.js"');
+});
+
+// Regression for the MODULE_NOT_FOUND this shipped with: Node tokenises
+// NODE_OPTIONS with shell-like rules, so a backslash inside the quotes is eaten
+// as an escape and the preload path arrives mangled (C:UsersJuanMa…). Asserting
+// on the exact string above is not enough — that is precisely the assertion that
+// passed while the app was broken — so pin the property that actually matters.
+test('buildChildEnv never leaves a backslash in the NODE_OPTIONS preload path', () => {
+	const env = buildChildEnv({
+		shimDir: 'C:\\Users\\JuanMa\\AppData\\Local\\Temp\\electron-node-shims-9832',
+		baseEnv: { PATH: 'C:\\Windows' },
+		platform: 'win32',
+		execPath: 'C:\\App\\App.exe',
+		spawnPatchPath: 'C:\\Users\\JuanMa\\AppData\\Local\\Temp\\electron-node-shims-9832\\win-spawn-patch.js'
+	});
+
+	assert.equal(env.NODE_OPTIONS.includes('\\'), false);
+	assert.match(env.NODE_OPTIONS, /--require "C:\/Users\/JuanMa\/.*\/win-spawn-patch\.js"$/);
+});
+
+test('buildChildEnv leaves NODE_OPTIONS alone off Windows or without a patch', () => {
+	// The .cmd shim problem is Windows-only; POSIX shims are executable scripts.
+	const posix = buildChildEnv({
+		shimDir: '/shims',
+		baseEnv: { PATH: '/usr/bin' },
+		platform: 'darwin',
+		execPath: '/opt/app',
+		spawnPatchPath: '/shims/win-spawn-patch.js'
+	});
+	assert.equal(posix.NODE_OPTIONS, undefined);
+	assert.equal(posix.WPTK_SPAWN_PATCH, undefined);
+
+	// Copying the patch is best-effort; without it we must stay as we were.
+	const noPatch = buildChildEnv({
+		shimDir: 'C:\\shims',
+		baseEnv: { PATH: 'C:\\Windows', NODE_OPTIONS: '--enable-source-maps' },
+		platform: 'win32',
+		execPath: 'C:\\App\\App.exe'
+	});
+	assert.equal(noPatch.NODE_OPTIONS, '--enable-source-maps');
+	assert.equal(noPatch.WPTK_SPAWN_PATCH, undefined);
+});
+
 test('buildChildEnv applies extraEnv last so the retry can relax engines', () => {
 	const env = buildChildEnv({
 		shimDir: '/shims',
