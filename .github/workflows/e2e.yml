@@ -49,9 +49,7 @@ jobs:
 
       # `postinstall` runs `electron-builder install-app-deps`, which is what
       # rebuilds the optional native module (fs-ext) against Electron's ABI.
-      # TEMPORARY (revert before merge): --foreground-scripts surfaces the node-gyp
-      # output npm otherwise swallows for optional dependencies. Diagnosing #71.
-      - run: npm ci --foreground-scripts
+      - run: npm ci
 
       - name: Build the renderer bundle
         run: npm run build:once
