@@ -31002,6 +31002,30 @@ WARNING: This link could potentially be dangerous`)) {
     }
   });
 
+  // src/renderer/dev-server-command.cjs
+  var require_dev_server_command = __commonJS({
+    "src/renderer/dev-server-command.cjs"(exports, module) {
+      "use strict";
+      var WATCH_SCRIPT = "grunt";
+      var WATCH_ARGS = ["--", "_watch"];
+      var WATCH_COMMAND_LABEL = "npm run grunt -- _watch";
+      function planDevServerStart2(flags = {}) {
+        const hasBuilt = Boolean(flags.hasBuilt);
+        return {
+          // True when `npm run build` must run (and exit 0) before the watcher
+          // and the server may start.
+          needsBuild: !hasBuilt,
+          watch: {
+            script: WATCH_SCRIPT,
+            args: WATCH_ARGS.slice(),
+            label: WATCH_COMMAND_LABEL
+          }
+        };
+      }
+      module.exports = { planDevServerStart: planDevServerStart2 };
+    }
+  });
+
   // src/renderer/index.jsx
   var import_react69 = __toESM(require_react());
   var import_client2 = __toESM(require_client());
@@ -53366,6 +53390,7 @@ If there's a particular need for this, please submit a feature request at https:
   // src/renderer/index.jsx
   var import_xterm = __toESM(require_xterm());
   var import_setup_steps = __toESM(require_setup_steps());
+  var import_dev_server_command = __toESM(require_dev_server_command());
   var import_jsx_runtime61 = __toESM(require_jsx_runtime());
   var TERMINAL_ALLOWED_SCRIPTS = ["build", "build:dev", "dev", "test", "watch", "grunt"];
   var TERMINAL_INSTALL_ALIASES = ["npm install", "npm i", "install"];
@@ -54235,7 +54260,6 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
     });
     const terminalKillRef = (0, import_react69.useRef)(null);
     const terminalStateRef = (0, import_react69.useRef)({ input: "", history: [], historyIndex: 0, running: false });
-    const watchBufferRef = (0, import_react69.useRef)("");
     const serverStartRequestedRef = (0, import_react69.useRef)(false);
     const stoppingRef = (0, import_react69.useRef)(false);
     const runningRef = (0, import_react69.useRef)(false);
@@ -54493,7 +54517,6 @@ Try "help" for the list of supported commands.
       setWaitingForWatch(false);
       waitingForWatchRef.current = false;
       serverStartRequestedRef.current = false;
-      watchBufferRef.current = "";
       setStarting(false);
       try {
         await window.api.stopServer(sitePath);
@@ -54597,45 +54620,67 @@ Try "help" for the list of supported commands.
           stopDevServer().catch(() => {
           });
         };
-        watchBufferRef.current = "";
         serverStartRequestedRef.current = false;
-        setWaitingForWatch(true);
-        waitingForWatchRef.current = true;
         setStarting(true);
-        writeToTerminal("\nRunning npm run watch --dev\u2026\n");
-        runScript("watch", {
-          args: ["--dev"],
-          onLog: (chunk) => {
-            if (stoppingRef.current || !terminalStateRef.current.running && !waitingForWatchRef.current) return;
-            writeToTerminal(chunk);
-            if (serverStartRequestedRef.current || runningRef.current || !terminalStateRef.current.running) return;
-            const text = String(chunk ?? "");
-            if (!text) return;
-            watchBufferRef.current = `${watchBufferRef.current}${text}`.slice(-200);
-            if (watchBufferRef.current.includes('Running "_watch" task')) {
-              startPhpServer().catch(() => {
-              });
-            }
-          },
-          onDone: ({ code }) => {
-            writeToTerminal(`npm run watch --dev exited with code ${code}
+        const plan = (0, import_dev_server_command.planDevServerStart)({ hasBuilt });
+        const startWatcherAndServer = () => {
+          setWaitingForWatch(false);
+          waitingForWatchRef.current = false;
+          writeToTerminal(`
+Running ${plan.watch.label}\u2026
 `);
-            const currentState = terminalStateRef.current;
-            currentState.running = false;
-            terminalKillRef.current = null;
-            if (!stoppingRef.current && (runningRef.current || serverStartRequestedRef.current || waitingForWatchRef.current)) {
-              stopDevServer().catch(() => {
-              });
-            } else {
-              setWaitingForWatch(false);
-              waitingForWatchRef.current = false;
-              setStarting(false);
-              serverStartRequestedRef.current = false;
-              watchBufferRef.current = "";
+          runScript(plan.watch.script, {
+            args: plan.watch.args,
+            onLog: (chunk) => {
+              if (stoppingRef.current || !terminalStateRef.current.running) return;
+              writeToTerminal(chunk);
+            },
+            onDone: ({ code }) => {
+              writeToTerminal(`${plan.watch.label} exited with code ${code}
+`);
+              const currentState = terminalStateRef.current;
+              currentState.running = false;
+              terminalKillRef.current = null;
+              if (!stoppingRef.current && (runningRef.current || serverStartRequestedRef.current)) {
+                stopDevServer().catch(() => {
+                });
+              } else {
+                setStarting(false);
+                serverStartRequestedRef.current = false;
+              }
+              showPrompt(false);
             }
-            showPrompt(false);
-          }
-        });
+          });
+          startPhpServer().catch(() => {
+          });
+        };
+        if (plan.needsBuild) {
+          setWaitingForWatch(true);
+          waitingForWatchRef.current = true;
+          writeToTerminal("\nNo completed build found \u2014 running npm run build first\u2026\n");
+          runScript("build", {
+            onLog: (chunk) => {
+              if (stoppingRef.current || !terminalStateRef.current.running && !waitingForWatchRef.current) return;
+              writeToTerminal(chunk);
+            },
+            onDone: ({ code }) => {
+              if (code !== 0 || stoppingRef.current || !terminalStateRef.current.running) {
+                if (code !== 0) writeToTerminal(`npm run build failed with code ${code} \u2014 dev server not started.
+`);
+                terminalStateRef.current.running = false;
+                terminalKillRef.current = null;
+                setWaitingForWatch(false);
+                waitingForWatchRef.current = false;
+                setStarting(false);
+                showPrompt(false);
+                return;
+              }
+              startWatcherAndServer();
+            }
+          });
+        } else {
+          startWatcherAndServer();
+        }
       } else {
         await killCurrent().catch(() => {
         });
