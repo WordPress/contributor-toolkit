@@ -1,0 +1,51 @@
+# Runs the unit suite on the two platforms the app ships to, once per Node runtime.
+#
+# The second pass is not redundant: the suite spawns `process.execPath`, so the first pass
+# exercises the Node from .nvmrc while the second exercises the Node Electron bundles — two
+# versions that are set independently and have drifted before (#37/#46).
+#
+# Nothing here packages or signs an artifact, so this workflow needs no secrets. Buildkite still
+# owns the signed builds (.buildkite/pipeline.yml).
+
+name: Unit tests
+
+on:
+  pull_request:
+  push:
+    branches: [trunk]
+
+permissions:
+  contents: read
+
+# A new push supersedes the previous run on the same ref.
+concurrency:
+  group: unit-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: unit (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Report both platforms: a Windows failure must not hide the macOS result.
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # `npm ci` and not `--ignore-scripts`: the postinstall downloads the Electron binary the
+      # second pass runs on, and test/npm-install.integration.test.cjs needs node_modules/npm.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit suite on the system Node
+        run: npm test
+
+      - name: Unit suite on Electron's bundled Node
+        run: npm run test:electron
