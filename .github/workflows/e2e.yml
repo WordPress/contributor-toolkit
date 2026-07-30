@@ -1,0 +1,73 @@
+# Launches the *packaged* app on the two platforms it ships to.
+#
+# The failures this catches — asar layout, native module rebuilds, bundled CLI resolution —
+# do not reproduce under `npm start`, so the unit suite cannot see them. One of them is
+# silent: fs-ext is an optional native dependency, and a failed rebuild ships broken file
+# locking with no error anywhere in the install or build logs.
+#
+# The build here is unsigned, so this workflow needs no secrets. Buildkite still owns the
+# signed builds (.buildkite/pipeline.yml).
+
+name: E2E
+
+on:
+  pull_request:
+  push:
+    branches: [trunk]
+
+permissions:
+  contents: read
+
+# A new push supersedes the previous run on the same ref.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Packaged smoke (${{ matrix.os }})
+    # Packaging takes several minutes per platform; don't spend it on drafts.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # `postinstall` runs `electron-builder install-app-deps`, which is what
+      # rebuilds the optional native module (fs-ext) against Electron's ABI.
+      - run: npm ci
+
+      - name: Build the renderer bundle
+        run: npm run build:once
+
+      - name: Package (unsigned, --dir)
+        # Mandatory on macOS: electron-builder signs during `--dir` otherwise.
+        # Harmless elsewhere. Windows signing already no-ops without the Azure
+        # env vars (scripts/azure-sign.cjs).
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run pack:dir
+
+      # No `playwright install` — Electron tests download no browsers.
+      - name: Run the packaged smoke test
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.os }}
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

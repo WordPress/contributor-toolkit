@@ -13,8 +13,10 @@
     "dist:win": "electron-builder --win --publish never",
     "dist:win:arm64": "electron-builder --win --arm64 --publish never",
     "dist": "electron-builder --publish never",
+    "pack:dir": "electron-builder --dir --publish never",
     "test": "node --test",
-    "test:electron": "node scripts/run-tests-electron.cjs"
+    "test:electron": "node scripts/run-tests-electron.cjs",
+    "test:e2e": "playwright test"
   },
   "build": {
     "appId": "org.wordpress.contributor.toolkit",
@@ -64,6 +66,7 @@
     "xterm": "^5.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "concurrently": "^8.2.2",
     "electron": "^32.3.3",
     "electron-builder": "^24.13.3",

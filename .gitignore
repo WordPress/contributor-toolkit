@@ -7,6 +7,10 @@ CLAUDE.local.md
 node_modules
 dist
 
+# Playwright (e2e)
+playwright-report
+test-results
+
 # Files with potential secrets
 .env
 .codesigning/

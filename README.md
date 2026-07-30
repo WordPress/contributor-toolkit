@@ -83,6 +83,18 @@ npm run dist:win:arm64
 
 Output goes to `dist/` (e.g., Windows installer `.exe`).
 
+### Tests
+
+```bash
+npm test                                      # unit tests, system Node
+npm run test:electron                         # unit tests, Electron's bundled Node
+npm run build:once                            # then, for the packaged smoke test:
+CSC_IDENTITY_AUTO_DISCOVERY=false npm run pack:dir
+npm run test:e2e
+```
+
+See [docs/testing.md](docs/testing.md) for what the smoke test covers and how to debug it.
+
 ### App icon
 
 This app uses the official WordPress “W mark” as its icon.
