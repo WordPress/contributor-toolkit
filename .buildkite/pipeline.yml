@@ -65,16 +65,27 @@ steps:
   ########################################################
   - label: ":linux: Linux Build"
     agents: { queue: default }
-    plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
     command: |
-      echo "~~~ Install dependencies"
-      .buildkite/commands/install_node_dependencies.sh
+      set -eu
+
+      echo "~~~ Verify build environment"
+      cat /etc/os-release
+      node --version
+      gcc --version
+      g++ --version
+
+      echo "~~~ Install Node dependencies"
+      npm ci --no-audit --no-progress --maxsockets 1
 
       echo "~~~ Build renderer"
       npm run build:once
 
       echo "~~~ Build Linux artifact"
       npm run dist
+    plugins:
+      - $DOCKER_PLUGIN:
+          image: "$NODE_DOCKER_IMAGE"
+          always-pull: true
     artifact_paths:
       - dist/*.AppImage
       - dist/*.deb
