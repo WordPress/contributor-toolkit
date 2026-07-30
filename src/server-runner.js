@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const { hideChildWindows } = require('./hide-child-windows');
+const { formatErrorChain } = require('./error-chain');
 
 // Must run before the Playground CLI is required, so anything it spawns is
 // covered too.
@@ -23,7 +24,24 @@ async function main() {
 			command: 'server',
 			// Mount the build directory before install as /wordpress to use existing build
 			'mount-before-install': [ { hostPath: absBuild, vfsPath: '/wordpress' } ],
-			skipWordPressSetup: true,
+			// The mounted build/ already is WordPress, so Playground must not go
+			// looking for one. Left unset this defaults to `download-and-install`:
+			// it fetches a WordPress release and unpacks it over the mount, failing
+			// on every file that is already there. That wasted pass is what makes
+			// startup take minutes on Windows.
+			//
+			// Only `download-and-install` downloads, so any other value skips it —
+			// but not all of them are safe here. `do-not-attempt-installing` (the
+			// mode Playground also calls `mount-only`) additionally skips setting up
+			// the SQLite integration plugin, and a wordpress-develop build/ carries
+			// no database driver of its own, so WordPress would boot with nothing to
+			// connect to. `install-from-existing-files-if-needed` skips the download
+			// and still prepares SQLite.
+			//
+			// Passed as `wordpressInstallMode` rather than the equivalent `mode`
+			// option because `mode` is only read on the Blueprint v2 code path, and
+			// the blueprint below is v1. Passing both is an error.
+			wordpressInstallMode: 'install-from-existing-files-if-needed',
 			verbosity: 'debug',
 			blueprint: {
 				constants: {
@@ -123,7 +141,7 @@ async function main() {
 		// Keep process alive until parent kills it
 		process.stdin.resume();
 	} catch (err) {
-		console.error(err && err.stack ? err.stack : String(err));
+		console.error(formatErrorChain(err));
 		process.exit(1);
 	}
 }
