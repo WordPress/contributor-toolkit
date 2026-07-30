@@ -20,9 +20,10 @@ One Playwright test that launches the **packaged** app and checks three things:
    checked-in list. This repo has no typecheck, so nothing else catches an
    `ipcMain.handle` added in `src/main.js` and never exposed in `src/preload.js`.
 3. **The bundled runtime modules resolve** from inside the packaged app —
-   `@wp-playground/cli` and `fs-ext`. `fs-ext` is a native *optional* dependency, so a
-   failed rebuild ships an artifact with broken file locking and no error anywhere in the
-   install or build logs. This assertion is the only thing that catches it.
+   `@wp-playground/cli`, and `fs-ext` on macOS and Linux. `fs-ext` is a native *optional*
+   dependency, so a failed rebuild degrades file locking with no error anywhere in the
+   install or build logs. This assertion is the only thing that catches it. Windows is
+   excluded because the Playground CLI does not load the module there.
 
 None of these reproduce under `npm start` — they are packaging failures, so the test needs
 a real package.
@@ -56,10 +57,9 @@ npx playwright show-trace test-results/<dir>/trace.zip
   `src/preload.js` *and* to `EXPECTED_API_KEYS` in `e2e/packaged-smoke.spec.js`. The list is
   meant to be edited deliberately; that is what makes the omission visible in review.
 - **`fs-ext` fails to resolve** — the native rebuild did not happen. Check that `npm ci` ran
-  its `postinstall` (`electron-builder install-app-deps`). On Windows this is currently a
-  *known* failure tracked in #71, marked with `test.fail()` in the spec: Windows packages
-  ship without the module. That marker is not a skip — the suite goes red if the module ever
-  resolves on Windows, which is how the assertion turns itself back on once #71 is fixed.
+  its `postinstall` (`electron-builder install-app-deps`). Only checked on macOS and Linux:
+  the Playground CLI does not load this module on Windows at all, so there is nothing to
+  assert there. The reasoning is in the spec, next to the module list.
 
 ### In CI
 

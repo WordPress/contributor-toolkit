@@ -62,11 +62,28 @@ const EXPECTED_API_KEYS = [
 /**
  * Modules the app resolves at runtime that only exist if packaging worked.
  *
- * `fs-ext` is the interesting one: it is an *optional* native dependency of
- * @php-wasm/node, so a failed rebuild against Electron's ABI produces an artifact
- * with broken file locking and no error anywhere in the install or build logs.
+ * `fs-ext` is the interesting one: it is an *optional* native dependency, so a failed
+ * rebuild against Electron's ABI degrades file locking with no error anywhere in the
+ * install or build logs. `npm ci` exits 0 and packaging succeeds regardless.
+ *
+ * Not asserted on Windows, and this is deliberate rather than a workaround. The
+ * Playground CLI never loads it there:
+ *
+ *   os.platform() === 'win32'
+ *     ? undefined                      // @TODO: Enable fs-ext here when it works with Windows.
+ *     : await import('fs-ext').then((m) => m.flockSync)
+ *
+ * so the module is genuinely unused on Windows — asserting it would test something the
+ * app does not do. (Its compile also fails on Windows runners, but that is a consequence,
+ * not the reason.)
+ *
+ * If upstream ever drops that `win32` guard, Windows belongs back in this list, and
+ * nothing here will remind you — that is the one thing worth watching in this file.
  */
-const REQUIRED_MODULES = ['@wp-playground/cli', 'fs-ext'];
+const REQUIRED_MODULES = [
+	'@wp-playground/cli',
+	...(process.platform === 'win32' ? [] : ['fs-ext']),
+];
 
 /**
  * electron-builder names the output directory after the platform *and* arch, so
@@ -154,18 +171,6 @@ test('the preload bridge exposes every expected key', async () => {
 
 for (const moduleName of REQUIRED_MODULES) {
 	test(`the packaged app can resolve ${moduleName}`, async () => {
-		// Known failure, tracked in #71: fs-ext compiles from source, the compile
-		// fails on Windows, and npm drops the optional dependency without a word.
-		// Every Windows artifact we ship today has no file locking.
-		//
-		// `test.fail` is not a skip — it fails the suite if this ever *passes*
-		// unexpectedly, so the assertion turns itself back on the moment #71 is
-		// fixed and nobody has to remember to come back here.
-		test.fail(
-			process.platform === 'win32' && moduleName === 'fs-ext',
-			'fs-ext is missing from Windows packages — see #71'
-		);
-
 		const resolved = await electronApp.evaluate(({ app }, name) => {
 			// Neither the `require` in scope here nor `process.mainModule.require`
 			// carries a `.resolve` — only a per-module require wrapper does. Build
