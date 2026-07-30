@@ -1,0 +1,12 @@
+{
+  "name": "nested-install-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reproduces issue #54: a build script that shells out to a second `npm install`, the way wordpress-develop's Gruntfile does via install-changed.",
+  "scripts": {
+    "build": "node run-build.js"
+  },
+  "dependencies": {
+    "needs-future-node": "file:./needs-future-node"
+  }
+}
