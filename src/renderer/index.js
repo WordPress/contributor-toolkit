@@ -30964,6 +30964,44 @@ WARNING: This link could potentially be dangerous`)) {
     }
   });
 
+  // src/renderer/setup-steps.cjs
+  var require_setup_steps = __commonJS({
+    "src/renderer/setup-steps.cjs"(exports, module) {
+      "use strict";
+      function computeSetupStepState2(flags = {}) {
+        const isPending = Boolean(flags.isPending);
+        const statusLoading = Boolean(flags.statusLoading);
+        const hasNodeModules = Boolean(flags.hasNodeModules);
+        const hasBuilt = Boolean(flags.hasBuilt);
+        const installing = Boolean(flags.installing);
+        const building = Boolean(flags.building);
+        const starting = Boolean(flags.starting);
+        return {
+          download: {
+            done: !isPending,
+            ready: true
+          },
+          install: {
+            done: hasNodeModules,
+            ready: !isPending,
+            disabled: isPending || statusLoading || installing || hasNodeModules
+          },
+          build: {
+            done: hasBuilt,
+            ready: hasNodeModules,
+            disabled: statusLoading || building || !hasNodeModules || hasBuilt
+          },
+          dev: {
+            done: false,
+            ready: hasBuilt,
+            disabled: statusLoading || starting || !hasBuilt
+          }
+        };
+      }
+      module.exports = { computeSetupStepState: computeSetupStepState2 };
+    }
+  });
+
   // src/renderer/index.jsx
   var import_react69 = __toESM(require_react());
   var import_client2 = __toESM(require_client());
@@ -53327,6 +53365,7 @@ If there's a particular need for this, please submit a feature request at https:
 
   // src/renderer/index.jsx
   var import_xterm = __toESM(require_xterm());
+  var import_setup_steps = __toESM(require_setup_steps());
   var import_jsx_runtime61 = __toESM(require_jsx_runtime());
   var TERMINAL_ALLOWED_SCRIPTS = ["build", "build:dev", "dev", "test", "watch", "grunt"];
   var TERMINAL_INSTALL_ALIASES = ["npm install", "npm i", "install"];
@@ -53352,7 +53391,12 @@ If there's a particular need for this, please submit a feature request at https:
   function App() {
     const { sites, siteMeta, refresh, setSiteMeta, setSites } = useSites();
     const [downloadPhase, setDownloadPhase] = (0, import_react69.useState)("");
-    const [pendingSite, setPendingSite] = (0, import_react69.useState)(null);
+    const [pendingSites, setPendingSites] = (0, import_react69.useState)([]);
+    const addPendingSite = (0, import_react69.useCallback)((dir) => {
+      if (!dir) return;
+      setPendingSites((prev2) => prev2.includes(dir) ? prev2 : [...prev2, dir]);
+    }, []);
+    const clearPendingSites = (0, import_react69.useCallback)(() => setPendingSites([]), []);
     const [terminalMsgs, setTerminalMsgs] = (0, import_react69.useState)("");
     const termRef = (0, import_react69.useRef)(null);
     const createDirInputRef = (0, import_react69.useRef)(null);
@@ -53466,11 +53510,11 @@ If there's a particular need for this, please submit a feature request at https:
           appendSetupLog(p.target, `${p.message}
 `);
         }
-        if (p && p.target) setPendingSite({ targetDir: p.target });
+        if (p && p.target) addPendingSite(p.target);
       });
       const unsubStat = window.api.subscribeSetupStatus((s) => {
         if (!s) return;
-        if (s.target) setPendingSite({ targetDir: s.target });
+        if (s.target && s.phase !== "done") addPendingSite(s.target);
         const key = s.sitePath || s.target;
         if (key) {
           const phaseLabel = s.phase ? `Status: ${s.phase}` : "Status update";
@@ -53481,7 +53525,7 @@ If there's a particular need for this, please submit a feature request at https:
         if (s.phase === "cloning") setDownloadPhase("Cloning repository\u2026");
         else if (s.phase === "done") {
           setDownloadPhase("");
-          setPendingSite(null);
+          clearPendingSites();
           setTerminalMsgs("");
         }
       });
@@ -53489,7 +53533,7 @@ If there's a particular need for this, please submit a feature request at https:
         unsubProg && unsubProg();
         unsubStat && unsubStat();
       };
-    }, [appendSetupLog]);
+    }, [addPendingSite, appendSetupLog, clearPendingSites]);
     const chooseAndSetup = (0, import_react69.useCallback)(() => {
       setCreateSiteName("");
       setCreateSiteDir("");
@@ -53580,13 +53624,13 @@ If there's a particular need for this, please submit a feature request at https:
         setCreateSubmitting(true);
         setCreateSiteError("");
         setTerminalMsgs("");
-        setPendingSite({ targetDir });
+        addPendingSite(targetDir);
         appendSetupLog(targetDir, "Starting site setup\u2026\n");
         const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
         if (createdPath) {
           finalSitePath = createdPath;
           if (createdPath !== targetDir) {
-            setPendingSite({ targetDir: createdPath });
+            addPendingSite(createdPath);
             moveSetupLog(targetDir, createdPath);
             setSites((prev2) => {
               const filtered = prev2.filter((path) => path !== targetDir);
@@ -53610,7 +53654,6 @@ If there's a particular need for this, please submit a feature request at https:
         setActiveSite(finalSitePath);
         appendSetupLog(finalSitePath, "Site setup request completed.\n");
       } catch (e) {
-        setPendingSite(null);
         setCreateSiteError(String(e));
         appendSetupLog(targetDir, `Setup failed: ${String(e)}
 `);
@@ -53622,9 +53665,10 @@ If there's a particular need for this, please submit a feature request at https:
           return next2;
         });
       } finally {
+        clearPendingSites();
         setCreateSubmitting(false);
       }
-    }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
+    }, [addPendingSite, appendSetupLog, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
     const closeCreateModal = (0, import_react69.useCallback)(() => {
       if (createSubmitting) return;
       setCreateModalOpen(false);
@@ -53872,7 +53916,7 @@ If there's a particular need for this, please submit a feature request at https:
           /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { ref: webLogRef, style: { marginTop: 8, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: webLogs })
         ] }) }) : null,
         /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { id: "sites", children: [
-          pendingSite && /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)(component_default8, { children: [
+          pendingSites.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)(component_default8, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { fontWeight: 600 }, children: "Setting up new site\u2026" }),
             downloadPhase && /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { fontSize: 12, color: "#555", marginBottom: 6 }, children: downloadPhase }),
             /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { ref: termRef, style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: terminalMsgs })
@@ -53893,7 +53937,7 @@ If there's a particular need for this, please submit a feature request at https:
                   onForget,
                   onDelete,
                   onRename,
-                  isPending: Boolean(pendingSite && pendingSite.targetDir === s),
+                  isPending: pendingSites.includes(s),
                   setupLogs: setupLogsBySite[s] || ""
                 }
               )
@@ -53970,7 +54014,7 @@ If there's a particular need for this, please submit a feature request at https:
       ) : null
     ] });
   }
-  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = "" }) {
+  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, isPending = false, setupLogs = "" }) {
     const safeOnRename = onRename || (() => {
     });
     const [serverUrl, setServerUrl] = (0, import_react69.useState)("");
@@ -54673,27 +54717,34 @@ Try "help" for the list of supported commands.
         indicatorContent: "\u2013"
       }
     };
+    const stepState = (0, import_setup_steps.computeSetupStepState)({
+      isPending,
+      statusLoading,
+      hasNodeModules,
+      hasBuilt,
+      installing,
+      building,
+      starting
+    });
     const baseSteps = [
       {
         key: "download",
         label: "Download WordPress development version",
-        description: "Clone the WordPress develop repository.",
-        done: true,
-        ready: true
+        description: isPending ? "Cloning the WordPress develop repository\u2026 the next step unlocks when it finishes." : "Clone the WordPress develop repository.",
+        ...stepState.download
       },
       {
         key: "install",
         label: "Install npm dependencies",
         description: "Install npm packages so commands can run.",
-        done: hasNodeModules,
-        ready: true,
+        ...stepState.install,
         action: /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
           button_default,
           {
             isBusy: installing,
             variant: hasNodeModules ? "secondary" : "primary",
             onClick: runInstallWithTerminal,
-            disabled: statusLoading || installing || hasNodeModules,
+            disabled: stepState.install.disabled,
             children: hasNodeModules ? "Dependencies installed" : "Install npm dependencies"
           }
         )
@@ -54702,15 +54753,14 @@ Try "help" for the list of supported commands.
         key: "build",
         label: "Run first full build",
         description: "Compile WordPress Core once to generate the initial dist files.",
-        done: hasBuilt,
-        ready: hasNodeModules,
+        ...stepState.build,
         action: /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
           button_default,
           {
             isBusy: building,
             variant: hasBuilt ? "secondary" : "primary",
             onClick: () => runScript("build"),
-            disabled: statusLoading || building || !hasNodeModules || hasBuilt,
+            disabled: stepState.build.disabled,
             children: hasBuilt ? "First build complete" : "Run first full build"
           }
         )
@@ -54719,8 +54769,7 @@ Try "help" for the list of supported commands.
         key: "dev",
         label: "Start dev server & finish wizard",
         description: "Launch the development server once to complete the WordPress setup wizard.",
-        done: false,
-        ready: hasBuilt,
+        ...stepState.dev,
         action: /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
             button_default,
@@ -54731,7 +54780,7 @@ Try "help" for the list of supported commands.
                 await markSkipWizard();
                 await toggleDevServer();
               },
-              disabled: statusLoading || starting || !hasBuilt,
+              disabled: stepState.dev.disabled,
               children: running ? "Stop dev server" : "Start dev server and finish the wizard"
             }
           ),
