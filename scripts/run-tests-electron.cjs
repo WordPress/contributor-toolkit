@@ -20,8 +20,13 @@ function electronBinaryPath() {
   return require('electron');
 }
 
+// `--test` takes no path on purpose. Since Node 22 a positional argument is a glob matching test
+// *files*, so `test/` matches nothing and Node then tries to load it as the entry module —
+// Electron 43 (Node 24) fails with MODULE_NOT_FOUND where Electron 32 (Node 20) was fine. Bare
+// `--test` discovers from the cwd on every version, and is exactly what `npm test` runs, so both
+// passes always cover the same files.
 function runSuite() {
-  const child = spawn(electronBinaryPath(), ['--test', 'test/'], {
+  const child = spawn(electronBinaryPath(), ['--test'], {
     cwd: REPO_ROOT,
     env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
     stdio: 'inherit',
