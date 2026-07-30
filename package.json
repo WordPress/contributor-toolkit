@@ -14,7 +14,8 @@
     "dist:win": "electron-builder --win --publish never",
     "dist:win:arm64": "electron-builder --win --arm64 --publish never",
     "dist": "electron-builder --publish never",
-    "test": "node --test"
+    "test": "node --test",
+    "test:electron": "node scripts/run-tests-electron.cjs"
   },
   "build": {
     "appId": "org.wordpress.contributor.toolkit",
