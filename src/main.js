@@ -589,6 +589,10 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 
 		child.on('error', (err) => {
 			logError(logScope, `spawn failed: ${String(err)}`);
+			// Also surfaced in the app's terminal: the log file explains a failure
+			// after the fact, but the person who just clicked the button needs to
+			// see that the run never started.
+			onLog('stderr', `\nFailed to start: ${err && err.message ? err.message : String(err)}\n`);
 			// Deferred by a turn so that close — which knows about the engines
 			// retry — wins whenever it does arrive. A spawn failure is the very
 			// case this logging exists to expose, so it must not also become a
