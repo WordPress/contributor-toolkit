@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { planDevServerStart } = require('../src/renderer/dev-server-command.cjs');
+const { planDevServerStart, formatElapsed } = require('../src/renderer/dev-server-command.cjs');
 
 test('a built site skips the build and goes straight to the watcher (issue #72)', () => {
 	const plan = planDevServerStart({ hasBuilt: true });
@@ -42,4 +42,25 @@ test('the returned args are a fresh copy a caller cannot corrupt for the next st
 	first.watch.args.length = 0;
 
 	assert.deepStrictEqual(planDevServerStart({ hasBuilt: true }).watch.args, ['--', '_watch']);
+});
+
+test('formatElapsed shows plain seconds under a minute', () => {
+	assert.strictEqual(formatElapsed(0), '0s');
+	assert.strictEqual(formatElapsed(42), '42s');
+	assert.strictEqual(formatElapsed(59), '59s');
+});
+
+test('formatElapsed switches to zero-padded minutes form at a minute', () => {
+	assert.strictEqual(formatElapsed(60), '1m 00s');
+	assert.strictEqual(formatElapsed(185), '3m 05s');
+	assert.strictEqual(formatElapsed(671), '11m 11s');
+});
+
+// The counter is driven by an incrementing interval, but a clock hiccup or a
+// future refactor to timestamps must never render garbage next to the button.
+test('formatElapsed clamps negatives and non-numbers to 0s', () => {
+	assert.strictEqual(formatElapsed(-5), '0s');
+	assert.strictEqual(formatElapsed(NaN), '0s');
+	assert.strictEqual(formatElapsed(undefined), '0s');
+	assert.strictEqual(formatElapsed(12.9), '12s');
 });

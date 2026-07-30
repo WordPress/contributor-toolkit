@@ -43,4 +43,17 @@ function planDevServerStart(flags = {}) {
 	};
 }
 
-module.exports = { planDevServerStart };
+/**
+ * Formats a duration in whole seconds for the "Starting dev server…" counter:
+ * '42s' under a minute, '3m 05s' above. The counter exists so a contributor on
+ * a slow machine can tell a boot in progress from a hang (issue #73).
+ */
+function formatElapsed(seconds) {
+	const total = Math.max(0, Math.floor(Number(seconds) || 0));
+	if (total < 60) return `${total}s`;
+	const minutes = Math.floor(total / 60);
+	const rest = total % 60;
+	return `${minutes}m ${String(rest).padStart(2, '0')}s`;
+}
+
+module.exports = { planDevServerStart, formatElapsed };
