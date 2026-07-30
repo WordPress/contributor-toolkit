@@ -56,7 +56,10 @@ npx playwright show-trace test-results/<dir>/trace.zip
   `src/preload.js` *and* to `EXPECTED_API_KEYS` in `e2e/packaged-smoke.spec.js`. The list is
   meant to be edited deliberately; that is what makes the omission visible in review.
 - **`fs-ext` fails to resolve** — the native rebuild did not happen. Check that `npm ci` ran
-  its `postinstall` (`electron-builder install-app-deps`).
+  its `postinstall` (`electron-builder install-app-deps`). On Windows this is currently a
+  *known* failure tracked in #71, marked with `test.fail()` in the spec: Windows packages
+  ship without the module. That marker is not a skip — the suite goes red if the module ever
+  resolves on Windows, which is how the assertion turns itself back on once #71 is fixed.
 
 ### In CI
 

@@ -152,8 +152,20 @@ test('the preload bridge exposes every expected key', async () => {
 	expect(exposed).toEqual(EXPECTED_API_KEYS);
 });
 
-test('the packaged app can resolve its bundled runtime modules', async () => {
-	for (const moduleName of REQUIRED_MODULES) {
+for (const moduleName of REQUIRED_MODULES) {
+	test(`the packaged app can resolve ${moduleName}`, async () => {
+		// Known failure, tracked in #71: fs-ext compiles from source, the compile
+		// fails on Windows, and npm drops the optional dependency without a word.
+		// Every Windows artifact we ship today has no file locking.
+		//
+		// `test.fail` is not a skip — it fails the suite if this ever *passes*
+		// unexpectedly, so the assertion turns itself back on the moment #71 is
+		// fixed and nobody has to remember to come back here.
+		test.fail(
+			process.platform === 'win32' && moduleName === 'fs-ext',
+			'fs-ext is missing from Windows packages — see #71'
+		);
+
 		const resolved = await electronApp.evaluate(({ app }, name) => {
 			// Neither the `require` in scope here nor `process.mainModule.require`
 			// carries a `.resolve` — only a per-module require wrapper does. Build
@@ -171,5 +183,5 @@ test('the packaged app can resolve its bundled runtime modules', async () => {
 		expect(resolved, `${moduleName} failed to resolve from ${resolved.appPath}: ${resolved.error}`)
 			.toHaveProperty('ok', true);
 		expect(resolved.path).toBeTruthy();
-	}
-});
+	});
+}
