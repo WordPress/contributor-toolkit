@@ -1,11 +1,16 @@
 const path = require('path');
 const fs = require('fs');
 const { hideChildWindows } = require('./hide-child-windows');
+const { bindLoopbackOnly } = require('./bind-loopback');
 const { formatErrorChain } = require('./error-chain');
 
 // Must run before the Playground CLI is required, so anything it spawns is
 // covered too.
 hideChildWindows();
+
+// Same reason: the CLI calls `listen` with no address, so the patch has to be in
+// place before it is loaded. Without it the dev site is served to the whole LAN.
+bindLoopbackOnly();
 
 const { writeFiles: playgroundWriteFiles } = require('@php-wasm/universal');
 
