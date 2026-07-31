@@ -717,6 +717,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const [emailViewTab, setEmailViewTab] = useState('rendered');
   const [building, setBuilding] = useState(false);
   const [hasNodeModules, setHasNodeModules] = useState(false);
+  const [installFailed, setInstallFailed] = useState(false);
   const [hasBuilt, setHasBuilt] = useState(false);
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
@@ -832,6 +833,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       setStatusLoading(true);
       const s = await window.api.getSiteStatus(sitePath);
       setHasNodeModules(Boolean(s?.hasNodeModules));
+      setInstallFailed(Boolean(s?.installFailed));
       setHasBuilt(Boolean(s?.hasBuilt));
       setSkipInit(Boolean(s?.skipInitWizard));
     } catch {}
@@ -849,27 +851,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     }, async ({ code }) => {
       appendNpm(`\ninstall exited with code ${code}\n`);
       setInstalling(false);
-      /**
-       * Still let us through when this happens on Windows:
-       * 
-       * npm verbose stack Error: command failed
-       * npm verbose stack     at promiseSpawn (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\promise-spawn\\lib\\index.js:22:22)
-       * npm verbose stack     at spawnWithShell (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\promise-spawn\\lib\\index.js:124:10)
-       * npm verbose stack     at promiseSpawn (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\promise-spawn\\lib\\index.js:12:12)
-       * npm verbose stack     at runScriptPkg (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\run-script\\lib\\run-script-pkg.js:79:13)
-       * npm verbose stack     at runScript (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\run-script\\lib\\run-script.js:9:12)
-       * npm verbose stack     at C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\arborist\\lib\\arborist\\rebuild.js:329:17
-       * npm verbose stack     at run (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\promise-call-limit\\dist\\commonjs\\index.js:67:22)
-       * npm verbose stack     at C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\promise-call-limit\\dist\\commonjs\\index.js:84:9
-       * npm verbose stack     at new Promise (<anonymous>)
-       * npm verbose stack     at callLimit (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\promise-call-limit\\dist\\commonjs\\index.js:35:69)
-       * npm verbose pkgid core-js-pure@3.35.1
-       * npm error code 1
-       * npm error path C:\\wp\\wordpress-develop-trunk\\node_modules\\core-js-pure
-       * 
-       * @TODO: Do not mark as initialized if the installation fails.
-       */
-      if (1 || code === 0) { try { await window.api.markSiteInitialized(sitePath); } catch {} onInitialized(sitePath); }
+      // A failed install must not mark the site initialized (#42): the wizard
+      // would advance to a build that cannot work. Leaving the step incomplete
+      // keeps the install button available for a retry.
+      if (code === 0) { try { await window.api.markSiteInitialized(sitePath); } catch {} onInitialized(sitePath); }
       try { await loadStatus(); } catch {}
       if (onDone) onDone({ code });
     });
@@ -1451,7 +1436,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     hasBuilt,
     installing,
     building,
-    starting
+    starting,
+    installFailed
   });
 
   const baseSteps = [
@@ -1471,10 +1457,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       action: (
         <Button
           isBusy={installing}
-          variant={hasNodeModules ? 'secondary' : 'primary'}
+          variant={stepState.install.done ? 'secondary' : 'primary'}
           onClick={runInstallWithTerminal}
           disabled={stepState.install.disabled}
-        >{hasNodeModules ? 'Dependencies installed' : 'Install npm dependencies'}</Button>
+        >{stepState.install.done ? 'Dependencies installed' : installFailed ? 'Retry npm install' : 'Install npm dependencies'}</Button>
       )
     },
     {

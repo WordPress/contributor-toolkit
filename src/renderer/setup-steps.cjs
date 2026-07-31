@@ -18,6 +18,13 @@ function computeSetupStepState(flags = {}) {
 	const installing = Boolean(flags.installing);
 	const building = Boolean(flags.building);
 	const starting = Boolean(flags.starting);
+	const installFailed = Boolean(flags.installFailed);
+
+	// node_modules existing is not evidence the install succeeded: a failed
+	// install leaves a partial one behind, and treating that as a completed
+	// step disabled the retry and unlocked a build that could not work (#42).
+	// The recorded outcome of the last install run overrides existence.
+	const installOk = hasNodeModules && !installFailed;
 
 	return {
 		download: {
@@ -25,14 +32,14 @@ function computeSetupStepState(flags = {}) {
 			ready: true
 		},
 		install: {
-			done: hasNodeModules,
+			done: installOk,
 			ready: !isPending,
-			disabled: isPending || statusLoading || installing || hasNodeModules
+			disabled: isPending || statusLoading || installing || installOk
 		},
 		build: {
 			done: hasBuilt,
-			ready: hasNodeModules,
-			disabled: statusLoading || building || !hasNodeModules || hasBuilt
+			ready: installOk,
+			disabled: statusLoading || building || !installOk || hasBuilt
 		},
 		dev: {
 			done: false,

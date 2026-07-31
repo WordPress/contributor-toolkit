@@ -30976,20 +30976,22 @@ WARNING: This link could potentially be dangerous`)) {
         const installing = Boolean(flags.installing);
         const building = Boolean(flags.building);
         const starting = Boolean(flags.starting);
+        const installFailed = Boolean(flags.installFailed);
+        const installOk = hasNodeModules && !installFailed;
         return {
           download: {
             done: !isPending,
             ready: true
           },
           install: {
-            done: hasNodeModules,
+            done: installOk,
             ready: !isPending,
-            disabled: isPending || statusLoading || installing || hasNodeModules
+            disabled: isPending || statusLoading || installing || installOk
           },
           build: {
             done: hasBuilt,
-            ready: hasNodeModules,
-            disabled: statusLoading || building || !hasNodeModules || hasBuilt
+            ready: installOk,
+            disabled: statusLoading || building || !installOk || hasBuilt
           },
           dev: {
             done: false,
@@ -54067,6 +54069,7 @@ If there's a particular need for this, please submit a feature request at https:
     const [emailViewTab, setEmailViewTab] = (0, import_react69.useState)("rendered");
     const [building, setBuilding] = (0, import_react69.useState)(false);
     const [hasNodeModules, setHasNodeModules] = (0, import_react69.useState)(false);
+    const [installFailed, setInstallFailed] = (0, import_react69.useState)(false);
     const [hasBuilt, setHasBuilt] = (0, import_react69.useState)(false);
     const [skipInit, setSkipInit] = (0, import_react69.useState)(false);
     const [statusLoading, setStatusLoading] = (0, import_react69.useState)(true);
@@ -54184,6 +54187,7 @@ If there's a particular need for this, please submit a feature request at https:
         setStatusLoading(true);
         const s = await window.api.getSiteStatus(sitePath);
         setHasNodeModules(Boolean(s?.hasNodeModules));
+        setInstallFailed(Boolean(s?.installFailed));
         setHasBuilt(Boolean(s?.hasBuilt));
         setSkipInit(Boolean(s?.skipInitWizard));
       } catch {
@@ -54206,7 +54210,7 @@ If there's a particular need for this, please submit a feature request at https:
 install exited with code ${code}
 `);
         setInstalling(false);
-        if (1) {
+        if (code === 0) {
           try {
             await window.api.markSiteInitialized(sitePath);
           } catch {
@@ -54811,7 +54815,8 @@ Running ${plan.watch.label}\u2026
       hasBuilt,
       installing,
       building,
-      starting
+      starting,
+      installFailed
     });
     const baseSteps = [
       {
@@ -54829,10 +54834,10 @@ Running ${plan.watch.label}\u2026
           button_default,
           {
             isBusy: installing,
-            variant: hasNodeModules ? "secondary" : "primary",
+            variant: stepState.install.done ? "secondary" : "primary",
             onClick: runInstallWithTerminal,
             disabled: stepState.install.disabled,
-            children: hasNodeModules ? "Dependencies installed" : "Install npm dependencies"
+            children: stepState.install.done ? "Dependencies installed" : installFailed ? "Retry npm install" : "Install npm dependencies"
           }
         )
       },
