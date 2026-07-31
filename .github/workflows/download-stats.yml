@@ -1,12 +1,17 @@
-# Records release-asset download counts once a day, onto an orphan `metrics` branch.
+# Records release-asset download counts once a week, onto an orphan `metrics` branch.
 #
 # GitHub exposes only a running total per asset (`download_count`) and no history endpoint, so a
 # trend can only exist if we write it down ourselves. The counter is also destroyed when an asset
 # is deleted and re-uploaded — renaming a published file restarts it at zero — which makes these
 # snapshots the only durable record.
 #
-# The data lives on `metrics`, an orphan branch sharing no history with trunk: a daily commit
-# stays out of trunk's log, and the branch can be deleted without touching anything else.
+# The data lives on `metrics`, an orphan branch sharing no history with trunk: the commit stays
+# out of trunk's log, and the branch can be deleted without touching anything else.
+#
+# Weekly rather than daily. Download counts do not move fast enough for a daily point to say
+# anything a Monday one does not, and this job holds a write-capable token — running it 52 times
+# a year instead of 365 is the cheapest reduction in how often that token is handed to a
+# third-party action.
 #
 # Note that GitHub disables cron workflows after 60 days without repository activity. The job can
 # always be started by hand from the Actions tab.
@@ -15,8 +20,9 @@ name: Download stats
 
 on:
   schedule:
-    # 03:17 UTC. Scheduled runs queue behind everyone else's on-the-hour jobs.
-    - cron: '17 3 * * *'
+    # Mondays at 03:17 UTC. Off the hour: scheduled runs queue behind everyone else's on-the-hour
+    # jobs, and GitHub drops a scheduled run entirely if the queue is long enough.
+    - cron: '17 3 * * 1'
   workflow_dispatch:
 
 # Writes to the `metrics` branch.
@@ -33,7 +39,10 @@ jobs:
     name: snapshot download counts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Pinned to a commit, not a tag. This job is the only one in the repo holding
+      # `contents: write`, so a moved tag here would mean third-party code running weekly with a
+      # token that can push to any branch, trunk included. A SHA cannot be repointed.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Record today's counts
         env:
