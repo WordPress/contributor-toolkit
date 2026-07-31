@@ -21,6 +21,7 @@
   "build": {
     "appId": "org.wordpress.contributor.toolkit",
     "productName": "WordPress Contributor Toolkit",
+    "artifactName": "wordpress-contributor-toolkit-${version}-${os}-${arch}.${ext}",
     "directories": {
       "buildResources": "build"
     },
