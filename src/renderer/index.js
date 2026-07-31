@@ -55059,7 +55059,7 @@ Running ${plan.watch.label}\u2026
             "Log in with ",
             /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("code", { children: "admin" }),
             " / ",
-            /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("code", { children: "admin" }),
+            /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("code", { children: "password" }),
             "."
           ] })
         ] }) : `Dev server is starting\u2026 (${(0, import_dev_server_command.formatElapsed)(startElapsed)})` }) : null
