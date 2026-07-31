@@ -128,5 +128,5 @@ For cases when MySQL is required, local Playground can work with MySQL. The only
 
 ### License
 
-GPLv2.
+GPLv2 or later. See [LICENSE](LICENSE).
 

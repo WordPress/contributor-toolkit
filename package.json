@@ -3,6 +3,7 @@
   "author": "WordPress.org",
   "version": "0.1.2",
   "private": true,
+  "license": "GPL-2.0-or-later",
   "description": "Electron app to setup WordPress develop structure and run npm install",
   "homepage": "https://github.com/WordPress/experimental-wp-dev-env",
   "main": "src/main.js",
