@@ -825,6 +825,16 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 		flushChildOutput(logScope);
 		logEvent(logScope, `server exited with code ${code}${signal ? ` (signal ${signal})` : ''}`);
 		delete playgroundServers[sitePath];
+		// A server that dies before reporting its URL must fail the start request
+		// now, not at the 120s timeout: the stale resolution would arrive while a
+		// restarted session is still starting and the renderer's failure handling
+		// would tear down the wrong session (#82). The web-server variant below
+		// settles on close the same way.
+		if (typeof pendingResolve === 'function') {
+			clearTimeout(timeoutId);
+			pendingResolve({ ok: false, error: `Server exited with code ${code}${signal ? ` (signal ${signal})` : ''} before reporting a URL` });
+			pendingResolve = null;
+		}
 		event.sender.send('playground:stopped', { sitePath, code });
 		// Stop WP debug tail if running
 		stopWpDebugTail(sitePath);
