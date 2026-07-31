@@ -17,7 +17,7 @@ import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
 import { computeSetupStepState } from './setup-steps.cjs';
-import { planDevServerStart } from './dev-server-command.cjs';
+import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
@@ -1215,7 +1215,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port)=>setSmtpPort(port||0));
     if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg)=>setEmails((prev)=>sortEmails([msg, ...prev])));
     try {
-      await window.api.startServer(
+      const res = await window.api.startServer(
         sitePath,
         (p)=>appendRuntime(p.data || ''),
         (url)=>{
@@ -1231,8 +1231,26 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           setStarting(false);
           serverStartRequestedRef.current = false;
         },
-        ()=>{ setRunning(false); runningRef.current = false; setServerUrl(''); serverStartRequestedRef.current = false; }
+        ()=>{
+          setRunning(false); runningRef.current = false; setServerUrl(''); serverStartRequestedRef.current = false;
+          // A stop the user did not ask for is a crash: say so, and tear the
+          // whole dev session down — watcher included — instead of leaving the
+          // button spinning "Starting dev server…" forever (issue #73).
+          if (!stoppingRef.current) {
+            appendRuntime('Dev server stopped unexpectedly (see Help → Open App Log for details).\n');
+            killCurrent().catch(() => {});
+            stopDevServer().catch(() => {});
+          }
+        }
       );
+      // A failed start reports through the return value, not an exception.
+      // This also covers spawn failures that never produce a "stopped" event.
+      if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
+        appendRuntime(`Dev server failed to start: ${res.error || 'unknown error'}\n`);
+        killCurrent().catch(() => {});
+        stopDevServer().catch(() => {});
+        return;
+      }
     } catch (error) {
       appendRuntime(`Failed to start PHP server: ${error && error.message ? error.message : String(error)}\n`);
       setStarting(false);
@@ -1242,7 +1260,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     }
     window.api.startWpDebug(sitePath,(d)=>appendRuntime(d || ''));
     try { const { port, emails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(emails||[]); } catch {}
-  }, [appendRuntime, ensureStick, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails]);
+  }, [appendRuntime, ensureStick, killCurrent, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
 
   const toggleDevServer = async ()=>{
     if (!running) {
@@ -1328,6 +1346,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   };
   const isServerStarting = waitingForWatch || (starting && !serverUrl);
   const isDevProcessActive = running || isServerStarting;
+  // Elapsed-seconds counter for the starting state, so a slow boot is
+  // distinguishable from a hang (issue #73).
+  const [startElapsed, setStartElapsed] = useState(0);
+  useEffect(() => {
+    if (!isServerStarting) {
+      setStartElapsed(0);
+      return undefined;
+    }
+    const id = setInterval(() => setStartElapsed((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [isServerStarting]);
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
@@ -1480,7 +1509,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
           {starting || serverUrl ? (
             <span style={{ fontSize: 12 }}>
-              {starting ? 'Starting...' : (serverUrl ? (
+              {starting ? `Starting… (${formatElapsed(startElapsed)})` : (serverUrl ? (
                 <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
               ) : null)}
             </span>
@@ -1664,7 +1693,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
                   <span style={{ fontSize: 12, color: '#3c434a' }}>Log in with <code>admin</code> / <code>admin</code>.</span>
                 </>
               ) : (
-                'Dev server is starting…'
+                `Dev server is starting… (${formatElapsed(startElapsed)})`
               )}
             </div>
           ) : null}

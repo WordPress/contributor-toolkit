@@ -820,14 +820,24 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 		stopSmtpServerForSite(sitePath);
 	});
 
+	// The server must report SERVER_URL within this window or the start has
+	// failed. Generous on purpose: booting WASM PHP on a slow Windows VM can
+	// legitimately take tens of seconds, and cutting off a slow-but-healthy
+	// boot would be worse than the wait. What this converts is "hangs forever"
+	// into "fails loudly" (issue #73): on expiry the child is killed — which
+	// fires the close handler and the playground:stopped event — and the
+	// renderer surfaces the returned error.
+	const START_TIMEOUT_MS = 120000;
 	return new Promise((resolve) => {
 		pendingResolve = resolve;
 		timeoutId = setTimeout(() => {
 			if (!resolved && typeof pendingResolve === 'function') {
-				pendingResolve({ ok: false, error: 'Timed out starting server' });
+				logError(logScope, `server did not report a URL within ${START_TIMEOUT_MS / 1000}s; killing it`);
+				try { child.kill(); } catch {}
+				pendingResolve({ ok: false, error: `Server did not start within ${START_TIMEOUT_MS / 1000} seconds` });
 				pendingResolve = null;
 			}
-		}, 20000);
+		}, START_TIMEOUT_MS);
 	});
 });
 

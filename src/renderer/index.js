@@ -31022,7 +31022,14 @@ WARNING: This link could potentially be dangerous`)) {
           }
         };
       }
-      module.exports = { planDevServerStart: planDevServerStart2 };
+      function formatElapsed2(seconds) {
+        const total = Math.max(0, Math.floor(Number(seconds) || 0));
+        if (total < 60) return `${total}s`;
+        const minutes = Math.floor(total / 60);
+        const rest = total % 60;
+        return `${minutes}m ${String(rest).padStart(2, "0")}s`;
+      }
+      module.exports = { planDevServerStart: planDevServerStart2, formatElapsed: formatElapsed2 };
     }
   });
 
@@ -54563,7 +54570,7 @@ Try "help" for the list of supported commands.
       if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port) => setSmtpPort(port || 0));
       if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg) => setEmails((prev2) => sortEmails([msg, ...prev2])));
       try {
-        await window.api.startServer(
+        const res = await window.api.startServer(
           sitePath,
           (p) => appendRuntime(p.data || ""),
           (url) => {
@@ -54584,8 +54591,24 @@ Try "help" for the list of supported commands.
             runningRef.current = false;
             setServerUrl("");
             serverStartRequestedRef.current = false;
+            if (!stoppingRef.current) {
+              appendRuntime("Dev server stopped unexpectedly (see Help \u2192 Open App Log for details).\n");
+              killCurrent().catch(() => {
+              });
+              stopDevServer().catch(() => {
+              });
+            }
           }
         );
+        if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
+          appendRuntime(`Dev server failed to start: ${res.error || "unknown error"}
+`);
+          killCurrent().catch(() => {
+          });
+          stopDevServer().catch(() => {
+          });
+          return;
+        }
       } catch (error) {
         appendRuntime(`Failed to start PHP server: ${error && error.message ? error.message : String(error)}
 `);
@@ -54601,7 +54624,7 @@ Try "help" for the list of supported commands.
         setEmails(emails2 || []);
       } catch {
       }
-    }, [appendRuntime, ensureStick, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails]);
+    }, [appendRuntime, ensureStick, killCurrent, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
     const toggleDevServer = async () => {
       if (!running) {
         if (!skipInit && !hasBuilt) {
@@ -54689,6 +54712,15 @@ Running ${plan.watch.label}\u2026
     };
     const isServerStarting = waitingForWatch || starting && !serverUrl;
     const isDevProcessActive = running || isServerStarting;
+    const [startElapsed, setStartElapsed] = (0, import_react69.useState)(0);
+    (0, import_react69.useEffect)(() => {
+      if (!isServerStarting) {
+        setStartElapsed(0);
+        return void 0;
+      }
+      const id3 = setInterval(() => setStartElapsed((s) => s + 1), 1e3);
+      return () => clearInterval(id3);
+    }, [isServerStarting]);
     const markSkipWizard = (0, import_react69.useCallback)(async () => {
       await window.api.setSkipInitWizard(sitePath, true);
       setSkipInit(true);
@@ -54839,7 +54871,7 @@ Running ${plan.watch.label}\u2026
               children: running ? "Stop dev server" : "Start dev server and finish the wizard"
             }
           ),
-          starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { style: { fontSize: 12 }, children: starting ? "Starting..." : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("a", { href: serverUrl, onClick: (e) => {
+          starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { style: { fontSize: 12 }, children: starting ? `Starting\u2026 (${(0, import_dev_server_command.formatElapsed)(startElapsed)})` : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("a", { href: serverUrl, onClick: (e) => {
             e.preventDefault();
             window.api.openExternal(serverUrl);
           }, children: serverUrl }) : null }) : null
@@ -55030,7 +55062,7 @@ Running ${plan.watch.label}\u2026
             /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("code", { children: "admin" }),
             "."
           ] })
-        ] }) : "Dev server is starting\u2026" }) : null
+        ] }) : `Dev server is starting\u2026 (${(0, import_dev_server_command.formatElapsed)(startElapsed)})` }) : null
       ] }) : null,
       /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 16 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { children: [
