@@ -717,6 +717,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const [emailViewTab, setEmailViewTab] = useState('rendered');
   const [building, setBuilding] = useState(false);
   const [hasNodeModules, setHasNodeModules] = useState(false);
+  const [installFailed, setInstallFailed] = useState(false);
   const [hasBuilt, setHasBuilt] = useState(false);
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
@@ -832,6 +833,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       setStatusLoading(true);
       const s = await window.api.getSiteStatus(sitePath);
       setHasNodeModules(Boolean(s?.hasNodeModules));
+      setInstallFailed(Boolean(s?.installFailed));
       setHasBuilt(Boolean(s?.hasBuilt));
       setSkipInit(Boolean(s?.skipInitWizard));
     } catch {}
@@ -1434,7 +1436,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     hasBuilt,
     installing,
     building,
-    starting
+    starting,
+    installFailed
   });
 
   const baseSteps = [
@@ -1454,10 +1457,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       action: (
         <Button
           isBusy={installing}
-          variant={hasNodeModules ? 'secondary' : 'primary'}
+          variant={stepState.install.done ? 'secondary' : 'primary'}
           onClick={runInstallWithTerminal}
           disabled={stepState.install.disabled}
-        >{hasNodeModules ? 'Dependencies installed' : 'Install npm dependencies'}</Button>
+        >{stepState.install.done ? 'Dependencies installed' : installFailed ? 'Retry npm install' : 'Install npm dependencies'}</Button>
       )
     },
     {

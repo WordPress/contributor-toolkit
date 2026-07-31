@@ -50,6 +50,22 @@ test('installed dependencies complete the install step and unlock the build', ()
 	assert.strictEqual(steps.build.disabled, false);
 });
 
+test('a failed install does not complete the step, even though node_modules exists (issue #42)', () => {
+	const steps = computeSetupStepState({ hasNodeModules: true, installFailed: true });
+
+	assert.strictEqual(steps.install.done, false, 'a failed install is not a completed step');
+	assert.strictEqual(steps.install.disabled, false, 'the retry must stay available');
+	assert.strictEqual(steps.build.ready, false, 'the build stays locked after a failed install');
+	assert.strictEqual(steps.build.disabled, true);
+});
+
+test('a successful install after a failure completes the step again', () => {
+	const steps = computeSetupStepState({ hasNodeModules: true, installFailed: false });
+
+	assert.strictEqual(steps.install.done, true);
+	assert.strictEqual(steps.build.ready, true);
+});
+
 test('the build stays locked without node_modules', () => {
 	const steps = computeSetupStepState({});
 

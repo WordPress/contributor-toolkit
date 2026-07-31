@@ -415,9 +415,9 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		const meta = s.get('siteMeta') || {};
 		const m = meta[sitePath] || {};
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized) };
+		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed) };
 	} catch (e) {
-		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false };
+		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false };
 	}
 });
 
@@ -678,7 +678,19 @@ ipcMain.handle('npm:install', async (event, directoryPath) => {
 		onLog: (type, data) => {
 			event.sender.send('npm:install:log', { installId, type, data });
 		},
-		onDone: (code) => {
+		onDone: async (code) => {
+			// Recorded before the done event so the renderer's status reload
+			// sees the outcome. node_modules existing is not evidence the
+			// install succeeded (#42); this flag is what site:status reports
+			// so a failed install's partial node_modules doesn't read as a
+			// completed setup step. Sites that predate the flag read as not
+			// failed, which matches the old behaviour.
+			try {
+				const s = await getStore();
+				const meta = s.get('siteMeta') || {};
+				meta[directoryPath] = { ...(meta[directoryPath] || {}), installFailed: code !== 0 };
+				s.set('siteMeta', meta);
+			} catch {}
 			event.sender.send('npm:install:done', { installId, code });
 			delete runningInstalls[installId];
 		}
