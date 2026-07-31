@@ -54206,7 +54206,7 @@ If there's a particular need for this, please submit a feature request at https:
 install exited with code ${code}
 `);
         setInstalling(false);
-        if (1) {
+        if (code === 0) {
           try {
             await window.api.markSiteInitialized(sitePath);
           } catch {
