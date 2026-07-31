@@ -31035,6 +31035,18 @@ WARNING: This link could potentially be dangerous`)) {
     }
   });
 
+  // src/renderer/path-basename.cjs
+  var require_path_basename = __commonJS({
+    "src/renderer/path-basename.cjs"(exports, module) {
+      "use strict";
+      function pathBasename2(p) {
+        const s = String(p ?? "");
+        return s.split(/[\\/]/).filter(Boolean).pop() || s;
+      }
+      module.exports = { pathBasename: pathBasename2 };
+    }
+  });
+
   // src/renderer/index.jsx
   var import_react69 = __toESM(require_react());
   var import_client2 = __toESM(require_client());
@@ -53400,6 +53412,7 @@ If there's a particular need for this, please submit a feature request at https:
   var import_xterm = __toESM(require_xterm());
   var import_setup_steps = __toESM(require_setup_steps());
   var import_dev_server_command = __toESM(require_dev_server_command());
+  var import_path_basename = __toESM(require_path_basename());
   var import_jsx_runtime61 = __toESM(require_jsx_runtime());
   var TERMINAL_ALLOWED_SCRIPTS = ["build", "build:dev", "dev", "test", "watch", "grunt"];
   var TERMINAL_INSTALL_ALIASES = ["npm install", "npm i", "install"];
@@ -53876,7 +53889,7 @@ If there's a particular need for this, please submit a feature request at https:
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 8px" : "12px 16px", display: "flex", flexDirection: "column", gap: 8 }, children: sortedSites.length > 0 ? sortedSites.map((sitePath) => {
           const meta = siteMeta?.[sitePath] || {};
-          const siteName = meta.label && meta.label.trim() || sitePath.split("/").pop() || sitePath;
+          const siteName = meta.label && meta.label.trim() || (0, import_path_basename.pathBasename)(sitePath);
           const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : "";
           const isActive = activeSite === sitePath;
           const statusLabel = meta.initialized ? "Initialized" : "Not initialized";
@@ -54097,7 +54110,7 @@ If there's a particular need for this, please submit a feature request at https:
       const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
       updateStick(key, atBottom);
     }, [threshold, updateStick]);
-    const siteName = sitePath.split("/").pop();
+    const siteName = (0, import_path_basename.pathBasename)(sitePath);
     const displayName = label && label.trim() || siteName;
     const [renameModalOpen, setRenameModalOpen] = (0, import_react69.useState)(false);
     const [renameValue, setRenameValue] = (0, import_react69.useState)(displayName);
