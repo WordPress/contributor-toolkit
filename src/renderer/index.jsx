@@ -1690,7 +1690,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               {serverUrl ? (
                 <>
                   <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
-                  <span style={{ fontSize: 12, color: '#3c434a' }}>Log in with <code>admin</code> / <code>admin</code>.</span>
+                  <span style={{ fontSize: 12, color: '#3c434a' }}>Log in with <code>admin</code> / <code>password</code>.</span>
                 </>
               ) : (
                 `Dev server is starting… (${formatElapsed(startElapsed)})`
