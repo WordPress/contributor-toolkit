@@ -126,6 +126,12 @@ For cases when MySQL is required, local Playground can work with MySQL. The only
 - An ergonomic way of managing the git repository from the UI (commit, conflicts, pushes etc.) Or would it make sense to just endorse another git client?
 - Integrate with Trac and GitHub to apply and submit patches directly. Related: [grunt-patch-wordpress](https://github.com/WordPress/grunt-patch-wordpress)
 
+### Download stats
+
+Release downloads are the only usage signal this project has, and GitHub keeps no history of
+them, so a weekly workflow records the counts to a `metrics` branch. See [STATS.md](STATS.md) for
+how to read them and what they do and don't measure.
+
 ### License
 
 GPLv2 or later. See [LICENSE](LICENSE).
