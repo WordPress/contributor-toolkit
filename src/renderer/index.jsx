@@ -17,6 +17,7 @@ import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
 import { computeSetupStepState } from './setup-steps.cjs';
+import { planDevServerStart } from './dev-server-command.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
@@ -916,7 +917,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const terminalInputHandlerRef = useRef(() => {});
   const terminalKillRef = useRef(null);
   const terminalStateRef = useRef({ input: '', history: [], historyIndex: 0, running: false });
-  const watchBufferRef = useRef('');
   const serverStartRequestedRef = useRef(false);
   const stoppingRef = useRef(false);
   const runningRef = useRef(false);
@@ -1185,7 +1185,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     setWaitingForWatch(false);
     waitingForWatchRef.current = false;
     serverStartRequestedRef.current = false;
-    watchBufferRef.current = '';
     setStarting(false);
     try { await window.api.stopServer(sitePath); } catch {}
     try { window.api.stopWpDebug(sitePath); } catch {}
@@ -1258,42 +1257,70 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
         killCurrent().catch(() => {});
         stopDevServer().catch(() => {});
       };
-      watchBufferRef.current = '';
       serverStartRequestedRef.current = false;
-      setWaitingForWatch(true);
-      waitingForWatchRef.current = true;
       setStarting(true);
-      writeToTerminal('\nRunning npm run watch --dev…\n');
-      runScript('watch', {
-        args: ['--dev'],
-        onLog: (chunk) => {
-          if (stoppingRef.current || (!terminalStateRef.current.running && !waitingForWatchRef.current)) return;
-          writeToTerminal(chunk);
-          if (serverStartRequestedRef.current || runningRef.current || !terminalStateRef.current.running) return;
-          const text = String(chunk ?? '');
-          if (!text) return;
-          watchBufferRef.current = `${watchBufferRef.current}${text}`.slice(-200);
-          if (watchBufferRef.current.includes('Running "_watch" task')) {
-            startPhpServer().catch(() => {});
+
+      const plan = planDevServerStart({ hasBuilt });
+
+      // The Playground server only needs build/ on disk — it does not depend
+      // on the watcher — so once a completed build exists the two start
+      // together instead of the server waiting on Grunt's output.
+      const startWatcherAndServer = () => {
+        setWaitingForWatch(false);
+        waitingForWatchRef.current = false;
+        writeToTerminal(`\nRunning ${plan.watch.label}…\n`);
+        runScript(plan.watch.script, {
+          args: plan.watch.args,
+          onLog: (chunk) => {
+            if (stoppingRef.current || !terminalStateRef.current.running) return;
+            writeToTerminal(chunk);
+          },
+          onDone: ({ code }) => {
+            writeToTerminal(`${plan.watch.label} exited with code ${code}\n`);
+            const currentState = terminalStateRef.current;
+            currentState.running = false;
+            terminalKillRef.current = null;
+            if (!stoppingRef.current && (runningRef.current || serverStartRequestedRef.current)) {
+              stopDevServer().catch(() => {});
+            } else {
+              setStarting(false);
+              serverStartRequestedRef.current = false;
+            }
+            showPrompt(false);
           }
-        },
-        onDone: ({ code }) => {
-          writeToTerminal(`npm run watch --dev exited with code ${code}\n`);
-          const currentState = terminalStateRef.current;
-          currentState.running = false;
-          terminalKillRef.current = null;
-          if (!stoppingRef.current && (runningRef.current || serverStartRequestedRef.current || waitingForWatchRef.current)) {
-            stopDevServer().catch(() => {});
-          } else {
-            setWaitingForWatch(false);
-            waitingForWatchRef.current = false;
-            setStarting(false);
-            serverStartRequestedRef.current = false;
-            watchBufferRef.current = '';
+        });
+        startPhpServer().catch(() => {});
+      };
+
+      if (plan.needsBuild) {
+        // Skip-the-wizard sites (and hand-deleted build/ directories) still
+        // need a build before anything can be served. Its exit code — not a
+        // string in its output — is the completion signal.
+        setWaitingForWatch(true);
+        waitingForWatchRef.current = true;
+        writeToTerminal('\nNo completed build found — running npm run build first…\n');
+        runScript('build', {
+          onLog: (chunk) => {
+            if (stoppingRef.current || (!terminalStateRef.current.running && !waitingForWatchRef.current)) return;
+            writeToTerminal(chunk);
+          },
+          onDone: ({ code }) => {
+            if (code !== 0 || stoppingRef.current || !terminalStateRef.current.running) {
+              if (code !== 0) writeToTerminal(`npm run build failed with code ${code} — dev server not started.\n`);
+              terminalStateRef.current.running = false;
+              terminalKillRef.current = null;
+              setWaitingForWatch(false);
+              waitingForWatchRef.current = false;
+              setStarting(false);
+              showPrompt(false);
+              return;
+            }
+            startWatcherAndServer();
           }
-          showPrompt(false);
-        }
-      });
+        });
+      } else {
+        startWatcherAndServer();
+      }
     } else {
       await killCurrent().catch(() => {});
       await stopDevServer();
