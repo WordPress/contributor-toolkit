@@ -18,6 +18,7 @@ import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
 import { computeSetupStepState } from './setup-steps.cjs';
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
+import { pathBasename } from './path-basename.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
@@ -502,7 +503,7 @@ function App() {
         <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? '12px 8px' : '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sortedSites.length > 0 ? sortedSites.map((sitePath) => {
             const meta = siteMeta?.[sitePath] || {};
-            const siteName = (meta.label && meta.label.trim()) || sitePath.split('/').pop() || sitePath;
+            const siteName = (meta.label && meta.label.trim()) || pathBasename(sitePath);
             const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : '';
             const isActive = activeSite === sitePath;
             const statusLabel = meta.initialized ? 'Initialized' : 'Not initialized';
@@ -744,7 +745,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     updateStick(key, atBottom);
   }, [threshold, updateStick]);
 
-  const siteName = sitePath.split('/').pop();
+  const siteName = pathBasename(sitePath);
   const displayName = (label && label.trim()) || siteName;
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [renameValue, setRenameValue] = useState(displayName);
