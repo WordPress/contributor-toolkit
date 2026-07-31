@@ -28,6 +28,7 @@ const {
 	logError
 } = require('./logging');
 const { buildMenuTemplate } = require('./menu');
+const { killChildTree } = require('./kill-tree');
 
 const WORDPRESS_ZIP_URL = 'https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip';
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
@@ -393,6 +394,23 @@ app.on('window-all-closed', function () {
 	if (process.platform !== 'darwin') app.quit();
 });
 
+// Quitting must end everything the app started (#83). The children that matter
+// are trees (runner → npm → shell → grunt → node), so each one goes through
+// killChildTree rather than child.kill(), which signals only the first link.
+// Known residual gap on Windows: taskkill /T walks parent links at kill time,
+// so a grandchild whose intermediate parent is already gone can survive
+// (observed with grunt _watch) — tracked in #83.
+app.on('before-quit', () => {
+	logEvent('quit', 'sweeping child processes');
+	const children = [
+		...Object.values(runningInstalls),
+		...Object.values(runningScripts),
+		...Object.values(playgroundServers).map((s) => s.child),
+		...(playgroundWebServer?.child ? [playgroundWebServer.child] : [])
+	];
+	for (const child of children) killChildTree(child);
+});
+
 ipcMain.handle('sites:get', async () => {
 	const s = await getStore();
 	return s.get('sites');
@@ -584,7 +602,10 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 				extraEnv: relaxEngines ? RELAXED_ENGINES_ENV : {}
 			}),
 			shell: false,
-			windowsHide: true
+			windowsHide: true,
+			// Group leader on POSIX so killChildTree can signal the whole tree
+			// (see kill-tree.js); Windows uses taskkill /T instead.
+			detached: process.platform !== 'win32'
 		});
 		register(child);
 
@@ -786,7 +807,10 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 			WP_MAIL_SMTP_PASS: ''
 		},
 		shell: false,
-		windowsHide: true
+		windowsHide: true,
+		// Group leader on POSIX so killChildTree can signal the whole tree
+		// (see kill-tree.js); Windows uses taskkill /T instead.
+		detached: process.platform !== 'win32'
 	});
 	playgroundServers[sitePath] = { child };
 	let resolved = false;
@@ -927,7 +951,10 @@ ipcMain.handle('playground-web:start', async (event) => {
             ELECTRON_RUN_AS_NODE: '1'
         },
         shell: false,
-        windowsHide: true
+        windowsHide: true,
+        // Group leader on POSIX so killChildTree can signal the whole tree
+        // (see kill-tree.js); Windows uses taskkill /T instead.
+        detached: process.platform !== 'win32'
     });
     playgroundWebServer = { child };
 
