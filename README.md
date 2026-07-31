@@ -1,5 +1,9 @@
 ## WordPress Contributor Toolkit (Electron)
 
+[![Unit tests](https://github.com/WordPress/experimental-wp-dev-env/actions/workflows/unit-tests.yml/badge.svg?branch=trunk)](https://github.com/WordPress/experimental-wp-dev-env/actions/workflows/unit-tests.yml)
+[![Latest release](https://img.shields.io/github/v/release/WordPress/experimental-wp-dev-env)](https://github.com/WordPress/experimental-wp-dev-env/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/WordPress/experimental-wp-dev-env/total)](https://github.com/WordPress/experimental-wp-dev-env/releases)
+
 The [WordPress Core Dev Environment Toolkit](https://github.com/WordPress/experimental-wp-dev-env) is a desktop electron application (available for macOS on Apple Silicon, Windows, and Linux) that sets up a full WordPress core development environment with zero prerequisites.
 
 You install it, choose a directory for `wordpress-develop`, click a button, and you have:
