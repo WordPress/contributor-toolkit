@@ -1,0 +1,86 @@
+# Records release-asset download counts once a day, onto an orphan `metrics` branch.
+#
+# GitHub exposes only a running total per asset (`download_count`) and no history endpoint, so a
+# trend can only exist if we write it down ourselves. The counter is also destroyed when an asset
+# is deleted and re-uploaded — renaming a published file restarts it at zero — which makes these
+# snapshots the only durable record.
+#
+# The data lives on `metrics`, an orphan branch sharing no history with trunk: a daily commit
+# stays out of trunk's log, and the branch can be deleted without touching anything else.
+#
+# Note that GitHub disables cron workflows after 60 days without repository activity. The job can
+# always be started by hand from the Actions tab.
+
+name: Download stats
+
+on:
+  schedule:
+    # 03:17 UTC. Scheduled runs queue behind everyone else's on-the-hour jobs.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+# Writes to the `metrics` branch.
+permissions:
+  contents: write
+
+# Two runs appending to the same branch would race on the push.
+concurrency:
+  group: download-stats
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    name: snapshot download counts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record today's counts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          # `metrics` does not exist on the first run. Orphaning keeps trunk's files out of the
+          # commit: `--cached` unstages everything, leaving them untracked on disk, and only the
+          # two files below are ever added back.
+          if git ls-remote --exit-code --heads origin metrics >/dev/null 2>&1; then
+            git fetch --depth=1 origin metrics:metrics
+            git checkout metrics
+          else
+            git checkout --orphan metrics
+            git rm -rf --cached . >/dev/null
+          fi
+
+          DATE=$(date -u +%F)
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases" > releases.json
+
+          [ -f downloads.csv ] || echo 'date,tag,asset,downloads' > downloads.csv
+
+          # A manual re-run replaces the day's rows instead of duplicating them.
+          grep -v "^$DATE," downloads.csv > downloads.next
+          mv -f downloads.next downloads.csv
+
+          # One row per asset per day: which platform people take is the interesting part, and a
+          # single total cannot be broken back down later.
+          jq -r '.[] | .tag_name as $tag | .assets[] | [$tag, .name, .download_count] | @csv' \
+            releases.json | sed "s/^/$DATE,/" >> downloads.csv
+
+          # A shields.io endpoint badge can read this, so the README's number comes from data we
+          # control rather than a live third-party query.
+          TOTAL=$(jq '[.[].assets[].download_count] | add // 0' releases.json)
+          printf '{"schemaVersion":1,"label":"downloads","message":"%s","color":"blue"}\n' \
+            "$TOTAL" > badge.json
+
+          rm releases.json
+
+          git add downloads.csv badge.json
+          if git diff --cached --quiet; then
+            echo "No change to record."
+            exit 0
+          fi
+          git commit -m "Download counts for $DATE ($TOTAL total)"
+          git push origin metrics
