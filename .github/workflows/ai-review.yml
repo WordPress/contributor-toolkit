@@ -55,15 +55,23 @@ jobs:
 
       # Full history so the review can diff against the merge base and read the files
       # around the diff — the rules require verifying context before asserting a finding.
-      - uses: actions/checkout@v4
+      # Pinned to commits, not tags, for the same reason download-stats.yml pins its
+      # checkout: this job holds the repo's only Claude credential plus a token with
+      # `pull-requests: write`, and a repointed tag would run third-party code with both.
+      # A SHA cannot be repointed.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         if: steps.creds.outputs.present == 'true'
         with:
           fetch-depth: 0
           # Without this, checkout writes the job's GITHUB_TOKEN into .git/config as an
           # x-access-token remote URL — inside the very tree handed to the agent below,
-          # which has an unrestricted Read tool and a channel back out to a public PR.
-          # A PR whose diff or filenames carry an instruction to read that file and quote
-          # it could walk the reviewer into publishing a repo-scoped write token.
+          # which has a channel back out to a public PR. A PR whose diff or filenames carry
+          # an instruction to read that file and quote it could walk the reviewer into
+          # publishing a repo-scoped write token.
+          #
+          # The allowlist now scopes reads to the workspace and denies .git/config outright,
+          # so this is the third layer rather than the only one. It stays because it is the
+          # only one that keeps the token off disk in the first place.
           #
           # Nothing here needs it: fetch-depth 0 has already fetched every ref, the agent's
           # git usage is local (diff, log), and `gh` authenticates from its own environment.
@@ -84,7 +92,7 @@ jobs:
             > .previous-review.md || : > .previous-review.md
           echo "Previous review comment: $(wc -c < .previous-review.md) bytes"
 
-      - uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@9db594c7a0e82298c121c18b7f08aa1579ce7341 # v1, 2026-08-04
         if: steps.creds.outputs.present == 'true'
         with:
           # Authenticates to the Claude API. GitHub authentication is separate — see below.
