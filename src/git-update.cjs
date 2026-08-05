@@ -17,8 +17,8 @@
  * modal for a no-op. This matches exactly what the patch generator emits.
  */
 function isDirtyFromStatusMatrix(matrix) {
-	const changed = (matrix || []).filter(([, head, workdir]) => head !== workdir);
-	return { dirty: changed.length > 0, changedCount: changed.length, files: changed.map(([filepath]) => filepath) };
+	const rows = (matrix || []).filter(([, head, workdir]) => head !== workdir);
+	return { dirty: rows.length > 0, changedCount: rows.length, files: rows.map(([filepath]) => filepath), rows };
 }
 
 /**

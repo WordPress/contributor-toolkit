@@ -29,7 +29,8 @@ const {
 } = require('./logging');
 const { buildMenuTemplate } = require('./menu');
 const { killChildTree } = require('./kill-tree');
-const { isDirtyFromStatusMatrix, staleStagedPaths, lockfileChangedFromBlobOids, normalizeEol, normalizeEolBuffer } = require('./git-update.cjs');
+const { normalizeEol } = require('./git-update.cjs');
+const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, updateToLatestTrunk } = require('./trunk-update');
 
 const WORDPRESS_ZIP_URL = 'https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip';
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
@@ -286,23 +287,6 @@ function buildPatchHtml(content) {
     </body></html>`;
 }
 
-// A site checked out by native git on Windows (default core.autocrlf=true,
-// set globally — which isomorphic-git never reads) has CRLF on disk while
-// wordpress-develop's blobs are LF-only. Without this, statusMatrix hashes
-// the raw CRLF bytes and reports every text file as modified (~5k phantom
-// changes; isomorphic-git#1275). Writing core.autocrlf into the site's LOCAL
-// config makes isomorphic-git strip CRLF before hashing workdir files. LF
-// checkouts are unaffected. Called before every status/patch/update git op
-// so pre-existing sites are covered, not just new clones.
-async function ensureAutocrlf(dir) {
-    try {
-        const current = await git.getConfig({ fs, dir, path: 'core.autocrlf' });
-        if (current !== 'true') {
-            await git.setConfig({ fs, dir, path: 'core.autocrlf', value: 'true' });
-        }
-    } catch {}
-}
-
 async function createMinimalPatchForDir(dir) {
     await ensureAutocrlf(dir);
     // The diff base is deliberately the local HEAD (the cloned trunk
@@ -401,16 +385,8 @@ ipcMain.handle('git:save-patch', async (_e, sitePath) => {
     }
 });
 
-// --- Trunk update path (#94) ---
-
-// Reads the commit the site's HEAD points at; its committer date is the age
-// of the trunk snapshot. One object read, no network.
-async function readTrunkInfo(dir) {
-    const trunkOid = await git.resolveRef({ fs, dir, ref: 'HEAD' });
-    const { commit } = await git.readCommit({ fs, dir, oid: trunkOid });
-    const trunkDate = new Date(commit.committer.timestamp * 1000).toISOString();
-    return { trunkOid, trunkDate };
-}
+// --- Trunk update path (#94) --- git mechanics live in src/trunk-update.js;
+// these handlers only add IPC plumbing and electron-store writes.
 
 async function mergeSiteMeta(sitePath, patch) {
     const s = await getStore();
@@ -419,40 +395,9 @@ async function mergeSiteMeta(sitePath, patch) {
     s.set('siteMeta', meta);
 }
 
-async function readLockfileBlobOid(dir, oid) {
-    try {
-        const { oid: blobOid } = await git.readBlob({ fs, dir, oid, filepath: 'package-lock.json' });
-        return blobOid;
-    } catch {
-        return null;
-    }
-}
-
 ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
     try {
-        const dir = sitePath;
-        await ensureAutocrlf(dir);
-        const matrix = await git.statusMatrix({ fs, dir });
-        const candidates = isDirtyFromStatusMatrix(matrix).files;
-        // statusMatrix's autocrlf normalization only covers valid-UTF8 files;
-        // non-UTF8 text fixtures smudged to CRLF by a native-git checkout
-        // still hash as modified. Confirm each candidate with a byte-level
-        // CRLF-insensitive comparison before calling the tree dirty.
-        let headOid = null;
-        try { headOid = await git.resolveRef({ fs, dir, ref: 'HEAD' }); } catch {}
-        const rowByPath = new Map(matrix.map((row) => [row[0], row]));
-        const files = [];
-        for (const filepath of candidates) {
-            const [, head, workdir] = rowByPath.get(filepath) || [];
-            if (head === 1 && workdir === 2 && headOid) {
-                try {
-                    const { blob } = await git.readBlob({ fs, dir, oid: headOid, filepath });
-                    const work = await fs.promises.readFile(path.join(dir, filepath));
-                    if (normalizeEolBuffer(Buffer.from(blob)).equals(normalizeEolBuffer(work))) continue;
-                } catch {}
-            }
-            files.push(filepath);
-        }
+        const files = await collectDirtyFiles(sitePath);
         return { ok: true, dirty: files.length > 0, changedCount: files.length, files };
     } catch (e) {
         return { ok: false, error: String(e) };
@@ -461,103 +406,39 @@ ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
 
 ipcMain.handle('git:discard-changes', async (_e, sitePath) => {
     try {
-        const dir = sitePath;
-        await ensureAutocrlf(dir);
-        const matrix = await git.statusMatrix({ fs, dir });
-        // Files absent from HEAD must be removed from the index AND the
-        // workdir — a "discard" that leaves new files behind would put them
-        // straight back into the next patch.
-        for (const [filepath, head, workdir] of matrix) {
-            if (head === 0) {
-                try { await git.remove({ fs, dir, filepath }); } catch {}
-                if (workdir !== 0) {
-                    try { await fs.promises.unlink(path.join(dir, filepath)); } catch {}
-                }
-            }
-        }
-        await git.checkout({ fs, dir, ref: 'trunk', force: true });
+        await discardChanges(sitePath);
         return { ok: true };
     } catch (e) {
         return { ok: false, error: String(e) };
     }
 });
 
-const runningTrunkUpdates = {};
-
 ipcMain.handle('git:update-trunk', async (event, sitePath) => {
     const updateId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const sender = event.sender;
-    const dir = sitePath;
     const sendLog = (data) => {
         try { sender.send('git:update-trunk:log', { updateId, data }); } catch {}
     };
     const sendDone = (payload) => {
-        delete runningTrunkUpdates[updateId];
         try { sender.send('git:update-trunk:done', { updateId, ...payload }); } catch {}
     };
-    runningTrunkUpdates[updateId] = { sitePath };
 
     (async () => {
-        let stage = 'fetch';
-        let oldOid = null;
         try {
-            await ensureAutocrlf(dir);
-            oldOid = await git.resolveRef({ fs, dir, ref: 'HEAD' });
-            sendLog(`Fetching latest trunk…\n`);
-            const fetchResult = await git.fetch({
-                fs, http, dir,
-                url: WORDPRESS_GIT_URL,
-                ref: 'trunk',
-                singleBranch: true,
-                depth: 1,
-                tags: false,
-                onProgress: (evt) => {
-                    sendLog(`${evt.phase || 'fetch'} ${evt.loaded || 0}/${evt.total || 0}\r`);
-                }
-            });
-            let newOid = fetchResult && fetchResult.fetchHead;
-            if (!newOid) newOid = await git.resolveRef({ fs, dir, ref: 'refs/remotes/origin/trunk' });
-
-            if (newOid === oldOid) {
-                const { trunkDate } = await readTrunkInfo(dir);
-                await mergeSiteMeta(sitePath, { trunkOid: oldOid, trunkDate });
-                sendLog('\nAlready up to date.\n');
-                sendDone({ ok: true, upToDate: true, oldOid, newOid, lockfileChanged: false, trunkDate });
-                return;
+            const result = await updateToLatestTrunk({ dir: sitePath, url: WORDPRESS_GIT_URL, onLog: sendLog });
+            if (result.upToDate) {
+                await mergeSiteMeta(sitePath, { trunkOid: result.oldOid, trunkDate: result.trunkDate });
+            } else {
+                // HEAD has moved but install/build have not run yet: persist
+                // the incomplete flag now so the state survives a crash or
+                // quit mid-chain; the renderer clears it after a successful
+                // build.
+                await mergeSiteMeta(sitePath, { trunkOid: result.newOid, trunkDate: result.trunkDate, updateIncomplete: true });
             }
-
-            // Decide the install step before touching the worktree.
-            const oldLock = await readLockfileBlobOid(dir, oldOid);
-            const newLock = await readLockfileBlobOid(dir, newOid);
-            const lockfileChanged = lockfileChangedFromBlobOids(oldLock, newLock);
-
-            stage = 'checkout';
-            // Patch generation stages untracked files and never unstages
-            // them; checkout({force}) deletes workdir files that are in the
-            // index but absent from the target tree, so drop those index
-            // entries first (index-only — the workdir files survive).
-            const matrix = await git.statusMatrix({ fs, dir });
-            for (const filepath of staleStagedPaths(matrix)) {
-                try { await git.remove({ fs, dir, filepath }); } catch {}
-            }
-            sendLog(`\nResetting to latest trunk (${newOid.slice(0, 7)})…\n`);
-            await git.writeRef({ fs, dir, ref: 'refs/heads/trunk', value: newOid, force: true });
-            await git.checkout({
-                fs, dir, ref: 'trunk', force: true,
-                onProgress: (evt) => {
-                    sendLog(`${evt.phase || 'checkout'} ${evt.loaded || 0}/${evt.total || 0}\r`);
-                }
-            });
-
-            const { trunkDate } = await readTrunkInfo(dir);
-            // HEAD has moved but install/build have not run yet: persist the
-            // incomplete flag now so the state survives a crash or quit
-            // mid-chain; the renderer clears it after a successful build.
-            await mergeSiteMeta(sitePath, { trunkOid: newOid, trunkDate, updateIncomplete: true });
-            sendLog(`\nNow on trunk as of ${trunkDate}.\n`);
-            sendDone({ ok: true, upToDate: false, oldOid, newOid, lockfileChanged, trunkDate });
+            sendDone({ ok: true, ...result });
         } catch (e) {
             logError('git:update-trunk', String(e && e.stack ? e.stack : e));
+            const stage = (e && e.stage) || 'fetch';
             // A failure during checkout leaves the ref moved over a partial
             // worktree — that is the "code is new, assets are old" state, so
             // persist it; a fetch failure moved nothing and stays plain.
@@ -565,7 +446,7 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
                 try { await mergeSiteMeta(sitePath, { updateIncomplete: true }); } catch {}
             }
             sendLog(`\nUpdate failed during ${stage}: ${String(e && e.message ? e.message : e)}\n`);
-            sendDone({ ok: false, upToDate: false, oldOid, newOid: null, lockfileChanged: false, error: String(e), stage });
+            sendDone({ ok: false, upToDate: false, error: String(e), stage });
         }
     })();
 

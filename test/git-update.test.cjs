@@ -15,7 +15,7 @@ test('isDirtyFromStatusMatrix: clean tree (issue #94)', () => {
 		['a.php', 1, 1, 1],
 		['b.php', 1, 1, 1]
 	];
-	assert.deepStrictEqual(isDirtyFromStatusMatrix(matrix), { dirty: false, changedCount: 0, files: [] });
+	assert.deepStrictEqual(isDirtyFromStatusMatrix(matrix), { dirty: false, changedCount: 0, files: [], rows: [] });
 });
 
 test('isDirtyFromStatusMatrix: modified, deleted and untracked files are dirty, and named (issue #94)', () => {
@@ -29,7 +29,7 @@ test('isDirtyFromStatusMatrix: modified, deleted and untracked files are dirty, 
 });
 
 test('isDirtyFromStatusMatrix: staged-but-identical to HEAD is clean — no patch hunks would result (issue #94)', () => {
-	assert.deepStrictEqual(isDirtyFromStatusMatrix([['s.php', 1, 1, 3]]), { dirty: false, changedCount: 0, files: [] });
+	assert.deepStrictEqual(isDirtyFromStatusMatrix([['s.php', 1, 1, 3]]), { dirty: false, changedCount: 0, files: [], rows: [] });
 });
 
 test('isDirtyFromStatusMatrix: untracked file staged by a prior patch generation is dirty (issue #94)', () => {
@@ -37,8 +37,8 @@ test('isDirtyFromStatusMatrix: untracked file staged by a prior patch generation
 });
 
 test('isDirtyFromStatusMatrix: empty or missing matrix is clean (issue #94)', () => {
-	assert.deepStrictEqual(isDirtyFromStatusMatrix([]), { dirty: false, changedCount: 0, files: [] });
-	assert.deepStrictEqual(isDirtyFromStatusMatrix(undefined), { dirty: false, changedCount: 0, files: [] });
+	assert.deepStrictEqual(isDirtyFromStatusMatrix([]), { dirty: false, changedCount: 0, files: [], rows: [] });
+	assert.deepStrictEqual(isDirtyFromStatusMatrix(undefined), { dirty: false, changedCount: 0, files: [], rows: [] });
 });
 
 test('staleStagedPaths: picks only staged files absent from HEAD (issue #94)', () => {
