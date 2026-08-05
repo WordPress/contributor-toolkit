@@ -21,6 +21,10 @@
 /**
  * Pure decision: how to kill the tree rooted at `pid` on `platform`.
  * Returns null for a pid that cannot identify a live process.
+ *
+ * @param {string} platform
+ * @param {number} pid
+ * @return {?Object}
  */
 function killTreePlan(platform, pid) {
 	if (!Number.isInteger(pid) || pid <= 0) return null;
@@ -34,6 +38,14 @@ function killTreePlan(platform, pid) {
  * Applies killTreePlan to a ChildProcess. Never throws: this runs during
  * quit, where a failure to kill one child must not stop the sweep of the rest.
  * Returns true when a kill was attempted.
+ *
+ * @param {?Object}  child
+ * @param {Object}   [deps]           Injection points, so the tests can assert
+ *                                    the plan without spawning anything.
+ * @param {string}   [deps.platform]
+ * @param {Function} [deps.spawnSync]
+ * @param {Function} [deps.kill]
+ * @return {boolean}
  */
 function killChildTree(child, {
 	platform = process.platform,
