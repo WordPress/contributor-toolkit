@@ -1,0 +1,47 @@
+'use strict';
+
+/**
+ * Pure helpers for the trunk update path (issue #94), operating on
+ * isomorphic-git statusMatrix rows and blob oids. Kept dependency-free so
+ * `node --test` can require them directly while the git I/O stays in main.js.
+ *
+ * statusMatrix row shape: [filepath, head, workdir, stage] where
+ * head: 0 absent, 1 present; workdir: 0 absent, 1 identical, 2 different;
+ * stage: 0 absent, 1 identical, 2 modified-staged, 3 modified-unstaged.
+ */
+
+/**
+ * A worktree is dirty when any file's working copy differs from HEAD. The
+ * stage column is deliberately ignored: a file staged but byte-identical to
+ * HEAD produces no patch hunks, so warning about it would show a scary
+ * modal for a no-op. This matches exactly what the patch generator emits.
+ */
+function isDirtyFromStatusMatrix(matrix) {
+	const changed = (matrix || []).filter(([, head, workdir]) => head !== workdir);
+	return { dirty: changed.length > 0, changedCount: changed.length };
+}
+
+/**
+ * Files staged but absent from HEAD — the residue patch generation leaves
+ * behind (it stages untracked files and never unstages). checkout({force})
+ * deletes workdir files that are in the index but not in the target tree, so
+ * these must be removed from the index (index-only) before a reset or the
+ * user's untracked files get destroyed.
+ */
+function staleStagedPaths(matrix) {
+	return (matrix || [])
+		.filter(([, head, , stage]) => head === 0 && stage !== 0)
+		.map(([filepath]) => filepath);
+}
+
+/**
+ * Whether package-lock.json changed between two trunk snapshots, from the
+ * blob oids on each side (null when the file is absent in that tree).
+ */
+function lockfileChangedFromBlobOids(oldBlobOid, newBlobOid) {
+	if (!oldBlobOid && !newBlobOid) return false;
+	if (!oldBlobOid || !newBlobOid) return true;
+	return oldBlobOid !== newBlobOid;
+}
+
+module.exports = { isDirtyFromStatusMatrix, staleStagedPaths, lockfileChangedFromBlobOids };

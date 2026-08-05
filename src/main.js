@@ -29,6 +29,7 @@ const {
 } = require('./logging');
 const { buildMenuTemplate } = require('./menu');
 const { killChildTree } = require('./kill-tree');
+const { isDirtyFromStatusMatrix, staleStagedPaths, lockfileChangedFromBlobOids } = require('./git-update.cjs');
 
 const WORDPRESS_ZIP_URL = 'https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip';
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
@@ -286,6 +287,12 @@ function buildPatchHtml(content) {
 }
 
 async function createMinimalPatchForDir(dir) {
+    // The diff base is deliberately the local HEAD (the cloned trunk
+    // snapshot), NOT the remote trunk ref: diffing local edits against a
+    // trunk that has moved would embed reversed upstream changes and foreign
+    // context lines into the patch, and it would apply nowhere. The route to
+    // Trac-applicable patches is the "Update to latest trunk" action (#94),
+    // after which HEAD == origin/trunk and the two bases coincide.
     // Ensure we have origin/trunk and HEAD reference
     try { await git.resolveRef({ fs, dir, ref: 'refs/remotes/origin/trunk' }); }
     catch { await git.fetch({ fs, http, dir, url: WORDPRESS_GIT_URL, depth: 1, singleBranch: true, ref: 'trunk' }); }
@@ -373,6 +380,159 @@ ipcMain.handle('git:save-patch', async (_e, sitePath) => {
     }
 });
 
+// --- Trunk update path (#94) ---
+
+// Reads the commit the site's HEAD points at; its committer date is the age
+// of the trunk snapshot. One object read, no network.
+async function readTrunkInfo(dir) {
+    const trunkOid = await git.resolveRef({ fs, dir, ref: 'HEAD' });
+    const { commit } = await git.readCommit({ fs, dir, oid: trunkOid });
+    const trunkDate = new Date(commit.committer.timestamp * 1000).toISOString();
+    return { trunkOid, trunkDate };
+}
+
+async function mergeSiteMeta(sitePath, patch) {
+    const s = await getStore();
+    const meta = s.get('siteMeta') || {};
+    meta[sitePath] = { ...(meta[sitePath] || {}), ...patch };
+    s.set('siteMeta', meta);
+}
+
+async function readLockfileBlobOid(dir, oid) {
+    try {
+        const { oid: blobOid } = await git.readBlob({ fs, dir, oid, filepath: 'package-lock.json' });
+        return blobOid;
+    } catch {
+        return null;
+    }
+}
+
+ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
+    try {
+        const matrix = await git.statusMatrix({ fs, dir: sitePath });
+        const { dirty, changedCount } = isDirtyFromStatusMatrix(matrix);
+        return { ok: true, dirty, changedCount };
+    } catch (e) {
+        return { ok: false, error: String(e) };
+    }
+});
+
+ipcMain.handle('git:discard-changes', async (_e, sitePath) => {
+    try {
+        const dir = sitePath;
+        const matrix = await git.statusMatrix({ fs, dir });
+        // Files absent from HEAD must be removed from the index AND the
+        // workdir — a "discard" that leaves new files behind would put them
+        // straight back into the next patch.
+        for (const [filepath, head, workdir] of matrix) {
+            if (head === 0) {
+                try { await git.remove({ fs, dir, filepath }); } catch {}
+                if (workdir !== 0) {
+                    try { await fs.promises.unlink(path.join(dir, filepath)); } catch {}
+                }
+            }
+        }
+        await git.checkout({ fs, dir, ref: 'trunk', force: true });
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: String(e) };
+    }
+});
+
+const runningTrunkUpdates = {};
+
+ipcMain.handle('git:update-trunk', async (event, sitePath) => {
+    const updateId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const sender = event.sender;
+    const dir = sitePath;
+    const sendLog = (data) => {
+        try { sender.send('git:update-trunk:log', { updateId, data }); } catch {}
+    };
+    const sendDone = (payload) => {
+        delete runningTrunkUpdates[updateId];
+        try { sender.send('git:update-trunk:done', { updateId, ...payload }); } catch {}
+    };
+    runningTrunkUpdates[updateId] = { sitePath };
+
+    (async () => {
+        let stage = 'fetch';
+        let oldOid = null;
+        try {
+            oldOid = await git.resolveRef({ fs, dir, ref: 'HEAD' });
+            sendLog(`Fetching latest trunk…\n`);
+            const fetchResult = await git.fetch({
+                fs, http, dir,
+                url: WORDPRESS_GIT_URL,
+                ref: 'trunk',
+                singleBranch: true,
+                depth: 1,
+                tags: false,
+                onProgress: (evt) => {
+                    sendLog(`${evt.phase || 'fetch'} ${evt.loaded || 0}/${evt.total || 0}\r`);
+                }
+            });
+            let newOid = fetchResult && fetchResult.fetchHead;
+            if (!newOid) newOid = await git.resolveRef({ fs, dir, ref: 'refs/remotes/origin/trunk' });
+
+            if (newOid === oldOid) {
+                const { trunkDate } = await readTrunkInfo(dir);
+                await mergeSiteMeta(sitePath, { trunkOid: oldOid, trunkDate });
+                sendLog('\nAlready up to date.\n');
+                sendDone({ ok: true, upToDate: true, oldOid, newOid, lockfileChanged: false, trunkDate });
+                return;
+            }
+
+            // Decide the install step before touching the worktree.
+            const oldLock = await readLockfileBlobOid(dir, oldOid);
+            const newLock = await readLockfileBlobOid(dir, newOid);
+            const lockfileChanged = lockfileChangedFromBlobOids(oldLock, newLock);
+
+            stage = 'checkout';
+            // Patch generation stages untracked files and never unstages
+            // them; checkout({force}) deletes workdir files that are in the
+            // index but absent from the target tree, so drop those index
+            // entries first (index-only — the workdir files survive).
+            const matrix = await git.statusMatrix({ fs, dir });
+            for (const filepath of staleStagedPaths(matrix)) {
+                try { await git.remove({ fs, dir, filepath }); } catch {}
+            }
+            sendLog(`\nResetting to latest trunk (${newOid.slice(0, 7)})…\n`);
+            await git.writeRef({ fs, dir, ref: 'refs/heads/trunk', value: newOid, force: true });
+            await git.checkout({
+                fs, dir, ref: 'trunk', force: true,
+                onProgress: (evt) => {
+                    sendLog(`${evt.phase || 'checkout'} ${evt.loaded || 0}/${evt.total || 0}\r`);
+                }
+            });
+
+            const { trunkDate } = await readTrunkInfo(dir);
+            // HEAD has moved but install/build have not run yet: persist the
+            // incomplete flag now so the state survives a crash or quit
+            // mid-chain; the renderer clears it after a successful build.
+            await mergeSiteMeta(sitePath, { trunkOid: newOid, trunkDate, updateIncomplete: true });
+            sendLog(`\nNow on trunk as of ${trunkDate}.\n`);
+            sendDone({ ok: true, upToDate: false, oldOid, newOid, lockfileChanged, trunkDate });
+        } catch (e) {
+            logError('git:update-trunk', String(e && e.stack ? e.stack : e));
+            // A failure during checkout leaves the ref moved over a partial
+            // worktree — that is the "code is new, assets are old" state, so
+            // persist it; a fetch failure moved nothing and stays plain.
+            if (stage === 'checkout') {
+                try { await mergeSiteMeta(sitePath, { updateIncomplete: true }); } catch {}
+            }
+            sendLog(`\nUpdate failed during ${stage}: ${String(e && e.message ? e.message : e)}\n`);
+            sendDone({ ok: false, upToDate: false, oldOid, newOid: null, lockfileChanged: false, error: String(e), stage });
+        }
+    })();
+
+    return { updateId };
+});
+
+ipcMain.handle('sites:mark-update-complete', async (_e, sitePath) => {
+    await mergeSiteMeta(sitePath, { updateIncomplete: false });
+    return true;
+});
+
 app.whenReady().then(() => {
 	// Before createWindow(): initLogging preloads the IPC bridge that carries
 	// renderer output into the log file, which only applies to windows created
@@ -433,9 +593,23 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		const meta = s.get('siteMeta') || {};
 		const m = meta[sitePath] || {};
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed) };
+		// Trunk snapshot age (#94). Read from HEAD each time (one object
+		// read) and written through to siteMeta, so the sidebar can render
+		// staleness dots from siteMeta alone, without per-site git I/O.
+		let trunkOid = m.trunkOid || null;
+		let trunkDate = m.trunkDate || null;
+		try {
+			const info = await readTrunkInfo(sitePath);
+			trunkOid = info.trunkOid;
+			trunkDate = info.trunkDate;
+			if (m.trunkOid !== trunkOid || m.trunkDate !== trunkDate) {
+				await mergeSiteMeta(sitePath, { trunkOid, trunkDate });
+			}
+		} catch {}
+
+		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(m.updateIncomplete) };
 	} catch (e) {
-		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false };
+		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false };
 	}
 });
 
@@ -515,6 +689,11 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 			? options.siteLabel.trim()
 			: uniqueName;
 		meta[siteDir] = { initialized: false, createdAt: new Date().toISOString(), label: siteLabel };
+		try {
+			const { trunkOid, trunkDate } = await readTrunkInfo(siteDir);
+			meta[siteDir].trunkOid = trunkOid;
+			meta[siteDir].trunkDate = trunkDate;
+		} catch {}
 		s.set('siteMeta', meta);
 	}
 	event.sender.send('download:status', { phase: 'done', target: siteDir, sitePath: siteDir });
