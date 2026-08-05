@@ -19,21 +19,38 @@
 
 const ALLOWED_URL_SCHEMES = ['http:', 'https:'];
 
+// Returns the address to open, or null if it is not one this app opens.
+//
 // Scheme is read off the parsed URL rather than the raw string, so casing and
 // leading whitespace ('FILE:', ' file:') are normalized before the comparison
 // instead of being a way around it. An address Node can't parse is refused
 // rather than passed on to the OS to interpret.
-function isAllowedExternalUrl(url) {
-	if (typeof url !== 'string' || url.trim() === '') return false;
+//
+// What comes back is the parser's own `href`, not the caller's string. Checking
+// one string and opening a different one is the gap this module exists to
+// close: the URL parser strips tabs and newlines from anywhere in the input,
+// including the middle of the scheme, so 'ht\ntp://example.com' validates as
+// http while the OS would receive an address its own parser resolves by its own
+// rules. Returning the normalized form means the address that was checked is
+// the address that gets opened. For every caller in this app the two are
+// identical but for a trailing slash.
+function normalizeExternalUrl(url) {
+	if (typeof url !== 'string' || url.trim() === '') return null;
 
 	let parsed;
 	try {
 		parsed = new URL(url);
 	} catch {
-		return false;
+		return null;
 	}
 
-	return ALLOWED_URL_SCHEMES.includes(parsed.protocol);
+	if (!ALLOWED_URL_SCHEMES.includes(parsed.protocol)) return null;
+
+	return parsed.href;
+}
+
+function isAllowedExternalUrl(url) {
+	return normalizeExternalUrl(url) !== null;
 }
 
 // Truncated because a refused address is attacker-influenced by hypothesis, and
@@ -48,17 +65,20 @@ function describeRefusedUrl(url) {
 // can be tested without an Electron process: `openExternal` is the real
 // `shell.openExternal` in the app and a recording stub in the tests.
 async function openExternalUrl(url, { openExternal, onRefused } = {}) {
-	if (!isAllowedExternalUrl(url)) {
+	const target = normalizeExternalUrl(url);
+
+	if (target === null) {
 		if (typeof onRefused === 'function') onRefused(describeRefusedUrl(url));
 		return false;
 	}
 
-	await openExternal(url);
+	await openExternal(target);
 	return true;
 }
 
 module.exports = {
 	ALLOWED_URL_SCHEMES,
+	normalizeExternalUrl,
 	isAllowedExternalUrl,
 	describeRefusedUrl,
 	openExternalUrl

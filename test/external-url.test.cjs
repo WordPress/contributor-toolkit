@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { isAllowedExternalUrl, openExternalUrl, ALLOWED_URL_SCHEMES } = require('../src/external-url.js');
+const { isAllowedExternalUrl, normalizeExternalUrl, openExternalUrl, ALLOWED_URL_SCHEMES } = require('../src/external-url.js');
 
 // Stands in for shell.openExternal, so "did this reach the OS?" is an assertion
 // rather than something the test has to take on trust.
@@ -32,15 +32,30 @@ test('the addresses the app uses still open', async () => {
 		assert.equal(await openExternalUrl(url, rec.options), true);
 	}
 
-	// Passed through byte for byte — the guard inspects the parsed URL but must
-	// not hand the OS a normalized rewrite of what the caller asked for.
+	// What reaches the OS is the parsed `href`, so that the address that was
+	// checked is the address that gets opened. For real callers that is the same
+	// string they passed, give or take the trailing slash the parser adds to a
+	// bare origin.
 	assert.deepEqual(rec.opened, [
-		'https://core.trac.wordpress.org',
+		'https://core.trac.wordpress.org/',
 		'http://127.0.0.1:39372/',
 		'http://127.0.0.1:8881/wp-admin/',
 		'https://docs.google.com/forms/d/e/1FAIpQLS/viewform'
 	]);
 	assert.deepEqual(rec.refused, []);
+});
+
+// The reason the OS gets the parsed form. The URL parser strips tabs and
+// newlines from anywhere in the input, including the middle of the scheme, so
+// this string validates as http — and if the raw text were forwarded, the OS
+// would be resolving an address nothing had checked.
+test('control characters cannot split what is checked from what is opened', async () => {
+	const rec = recorder();
+
+	assert.equal(await openExternalUrl('ht\ntp://example.com/x', rec.options), true);
+	assert.deepEqual(rec.opened, ['http://example.com/x']);
+
+	assert.equal(normalizeExternalUrl('http://example.com/\tfoo'), 'http://example.com/foo');
 });
 
 test('a file: address never reaches the OS', async () => {

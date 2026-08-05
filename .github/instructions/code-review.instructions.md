@@ -141,10 +141,13 @@ network, running a WordPress with `admin`/`admin`.
 **Validate what crosses IPC.** Every `ipcMain.handle` argument comes from the renderer and is
 untrusted input. Paths get used for file operations, URLs get opened.
 
-> Known open case, useful as a calibration example: the `url:open` handler in `src/main.js` passes
-> its argument straight to `shell.openExternal()` with no scheme check, so `file://` and
-> `javascript:` get through. If a PR touches this handler and the review does not mention it, the
-> review is not working.
+> Worked example, kept because it shows the shape rather than a single bug: `url:open` in
+> `src/main.js` used to pass its argument straight to `shell.openExternal()`, so `file://` and
+> `javascript:` got through to the OS handler. It now goes through `src/external-url.js`, which
+> refuses anything outside an http/https allow-list and — the part that is easy to miss — hands
+> the OS the *parsed* address rather than the caller's string, because the URL parser strips
+> control characters and a validator that checks one string while the caller opens another has
+> not checked anything. Look for both halves in any new handler that takes a URL or a path.
 
 **Servers stay on loopback.** `src/bind-loopback.js` patches `net.Server.prototype.listen` so
 Playground's servers bind to `127.0.0.1` instead of every interface. Any new listener that is
