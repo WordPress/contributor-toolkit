@@ -4,9 +4,7 @@ const os = require('os');
 const crypto = require('crypto');
 const fs = require('fs');
 const fse = require('fs-extra');
-const https = require('https');
 const nodeHttp = require('http');
-const extract = require('extract-zip');
 const git = require('isomorphic-git');
 const http = require('isomorphic-git/http/node');
 const JsDiff = require('diff');
@@ -30,7 +28,6 @@ const {
 const { buildMenuTemplate } = require('./menu');
 const { killChildTree } = require('./kill-tree');
 
-const WORDPRESS_ZIP_URL = 'https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip';
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
 // Provide a PATH shim so npm's spawned scripts can find a 'node' binary that maps to Electron's Node
@@ -133,7 +130,7 @@ const playgroundServers = {};
 const wpDebugWatchers = {};
 /** @type {Record<string, { server: import('smtp-server').SMTPServer, port: number }>} */
 const smtpServers = {};
-/** @type {{ child: import('child_process').ChildProcess, url?: string } | null */
+/** @type {{ child: import('child_process').ChildProcess, url?: string } | null} */
 let playgroundWebServer = null;
 
 function smtpStoreKey(sitePath) {
@@ -176,11 +173,10 @@ async function ensureSmtpServerForSite(sitePath) {
         onData(stream, session, callback) {
             const chunks = [];
 			stream.on('error', (err) => {
-				console.error('[SMTP] stream error', err && err.stack ? err.stack : String(err));
+				logError('smtp', `stream error: ${err && err.stack ? err.stack : String(err)}`);
 				try { callback(err); } catch {}
 			});
 			stream.on('data', (d) => {
-				console.log(`Got a data chunk!`);
 				chunks.push(Buffer.from(d));
 			});
             stream.on('end', async () => {
@@ -206,7 +202,7 @@ async function ensureSmtpServerForSite(sitePath) {
                         })(),
                         raw: raw.toString('utf8')
                     };
-                    console.log(`[SMTP] New email for site ${sitePath}: subject="${msg.subject}" from="${msg.from}" to="${msg.to}"`);
+                    logEvent('smtp', `New email for site ${sitePath}: subject="${msg.subject}" from="${msg.from}" to="${msg.to}"`);
                     await appendSiteEmail(sitePath, msg);
                     broadcastToAll('smtp:new-email', { sitePath, message: msg });
                 } catch (e) {
@@ -222,7 +218,7 @@ async function ensureSmtpServerForSite(sitePath) {
                         headers: {},
                         raw: raw.toString('utf8')
                     };
-                    console.log(`[SMTP] New email for site ${sitePath}: (unparsed) size=${raw.length} bytes`);
+                    logError('smtp', `Failed to parse email for site ${sitePath} (size=${raw.length} bytes): ${e && e.message ? e.message : String(e)}`);
                     await appendSiteEmail(sitePath, msg);
                     broadcastToAll('smtp:new-email', { sitePath, message: msg });
                 }
@@ -303,7 +299,7 @@ async function createMinimalPatchForDir(dir) {
         if (head === 0 && workdir === 2 && stage === 0) {
             try {
                 await git.add({ fs, dir, filepath });
-            } catch (e) {
+            } catch {
                 // Ignore errors for files that can't be added (e.g., in .gitignore)
             }
         }
@@ -311,7 +307,7 @@ async function createMinimalPatchForDir(dir) {
 
     // Compare working tree vs HEAD (which points to trunk tip after clone)
     const matrixAfterAdd = await git.statusMatrix({ fs, dir });
-    const changed = matrixAfterAdd.filter(([filepath, head, workdir, stage]) => head !== workdir);
+    const changed = matrixAfterAdd.filter(([, head, workdir]) => head !== workdir);
     let patch = '';
     for (const [filepath, head, workdir] of changed) {
         const abs = require('path').join(dir, filepath);
@@ -434,7 +430,7 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		const m = meta[sitePath] || {};
 
 		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed) };
-	} catch (e) {
+	} catch {
 		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false };
 	}
 });
@@ -786,10 +782,10 @@ function playgroundLogScope(sitePath) {
 ipcMain.handle('playground:start', async (event, sitePath) => {
 	// Ensure a per-site SMTP server is running alongside the dev server and get its port
 	const smtp = await ensureSmtpServerForSite(sitePath).catch(() => null);
-	const buildDir = path.join(sitePath, 'build');
 	if (playgroundServers[sitePath]?.child) {
 		return { ok: true, url: playgroundServers[sitePath].url };
 	}
+	const buildDir = path.join(sitePath, 'build');
 	const runnerPath = path.join(__dirname, 'server-runner.js');
 	const logScope = playgroundLogScope(sitePath);
 	logEvent(logScope, `starting server for ${buildDir} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
@@ -914,7 +910,7 @@ ipcMain.handle('playground-web:available', async () => {
     return false;
 });
 
-ipcMain.handle('playground-web:start', async (event) => {
+ipcMain.handle('playground-web:start', async () => {
     if (playgroundWebServer?.child) {
         return { ok: true, url: playgroundWebServer.url || 'http://127.0.0.1:39372/' };
     }
@@ -923,7 +919,7 @@ ipcMain.handle('playground-web:start', async (event) => {
     const expectedUrl = 'http://127.0.0.1:39372/';
     const reachable = await new Promise((resolve) => {
         try {
-            const req = nodeHttp.get(expectedUrl, (res) => { try { req.destroy(); } catch {}; resolve(true); });
+            const req = nodeHttp.get(expectedUrl, () => { try { req.destroy(); } catch {}; resolve(true); });
             req.on('error', () => { try { req.destroy(); } catch {}; resolve(false); });
             req.setTimeout(1000, () => { try { req.destroy(); } catch {}; resolve(false); });
         } catch { resolve(false); }
@@ -937,7 +933,7 @@ ipcMain.handle('playground-web:start', async (event) => {
         path.join(app.getAppPath(), 'local-playground-web'),
         path.join(__dirname, '..', 'local-playground-web')
     ];
-    let webDir = webDirCandidates.find((p) => { try { return fs.existsSync(p); } catch { return false; } });
+    const webDir = webDirCandidates.find((p) => { try { return fs.existsSync(p); } catch { return false; } });
     if (!webDir) {
         return { ok: false, error: 'local-playground-web directory not found.' };
     }
@@ -1009,7 +1005,7 @@ ipcMain.handle('playground-web:start', async (event) => {
         // Fallback readiness probe if CLI output is not captured
         const probe = () => {
             try {
-                const req = nodeHttp.get(expectedUrl, (res) => {
+                const req = nodeHttp.get(expectedUrl, () => {
                     try { req.destroy(); } catch {}
                     if (!resolved) {
                         resolved = true;
@@ -1085,11 +1081,11 @@ ipcMain.handle('smtp:stop', async (_e, sitePath) => {
 
 // --- WordPress debug.log tailing ---
 function startWpDebugTail(sitePath, webContents) {
-	const wpContentDir = path.join(sitePath, 'build', 'wp-content');
-	const filePath = path.join(wpContentDir, 'debug.log');
 	if (wpDebugWatchers[sitePath]?.fileWatcher || wpDebugWatchers[sitePath]?.dirWatcher) {
 		return true;
 	}
+	const wpContentDir = path.join(sitePath, 'build', 'wp-content');
+	const filePath = path.join(wpContentDir, 'debug.log');
 	wpDebugWatchers[sitePath] = { filePath, lastSize: 0 };
 	const state = wpDebugWatchers[sitePath];
 
@@ -1158,36 +1154,3 @@ ipcMain.handle('wp-debug:stop', async (_event, sitePath) => {
 	return true;
 });
 
-function downloadFile(url, dest, onProgress) {
-	return new Promise((resolve, reject) => {
-		const file = fs.createWriteStream(dest);
-		let receivedBytes = 0;
-		let totalBytes = 0;
-
-		https.get(url, (response) => {
-			if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-				// handle redirect
-				return https.get(response.headers.location, (res2) => handleResponse(res2));
-			}
-			handleResponse(response);
-		}).on('error', (err) => {
-			fs.unlink(dest, () => reject(err));
-		});
-
-		function handleResponse(response) {
-			if (response.statusCode !== 200) {
-				fs.unlink(dest, () => reject(new Error(`Failed to get '${url}' (${response.statusCode})`)));
-				return;
-			}
-			totalBytes = parseInt(response.headers['content-length'] || '0', 10);
-			response.on('data', (chunk) => {
-				receivedBytes += chunk.length;
-				if (onProgress && totalBytes) {
-					onProgress({ receivedBytes, totalBytes, percent: (receivedBytes / totalBytes) * 100 });
-				}
-			});
-			response.pipe(file);
-			file.on('finish', () => file.close(resolve));
-		}
-	});
-}
