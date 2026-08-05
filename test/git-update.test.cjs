@@ -6,7 +6,8 @@ const {
 	isDirtyFromStatusMatrix,
 	staleStagedPaths,
 	lockfileChangedFromBlobOids,
-	normalizeEol
+	normalizeEol,
+	normalizeEolBuffer
 } = require('../src/git-update.cjs');
 
 test('isDirtyFromStatusMatrix: clean tree (issue #94)', () => {
@@ -62,6 +63,19 @@ test('lockfileChangedFromBlobOids: presence differing -> changed (issue #94)', (
 test('lockfileChangedFromBlobOids: same oid -> unchanged, different oid -> changed (issue #94)', () => {
 	assert.strictEqual(lockfileChangedFromBlobOids('abc', 'abc'), false);
 	assert.strictEqual(lockfileChangedFromBlobOids('abc', 'def'), true);
+});
+
+test('normalizeEolBuffer: byte-level CRLF stripping works on non-UTF8 content (issue #94)', () => {
+	// Big5-style bytes that are not valid UTF-8, with CRLF line endings —
+	// the case isomorphic-git's utf8-based autocrlf normalization skips.
+	const crlf = Buffer.from([0xa4, 0xa4, 0x0d, 0x0a, 0xa4, 0xe5, 0x0d, 0x0a]);
+	const lf = Buffer.from([0xa4, 0xa4, 0x0a, 0xa4, 0xe5, 0x0a]);
+	assert.ok(normalizeEolBuffer(crlf).equals(lf));
+	assert.ok(normalizeEolBuffer(lf).equals(lf));
+	// Lone CR (not followed by LF) is preserved.
+	const loneCr = Buffer.from([0x61, 0x0d, 0x62]);
+	assert.ok(normalizeEolBuffer(loneCr).equals(loneCr));
+	assert.ok(normalizeEolBuffer(Buffer.alloc(0)).equals(Buffer.alloc(0)));
 });
 
 test('normalizeEol: CRLF becomes LF, lone CR and LF are untouched (issue #94)', () => {

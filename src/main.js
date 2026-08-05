@@ -29,7 +29,7 @@ const {
 } = require('./logging');
 const { buildMenuTemplate } = require('./menu');
 const { killChildTree } = require('./kill-tree');
-const { isDirtyFromStatusMatrix, staleStagedPaths, lockfileChangedFromBlobOids, normalizeEol } = require('./git-update.cjs');
+const { isDirtyFromStatusMatrix, staleStagedPaths, lockfileChangedFromBlobOids, normalizeEol, normalizeEolBuffer } = require('./git-update.cjs');
 
 const WORDPRESS_ZIP_URL = 'https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip';
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
@@ -430,10 +430,30 @@ async function readLockfileBlobOid(dir, oid) {
 
 ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
     try {
-        await ensureAutocrlf(sitePath);
-        const matrix = await git.statusMatrix({ fs, dir: sitePath });
-        const { dirty, changedCount, files } = isDirtyFromStatusMatrix(matrix);
-        return { ok: true, dirty, changedCount, files };
+        const dir = sitePath;
+        await ensureAutocrlf(dir);
+        const matrix = await git.statusMatrix({ fs, dir });
+        const candidates = isDirtyFromStatusMatrix(matrix).files;
+        // statusMatrix's autocrlf normalization only covers valid-UTF8 files;
+        // non-UTF8 text fixtures smudged to CRLF by a native-git checkout
+        // still hash as modified. Confirm each candidate with a byte-level
+        // CRLF-insensitive comparison before calling the tree dirty.
+        let headOid = null;
+        try { headOid = await git.resolveRef({ fs, dir, ref: 'HEAD' }); } catch {}
+        const rowByPath = new Map(matrix.map((row) => [row[0], row]));
+        const files = [];
+        for (const filepath of candidates) {
+            const [, head, workdir] = rowByPath.get(filepath) || [];
+            if (head === 1 && workdir === 2 && headOid) {
+                try {
+                    const { blob } = await git.readBlob({ fs, dir, oid: headOid, filepath });
+                    const work = await fs.promises.readFile(path.join(dir, filepath));
+                    if (normalizeEolBuffer(Buffer.from(blob)).equals(normalizeEolBuffer(work))) continue;
+                } catch {}
+            }
+            files.push(filepath);
+        }
+        return { ok: true, dirty: files.length > 0, changedCount: files.length, files };
     } catch (e) {
         return { ok: false, error: String(e) };
     }

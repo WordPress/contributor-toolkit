@@ -54,4 +54,22 @@ function normalizeEol(text) {
 	return String(text).replace(/\r\n/g, '\n');
 }
 
-module.exports = { isDirtyFromStatusMatrix, staleStagedPaths, lockfileChangedFromBlobOids, normalizeEol };
+/**
+ * Byte-level CRLF→LF normalization for Buffers. isomorphic-git's autocrlf
+ * handling only normalizes files that decode as valid UTF-8, so non-UTF8
+ * text fixtures (e.g. wordpress-develop's Big5/Latin-1 encoding tests)
+ * smudged to CRLF by a native-git checkout still hash as modified. This
+ * works on raw bytes, so encoding doesn't matter.
+ */
+function normalizeEolBuffer(buf) {
+	const src = Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
+	const out = Buffer.alloc(src.length);
+	let j = 0;
+	for (let i = 0; i < src.length; i++) {
+		if (src[i] === 13 && src[i + 1] === 10) continue;
+		out[j++] = src[i];
+	}
+	return out.subarray(0, j);
+}
+
+module.exports = { isDirtyFromStatusMatrix, staleStagedPaths, lockfileChangedFromBlobOids, normalizeEol, normalizeEolBuffer };
