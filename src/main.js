@@ -29,7 +29,7 @@ const {
 } = require('./logging');
 const { buildMenuTemplate } = require('./menu');
 const { killChildTree } = require('./kill-tree');
-const { isDirtyFromStatusMatrix, staleStagedPaths, lockfileChangedFromBlobOids } = require('./git-update.cjs');
+const { isDirtyFromStatusMatrix, staleStagedPaths, lockfileChangedFromBlobOids, normalizeEol } = require('./git-update.cjs');
 
 const WORDPRESS_ZIP_URL = 'https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip';
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
@@ -286,7 +286,25 @@ function buildPatchHtml(content) {
     </body></html>`;
 }
 
+// A site checked out by native git on Windows (default core.autocrlf=true,
+// set globally — which isomorphic-git never reads) has CRLF on disk while
+// wordpress-develop's blobs are LF-only. Without this, statusMatrix hashes
+// the raw CRLF bytes and reports every text file as modified (~5k phantom
+// changes; isomorphic-git#1275). Writing core.autocrlf into the site's LOCAL
+// config makes isomorphic-git strip CRLF before hashing workdir files. LF
+// checkouts are unaffected. Called before every status/patch/update git op
+// so pre-existing sites are covered, not just new clones.
+async function ensureAutocrlf(dir) {
+    try {
+        const current = await git.getConfig({ fs, dir, path: 'core.autocrlf' });
+        if (current !== 'true') {
+            await git.setConfig({ fs, dir, path: 'core.autocrlf', value: 'true' });
+        }
+    } catch {}
+}
+
 async function createMinimalPatchForDir(dir) {
+    await ensureAutocrlf(dir);
     // The diff base is deliberately the local HEAD (the cloned trunk
     // snapshot), NOT the remote trunk ref: diffing local edits against a
     // trunk that has moved would embed reversed upstream changes and foreign
@@ -324,8 +342,11 @@ async function createMinimalPatchForDir(dir) {
         const abs = require('path').join(dir, filepath);
         const workBuf = workdir ? await fs.promises.readFile(abs).catch(() => null) : null;
         const base = head && headOid ? await git.readBlob({ fs, dir, oid: headOid, filepath }).catch(() => null) : null;
-        const a = base ? Buffer.from(base.blob).toString('utf8') : '';
-        const b = workBuf ? workBuf.toString('utf8') : a;
+        // CRLF→LF on both sides: the workdir may be a CRLF checkout (native
+        // git on Windows), and a patch full of line-ending churn applies
+        // nowhere on Trac.
+        const a = base ? normalizeEol(Buffer.from(base.blob).toString('utf8')) : '';
+        const b = workBuf ? normalizeEol(workBuf.toString('utf8')) : a;
         if (a === b) continue;
         // Skip likely-binary
         if ((a.indexOf('\0') !== -1) || (b.indexOf('\0') !== -1)) continue;
@@ -409,6 +430,7 @@ async function readLockfileBlobOid(dir, oid) {
 
 ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
     try {
+        await ensureAutocrlf(sitePath);
         const matrix = await git.statusMatrix({ fs, dir: sitePath });
         const { dirty, changedCount, files } = isDirtyFromStatusMatrix(matrix);
         return { ok: true, dirty, changedCount, files };
@@ -420,6 +442,7 @@ ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
 ipcMain.handle('git:discard-changes', async (_e, sitePath) => {
     try {
         const dir = sitePath;
+        await ensureAutocrlf(dir);
         const matrix = await git.statusMatrix({ fs, dir });
         // Files absent from HEAD must be removed from the index AND the
         // workdir — a "discard" that leaves new files behind would put them
@@ -458,6 +481,7 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
         let stage = 'fetch';
         let oldOid = null;
         try {
+            await ensureAutocrlf(dir);
             oldOid = await git.resolveRef({ fs, dir, ref: 'HEAD' });
             sendLog(`Fetching latest trunk…\n`);
             const fetchResult = await git.fetch({
@@ -622,6 +646,9 @@ ipcMain.handle('sites:set-skip-init', async (_e, sitePath, skip) => {
 });
 
 ipcMain.handle('sites:add', async (_e, sitePath) => {
+	// A pre-existing dir was likely cloned by native git — exactly the case
+	// where CRLF checkouts break status/patch generation (see ensureAutocrlf).
+	await ensureAutocrlf(sitePath);
 	const s = await getStore();
 	const sites = s.get('sites');
 	if (!sites.includes(sitePath)) {
@@ -678,6 +705,7 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 		// Fallback/error
 		throw e;
 	}
+	await ensureAutocrlf(siteDir);
 
 	const s = await getStore();
 	const sites = s.get('sites');

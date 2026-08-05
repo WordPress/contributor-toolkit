@@ -44,4 +44,14 @@ function lockfileChangedFromBlobOids(oldBlobOid, newBlobOid) {
 	return oldBlobOid !== newBlobOid;
 }
 
-module.exports = { isDirtyFromStatusMatrix, staleStagedPaths, lockfileChangedFromBlobOids };
+/**
+ * Normalizes CRLF to LF. wordpress-develop's blobs are LF-only, but a site
+ * checked out by native git on Windows (default core.autocrlf=true) has CRLF
+ * on disk — without normalization every text file diffs on every line.
+ * Matches git's autocrlf read-side behavior: lone \r is left alone.
+ */
+function normalizeEol(text) {
+	return String(text).replace(/\r\n/g, '\n');
+}
+
+module.exports = { isDirtyFromStatusMatrix, staleStagedPaths, lockfileChangedFromBlobOids, normalizeEol };

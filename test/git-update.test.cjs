@@ -5,7 +5,8 @@ const assert = require('node:assert');
 const {
 	isDirtyFromStatusMatrix,
 	staleStagedPaths,
-	lockfileChangedFromBlobOids
+	lockfileChangedFromBlobOids,
+	normalizeEol
 } = require('../src/git-update.cjs');
 
 test('isDirtyFromStatusMatrix: clean tree (issue #94)', () => {
@@ -61,4 +62,11 @@ test('lockfileChangedFromBlobOids: presence differing -> changed (issue #94)', (
 test('lockfileChangedFromBlobOids: same oid -> unchanged, different oid -> changed (issue #94)', () => {
 	assert.strictEqual(lockfileChangedFromBlobOids('abc', 'abc'), false);
 	assert.strictEqual(lockfileChangedFromBlobOids('abc', 'def'), true);
+});
+
+test('normalizeEol: CRLF becomes LF, lone CR and LF are untouched (issue #94)', () => {
+	assert.strictEqual(normalizeEol('a\r\nb\r\n'), 'a\nb\n');
+	assert.strictEqual(normalizeEol('a\nb\n'), 'a\nb\n');
+	assert.strictEqual(normalizeEol('a\rb'), 'a\rb');
+	assert.strictEqual(normalizeEol(''), '');
 });
