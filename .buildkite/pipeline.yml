@@ -15,9 +15,6 @@ steps:
       echo "~~~ Install dependencies"
       bash .buildkite/commands/install_node_dependencies.sh
 
-      echo "~~~ Build renderer"
-      npm run build:once
-
       echo "~~~ Build Windows artifact"
       npm run dist:win
 
@@ -46,9 +43,6 @@ steps:
       echo "~~~ Install dependencies"
       .buildkite/commands/install_node_dependencies.sh
 
-      echo "~~~ Build renderer"
-      npm run build:once
-
       echo "~~~ Build macOS artifact"
       npm run dist
 
@@ -76,9 +70,6 @@ steps:
 
       echo "~~~ Install Node dependencies"
       npm ci --no-audit --no-progress --maxsockets 1
-
-      echo "~~~ Build renderer"
-      npm run build:once
 
       echo "~~~ Build Linux artifact"
       npm run dist

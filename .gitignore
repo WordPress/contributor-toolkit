@@ -7,6 +7,11 @@ CLAUDE.local.md
 node_modules
 dist
 
+# esbuild output. Built by `postinstall`, `npm start` and `npm run dist`, so it never has to
+# be committed — and cannot drift from src/renderer/index.jsx the way it used to (#120).
+src/renderer/index.js
+src/renderer/index.css
+
 # Files with potential secrets
 .env
 .codesigning/

@@ -20,9 +20,10 @@ import wordpress from '@wordpress/eslint-plugin';
 export default [
 	{
 		ignores: [
-			// esbuild output, committed so the app runs without a build step.
-			'src/renderer/bundle.js',
-			'src/renderer/bundle.css',
+			// esbuild output. No longer committed (#120), but it sits next to its own source
+			// in src/renderer/ after any build, so it still has to be ignored explicitly —
+			// otherwise `eslint .` lints 55k lines of generated code on a developer machine
+			// and nothing on a fresh CI checkout.
 			'src/renderer/index.js',
 			'build/',
 			'dist/',
