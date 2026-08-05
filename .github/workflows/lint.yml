@@ -1,0 +1,63 @@
+# ESLint over the files a PR actually touches.
+#
+# Scoped to changed files on purpose. The repo had no linter until now, so `eslint .`
+# reports ~85 pre-existing findings; running it repo-wide would fail every PR for code
+# the author never touched. Linting only the diff means new code is held to the standard
+# from day one while the backlog gets cleared separately — the same trade gutenberg makes
+# with its lint suppression files.
+#
+# Not a required check yet. Once the backlog is clear this can move to `eslint .` on both
+# pull_request and push, and then be required.
+#
+# Nothing here needs secrets, and it deliberately never executes the PR's code:
+# `npm ci --ignore-scripts` skips lifecycle scripts (this repo's postinstall pulls the
+# Electron binary, which linting does not need).
+
+name: Lint
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eslint:
+    runs-on: ubuntu-latest
+    steps:
+      # Full history: the changed-file list is computed against the merge base.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Collect changed JavaScript files
+        id: changed
+        run: |
+          # ACMR: added/copied/modified/renamed. Deleted files have nothing to lint.
+          # Three-dot compares against the merge base, so unrelated commits that landed
+          # on the base branch after this PR opened are not attributed to it.
+          git diff --name-only --diff-filter=ACMR \
+            "origin/${{ github.base_ref }}...HEAD" \
+            -- '*.js' '*.jsx' '*.cjs' '*.mjs' > changed.txt
+          echo "count=$(wc -l < changed.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          echo "Changed JavaScript files:"
+          cat changed.txt
+
+      - name: ESLint
+        if: steps.changed.outputs.count != '0'
+        # --no-warn-ignored: a PR may touch a generated file (src/renderer/bundle.js) that
+        # the config ignores. Passing it explicitly would otherwise be a warning, and
+        # --max-warnings=0 would turn that into a failure.
+        run: xargs npx eslint --max-warnings=0 --no-warn-ignored < changed.txt
