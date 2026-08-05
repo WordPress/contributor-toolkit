@@ -52,6 +52,8 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	setSiteLabel: (sitePath, label) => ipcRenderer.invoke('sites:set-label', sitePath, label)
 ,
+	setSiteTicket: (sitePath, ref) => ipcRenderer.invoke('sites:set-ticket', sitePath, ref)
+,
 	subscribeSetupProgress: (handler) => {
 		const h = (_e, payload) => handler && handler(payload);
 		ipcRenderer.on('download:progress', h);

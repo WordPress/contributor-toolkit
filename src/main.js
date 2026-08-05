@@ -32,6 +32,7 @@ const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, update
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { deleteRegisteredSite } = require('./site-registry');
 const { getStore } = require('./settings-store');
+const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
 
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
@@ -545,9 +546,9 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 			}
 		} catch {}
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(m.updateIncomplete) };
+		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(m.updateIncomplete), tracTicket: m.tracTicket || null };
 	} catch {
-		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false };
+		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null };
 	}
 });
 
@@ -631,6 +632,10 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 			? options.siteLabel.trim()
 			: uniqueName;
 		meta[siteDir] = { initialized: false, createdAt: new Date().toISOString(), label: siteLabel };
+		// "What are you working on?" is optional at creation (#109); an
+		// unparseable answer is dropped rather than failing the clone.
+		const ticket = parseTicketRef(options.tracTicket);
+		if (ticket.ok) meta[siteDir].tracTicket = ticket.id;
 		try {
 			const { trunkOid, trunkDate } = await readTrunkInfo(siteDir);
 			meta[siteDir].trunkOid = trunkOid;
@@ -687,6 +692,27 @@ ipcMain.handle('sites:set-label', async (_e, sitePath, label) => {
 	meta[sitePath] = { ...(meta[sitePath] || {}), label: trimmed || null };
 	s.set('siteMeta', meta);
 	return true;
+});
+
+// Which Trac ticket a site is being used to work on (#109). Stored as a plain
+// number in siteMeta: the association is local and offline, so linking a
+// ticket never depends on Trac being reachable.
+ipcMain.handle('sites:set-ticket', async (_e, sitePath, ref) => {
+	try {
+		// Empty means unlink — the panel's Unlink button and a cleared field
+		// both land here, and neither is an error.
+		const raw = typeof ref === 'string' ? ref.trim() : '';
+		if (!raw) {
+			await mergeSiteMeta(sitePath, { tracTicket: null });
+			return { ok: true, ticket: null };
+		}
+		const parsed = parseTicketRef(raw);
+		if (!parsed.ok) return { ok: false, error: parsed.error };
+		await mergeSiteMeta(sitePath, { tracTicket: parsed.id });
+		return { ok: true, ticket: parsed.id };
+	} catch (e) {
+		return { ok: false, error: String(e) };
+	}
 });
 
 // Only the schemes the app actually uses reach the OS — see external-url.js for

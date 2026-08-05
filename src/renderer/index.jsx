@@ -20,6 +20,7 @@ import { computeSetupStepState } from './setup-steps.cjs';
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE } from './update-plan.cjs';
+import { parseTicketRef, ticketUrl } from './trac-ticket.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // Per-status wording for the update chain card (#94), following the issue's
@@ -41,6 +42,8 @@ const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
 const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
 const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
+const CREATE_SITE_TICKET_INPUT_ID = 'create-site-ticket-input';
+const TRAC_TICKET_LISTS_URL = 'https://core.trac.wordpress.org/tickets/good-first-bugs';
 const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
 
 function formatEmailDate(email) {
@@ -91,6 +94,7 @@ function App() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createSiteName, setCreateSiteName] = useState('');
   const [createSiteDir, setCreateSiteDir] = useState('');
+  const [createSiteTicket, setCreateSiteTicket] = useState('');
   const [createSiteError, setCreateSiteError] = useState('');
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
@@ -202,6 +206,7 @@ function App() {
   const chooseAndSetup = useCallback(() => {
     setCreateSiteName('');
     setCreateSiteDir('');
+    setCreateSiteTicket('');
     setCreateSiteError('');
     setCreateModalOpen(true);
   }, []);
@@ -282,6 +287,15 @@ function App() {
       return;
     }
 
+    // The ticket is optional (#109), but a typo in one that was typed should
+    // be corrected here rather than silently dropped after a five-minute clone.
+    const ticketTyped = createSiteTicket.trim();
+    const ticket = ticketTyped ? parseTicketRef(ticketTyped) : null;
+    if (ticket && !ticket.ok) {
+      setCreateSiteError(ticket.error);
+      return;
+    }
+
     const cleanFolder = sanitizeSiteFolder(nameTrimmed);
     const targetDir = resolveTargetDir(createSiteDir, cleanFolder);
     let finalSitePath = targetDir;
@@ -294,13 +308,15 @@ function App() {
         ...(prev[targetDir] || {}),
         label: nameTrimmed,
         createdAt: prev[targetDir]?.createdAt || placeholderCreatedAt,
-        initialized: false
+        initialized: false,
+        tracTicket: ticket ? ticket.id : null
       }
     }));
     setActiveSite(targetDir);
     setCreateModalOpen(false);
     setCreateSiteName('');
     setCreateSiteDir('');
+    setCreateSiteTicket('');
 
     try {
       setCreateSubmitting(true);
@@ -308,7 +324,7 @@ function App() {
       setTerminalMsgs('');
       addPendingSite(targetDir);
       appendSetupLog(targetDir, 'Starting site setup…\n');
-      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
+      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed, tracTicket: ticket ? String(ticket.id) : '' });
       if (createdPath) {
         finalSitePath = createdPath;
         if (createdPath !== targetDir) {
@@ -352,7 +368,7 @@ function App() {
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
+  }, [addPendingSite, appendSetupLog, clearPendingSites, createSiteDir, createSiteName, createSiteTicket, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
@@ -734,6 +750,15 @@ function App() {
             <div id={CREATE_SITE_LOCATION_HELP_ID} style={{ fontSize: 12, color: '#3c434a', marginTop: -4 }}>
               Choose the parent folder where you want this new site created. We&apos;ll add a new directory inside it for the project.
             </div>
+            <TextControl
+              id={CREATE_SITE_TICKET_INPUT_ID}
+              label="What are you working on? (optional)"
+              value={createSiteTicket}
+              onChange={(value) => setCreateSiteTicket(value)}
+              disabled={createSubmitting}
+              placeholder="Trac ticket number or URL, e.g. 62281"
+              help="You can add this later, or change it at any time."
+            />
             {createSiteError ? (
               <div style={{ color: '#d63638', fontSize: 12 }}>{createSiteError}</div>
             ) : null}
@@ -777,6 +802,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
+  // Trac ticket association (#109)
+  const [tracTicket, setTracTicket] = useState(null);
+  const [ticketInput, setTicketInput] = useState('');
+  const [ticketError, setTicketError] = useState('');
+  const [ticketSaving, setTicketSaving] = useState(false);
   // Trunk update path (#94)
   const [trunkDate, setTrunkDate] = useState(null);
   const [updateIncomplete, setUpdateIncomplete] = useState(false);
@@ -907,10 +937,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setSkipInit(Boolean(s?.skipInitWizard));
       setTrunkDate(s?.trunkDate || null);
       setUpdateIncomplete(Boolean(s?.updateIncomplete));
+      setTracTicket(s?.tracTicket || null);
       if (metaPatchRef.current) {
         // A null trunkDate here means the git read failed (e.g. clone still
         // running) — keep whatever the sidebar already shows in that case.
-        const patch = { updateIncomplete: Boolean(s?.updateIncomplete) };
+        const patch = { updateIncomplete: Boolean(s?.updateIncomplete), tracTicket: s?.tracTicket || null };
         if (s?.trunkDate) patch.trunkDate = s.trunkDate;
         metaPatchRef.current(sitePath, patch);
       }
@@ -918,6 +949,29 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     finally { setStatusLoading(false); }
   }, [sitePath]);
   useEffect(()=>{ loadStatus(); }, [loadStatus]);
+
+  // Linking and unlinking are the same write (#109): an empty ref clears the
+  // association, so Unlink needs no second channel.
+  const saveTicket = useCallback(async (ref) => {
+    setTicketSaving(true);
+    setTicketError('');
+    try {
+      const res = await window.api.setSiteTicket(sitePath, ref);
+      if (!res?.ok) {
+        setTicketError(res?.error || 'Could not save the ticket.');
+        return;
+      }
+      setTracTicket(res.ticket);
+      setTicketInput('');
+      if (metaPatchRef.current) metaPatchRef.current(sitePath, { tracTicket: res.ticket });
+    } catch (e) {
+      setTicketError(String(e));
+    } finally {
+      setTicketSaving(false);
+    }
+  }, [sitePath]);
+  const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
+  const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
 
   const runInstall = useCallback((options = {}) => {
     const { onLog, onDone } = options;
@@ -2022,6 +2076,53 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           ) : null}
         </div>
       ) : null}
+      <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
+        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Trac ticket</div>
+        {tracTicket ? (
+          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', background: '#f0f0f1', color: '#1d2327' }}>
+              #{tracTicket}
+            </span>
+            <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
+            <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketSaving}>Unlink</Button>
+          </div>
+        ) : (
+          <>
+            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
+              Tell the app which ticket you are working on. It is stored with the site, so it survives restarts, and you can change or remove it at any time.
+            </div>
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 260 }}>
+                <TextControl
+                  value={ticketInput}
+                  onChange={(value) => { setTicketInput(value); setTicketError(''); }}
+                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
+                  disabled={ticketSaving}
+                  placeholder="Ticket number or URL, e.g. 62281"
+                  aria-label="Trac ticket number or URL"
+                />
+              </div>
+              <Button
+                variant="secondary"
+                onClick={linkTicket}
+                isBusy={ticketSaving}
+                disabled={ticketSaving || !ticketInput.trim()}
+                style={{ padding: '10px 16px', borderRadius: 10 }}
+              >Link ticket</Button>
+            </div>
+          </>
+        )}
+        {ticketError ? (
+          <div style={{ marginTop: 8, color: '#d63638', fontSize: 12 }}>{ticketError}</div>
+        ) : null}
+        {tracTicket ? null : (
+          <div style={{ marginTop: 8 }}>
+            <Button variant="link" onClick={() => window.api.openExternal(TRAC_TICKET_LISTS_URL)} style={{ fontSize: 12 }}>
+              Not sure yet? Browse good first bugs on Trac
+            </Button>
+          </div>
+        )}
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Terminal</div>
