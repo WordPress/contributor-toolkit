@@ -27,6 +27,8 @@ const {
 } = require('./logging');
 const { buildMenuTemplate } = require('./menu');
 const { killChildTree } = require('./kill-tree');
+const { normalizeEol } = require('./git-update.cjs');
+const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, updateToLatestTrunk } = require('./trunk-update');
 
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
@@ -282,6 +284,13 @@ function buildPatchHtml(content) {
 }
 
 async function createMinimalPatchForDir(dir) {
+    await ensureAutocrlf(dir);
+    // The diff base is deliberately the local HEAD (the cloned trunk
+    // snapshot), NOT the remote trunk ref: diffing local edits against a
+    // trunk that has moved would embed reversed upstream changes and foreign
+    // context lines into the patch, and it would apply nowhere. The route to
+    // Trac-applicable patches is the "Update to latest trunk" action (#94),
+    // after which HEAD == origin/trunk and the two bases coincide.
     // Ensure we have origin/trunk and HEAD reference
     try { await git.resolveRef({ fs, dir, ref: 'refs/remotes/origin/trunk' }); }
     catch { await git.fetch({ fs, http, dir, url: WORDPRESS_GIT_URL, depth: 1, singleBranch: true, ref: 'trunk' }); }
@@ -313,8 +322,11 @@ async function createMinimalPatchForDir(dir) {
         const abs = require('path').join(dir, filepath);
         const workBuf = workdir ? await fs.promises.readFile(abs).catch(() => null) : null;
         const base = head && headOid ? await git.readBlob({ fs, dir, oid: headOid, filepath }).catch(() => null) : null;
-        const a = base ? Buffer.from(base.blob).toString('utf8') : '';
-        const b = workBuf ? workBuf.toString('utf8') : a;
+        // CRLF→LF on both sides: the workdir may be a CRLF checkout (native
+        // git on Windows), and a patch full of line-ending churn applies
+        // nowhere on Trac.
+        const a = base ? normalizeEol(Buffer.from(base.blob).toString('utf8')) : '';
+        const b = workBuf ? normalizeEol(workBuf.toString('utf8')) : a;
         if (a === b) continue;
         // Skip likely-binary
         if ((a.indexOf('\0') !== -1) || (b.indexOf('\0') !== -1)) continue;
@@ -367,6 +379,79 @@ ipcMain.handle('git:save-patch', async (_e, sitePath) => {
     } catch (e) {
         return { ok: false, error: String(e) };
     }
+});
+
+// --- Trunk update path (#94) --- git mechanics live in src/trunk-update.js;
+// these handlers only add IPC plumbing and electron-store writes.
+
+async function mergeSiteMeta(sitePath, patch) {
+    const s = await getStore();
+    const meta = s.get('siteMeta') || {};
+    meta[sitePath] = { ...(meta[sitePath] || {}), ...patch };
+    s.set('siteMeta', meta);
+}
+
+ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
+    try {
+        const files = await collectDirtyFiles(sitePath);
+        return { ok: true, dirty: files.length > 0, changedCount: files.length, files };
+    } catch (e) {
+        return { ok: false, error: String(e) };
+    }
+});
+
+ipcMain.handle('git:discard-changes', async (_e, sitePath) => {
+    try {
+        await discardChanges(sitePath);
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: String(e) };
+    }
+});
+
+ipcMain.handle('git:update-trunk', async (event, sitePath) => {
+    const updateId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const sender = event.sender;
+    const sendLog = (data) => {
+        try { sender.send('git:update-trunk:log', { updateId, data }); } catch {}
+    };
+    const sendDone = (payload) => {
+        try { sender.send('git:update-trunk:done', { updateId, ...payload }); } catch {}
+    };
+
+    (async () => {
+        try {
+            const result = await updateToLatestTrunk({ dir: sitePath, url: WORDPRESS_GIT_URL, onLog: sendLog });
+            if (result.upToDate) {
+                await mergeSiteMeta(sitePath, { trunkOid: result.oldOid, trunkDate: result.trunkDate });
+            } else {
+                // HEAD has moved but install/build have not run yet: persist
+                // the incomplete flag now so the state survives a crash or
+                // quit mid-chain; the renderer clears it after a successful
+                // build.
+                await mergeSiteMeta(sitePath, { trunkOid: result.newOid, trunkDate: result.trunkDate, updateIncomplete: true });
+            }
+            sendDone({ ok: true, ...result });
+        } catch (e) {
+            logError('git:update-trunk', String(e && e.stack ? e.stack : e));
+            const stage = (e && e.stage) || 'fetch';
+            // A failure during checkout leaves the ref moved over a partial
+            // worktree — that is the "code is new, assets are old" state, so
+            // persist it; a fetch failure moved nothing and stays plain.
+            if (stage === 'checkout') {
+                try { await mergeSiteMeta(sitePath, { updateIncomplete: true }); } catch {}
+            }
+            sendLog(`\nUpdate failed during ${stage}: ${String(e && e.message ? e.message : e)}\n`);
+            sendDone({ ok: false, upToDate: false, error: String(e), stage });
+        }
+    })();
+
+    return { updateId };
+});
+
+ipcMain.handle('sites:mark-update-complete', async (_e, sitePath) => {
+    await mergeSiteMeta(sitePath, { updateIncomplete: false });
+    return true;
 });
 
 app.whenReady().then(() => {
@@ -429,9 +514,23 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		const meta = s.get('siteMeta') || {};
 		const m = meta[sitePath] || {};
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed) };
+		// Trunk snapshot age (#94). Read from HEAD each time (one object
+		// read) and written through to siteMeta, so the sidebar can render
+		// staleness dots from siteMeta alone, without per-site git I/O.
+		let trunkOid = m.trunkOid || null;
+		let trunkDate = m.trunkDate || null;
+		try {
+			const info = await readTrunkInfo(sitePath);
+			trunkOid = info.trunkOid;
+			trunkDate = info.trunkDate;
+			if (m.trunkOid !== trunkOid || m.trunkDate !== trunkDate) {
+				await mergeSiteMeta(sitePath, { trunkOid, trunkDate });
+			}
+		} catch {}
+
+		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(m.updateIncomplete) };
 	} catch {
-		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false };
+		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false };
 	}
 });
 
@@ -444,6 +543,9 @@ ipcMain.handle('sites:set-skip-init', async (_e, sitePath, skip) => {
 });
 
 ipcMain.handle('sites:add', async (_e, sitePath) => {
+	// A pre-existing dir was likely cloned by native git — exactly the case
+	// where CRLF checkouts break status/patch generation (see ensureAutocrlf).
+	await ensureAutocrlf(sitePath);
 	const s = await getStore();
 	const sites = s.get('sites');
 	if (!sites.includes(sitePath)) {
@@ -500,6 +602,7 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 		// Fallback/error
 		throw e;
 	}
+	await ensureAutocrlf(siteDir);
 
 	const s = await getStore();
 	const sites = s.get('sites');
@@ -511,6 +614,11 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 			? options.siteLabel.trim()
 			: uniqueName;
 		meta[siteDir] = { initialized: false, createdAt: new Date().toISOString(), label: siteLabel };
+		try {
+			const { trunkOid, trunkDate } = await readTrunkInfo(siteDir);
+			meta[siteDir].trunkOid = trunkOid;
+			meta[siteDir].trunkDate = trunkDate;
+		} catch {}
 		s.set('siteMeta', meta);
 	}
 	event.sender.send('download:status', { phase: 'done', target: siteDir, sitePath: siteDir });

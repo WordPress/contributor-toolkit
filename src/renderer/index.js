@@ -31047,6 +31047,69 @@ WARNING: This link could potentially be dangerous`)) {
     }
   });
 
+  // src/renderer/update-plan.cjs
+  var require_update_plan = __commonJS({
+    "src/renderer/update-plan.cjs"(exports, module) {
+      "use strict";
+      var STALE_THRESHOLD_DAYS = 14;
+      var DAY_MS = 24 * 60 * 60 * 1e3;
+      function trunkAgeInfo2({ trunkDate, now: now2 = Date.now() } = {}) {
+        const ts = trunkDate ? Date.parse(trunkDate) : NaN;
+        if (!Number.isFinite(ts)) {
+          return { known: false, ageDays: null, stale: false, label: "" };
+        }
+        const ageDays = Math.max(0, Math.floor((now2 - ts) / DAY_MS));
+        const label = `trunk as of ${new Date(ts).toLocaleDateString(void 0, {
+          year: "numeric",
+          month: "short",
+          day: "numeric"
+        })}`;
+        return { known: true, ageDays, stale: ageDays > STALE_THRESHOLD_DAYS, label };
+      }
+      var SKIP_INSTALL_MESSAGE2 = "Dependencies unchanged \u2014 skipping npm install";
+      function planUpdateSteps2({ lockfileChanged } = {}) {
+        return [
+          { key: "fetch", label: "Fetch latest trunk", skipped: false },
+          {
+            key: "install",
+            label: "Install dependencies",
+            skipped: !lockfileChanged,
+            skipMessage: SKIP_INSTALL_MESSAGE2
+          },
+          { key: "build", label: "Rebuild", skipped: false }
+        ];
+      }
+      var STATE_TO_STEP = { fetching: "fetch", installing: "install", building: "build" };
+      function updateStepStatuses2(steps, updateState) {
+        const activeKey = STATE_TO_STEP[updateState] || null;
+        const order = steps.map((s) => s.key);
+        const activeIndex = activeKey ? order.indexOf(activeKey) : updateState === "done" ? steps.length : -1;
+        return steps.map((step, i) => {
+          if (step.skipped && i < activeIndex) return { key: step.key, status: "skipped" };
+          if (i < activeIndex) return { key: step.key, status: "complete" };
+          if (i === activeIndex) return { key: step.key, status: "current" };
+          return { key: step.key, status: "pending" };
+        });
+      }
+      function updateOutcome({ fetchOk, upToDate, moved, installNeeded, installCode, buildCode } = {}) {
+        if (!fetchOk) return "failed-fetch";
+        if (upToDate) return "up-to-date";
+        if (!moved) return "failed-fetch";
+        if (installNeeded && installCode !== 0) return "incomplete";
+        if (buildCode !== 0) return "incomplete";
+        return "done";
+      }
+      module.exports = {
+        STALE_THRESHOLD_DAYS,
+        SKIP_INSTALL_MESSAGE: SKIP_INSTALL_MESSAGE2,
+        trunkAgeInfo: trunkAgeInfo2,
+        planUpdateSteps: planUpdateSteps2,
+        updateStepStatuses: updateStepStatuses2,
+        updateOutcome
+      };
+    }
+  });
+
   // src/renderer/index.jsx
   var import_react69 = __toESM(require_react());
   var import_client2 = __toESM(require_client());
@@ -53413,8 +53476,14 @@ If there's a particular need for this, please submit a feature request at https:
   var import_setup_steps = __toESM(require_setup_steps());
   var import_dev_server_command = __toESM(require_dev_server_command());
   var import_path_basename = __toESM(require_path_basename());
+  var import_update_plan = __toESM(require_update_plan());
   var import_jsx_runtime61 = __toESM(require_jsx_runtime());
   var TERMINAL_ALLOWED_SCRIPTS = ["build", "build:dev", "dev", "test", "watch", "grunt"];
+  var UPDATE_STEP_LABELS = {
+    fetch: { pending: "Fetch and reset to trunk", current: "Fetching and resetting to trunk\u2026", complete: "Fetched and reset to trunk" },
+    install: { pending: "Install dependencies", current: "Dependencies changed \u2014 installing the difference\u2026", complete: "Dependencies installed", skipped: import_update_plan.SKIP_INSTALL_MESSAGE },
+    build: { pending: "Rebuild", current: "Rebuilding \u2014 output in the Terminal below", complete: "Rebuilt" }
+  };
   var TERMINAL_INSTALL_ALIASES = ["npm install", "npm i", "install"];
   var RENAME_INPUT_ID = "rename-site-name-input";
   var CREATE_SITE_NAME_INPUT_ID = "create-site-name-input";
@@ -53778,6 +53847,9 @@ If there's a particular need for this, please submit a feature request at https:
     const onInitialized = (0, import_react69.useCallback)((sitePath) => {
       setSiteMeta((m) => ({ ...m || {}, [sitePath]: { ...m?.[sitePath] || {}, initialized: true } }));
     }, [setSiteMeta]);
+    const onSiteMetaPatch = (0, import_react69.useCallback)((sitePath, patch) => {
+      setSiteMeta((m) => ({ ...m || {}, [sitePath]: { ...m?.[sitePath] || {}, ...patch } }));
+    }, [setSiteMeta]);
     const onForget = (0, import_react69.useCallback)(async (sitePath) => {
       await window.api.forgetSite(sitePath);
       await refresh();
@@ -53893,6 +53965,16 @@ If there's a particular need for this, please submit a feature request at https:
           const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : "";
           const isActive = activeSite === sitePath;
           const statusLabel = meta.initialized ? "Initialized" : "Not initialized";
+          const trunkAge = (0, import_update_plan.trunkAgeInfo)({ trunkDate: meta.trunkDate });
+          const staleDotColor = meta.updateIncomplete ? "#d63638" : trunkAge.stale ? "#dba617" : null;
+          const staleDotTitle = meta.updateIncomplete ? "Update incomplete \u2014 code is new, built assets are old" : `WordPress code is ${trunkAge.ageDays} days old \u2014 update to latest trunk`;
+          const staleDot = staleDotColor ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
+            "span",
+            {
+              title: staleDotTitle,
+              style: { display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: staleDotColor, flexShrink: 0 }
+            }
+          ) : null;
           return /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
             button_default,
             {
@@ -53909,7 +53991,13 @@ If there's a particular need for this, please submit a feature request at https:
                 padding: sidebarCollapsed ? "8px 0" : "10px 12px",
                 borderRadius: 6
               },
-              children: sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { style: { fontWeight: 600 }, children: siteName.slice(0, 1).toUpperCase() }) : /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }, children: /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { style: { fontWeight: 600 }, children: siteName }) })
+              children: sidebarCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("span", { style: { fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }, children: [
+                siteName.slice(0, 1).toUpperCase(),
+                staleDot
+              ] }) : /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }, children: /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("span", { style: { fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }, children: [
+                siteName,
+                staleDot
+              ] }) })
             },
             sitePath
           );
@@ -53981,6 +54069,7 @@ If there's a particular need for this, please submit a feature request at https:
                   createdAt: siteMeta?.[s]?.createdAt,
                   label: siteMeta?.[s]?.label,
                   onInitialized,
+                  onSiteMetaPatch,
                   onForget,
                   onDelete,
                   onRename,
@@ -54061,9 +54150,13 @@ If there's a particular need for this, please submit a feature request at https:
       ) : null
     ] });
   }
-  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, isPending = false, setupLogs = "" }) {
+  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, isPending = false, setupLogs = "" }) {
     const safeOnRename = onRename || (() => {
     });
+    const metaPatchRef = (0, import_react69.useRef)(onSiteMetaPatch);
+    (0, import_react69.useEffect)(() => {
+      metaPatchRef.current = onSiteMetaPatch;
+    }, [onSiteMetaPatch]);
     const [serverUrl, setServerUrl] = (0, import_react69.useState)("");
     const [starting, setStarting] = (0, import_react69.useState)(false);
     const [running, setRunning] = (0, import_react69.useState)(false);
@@ -54087,6 +54180,17 @@ If there's a particular need for this, please submit a feature request at https:
     const [skipInit, setSkipInit] = (0, import_react69.useState)(false);
     const [statusLoading, setStatusLoading] = (0, import_react69.useState)(true);
     const [waitingForWatch, setWaitingForWatch] = (0, import_react69.useState)(false);
+    const [trunkDate, setTrunkDate] = (0, import_react69.useState)(null);
+    const [updateIncomplete, setUpdateIncomplete] = (0, import_react69.useState)(false);
+    const [updateState, setUpdateState] = (0, import_react69.useState)("idle");
+    const [dirtyModalOpen, setDirtyModalOpen] = (0, import_react69.useState)(false);
+    const [dirtySaving, setDirtySaving] = (0, import_react69.useState)(false);
+    const [dirtyFiles, setDirtyFiles] = (0, import_react69.useState)([]);
+    const [dirtyChoice, setDirtyChoice] = (0, import_react69.useState)("save");
+    const [updateLockfileChanged, setUpdateLockfileChanged] = (0, import_react69.useState)(false);
+    const [lastUpdateSummary, setLastUpdateSummary] = (0, import_react69.useState)(null);
+    const updateStartRef = (0, import_react69.useRef)(null);
+    const savedPatchPathRef = (0, import_react69.useRef)(null);
     const setupLogsRef = (0, import_react69.useRef)("");
     const npmRef = (0, import_react69.useRef)(null);
     const runtimeRef = (0, import_react69.useRef)(null);
@@ -54203,6 +54307,13 @@ If there's a particular need for this, please submit a feature request at https:
         setInstallFailed(Boolean(s?.installFailed));
         setHasBuilt(Boolean(s?.hasBuilt));
         setSkipInit(Boolean(s?.skipInitWizard));
+        setTrunkDate(s?.trunkDate || null);
+        setUpdateIncomplete(Boolean(s?.updateIncomplete));
+        if (metaPatchRef.current) {
+          const patch = { updateIncomplete: Boolean(s?.updateIncomplete) };
+          if (s?.trunkDate) patch.trunkDate = s.trunkDate;
+          metaPatchRef.current(sitePath, patch);
+        }
       } catch {
       } finally {
         setStatusLoading(false);
@@ -54745,6 +54856,148 @@ Running ${plan.watch.label}\u2026
     const confirmAnd = async (m, a) => {
       if (window.confirm(m)) await a();
     };
+    const age = (0, import_update_plan.trunkAgeInfo)({ trunkDate });
+    const isUpdating = updateState !== "idle";
+    const updateSteps = (0, import_update_plan.planUpdateSteps)({ lockfileChanged: updateLockfileChanged });
+    const updateStepStates = (0, import_update_plan.updateStepStatuses)(updateSteps, updateState);
+    const finishUpdate = (message) => {
+      terminalStateRef.current.running = false;
+      terminalKillRef.current = null;
+      setUpdateState("idle");
+      if (message) writeToTerminal(message);
+      loadStatus().catch(() => {
+      });
+    };
+    const runUpdateInstallAndBuild = (lockfileChanged) => {
+      const runBuildStep = () => {
+        setUpdateState("building");
+        writeToTerminal("\nRunning npm run build\u2026\n");
+        runScript("build", {
+          onLog: (chunk) => writeToTerminal(chunk),
+          onDone: async ({ code }) => {
+            if (code === 0) {
+              try {
+                await window.api.markUpdateComplete(sitePath);
+              } catch {
+              }
+              const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1e3) : null;
+              setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
+              finishUpdate("\nUpdate complete \u2014 this site is now on the latest trunk.\n");
+            } else {
+              finishUpdate("\nUpdate incomplete \u2014 the build failed. The code is new but the built assets are old; retry install & build from the banner above.\n");
+            }
+          }
+        });
+      };
+      if (lockfileChanged) {
+        setUpdateState("installing");
+        writeToTerminal("\npackage-lock.json changed \u2014 running npm install (only the changed packages are downloaded)\u2026\n");
+        runInstall({
+          onLog: (chunk) => writeToTerminal(chunk),
+          onDone: ({ code }) => {
+            if (code !== 0) {
+              finishUpdate("\nUpdate incomplete \u2014 npm install failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.\n");
+              return;
+            }
+            runBuildStep();
+          }
+        });
+      } else {
+        writeToTerminal(`
+${import_update_plan.SKIP_INSTALL_MESSAGE}
+`);
+        runBuildStep();
+      }
+    };
+    const beginTrunkUpdate = () => {
+      const state = terminalStateRef.current;
+      if (state.running) {
+        writeToTerminal("A command is already running. Press Ctrl+C to stop it.\n");
+        return;
+      }
+      state.running = true;
+      terminalKillRef.current = () => {
+        killCurrent().catch(() => {
+        });
+      };
+      setUpdateLockfileChanged(false);
+      setLastUpdateSummary(null);
+      updateStartRef.current = Date.now();
+      setUpdateState("fetching");
+      window.api.updateTrunk(sitePath, ({ data }) => writeToTerminal(data), (res) => {
+        if (!res || !res.ok || res.upToDate) {
+          finishUpdate();
+          return;
+        }
+        setUpdateLockfileChanged(Boolean(res.lockfileChanged));
+        runUpdateInstallAndBuild(Boolean(res.lockfileChanged));
+      });
+    };
+    const startTrunkUpdate = async () => {
+      if (isUpdating || installing || building || isDevProcessActive) return;
+      savedPatchPathRef.current = null;
+      try {
+        const res = await window.api.isWorktreeDirty(sitePath);
+        if (res && res.ok && res.dirty) {
+          setDirtyFiles(Array.isArray(res.files) ? res.files : []);
+          setDirtyChoice("save");
+          setDirtyModalOpen(true);
+          return;
+        }
+      } catch {
+      }
+      beginTrunkUpdate();
+    };
+    const dirtySaveAndUpdate = async () => {
+      setDirtySaving(true);
+      try {
+        const res = await window.api.savePatch(sitePath);
+        if (res && res.canceled) return;
+        if (!res || !res.ok || !res.filePath) {
+          alert(`Error saving diff: ${res && res.error ? res.error : "Unknown error"}`);
+          return;
+        }
+        const d = await window.api.discardChanges(sitePath);
+        if (!d || !d.ok) {
+          alert(`Saved your changes to ${res.filePath}, but resetting the working tree failed: ${d && d.error ? d.error : "Unknown error"}`);
+          return;
+        }
+        savedPatchPathRef.current = res.filePath;
+        setDirtyModalOpen(false);
+        writeToTerminal(`
+Saved your changes to ${res.filePath} and reset the working tree.
+`);
+        beginTrunkUpdate();
+      } finally {
+        setDirtySaving(false);
+      }
+    };
+    const dirtyDiscardAndUpdate = () => confirmAnd("Discard all local changes? This cannot be undone.", async () => {
+      const d = await window.api.discardChanges(sitePath);
+      if (!d || !d.ok) {
+        alert(`Failed to discard changes: ${d && d.error ? d.error : "Unknown error"}`);
+        return;
+      }
+      setDirtyModalOpen(false);
+      writeToTerminal("\nDiscarded local changes.\n");
+      beginTrunkUpdate();
+    });
+    const retryInstallAndBuild = () => {
+      const state = terminalStateRef.current;
+      if (state.running) {
+        writeToTerminal("A command is already running. Press Ctrl+C to stop it.\n");
+        return;
+      }
+      state.running = true;
+      terminalKillRef.current = () => {
+        killCurrent().catch(() => {
+        });
+      };
+      setUpdateLockfileChanged(true);
+      setLastUpdateSummary(null);
+      updateStartRef.current = Date.now();
+      runUpdateInstallAndBuild(true);
+    };
     const openPatchModal = async () => {
       setIsPatchOpen(true);
       setPatchLoading(true);
@@ -54933,6 +55186,18 @@ Running ${plan.watch.label}\u2026
             createdLabel ? /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("span", { children: [
               "Created ",
               createdLabel
+            ] }) : null,
+            age.known ? /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("span", { style: { display: "inline-flex", alignItems: "center", gap: 6 }, children: [
+              createdLabel ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { "aria-hidden": "true", children: "\xB7" }) : null,
+              age.stale ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
+                "span",
+                {
+                  "aria-hidden": "true",
+                  title: `Trunk snapshot is ${age.ageDays} days old`,
+                  style: { display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#dba617" }
+                }
+              ) : null,
+              /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { children: age.label })
             ] }) : null
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 4, marginTop: 6 }, children: [
@@ -54957,12 +55222,96 @@ Running ${plan.watch.label}\u2026
             text: "",
             controls: [
               { title: "Copy path", onClick: copyPath },
+              // Also reachable when the site is not yet stale (the staleness
+              // notice is the primary entry point) — a fresh site just gets
+              // "Already up to date." in the terminal.
+              { title: "Update to latest trunk", onClick: startTrunkUpdate },
               { title: "Forget this site", onClick: () => confirmAnd("Remove this site from the list?", () => onForget(sitePath)) },
               { title: "Delete this site", onClick: () => confirmAnd("Delete this site from disk? This cannot be undone.", () => onDelete(sitePath)) }
             ]
           }
         ) })
       ] }),
+      updateIncomplete && !isUpdating ? /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 16px", background: "#fcf0f1", border: "1px solid #d63638", borderRadius: 8, fontSize: 13, color: "#8a1f21" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("span", { style: { flex: "1 1 320px" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("strong", { children: "Update incomplete" }),
+          " \u2014 the code is new but the built assets are old. The site may not run correctly until install and build succeed."
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
+          button_default,
+          {
+            variant: "secondary",
+            isDestructive: true,
+            onClick: retryInstallAndBuild,
+            disabled: installing || building || isDevProcessActive,
+            children: "Retry install & build"
+          }
+        )
+      ] }) : null,
+      age.stale && !updateIncomplete && !isUpdating ? /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap", padding: "14px 16px", background: "#fcf9e8", border: "1px solid #dba617", borderRadius: 8, fontSize: 13, color: "#6e5406" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 4 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("strong", { style: { color: "#5c4400" }, children: [
+            "This site's WordPress code is ",
+            age.ageDays,
+            " days old"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { children: "Patches you create now may not apply on Trac. Updating takes a few minutes." })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
+          button_default,
+          {
+            variant: "secondary",
+            onClick: startTrunkUpdate,
+            disabled: installing || building || isDevProcessActive,
+            title: isDevProcessActive ? "Stop the dev server before updating" : void 0,
+            children: "Update to latest trunk"
+          }
+        )
+      ] }) : null,
+      isUpdating ? /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { padding: "14px 16px", background: "#fff", border: "1px solid #dcdcde", borderRadius: 8 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { style: { fontWeight: 600, fontSize: 14, color: "#1d2327" }, children: "Updating to latest trunk" }),
+          /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("span", { style: { fontSize: 12, color: "#6c6f72" }, children: [
+            "step ",
+            Math.max(1, updateStepStates.filter((s) => s.status === "complete" || s.status === "skipped").length + 1),
+            " of ",
+            updateSteps.length
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { marginTop: 10, display: "flex", flexDirection: "column", gap: 6, fontSize: 13 }, children: updateStepStates.map((s) => {
+          const labels = UPDATE_STEP_LABELS[s.key] || {};
+          const text = labels[s.status] || labels.pending || s.key;
+          const symbol2 = s.status === "complete" ? "\u2713" : s.status === "current" ? "\u203A" : "";
+          const color2 = s.status === "complete" ? "#0f5132" : s.status === "current" ? "#0b5d95" : "#6c6f72";
+          return /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", alignItems: "baseline", gap: 8, color: color2, opacity: s.status === "pending" || s.status === "skipped" ? 0.75 : 1 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { "aria-hidden": "true", style: { width: 12, display: "inline-block", textAlign: "center" }, children: symbol2 }),
+            /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { style: { fontWeight: s.status === "current" ? 600 : 400 }, children: text })
+          ] }, s.key);
+        }) }),
+        updateState === "installing" ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { marginTop: 10, paddingTop: 10, borderTop: "1px solid #f0f0f1", fontSize: 12, color: "#6c6f72" }, children: "Most packages are already cached, so this is a download of the difference \u2014 not the whole tree." }) : null
+      ] }) : null,
+      lastUpdateSummary && !isUpdating && !updateIncomplete ? /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 16px", background: "#f4fbf4", border: "1px solid #94d3ae", borderRadius: 8, fontSize: 13, color: "#0f5132" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { "aria-hidden": "true", style: { fontWeight: 700 }, children: "\u2713" }),
+        /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 4 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("strong", { children: "Up to date with trunk as of today." }),
+          /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("span", { children: [
+            lastUpdateSummary.lockfileChanged ? "Dependencies updated" : "Dependencies unchanged",
+            lastUpdateSummary.elapsedSeconds != null ? `, rebuilt in ${(0, import_dev_server_command.formatElapsed)(lastUpdateSummary.elapsedSeconds)}.` : ", rebuilt.",
+            lastUpdateSummary.savedPatchPath ? ` Your changes were saved to ${lastUpdateSummary.savedPatchPath} before the reset.` : ""
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
+          button_default,
+          {
+            variant: "tertiary",
+            isSmall: true,
+            "aria-label": "Dismiss",
+            onClick: () => setLastUpdateSummary(null),
+            style: { color: "#0f5132" },
+            children: "\u2715"
+          }
+        )
+      ] }) : null,
       !skipInit ? /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { padding: 20, border: "1px solid #dcdcde", borderRadius: 12, background: "#fff" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { fontWeight: 600, fontSize: 16, color: "#1d2327" }, children: "Initial setup checklist" }),
         /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { marginTop: 4, fontSize: 13, color: "#3c434a" }, children: "Complete each step to prepare this site for development." }),
@@ -55025,6 +55374,7 @@ Running ${plan.watch.label}\u2026
               isBusy: isServerStarting,
               variant: isDevProcessActive ? "secondary" : "primary",
               onClick: toggleDevServer,
+              disabled: isUpdating,
               style: { display: "inline-flex", alignItems: "center", gap: 10, minWidth: 220, justifyContent: "center", padding: "12px 20px", fontSize: 15, borderRadius: 12 },
               children: [
                 isDevProcessActive ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
@@ -55051,6 +55401,7 @@ Running ${plan.watch.label}\u2026
             {
               variant: "secondary",
               onClick: openPatchModal,
+              disabled: isUpdating,
               style: { padding: "10px 16px", borderRadius: 10 },
               children: "Submit patch"
             }
@@ -55135,6 +55486,72 @@ Running ${plan.watch.label}\u2026
           }) : /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { padding: 12, color: "#666" }, children: "No emails yet." }) })
         ] })
       ] }),
+      dirtyModalOpen ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
+        modal_default,
+        {
+          title: "Update to latest trunk?",
+          onRequestClose: () => {
+            if (!dirtySaving) setDirtyModalOpen(false);
+          },
+          shouldCloseOnClickOutside: !dirtySaving,
+          children: /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 12, maxWidth: 520 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("p", { style: { margin: 0, fontSize: 13, lineHeight: 1.5 }, children: [
+              "You've changed ",
+              dirtyFiles.length === 1 ? "1 file" : `${dirtyFiles.length} files`,
+              " in this site. Resetting to trunk would throw them away."
+            ] }),
+            dirtyFiles.length ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { border: "1px solid #dcdcde", borderRadius: 6, padding: "10px 12px", maxHeight: 140, overflowY: "auto" }, children: dirtyFiles.map((f) => /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { fontFamily: "monospace", fontSize: 12, color: "#3c434a", lineHeight: 1.7, overflowWrap: "anywhere" }, children: f }, f)) }) : null,
+            [
+              { key: "save", label: "Save them as a patch first (as a local file)", detail: "a .diff on your machine \u2014 nothing is sent to Trac" },
+              { key: "discard", label: "Discard them", detail: "your changes are lost; this cannot be undone", destructive: true }
+            ].map((opt) => {
+              const selected = dirtyChoice === opt.key;
+              return /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)(
+                "button",
+                {
+                  type: "button",
+                  onClick: () => setDirtyChoice(opt.key),
+                  disabled: dirtySaving,
+                  "aria-pressed": selected,
+                  style: {
+                    textAlign: "left",
+                    cursor: "pointer",
+                    font: "inherit",
+                    fontSize: 13,
+                    padding: "10px 12px",
+                    borderRadius: 6,
+                    border: selected ? "2px solid #3858e9" : "1px solid #dcdcde",
+                    background: selected ? "#f0f3ff" : "#fff",
+                    color: opt.destructive ? "#b32d2e" : "#1d2327"
+                  },
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { style: { fontWeight: 600 }, children: opt.label }),
+                    /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("span", { style: { color: opt.destructive ? "#b32d2e" : "#6c6f72" }, children: [
+                      " \u2014 ",
+                      opt.detail
+                    ] })
+                  ]
+                },
+                opt.key
+              );
+            }),
+            /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(button_default, { variant: "secondary", onClick: () => setDirtyModalOpen(false), disabled: dirtySaving, children: "Cancel" }),
+              /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
+                button_default,
+                {
+                  variant: "primary",
+                  isDestructive: dirtyChoice === "discard",
+                  isBusy: dirtySaving,
+                  disabled: dirtySaving,
+                  onClick: () => dirtyChoice === "discard" ? dirtyDiscardAndUpdate() : dirtySaveAndUpdate(),
+                  children: dirtyChoice === "discard" ? "Discard & update" : "Save patch & update"
+                }
+              )
+            ] })
+          ] })
+        }
+      ) : null,
       renameModalOpen ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
         modal_default,
         {
@@ -55178,6 +55595,11 @@ Running ${plan.watch.label}\u2026
           isFullScreen: true,
           headerClassName: "patch-modal-header",
           children: /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", flexDirection: "column", height: "80vh", gap: 12 }, children: [
+            !patchLoading && age.stale && /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { padding: "12px 16px", background: "#fcf9e8", border: "1px solid #dba617", borderRadius: 6, fontSize: 13, lineHeight: 1.5, color: "#6e5406" }, children: [
+              "This site's WordPress code is ",
+              age.ageDays,
+              " days old \u2014 this patch may not apply on Trac. Consider updating to the latest trunk first."
+            ] }),
             !patchLoading && /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { padding: "12px 16px", background: "#f0f6fc", border: "1px solid #d0d7de", borderRadius: 6, fontSize: 14, lineHeight: 1.5, color: "#24292f" }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("strong", { children: "Next steps:" }),
               " Save this patch and submit it to the relevant WordPress Trac ticket at ",

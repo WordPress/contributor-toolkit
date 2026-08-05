@@ -19,8 +19,23 @@ import 'xterm/css/xterm.css';
 import { computeSetupStepState } from './setup-steps.cjs';
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 import { pathBasename } from './path-basename.cjs';
+import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE } from './update-plan.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
+// Per-status wording for the update chain card (#94), following the issue's
+// mockups: the skipped install step is named, never hidden, and the build
+// step points at the Terminal instead of opening a second log surface.
+const UPDATE_STEP_LABELS = {
+  fetch: { pending: 'Fetch and reset to trunk', current: 'Fetching and resetting to trunk…', complete: 'Fetched and reset to trunk' },
+  install: { pending: 'Install dependencies', current: 'Dependencies changed — installing the difference…', complete: 'Dependencies installed', skipped: SKIP_INSTALL_MESSAGE },
+  build: { pending: 'Rebuild', current: 'Rebuilding — output in the Terminal below', complete: 'Rebuilt' }
+};
+// Checkmark/pointer and color per step status; pending/skipped fall back to
+// no symbol in muted gray.
+const UPDATE_STEP_MARKS = {
+  complete: { symbol: '✓', color: '#0f5132' },
+  current: { symbol: '›', color: '#0b5d95' }
+};
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
@@ -395,6 +410,12 @@ function App() {
     setSiteMeta((m) => ({ ...(m || {}), [sitePath]: { ...(m?.[sitePath] || {}), initialized: true } }));
   }, [setSiteMeta]);
 
+  // Lets a SiteRow push meta changes (trunk date, update-incomplete flag)
+  // into App's copy so the sidebar staleness dots update without a restart.
+  const onSiteMetaPatch = useCallback((sitePath, patch) => {
+    setSiteMeta((m) => ({ ...(m || {}), [sitePath]: { ...(m?.[sitePath] || {}), ...patch } }));
+  }, [setSiteMeta]);
+
   const onForget = useCallback(async (sitePath) => {
     await window.api.forgetSite(sitePath);
     await refresh();
@@ -517,6 +538,22 @@ function App() {
             const meta = siteMeta?.[sitePath] || {};
             const siteName = (meta.label && meta.label.trim()) || pathBasename(sitePath);
             const isActive = activeSite === sitePath;
+            // Staleness surfaces in the sidebar before the site is even
+            // opened (#94): amber = old trunk snapshot, red = an update that
+            // moved trunk but never finished install/build.
+            const trunkAge = trunkAgeInfo({ trunkDate: meta.trunkDate });
+            let staleDotColor = null;
+            if (meta.updateIncomplete) staleDotColor = '#d63638';
+            else if (trunkAge.stale) staleDotColor = '#dba617';
+            const staleDotTitle = meta.updateIncomplete
+              ? 'Update incomplete — code is new, built assets are old'
+              : `WordPress code is ${trunkAge.ageDays} days old — update to latest trunk`;
+            const staleDot = staleDotColor ? (
+              <span
+                title={staleDotTitle}
+                style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: staleDotColor, flexShrink: 0 }}
+              />
+            ) : null;
             return (
               <Button
                 key={sitePath}
@@ -535,10 +572,10 @@ function App() {
                 }}
               >
                 {sidebarCollapsed ? (
-                  <span style={{ fontWeight: 600 }}>{siteName.slice(0, 1).toUpperCase()}</span>
+                  <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>{siteName.slice(0, 1).toUpperCase()}{staleDot}</span>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-                    <span style={{ fontWeight: 600 }}>{siteName}</span>
+                    <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{siteName}{staleDot}</span>
                   </div>
                 )}
               </Button>
@@ -626,6 +663,7 @@ function App() {
                       createdAt={siteMeta?.[s]?.createdAt}
                       label={siteMeta?.[s]?.label}
                       onInitialized={onInitialized}
+                      onSiteMetaPatch={onSiteMetaPatch}
                       onForget={onForget}
                       onDelete={onDelete}
                       onRename={onRename}
@@ -710,7 +748,11 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, isPending = false, setupLogs = '' }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, isPending = false, setupLogs = '' }) {
+  // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
+  // recreated callback prop must not retrigger the status-loading effect.
+  const metaPatchRef = useRef(onSiteMetaPatch);
+  useEffect(() => { metaPatchRef.current = onSiteMetaPatch; }, [onSiteMetaPatch]);
   // state
   const [serverUrl, setServerUrl] = useState('');
   const [starting, setStarting] = useState(false);
@@ -735,6 +777,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
+  // Trunk update path (#94)
+  const [trunkDate, setTrunkDate] = useState(null);
+  const [updateIncomplete, setUpdateIncomplete] = useState(false);
+  const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
+  const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
+  const [dirtySaving, setDirtySaving] = useState(false);
+  const [dirtyFiles, setDirtyFiles] = useState([]);
+  const [dirtyChoice, setDirtyChoice] = useState('save'); // save | discard
+  const [dirtyError, setDirtyError] = useState(null); // failure text shown inside the dirty-tree modal
+  const [updateLockfileChanged, setUpdateLockfileChanged] = useState(false);
+  const [lastUpdateSummary, setLastUpdateSummary] = useState(null);
+  const updateStartRef = useRef(null);
+  const savedPatchPathRef = useRef(null);
   const setupLogsRef = useRef('');
 
   // sticky refs per log
@@ -850,6 +905,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       setInstallFailed(Boolean(s?.installFailed));
       setHasBuilt(Boolean(s?.hasBuilt));
       setSkipInit(Boolean(s?.skipInitWizard));
+      setTrunkDate(s?.trunkDate || null);
+      setUpdateIncomplete(Boolean(s?.updateIncomplete));
+      if (metaPatchRef.current) {
+        // A null trunkDate here means the git read failed (e.g. clone still
+        // running) — keep whatever the sidebar already shows in that case.
+        const patch = { updateIncomplete: Boolean(s?.updateIncomplete) };
+        if (s?.trunkDate) patch.trunkDate = s.trunkDate;
+        metaPatchRef.current(sitePath, patch);
+      }
     } catch {}
     finally { setStatusLoading(false); }
   }, [sitePath]);
@@ -1366,6 +1430,158 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   // eslint-disable-next-line no-alert -- see the note above onRename.
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
 
+  // --- Update to latest trunk (#94) ---
+  const age = trunkAgeInfo({ trunkDate });
+  const isUpdating = updateState !== 'idle';
+  const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged });
+  const updateStepStates = updateStepStatuses(updateSteps, updateState);
+
+  const finishUpdate = (message) => {
+    terminalStateRef.current.running = false;
+    terminalKillRef.current = null;
+    setUpdateState('idle');
+    if (message) writeToTerminal(message);
+    loadStatus().catch(() => {});
+  };
+
+  // Steps 2 and 3 of the chain: npm install (only when the lockfile moved,
+  // and named when skipped) then a rebuild. Reuses the wizard's runInstall /
+  // runScript so exit codes, retries and terminal streaming all behave
+  // exactly as they do everywhere else (same pattern as toggleDevServer).
+  const runUpdateInstallAndBuild = (lockfileChanged) => {
+    const runBuildStep = () => {
+      setUpdateState('building');
+      writeToTerminal('\nRunning npm run build…\n');
+      runScript('build', {
+        onLog: (chunk) => writeToTerminal(chunk),
+        onDone: async ({ code }) => {
+          if (code === 0) {
+            try { await window.api.markUpdateComplete(sitePath); } catch {}
+            const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
+            setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
+            finishUpdate('\nUpdate complete — this site is now on the latest trunk.\n');
+          } else {
+            finishUpdate('\nUpdate incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.\n');
+          }
+        }
+      });
+    };
+    if (lockfileChanged) {
+      setUpdateState('installing');
+      writeToTerminal('\npackage-lock.json changed — running npm install (only the changed packages are downloaded)…\n');
+      runInstall({
+        onLog: (chunk) => writeToTerminal(chunk),
+        onDone: ({ code }) => {
+          if (code !== 0) {
+            finishUpdate('\nUpdate incomplete — npm install failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.\n');
+            return;
+          }
+          runBuildStep();
+        }
+      });
+    } else {
+      writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
+      runBuildStep();
+    }
+  };
+
+  // Step 1: fetch + reset in the main process, then hand over to the npm
+  // steps. Assumes the tree is clean (startTrunkUpdate handles dirty trees).
+  const beginTrunkUpdate = () => {
+    const state = terminalStateRef.current;
+    if (state.running) {
+      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      return;
+    }
+    state.running = true;
+    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+    setUpdateLockfileChanged(false);
+    setLastUpdateSummary(null);
+    updateStartRef.current = Date.now();
+    setUpdateState('fetching');
+    window.api.updateTrunk(sitePath, ({ data }) => writeToTerminal(data), (res) => {
+      if (!res || !res.ok || res.upToDate) {
+        // The main process already wrote the failure or "Already up to
+        // date." message to the stream.
+        finishUpdate();
+        return;
+      }
+      setUpdateLockfileChanged(Boolean(res.lockfileChanged));
+      runUpdateInstallAndBuild(Boolean(res.lockfileChanged));
+    });
+  };
+
+  const startTrunkUpdate = async () => {
+    if (isUpdating || installing || building || isDevProcessActive) return;
+    savedPatchPathRef.current = null;
+    try {
+      const res = await window.api.isWorktreeDirty(sitePath);
+      if (res && res.ok && res.dirty) {
+        setDirtyFiles(Array.isArray(res.files) ? res.files : []);
+        setDirtyChoice('save');
+        setDirtyError(null);
+        setDirtyModalOpen(true);
+        return;
+      }
+    } catch {}
+    beginTrunkUpdate();
+  };
+
+  // Dirty-tree resolutions. Saving is the default: it is what the tool is
+  // for, and it is the only option that cannot lose work.
+  const dirtySaveAndUpdate = async () => {
+    setDirtySaving(true);
+    setDirtyError(null);
+    try {
+      const res = await window.api.savePatch(sitePath);
+      if (res && res.canceled) return; // stay in the modal
+      if (!res || !res.ok || !res.filePath) {
+        setDirtyError(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
+        return;
+      }
+      const d = await window.api.discardChanges(sitePath);
+      if (!d || !d.ok) {
+        setDirtyError(`Saved your changes to ${res.filePath}, but resetting the working tree failed: ${d && d.error ? d.error : 'Unknown error'}`);
+        return;
+      }
+      savedPatchPathRef.current = res.filePath;
+      setDirtyModalOpen(false);
+      writeToTerminal(`\nSaved your changes to ${res.filePath} and reset the working tree.\n`);
+      beginTrunkUpdate();
+    } finally {
+      setDirtySaving(false);
+    }
+  };
+
+  const dirtyDiscardAndUpdate = () => confirmAnd('Discard all local changes? This cannot be undone.', async () => {
+    setDirtyError(null);
+    const d = await window.api.discardChanges(sitePath);
+    if (!d || !d.ok) {
+      setDirtyError(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
+      return;
+    }
+    setDirtyModalOpen(false);
+    writeToTerminal('\nDiscarded local changes.\n');
+    beginTrunkUpdate();
+  });
+
+  // Re-entry point for a previously interrupted update: trunk already moved,
+  // so only install+build remain. Install runs unconditionally — the
+  // lockfile delta from the failed run is no longer known.
+  const retryInstallAndBuild = () => {
+    const state = terminalStateRef.current;
+    if (state.running) {
+      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      return;
+    }
+    state.running = true;
+    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+    setUpdateLockfileChanged(true);
+    setLastUpdateSummary(null);
+    updateStartRef.current = Date.now();
+    runUpdateInstallAndBuild(true);
+  };
+
   const openPatchModal = async ()=>{
     setIsPatchOpen(true);
     setPatchLoading(true);
@@ -1458,7 +1674,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     installing,
     building,
     starting,
-    installFailed
+    installFailed,
+    isUpdating
   });
 
   let installLabel = 'Install npm dependencies';
@@ -1567,6 +1784,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               {initialized ? 'Initialized' : 'Uninitialized'}
             </span>
             {createdLabel ? <span>Created {createdLabel}</span> : null}
+            {age.known ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {createdLabel ? <span aria-hidden="true">·</span> : null}
+                {age.stale ? (
+                  <span
+                    aria-hidden="true"
+                    title={`Trunk snapshot is ${age.ageDays} days old`}
+                    style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#dba617' }}
+                  />
+                ) : null}
+                <span>{age.label}</span>
+              </span>
+            ) : null}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
             <code style={{ fontSize: 12, color: '#3c434a', background: '#f0f0f1', padding: '2px 6px', borderRadius: 4, overflowWrap: 'anywhere' }}>
@@ -1588,12 +1818,91 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
             text=""
             controls={[
               { title: 'Copy path', onClick: copyPath },
+              // Also reachable when the site is not yet stale (the staleness
+              // notice is the primary entry point) — a fresh site just gets
+              // "Already up to date." in the terminal.
+              { title: 'Update to latest trunk', onClick: startTrunkUpdate },
               { title:'Forget this site', onClick:()=>confirmAnd('Remove this site from the list?', ()=>onForget(sitePath)) },
               { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
             ]}
           />
         </div>
       </Flex>
+      {updateIncomplete && !isUpdating ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
+          <span style={{ flex: '1 1 320px' }}>
+            <strong>Update incomplete</strong> — the code is new but the built assets are old. The site may not run correctly until install and build succeed.
+          </span>
+          <Button
+            variant="secondary"
+            isDestructive
+            onClick={retryInstallAndBuild}
+            disabled={installing || building || isDevProcessActive}
+          >Retry install &amp; build</Button>
+        </div>
+      ) : null}
+      {age.stale && !updateIncomplete && !isUpdating ? (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '14px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
+          <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <strong style={{ color: '#5c4400' }}>This site&apos;s WordPress code is {age.ageDays} days old</strong>
+            <span>Patches you create now may not apply on Trac. Updating takes a few minutes.</span>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={startTrunkUpdate}
+            disabled={installing || building || isDevProcessActive}
+            title={isDevProcessActive ? 'Stop the dev server before updating' : undefined}
+          >Update to latest trunk</Button>
+        </div>
+      ) : null}
+      {isUpdating ? (
+        <div style={{ padding: '14px 16px', background: '#fff', border: '1px solid #dcdcde', borderRadius: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 600, fontSize: 14, color: '#1d2327' }}>Updating to latest trunk</span>
+            <span style={{ fontSize: 12, color: '#6c6f72' }}>
+              step {Math.max(1, updateStepStates.filter((s) => s.status === 'complete' || s.status === 'skipped').length + 1)} of {updateSteps.length}
+            </span>
+          </div>
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
+            {updateStepStates.map((s) => {
+              const labels = UPDATE_STEP_LABELS[s.key] || {};
+              const text = labels[s.status] || labels.pending || s.key;
+              const { symbol = '', color = '#6c6f72' } = UPDATE_STEP_MARKS[s.status] || {};
+              return (
+                <div key={s.key} style={{ display: 'flex', alignItems: 'baseline', gap: 8, color, opacity: s.status === 'pending' || s.status === 'skipped' ? 0.75 : 1 }}>
+                  <span aria-hidden="true" style={{ width: 12, display: 'inline-block', textAlign: 'center' }}>{symbol}</span>
+                  <span style={{ fontWeight: s.status === 'current' ? 600 : 400 }}>{text}</span>
+                </div>
+              );
+            })}
+          </div>
+          {updateState === 'installing' ? (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f0f1', fontSize: 12, color: '#6c6f72' }}>
+              Most packages are already cached, so this is a download of the difference — not the whole tree.
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {lastUpdateSummary && !isUpdating && !updateIncomplete ? (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', background: '#f4fbf4', border: '1px solid #94d3ae', borderRadius: 8, fontSize: 13, color: '#0f5132' }}>
+          <span aria-hidden="true" style={{ fontWeight: 700 }}>✓</span>
+          <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <strong>Up to date with trunk as of today.</strong>
+            <span>
+              {lastUpdateSummary.lockfileChanged ? 'Dependencies updated' : 'Dependencies unchanged'}
+              {typeof lastUpdateSummary.elapsedSeconds === 'number' ? `, rebuilt in ${formatElapsed(lastUpdateSummary.elapsedSeconds)}.` : ', rebuilt.'}
+              {lastUpdateSummary.savedPatchPath ? ` Your changes were saved to ${lastUpdateSummary.savedPatchPath} before the reset.` : ''}
+            </span>
+          </div>
+          <Button
+            variant="tertiary"
+            isSmall
+            aria-label="Dismiss"
+            onClick={() => setLastUpdateSummary(null)}
+            style={{ color: '#0f5132' }}
+          >✕</Button>
+        </div>
+      ) : null}
       {!skipInit ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
           <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Initial setup checklist</div>
@@ -1663,6 +1972,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               isBusy={isServerStarting}
               variant={isDevProcessActive ? 'secondary' : 'primary'}
               onClick={toggleDevServer}
+              disabled={isUpdating}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 10, minWidth: 220, justifyContent: 'center', padding: '12px 20px', fontSize: 15, borderRadius: 12 }}
             >
               {isDevProcessActive ? (
@@ -1684,6 +1994,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
             <Button
               variant="secondary"
               onClick={openPatchModal}
+              disabled={isUpdating}
               style={{ padding: '10px 16px', borderRadius: 10 }}
             >Submit patch</Button>
             {running && serverUrl ? (
@@ -1760,6 +2071,70 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           </div>
         </div>
       </div>
+      {dirtyModalOpen ? (
+        <Modal
+          title="Update to latest trunk?"
+          onRequestClose={() => { if (!dirtySaving) setDirtyModalOpen(false); }}
+          shouldCloseOnClickOutside={!dirtySaving}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 520 }}>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
+              You&apos;ve changed {dirtyFiles.length === 1 ? '1 file' : `${dirtyFiles.length} files`} in this site. Resetting to trunk would throw them away.
+            </p>
+            {dirtyFiles.length ? (
+              <div style={{ border: '1px solid #dcdcde', borderRadius: 6, padding: '10px 12px', maxHeight: 140, overflowY: 'auto' }}>
+                {dirtyFiles.map((f) => (
+                  <div key={f} style={{ fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere' }}>{f}</div>
+                ))}
+              </div>
+            ) : null}
+            {[
+              { key: 'save', label: 'Save them as a patch first (as a local file)', detail: 'a .diff on your machine — nothing is sent to Trac' },
+              { key: 'discard', label: 'Discard them', detail: 'your changes are lost; this cannot be undone', destructive: true }
+            ].map((opt) => {
+              const selected = dirtyChoice === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setDirtyChoice(opt.key)}
+                  disabled={dirtySaving}
+                  aria-pressed={selected}
+                  style={{
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    font: 'inherit',
+                    fontSize: 13,
+                    padding: '10px 12px',
+                    borderRadius: 6,
+                    border: selected ? '2px solid #3858e9' : '1px solid #dcdcde',
+                    background: selected ? '#f0f3ff' : '#fff',
+                    color: opt.destructive ? '#b32d2e' : '#1d2327'
+                  }}
+                >
+                  <span style={{ fontWeight: 600 }}>{opt.label}</span>
+                  <span style={{ color: opt.destructive ? '#b32d2e' : '#6c6f72' }}> — {opt.detail}</span>
+                </button>
+              );
+            })}
+            {dirtyError ? (
+              <div role="alert" style={{ padding: '10px 12px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 13, lineHeight: 1.5, color: '#8a2424', overflowWrap: 'anywhere' }}>
+                {dirtyError}
+              </div>
+            ) : null}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+              <Button variant="secondary" onClick={() => setDirtyModalOpen(false)} disabled={dirtySaving}>Cancel</Button>
+              <Button
+                variant="primary"
+                isDestructive={dirtyChoice === 'discard'}
+                isBusy={dirtySaving}
+                disabled={dirtySaving}
+                onClick={() => (dirtyChoice === 'discard' ? dirtyDiscardAndUpdate() : dirtySaveAndUpdate())}
+              >{dirtyChoice === 'discard' ? 'Discard & update' : 'Save patch & update'}</Button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
       {renameModalOpen ? (
         <Modal
           title="Rename site"
@@ -1798,6 +2173,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           headerClassName="patch-modal-header"
         >
           <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
+            {!patchLoading && age.stale && (
+              <div style={{ padding:'12px 16px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:13, lineHeight:1.5, color:'#6e5406' }}>
+                This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
+              </div>
+            )}
             {!patchLoading && (
               <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
                 <strong>Next steps:</strong> Save this patch and submit it to the relevant WordPress Trac ticket at <button type="button" onClick={() => window.api.openExternal('https://core.trac.wordpress.org')} style={{color:'#0969da', cursor:'pointer', background:'none', border:'none', padding:0, font:'inherit', textDecoration:'underline'}}>core.trac.wordpress.org</button>

@@ -70,6 +70,29 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	savePatch: (sitePath) => ipcRenderer.invoke('git:save-patch', sitePath)
 ,
+	isWorktreeDirty: (sitePath) => ipcRenderer.invoke('git:worktree-dirty', sitePath)
+,
+	discardChanges: (sitePath) => ipcRenderer.invoke('git:discard-changes', sitePath)
+,
+	markUpdateComplete: (sitePath) => ipcRenderer.invoke('sites:mark-update-complete', sitePath)
+,
+	updateTrunk: async (sitePath, onLog, onDone) => {
+		const { updateId } = await ipcRenderer.invoke('git:update-trunk', sitePath);
+		const logHandler = (_e, payload) => {
+			if (payload.updateId === updateId && onLog) onLog(payload);
+		};
+		const doneHandler = (_e, payload) => {
+			if (payload.updateId === updateId) {
+				ipcRenderer.removeListener('git:update-trunk:log', logHandler);
+				ipcRenderer.removeListener('git:update-trunk:done', doneHandler);
+				if (onDone) onDone(payload);
+			}
+		};
+		ipcRenderer.on('git:update-trunk:log', logHandler);
+		ipcRenderer.on('git:update-trunk:done', doneHandler);
+		return { updateId };
+	}
+,
 	startWpDebug: async (sitePath, onData) => {
 		const handler = (_e, payload) => {
 			if (payload.sitePath === sitePath && onData) onData(payload.data);

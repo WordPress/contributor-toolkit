@@ -88,3 +88,23 @@ test('the dev step is never marked done by the checklist', () => {
 	assert.strictEqual(steps.dev.done, false);
 	assert.strictEqual(steps.dev.disabled, true, 'disabled while starting');
 });
+
+test('a trunk update in flight locks the checklist even before its own install/build flags are set (#111 review)', () => {
+	// The update chain's fetch step runs before `installing`/`building` are
+	// ever set, so this reproduces the exact window a race would occur in:
+	// node_modules and a build already exist, nothing is "installing" yet,
+	// but the working tree is being reset underneath the checklist.
+	const steps = computeSetupStepState({ hasNodeModules: true, hasBuilt: true, isUpdating: true });
+
+	assert.strictEqual(steps.install.disabled, true, 'install must not race the update chain\'s checkout');
+	assert.strictEqual(steps.build.disabled, true, 'build must not race the update chain\'s checkout');
+	assert.strictEqual(steps.dev.disabled, true, 'the dev server must not start against a tree the update owns');
+});
+
+test('a finished update releases the checklist again', () => {
+	const steps = computeSetupStepState({ hasNodeModules: true, hasBuilt: true, isUpdating: false });
+
+	assert.strictEqual(steps.install.disabled, true, 'nothing left to install');
+	assert.strictEqual(steps.build.disabled, true, 'nothing left to build');
+	assert.strictEqual(steps.dev.disabled, false);
+});

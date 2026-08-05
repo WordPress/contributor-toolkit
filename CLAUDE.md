@@ -13,7 +13,7 @@ See `package.json` scripts. To run a single test file (not exposed as a script):
 ## Architecture notes (non-obvious)
 
 - **Child processes run on Electron's own Node, not the system Node.** `npm install`, `npm run <script>`, and the Playground server are spawned via `process.execPath` + `ELECTRON_RUN_AS_NODE=1` — this is the mechanism behind "zero prerequisites." On Windows this requires shimming `node`/`npm`/`npx` into `PATH` so child `npm` processes can find a `node` binary at all.
-- **Git has no system dependency** — all Git ops go through `isomorphic-git`, not a shelled-out `git` binary. Patch/diff generation is done by hand in `main.js` (stage untracked files, diff working tree vs `origin/trunk`), not `git diff`.
+- **Git has no system dependency** — all Git ops go through `isomorphic-git`, not a shelled-out `git` binary. Patch/diff generation is done by hand in `main.js` (stage untracked files, diff working tree vs `HEAD` — the cloned trunk snapshot, kept deliberately as the diff base; see #94), not `git diff`.
 - **`electron-store` is the only persistence layer** — no separate DB. It holds the site registry and per-site metadata; treat it as the single source of truth for "known sites."
 - Long-running child-process output (installs, scripts, server) is streamed to the renderer via correlated IDs (`installId`/`runId`), not returned synchronously — expect async event handlers, not return values, when tracing that flow.
 
