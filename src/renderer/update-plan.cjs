@@ -22,6 +22,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * Describes the age of a site's trunk snapshot from its stored commit date.
  * Unknown or invalid dates are never reported stale — a missing date means an
  * older site record, not an old checkout.
+ *
+ * @param {Object} root0
+ * @param {string} [root0.trunkDate]
+ * @param {number} [root0.now]
  */
 function trunkAgeInfo({ trunkDate, now = Date.now() } = {}) {
 	const ts = trunkDate ? Date.parse(trunkDate) : NaN;
@@ -42,6 +46,9 @@ const SKIP_INSTALL_MESSAGE = 'Dependencies unchanged — skipping npm install';
  * (but still shown, with an explicit message) when package-lock.json did not
  * change between the old and new trunk. Naming the skipped step is deliberate:
  * "update" should always mean the same thing to the contributor.
+ *
+ * @param {Object}  root0
+ * @param {boolean} [root0.lockfileChanged]
  */
 function planUpdateSteps({ lockfileChanged } = {}) {
 	return [
@@ -63,11 +70,19 @@ const STATE_TO_STEP = { fetching: 'fetch', installing: 'install', building: 'bui
  * Maps the chain steps to checklist visual states for a given renderer
  * updateState. Steps before the current one are complete, the current one is
  * current, later ones pending; skipped steps stay 'skipped' once passed.
+ *
+ * @param {Array}  steps
+ * @param {string} updateState
  */
 function updateStepStatuses(steps, updateState) {
 	const activeKey = STATE_TO_STEP[updateState] || null;
 	const order = steps.map((s) => s.key);
-	const activeIndex = activeKey ? order.indexOf(activeKey) : (updateState === 'done' ? steps.length : -1);
+	let activeIndex = -1;
+	if (activeKey) {
+		activeIndex = order.indexOf(activeKey);
+	} else if (updateState === 'done') {
+		activeIndex = steps.length;
+	}
 	return steps.map((step, i) => {
 		if (step.skipped && i < activeIndex) return { key: step.key, status: 'skipped' };
 		if (i < activeIndex) return { key: step.key, status: 'complete' };
@@ -80,6 +95,14 @@ function updateStepStatuses(steps, updateState) {
  * How the chain ended. 'incomplete' is the state worth its own name: trunk
  * moved but install/build failed, so the code is new while the built assets
  * are old — the site may not run until install+build succeed.
+ *
+ * @param {Object}  root0
+ * @param {boolean} [root0.fetchOk]
+ * @param {boolean} [root0.upToDate]
+ * @param {boolean} [root0.moved]
+ * @param {boolean} [root0.installNeeded]
+ * @param {number}  [root0.installCode]
+ * @param {number}  [root0.buildCode]
  */
 function updateOutcome({ fetchOk, upToDate, moved, installNeeded, installCode, buildCode } = {}) {
 	if (!fetchOk) return 'failed-fetch';

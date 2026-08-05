@@ -30,6 +30,12 @@ const UPDATE_STEP_LABELS = {
   install: { pending: 'Install dependencies', current: 'Dependencies changed — installing the difference…', complete: 'Dependencies installed', skipped: SKIP_INSTALL_MESSAGE },
   build: { pending: 'Rebuild', current: 'Rebuilding — output in the Terminal below', complete: 'Rebuilt' }
 };
+// Checkmark/pointer and color per step status; pending/skipped fall back to
+// no symbol in muted gray.
+const UPDATE_STEP_MARKS = {
+  complete: { symbol: '✓', color: '#0f5132' },
+  current: { symbol: '›', color: '#0b5d95' }
+};
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
@@ -526,7 +532,9 @@ function App() {
             // opened (#94): amber = old trunk snapshot, red = an update that
             // moved trunk but never finished install/build.
             const trunkAge = trunkAgeInfo({ trunkDate: meta.trunkDate });
-            const staleDotColor = meta.updateIncomplete ? '#d63638' : (trunkAge.stale ? '#dba617' : null);
+            let staleDotColor = null;
+            if (meta.updateIncomplete) staleDotColor = '#d63638';
+            else if (trunkAge.stale) staleDotColor = '#dba617';
             const staleDotTitle = meta.updateIncomplete
               ? 'Update incomplete — code is new, built assets are old'
               : `WordPress code is ${trunkAge.ageDays} days old — update to latest trunk`;
@@ -765,6 +773,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [dirtySaving, setDirtySaving] = useState(false);
   const [dirtyFiles, setDirtyFiles] = useState([]);
   const [dirtyChoice, setDirtyChoice] = useState('save'); // save | discard
+  const [dirtyError, setDirtyError] = useState(null); // failure text shown inside the dirty-tree modal
   const [updateLockfileChanged, setUpdateLockfileChanged] = useState(false);
   const [lastUpdateSummary, setLastUpdateSummary] = useState(null);
   const updateStartRef = useRef(null);
@@ -1493,6 +1502,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       if (res && res.ok && res.dirty) {
         setDirtyFiles(Array.isArray(res.files) ? res.files : []);
         setDirtyChoice('save');
+        setDirtyError(null);
         setDirtyModalOpen(true);
         return;
       }
@@ -1504,16 +1514,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // for, and it is the only option that cannot lose work.
   const dirtySaveAndUpdate = async () => {
     setDirtySaving(true);
+    setDirtyError(null);
     try {
       const res = await window.api.savePatch(sitePath);
       if (res && res.canceled) return; // stay in the modal
       if (!res || !res.ok || !res.filePath) {
-        alert(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
+        setDirtyError(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
         return;
       }
       const d = await window.api.discardChanges(sitePath);
       if (!d || !d.ok) {
-        alert(`Saved your changes to ${res.filePath}, but resetting the working tree failed: ${d && d.error ? d.error : 'Unknown error'}`);
+        setDirtyError(`Saved your changes to ${res.filePath}, but resetting the working tree failed: ${d && d.error ? d.error : 'Unknown error'}`);
         return;
       }
       savedPatchPathRef.current = res.filePath;
@@ -1526,9 +1537,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   };
 
   const dirtyDiscardAndUpdate = () => confirmAnd('Discard all local changes? This cannot be undone.', async () => {
+    setDirtyError(null);
     const d = await window.api.discardChanges(sitePath);
     if (!d || !d.ok) {
-      alert(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
+      setDirtyError(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
       return;
     }
     setDirtyModalOpen(false);
@@ -1642,7 +1654,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     installing,
     building,
     starting,
-    installFailed
+    installFailed,
+    isUpdating
   });
 
   const baseSteps = [
@@ -1806,7 +1819,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       {age.stale && !updateIncomplete && !isUpdating ? (
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '14px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
           <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <strong style={{ color: '#5c4400' }}>This site's WordPress code is {age.ageDays} days old</strong>
+            <strong style={{ color: '#5c4400' }}>This site&apos;s WordPress code is {age.ageDays} days old</strong>
             <span>Patches you create now may not apply on Trac. Updating takes a few minutes.</span>
           </div>
           <Button
@@ -1829,8 +1842,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             {updateStepStates.map((s) => {
               const labels = UPDATE_STEP_LABELS[s.key] || {};
               const text = labels[s.status] || labels.pending || s.key;
-              const symbol = s.status === 'complete' ? '✓' : s.status === 'current' ? '›' : '';
-              const color = s.status === 'complete' ? '#0f5132' : s.status === 'current' ? '#0b5d95' : '#6c6f72';
+              const { symbol = '', color = '#6c6f72' } = UPDATE_STEP_MARKS[s.status] || {};
               return (
                 <div key={s.key} style={{ display: 'flex', alignItems: 'baseline', gap: 8, color, opacity: s.status === 'pending' || s.status === 'skipped' ? 0.75 : 1 }}>
                   <span aria-hidden="true" style={{ width: 12, display: 'inline-block', textAlign: 'center' }}>{symbol}</span>
@@ -1853,7 +1865,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             <strong>Up to date with trunk as of today.</strong>
             <span>
               {lastUpdateSummary.lockfileChanged ? 'Dependencies updated' : 'Dependencies unchanged'}
-              {lastUpdateSummary.elapsedSeconds != null ? `, rebuilt in ${formatElapsed(lastUpdateSummary.elapsedSeconds)}.` : ', rebuilt.'}
+              {typeof lastUpdateSummary.elapsedSeconds === 'number' ? `, rebuilt in ${formatElapsed(lastUpdateSummary.elapsedSeconds)}.` : ', rebuilt.'}
               {lastUpdateSummary.savedPatchPath ? ` Your changes were saved to ${lastUpdateSummary.savedPatchPath} before the reset.` : ''}
             </span>
           </div>
@@ -2039,7 +2051,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 520 }}>
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-              You've changed {dirtyFiles.length === 1 ? '1 file' : `${dirtyFiles.length} files`} in this site. Resetting to trunk would throw them away.
+              You&apos;ve changed {dirtyFiles.length === 1 ? '1 file' : `${dirtyFiles.length} files`} in this site. Resetting to trunk would throw them away.
             </p>
             {dirtyFiles.length ? (
               <div style={{ border: '1px solid #dcdcde', borderRadius: 6, padding: '10px 12px', maxHeight: 140, overflowY: 'auto' }}>
@@ -2077,6 +2089,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 </button>
               );
             })}
+            {dirtyError ? (
+              <div role="alert" style={{ padding: '10px 12px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 13, lineHeight: 1.5, color: '#8a2424', overflowWrap: 'anywhere' }}>
+                {dirtyError}
+              </div>
+            ) : null}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
               <Button variant="secondary" onClick={() => setDirtyModalOpen(false)} disabled={dirtySaving}>Cancel</Button>
               <Button
@@ -2128,7 +2145,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
             {!patchLoading && age.stale && (
               <div style={{ padding:'12px 16px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:13, lineHeight:1.5, color:'#6e5406' }}>
-                This site's WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
+                This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
               </div>
             )}
             {!patchLoading && (
