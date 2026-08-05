@@ -80,4 +80,29 @@ export default [
 			globals: { ...globals.node },
 		},
 	},
+
+	{
+		// Files whose stdout *is* their interface, so `no-console` is simply wrong
+		// there. The runners are spawned as child processes (process.execPath +
+		// ELECTRON_RUN_AS_NODE=1) and main.js reads their stdout/stderr back and
+		// streams it to the renderer — deleting a console call would delete the
+		// message. Everything under scripts/ is a CLI entry point that reports to
+		// the terminal it was run from.
+		//
+		// Scoped to these files rather than switched off globally: in main.js,
+		// preload.js and the renderer a stray console statement really is a
+		// leftover, and the rule should keep catching it. scripts/ is a glob
+		// because every file in there is an entry point; if a non-CLI helper ever
+		// lands beside them, list the entry points instead.
+		files: [
+			'src/install-runner.js',
+			'src/script-runner.js',
+			'src/server-runner.js',
+			'src/playground-web-runner.js',
+			'scripts/**/*.cjs',
+		],
+		rules: {
+			'no-console': 'off',
+		},
+	},
 ];

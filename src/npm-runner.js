@@ -51,9 +51,9 @@ function createEngineMismatchDetector() {
 function shouldRetryWithRelaxedEngines({ code, signal, sawEngineMismatch, alreadyRelaxed, cancelled }) {
 	if (alreadyRelaxed) return false;
 	if (cancelled) return false;
-	// A non-null signal means the process was terminated rather than exiting.
+	// A signal means the process was terminated rather than exiting on its own.
 	// Windows kills surface as a plain non-zero code, hence the `cancelled` flag.
-	if (signal != null) return false;
+	if (signal) return false;
 	if (code === 0) return false;
 	return Boolean(sawEngineMismatch);
 }

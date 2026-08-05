@@ -4,7 +4,12 @@
 // `C:\...` path in the sidebar for any site without a stored label (#87).
 'use strict';
 
-/** Last path segment on any platform; the input itself when there is none. */
+/**
+ * Last path segment on any platform; the input itself when there is none.
+ *
+ * @param {*} p
+ * @return {string}
+ */
 function pathBasename(p) {
 	const s = String(p ?? '');
 	return s.split(/[\\/]/).filter(Boolean).pop() || s;
