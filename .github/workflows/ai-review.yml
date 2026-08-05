@@ -59,6 +59,15 @@ jobs:
         if: steps.creds.outputs.present == 'true'
         with:
           fetch-depth: 0
+          # Without this, checkout writes the job's GITHUB_TOKEN into .git/config as an
+          # x-access-token remote URL — inside the very tree handed to the agent below,
+          # which has an unrestricted Read tool and a channel back out to a public PR.
+          # A PR whose diff or filenames carry an instruction to read that file and quote
+          # it could walk the reviewer into publishing a repo-scoped write token.
+          #
+          # Nothing here needs it: fetch-depth 0 has already fetched every ref, the agent's
+          # git usage is local (diff, log), and `gh` authenticates from its own environment.
+          persist-credentials: false
 
       - uses: anthropics/claude-code-action@v1
         if: steps.creds.outputs.present == 'true'
