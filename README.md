@@ -1,6 +1,10 @@
 ## WordPress Contributor Toolkit (Electron)
 
-The [WordPress Core Dev Environment Toolkit](https://github.com/WordPress/experimental-wp-dev-env) is a desktop electron application (available for macOS, Windows, and Linux) that sets up a full WordPress core development environment with zero prerequisites.
+[![Unit tests](https://github.com/WordPress/experimental-wp-dev-env/actions/workflows/unit-tests.yml/badge.svg?branch=trunk)](https://github.com/WordPress/experimental-wp-dev-env/actions/workflows/unit-tests.yml)
+[![Latest release](https://img.shields.io/github/v/release/WordPress/experimental-wp-dev-env)](https://github.com/WordPress/experimental-wp-dev-env/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/WordPress/experimental-wp-dev-env/total)](https://github.com/WordPress/experimental-wp-dev-env/releases)
+
+The [WordPress Core Dev Environment Toolkit](https://github.com/WordPress/experimental-wp-dev-env) is a desktop electron application (available for macOS on Apple Silicon, Windows, and Linux) that sets up a full WordPress core development environment with zero prerequisites.
 
 You install it, choose a directory for `wordpress-develop`, click a button, and you have:
 
@@ -47,9 +51,9 @@ Once your environment is running, generating a patch to submit to Trac takes jus
 ### Just using the app
 
 1. Download the latest packaged build for your platform from the [Releases page](https://github.com/WordPress/experimental-wp-dev-env/releases/latest). Pick the file that matches your OS:
-    - **macOS:** `mac-release-*.dmg`
-    - **Windows:** `windows-release-*.exe`
-    - **Linux:** `linux-release-*.AppImage`
+    - **macOS on Apple Silicon:** Choose the `.dmg` file whose name contains `arm64`. Intel Macs are not currently supported.
+    - **Windows:** Choose the `.exe` installer.
+    - **Linux:** Choose the `.AppImage`; `.deb` and `.snap` packages may also be available.
 2. Open the app
 3. **macOS only:** The app is signed and notarized by Automattic. macOS should open it without issues. If Gatekeeper still blocks the app (this can happen when the file was downloaded via a browser), try either of these:
     - Right-click the `.app` file and choose **Open**, then confirm in the dialog that appears.
@@ -81,7 +85,7 @@ npm run dist:win     # Windows (x64 by default)
 npm run dist:win:arm64
 ```
 
-Output goes to `dist/` (e.g., Windows installer `.exe`).
+Output goes to `dist/`. On Linux, `npm run dist` creates AppImage, Snap, and DEB packages. macOS packages use the build machine's architecture, and the published macOS builds currently target Apple Silicon (`arm64`) only.
 
 ### Tests
 
@@ -134,8 +138,13 @@ For cases when MySQL is required, local Playground can work with MySQL. The only
 - An ergonomic way of managing the git repository from the UI (commit, conflicts, pushes etc.) Or would it make sense to just endorse another git client?
 - Integrate with Trac and GitHub to apply and submit patches directly. Related: [grunt-patch-wordpress](https://github.com/WordPress/grunt-patch-wordpress)
 
+### Download stats
+
+Release downloads are the only usage signal this project has, and GitHub keeps no history of
+them, so a weekly workflow records the counts to a `metrics` branch. See [STATS.md](STATS.md) for
+how to read them and what they do and don't measure.
+
 ### License
 
-GPLv2.
-
+GPLv2 or later. See [LICENSE](LICENSE).
 

@@ -1,0 +1,28 @@
+# WordPress Coding Standards
+# https://make.wordpress.org/core/handbook/best-practices/coding-standards/
+#
+# Ported from wordpress-develop so this repo indents like the project it builds for.
+# It steers editors on new code only — nothing here fails CI, and the existing tree is
+# not uniform (src/renderer/index.jsx and scripts/azure-sign.cjs use four spaces).
+# See the formatting note in eslint.config.mjs.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = tab
+
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# npm rewrites these with two spaces on every install; fighting it is a losing battle.
+[*.json]
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false

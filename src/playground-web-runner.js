@@ -1,4 +1,14 @@
 const path = require('path');
+const { hideChildWindows } = require('./hide-child-windows');
+const { bindLoopbackOnly } = require('./bind-loopback');
+
+// Must run before the Playground CLI is required, so anything it spawns is
+// covered too.
+hideChildWindows();
+
+// Same reason: the CLI calls `listen` with no address, so the patch has to be in
+// place before it is loaded. Without it the dev site is served to the whole LAN.
+bindLoopbackOnly();
 
 async function main() {
     const hostMountDir = process.argv[2];
@@ -14,7 +24,9 @@ async function main() {
 		console.log("Running Playground Web Server from", absHost);
         const result = await runCLI({
             command: 'mount-only',
-            host: '127.0.0.1',
+            // No `host` here on purpose: RunCLIArgs has no such option, so
+            // passing one only looked safe. bindLoopbackOnly() above is what
+            // actually keeps this server off the network.
             port: desiredPort,
             'mount': [ { hostPath: absHost, vfsPath: '/wordpress' } ],
             verbosity: 'debug'

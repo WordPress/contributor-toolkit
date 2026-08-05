@@ -1,5 +1,17 @@
 const path = require('path');
 const fs = require('fs');
+const { hideChildWindows } = require('./hide-child-windows');
+const { bindLoopbackOnly } = require('./bind-loopback');
+const { formatErrorChain } = require('./error-chain');
+
+// Must run before the Playground CLI is required, so anything it spawns is
+// covered too.
+hideChildWindows();
+
+// Same reason: the CLI calls `listen` with no address, so the patch has to be in
+// place before it is loaded. Without it the dev site is served to the whole LAN.
+bindLoopbackOnly();
+
 const { writeFiles: playgroundWriteFiles } = require('@php-wasm/universal');
 
 async function main() {
@@ -17,7 +29,24 @@ async function main() {
 			command: 'server',
 			// Mount the build directory before install as /wordpress to use existing build
 			'mount-before-install': [ { hostPath: absBuild, vfsPath: '/wordpress' } ],
-			skipWordPressSetup: true,
+			// The mounted build/ already is WordPress, so Playground must not go
+			// looking for one. Left unset this defaults to `download-and-install`:
+			// it fetches a WordPress release and unpacks it over the mount, failing
+			// on every file that is already there. That wasted pass is what makes
+			// startup take minutes on Windows.
+			//
+			// Only `download-and-install` downloads, so any other value skips it —
+			// but not all of them are safe here. `do-not-attempt-installing` (the
+			// mode Playground also calls `mount-only`) additionally skips setting up
+			// the SQLite integration plugin, and a wordpress-develop build/ carries
+			// no database driver of its own, so WordPress would boot with nothing to
+			// connect to. `install-from-existing-files-if-needed` skips the download
+			// and still prepares SQLite.
+			//
+			// Passed as `wordpressInstallMode` rather than the equivalent `mode`
+			// option because `mode` is only read on the Blueprint v2 code path, and
+			// the blueprint below is v1. Passing both is an error.
+			wordpressInstallMode: 'install-from-existing-files-if-needed',
 			verbosity: 'debug',
 			blueprint: {
 				constants: {
@@ -54,6 +83,16 @@ async function main() {
 		try {
 			await playgroundWriteFiles(result.playground, '/wordpress', {
 				'adminer.php': `<?php
+
+				// PHP defaults session.save_path to /home/web_user, which doesn't exist in
+				// the Playground VFS (we mount the build dir and skip WordPress setup), so
+				// Adminer's session_start() emits warnings and its later header() calls die.
+				// Point sessions at a directory we create ourselves instead.
+				$sessionDir = '/tmp/adminer-sessions';
+				if (!is_dir($sessionDir)) {
+					mkdir($sessionDir, 0777, true);
+				}
+				ini_set('session.save_path', $sessionDir);
 
 				if ($_SERVER['QUERY_STRING'] === '' || empty($_COOKIE['adminer_permanent'])) {
 					$_POST['auth'] = [
@@ -107,7 +146,7 @@ async function main() {
 		// Keep process alive until parent kills it
 		process.stdin.resume();
 	} catch (err) {
-		console.error(err && err.stack ? err.stack : String(err));
+		console.error(formatErrorChain(err));
 		process.exit(1);
 	}
 }

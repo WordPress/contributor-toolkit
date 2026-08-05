@@ -19,5 +19,6 @@ See `package.json` scripts. To run a single test file (not exposed as a script):
 
 ## Signing & CI
 
+- **Buildkite builds signed Windows, Linux and macOS artifacts for every branch that has an open PR.** So a branch is testable on a real machine without building locally — and for a stacked PR, the artifact from the topmost branch exercises the whole stack. Force-pushing a branch invalidates earlier artifacts: check the build corresponds to the current head commit before testing.
 - Windows signing (Azure Trusted Signing via `scripts/azure-sign.cjs`) is skipped automatically when its required env vars aren't set — this is intentional for local dev, not a bug.
 - macOS signing/notarization uses fastlane + match against Automattic's Developer ID; `verify_code_signing` lane must pass before shipping.

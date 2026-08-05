@@ -16,6 +16,9 @@ import { plus, chevronLeft, chevronRight, copy as copyIcon, check as checkIcon, 
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
+import { computeSetupStepState } from './setup-steps.cjs';
+import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
+import { pathBasename } from './path-basename.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
@@ -41,7 +44,15 @@ function useSites() {
 function App() {
   const { sites, siteMeta, refresh, setSiteMeta, setSites } = useSites();
   const [downloadPhase, setDownloadPhase] = useState('');
-  const [pendingSite, setPendingSite] = useState(null);
+  // Directories whose clone is still running. An array rather than a single
+  // path because the main process may settle on a different (deduplicated)
+  // directory than the one the renderer optimistically created a row for.
+  const [pendingSites, setPendingSites] = useState([]);
+  const addPendingSite = useCallback((dir) => {
+    if (!dir) return;
+    setPendingSites((prev) => (prev.includes(dir) ? prev : [...prev, dir]));
+  }, []);
+  const clearPendingSites = useCallback(() => setPendingSites([]), []);
   const [terminalMsgs, setTerminalMsgs] = useState('');
   const termRef = useRef(null);
   const createDirInputRef = useRef(null);
@@ -150,11 +161,11 @@ function App() {
         setTerminalMsgs((v) => v + p.message + '\n');
         appendSetupLog(p.target, `${p.message}\n`);
       }
-      if (p && p.target) setPendingSite({ targetDir: p.target });
+      if (p && p.target) addPendingSite(p.target);
     });
     const unsubStat = window.api.subscribeSetupStatus((s) => {
       if (!s) return;
-      if (s.target) setPendingSite({ targetDir: s.target });
+      if (s.target && s.phase !== 'done') addPendingSite(s.target);
       const key = s.sitePath || s.target;
       if (key) {
         const phaseLabel = s.phase ? `Status: ${s.phase}` : 'Status update';
@@ -162,10 +173,10 @@ function App() {
         if (s.phase === 'done') appendSetupLog(key, 'Setup finished.\n');
       }
       if (s.phase === 'cloning') setDownloadPhase('Cloning repository…');
-      else if (s.phase === 'done') { setDownloadPhase(''); setPendingSite(null); setTerminalMsgs(''); }
+      else if (s.phase === 'done') { setDownloadPhase(''); clearPendingSites(); setTerminalMsgs(''); }
     });
     return () => { unsubProg && unsubProg(); unsubStat && unsubStat(); };
-  }, [appendSetupLog]);
+  }, [addPendingSite, appendSetupLog, clearPendingSites]);
 
   const chooseAndSetup = useCallback(() => {
     setCreateSiteName('');
@@ -274,13 +285,13 @@ function App() {
       setCreateSubmitting(true);
       setCreateSiteError('');
       setTerminalMsgs('');
-      setPendingSite({ targetDir });
+      addPendingSite(targetDir);
       appendSetupLog(targetDir, 'Starting site setup…\n');
       const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
       if (createdPath) {
         finalSitePath = createdPath;
         if (createdPath !== targetDir) {
-          setPendingSite({ targetDir: createdPath });
+          addPendingSite(createdPath);
           moveSetupLog(targetDir, createdPath);
           setSites((prev) => {
             const filtered = prev.filter((path) => path !== targetDir);
@@ -304,7 +315,6 @@ function App() {
       setActiveSite(finalSitePath);
       appendSetupLog(finalSitePath, 'Site setup request completed.\n');
     } catch (e) {
-      setPendingSite(null);
       setCreateSiteError(String(e));
       appendSetupLog(targetDir, `Setup failed: ${String(e)}\n`);
       setSites((prev) => prev.filter((path) => path !== targetDir));
@@ -315,9 +325,13 @@ function App() {
         return next;
       });
     } finally {
+      // `setupWordPress` resolving (or throwing) *is* the clone finishing, so
+      // clearing here guarantees the checklist can never stay locked even if
+      // the `done` status event is missed.
+      clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
+  }, [addPendingSite, appendSetupLog, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
@@ -489,7 +503,7 @@ function App() {
         <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? '12px 8px' : '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sortedSites.length > 0 ? sortedSites.map((sitePath) => {
             const meta = siteMeta?.[sitePath] || {};
-            const siteName = (meta.label && meta.label.trim()) || sitePath.split('/').pop() || sitePath;
+            const siteName = (meta.label && meta.label.trim()) || pathBasename(sitePath);
             const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : '';
             const isActive = activeSite === sitePath;
             const statusLabel = meta.initialized ? 'Initialized' : 'Not initialized';
@@ -579,7 +593,7 @@ function App() {
             ) : null}
 
             <div id="sites">
-              {pendingSite && (
+              {pendingSites.length > 0 && (
                 <Card style={{ marginBottom: 24 }}>
                   <CardBody>
                     <div style={{ fontWeight: 600 }}>Setting up new site…</div>
@@ -605,7 +619,7 @@ function App() {
                       onForget={onForget}
                       onDelete={onDelete}
                       onRename={onRename}
-                      isPending={Boolean(pendingSite && pendingSite.targetDir === s)}
+                      isPending={pendingSites.includes(s)}
                       setupLogs={setupLogsBySite[s] || ''}
                     />
                   </div>
@@ -683,7 +697,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = '' }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, isPending = false, setupLogs = '' }) {
   const safeOnRename = onRename || (() => {});
   // state
   const [serverUrl, setServerUrl] = useState('');
@@ -704,6 +718,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const [emailViewTab, setEmailViewTab] = useState('rendered');
   const [building, setBuilding] = useState(false);
   const [hasNodeModules, setHasNodeModules] = useState(false);
+  const [installFailed, setInstallFailed] = useState(false);
   const [hasBuilt, setHasBuilt] = useState(false);
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
@@ -730,7 +745,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     updateStick(key, atBottom);
   }, [threshold, updateStick]);
 
-  const siteName = sitePath.split('/').pop();
+  const siteName = pathBasename(sitePath);
   const displayName = (label && label.trim()) || siteName;
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [renameValue, setRenameValue] = useState(displayName);
@@ -819,6 +834,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       setStatusLoading(true);
       const s = await window.api.getSiteStatus(sitePath);
       setHasNodeModules(Boolean(s?.hasNodeModules));
+      setInstallFailed(Boolean(s?.installFailed));
       setHasBuilt(Boolean(s?.hasBuilt));
       setSkipInit(Boolean(s?.skipInitWizard));
     } catch {}
@@ -836,27 +852,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     }, async ({ code }) => {
       appendNpm(`\ninstall exited with code ${code}\n`);
       setInstalling(false);
-      /**
-       * Still let us through when this happens on Windows:
-       * 
-       * npm verbose stack Error: command failed
-       * npm verbose stack     at promiseSpawn (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\promise-spawn\\lib\\index.js:22:22)
-       * npm verbose stack     at spawnWithShell (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\promise-spawn\\lib\\index.js:124:10)
-       * npm verbose stack     at promiseSpawn (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\promise-spawn\\lib\\index.js:12:12)
-       * npm verbose stack     at runScriptPkg (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\run-script\\lib\\run-script-pkg.js:79:13)
-       * npm verbose stack     at runScript (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\run-script\\lib\\run-script.js:9:12)
-       * npm verbose stack     at C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\@npmcli\\arborist\\lib\\arborist\\rebuild.js:329:17
-       * npm verbose stack     at run (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\promise-call-limit\\dist\\commonjs\\index.js:67:22)
-       * npm verbose stack     at C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\promise-call-limit\\dist\\commonjs\\index.js:84:9
-       * npm verbose stack     at new Promise (<anonymous>)
-       * npm verbose stack     at callLimit (C:\\Users\\Adam\\AppData\\Local\\Programs\\electron-setup-wordpress-core\\resources\\app.asar\\node_modules\\npm\\node_modules\\promise-call-limit\\dist\\commonjs\\index.js:35:69)
-       * npm verbose pkgid core-js-pure@3.35.1
-       * npm error code 1
-       * npm error path C:\\wp\\wordpress-develop-trunk\\node_modules\\core-js-pure
-       * 
-       * @TODO: Do not mark as initialized if the installation fails.
-       */
-      if (1 || code === 0) { try { await window.api.markSiteInitialized(sitePath); } catch {} onInitialized(sitePath); }
+      // A failed install must not mark the site initialized (#42): the wizard
+      // would advance to a build that cannot work. Leaving the step incomplete
+      // keeps the install button available for a retry.
+      if (code === 0) { try { await window.api.markSiteInitialized(sitePath); } catch {} onInitialized(sitePath); }
       try { await loadStatus(); } catch {}
       if (onDone) onDone({ code });
     });
@@ -904,7 +903,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   const terminalInputHandlerRef = useRef(() => {});
   const terminalKillRef = useRef(null);
   const terminalStateRef = useRef({ input: '', history: [], historyIndex: 0, running: false });
-  const watchBufferRef = useRef('');
   const serverStartRequestedRef = useRef(false);
   const stoppingRef = useRef(false);
   const runningRef = useRef(false);
@@ -931,6 +929,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       }
     });
   }, [runInstall, writeToTerminal]);
+
+  const runBuildWithTerminal = useCallback(() => {
+    writeToTerminal('Running npm run build…\n');
+    runScript('build', {
+      onLog: (chunk) => writeToTerminal(chunk),
+      onDone: ({ code }) => {
+        writeToTerminal(`npm run build exited with code ${code}\n`);
+      }
+    });
+  }, [runScript, writeToTerminal]);
 
   const showPrompt = useCallback((prependNewLine = true) => {
     const term = terminalRef.current;
@@ -1163,7 +1171,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     setWaitingForWatch(false);
     waitingForWatchRef.current = false;
     serverStartRequestedRef.current = false;
-    watchBufferRef.current = '';
     setStarting(false);
     try { await window.api.stopServer(sitePath); } catch {}
     try { window.api.stopWpDebug(sitePath); } catch {}
@@ -1194,7 +1201,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port)=>setSmtpPort(port||0));
     if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg)=>setEmails((prev)=>sortEmails([msg, ...prev])));
     try {
-      await window.api.startServer(
+      const res = await window.api.startServer(
         sitePath,
         (p)=>appendRuntime(p.data || ''),
         (url)=>{
@@ -1210,8 +1217,26 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
           setStarting(false);
           serverStartRequestedRef.current = false;
         },
-        ()=>{ setRunning(false); runningRef.current = false; setServerUrl(''); serverStartRequestedRef.current = false; }
+        ()=>{
+          setRunning(false); runningRef.current = false; setServerUrl(''); serverStartRequestedRef.current = false;
+          // A stop the user did not ask for is a crash: say so, and tear the
+          // whole dev session down — watcher included — instead of leaving the
+          // button spinning "Starting dev server…" forever (issue #73).
+          if (!stoppingRef.current) {
+            appendRuntime('Dev server stopped unexpectedly (see Help → Open App Log for details).\n');
+            killCurrent().catch(() => {});
+            stopDevServer().catch(() => {});
+          }
+        }
       );
+      // A failed start reports through the return value, not an exception.
+      // This also covers spawn failures that never produce a "stopped" event.
+      if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
+        appendRuntime(`Dev server failed to start: ${res.error || 'unknown error'}\n`);
+        killCurrent().catch(() => {});
+        stopDevServer().catch(() => {});
+        return;
+      }
     } catch (error) {
       appendRuntime(`Failed to start PHP server: ${error && error.message ? error.message : String(error)}\n`);
       setStarting(false);
@@ -1221,7 +1246,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     }
     window.api.startWpDebug(sitePath,(d)=>appendRuntime(d || ''));
     try { const { port, emails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(emails||[]); } catch {}
-  }, [appendRuntime, ensureStick, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails]);
+  }, [appendRuntime, ensureStick, killCurrent, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
 
   const toggleDevServer = async ()=>{
     if (!running) {
@@ -1236,42 +1261,70 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
         killCurrent().catch(() => {});
         stopDevServer().catch(() => {});
       };
-      watchBufferRef.current = '';
       serverStartRequestedRef.current = false;
-      setWaitingForWatch(true);
-      waitingForWatchRef.current = true;
       setStarting(true);
-      writeToTerminal('\nRunning npm run watch --dev…\n');
-      runScript('watch', {
-        args: ['--dev'],
-        onLog: (chunk) => {
-          if (stoppingRef.current || (!terminalStateRef.current.running && !waitingForWatchRef.current)) return;
-          writeToTerminal(chunk);
-          if (serverStartRequestedRef.current || runningRef.current || !terminalStateRef.current.running) return;
-          const text = String(chunk ?? '');
-          if (!text) return;
-          watchBufferRef.current = `${watchBufferRef.current}${text}`.slice(-200);
-          if (watchBufferRef.current.includes('Running "_watch" task')) {
-            startPhpServer().catch(() => {});
+
+      const plan = planDevServerStart({ hasBuilt });
+
+      // The Playground server only needs build/ on disk — it does not depend
+      // on the watcher — so once a completed build exists the two start
+      // together instead of the server waiting on Grunt's output.
+      const startWatcherAndServer = () => {
+        setWaitingForWatch(false);
+        waitingForWatchRef.current = false;
+        writeToTerminal(`\nRunning ${plan.watch.label}…\n`);
+        runScript(plan.watch.script, {
+          args: plan.watch.args,
+          onLog: (chunk) => {
+            if (stoppingRef.current || !terminalStateRef.current.running) return;
+            writeToTerminal(chunk);
+          },
+          onDone: ({ code }) => {
+            writeToTerminal(`${plan.watch.label} exited with code ${code}\n`);
+            const currentState = terminalStateRef.current;
+            currentState.running = false;
+            terminalKillRef.current = null;
+            if (!stoppingRef.current && (runningRef.current || serverStartRequestedRef.current)) {
+              stopDevServer().catch(() => {});
+            } else {
+              setStarting(false);
+              serverStartRequestedRef.current = false;
+            }
+            showPrompt(false);
           }
-        },
-        onDone: ({ code }) => {
-          writeToTerminal(`npm run watch --dev exited with code ${code}\n`);
-          const currentState = terminalStateRef.current;
-          currentState.running = false;
-          terminalKillRef.current = null;
-          if (!stoppingRef.current && (runningRef.current || serverStartRequestedRef.current || waitingForWatchRef.current)) {
-            stopDevServer().catch(() => {});
-          } else {
-            setWaitingForWatch(false);
-            waitingForWatchRef.current = false;
-            setStarting(false);
-            serverStartRequestedRef.current = false;
-            watchBufferRef.current = '';
+        });
+        startPhpServer().catch(() => {});
+      };
+
+      if (plan.needsBuild) {
+        // Skip-the-wizard sites (and hand-deleted build/ directories) still
+        // need a build before anything can be served. Its exit code — not a
+        // string in its output — is the completion signal.
+        setWaitingForWatch(true);
+        waitingForWatchRef.current = true;
+        writeToTerminal('\nNo completed build found — running npm run build first…\n');
+        runScript('build', {
+          onLog: (chunk) => {
+            if (stoppingRef.current || (!terminalStateRef.current.running && !waitingForWatchRef.current)) return;
+            writeToTerminal(chunk);
+          },
+          onDone: ({ code }) => {
+            if (code !== 0 || stoppingRef.current || !terminalStateRef.current.running) {
+              if (code !== 0) writeToTerminal(`npm run build failed with code ${code} — dev server not started.\n`);
+              terminalStateRef.current.running = false;
+              terminalKillRef.current = null;
+              setWaitingForWatch(false);
+              waitingForWatchRef.current = false;
+              setStarting(false);
+              showPrompt(false);
+              return;
+            }
+            startWatcherAndServer();
           }
-          showPrompt(false);
-        }
-      });
+        });
+      } else {
+        startWatcherAndServer();
+      }
     } else {
       await killCurrent().catch(() => {});
       await stopDevServer();
@@ -1279,6 +1332,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
   };
   const isServerStarting = waitingForWatch || (starting && !serverUrl);
   const isDevProcessActive = running || isServerStarting;
+  // Elapsed-seconds counter for the starting state, so a slow boot is
+  // distinguishable from a hang (issue #73).
+  const [startElapsed, setStartElapsed] = useState(0);
+  useEffect(() => {
+    if (!isServerStarting) {
+      setStartElapsed(0);
+      return undefined;
+    }
+    const id = setInterval(() => setStartElapsed((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [isServerStarting]);
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
@@ -1366,41 +1430,51 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
     }
   };
 
+  const stepState = computeSetupStepState({
+    isPending,
+    statusLoading,
+    hasNodeModules,
+    hasBuilt,
+    installing,
+    building,
+    starting,
+    installFailed
+  });
+
   const baseSteps = [
     {
       key: 'download',
       label: 'Download WordPress development version',
-      description: 'Clone the WordPress develop repository.',
-      done: true,
-      ready: true
+      description: isPending
+        ? 'Cloning the WordPress develop repository… the next step unlocks when it finishes.'
+        : 'Clone the WordPress develop repository.',
+      ...stepState.download
     },
     {
       key: 'install',
       label: 'Install npm dependencies',
       description: 'Install npm packages so commands can run.',
-      done: hasNodeModules,
-      ready: true,
+      ...stepState.install,
       action: (
         <Button
           isBusy={installing}
-          variant={hasNodeModules ? 'secondary' : 'primary'}
+          variant={stepState.install.done ? 'secondary' : 'primary'}
           onClick={runInstallWithTerminal}
-          disabled={statusLoading || installing || hasNodeModules}
-        >{hasNodeModules ? 'Dependencies installed' : 'Install npm dependencies'}</Button>
+          disabled={stepState.install.disabled}
+        >{stepState.install.done ? 'Dependencies installed' : installFailed ? 'Retry npm install' : 'Install npm dependencies'}</Button>
       )
     },
     {
       key: 'build',
       label: 'Run first full build',
       description: 'Compile WordPress Core once to generate the initial dist files.',
-      done: hasBuilt,
-      ready: hasNodeModules,
+      ...stepState.build,
       action: (
         <Button
           isBusy={building}
           variant={hasBuilt ? 'secondary' : 'primary'}
-          onClick={()=>runScript('build')}
-          disabled={statusLoading || building || (!hasNodeModules) || hasBuilt}
+          onClick={runBuildWithTerminal}
+          disabled={stepState.build.disabled}
         >{hasBuilt ? 'First build complete' : 'Run first full build'}</Button>
       )
     },
@@ -1408,8 +1482,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
       key: 'dev',
       label: 'Start dev server & finish wizard',
       description: 'Launch the development server once to complete the WordPress setup wizard.',
-      done: false,
-      ready: hasBuilt,
+      ...stepState.dev,
       action: (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Button
@@ -1419,11 +1492,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               await markSkipWizard();
               await toggleDevServer();
             }}
-            disabled={statusLoading || starting || (!hasBuilt)}
+            disabled={stepState.dev.disabled}
           >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
           {starting || serverUrl ? (
             <span style={{ fontSize: 12 }}>
-              {starting ? 'Starting...' : (serverUrl ? (
+              {starting ? `Starting… (${formatElapsed(startElapsed)})` : (serverUrl ? (
                 <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
               ) : null)}
             </span>
@@ -1604,10 +1677,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onFor
               {serverUrl ? (
                 <>
                   <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
-                  <span style={{ fontSize: 12, color: '#3c434a' }}>Log in with <code>admin</code> / <code>admin</code>.</span>
+                  <span style={{ fontSize: 12, color: '#3c434a' }}>Log in with <code>admin</code> / <code>password</code>.</span>
                 </>
               ) : (
-                'Dev server is starting…'
+                `Dev server is starting… (${formatElapsed(startElapsed)})`
               )}
             </div>
           ) : null}

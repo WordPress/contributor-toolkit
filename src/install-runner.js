@@ -2,6 +2,10 @@
 // It programmatically executes npm install without using a shell.
 
 const path = require('path');
+const { hideChildWindows } = require('./hide-child-windows');
+
+// Must run before npm's CLI is required — install scripts spawn cmd.exe too.
+hideChildWindows();
 
 async function main() {
 	const targetDir = process.argv[2];

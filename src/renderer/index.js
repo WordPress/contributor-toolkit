@@ -30964,6 +30964,89 @@ WARNING: This link could potentially be dangerous`)) {
     }
   });
 
+  // src/renderer/setup-steps.cjs
+  var require_setup_steps = __commonJS({
+    "src/renderer/setup-steps.cjs"(exports, module) {
+      "use strict";
+      function computeSetupStepState2(flags = {}) {
+        const isPending = Boolean(flags.isPending);
+        const statusLoading = Boolean(flags.statusLoading);
+        const hasNodeModules = Boolean(flags.hasNodeModules);
+        const hasBuilt = Boolean(flags.hasBuilt);
+        const installing = Boolean(flags.installing);
+        const building = Boolean(flags.building);
+        const starting = Boolean(flags.starting);
+        const installFailed = Boolean(flags.installFailed);
+        const installOk = hasNodeModules && !installFailed;
+        return {
+          download: {
+            done: !isPending,
+            ready: true
+          },
+          install: {
+            done: installOk,
+            ready: !isPending,
+            disabled: isPending || statusLoading || installing || installOk
+          },
+          build: {
+            done: hasBuilt,
+            ready: installOk,
+            disabled: statusLoading || building || !installOk || hasBuilt
+          },
+          dev: {
+            done: false,
+            ready: hasBuilt,
+            disabled: statusLoading || starting || !hasBuilt
+          }
+        };
+      }
+      module.exports = { computeSetupStepState: computeSetupStepState2 };
+    }
+  });
+
+  // src/renderer/dev-server-command.cjs
+  var require_dev_server_command = __commonJS({
+    "src/renderer/dev-server-command.cjs"(exports, module) {
+      "use strict";
+      var WATCH_SCRIPT = "grunt";
+      var WATCH_ARGS = ["--", "_watch"];
+      var WATCH_COMMAND_LABEL = "npm run grunt -- _watch";
+      function planDevServerStart2(flags = {}) {
+        const hasBuilt = Boolean(flags.hasBuilt);
+        return {
+          // True when `npm run build` must run (and exit 0) before the watcher
+          // and the server may start.
+          needsBuild: !hasBuilt,
+          watch: {
+            script: WATCH_SCRIPT,
+            args: WATCH_ARGS.slice(),
+            label: WATCH_COMMAND_LABEL
+          }
+        };
+      }
+      function formatElapsed2(seconds) {
+        const total = Math.max(0, Math.floor(Number(seconds) || 0));
+        if (total < 60) return `${total}s`;
+        const minutes = Math.floor(total / 60);
+        const rest = total % 60;
+        return `${minutes}m ${String(rest).padStart(2, "0")}s`;
+      }
+      module.exports = { planDevServerStart: planDevServerStart2, formatElapsed: formatElapsed2 };
+    }
+  });
+
+  // src/renderer/path-basename.cjs
+  var require_path_basename = __commonJS({
+    "src/renderer/path-basename.cjs"(exports, module) {
+      "use strict";
+      function pathBasename2(p) {
+        const s = String(p ?? "");
+        return s.split(/[\\/]/).filter(Boolean).pop() || s;
+      }
+      module.exports = { pathBasename: pathBasename2 };
+    }
+  });
+
   // src/renderer/index.jsx
   var import_react69 = __toESM(require_react());
   var import_client2 = __toESM(require_client());
@@ -53327,6 +53410,9 @@ If there's a particular need for this, please submit a feature request at https:
 
   // src/renderer/index.jsx
   var import_xterm = __toESM(require_xterm());
+  var import_setup_steps = __toESM(require_setup_steps());
+  var import_dev_server_command = __toESM(require_dev_server_command());
+  var import_path_basename = __toESM(require_path_basename());
   var import_jsx_runtime61 = __toESM(require_jsx_runtime());
   var TERMINAL_ALLOWED_SCRIPTS = ["build", "build:dev", "dev", "test", "watch", "grunt"];
   var TERMINAL_INSTALL_ALIASES = ["npm install", "npm i", "install"];
@@ -53352,7 +53438,12 @@ If there's a particular need for this, please submit a feature request at https:
   function App() {
     const { sites, siteMeta, refresh, setSiteMeta, setSites } = useSites();
     const [downloadPhase, setDownloadPhase] = (0, import_react69.useState)("");
-    const [pendingSite, setPendingSite] = (0, import_react69.useState)(null);
+    const [pendingSites, setPendingSites] = (0, import_react69.useState)([]);
+    const addPendingSite = (0, import_react69.useCallback)((dir) => {
+      if (!dir) return;
+      setPendingSites((prev2) => prev2.includes(dir) ? prev2 : [...prev2, dir]);
+    }, []);
+    const clearPendingSites = (0, import_react69.useCallback)(() => setPendingSites([]), []);
     const [terminalMsgs, setTerminalMsgs] = (0, import_react69.useState)("");
     const termRef = (0, import_react69.useRef)(null);
     const createDirInputRef = (0, import_react69.useRef)(null);
@@ -53466,11 +53557,11 @@ If there's a particular need for this, please submit a feature request at https:
           appendSetupLog(p.target, `${p.message}
 `);
         }
-        if (p && p.target) setPendingSite({ targetDir: p.target });
+        if (p && p.target) addPendingSite(p.target);
       });
       const unsubStat = window.api.subscribeSetupStatus((s) => {
         if (!s) return;
-        if (s.target) setPendingSite({ targetDir: s.target });
+        if (s.target && s.phase !== "done") addPendingSite(s.target);
         const key = s.sitePath || s.target;
         if (key) {
           const phaseLabel = s.phase ? `Status: ${s.phase}` : "Status update";
@@ -53481,7 +53572,7 @@ If there's a particular need for this, please submit a feature request at https:
         if (s.phase === "cloning") setDownloadPhase("Cloning repository\u2026");
         else if (s.phase === "done") {
           setDownloadPhase("");
-          setPendingSite(null);
+          clearPendingSites();
           setTerminalMsgs("");
         }
       });
@@ -53489,7 +53580,7 @@ If there's a particular need for this, please submit a feature request at https:
         unsubProg && unsubProg();
         unsubStat && unsubStat();
       };
-    }, [appendSetupLog]);
+    }, [addPendingSite, appendSetupLog, clearPendingSites]);
     const chooseAndSetup = (0, import_react69.useCallback)(() => {
       setCreateSiteName("");
       setCreateSiteDir("");
@@ -53580,13 +53671,13 @@ If there's a particular need for this, please submit a feature request at https:
         setCreateSubmitting(true);
         setCreateSiteError("");
         setTerminalMsgs("");
-        setPendingSite({ targetDir });
+        addPendingSite(targetDir);
         appendSetupLog(targetDir, "Starting site setup\u2026\n");
         const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
         if (createdPath) {
           finalSitePath = createdPath;
           if (createdPath !== targetDir) {
-            setPendingSite({ targetDir: createdPath });
+            addPendingSite(createdPath);
             moveSetupLog(targetDir, createdPath);
             setSites((prev2) => {
               const filtered = prev2.filter((path) => path !== targetDir);
@@ -53610,7 +53701,6 @@ If there's a particular need for this, please submit a feature request at https:
         setActiveSite(finalSitePath);
         appendSetupLog(finalSitePath, "Site setup request completed.\n");
       } catch (e) {
-        setPendingSite(null);
         setCreateSiteError(String(e));
         appendSetupLog(targetDir, `Setup failed: ${String(e)}
 `);
@@ -53622,9 +53712,10 @@ If there's a particular need for this, please submit a feature request at https:
           return next2;
         });
       } finally {
+        clearPendingSites();
         setCreateSubmitting(false);
       }
-    }, [appendSetupLog, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
+    }, [addPendingSite, appendSetupLog, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
     const closeCreateModal = (0, import_react69.useCallback)(() => {
       if (createSubmitting) return;
       setCreateModalOpen(false);
@@ -53798,7 +53889,7 @@ If there's a particular need for this, please submit a feature request at https:
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 8px" : "12px 16px", display: "flex", flexDirection: "column", gap: 8 }, children: sortedSites.length > 0 ? sortedSites.map((sitePath) => {
           const meta = siteMeta?.[sitePath] || {};
-          const siteName = meta.label && meta.label.trim() || sitePath.split("/").pop() || sitePath;
+          const siteName = meta.label && meta.label.trim() || (0, import_path_basename.pathBasename)(sitePath);
           const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : "";
           const isActive = activeSite === sitePath;
           const statusLabel = meta.initialized ? "Initialized" : "Not initialized";
@@ -53872,7 +53963,7 @@ If there's a particular need for this, please submit a feature request at https:
           /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { ref: webLogRef, style: { marginTop: 8, whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: webLogs })
         ] }) }) : null,
         /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { id: "sites", children: [
-          pendingSite && /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)(component_default8, { children: [
+          pendingSites.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(component_default6, { style: { marginBottom: 24 }, children: /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)(component_default8, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { fontWeight: 600 }, children: "Setting up new site\u2026" }),
             downloadPhase && /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { style: { fontSize: 12, color: "#555", marginBottom: 6 }, children: downloadPhase }),
             /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("div", { ref: termRef, style: { whiteSpace: "pre-wrap", background: "#111", color: "#eee", padding: 8, borderRadius: 6, height: 140, overflow: "auto" }, children: terminalMsgs })
@@ -53893,7 +53984,7 @@ If there's a particular need for this, please submit a feature request at https:
                   onForget,
                   onDelete,
                   onRename,
-                  isPending: Boolean(pendingSite && pendingSite.targetDir === s),
+                  isPending: pendingSites.includes(s),
                   setupLogs: setupLogsBySite[s] || ""
                 }
               )
@@ -53970,7 +54061,7 @@ If there's a particular need for this, please submit a feature request at https:
       ) : null
     ] });
   }
-  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, setupLogs = "" }) {
+  function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onForget, onDelete, onRename, isPending = false, setupLogs = "" }) {
     const safeOnRename = onRename || (() => {
     });
     const [serverUrl, setServerUrl] = (0, import_react69.useState)("");
@@ -53991,6 +54082,7 @@ If there's a particular need for this, please submit a feature request at https:
     const [emailViewTab, setEmailViewTab] = (0, import_react69.useState)("rendered");
     const [building, setBuilding] = (0, import_react69.useState)(false);
     const [hasNodeModules, setHasNodeModules] = (0, import_react69.useState)(false);
+    const [installFailed, setInstallFailed] = (0, import_react69.useState)(false);
     const [hasBuilt, setHasBuilt] = (0, import_react69.useState)(false);
     const [skipInit, setSkipInit] = (0, import_react69.useState)(false);
     const [statusLoading, setStatusLoading] = (0, import_react69.useState)(true);
@@ -54018,7 +54110,7 @@ If there's a particular need for this, please submit a feature request at https:
       const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
       updateStick(key, atBottom);
     }, [threshold, updateStick]);
-    const siteName = sitePath.split("/").pop();
+    const siteName = (0, import_path_basename.pathBasename)(sitePath);
     const displayName = label && label.trim() || siteName;
     const [renameModalOpen, setRenameModalOpen] = (0, import_react69.useState)(false);
     const [renameValue, setRenameValue] = (0, import_react69.useState)(displayName);
@@ -54108,6 +54200,7 @@ If there's a particular need for this, please submit a feature request at https:
         setStatusLoading(true);
         const s = await window.api.getSiteStatus(sitePath);
         setHasNodeModules(Boolean(s?.hasNodeModules));
+        setInstallFailed(Boolean(s?.installFailed));
         setHasBuilt(Boolean(s?.hasBuilt));
         setSkipInit(Boolean(s?.skipInitWizard));
       } catch {
@@ -54130,7 +54223,7 @@ If there's a particular need for this, please submit a feature request at https:
 install exited with code ${code}
 `);
         setInstalling(false);
-        if (1) {
+        if (code === 0) {
           try {
             await window.api.markSiteInitialized(sitePath);
           } catch {
@@ -54191,7 +54284,6 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
     });
     const terminalKillRef = (0, import_react69.useRef)(null);
     const terminalStateRef = (0, import_react69.useRef)({ input: "", history: [], historyIndex: 0, running: false });
-    const watchBufferRef = (0, import_react69.useRef)("");
     const serverStartRequestedRef = (0, import_react69.useRef)(false);
     const stoppingRef = (0, import_react69.useRef)(false);
     const runningRef = (0, import_react69.useRef)(false);
@@ -54219,6 +54311,16 @@ Failed to start npm run ${name}: ${error && error.message ? error.message : Stri
         }
       });
     }, [runInstall, writeToTerminal]);
+    const runBuildWithTerminal = (0, import_react69.useCallback)(() => {
+      writeToTerminal("Running npm run build\u2026\n");
+      runScript("build", {
+        onLog: (chunk) => writeToTerminal(chunk),
+        onDone: ({ code }) => {
+          writeToTerminal(`npm run build exited with code ${code}
+`);
+        }
+      });
+    }, [runScript, writeToTerminal]);
     const showPrompt = (0, import_react69.useCallback)((prependNewLine = true) => {
       const term = terminalRef.current;
       if (!term) return;
@@ -54439,7 +54541,6 @@ Try "help" for the list of supported commands.
       setWaitingForWatch(false);
       waitingForWatchRef.current = false;
       serverStartRequestedRef.current = false;
-      watchBufferRef.current = "";
       setStarting(false);
       try {
         await window.api.stopServer(sitePath);
@@ -54486,7 +54587,7 @@ Try "help" for the list of supported commands.
       if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port) => setSmtpPort(port || 0));
       if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg) => setEmails((prev2) => sortEmails([msg, ...prev2])));
       try {
-        await window.api.startServer(
+        const res = await window.api.startServer(
           sitePath,
           (p) => appendRuntime(p.data || ""),
           (url) => {
@@ -54507,8 +54608,24 @@ Try "help" for the list of supported commands.
             runningRef.current = false;
             setServerUrl("");
             serverStartRequestedRef.current = false;
+            if (!stoppingRef.current) {
+              appendRuntime("Dev server stopped unexpectedly (see Help \u2192 Open App Log for details).\n");
+              killCurrent().catch(() => {
+              });
+              stopDevServer().catch(() => {
+              });
+            }
           }
         );
+        if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
+          appendRuntime(`Dev server failed to start: ${res.error || "unknown error"}
+`);
+          killCurrent().catch(() => {
+          });
+          stopDevServer().catch(() => {
+          });
+          return;
+        }
       } catch (error) {
         appendRuntime(`Failed to start PHP server: ${error && error.message ? error.message : String(error)}
 `);
@@ -54524,7 +54641,7 @@ Try "help" for the list of supported commands.
         setEmails(emails2 || []);
       } catch {
       }
-    }, [appendRuntime, ensureStick, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails]);
+    }, [appendRuntime, ensureStick, killCurrent, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
     const toggleDevServer = async () => {
       if (!running) {
         if (!skipInit && !hasBuilt) {
@@ -54543,45 +54660,67 @@ Try "help" for the list of supported commands.
           stopDevServer().catch(() => {
           });
         };
-        watchBufferRef.current = "";
         serverStartRequestedRef.current = false;
-        setWaitingForWatch(true);
-        waitingForWatchRef.current = true;
         setStarting(true);
-        writeToTerminal("\nRunning npm run watch --dev\u2026\n");
-        runScript("watch", {
-          args: ["--dev"],
-          onLog: (chunk) => {
-            if (stoppingRef.current || !terminalStateRef.current.running && !waitingForWatchRef.current) return;
-            writeToTerminal(chunk);
-            if (serverStartRequestedRef.current || runningRef.current || !terminalStateRef.current.running) return;
-            const text = String(chunk ?? "");
-            if (!text) return;
-            watchBufferRef.current = `${watchBufferRef.current}${text}`.slice(-200);
-            if (watchBufferRef.current.includes('Running "_watch" task')) {
-              startPhpServer().catch(() => {
-              });
-            }
-          },
-          onDone: ({ code }) => {
-            writeToTerminal(`npm run watch --dev exited with code ${code}
+        const plan = (0, import_dev_server_command.planDevServerStart)({ hasBuilt });
+        const startWatcherAndServer = () => {
+          setWaitingForWatch(false);
+          waitingForWatchRef.current = false;
+          writeToTerminal(`
+Running ${plan.watch.label}\u2026
 `);
-            const currentState = terminalStateRef.current;
-            currentState.running = false;
-            terminalKillRef.current = null;
-            if (!stoppingRef.current && (runningRef.current || serverStartRequestedRef.current || waitingForWatchRef.current)) {
-              stopDevServer().catch(() => {
-              });
-            } else {
-              setWaitingForWatch(false);
-              waitingForWatchRef.current = false;
-              setStarting(false);
-              serverStartRequestedRef.current = false;
-              watchBufferRef.current = "";
+          runScript(plan.watch.script, {
+            args: plan.watch.args,
+            onLog: (chunk) => {
+              if (stoppingRef.current || !terminalStateRef.current.running) return;
+              writeToTerminal(chunk);
+            },
+            onDone: ({ code }) => {
+              writeToTerminal(`${plan.watch.label} exited with code ${code}
+`);
+              const currentState = terminalStateRef.current;
+              currentState.running = false;
+              terminalKillRef.current = null;
+              if (!stoppingRef.current && (runningRef.current || serverStartRequestedRef.current)) {
+                stopDevServer().catch(() => {
+                });
+              } else {
+                setStarting(false);
+                serverStartRequestedRef.current = false;
+              }
+              showPrompt(false);
             }
-            showPrompt(false);
-          }
-        });
+          });
+          startPhpServer().catch(() => {
+          });
+        };
+        if (plan.needsBuild) {
+          setWaitingForWatch(true);
+          waitingForWatchRef.current = true;
+          writeToTerminal("\nNo completed build found \u2014 running npm run build first\u2026\n");
+          runScript("build", {
+            onLog: (chunk) => {
+              if (stoppingRef.current || !terminalStateRef.current.running && !waitingForWatchRef.current) return;
+              writeToTerminal(chunk);
+            },
+            onDone: ({ code }) => {
+              if (code !== 0 || stoppingRef.current || !terminalStateRef.current.running) {
+                if (code !== 0) writeToTerminal(`npm run build failed with code ${code} \u2014 dev server not started.
+`);
+                terminalStateRef.current.running = false;
+                terminalKillRef.current = null;
+                setWaitingForWatch(false);
+                waitingForWatchRef.current = false;
+                setStarting(false);
+                showPrompt(false);
+                return;
+              }
+              startWatcherAndServer();
+            }
+          });
+        } else {
+          startWatcherAndServer();
+        }
       } else {
         await killCurrent().catch(() => {
         });
@@ -54590,6 +54729,15 @@ Try "help" for the list of supported commands.
     };
     const isServerStarting = waitingForWatch || starting && !serverUrl;
     const isDevProcessActive = running || isServerStarting;
+    const [startElapsed, setStartElapsed] = (0, import_react69.useState)(0);
+    (0, import_react69.useEffect)(() => {
+      if (!isServerStarting) {
+        setStartElapsed(0);
+        return void 0;
+      }
+      const id3 = setInterval(() => setStartElapsed((s) => s + 1), 1e3);
+      return () => clearInterval(id3);
+    }, [isServerStarting]);
     const markSkipWizard = (0, import_react69.useCallback)(async () => {
       await window.api.setSkipInitWizard(sitePath, true);
       setSkipInit(true);
@@ -54673,28 +54821,36 @@ Try "help" for the list of supported commands.
         indicatorContent: "\u2013"
       }
     };
+    const stepState = (0, import_setup_steps.computeSetupStepState)({
+      isPending,
+      statusLoading,
+      hasNodeModules,
+      hasBuilt,
+      installing,
+      building,
+      starting,
+      installFailed
+    });
     const baseSteps = [
       {
         key: "download",
         label: "Download WordPress development version",
-        description: "Clone the WordPress develop repository.",
-        done: true,
-        ready: true
+        description: isPending ? "Cloning the WordPress develop repository\u2026 the next step unlocks when it finishes." : "Clone the WordPress develop repository.",
+        ...stepState.download
       },
       {
         key: "install",
         label: "Install npm dependencies",
         description: "Install npm packages so commands can run.",
-        done: hasNodeModules,
-        ready: true,
+        ...stepState.install,
         action: /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
           button_default,
           {
             isBusy: installing,
-            variant: hasNodeModules ? "secondary" : "primary",
+            variant: stepState.install.done ? "secondary" : "primary",
             onClick: runInstallWithTerminal,
-            disabled: statusLoading || installing || hasNodeModules,
-            children: hasNodeModules ? "Dependencies installed" : "Install npm dependencies"
+            disabled: stepState.install.disabled,
+            children: stepState.install.done ? "Dependencies installed" : installFailed ? "Retry npm install" : "Install npm dependencies"
           }
         )
       },
@@ -54702,15 +54858,14 @@ Try "help" for the list of supported commands.
         key: "build",
         label: "Run first full build",
         description: "Compile WordPress Core once to generate the initial dist files.",
-        done: hasBuilt,
-        ready: hasNodeModules,
+        ...stepState.build,
         action: /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
           button_default,
           {
             isBusy: building,
             variant: hasBuilt ? "secondary" : "primary",
-            onClick: () => runScript("build"),
-            disabled: statusLoading || building || !hasNodeModules || hasBuilt,
+            onClick: runBuildWithTerminal,
+            disabled: stepState.build.disabled,
             children: hasBuilt ? "First build complete" : "Run first full build"
           }
         )
@@ -54719,8 +54874,7 @@ Try "help" for the list of supported commands.
         key: "dev",
         label: "Start dev server & finish wizard",
         description: "Launch the development server once to complete the WordPress setup wizard.",
-        done: false,
-        ready: hasBuilt,
+        ...stepState.dev,
         action: /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
             button_default,
@@ -54731,11 +54885,11 @@ Try "help" for the list of supported commands.
                 await markSkipWizard();
                 await toggleDevServer();
               },
-              disabled: statusLoading || starting || !hasBuilt,
+              disabled: stepState.dev.disabled,
               children: running ? "Stop dev server" : "Start dev server and finish the wizard"
             }
           ),
-          starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { style: { fontSize: 12 }, children: starting ? "Starting..." : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("a", { href: serverUrl, onClick: (e) => {
+          starting || serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { style: { fontSize: 12 }, children: starting ? `Starting\u2026 (${(0, import_dev_server_command.formatElapsed)(startElapsed)})` : serverUrl ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("a", { href: serverUrl, onClick: (e) => {
             e.preventDefault();
             window.api.openExternal(serverUrl);
           }, children: serverUrl }) : null }) : null
@@ -54923,10 +55077,10 @@ Try "help" for the list of supported commands.
             "Log in with ",
             /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("code", { children: "admin" }),
             " / ",
-            /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("code", { children: "admin" }),
+            /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("code", { children: "password" }),
             "."
           ] })
-        ] }) : "Dev server is starting\u2026" }) : null
+        ] }) : `Dev server is starting\u2026 (${(0, import_dev_server_command.formatElapsed)(startElapsed)})` }) : null
       ] }) : null,
       /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 16 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { children: [
