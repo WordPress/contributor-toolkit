@@ -1,6 +1,6 @@
 ---
 name: self-review
-description: Review the current branch against this repo's architecture, security, performance and cross-platform rules before opening a PR. Use when the user asks to self-review, review my changes, check my branch before a PR, or says they are about to open a PR. Applies the same rules as the CI AI-review workflow.
+description: Review the current branch against this repo's architecture, security, performance, cross-platform and test-coverage rules before opening a PR. Use when the user asks to self-review, review my changes, check my branch before a PR, or says they are about to open a PR. Applies the same rules as the CI AI-review workflow.
 ---
 
 # Self-review
@@ -14,7 +14,7 @@ for reconstructing the context.
 
 ## Procedure
 
-**1. Read the rules.** `.github/ai-review-rules.md` — the same file CI reads. It defines the four
+**1. Read the rules.** `.github/ai-review-rules.md` — the same file CI reads. It defines the five
 dimensions, the repo invariants, and the reporting bar. It is the specification for this task.
 
 **2. Establish the diff.**
@@ -57,7 +57,7 @@ xargs npx eslint --fix < /tmp/self-review-changed.txt
 
 Do not hand-fix what the fixer handles.
 
-**4. Review the four dimensions** — architecture, security, performance, cross-platform — against
+**4. Review the five dimensions** — architecture, security, performance, cross-platform, tests — against
 the rules file. Read the surrounding files, not just the diff: the rules require verifying a
 finding before asserting it, and a diff rarely shows that a helper already handles the case.
 

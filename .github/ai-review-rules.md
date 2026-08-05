@@ -15,7 +15,8 @@ those here buries the findings that matter. When style and process nits share sp
 substantive findings, authors learn to skim past them — and the substantive findings go with
 them.
 
-Four dimensions, in priority order: **architecture · security · performance · cross-platform**.
+Five dimensions, in priority order: **architecture · security · performance · cross-platform ·
+tests**.
 
 ## What this app is
 
@@ -62,8 +63,21 @@ machine and hang the UI on a slow one.
 windows — and are not negotiable. Flag any window created without them, and any attempt to widen
 the bridge by exposing `ipcRenderer` itself rather than named functions.
 
-Also worth flagging: a new runtime dependency that needs native compilation or a host binary,
-since it breaks the zero-prerequisite promise on user machines.
+**Failure paths are part of the architecture.** The users cannot debug: a swallowed error is
+"the button did nothing" at a Contributor Day, with nobody able to diagnose it. Every spawn
+handles both `error` and `close` — Node documents that exit events "may or may not" follow a
+spawn failure, and `runNpmWithEngineRetry` in `src/main.js` shows the expected shape. No silent
+`catch`: an error that never reaches the renderer's log stream did not happen, from the user's
+chair. And a setup that dies halfway must leave the site registry consistent — no phantom site
+in `electron-store` for a directory that was never finished.
+
+**New dependencies are findings by default.** Native compilation or a host binary breaks the
+zero-prerequisite promise on user machines. A dependency with lifecycle scripts also needs an
+`allowScripts` entry in `package.json` — the mechanism already exists, and a missing entry means
+its install scripts silently don't run.
+
+**Changing the shape of what `electron-store` holds needs a migration path.** Existing users
+have site registries on disk; a renamed or restructured key silently orphans their sites.
 
 ## 2. Security
 
@@ -139,6 +153,36 @@ consult it rather than re-deriving them.
 have drifted before (issues #37 / #46), which is why the suite runs twice. A change that depends
 on a newer Node API needs to hold on whichever of the two is older.
 
+## 5. Tests
+
+**A new feature or bugfix without a test is a finding.** Not a suggestion in a footer — a
+finding, with the same severity-and-scope labelling as everything else. The suite is
+`node --test` over `test/*.test.cjs`; new tests follow the patterns already there.
+
+**A bugfix's test must reproduce the bug**: fail on the old code, pass on the new. A test
+written after the fix that never saw the bug proves far less — it pins the current behaviour,
+whatever that is, rather than the correction. When reviewing a bugfix, check whether the test
+would actually have caught it.
+
+**Watch for tests that are green while proving nothing.** The known shapes in this repo:
+
+- Mocking the very thing the test claims to verify.
+- Asserting implementation details — exact log strings, call order of internals — instead of
+  observable behaviour. These break on harmless refactors and survive real bugs.
+- Passing on only one of the two Node runtimes. CI runs the suite on `.nvmrc`'s Node *and* on
+  Electron's bundled Node because the two are set independently and have drifted; a test (or the
+  code under it) that assumes the newer of the two is broken on the other.
+
+**Platform-conditional code needs both branches tested — from one machine.** The house pattern
+is dependency injection, not skipping: `test/win-spawn-patch.test.cjs` exercises the Windows
+paths from macOS by injecting `platform`, lookup and env rather than reading `process.platform`.
+A new platform split tested with `it.skip` on the other OS is a coverage hole CI will never
+close, since the suite runs on both platforms but each skips the other's branch.
+
+**Scope stays proportional.** Missing tests on a touched line of legacy code is `[follow-up]`,
+not `[fix here]` — the strong rule applies to what the PR introduces, not to everything it
+brushes against.
+
 ---
 
 ## How to report
@@ -158,7 +202,7 @@ the bottom of the summary, never in the body, and never as inline comments.
 first and mark each earlier finding resolved, still open, or obsolete. Re-asserting a fixed
 finding is the fastest way to get the whole review ignored.
 
-**Say when there is nothing.** "No findings across the four dimensions" in one line is a good
+**Say when there is nothing.** "No findings across the five dimensions" in one line is a good
 review. Do not pad. Do not restate what the PR does — the author knows.
 
 **Verify before claiming.** Read the surrounding file before asserting an invariant is broken;

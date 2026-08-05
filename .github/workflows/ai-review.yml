@@ -1,5 +1,5 @@
 # Automated PR review for the things a linter cannot decide: architecture, security,
-# performance, cross-platform. The rules live in .github/ai-review-rules.md, shared with the
+# performance, cross-platform, tests. The rules live in .github/ai-review-rules.md, shared with the
 # /self-review skill so CI and the author's own pass apply the same standard.
 #
 # A second reviewer, never a gate. Not a required check, and the tool allowlist below grants no
@@ -114,7 +114,7 @@ jobs:
 
             Review this pull request.
 
-            First read `.github/ai-review-rules.md` in the checked-out repo. It defines the four
+            First read `.github/ai-review-rules.md` in the checked-out repo. It defines the five
             dimensions to review, the repo-specific invariants to check them against, and the
             reporting format. Follow it exactly — it is the specification for this task, not
             background reading.
