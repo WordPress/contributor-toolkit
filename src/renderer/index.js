@@ -53967,7 +53967,7 @@ If there's a particular need for this, please submit a feature request at https:
           const statusLabel = meta.initialized ? "Initialized" : "Not initialized";
           const trunkAge = (0, import_update_plan.trunkAgeInfo)({ trunkDate: meta.trunkDate });
           const staleDotColor = meta.updateIncomplete ? "#d63638" : trunkAge.stale ? "#dba617" : null;
-          const staleDotTitle = meta.updateIncomplete ? "Update incomplete \u2014 code is new, built assets are old" : `Trunk snapshot is ${trunkAge.ageDays} days old \u2014 update to latest trunk`;
+          const staleDotTitle = meta.updateIncomplete ? "Update incomplete \u2014 code is new, built assets are old" : `WordPress code is ${trunkAge.ageDays} days old \u2014 update to latest trunk`;
           const staleDot = staleDotColor ? /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
             "span",
             {
@@ -55251,15 +55251,11 @@ Saved your changes to ${res.filePath} and reset the working tree.
       age.stale && !updateIncomplete && !isUpdating ? /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap", padding: "14px 16px", background: "#fcf9e8", border: "1px solid #dba617", borderRadius: 8, fontSize: 13, color: "#6e5406" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 4 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("strong", { style: { color: "#5c4400" }, children: [
-            "This site's trunk snapshot is ",
+            "This site's WordPress code is ",
             age.ageDays,
             " days old"
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("span", { children: [
-            "Patches you create now are diffed against ",
-            age.label.replace("trunk as of ", ""),
-            " and may not apply on Trac."
-          ] })
+          /* @__PURE__ */ (0, import_jsx_runtime61.jsx)("span", { children: "Patches you create now may not apply on Trac. Updating takes a few minutes." })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
           button_default,
@@ -55600,7 +55596,7 @@ Saved your changes to ${res.filePath} and reset the working tree.
           headerClassName: "patch-modal-header",
           children: /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { display: "flex", flexDirection: "column", height: "80vh", gap: 12 }, children: [
             !patchLoading && age.stale && /* @__PURE__ */ (0, import_jsx_runtime61.jsxs)("div", { style: { padding: "12px 16px", background: "#fcf9e8", border: "1px solid #dba617", borderRadius: 6, fontSize: 13, lineHeight: 1.5, color: "#6e5406" }, children: [
-              "This site's trunk snapshot is ",
+              "This site's WordPress code is ",
               age.ageDays,
               " days old \u2014 this patch may not apply on Trac. Consider updating to the latest trunk first."
             ] }),

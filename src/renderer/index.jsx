@@ -529,7 +529,7 @@ function App() {
             const staleDotColor = meta.updateIncomplete ? '#d63638' : (trunkAge.stale ? '#dba617' : null);
             const staleDotTitle = meta.updateIncomplete
               ? 'Update incomplete — code is new, built assets are old'
-              : `Trunk snapshot is ${trunkAge.ageDays} days old — update to latest trunk`;
+              : `WordPress code is ${trunkAge.ageDays} days old — update to latest trunk`;
             const staleDot = staleDotColor ? (
               <span
                 title={staleDotTitle}
@@ -1806,8 +1806,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       {age.stale && !updateIncomplete && !isUpdating ? (
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '14px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
           <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <strong style={{ color: '#5c4400' }}>This site's trunk snapshot is {age.ageDays} days old</strong>
-            <span>Patches you create now are diffed against {age.label.replace('trunk as of ', '')} and may not apply on Trac.</span>
+            <strong style={{ color: '#5c4400' }}>This site's WordPress code is {age.ageDays} days old</strong>
+            <span>Patches you create now may not apply on Trac. Updating takes a few minutes.</span>
           </div>
           <Button
             variant="secondary"
@@ -2128,7 +2128,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
             {!patchLoading && age.stale && (
               <div style={{ padding:'12px 16px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:13, lineHeight:1.5, color:'#6e5406' }}>
-                This site's trunk snapshot is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
+                This site's WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
               </div>
             )}
             {!patchLoading && (
