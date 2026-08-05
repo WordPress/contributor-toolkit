@@ -95,7 +95,7 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	startWpDebug: async (sitePath, onData) => {
 		const handler = (_e, payload) => {
-			if (payload.sitePath === sitePath) onData && onData(payload.data);
+			if (payload.sitePath === sitePath && onData) onData(payload.data);
 		};
 		ipcRenderer.on('wp:debug-log:data', handler);
 		await ipcRenderer.invoke('wp-debug:start', sitePath);
@@ -107,17 +107,17 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	startServer: async (sitePath, onLog, onUrl, onStopped) => {
 		const logHandler = (_e, payload) => {
-			if (payload.sitePath === sitePath) onLog && onLog(payload);
+			if (payload.sitePath === sitePath && onLog) onLog(payload);
 		};
 		const urlHandler = (_e, payload) => {
-			if (payload.sitePath === sitePath) onUrl && onUrl(payload.url);
+			if (payload.sitePath === sitePath && onUrl) onUrl(payload.url);
 		};
 		const stoppedHandler = (_e, payload) => {
 			if (payload.sitePath === sitePath) {
 				ipcRenderer.removeListener('playground:log', logHandler);
 				ipcRenderer.removeListener('playground:url', urlHandler);
 				ipcRenderer.removeListener('playground:stopped', stoppedHandler);
-				onStopped && onStopped();
+				if (onStopped) onStopped();
 			}
 		};
 		ipcRenderer.on('playground:log', logHandler);
@@ -137,13 +137,13 @@ contextBridge.exposeInMainWorld('api', {
 	}
 ,
 	startPlaygroundWeb: async (onLog, onUrl, onStopped) => {
-		const logHandler = (_e, payload) => { onLog && onLog(payload); };
-		const urlHandler = (_e, payload) => { onUrl && onUrl(payload.url); };
+		const logHandler = (_e, payload) => { if (onLog) onLog(payload); };
+		const urlHandler = (_e, payload) => { if (onUrl) onUrl(payload.url); };
 		const stoppedHandler = (_e, payload) => {
 			ipcRenderer.removeListener('playground-web:log', logHandler);
 			ipcRenderer.removeListener('playground-web:url', urlHandler);
 			ipcRenderer.removeListener('playground-web:stopped', stoppedHandler);
-			onStopped && onStopped(payload);
+			if (onStopped) onStopped(payload);
 		};
 		ipcRenderer.on('playground-web:log', logHandler);
 		ipcRenderer.on('playground-web:url', urlHandler);
@@ -180,13 +180,13 @@ contextBridge.exposeInMainWorld('api', {
 	}
 ,
 	onNewEmail: (sitePath, handler) => {
-		const h = (_e, payload) => { if (payload.sitePath === sitePath) handler && handler(payload.message); };
+		const h = (_e, payload) => { if (payload.sitePath === sitePath && handler) handler(payload.message); };
 		ipcRenderer.on('smtp:new-email', h);
 		return () => ipcRenderer.removeListener('smtp:new-email', h);
 	}
 ,
 	onSmtpStarted: (sitePath, handler) => {
-		const h = (_e, payload) => { if (payload.sitePath === sitePath) handler && handler(payload.port); };
+		const h = (_e, payload) => { if (payload.sitePath === sitePath && handler) handler(payload.port); };
 		ipcRenderer.on('smtp:started', h);
 		return () => ipcRenderer.removeListener('smtp:started', h);
 	}
