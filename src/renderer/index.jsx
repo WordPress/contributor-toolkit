@@ -1328,7 +1328,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const toggleDevServer = async ()=>{
     if (!running) {
       // eslint-disable-next-line no-alert -- see the note above onRename.
-      if (!skipInit && !hasBuilt) { alert('Please complete the first full build before starting the dev server. You can also skip the wizard.'); return; }
+      if (!skipInit && !hasBuilt) { alert('Please complete the full build before starting the dev server. You can also skip the wizard.'); return; }
       const state = terminalStateRef.current;
       if (state.running) {
         writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
@@ -1707,8 +1707,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     },
     {
       key: 'build',
-      label: 'Run first full build',
-      description: 'Compile WordPress Core once to generate the initial dist files.',
+      label: 'Run full build',
+      description: 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
       ...stepState.build,
       action: (
         <Button
@@ -1716,7 +1716,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           variant={hasBuilt ? 'secondary' : 'primary'}
           onClick={runBuildWithTerminal}
           disabled={stepState.build.disabled}
-        >{hasBuilt ? 'First build complete' : 'Run first full build'}</Button>
+        >{hasBuilt ? 'Build complete' : 'Run full build'}</Button>
       )
     },
     {

@@ -54756,7 +54756,7 @@ Try "help" for the list of supported commands.
     const toggleDevServer = async () => {
       if (!running) {
         if (!skipInit && !hasBuilt) {
-          alert("Please complete the first full build before starting the dev server. You can also skip the wizard.");
+          alert("Please complete the full build before starting the dev server. You can also skip the wizard.");
           return;
         }
         const state = terminalStateRef.current;
@@ -55109,8 +55109,8 @@ Saved your changes to ${res.filePath} and reset the working tree.
       },
       {
         key: "build",
-        label: "Run first full build",
-        description: "Compile WordPress Core once to generate the initial dist files.",
+        label: "Run full build",
+        description: "Compile WordPress Core to generate the dist files. Later updates rebuild automatically.",
         ...stepState.build,
         action: /* @__PURE__ */ (0, import_jsx_runtime61.jsx)(
           button_default,
@@ -55119,7 +55119,7 @@ Saved your changes to ${res.filePath} and reset the working tree.
             variant: hasBuilt ? "secondary" : "primary",
             onClick: runBuildWithTerminal,
             disabled: stepState.build.disabled,
-            children: hasBuilt ? "First build complete" : "Run first full build"
+            children: hasBuilt ? "Build complete" : "Run full build"
           }
         )
       },
