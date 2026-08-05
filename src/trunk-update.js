@@ -30,6 +30,8 @@ const {
  * config makes isomorphic-git strip CRLF before hashing workdir files. LF
  * checkouts are unaffected. Called before every status/patch/update git op
  * so pre-existing sites are covered, not just new clones.
+ *
+ * @param {string} dir
  */
 async function ensureAutocrlf(dir) {
 	try {
@@ -43,6 +45,8 @@ async function ensureAutocrlf(dir) {
 /**
  * The commit the site's HEAD points at; its committer date is the age of the
  * trunk snapshot. One object read, no network.
+ *
+ * @param {string} dir
  */
 async function readTrunkInfo(dir) {
 	const trunkOid = await git.resolveRef({ fs, dir, ref: 'HEAD' });
@@ -78,6 +82,8 @@ async function isCrlfOnlyChange(dir, headOid, filepath) {
  * The files that genuinely differ from HEAD — statusMatrix candidates minus
  * CRLF-only false positives. What this returns is what the dirty-tree dialog
  * lists, and it matches what patch generation would emit.
+ *
+ * @param {string} dir
  */
 async function collectDirtyFiles(dir) {
 	await ensureAutocrlf(dir);
@@ -96,6 +102,8 @@ async function collectDirtyFiles(dir) {
  * Resets the worktree to HEAD. Files absent from HEAD are removed from the
  * index AND the workdir — a "discard" that leaves new files behind would put
  * them straight back into the next patch.
+ *
+ * @param {string} dir
  */
 async function discardChanges(dir) {
 	await ensureAutocrlf(dir);
@@ -120,6 +128,11 @@ async function discardChanges(dir) {
  *
  * Shallow-clone safe: a depth-1 re-fetch negotiates a new shallow tip, and
  * the forced checkout resets tracked files while untracked ones survive.
+ *
+ * @param {Object}   root0
+ * @param {string}   root0.dir
+ * @param {string}   root0.url
+ * @param {Function} [root0.onLog]
  */
 async function updateToLatestTrunk({ dir, url, onLog = () => {} }) {
 	await ensureAutocrlf(dir);

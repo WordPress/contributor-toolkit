@@ -30,12 +30,24 @@ const UPDATE_STEP_LABELS = {
   install: { pending: 'Install dependencies', current: 'Dependencies changed — installing the difference…', complete: 'Dependencies installed', skipped: SKIP_INSTALL_MESSAGE },
   build: { pending: 'Rebuild', current: 'Rebuilding — output in the Terminal below', complete: 'Rebuilt' }
 };
+// Checkmark/pointer and color per step status; pending/skipped fall back to
+// no symbol in muted gray.
+const UPDATE_STEP_MARKS = {
+  complete: { symbol: '✓', color: '#0f5132' },
+  current: { symbol: '›', color: '#0b5d95' }
+};
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
 const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
 const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
 const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
+
+function formatEmailDate(email) {
+  if (email.sentAt) return new Date(email.sentAt).toLocaleString();
+  if (email.date) return new Date(email.date).toLocaleString();
+  return '';
+}
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
 function useSites() {
@@ -87,7 +99,7 @@ function App() {
   const appendSetupLog = useCallback((siteTarget, message) => {
     const key = siteTarget ? String(siteTarget) : '';
     if (!key) return;
-    const chunk = message != null ? String(message) : '';
+    const chunk = message !== null && message !== undefined ? String(message) : '';
     if (!chunk) return;
     let resolvedKey = key;
     const aliasMap = setupLogAliasRef.current;
@@ -184,7 +196,7 @@ function App() {
       if (s.phase === 'cloning') setDownloadPhase('Cloning repository…');
       else if (s.phase === 'done') { setDownloadPhase(''); clearPendingSites(); setTerminalMsgs(''); }
     });
-    return () => { unsubProg && unsubProg(); unsubStat && unsubStat(); };
+    return () => { if (unsubProg) unsubProg(); if (unsubStat) unsubStat(); };
   }, [addPendingSite, appendSetupLog, clearPendingSites]);
 
   const chooseAndSetup = useCallback(() => {
@@ -424,6 +436,9 @@ function App() {
         [sitePath]: { ...(meta?.[sitePath] || {}), label: newLabel }
       }));
     } catch (err) {
+      // Pre-existing UX convention in this file; replacing every alert()/confirm()
+      // with an in-app notice is a separate, larger UX change than a lint cleanup should make.
+      // eslint-disable-next-line no-alert
       alert(String(err));
     }
   }, [setSiteMeta]);
@@ -516,17 +531,20 @@ function App() {
           />
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? '12px 8px' : '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {sortedSites.length > 0 ? sortedSites.map((sitePath) => {
+          {sortedSites.length === 0 && !sidebarCollapsed ? (
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>No sites yet.</div>
+          ) : null}
+          {sortedSites.map((sitePath) => {
             const meta = siteMeta?.[sitePath] || {};
             const siteName = (meta.label && meta.label.trim()) || pathBasename(sitePath);
-            const createdLabel = meta.createdAt ? new Date(meta.createdAt).toLocaleString() : '';
             const isActive = activeSite === sitePath;
-            const statusLabel = meta.initialized ? 'Initialized' : 'Not initialized';
             // Staleness surfaces in the sidebar before the site is even
             // opened (#94): amber = old trunk snapshot, red = an update that
             // moved trunk but never finished install/build.
             const trunkAge = trunkAgeInfo({ trunkDate: meta.trunkDate });
-            const staleDotColor = meta.updateIncomplete ? '#d63638' : (trunkAge.stale ? '#dba617' : null);
+            let staleDotColor = null;
+            if (meta.updateIncomplete) staleDotColor = '#d63638';
+            else if (trunkAge.stale) staleDotColor = '#dba617';
             const staleDotTitle = meta.updateIncomplete
               ? 'Update incomplete — code is new, built assets are old'
               : `WordPress code is ${trunkAge.ageDays} days old — update to latest trunk`;
@@ -562,9 +580,7 @@ function App() {
                 )}
               </Button>
             );
-          }) : (!sidebarCollapsed ? (
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>No sites yet.</div>
-          ) : null)}
+          })}
         </div>
         <div
           style={{
@@ -610,9 +626,11 @@ function App() {
                   <div style={{ display:'flex', alignItems:'center', gap:8, justifyContent:'space-between' }}>
                     <div style={{ fontWeight: 600 }}>Playground web server</div>
                     <div style={{ fontSize:12, color:'#666' }}>
-                      {webStarting ? 'Starting…' : (webUrl ? (
+                      {webStarting ? 'Starting…' : null}
+                      {!webStarting && webUrl ? (
                         <a href={webUrl} onClick={(e)=>{ e.preventDefault(); window.api.openExternal(webUrl); }}>{webUrl}</a>
-                      ) : 'Stopped')}
+                      ) : null}
+                      {!webStarting && !webUrl ? 'Stopped' : null}
                     </div>
                   </div>
                   {webError ? (<div style={{ marginTop:6, color:'#C00', fontSize:12 }}>{webError}</div>) : null}
@@ -673,6 +691,7 @@ function App() {
           onRequestClose={closeCreateModal}
           shouldCloseOnClickOutside={!createSubmitting}
         >
+          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape-to-close/Enter-to-submit on the modal form is standard, intentional behavior. */}
           <form
             onSubmit={handleCreateModalSubmit}
             onKeyDown={handleCreateModalKeyDown}
@@ -685,6 +704,7 @@ function App() {
               onChange={(value) => setCreateSiteName(value)}
               disabled={createSubmitting}
               placeholder="My WordPress site"
+              // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: this is the first field of a just-opened modal.
               autoFocus
             />
             <label htmlFor={CREATE_SITE_LOCATION_INPUT_ID} style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#1d2327' }}>Site location</label>
@@ -694,6 +714,7 @@ function App() {
                 id={CREATE_SITE_LOCATION_INPUT_ID}
                 type="file"
                 webkitdirectory=""
+                // eslint-disable-next-line react/no-unknown-property -- non-standard but required alongside webkitdirectory for cross-browser directory pickers.
                 directory=""
                 multiple
                 onChange={handleCreateDirInputChange}
@@ -728,7 +749,6 @@ function App() {
 }
 
 function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, isPending = false, setupLogs = '' }) {
-  const safeOnRename = onRename || (() => {});
   // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
   // recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
@@ -749,7 +769,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const smtpStartedUnsubRef = useRef(null);
   const [isEmailOpen, setIsEmailOpen] = useState(false);
   const [activeEmail, setActiveEmail] = useState(null);
-  const [emailViewTab, setEmailViewTab] = useState('rendered');
+  const [, setEmailViewTab] = useState('rendered');
   const [building, setBuilding] = useState(false);
   const [hasNodeModules, setHasNodeModules] = useState(false);
   const [installFailed, setInstallFailed] = useState(false);
@@ -765,6 +785,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [dirtySaving, setDirtySaving] = useState(false);
   const [dirtyFiles, setDirtyFiles] = useState([]);
   const [dirtyChoice, setDirtyChoice] = useState('save'); // save | discard
+  const [dirtyError, setDirtyError] = useState(null); // failure text shown inside the dirty-tree modal
   const [updateLockfileChanged, setUpdateLockfileChanged] = useState(false);
   const [lastUpdateSummary, setLastUpdateSummary] = useState(null);
   const updateStartRef = useRef(null);
@@ -827,14 +848,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     try {
       setRenaming(true);
       setRenameError('');
-      await safeOnRename(sitePath, trimmed);
+      if (onRename) await onRename(sitePath, trimmed);
       setRenameModalOpen(false);
     } catch (err) {
       setRenameError(String(err));
     } finally {
       setRenaming(false);
     }
-  }, [renameValue, safeOnRename, sitePath]);
+  }, [onRename, renameValue, sitePath]);
 
   const handleRenameSubmit = useCallback((event) => {
     event.preventDefault();
@@ -866,6 +887,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
       copyTimeoutRef.current = setTimeout(() => setPathCopied(false), 1500);
     } catch (err) {
+      // eslint-disable-next-line no-alert -- see the note above onRename.
       alert('Unable to copy path: ' + (err?.message ?? String(err)));
     }
   }, [sitePath]);
@@ -1300,11 +1322,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       return;
     }
     window.api.startWpDebug(sitePath,(d)=>appendRuntime(d || ''));
-    try { const { port, emails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(emails||[]); } catch {}
+    try { const { port, emails: fetchedEmails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(fetchedEmails||[]); } catch {}
   }, [appendRuntime, ensureStick, killCurrent, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
 
   const toggleDevServer = async ()=>{
     if (!running) {
+      // eslint-disable-next-line no-alert -- see the note above onRename.
       if (!skipInit && !hasBuilt) { alert('Please complete the full build before starting the dev server. You can also skip the wizard.'); return; }
       const state = terminalStateRef.current;
       if (state.running) {
@@ -1387,6 +1410,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   };
   const isServerStarting = waitingForWatch || (starting && !serverUrl);
   const isDevProcessActive = running || isServerStarting;
+  let devServerButtonLabel = 'Start dev server';
+  if (isDevProcessActive) devServerButtonLabel = isServerStarting ? 'Starting dev server...' : 'Stop dev server';
   // Elapsed-seconds counter for the starting state, so a slow boot is
   // distinguishable from a hang (issue #73).
   const [startElapsed, setStartElapsed] = useState(0);
@@ -1402,6 +1427,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
   }, [sitePath]);
+  // eslint-disable-next-line no-alert -- see the note above onRename.
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
 
   // --- Update to latest trunk (#94) ---
@@ -1493,6 +1519,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       if (res && res.ok && res.dirty) {
         setDirtyFiles(Array.isArray(res.files) ? res.files : []);
         setDirtyChoice('save');
+        setDirtyError(null);
         setDirtyModalOpen(true);
         return;
       }
@@ -1504,16 +1531,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // for, and it is the only option that cannot lose work.
   const dirtySaveAndUpdate = async () => {
     setDirtySaving(true);
+    setDirtyError(null);
     try {
       const res = await window.api.savePatch(sitePath);
       if (res && res.canceled) return; // stay in the modal
       if (!res || !res.ok || !res.filePath) {
-        alert(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
+        setDirtyError(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
         return;
       }
       const d = await window.api.discardChanges(sitePath);
       if (!d || !d.ok) {
-        alert(`Saved your changes to ${res.filePath}, but resetting the working tree failed: ${d && d.error ? d.error : 'Unknown error'}`);
+        setDirtyError(`Saved your changes to ${res.filePath}, but resetting the working tree failed: ${d && d.error ? d.error : 'Unknown error'}`);
         return;
       }
       savedPatchPathRef.current = res.filePath;
@@ -1526,9 +1554,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   };
 
   const dirtyDiscardAndUpdate = () => confirmAnd('Discard all local changes? This cannot be undone.', async () => {
+    setDirtyError(null);
     const d = await window.api.discardChanges(sitePath);
     if (!d || !d.ok) {
-      alert(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
+      setDirtyError(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
       return;
     }
     setDirtyModalOpen(false);
@@ -1576,13 +1605,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     try {
       const res = await window.api.savePatch(sitePath);
       if (res && res.ok && res.filePath) {
+        // eslint-disable-next-line no-alert -- see the note above onRename.
         alert(`Diff saved to: ${res.filePath}`);
       } else if (res && res.canceled) {
         // User canceled, do nothing
       } else {
+        // eslint-disable-next-line no-alert -- see the note above onRename.
         alert(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
       }
     } catch (e) {
+      // eslint-disable-next-line no-alert -- see the note above onRename.
       alert(`Error saving diff: ${e && e.message ? e.message : String(e)}`);
     }
   };
@@ -1642,8 +1674,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     installing,
     building,
     starting,
-    installFailed
+    installFailed,
+    isUpdating
   });
+
+  let installLabel = 'Install npm dependencies';
+  if (stepState.install.done) installLabel = 'Dependencies installed';
+  else if (installFailed) installLabel = 'Retry npm install';
 
   const baseSteps = [
     {
@@ -1665,7 +1702,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           variant={stepState.install.done ? 'secondary' : 'primary'}
           onClick={runInstallWithTerminal}
           disabled={stepState.install.disabled}
-        >{stepState.install.done ? 'Dependencies installed' : installFailed ? 'Retry npm install' : 'Install npm dependencies'}</Button>
+        >{installLabel}</Button>
       )
     },
     {
@@ -1700,9 +1737,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
           {starting || serverUrl ? (
             <span style={{ fontSize: 12 }}>
-              {starting ? `Starting… (${formatElapsed(startElapsed)})` : (serverUrl ? (
+              {starting ? `Starting… (${formatElapsed(startElapsed)})` : null}
+              {!starting && serverUrl ? (
                 <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
-              ) : null)}
+              ) : null}
             </span>
           ) : null}
         </div>
@@ -1806,7 +1844,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       {age.stale && !updateIncomplete && !isUpdating ? (
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '14px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
           <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <strong style={{ color: '#5c4400' }}>This site's WordPress code is {age.ageDays} days old</strong>
+            <strong style={{ color: '#5c4400' }}>This site&apos;s WordPress code is {age.ageDays} days old</strong>
             <span>Patches you create now may not apply on Trac. Updating takes a few minutes.</span>
           </div>
           <Button
@@ -1829,8 +1867,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             {updateStepStates.map((s) => {
               const labels = UPDATE_STEP_LABELS[s.key] || {};
               const text = labels[s.status] || labels.pending || s.key;
-              const symbol = s.status === 'complete' ? '✓' : s.status === 'current' ? '›' : '';
-              const color = s.status === 'complete' ? '#0f5132' : s.status === 'current' ? '#0b5d95' : '#6c6f72';
+              const { symbol = '', color = '#6c6f72' } = UPDATE_STEP_MARKS[s.status] || {};
               return (
                 <div key={s.key} style={{ display: 'flex', alignItems: 'baseline', gap: 8, color, opacity: s.status === 'pending' || s.status === 'skipped' ? 0.75 : 1 }}>
                   <span aria-hidden="true" style={{ width: 12, display: 'inline-block', textAlign: 'center' }}>{symbol}</span>
@@ -1853,7 +1890,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             <strong>Up to date with trunk as of today.</strong>
             <span>
               {lastUpdateSummary.lockfileChanged ? 'Dependencies updated' : 'Dependencies unchanged'}
-              {lastUpdateSummary.elapsedSeconds != null ? `, rebuilt in ${formatElapsed(lastUpdateSummary.elapsedSeconds)}.` : ', rebuilt.'}
+              {typeof lastUpdateSummary.elapsedSeconds === 'number' ? `, rebuilt in ${formatElapsed(lastUpdateSummary.elapsedSeconds)}.` : ', rebuilt.'}
               {lastUpdateSummary.savedPatchPath ? ` Your changes were saved to ${lastUpdateSummary.savedPatchPath} before the reset.` : ''}
             </span>
           </div>
@@ -1952,7 +1989,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   }}
                 />
               ) : null}
-              <span style={{ fontWeight: 600 }}>{isDevProcessActive ? (isServerStarting ? 'Starting dev server...' : 'Stop dev server') : 'Start dev server'}</span>
+              <span style={{ fontWeight: 600 }}>{devServerButtonLabel}</span>
             </Button>
             <Button
               variant="secondary"
@@ -2017,7 +2054,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               const when = m.sentAt || m.date; const whenStr = when ? new Date(when).toLocaleString() : '';
               return (
                 <div key={m.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={()=>openEmail(m)}
+                  onKeyDown={(e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEmail(m); } }}
                   style={{ padding:'8px 10px', cursor:'pointer', borderBottom:'1px solid #eee', display:'flex', gap:8 }}
                 >
                   <div style={{ flex:'0 0 180px', color:'#555', fontSize:12 }}>{whenStr}</div>
@@ -2039,7 +2079,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 520 }}>
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-              You've changed {dirtyFiles.length === 1 ? '1 file' : `${dirtyFiles.length} files`} in this site. Resetting to trunk would throw them away.
+              You&apos;ve changed {dirtyFiles.length === 1 ? '1 file' : `${dirtyFiles.length} files`} in this site. Resetting to trunk would throw them away.
             </p>
             {dirtyFiles.length ? (
               <div style={{ border: '1px solid #dcdcde', borderRadius: 6, padding: '10px 12px', maxHeight: 140, overflowY: 'auto' }}>
@@ -2077,6 +2117,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 </button>
               );
             })}
+            {dirtyError ? (
+              <div role="alert" style={{ padding: '10px 12px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 13, lineHeight: 1.5, color: '#8a2424', overflowWrap: 'anywhere' }}>
+                {dirtyError}
+              </div>
+            ) : null}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
               <Button variant="secondary" onClick={() => setDirtyModalOpen(false)} disabled={dirtySaving}>Cancel</Button>
               <Button
@@ -2096,6 +2141,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           onRequestClose={closeRenameModal}
           shouldCloseOnClickOutside={!renaming}
         >
+          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape-to-close/Enter-to-submit on the modal form is standard, intentional behavior. */}
           <form
             onSubmit={handleRenameSubmit}
             onKeyDown={handleRenameFormKeyDown}
@@ -2107,6 +2153,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               value={renameValue}
               onChange={(value) => setRenameValue(value)}
               disabled={renaming}
+              // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: this is the only field of a just-opened modal.
               autoFocus
             />
             {renameError ? <div style={{ color: '#d63638', fontSize: 12 }}>{renameError}</div> : null}
@@ -2128,12 +2175,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
             {!patchLoading && age.stale && (
               <div style={{ padding:'12px 16px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:13, lineHeight:1.5, color:'#6e5406' }}>
-                This site's WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
+                This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
               </div>
             )}
             {!patchLoading && (
               <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
-                <strong>Next steps:</strong> Save this patch and submit it to the relevant WordPress Trac ticket at <a href="#" onClick={(e) => { e.preventDefault(); window.api.openExternal('https://core.trac.wordpress.org'); }} style={{color:'#0969da', cursor:'pointer'}}>core.trac.wordpress.org</a>
+                <strong>Next steps:</strong> Save this patch and submit it to the relevant WordPress Trac ticket at <button type="button" onClick={() => window.api.openExternal('https://core.trac.wordpress.org')} style={{color:'#0969da', cursor:'pointer', background:'none', border:'none', padding:0, font:'inherit', textDecoration:'underline'}}>core.trac.wordpress.org</button>
               </div>
             )}
             <div style={{ position:'relative', flex:1, minHeight:0 }}>
@@ -2183,7 +2230,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <div><strong>From:</strong> {activeEmail.from || ''}</div>
               <div><strong>To:</strong> {activeEmail.to || ''}</div>
               {activeEmail.cc ? (<div><strong>CC:</strong> {activeEmail.cc}</div>) : null}
-              <div><strong>Date:</strong> {activeEmail.sentAt ? new Date(activeEmail.sentAt).toLocaleString() : (activeEmail.date ? new Date(activeEmail.date).toLocaleString() : '')}</div>
+              <div><strong>Date:</strong> {formatEmailDate(activeEmail)}</div>
             </div>
             <TabPanel className="email-tabs" activeClass="is-active" onSelect={(n)=>setEmailViewTab(n)} tabs={[{name:'rendered',title:'Rendered'},{name:'raw',title:'Raw'}]}>
               {(tab)=> tab.name==='rendered' ? (
