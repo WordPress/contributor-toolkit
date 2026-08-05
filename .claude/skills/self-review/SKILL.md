@@ -33,12 +33,29 @@ pass:
 
 ```bash
 git diff --name-only --diff-filter=ACMR origin/trunk...HEAD -- '*.js' '*.jsx' '*.cjs' '*.mjs' \
-  | xargs npx eslint --max-warnings=0 --no-warn-ignored
+  > /tmp/self-review-changed.txt
+if [ -s /tmp/self-review-changed.txt ]; then
+  xargs npx eslint --max-warnings=0 --no-warn-ignored < /tmp/self-review-changed.txt
+else
+  echo "No JavaScript changed — nothing to lint."
+fi
 npm test
 ```
 
-Report both results plainly. If ESLint fails, say so and offer `npm run lint:fix` — do not
-hand-fix what the fixer handles.
+The emptiness check is not optional. `xargs` runs its command once even on empty input, which
+would turn a docs-only or workflow-only branch into a bare repo-wide `eslint` and fail on the
+~85 pre-existing findings that have nothing to do with the branch. `lint.yml` guards the same
+way in CI.
+
+Report both results plainly. If ESLint fails, offer to re-run the same file list with `--fix`
+rather than `npm run lint:fix` — that script is `eslint . --fix` across the whole repo and would
+rewrite untouched files into the contributor's diff:
+
+```bash
+xargs npx eslint --fix < /tmp/self-review-changed.txt
+```
+
+Do not hand-fix what the fixer handles.
 
 **4. Review the four dimensions** — architecture, security, performance, cross-platform — against
 the rules file. Read the surrounding files, not just the diff: the rules require verifying a
