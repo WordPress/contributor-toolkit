@@ -22,6 +22,14 @@ import { pathBasename } from './path-basename.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE } from './update-plan.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
+// Per-status wording for the update chain card (#94), following the issue's
+// mockups: the skipped install step is named, never hidden, and the build
+// step points at the Terminal instead of opening a second log surface.
+const UPDATE_STEP_LABELS = {
+  fetch: { pending: 'Fetch and reset to trunk', current: 'Fetching and resetting to trunk…', complete: 'Fetched and reset to trunk' },
+  install: { pending: 'Install dependencies', current: 'Dependencies changed — installing the difference…', complete: 'Dependencies installed', skipped: SKIP_INSTALL_MESSAGE },
+  build: { pending: 'Rebuild', current: 'Rebuilding — output in the Terminal below', complete: 'Rebuilt' }
+};
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
@@ -755,7 +763,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
   const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
   const [dirtySaving, setDirtySaving] = useState(false);
+  const [dirtyFiles, setDirtyFiles] = useState([]);
+  const [dirtyChoice, setDirtyChoice] = useState('save'); // save | discard
   const [updateLockfileChanged, setUpdateLockfileChanged] = useState(false);
+  const [lastUpdateSummary, setLastUpdateSummary] = useState(null);
+  const updateStartRef = useRef(null);
+  const savedPatchPathRef = useRef(null);
   const setupLogsRef = useRef('');
 
   // sticky refs per log
@@ -1418,6 +1431,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         onDone: async ({ code }) => {
           if (code === 0) {
             try { await window.api.markUpdateComplete(sitePath); } catch {}
+            const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
+            setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
             finishUpdate('\nUpdate complete — this site is now on the latest trunk.\n');
           } else {
             finishUpdate('\nUpdate incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.\n');
@@ -1455,6 +1470,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     state.running = true;
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(false);
+    setLastUpdateSummary(null);
+    updateStartRef.current = Date.now();
     setUpdateState('fetching');
     window.api.updateTrunk(sitePath, ({ data }) => writeToTerminal(data), (res) => {
       if (!res || !res.ok || res.upToDate) {
@@ -1470,9 +1487,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
   const startTrunkUpdate = async () => {
     if (isUpdating || installing || building || isDevProcessActive) return;
+    savedPatchPathRef.current = null;
     try {
       const res = await window.api.isWorktreeDirty(sitePath);
       if (res && res.ok && res.dirty) {
+        setDirtyFiles(Array.isArray(res.files) ? res.files : []);
+        setDirtyChoice('save');
         setDirtyModalOpen(true);
         return;
       }
@@ -1496,6 +1516,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         alert(`Saved your changes to ${res.filePath}, but resetting the working tree failed: ${d && d.error ? d.error : 'Unknown error'}`);
         return;
       }
+      savedPatchPathRef.current = res.filePath;
       setDirtyModalOpen(false);
       writeToTerminal(`\nSaved your changes to ${res.filePath} and reset the working tree.\n`);
       beginTrunkUpdate();
@@ -1527,6 +1548,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     state.running = true;
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(true);
+    setLastUpdateSummary(null);
+    updateStartRef.current = Date.now();
     runUpdateInstallAndBuild(true);
   };
 
@@ -1757,6 +1780,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             text=""
             controls={[
               { title: 'Copy path', onClick: copyPath },
+              // Also reachable when the site is not yet stale (the staleness
+              // notice is the primary entry point) — a fresh site just gets
+              // "Already up to date." in the terminal.
+              { title: 'Update to latest trunk', onClick: startTrunkUpdate },
               { title:'Forget this site', onClick:()=>confirmAnd('Remove this site from the list?', ()=>onForget(sitePath)) },
               { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
             ]}
@@ -1777,10 +1804,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         </div>
       ) : null}
       {age.stale && !updateIncomplete && !isUpdating ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
-          <span style={{ flex: '1 1 320px' }}>
-            This site's trunk snapshot is <strong>{age.ageDays} days old</strong> — patches you create now may not apply on Trac.
-          </span>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '14px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
+          <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <strong style={{ color: '#5c4400' }}>This site's trunk snapshot is {age.ageDays} days old</strong>
+            <span>Patches you create now are diffed against {age.label.replace('trunk as of ', '')} and may not apply on Trac.</span>
+          </div>
           <Button
             variant="secondary"
             onClick={startTrunkUpdate}
@@ -1790,20 +1818,52 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         </div>
       ) : null}
       {isUpdating ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', padding: '12px 16px', background: '#e8f3ff', border: '1px solid #66afe9', borderRadius: 8, fontSize: 13, color: '#0b5d95' }}>
-          <span style={{ fontWeight: 600 }}>Updating to latest trunk…</span>
-          {updateStepStates.map((s, i) => {
-            const step = updateSteps[i];
-            const symbol = s.status === 'complete' ? '✓' : s.status === 'skipped' ? '↷' : s.status === 'current' ? '●' : '○';
-            return (
-              <span key={s.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, opacity: s.status === 'pending' ? 0.55 : 1 }}>
-                <span aria-hidden="true">{symbol}</span>
-                <span style={{ fontWeight: s.status === 'current' ? 600 : 400 }}>
-                  {s.status === 'skipped' ? step.skipMessage : step.label}
-                </span>
-              </span>
-            );
-          })}
+        <div style={{ padding: '14px 16px', background: '#fff', border: '1px solid #dcdcde', borderRadius: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 600, fontSize: 14, color: '#1d2327' }}>Updating to latest trunk</span>
+            <span style={{ fontSize: 12, color: '#6c6f72' }}>
+              step {Math.max(1, updateStepStates.filter((s) => s.status === 'complete' || s.status === 'skipped').length + 1)} of {updateSteps.length}
+            </span>
+          </div>
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
+            {updateStepStates.map((s) => {
+              const labels = UPDATE_STEP_LABELS[s.key] || {};
+              const text = labels[s.status] || labels.pending || s.key;
+              const symbol = s.status === 'complete' ? '✓' : s.status === 'current' ? '›' : '';
+              const color = s.status === 'complete' ? '#0f5132' : s.status === 'current' ? '#0b5d95' : '#6c6f72';
+              return (
+                <div key={s.key} style={{ display: 'flex', alignItems: 'baseline', gap: 8, color, opacity: s.status === 'pending' || s.status === 'skipped' ? 0.75 : 1 }}>
+                  <span aria-hidden="true" style={{ width: 12, display: 'inline-block', textAlign: 'center' }}>{symbol}</span>
+                  <span style={{ fontWeight: s.status === 'current' ? 600 : 400 }}>{text}</span>
+                </div>
+              );
+            })}
+          </div>
+          {updateState === 'installing' ? (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f0f1', fontSize: 12, color: '#6c6f72' }}>
+              Most packages are already cached, so this is a download of the difference — not the whole tree.
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {lastUpdateSummary && !isUpdating && !updateIncomplete ? (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', background: '#f4fbf4', border: '1px solid #94d3ae', borderRadius: 8, fontSize: 13, color: '#0f5132' }}>
+          <span aria-hidden="true" style={{ fontWeight: 700 }}>✓</span>
+          <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <strong>Up to date with trunk as of today.</strong>
+            <span>
+              {lastUpdateSummary.lockfileChanged ? 'Dependencies updated' : 'Dependencies unchanged'}
+              {lastUpdateSummary.elapsedSeconds != null ? `, rebuilt in ${formatElapsed(lastUpdateSummary.elapsedSeconds)}.` : ', rebuilt.'}
+              {lastUpdateSummary.savedPatchPath ? ` Your changes were saved to ${lastUpdateSummary.savedPatchPath} before the reset.` : ''}
+            </span>
+          </div>
+          <Button
+            variant="tertiary"
+            isSmall
+            aria-label="Dismiss"
+            onClick={() => setLastUpdateSummary(null)}
+            style={{ color: '#0f5132' }}
+          >✕</Button>
         </div>
       ) : null}
       {!skipInit ? (
@@ -1900,14 +1960,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               disabled={isUpdating}
               style={{ padding: '10px 16px', borderRadius: 10 }}
             >Submit patch</Button>
-            <Button
-              variant="secondary"
-              isBusy={isUpdating}
-              onClick={startTrunkUpdate}
-              disabled={isDevProcessActive || isUpdating || installing || building}
-              title={isDevProcessActive ? 'Stop the dev server before updating' : undefined}
-              style={{ padding: '10px 16px', borderRadius: 10 }}
-            >{isUpdating ? 'Updating…' : 'Update to latest trunk'}</Button>
             {running && serverUrl ? (
               <Button
                 variant="secondary"
@@ -1981,19 +2033,59 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       </div>
       {dirtyModalOpen ? (
         <Modal
-          title="You have local changes"
+          title="Update to latest trunk?"
           onRequestClose={() => { if (!dirtySaving) setDirtyModalOpen(false); }}
           shouldCloseOnClickOutside={!dirtySaving}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 460 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 520 }}>
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-              Updating resets this site to the latest trunk, which would overwrite your local changes.
-              Save them as a patch file first (nothing is sent to Trac), or discard them.
+              You've changed {dirtyFiles.length === 1 ? '1 file' : `${dirtyFiles.length} files`} in this site. Resetting to trunk would throw them away.
             </p>
+            {dirtyFiles.length ? (
+              <div style={{ border: '1px solid #dcdcde', borderRadius: 6, padding: '10px 12px', maxHeight: 140, overflowY: 'auto' }}>
+                {dirtyFiles.map((f) => (
+                  <div key={f} style={{ fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere' }}>{f}</div>
+                ))}
+              </div>
+            ) : null}
+            {[
+              { key: 'save', label: 'Save them as a patch first (as a local file)', detail: 'a .diff on your machine — nothing is sent to Trac' },
+              { key: 'discard', label: 'Discard them', detail: 'your changes are lost; this cannot be undone', destructive: true }
+            ].map((opt) => {
+              const selected = dirtyChoice === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setDirtyChoice(opt.key)}
+                  disabled={dirtySaving}
+                  aria-pressed={selected}
+                  style={{
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    font: 'inherit',
+                    fontSize: 13,
+                    padding: '10px 12px',
+                    borderRadius: 6,
+                    border: selected ? '2px solid #3858e9' : '1px solid #dcdcde',
+                    background: selected ? '#f0f3ff' : '#fff',
+                    color: opt.destructive ? '#b32d2e' : '#1d2327'
+                  }}
+                >
+                  <span style={{ fontWeight: 600 }}>{opt.label}</span>
+                  <span style={{ color: opt.destructive ? '#b32d2e' : '#6c6f72' }}> — {opt.detail}</span>
+                </button>
+              );
+            })}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-              <Button variant="tertiary" onClick={() => setDirtyModalOpen(false)} disabled={dirtySaving}>Cancel</Button>
-              <Button variant="secondary" isDestructive onClick={dirtyDiscardAndUpdate} disabled={dirtySaving}>Discard changes</Button>
-              <Button variant="primary" isBusy={dirtySaving} onClick={dirtySaveAndUpdate} disabled={dirtySaving}>Save changes as a patch</Button>
+              <Button variant="secondary" onClick={() => setDirtyModalOpen(false)} disabled={dirtySaving}>Cancel</Button>
+              <Button
+                variant="primary"
+                isDestructive={dirtyChoice === 'discard'}
+                isBusy={dirtySaving}
+                disabled={dirtySaving}
+                onClick={() => (dirtyChoice === 'discard' ? dirtyDiscardAndUpdate() : dirtySaveAndUpdate())}
+              >{dirtyChoice === 'discard' ? 'Discard & update' : 'Save patch & update'}</Button>
             </div>
           </div>
         </Modal>

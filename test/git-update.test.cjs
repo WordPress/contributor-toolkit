@@ -13,17 +13,21 @@ test('isDirtyFromStatusMatrix: clean tree (issue #94)', () => {
 		['a.php', 1, 1, 1],
 		['b.php', 1, 1, 1]
 	];
-	assert.deepStrictEqual(isDirtyFromStatusMatrix(matrix), { dirty: false, changedCount: 0 });
+	assert.deepStrictEqual(isDirtyFromStatusMatrix(matrix), { dirty: false, changedCount: 0, files: [] });
 });
 
-test('isDirtyFromStatusMatrix: modified, deleted and untracked files are dirty (issue #94)', () => {
+test('isDirtyFromStatusMatrix: modified, deleted and untracked files are dirty, and named (issue #94)', () => {
 	assert.strictEqual(isDirtyFromStatusMatrix([['m.php', 1, 2, 1]]).dirty, true); // modified
 	assert.strictEqual(isDirtyFromStatusMatrix([['d.php', 1, 0, 1]]).dirty, true); // deleted
 	assert.strictEqual(isDirtyFromStatusMatrix([['u.php', 0, 2, 0]]).dirty, true); // untracked
+	assert.deepStrictEqual(
+		isDirtyFromStatusMatrix([['m.php', 1, 2, 1], ['ok.php', 1, 1, 1], ['u.php', 0, 2, 0]]).files,
+		['m.php', 'u.php']
+	);
 });
 
 test('isDirtyFromStatusMatrix: staged-but-identical to HEAD is clean — no patch hunks would result (issue #94)', () => {
-	assert.deepStrictEqual(isDirtyFromStatusMatrix([['s.php', 1, 1, 3]]), { dirty: false, changedCount: 0 });
+	assert.deepStrictEqual(isDirtyFromStatusMatrix([['s.php', 1, 1, 3]]), { dirty: false, changedCount: 0, files: [] });
 });
 
 test('isDirtyFromStatusMatrix: untracked file staged by a prior patch generation is dirty (issue #94)', () => {
@@ -31,8 +35,8 @@ test('isDirtyFromStatusMatrix: untracked file staged by a prior patch generation
 });
 
 test('isDirtyFromStatusMatrix: empty or missing matrix is clean (issue #94)', () => {
-	assert.deepStrictEqual(isDirtyFromStatusMatrix([]), { dirty: false, changedCount: 0 });
-	assert.deepStrictEqual(isDirtyFromStatusMatrix(undefined), { dirty: false, changedCount: 0 });
+	assert.deepStrictEqual(isDirtyFromStatusMatrix([]), { dirty: false, changedCount: 0, files: [] });
+	assert.deepStrictEqual(isDirtyFromStatusMatrix(undefined), { dirty: false, changedCount: 0, files: [] });
 });
 
 test('staleStagedPaths: picks only staged files absent from HEAD (issue #94)', () => {

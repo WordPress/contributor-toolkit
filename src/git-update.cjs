@@ -18,7 +18,7 @@
  */
 function isDirtyFromStatusMatrix(matrix) {
 	const changed = (matrix || []).filter(([, head, workdir]) => head !== workdir);
-	return { dirty: changed.length > 0, changedCount: changed.length };
+	return { dirty: changed.length > 0, changedCount: changed.length, files: changed.map(([filepath]) => filepath) };
 }
 
 /**

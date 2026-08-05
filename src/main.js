@@ -410,8 +410,8 @@ async function readLockfileBlobOid(dir, oid) {
 ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
     try {
         const matrix = await git.statusMatrix({ fs, dir: sitePath });
-        const { dirty, changedCount } = isDirtyFromStatusMatrix(matrix);
-        return { ok: true, dirty, changedCount };
+        const { dirty, changedCount, files } = isDirtyFromStatusMatrix(matrix);
+        return { ok: true, dirty, changedCount, files };
     } catch (e) {
         return { ok: false, error: String(e) };
     }
