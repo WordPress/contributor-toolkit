@@ -1157,6 +1157,19 @@ test('git:list-ticket-patches returns no-ticket without calling github-prs when 
 	assert.deepEqual(fetchLinkedPrs.calls, []);
 });
 
+// --- Trac attachments (#109 / #11) ---------------------------------------
+
+test('trac:fetch-attachment goes through trac-view', async () => {
+	const fetchAttachment = spy(async () => ({ ok: true, text: 'DIFF' }));
+	const main = loadMain({ stubs: { ...silentLogging(), './trac-view': { fetchAttachment, openAndScrape: async () => ({}) } } });
+	const url = 'https://core.trac.wordpress.org/raw-attachment/ticket/1/a.diff';
+
+	const result = await main.invoke('trac:fetch-attachment', url);
+
+	assert.deepEqual(fetchAttachment.calls, [[url]]);
+	assert.deepEqual(result, { ok: true, text: 'DIFF' });
+});
+
 // --- the harness's own guard ---------------------------------------------
 
 // Requiring the real `electron` package is not a harmless fallback: its
@@ -1209,7 +1222,8 @@ const WIRED = new Set([
 	'git:preview-patch',
 	'git:apply-patch',
 	'git:fetch-pr-diff',
-	'git:list-ticket-patches'
+	'git:list-ticket-patches',
+	'trac:fetch-attachment'
 ]);
 
 // Channels with no module to reach: they read or write electron-store, drive a
@@ -1247,7 +1261,8 @@ const NO_DELEGATION = new Map([
 // Channels that do delegate, but whose call sits behind something this harness
 // cannot stand in for yet. Each one is a known hole, not an oversight.
 const NOT_REACHABLE = new Map([
-	['wordpress:setup', 'calls ensureAutocrlf and readTrunkInfo only after cloning wordpress-develop over the network']
+	['wordpress:setup', 'calls ensureAutocrlf and readTrunkInfo only after cloning wordpress-develop over the network'],
+	['trac:list-attachments', 'reads electron-store for the ticket before it can open the Trac window']
 ]);
 
 const CLASSIFIED = [...WIRED, ...NO_DELEGATION.keys(), ...NOT_REACHABLE.keys()];

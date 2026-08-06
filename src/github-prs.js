@@ -30,28 +30,39 @@ const REQUEST_TIMEOUT_MS = 15000;
  * is data the caller classifies — only on a transport failure or timeout.
  * Modelled on the never-reject readiness probe in main.js.
  *
- * The `deps` seam (net client and timers) exists only so the response,
- * transport-error, timeout, and settle-once paths can be exercised without the
- * network or a real 15s wait; production callers pass nothing and get Electron's
- * `net` and the global timers.
+ * `opts` carries both test doubles and request options. The doubles (net client
+ * and timers) exist only so the response, transport-error, timeout, and
+ * settle-once paths can be exercised without the network or a real 15s wait;
+ * production callers pass none and get Electron's `net` and the global timers.
+ * `partition` + `useSessionCookies` let a caller ride a specific session's
+ * cookies — the Trac attachment fetch reuses the session that passed the
+ * proof-of-work challenge, so its `_hcc` cookie authorises the download; net
+ * does not send session cookies unless asked, hence the explicit flag.
  *
- * @param {string} url
- * @param {Object} [headers]
- * @param {Object} [deps]
+ * @param {string}  url
+ * @param {Object}  [headers]
+ * @param {Object}  [opts]
+ * @param {string}  [opts.partition]
+ * @param {boolean} [opts.useSessionCookies]
  * @return {Promise<{status: number, headers: Object, body: string}>}
  */
-function httpGet(url, headers = {}, deps = {}) {
+function httpGet(url, headers = {}, opts = {}) {
 	// Required lazily, not at module load: requiring `electron` outside Electron
 	// resolves the binary and can spawn its installer on a cold checkout, and the
 	// standalone tests inject their own client and must never reach it.
-	const netImpl = deps.net || require('electron').net;
-	const setTimeoutImpl = deps.setTimeout || setTimeout;
-	const clearTimeoutImpl = deps.clearTimeout || clearTimeout;
+	const netImpl = opts.net || require('electron').net;
+	const setTimeoutImpl = opts.setTimeout || setTimeout;
+	const clearTimeoutImpl = opts.clearTimeout || clearTimeout;
 	return new Promise((resolve, reject) => {
 		let settled = false;
 		const finish = (fn, arg) => { if (!settled) { settled = true; fn(arg); } };
 
-		const request = netImpl.request({ method: 'GET', url });
+		const requestOptions = { method: 'GET', url };
+		if (opts.partition) {
+			requestOptions.partition = opts.partition;
+			requestOptions.useSessionCookies = opts.useSessionCookies !== false;
+		}
+		const request = netImpl.request(requestOptions);
 		request.setHeader('User-Agent', USER_AGENT);
 		for (const [key, value] of Object.entries(headers)) request.setHeader(key, value);
 
