@@ -1,11 +1,65 @@
+---
+applyTo: "**"
+---
+
 # Automated review rules
 
-What an automated reviewer should look for in this repo. Read by two callers:
+What an automated reviewer should look for in this repo, and how to run that review. Written to be
+read by any agent, not one in particular — this is the single source of truth for the review
+standard, and it is deliberately the only copy of it.
 
-- `.github/workflows/ai-review.yml` — runs on every non-draft PR
-- `.claude/skills/self-review/SKILL.md` — the `/self-review` skill, run by the author before opening a PR
+`AGENTS.md` and `.claude/skills/self-review/SKILL.md` point here rather than restate it. Copilot
+needs no pointer: it reads `.github/instructions/*.instructions.md` natively, selecting them by
+matching the `applyTo` glob above against the files in a pull request, so `**` means every PR gets
+this. That is the whole reason the file lives at this path and not somewhere better-named — a
+pointer would not have reached it, and a second condensed copy would have drifted.
 
-One file so both say the same thing. Editing it changes both.
+The procedure below assumes an agent that can run commands. Copilot cannot; it should skip to
+**Scope** and treat the rest as the standard to review against.
+
+Nothing runs this automatically. It is the author's pass, before a human reads the diff — which is
+the point: a finding fixed now costs one message, the same finding on the PR costs a review cycle.
+The producer is responsible for handing over a reviewable change, not the reviewer for
+reconstructing the context.
+
+## Running the review
+
+**1. Establish the diff.**
+
+```bash
+git fetch origin trunk
+git diff --stat origin/trunk...HEAD
+git diff origin/trunk...HEAD
+```
+
+Include uncommitted work if there is any (`git status --short`, `git diff`) — the author is about
+to commit it, so it is in scope.
+
+**2. Run the deterministic layer first**, so mechanical findings never reach the judgement pass:
+
+```bash
+npm run lint
+npm test
+```
+
+Both are repo-wide and both are clean on `trunk` — the lint backlog was cleared in #117, which is
+why `lint.yml` runs `eslint .` rather than linting only the changed files. So any failure here
+belongs to the branch. Report both results plainly.
+
+If ESLint fails, `npm run lint:fix` handles the mechanical part. Check what it rewrote before
+committing: it is also repo-wide, so a rule that starts flagging untouched files would pull them
+into the diff. Do not hand-fix what the fixer handles.
+
+**3. Review the five dimensions below.** Read the surrounding files, not just the diff — a diff
+rarely shows that a helper already handles the case, and the reporting bar requires verifying a
+finding before asserting it.
+
+Where the tool allows it, run this pass with fresh context — a subagent given the diff and this
+file, rather than the session that wrote the code. Nothing runs this review independently any more,
+so a reviewer that already believes the change is correct is the main way it stops working.
+
+**4. Report, then offer.** Format below. Ask before changing anything: the author decides what is a
+real finding, which is the whole reason this happens before the PR rather than after.
 
 ## Scope
 
@@ -194,13 +248,17 @@ brushes against.
   rather than a finding that looks ignored.
 - Severity: 🔴 high, 🟡 medium, 🔵 low.
 
-**Structure**: inline comments on the exact lines for `[fix here]` findings, plus one summary
-comment carrying the counts. Style and process observations go in a collapsed `<details>` block at
-the bottom of the summary, never in the body, and never as inline comments.
+**Structure**: counts first (`2 [fix here] · 1 [follow-up]`), then one finding per entry carrying
+its dimension, severity, scope, `file:line`, and what actually goes wrong. Style and process
+observations go last, grouped and brief — never mixed in among the findings.
 
-**On re-runs, reconcile — do not re-review from scratch.** Read the previous summary comment
-first and mark each earlier finding resolved, still open, or obsolete. Re-asserting a fixed
-finding is the fastest way to get the whole review ignored.
+Where this runs before the PR exists, that report goes in the chat: no GitHub comments, no files
+written. Where it runs on a PR, `[fix here]` findings become inline comments on the exact lines and
+the counts go in a single summary comment, with the style notes in a collapsed `<details>` block.
+
+**On a re-run, reconcile — do not re-review from scratch.** Mark each earlier finding resolved,
+still open, or obsolete. Re-asserting a fixed finding is the fastest way to get the whole review
+ignored.
 
 **Say when there is nothing.** "No findings across the five dimensions" in one line is a good
 review. Do not pad. Do not restate what the PR does — the author knows.
