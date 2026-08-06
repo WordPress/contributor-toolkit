@@ -1102,6 +1102,18 @@ test('git:apply-patch reports applied-but-untracked when the undo also fails', a
 	assert.match(done.error, /could not be undone/);
 });
 
+// --- linked-PR discovery (#109 / #11) ------------------------------------
+
+test('git:fetch-pr-diff asks github-prs for the diff', async () => {
+	const fetchPrDiff = spy(async () => ({ ok: true, text: 'DIFF' }));
+	const main = loadMain({ stubs: { ...silentLogging(), './github-prs': { fetchPrDiff, fetchLinkedPrs: async () => ({}) } } });
+
+	const result = await main.invoke('git:fetch-pr-diff', 7319);
+
+	assert.deepEqual(fetchPrDiff.calls, [[7319]]);
+	assert.deepEqual(result, { ok: true, text: 'DIFF' });
+});
+
 // --- the harness's own guard ---------------------------------------------
 
 // Requiring the real `electron` package is not a harmless fallback: its
@@ -1152,7 +1164,8 @@ const WIRED = new Set([
 	'playground-web:stop',
 	'sites:set-ticket',
 	'git:preview-patch',
-	'git:apply-patch'
+	'git:apply-patch',
+	'git:fetch-pr-diff'
 ]);
 
 // Channels with no module to reach: they read or write electron-store, drive a
@@ -1190,7 +1203,8 @@ const NO_DELEGATION = new Map([
 // Channels that do delegate, but whose call sits behind something this harness
 // cannot stand in for yet. Each one is a known hole, not an oversight.
 const NOT_REACHABLE = new Map([
-	['wordpress:setup', 'calls ensureAutocrlf and readTrunkInfo only after cloning wordpress-develop over the network']
+	['wordpress:setup', 'calls ensureAutocrlf and readTrunkInfo only after cloning wordpress-develop over the network'],
+	['git:list-ticket-patches', 'reads electron-store for the ticket before it can reach github-prs']
 ]);
 
 const CLASSIFIED = [...WIRED, ...NO_DELEGATION.keys(), ...NOT_REACHABLE.keys()];
