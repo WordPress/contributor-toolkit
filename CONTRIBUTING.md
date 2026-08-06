@@ -1,7 +1,7 @@
 # Contributing
 
-This project is built to be worked on with AI coding agents, and most changes arrive that way. The
-quality bar is not held by trusting the agent — it is held by a small set of guardrails, some
+Much of the work on this project happens with the support of AI coding agents. The quality bar is
+not held by trusting the agent — it is held by a small set of guardrails, some
 automated on every pull request, some run by the author before the PR exists. This page is the map
 of them.
 
