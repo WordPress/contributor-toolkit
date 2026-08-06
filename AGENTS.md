@@ -50,6 +50,9 @@ its place, so skipping it means a human reviewer is the first reader of the diff
 That file carries the procedure as well as the standard. Follow it rather than improvising a
 review.
 
+For the human-facing version of all this — the CI checks each PR runs and the guardrails in prose —
+see [`CONTRIBUTING.md`](CONTRIBUTING.md). It points back here; it does not restate the standard.
+
 ## Commands
 
 See `package.json` scripts. To run a single test file (not exposed as a script):
