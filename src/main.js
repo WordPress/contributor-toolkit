@@ -96,16 +96,27 @@ function ensureNodeShimDir() {
 }
 
 let store; // initialized asynchronously due to ESM-only module
-const storeReady = import('electron-store').then((m) => {
-	const Store = m.default || m;
-	store = new Store({
-		name: 'settings',
-		defaults: { sites: [], siteMeta: {} }
-	});
-});
+let storeReady = null;
 
+// The import starts on first use rather than at require time. Deferring it costs
+// nothing — no handler can run before a window exists — and it keeps two things
+// out of module load: a rejected promise nobody is awaiting yet (an unhandled
+// rejection at startup, where the app has no way to report it), and the ESM
+// loader pulling in `electron` behind `Module._load`'s back, which is what lets
+// test/ipc-wiring.test.cjs require this file outside an Electron process.
 async function getStore() {
-	if (!store) await storeReady;
+	if (!store) {
+		if (!storeReady) {
+			storeReady = import('electron-store').then((m) => {
+				const Store = m.default || m;
+				store = new Store({
+					name: 'settings',
+					defaults: { sites: [], siteMeta: {} }
+				});
+			});
+		}
+		await storeReady;
+	}
 	return store;
 }
 
