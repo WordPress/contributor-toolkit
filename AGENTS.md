@@ -3,11 +3,31 @@
 Instructions for AI coding agents working in this repository. Tool-neutral and canonical —
 `CLAUDE.md` points here rather than repeating it.
 
-The review standard is separate, in
+## Where things are, whatever agent you use
+
+Two files, and neither is specific to one tool despite what their paths suggest:
+
+**The review standard** —
 [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md).
-It lives at that path because Copilot code review reads `.github/instructions/*.instructions.md`
-natively and follows no links, so that is the only way it gets the standard without a second copy
-being maintained alongside it.
+The five dimensions, this project's invariants, the procedure to run them, and the reporting
+format. Read it directly if your agent has not already.
+
+It sits under `.github/instructions/` because Copilot code review reads that directory natively and
+follows no links out of it. Anywhere better-named would have meant maintaining a condensed second
+copy for Copilot, which would drift. Every other agent reaches it from here.
+
+**The review as a skill** — [`.claude/skills/self-review/`](.claude/skills/self-review/), a thin
+`SKILL.md` wrapper over the file above. The directory name is historical, not a restriction: it is
+the only path both Claude Code and Copilot read for project skills, so it stays there. In Claude
+Code it is `/self-review`.
+
+If your agent supports skills but looks elsewhere (`.agents/skills/`, `.github/skills/`, or its own
+convention), point it at that directory — or skip it entirely and follow the instructions file,
+which is where all the content actually lives. The wrapper only adds two things: run the judgement
+pass in a fresh context, and report without touching GitHub.
+
+There is deliberately no per-tool copy of any of this. If you find yourself writing one, the thing
+to fix is the pointer, not the number of copies.
 
 ## What this is
 
