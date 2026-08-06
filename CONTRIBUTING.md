@@ -61,20 +61,24 @@ that fires on every PR. That is by design: an always-on AI review would mean sto
 credential as a secret in a public repository, which this project will not do. What exists is the
 *capability* — assign Copilot and it reviews against the same standard the author already ran.
 
-### The `/self-review` skill — run it before you open the PR
+### The author's own pass — before you open the PR
 
-[`/self-review`](.claude/skills/self-review/) is the author's pass, run **before** the PR exists —
-because a finding fixed now costs one message, and the same finding on the PR costs a full review
-cycle. It follows the same instructions file: it runs `npm run lint` and `npm test`, then reviews
-the five dimensions.
+The author runs the review against their branch **before** the PR exists — because a finding fixed
+now costs one message, and the same finding on the PR costs a full review cycle. This means running
+`npm run lint` and `npm test`, then reviewing the five dimensions against the diff.
 
-Its one addition worth knowing: it hands the judgement pass to a **fresh subagent**, given only the
-diff and the standard. If the session that wrote the code also grades it, it reviews its own
-reasoning and finds it sound — so the review runs in a context that did not write the change. It
-reports in the chat and touches nothing on GitHub; you decide what is a real finding.
+How you invoke it depends on your agent:
 
-On another agent, or none, just follow `code-review.instructions.md` directly — that is where all
-the content lives.
+- **Claude Code** ships this as the [`/self-review`](.claude/skills/self-review/) skill. It adds one
+  thing worth knowing: it hands the judgement pass to a **fresh subagent**, given only the diff and
+  the standard. If the session that wrote the code also grades it, it reviews its own reasoning and
+  finds it sound — so the review runs in a context that did not write the change. It reports in the
+  chat and touches nothing on GitHub; you decide what is a real finding.
+- **Any other agent** — there is no `/self-review` command to find. Point your agent at
+  [`code-review.instructions.md`](.github/instructions/code-review.instructions.md) directly (some
+  agents look for skills under `.agents/skills/` or `.github/skills/` — see
+  [AGENTS.md](AGENTS.md)), or just follow the standard yourself. That file is where all the content
+  lives; the skill is only a wrapper over it.
 
 ## What is *not* a PR gate
 
@@ -88,8 +92,9 @@ Worth knowing so you don't wait on them:
 
 ## Before you open a pull request
 
-1. Run **`/self-review`** (or, on another agent, follow
-   [`code-review.instructions.md`](.github/instructions/code-review.instructions.md) directly).
+1. **Run the review standard** against your branch —
+   [`code-review.instructions.md`](.github/instructions/code-review.instructions.md). In Claude Code
+   that is the `/self-review` skill; on any other agent, follow the file directly.
 2. **Fix or consciously defer** every finding — a deferral is a decision, not an omission.
 3. **Summarise the outcome in the PR description**: what the checks reported, what you fixed, and
    what you left as a follow-up and why.

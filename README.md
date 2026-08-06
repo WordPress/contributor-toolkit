@@ -173,9 +173,9 @@ how to read them and what they do and don't measure.
 
 Much of the work here happens with the support of AI coding agents, and the quality bar is held by
 a set of guardrails rather than by trusting the agent. See [CONTRIBUTING.md](CONTRIBUTING.md) for
-what runs on every pull request (repo-wide lint, unit tests on macOS and Windows) and what to run
-yourself before opening one (the `/self-review` skill and the single review standard Copilot also
-reads).
+what runs on every pull request (repo-wide lint, unit tests on macOS and Windows) and the single
+review standard to run yourself before opening one — as the `/self-review` skill in Claude Code, or
+by following the standard directly on any other agent.
 
 ### License
 
