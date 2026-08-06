@@ -923,6 +923,20 @@ test('playground-web:stop ends the web server tree rather than signalling the ch
 	assert.deepEqual(cp.children[0].kill.calls, []);
 });
 
+// --- ticket handler (#109) -----------------------------------------------
+
+test('sites:set-ticket validates the reference through trac-ticket', async () => {
+	// A ref trac-ticket rejects returns before any store write, so this proves
+	// the wire without reaching getStore.
+	const parseTicketRef = spy(() => ({ ok: false, error: 'not a ticket' }));
+	const main = loadMain({ stubs: { ...silentLogging(), './renderer/trac-ticket.cjs': { parseTicketRef } } });
+
+	const result = await main.invoke('sites:set-ticket', '/sites/wp', '62281');
+
+	assert.deepEqual(parseTicketRef.calls, [['62281']]);
+	assert.deepEqual(result, { ok: false, error: 'not a ticket' });
+});
+
 // --- the harness's own guard ---------------------------------------------
 
 // Requiring the real `electron` package is not a harmless fallback: its
@@ -970,7 +984,8 @@ const WIRED = new Set([
 	'playground:start',
 	'playground:stop',
 	'playground-web:start',
-	'playground-web:stop'
+	'playground-web:stop',
+	'sites:set-ticket'
 ]);
 
 // Channels with no module to reach: they read or write electron-store, drive a

@@ -65,6 +65,16 @@ test('parseTicketRef: non-numeric and malformed input is rejected (issue #109)',
 	}
 });
 
+// Input that names no host must get the generic message, not the host one:
+// `new URL('https://abc')` succeeds, so without a guard a bare word is wrongly
+// reported as an unsupported *host*.
+test('parseTicketRef: input that is not a URL gets the generic message, not the host one (issue #109)', () => {
+	const generic = 'Enter a ticket number like 62281, or a core.trac.wordpress.org ticket URL.';
+	for (const bad of ['abc', '62281abc', '#abc', 'not a url', 'https://']) {
+		assert.strictEqual(parseTicketRef(bad).error, generic, `wrong message for: ${bad}`);
+	}
+});
+
 test('parseTicketRef: a non-Trac host is named as the reason (issue #109)', () => {
 	const res = parseTicketRef('https://github.com/WordPress/wordpress-develop/pull/7990');
 	assert.strictEqual(res.ok, false);

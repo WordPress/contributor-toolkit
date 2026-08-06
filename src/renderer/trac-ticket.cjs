@@ -56,10 +56,19 @@ function parseTicketRef(input) {
 	if (/^\d+$/.test(bare)) return fromDigits(bare);
 
 	// Anything else has to be a ticket URL. Accept it without a scheme too —
-	// copying the host out of an address bar often drops it.
+	// copying the host out of an address bar often drops it. But `new URL` is
+	// lenient: `new URL('https://abc')` succeeds because `abc` is a legal
+	// hostname, so a bare word would reach the host check and be reported as a
+	// wrong *host* rather than as not-a-ticket. Only take the URL branch when
+	// the input actually looks like one — a scheme, a path or a dotted host.
+	const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw);
+	if (!hasScheme && !raw.includes('/') && !raw.includes('.')) {
+		return { ok: false, error: NOT_A_TICKET };
+	}
+
 	let parsed;
 	try {
-		parsed = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`);
+		parsed = new URL(hasScheme ? raw : `https://${raw}`);
 	} catch {
 		return { ok: false, error: NOT_A_TICKET };
 	}
