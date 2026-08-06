@@ -145,13 +145,29 @@ function clearSrcCache() {
 	}
 }
 
+// True for the real `electron` package, under any specifier that reaches it.
+// Requiring it is not inert: node_modules/electron/index.js resolves the binary
+// path at module scope and spawns Electron's installer when it is missing, so a
+// cold checkout would start a download — into the same dist directory that
+// test/electron-node-version.test.cjs spawns the binary from, at the same time,
+// since node --test runs files concurrently. Hence the stub, and hence the test
+// at the end of this file that pins it.
+function isElectronPackage(request, resolvedId) {
+	if (request === 'electron' || request.startsWith('electron/')) return true;
+	return typeof resolvedId === 'string'
+		&& resolvedId.includes(`${path.sep}node_modules${path.sep}electron${path.sep}`);
+}
+
 // `stubs` is keyed by the specifier as main.js writes it ('./trunk-update',
 // 'child_process'), and the value holds only the exports to replace: the rest of
 // the real module is kept, so stubbing one function does not silently disable
 // its neighbours.
-function resolveStubs(stubs) {
-	const resolved = new Map();
-
+//
+// Populating this map requires the real modules, and some of them
+// (src/logging.js) require `electron` — so it has to run with the hook already
+// installed, not before it. That ordering is the whole reason this is called
+// from inside loadMain's try block rather than ahead of it.
+function resolveStubs(stubs, resolved) {
 	for (const [specifier, overrides] of Object.entries(stubs)) {
 		const id = specifier.startsWith('.')
 			? require.resolve(path.join(SRC_DIR, specifier))
@@ -196,12 +212,12 @@ function spy(implementation = () => undefined) {
 // Returns the recorders plus `invoke`, which calls a handler the way ipcMain
 // would.
 function loadMain({ stubs = {} } = {}) {
-	const stubbed = resolveStubs(stubs);
 	const recorder = createElectronStub();
+	const stubbed = new Map();
 
 	const originalLoad = Module._load;
 	Module._load = function (request, parent, isMain) {
-		if (request === 'electron') return recorder.electron;
+		if (isElectronPackage(request)) return recorder.electron;
 
 		let id;
 		try {
@@ -210,6 +226,7 @@ function loadMain({ stubs = {} } = {}) {
 			return originalLoad.apply(this, arguments);
 		}
 
+		if (isElectronPackage(request, id)) return recorder.electron;
 		if (stubbed.has(id)) return stubbed.get(id);
 		return originalLoad.apply(this, arguments);
 	};
@@ -219,6 +236,9 @@ function loadMain({ stubs = {} } = {}) {
 	// time so its handlers close over this load's stubs.
 	clearSrcCache();
 	try {
+		// Inside the hook, deliberately: building the stubs requires the real
+		// modules, and src/logging.js requires `electron`.
+		resolveStubs(stubs, stubbed);
 		require(MAIN_PATH);
 	} finally {
 		Module._load = originalLoad;
@@ -351,12 +371,15 @@ test('git:update-trunk hands the update to trunk-update and streams its log back
 });
 
 test('sites:add normalizes line endings before adopting a directory', async () => {
-	const ensureAutocrlf = spy(async () => {});
+	// Throwing ends the handler at its first delegation, which is the only thing
+	// under test — and it has to end there. The next line is a store write, and
+	// reaching it would start `import('electron-store')`, whose own
+	// `import {app} from 'electron'` loads the real electron package through the
+	// ESM loader, out of reach of the hook. See the guard test below for why that
+	// must not happen.
+	const ensureAutocrlf = spy(async () => { throw new Error('not a repository'); });
 	const main = loadMain({ stubs: { ...silentLogging(), './trunk-update': { ensureAutocrlf } } });
 
-	// The handler goes on to write to electron-store, which has no app to live
-	// in here and rejects. Irrelevant: ensureAutocrlf comes first, and whether it
-	// was reached is the whole question.
 	await main.invoke('sites:add', '/sites/wp').catch(() => {});
 
 	assert.deepEqual(ensureAutocrlf.calls, [['/sites/wp']]);
@@ -538,6 +561,32 @@ test('quitting sweeps running children through kill-tree', async () => {
 	// and only kill-tree ends the whole one (#83).
 	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
 	assert.deepEqual(cp.children[0].kill.calls, []);
+});
+
+// --- the harness's own guard ---------------------------------------------
+
+// Requiring the real `electron` package is not a harmless fallback: its
+// index.js resolves the binary path at module scope and spawns the installer
+// when it is missing. On a cold checkout that means a download starting from
+// this file while test/electron-node-version.test.cjs is spawning the binary out
+// of the same dist directory — node --test runs files concurrently — which
+// leaves a half-written framework and fails that test, not this one. It is also
+// invisible locally, where the binary is already there.
+//
+// Two holes this closes, both of which reached the package on a cold checkout:
+// stubs are built by merging over the real module, so stubbing src/logging.js
+// means requiring it and it requires `electron` — that require has to happen
+// with the hook already installed. And any handler allowed to reach `getStore()`
+// starts `import('electron-store')`, which imports `electron` through the ESM
+// loader, where `Module._load` does not apply and no hook can help. Tests stop
+// short of the store instead.
+test('the harness never loads the real electron package', () => {
+	loadMain({ stubs: silentLogging() });
+
+	const loaded = Object.keys(require.cache)
+		.filter((file) => file.includes(`${path.sep}node_modules${path.sep}electron${path.sep}`));
+
+	assert.deepEqual(loaded, [], 'the real electron package was required; the stub did not cover this path');
 });
 
 // --- coverage guard ------------------------------------------------------
