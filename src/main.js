@@ -29,6 +29,7 @@ const { buildMenuTemplate } = require('./menu');
 const { killChildTree } = require('./kill-tree');
 const { normalizeEol } = require('./git-update.cjs');
 const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, updateToLatestTrunk } = require('./trunk-update');
+const { readBranch } = require('./git-branch-info');
 
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
@@ -667,6 +668,14 @@ ipcMain.handle('url:open', async (_e, url) => {
 	if (!url) return false;
 	await shell.openExternal(url);
 	return true;
+});
+
+ipcMain.handle('site:branch', async (_e, sitePath) => {
+	try {
+		return readBranch(sitePath);
+	} catch {
+		return null;
+	}
 });
 
 const ENGINE_RETRY_NOTICE = '\n⚠ This site requires a newer Node.js than this app bundles.\n  Retrying with engine checks relaxed…\n\n';
