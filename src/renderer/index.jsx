@@ -19,7 +19,7 @@ import 'xterm/css/xterm.css';
 import { computeSetupStepState } from './setup-steps.cjs';
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 import { pathBasename } from './path-basename.cjs';
-import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE } from './update-plan.cjs';
+import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
 import { parseTicketRef, ticketUrl } from './trac-ticket.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
@@ -811,6 +811,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [trunkDate, setTrunkDate] = useState(null);
   const [updateIncomplete, setUpdateIncomplete] = useState(false);
   const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
+  // Applying someone else's patch (#11)
+  const [applyState, setApplyState] = useState('idle'); // idle | applying | installing | building
+  const [applyPreview, setApplyPreview] = useState(null);
+  // Held separately from applyPreview: the preview is cleared the moment the
+  // chain starts, and the step list still has to know whether install runs.
+  const [applyNeedsInstall, setApplyNeedsInstall] = useState(false);
+  const [applyError, setApplyError] = useState('');
+  const [appliedPatch, setAppliedPatch] = useState(null);
   const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
   const [dirtySaving, setDirtySaving] = useState(false);
   const [dirtyFiles, setDirtyFiles] = useState([]);
@@ -938,6 +946,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setTrunkDate(s?.trunkDate || null);
       setUpdateIncomplete(Boolean(s?.updateIncomplete));
       setTracTicket(s?.tracTicket || null);
+      setAppliedPatch(s?.appliedPatch || null);
       if (metaPatchRef.current) {
         // A null trunkDate here means the git read failed (e.g. clone still
         // running) — keep whatever the sidebar already shows in that case.
@@ -1539,6 +1548,113 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   };
 
+  // --- Applying someone else's patch (#11) ---
+  // Same three-stage shape as the update chain, and the same npm wrappers, so
+  // exit codes and terminal streaming behave identically.
+  const isApplying = applyState !== 'idle';
+  const applySteps = planApplySteps({ needsInstall: applyNeedsInstall });
+  const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
+
+  const finishApply = (message) => {
+    terminalStateRef.current.running = false;
+    terminalKillRef.current = null;
+    setApplyState('idle');
+    if (message) writeToTerminal(message);
+    loadStatus().catch(() => {});
+  };
+
+  const runApplyInstallAndBuild = (needsInstall, verb) => {
+    const runBuildStep = () => {
+      setApplyState('building');
+      writeToTerminal('\nRunning npm run build…\n');
+      runScript('build', {
+        onLog: (chunk) => writeToTerminal(chunk),
+        onDone: ({ code }) => {
+          finishApply(code === 0
+            ? `\n${verb} — open the site to try it out.\n`
+            : `\nThe patch is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.\n`);
+        }
+      });
+    };
+    if (needsInstall) {
+      setApplyState('installing');
+      writeToTerminal('\nThe patch changes package-lock.json — running npm install…\n');
+      runInstall({
+        onLog: (chunk) => writeToTerminal(chunk),
+        onDone: ({ code }) => {
+          if (code !== 0) {
+            finishApply('\nnpm install failed, so the build was skipped. The patch is applied but dependencies are stale.\n');
+            return;
+          }
+          runBuildStep();
+        }
+      });
+    } else {
+      writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
+      runBuildStep();
+    }
+  };
+
+  // Reads a patch file and works out what it would do, without touching the
+  // checkout — the contributor decides after seeing the file list.
+  const choosePatchFile = async () => {
+    setApplyError('');
+    try {
+      const chosen = await window.api.choosePatchFile();
+      if (!chosen) return;
+      if (chosen.error) {
+        setApplyError(`Could not read that file: ${chosen.error}`);
+        return;
+      }
+      const preview = await window.api.previewPatch(sitePath, chosen.text);
+      if (!preview || !preview.ok) {
+        setApplyError(preview?.error || 'Could not read that patch.');
+        return;
+      }
+      setApplyPreview({ ...preview, label: chosen.name, text: chosen.text });
+    } catch (e) {
+      setApplyError(String(e));
+    }
+  };
+
+  const runApply = ({ reverse = false } = {}) => {
+    const state = terminalStateRef.current;
+    if (state.running) {
+      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      return;
+    }
+    const preview = applyPreview;
+    const needsInstall = reverse
+      ? Boolean(appliedPatch?.files?.includes('package-lock.json'))
+      : Boolean(preview.needsInstall);
+    setApplyError('');
+    setApplyNeedsInstall(needsInstall);
+    setApplyState('applying');
+    state.running = true;
+    // Same contract as the other chains: while `running` is set, Ctrl+C in the
+    // terminal has to reach the child process the chain is about to spawn.
+    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+    window.api.applyPatch(
+      sitePath,
+      reverse ? { reverse: true } : { patchText: preview.text, label: preview.label },
+      ({ data }) => writeToTerminal(data),
+      (res) => {
+        if (!res || !res.ok) {
+          setApplyError(res?.error || 'The patch could not be applied.');
+          finishApply();
+          return;
+        }
+        setApplyPreview(null);
+        runApplyInstallAndBuild(needsInstall, reverse ? 'Reverted' : 'Applied');
+      }
+    ).catch((e) => {
+      // A rejected invoke never reaches onDone, so without this the terminal
+      // stays wedged with `running` set and no way back short of a reload.
+      setApplyError(String(e));
+      finishApply();
+    });
+  };
+
   // Step 1: fetch + reset in the main process, then hand over to the npm
   // steps. Assumes the tree is clean (startTrunkUpdate handles dirty trees).
   const beginTrunkUpdate = () => {
@@ -2123,6 +2239,88 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           </div>
         )}
       </div>
+      {skipInit ? (
+        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Try someone else&apos;s patch</div>
+          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
+            Apply a <code>.diff</code> or <code>.patch</code> file to this checkout and rebuild, so you can test the work before adding your own. Your own changes are left alone.
+          </div>
+
+          {appliedPatch && !isApplying ? (
+            <div style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #94d3ae', background: '#f4fbf4', borderRadius: 8 }}>
+              <div style={{ fontSize: 13, color: '#0f5132' }}>
+                <strong>{appliedPatch.label}</strong> is applied — {appliedPatch.files.length} file{appliedPatch.files.length === 1 ? '' : 's'}
+                {appliedPatch.appliedAt ? `, ${new Date(appliedPatch.appliedAt).toLocaleString()}` : ''}.
+              </div>
+              <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {appliedPatch.revertable ? (
+                  <Button variant="secondary" onClick={() => runApply({ reverse: true })} disabled={isUpdating || installing || building}>Revert this patch</Button>
+                ) : (
+                  <span style={{ fontSize: 12, color: '#6c6f72' }}>Too large to undo automatically — use Update to latest trunk to reset.</span>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {applyPreview && !isApplying ? (
+            <div style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
+              <div style={{ fontSize: 13, color: '#1d2327' }}>
+                <strong>{applyPreview.label}</strong> changes {applyPreview.paths.length} file{applyPreview.paths.length === 1 ? '' : 's'}:
+              </div>
+              <div style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere', maxHeight: 140, overflowY: 'auto' }}>
+                {applyPreview.paths.map((p) => <div key={p}>{p}</div>)}
+              </div>
+              {applyPreview.conflicts.length ? (
+                <div role="alert" style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
+                  You have your own edits to {applyPreview.conflicts.join(', ')}. The patch is applied on top of them: it succeeds if the changes do not overlap, and fails without touching anything if they do. Save a patch of your work first if you want a copy.
+                </div>
+              ) : null}
+              {applyPreview.unsupported.length ? (
+                <div style={{ marginTop: 10, fontSize: 12, color: '#6e5406' }}>
+                  {applyPreview.unsupported.join(', ')} {applyPreview.unsupported.length === 1 ? 'is a binary file and will be skipped' : 'are binary files and will be skipped'}.
+                </div>
+              ) : null}
+              {applyPreview.needsInstall ? (
+                <div style={{ marginTop: 10, fontSize: 12, color: '#3c434a' }}>It changes <code>package-lock.json</code>, so dependencies will be installed before the rebuild.</div>
+              ) : null}
+              <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>Apply and rebuild</Button>
+                <Button variant="tertiary" onClick={() => setApplyPreview(null)}>Cancel</Button>
+              </div>
+            </div>
+          ) : null}
+
+          {isApplying ? (
+            <div style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
+              {applyStepStates.map((state, i) => {
+                const step = applySteps[i];
+                const mark = UPDATE_STEP_MARKS[state.status];
+                const stepLabel = state.status === 'skipped' ? step.skipMessage : step.label;
+                return (
+                  <div key={step.key} style={{ display: 'flex', gap: 8, fontSize: 13, padding: '2px 0', color: mark ? mark.color : '#6c6f72', fontWeight: state.status === 'current' ? 600 : 400, opacity: state.status === 'pending' || state.status === 'skipped' ? 0.75 : 1 }}>
+                    <span aria-hidden="true" style={{ width: 12 }}>{mark ? mark.symbol : ''}</span>
+                    <span>{stepLabel}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {applyError ? (
+            <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21' }}>
+              {applyError} The checkout was not changed.
+            </div>
+          ) : null}
+
+          {!applyPreview && !isApplying ? (
+            <div style={{ marginTop: 12 }}>
+              <Button variant="secondary" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ padding: '10px 16px', borderRadius: 10 }}>
+                Choose a patch file…
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Terminal</div>

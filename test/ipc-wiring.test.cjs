@@ -952,6 +952,18 @@ test('sites:set-ticket refuses unregistered site paths before writing metadata',
 	assert.deepEqual(settings.values.siteMeta, {});
 });
 
+// --- apply handlers (#11) ------------------------------------------------
+
+test('git:preview-patch reads the patch through patch-plan', async () => {
+	const parsePatchFiles = spy(() => ({ ok: false, error: 'unreadable' }));
+	const main = loadMain({ stubs: { ...silentLogging(), './patch-plan.cjs': { parsePatchFiles, planApply: () => ({}) } } });
+
+	const result = await main.invoke('git:preview-patch', '/sites/wp', 'PATCH TEXT');
+
+	assert.deepEqual(parsePatchFiles.calls, [['PATCH TEXT']]);
+	assert.deepEqual(result, { ok: false, error: 'unreadable' });
+});
+
 // --- the harness's own guard ---------------------------------------------
 
 // Requiring the real `electron` package is not a harmless fallback: its
@@ -1000,7 +1012,8 @@ const WIRED = new Set([
 	'playground:stop',
 	'playground-web:start',
 	'playground-web:stop',
-	'sites:set-ticket'
+	'sites:set-ticket',
+	'git:preview-patch'
 ]);
 
 // Channels with no module to reach: they read or write electron-store, drive a
@@ -1016,6 +1029,7 @@ const NO_DELEGATION = new Map([
 	['sites:forget', 'electron-store write'],
 	['sites:set-label', 'electron-store write'],
 	['dialog:choose-dir', 'opens the directory dialog'],
+	['dialog:choose-patch-file', 'opens the file-open dialog and reads the chosen file'],
 	['playground-web:available', 'checks a path on disk'],
 	['smtp:get', 'electron-store read'],
 	['smtp:clear', 'electron-store write'],
@@ -1037,7 +1051,8 @@ const NO_DELEGATION = new Map([
 // Channels that do delegate, but whose call sits behind something this harness
 // cannot stand in for yet. Each one is a known hole, not an oversight.
 const NOT_REACHABLE = new Map([
-	['wordpress:setup', 'calls ensureAutocrlf and readTrunkInfo only after cloning wordpress-develop over the network']
+	['wordpress:setup', 'calls ensureAutocrlf and readTrunkInfo only after cloning wordpress-develop over the network'],
+	['git:apply-patch', 'reads electron-store for the applied-patch guard before it delegates to patch-apply']
 ]);
 
 const CLASSIFIED = [...WIRED, ...NO_DELEGATION.keys(), ...NOT_REACHABLE.keys()];

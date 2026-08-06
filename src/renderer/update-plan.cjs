@@ -66,16 +66,43 @@ function planUpdateSteps({ lockfileChanged } = {}) {
 // Which chain step each renderer updateState is executing.
 const STATE_TO_STEP = { fetching: 'fetch', installing: 'install', building: 'build' };
 
+// Applying someone else's patch (#11) is the same three-stage chain with a
+// different first step, so it shares updateStepStatuses below. It lives here
+// rather than beside the patch parsing because this module is the renderer's
+// half and carries no dependencies — importing the parser into the bundle
+// would drag the `diff` package in for two constants.
+const APPLY_STATE_TO_STEP = { applying: 'apply', installing: 'install', building: 'build' };
+
+/**
+ * The chain applying a patch runs. Like the update chain, the install step is
+ * named even when skipped so "apply" always means the same thing.
+ *
+ * @param {Object}  root0
+ * @param {boolean} [root0.needsInstall]
+ * @return {Array}
+ */
+function planApplySteps({ needsInstall } = {}) {
+	return [
+		{ key: 'apply', label: 'Apply the patch', skipped: false },
+		{ key: 'install', label: 'Install dependencies', skipped: !needsInstall, skipMessage: SKIP_INSTALL_MESSAGE },
+		{ key: 'build', label: 'Rebuild', skipped: false }
+	];
+}
+
 /**
  * Maps the chain steps to checklist visual states for a given renderer
  * updateState. Steps before the current one are complete, the current one is
  * current, later ones pending; skipped steps stay 'skipped' once passed.
  *
+ * The state→step map is a parameter so a different chain can reuse this: the
+ * applying chain (#11) has the same three-stage shape with its own state names.
+ *
  * @param {Array}  steps
  * @param {string} updateState
+ * @param {Object} [stateToStep]
  */
-function updateStepStatuses(steps, updateState) {
-	const activeKey = STATE_TO_STEP[updateState] || null;
+function updateStepStatuses(steps, updateState, stateToStep = STATE_TO_STEP) {
+	const activeKey = stateToStep[updateState] || null;
 	const order = steps.map((s) => s.key);
 	let activeIndex = -1;
 	if (activeKey) {
@@ -116,6 +143,9 @@ function updateOutcome({ fetchOk, upToDate, moved, installNeeded, installCode, b
 module.exports = {
 	STALE_THRESHOLD_DAYS,
 	SKIP_INSTALL_MESSAGE,
+	STATE_TO_STEP,
+	APPLY_STATE_TO_STEP,
+	planApplySteps,
 	trunkAgeInfo,
 	planUpdateSteps,
 	updateStepStatuses,

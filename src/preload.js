@@ -78,6 +78,27 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	markUpdateComplete: (sitePath) => ipcRenderer.invoke('sites:mark-update-complete', sitePath)
 ,
+	choosePatchFile: () => ipcRenderer.invoke('dialog:choose-patch-file')
+,
+	previewPatch: (sitePath, patchText) => ipcRenderer.invoke('git:preview-patch', sitePath, patchText)
+,
+	applyPatch: async (sitePath, options, onLog, onDone) => {
+		const { applyId } = await ipcRenderer.invoke('git:apply-patch', sitePath, options);
+		const logHandler = (_e, payload) => {
+			if (payload.applyId === applyId && onLog) onLog(payload);
+		};
+		const doneHandler = (_e, payload) => {
+			if (payload.applyId === applyId) {
+				ipcRenderer.removeListener('git:apply-patch:log', logHandler);
+				ipcRenderer.removeListener('git:apply-patch:done', doneHandler);
+				if (onDone) onDone(payload);
+			}
+		};
+		ipcRenderer.on('git:apply-patch:log', logHandler);
+		ipcRenderer.on('git:apply-patch:done', doneHandler);
+		return { applyId };
+	}
+,
 	updateTrunk: async (sitePath, onLog, onDone) => {
 		const { updateId } = await ipcRenderer.invoke('git:update-trunk', sitePath);
 		const logHandler = (_e, payload) => {
