@@ -1,8 +1,9 @@
 // The deterministic half of PR review: everything a linter can decide without judgement.
 //
 // The judgement half — architecture, security, performance, cross-platform — lives in
-// .github/ai-review-rules.md and is reviewed by an agent. Keeping the two apart is
-// deliberate: style nits mixed into an agent's prompt bury its real findings.
+// .github/instructions/code-review.instructions.md and is reviewed by an agent. Keeping
+// the two apart is deliberate: style nits mixed into an agent's prompt bury its real
+// findings.
 //
 // Built on @wordpress/eslint-plugin so this repo follows the same JS standards as
 // wordpress-develop and gutenberg.
