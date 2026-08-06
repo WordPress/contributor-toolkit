@@ -29,6 +29,7 @@ const { buildMenuTemplate } = require('./menu');
 const { killChildTree } = require('./kill-tree');
 const { normalizeEol } = require('./git-update.cjs');
 const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, updateToLatestTrunk } = require('./trunk-update');
+const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
@@ -663,11 +664,13 @@ ipcMain.handle('sites:set-label', async (_e, sitePath, label) => {
 	return true;
 });
 
-ipcMain.handle('url:open', async (_e, url) => {
-	if (!url) return false;
-	await shell.openExternal(url);
-	return true;
-});
+// Only the schemes the app actually uses reach the OS — see external-url.js for
+// why. A refusal is logged rather than dropped so a future caller that trips the
+// guard shows up in the log file instead of just doing nothing.
+ipcMain.handle('url:open', async (_e, url) => openExternalUrl(url, {
+	openExternal: (target) => shell.openExternal(target),
+	onRefused: (description) => logEvent('url', `refused to open ${description} — only ${ALLOWED_URL_SCHEMES.join(', ')} are allowed`)
+}));
 
 const ENGINE_RETRY_NOTICE = '\n⚠ This site requires a newer Node.js than this app bundles.\n  Retrying with engine checks relaxed…\n\n';
 
