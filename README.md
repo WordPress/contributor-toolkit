@@ -31,6 +31,7 @@ Once installed, the app lets you:
 - Start a WordPress dev server using Playground’s CLI
 - Make changes to core files directly
 - Generate a patch from your changes, ready to attach to a Trac ticket
+- Update an existing site to the latest trunk at any time, without recreating it
 
 The entire toolchain — npm, Node, Git — runs as JavaScript/WASM bundled with the app. There’s no terminal work required for the basic contributor workflow.
 
@@ -70,6 +71,11 @@ Once your environment is running, generating a patch to submit to Trac takes jus
 9.  Make changes in the code
 10. Click "Generate patch" to create a diff of your changes.
 
+> **Tip:** You never need to create a new site just to get newer code. **Update to latest trunk**,
+> in the ☰ menu at the top right of any site, is available at any time and on any site, however old
+> or new the site is: it fetches the latest trunk, reinstalls dependencies if they changed, and
+> rebuilds. See [Keeping a site up to date with trunk](#keeping-a-site-up-to-date-with-trunk).
+
 ### Build from source
 
 Requirements: a recent Node.js to build the Electron app itself (runtime for the app is bundled).
@@ -105,6 +111,36 @@ Electron Builder picks these up via `build` configuration in `package.json`.
 * Node scripts and npm commands are run using the Node.js runtime bundled with the Electron app. A small shim directory is injected into the PATH so subprocesses can find `node`, `npm`, and `npx` without requiring a system install.
 * WordPress server is run using the `@wp-playground/cli` npm package from [WordPress Playground](https://w.org/playground/).
 * Patches are generated using the `diff` npm package.
+
+### Keeping a site up to date with trunk
+
+A site is a clone of `wordpress-develop` frozen at the moment it was created, so it starts drifting
+behind trunk immediately. **You never have to create a new site to get newer code.**
+
+**Update to latest trunk**, in the ☰ menu at the top right of any site, brings an existing site up
+to the current trunk: it fetches the newest commits, reinstalls dependencies if
+`package-lock.json` moved, and rebuilds. **This option is always there** — on every site, at any
+time, no matter how old or new the snapshot is and whether or not the app has flagged it as stale.
+If nothing has moved, you simply get _Already up to date_.
+
+The header of each site shows which snapshot it currently holds — `trunk as of 5 Aug 2026`.
+
+The app also flags sites that have fallen behind, with a coloured dot next to the site name in the
+sidebar:
+
+- **Amber** — the snapshot is more than 14 days old. The site view also shows a notice with an
+  Update button.
+- **Red** — a previous update moved the code but never finished installing or rebuilding, so the
+  built assets no longer match the source. Run the update again.
+
+Staleness is judged **locally**, from the date of the commit your site is sitting on, and never by
+asking GitHub what the tip of trunk is. That keeps the app working offline and stops it from
+making a network request every time it launches. Two consequences worth knowing:
+
+- A site created today is never marked out of date, even though trunk gets commits several times a
+  day and yours is already behind by a few. Flagging that would mark every site stale within hours
+  of creation, which makes the warning worthless.
+- The only way to find out exactly how far behind you are is to run the update.
 
 ### Why Electron?
 
