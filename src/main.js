@@ -30,6 +30,7 @@ const { killChildTree } = require('./kill-tree');
 const { normalizeEol } = require('./git-update.cjs');
 const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, updateToLatestTrunk } = require('./trunk-update');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
+const { deleteRegisteredSite } = require('./site-registry');
 
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
@@ -655,15 +656,24 @@ ipcMain.handle('sites:forget', async (_e, sitePath) => {
 	return true;
 });
 
+// Only a path the app has on record gets removed from disk — see site-registry.js
+// for why. A refusal is logged rather than dropped so a future caller that trips
+// the guard shows up in the log file instead of just doing nothing.
 ipcMain.handle('sites:delete', async (_e, sitePath) => {
 	const s = await getStore();
-	const sites = s.get('sites').filter((p) => p !== sitePath);
-	s.set('sites', sites);
-	const meta = s.get('siteMeta');
-	delete meta[sitePath];
-	s.set('siteMeta', meta);
-	try { await fse.remove(sitePath); } catch {}
-	return true;
+	return deleteRegisteredSite(sitePath, {
+		sites: s.get('sites'),
+		forget: () => {
+			s.set('sites', s.get('sites').filter((p) => p !== sitePath));
+			const meta = s.get('siteMeta');
+			delete meta[sitePath];
+			s.set('siteMeta', meta);
+		},
+		// Best-effort, as before: a site whose registry entry is gone should not be
+		// stuck undeletable because its directory is missing or locked.
+		remove: async (p) => { try { await fse.remove(p); } catch {} },
+		onRefused: (description) => logEvent('sites', `refused to delete ${description} — not a registered site`)
+	});
 });
 
 ipcMain.handle('sites:set-label', async (_e, sitePath, label) => {
