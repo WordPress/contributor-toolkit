@@ -21,6 +21,7 @@ import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
+import { parsePrRef } from '../patch-sources.cjs';
 import { parseTicketRef, ticketUrl } from './trac-ticket.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
@@ -836,6 +837,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [applyNeedsInstall, setApplyNeedsInstall] = useState(false);
   const [applyError, setApplyError] = useState('');
   const [appliedPatch, setAppliedPatch] = useState(null);
+  const [prUrlInput, setPrUrlInput] = useState('');
   const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
   const [dirtySaving, setDirtySaving] = useState(false);
   const [dirtyFiles, setDirtyFiles] = useState([]);
@@ -1766,6 +1768,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   };
 
+  // Apply a PR straight from a pasted URL or number, without needing it to be
+  // linked to the ticket — same fetch → preview flow as the linked-PR list.
+  const previewPrFromInput = () => {
+    const parsed = parsePrRef(prUrlInput);
+    if (!parsed.ok) { setApplyError(parsed.error); return; }
+    setPrUrlInput('');
+    previewPr({ number: parsed.number, url: `https://github.com/WordPress/wordpress-develop/pull/${parsed.number}` });
+  };
+
   const runApply = ({ reverse = false } = {}) => {
     const state = terminalStateRef.current;
     if (state.running) {
@@ -2527,9 +2538,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       {skipInit ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
           <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Try someone else&apos;s patch</div>
-          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-            Apply a <code>.diff</code> or <code>.patch</code> file to this checkout and rebuild, so you can test the work before adding your own. Your own changes are left alone.
-          </div>
+          {!applyPreview && !isApplying ? (
+            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
+              Apply a pull request or a <code>.diff</code>/<code>.patch</code> file to this checkout and rebuild, so you can test the work before adding your own. Your own changes are left alone.
+            </div>
+          ) : null}
 
           {appliedPatch && !isApplying ? (
             <div style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #94d3ae', background: '#f4fbf4', borderRadius: 8 }}>
@@ -2570,7 +2583,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               ) : null}
               <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
                 <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>Apply and rebuild</Button>
-                <Button variant="tertiary" onClick={() => setApplyPreview(null)}>Cancel</Button>
+                <Button variant="tertiary" onClick={() => { setApplyPreview(null); setApplyError(''); }}>Cancel</Button>
               </div>
             </div>
           ) : null}
@@ -2593,15 +2606,35 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
           {applyError ? (
             <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21' }}>
-              {applyError} The checkout was not changed.
+              {/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`} The checkout was not changed.
             </div>
           ) : null}
 
           {!applyPreview && !isApplying ? (
             <div style={{ marginTop: 12 }}>
-              <Button variant="secondary" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ padding: '10px 16px', borderRadius: 10 }}>
-                Choose a patch file…
-              </Button>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 280, flex: '1 1 280px' }}>
+                  <TextControl
+                    value={prUrlInput}
+                    onChange={(value) => { setPrUrlInput(value); setApplyError(''); }}
+                    onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); previewPrFromInput(); } }}
+                    disabled={isUpdating || installing || building}
+                    placeholder="Paste a pull request URL or number"
+                    aria-label="Pull request URL or number"
+                  />
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={previewPrFromInput}
+                  disabled={isUpdating || installing || building || !prUrlInput.trim()}
+                  style={{ padding: '10px 16px', borderRadius: 10 }}
+                >Apply PR</Button>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <Button variant="link" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ fontSize: 13 }}>
+                  or choose a .diff / .patch file…
+                </Button>
+              </div>
             </div>
           ) : null}
         </div>
