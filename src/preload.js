@@ -86,6 +86,10 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	fetchPrDiff: (number) => ipcRenderer.invoke('git:fetch-pr-diff', number)
 ,
+	listTracAttachments: (sitePath) => ipcRenderer.invoke('trac:list-attachments', sitePath)
+,
+	fetchTracAttachment: (url) => ipcRenderer.invoke('trac:fetch-attachment', url)
+,
 	applyPatch: async (sitePath, options, onLog, onDone) => {
 		const { applyId } = await ipcRenderer.invoke('git:apply-patch', sitePath, options);
 		const logHandler = (_e, payload) => {

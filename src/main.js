@@ -32,6 +32,7 @@ const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, update
 const { applyPatchToDir } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
 const { fetchLinkedPrs, fetchPrDiff } = require('./github-prs');
+const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { deleteRegisteredSite } = require('./site-registry');
 const { getStore } = require('./settings-store');
@@ -517,6 +518,30 @@ ipcMain.handle('git:fetch-pr-diff', async (_e, number) => {
         return await fetchPrDiff(number);
     } catch (e) {
         return { ok: false, status: 'error', error: String(e) };
+    }
+});
+
+// Trac attachments (#109/#11). Read on demand: opening a real Trac window can
+// show the proof-of-work challenge, so it happens when the contributor asks,
+// not on every ticket. See src/trac-view.js for the window and scrape.
+ipcMain.handle('trac:list-attachments', async (_e, sitePath) => {
+    try {
+        const s = await getStore();
+        const ticketId = ((s.get('siteMeta') || {})[sitePath] || {}).tracTicket;
+        if (!ticketId) return { ok: true, status: 'no-ticket', items: [] };
+        const result = await openAndScrape(ticketId);
+        return { ok: true, ...result };
+    } catch (e) {
+        logError('trac:list-attachments', String(e && e.stack ? e.stack : e));
+        return { ok: false, status: 'error', items: [], error: String(e) };
+    }
+});
+
+ipcMain.handle('trac:fetch-attachment', async (_e, url) => {
+    try {
+        return await fetchAttachment(url);
+    } catch (e) {
+        return { ok: false, error: String(e) };
     }
 });
 

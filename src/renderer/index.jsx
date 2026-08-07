@@ -818,6 +818,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [ticketPatches, setTicketPatches] = useState(null);
   const [ticketPatchesLoading, setTicketPatchesLoading] = useState(false);
   const [fetchingPr, setFetchingPr] = useState(null);
+  // Trac attachments (#11): loaded on demand, since opening a real Trac window
+  // can surface the proof-of-work challenge. null until the user asks.
+  const [tracAttachments, setTracAttachments] = useState(null);
+  const [tracAttachmentsLoading, setTracAttachmentsLoading] = useState(false);
+  const [fetchingAttachment, setFetchingAttachment] = useState(null);
   // Trunk update path (#94)
   const [trunkDate, setTrunkDate] = useState(null);
   const [updateIncomplete, setUpdateIncomplete] = useState(false);
@@ -1654,16 +1659,32 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   useEffect(() => {
     if (!tracTicket) {
       setTicketPatches(null);
+      // Attachments are per-ticket and loaded on demand; a stale list from the
+      // previous ticket must not linger, and a scrape dropped by the generation
+      // bump below must not leave a stuck spinner.
+      setTracAttachments(null);
+      setTracAttachmentsLoading(false);
       loadedTicketRef.current = null;
       return;
     }
     if (!isActive || loadedTicketRef.current === tracTicket) return;
-    // Marked loaded before the fetch resolves, on purpose: a failed initial
-    // fetch is not retried on every re-activation (which could keep spending a
-    // rate-limited quota) — the Refresh button is the retry.
+    // A new ticket on the active site: drop any attachments the previous one
+    // loaded (and clear its loading flag, so a scrape dropped by the generation
+    // bump cannot leave a stuck spinner with no button to recover), then fetch
+    // its PRs. Marked loaded before the fetch resolves, on purpose: a failed
+    // initial fetch is not retried on every re-activation (which could keep
+    // spending a rate-limited quota) — Refresh is the retry.
+    setTracAttachments(null);
+    setTracAttachmentsLoading(false);
     loadedTicketRef.current = tracTicket;
     loadTicketPatches();
   }, [tracTicket, isActive, loadTicketPatches]);
+
+  // A Trac scrape can run up to 90s. Bump a generation on every ticket change so
+  // a scrape that resolves after the ticket has moved on is dropped, rather than
+  // shown under the wrong ticket or clearing a newer request's loading flag.
+  const scrapeGenRef = useRef(0);
+  useEffect(() => { scrapeGenRef.current += 1; }, [tracTicket]);
 
   // Fetches a PR's diff and drops into the same preview the file picker uses,
   // so applying a PR and applying a downloaded patch are one path from here on.
@@ -1688,6 +1709,48 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setApplyError(String(e));
     } finally {
       setFetchingPr(null);
+    }
+  };
+
+  // Opens the real Trac ticket (the user clears the challenge once if shown),
+  // scrapes its attachment list, and shows it in-app. On demand, not on link.
+  const loadTracAttachments = async () => {
+    const gen = scrapeGenRef.current;
+    setApplyError('');
+    setTracAttachmentsLoading(true);
+    try {
+      const res = await window.api.listTracAttachments(sitePath);
+      if (gen !== scrapeGenRef.current) return; // ticket changed mid-scrape; drop the stale result
+      setTracAttachments(res && res.ok ? res : { status: 'error', items: [] });
+    } catch {
+      if (gen !== scrapeGenRef.current) return;
+      setTracAttachments({ status: 'error', items: [] });
+    } finally {
+      if (gen === scrapeGenRef.current) setTracAttachmentsLoading(false);
+    }
+  };
+
+  // Downloads an attachment through the challenge-passing session and hands it
+  // to the same preview the PR and file paths use.
+  const previewAttachment = async (att) => {
+    setApplyError('');
+    setFetchingAttachment(att.url);
+    try {
+      const res = await window.api.fetchTracAttachment(att.url);
+      if (!res || !res.ok) {
+        setApplyError(res?.error || `Could not download ${att.filename}.`);
+        return;
+      }
+      const preview = await window.api.previewPatch(sitePath, res.text);
+      if (!preview || !preview.ok) {
+        setApplyError(preview?.error || 'Could not read that patch.');
+        return;
+      }
+      setApplyPreview({ ...preview, label: att.filename, text: res.text });
+    } catch (e) {
+      setApplyError(String(e));
+    } finally {
+      setFetchingAttachment(null);
     }
   };
 
@@ -2286,7 +2349,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 </Button>
               </div>
               <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>
-                See the work that already exists on this ticket before adding your own. Trac attachments are not listed yet — open the ticket for those.
+                See the work that already exists on this ticket before adding your own.
               </div>
 
               {ticketPatchesLoading && !ticketPatches ? (
@@ -2326,6 +2389,74 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         onClick={() => previewPr(pr)}
                         style={{ flex: '0 0 auto' }}
                       >Apply…</Button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Trac attachments</div>
+                {tracAttachments ? (
+                  <Button variant="link" onClick={loadTracAttachments} disabled={tracAttachmentsLoading} style={{ fontSize: 12 }}>
+                    {tracAttachmentsLoading ? 'Checking…' : 'Refresh'}
+                  </Button>
+                ) : null}
+              </div>
+              <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>
+                Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.
+              </div>
+
+              {!tracAttachments && !tracAttachmentsLoading ? (
+                <div style={{ marginTop: 10 }}>
+                  <Button variant="secondary" onClick={loadTracAttachments} disabled={isApplying || isUpdating || installing || building} style={{ padding: '8px 14px', borderRadius: 10 }}>
+                    Show Trac attachments
+                  </Button>
+                </div>
+              ) : null}
+
+              {tracAttachmentsLoading ? (
+                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 13 }}><Spinner /> Opening the ticket on Trac…</div>
+              ) : null}
+
+              {tracAttachments && tracAttachments.status === 'no-attachments' ? (
+                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>This ticket has no attachments.</div>
+              ) : null}
+
+              {tracAttachments && (tracAttachments.status === 'challenge-timeout' || tracAttachments.status === 'error' || tracAttachments.status === 'closed') ? (
+                <div style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
+                  {(() => {
+                    if (tracAttachments.status === 'challenge-timeout') return 'Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.';
+                    if (tracAttachments.status === 'closed') return 'The Trac window was closed before the attachments finished loading. Click “Show Trac attachments” to try again.';
+                    return `Could not read the attachments from Trac.${tracAttachments.error ? ` (${tracAttachments.error})` : ''}`;
+                  })()}
+                </div>
+              ) : null}
+
+              {tracAttachments && tracAttachments.items && tracAttachments.items.length ? (
+                <div style={{ marginTop: 10, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
+                  {tracAttachments.items.map((att) => (
+                    <div key={att.url} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
+                      <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <Button variant="link" onClick={() => window.api.openExternal(att.url)} style={{ fontSize: 13 }}>{att.filename}</Button>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#6c6f72' }}>
+                          {[att.author && `by ${att.author}`, att.dateText, att.sizeText].filter(Boolean).join(' · ')}
+                        </div>
+                      </div>
+                      {att.applyable ? (
+                        <Button
+                          variant="secondary"
+                          isBusy={fetchingAttachment === att.url}
+                          disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingAttachment !== null}
+                          onClick={() => previewAttachment(att)}
+                          style={{ flex: '0 0 auto' }}
+                        >Apply…</Button>
+                      ) : (
+                        <span style={{ flex: '0 0 auto', fontSize: 11, color: '#6c6f72' }}>not a patch</span>
+                      )}
                     </div>
                   ))}
                 </div>
