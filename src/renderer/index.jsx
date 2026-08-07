@@ -1578,7 +1578,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const latestPatch = pickLatest({ prs: ticketPatches?.items, attachments: tracAttachments?.items });
   const latestIsAttachment = latestPatch?.kind === 'attachment';
   const latestPill = (isLatest) => (isLatest ? (
-    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', background: '#e7f1ff', color: '#0b5d95', marginLeft: 8 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', flex: '0 0 auto', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', background: '#e7f1ff', color: '#0b5d95', marginLeft: 8 }}>
       Latest
     </span>
   ) : null);
@@ -2386,9 +2386,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   {ticketPatches.items.map((pr) => (
                     <div key={pr.number} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
                       <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                        <div style={{ fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          <Button variant="link" onClick={() => window.api.openExternal(pr.url)} style={{ fontSize: 13 }}>#{pr.number}</Button>
-                          {' '}{pr.title}
+                        <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                          <span style={{ flex: '0 1 auto', minWidth: 0, fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <Button variant="link" onClick={() => window.api.openExternal(pr.url)} style={{ fontSize: 13 }}>#{pr.number}</Button>
+                            {' '}{pr.title}
+                          </span>
                           {latestPill(latestPatch?.kind === 'pr' && latestPatch.key === pr.number)}
                         </div>
                         <div style={{ fontSize: 11, color: '#6c6f72' }}>
@@ -2458,8 +2460,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   {tracAttachments.items.map((att) => (
                     <div key={att.url} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
                       <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                        <div style={{ fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          <Button variant="link" onClick={() => window.api.openExternal(att.url)} style={{ fontSize: 13 }}>{att.filename}</Button>
+                        <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                          <span style={{ flex: '0 1 auto', minWidth: 0, fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <Button variant="link" onClick={() => window.api.openExternal(att.url)} style={{ fontSize: 13 }}>{att.filename}</Button>
+                          </span>
                           {latestPill(latestPatch?.kind === 'attachment' && latestPatch.key === att.url)}
                         </div>
                         <div style={{ fontSize: 11, color: '#6c6f72' }}>
