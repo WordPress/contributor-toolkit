@@ -31,6 +31,7 @@ const { normalizeEol } = require('./git-update.cjs');
 const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, updateToLatestTrunk } = require('./trunk-update');
 const { applyPatchToDir } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
+const { fetchLinkedPrs, fetchPrDiff } = require('./github-prs');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { deleteRegisteredSite } = require('./site-registry');
 const { getStore } = require('./settings-store');
@@ -476,6 +477,47 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
     })();
 
     return { updateId };
+});
+
+// --- Discovering the patches on a ticket (#109/#11) --- linked PRs come from
+// GitHub; the network code is in src/github-prs.js, these handlers add the
+// cache and IPC. A last-known-good copy per ticket, in electron-store, is what
+// lets a rate-limited or offline lookup still show the work that exists.
+const patchCacheKey = (ticketId) => `ticketPatches:${ticketId}`;
+
+ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
+    try {
+        const s = await getStore();
+        const meta = (s.get('siteMeta') || {})[sitePath] || {};
+        const ticketId = meta.tracTicket;
+        if (!ticketId) return { ok: true, ticket: null, prs: { status: 'no-ticket', items: [] } };
+
+        const result = await fetchLinkedPrs(ticketId);
+        if (result.status === 'ok') {
+            s.set(patchCacheKey(ticketId), { checkedAt: new Date().toISOString(), items: result.items });
+            return { ok: true, ticket: ticketId, prs: { status: 'ok', items: result.items } };
+        }
+
+        // Could not read GitHub. Fall back to whatever was last seen for this
+        // ticket, labelled with when — a stale-but-shown list beats a short one
+        // presented as complete.
+        const cached = s.get(patchCacheKey(ticketId)) || null;
+        return {
+            ok: true,
+            ticket: ticketId,
+            prs: { status: result.status, items: cached ? cached.items : [], cachedAt: cached ? cached.checkedAt : null, error: result.error }
+        };
+    } catch (e) {
+        return { ok: false, error: String(e) };
+    }
+});
+
+ipcMain.handle('git:fetch-pr-diff', async (_e, number) => {
+    try {
+        return await fetchPrDiff(number);
+    } catch (e) {
+        return { ok: false, status: 'error', error: String(e) };
+    }
 });
 
 // --- Applying someone else's patch (#11) --- the diff mechanics live in

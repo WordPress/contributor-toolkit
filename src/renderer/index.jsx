@@ -43,6 +43,12 @@ const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
 const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
 const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
 const CREATE_SITE_TICKET_INPUT_ID = 'create-site-ticket-input';
+// Why the ticket's PR list could not be read, worded for the contributor.
+const TICKET_PATCH_STATUS_MESSAGE = {
+  'rate-limited': 'GitHub is rate-limiting this connection.',
+  offline: 'Could not reach GitHub.',
+  error: 'Could not read the pull requests from GitHub.'
+};
 const TRAC_TICKET_LISTS_URL = 'https://core.trac.wordpress.org/tickets/good-first-bugs';
 const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
 
@@ -685,6 +691,7 @@ function App() {
                       onRename={onRename}
                       isPending={pendingSites.includes(s)}
                       setupLogs={setupLogsBySite[s] || ''}
+                      isActive={activeSite === s}
                     />
                   </div>
                 ))
@@ -773,7 +780,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, isPending = false, setupLogs = '' }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, isPending = false, setupLogs = '', isActive = false }) {
   // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
   // recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
@@ -807,6 +814,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [ticketInput, setTicketInput] = useState('');
   const [ticketError, setTicketError] = useState('');
   const [ticketSaving, setTicketSaving] = useState(false);
+  // Patches on the linked ticket (#11): { status, items, cachedAt } or null.
+  const [ticketPatches, setTicketPatches] = useState(null);
+  const [ticketPatchesLoading, setTicketPatchesLoading] = useState(false);
+  const [fetchingPr, setFetchingPr] = useState(null);
   // Trunk update path (#94)
   const [trunkDate, setTrunkDate] = useState(null);
   const [updateIncomplete, setUpdateIncomplete] = useState(false);
@@ -1617,6 +1628,69 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   };
 
+  // Loads the PRs linked to the ticket. Manual, not on a timer: each call is a
+  // request against a shared, unauthenticated GitHub limit, so it runs when the
+  // contributor asks — on link, and on an explicit refresh.
+  const loadTicketPatches = useCallback(async () => {
+    setTicketPatchesLoading(true);
+    try {
+      const res = await window.api.listTicketPatches(sitePath);
+      setTicketPatches(res && res.ok ? res.prs : { status: 'error', items: [] });
+    } catch {
+      setTicketPatches({ status: 'error', items: [] });
+    } finally {
+      setTicketPatchesLoading(false);
+    }
+  }, [sitePath]);
+
+  // Load the ticket's PRs only for the active site. Every SiteRow stays mounted
+  // (the parent hides inactive ones), so fetching on mount would spend the
+  // shared, unauthenticated GitHub quota once per linked site on every launch.
+  // The ref keeps re-activating a site from re-fetching the same ticket; a
+  // relink (ticket change) and the Refresh button still fetch. Unlinking clears
+  // the list. Placed after loadTicketPatches is defined: an effect that named it
+  // earlier in the body would read the const before its declaration ran.
+  const loadedTicketRef = useRef(null);
+  useEffect(() => {
+    if (!tracTicket) {
+      setTicketPatches(null);
+      loadedTicketRef.current = null;
+      return;
+    }
+    if (!isActive || loadedTicketRef.current === tracTicket) return;
+    // Marked loaded before the fetch resolves, on purpose: a failed initial
+    // fetch is not retried on every re-activation (which could keep spending a
+    // rate-limited quota) — the Refresh button is the retry.
+    loadedTicketRef.current = tracTicket;
+    loadTicketPatches();
+  }, [tracTicket, isActive, loadTicketPatches]);
+
+  // Fetches a PR's diff and drops into the same preview the file picker uses,
+  // so applying a PR and applying a downloaded patch are one path from here on.
+  const previewPr = async (pr) => {
+    setApplyError('');
+    setFetchingPr(pr.number);
+    try {
+      const diff = await window.api.fetchPrDiff(pr.number);
+      if (!diff || !diff.ok) {
+        setApplyError(diff?.status === 'rate-limited'
+          ? 'GitHub is rate-limiting this connection right now. Open the PR and download its .diff, then use “Choose a patch file”.'
+          : `Could not fetch the diff for PR #${pr.number}: ${diff?.error || 'unknown error'}`);
+        return;
+      }
+      const preview = await window.api.previewPatch(sitePath, diff.text);
+      if (!preview || !preview.ok) {
+        setApplyError(preview?.error || 'Could not read that diff.');
+        return;
+      }
+      setApplyPreview({ ...preview, label: `PR #${pr.number}`, text: diff.text });
+    } catch (e) {
+      setApplyError(String(e));
+    } finally {
+      setFetchingPr(null);
+    }
+  };
+
   const runApply = ({ reverse = false } = {}) => {
     const state = terminalStateRef.current;
     if (state.running) {
@@ -2195,13 +2269,69 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
         <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Trac ticket</div>
         {tracTicket ? (
-          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', background: '#f0f0f1', color: '#1d2327' }}>
-              #{tracTicket}
-            </span>
-            <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
-            <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketSaving}>Unlink</Button>
-          </div>
+          <>
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', background: '#f0f0f1', color: '#1d2327' }}>
+                #{tracTicket}
+              </span>
+              <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
+              <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketSaving}>Unlink</Button>
+            </div>
+
+            <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Linked pull requests</div>
+                <Button variant="link" onClick={loadTicketPatches} disabled={ticketPatchesLoading} style={{ fontSize: 12 }}>
+                  {ticketPatchesLoading ? 'Checking…' : 'Refresh'}
+                </Button>
+              </div>
+              <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>
+                See the work that already exists on this ticket before adding your own. Trac attachments are not listed yet — open the ticket for those.
+              </div>
+
+              {ticketPatchesLoading && !ticketPatches ? (
+                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 13 }}><Spinner /> Checking GitHub…</div>
+              ) : null}
+
+              {ticketPatches && ticketPatches.status === 'ok' && ticketPatches.items.length === 0 ? (
+                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>No pull requests cite this ticket yet.</div>
+              ) : null}
+
+              {ticketPatches && ticketPatches.status !== 'ok' && ticketPatches.status !== 'no-ticket' ? (
+                <div style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
+                  {TICKET_PATCH_STATUS_MESSAGE[ticketPatches.status] || TICKET_PATCH_STATUS_MESSAGE.error}
+                  {ticketPatches.items && ticketPatches.items.length && ticketPatches.cachedAt
+                    ? ` Showing what was last seen ${new Date(ticketPatches.cachedAt).toLocaleString()}.`
+                    : ' No cached list to fall back on.'}
+                </div>
+              ) : null}
+
+              {ticketPatches && ticketPatches.items && ticketPatches.items.length ? (
+                <div style={{ marginTop: 10, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
+                  {ticketPatches.items.map((pr) => (
+                    <div key={pr.number} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
+                      <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <Button variant="link" onClick={() => window.api.openExternal(pr.url)} style={{ fontSize: 13 }}>#{pr.number}</Button>
+                          {' '}{pr.title}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#6c6f72' }}>
+                          {pr.state === 'closed' ? 'closed' : 'open'}{pr.updatedAt ? ` · updated ${new Date(pr.updatedAt).toLocaleDateString()}` : ''}
+                        </div>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        isBusy={fetchingPr === pr.number}
+                        disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingPr !== null}
+                        onClick={() => previewPr(pr)}
+                        style={{ flex: '0 0 auto' }}
+                      >Apply…</Button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </>
         ) : (
           <>
             <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>

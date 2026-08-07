@@ -82,6 +82,10 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	previewPatch: (sitePath, patchText) => ipcRenderer.invoke('git:preview-patch', sitePath, patchText)
 ,
+	listTicketPatches: (sitePath) => ipcRenderer.invoke('git:list-ticket-patches', sitePath)
+,
+	fetchPrDiff: (number) => ipcRenderer.invoke('git:fetch-pr-diff', number)
+,
 	applyPatch: async (sitePath, options, onLog, onDone) => {
 		const { applyId } = await ipcRenderer.invoke('git:apply-patch', sitePath, options);
 		const logHandler = (_e, payload) => {

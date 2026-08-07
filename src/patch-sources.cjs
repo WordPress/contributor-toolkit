@@ -1,0 +1,99 @@
+'use strict';
+
+/**
+ * Turning a GitHub search response into the pull requests that actually belong
+ * to a Trac ticket (issue #109 / #11).
+ *
+ * On the busiest tickets the real work is a wordpress-develop PR, not a Trac
+ * attachment — the attachment list is empty precisely where activity is
+ * highest. Core's Trac↔GitHub convention is that a PR cites its ticket in the
+ * body ("Trac ticket: https://core.trac.wordpress.org/ticket/NNNNN"), so the
+ * search is: ask GitHub broadly for PRs mentioning the number, then verify
+ * narrowly, here, that each one cites this ticket's URL. GitHub's search
+ * tokeniser matches the bare number in comments and unrelated text, so the
+ * verification is what makes the list trustworthy rather than merely plausible.
+ *
+ * Kept pure and dependency-free so the verification and the failure
+ * classification — the parts that decide whether the UI shows work that exists
+ * — are unit tested without a network: the main process requires it, and so
+ * does `node --test` (same convention as git-update.cjs / patch-plan.cjs).
+ */
+
+const TICKET_HOST = 'core.trac.wordpress.org';
+
+/**
+ * True when a PR body cites this exact ticket. The negative lookahead stops
+ * `/ticket/6582` from matching inside `/ticket/65820`, and the host is required
+ * so a bare "#65822" in prose does not count.
+ *
+ * @param {string}        body
+ * @param {number|string} ticketId
+ * @return {boolean}
+ */
+function bodyCitesTicket(body, ticketId) {
+	if (typeof body !== 'string') return false;
+	const id = String(ticketId).replace(/[^0-9]/g, '');
+	if (!id) return false;
+	const re = new RegExp(`${TICKET_HOST.replace(/\./g, '\\.')}/ticket/${id}(?![0-9])`);
+	return re.test(body);
+}
+
+/**
+ * Reduces a GitHub `search/issues` response to the PRs that cite the ticket.
+ * Returns newest-first — for a moving target like a PR the freshest is the one
+ * a contributor most likely wants.
+ *
+ * @param {Object}        searchJson
+ * @param {number|string} ticketId
+ * @return {Array<{number: number, title: string, state: string, updatedAt: string, url: string}>}
+ */
+function parseLinkedPrs(searchJson, ticketId) {
+	const items = searchJson && Array.isArray(searchJson.items) ? searchJson.items : [];
+	const seen = new Set();
+	const prs = [];
+	for (const item of items) {
+		// `search/issues` returns issues and PRs together; only PRs carry
+		// `pull_request`.
+		if (!item || !item.pull_request) continue;
+		if (!bodyCitesTicket(item.body, ticketId)) continue;
+		if (seen.has(item.number)) continue;
+		seen.add(item.number);
+		prs.push({
+			number: item.number,
+			title: typeof item.title === 'string' ? item.title : '',
+			state: item.state === 'closed' ? 'closed' : 'open',
+			updatedAt: item.updated_at || item.created_at || '',
+			url: item.html_url || `https://github.com/WordPress/wordpress-develop/pull/${item.number}`
+		});
+	}
+	prs.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+	return prs;
+}
+
+/**
+ * Classifies a non-2xx GitHub response so the UI can tell "nothing on this
+ * ticket" apart from "we could not read it". A rate-limited answer is not an
+ * empty ticket: on a shared Contributor-Day IP the unauthenticated 60/hour is
+ * spent quickly, and a short list shown as complete is the exact failure this
+ * feature exists to prevent.
+ *
+ * @param {number} status
+ * @param {Object} [headers] Lower-cased header map.
+ * @return {'rate-limited'|'error'}
+ */
+function classifyHttpFailure(status, headers = {}) {
+	const remaining = headers['x-ratelimit-remaining'];
+	if (status === 429) return 'rate-limited';
+	if ((status === 403 || status === 401) && String(remaining) === '0') return 'rate-limited';
+	// GitHub's secondary (abuse) limit is a 403 with a Retry-After header while
+	// the primary quota is not yet spent — the burst case on a shared IP.
+	if (status === 403 && headers['retry-after'] !== undefined && headers['retry-after'] !== null) return 'rate-limited';
+	return 'error';
+}
+
+module.exports = {
+	TICKET_HOST,
+	bodyCitesTicket,
+	parseLinkedPrs,
+	classifyHttpFailure
+};
