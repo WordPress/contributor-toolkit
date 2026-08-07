@@ -39,6 +39,9 @@ const UPDATE_STEP_MARKS = {
   complete: { symbol: '✓', color: '#0f5132' },
   current: { symbol: '›', color: '#0b5d95' }
 };
+// The file manager has a name on the two platforms that have one; everywhere
+// else it is whatever the desktop provides, so it is called what it is.
+const FILE_MANAGER_LABELS = { darwin: 'Show in Finder', win32: 'Show in Explorer' };
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
@@ -924,6 +927,83 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       // eslint-disable-next-line no-alert -- see the note above onRename.
       alert('Unable to copy path: ' + (err?.message ?? String(err)));
     }
+  }, [sitePath]);
+
+  // --- opening the code ---------------------------------------------------
+  //
+  // The editor is remembered app-wide, so this is "ask once" rather than a
+  // choice per site. Every path out of here ends somewhere the contributor can
+  // act: a launch that fails opens the picker, the picker always offers
+  // "Choose application…", and the copy button above is the floor under all of
+  // it.
+  const [chosenEditor, setChosenEditor] = useState(null);
+  const [detectedEditors, setDetectedEditors] = useState([]);
+  const [editorPickerOpen, setEditorPickerOpen] = useState(false);
+  const [editorNotice, setEditorNotice] = useState('');
+
+  const fileManagerLabel = FILE_MANAGER_LABELS[window.api?.platform] || 'Show in file manager';
+
+  const refreshEditors = useCallback(async () => {
+    try {
+      const result = await window.api.listEditors();
+      setDetectedEditors(result?.detected || []);
+      setChosenEditor(result?.chosen || null);
+      return result;
+    } catch {
+      setDetectedEditors([]);
+      return null;
+    }
+  }, []);
+
+  // So the button can say "Open in Cursor" on the first render rather than after
+  // the first click.
+  useEffect(() => { refreshEditors(); }, [refreshEditors]);
+
+  const describeOpenFailure = useCallback((result) => {
+    if (result?.reason === 'unlaunchable-editor') {
+      return 'That editor is no longer where it was. Choose it again.';
+    }
+    if (result?.reason === 'spawn-failed') {
+      return `The editor would not start: ${result.error || 'unknown error'}`;
+    }
+    if (result?.reason === 'unregistered-site') {
+      return 'This app has no record of that folder, so it will not open it.';
+    }
+    return 'Could not open the folder in an editor.';
+  }, []);
+
+  const openInEditor = useCallback(async () => {
+    const result = await window.api.openInEditor(sitePath);
+    if (result?.ok) {
+      setEditorNotice('');
+      return;
+    }
+    // Nothing chosen yet is not an error, it is the first use. Anything else is
+    // worth saying out loud — but both end at the same place: the picker.
+    setEditorNotice(result?.reason === 'no-editor' ? '' : describeOpenFailure(result));
+    await refreshEditors();
+    setEditorPickerOpen(true);
+  }, [describeOpenFailure, refreshEditors, sitePath]);
+
+  // `editorPath` is a detected editor; without one the main process opens the
+  // file dialog, which is what covers every editor the detection table misses.
+  const rememberEditor = useCallback(async (editorPath) => {
+    const result = await window.api.chooseEditor(editorPath);
+    if (!result?.ok) {
+      if (result?.reason === 'unlaunchable-editor') {
+        setEditorNotice('That is not an application this app can open a folder in.');
+      }
+      return;
+    }
+    setChosenEditor(result.editor);
+    setEditorPickerOpen(false);
+    const opened = await window.api.openInEditor(sitePath);
+    setEditorNotice(opened?.ok ? '' : describeOpenFailure(opened));
+  }, [describeOpenFailure, sitePath]);
+
+  const showInFileManager = useCallback(async () => {
+    const result = await window.api.showSiteInFileManager(sitePath);
+    setEditorNotice(result?.ok ? '' : `Could not open the folder: ${result?.error || 'unknown error'}`);
   }, [sitePath]);
 
   const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
@@ -2124,6 +2204,25 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               isSmall
             />
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+            <Button variant="secondary" onClick={openInEditor}>
+              {chosenEditor ? `Open in ${chosenEditor.name}` : 'Open in editor'}
+            </Button>
+            <Button variant="tertiary" onClick={showInFileManager}>{fileManagerLabel}</Button>
+            {chosenEditor ? (
+              <Button
+                variant="tertiary"
+                isSmall
+                onClick={async () => { await refreshEditors(); setEditorPickerOpen(true); }}
+              >Change editor</Button>
+            ) : null}
+          </div>
+          {editorNotice ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
+              <span style={{ flex: '1 1 240px' }}>{editorNotice}</span>
+              <Button variant="tertiary" isSmall onClick={() => rememberEditor()}>Choose application…</Button>
+            </div>
+          ) : null}
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
           <DropdownMenu
@@ -2131,6 +2230,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             text=""
             controls={[
               { title: 'Copy path', onClick: copyPath },
+              { title: chosenEditor ? `Open in ${chosenEditor.name}` : 'Open in editor', onClick: openInEditor },
+              { title: fileManagerLabel, onClick: showInFileManager },
               // Also reachable when the site is not yet stale (the staleness
               // notice is the primary entry point) — a fresh site just gets
               // "Already up to date." in the terminal.
@@ -2667,6 +2768,32 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           </div>
         </div>
       </div>
+      {editorPickerOpen ? (
+        <Modal
+          title="Open sites in"
+          onRequestClose={() => setEditorPickerOpen(false)}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 420 }}>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
+              {detectedEditors.length
+                ? 'Choose the editor to open this site in. This app will remember it.'
+                : 'This app could not find an editor in the usual place. Point at yours and it will remember it.'}
+            </p>
+            {detectedEditors.map((candidate) => (
+              <Button
+                key={candidate.path}
+                variant="secondary"
+                onClick={() => rememberEditor(candidate.path)}
+                style={{ justifyContent: 'flex-start' }}
+              >{candidate.name}</Button>
+            ))}
+            {/* Always offered, never only as a fallback: the detection list is a
+                shortcut, and an editor missing from it is not an editor this app
+                refuses to use. */}
+            <Button variant="tertiary" onClick={() => rememberEditor()}>Choose application…</Button>
+          </div>
+        </Modal>
+      ) : null}
       {dirtyModalOpen ? (
         <Modal
           title="Update to latest trunk?"

@@ -1,6 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
+	// Only so the window can name things the way the platform does — "Show in
+	// Finder" against "Show in Explorer". Nothing branches on it in the main
+	// process, where `process.platform` is read directly.
+	platform: process.platform,
 	getSites: () => ipcRenderer.invoke('sites:get'),
 	getSitesWithMeta: () => ipcRenderer.invoke('sites:getAll'),
 	addSite: (dir) => ipcRenderer.invoke('sites:add', dir),
