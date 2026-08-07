@@ -98,6 +98,7 @@ function createElectronStub() {
 			quit() {},
 			exit() {},
 			getPath: () => os.tmpdir(),
+			getAppPath: () => path.join(SRC_DIR, '..'),
 			getName: () => 'wordpress-contributor-toolkit',
 			setName() {},
 			getVersion: () => '0.0.0-test',
@@ -159,9 +160,9 @@ function isElectronPackage(request, resolvedId) {
 }
 
 // `stubs` is keyed by the specifier as main.js writes it ('./trunk-update',
-// 'child_process'), and the value holds only the exports to replace: the rest of
-// the real module is kept, so stubbing one function does not silently disable
-// its neighbours.
+// 'child_process', 'smtp-server'), and the value holds only the exports to
+// replace: the rest of the real module is kept, so stubbing one function does
+// not silently disable its neighbours.
 //
 // Populating this map requires the real modules, and some of them
 // (src/logging.js) require `electron` — so it has to run with the hook already
@@ -169,15 +170,18 @@ function isElectronPackage(request, resolvedId) {
 // from inside loadMain's try block rather than ahead of it.
 function resolveStubs(stubs, resolved) {
 	for (const [specifier, overrides] of Object.entries(stubs)) {
+		// require.resolve rather than the specifier itself: a builtin resolves to
+		// its own name, but a package resolves to the file path the load hook will
+		// compare against, and keying it by name would leave the stub unapplied.
 		const id = specifier.startsWith('.')
 			? require.resolve(path.join(SRC_DIR, specifier))
-			: specifier;
+			: require.resolve(specifier);
 		const stub = { ...require(id), ...overrides };
 		resolved.set(id, stub);
 		// A builtin is the same module under both spellings, and main.js writing
 		// `require('node:child_process')` instead must not silently leave the stub
 		// unapplied — that would spawn a real process on the way to failing.
-		if (!specifier.startsWith('.')) {
+		if (Module.isBuiltin(specifier)) {
 			resolved.set(id.startsWith('node:') ? id.slice(5) : `node:${id}`, stub);
 		}
 	}
@@ -456,9 +460,12 @@ after(() => {
 // output and exit up, and to be handed to killChildTree on quit.
 function fakeChild() {
 	const child = new EventEmitter();
-	child.stdout = new EventEmitter();
-	child.stderr = new EventEmitter();
+	// setEncoding is a no-op here but has to exist: the Playground handlers call
+	// it on both streams before they attach a listener.
+	child.stdout = Object.assign(new EventEmitter(), { setEncoding() {} });
+	child.stderr = Object.assign(new EventEmitter(), { setEncoding() {} });
 	child.pid = 4242;
+	child.exitCode = null;
 	child.kill = spy();
 	return child;
 }
@@ -473,6 +480,38 @@ function stubbedSpawn() {
 		return child;
 	};
 	return { spawn, spawned, children };
+}
+
+// What buildChildEnv is asked to build with. Reaching the module is not enough:
+// it cannot invent a shim directory, so a call that arrived without one returns
+// a PATH with the string "undefined" on the front and a child npm with no node
+// to find — while npm-runner's own suite, which supplies its arguments, stays
+// green. The Windows-only values are asserted as present rather than as strings,
+// because they are null off Windows and dropping the argument is exactly how a
+// Windows-only spawn failure ships from a green macOS run.
+function assertChildEnvRequest(buildChildEnv, label) {
+	assert.equal(buildChildEnv.calls.length, 1, `${label}: buildChildEnv was not called exactly once`);
+	const request = buildChildEnv.calls[0][0];
+	assert.equal(typeof request.shimDir, 'string', `${label}: no shim directory, so a child npm cannot find a node`);
+	for (const key of ['spawnPatchPath', 'npmCliPath', 'npxCliPath']) {
+		assert.ok(key in request, `${label}: buildChildEnv was called without ${key}`);
+	}
+}
+
+// The three cross-platform decisions every spawn in main.js makes. No module
+// owns them — they are options handed to child_process, not behaviour someone
+// else can test — so this is the only thing that fails when one is deleted
+// (#146).
+function assertCrossPlatformSpawnOptions(options, label) {
+	assert.equal(options.shell, false, `${label}: must not run through a shell`);
+	assert.equal(options.windowsHide, true, `${label}: must not flash a console window on Windows`);
+	// Group leader on POSIX, so killChildTree can signal the whole tree; on
+	// Windows detaching buys nothing and taskkill /T does the job instead.
+	assert.equal(
+		options.detached,
+		process.platform !== 'win32',
+		`${label}: a POSIX child must lead its own process group or kill-tree cannot reach its descendants`
+	);
 }
 
 test('npm:install spawns the runner with the environment npm-runner built', async () => {
@@ -498,8 +537,9 @@ test('npm:install spawns the runner with the environment npm-runner built', asyn
 	// npm find Electron's Node. A handler that assembled its own would break
 	// "zero prerequisites" without failing any of npm-runner's own tests.
 	assert.equal(cp.spawned[0].options.env, env);
-	assert.equal(buildChildEnv.calls.length, 1);
 	assert.equal(createEngineMismatchDetector.calls.length, 1);
+	assertChildEnvRequest(buildChildEnv, 'npm:install');
+	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'npm:install');
 });
 
 test('npm:install asks npm-runner whether an engine failure is worth retrying', async () => {
@@ -541,6 +581,32 @@ test('npm:run-script spawns the script runner through npm-runner too', async () 
 	assert.equal(path.basename(cp.spawned[0].args[0]), 'script-runner.js');
 	assert.deepEqual(cp.spawned[0].args.slice(1), ['/sites/wp', 'build', '--quiet']);
 	assert.equal(cp.spawned[0].options.env, env);
+	assertChildEnvRequest(buildChildEnv, 'npm:run-script');
+	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'npm:run-script');
+});
+
+test('npm:kill ends the script tree rather than signalling the runner alone', async (t) => {
+	const cp = stubbedSpawn();
+	const killChildTree = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTree }
+		}
+	});
+
+	const { runId } = await main.invoke('npm:run-script', '/sites/wp', 'build');
+	// The handler arms a SIGKILL escalation three seconds out; faking the clock
+	// keeps the suite from waiting for a timer whose only job is a last resort.
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+
+	assert.deepEqual(await main.invoke('npm:kill', { runId }), { ok: true });
+
+	// Same reason as the quit sweep: a script is a tree (runner -> npm -> shell ->
+	// grunt), and child.kill() leaves everything past the first link running (#83).
+	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
+	assert.deepEqual(cp.children[0].kill.calls, []);
 });
 
 test('quitting sweeps running children through kill-tree', async () => {
@@ -559,6 +625,152 @@ test('quitting sweeps running children through kill-tree', async () => {
 
 	// Not child.kill(): the children are trees (runner -> npm -> shell -> grunt)
 	// and only kill-tree ends the whole one (#83).
+	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
+	assert.deepEqual(cp.children[0].kill.calls, []);
+});
+
+// --- playground:* / playground-web:* -> the same two modules --------------
+
+// Starting the per-site SMTP server ends by writing its port to electron-store,
+// the dynamic ESM import this harness cannot replace (see the guard test below).
+// Throwing from the SMTPServer constructor stops that path at its first line,
+// and playground:start's own `.catch` turns it into "no SMTP" — the same shape
+// as a machine where the port could not be bound, and the branch that falls back
+// to port 25.
+function noSmtpServer() {
+	return {
+		'smtp-server': {
+			SMTPServer: function SMTPServerStub() { throw new Error('no SMTP server in tests'); }
+		}
+	};
+}
+
+// playground-web:start probes the port before spawning anything, and treats a
+// reachable server as already started. A stubbed request that only ever errors
+// keeps that decision off the machine's real network.
+function noWebProbe() {
+	return {
+		'http': {
+			get() {
+				const request = new EventEmitter();
+				request.destroy = () => {};
+				request.setTimeout = () => {};
+				setImmediate(() => request.emit('error', new Error('ECONNREFUSED')));
+				return request;
+			}
+		}
+	};
+}
+
+// The web server is served out of a `local-playground-web` directory that only
+// exists in a built app, and the handler returns early without it.
+function webDirOnDisk() {
+	return { 'fs': { existsSync: () => true } };
+}
+
+// Both start handlers spawn after an await and then wait for the server to
+// report a URL, holding a timer measured in tens of seconds until it does. So a
+// test drives them to the spawn and no further, and closing the child on the way
+// out settles the request — registered as a hook rather than a last line so a
+// failed assertion does not leave the suite waiting that timer out.
+async function reachSpawn(t, cp, pending) {
+	for (let turn = 0; turn < 100 && cp.spawned.length === 0; turn++) {
+		await new Promise(setImmediate);
+	}
+	t.after(async () => {
+		for (const child of cp.children) child.emit('close', 0, null);
+		await pending;
+	});
+	assert.equal(cp.spawned.length, 1, 'the handler never reached its spawn');
+}
+
+test('playground:start spawns the server runner with the environment npm-runner built', async (t) => {
+	const env = { PATH: '/shims' };
+	const buildChildEnv = spy(() => env);
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noSmtpServer(),
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { buildChildEnv }
+		}
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground:start', '/sites/wp'));
+
+	assert.equal(path.basename(cp.spawned[0].args[0]), 'server-runner.js');
+	assert.equal(cp.spawned[0].options.env, env);
+	assertChildEnvRequest(buildChildEnv, 'playground:start');
+	// The SMTP settings server-runner.js reads ride along as extras instead of
+	// replacing the environment. Hand-building it here is what kept the Playground
+	// path outside npm-runner's tests, and what made "zero prerequisites" hold on
+	// the npm path but not this one (#146).
+	assert.equal(buildChildEnv.calls[0][0].extraEnv.WP_MAIL_SMTP_HOST, '127.0.0.1');
+	assert.equal(buildChildEnv.calls[0][0].extraEnv.WP_MAIL_SMTP_PORT, '25');
+	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'playground:start');
+});
+
+test('playground-web:start spawns its runner through npm-runner too', async (t) => {
+	const env = { PATH: '/shims' };
+	const buildChildEnv = spy(() => env);
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noWebProbe(),
+			...webDirOnDisk(),
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { buildChildEnv }
+		}
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground-web:start'));
+
+	assert.equal(path.basename(cp.spawned[0].args[0]), 'playground-web-runner.js');
+	assert.equal(cp.spawned[0].options.env, env);
+	assertChildEnvRequest(buildChildEnv, 'playground-web:start');
+	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'playground-web:start');
+});
+
+test('playground:stop ends the server tree rather than signalling the child', async (t) => {
+	const cp = stubbedSpawn();
+	const killChildTree = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noSmtpServer(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTree }
+		}
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground:start', '/sites/wp'));
+
+	assert.deepEqual(await main.invoke('playground:stop', '/sites/wp'), { ok: true });
+	// The Playground server is a tree too — the runner spawns the PHP-WASM worker
+	// — so stopping a site with child.kill() left it running (#146, same class as
+	// #83).
+	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
+	assert.deepEqual(cp.children[0].kill.calls, []);
+});
+
+test('playground-web:stop ends the web server tree rather than signalling the child', async (t) => {
+	const cp = stubbedSpawn();
+	const killChildTree = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noWebProbe(),
+			...webDirOnDisk(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTree }
+		}
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground-web:start'));
+
+	assert.deepEqual(await main.invoke('playground-web:stop'), { ok: true });
 	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
 	assert.deepEqual(cp.children[0].kill.calls, []);
 });
@@ -602,7 +814,12 @@ const WIRED = new Set([
 	'git:save-patch',
 	'sites:add',
 	'npm:install',
-	'npm:run-script'
+	'npm:run-script',
+	'npm:kill',
+	'playground:start',
+	'playground:stop',
+	'playground-web:start',
+	'playground-web:stop'
 ]);
 
 // Channels with no module to reach: they read or write electron-store, drive a
@@ -628,24 +845,14 @@ const NO_DELEGATION = new Map([
 	['wp-debug:stop', 'stops a tail']
 ]);
 
-// The uncomfortable list. These handlers call no module — they hold the spawn
-// and kill invariants inline instead: the child environment built by hand rather
-// than by buildChildEnv, `shell: false`, `windowsHide: true`, `detached` on
-// POSIX, and `child.kill()` where the npm paths use killChildTree. So they carry
-// exactly the kind of guard #129 is about, and deleting `detached:` from
-// playground:start still leaves this suite green.
-//
-// Wiring them means either giving them the modules the npm handlers use, or
-// asserting the spawn options directly — a decision about main.js, not about
-// this file, which is why it is recorded here rather than quietly folded into
-// NO_DELEGATION. Follow-up.
-const UNWIRED_INVARIANTS = new Map([
-	['npm:kill', 'signals with child.kill() rather than killChildTree'],
-	['playground:start', 'hand-builds the child env and the spawn options for server-runner.js'],
-	['playground:stop', 'stops a spawned server with child.kill()'],
-	['playground-web:start', 'hand-builds the child env and the spawn options for playground-web-runner.js'],
-	['playground-web:stop', 'stops a spawned server with child.kill()']
-]);
+// There used to be a third list here, UNWIRED_INVARIANTS: the Playground and
+// kill handlers, which held the spawn and kill invariants inline instead of
+// reaching a module, so deleting `detached:` from playground:start left this
+// suite green. #146 routed them through buildChildEnv and killChildTree, and the
+// options no module owns are asserted directly by
+// assertCrossPlatformSpawnOptions — so they are ordinary WIRED entries now. If
+// another handler ever earns that list back, it belongs here, named, rather than
+// folded into NO_DELEGATION.
 
 // Channels that do delegate, but whose call sits behind something this harness
 // cannot stand in for yet. Each one is a known hole, not an oversight.
@@ -654,7 +861,7 @@ const NOT_REACHABLE = new Map([
 	['wordpress:setup', 'calls ensureAutocrlf and readTrunkInfo only after cloning wordpress-develop over the network']
 ]);
 
-const CLASSIFIED = [...WIRED, ...NO_DELEGATION.keys(), ...UNWIRED_INVARIANTS.keys(), ...NOT_REACHABLE.keys()];
+const CLASSIFIED = [...WIRED, ...NO_DELEGATION.keys(), ...NOT_REACHABLE.keys()];
 
 test('every IPC channel is classified: wired, or explicitly not', () => {
 	const main = loadMain({ stubs: silentLogging() });
@@ -665,7 +872,7 @@ test('every IPC channel is classified: wired, or explicitly not', () => {
 		unclassified,
 		[],
 		`New IPC handler(s) with no wiring test. Add a test above and list the channel in WIRED, ` +
-		`or record why there is nothing to wire in NO_DELEGATION / UNWIRED_INVARIANTS / NOT_REACHABLE.`
+		`or record why there is nothing to wire in NO_DELEGATION / NOT_REACHABLE.`
 	);
 
 	// A one-way channel is a handler too, and would otherwise arrive invisible to

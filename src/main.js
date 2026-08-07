@@ -96,6 +96,34 @@ function ensureNodeShimDir() {
     return nodeShimDir;
 }
 
+// Every child this app starts is one of the runners next to this file, run on
+// Electron's own Node. They all need the same environment — buildChildEnv's, the
+// mechanism behind "zero prerequisites" — and the same three cross-platform
+// options, so all of it lives here rather than being restated per spawn site:
+// restating it is what left the Playground path outside npm-runner's and
+// kill-tree's tests (#146).
+//
+// `extraEnv` is for settings a single runner reads (the SMTP constants
+// server-runner.js needs); it is layered on top of the shared environment, never
+// in place of it.
+function spawnRunner(runnerPath, args, { cwd, extraEnv = {} }) {
+	return spawn(process.execPath, [runnerPath, ...args], {
+		cwd,
+		env: buildChildEnv({
+			shimDir: ensureNodeShimDir(),
+			spawnPatchPath,
+			npmCliPath,
+			npxCliPath,
+			extraEnv
+		}),
+		shell: false,
+		windowsHide: true,
+		// Group leader on POSIX so killChildTree can signal the whole tree
+		// (see kill-tree.js); Windows uses taskkill /T instead.
+		detached: process.platform !== 'win32'
+	});
+}
+
 let store; // initialized asynchronously due to ESM-only module
 let storeReady = null;
 
@@ -720,20 +748,9 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 		// Windows) produces no output, so without this the log would show nothing
 		// where the failure was.
 		logEvent(logScope, `spawn ${path.basename(runnerPath)} ${args.join(' ')} in ${cwd}${relaxEngines ? ' (relaxed engines)' : ''}`);
-		const child = spawn(process.execPath, [runnerPath, ...args], {
+		const child = spawnRunner(runnerPath, args, {
 			cwd,
-			env: buildChildEnv({
-				shimDir: ensureNodeShimDir(),
-				spawnPatchPath,
-				npmCliPath,
-				npxCliPath,
-				extraEnv: relaxEngines ? RELAXED_ENGINES_ENV : {}
-			}),
-			shell: false,
-			windowsHide: true,
-			// Group leader on POSIX so killChildTree can signal the whole tree
-			// (see kill-tree.js); Windows uses taskkill /T instead.
-			detached: process.platform !== 'win32'
+			extraEnv: relaxEngines ? RELAXED_ENGINES_ENV : {}
 		});
 		register(child);
 
@@ -893,8 +910,14 @@ ipcMain.handle('npm:kill', async (_event, { runId, directoryPath }) => {
 	if (!child) return { ok: false, error: 'No running script' };
 	try {
 		cancelledChildren.add(child);
-		child.kill('SIGTERM');
-		setTimeout(() => child.kill('SIGKILL'), 3000);
+		// A script is a tree — runner -> npm -> shell -> grunt — and child.kill()
+		// signals only the first link, so stopping a build left the rest of it
+		// running (#83, #146).
+		killChildTree(child);
+		// Last resort for a child that ignores SIGTERM. Only the direct child: by
+		// this point the tree has had its chance, and the runner dying takes the
+		// pipes with it.
+		setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, 3000);
 		return { ok: true };
 	} catch (e) {
 		return { ok: false, error: String(e) };
@@ -921,11 +944,9 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	const runnerPath = path.join(__dirname, 'server-runner.js');
 	const logScope = playgroundLogScope(sitePath);
 	logEvent(logScope, `starting server for ${buildDir} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
-	const child = spawn(process.execPath, [runnerPath, buildDir], {
+	const child = spawnRunner(runnerPath, [buildDir], {
 		cwd: buildDir,
-		env: {
-			...process.env,
-			ELECTRON_RUN_AS_NODE: '1',
+		extraEnv: {
 			// Provide SMTP settings to the server runner so it can configure WP constants
 			WP_MAIL_SMTP_HOST: '127.0.0.1',
 			WP_MAIL_SMTP_PORT: String((smtp && smtp.port) ? smtp.port : 25),
@@ -933,12 +954,7 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 			WP_MAIL_SMTP_SECURE: '',
 			WP_MAIL_SMTP_USER: '',
 			WP_MAIL_SMTP_PASS: ''
-		},
-		shell: false,
-		windowsHide: true,
-		// Group leader on POSIX so killChildTree can signal the whole tree
-		// (see kill-tree.js); Windows uses taskkill /T instead.
-		detached: process.platform !== 'win32'
+		}
 	});
 	playgroundServers[sitePath] = { child };
 	let resolved = false;
@@ -1007,7 +1023,9 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 		timeoutId = setTimeout(() => {
 			if (!resolved && typeof pendingResolve === 'function') {
 				logError(logScope, `server did not report a URL within ${START_TIMEOUT_MS / 1000}s; killing it`);
-				try { child.kill(); } catch {}
+				// The tree, not the runner alone: a server that hung on the way up
+				// still has its worker underneath it.
+				killChildTree(child);
 				pendingResolve({ ok: false, error: `Server did not start within ${START_TIMEOUT_MS / 1000} seconds` });
 				pendingResolve = null;
 			}
@@ -1019,7 +1037,9 @@ ipcMain.handle('playground:stop', async (_event, sitePath) => {
 	const server = playgroundServers[sitePath];
 	if (!server?.child) return { ok: true };
 	try {
-		server.child.kill();
+		// The runner spawns the PHP-WASM server under it, so the same tree kill the
+		// quit sweep uses (#83) is what actually stops the site (#146).
+		killChildTree(server.child);
 		await stopSmtpServerForSite(sitePath);
 		return { ok: true };
 	} catch (e) {
@@ -1072,18 +1092,7 @@ ipcMain.handle('playground-web:start', async () => {
 
     const runnerPath = path.join(__dirname, 'playground-web-runner.js');
     logEvent(WEB_LOG_SCOPE, `starting web server for ${webDir} on port 39372`);
-    const child = spawn(process.execPath, [runnerPath, webDir, '39372'], {
-        cwd: webDir,
-        env: {
-            ...process.env,
-            ELECTRON_RUN_AS_NODE: '1'
-        },
-        shell: false,
-        windowsHide: true,
-        // Group leader on POSIX so killChildTree can signal the whole tree
-        // (see kill-tree.js); Windows uses taskkill /T instead.
-        detached: process.platform !== 'win32'
-    });
+    const child = spawnRunner(runnerPath, [webDir, '39372'], { cwd: webDir });
     playgroundWebServer = { child };
 
     let resolved = false;
@@ -1169,7 +1178,7 @@ ipcMain.handle('playground-web:start', async () => {
 ipcMain.handle('playground-web:stop', async () => {
     if (!playgroundWebServer?.child) return { ok: true };
     try {
-        playgroundWebServer.child.kill();
+        killChildTree(playgroundWebServer.child);
         return { ok: true };
     } catch (e) {
         return { ok: false, error: String(e) };
