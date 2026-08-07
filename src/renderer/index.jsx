@@ -1579,6 +1579,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // pill and the "latest is a patch file" note.
   const latestPatch = pickLatest({ prs: ticketPatches?.items, attachments: tracAttachments?.items });
   const latestIsAttachment = latestPatch?.kind === 'attachment';
+  // The panel lists only what can be applied — screenshots and other non-patch
+  // attachments are noise here. The parser still returns them (pickLatest and
+  // tests rely on the full list); the filtering is purely what's shown.
+  const patchAttachments = (tracAttachments?.items || []).filter((a) => a.applyable);
+  const tracAttachmentsRead = tracAttachments
+    && (tracAttachments.status === 'ok' || tracAttachments.status === 'no-attachments');
   const latestPill = (isLatest) => (isLatest ? (
     <span style={{ display: 'inline-flex', alignItems: 'center', flex: '0 0 auto', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', background: '#e7f1ff', color: '#0b5d95', marginLeft: 8 }}>
       Latest
@@ -2452,8 +2458,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 13 }}><Spinner /> Opening the ticket on Trac…</div>
               ) : null}
 
-              {tracAttachments && tracAttachments.status === 'no-attachments' ? (
-                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>This ticket has no attachments.</div>
+              {tracAttachmentsRead && patchAttachments.length === 0 ? (
+                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>No patch files attached to this ticket.</div>
               ) : null}
 
               {tracAttachments && (tracAttachments.status === 'challenge-timeout' || tracAttachments.status === 'error' || tracAttachments.status === 'closed') ? (
@@ -2466,9 +2472,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 </div>
               ) : null}
 
-              {tracAttachments && tracAttachments.items && tracAttachments.items.length ? (
+              {patchAttachments.length ? (
                 <div style={{ marginTop: 10, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
-                  {tracAttachments.items.map((att) => (
+                  {patchAttachments.map((att) => (
                     <div key={att.url} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
                       <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
@@ -2481,17 +2487,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           {[att.author && `by ${att.author}`, att.dateText, att.sizeText].filter(Boolean).join(' · ')}
                         </div>
                       </div>
-                      {att.applyable ? (
-                        <Button
-                          variant="secondary"
-                          isBusy={fetchingAttachment === att.url}
-                          disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingAttachment !== null}
-                          onClick={() => previewAttachment(att)}
-                          style={{ flex: '0 0 auto' }}
-                        >Apply…</Button>
-                      ) : (
-                        <span style={{ flex: '0 0 auto', fontSize: 11, color: '#6c6f72' }}>not a patch</span>
-                      )}
+                      <Button
+                        variant="secondary"
+                        isBusy={fetchingAttachment === att.url}
+                        disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingAttachment !== null}
+                        onClick={() => previewAttachment(att)}
+                        style={{ flex: '0 0 auto' }}
+                      >Apply…</Button>
                     </div>
                   ))}
                 </div>
