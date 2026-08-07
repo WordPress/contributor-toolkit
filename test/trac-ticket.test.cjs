@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { TRAC_HOST, MAX_TICKET_ID, ticketUrl, parseTicketRef } = require('../src/renderer/trac-ticket.cjs');
+const { TRAC_HOST, MAX_TICKET_ID, ticketUrl, attachUrl, parseTicketRef } = require('../src/renderer/trac-ticket.cjs');
 
 test('parseTicketRef: a bare number is a ticket (issue #109)', () => {
 	const res = parseTicketRef('62281');
@@ -105,4 +105,22 @@ test('parseTicketRef: ticket 0 and implausibly long numbers are rejected (issue 
 test('parseTicketRef: leading zeros resolve to the same ticket (issue #109)', () => {
 	assert.strictEqual(parseTicketRef('0062281').id, 62281);
 	assert.strictEqual(parseTicketRef('0062281').url, ticketUrl(62281));
+});
+
+// The "attach to Trac" destination is this link and nothing else (issue #166):
+// no upload, no session, one click the contributor makes themselves.
+test('attachUrl: points at the ticket the site is working, on the attach form (issue #166)', () => {
+	assert.strictEqual(
+		attachUrl(62281),
+		'https://core.trac.wordpress.org/attachment/ticket/62281/?action=new'
+	);
+	assert.strictEqual(attachUrl('62281'), attachUrl(62281));
+});
+
+// openExternal refuses anything that is not http(s) (src/external-url.js), and
+// the attach link has to keep passing that gate on the host Trac serves.
+test('attachUrl: stays https on the Trac host (issue #166)', () => {
+	const parsed = new URL(attachUrl(62281));
+	assert.strictEqual(parsed.protocol, 'https:');
+	assert.strictEqual(parsed.hostname, TRAC_HOST);
 });

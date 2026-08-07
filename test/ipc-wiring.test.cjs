@@ -549,6 +549,204 @@ test('git:create-patch and git:save-patch generate the patch the same way', asyn
 	}
 });
 
+// --- git:save-patch -> src/patch-provenance.cjs (#166) -------------------
+
+// A repository the patch path can actually run against, so the handler reaches
+// the provenance step instead of stopping at the first git call.
+async function fixtureRepo(t) {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-handoff-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	fs.writeFileSync(path.join(dir, 'text.txt'), 'line1\n');
+	await git.add({ fs, dir, filepath: 'text.txt' });
+	const head = await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
+	// Without it the handler falls back to fetching wordpress-develop.
+	await git.writeRef({ fs, dir, ref: 'refs/remotes/origin/trunk', value: head });
+	fs.writeFileSync(path.join(dir, 'text.txt'), 'line1\nline2\n');
+	return dir;
+}
+
+// The header is what makes a handed-off patch worth handing off: without it the
+// file says nothing about who wrote it, and the props go to whoever pushes it.
+// The values come from the store rather than from the caller, so the renderer
+// cannot put someone else's handle or another site's base on a patch.
+test('git:save-patch with handoff asks patch-provenance for the header and the name', async (t) => {
+	const dir = await fixtureRepo(t);
+	const buildProvenanceHeader = spy(() => '# header\n\n');
+	const handoffFilename = spy(() => '62281.janedoe.diff');
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({
+				siteMeta: { [dir]: { tracTicket: 62281, trunkOid: 'abcdef1234567890', trunkDate: '2026-08-05T09:14:00.000Z' } },
+				preferences: { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Europe 2026' }
+			}).stubs,
+			'./patch-provenance.cjs': { buildProvenanceHeader, handoffFilename }
+		}
+	});
+
+	// The dialog is canceled by default, which is far enough: both calls happen
+	// before it, and nothing is written to the contributor's disk.
+	await main.invoke('git:save-patch', dir, { handoff: true });
+
+	assert.equal(buildProvenanceHeader.calls.length, 1);
+	const details = buildProvenanceHeader.calls[0][0];
+	assert.equal(details.handle, 'janedoe');
+	assert.equal(details.event, 'WordCamp Europe 2026');
+	assert.equal(details.ticketId, 62281);
+	assert.equal(details.trunkOid, 'abcdef1234567890');
+	assert.equal(details.trunkDate, '2026-08-05T09:14:00.000Z');
+	assert.ok(details.generatedAt, 'the header has to be able to say when this was made');
+
+	assert.deepEqual(handoffFilename.calls, [[{ handle: 'janedoe', ticketId: 62281 }]]);
+	assert.equal(main.calls.showSaveDialog.length, 1);
+	assert.equal(path.basename(main.calls.showSaveDialog[0].defaultPath), '62281.janedoe.diff');
+});
+
+// The other callers — the Trac destination and the save-before-update prompt —
+// produce the file that gets attached to a ticket, which carries no header by
+// convention. A handler that headed every patch would change what those two do.
+test('git:save-patch without options is the bare diff under the name it always had', async (t) => {
+	const dir = await fixtureRepo(t);
+	const buildProvenanceHeader = spy(() => '# header\n\n');
+	const handoffFilename = spy(() => 'should-not-be-used.diff');
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ preferences: { wporgHandle: 'janedoe' } }).stubs,
+			'./patch-provenance.cjs': { buildProvenanceHeader, handoffFilename }
+		}
+	});
+
+	await main.invoke('git:save-patch', dir);
+
+	assert.deepEqual(buildProvenanceHeader.calls, []);
+	assert.deepEqual(handoffFilename.calls, []);
+	assert.equal(path.basename(main.calls.showSaveDialog[0].defaultPath), 'wordpress.patch');
+});
+
+// The two tests above stop at the dialog, so neither sees what is written. This
+// one runs the real patch-provenance module all the way to the file, because
+// the header being *above* the diff is the whole of its usefulness: the same
+// lines appended after it would land inside the last hunk's context and stop
+// the patch applying anywhere.
+test('git:save-patch with handoff writes the header above the diff, and it still parses', async (t) => {
+	const dir = await fixtureRepo(t);
+	const target = path.join(dir, '..', `handoff-${process.pid}.diff`);
+	t.after(() => fs.rmSync(target, { force: true }));
+
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({
+				siteMeta: { [dir]: { tracTicket: 62281 } },
+				preferences: { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Europe 2026' }
+			}).stubs
+		}
+	});
+	main.dialogResults.showSaveDialog = { canceled: false, filePath: target };
+
+	const result = await main.invoke('git:save-patch', dir, { handoff: true });
+	assert.equal(result.ok, true, result.error);
+
+	const written = fs.readFileSync(target, 'utf8');
+	assert.ok(written.startsWith('# WordPress Contributor Toolkit patch\n'), written.slice(0, 200));
+	assert.ok(written.includes('# Contributor: janedoe (wordpress.org)'));
+	assert.ok(written.includes('# Event: WordCamp Europe 2026'));
+	assert.ok(written.indexOf('# Generated:') < written.indexOf('---'), 'the header has to precede the diff');
+
+	// The app reads its own patches back when someone applies one, so a mentor's
+	// copy of this file has to survive the round trip.
+	const parsed = require('../src/patch-plan.cjs').parsePatchFiles(written);
+	assert.equal(parsed.ok, true, parsed.error);
+	assert.deepEqual(parsed.files.map((f) => f.path), ['text.txt']);
+});
+
+// --- provenance:* -> src/wporg-handle.cjs + src/patch-provenance.cjs (#166) ---
+
+// The handle becomes a filename and a line in a file other people read, so it
+// is validated in the main process and not only in the window.
+test('provenance:set-handle validates through wporg-handle before storing anything', async () => {
+	const parseHandle = spy(() => ({ ok: false, error: 'nope' }));
+	const settings = fakeSettingsStore();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './wporg-handle.cjs': { parseHandle } }
+	});
+
+	const result = await main.invoke('provenance:set-handle', 'jane doe');
+
+	assert.deepEqual(result, { ok: false, error: 'nope' });
+	assert.deepEqual(parseHandle.calls, [['jane doe']]);
+	assert.equal(settings.values.preferences, undefined, 'a refused handle must not be written');
+});
+
+test('provenance:set-handle stores the canonical handle the module returned, not what was typed', async () => {
+	const parseHandle = spy(() => ({ ok: true, handle: 'janedoe' }));
+	const settings = fakeSettingsStore();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './wporg-handle.cjs': { parseHandle } }
+	});
+
+	assert.deepEqual(await main.invoke('provenance:set-handle', 'https://profiles.wordpress.org/JaneDoe/'), { ok: true, handle: 'janedoe' });
+	assert.equal(settings.values.preferences.wporgHandle, 'janedoe');
+});
+
+// The event goes into the same header, so it is validated in the same place —
+// and by the module that owns the header's line rules.
+test('provenance:set-event validates through patch-provenance before storing anything', async () => {
+	const parseEventName = spy(() => ({ ok: false, error: 'one line please' }));
+	const settings = fakeSettingsStore();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './patch-provenance.cjs': { parseEventName } }
+	});
+
+	const result = await main.invoke('provenance:set-event', 'WordCamp\n# Contributor: someoneelse');
+
+	assert.deepEqual(result, { ok: false, error: 'one line please' });
+	assert.deepEqual(parseEventName.calls, [['WordCamp\n# Contributor: someoneelse']]);
+	assert.equal(settings.values.preferences, undefined, 'a refused event must not be written');
+});
+
+// Same shape as `sites:set-ticket`: clearing needs no second channel, and it
+// must not be routed through the parser, which refuses an empty string. The
+// event is the field this matters most for — a WordCamp ends.
+test('provenance:set-handle and set-event forget the field on an empty ref', async () => {
+	const parseHandle = spy(() => ({ ok: false, error: 'nope' }));
+	const parseEventName = spy(() => ({ ok: false, error: 'nope' }));
+	const settings = fakeSettingsStore({ preferences: { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Europe 2026' } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./wporg-handle.cjs': { parseHandle },
+			'./patch-provenance.cjs': { parseEventName }
+		}
+	});
+
+	assert.deepEqual(await main.invoke('provenance:set-handle', '   '), { ok: true, handle: null });
+	assert.deepEqual(await main.invoke('provenance:set-event', ''), { ok: true, event: null });
+	assert.equal(settings.values.preferences.wporgHandle, null);
+	assert.equal(settings.values.preferences.contributionEvent, null);
+	assert.deepEqual(parseHandle.calls, []);
+	assert.deepEqual(parseEventName.calls, []);
+});
+
+// One read for both, because the window asks once on load.
+test('provenance:get reads the remembered handle and event', async () => {
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ preferences: { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Europe 2026' } }).stubs
+		}
+	});
+
+	assert.deepEqual(await main.invoke('provenance:get'), {
+		ok: true,
+		handle: 'janedoe',
+		event: 'WordCamp Europe 2026'
+	});
+});
+
 // --- npm:* -> src/npm-runner.js + src/kill-tree.js -----------------------
 
 // The npm handlers run the real runNpmWithEngineRetry, which calls
@@ -1369,7 +1567,9 @@ const WIRED = new Set([
 	'editor:list',
 	'editor:choose',
 	'editor:open',
-	'dir:show'
+	'dir:show',
+	'provenance:set-handle',
+	'provenance:set-event'
 ]);
 
 // Channels with no module to reach: they read or write electron-store, drive a
@@ -1387,6 +1587,7 @@ const NO_DELEGATION = new Map([
 	['dialog:choose-dir', 'opens the directory dialog'],
 	['dialog:choose-patch-file', 'opens the file-open dialog and reads the chosen file'],
 	['playground-web:available', 'checks a path on disk'],
+	['provenance:get', 'electron-store read'],
 	['smtp:get', 'electron-store read'],
 	['smtp:clear', 'electron-store write'],
 	['smtp:start', 'starts the in-process SMTP server'],

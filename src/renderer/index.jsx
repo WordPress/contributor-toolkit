@@ -22,7 +22,8 @@ import { pathBasename } from './path-basename.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
-import { ticketUrl } from './trac-ticket.cjs';
+import { ticketUrl, attachUrl } from './trac-ticket.cjs';
+import { highlightDiff } from './diff-highlight.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // Per-status wording for the update chain card (#94), following the issue's
@@ -122,6 +123,61 @@ function useEditorChoice() {
   return { chosen, detected, loadDetected, remember };
 }
 
+// Who this contributor is and where they are contributing from (#166), held
+// once for the same reason the editor choice is: both are facts about the
+// person, not about a checkout, so answering them in one site's patch modal
+// must not leave every other site still asking.
+function useContributorProvenance() {
+  const [handle, setHandle] = useState(null);
+  const [event, setEvent] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    window.api.getProvenance()
+      .then((res) => {
+        if (cancelled) return;
+        setHandle(res?.handle || null);
+        setEvent(res?.event || null);
+      })
+      // "nothing answered yet" is an ordinary state; "the store could not be
+      // read" is not, and the two must not look the same in the log. Same
+      // argument as useEditorChoice above.
+      // eslint-disable-next-line no-console -- reaches the log file, see the note in useEditorChoice.
+      .catch((err) => console.error('Could not read the remembered contributor details:', err));
+    return () => { cancelled = true; };
+  }, []);
+
+  // An empty ref forgets the field. A rejected invoke comes back as a refusal
+  // rather than being raised: the caller shows the message next to the input.
+  const rememberHandle = useCallback(async (ref) => {
+    let result;
+    try {
+      result = await window.api.setWporgHandle(ref);
+    } catch (err) {
+      // eslint-disable-next-line no-console -- see the note above.
+      console.error('Could not remember that WordPress.org handle:', err);
+      return { ok: false, error: String(err?.message ?? err) };
+    }
+    if (result?.ok) setHandle(result.handle || null);
+    return result;
+  }, []);
+
+  const rememberEvent = useCallback(async (ref) => {
+    let result;
+    try {
+      result = await window.api.setContributionEvent(ref);
+    } catch (err) {
+      // eslint-disable-next-line no-console -- see the note above.
+      console.error('Could not remember that event:', err);
+      return { ok: false, error: String(err?.message ?? err) };
+    }
+    if (result?.ok) setEvent(result.event || null);
+    return result;
+  }, []);
+
+  return { handle, event, rememberHandle, rememberEvent };
+}
+
 function useSites() {
   const [sites, setSites] = useState([]);
   const [siteMeta, setSiteMeta] = useState({});
@@ -138,6 +194,7 @@ function App() {
   const { sites, siteMeta, refresh, setSiteMeta, setSites } = useSites();
   // One choice for the window, shared by every site row.
   const editorChoice = useEditorChoice();
+  const wporg = useContributorProvenance();
   const [downloadPhase, setDownloadPhase] = useState('');
   // Directories whose clone is still running. An array rather than a single
   // path because the main process may settle on a different (deduplicated)
@@ -742,6 +799,7 @@ function App() {
                       onDelete={onDelete}
                       onRename={onRename}
                       editor={editorChoice}
+                      wporg={wporg}
                       isPending={pendingSites.includes(s)}
                       setupLogs={setupLogsBySite[s] || ''}
                       isActive={activeSite === s}
@@ -824,7 +882,64 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, editor, isPending = false, setupLogs = '', isActive = false }) {
+// What each kind of patch line looks like (#166). The classification is in
+// diff-highlight.cjs; the colours are here because they are a property of this
+// pane, not of a diff. Added and removed lines carry a wash as well as a
+// foreground colour so the two are still distinguishable without colour vision
+// — the sign in column 0 is the other half of that, and it is never hidden.
+const DIFF_LINE_STYLES = {
+  add: { color: '#7ee787', background: 'rgba(46,160,67,0.18)' },
+  del: { color: '#ffa198', background: 'rgba(248,81,73,0.18)' },
+  hunk: { color: '#d2a8ff' },
+  meta: { color: '#79c0ff' },
+  header: { color: '#8b949e', fontStyle: 'italic' },
+  context: {}
+};
+
+// The patch, painted. An empty line still needs to occupy one: `\n` is appended
+// per line rather than joining, so the last line of a patch that ends in a
+// newline does not silently gain or lose one.
+//
+// Memoised on the text, because this renders inside SiteRow — which re-renders
+// on every chunk a running dev server or watch task streams into its log. The
+// patch has not changed; without this, each chunk re-splits it and hands React
+// thousands of fresh spans to reconcile, on the same thread that has to paint
+// the log.
+function DiffText({ text }) {
+  const lines = useMemo(() => highlightDiff(text), [text]);
+  if (!lines) return text;
+  return lines.map((line, index) => (
+    // A diff line has no identity beyond its position, and the whole pane is
+    // replaced when the patch changes.
+    <span key={index} style={{ display: 'block', ...DIFF_LINE_STYLES[line.kind] }}>
+      {line.text || ' '}
+    </span>
+  ));
+}
+
+// One destination for a finished patch (#166): what it is, what it costs to
+// use, and what happens afterwards. The costs are the point — they are what the
+// app used to leave the contributor to find out on their own — so every
+// destination states one, in the same place and the same shape, rather than the
+// cheap one being presented as the obvious choice.
+function DestinationCard({ title, cost, after, children }) {
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:8, padding:'14px 16px', border:'1px solid #dcdcde', borderRadius:10, background:'#fff' }}>
+      <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>{title}</div>
+      <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>{cost}</div>
+      <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>{after}</div>
+      {/*
+        The actions follow the prose rather than being pushed to the bottom of
+        the row: the cards carry different numbers of controls, so bottom-
+        aligning them lines up nothing and leaves a hole above the shorter
+        card's button.
+      */}
+      <div style={{ paddingTop:4, display:'flex', flexDirection:'column', gap:8 }}>{children}</div>
+    </div>
+  );
+}
+
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, editor, wporg, isPending = false, setupLogs = '', isActive = false }) {
   // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
   // recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
@@ -839,6 +954,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [patchText, setPatchText] = useState('');
   const [patchLoading, setPatchLoading] = useState(false);
+  // What the last save did, reported in the modal rather than in an alert:
+  // the destination panel is where the contributor is looking, and the path
+  // matters — it is the file they are about to upload or hand over (#166).
+  const [patchSaved, setPatchSaved] = useState(null);
+  const [patchSaveError, setPatchSaveError] = useState('');
+  const [handleInput, setHandleInput] = useState('');
+  const [eventInput, setEventInput] = useState('');
+  const [handleError, setHandleError] = useState('');
+  const [handleSaving, setHandleSaving] = useState(false);
+  const [editingHandle, setEditingHandle] = useState(false);
   const [emails, setEmails] = useState([]);
   const [smtpPort, setSmtpPort] = useState(0);
   const newEmailUnsubRef = useRef(null);
@@ -2054,6 +2179,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setIsPatchOpen(true);
     setPatchLoading(true);
     setPatchText('');
+    // Last time's outcome belongs to last time's patch.
+    setPatchSaved(null);
+    setPatchSaveError('');
+    setHandleError('');
+    setEditingHandle(false);
     try {
       const res = await window.api.getPatch(sitePath);
       if (res && res.ok) setPatchText((res.patch && res.patch.trim().length) ? res.patch : 'No changes.');
@@ -2069,21 +2199,76 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     try { await navigator.clipboard.writeText(patchText); } catch {}
   };
 
-  const savePatch = async ()=>{
+  // Naming destinations for a patch that does not exist would be noise, and
+  // both of the states that produce one are already spelled out in the pane
+  // below: `getPatch` returns the literal 'No changes.', and its failures are
+  // put in the same box prefixed with 'Error'.
+  const patchHasChanges = Boolean(patchText)
+    && patchText.trim() !== 'No changes.'
+    && !patchText.startsWith('Error');
+
+  // Saving the file, for every destination that needs one (#166). `handoff`
+  // asks the main process for the provenance header and the name that carries
+  // the handle; without it this is the plain diff the Save button has always
+  // produced. Returns the path so a caller can say what it did next — the Trac
+  // route saves and then opens the attach page.
+  const savePatchFile = async (options) => {
+    setPatchSaved(null);
+    setPatchSaveError('');
     try {
-      const res = await window.api.savePatch(sitePath);
+      const res = await window.api.savePatch(sitePath, options);
       if (res && res.ok && res.filePath) {
-        // eslint-disable-next-line no-alert -- see the note above onRename.
-        alert(`Diff saved to: ${res.filePath}`);
-      } else if (res && res.canceled) {
-        // User canceled, do nothing
-      } else {
-        // eslint-disable-next-line no-alert -- see the note above onRename.
-        alert(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
+        setPatchSaved(res.filePath);
+        return res.filePath;
       }
+      if (res && res.canceled) return null;
+      setPatchSaveError(res && res.error ? res.error : 'Unknown error');
     } catch (e) {
-      // eslint-disable-next-line no-alert -- see the note above onRename.
-      alert(`Error saving diff: ${e && e.message ? e.message : String(e)}`);
+      setPatchSaveError(e && e.message ? e.message : String(e));
+    }
+    return null;
+  };
+
+  const savePatch = () => savePatchFile();
+
+  // The Trac destination in full: save the file, then open the ticket's attach
+  // page so the contributor uploads it themselves. Nothing is posted from here
+  // — that would mean carrying a wordpress.org session, which #166 rules out.
+  // The page is opened only after a file exists, so the browser never lands on
+  // an attach form with nothing to attach.
+  const saveForTrac = async () => {
+    const filePath = await savePatchFile();
+    if (filePath && tracTicket) window.api.openExternal(attachUrl(tracTicket));
+  };
+
+  const saveForHandoff = async () => {
+    if (!wporg?.handle) return;
+    await savePatchFile({ handoff: true });
+  };
+
+  // Both fields are written in one go, because they are asked in one form. The
+  // event is optional: an empty box means "not at an event", which is also how
+  // it is cleared once the WordCamp is over.
+  const rememberContributor = async () => {
+    if (!wporg) return;
+    setHandleSaving(true);
+    setHandleError('');
+    try {
+      const named = await wporg.rememberHandle(handleInput);
+      if (!named?.ok) {
+        setHandleError(named?.error || 'Could not save that username.');
+        return;
+      }
+      const at = await wporg.rememberEvent(eventInput);
+      if (!at?.ok) {
+        setHandleError(at?.error || 'Could not save that event.');
+        return;
+      }
+      setHandleInput('');
+      setEventInput('');
+      setEditingHandle(false);
+    } finally {
+      setHandleSaving(false);
     }
   };
 
@@ -2485,7 +2670,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               onClick={openPatchModal}
               disabled={isUpdating}
               style={{ padding: '10px 16px', borderRadius: 10 }}
-            >Submit patch</Button>
+            >Create patch</Button>
             {running && serverUrl ? (
               <Button
                 variant="secondary"
@@ -2986,11 +3171,144 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
               </div>
             )}
-            {!patchLoading && (
+            {!patchLoading && !patchHasChanges && (
               <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
-                <strong>Next steps:</strong> Save this patch and submit it to the relevant WordPress Trac ticket at <button type="button" onClick={() => window.api.openExternal('https://core.trac.wordpress.org')} style={{color:'#0969da', cursor:'pointer', background:'none', border:'none', padding:0, font:'inherit', textDecoration:'underline'}}>core.trac.wordpress.org</button>
+                There is nothing to send yet — this site has no changes against its copy of trunk.
               </div>
             )}
+            {/*
+              Where the patch goes, named at the moment it exists (#166), each
+              destination with what it costs — a tool that emits a file and stops
+              leaves the contributor to work that out alone.
+
+              Opening a pull request is not offered here. It is the destination
+              that actually gets reviewed, but there is no path to one from a
+              .diff that this app can walk: GitHub cannot ingest a patch file,
+              and every manual route needs a GitHub credential. Sending someone
+              to a handbook page is not an action on the patch in front of them,
+              so the card became noise. #167 is the version that can act.
+            */}
+            {!patchLoading && patchHasChanges && (
+              <div>
+                <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:8 }}>
+                  <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Where this patch goes</div>
+                  <div style={{ fontSize:12, color:'#6c6f72' }}>Nothing is uploaded and no account is asked for here.</div>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:12, alignItems:'stretch' }}>
+                  <DestinationCard
+                    title="Attach to Trac"
+                    cost="A WordPress.org account — needed anyway, for props and to comment."
+                    after="No automated checks. Often followed by a request to open a pull request."
+                  >
+                    {tracTicket ? (
+                      <Button variant="primary" onClick={saveForTrac} style={{ justifyContent:'center' }}>
+                        Save, then open #{tracTicket}
+                      </Button>
+                    ) : (
+                      <>
+                        <div style={{ fontSize:12, color:'#6c6f72' }}>
+                          No ticket is linked to this site, so there is nowhere to attach it yet.
+                        </div>
+                        <TextControl
+                          value={ticketInput}
+                          onChange={(value) => { setTicketInput(value); setTicketError(''); }}
+                          onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
+                          disabled={ticketSaving}
+                          placeholder="Ticket number or URL, e.g. 62281"
+                          aria-label="Trac ticket number or URL"
+                        />
+                        <Button
+                          variant="secondary"
+                          onClick={linkTicket}
+                          isBusy={ticketSaving}
+                          disabled={ticketSaving || !ticketInput.trim()}
+                          style={{ justifyContent:'center' }}
+                        >Link ticket</Button>
+                        {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
+                      </>
+                    )}
+                  </DestinationCard>
+
+                  <DestinationCard
+                    title="Hand it to a mentor"
+                    cost="No accounts at all. The patch carries your WordPress.org username, and the event you are at."
+                    after="Someone else pushes it; the props still land on you."
+                  >
+                    {wporg?.handle && !editingHandle ? (
+                      <>
+                        <Button variant="primary" onClick={saveForHandoff} style={{ justifyContent:'center' }}>
+                          Save patch as {wporg.handle}
+                        </Button>
+                        {/*
+                          The event is shown on every save rather than only when
+                          it is set: a remembered WordCamp from last year would
+                          otherwise keep stamping patches with nobody seeing it.
+                        */}
+                        <div style={{ fontSize:12, color:'#6c6f72' }}>
+                          {wporg.event ? <>The patch will say it was written at <strong>{wporg.event}</strong>.</> : 'No event on the patch.'}
+                        </div>
+                        <Button
+                          variant="link"
+                          onClick={() => {
+                            setHandleInput(wporg.handle);
+                            setEventInput(wporg.event || '');
+                            setHandleError('');
+                            setEditingHandle(true);
+                          }}
+                          style={{ fontSize:12 }}
+                        >Change these</Button>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ fontSize:12, color:'#6c6f72' }}>
+                          Asked once and remembered for every site — these are facts about you, not about this checkout.
+                        </div>
+                        <TextControl
+                          value={handleInput}
+                          onChange={(value) => { setHandleInput(value); setHandleError(''); }}
+                          onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); rememberContributor(); } }}
+                          disabled={handleSaving}
+                          placeholder="WordPress.org username, e.g. janedoe"
+                          aria-label="WordPress.org username"
+                        />
+                        <TextControl
+                          value={eventInput}
+                          onChange={(value) => { setEventInput(value); setHandleError(''); }}
+                          onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); rememberContributor(); } }}
+                          disabled={handleSaving}
+                          placeholder="Event, e.g. WordCamp Europe 2026 (optional)"
+                          aria-label="Event this patch was written at"
+                        />
+                        <Button
+                          variant="secondary"
+                          onClick={rememberContributor}
+                          isBusy={handleSaving}
+                          // Empty is a valid answer only when there is
+                          // something to clear — a shared laptop at a
+                          // contributor day, the next person taking over.
+                          // Before the first answer it would just be a button
+                          // that does nothing.
+                          disabled={handleSaving || (!handleInput.trim() && !wporg?.handle)}
+                          style={{ justifyContent:'center' }}
+                        >Remember this</Button>
+                        {handleError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{handleError}</div> : null}
+                      </>
+                    )}
+                  </DestinationCard>
+                </div>
+              </div>
+            )}
+            {/*
+              Outside the destinations block on purpose: the plain Save button
+              over the diff is still there when there is nothing to send, and an
+              outcome that renders nowhere is the alert this replaced.
+            */}
+            {patchSaved ? (
+              <div style={{ fontSize:13, color:'#0f5132' }}>Saved to {patchSaved}</div>
+            ) : null}
+            {patchSaveError ? (
+              <div role="alert" style={{ fontSize:13, color:'#d63638' }}>Could not save the patch: {patchSaveError}</div>
+            ) : null}
             <div style={{ position:'relative', flex:1, minHeight:0 }}>
               {patchLoading ? (
                 <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:16 }}>
@@ -3018,7 +3336,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     />
                   </div>
                   <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', overflowY:'auto' }}>
-                    {patchText && patchText.trim().length ? patchText : 'No changes.'}
+                    {patchText && patchText.trim().length ? <DiffText text={patchText} /> : 'No changes.'}
                   </pre>
                 </>
               )}
