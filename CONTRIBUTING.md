@@ -74,11 +74,14 @@ How you invoke it depends on your agent:
   the standard. If the session that wrote the code also grades it, it reviews its own reasoning and
   finds it sound — so the review runs in a context that did not write the change. It reports in the
   chat and touches nothing on GitHub; you decide what is a real finding.
-- **Any other agent** — there is no `/self-review` command to find. Point your agent at
-  [`code-review.instructions.md`](.github/instructions/code-review.instructions.md) directly (some
-  agents look for skills under `.agents/skills/` or `.github/skills/` — see
-  [AGENTS.md](AGENTS.md)), or just follow the standard yourself. That file is where all the content
-  lives; the skill is only a wrapper over it.
+- **Open-standard agents** (Command Code and others that scan `.agents/skills/`) find the same
+  review as [`/self-review`](.agents/skills/self-review/), a wrapper mirroring the Claude Code one.
+- **Any other agent** — no wrapper sits on the path it reads, so there is no `/self-review` command
+  to find. Point it at
+  [`code-review.instructions.md`](.github/instructions/code-review.instructions.md) directly, or
+  just follow the standard yourself. That file is where all the content lives; the skill is only a
+  wrapper over it. If your agent reads a skills directory nobody has wrapped yet, adding a pointer
+  there is a few lines — see [AGENTS.md](AGENTS.md).
 
 ## What is *not* a PR gate
 
