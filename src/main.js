@@ -423,6 +423,11 @@ ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
 ipcMain.handle('git:discard-changes', async (_e, sitePath) => {
     try {
         await discardChanges(sitePath);
+        // Clearing the applied-patch record belongs with the reset that removed
+        // the patch from the tree — not with the trunk update that may follow and
+        // fail on the network, which would leave a revert banner for a patch that
+        // is already gone.
+        await mergeSiteMeta(sitePath, { appliedPatch: null });
         return { ok: true };
     } catch (e) {
         return { ok: false, error: String(e) };
@@ -488,8 +493,15 @@ ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
     try {
         const parsed = parsePatchFiles(patchText);
         if (!parsed.ok) return { ok: false, error: parsed.error };
-        let dirtyPaths = [];
-        try { dirtyPaths = await collectDirtyFiles(sitePath); } catch {}
+        let dirtyPaths;
+        try {
+            dirtyPaths = await collectDirtyFiles(sitePath);
+        } catch (e) {
+            // Failing open here would promise "no collisions" precisely when the
+            // app could not look — surface the failure instead.
+            logError('git:preview-patch', String(e && e.stack ? e.stack : e));
+            return { ok: false, error: 'Could not check your working tree for conflicts, so the preview was not shown.' };
+        }
         const plan = planApply({ files: parsed.files, dirtyPaths });
         return { ok: true, ...plan, files: parsed.files.map((f) => ({ kind: f.kind, path: f.path })) };
     } catch (e) {
@@ -534,6 +546,13 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             let patchText = String(options.patchText || '');
             let label = String(options.label || 'patch');
             const s = await getStore();
+            // sitePath crosses IPC untrusted and becomes the root for patch
+            // writes, so it has to be a site the app actually manages — the same
+            // gate sites:set-ticket applies before it touches metadata.
+            if (!(s.get('sites') || []).includes(sitePath)) {
+                sendDone({ ok: false, error: 'Site is not registered' });
+                return;
+            }
             const stored = ((s.get('siteMeta') || {})[sitePath] || {}).appliedPatch;
             if (reverse) {
                 if (!stored || !stored.text) {
@@ -563,14 +582,30 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                 if (!revertable) {
                     sendLog('This patch is too large to keep for an undo, so Revert will not be offered.\n');
                 }
-                await mergeSiteMeta(sitePath, {
-                    appliedPatch: {
-                        label,
-                        appliedAt: new Date().toISOString(),
-                        files: result.applied,
-                        text: revertable ? patchText : null
+                try {
+                    await mergeSiteMeta(sitePath, {
+                        appliedPatch: {
+                            label,
+                            appliedAt: new Date().toISOString(),
+                            files: result.applied,
+                            text: revertable ? patchText : null
+                        }
+                    });
+                } catch (persistErr) {
+                    // Persistence is part of the transaction: the patch is on disk
+                    // but its revert record could not be saved, so undo the apply
+                    // rather than leave a patch the app cannot revert. If the undo
+                    // also fails, say so plainly instead of reporting a clean fail.
+                    logError('git:apply-patch', `persist failed, undoing apply: ${String(persistErr && persistErr.stack ? persistErr.stack : persistErr)}`);
+                    const undo = await applyPatchToDir({ dir: sitePath, patchText, reverse: true, onLog: sendLog });
+                    const why = String(persistErr && persistErr.message ? persistErr.message : persistErr);
+                    if (undo.ok) {
+                        sendDone({ ok: false, error: `The patch applied but its revert record could not be saved, so it was undone. ${why}` });
+                    } else {
+                        sendDone({ ok: false, appliedButUntracked: true, files: result.applied, error: `The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. ${why}` });
                     }
-                });
+                    return;
+                }
             }
             sendDone({ ok: true, ...result, reverse });
         } catch (e) {

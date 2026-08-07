@@ -444,12 +444,16 @@ test('git:worktree-dirty reports what trunk-update found, not its own guess', as
 	});
 });
 
-test('git:discard-changes goes through trunk-update', async () => {
+test('git:discard-changes resets through trunk-update and clears the applied-patch record', async () => {
 	const discardChanges = spy(async () => {});
-	const main = loadMain({ stubs: { ...silentLogging(), './trunk-update': { discardChanges } } });
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { appliedPatch: { label: 'x' } } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { discardChanges } } });
 
 	assert.deepEqual(await main.invoke('git:discard-changes', '/sites/wp'), { ok: true });
 	assert.deepEqual(discardChanges.calls, [['/sites/wp']]);
+	// The record is cleared with the reset, not left for a later trunk update to
+	// clear — otherwise a failed update leaves a revert banner for a gone patch.
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
 });
 
 test('git:update-trunk hands the update to trunk-update and streams its log back', async () => {
@@ -964,6 +968,89 @@ test('git:preview-patch reads the patch through patch-plan', async () => {
 	assert.deepEqual(result, { ok: false, error: 'unreadable' });
 });
 
+// git:apply-patch reads the store for its guard before delegating, which is the
+// seam fakeSettingsStore stands in for — so it is a wired handler, not a hole.
+// It streams, so its result comes back on the :done channel, not the return.
+async function applyDone(event, applyId, cap = 50) {
+	for (let i = 0; i < cap; i++) {
+		const hit = event.sent.find((m) => m.channel === 'git:apply-patch:done' && m.payload.applyId === applyId);
+		if (hit) return hit.payload;
+		await new Promise((r) => setImmediate(r));
+	}
+	throw new Error('git:apply-patch never reported done');
+}
+
+test('git:apply-patch refuses an unregistered site path before touching patch-apply', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'] });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/unknown', { patchText: 'P' });
+
+	assert.deepEqual(await applyDone(event, applyId), { applyId, ok: false, error: 'Site is not registered' });
+	assert.deepEqual(applyPatchToDir.calls, []);
+});
+
+test('git:apply-patch delegates a forward apply to patch-apply and records it', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['src/a.php'], skipped: [] }));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'] });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { patchText: 'PATCH', label: 'PR 11705' });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.ok, true);
+	assert.equal(applyPatchToDir.calls.length, 1);
+	const [args] = applyPatchToDir.calls[0];
+	assert.equal(args.dir, '/sites/wp');
+	assert.equal(args.patchText, 'PATCH');
+	assert.equal(args.reverse, false);
+	// The revert record is what makes Revert possible; without it the patch is
+	// applied but silently unrevertable.
+	const stored = settings.values.siteMeta['/sites/wp'].appliedPatch;
+	assert.equal(stored.label, 'PR 11705');
+	assert.equal(stored.text, 'PATCH');
+	assert.deepEqual(stored.files, ['src/a.php']);
+});
+
+test('git:apply-patch refuses a second patch while one is already applied', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'first', text: 'X' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { patchText: 'SECOND' });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.ok, false);
+	assert.match(done.error, /already applied/);
+	assert.deepEqual(applyPatchToDir.calls, []);
+});
+
+test('git:apply-patch reverts using the stored patch text and clears the record', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['src/a.php'], skipped: [] }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'L', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { reverse: true });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.ok, true);
+	const [args] = applyPatchToDir.calls[0];
+	assert.equal(args.reverse, true);
+	assert.equal(args.patchText, 'STORED', 'a revert applies the patch the app stored, not the renderer');
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
+});
+
 // --- the harness's own guard ---------------------------------------------
 
 // Requiring the real `electron` package is not a harmless fallback: its
@@ -1013,7 +1100,8 @@ const WIRED = new Set([
 	'playground-web:start',
 	'playground-web:stop',
 	'sites:set-ticket',
-	'git:preview-patch'
+	'git:preview-patch',
+	'git:apply-patch'
 ]);
 
 // Channels with no module to reach: they read or write electron-store, drive a
@@ -1051,8 +1139,7 @@ const NO_DELEGATION = new Map([
 // Channels that do delegate, but whose call sits behind something this harness
 // cannot stand in for yet. Each one is a known hole, not an oversight.
 const NOT_REACHABLE = new Map([
-	['wordpress:setup', 'calls ensureAutocrlf and readTrunkInfo only after cloning wordpress-develop over the network'],
-	['git:apply-patch', 'reads electron-store for the applied-patch guard before it delegates to patch-apply']
+	['wordpress:setup', 'calls ensureAutocrlf and readTrunkInfo only after cloning wordpress-develop over the network']
 ]);
 
 const CLASSIFIED = [...WIRED, ...NO_DELEGATION.keys(), ...NOT_REACHABLE.keys()];
