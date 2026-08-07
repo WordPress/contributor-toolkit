@@ -67,6 +67,10 @@ The author runs the review against their branch **before** the PR exists — bec
 now costs one message, and the same finding on the PR costs a full review cycle. This means running
 `npm run lint` and `npm test`, then reviewing the five dimensions against the diff.
 
+Nothing enforces this pass. As with Copilot above, there is no automated review on pull requests, by
+design — so this is an honored obligation, not a gate, and skipping it means a human reviewer is the
+first reader of the diff.
+
 How you invoke it depends on your agent:
 
 - **Claude Code** ships this as the [`/self-review`](.claude/skills/self-review/) skill. It adds one
