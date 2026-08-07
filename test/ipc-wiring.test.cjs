@@ -1114,6 +1114,49 @@ test('git:fetch-pr-diff asks github-prs for the diff', async () => {
 	assert.deepEqual(result, { ok: true, text: 'DIFF' });
 });
 
+// git:list-ticket-patches reads the stored ticket, then delegates to github-prs
+// and caches the result — reachable through the same fakeSettingsStore seam.
+test('git:list-ticket-patches fetches the linked PRs for the stored ticket', async () => {
+	const fetchLinkedPrs = spy(async () => ({ status: 'ok', items: [{ number: 7, title: 'x' }] }));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { tracTicket: 62281 } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { fetchLinkedPrs } } });
+
+	const result = await main.invoke('git:list-ticket-patches', '/sites/wp');
+
+	assert.deepEqual(fetchLinkedPrs.calls, [[62281]]);
+	assert.equal(result.ok, true);
+	assert.equal(result.ticket, 62281);
+	assert.equal(result.prs.status, 'ok');
+	assert.deepEqual(result.prs.items, [{ number: 7, title: 'x' }]);
+});
+
+test('git:list-ticket-patches falls back to the cached list when GitHub cannot be read', async () => {
+	let call = 0;
+	const fetchLinkedPrs = spy(async () => (++call === 1
+		? { status: 'ok', items: [{ number: 7 }] }
+		: { status: 'rate-limited', items: [], error: 'limit' }));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { tracTicket: 62281 } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { fetchLinkedPrs } } });
+
+	await main.invoke('git:list-ticket-patches', '/sites/wp'); // populates the cache
+	const result = await main.invoke('git:list-ticket-patches', '/sites/wp');
+
+	assert.equal(result.prs.status, 'rate-limited');
+	assert.deepEqual(result.prs.items, [{ number: 7 }], 'the last-known-good list is shown, not empty');
+	assert.ok(result.prs.cachedAt, 'stamped with when it was last seen');
+});
+
+test('git:list-ticket-patches returns no-ticket without calling github-prs when none is linked', async () => {
+	const fetchLinkedPrs = spy(async () => ({ status: 'ok', items: [] }));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { fetchLinkedPrs } } });
+
+	const result = await main.invoke('git:list-ticket-patches', '/sites/wp');
+
+	assert.equal(result.prs.status, 'no-ticket');
+	assert.deepEqual(fetchLinkedPrs.calls, []);
+});
+
 // --- the harness's own guard ---------------------------------------------
 
 // Requiring the real `electron` package is not a harmless fallback: its
@@ -1165,7 +1208,8 @@ const WIRED = new Set([
 	'sites:set-ticket',
 	'git:preview-patch',
 	'git:apply-patch',
-	'git:fetch-pr-diff'
+	'git:fetch-pr-diff',
+	'git:list-ticket-patches'
 ]);
 
 // Channels with no module to reach: they read or write electron-store, drive a
@@ -1203,8 +1247,7 @@ const NO_DELEGATION = new Map([
 // Channels that do delegate, but whose call sits behind something this harness
 // cannot stand in for yet. Each one is a known hole, not an oversight.
 const NOT_REACHABLE = new Map([
-	['wordpress:setup', 'calls ensureAutocrlf and readTrunkInfo only after cloning wordpress-develop over the network'],
-	['git:list-ticket-patches', 'reads electron-store for the ticket before it can reach github-prs']
+	['wordpress:setup', 'calls ensureAutocrlf and readTrunkInfo only after cloning wordpress-develop over the network']
 ]);
 
 const CLASSIFIED = [...WIRED, ...NO_DELEGATION.keys(), ...NOT_REACHABLE.keys()];
