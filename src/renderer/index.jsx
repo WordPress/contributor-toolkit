@@ -2537,7 +2537,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       </div>
       {skipInit ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Try someone else&apos;s patch</div>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Apply a patch or PR</div>
           {!applyPreview && !isApplying ? (
             <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
               Apply a pull request or a <code>.diff</code>/<code>.patch</code> file to this checkout and rebuild, so you can test the work before adding your own. Your own changes are left alone.
