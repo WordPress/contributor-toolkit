@@ -44,18 +44,26 @@ function resolveInside(dir, relPath) {
 	try { root = fs.realpathSync(path.resolve(dir)); } catch { root = path.resolve(dir); }
 
 	const lexical = path.resolve(root, relPath);
-	// Walk up to the nearest existing ancestor, resolve that for real, then put
-	// the not-yet-existing remainder back on.
+	// Walk up to the nearest existing entry, resolve that for real, then put the
+	// not-yet-existing remainder back on. lstat, not existsSync: existsSync
+	// follows links and reports a dangling symlink as absent, so the walk would
+	// step past a symlink pointing outside the checkout and hand back its lexical
+	// path — which the writer would then follow out of the tree.
 	let existing = lexical;
 	const trailing = [];
-	while (!fs.existsSync(existing)) {
+	const entryExists = (p) => { try { fs.lstatSync(p); return true; } catch { return false; } };
+	while (!entryExists(existing)) {
 		const parent = path.dirname(existing);
 		if (parent === existing) break;
 		trailing.unshift(path.basename(existing));
 		existing = parent;
 	}
-	let abs;
-	try { abs = path.join(fs.realpathSync(existing), ...trailing); } catch { abs = lexical; }
+	// The deepest existing entry is realpath-ed for real. A symlink here that
+	// dangles (realpath throws) or resolves outside root is an escape, not a
+	// path to write through — fail closed rather than falling back to lexical.
+	let realExisting;
+	try { realExisting = fs.realpathSync(existing); } catch { return null; }
+	const abs = path.join(realExisting, ...trailing);
 
 	if (abs !== root && !abs.startsWith(root + path.sep)) return null;
 	return abs;
@@ -117,11 +125,17 @@ function resolveFile(dir, file) {
 	const target = resolveInside(dir, file.path);
 	if (!target) return { error: `${file.path} points outside the site folder` };
 
-	const readIfPresent = (abs) => (fs.existsSync(abs) ? fs.readFileSync(abs) : null);
-
 	if (file.kind === 'delete') {
 		if (!fs.existsSync(target)) return { error: `${file.path} is already gone, so the patch cannot remove it` };
-		return { op: 'delete', abs: target, path: file.path, previous: readIfPresent(target) };
+		const previous = fs.readFileSync(target);
+		// Validate the file still matches what the patch expects to remove, so an
+		// edit made after the preview fails all-or-nothing rather than being
+		// silently deleted with the contributor's changes in it.
+		if (file.hunks && file.hunks.length
+			&& JsDiff.applyPatch(normalizeEol(previous.toString('utf8')), file.patch) === false) {
+			return { error: `${file.path} has moved on since the patch was written, so it no longer applies` };
+		}
+		return { op: 'delete', abs: target, path: file.path, previous };
 	}
 
 	if (file.kind === 'add') {
@@ -136,10 +150,14 @@ function resolveFile(dir, file) {
 		if (!source) return { error: `${file.oldPath} points outside the site folder` };
 		if (!fs.existsSync(source)) return { error: `${file.oldPath} is not in this checkout, so the patch cannot move it` };
 		if (fs.existsSync(target)) return { error: `${file.newPath} already exists, so the patch cannot move ${file.oldPath} onto it` };
-		const original = fs.readFileSync(source, 'utf8');
-		// A 100%-similarity rename has no hunks: the content moves unchanged.
-		let content = original;
+		const originalBuf = fs.readFileSync(source);
+		// A 100%-similarity rename has no hunks: the bytes move unchanged, so they
+		// are carried as a Buffer. Git emits binary renames with no binary marker,
+		// so this path is reachable for them — decoding through utf8 would corrupt
+		// the file. Decode to text only when hunks actually need applying.
+		let content = originalBuf;
 		if (file.hunks.length) {
+			const original = originalBuf.toString('utf8');
 			const applied = JsDiff.applyPatch(normalizeEol(original), file.patch);
 			if (applied === false) {
 				return { error: `${file.oldPath} has moved on since the patch was written, so it no longer applies` };
@@ -148,7 +166,7 @@ function resolveFile(dir, file) {
 		}
 		return {
 			op: 'rename', abs: target, from: source, path: file.path, content,
-			previous: null, previousFrom: readIfPresent(source)
+			previous: null, previousFrom: originalBuf
 		};
 	}
 
@@ -169,28 +187,43 @@ function resolveFile(dir, file) {
 /**
  * Puts back everything a failed run had already written.
  *
+ * Returns the paths it could not restore. The same full-disk, lock, or
+ * permission condition that broke a write can also break its undo, and the
+ * caller must not claim a clean restore when the tree is actually unknown.
+ *
  * @param {Array} done
+ * @return {Array<string>} paths whose rollback failed (empty when fully restored)
  */
 function rollback(done) {
+	const errors = [];
+	// Removing something that was never created — already gone, or its parent is
+	// not even a directory — is the desired end state, not a failure. Actions are
+	// registered before they mutate (so a half-done one is still undoable), which
+	// means rollback can see ones that never ran; only a content restoration that
+	// cannot be written back is a real, unrecoverable loss.
+	const removeQuietly = (target) => {
+		try { fs.rmSync(target, { force: true }); }
+		catch (e) { if (!e || (e.code !== 'ENOTDIR' && e.code !== 'ENOENT')) throw e; }
+	};
 	for (const action of done.reverse()) {
 		try {
 			if (action.op === 'rename' && action.previousFrom !== null) {
 				fs.mkdirSync(path.dirname(action.from), { recursive: true });
 				fs.writeFileSync(action.from, action.previousFrom);
-				fs.rmSync(action.abs, { force: true });
+				removeQuietly(action.abs);
 				continue;
 			}
 			if (action.previous === null) {
-				fs.rmSync(action.abs, { force: true });
+				removeQuietly(action.abs);
 				continue;
 			}
 			fs.mkdirSync(path.dirname(action.abs), { recursive: true });
 			fs.writeFileSync(action.abs, action.previous);
-		} catch {
-			// Best effort: the caller is already reporting a failure, and a
-			// rollback that cannot run must not mask the original cause.
+		} catch (e) {
+			errors.push(`${action.path}: ${String(e && e.message ? e.message : e)}`);
 		}
 	}
+	return errors;
 }
 
 /**
@@ -246,21 +279,29 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 	const done = [];
 	try {
 		for (const action of actions) {
+			// Registered before its mutations, not after: a rename that writes its
+			// destination and then throws removing the source would otherwise be
+			// invisible to rollback and leave a partial patch behind. Undoing an
+			// action whose mutations had not started yet is harmless.
+			done.push(action);
 			if (action.op === 'delete') {
 				fs.rmSync(action.abs, { force: true });
 			} else if (action.op === 'rename') {
 				fs.mkdirSync(path.dirname(action.abs), { recursive: true });
-				fs.writeFileSync(action.abs, action.content, 'utf8');
+				fs.writeFileSync(action.abs, action.content);
 				fs.rmSync(action.from, { force: true });
 			} else {
 				fs.mkdirSync(path.dirname(action.abs), { recursive: true });
-				fs.writeFileSync(action.abs, action.content, 'utf8');
+				fs.writeFileSync(action.abs, action.content);
 			}
-			done.push(action);
 		}
 	} catch (e) {
-		rollback(done);
+		const recovery = rollback(done);
 		const message = `writing ${String(e && e.message ? e.message : e)}`;
+		if (recovery.length) {
+			onLog(`\nThe patch could not be written, and the checkout could not be fully put back — it is in an unknown state. Could not undo: ${recovery.join('; ')}\n`);
+			return { ok: false, error: message, applied: [], skipped, rolledBack: false, recovery };
+		}
 		onLog(`\nThe patch could not be written, so the checkout was put back as it was: ${message}\n`);
 		return { ok: false, error: message, applied: [], skipped, rolledBack: true };
 	}
@@ -278,4 +319,4 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 	return { ok: true, applied, skipped };
 }
 
-module.exports = { applyPatchToDir, resolveInside, reverseFile, dominantEol };
+module.exports = { applyPatchToDir, resolveInside, reverseFile, dominantEol, rollback };

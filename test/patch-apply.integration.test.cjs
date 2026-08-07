@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const git = require('isomorphic-git');
-const { applyPatchToDir, resolveInside, dominantEol } = require('../src/patch-apply');
+const { applyPatchToDir, resolveInside, dominantEol, rollback } = require('../src/patch-apply');
 
 // A real on-disk repo, like trunk-update.integration.test.cjs: applyPatchToDir
 // calls ensureAutocrlf, which reads and writes git config, so a bare temp
@@ -316,4 +316,124 @@ new file mode 100644
 	assert.strictEqual(res.ok, false);
 	assert.match(res.error, /outside the site folder/);
 	assert.strictEqual(fs.existsSync(path.join(outside, 'evil.txt')), false);
+});
+
+// existsSync follows a symlink and is false for a dangling one, so a naive
+// walk-up steps past a link pointing outside the checkout and hands back its
+// lexical path — which writeFileSync would then follow out of the tree. lstat
+// closes that hole. (Copilot #1.)
+test('applyPatchToDir: an add through a dangling symlink out of the tree is refused (issue #11)', async (t) => {
+	const dir = await makeRepo(t, { [FOO]: FOO_BODY });
+	const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'patch-apply-dangling-'));
+	t.after(() => fs.rmSync(outsideDir, { recursive: true, force: true }));
+	const outside = path.join(outsideDir, 'target.txt'); // never created → dangling
+	fs.symlinkSync(outside, path.join(dir, 'sneaky.txt'));
+
+	const evil = `diff --git a/sneaky.txt b/sneaky.txt
+new file mode 100644
+--- /dev/null
++++ b/sneaky.txt
+@@ -0,0 +1 @@
++pwned
+`;
+	const res = await applyPatchToDir({ dir, patchText: evil });
+	assert.strictEqual(res.ok, false);
+	assert.match(res.error, /outside the site folder/);
+	assert.strictEqual(fs.existsSync(outside), false, 'nothing may be written through the link');
+});
+
+// A pure (100%-similarity) rename carries the bytes unchanged. Git emits binary
+// renames with no binary marker, so reading the source as utf8 and writing the
+// string back would corrupt it — the bytes must survive intact. (Copilot #5.)
+test('applyPatchToDir: a pure rename preserves non-utf8 (binary) bytes (issue #11)', async (t) => {
+	const bytes = Buffer.from([0xff, 0xfe, 0x00, 0x01, 0x80, 0x0a]);
+	const dir = await makeRepo(t, { 'src/logo.bin': bytes });
+	const purePatch = `diff --git a/src/logo.bin b/src/moved.bin
+similarity index 100%
+rename from src/logo.bin
+rename to src/moved.bin
+`;
+	const res = await applyPatchToDir({ dir, patchText: purePatch });
+	assert.strictEqual(res.ok, true, res.error);
+	assert.ok(fs.readFileSync(path.join(dir, 'src/moved.bin')).equals(bytes), 'bytes must survive the rename');
+	assert.strictEqual(fs.existsSync(path.join(dir, 'src/logo.bin')), false);
+});
+
+// A deletion with a pre-image must match what is on disk. If the contributor
+// edited the file after previewing, deleting it anyway silently discards their
+// work; all-or-nothing means failing instead. (Copilot #2.)
+test('applyPatchToDir: deleting a file edited since the patch fails all-or-nothing (issue #11)', async (t) => {
+	const dir = await makeRepo(t, { 'src/old.php': 'one\ntwo\n' });
+	const deletePatch = `diff --git a/src/old.php b/src/old.php
+deleted file mode 100644
+--- a/src/old.php
++++ /dev/null
+@@ -1,2 +0,0 @@
+-one
+-two
+`;
+	fs.writeFileSync(path.join(dir, 'src/old.php'), 'my own work\n');
+	const before = snapshot(dir);
+
+	const res = await applyPatchToDir({ dir, patchText: deletePatch });
+
+	assert.strictEqual(res.ok, false);
+	assert.match(res.error, /moved on since the patch was written/);
+	assert.deepStrictEqual(snapshot(dir), before, 'the edited file must not be deleted');
+});
+
+// A rename that completes and is then undone by a later failure must restore the
+// source and remove the destination — registering each action before its
+// mutations is what lets rollback see a half-done one. (Copilot #3.)
+test('applyPatchToDir: a later failure rolls a completed rename fully back (issue #11)', async (t) => {
+	const dir = await makeRepo(t, { 'src/old.php': 'one\ntwo\n', 'src/blocker': 'not a directory\n' });
+	const before = snapshot(dir);
+	const renameThenBlocked = `diff --git a/src/old.php b/src/new.php
+similarity index 100%
+rename from src/old.php
+rename to src/new.php
+diff --git a/src/blocker/child.php b/src/blocker/child.php
+new file mode 100644
+--- /dev/null
++++ b/src/blocker/child.php
+@@ -0,0 +1 @@
++hello
+`;
+	const res = await applyPatchToDir({ dir, patchText: renameThenBlocked });
+
+	assert.strictEqual(res.ok, false);
+	assert.strictEqual(res.rolledBack, true);
+	assert.deepStrictEqual(snapshot(dir), before, 'the rename must be fully undone');
+});
+
+// A rollback can hit the same fault that broke the write. rollback must report
+// what it could not restore so the caller stops claiming a clean tree. Driven
+// directly with an un-restorable action (its parent is a file → ENOTDIR), which
+// fails the same way whether or not the tests run as root. (Copilot #4.)
+test('rollback: reports the paths it could not restore instead of swallowing them (issue #11)', async (t) => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'patch-apply-rollback-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	fs.writeFileSync(path.join(dir, 'afile'), 'i am a file\n');
+
+	// Restoring this action means writing under `afile`, which is a file, not a
+	// directory — mkdirSync/writeFileSync throw ENOTDIR.
+	const recovery = rollback([
+		{ op: 'write', abs: path.join(dir, 'afile', 'child'), path: 'afile/child', previous: Buffer.from('x') }
+	]);
+
+	assert.ok(Array.isArray(recovery) && recovery.length === 1);
+	assert.match(recovery[0], /afile\/child/);
+});
+
+// The clean path still returns no recovery errors, so the caller reports a real
+// rollback as one.
+test('rollback: returns an empty list when it restores everything (issue #11)', async (t) => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'patch-apply-rollback-ok-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	fs.writeFileSync(path.join(dir, 'added'), 'new\n');
+
+	const recovery = rollback([{ op: 'write', abs: path.join(dir, 'added'), path: 'added', previous: null }]);
+
+	assert.deepStrictEqual(recovery, []);
+	assert.strictEqual(fs.existsSync(path.join(dir, 'added')), false, 'an added file is removed on rollback');
 });
