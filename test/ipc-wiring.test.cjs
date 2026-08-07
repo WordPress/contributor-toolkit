@@ -462,7 +462,13 @@ test('git:update-trunk hands the update to trunk-update and streams its log back
 	// Never resolves: the handler's work after the update is store writes, which
 	// are not what this test is about and need an Electron app to succeed.
 	const updateToLatestTrunk = spy((options) => { called(options); return new Promise(() => {}); });
-	const main = loadMain({ stubs: { ...silentLogging(), './trunk-update': { updateToLatestTrunk } } });
+	// The handler parks the active ticket branch before updating (#108), which
+	// reads the registry — so this needs a settings store, or `getStore()` would
+	// start the real `import('electron-store')`. See the guard test below.
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { branches: {} } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { updateToLatestTrunk } }
+	});
 
 	const event = createIpcEvent();
 	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
@@ -530,6 +536,39 @@ test('git:get-patch normalizes both sides of the diff through git-update', async
 	// on disk now.
 	assert.equal(normalizeEol.calls.length, 2);
 	assert.deepEqual(ensureAutocrlf.calls, [[dir]]);
+});
+
+// The `git.add` loop that used to stage every untracked file before diffing was
+// removed in #108 on the grounds that statusMatrix reports them unaided. This is
+// the test that makes that claim falsifiable through the real handler: a new file
+// must reach the patch, and the contributor's index must be no dirtier for it.
+test('git:get-patch includes an untracked file without staging it (issues #108, #85)', async (t) => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules/\n');
+	fs.writeFileSync(path.join(dir, 'text.txt'), 'line1\n');
+	await git.add({ fs, dir, filepath: ['.gitignore', 'text.txt'] });
+	await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
+
+	fs.writeFileSync(path.join(dir, 'brand-new.php'), '<?php // a file the contributor added\n');
+	// Ignored, and must stay out of the patch however the diff is computed.
+	fs.mkdirSync(path.join(dir, 'node_modules'));
+	fs.writeFileSync(path.join(dir, 'node_modules', 'junk.js'), 'noise\n');
+
+	const main = loadMain({ stubs: { ...silentLogging(), './trunk-update': { ensureAutocrlf: async () => {} } } });
+	const before = await git.statusMatrix({ fs, dir });
+	const result = await main.invoke('git:get-patch', dir);
+
+	assert.equal(result.ok, true);
+	assert.match(result.patch, /brand-new\.php/, 'a new file is the common case and must be in the patch');
+	assert.match(result.patch, /\+<\?php \/\/ a file the contributor added/);
+	assert.doesNotMatch(result.patch, /node_modules/, 'gitignored paths stay out');
+	assert.deepEqual(
+		await git.statusMatrix({ fs, dir }),
+		before,
+		'generating a patch must not stage anything into the contributor\'s index (#85)'
+	);
 });
 
 // The other two entry points into the same patch path. They differ only in what
@@ -1157,6 +1196,384 @@ test('git:list-ticket-patches returns no-ticket without calling github-prs when 
 	assert.deepEqual(fetchLinkedPrs.calls, []);
 });
 
+// The update has to run from trunk, so it parks the ticket first — and then has
+// to put the contributor back. Stranding them on trunk while the panel still
+// names the ticket means every patch comes out empty and the only way back to
+// the work is to unlink and re-link.
+test('git:update-trunk parks the ticket, updates, and returns to it (issue #108)', async () => {
+	const switchToBranch = spy(async () => ({ switched: true, parked: true }));
+	const currentBranchName = spy(async () => 'ticket/59234');
+	const updateToLatestTrunk = spy(async () => ({
+		upToDate: false, oldOid: 'old', newOid: 'new', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z'
+	}));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 59234,
+				currentBranch: 'ticket/59234',
+				branches: { 'ticket/59234': { tracTicket: 59234, baseOid: 'abc' } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await new Promise((resolve) => setImmediate(resolve));
+
+	assert.equal(switchToBranch.calls.length, 2, 'parked onto trunk, then returned');
+	assert.equal(switchToBranch.calls[0][1], 'trunk');
+	assert.equal(switchToBranch.calls[0][2].baseOid, 'abc', 'parked onto its own branch point');
+	assert.equal(switchToBranch.calls[1][1], 'ticket/59234', 'the contributor ends up back on their ticket');
+
+	const meta = settings.values.siteMeta['/sites/wp'];
+	assert.equal(meta.currentBranch, 'ticket/59234');
+	assert.equal(meta.tracTicket, 59234, 'the panel and the worktree must agree on the ticket');
+	assert.equal(meta.trunkOid, 'new');
+	// The incomplete flag describes the ticket's tree, not the site's.
+	assert.equal(meta.branches['ticket/59234'].updateIncomplete, true);
+	assert.equal(meta.updateIncomplete, undefined, 'it must not be written at site level any more');
+});
+
+test('git:update-trunk says where the work went when the update fails (issue #108)', async () => {
+	// On a ticket to begin with; on trunk once the handler has parked it. That
+	// ordering is the whole point — the failure happens after the move.
+	let onTrunk = false;
+	const switchToBranch = spy(async () => { onTrunk = true; return { switched: true, parked: true }; });
+	const currentBranchName = spy(async () => (onTrunk ? 'trunk' : 'ticket/59234'));
+	const updateToLatestTrunk = spy(async () => { throw new Error('network is down'); });
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 59234,
+				currentBranch: 'ticket/59234',
+				branches: { 'ticket/59234': { tracTicket: 59234, baseOid: 'abc' } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await new Promise((resolve) => setImmediate(resolve));
+
+	// Left on trunk: the registry must stop naming a ticket the worktree is not
+	// on, or the panel says #59234 while every patch it produces is empty.
+	assert.equal(settings.values.siteMeta['/sites/wp'].tracTicket, null);
+	assert.ok(
+		event.sent.some((m) => m.channel === 'git:update-trunk:log' && /is safe/.test(m.payload.data)),
+		'the contributor is told their work is parked on the branch, not lost'
+	);
+});
+
+// --- Ticket branches (#108) ----------------------------------------------
+// The handlers own the registry half; every git operation belongs to
+// src/ticket-branches.js, so these assert the delegation and the store writes
+// that have to accompany it.
+
+test('branches:list reports the branches on disk with their stored context', async () => {
+	const listTicketBranches = spy(async () => ['ticket/59234', 'ticket/61002']);
+	const currentBranchName = spy(async () => 'ticket/59234');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				branches: { 'ticket/59234': { baseOid: 'abc', lastUsedAt: 'yesterday' } },
+				currentBranch: 'ticket/59234'
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { listTicketBranches, currentBranchName } }
+	});
+
+	const result = await main.invoke('branches:list', '/sites/wp');
+
+	assert.equal(result.ok, true);
+	assert.equal(result.current, 'ticket/59234');
+	assert.deepEqual(result.branches.map((b) => b.ticketId), [59234, 61002]);
+	assert.equal(result.branches[0].baseOid, 'abc');
+	assert.equal(result.branches[1].baseOid, null, 'a branch the registry has never seen still lists');
+});
+
+test('branches:switch delegates to ticket-branches and records the new active branch', async () => {
+	const switchToBranch = spy(async () => ({ switched: true, from: 'ticket/59234', to: 'ticket/61002', parked: true }));
+	const currentBranchName = spy(async () => 'ticket/59234');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/59234': { baseOid: 'abc' } }, currentBranch: 'ticket/59234' } }
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { switchToBranch, currentBranchName } }
+	});
+
+	const result = await main.invoke('branches:switch', '/sites/wp', 'ticket/61002');
+
+	assert.equal(switchToBranch.calls[0][1], 'ticket/61002');
+	assert.equal(switchToBranch.calls[0][2].baseOid, 'abc', 'the branch being left is parked onto its own branch point');
+	assert.equal(result.parked, true);
+	// The ticket the rest of the app reads has to follow the branch, or the PR
+	// list and the attachment panel would still be showing the old ticket's.
+	assert.equal(settings.values.siteMeta['/sites/wp'].currentBranch, 'ticket/61002');
+	assert.equal(settings.values.siteMeta['/sites/wp'].tracTicket, 61002);
+});
+
+test('branches:delete goes through ticket-branches and forgets the branch context', async () => {
+	const deleteTicketBranch = spy(async () => ({ deleted: true, ref: 'ticket/61002' }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				branches: { 'ticket/59234': { baseOid: 'abc' }, 'ticket/61002': { baseOid: 'def' } },
+				currentBranch: 'ticket/61002'
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { deleteTicketBranch } }
+	});
+
+	const result = await main.invoke('branches:delete', '/sites/wp', 'ticket/61002');
+
+	assert.deepEqual(deleteTicketBranch.calls, [['/sites/wp', 'ticket/61002']]);
+	assert.equal(result.ok, true);
+	const meta = settings.values.siteMeta['/sites/wp'];
+	assert.equal(meta.branches['ticket/61002'], undefined, 'a deleted branch must not linger in the switcher');
+	assert.ok(meta.branches['ticket/59234'], 'the other ticket is untouched');
+	assert.equal(meta.currentBranch, 'trunk');
+});
+
+test('branches:delete leaves the active ticket alone when deleting another one (issue #108)', async () => {
+	const deleteTicketBranch = spy(async () => ({ deleted: true, ref: 'ticket/61002' }));
+	const currentBranchName = spy(async () => 'ticket/59234');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 59234,
+				currentBranch: 'ticket/59234',
+				branches: { 'ticket/59234': { baseOid: 'abc' }, 'ticket/61002': { baseOid: 'def' } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { deleteTicketBranch, currentBranchName } }
+	});
+
+	// deleteTicketBranch only checks out trunk when the target IS current, so
+	// resetting these unconditionally would unlink the ticket being worked on.
+	await main.invoke('branches:delete', '/sites/wp', 'ticket/61002');
+
+	const meta = settings.values.siteMeta['/sites/wp'];
+	assert.equal(meta.currentBranch, 'ticket/59234', 'still on the ticket that was being worked on');
+	assert.equal(meta.tracTicket, 59234);
+	assert.equal(meta.branches['ticket/61002'], undefined);
+});
+
+test('the applied patch belongs to the ticket, not the site (issue #108)', async () => {
+	const currentBranchName = spy(async () => 'ticket/61002');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				currentBranch: 'ticket/61002',
+				// The site-level value: what a pre-#108 install left behind, and
+				// what the migration copies onto the ticket it belonged to. It
+				// must never be what the panel reads once a ticket is active.
+				appliedPatch: { label: 'A.diff', text: 'x', files: ['f'] },
+				branches: {
+					'ticket/59234': { baseOid: 'abc', appliedPatch: { label: 'A.diff', text: 'x', files: ['f'] } },
+					'ticket/61002': { baseOid: 'def', appliedPatch: null }
+				}
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'o', trunkDate: 'd' }) },
+			'./ticket-branches': { currentBranchName }
+		}
+	});
+
+	const status = await main.invoke('site:status', '/sites/wp');
+
+	// Reading it from the site would show ticket A's patch while on ticket B —
+	// and offer a Revert that reverses A's hunks against B's tree.
+	assert.equal(status.appliedPatch, null, 'the other ticket\'s applied patch must not leak here');
+});
+
+test('a checkout that died mid-switch blocks further switching (issue #108)', async () => {
+	const switchToBranch = spy(async () => ({ switched: true }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: {}, switchInProgress: { from: 'ticket/59234', to: 'ticket/61002' } } }
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { switchToBranch } }
+	});
+
+	const result = await main.invoke('branches:switch', '/sites/wp', 'ticket/1');
+
+	// Parking over a half-swapped worktree would commit the mixture on top of
+	// the good WIP commit — and parking rewrites, so the real work would go.
+	assert.equal(result.ok, false);
+	assert.equal(result.code, 'switch-incomplete');
+	assert.deepEqual(switchToBranch.calls, [], 'nothing is parked until the site is reconciled');
+});
+
+test('a site that cannot be migrated is retried, not stranded on the old shape (issue #108)', async () => {
+	const startTicketBranch = spy(async () => { throw new Error('not a repository'); });
+	const listTicketBranches = spy(async () => { throw new Error('not a repository'); });
+	const currentBranchName = spy(async () => { throw new Error('not a repository'); });
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { tracTicket: 59234 } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./ticket-branches': { startTicketBranch, listTicketBranches, currentBranchName }
+		}
+	});
+
+	await main.invoke('branches:switch', '/sites/wp', 'ticket/59234').catch(() => {});
+
+	// Persisting `branches: {}` here would trip the "already migrated" guard and
+	// the site would never get its branch, even once the volume is back.
+	assert.equal(settings.values.siteMeta['/sites/wp'].branches, undefined);
+	assert.equal(settings.values.siteMeta['/sites/wp'].tracTicket, 59234, 'the old shape is left intact');
+});
+
+test('branches:list never migrates — it must not create branches behind a read (issue #108)', async () => {
+	const startTicketBranch = spy(async () => ({ ref: 'ticket/59234', baseOid: 'abc' }));
+	const listTicketBranches = spy(async () => []);
+	const currentBranchName = spy(async () => 'trunk');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { tracTicket: 59234 } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./ticket-branches': { startTicketBranch, listTicketBranches, currentBranchName }
+		}
+	});
+
+	await main.invoke('branches:list', '/sites/wp');
+
+	// A read can land while an install, a build or the Playground server is
+	// running against that directory; creating a ref and moving HEAD there is
+	// not something a list call gets to do.
+	assert.deepEqual(startTicketBranch.calls, []);
+});
+
+test('the branch handlers refuse a path the app has no record of', async () => {
+	const switchToBranch = spy(async () => ({}));
+	const deleteTicketBranch = spy(async () => ({}));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'] });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { switchToBranch, deleteTicketBranch } }
+	});
+
+	const switched = await main.invoke('branches:switch', '/somewhere/else', 'ticket/1');
+	const deleted = await main.invoke('branches:delete', '/somewhere/else', 'ticket/1');
+
+	assert.equal(switched.ok, false);
+	assert.equal(deleted.ok, false);
+	assert.deepEqual(switchToBranch.calls, [], 'no checkout on an unregistered path');
+	assert.deepEqual(deleteTicketBranch.calls, [], 'no branch deletion on an unregistered path');
+});
+
+test('sites:set-ticket starts a branch for a ticket the site has not seen', async () => {
+	const startTicketBranch = spy(async () => ({ ref: 'ticket/62281', baseOid: 'abc', ticketId: 62281 }));
+	const listTicketBranches = spy(async () => []);
+	const currentBranchName = spy(async () => 'trunk');
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./ticket-branches': { startTicketBranch, listTicketBranches, currentBranchName }
+		}
+	});
+
+	const result = await main.invoke('sites:set-ticket', '/sites/wp', '62281');
+
+	assert.deepEqual(startTicketBranch.calls, [['/sites/wp', 62281]]);
+	assert.equal(result.branch, 'ticket/62281');
+	const meta = settings.values.siteMeta['/sites/wp'];
+	assert.equal(meta.tracTicket, 62281);
+	assert.equal(meta.branches['ticket/62281'].baseOid, 'abc', 'the branch point is recorded — it is the diff base');
+});
+
+test('sites:set-ticket switches back to a ticket the site already has, without re-branching', async () => {
+	const startTicketBranch = spy(async () => ({}));
+	const switchToBranch = spy(async () => ({ switched: true, parked: true }));
+	const listTicketBranches = spy(async () => ['ticket/62281']);
+	const currentBranchName = spy(async () => 'trunk');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/62281': { baseOid: 'abc' } }, currentBranch: 'trunk' } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./ticket-branches': { startTicketBranch, switchToBranch, listTicketBranches, currentBranchName }
+		}
+	});
+
+	const result = await main.invoke('sites:set-ticket', '/sites/wp', '#62281');
+
+	assert.deepEqual(startTicketBranch.calls, [], 'an existing ticket is resumed, never recreated');
+	assert.equal(switchToBranch.calls[0][1], 'ticket/62281');
+	assert.equal(result.ticket, 62281);
+});
+
+test('unlinking a ticket returns to trunk but keeps the branch and its work', async () => {
+	const switchToBranch = spy(async () => ({ switched: true, parked: true }));
+	const deleteTicketBranch = spy(async () => ({}));
+	const currentBranchName = spy(async () => 'ticket/62281');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/62281': { baseOid: 'abc' } }, currentBranch: 'ticket/62281' } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./ticket-branches': { switchToBranch, deleteTicketBranch, currentBranchName }
+		}
+	});
+
+	const result = await main.invoke('sites:set-ticket', '/sites/wp', '');
+
+	assert.equal(result.ticket, null);
+	assert.equal(switchToBranch.calls[0][1], 'trunk');
+	assert.deepEqual(deleteTicketBranch.calls, [], 'unlinking is not deleting — the work stays on its branch');
+	assert.ok(settings.values.siteMeta['/sites/wp'].branches['ticket/62281'], 'the branch context survives');
+});
+
 // --- Trac attachments (#109 / #11) ---------------------------------------
 
 test('trac:fetch-attachment goes through trac-view', async () => {
@@ -1360,6 +1777,9 @@ const WIRED = new Set([
 	'playground-web:start',
 	'playground-web:stop',
 	'sites:set-ticket',
+	'branches:list',
+	'branches:switch',
+	'branches:delete',
 	'git:preview-patch',
 	'git:apply-patch',
 	'git:fetch-pr-diff',

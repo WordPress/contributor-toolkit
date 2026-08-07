@@ -69,6 +69,13 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	setSiteTicket: (sitePath, ref) => ipcRenderer.invoke('sites:set-ticket', sitePath, ref)
 ,
+	// Ticket branches (#108): the tickets open in a site, and moving between them.
+	listBranches: (sitePath) => ipcRenderer.invoke('branches:list', sitePath)
+,
+	switchBranch: (sitePath, ref) => ipcRenderer.invoke('branches:switch', sitePath, ref)
+,
+	deleteBranch: (sitePath, ref) => ipcRenderer.invoke('branches:delete', sitePath, ref)
+,
 	subscribeSetupProgress: (handler) => {
 		const h = (_e, payload) => handler && handler(payload);
 		ipcRenderer.on('download:progress', h);
