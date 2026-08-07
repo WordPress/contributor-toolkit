@@ -20,6 +20,7 @@ import { computeSetupStepState } from './setup-steps.cjs';
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
+import { pickLatest } from '../latest-patch.cjs';
 import { parseTicketRef, ticketUrl } from './trac-ticket.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
@@ -1571,6 +1572,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const applySteps = planApplySteps({ needsInstall: applyNeedsInstall });
   const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
 
+  // The single most recent patch across whatever is loaded — PRs always, Trac
+  // attachments once the contributor has opened them (#11). Drives the "Latest"
+  // pill and the "latest is a patch file" note.
+  const latestPatch = pickLatest({ prs: ticketPatches?.items, attachments: tracAttachments?.items });
+  const latestIsAttachment = latestPatch?.kind === 'attachment';
+  const latestPill = (isLatest) => (isLatest ? (
+    <span style={{ display: 'inline-flex', alignItems: 'center', flex: '0 0 auto', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', background: '#e7f1ff', color: '#0b5d95', marginLeft: 8 }}>
+      Latest
+    </span>
+  ) : null);
+
   const finishApply = (message) => {
     terminalStateRef.current.running = false;
     terminalKillRef.current = null;
@@ -2374,9 +2386,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   {ticketPatches.items.map((pr) => (
                     <div key={pr.number} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
                       <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                        <div style={{ fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          <Button variant="link" onClick={() => window.api.openExternal(pr.url)} style={{ fontSize: 13 }}>#{pr.number}</Button>
-                          {' '}{pr.title}
+                        <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                          <span style={{ flex: '0 1 auto', minWidth: 0, fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <Button variant="link" onClick={() => window.api.openExternal(pr.url)} style={{ fontSize: 13 }}>#{pr.number}</Button>
+                            {' '}{pr.title}
+                          </span>
+                          {latestPill(latestPatch?.kind === 'pr' && latestPatch.key === pr.number)}
                         </div>
                         <div style={{ fontSize: 11, color: '#6c6f72' }}>
                           {pr.state === 'closed' ? 'closed' : 'open'}{pr.updatedAt ? ` · updated ${new Date(pr.updatedAt).toLocaleDateString()}` : ''}
@@ -2394,6 +2409,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 </div>
               ) : null}
             </div>
+
+            {latestIsAttachment ? (
+              <div style={{ marginTop: 12, padding: '8px 10px', background: '#e7f1ff', border: '1px solid #9ec5f0', borderRadius: 6, fontSize: 12, color: '#0b5d95' }}>
+                The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.
+              </div>
+            ) : null}
 
             <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -2439,8 +2460,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   {tracAttachments.items.map((att) => (
                     <div key={att.url} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
                       <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                        <div style={{ fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          <Button variant="link" onClick={() => window.api.openExternal(att.url)} style={{ fontSize: 13 }}>{att.filename}</Button>
+                        <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                          <span style={{ flex: '0 1 auto', minWidth: 0, fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <Button variant="link" onClick={() => window.api.openExternal(att.url)} style={{ fontSize: 13 }}>{att.filename}</Button>
+                          </span>
+                          {latestPill(latestPatch?.kind === 'attachment' && latestPatch.key === att.url)}
                         </div>
                         <div style={{ fontSize: 11, color: '#6c6f72' }}>
                           {[att.author && `by ${att.author}`, att.dateText, att.sizeText].filter(Boolean).join(' · ')}
