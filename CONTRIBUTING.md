@@ -67,10 +67,6 @@ The author runs the review against their branch **before** the PR exists — bec
 now costs one message, and the same finding on the PR costs a full review cycle. This means running
 `npm run lint` and `npm test`, then reviewing the five dimensions against the diff.
 
-Nothing enforces this pass. As with Copilot above, there is no automated review on pull requests, by
-design — so this is an honored obligation, not a gate, and skipping it means a human reviewer is the
-first reader of the diff.
-
 How you invoke it depends on your agent:
 
 - **Claude Code** ships this as the [`/self-review`](.claude/skills/self-review/) skill. It adds one
@@ -98,6 +94,10 @@ Worth knowing so you don't wait on them:
   that records release-asset counts to a `metrics` branch. It is not related to PR quality.
 
 ## Before you open a pull request
+
+In an agent-assisted change your agent runs steps 1–3 — it invokes the review, applies or defers the
+findings, and drafts the PR summary. Your job is to see that they happen and that the summary is
+honest; you own the result even though the agent produced it.
 
 1. **Run the review standard** against your branch —
    [`code-review.instructions.md`](.github/instructions/code-review.instructions.md). In Claude Code
