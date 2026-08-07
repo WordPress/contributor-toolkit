@@ -691,6 +691,7 @@ function App() {
                       onRename={onRename}
                       isPending={pendingSites.includes(s)}
                       setupLogs={setupLogsBySite[s] || ''}
+                      isActive={activeSite === s}
                     />
                   </div>
                 ))
@@ -779,7 +780,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, isPending = false, setupLogs = '' }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, isPending = false, setupLogs = '', isActive = false }) {
   // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
   // recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
@@ -1642,14 +1643,24 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   }, [sitePath]);
 
-  // Load the ticket's PRs once, when a ticket becomes linked. Unlinking clears
-  // the list; re-linking or the Refresh button fetches again. Placed after
-  // loadTicketPatches is defined: an effect that named it earlier in the body
-  // would read the const before its declaration ran and throw on every render.
+  // Load the ticket's PRs only for the active site. Every SiteRow stays mounted
+  // (the parent hides inactive ones), so fetching on mount would spend the
+  // shared, unauthenticated GitHub quota once per linked site on every launch.
+  // The ref keeps re-activating a site from re-fetching the same ticket; a
+  // relink (ticket change) and the Refresh button still fetch. Unlinking clears
+  // the list. Placed after loadTicketPatches is defined: an effect that named it
+  // earlier in the body would read the const before its declaration ran.
+  const loadedTicketRef = useRef(null);
   useEffect(() => {
-    if (tracTicket) loadTicketPatches();
-    else setTicketPatches(null);
-  }, [tracTicket, loadTicketPatches]);
+    if (!tracTicket) {
+      setTicketPatches(null);
+      loadedTicketRef.current = null;
+      return;
+    }
+    if (!isActive || loadedTicketRef.current === tracTicket) return;
+    loadedTicketRef.current = tracTicket;
+    loadTicketPatches();
+  }, [tracTicket, isActive, loadTicketPatches]);
 
   // Fetches a PR's diff and drops into the same preview the file picker uses,
   // so applying a PR and applying a downloaded patch are one path from here on.
