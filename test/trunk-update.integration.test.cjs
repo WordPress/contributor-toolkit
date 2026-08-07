@@ -1,10 +1,11 @@
 'use strict';
 
-// Integration tests for src/trunk-update.js against real on-disk repositories
-// (no network — updateToLatestTrunk's fetch path is covered by manual testing
-// against GitHub; see PR #111). Windows line-ending scenarios are simulated
-// by writing CRLF bytes directly, which is exactly what a native-git
-// autocrlf checkout leaves on disk.
+// Integration tests for src/trunk-update.js against real on-disk repositories.
+// Windows line-ending scenarios are simulated by writing CRLF bytes directly,
+// which is exactly what a native-git autocrlf checkout leaves on disk.
+//
+// updateToLatestTrunk needs a remote to fetch from, so it lives in
+// trunk-update-fetch.integration.test.cjs with its local HTTP git fixture.
 
 const test = require('node:test');
 const assert = require('node:assert');
