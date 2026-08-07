@@ -1,6 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
+	// Only so the window can name things the way the platform does — "Show in
+	// Finder" against "Show in Explorer". Nothing branches on it in the main
+	// process, where `process.platform` is read directly.
+	platform: process.platform,
 	getSites: () => ipcRenderer.invoke('sites:get'),
 	getSitesWithMeta: () => ipcRenderer.invoke('sites:getAll'),
 	addSite: (dir) => ipcRenderer.invoke('sites:add', dir),
@@ -42,6 +46,17 @@ contextBridge.exposeInMainWorld('api', {
 	npmKill: (params) => ipcRenderer.invoke('npm:kill', params)
 ,
 	openExternal: (url) => ipcRenderer.invoke('url:open', url)
+,
+	getEditor: () => ipcRenderer.invoke('editor:get')
+,
+	listEditors: () => ipcRenderer.invoke('editor:list')
+,
+	// With a path, remembers that editor; without one, opens the file dialog.
+	chooseEditor: (editorPath) => ipcRenderer.invoke('editor:choose', editorPath)
+,
+	openInEditor: (sitePath) => ipcRenderer.invoke('editor:open', sitePath)
+,
+	showSiteInFileManager: (sitePath) => ipcRenderer.invoke('dir:show', sitePath)
 ,
 	markSiteInitialized: (sitePath) => ipcRenderer.invoke('sites:mark-initialized', sitePath)
 ,

@@ -34,9 +34,11 @@ const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
 const { fetchLinkedPrs, fetchPrDiff } = require('./github-prs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
-const { deleteRegisteredSite } = require('./site-registry');
+const { deleteRegisteredSite, revealRegisteredSite } = require('./site-registry');
 const { getStore } = require('./settings-store');
 const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
+const { describeRefused } = require('./safe-log');
+const { detectEditors, knownEditorName, isLaunchableEditorPath, openSiteInEditor } = require('./editor-launch');
 
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
@@ -956,6 +958,137 @@ ipcMain.handle('url:open', async (_e, url) => openExternalUrl(url, {
 	openExternal: (target) => shell.openExternal(target),
 	onRefused: (description) => logEvent('url', `refused to open ${description} — only ${ALLOWED_URL_SCHEMES.join(', ')} are allowed`)
 }));
+
+// --- opening a site's code -----------------------------------------------
+//
+// See editor-launch.js for why none of this consults PATH. What is here is the
+// wiring: the store holds one app-wide editor choice, and every path — detected,
+// picked, or remembered from a previous run — goes through the same check before
+// anything is spawned.
+
+// Asynchronous on purpose: this runs on the process that draws the window, and
+// probing a dozen locations that mostly do not exist is exactly what a slow
+// volume or an antivirus filter driver turns into a frozen UI.
+//
+// Executability is asked of the OS with `access(X_OK)` rather than read off the
+// mode bits, so the answer is about the user this app is running as, ACLs and
+// mount options included. On Windows every file answers X_OK, which is why the
+// `.exe` check there is the one that matters.
+async function statPath(targetPath) {
+	let stats;
+	try {
+		stats = await fs.promises.stat(targetPath);
+	} catch {
+		return null;
+	}
+
+	let isExecutable = false;
+	try {
+		await fs.promises.access(targetPath, fs.constants.X_OK);
+		isExecutable = true;
+	} catch {}
+
+	return { isDirectory: stats.isDirectory(), isFile: stats.isFile(), isExecutable };
+}
+
+const editorLaunchDeps = () => ({ platform: process.platform, statPath });
+
+async function getChosenEditor() {
+	const s = await getStore();
+	const chosen = (s.get('preferences') || {}).editor;
+	return chosen && typeof chosen.path === 'string' ? chosen : null;
+}
+
+// The remembered choice, and nothing else. This is what the window asks for on
+// load — just enough to name the button "Open in Cursor" — so it touches no
+// filesystem at all. Whether that editor is still installed is answered by
+// trying to open it, which is a question the contributor has just asked anyway.
+ipcMain.handle('editor:get', async () => getChosenEditor());
+
+// The editors on this machine. Detection stats a dozen or so absolute locations,
+// so it runs when the contributor opens the picker rather than on every load —
+// `editor:get` is the cheap one.
+ipcMain.handle('editor:list', async () => ({
+	detected: await detectEditors({
+		platform: process.platform,
+		env: process.env,
+		exists: async (p) => (await statPath(p)) !== null
+	}),
+	chosen: await getChosenEditor()
+}));
+
+// Remembers an editor. With a path it is the one the contributor picked from the
+// detected list; without one it opens the file dialog, which is the answer for
+// every editor the detection table does not know about — the reason no editor is
+// ever shown as unavailable with nothing to do about it.
+//
+// The dialog's result is validated exactly like a detected path. A dialog is
+// still input.
+ipcMain.handle('editor:choose', async (_e, editorPath) => {
+	let target = typeof editorPath === 'string' ? editorPath : null;
+
+	if (!target) {
+		const filtersByPlatform = {
+			darwin: [{ name: 'Applications', extensions: ['app'] }],
+			win32: [{ name: 'Programs', extensions: ['exe'] }]
+		};
+		// Everywhere else an application is just a file, so the dialog does not
+		// narrow what can be picked.
+		const filters = filtersByPlatform[process.platform] || [];
+		const result = await dialog.showOpenDialog({
+			title: 'Choose the editor to open sites in',
+			properties: ['openFile'],
+			defaultPath: process.platform === 'darwin' ? '/Applications' : undefined,
+			filters
+		});
+		if (result.canceled || result.filePaths.length === 0) return { ok: false, reason: 'cancelled' };
+		target = result.filePaths[0];
+	}
+
+	if (!await isLaunchableEditorPath(target, editorLaunchDeps())) {
+		logEvent('editor', `refused to remember ${describeRefused(target)} — not an application this app can launch`);
+		return { ok: false, reason: 'unlaunchable-editor' };
+	}
+
+	const s = await getStore();
+	const editor = {
+		path: target,
+		// The table's name for a known application; a filename only for one the
+		// contributor pointed at that the table has never heard of.
+		name: knownEditorName(target, { platform: process.platform, env: process.env })
+			|| path.basename(target, path.extname(target))
+	};
+	s.set('preferences', { ...(s.get('preferences') || {}), editor });
+	return { ok: true, editor };
+});
+
+// Only a path the app has on record is opened, and only in an application that
+// is still where it was — see editor-launch.js. A refusal is logged rather than
+// dropped so a caller that trips the guard shows up in the log file instead of
+// just doing nothing.
+ipcMain.handle('editor:open', async (_e, sitePath) => {
+	const chosen = await getChosenEditor();
+	if (!chosen) return { ok: false, reason: 'no-editor' };
+
+	const s = await getStore();
+	return openSiteInEditor(sitePath, chosen.path, {
+		...editorLaunchDeps(),
+		sites: s.get('sites'),
+		spawn,
+		onRefused: (reason, description) => logEvent('editor', `refused to open ${description} — ${reason}`)
+	});
+});
+
+// The fallback that needs no configuration at all — see site-registry.js for why
+// it is behind the same boundary as `sites:delete`.
+ipcMain.handle('dir:show', async (_e, sitePath) => {
+	const s = await getStore();
+	return revealRegisteredSite(sitePath, {
+		sites: s.get('sites'),
+		reveal: (target) => shell.openPath(target),
+		onRefused: (description) => logEvent('sites', `refused to reveal ${description} — not a registered site`)
+	});
+});
 
 const ENGINE_RETRY_NOTICE = '\n⚠ This site requires a newer Node.js than this app bundles.\n  Retrying with engine checks relaxed…\n\n';
 

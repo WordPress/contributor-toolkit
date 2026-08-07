@@ -17,6 +17,8 @@
 // Widen ALLOWED_URL_SCHEMES only for a scheme the app actually needs, and only
 // after asking what the OS does with it.
 
+const { describeRefused } = require('./safe-log');
+
 const ALLOWED_URL_SCHEMES = ['http:', 'https:'];
 
 // Returns the address to open, or null if it is not one this app opens.
@@ -53,34 +55,11 @@ function isAllowedExternalUrl(url) {
 	return normalizeExternalUrl(url) !== null;
 }
 
-// Line breaks, and everything else that would let a refused address end a log
-// line and start another one.
-const CONTROL_CHARACTERS = /[\x00-\x1f\x7f-\x9f\u2028\u2029]/g;
-
 // A refused address is attacker-influenced by hypothesis, and it is about to be
-// written into the file contributors attach to bug reports. Two things follow.
-//
-// It has to stay on one line: a newline in the address would otherwise let it
-// write a second entry in the app's own timestamp-and-scope format, and a log
-// that can be made to describe events that never happened is worse than no log.
-// The control characters are escaped rather than dropped so the line still says
-// what the caller actually sent.
-//
-// And it has to be bounded, so a very long address cannot flood the file.
-// Truncation comes after escaping, since escaping is what decides the final
-// length.
+// written into the file contributors attach to bug reports, so it has to stay on
+// one line and it has to be bounded. safe-log.js is where both live, and why.
 function describeRefusedUrl(url) {
-	if (typeof url !== 'string') return `<${url === null ? 'null' : typeof url}>`;
-
-	const oneLine = url.replace(CONTROL_CHARACTERS, (c) => {
-		const code = c.codePointAt(0);
-		return code <= 0xff
-			? `\\x${code.toString(16).padStart(2, '0')}`
-			: `\\u${code.toString(16).padStart(4, '0')}`;
-	});
-
-	if (oneLine.length <= 120) return oneLine;
-	return `${oneLine.slice(0, 120)}…`;
+	return describeRefused(url);
 }
 
 // The `url:open` handler's body, kept out of main.js so both sides of the guard

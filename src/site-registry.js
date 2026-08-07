@@ -14,6 +14,8 @@
 // pure check, a safe log formatter, and a wrapper whose effects are injected so
 // both branches can be tested without an Electron process.
 
+const { describeRefused } = require('./safe-log');
+
 // True only for a path the app has on record. Exact string match, the same
 // convention `sites:add`/`sites:delete` already use (`sites.includes(sitePath)`,
 // `filter((p) => p !== sitePath)`): the registry stores the paths verbatim, so a
@@ -25,33 +27,11 @@ function isRegisteredSite(sitePath, sites) {
 	return sites.includes(sitePath);
 }
 
-// Line breaks, and everything else that would let a refused path end a log line
-// and start another one.
-const CONTROL_CHARACTERS = /[\x00-\x1f\x7f-\x9f\u2028\u2029]/g;
-
 // A refused path is attacker-influenced by hypothesis, and it is about to be
-// written into the file contributors attach to bug reports. It has to stay on
-// one line — a newline would otherwise let it forge a second entry in the app's
-// own timestamp-and-scope format — and it has to be bounded so a very long path
-// cannot flood the file. Control characters are escaped rather than dropped so
-// the line still says what the caller actually sent; truncation comes after
-// escaping, since escaping is what decides the final length.
-//
-// This is the same concern, and the same escaping, as `describeRefusedUrl` in
-// external-url.js. If a third caller ever needs it, the two should move into a
-// shared safe-log helper rather than gain a third copy.
+// written into the file contributors attach to bug reports, so it has to stay on
+// one line and it has to be bounded. safe-log.js is where both live, and why.
 function describeRefusedSite(sitePath) {
-	if (typeof sitePath !== 'string') return `<${sitePath === null ? 'null' : typeof sitePath}>`;
-
-	const oneLine = sitePath.replace(CONTROL_CHARACTERS, (c) => {
-		const code = c.codePointAt(0);
-		return code <= 0xff
-			? `\\x${code.toString(16).padStart(2, '0')}`
-			: `\\u${code.toString(16).padStart(4, '0')}`;
-	});
-
-	if (oneLine.length <= 120) return oneLine;
-	return `${oneLine.slice(0, 120)}…`;
+	return describeRefused(sitePath);
 }
 
 // The `sites:delete` handler's body, kept out of main.js so both sides of the
@@ -70,8 +50,27 @@ async function deleteRegisteredSite(sitePath, { sites, forget, remove, onRefused
 	return true;
 }
 
+// The `dir:show` handler's body. `shell.openPath` hands a local path to whatever
+// the OS has registered for it, so "show this site in the file manager" gets the
+// same boundary as "delete this site": only a path the app has on record. The
+// reveal itself is injected, like `remove` above.
+//
+// `reveal` resolves to electron's own convention — the empty string on success,
+// an error message otherwise — and that is passed through rather than reduced to
+// a boolean, so the renderer can say what went wrong.
+async function revealRegisteredSite(sitePath, { sites, reveal, onRefused } = {}) {
+	if (!isRegisteredSite(sitePath, sites)) {
+		if (typeof onRefused === 'function') onRefused(describeRefusedSite(sitePath));
+		return { ok: false, reason: 'unregistered-site' };
+	}
+
+	const error = await reveal(sitePath);
+	return error ? { ok: false, reason: 'open-failed', error } : { ok: true };
+}
+
 module.exports = {
 	isRegisteredSite,
 	describeRefusedSite,
+	revealRegisteredSite,
 	deleteRegisteredSite
 };
