@@ -1660,20 +1660,31 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     if (!tracTicket) {
       setTicketPatches(null);
       // Attachments are per-ticket and loaded on demand; a stale list from the
-      // previous ticket must not linger.
+      // previous ticket must not linger, and a scrape dropped by the generation
+      // bump below must not leave a stuck spinner.
       setTracAttachments(null);
+      setTracAttachmentsLoading(false);
       loadedTicketRef.current = null;
       return;
     }
     if (!isActive || loadedTicketRef.current === tracTicket) return;
     // A new ticket on the active site: drop any attachments the previous one
-    // loaded, then fetch its PRs. Marked loaded before the fetch resolves, on
-    // purpose: a failed initial fetch is not retried on every re-activation
-    // (which could keep spending a rate-limited quota) — Refresh is the retry.
+    // loaded (and clear its loading flag, so a scrape dropped by the generation
+    // bump cannot leave a stuck spinner with no button to recover), then fetch
+    // its PRs. Marked loaded before the fetch resolves, on purpose: a failed
+    // initial fetch is not retried on every re-activation (which could keep
+    // spending a rate-limited quota) — Refresh is the retry.
     setTracAttachments(null);
+    setTracAttachmentsLoading(false);
     loadedTicketRef.current = tracTicket;
     loadTicketPatches();
   }, [tracTicket, isActive, loadTicketPatches]);
+
+  // A Trac scrape can run up to 90s. Bump a generation on every ticket change so
+  // a scrape that resolves after the ticket has moved on is dropped, rather than
+  // shown under the wrong ticket or clearing a newer request's loading flag.
+  const scrapeGenRef = useRef(0);
+  useEffect(() => { scrapeGenRef.current += 1; }, [tracTicket]);
 
   // Fetches a PR's diff and drops into the same preview the file picker uses,
   // so applying a PR and applying a downloaded patch are one path from here on.
@@ -1704,15 +1715,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Opens the real Trac ticket (the user clears the challenge once if shown),
   // scrapes its attachment list, and shows it in-app. On demand, not on link.
   const loadTracAttachments = async () => {
+    const gen = scrapeGenRef.current;
     setApplyError('');
     setTracAttachmentsLoading(true);
     try {
       const res = await window.api.listTracAttachments(sitePath);
+      if (gen !== scrapeGenRef.current) return; // ticket changed mid-scrape; drop the stale result
       setTracAttachments(res && res.ok ? res : { status: 'error', items: [] });
     } catch {
+      if (gen !== scrapeGenRef.current) return;
       setTracAttachments({ status: 'error', items: [] });
     } finally {
-      setTracAttachmentsLoading(false);
+      if (gen === scrapeGenRef.current) setTracAttachmentsLoading(false);
     }
   };
 
@@ -2410,11 +2424,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>This ticket has no attachments.</div>
               ) : null}
 
-              {tracAttachments && (tracAttachments.status === 'challenge-timeout' || tracAttachments.status === 'error') ? (
+              {tracAttachments && (tracAttachments.status === 'challenge-timeout' || tracAttachments.status === 'error' || tracAttachments.status === 'closed') ? (
                 <div style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-                  {tracAttachments.status === 'challenge-timeout'
-                    ? 'Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.'
-                    : 'Could not read the attachments from Trac.'}
+                  {(() => {
+                    if (tracAttachments.status === 'challenge-timeout') return 'Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.';
+                    if (tracAttachments.status === 'closed') return 'The Trac window was closed before the attachments finished loading. Click “Show Trac attachments” to try again.';
+                    return `Could not read the attachments from Trac.${tracAttachments.error ? ` (${tracAttachments.error})` : ''}`;
+                  })()}
                 </div>
               ) : null}
 
