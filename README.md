@@ -169,6 +169,14 @@ Release downloads are the only usage signal this project has, and GitHub keeps n
 them, so a weekly workflow records the counts to a `metrics` branch. See [STATS.md](STATS.md) for
 how to read them and what they do and don't measure.
 
+### Contributing
+
+Much of the work here happens with the support of AI coding agents, and the quality bar is held by
+a set of guardrails rather than by trusting the agent. See [CONTRIBUTING.md](CONTRIBUTING.md) for
+what runs on every pull request (repo-wide lint, unit tests on macOS and Windows) and the single
+review standard to run yourself before opening one — as the `/self-review` skill in Claude Code, or
+by following the standard directly on any other agent.
+
 ### License
 
 GPLv2 or later. See [LICENSE](LICENSE).
