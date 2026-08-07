@@ -705,6 +705,9 @@ ipcMain.handle('sites:set-label', async (_e, sitePath, label) => {
 // ticket never depends on Trac being reachable.
 ipcMain.handle('sites:set-ticket', async (_e, sitePath, ref) => {
 	try {
+		const s = await getStore();
+		const sites = s.get('sites') || [];
+		if (!sites.includes(sitePath)) return { ok: false, error: 'Site is not registered' };
 		// Empty means unlink — the panel's Unlink button and a cleared field
 		// both land here, and neither is an error.
 		const raw = typeof ref === 'string' ? ref.trim() : '';
@@ -1302,4 +1305,3 @@ ipcMain.handle('wp-debug:stop', async (_event, sitePath) => {
 	stopWpDebugTail(sitePath);
 	return true;
 });
-

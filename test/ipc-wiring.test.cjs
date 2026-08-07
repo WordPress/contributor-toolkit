@@ -926,15 +926,30 @@ test('playground-web:stop ends the web server tree rather than signalling the ch
 // --- ticket handler (#109) -----------------------------------------------
 
 test('sites:set-ticket validates the reference through trac-ticket', async () => {
-	// A ref trac-ticket rejects returns before any store write, so this proves
-	// the wire without reaching getStore.
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'] });
 	const parseTicketRef = spy(() => ({ ok: false, error: 'not a ticket' }));
-	const main = loadMain({ stubs: { ...silentLogging(), './renderer/trac-ticket.cjs': { parseTicketRef } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './renderer/trac-ticket.cjs': { parseTicketRef } }
+	});
 
 	const result = await main.invoke('sites:set-ticket', '/sites/wp', '62281');
 
 	assert.deepEqual(parseTicketRef.calls, [['62281']]);
 	assert.deepEqual(result, { ok: false, error: 'not a ticket' });
+});
+
+test('sites:set-ticket refuses unregistered site paths before writing metadata', async () => {
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'] });
+	const parseTicketRef = spy(() => ({ ok: true, id: 62281 }));
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './renderer/trac-ticket.cjs': { parseTicketRef } }
+	});
+
+	const result = await main.invoke('sites:set-ticket', '/sites/unknown', '62281');
+
+	assert.deepEqual(result, { ok: false, error: 'Site is not registered' });
+	assert.deepEqual(parseTicketRef.calls, []);
+	assert.deepEqual(settings.values.siteMeta, {});
 });
 
 // --- the harness's own guard ---------------------------------------------
