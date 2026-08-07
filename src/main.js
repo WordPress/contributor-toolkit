@@ -29,6 +29,8 @@ const { buildMenuTemplate } = require('./menu');
 const { killChildTree } = require('./kill-tree');
 const { normalizeEol } = require('./git-update.cjs');
 const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, updateToLatestTrunk } = require('./trunk-update');
+const { applyPatchToDir } = require('./patch-apply');
+const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { deleteRegisteredSite } = require('./site-registry');
 const { getStore } = require('./settings-store');
@@ -421,6 +423,11 @@ ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
 ipcMain.handle('git:discard-changes', async (_e, sitePath) => {
     try {
         await discardChanges(sitePath);
+        // Clearing the applied-patch record belongs with the reset that removed
+        // the patch from the tree — not with the trunk update that may follow and
+        // fail on the network, which would leave a revert banner for a patch that
+        // is already gone.
+        await mergeSiteMeta(sitePath, { appliedPatch: null });
         return { ok: true };
     } catch (e) {
         return { ok: false, error: String(e) };
@@ -440,14 +447,18 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
     (async () => {
         try {
             const result = await updateToLatestTrunk({ dir: sitePath, url: WORDPRESS_GIT_URL, onLog: sendLog });
+            // An update resets the worktree, so any applied patch is gone with
+            // it either way — clear the record so the "applied" banner does not
+            // outlive the patch. (This is also where a discard's cleanup lands:
+            // the dirty-tree modal always discards and then updates.)
             if (result.upToDate) {
-                await mergeSiteMeta(sitePath, { trunkOid: result.oldOid, trunkDate: result.trunkDate });
+                await mergeSiteMeta(sitePath, { trunkOid: result.oldOid, trunkDate: result.trunkDate, appliedPatch: null });
             } else {
                 // HEAD has moved but install/build have not run yet: persist
                 // the incomplete flag now so the state survives a crash or
                 // quit mid-chain; the renderer clears it after a successful
                 // build.
-                await mergeSiteMeta(sitePath, { trunkOid: result.newOid, trunkDate: result.trunkDate, updateIncomplete: true });
+                await mergeSiteMeta(sitePath, { trunkOid: result.newOid, trunkDate: result.trunkDate, updateIncomplete: true, appliedPatch: null });
             }
             sendDone({ ok: true, ...result });
         } catch (e) {
@@ -465,6 +476,146 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
     })();
 
     return { updateId };
+});
+
+// --- Applying someone else's patch (#11) --- the diff mechanics live in
+// src/patch-apply.js; these handlers add IPC plumbing and electron-store writes.
+
+// A patch big enough to bloat the settings file is not worth keeping around for
+// an undo button. Above this the patch still applies, only "Revert" is not
+// offered — said out loud rather than silently dropped.
+const REVERTABLE_PATCH_LIMIT = 512 * 1024;
+
+// Reading a patch without touching the checkout, so the contributor sees which
+// files it would change — and which of their own edits it collides with —
+// before deciding.
+ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
+    try {
+        const parsed = parsePatchFiles(patchText);
+        if (!parsed.ok) return { ok: false, error: parsed.error };
+        let dirtyPaths;
+        try {
+            dirtyPaths = await collectDirtyFiles(sitePath);
+        } catch (e) {
+            // Failing open here would promise "no collisions" precisely when the
+            // app could not look — surface the failure instead.
+            logError('git:preview-patch', String(e && e.stack ? e.stack : e));
+            return { ok: false, error: 'Could not check your working tree for conflicts, so the preview was not shown.' };
+        }
+        const plan = planApply({ files: parsed.files, dirtyPaths });
+        return { ok: true, ...plan, files: parsed.files.map((f) => ({ kind: f.kind, path: f.path })) };
+    } catch (e) {
+        return { ok: false, error: String(e) };
+    }
+});
+
+ipcMain.handle('dialog:choose-patch-file', async () => {
+    const result = await dialog.showOpenDialog({
+        title: 'Choose a patch file',
+        properties: ['openFile'],
+        filters: [
+            { name: 'Patch Files', extensions: ['patch', 'diff'] },
+            { name: 'All Files', extensions: ['*'] }
+        ]
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    const filePath = result.filePaths[0];
+    try {
+        const text = await fs.promises.readFile(filePath, 'utf8');
+        return { filePath, name: path.basename(filePath), text };
+    } catch (e) {
+        return { filePath, error: String(e) };
+    }
+});
+
+ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
+    const applyId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const sender = event.sender;
+    const sendLog = (data) => {
+        try { sender.send('git:apply-patch:log', { applyId, data }); } catch {}
+    };
+    const sendDone = (payload) => {
+        try { sender.send('git:apply-patch:done', { applyId, ...payload }); } catch {}
+    };
+
+    (async () => {
+        try {
+            const reverse = Boolean(options.reverse);
+            // Reverting reads the patch the app stored when it applied it, so
+            // the renderer never has to hold a copy of the text.
+            let patchText = String(options.patchText || '');
+            let label = String(options.label || 'patch');
+            const s = await getStore();
+            // sitePath crosses IPC untrusted and becomes the root for patch
+            // writes, so it has to be a site the app actually manages — the same
+            // gate sites:set-ticket applies before it touches metadata.
+            if (!(s.get('sites') || []).includes(sitePath)) {
+                sendDone({ ok: false, error: 'Site is not registered' });
+                return;
+            }
+            const stored = ((s.get('siteMeta') || {})[sitePath] || {}).appliedPatch;
+            if (reverse) {
+                if (!stored || !stored.text) {
+                    sendDone({ ok: false, error: 'There is no stored patch to revert.' });
+                    return;
+                }
+                patchText = stored.text;
+                label = stored.label || label;
+            } else if (stored) {
+                // Only one patch is tracked at a time, so a second apply would
+                // make the first one silently unrevertable and invisible.
+                sendDone({ ok: false, error: `${stored.label} is already applied. Revert it before applying another patch.` });
+                return;
+            }
+            sendLog(`\n${reverse ? 'Reverting' : 'Applying'} ${label}…\n`);
+
+            const result = await applyPatchToDir({ dir: sitePath, patchText, reverse, onLog: sendLog });
+            if (!result.ok) {
+                sendDone({ ok: false, ...result });
+                return;
+            }
+
+            if (reverse) {
+                await mergeSiteMeta(sitePath, { appliedPatch: null });
+            } else {
+                const revertable = patchText.length <= REVERTABLE_PATCH_LIMIT;
+                if (!revertable) {
+                    sendLog('This patch is too large to keep for an undo, so Revert will not be offered.\n');
+                }
+                try {
+                    await mergeSiteMeta(sitePath, {
+                        appliedPatch: {
+                            label,
+                            appliedAt: new Date().toISOString(),
+                            files: result.applied,
+                            text: revertable ? patchText : null
+                        }
+                    });
+                } catch (persistErr) {
+                    // Persistence is part of the transaction: the patch is on disk
+                    // but its revert record could not be saved, so undo the apply
+                    // rather than leave a patch the app cannot revert. If the undo
+                    // also fails, say so plainly instead of reporting a clean fail.
+                    logError('git:apply-patch', `persist failed, undoing apply: ${String(persistErr && persistErr.stack ? persistErr.stack : persistErr)}`);
+                    const undo = await applyPatchToDir({ dir: sitePath, patchText, reverse: true, onLog: sendLog });
+                    const why = String(persistErr && persistErr.message ? persistErr.message : persistErr);
+                    if (undo.ok) {
+                        sendDone({ ok: false, error: `The patch applied but its revert record could not be saved, so it was undone. ${why}` });
+                    } else {
+                        sendDone({ ok: false, appliedButUntracked: true, files: result.applied, error: `The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. ${why}` });
+                    }
+                    return;
+                }
+            }
+            sendDone({ ok: true, ...result, reverse });
+        } catch (e) {
+            logError('git:apply-patch', String(e && e.stack ? e.stack : e));
+            sendLog(`\nApplying the patch failed: ${String(e && e.message ? e.message : e)}\n`);
+            sendDone({ ok: false, error: String(e) });
+        }
+    })();
+
+    return { applyId };
 });
 
 ipcMain.handle('sites:mark-update-complete', async (_e, sitePath) => {
@@ -546,9 +697,20 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 			}
 		} catch {}
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(m.updateIncomplete), tracTicket: m.tracTicket || null };
+		// Summarised rather than passed through: the stored patch text is only
+		// needed by the main process to reverse it, and this is polled.
+		const appliedPatch = m.appliedPatch
+			? {
+				label: m.appliedPatch.label,
+				appliedAt: m.appliedPatch.appliedAt,
+				files: m.appliedPatch.files || [],
+				revertable: Boolean(m.appliedPatch.text)
+			}
+			: null;
+
+		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(m.updateIncomplete), tracTicket: m.tracTicket || null, appliedPatch };
 	} catch {
-		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null };
+		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, appliedPatch: null };
 	}
 });
 

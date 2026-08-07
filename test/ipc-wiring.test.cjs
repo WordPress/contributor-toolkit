@@ -444,12 +444,16 @@ test('git:worktree-dirty reports what trunk-update found, not its own guess', as
 	});
 });
 
-test('git:discard-changes goes through trunk-update', async () => {
+test('git:discard-changes resets through trunk-update and clears the applied-patch record', async () => {
 	const discardChanges = spy(async () => {});
-	const main = loadMain({ stubs: { ...silentLogging(), './trunk-update': { discardChanges } } });
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { appliedPatch: { label: 'x' } } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { discardChanges } } });
 
 	assert.deepEqual(await main.invoke('git:discard-changes', '/sites/wp'), { ok: true });
 	assert.deepEqual(discardChanges.calls, [['/sites/wp']]);
+	// The record is cleared with the reset, not left for a later trunk update to
+	// clear — otherwise a failed update leaves a revert banner for a gone patch.
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
 });
 
 test('git:update-trunk hands the update to trunk-update and streams its log back', async () => {
@@ -952,6 +956,152 @@ test('sites:set-ticket refuses unregistered site paths before writing metadata',
 	assert.deepEqual(settings.values.siteMeta, {});
 });
 
+// --- apply handlers (#11) ------------------------------------------------
+
+test('git:preview-patch reads the patch through patch-plan', async () => {
+	const parsePatchFiles = spy(() => ({ ok: false, error: 'unreadable' }));
+	const main = loadMain({ stubs: { ...silentLogging(), './patch-plan.cjs': { parsePatchFiles, planApply: () => ({}) } } });
+
+	const result = await main.invoke('git:preview-patch', '/sites/wp', 'PATCH TEXT');
+
+	assert.deepEqual(parsePatchFiles.calls, [['PATCH TEXT']]);
+	assert.deepEqual(result, { ok: false, error: 'unreadable' });
+});
+
+// git:apply-patch reads the store for its guard before delegating, which is the
+// seam fakeSettingsStore stands in for — so it is a wired handler, not a hole.
+// It streams, so its result comes back on the :done channel, not the return.
+async function applyDone(event, applyId, cap = 50) {
+	for (let i = 0; i < cap; i++) {
+		const hit = event.sent.find((m) => m.channel === 'git:apply-patch:done' && m.payload.applyId === applyId);
+		if (hit) return hit.payload;
+		await new Promise((r) => setImmediate(r));
+	}
+	throw new Error('git:apply-patch never reported done');
+}
+
+test('git:apply-patch refuses an unregistered site path before touching patch-apply', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'] });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/unknown', { patchText: 'P' });
+
+	assert.deepEqual(await applyDone(event, applyId), { applyId, ok: false, error: 'Site is not registered' });
+	assert.deepEqual(applyPatchToDir.calls, []);
+});
+
+test('git:apply-patch delegates a forward apply to patch-apply and records it', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['src/a.php'], skipped: [] }));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'] });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { patchText: 'PATCH', label: 'PR 11705' });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.ok, true);
+	assert.equal(applyPatchToDir.calls.length, 1);
+	const [args] = applyPatchToDir.calls[0];
+	assert.equal(args.dir, '/sites/wp');
+	assert.equal(args.patchText, 'PATCH');
+	assert.equal(args.reverse, false);
+	// The revert record is what makes Revert possible; without it the patch is
+	// applied but silently unrevertable.
+	const stored = settings.values.siteMeta['/sites/wp'].appliedPatch;
+	assert.equal(stored.label, 'PR 11705');
+	assert.equal(stored.text, 'PATCH');
+	assert.deepEqual(stored.files, ['src/a.php']);
+});
+
+test('git:apply-patch refuses a second patch while one is already applied', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'first', text: 'X' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { patchText: 'SECOND' });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.ok, false);
+	assert.match(done.error, /already applied/);
+	assert.deepEqual(applyPatchToDir.calls, []);
+});
+
+test('git:apply-patch reverts using the stored patch text and clears the record', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['src/a.php'], skipped: [] }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'L', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { reverse: true });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.ok, true);
+	const [args] = applyPatchToDir.calls[0];
+	assert.equal(args.reverse, true);
+	assert.equal(args.patchText, 'STORED', 'a revert applies the patch the app stored, not the renderer');
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
+});
+
+// A store whose siteMeta write throws: the patch lands on disk but its revert
+// record cannot be saved. Persistence is part of the transaction.
+function storeThatFailsToPersist() {
+	return {
+		get: (key) => (key === 'sites' ? ['/sites/wp'] : {}),
+		set: (key) => { if (key === 'siteMeta') throw new Error('disk full'); }
+	};
+}
+
+test('git:apply-patch undoes the apply when its revert record cannot be saved', async () => {
+	const applyPatchToDir = spy(async ({ reverse }) => ({ ok: true, applied: reverse ? [] : ['src/a.php'], skipped: [] }));
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'./settings-store': { getStore: async () => storeThatFailsToPersist() },
+			'./patch-apply': { applyPatchToDir }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { patchText: 'PATCH', label: 'L' });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.ok, false);
+	assert.match(done.error, /could not be saved/);
+	// The forward apply, then the undo — the tree is put back to match what the
+	// renderer is told rather than left with an unrevertable patch.
+	assert.deepEqual(applyPatchToDir.calls.map((c) => c[0].reverse), [false, true]);
+});
+
+test('git:apply-patch reports applied-but-untracked when the undo also fails', async () => {
+	const applyPatchToDir = spy(async ({ reverse }) =>
+		reverse ? { ok: false, error: 'cannot undo' } : { ok: true, applied: ['src/a.php'], skipped: [] });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'./settings-store': { getStore: async () => storeThatFailsToPersist() },
+			'./patch-apply': { applyPatchToDir }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { patchText: 'PATCH', label: 'L' });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.ok, false);
+	assert.equal(done.appliedButUntracked, true);
+	assert.deepEqual(done.files, ['src/a.php']);
+	assert.match(done.error, /could not be undone/);
+});
+
 // --- the harness's own guard ---------------------------------------------
 
 // Requiring the real `electron` package is not a harmless fallback: its
@@ -1000,7 +1150,9 @@ const WIRED = new Set([
 	'playground:stop',
 	'playground-web:start',
 	'playground-web:stop',
-	'sites:set-ticket'
+	'sites:set-ticket',
+	'git:preview-patch',
+	'git:apply-patch'
 ]);
 
 // Channels with no module to reach: they read or write electron-store, drive a
@@ -1016,6 +1168,7 @@ const NO_DELEGATION = new Map([
 	['sites:forget', 'electron-store write'],
 	['sites:set-label', 'electron-store write'],
 	['dialog:choose-dir', 'opens the directory dialog'],
+	['dialog:choose-patch-file', 'opens the file-open dialog and reads the chosen file'],
 	['playground-web:available', 'checks a path on disk'],
 	['smtp:get', 'electron-store read'],
 	['smtp:clear', 'electron-store write'],
