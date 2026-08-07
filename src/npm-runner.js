@@ -58,7 +58,8 @@ function shouldRetryWithRelaxedEngines({ code, signal, sawEngineMismatch, alread
 	return Boolean(sawEngineMismatch);
 }
 
-// The env block for a spawned npm runner. On Windows both PATH and Path are set
+// The env block for a spawned runner — npm's, and since #146 the Playground
+// servers' too. On Windows both PATH and Path are set
 // and PATHEXT is extended so child npm processes can find the node shim.
 //
 // On Windows the node shim is a .cmd, which Node >= 20.12.2 refuses to spawn
