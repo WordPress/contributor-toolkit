@@ -17,7 +17,6 @@
  * the rest of the app already relies on, and adds nothing to install.
  */
 
-const { net } = require('electron');
 const { parseLinkedPrs, classifyHttpFailure } = require('./patch-sources.cjs');
 
 const REPO = 'WordPress/wordpress-develop';
@@ -31,20 +30,32 @@ const REQUEST_TIMEOUT_MS = 15000;
  * is data the caller classifies — only on a transport failure or timeout.
  * Modelled on the never-reject readiness probe in main.js.
  *
+ * The `deps` seam (net client and timers) exists only so the response,
+ * transport-error, timeout, and settle-once paths can be exercised without the
+ * network or a real 15s wait; production callers pass nothing and get Electron's
+ * `net` and the global timers.
+ *
  * @param {string} url
  * @param {Object} [headers]
+ * @param {Object} [deps]
  * @return {Promise<{status: number, headers: Object, body: string}>}
  */
-function httpGet(url, headers = {}) {
+function httpGet(url, headers = {}, deps = {}) {
+	// Required lazily, not at module load: requiring `electron` outside Electron
+	// resolves the binary and can spawn its installer on a cold checkout, and the
+	// standalone tests inject their own client and must never reach it.
+	const netImpl = deps.net || require('electron').net;
+	const setTimeoutImpl = deps.setTimeout || setTimeout;
+	const clearTimeoutImpl = deps.clearTimeout || clearTimeout;
 	return new Promise((resolve, reject) => {
 		let settled = false;
 		const finish = (fn, arg) => { if (!settled) { settled = true; fn(arg); } };
 
-		const request = net.request({ method: 'GET', url });
+		const request = netImpl.request({ method: 'GET', url });
 		request.setHeader('User-Agent', USER_AGENT);
 		for (const [key, value] of Object.entries(headers)) request.setHeader(key, value);
 
-		const timer = setTimeout(() => {
+		const timer = setTimeoutImpl(() => {
 			try { request.abort(); } catch {}
 			finish(reject, new Error(`Timed out after ${REQUEST_TIMEOUT_MS}ms`));
 		}, REQUEST_TIMEOUT_MS);
@@ -53,16 +64,16 @@ function httpGet(url, headers = {}) {
 			const chunks = [];
 			response.on('data', (chunk) => chunks.push(chunk));
 			response.on('end', () => {
-				clearTimeout(timer);
+				clearTimeoutImpl(timer);
 				const lowerHeaders = {};
 				for (const [key, value] of Object.entries(response.headers || {})) {
 					lowerHeaders[key.toLowerCase()] = Array.isArray(value) ? value[0] : value;
 				}
 				finish(resolve, { status: response.statusCode, headers: lowerHeaders, body: Buffer.concat(chunks).toString('utf8') });
 			});
-			response.on('error', (e) => { clearTimeout(timer); finish(reject, e); });
+			response.on('error', (e) => { clearTimeoutImpl(timer); finish(reject, e); });
 		});
-		request.on('error', (e) => { clearTimeout(timer); finish(reject, e); });
+		request.on('error', (e) => { clearTimeoutImpl(timer); finish(reject, e); });
 		request.end();
 	});
 }
@@ -71,18 +82,24 @@ function httpGet(url, headers = {}) {
  * The pull requests that cite a ticket, newest first.
  *
  * @param {number|string} ticketId
+ * @param {Object}        [deps]
  * @return {Promise<{status: 'ok'|'rate-limited'|'error'|'offline', items: Array, error?: string}>}
  */
-async function fetchLinkedPrs(ticketId) {
+async function fetchLinkedPrs(ticketId, deps = {}) {
+	const get = deps.httpGet || httpGet;
 	const id = String(ticketId).replace(/[^0-9]/g, '');
 	if (!id) return { status: 'error', items: [], error: 'No ticket number' };
 
+	// 100 is GitHub's per-page maximum. One request covers any realistic ticket;
+	// paginating would multiply requests against the shared unauthenticated quota
+	// this whole feature is careful with, so instead a result that does not fit in
+	// one page is treated as incomplete below.
 	const query = encodeURIComponent(`repo:${REPO} is:pr ${id}`);
-	const url = `https://api.github.com/search/issues?q=${query}&per_page=30`;
+	const url = `https://api.github.com/search/issues?q=${query}&per_page=100`;
 
 	let res;
 	try {
-		res = await httpGet(url, { Accept: 'application/vnd.github+json' });
+		res = await get(url, { Accept: 'application/vnd.github+json' });
 	} catch (e) {
 		// A transport failure is offline, not empty: the contributor may simply
 		// have no network, which the panel should say rather than "no patches".
@@ -95,6 +112,15 @@ async function fetchLinkedPrs(ticketId) {
 
 	let json;
 	try { json = JSON.parse(res.body); } catch { return { status: 'error', items: [], error: 'Unreadable response from GitHub' }; }
+
+	// A truncated search must not be cached as the complete list: the linked PR
+	// could be one we did not receive, and "no patches" shown as final is the
+	// exact failure this feature guards against. Fall back to the cache instead.
+	const returned = Array.isArray(json.items) ? json.items.length : 0;
+	if (json.incomplete_results === true || (typeof json.total_count === 'number' && json.total_count > returned)) {
+		return { status: 'error', items: [], error: 'Too many results to list reliably' };
+	}
+
 	return { status: 'ok', items: parseLinkedPrs(json, id) };
 }
 
