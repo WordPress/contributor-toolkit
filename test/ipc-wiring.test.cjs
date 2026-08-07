@@ -710,24 +710,71 @@ test('npm:kill ends the script tree rather than signalling the runner alone', as
 	assert.deepEqual(cp.children[0].kill.calls, []);
 });
 
-test('quitting sweeps running children through kill-tree', async () => {
+// Spins until the stubbed spawn has been called `count` times, so a test can wait
+// for a handler that spawns after an await without knowing how many microtasks
+// that takes. Unlike reachSpawn it counts cumulatively, so several handlers can be
+// driven to their spawns in one test.
+async function waitForSpawnCount(cp, count) {
+	for (let turn = 0; turn < 100 && cp.spawned.length < count; turn++) {
+		await new Promise(setImmediate);
+	}
+	assert.equal(cp.spawned.length, count, `expected ${count} spawns, saw ${cp.spawned.length}`);
+}
+
+// The sweep walks four registries — installs, scripts, per-site Playground servers
+// and the shared web server (#83). Only starting an install left the other three
+// empty, so their spread lines swept nothing and deleting any of them kept this
+// green (#160). Drive one child into each registry and assert every one goes
+// through kill-tree, and none through child.kill().
+test('quitting sweeps every kind of running child through kill-tree', async (t) => {
 	const cp = stubbedSpawn();
 	const killChildTree = spy();
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
+			// npm:install's onDone reaches getStore(); stand it in so closing that
+			// child on the way out does not pull in the real electron-store (and, in
+			// turn, the real electron package the harness must never load).
+			...fakeSettingsStore().stubs,
+			...noSmtpServer(),
+			...noWebProbe(),
+			...webDirOnDisk(),
 			'child_process': { spawn: cp.spawn },
 			'./kill-tree': { killChildTree }
 		}
 	});
 
+	// The two npm handlers register their child and resolve as soon as they spawn.
+	// The two Playground handlers hold a promise until the server reports a URL, so
+	// drive each only as far as its spawn; the child sits in its registry meanwhile.
 	await main.invoke('npm:install', '/sites/wp');
+	await main.invoke('npm:run-script', '/sites/wp', 'build');
+	const pendingServer = main.invoke('playground:start', '/sites/wp');
+	await waitForSpawnCount(cp, 3);
+	const pendingWeb = main.invoke('playground-web:start');
+	await waitForSpawnCount(cp, 4);
+
+	// Settle the two held promises on the way out — closing each child fires the
+	// close handler that resolves its start request — so a failed assertion below
+	// does not leave the suite waiting their multi-second URL timers.
+	t.after(async () => {
+		for (const child of [cp.children[2], cp.children[3]]) child.emit('close', 0, null);
+		await Promise.all([pendingServer, pendingWeb]);
+	});
+
 	await main.emitAppEvent('before-quit');
 
-	// Not child.kill(): the children are trees (runner -> npm -> shell -> grunt)
-	// and only kill-tree ends the whole one (#83).
-	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
-	assert.deepEqual(cp.children[0].kill.calls, []);
+	// Every child — one from each registry — goes through kill-tree exactly once,
+	// and none through child.kill(), which would leave each tree's descendants (a
+	// Playground server's PHP-WASM worker among them) holding its port until the
+	// machine restarts (#83, #160). Asserted order-independently: which registry the
+	// sweep walks first is not observable behaviour, only that it misses none.
+	const swept = killChildTree.calls.map(([child]) => child);
+	assert.equal(swept.length, cp.children.length, 'the sweep skipped a registry');
+	for (const child of cp.children) {
+		assert.equal(swept.filter((c) => c === child).length, 1, 'each running child is swept exactly once');
+		assert.deepEqual(child.kill.calls, []);
+	}
 });
 
 // --- playground:* / playground-web:* -> the same two modules --------------
