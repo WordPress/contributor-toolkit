@@ -227,6 +227,18 @@ test('planApply: an install is needed only when the lockfile is touched (issue #
 	assert.strictEqual(planApply({ files: parsePatchFiles(lockDiff).files }).needsInstall, true);
 });
 
+// Renaming the lockfile away removes it just as much as editing it does, so a
+// rebuild is still needed — the rename's source side has to count, not only its
+// destination. (Copilot #12.)
+test('planApply: renaming the lockfile away still needs an install (issue #11)', () => {
+	const renameAway = `diff --git a/package-lock.json b/package-lock.json.bak
+similarity index 100%
+rename from package-lock.json
+rename to package-lock.json.bak
+`;
+	assert.strictEqual(planApply({ files: parsePatchFiles(renameAway).files }).needsInstall, true);
+});
+
 test('planApplySteps: the install step is named even when skipped (issue #11)', () => {
 	const steps = planApplySteps({ needsInstall: false });
 	assert.deepStrictEqual(steps.map((s) => s.key), ['apply', 'install', 'build']);

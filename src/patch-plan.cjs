@@ -233,7 +233,7 @@ function planApply({ files, dirtyPaths = [] } = {}) {
 		unsupported: list.filter((f) => f.kind === 'binary').map((f) => f.path || '(unnamed binary file)'),
 		// Same rule the trunk update uses (#94): the lockfile moving is what
 		// makes an install necessary rather than merely possible.
-		needsInstall: paths.includes('package-lock.json')
+		needsInstall: touched.has('package-lock.json')
 	};
 }
 
