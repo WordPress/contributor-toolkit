@@ -21,6 +21,7 @@ import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
+import { parsePrRef } from '../patch-sources.cjs';
 import { parseTicketRef, ticketUrl } from './trac-ticket.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
@@ -836,6 +837,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [applyNeedsInstall, setApplyNeedsInstall] = useState(false);
   const [applyError, setApplyError] = useState('');
   const [appliedPatch, setAppliedPatch] = useState(null);
+  const [prUrlInput, setPrUrlInput] = useState('');
   const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
   const [dirtySaving, setDirtySaving] = useState(false);
   const [dirtyFiles, setDirtyFiles] = useState([]);
@@ -1577,6 +1579,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // pill and the "latest is a patch file" note.
   const latestPatch = pickLatest({ prs: ticketPatches?.items, attachments: tracAttachments?.items });
   const latestIsAttachment = latestPatch?.kind === 'attachment';
+  // The panel lists only what can be applied — screenshots and other non-patch
+  // attachments are noise here. The parser still returns them (pickLatest and
+  // tests rely on the full list); the filtering is purely what's shown.
+  const patchAttachments = (tracAttachments?.items || []).filter((a) => a.applyable);
+  const tracAttachmentsRead = tracAttachments
+    && (tracAttachments.status === 'ok' || tracAttachments.status === 'no-attachments');
   const latestPill = (isLatest) => (isLatest ? (
     <span style={{ display: 'inline-flex', alignItems: 'center', flex: '0 0 auto', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', background: '#e7f1ff', color: '#0b5d95', marginLeft: 8 }}>
       Latest
@@ -1764,6 +1772,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } finally {
       setFetchingAttachment(null);
     }
+  };
+
+  // Apply a PR straight from a pasted URL or number, without needing it to be
+  // linked to the ticket — same fetch → preview flow as the linked-PR list.
+  const previewPrFromInput = () => {
+    const parsed = parsePrRef(prUrlInput);
+    if (!parsed.ok) { setApplyError(parsed.error); return; }
+    setPrUrlInput('');
+    previewPr({ number: parsed.number, url: `https://github.com/WordPress/wordpress-develop/pull/${parsed.number}` });
   };
 
   const runApply = ({ reverse = false } = {}) => {
@@ -2441,8 +2458,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 13 }}><Spinner /> Opening the ticket on Trac…</div>
               ) : null}
 
-              {tracAttachments && tracAttachments.status === 'no-attachments' ? (
-                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>This ticket has no attachments.</div>
+              {tracAttachmentsRead && patchAttachments.length === 0 ? (
+                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>No patch files attached to this ticket.</div>
               ) : null}
 
               {tracAttachments && (tracAttachments.status === 'challenge-timeout' || tracAttachments.status === 'error' || tracAttachments.status === 'closed') ? (
@@ -2455,9 +2472,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 </div>
               ) : null}
 
-              {tracAttachments && tracAttachments.items && tracAttachments.items.length ? (
+              {patchAttachments.length ? (
                 <div style={{ marginTop: 10, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
-                  {tracAttachments.items.map((att) => (
+                  {patchAttachments.map((att) => (
                     <div key={att.url} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
                       <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
@@ -2470,17 +2487,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           {[att.author && `by ${att.author}`, att.dateText, att.sizeText].filter(Boolean).join(' · ')}
                         </div>
                       </div>
-                      {att.applyable ? (
-                        <Button
-                          variant="secondary"
-                          isBusy={fetchingAttachment === att.url}
-                          disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingAttachment !== null}
-                          onClick={() => previewAttachment(att)}
-                          style={{ flex: '0 0 auto' }}
-                        >Apply…</Button>
-                      ) : (
-                        <span style={{ flex: '0 0 auto', fontSize: 11, color: '#6c6f72' }}>not a patch</span>
-                      )}
+                      <Button
+                        variant="secondary"
+                        isBusy={fetchingAttachment === att.url}
+                        disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingAttachment !== null}
+                        onClick={() => previewAttachment(att)}
+                        style={{ flex: '0 0 auto' }}
+                      >Apply…</Button>
                     </div>
                   ))}
                 </div>
@@ -2526,10 +2539,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       </div>
       {skipInit ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Try someone else&apos;s patch</div>
-          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-            Apply a <code>.diff</code> or <code>.patch</code> file to this checkout and rebuild, so you can test the work before adding your own. Your own changes are left alone.
-          </div>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Apply a patch or PR</div>
+          {!applyPreview && !isApplying ? (
+            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
+              Apply a pull request or a <code>.diff</code>/<code>.patch</code> file to this checkout and rebuild, so you can test the work before adding your own. Your own changes are left alone.
+            </div>
+          ) : null}
 
           {appliedPatch && !isApplying ? (
             <div style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #94d3ae', background: '#f4fbf4', borderRadius: 8 }}>
@@ -2570,7 +2585,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               ) : null}
               <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
                 <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>Apply and rebuild</Button>
-                <Button variant="tertiary" onClick={() => setApplyPreview(null)}>Cancel</Button>
+                <Button variant="tertiary" onClick={() => { setApplyPreview(null); setApplyError(''); }}>Cancel</Button>
               </div>
             </div>
           ) : null}
@@ -2593,15 +2608,35 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
           {applyError ? (
             <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21' }}>
-              {applyError} The checkout was not changed.
+              {/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`} The checkout was not changed.
             </div>
           ) : null}
 
           {!applyPreview && !isApplying ? (
             <div style={{ marginTop: 12 }}>
-              <Button variant="secondary" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ padding: '10px 16px', borderRadius: 10 }}>
-                Choose a patch file…
-              </Button>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 280, flex: '1 1 280px' }}>
+                  <TextControl
+                    value={prUrlInput}
+                    onChange={(value) => { setPrUrlInput(value); setApplyError(''); }}
+                    onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); previewPrFromInput(); } }}
+                    disabled={isUpdating || installing || building}
+                    placeholder="Paste a pull request URL or number"
+                    aria-label="Pull request URL or number"
+                  />
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={previewPrFromInput}
+                  disabled={isUpdating || installing || building || !prUrlInput.trim()}
+                  style={{ padding: '10px 16px', borderRadius: 10 }}
+                >Apply PR</Button>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <Button variant="link" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ fontSize: 13 }}>
+                  or choose a .diff / .patch file…
+                </Button>
+              </div>
             </div>
           ) : null}
         </div>

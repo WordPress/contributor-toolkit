@@ -79,3 +79,32 @@ test('classifyHttpFailure: a spent rate limit is told apart from a plain error (
 	assert.strictEqual(classifyHttpFailure(500, {}), 'error');
 	assert.strictEqual(classifyHttpFailure(404, {}), 'error');
 });
+
+const { parsePrRef } = require('../src/patch-sources.cjs');
+
+test('parsePrRef: a bare number or #number resolves (issue #11)', () => {
+	assert.deepStrictEqual(parsePrRef('4496'), { ok: true, number: 4496 });
+	assert.deepStrictEqual(parsePrRef(' #4496 '), { ok: true, number: 4496 });
+});
+
+test('parsePrRef: a wordpress-develop PR URL resolves, with trailing bits (issue #11)', () => {
+	assert.strictEqual(parsePrRef('https://github.com/WordPress/wordpress-develop/pull/4496').number, 4496);
+	assert.strictEqual(parsePrRef('https://github.com/WordPress/wordpress-develop/pull/4496/files').number, 4496);
+	assert.strictEqual(parsePrRef('https://github.com/WordPress/wordpress-develop/pull/4496#pullrequestreview-1').number, 4496);
+	// Missing scheme, copied from the address bar.
+	assert.strictEqual(parsePrRef('github.com/WordPress/wordpress-develop/pull/4496').number, 4496);
+});
+
+test('parsePrRef: a PR from another repo is rejected by name (issue #11)', () => {
+	const res = parsePrRef('https://github.com/WordPress/gutenberg/pull/4496');
+	assert.strictEqual(res.ok, false);
+	assert.match(res.error, /wordpress-develop/);
+});
+
+test('parsePrRef: non-PR and empty input are rejected with a reason (issue #11)', () => {
+	assert.strictEqual(parsePrRef('').ok, false);
+	assert.strictEqual(parsePrRef('   ').ok, false);
+	assert.strictEqual(parsePrRef('https://github.com/WordPress/wordpress-develop/issues/4496').ok, false);
+	assert.strictEqual(parsePrRef('https://example.com/pull/1').ok, false);
+	assert.strictEqual(parsePrRef('not a url').ok, false);
+});

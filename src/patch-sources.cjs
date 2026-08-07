@@ -20,6 +20,39 @@
  */
 
 const TICKET_HOST = 'core.trac.wordpress.org';
+const PR_REPO_PATH = 'WordPress/wordpress-develop';
+
+/**
+ * Resolves what a contributor pastes into "apply a PR" to a pull request
+ * number. Accepts a bare number or a wordpress-develop PR URL (with any
+ * trailing `/files`, `#…`, `?…`). A PR from another repo is rejected by name —
+ * its diff would not fit this checkout.
+ *
+ * @param {string} input
+ * @return {{ok: true, number: number}|{ok: false, error: string}}
+ */
+function parsePrRef(input) {
+	const raw = typeof input === 'string' ? input.trim() : '';
+	if (!raw) return { ok: false, error: 'Enter a pull request URL or number.' };
+
+	if (/^#?\d+$/.test(raw)) return { ok: true, number: Number(raw.replace('#', '')) };
+
+	let parsed;
+	try {
+		parsed = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`);
+	} catch {
+		return { ok: false, error: 'That is not a pull request URL or number.' };
+	}
+	if (parsed.hostname.toLowerCase() !== 'github.com') {
+		return { ok: false, error: 'Only github.com pull requests are supported.' };
+	}
+	const match = /^\/([^/]+\/[^/]+)\/pull\/(\d+)(?:[/?#]|$)/.exec(parsed.pathname + (parsed.pathname.endsWith('/') ? '' : '/'));
+	if (!match) return { ok: false, error: 'That does not look like a pull request URL.' };
+	if (match[1].toLowerCase() !== PR_REPO_PATH.toLowerCase()) {
+		return { ok: false, error: `Only ${PR_REPO_PATH} pull requests can be applied here.` };
+	}
+	return { ok: true, number: Number(match[2]) };
+}
 
 /**
  * True when a PR body cites this exact ticket. The negative lookahead stops
@@ -95,5 +128,6 @@ module.exports = {
 	TICKET_HOST,
 	bodyCitesTicket,
 	parseLinkedPrs,
-	classifyHttpFailure
+	classifyHttpFailure,
+	parsePrRef
 };
