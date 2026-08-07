@@ -867,10 +867,6 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 			createdAt: existingMeta.createdAt || new Date().toISOString(),
 			label: existingMeta.label || siteLabel
 		};
-		const ticket = parseTicketRef(options.tracTicket);
-		if (ticket.ok && !Object.prototype.hasOwnProperty.call(existingMeta, 'tracTicket')) {
-			meta[siteDir].tracTicket = ticket.id;
-		}
 		try {
 			const { trunkOid, trunkDate } = await readTrunkInfo(siteDir);
 			meta[siteDir].trunkOid = trunkOid;

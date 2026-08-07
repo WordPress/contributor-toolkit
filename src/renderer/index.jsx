@@ -22,7 +22,7 @@ import { pathBasename } from './path-basename.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
-import { parseTicketRef, ticketUrl } from './trac-ticket.cjs';
+import { ticketUrl } from './trac-ticket.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // Per-status wording for the update chain card (#94), following the issue's
@@ -44,7 +44,6 @@ const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
 const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
 const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
-const CREATE_SITE_TICKET_INPUT_ID = 'create-site-ticket-input';
 // Why the ticket's PR list could not be read, worded for the contributor.
 const TICKET_PATCH_STATUS_MESSAGE = {
   'rate-limited': 'GitHub is rate-limiting this connection.',
@@ -102,7 +101,6 @@ function App() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createSiteName, setCreateSiteName] = useState('');
   const [createSiteDir, setCreateSiteDir] = useState('');
-  const [createSiteTicket, setCreateSiteTicket] = useState('');
   const [createSiteError, setCreateSiteError] = useState('');
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
@@ -214,7 +212,6 @@ function App() {
   const chooseAndSetup = useCallback(() => {
     setCreateSiteName('');
     setCreateSiteDir('');
-    setCreateSiteTicket('');
     setCreateSiteError('');
     setCreateModalOpen(true);
   }, []);
@@ -295,15 +292,6 @@ function App() {
       return;
     }
 
-    // The ticket is optional (#109), but a typo in one that was typed should
-    // be corrected here rather than silently dropped after a five-minute clone.
-    const ticketTyped = createSiteTicket.trim();
-    const ticket = ticketTyped ? parseTicketRef(ticketTyped) : null;
-    if (ticket && !ticket.ok) {
-      setCreateSiteError(ticket.error);
-      return;
-    }
-
     const cleanFolder = sanitizeSiteFolder(nameTrimmed);
     const targetDir = resolveTargetDir(createSiteDir, cleanFolder);
     let finalSitePath = targetDir;
@@ -316,15 +304,13 @@ function App() {
         ...(prev[targetDir] || {}),
         label: nameTrimmed,
         createdAt: prev[targetDir]?.createdAt || placeholderCreatedAt,
-        initialized: false,
-        tracTicket: ticket ? ticket.id : null
+        initialized: false
       }
     }));
     setActiveSite(targetDir);
     setCreateModalOpen(false);
     setCreateSiteName('');
     setCreateSiteDir('');
-    setCreateSiteTicket('');
 
     try {
       setCreateSubmitting(true);
@@ -332,7 +318,7 @@ function App() {
       setTerminalMsgs('');
       addPendingSite(targetDir);
       appendSetupLog(targetDir, 'Starting site setup…\n');
-      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed, tracTicket: ticket ? String(ticket.id) : '' });
+      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
       if (createdPath) {
         finalSitePath = createdPath;
         if (createdPath !== targetDir) {
@@ -376,7 +362,7 @@ function App() {
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, clearPendingSites, createSiteDir, createSiteName, createSiteTicket, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
+  }, [addPendingSite, appendSetupLog, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
@@ -759,15 +745,6 @@ function App() {
             <div id={CREATE_SITE_LOCATION_HELP_ID} style={{ fontSize: 12, color: '#3c434a', marginTop: -4 }}>
               Choose the parent folder where you want this new site created. We&apos;ll add a new directory inside it for the project.
             </div>
-            <TextControl
-              id={CREATE_SITE_TICKET_INPUT_ID}
-              label="What are you working on? (optional)"
-              value={createSiteTicket}
-              onChange={(value) => setCreateSiteTicket(value)}
-              disabled={createSubmitting}
-              placeholder="Trac ticket number or URL, e.g. 62281"
-              help="You can add this later, or change it at any time."
-            />
             {createSiteError ? (
               <div style={{ color: '#d63638', fontSize: 12 }}>{createSiteError}</div>
             ) : null}
