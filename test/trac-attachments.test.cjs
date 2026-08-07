@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { toRawUrl, parseAttachments } = require('../src/trac-attachments.cjs');
+const { toRawUrl, parseAttachments, secureTracUrl } = require('../src/trac-attachments.cjs');
 
 // A representative #attachments block, modelled on WordPress Trac's markup and
 // the real attachments on ticket #37578 (three .diff files plus a .txt). Built
@@ -107,6 +107,27 @@ test('parseAttachments: an off-host absolute attachment href is rejected (issue 
 		37578
 	);
 	assert.deepStrictEqual(rows, []);
+});
+
+// Same host, but http:// — a downgrade of the origin that carries the session
+// cookie. It must not become a row.
+test('parseAttachments: a same-host http (non-https) attachment href is rejected (issue #11)', () => {
+	const rows = parseAttachments(
+		'<div id="attachments"><dt><a href="http://core.trac.wordpress.org/attachment/ticket/37578/x.diff">x.diff</a></dt></div>',
+		37578
+	);
+	assert.deepStrictEqual(rows, []);
+});
+
+test('secureTracUrl: accepts only the exact https Trac origin (issue #11)', () => {
+	assert.strictEqual(
+		secureTracUrl('https://core.trac.wordpress.org/raw-attachment/ticket/1/a.diff'),
+		'https://core.trac.wordpress.org/raw-attachment/ticket/1/a.diff'
+	);
+	assert.strictEqual(secureTracUrl('http://core.trac.wordpress.org/raw-attachment/ticket/1/a.diff'), null);
+	assert.strictEqual(secureTracUrl('https://evil.example.com/raw-attachment/ticket/1/a.diff'), null);
+	assert.strictEqual(secureTracUrl('https://core.trac.wordpress.org.evil.com/a.diff'), null);
+	assert.strictEqual(secureTracUrl('not a url'), null);
 });
 
 test('parseAttachments: links to other tickets are ignored (issue #11)', () => {

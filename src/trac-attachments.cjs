@@ -38,6 +38,23 @@ function toRawUrl(pathOrUrl) {
 }
 
 /**
+ * The normalized href iff the URL is exactly the secure Trac origin. Host alone
+ * is not enough: the embedded view carries a session cookie earned by clearing
+ * Trac's proof-of-work, and an http downgrade on the same host would leak it on
+ * an untrusted network. Returns null for anything that is not
+ * `https://core.trac.wordpress.org/…`, so callers fail closed.
+ *
+ * @param {string} url
+ * @return {string|null}
+ */
+function secureTracUrl(url) {
+	let parsed;
+	try { parsed = new URL(url); } catch { return null; }
+	if (parsed.protocol !== 'https:' || parsed.hostname !== TRAC_HOST) return null;
+	return parsed.href;
+}
+
+/**
  * @param {string} chunk HTML of one `<dt>…</dt>` (plus its `<dd>` if present).
  * @param {string} id
  * @return {{filename: string, url: string, author: string, dateText: string, sizeText: string, applyable: boolean}|null}
@@ -47,16 +64,13 @@ function parseOne(chunk, id) {
 	// the id guard keeps stray links (e.g. to other tickets) out.
 	const link = new RegExp(`href="((?:https?://[^"]+)?/(?:raw-)?attachment/ticket/${id}/([^"?]+))"`).exec(chunk);
 	if (!link) return null;
-	const url = toRawUrl(link[1]);
-	// The parser must never emit an off-host URL: an absolute href on another
-	// host would pass the id-shaped path check, and the filename is rendered as
-	// an openExternal link. Rejecting the row here means a poisoned ticket page
-	// cannot get an attacker URL in front of the user.
-	try {
-		if (new URL(url).hostname !== TRAC_HOST) return null;
-	} catch {
-		return null;
-	}
+	// The parser must never emit an off-host or plaintext URL: an absolute href
+	// on another host — or an http downgrade of this one — would pass the
+	// id-shaped path check, and the filename is rendered as an openExternal link
+	// (and later fetched with the session cookie). Rejecting the row here means a
+	// poisoned ticket page cannot get such a URL in front of the user.
+	const url = secureTracUrl(toRawUrl(link[1]));
+	if (!url) return null;
 	const filename = decodeURIComponent(link[2]);
 
 	// Author: the trac-author anchor, or its text. Falls back to empty.
@@ -114,4 +128,4 @@ function parseAttachments(attachmentsHtml, ticketId) {
 	return rows;
 }
 
-module.exports = { toRawUrl, parseAttachments };
+module.exports = { toRawUrl, parseAttachments, secureTracUrl };

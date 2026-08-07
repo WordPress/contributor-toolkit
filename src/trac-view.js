@@ -19,7 +19,7 @@
  */
 
 const { BrowserWindow, session } = require('electron');
-const { parseAttachments } = require('./trac-attachments.cjs');
+const { parseAttachments, secureTracUrl } = require('./trac-attachments.cjs');
 const { httpGet } = require('./github-prs');
 
 const TRAC_HOST = 'core.trac.wordpress.org';
@@ -43,11 +43,10 @@ function ticketUrl(id) {
 function pinToTrac(wc) {
 	wc.setWindowOpenHandler(() => ({ action: 'deny' }));
 	const stayOnTrac = (event, url) => {
-		try {
-			if (new URL(url).hostname !== TRAC_HOST) event.preventDefault();
-		} catch {
-			event.preventDefault();
-		}
+		// Pinned to the exact https Trac origin, not just the host: a redirect or
+		// <meta refresh> to http://core.trac.wordpress.org would otherwise keep
+		// this window — and its session cookie — on a plaintext origin.
+		if (!secureTracUrl(url)) event.preventDefault();
 	};
 	// will-navigate covers link clicks and script navigation; will-redirect
 	// covers HTTP 3xx and <meta refresh>, which do not fire will-navigate and
@@ -130,13 +129,15 @@ async function openAndScrape(ticketId) {
  * @return {Promise<{ok: true, text: string}|{ok: false, error: string}>}
  */
 async function fetchAttachment(url) {
-	let parsed;
-	try { parsed = new URL(url); } catch { return { ok: false, error: 'Invalid attachment URL' }; }
-	if (parsed.hostname !== TRAC_HOST) return { ok: false, error: 'Only core.trac.wordpress.org attachments are allowed' };
+	// Validate to the exact https Trac origin and send the normalized address,
+	// not the caller's string: the request rides the session cookie, so the URL
+	// fetched has to be the one that passed the check.
+	const safe = secureTracUrl(url);
+	if (!safe) return { ok: false, error: 'Only https core.trac.wordpress.org attachments are allowed' };
 
 	let res;
 	try {
-		res = await httpGet(url, { Accept: 'text/plain' }, { partition: TRAC_PARTITION, useSessionCookies: true });
+		res = await httpGet(safe, { Accept: 'text/plain' }, { partition: TRAC_PARTITION, useSessionCookies: true });
 	} catch (e) {
 		return { ok: false, error: String(e && e.message ? e.message : e) };
 	}
