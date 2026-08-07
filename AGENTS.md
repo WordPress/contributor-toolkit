@@ -55,6 +55,27 @@ its place, so skipping it means a human reviewer is the first reader of the diff
 That file carries the procedure as well as the standard. Follow it rather than improvising a
 review.
 
+### The pull request description follows the template
+
+[`.github/pull_request_template.md`](.github/pull_request_template.md) is the shape, and GitHub
+loads it into every new pull request automatically — including ones opened with `gh pr create`, as
+long as you do not pass a `--body` that replaces it. Fill it in rather than writing your own
+structure.
+
+The rule it is built around: **a reviewer understands the change in five minutes.** So what stays
+visible is Problem, Solution, How to test this, Risks, Related — and everything else goes in a
+`<details>` block, collapsed by default. Depth is not the enemy of a readable PR; depth *in the way*
+is. Do not delete detail to hit the five minutes, move it.
+
+That includes the review outcome AGENTS.md requires below: it lives in a collapsed block, with the
+headline count surfaced in **Risks and limitations** when it changes how the PR should be read.
+
+Titles are `[Action] [what] [where or why]` — "Fix the patch panel's empty diff after a trunk
+update", not "Fix bug".
+
+If the diff is over ~800 lines, the first question is whether it should be two pull requests. A
+stacked pair reviews faster than one that nobody wants to start.
+
 ### Every pull request says how to test it by hand
 
 A **How to test this** section is required, not optional, and a green test suite does not replace

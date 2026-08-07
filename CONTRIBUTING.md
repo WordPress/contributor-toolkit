@@ -112,5 +112,11 @@ honest; you own the result even though the agent produced it.
    [AGENTS.md](AGENTS.md#every-pull-request-says-how-to-test-it-by-hand).
 5. Optionally **assign Copilot** as a second reader against the same standard.
 
+GitHub fills every new pull request with
+[the template](.github/pull_request_template.md); steps 3 and 4 have their place in it already.
+It is built so a reviewer gets the change in five minutes — Problem, Solution, How to test this,
+Risks, Related stay visible and everything deeper goes in a collapsed `<details>` block. Move detail
+out of the way rather than dropping it.
+
 Nothing enforces steps 1–4. Skipping them means a human reviewer is the first person to read the
 diff — which is exactly the cost this process exists to avoid.
