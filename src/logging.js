@@ -11,6 +11,7 @@
 // to a bug report.
 
 const path = require('path');
+const { inspect } = require('util');
 const { app } = require('electron');
 const log = require('electron-log/main');
 const { createLineBuffer } = require('./log-lines');
@@ -73,12 +74,11 @@ function initLogging() {
 // it and nearly no reporter thinks to include it; asking for the log file should
 // be enough on its own.
 function writeHeader() {
-	const scoped = log.scope('app');
-	scoped.info('--- session start ---');
-	scoped.info(`app ${app.getVersion()} (${app.getName()})`);
-	scoped.info(`electron ${process.versions.electron} · node ${process.versions.node} · chrome ${process.versions.chrome}`);
-	scoped.info(`platform ${process.platform} ${process.arch} · ${process.env.NODE_ENV || 'production'}`);
-	scoped.info(`log file ${getLogFilePath()}`);
+	emit('app', 'info', '--- session start ---');
+	emit('app', 'info', `app ${app.getVersion()} (${app.getName()})`);
+	emit('app', 'info', `electron ${process.versions.electron} · node ${process.versions.node} · chrome ${process.versions.chrome}`);
+	emit('app', 'info', `platform ${process.platform} ${process.arch} · ${process.env.NODE_ENV || 'production'}`);
+	emit('app', 'info', `log file ${getLogFilePath()}`);
 }
 
 // Absolute path to the current log file, for the Help menu entries. Resolving it
@@ -86,6 +86,84 @@ function writeHeader() {
 // path logic ever changes.
 function getLogFilePath() {
 	return log.transports.file.getFile().path;
+}
+
+// Every event this module writes goes through `emit` below, because the value
+// of the log rests on one property: every line in it was written by this app,
+// with this app's own timestamp and scope in front of it. (The console.*
+// redirection installed in initLogging does not pass through here — those call
+// sites log strings this app wrote itself.)
+//
+// Nothing this module is handed is trustworthy enough to skip that. Child
+// output is whatever npm, grunt or the site under development printed. Messages
+// carry inbound email subjects (the `smtp` scope in main.js), paths a
+// contributor chose, and the refused URLs and paths that external-url.js and
+// site-registry.js escape precisely so they cannot forge an entry — a guarantee
+// that only holds if this module does not undo it one caller later.
+//
+// A newline is the forgery: written verbatim it ends the app's entry and starts
+// a line the reader has no way to tell from a real one. It is handled by
+// splitting rather than escaping, so a stack trace still reads as a stack trace
+// — one entry per frame, each honestly stamped — instead of a single line of
+// literal \n. Everything else in this class is escaped: a lone CR, an ANSI
+// sequence or U+2028 begins a new line in one viewer or another, which is the
+// same forgery through a different reader.
+//
+// This is the same escaping as `describeRefusedUrl` (external-url.js) and
+// `describeRefusedSite` (site-registry.js). Those two describe a single value
+// for a caller; this one is the writer itself and bounds a whole line, so the
+// limits differ — a spawn message with a long path is legitimately longer than
+// a refused URL. Keeping the escape identical matters more than sharing it.
+const CONTROL_CHARACTERS = /[\x00-\x1f\x7f-\x9f\u2028\u2029]/g;
+
+// Generous enough that no message this app writes is truncated — the longest are
+// spawn lines carrying two paths — and small enough that one pathological line
+// of child output (a build printing a minified bundle) cannot fill the file and
+// rotate away the session header that makes the rest worth reading.
+const MAX_LINE_LENGTH = 2000;
+
+// Scopes are short by construction ('npm:install', 'playground:<dir>#<hash>'),
+// so this only bounds the one that is not: `path.basename(sitePath)` of a
+// directory the contributor named.
+const MAX_SCOPE_LENGTH = 80;
+
+function escapeControlCharacters(text) {
+	return text.replace(CONTROL_CHARACTERS, (c) => {
+		const code = c.codePointAt(0);
+		return code <= 0xff
+			? `\\x${code.toString(16).padStart(2, '0')}`
+			: `\\u${code.toString(16).padStart(4, '0')}`;
+	});
+}
+
+// Truncation comes after escaping, since escaping is what decides the final
+// length.
+function bound(text, limit) {
+	return text.length <= limit ? text : `${text.slice(0, limit)}…`;
+}
+
+// A non-string is inspected rather than coerced: `String({})` is '[object
+// Object]', which says nothing. `breakLength` keeps the common shapes on one
+// line; where inspect wraps anyway (an Error, a long array) the split below
+// still stamps each line, so the guarantee does not depend on this.
+function asText(message) {
+	return typeof message === 'string' ? message : inspect(message, { breakLength: Infinity, depth: 3 });
+}
+
+// The lines to write for one message, one log entry each.
+function toLogLines(message) {
+	return asText(message).split('\n').map((line) => bound(escapeControlCharacters(line), MAX_LINE_LENGTH));
+}
+
+function safeScope(scope) {
+	return bound(escapeControlCharacters(asText(scope)), MAX_SCOPE_LENGTH);
+}
+
+function emit(scope, level, message) {
+	const scoped = log.scope(safeScope(scope));
+	for (const line of toLogLines(message)) {
+		scoped[level](line);
+	}
 }
 
 // One line buffer per (scope, stream). Chunks arrive mid-line, so writing them
@@ -102,10 +180,9 @@ function bufferFor(scope, type) {
 // same chunk to the renderer over IPC as before — this is an addition, never a
 // replacement, so the UI is unaffected.
 function logChildOutput(scope, type, chunk) {
-	const scoped = log.scope(scope);
-	const write = type === 'stderr' ? scoped.warn : scoped.info;
+	const level = type === 'stderr' ? 'warn' : 'info';
 	for (const line of bufferFor(scope, type).push(chunk)) {
-		write(line);
+		emit(scope, level, line);
 	}
 }
 
@@ -113,13 +190,12 @@ function logChildOutput(scope, type, chunk) {
 // buffers — scopes are keyed by site path or run id and would otherwise
 // accumulate for the lifetime of the app.
 function flushChildOutput(scope) {
-	const scoped = log.scope(scope);
 	for (const type of ['stdout', 'stderr']) {
 		const key = `${scope}:${type}`;
 		const buf = buffers.get(key);
 		if (!buf) continue;
 		for (const line of buf.flush()) {
-			(type === 'stderr' ? scoped.warn : scoped.info)(line);
+			emit(scope, type === 'stderr' ? 'warn' : 'info', line);
 		}
 		buffers.delete(key);
 	}
@@ -129,11 +205,11 @@ function flushChildOutput(scope) {
 // These matter more than the output — a spawn that dies immediately (EPERM on
 // Windows) produces no stdout at all, and that silence is the bug.
 function logEvent(scope, message) {
-	log.scope(scope).info(message);
+	emit(scope, 'info', message);
 }
 
 function logError(scope, message) {
-	log.scope(scope).error(message);
+	emit(scope, 'error', message);
 }
 
 module.exports = {
