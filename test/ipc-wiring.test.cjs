@@ -1170,6 +1170,145 @@ test('trac:fetch-attachment goes through trac-view', async () => {
 	assert.deepEqual(result, { ok: true, text: 'DIFF' });
 });
 
+// --- editor:open / dir:show -> src/editor-launch.js, src/site-registry.js -
+
+const SITE = '/Users/dev/sites/wp';
+const EDITOR = '/Applications/Cursor.app';
+
+test('editor:open asks editor-launch to open the site, with the registry as its boundary', async () => {
+	const openSiteInEditor = spy(async () => ({ ok: true }));
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ sites: [SITE], preferences: { editor: { path: EDITOR, name: 'Cursor' } } }).stubs,
+			'./editor-launch': { openSiteInEditor }
+		}
+	});
+
+	assert.deepEqual(await main.invoke('editor:open', SITE), { ok: true });
+
+	assert.equal(openSiteInEditor.calls.length, 1);
+	const [sitePath, editorPath, options] = openSiteInEditor.calls[0];
+	assert.equal(sitePath, SITE);
+	assert.equal(editorPath, EDITOR);
+	// Without these the module cannot decide anything: the registry is the
+	// boundary, `statPath` is how it checks the application is still there, and
+	// `spawn` is the effect it is being asked to guard.
+	assert.deepEqual(options.sites, [SITE]);
+	assert.equal(typeof options.statPath, 'function');
+	assert.equal(typeof options.spawn, 'function');
+	assert.equal(options.platform, process.platform);
+});
+
+// The end of the wire, with the real module in place. This is the assertion that
+// fails if the handler ever spawns an editor itself.
+test('editor:open does not spawn for a path the registry does not hold', async () => {
+	const cp = { spawn: spy(() => { throw new Error('a refused open must not reach spawn'); }) };
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ sites: [SITE], preferences: { editor: { path: EDITOR, name: 'Cursor' } } }).stubs,
+			child_process: cp
+		}
+	});
+
+	const result = await main.invoke('editor:open', '/Users/dev/somewhere-else');
+
+	assert.equal(result.ok, false);
+	assert.equal(result.reason, 'unregistered-site');
+	assert.deepEqual(cp.spawn.calls, []);
+});
+
+test('editor:open with nothing chosen asks for a choice rather than guessing', async () => {
+	const openSiteInEditor = spy(async () => ({ ok: true }));
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, './editor-launch': { openSiteInEditor } }
+	});
+
+	assert.deepEqual(await main.invoke('editor:open', SITE), { ok: false, reason: 'no-editor' });
+	assert.deepEqual(openSiteInEditor.calls, []);
+});
+
+test('editor:choose validates what the dialog returned before remembering it', async () => {
+	const isLaunchableEditorPath = spy(() => false);
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './editor-launch': { isLaunchableEditorPath } }
+	});
+
+	const result = await main.invoke('editor:choose', '/Users/dev/not-an-app');
+
+	assert.equal(result.ok, false);
+	assert.equal(result.reason, 'unlaunchable-editor');
+	assert.equal(isLaunchableEditorPath.calls.length, 1);
+	assert.equal(isLaunchableEditorPath.calls[0][0], '/Users/dev/not-an-app');
+});
+
+test('editor:list asks editor-launch what is installed, without a shell', async () => {
+	const detectEditors = spy(() => [{ id: 'vscode', name: 'Visual Studio Code', path: '/Applications/Visual Studio Code.app' }]);
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './editor-launch': { detectEditors } }
+	});
+
+	const result = await main.invoke('editor:list');
+
+	assert.deepEqual(result.detected, [{ id: 'vscode', name: 'Visual Studio Code', path: '/Applications/Visual Studio Code.app' }]);
+	assert.equal(detectEditors.calls.length, 1);
+	// `exists` is the whole of detection — a handler that passed something else,
+	// or ran `which` beside this call, is what #24 was.
+	assert.equal(typeof detectEditors.calls[0][0].exists, 'function');
+	assert.equal(detectEditors.calls[0][0].platform, process.platform);
+});
+
+// An editor chosen once and since uninstalled must come back as a question, not
+// as a button that fails on click.
+test('editor:list reports a remembered editor that is no longer there', async () => {
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ preferences: { editor: { path: '/Applications/Gone.app', name: 'Gone' } } }).stubs,
+			'./editor-launch': { detectEditors: () => [], isLaunchableEditorPath: () => false }
+		}
+	});
+
+	const result = await main.invoke('editor:list');
+
+	assert.equal(result.chosen, null);
+	assert.equal(result.chosenMissing, true);
+});
+
+test('dir:show asks site-registry whether the path may be revealed', async () => {
+	const revealRegisteredSite = spy(async () => ({ ok: true }));
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, './site-registry': { revealRegisteredSite } }
+	});
+
+	await main.invoke('dir:show', SITE);
+
+	assert.equal(revealRegisteredSite.calls.length, 1);
+	const [sitePath, options] = revealRegisteredSite.calls[0];
+	assert.equal(sitePath, SITE);
+	assert.deepEqual(options.sites, [SITE]);
+	assert.equal(typeof options.reveal, 'function');
+	assert.equal(typeof options.onRefused, 'function');
+});
+
+test('dir:show refuses a path the registry does not hold, and logs it', async () => {
+	const logEvent = spy();
+	const main = loadMain({
+		stubs: { './logging': { ...silentLogging()['./logging'], logEvent }, ...fakeSettingsStore({ sites: [SITE] }).stubs }
+	});
+
+	const result = await main.invoke('dir:show', '/Users/dev/somewhere-else');
+
+	assert.equal(result.ok, false);
+	assert.deepEqual(main.calls.openPath, []);
+	assert.equal(logEvent.calls.length, 1);
+	assert.match(logEvent.calls[0][1], /refused to reveal \/Users\/dev\/somewhere-else/);
+
+	assert.deepEqual(await main.invoke('dir:show', SITE), { ok: true });
+	assert.deepEqual(main.calls.openPath, [SITE]);
+});
+
 // --- the harness's own guard ---------------------------------------------
 
 // Requiring the real `electron` package is not a harmless fallback: its
@@ -1223,7 +1362,11 @@ const WIRED = new Set([
 	'git:apply-patch',
 	'git:fetch-pr-diff',
 	'git:list-ticket-patches',
-	'trac:fetch-attachment'
+	'trac:fetch-attachment',
+	'editor:list',
+	'editor:choose',
+	'editor:open',
+	'dir:show'
 ]);
 
 // Channels with no module to reach: they read or write electron-store, drive a

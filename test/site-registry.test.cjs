@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { isRegisteredSite, describeRefusedSite, deleteRegisteredSite } = require('../src/site-registry.js');
+const { isRegisteredSite, describeRefusedSite, deleteRegisteredSite, revealRegisteredSite } = require('../src/site-registry.js');
 
 // A couple of paths the app might actually hold in its registry, one per platform
 // shape, so the tests aren't accidentally tied to POSIX separators.
@@ -111,4 +111,53 @@ test('truncation is applied to the escaped form', () => {
 
 	assert.ok(description.length <= 121, `escaped description was ${description.length} characters`);
 	assert.ok(!description.includes('\n'));
+});
+
+// --- revealRegisteredSite ------------------------------------------------
+//
+// `shell.openPath` is a smaller action than `fse.remove`, but it is the same
+// kind of action — a local path handed to the OS — so it gets the same boundary.
+
+function revealRecorder(sites = REGISTERED, error = '') {
+	const revealed = [];
+	const refused = [];
+	return {
+		revealed,
+		refused,
+		options: {
+			sites,
+			reveal: async (p) => { revealed.push(p); return error; },
+			onRefused: (description) => { refused.push(description); }
+		}
+	};
+}
+
+test('a registered site is revealed', async () => {
+	const rec = revealRecorder();
+
+	assert.deepEqual(await revealRegisteredSite('/Users/dev/sites/my-site', rec.options), { ok: true });
+
+	assert.deepEqual(rec.revealed, ['/Users/dev/sites/my-site']);
+	assert.deepEqual(rec.refused, []);
+});
+
+test('a path the registry does not hold is not revealed', async () => {
+	const rec = revealRecorder();
+
+	const result = await revealRegisteredSite('/Users/dev/somewhere-else', rec.options);
+
+	assert.equal(result.ok, false);
+	assert.equal(result.reason, 'unregistered-site');
+	assert.deepEqual(rec.revealed, []);
+	assert.deepEqual(rec.refused, ['/Users/dev/somewhere-else']);
+});
+
+test('a reveal the OS declines is reported rather than swallowed', async () => {
+	const rec = revealRecorder(REGISTERED, 'Failed to open path');
+
+	const result = await revealRegisteredSite('/Users/dev/sites/my-site', rec.options);
+
+	assert.equal(result.ok, false);
+	assert.equal(result.reason, 'open-failed');
+	assert.equal(result.error, 'Failed to open path');
 });

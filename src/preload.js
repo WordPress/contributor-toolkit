@@ -43,6 +43,15 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	openExternal: (url) => ipcRenderer.invoke('url:open', url)
 ,
+	listEditors: () => ipcRenderer.invoke('editor:list')
+,
+	// With a path, remembers that editor; without one, opens the file dialog.
+	chooseEditor: (editorPath) => ipcRenderer.invoke('editor:choose', editorPath)
+,
+	openInEditor: (sitePath) => ipcRenderer.invoke('editor:open', sitePath)
+,
+	showSiteInFileManager: (sitePath) => ipcRenderer.invoke('dir:show', sitePath)
+,
 	markSiteInitialized: (sitePath) => ipcRenderer.invoke('sites:mark-initialized', sitePath)
 ,
 	forgetSite: (sitePath) => ipcRenderer.invoke('sites:forget', sitePath)

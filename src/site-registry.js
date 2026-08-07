@@ -50,8 +50,27 @@ async function deleteRegisteredSite(sitePath, { sites, forget, remove, onRefused
 	return true;
 }
 
+// The `dir:show` handler's body. `shell.openPath` hands a local path to whatever
+// the OS has registered for it, so "show this site in the file manager" gets the
+// same boundary as "delete this site": only a path the app has on record. The
+// reveal itself is injected, like `remove` above.
+//
+// `reveal` resolves to electron's own convention — the empty string on success,
+// an error message otherwise — and that is passed through rather than reduced to
+// a boolean, so the renderer can say what went wrong.
+async function revealRegisteredSite(sitePath, { sites, reveal, onRefused } = {}) {
+	if (!isRegisteredSite(sitePath, sites)) {
+		if (typeof onRefused === 'function') onRefused(describeRefusedSite(sitePath));
+		return { ok: false, reason: 'unregistered-site' };
+	}
+
+	const error = await reveal(sitePath);
+	return error ? { ok: false, reason: 'open-failed', error } : { ok: true };
+}
+
 module.exports = {
 	isRegisteredSite,
 	describeRefusedSite,
+	revealRegisteredSite,
 	deleteRegisteredSite
 };
