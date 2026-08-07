@@ -631,11 +631,17 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 		const siteLabel = typeof options.siteLabel === 'string' && options.siteLabel.trim().length
 			? options.siteLabel.trim()
 			: uniqueName;
-		meta[siteDir] = { initialized: false, createdAt: new Date().toISOString(), label: siteLabel };
-		// "What are you working on?" is optional at creation (#109); an
-		// unparseable answer is dropped rather than failing the clone.
+		const existingMeta = meta[siteDir] || {};
+		meta[siteDir] = {
+			...existingMeta,
+			initialized: false,
+			createdAt: existingMeta.createdAt || new Date().toISOString(),
+			label: existingMeta.label || siteLabel
+		};
 		const ticket = parseTicketRef(options.tracTicket);
-		if (ticket.ok) meta[siteDir].tracTicket = ticket.id;
+		if (ticket.ok && !Object.prototype.hasOwnProperty.call(existingMeta, 'tracTicket')) {
+			meta[siteDir].tracTicket = ticket.id;
+		}
 		try {
 			const { trunkOid, trunkDate } = await readTrunkInfo(siteDir);
 			meta[siteDir].trunkOid = trunkOid;
