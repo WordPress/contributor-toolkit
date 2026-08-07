@@ -9,17 +9,33 @@ collapsed sections is what they read first: keep it short, and put depth in the
 not apply — an empty heading is worse than no heading.
 -->
 
-## Problem
+## Why
 
-<!-- What breaks, or what is missing, and who it happens to. Be concrete: the
-error message, the sequence that triggers it, what the contributor sees. If it
-is a feature, say what someone cannot do today. Two or three sentences. -->
+<!-- Two or three sentences. Which of these you are writing depends on the change:
 
-## Solution
+FIXING SOMETHING — what breaks, for whom, and how it is triggered. The error
+message, the sequence that produces it, what the contributor sees instead of
+what they expected.
+
+BUILDING SOMETHING — what a contributor cannot do today, and what they do
+instead. The workaround is the argument: "starting a second ticket means another
+clone and another install" says more than "we should support branches". If an
+issue already made this case, one line and a link is enough — do not re-argue it.
+
+CHANGING HOW WE WORK — process, tooling, docs. What went wrong often enough to be
+worth a rule.
+-->
+
+## What changes
 
 <!-- The approach, not a tour of the diff. What you changed at the level of
 ideas, and the one or two decisions a reviewer would otherwise have to
-reverse-engineer. Alternatives you rejected go in the collapsed section below. -->
+reverse-engineer. Alternatives you rejected go in the collapsed section below.
+
+For a fix, name the root cause — not just the symptom that goes away.
+
+For a feature, say what is deliberately NOT in it. A reviewer who cannot tell a
+missing piece from a rejected one will ask about every one of them. -->
 
 ## How to test this
 
@@ -39,7 +55,14 @@ current head commit; force-pushing invalidates earlier ones. -->
 **What must not have happened:**
 
 <!-- The silent regressions. Work quietly discarded, node_modules quietly
-rebuilt, a patch quietly missing a file. Name what would be easy not to notice. -->
+rebuilt, a patch quietly missing a file. Name what would be easy not to notice.
+
+Fixing something? Add the steps that used to reproduce the bug, so a reviewer can
+watch them fail to reproduce it. And say which test covers it — the standard here
+is that a bugfix's test fails on the old code, so name it and say you checked.
+
+Building something? Walk the path a contributor actually takes, not the shortest
+path to the new code. Include what happens when they do it wrong. -->
 
 ## Risks and limitations
 
@@ -85,7 +108,11 @@ settled a question. -->
 <details>
 <summary>Screenshots or recording</summary>
 
-<!-- Required for anything with a visible surface. Before and after, or a short
-recording of the flow. Delete this block only if nothing on screen changed. -->
+<!-- Required for anything with a visible surface — and a new feature almost
+always has one. Before and after for a change; a short recording of the flow for
+something new, because a still frame cannot show that a ticket switch takes
+seconds rather than a rebuild.
+
+Delete this block only if nothing on screen changed, and say so where it was. -->
 
 </details>

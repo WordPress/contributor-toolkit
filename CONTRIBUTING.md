@@ -114,9 +114,10 @@ honest; you own the result even though the agent produced it.
 
 GitHub fills every new pull request with
 [the template](.github/pull_request_template.md); steps 3 and 4 have their place in it already.
-It is built so a reviewer gets the change in five minutes — Problem, Solution, How to test this,
+It is built so a reviewer gets the change in five minutes — Why, What changes, How to test this,
 Risks, Related stay visible and everything deeper goes in a collapsed `<details>` block. Move detail
-out of the way rather than dropping it.
+out of the way rather than dropping it. The same template covers a fix, a feature and a process
+change; it flags the few places where the three want different things.
 
 Nothing enforces steps 1–4. Skipping them means a human reviewer is the first person to read the
 diff — which is exactly the cost this process exists to avoid.

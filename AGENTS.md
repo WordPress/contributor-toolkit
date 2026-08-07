@@ -63,9 +63,16 @@ long as you do not pass a `--body` that replaces it. Fill it in rather than writ
 structure.
 
 The rule it is built around: **a reviewer understands the change in five minutes.** So what stays
-visible is Problem, Solution, How to test this, Risks, Related — and everything else goes in a
+visible is Why, What changes, How to test this, Risks, Related — and everything else goes in a
 `<details>` block, collapsed by default. Depth is not the enemy of a readable PR; depth *in the way*
 is. Do not delete detail to hit the five minutes, move it.
+
+**One template, not one per kind of change.** GitHub shows no picker when a pull request is opened —
+selecting among several requires appending `?template=name.md` to the URL, which nobody remembers,
+so the default loads anyway. The template is written to serve a fix, a feature and a process change
+equally, and calls out the three places where they genuinely differ: a fix names its root cause and
+the test that fails without it, a feature names what it deliberately leaves out and shows its
+surface, and either way the testing steps follow the path a contributor actually takes.
 
 That includes the review outcome AGENTS.md requires below: it lives in a collapsed block, with the
 headline count surfaced in **Risks and limitations** when it changes how the PR should be read.
