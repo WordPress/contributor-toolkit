@@ -245,18 +245,69 @@ async function openSiteInEditor(sitePath, editorPath, {
 
 	const { command, args } = resolveLaunch(editorPath, sitePath, { platform });
 
+	let child;
 	try {
-		const child = spawn(command, args, {
+		child = spawn(command, args, {
 			detached: true,
 			stdio: 'ignore',
 			shell: false,
 			windowsHide: true
 		});
-		if (child && typeof child.unref === 'function') child.unref();
-		return { ok: true };
 	} catch (e) {
+		// A synchronous throw is the argument-shape failure only. The one that
+		// actually happens — the target cannot be executed — arrives as an event.
 		return { ok: false, reason: 'spawn-failed', error: e?.message ?? String(e) };
 	}
+
+	return awaitLaunch(child, { platform });
+}
+
+// Whether the launch worked, answered from the child's own events rather than
+// from `spawn` having returned.
+//
+// `spawn` returns a ChildProcess before the OS has been asked to execute
+// anything, so a target that cannot be run — EACCES on a file that is not
+// executable, EPERM from a Windows policy, or a path deleted between the check
+// and the launch — fails afterwards, on the 'error' event. Returning `{ ok: true }`
+// at that point is the "the button did nothing" failure this project treats as
+// an architectural bug: the contributor cannot debug it, and with no listener the
+// emit becomes an uncaught exception that only reaches the log file.
+//
+// The two platforms need different evidence:
+//
+// - macOS spawns `/usr/bin/open`, which is not the editor. It exits as soon as
+//   it has asked Launch Services to open the bundle, so its exit code is the
+//   answer and waiting for it costs milliseconds.
+// - Everywhere else the child *is* the editor and stays alive, so the answer is
+//   'spawn' — Node's "the OS accepted this" event — and waiting for exit would
+//   mean waiting for the contributor to close their editor.
+//
+// The handle is released either way, so the editor outlives the app.
+function awaitLaunch(child, { platform } = {}) {
+	return new Promise((resolve) => {
+		let settled = false;
+		const settle = (result) => {
+			if (settled) return;
+			settled = true;
+			if (typeof child.unref === 'function') child.unref();
+			resolve(result);
+		};
+
+		child.on('error', (e) => {
+			settle({ ok: false, reason: 'spawn-failed', error: e?.message ?? String(e) });
+		});
+
+		if (platform === 'darwin') {
+			child.on('close', (code) => {
+				settle(code === 0
+					? { ok: true }
+					: { ok: false, reason: 'spawn-failed', error: `the editor could not be opened (exit code ${code})` });
+			});
+			return;
+		}
+
+		child.on('spawn', () => settle({ ok: true }));
+	});
 }
 
 module.exports = {

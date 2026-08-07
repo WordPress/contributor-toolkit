@@ -983,24 +983,23 @@ async function getChosenEditor() {
 	return chosen && typeof chosen.path === 'string' ? chosen : null;
 }
 
-// The editors on this machine, plus the remembered choice. `chosenMissing` is
-// the case worth naming: an editor that was chosen once and has since been
-// uninstalled or moved. The renderer uses it to ask again rather than to fail on
-// the next click.
-ipcMain.handle('editor:list', async () => {
-	const chosen = await getChosenEditor();
-	const stillThere = chosen ? isLaunchableEditorPath(chosen.path, editorLaunchDeps()) : false;
+// The remembered choice, and nothing else. This is what the window asks for on
+// load — just enough to name the button "Open in Cursor" — so it touches no
+// filesystem at all. Whether that editor is still installed is answered by
+// trying to open it, which is a question the contributor has just asked anyway.
+ipcMain.handle('editor:get', async () => getChosenEditor());
 
-	return {
-		detected: detectEditors({
-			platform: process.platform,
-			env: process.env,
-			exists: (p) => statPathSync(p) !== null
-		}),
-		chosen: stillThere ? chosen : null,
-		chosenMissing: Boolean(chosen) && !stillThere
-	};
-});
+// The editors on this machine. Detection stats a dozen or so absolute locations,
+// so it runs when the contributor opens the picker rather than on every load —
+// `editor:get` is the cheap one.
+ipcMain.handle('editor:list', async () => ({
+	detected: detectEditors({
+		platform: process.platform,
+		env: process.env,
+		exists: (p) => statPathSync(p) !== null
+	}),
+	chosen: await getChosenEditor()
+}));
 
 // Remembers an editor. With a path it is the one the contributor picked from the
 // detected list; without one it opens the file dialog, which is the answer for

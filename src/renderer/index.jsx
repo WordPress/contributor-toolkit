@@ -63,6 +63,48 @@ function formatEmailDate(email) {
 }
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
+// The editor is one app-wide choice, so it is held once for the window rather
+// than once per site. Every site is mounted at all times (the inactive ones are
+// hidden), so per-row state here would mean N copies of the same answer: N loads
+// on startup, and a choice made in one row leaving every other row's button
+// still saying "Open in editor".
+//
+// Detection is deliberately not part of the load: `editor:get` is a store read,
+// and the filesystem probe behind `editor:list` waits until the picker is
+// actually opened.
+function useEditorChoice() {
+  const [chosen, setChosen] = useState(null);
+  const [detected, setDetected] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    window.api.getEditor()
+      .then((editor) => { if (!cancelled) setChosen(editor || null); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const loadDetected = useCallback(async () => {
+    try {
+      const result = await window.api.listEditors();
+      setDetected(result?.detected || []);
+      setChosen(result?.chosen || null);
+    } catch {
+      setDetected([]);
+    }
+  }, []);
+
+  // `editorPath` is one of the detected editors; without one the main process
+  // opens the file dialog, which is what covers every editor detection misses.
+  const remember = useCallback(async (editorPath) => {
+    const result = await window.api.chooseEditor(editorPath);
+    if (result?.ok) setChosen(result.editor);
+    return result;
+  }, []);
+
+  return { chosen, detected, loadDetected, remember };
+}
+
 function useSites() {
   const [sites, setSites] = useState([]);
   const [siteMeta, setSiteMeta] = useState({});
@@ -77,6 +119,8 @@ function useSites() {
 
 function App() {
   const { sites, siteMeta, refresh, setSiteMeta, setSites } = useSites();
+  // One choice for the window, shared by every site row.
+  const editorChoice = useEditorChoice();
   const [downloadPhase, setDownloadPhase] = useState('');
   // Directories whose clone is still running. An array rather than a single
   // path because the main process may settle on a different (deduplicated)
@@ -680,6 +724,7 @@ function App() {
                       onForget={onForget}
                       onDelete={onDelete}
                       onRename={onRename}
+                      editor={editorChoice}
                       isPending={pendingSites.includes(s)}
                       setupLogs={setupLogsBySite[s] || ''}
                       isActive={activeSite === s}
@@ -762,7 +807,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, isPending = false, setupLogs = '', isActive = false }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, editor, isPending = false, setupLogs = '', isActive = false }) {
   // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
   // recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
@@ -931,33 +976,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
   // --- opening the code ---------------------------------------------------
   //
-  // The editor is remembered app-wide, so this is "ask once" rather than a
-  // choice per site. Every path out of here ends somewhere the contributor can
-  // act: a launch that fails opens the picker, the picker always offers
-  // "Choose application…", and the copy button above is the floor under all of
-  // it.
-  const [chosenEditor, setChosenEditor] = useState(null);
-  const [detectedEditors, setDetectedEditors] = useState([]);
+  // The editor itself is chosen once for the whole window (see useEditorChoice);
+  // what is per-site here is only the UI around it. Every path out of this ends
+  // somewhere the contributor can act: a launch that fails opens the picker, the
+  // picker always offers "Choose application…", and the copy button above is the
+  // floor under all of it.
+  const { chosen: chosenEditor, detected: detectedEditors, loadDetected, remember } = editor;
   const [editorPickerOpen, setEditorPickerOpen] = useState(false);
   const [editorNotice, setEditorNotice] = useState('');
 
   const fileManagerLabel = FILE_MANAGER_LABELS[window.api?.platform] || 'Show in file manager';
-
-  const refreshEditors = useCallback(async () => {
-    try {
-      const result = await window.api.listEditors();
-      setDetectedEditors(result?.detected || []);
-      setChosenEditor(result?.chosen || null);
-      return result;
-    } catch {
-      setDetectedEditors([]);
-      return null;
-    }
-  }, []);
-
-  // So the button can say "Open in Cursor" on the first render rather than after
-  // the first click.
-  useEffect(() => { refreshEditors(); }, [refreshEditors]);
 
   const describeOpenFailure = useCallback((result) => {
     if (result?.reason === 'unlaunchable-editor') {
@@ -981,25 +1009,22 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     // Nothing chosen yet is not an error, it is the first use. Anything else is
     // worth saying out loud — but both end at the same place: the picker.
     setEditorNotice(result?.reason === 'no-editor' ? '' : describeOpenFailure(result));
-    await refreshEditors();
+    await loadDetected();
     setEditorPickerOpen(true);
-  }, [describeOpenFailure, refreshEditors, sitePath]);
+  }, [describeOpenFailure, loadDetected, sitePath]);
 
-  // `editorPath` is a detected editor; without one the main process opens the
-  // file dialog, which is what covers every editor the detection table misses.
   const rememberEditor = useCallback(async (editorPath) => {
-    const result = await window.api.chooseEditor(editorPath);
+    const result = await remember(editorPath);
     if (!result?.ok) {
       if (result?.reason === 'unlaunchable-editor') {
         setEditorNotice('That is not an application this app can open a folder in.');
       }
       return;
     }
-    setChosenEditor(result.editor);
     setEditorPickerOpen(false);
     const opened = await window.api.openInEditor(sitePath);
     setEditorNotice(opened?.ok ? '' : describeOpenFailure(opened));
-  }, [describeOpenFailure, sitePath]);
+  }, [describeOpenFailure, remember, sitePath]);
 
   const showInFileManager = useCallback(async () => {
     const result = await window.api.showSiteInFileManager(sitePath);
@@ -2213,7 +2238,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <Button
                 variant="tertiary"
                 isSmall
-                onClick={async () => { await refreshEditors(); setEditorPickerOpen(true); }}
+                onClick={async () => { await loadDetected(); setEditorPickerOpen(true); }}
               >Change editor</Button>
             ) : null}
           </div>

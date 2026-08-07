@@ -1243,6 +1243,25 @@ test('editor:choose validates what the dialog returned before remembering it', a
 	assert.equal(isLaunchableEditorPath.calls[0][0], '/Users/dev/not-an-app');
 });
 
+// The window asks this on load, for every site it has. It must not turn into a
+// filesystem sweep: detection belongs to `editor:list`, which runs when the
+// picker opens.
+test('editor:get reads the remembered choice and touches nothing else', async () => {
+	const detectEditors = spy(() => []);
+	const isLaunchableEditorPath = spy(() => true);
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ preferences: { editor: { path: EDITOR, name: 'Cursor' } } }).stubs,
+			'./editor-launch': { detectEditors, isLaunchableEditorPath }
+		}
+	});
+
+	assert.deepEqual(await main.invoke('editor:get'), { path: EDITOR, name: 'Cursor' });
+	assert.deepEqual(detectEditors.calls, []);
+	assert.deepEqual(isLaunchableEditorPath.calls, []);
+});
+
 test('editor:list asks editor-launch what is installed, without a shell', async () => {
 	const detectEditors = spy(() => [{ id: 'vscode', name: 'Visual Studio Code', path: '/Applications/Visual Studio Code.app' }]);
 	const main = loadMain({
@@ -1257,23 +1276,6 @@ test('editor:list asks editor-launch what is installed, without a shell', async 
 	// or ran `which` beside this call, is what #24 was.
 	assert.equal(typeof detectEditors.calls[0][0].exists, 'function');
 	assert.equal(detectEditors.calls[0][0].platform, process.platform);
-});
-
-// An editor chosen once and since uninstalled must come back as a question, not
-// as a button that fails on click.
-test('editor:list reports a remembered editor that is no longer there', async () => {
-	const main = loadMain({
-		stubs: {
-			...silentLogging(),
-			...fakeSettingsStore({ preferences: { editor: { path: '/Applications/Gone.app', name: 'Gone' } } }).stubs,
-			'./editor-launch': { detectEditors: () => [], isLaunchableEditorPath: () => false }
-		}
-	});
-
-	const result = await main.invoke('editor:list');
-
-	assert.equal(result.chosen, null);
-	assert.equal(result.chosenMissing, true);
 });
 
 test('dir:show asks site-registry whether the path may be revealed', async () => {
@@ -1363,6 +1365,7 @@ const WIRED = new Set([
 	'git:fetch-pr-diff',
 	'git:list-ticket-patches',
 	'trac:fetch-attachment',
+	'editor:get',
 	'editor:list',
 	'editor:choose',
 	'editor:open',

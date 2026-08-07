@@ -47,6 +47,8 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	openExternal: (url) => ipcRenderer.invoke('url:open', url)
 ,
+	getEditor: () => ipcRenderer.invoke('editor:get')
+,
 	listEditors: () => ipcRenderer.invoke('editor:list')
 ,
 	// With a path, remembers that editor; without one, opens the file dialog.

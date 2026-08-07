@@ -13,6 +13,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { EventEmitter } = require('node:events');
 
 const {
 	REFUSAL_REASONS,
@@ -44,11 +45,29 @@ function fakeFs(entries) {
 	};
 }
 
-function recordingSpawn() {
+// A stand-in for child_process.spawn that behaves like the real one in the way
+// that matters here: it returns a handle first and reports success or failure
+// afterwards, on an event. `outcome` says which event, and it is emitted on a
+// later turn — a fake that emitted synchronously would pass whether or not the
+// code under test ever attached a listener.
+function recordingSpawn(outcome = { event: 'ok' }) {
 	const calls = [];
 	const spawn = (command, args, options) => {
-		calls.push({ command, args, options });
-		return { unref() { calls[calls.length - 1].unrefed = true; } };
+		const call = { command, args, options, unrefed: false };
+		calls.push(call);
+		const child = new EventEmitter();
+		child.unref = () => { call.unrefed = true; };
+		setImmediate(() => {
+			if (outcome.event === 'error') {
+				child.emit('error', outcome.error || new Error('EACCES: permission denied'));
+				return;
+			}
+			// What a working launch looks like on both shapes: the OS accepted the
+			// command, and on macOS `open` then exits with a code.
+			child.emit('spawn');
+			child.emit('close', outcome.code ?? 0);
+		});
+		return child;
 	};
 	return { calls, spawn };
 }
@@ -204,9 +223,9 @@ test('elsewhere the executable takes the folder as an argument', () => {
 const SITE = '/Users/dev/sites/wp';
 const EDITOR = '/Applications/Cursor.app';
 
-function launchDeps(overrides = {}) {
+function launchDeps(overrides = {}, outcome = { event: 'ok' }) {
 	const fs = fakeFs({ [EDITOR]: 'dir' });
-	const { calls, spawn } = recordingSpawn();
+	const { calls, spawn } = recordingSpawn(outcome);
 	const refusals = [];
 	return {
 		calls,
@@ -287,12 +306,58 @@ test('the child is detached, shell-free and hidden, and its handle released', as
 
 test('a spawn that throws is reported, not raised at the window', async () => {
 	const { options } = launchDeps({
-		spawn: () => { throw new Error('ENOENT'); }
+		spawn: () => { throw new TypeError('args must be an array'); }
 	});
 
 	const result = await openSiteInEditor(SITE, EDITOR, options);
 
 	assert.equal(result.ok, false);
 	assert.equal(result.reason, 'spawn-failed');
-	assert.match(result.error, /ENOENT/);
+	assert.match(result.error, /args must be an array/);
+});
+
+// The failure that actually happens. `spawn` returns a handle before the OS has
+// been asked to execute anything, so a target that cannot be run reports it
+// afterwards — and a caller that answered "ok" on the return value has already
+// told the contributor their editor is opening.
+test('a launch that fails after spawn returns is still a failure', async () => {
+	const { options } = launchDeps({}, { event: 'error', error: new Error('spawn EACCES') });
+
+	const result = await openSiteInEditor(SITE, EDITOR, options);
+
+	assert.equal(result.ok, false);
+	assert.equal(result.reason, 'spawn-failed');
+	assert.match(result.error, /EACCES/);
+});
+
+// On macOS the child is `/usr/bin/open`, not the editor: it exits as soon as
+// Launch Services has been asked, so its exit code is the answer.
+test('macOS reports what `open` exited with', async () => {
+	const failed = await openSiteInEditor(SITE, EDITOR, launchDeps({}, { event: 'ok', code: 1 }).options);
+	assert.equal(failed.ok, false);
+	assert.equal(failed.reason, 'spawn-failed');
+	assert.match(failed.error, /exit code 1/);
+
+	const succeeded = await openSiteInEditor(SITE, EDITOR, launchDeps({}, { event: 'ok', code: 0 }).options);
+	assert.deepEqual(succeeded, { ok: true });
+});
+
+// Elsewhere the child is the editor and stays alive, so waiting for it to exit
+// would mean waiting for the contributor to close it.
+test('a long-lived editor answers as soon as the OS accepts it', async () => {
+	const fs = fakeFs({ 'C:\\Program Files\\Sublime Text\\sublime_text.exe': 'file' });
+	// Exit code 1 as well, to pin that it is not being waited on: an editor that
+	// is still open has no exit code at all, and one that eventually exits
+	// non-zero must not turn a launch that worked into a failure.
+	const { calls, spawn } = recordingSpawn({ event: 'ok', code: 1 });
+
+	const result = await openSiteInEditor('C:\\sites\\wp', 'C:\\Program Files\\Sublime Text\\sublime_text.exe', {
+		sites: ['C:\\sites\\wp'],
+		platform: 'win32',
+		statPath: fs.statPath,
+		spawn
+	});
+
+	assert.deepEqual(result, { ok: true });
+	assert.equal(calls[0].unrefed, true);
 });
