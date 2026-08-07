@@ -2113,7 +2113,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           </>
         )}
         {ticketError ? (
-          <div style={{ marginTop: 8, color: '#d63638', fontSize: 12 }}>{ticketError}</div>
+          <div role="alert" style={{ marginTop: 8, color: '#d63638', fontSize: 12 }}>{ticketError}</div>
         ) : null}
         {tracTicket ? null : (
           <div style={{ marginTop: 8 }}>
