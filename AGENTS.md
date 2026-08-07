@@ -16,18 +16,23 @@ It sits under `.github/instructions/` because Copilot code review reads that dir
 follows no links out of it. Anywhere better-named would have meant maintaining a condensed second
 copy for Copilot, which would drift. Every other agent reaches it from here.
 
-**The review as a skill** — [`.claude/skills/self-review/`](.claude/skills/self-review/), a thin
-`SKILL.md` wrapper over the file above. The directory name is historical, not a restriction: it is
-the only path both Claude Code and Copilot read for project skills, so it stays there. In Claude
-Code it is `/self-review`.
+**The review as a skill** — a thin `SKILL.md` wrapper over the file above, in two locations because
+no single skills directory is read by every agent:
 
-If your agent supports skills but looks elsewhere (`.agents/skills/`, `.github/skills/`, or its own
-convention), point it at that directory — or skip it entirely and follow the instructions file,
-which is where all the content actually lives. The wrapper only adds two things: run the judgement
-pass in a fresh context, and report without touching GitHub.
+- [`.claude/skills/self-review/`](.claude/skills/self-review/) — Claude Code and Copilot. In Claude
+  Code it is `/self-review`.
+- [`.agents/skills/self-review/`](.agents/skills/self-review/) — the Agent Skills open-standard path
+  that Command Code and others scan.
 
-There is deliberately no per-tool copy of any of this. If you find yourself writing one, the thing
-to fix is the pointer, not the number of copies.
+Both are pointers to the one instructions file, not copies of the standard. If your agent looks
+somewhere else again (`.github/skills/`, `.cursor/skills/`, `.codex/skills/`, or its own
+convention), add a wrapper there or skip it entirely and follow the instructions file — that is
+where all the content lives. The wrapper only adds two things: run the judgement pass in a fresh
+context, and report without touching GitHub.
+
+There is deliberately no per-tool copy of the *standard*. A wrapper is a few lines that defer to it;
+duplicating the standard itself is the thing to avoid — if you find yourself doing that, fix the
+pointer, not the number of copies.
 
 ## What this is
 
