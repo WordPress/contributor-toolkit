@@ -1658,6 +1658,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       return;
     }
     if (!isActive || loadedTicketRef.current === tracTicket) return;
+    // Marked loaded before the fetch resolves, on purpose: a failed initial
+    // fetch is not retried on every re-activation (which could keep spending a
+    // rate-limited quota) — the Refresh button is the retry.
     loadedTicketRef.current = tracTicket;
     loadTicketPatches();
   }, [tracTicket, isActive, loadTicketPatches]);
