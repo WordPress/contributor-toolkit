@@ -326,6 +326,107 @@ test('url:open refuses a file: address and opens an http one', async () => {
 	assert.deepEqual(main.calls.openExternal, ['https://wordpress.org/']);
 });
 
+// The settings store is an ESM-only dependency loaded through a dynamic import,
+// which `Module._load` cannot intercept — so it lives behind src/settings-store.js
+// and this stands in for it. Values are held in a plain object the test can read
+// back, because "the store was not written" is half of what the delete gate
+// promises (#145).
+function fakeSettingsStore(initial = {}) {
+	const values = { sites: [], siteMeta: {}, ...initial };
+	const store = {
+		// A copy, like the real one: `conf` re-reads and re-deserializes the file on
+		// every `get`, so a handler that mutates what it read and never sets it back
+		// loses the write in the app. Returning the live object here would let that
+		// bug pass.
+		get: (key) => structuredClone(values[key]),
+		set: (key, value) => { values[key] = value; }
+	};
+	return { values, stubs: { './settings-store': { getStore: async () => store } } };
+}
+
+// --- sites:delete -> src/site-registry.js --------------------------------
+
+test('sites:delete asks site-registry whether the path may be removed', async () => {
+	const deleteRegisteredSite = spy(async () => true);
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'] });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './site-registry': { deleteRegisteredSite } }
+	});
+
+	await main.invoke('sites:delete', '/sites/wp');
+
+	assert.equal(deleteRegisteredSite.calls.length, 1);
+	const [sitePath, options] = deleteRegisteredSite.calls[0];
+	assert.equal(sitePath, '/sites/wp');
+	// The module decides on the registry it is handed and acts through the
+	// callbacks: without the store's own `sites` array it would be deciding
+	// against nothing, and without the callbacks it could not act on its answer.
+	assert.deepEqual(options.sites, ['/sites/wp']);
+	assert.equal(typeof options.forget, 'function');
+	assert.equal(typeof options.remove, 'function');
+	assert.equal(typeof options.onRefused, 'function');
+});
+
+// The end of the wire, with the real module and the real `fse.remove` in place,
+// on real directories: this is the assertion #145 is about. It fails if the
+// handler stops consulting site-registry, however it stops — deleted call,
+// renamed export, or a bare `fse.remove(sitePath)` added beside it.
+test('sites:delete removes a registered directory and refuses an unregistered one', async (t) => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-delete-'));
+	t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+	const registered = path.join(root, 'registered');
+	const unregistered = path.join(root, 'unregistered');
+	for (const dir of [registered, unregistered]) {
+		fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+		fs.writeFileSync(path.join(dir, 'src', 'index.php'), '<?php\n');
+	}
+
+	const logEvent = spy();
+	const settings = fakeSettingsStore({
+		sites: [registered],
+		siteMeta: { [registered]: { label: 'mine' }, [unregistered]: { label: 'not mine' } }
+	});
+	const main = loadMain({
+		stubs: { './logging': { ...silentLogging()['./logging'], logEvent }, ...settings.stubs }
+	});
+
+	// A path the app never registered: neither the directory nor the store may
+	// be touched, and the refusal is logged rather than dropped so a caller that
+	// trips the guard is visible in the file contributors attach to bug reports.
+	assert.equal(await main.invoke('sites:delete', unregistered), false);
+	assert.equal(fs.existsSync(unregistered), true);
+	assert.deepEqual(settings.values.sites, [registered]);
+	assert.deepEqual(Object.keys(settings.values.siteMeta).sort(), [registered, unregistered].sort());
+	assert.equal(logEvent.calls.length, 1);
+	assert.equal(logEvent.calls[0][0], 'sites');
+	assert.match(logEvent.calls[0][1], /refused to delete .*unregistered/);
+
+	// And the other branch, so the guard cannot be passed by refusing everything.
+	assert.equal(await main.invoke('sites:delete', registered), true);
+	assert.equal(fs.existsSync(registered), false);
+	assert.deepEqual(settings.values.sites, []);
+	assert.deepEqual(Object.keys(settings.values.siteMeta), [unregistered]);
+});
+
+// --- site:status -> src/trunk-update.js ----------------------------------
+
+test('site:status reports the trunk snapshot trunk-update read, not its own guess', async () => {
+	const readTrunkInfo = spy(async () => ({ trunkOid: 'abc123', trunkDate: '2026-01-01T00:00:00Z' }));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { initialized: true } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { readTrunkInfo } }
+	});
+
+	const status = await main.invoke('site:status', '/sites/wp');
+
+	assert.deepEqual(readTrunkInfo.calls, [['/sites/wp']]);
+	assert.equal(status.trunkOid, 'abc123');
+	assert.equal(status.trunkDate, '2026-01-01T00:00:00Z');
+	// Written through to siteMeta so the sidebar can render staleness dots from
+	// siteMeta alone, without per-site git I/O (#94).
+	assert.equal(settings.values.siteMeta['/sites/wp'].trunkOid, 'abc123');
+});
+
 // --- git:* -> src/trunk-update.js ----------------------------------------
 
 test('git:worktree-dirty reports what trunk-update found, not its own guess', async () => {
@@ -377,10 +478,10 @@ test('git:update-trunk hands the update to trunk-update and streams its log back
 test('sites:add normalizes line endings before adopting a directory', async () => {
 	// Throwing ends the handler at its first delegation, which is the only thing
 	// under test — and it has to end there. The next line is a store write, and
-	// reaching it would start `import('electron-store')`, whose own
-	// `import {app} from 'electron'` loads the real electron package through the
-	// ESM loader, out of reach of the hook. See the guard test below for why that
-	// must not happen.
+	// this test hands the harness no settings store, so reaching it would start
+	// the real `import('electron-store')`, whose own `import {app} from 'electron'`
+	// loads the real electron package through the ESM loader, out of reach of the
+	// hook. See the guard test below for why that must not happen.
 	const ensureAutocrlf = spy(async () => { throw new Error('not a repository'); });
 	const main = loadMain({ stubs: { ...silentLogging(), './trunk-update': { ensureAutocrlf } } });
 
@@ -788,10 +889,11 @@ test('playground-web:stop ends the web server tree rather than signalling the ch
 // Two holes this closes, both of which reached the package on a cold checkout:
 // stubs are built by merging over the real module, so stubbing src/logging.js
 // means requiring it and it requires `electron` — that require has to happen
-// with the hook already installed. And any handler allowed to reach `getStore()`
-// starts `import('electron-store')`, which imports `electron` through the ESM
-// loader, where `Module._load` does not apply and no hook can help. Tests stop
-// short of the store instead.
+// with the hook already installed. And a handler that reaches the real
+// `getStore()` starts `import('electron-store')`, which imports `electron`
+// through the ESM loader, where `Module._load` does not apply and no hook can
+// help. That is what src/settings-store.js is a seam for: a test whose handler
+// touches the store stubs it (fakeSettingsStore above), and the rest stop short.
 test('the harness never loads the real electron package', () => {
 	loadMain({ stubs: silentLogging() });
 
@@ -813,6 +915,8 @@ const WIRED = new Set([
 	'git:create-patch',
 	'git:save-patch',
 	'sites:add',
+	'sites:delete',
+	'site:status',
 	'npm:install',
 	'npm:run-script',
 	'npm:kill',
@@ -833,7 +937,6 @@ const NO_DELEGATION = new Map([
 	['sites:set-skip-init', 'electron-store write'],
 	['sites:mark-initialized', 'electron-store write'],
 	['sites:forget', 'electron-store write'],
-	['sites:delete', 'electron-store write plus a directory removal'],
 	['sites:set-label', 'electron-store write'],
 	['dialog:choose-dir', 'opens the directory dialog'],
 	['playground-web:available', 'checks a path on disk'],
@@ -857,7 +960,6 @@ const NO_DELEGATION = new Map([
 // Channels that do delegate, but whose call sits behind something this harness
 // cannot stand in for yet. Each one is a known hole, not an oversight.
 const NOT_REACHABLE = new Map([
-	['site:status', 'reads electron-store before calling readTrunkInfo, and the store is a dynamic ESM import that Module._load cannot replace'],
 	['wordpress:setup', 'calls ensureAutocrlf and readTrunkInfo only after cloning wordpress-develop over the network']
 ]);
 

@@ -31,6 +31,7 @@ const { normalizeEol } = require('./git-update.cjs');
 const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, updateToLatestTrunk } = require('./trunk-update');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { deleteRegisteredSite } = require('./site-registry');
+const { getStore } = require('./settings-store');
 
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
@@ -122,31 +123,6 @@ function spawnRunner(runnerPath, args, { cwd, extraEnv = {} }) {
 		// (see kill-tree.js); Windows uses taskkill /T instead.
 		detached: process.platform !== 'win32'
 	});
-}
-
-let store; // initialized asynchronously due to ESM-only module
-let storeReady = null;
-
-// The import starts on first use rather than at require time. Deferring it costs
-// nothing — no handler can run before a window exists — and it keeps two things
-// out of module load: a rejected promise nobody is awaiting yet (an unhandled
-// rejection at startup, where the app has no way to report it), and the ESM
-// loader pulling in `electron` behind `Module._load`'s back, which is what lets
-// test/ipc-wiring.test.cjs require this file outside an Electron process.
-async function getStore() {
-	if (!store) {
-		if (!storeReady) {
-			storeReady = import('electron-store').then((m) => {
-				const Store = m.default || m;
-				store = new Store({
-					name: 'settings',
-					defaults: { sites: [], siteMeta: {} }
-				});
-			});
-		}
-		await storeReady;
-	}
-	return store;
 }
 
 function findAvailableDirName(rootDir, baseName) {
