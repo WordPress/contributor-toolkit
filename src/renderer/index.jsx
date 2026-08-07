@@ -899,8 +899,14 @@ const DIFF_LINE_STYLES = {
 // The patch, painted. An empty line still needs to occupy one: `\n` is appended
 // per line rather than joining, so the last line of a patch that ends in a
 // newline does not silently gain or lose one.
+//
+// Memoised on the text, because this renders inside SiteRow — which re-renders
+// on every chunk a running dev server or watch task streams into its log. The
+// patch has not changed; without this, each chunk re-splits it and hands React
+// thousands of fresh spans to reconcile, on the same thread that has to paint
+// the log.
 function DiffText({ text }) {
-  const lines = highlightDiff(text);
+  const lines = useMemo(() => highlightDiff(text), [text]);
   if (!lines) return text;
   return lines.map((line, index) => (
     // A diff line has no identity beyond its position, and the whole pane is
@@ -3277,7 +3283,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           variant="secondary"
                           onClick={rememberContributor}
                           isBusy={handleSaving}
-                          disabled={handleSaving || !handleInput.trim()}
+                          // Empty is a valid answer only when there is
+                          // something to clear — a shared laptop at a
+                          // contributor day, the next person taking over.
+                          // Before the first answer it would just be a button
+                          // that does nothing.
+                          disabled={handleSaving || (!handleInput.trim() && !wporg?.handle)}
                           style={{ justifyContent:'center' }}
                         >Remember this</Button>
                         {handleError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{handleError}</div> : null}

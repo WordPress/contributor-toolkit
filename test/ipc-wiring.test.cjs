@@ -625,6 +625,43 @@ test('git:save-patch without options is the bare diff under the name it always h
 	assert.equal(path.basename(main.calls.showSaveDialog[0].defaultPath), 'wordpress.patch');
 });
 
+// The two tests above stop at the dialog, so neither sees what is written. This
+// one runs the real patch-provenance module all the way to the file, because
+// the header being *above* the diff is the whole of its usefulness: the same
+// lines appended after it would land inside the last hunk's context and stop
+// the patch applying anywhere.
+test('git:save-patch with handoff writes the header above the diff, and it still parses', async (t) => {
+	const dir = await fixtureRepo(t);
+	const target = path.join(dir, '..', `handoff-${process.pid}.diff`);
+	t.after(() => fs.rmSync(target, { force: true }));
+
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({
+				siteMeta: { [dir]: { tracTicket: 62281 } },
+				preferences: { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Europe 2026' }
+			}).stubs
+		}
+	});
+	main.dialogResults.showSaveDialog = { canceled: false, filePath: target };
+
+	const result = await main.invoke('git:save-patch', dir, { handoff: true });
+	assert.equal(result.ok, true, result.error);
+
+	const written = fs.readFileSync(target, 'utf8');
+	assert.ok(written.startsWith('# WordPress Contributor Toolkit patch\n'), written.slice(0, 200));
+	assert.ok(written.includes('# Contributor: janedoe (wordpress.org)'));
+	assert.ok(written.includes('# Event: WordCamp Europe 2026'));
+	assert.ok(written.indexOf('# Generated:') < written.indexOf('---'), 'the header has to precede the diff');
+
+	// The app reads its own patches back when someone applies one, so a mentor's
+	// copy of this file has to survive the round trip.
+	const parsed = require('../src/patch-plan.cjs').parsePatchFiles(written);
+	assert.equal(parsed.ok, true, parsed.error);
+	assert.deepEqual(parsed.files.map((f) => f.path), ['text.txt']);
+});
+
 // --- provenance:* -> src/wporg-handle.cjs + src/patch-provenance.cjs (#166) ---
 
 // The handle becomes a filename and a line in a file other people read, so it
