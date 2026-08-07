@@ -1051,6 +1051,57 @@ test('git:apply-patch reverts using the stored patch text and clears the record'
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
 });
 
+// A store whose siteMeta write throws: the patch lands on disk but its revert
+// record cannot be saved. Persistence is part of the transaction.
+function storeThatFailsToPersist() {
+	return {
+		get: (key) => (key === 'sites' ? ['/sites/wp'] : {}),
+		set: (key) => { if (key === 'siteMeta') throw new Error('disk full'); }
+	};
+}
+
+test('git:apply-patch undoes the apply when its revert record cannot be saved', async () => {
+	const applyPatchToDir = spy(async ({ reverse }) => ({ ok: true, applied: reverse ? [] : ['src/a.php'], skipped: [] }));
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'./settings-store': { getStore: async () => storeThatFailsToPersist() },
+			'./patch-apply': { applyPatchToDir }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { patchText: 'PATCH', label: 'L' });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.ok, false);
+	assert.match(done.error, /could not be saved/);
+	// The forward apply, then the undo — the tree is put back to match what the
+	// renderer is told rather than left with an unrevertable patch.
+	assert.deepEqual(applyPatchToDir.calls.map((c) => c[0].reverse), [false, true]);
+});
+
+test('git:apply-patch reports applied-but-untracked when the undo also fails', async () => {
+	const applyPatchToDir = spy(async ({ reverse }) =>
+		reverse ? { ok: false, error: 'cannot undo' } : { ok: true, applied: ['src/a.php'], skipped: [] });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'./settings-store': { getStore: async () => storeThatFailsToPersist() },
+			'./patch-apply': { applyPatchToDir }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { patchText: 'PATCH', label: 'L' });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.ok, false);
+	assert.equal(done.appliedButUntracked, true);
+	assert.deepEqual(done.files, ['src/a.php']);
+	assert.match(done.error, /could not be undone/);
+});
+
 // --- the harness's own guard ---------------------------------------------
 
 // Requiring the real `electron` package is not a harmless fallback: its
