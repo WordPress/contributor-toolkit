@@ -38,7 +38,7 @@ const { deleteRegisteredSite, revealRegisteredSite } = require('./site-registry'
 const { getStore } = require('./settings-store');
 const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
 const { describeRefused } = require('./safe-log');
-const { detectEditors, isLaunchableEditorPath, openSiteInEditor } = require('./editor-launch');
+const { detectEditors, knownEditorName, isLaunchableEditorPath, openSiteInEditor } = require('./editor-launch');
 
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
@@ -966,16 +966,32 @@ ipcMain.handle('url:open', async (_e, url) => openExternalUrl(url, {
 // picked, or remembered from a previous run — goes through the same check before
 // anything is spawned.
 
-function statPathSync(targetPath) {
+// Asynchronous on purpose: this runs on the process that draws the window, and
+// probing a dozen locations that mostly do not exist is exactly what a slow
+// volume or an antivirus filter driver turns into a frozen UI.
+//
+// Executability is asked of the OS with `access(X_OK)` rather than read off the
+// mode bits, so the answer is about the user this app is running as, ACLs and
+// mount options included. On Windows every file answers X_OK, which is why the
+// `.exe` check there is the one that matters.
+async function statPath(targetPath) {
+	let stats;
 	try {
-		const stats = fs.statSync(targetPath);
-		return { isDirectory: stats.isDirectory(), isFile: stats.isFile() };
+		stats = await fs.promises.stat(targetPath);
 	} catch {
 		return null;
 	}
+
+	let isExecutable = false;
+	try {
+		await fs.promises.access(targetPath, fs.constants.X_OK);
+		isExecutable = true;
+	} catch {}
+
+	return { isDirectory: stats.isDirectory(), isFile: stats.isFile(), isExecutable };
 }
 
-const editorLaunchDeps = () => ({ platform: process.platform, statPath: statPathSync });
+const editorLaunchDeps = () => ({ platform: process.platform, statPath });
 
 async function getChosenEditor() {
 	const s = await getStore();
@@ -993,10 +1009,10 @@ ipcMain.handle('editor:get', async () => getChosenEditor());
 // so it runs when the contributor opens the picker rather than on every load —
 // `editor:get` is the cheap one.
 ipcMain.handle('editor:list', async () => ({
-	detected: detectEditors({
+	detected: await detectEditors({
 		platform: process.platform,
 		env: process.env,
-		exists: (p) => statPathSync(p) !== null
+		exists: async (p) => (await statPath(p)) !== null
 	}),
 	chosen: await getChosenEditor()
 }));
@@ -1029,7 +1045,7 @@ ipcMain.handle('editor:choose', async (_e, editorPath) => {
 		target = result.filePaths[0];
 	}
 
-	if (!isLaunchableEditorPath(target, editorLaunchDeps())) {
+	if (!await isLaunchableEditorPath(target, editorLaunchDeps())) {
 		logEvent('editor', `refused to remember ${describeRefused(target)} — not an application this app can launch`);
 		return { ok: false, reason: 'unlaunchable-editor' };
 	}
@@ -1037,7 +1053,10 @@ ipcMain.handle('editor:choose', async (_e, editorPath) => {
 	const s = await getStore();
 	const editor = {
 		path: target,
-		name: path.basename(target, path.extname(target))
+		// The table's name for a known application; a filename only for one the
+		// contributor pointed at that the table has never heard of.
+		name: knownEditorName(target, { platform: process.platform, env: process.env })
+			|| path.basename(target, path.extname(target))
 	};
 	s.set('preferences', { ...(s.get('preferences') || {}), editor });
 	return { ok: true, editor };

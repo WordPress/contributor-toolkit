@@ -19,6 +19,7 @@ const {
 	REFUSAL_REASONS,
 	editorCandidates,
 	detectEditors,
+	knownEditorName,
 	isLaunchableEditorPath,
 	resolveLaunch,
 	openSiteInEditor
@@ -32,15 +33,23 @@ function fakeFs(entries) {
 	const map = new Map(Object.entries(entries));
 	return {
 		asked,
-		exists(p) {
+		// Both probes are async, like the real ones: the module runs on the process
+		// that draws the window, so it may not stat synchronously.
+		async exists(p) {
 			asked.push(p);
 			return map.has(p);
 		},
-		statPath(p) {
+		async statPath(p) {
 			asked.push(p);
 			const kind = map.get(p);
 			if (!kind) return null;
-			return { isDirectory: kind === 'dir', isFile: kind === 'file' };
+			// 'file' is a document — present, not executable. 'exe' is something the
+			// OS will run. The distinction is what the Linux branch turns on.
+			return {
+				isDirectory: kind === 'dir',
+				isFile: kind === 'file' || kind === 'exe',
+				isExecutable: kind === 'exe' || kind === 'dir'
+			};
 		}
 	};
 }
@@ -80,10 +89,10 @@ const WIN_ENV = {
 
 // --- detection -----------------------------------------------------------
 
-test('detection asks the filesystem about absolute paths only — never PATH', () => {
+test('detection asks the filesystem about absolute paths only — never PATH', async () => {
 	const fs = fakeFs({ '/Applications/Visual Studio Code.app': 'dir' });
 
-	const found = detectEditors({ platform: 'darwin', env: { ...MAC_ENV, PATH: '' }, exists: fs.exists });
+	const found = await detectEditors({ platform: 'darwin', env: { ...MAC_ENV, PATH: '' }, exists: fs.exists });
 
 	assert.deepEqual(found, [
 		{ id: 'vscode', name: 'Visual Studio Code', path: '/Applications/Visual Studio Code.app' }
@@ -96,15 +105,15 @@ test('detection asks the filesystem about absolute paths only — never PATH', (
 
 // The #24 regression, stated as a test: the environment a packaged app actually
 // gets has no useful PATH, and detection must not care.
-test('an empty PATH does not change what is detected', () => {
-	const installed = { 'C:\\Users\\dev\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe': 'file' };
+test('an empty PATH does not change what is detected', async () => {
+	const installed = { 'C:\\Users\\dev\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe': 'exe' };
 
-	const withPath = detectEditors({
+	const withPath = await detectEditors({
 		platform: 'win32',
 		env: { ...WIN_ENV, PATH: 'C:\\Windows\\System32' },
 		exists: fakeFs(installed).exists
 	});
-	const withoutPath = detectEditors({
+	const withoutPath = await detectEditors({
 		platform: 'win32',
 		env: { ...WIN_ENV },
 		exists: fakeFs(installed).exists
@@ -115,31 +124,31 @@ test('an empty PATH does not change what is detected', () => {
 	assert.equal(withPath[0].id, 'vscode');
 });
 
-test('nothing installed detects nothing, and does not throw', () => {
+test('nothing installed detects nothing, and does not throw', async () => {
 	const fs = fakeFs({});
-	assert.deepEqual(detectEditors({ platform: 'darwin', env: MAC_ENV, exists: fs.exists }), []);
-	assert.deepEqual(detectEditors({ platform: 'win32', env: WIN_ENV, exists: fs.exists }), []);
-	assert.deepEqual(detectEditors({ platform: 'linux', env: {}, exists: fs.exists }), []);
+	assert.deepEqual(await detectEditors({ platform: 'darwin', env: MAC_ENV, exists: fs.exists }), []);
+	assert.deepEqual(await detectEditors({ platform: 'win32', env: WIN_ENV, exists: fs.exists }), []);
+	assert.deepEqual(await detectEditors({ platform: 'linux', env: {}, exists: fs.exists }), []);
 });
 
-test('an unreadable location is a location we do not have, not a crash', () => {
+test('an unreadable location is a location we do not have, not a crash', async () => {
 	const exists = (p) => {
 		if (p === '/Applications/Visual Studio Code.app') throw new Error('EACCES');
 		return p === '/Applications/Cursor.app';
 	};
 
-	const found = detectEditors({ platform: 'darwin', env: MAC_ENV, exists });
+	const found = await detectEditors({ platform: 'darwin', env: MAC_ENV, exists });
 
 	assert.deepEqual(found.map((e) => e.id), ['cursor']);
 });
 
-test('an editor found in more than one location reports the first', () => {
+test('an editor found in more than one location reports the first', async () => {
 	const fs = fakeFs({
 		'/Applications/Cursor.app': 'dir',
 		'/Users/dev/Applications/Cursor.app': 'dir'
 	});
 
-	const found = detectEditors({ platform: 'darwin', env: MAC_ENV, exists: fs.exists });
+	const found = await detectEditors({ platform: 'darwin', env: MAC_ENV, exists: fs.exists });
 
 	assert.deepEqual(found, [{ id: 'cursor', name: 'Cursor', path: '/Applications/Cursor.app' }]);
 });
@@ -152,10 +161,10 @@ test('a location whose environment variable is unset is dropped, not guessed at'
 	assert.ok(homeless.every((p) => p.startsWith('/Applications/')));
 });
 
-test('Windows environment variables are read whatever their casing', () => {
-	const fs = fakeFs({ 'C:\\Users\\dev\\AppData\\Local\\Programs\\cursor\\Cursor.exe': 'file' });
+test('Windows environment variables are read whatever their casing', async () => {
+	const fs = fakeFs({ 'C:\\Users\\dev\\AppData\\Local\\Programs\\cursor\\Cursor.exe': 'exe' });
 
-	const found = detectEditors({
+	const found = await detectEditors({
 		platform: 'win32',
 		env: { localappdata: 'C:\\Users\\dev\\AppData\\Local' },
 		exists: fs.exists
@@ -166,36 +175,80 @@ test('Windows environment variables are read whatever their casing', () => {
 
 // --- what may be launched ------------------------------------------------
 
-test('a relative command is not launchable — that is how PATH would come back', () => {
+test('a relative command is not launchable — that is how PATH would come back', async () => {
 	const fs = fakeFs({ code: 'file' });
 
-	assert.equal(isLaunchableEditorPath('code', { platform: 'linux', statPath: fs.statPath }), false);
-	assert.equal(isLaunchableEditorPath('Code.exe', { platform: 'win32', statPath: fs.statPath }), false);
+	assert.equal(await isLaunchableEditorPath('code', { platform: 'linux', statPath: fs.statPath }), false);
+	assert.equal(await isLaunchableEditorPath('Code.exe', { platform: 'win32', statPath: fs.statPath }), false);
 });
 
-test('the shape has to match the platform', () => {
+test('the shape has to match the platform', async () => {
 	const fs = fakeFs({
 		'/Applications/Cursor.app': 'dir',
 		'/Applications/notes.txt': 'file',
-		'C:\\Program Files\\Sublime Text\\sublime_text.exe': 'file',
+		'C:\\Program Files\\Sublime Text\\sublime_text.exe': 'exe',
 		'C:\\Program Files\\Sublime Text\\readme.md': 'file'
 	});
 
-	assert.equal(isLaunchableEditorPath('/Applications/Cursor.app', { platform: 'darwin', statPath: fs.statPath }), true);
+	assert.equal(await isLaunchableEditorPath('/Applications/Cursor.app', { platform: 'darwin', statPath: fs.statPath }), true);
 	// A file rather than a bundle, and a bundle name is not enough on its own.
-	assert.equal(isLaunchableEditorPath('/Applications/notes.txt', { platform: 'darwin', statPath: fs.statPath }), false);
-	assert.equal(isLaunchableEditorPath('/Applications/Missing.app', { platform: 'darwin', statPath: fs.statPath }), false);
+	assert.equal(await isLaunchableEditorPath('/Applications/notes.txt', { platform: 'darwin', statPath: fs.statPath }), false);
+	assert.equal(await isLaunchableEditorPath('/Applications/Missing.app', { platform: 'darwin', statPath: fs.statPath }), false);
 
-	assert.equal(isLaunchableEditorPath('C:\\Program Files\\Sublime Text\\sublime_text.exe', { platform: 'win32', statPath: fs.statPath }), true);
-	assert.equal(isLaunchableEditorPath('C:\\Program Files\\Sublime Text\\readme.md', { platform: 'win32', statPath: fs.statPath }), false);
+	assert.equal(await isLaunchableEditorPath('C:\\Program Files\\Sublime Text\\sublime_text.exe', { platform: 'win32', statPath: fs.statPath }), true);
+	assert.equal(await isLaunchableEditorPath('C:\\Program Files\\Sublime Text\\readme.md', { platform: 'win32', statPath: fs.statPath }), false);
 });
 
-test('junk input is refused rather than thrown', () => {
+// The Linux picker cannot filter by extension — there is no extension to filter
+// on — so "a regular file" is not enough: a document would be remembered as the
+// contributor's editor and then fail with EACCES at the spawn.
+test('on Linux a file the OS will not execute is not an application', async () => {
+	const fs = fakeFs({ '/home/dev/notes.txt': 'file', '/usr/bin/code': 'exe' });
+
+	assert.equal(await isLaunchableEditorPath('/home/dev/notes.txt', { platform: 'linux', statPath: fs.statPath }), false);
+	assert.equal(await isLaunchableEditorPath('/usr/bin/code', { platform: 'linux', statPath: fs.statPath }), true);
+});
+
+// --- what the editor is called -------------------------------------------
+
+// The button promises to name the editor. On Windows the filename does not:
+// 'Code.exe' is Visual Studio Code and 'phpstorm64.exe' is PhpStorm.
+test('a known application is named the way the picker named it', () => {
+	assert.equal(
+		knownEditorName('C:\\Users\\dev\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe', { platform: 'win32', env: WIN_ENV }),
+		'Visual Studio Code'
+	);
+	assert.equal(
+		knownEditorName('C:\\Users\\dev\\AppData\\Local\\Programs\\PhpStorm\\bin\\phpstorm64.exe', { platform: 'win32', env: WIN_ENV }),
+		'PhpStorm'
+	);
+	assert.equal(knownEditorName('/Applications/Cursor.app', { platform: 'darwin', env: MAC_ENV }), 'Cursor');
+});
+
+// Windows and macOS filesystems are case-insensitive: the same application
+// reached through a differently-cased path is the same application.
+test('the lookup is case-insensitive where the filesystem is', () => {
+	assert.equal(
+		knownEditorName('c:\\users\\dev\\appdata\\local\\programs\\cursor\\cursor.exe', { platform: 'win32', env: WIN_ENV }),
+		'Cursor'
+	);
+	assert.equal(knownEditorName('/applications/zed.app', { platform: 'darwin', env: MAC_ENV }), 'Zed');
+	// Linux is not, and two paths differing in case are two different files.
+	assert.equal(knownEditorName('/USR/BIN/CODE', { platform: 'linux', env: {} }), null);
+});
+
+test('an application the table does not know has no name to give', () => {
+	assert.equal(knownEditorName('/Applications/Some Editor.app', { platform: 'darwin', env: MAC_ENV }), null);
+	assert.equal(knownEditorName('', { platform: 'darwin', env: MAC_ENV }), null);
+	assert.equal(knownEditorName(null, { platform: 'darwin', env: MAC_ENV }), null);
+});
+
+test('junk input is refused rather than thrown', async () => {
 	const fs = fakeFs({});
 	for (const value of [null, undefined, 42, '', {}]) {
-		assert.equal(isLaunchableEditorPath(value, { platform: 'darwin', statPath: fs.statPath }), false);
+		assert.equal(await isLaunchableEditorPath(value, { platform: 'darwin', statPath: fs.statPath }), false);
 	}
-	assert.equal(isLaunchableEditorPath('/Applications/Cursor.app', { platform: 'darwin' }), false);
+	assert.equal(await isLaunchableEditorPath('/Applications/Cursor.app', { platform: 'darwin' }), false);
 });
 
 // --- the command that gets run -------------------------------------------
@@ -345,7 +398,7 @@ test('macOS reports what `open` exited with', async () => {
 // Elsewhere the child is the editor and stays alive, so waiting for it to exit
 // would mean waiting for the contributor to close it.
 test('a long-lived editor answers as soon as the OS accepts it', async () => {
-	const fs = fakeFs({ 'C:\\Program Files\\Sublime Text\\sublime_text.exe': 'file' });
+	const fs = fakeFs({ 'C:\\Program Files\\Sublime Text\\sublime_text.exe': 'exe' });
 	// Exit code 1 as well, to pin that it is not being waited on: an editor that
 	// is still open has no exit code at all, and one that eventually exits
 	// non-zero must not turn a launch that worked into a failure.

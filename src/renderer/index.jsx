@@ -80,7 +80,11 @@ function useEditorChoice() {
     let cancelled = false;
     window.api.getEditor()
       .then((editor) => { if (!cancelled) setChosen(editor || null); })
-      .catch(() => {});
+      // The window carries on with no remembered editor, which is a state it
+      // handles — but "the store could not be read" and "nothing chosen yet"
+      // must not be the same event to whoever reads the log afterwards.
+      // eslint-disable-next-line no-console -- reaches the log file: logging.js initializes electron-log with spyRendererConsole, so this is how the renderer records a diagnostic.
+      .catch((err) => console.error('Could not read the remembered editor:', err));
     return () => { cancelled = true; };
   }, []);
 
@@ -89,15 +93,28 @@ function useEditorChoice() {
       const result = await window.api.listEditors();
       setDetected(result?.detected || []);
       setChosen(result?.chosen || null);
-    } catch {
+    } catch (err) {
+      // eslint-disable-next-line no-console -- see the note on the first console.error above.
+      console.error('Could not list the editors on this machine:', err);
       setDetected([]);
     }
   }, []);
 
   // `editorPath` is one of the detected editors; without one the main process
   // opens the file dialog, which is what covers every editor detection misses.
+  //
+  // A rejected invoke is reported as a refusal rather than raised: the caller
+  // draws a notice from it, and an unhandled rejection here would be a button
+  // that silently did nothing.
   const remember = useCallback(async (editorPath) => {
-    const result = await window.api.chooseEditor(editorPath);
+    let result;
+    try {
+      result = await window.api.chooseEditor(editorPath);
+    } catch (err) {
+      // eslint-disable-next-line no-console -- see the note on the first console.error above.
+      console.error('Could not remember that editor:', err);
+      return { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
+    }
     if (result?.ok) setChosen(result.editor);
     return result;
   }, []);
@@ -997,11 +1014,28 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     if (result?.reason === 'unregistered-site') {
       return 'This app has no record of that folder, so it will not open it.';
     }
+    if (result?.reason === 'unavailable') {
+      return `Could not reach the app's main process: ${result.error || 'unknown error'}`;
+    }
     return 'Could not open the folder in an editor.';
   }, []);
 
+  // The invoke itself can reject — a handler that throws, a window being torn
+  // down — and a rejection here would leave the notice unset and the picker
+  // unopened: the button would appear to do nothing, which is the one outcome
+  // this feature is not allowed to produce.
+  const askToOpen = useCallback(async () => {
+    try {
+      return await window.api.openInEditor(sitePath);
+    } catch (err) {
+      // eslint-disable-next-line no-console -- see the note on the first console.error above.
+      console.error('Could not open the site in an editor:', err);
+      return { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
+    }
+  }, [sitePath]);
+
   const openInEditor = useCallback(async () => {
-    const result = await window.api.openInEditor(sitePath);
+    const result = await askToOpen();
     if (result?.ok) {
       setEditorNotice('');
       return;
@@ -1011,23 +1045,39 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setEditorNotice(result?.reason === 'no-editor' ? '' : describeOpenFailure(result));
     await loadDetected();
     setEditorPickerOpen(true);
-  }, [describeOpenFailure, loadDetected, sitePath]);
+  }, [askToOpen, describeOpenFailure, loadDetected]);
 
   const rememberEditor = useCallback(async (editorPath) => {
     const result = await remember(editorPath);
     if (!result?.ok) {
       if (result?.reason === 'unlaunchable-editor') {
         setEditorNotice('That is not an application this app can open a folder in.');
+      } else if (result?.reason === 'unavailable') {
+        setEditorNotice(describeOpenFailure(result));
       }
+      // 'cancelled' is the contributor closing the dialog, which is an answer,
+      // not a failure. The picker stays open either way: it is where the next
+      // attempt starts from.
       return;
     }
-    setEditorPickerOpen(false);
-    const opened = await window.api.openInEditor(sitePath);
+    const opened = await askToOpen();
     setEditorNotice(opened?.ok ? '' : describeOpenFailure(opened));
-  }, [describeOpenFailure, remember, sitePath]);
+    // Only a launch that actually worked closes the picker. Closing it on the
+    // choice alone would leave a contributor whose editor failed looking at a
+    // notice with no picker, one step further from a working editor than before
+    // they clicked.
+    if (opened?.ok) setEditorPickerOpen(false);
+  }, [askToOpen, describeOpenFailure, remember]);
 
   const showInFileManager = useCallback(async () => {
-    const result = await window.api.showSiteInFileManager(sitePath);
+    let result;
+    try {
+      result = await window.api.showSiteInFileManager(sitePath);
+    } catch (err) {
+      // eslint-disable-next-line no-console -- see the note on the first console.error above.
+      console.error('Could not reveal the site folder:', err);
+      result = { ok: false, error: String(err?.message ?? err) };
+    }
     setEditorNotice(result?.ok ? '' : `Could not open the folder: ${result?.error || 'unknown error'}`);
   }, [sitePath]);
 
@@ -2799,6 +2849,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           onRequestClose={() => setEditorPickerOpen(false)}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 420 }}>
+            {/* Why the picker is open, inside the picker. The notice below the
+                path row says the same thing, but the modal takes focus, so a
+                contributor using the keyboard or a screen reader would otherwise
+                be reading generic copy with the reason left behind them. */}
+            {editorNotice ? (
+              <div
+                role="alert"
+                style={{ padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}
+              >{editorNotice}</div>
+            ) : null}
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
               {detectedEditors.length
                 ? 'Choose the editor to open this site in. This app will remember it.'

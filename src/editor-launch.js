@@ -139,43 +139,87 @@ function editorCandidates({ platform, env = {} } = {}) {
 // The editors this machine has, in table order, each reduced to the first
 // location that exists. `exists` is injected — it is the only thing detection
 // does, and the only thing a test has to stand in for.
-function detectEditors({ platform, env = {}, exists } = {}) {
+//
+// It is awaited rather than called for a return value, because the caller is
+// Electron's main process: a dozen or so probes of locations that mostly do not
+// exist is exactly the kind of work that reads as free on the author's machine
+// and stalls the whole window behind a Windows antivirus filter driver. Nothing
+// here may be synchronous filesystem access.
+//
+// Candidates are probed together rather than one after another: they are
+// independent questions, and the answer arrives in one round rather than a dozen.
+async function detectEditors({ platform, env = {}, exists } = {}) {
 	if (typeof exists !== 'function') return [];
 
-	return editorCandidates({ platform, env })
-		.map(({ id, name, paths }) => {
-			const found = paths.find((candidate) => {
-				try {
-					return exists(candidate) === true;
-				} catch {
-					// An unreadable location is a location we do not have, not a crash
-					// on the way to drawing a button.
-					return false;
-				}
-			});
-			return found ? { id, name, path: found } : null;
-		})
-		.filter(Boolean);
+	const probe = async (candidate) => {
+		try {
+			return (await exists(candidate)) === true;
+		} catch {
+			// An unreadable location is a location we do not have, not a crash on
+			// the way to drawing a button.
+			return false;
+		}
+	};
+
+	const found = await Promise.all(editorCandidates({ platform, env }).map(async ({ id, name, paths }) => {
+		const present = await Promise.all(paths.map(probe));
+		const index = present.indexOf(true);
+		return index === -1 ? null : { id, name, path: paths[index] };
+	}));
+
+	return found.filter(Boolean);
+}
+
+// The name the table has for an application at this path, or null for one it
+// does not know.
+//
+// Without this the stored name is the basename, which on macOS reads well by
+// accident ('Sublime Text.app' → 'Sublime Text') and on Windows does not:
+// 'Code.exe' → 'Code', 'phpstorm64.exe' → 'phpstorm64'. The button promises to
+// name the contributor's editor, so a known one is named the way the picker
+// named it, and only a manually chosen unknown application falls back to its
+// filename.
+//
+// The comparison is case-insensitive on Windows and macOS because their default
+// filesystems are: the same application reached through a differently-cased path
+// is the same application.
+function knownEditorName(editorPath, { platform, env = {} } = {}) {
+	if (typeof editorPath !== 'string' || editorPath === '') return null;
+
+	const insensitive = platform === 'win32' || platform === 'darwin';
+	const normalize = (p) => (insensitive ? p.toLowerCase() : p);
+	const wanted = normalize(editorPath);
+
+	const match = editorCandidates({ platform, env })
+		.find(({ paths }) => paths.some((candidate) => normalize(candidate) === wanted));
+
+	return match ? match.name : null;
 }
 
 // Whether a path is something this app will hand to the OS as an application.
 //
 // Absolute, because a relative command would be resolved through PATH by spawn,
 // and of the shape the platform uses for an application: a `.app` bundle
-// (a directory) on macOS, an `.exe` on Windows, a regular file elsewhere. The
-// same check covers both a detected path and one the contributor picked — the
+// (a directory) on macOS, an `.exe` on Windows, and elsewhere a file the OS will
+// actually execute. That last one is not the same as "a regular file": the Linux
+// picker cannot filter by extension, so a document passes every other check and
+// then fails with EACCES at the spawn, after being remembered as the
+// contributor's editor.
+//
+// The same check covers a detected path and one the contributor picked — the
 // picker is a dialog, and a dialog's result is still input.
 //
-// `statPath` returns `{ isDirectory, isFile }` or null when there is nothing
-// there; it is injected for the same reason `exists` is.
-function isLaunchableEditorPath(editorPath, { platform, statPath } = {}) {
+// `statPath` resolves to `{ isDirectory, isFile, isExecutable }`, or null when
+// there is nothing there; it is injected and awaited for the same reasons
+// `exists` is.
+async function isLaunchableEditorPath(editorPath, { platform, statPath } = {}) {
 	if (typeof editorPath !== 'string' || editorPath === '') return false;
 	if (typeof statPath !== 'function') return false;
 	if (!pathApi(platform).isAbsolute(editorPath)) return false;
 
 	let stats;
 	try {
-		stats = statPath(editorPath);
+		stats = await statPath(editorPath);
 	} catch {
 		return false;
 	}
@@ -187,7 +231,7 @@ function isLaunchableEditorPath(editorPath, { platform, statPath } = {}) {
 	if (platform === 'win32') {
 		return stats.isFile === true && editorPath.toLowerCase().endsWith('.exe');
 	}
-	return stats.isFile === true;
+	return stats.isFile === true && stats.isExecutable === true;
 }
 
 // What to run, as a command and an argument vector — never a string to be
@@ -236,7 +280,7 @@ async function openSiteInEditor(sitePath, editorPath, {
 		return { ok: false, reason: REFUSAL_REASONS.UNREGISTERED_SITE };
 	}
 
-	if (!isLaunchableEditorPath(editorPath, { platform, statPath })) {
+	if (!await isLaunchableEditorPath(editorPath, { platform, statPath })) {
 		if (typeof onRefused === 'function') {
 			onRefused(REFUSAL_REASONS.UNLAUNCHABLE_EDITOR, describeRefused(editorPath));
 		}
@@ -314,6 +358,7 @@ module.exports = {
 	REFUSAL_REASONS,
 	editorCandidates,
 	detectEditors,
+	knownEditorName,
 	isLaunchableEditorPath,
 	resolveLaunch,
 	openSiteInEditor
