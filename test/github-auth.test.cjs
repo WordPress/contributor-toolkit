@@ -71,7 +71,10 @@ test('requestDeviceCode returns the code, the page, and an absolute expiry', asy
 	// GitHub sends a duration; every later comparison wants an instant.
 	assert.strictEqual(res.expiresAt, 1000 + 900 * 1000);
 	assert.strictEqual(post.calls[0].payload.client_id, CLIENT_ID);
-	assert.strictEqual(post.calls[0].payload.scope, 'public_repo');
+	// `repo`, not `public_repo`: ref creation accepts only the full scope
+	// (X-Accepted-OAuth-Scopes, verified by hand), and a token with the
+	// narrower one uploads everything and 404s on the branch.
+	assert.strictEqual(post.calls[0].payload.scope, 'repo');
 });
 
 // The build shipping without a client ID and the application not having device
@@ -215,8 +218,11 @@ test('fetchViewer refuses a token whose granted scopes cannot push', async () =>
 	assert.strictEqual((await viewer('gist, read:org')).reason, 'insufficient-scope');
 	assert.match((await viewer('')).error, /sign in here again/i);
 
-	// Either granted scope that can push passes; `repo` contains `public_repo`.
-	assert.strictEqual((await viewer('public_repo')).ok, true);
+	// `public_repo` is the trap this check exists for: documented to cover
+	// public-repo writes, refused by ref creation in practice — the token that
+	// uploads everything and fails on the branch.
+	assert.strictEqual((await viewer('public_repo')).reason, 'insufficient-scope');
+
 	assert.strictEqual((await viewer('repo, gist')).ok, true);
 
 	// No header is no evidence — some token types omit it entirely.

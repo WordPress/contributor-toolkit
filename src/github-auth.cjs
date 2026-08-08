@@ -38,10 +38,16 @@ const { postForm, getJson } = require('./github-http.cjs');
 // surface as GitHub's indistinguishable 404.
 const CLIENT_ID = 'Ov23liJ2H1gdqF2dTpMe';
 
-// `public_repo` is fork, push and pull request on a public repository — the
-// narrowest scope that can do this job. Anything wider would be asking a
-// first-time contributor to grant more than the task needs.
-const SCOPES = 'public_repo';
+// `repo`, not the `public_repo` this flow morally needs. The narrower scope is
+// documented to cover writes to public repositories, and GitHub does not
+// honour it where it counts: creating a ref answers `X-Accepted-OAuth-Scopes:
+// repo` — only the full scope — while the object endpoints (blobs, trees,
+// commits) demand no scope at all. Verified by hand on 2026-08-08, on a fork
+// and on an ordinary personal repository alike: a `public_repo` token uploads
+// the whole change and then 404s on the branch, the last write of the flow.
+// So the consent screen asks for more than this app will ever touch, and the
+// comment you are reading is the apology.
+const SCOPES = 'repo';
 
 const DEVICE_CODE_URL = 'https://github.com/login/device/code';
 const ACCESS_TOKEN_URL = 'https://github.com/login/oauth/access_token';
@@ -206,15 +212,17 @@ async function pollForToken({ deviceCode, interval, expiresAt }, deps = {}) {
 }
 
 /**
- * True when a token's granted scopes can push to a public repository. `repo`
- * contains `public_repo`, so either satisfies.
+ * True when a token's granted scopes can create a branch. Only `repo` counts:
+ * `public_repo` is documented to cover public-repository writes and is not
+ * accepted by ref creation (see the note on SCOPES above), so treating it as
+ * sufficient here would wave through exactly the token that fails at the last
+ * write.
  *
  * @param {string} header The X-OAuth-Scopes response header.
  * @return {boolean}
  */
 function scopesCanPush(header) {
-	const granted = String(header).split(',').map((s) => s.trim());
-	return granted.includes('public_repo') || granted.includes('repo');
+	return String(header).split(',').map((s) => s.trim()).includes('repo');
 }
 
 /**
@@ -257,7 +265,7 @@ async function fetchViewer(token, deps = {}) {
 		return {
 			ok: false,
 			reason: 'insufficient-scope',
-			error: 'GitHub granted this sign-in no access to public repositories — an older authorization of this app was likely reused. Revoke "WordPress Contributor Toolkit" under github.com → Settings → Applications, then sign in here again.'
+			error: 'GitHub granted this sign-in less access than opening a pull request needs — an older authorization of this app was likely reused. Revoke "WordPress Contributor Toolkit" under github.com → Settings → Applications, then sign in here again.'
 		};
 	}
 	return { ok: true, login: String(res.json.login) };

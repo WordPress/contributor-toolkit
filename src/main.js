@@ -493,7 +493,7 @@ ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
 //
 // That is a deliberate cost. A contributor who restarts the app signs in again.
 // The machine this runs on is often a borrowed laptop in a contributor-day
-// room, and a `public_repo` token outliving the session on one of those is a
+// room, and a `repo` token outliving the session on one of those is a
 // worse trade than a second sign-in.
 let githubToken = null;
 let githubLogin = null;

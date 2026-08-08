@@ -108,11 +108,11 @@ test('postForm sends URL-encoded parameters and parses the JSON answer', async (
 
 	const res = await postForm('https://github.com/login/device/code', {
 		client_id: 'Ov23liTEST',
-		scope: 'public_repo'
+		scope: 'repo'
 	}, { net: net.client });
 
 	assert.strictEqual(net.sent.headers['Content-Type'], 'application/x-www-form-urlencoded');
-	assert.deepStrictEqual(net.sent.written, ['client_id=Ov23liTEST&scope=public_repo']);
+	assert.deepStrictEqual(net.sent.written, ['client_id=Ov23liTEST&scope=repo']);
 	assert.deepStrictEqual(res.json, { device_code: 'd' });
 });
 
