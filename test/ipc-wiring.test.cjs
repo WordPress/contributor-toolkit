@@ -637,6 +637,35 @@ test('a generated addition parses back as an addition (#85)', async (t) => {
 	assert.deepEqual(parsed.files.map((f) => [f.kind, f.path]), [['add', 'added.php']]);
 });
 
+// The bytes, not the round trip: jsdiff decides the `\ No newline at end of
+// file` marker from the new side, and a deletion's new side is the empty
+// string — so it stamps every deletion as if the removed file had lacked a
+// trailing newline. The marker attaches to the preceding `-` line, so on a
+// file that did end in one it asserts something false about the old side and
+// `git apply` refuses the patch. All of it, unrelated files included, since it
+// is all-or-nothing. The app's own applier tolerates the lie, which is exactly
+// why this is checked here and not through applyPatchToDir.
+test('a deletion does not claim the removed file lacked a trailing newline (#85)', async (t) => {
+	const dir = await patchRepo(t, { 'gone.php': '<?php // removed\n' });
+	fs.rmSync(path.join(dir, 'gone.php'));
+
+	const { patch } = await patchMain().invoke('git:get-patch', dir);
+
+	assert.match(patch, /^-<\?php \/\/ removed$/m);
+	assert.doesNotMatch(patch, /No newline at end of file/);
+});
+
+// The other side of it: when the file really had no trailing newline the
+// marker is true and load-bearing — `git apply` refuses the patch without it.
+test('a deletion keeps the marker when the removed file really lacked a newline (#85)', async (t) => {
+	const dir = await patchRepo(t, { 'gone.php': 'one\ntwo' });
+	fs.rmSync(path.join(dir, 'gone.php'));
+
+	const { patch } = await patchMain().invoke('git:get-patch', dir);
+
+	assert.match(patch, /^-two\n\\ No newline at end of file$/m);
+});
+
 // The round trip is the point: this app reads its own patches back when a
 // mentor applies one (#166), so what it emits has to survive its own applier.
 async function roundTrip(t, base, mutate) {
@@ -699,7 +728,7 @@ test('a binary file is named above the patch instead of vanishing (#85)', async 
 
 	const { patch } = await patchMain().invoke('git:get-patch', dir);
 
-	assert.match(patch, /^# 1 binary file/m);
+	assert.match(patch, /^# 1 file is not in this patch — a text diff cannot carry binary content:$/m);
 	assert.match(patch, /^#\s+logo\.png$/m);
 	assert.match(patch, /^\+<\?php \/\/ edited/m, 'the text change is still there');
 	const parsed = require('../src/patch-plan.cjs').parsePatchFiles(patch);
@@ -713,8 +742,11 @@ test('a tree whose only change is binary still reports no changes (#85)', async 
 
 	const { patch } = await patchMain().invoke('git:get-patch', dir);
 
-	assert.match(patch, /^# 1 binary file/m);
-	assert.ok(patch.endsWith('No changes.'), `the renderer keys on that exact sentinel: ${JSON.stringify(patch)}`);
+	assert.match(patch, /^# 1 file is not in this patch/m);
+	// What the panel actually asks before offering Trac and the other
+	// destinations — the sentinel is how it is spelled, not what is meant.
+	assert.equal(require('../src/renderer/diff-highlight.cjs').hasDiffLines(patch), false);
+	assert.ok(patch.endsWith('No changes.'), JSON.stringify(patch));
 });
 
 // The other two entry points into the same patch path. They differ only in what
@@ -2291,3 +2323,4 @@ test('every IPC channel is classified: wired, or explicitly not', () => {
 	const stale = CLASSIFIED.filter((channel) => !registered.includes(channel));
 	assert.deepEqual(stale, [], 'Classified channels that main.js no longer registers');
 });
+

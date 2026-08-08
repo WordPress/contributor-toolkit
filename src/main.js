@@ -361,18 +361,31 @@ async function createMinimalPatchForDir(dir, baseOid = null) {
     const changed = matrix.filter(([, head, workdir]) => head !== workdir);
     let patch = '';
     const binaries = [];
+    const unreadable = [];
     for (const [filepath, head, workdir] of changed) {
         const abs = require('path').join(dir, filepath);
         // A workdir column of 0 means the file is gone, and gone is a change
         // worth reporting (#85). It is read from the matrix rather than from a
         // failed read, because a file that is present but will not open is not
         // a deletion: emitting one would tell the next checkout to remove
-        // something nobody removed.
+        // something nobody removed. That file is named above the diff instead,
+        // for the same reason a binary is — a change this patch does not carry
+        // is one the contributor has to hear about.
         const gone = workdir === 0;
         const workBuf = gone ? null : await fs.promises.readFile(abs).catch(() => null);
-        if (!gone && !workBuf) continue;
+        if (!gone && !workBuf) {
+            unreadable.push(filepath);
+            continue;
+        }
         const baseBlob = head && base ? await git.readBlob({ fs, dir, oid: base, filepath }).catch(() => null) : null;
         const baseBuf = baseBlob ? Buffer.from(baseBlob.blob) : null;
+        // The base side is on record but unreadable — a damaged object store.
+        // Carrying on would name this `/dev/null` and turn an edit into an
+        // addition that applies nowhere, so it is reported rather than guessed.
+        if (head && !baseBuf) {
+            unreadable.push(filepath);
+            continue;
+        }
         // Checked on the bytes, before a utf8 decode turns undecodable ones
         // into U+FFFD and hides them. A unified diff cannot carry a binary, but
         // dropping it in silence hands over a patch that is missing a file the
@@ -393,36 +406,69 @@ async function createMinimalPatchForDir(dir, baseOid = null) {
         // Named `b/<path>`, a deletion comes back through this app's own
         // reader as a modification, and the applier writes an empty file where
         // the patch said remove.
-        const oldName = baseBuf ? `a/${filepath}` : '/dev/null';
-        const newName = workBuf ? `b/${filepath}` : '/dev/null';
+        //
+        // Which side exists is the matrix's answer, not the buffers': a base
+        // blob that would not load has already been reported above, and
+        // deciding it here would silently retype an edit as an addition.
+        const oldName = head ? `a/${filepath}` : '/dev/null';
+        const newName = gone ? '/dev/null' : `b/${filepath}`;
         // No blank line between sections. jsdiff keeps consuming lines past a
         // `\ No newline at end of file` marker, so a separator becomes a
         // phantom empty context line and the section stops applying to any
         // file that does not end in a newline — the file it just described.
         // Each section already ends in one.
-        patch += JsDiff.createTwoFilesPatch(oldName, newName, a, b, '', '', { context: 3 });
+        patch += withoutPhantomNoNewline(
+            JsDiff.createTwoFilesPatch(oldName, newName, a, b, '', '', { context: 3 }),
+            gone && a.endsWith('\n')
+        );
     }
-    return binaryNotice(binaries) + (patch || 'No changes.');
+    return skippedNotice(binaries, unreadable) + (patch || 'No changes.');
 }
 
 /**
- * The `#` lines that name the binaries a text diff could not carry (#85).
+ * Drops the `\ No newline at end of file` marker jsdiff adds to a deletion
+ * whether or not it is true (#85).
+ *
+ * jsdiff decides the marker from the *new* side, and a deletion's new side is
+ * the empty string — which it reads as "no trailing newline", so every deletion
+ * comes out claiming the removed file lacked one. The marker attaches to the
+ * preceding `-` line, so on a file that did end in a newline it asserts
+ * something false about the old side and `git apply` refuses the patch — the
+ * whole patch, since it is all-or-nothing, unrelated files included. `patch(1)`
+ * tolerates it; the destination is a Trac ticket read by a committer running
+ * `git apply`, so tolerance elsewhere is not enough.
+ *
+ * @param {string}  section One createTwoFilesPatch section.
+ * @param {boolean} phantom True when the marker is jsdiff's invention.
+ * @return {string} The section, marker removed only when it was not earned.
+ */
+function withoutPhantomNoNewline(section, phantom) {
+    if (!phantom) return section;
+    return section.replace(/\n\\ No newline at end of file\n$/, '\n');
+}
+
+/**
+ * The `#` lines naming the changed files this patch does not carry (#85).
  *
  * Above the whole diff rather than between sections, which is the placement
  * patch-provenance.cjs already established for the handoff header: `git apply`
  * and `patch` skip leading comment lines, this app's own parser starts at the
- * first `---`, and the two blocks stack readably when a patch has both.
+ * first `---`, and the blocks stack readably when a patch has several.
  *
- * @param {Array<string>} paths Repo-relative paths, in the order found.
+ * @param {Array<string>} binaries   Files a unified diff cannot represent.
+ * @param {Array<string>} unreadable Files whose contents would not load.
  * @return {string} The notice, or an empty string when there is nothing to say.
  */
-function binaryNotice(paths) {
-    if (!paths.length) return '';
-    const many = paths.length > 1;
-    return `# ${paths.length} binary file${many ? 's are' : ' is'} not in this patch`
-        + ` — a text diff cannot carry ${many ? 'them' : 'it'}:\n`
-        + paths.map((p) => `#   ${p}\n`).join('')
-        + '\n';
+function skippedNotice(binaries, unreadable) {
+    const block = (paths, reason) => {
+        if (!paths.length) return '';
+        const many = paths.length > 1;
+        return `# ${paths.length} ${many ? 'files are' : 'file is'} not in this patch — ${reason(many)}:\n`
+            + paths.map((p) => `#   ${p}\n`).join('');
+    };
+    const notice = block(binaries, () => 'a text diff cannot carry binary content')
+        + block(unreadable, (many) => `${many ? 'their' : 'its'} contents could not be read`);
+    return notice ? `${notice}\n` : '';
 }
 
 ipcMain.handle('git:get-patch', async (_e, sitePath) => {
