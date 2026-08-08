@@ -1560,7 +1560,9 @@ test('github:account reports the login the sign-in produced, and forgets it on s
 	const auth = fakeGithubAuth({ login: 'janedoe' });
 	const main = loadMain({ stubs: { ...silentLogging(), './github-auth.cjs': auth } });
 
-	assert.deepEqual(await main.invoke('github:account'), { ok: true, login: null, configured: true });
+	// testMode null is the load-bearing half: it is what keeps the test-mode
+	// badge off a real contributor's screen in a shipped build.
+	assert.deepEqual(await main.invoke('github:account'), { ok: true, login: null, configured: true, testMode: null });
 
 	await main.invokeWith('github:sign-in', createIpcEvent());
 	await settle();

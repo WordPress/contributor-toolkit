@@ -54,6 +54,36 @@ function upstream() {
 	if (match) return { owner: match[1], repo: match[2] };
 	return { owner: UPSTREAM_OWNER, repo: UPSTREAM_REPO };
 }
+
+/**
+ * True when this run stops before opening the pull request.
+ *
+ * @return {boolean}
+ */
+function isDryRun() {
+	return Boolean(process.env.WP_DEV_ENV_GITHUB_DRY_RUN);
+}
+
+/**
+ * What the panel needs to say about a run that is not a normal one, or null
+ * when it is.
+ *
+ * These switches are set in a terminal, minutes before the button is pressed,
+ * and then the app looks exactly like production — which is how a dry run that
+ * silently was not one opened a real pull request against wordpress-develop
+ * during testing. A mode the contributor cannot see is a mode they cannot
+ * rely on, so the card states it where the decision is made.
+ *
+ * @return {{dryRun: boolean, target: string}|null}
+ */
+function testMode() {
+	const up = upstream();
+	const target = `${up.owner}/${up.repo}`;
+	const sandboxed = target !== `${UPSTREAM_OWNER}/${UPSTREAM_REPO}`;
+	if (!isDryRun() && !sandboxed) return null;
+	return { dryRun: isDryRun(), target };
+}
+
 const BASE_BRANCH = 'trunk';
 const API = 'https://api.github.com';
 
@@ -572,7 +602,7 @@ async function openPullRequest({ token, login, ticketId, baseSha, files, title, 
 	// upstream's watchers hear about, so it is the one a dry run skips —
 	// letting the rest of the flow be exercised against the real API without
 	// generating noise.
-	if (process.env.WP_DEV_ENV_GITHUB_DRY_RUN) {
+	if (isDryRun()) {
 		return {
 			ok: true,
 			dryRun: true,
@@ -596,6 +626,9 @@ module.exports = {
 	BASE_BRANCH,
 	MAX_BRANCH_ATTEMPTS,
 	classifyFailure,
+	upstream,
+	isDryRun,
+	testMode,
 	buildPullRequestBody,
 	branchNameFor,
 	ensureFork,

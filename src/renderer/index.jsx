@@ -2489,13 +2489,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 label="Title"
                 help="The ticket link and your WordPress.org username go in the description."
               />
+              {/*
+                The button says what it will actually do. A dry run's button
+                reading "Open pull request" is the label lying about the mode,
+                which is the failure this whole indicator exists to prevent.
+              */}
               <Button
                 variant="primary"
                 onClick={openPullRequest}
                 isBusy={Boolean(prStage)}
                 disabled={Boolean(prStage)}
                 style={{ justifyContent:'center' }}
-              >Open pull request</Button>
+              >{githubAccount?.testMode?.dryRun ? 'Push branch (dry run)' : 'Open pull request'}</Button>
             </>
           ) : (
             <div style={{ fontSize:12, color:'#6c6f72' }}>
@@ -3624,6 +3629,24 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     cost="A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk."
                     after="Automated checks run on it. Post the link back on the ticket — a pull request does not replace one."
                   >
+                    {/*
+                      Absent from every shipped build. When a test switch is
+                      set it sits above the button, because that is where the
+                      decision is made — a mode set in a terminal minutes
+                      earlier, in an app that otherwise looks identical, is how
+                      a dry run that silently was not one opened a real pull
+                      request during testing.
+                    */}
+                    {githubAccount?.testMode ? (
+                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', background:'#f0f0f1', border:'1px dashed #949494', borderRadius:6, fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
+                        <span style={{ fontWeight:600, letterSpacing:0.5, textTransform:'uppercase', fontSize:10, color:'#1d2327' }}>Test mode</span>
+                        <span>
+                          {githubAccount.testMode.dryRun
+                            ? 'Dry run — a branch is pushed to your fork, no pull request is opened.'
+                            : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to wordpress-develop.</>}
+                        </span>
+                      </div>
+                    ) : null}
                     {renderPullRequestBody()}
                     {githubError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{githubError}</div> : null}
                     {prError ? (

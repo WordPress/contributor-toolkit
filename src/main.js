@@ -33,7 +33,7 @@ const { applyPatchToDir } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
 const { fetchLinkedPrs, fetchPrDiff } = require('./github-prs');
 const { getClientId: getGithubClientId, requestDeviceCode, pollForToken, fetchViewer } = require('./github-auth.cjs');
-const { openPullRequest, buildPullRequestBody } = require('./github-pr.cjs');
+const { openPullRequest, buildPullRequestBody, testMode: githubTestMode } = require('./github-pr.cjs');
 const { buildPullRequestEntries } = require('./pr-files.cjs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
@@ -512,7 +512,12 @@ ipcMain.handle('github:account', async () => ({
     login: githubLogin,
     // The panel says "sign-in is not set up in this build" rather than offering
     // a button that can only fail.
-    configured: Boolean(getGithubClientId())
+    configured: Boolean(getGithubClientId()),
+    // Null in every shipped build. When an env switch is set, the card has to
+    // say so: the switches are typed in a terminal minutes earlier, and an
+    // app that looks identical either way is how a dry run that silently was
+    // not one opened a real pull request during testing.
+    testMode: githubTestMode()
 }));
 
 ipcMain.handle('github:sign-out', async () => {

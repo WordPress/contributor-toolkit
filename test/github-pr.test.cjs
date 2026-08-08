@@ -19,6 +19,7 @@ const {
 	buildPullRequestBody,
 	branchNameFor,
 	classifyFailure,
+	testMode,
 	ensureFork,
 	resolveBase,
 	staleTouchedPaths,
@@ -538,6 +539,30 @@ test('WP_DEV_ENV_GITHUB_UPSTREAM points the whole flow at a sandbox', async (t) 
 	assert.strictEqual(res.url, 'https://github.com/sandbox-org/pr-sandbox/pull/1');
 	// Nothing touched the real upstream.
 	assert.strictEqual(api.calls.some((c) => c.url.includes('wordpress-develop')), false);
+});
+
+// The card reads this to say which mode it is in. Null in a shipped build is
+// the load-bearing case: it is what keeps the badge off a real contributor's
+// screen.
+test('testMode is null unless a switch is set, and names the mode when one is', (t) => {
+	t.after(() => {
+		delete process.env.WP_DEV_ENV_GITHUB_DRY_RUN;
+		delete process.env.WP_DEV_ENV_GITHUB_UPSTREAM;
+	});
+
+	assert.strictEqual(testMode(), null);
+
+	process.env.WP_DEV_ENV_GITHUB_DRY_RUN = '1';
+	assert.deepStrictEqual(testMode(), { dryRun: true, target: 'WordPress/wordpress-develop' });
+
+	delete process.env.WP_DEV_ENV_GITHUB_DRY_RUN;
+	process.env.WP_DEV_ENV_GITHUB_UPSTREAM = 'sandbox-org/pr-sandbox';
+	assert.deepStrictEqual(testMode(), { dryRun: false, target: 'sandbox-org/pr-sandbox' });
+
+	// An upstream override that names the real repository is not a test mode —
+	// it changes nothing, so the badge would be a lie.
+	process.env.WP_DEV_ENV_GITHUB_UPSTREAM = 'WordPress/wordpress-develop';
+	assert.strictEqual(testMode(), null);
 });
 
 test('WP_DEV_ENV_GITHUB_DRY_RUN stops after the branch, before the pull request', async (t) => {
