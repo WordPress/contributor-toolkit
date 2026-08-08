@@ -31,7 +31,20 @@
   <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
   <meta http-equiv="Permissions-Policy" content="clipboard-read=(self), clipboard-write=(self)" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="color-scheme" content="light dark" />
+  <!--
+    `light`, not `light dark`: this window has no dark theme. Every surface in
+    it is painted light by hand — white cards, #1e1e1e text — and
+    @wordpress/components ships light styles only. Declaring support for both
+    let the browser paint the parts it owns, the native form controls, to match
+    the OS instead. On a machine in dark mode that produced charcoal inputs on
+    white cards, with placeholder text at dark-on-dark contrast: unreadable,
+    and the guidance this app puts in placeholders is exactly what a first-timer
+    needs to read.
+
+    This was a promise the app could not keep, so it stops making it. The day a
+    real dark theme exists, this goes back to `light dark` along with it.
+  -->
+  <meta name="color-scheme" content="light" />
   <meta name="robots" content="noindex, nofollow" />
   <meta name="referrer" content="no-referrer" />
 </head>
