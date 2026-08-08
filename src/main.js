@@ -360,22 +360,69 @@ async function createMinimalPatchForDir(dir, baseOid = null) {
     const matrix = await git.statusMatrix({ fs, dir, ref: base });
     const changed = matrix.filter(([, head, workdir]) => head !== workdir);
     let patch = '';
+    const binaries = [];
     for (const [filepath, head, workdir] of changed) {
         const abs = require('path').join(dir, filepath);
-        const workBuf = workdir ? await fs.promises.readFile(abs).catch(() => null) : null;
+        // A workdir column of 0 means the file is gone, and gone is a change
+        // worth reporting (#85). It is read from the matrix rather than from a
+        // failed read, because a file that is present but will not open is not
+        // a deletion: emitting one would tell the next checkout to remove
+        // something nobody removed.
+        const gone = workdir === 0;
+        const workBuf = gone ? null : await fs.promises.readFile(abs).catch(() => null);
+        if (!gone && !workBuf) continue;
         const baseBlob = head && base ? await git.readBlob({ fs, dir, oid: base, filepath }).catch(() => null) : null;
+        const baseBuf = baseBlob ? Buffer.from(baseBlob.blob) : null;
+        // Checked on the bytes, before a utf8 decode turns undecodable ones
+        // into U+FFFD and hides them. A unified diff cannot carry a binary, but
+        // dropping it in silence hands over a patch that is missing a file the
+        // contributor changed — so it is named above the diff instead.
+        if ((baseBuf && baseBuf.includes(0)) || (workBuf && workBuf.includes(0))) {
+            binaries.push(filepath);
+            continue;
+        }
         // CRLF→LF on both sides: the workdir may be a CRLF checkout (native
         // git on Windows), and a patch full of line-ending churn applies
         // nowhere on Trac.
-        const a = baseBlob ? normalizeEol(Buffer.from(baseBlob.blob).toString('utf8')) : '';
-        const b = workBuf ? normalizeEol(workBuf.toString('utf8')) : a;
+        const a = baseBuf ? normalizeEol(baseBuf.toString('utf8')) : '';
+        const b = workBuf ? normalizeEol(workBuf.toString('utf8')) : '';
         if (a === b) continue;
-        // Skip likely-binary
-        if ((a.indexOf('\0') !== -1) || (b.indexOf('\0') !== -1)) continue;
-        const filePatch = JsDiff.createTwoFilesPatch(`a/${filepath}`, `b/${filepath}`, a, b, '', '', { context: 3 });
-        patch += filePatch + '\n';
+        // `/dev/null` names whichever side does not exist, and it is not
+        // decoration: classify() in patch-plan.cjs reads an add or a delete
+        // from the filename alone, never from "the hunk removes every line".
+        // Named `b/<path>`, a deletion comes back through this app's own
+        // reader as a modification, and the applier writes an empty file where
+        // the patch said remove.
+        const oldName = baseBuf ? `a/${filepath}` : '/dev/null';
+        const newName = workBuf ? `b/${filepath}` : '/dev/null';
+        // No blank line between sections. jsdiff keeps consuming lines past a
+        // `\ No newline at end of file` marker, so a separator becomes a
+        // phantom empty context line and the section stops applying to any
+        // file that does not end in a newline — the file it just described.
+        // Each section already ends in one.
+        patch += JsDiff.createTwoFilesPatch(oldName, newName, a, b, '', '', { context: 3 });
     }
-    return patch || 'No changes.';
+    return binaryNotice(binaries) + (patch || 'No changes.');
+}
+
+/**
+ * The `#` lines that name the binaries a text diff could not carry (#85).
+ *
+ * Above the whole diff rather than between sections, which is the placement
+ * patch-provenance.cjs already established for the handoff header: `git apply`
+ * and `patch` skip leading comment lines, this app's own parser starts at the
+ * first `---`, and the two blocks stack readably when a patch has both.
+ *
+ * @param {Array<string>} paths Repo-relative paths, in the order found.
+ * @return {string} The notice, or an empty string when there is nothing to say.
+ */
+function binaryNotice(paths) {
+    if (!paths.length) return '';
+    const many = paths.length > 1;
+    return `# ${paths.length} binary file${many ? 's are' : ' is'} not in this patch`
+        + ` — a text diff cannot carry ${many ? 'them' : 'it'}:\n`
+        + paths.map((p) => `#   ${p}\n`).join('')
+        + '\n';
 }
 
 ipcMain.handle('git:get-patch', async (_e, sitePath) => {
@@ -391,7 +438,7 @@ ipcMain.handle('git:create-patch', async (_e, sitePath) => {
     try {
         const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
         const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
-        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml(patch || 'No changes.')));
+        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml(patch)));
         return { ok: true };
     } catch (e) {
         const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });

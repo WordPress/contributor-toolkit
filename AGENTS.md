@@ -71,9 +71,11 @@ See `package.json` scripts. To run a single test file (not exposed as a script):
   requires shimming `node`/`npm`/`npx` into `PATH` so child `npm` processes can find a `node` binary
   at all.
 - **Git has no system dependency** — all Git ops go through `isomorphic-git`, not a shelled-out
-  `git` binary. Patch/diff generation is done by hand in `main.js` (stage untracked files, diff
-  working tree vs `HEAD` — the cloned trunk snapshot, kept deliberately as the diff base; see #94),
-  not `git diff`.
+  `git` binary. Patch/diff generation is done by hand in `main.js`, not `git diff`: one status scan
+  against the branch point each ticket recorded (#108), nothing staged, and `/dev/null` naming
+  whichever side of an addition or a deletion does not exist — the app reads its own patches back
+  when a mentor applies one, and that filename is the only thing its parser reads an add or a
+  delete from (#85).
 - **`electron-store` is the only persistence layer** — no separate DB. It holds the site registry
   and per-site metadata; treat it as the single source of truth for "known sites."
 - Long-running child-process output (installs, scripts, server) is streamed to the renderer via

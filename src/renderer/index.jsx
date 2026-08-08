@@ -24,7 +24,7 @@ import { pickLatest } from '../latest-patch.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { ticketBranchRows } from './ticket-branch-list.cjs';
-import { highlightDiff } from './diff-highlight.cjs';
+import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // Per-status wording for the update chain card (#94), following the issue's
@@ -2341,9 +2341,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Naming destinations for a patch that does not exist would be noise, and
   // both of the states that produce one are already spelled out in the pane
   // below: `getPatch` returns the literal 'No changes.', and its failures are
-  // put in the same box prefixed with 'Error'.
+  // put in the same box prefixed with 'Error'. The sentinel can arrive under
+  // `#` lines naming binaries that could not be carried (#85), so the test is
+  // "is there a diff under the commentary" rather than a string comparison.
   const patchHasChanges = Boolean(patchText)
-    && patchText.trim() !== 'No changes.'
+    && hasDiffLines(patchText)
     && !patchText.startsWith('Error');
 
   // Saving the file, for every destination that needs one (#166). `handoff`

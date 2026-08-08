@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { MAX_HIGHLIGHTED_LINES, classifyLine, highlightDiff } = require('../src/renderer/diff-highlight.cjs');
+const { MAX_HIGHLIGHTED_LINES, classifyLine, highlightDiff, hasDiffLines } = require('../src/renderer/diff-highlight.cjs');
 
 test('classifyLine: added and removed code are the two the reader is looking for (issue #166)', () => {
 	assert.strictEqual(classifyLine('+\t$a = 2;'), 'add');
@@ -83,4 +83,39 @@ test('highlightDiff: nothing to paint is null, not an empty line (issue #166)', 
 	assert.strictEqual(highlightDiff(''), null);
 	assert.strictEqual(highlightDiff(null), null);
 	assert.strictEqual(highlightDiff(undefined), null);
+});
+
+// A patch can now carry `#` lines that explain what is NOT in it — the
+// binaries a text diff cannot represent (issue #85), and the provenance header
+// on a handoff (issue #166). The panel decides whether to offer Trac and the
+// other destinations from this, so commentary must not read as content.
+test('hasDiffLines: commentary above an empty patch is not a change (issue #85)', () => {
+	const binaryOnly = [
+		'# 1 binary file is not in this patch — a text diff cannot carry it:',
+		'#   src/wp-includes/images/logo.png',
+		'',
+		'No changes.'
+	].join('\n');
+
+	assert.strictEqual(hasDiffLines(binaryOnly), false);
+	assert.strictEqual(hasDiffLines('No changes.'), false);
+	assert.strictEqual(hasDiffLines(''), false);
+	assert.strictEqual(hasDiffLines(null), false);
+});
+
+test('hasDiffLines: a diff under the commentary is a change (issue #85)', () => {
+	const withBinaryNotice = [
+		'# 1 binary file is not in this patch — a text diff cannot carry it:',
+		'#   src/x.png',
+		'',
+		'--- a/src/post.php\t',
+		'+++ b/src/post.php\t',
+		'@@ -1,1 +1,1 @@',
+		'-old',
+		'+new'
+	].join('\n');
+
+	assert.strictEqual(hasDiffLines(withBinaryNotice), true);
+	// The handoff header (issue #166) is the same shape, above a real diff.
+	assert.strictEqual(hasDiffLines('# WordPress Contributor Toolkit patch\n# Contributor: janedoe\n\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b'), true);
 });
