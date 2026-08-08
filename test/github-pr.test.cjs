@@ -507,6 +507,59 @@ test('openPullRequest reports how far it got when a step fails', async () => {
 	assert.strictEqual(res.stage, 'committing');
 });
 
+// The two quiet-testing switches (both env-driven, both absent in production):
+// a sandbox upstream so the whole flow can run without wordpress-develop's
+// watchers hearing about it, and a dry run that stops after the branch — the
+// fork writes are private; the pull request is the noisy step.
+
+test('WP_DEV_ENV_GITHUB_UPSTREAM points the whole flow at a sandbox', async (t) => {
+	process.env.WP_DEV_ENV_GITHUB_UPSTREAM = 'sandbox-org/pr-sandbox';
+	t.after(() => { delete process.env.WP_DEV_ENV_GITHUB_UPSTREAM; });
+
+	const api = router({
+		'GET repos/janedoe/pr-sandbox': { status: 200, json: { fork: true, parent: { full_name: 'sandbox-org/pr-sandbox' } } },
+		'GET repos/janedoe/pr-sandbox/git/ref/heads/trunk': { status: 200, json: { object: { sha: 'abc123' } } },
+		'POST merge-upstream': { status: 200 },
+		'GET git/commits/abc123': { status: 200, json: { tree: { sha: 'basetree' } } },
+		'POST git/blobs': { status: 201, json: { sha: 'blob1' } },
+		'POST git/trees': { status: 201, json: { sha: 'tree1' } },
+		'POST git/commits': { status: 201, json: { sha: 'commit1' } },
+		'POST git/refs': { status: 201 },
+		'POST repos/sandbox-org/pr-sandbox/pulls': { status: 201, json: { html_url: 'https://github.com/sandbox-org/pr-sandbox/pull/1', number: 1 } }
+	});
+
+	const res = await openPullRequest({
+		token: TOKEN, login: LOGIN, ticketId: 1, baseSha: 'abc123',
+		files: [{ path: 'a.php', kind: 'modify', content: Buffer.from('x'), mode: '100644' }],
+		title: 't', body: 'b'
+	}, api);
+
+	assert.strictEqual(res.ok, true);
+	assert.strictEqual(res.url, 'https://github.com/sandbox-org/pr-sandbox/pull/1');
+	// Nothing touched the real upstream.
+	assert.strictEqual(api.calls.some((c) => c.url.includes('wordpress-develop')), false);
+});
+
+test('WP_DEV_ENV_GITHUB_DRY_RUN stops after the branch, before the pull request', async (t) => {
+	process.env.WP_DEV_ENV_GITHUB_DRY_RUN = '1';
+	t.after(() => { delete process.env.WP_DEV_ENV_GITHUB_DRY_RUN; });
+
+	const api = router(happyPathRoutes());
+	const res = await openPullRequest({
+		token: TOKEN, login: LOGIN, ticketId: 62281, baseSha: 'abc123',
+		files: [{ path: 'a.php', kind: 'modify', content: Buffer.from('x'), mode: '100644' }],
+		title: 't', body: 'b'
+	}, api);
+
+	assert.strictEqual(res.ok, true);
+	assert.strictEqual(res.dryRun, true);
+	assert.strictEqual(res.branch, 'trac-62281');
+	assert.match(res.url, /tree\/trac-62281$/);
+	// The branch was created; the pull request never was.
+	assert.strictEqual(api.calls.some((c) => c.url.includes('git/refs')), true);
+	assert.strictEqual(api.calls.some((c) => c.url.endsWith('/pulls')), false);
+});
+
 test('openPullRequest refuses an empty change before it touches GitHub', async () => {
 	const api = router(happyPathRoutes());
 

@@ -2392,10 +2392,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     if (prResult) {
       return (
         <>
+          {/*
+            A dry run (WP_DEV_ENV_GITHUB_DRY_RUN) stops after the branch: the
+            fork writes are private, the pull request is the step watchers
+            hear about. Saying so beats a "pull request #null".
+          */}
+          {prResult.dryRun ? (
+            <div style={{ fontSize:13, color:'#0f5132' }}>
+              Dry run — branch <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}><code style={{ fontSize:12 }}>{prResult.branch}</code></Button> was created on your fork; no pull request was opened.
+            </div>
+          ) : (
           <div style={{ fontSize:13, color:'#0f5132' }}>
             Opened <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}>pull request #{prResult.number}</Button>
             {' '}from <code style={{ fontSize:12 }}>{prResult.branch}</code>.
           </div>
+          )}
           {/*
             The branch always bases on today's trunk (see resolveBase); this
             names the consequence when the local checkout was behind it. The
@@ -2407,17 +2418,25 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               Your checkout was behind trunk, so the branch was based on today&apos;s trunk. None of your files were changed upstream in between — the pull request shows only your work.
             </div>
           ) : null}
-          <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-            Triage and props live on the ticket, so the link belongs there too.
-          </div>
-          <Button variant="secondary" onClick={copyPrLink} icon={prLinkCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
-            {prLinkCopied ? 'Link copied' : 'Copy the link'}
-          </Button>
-          {tracTicket ? (
-            <Button variant="primary" onClick={()=>window.api.openExternal(ticketUrl(tracTicket))} style={{ justifyContent:'center' }}>
-              Open #{tracTicket} to comment
-            </Button>
-          ) : null}
+          {/*
+            The Trac loop-back is for a pull request that exists — a dry run
+            has no link worth posting on a ticket.
+          */}
+          {!prResult.dryRun && (
+            <>
+              <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
+                Triage and props live on the ticket, so the link belongs there too.
+              </div>
+              <Button variant="secondary" onClick={copyPrLink} icon={prLinkCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
+                {prLinkCopied ? 'Link copied' : 'Copy the link'}
+              </Button>
+              {tracTicket ? (
+                <Button variant="primary" onClick={()=>window.api.openExternal(ticketUrl(tracTicket))} style={{ justifyContent:'center' }}>
+                  Open #{tracTicket} to comment
+                </Button>
+              ) : null}
+            </>
+          )}
         </>
       );
     }

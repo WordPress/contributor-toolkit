@@ -36,6 +36,24 @@ const { ticketUrl } = require('./renderer/trac-ticket.cjs');
 
 const UPSTREAM_OWNER = 'WordPress';
 const UPSTREAM_REPO = 'wordpress-develop';
+
+/**
+ * Which repository the flow targets. `WP_DEV_ENV_GITHUB_UPSTREAM=owner/repo`
+ * points the whole sequence — fork, branch and pull request — at a sandbox, so
+ * the flow can be exercised end to end without a single watcher of
+ * wordpress-develop hearing about it. Same pattern as the client-ID override:
+ * an environment variable for testing, the constant for what ships. The
+ * sandbox needs a `trunk` branch and must not be owned by the signed-in
+ * account, since an account cannot fork its own repository.
+ *
+ * @return {{owner: string, repo: string}}
+ */
+function upstream() {
+	const raw = process.env.WP_DEV_ENV_GITHUB_UPSTREAM;
+	const match = typeof raw === 'string' && /^([^/\s]+)\/([^/\s]+)$/.exec(raw.trim());
+	if (match) return { owner: match[1], repo: match[2] };
+	return { owner: UPSTREAM_OWNER, repo: UPSTREAM_REPO };
+}
 const BASE_BRANCH = 'trunk';
 const API = 'https://api.github.com';
 
@@ -156,7 +174,8 @@ async function ensureFork({ token, login }, deps = {}) {
 	const post = deps.post || postJson;
 	const wait = deps.sleep || sleep;
 	const attempts = deps.forkPollAttempts || FORK_POLL_ATTEMPTS;
-	const forkUrl = `${API}/repos/${login}/${UPSTREAM_REPO}`;
+	const up = upstream();
+	const forkUrl = `${API}/repos/${login}/${up.repo}`;
 
 	// A repository under the fork's name is only usable if it actually is a
 	// fork of upstream. A contributor who happens to own an unrelated
@@ -164,11 +183,11 @@ async function ensureFork({ token, login }, deps = {}) {
 	// alternative is writing a branch and a commit into their project and
 	// failing at the very end with an opaque 422.
 	const isOurFork = (json) => Boolean(json && json.fork)
-		&& [json.parent, json.source].some((repo) => repo && repo.full_name === `${UPSTREAM_OWNER}/${UPSTREAM_REPO}`);
+		&& [json.parent, json.source].some((repo) => repo && repo.full_name === `${up.owner}/${up.repo}`);
 	const notAFork = () => ({
 		ok: false,
 		reason: 'error',
-		error: `You already have a repository named ${UPSTREAM_REPO} that is not a fork of ${UPSTREAM_OWNER}/${UPSTREAM_REPO}, so there is nowhere to push this. The patch file still works.`
+		error: `You already have a repository named ${up.repo} that is not a fork of ${up.owner}/${up.repo}, so there is nowhere to push this. The patch file still works.`
 	});
 
 	// Ready means the fork's own trunk ref answers — not that the repo
@@ -193,7 +212,7 @@ async function ensureFork({ token, login }, deps = {}) {
 	if (existing.status === 404) {
 		let forked;
 		try {
-			forked = await post(`${API}/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/forks`, {}, { token });
+			forked = await post(`${API}/repos/${up.owner}/${up.repo}/forks`, {}, { token });
 		} catch (e) {
 			return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
 		}
@@ -254,7 +273,7 @@ async function ensureFork({ token, login }, deps = {}) {
 async function resolveBase({ token, login, baseSha }, deps = {}) {
 	const get = deps.get || getJson;
 	const post = deps.post || postJson;
-	const repo = `${API}/repos/${login}/${UPSTREAM_REPO}`;
+	const repo = `${API}/repos/${login}/${upstream().repo}`;
 
 	try {
 		// Always fast-forward first, so "the tip" means today's trunk and not
@@ -300,7 +319,7 @@ async function resolveBase({ token, login, baseSha }, deps = {}) {
  */
 async function staleTouchedPaths({ token, login, baseSha, tipSha, paths }, deps = {}) {
 	const get = deps.get || getJson;
-	const repo = `${API}/repos/${login}/${UPSTREAM_REPO}`;
+	const repo = `${API}/repos/${login}/${upstream().repo}`;
 
 	const blobShaAt = async (path, ref) => {
 		const res = await get(`${repo}/contents/${encodeURI(path)}?ref=${ref}`, { token });
@@ -342,7 +361,7 @@ async function staleTouchedPaths({ token, login, baseSha, tipSha, paths }, deps 
  */
 async function createTree({ token, login, baseTreeSha, files }, deps = {}) {
 	const post = deps.post || postJson;
-	const repo = `${API}/repos/${login}/${UPSTREAM_REPO}`;
+	const repo = `${API}/repos/${login}/${upstream().repo}`;
 	const entries = [];
 
 	try {
@@ -390,7 +409,7 @@ async function createTree({ token, login, baseTreeSha, files }, deps = {}) {
  */
 async function commitAndBranch({ token, login, ticketId, message, treeSha, parentSha }, deps = {}) {
 	const post = deps.post || postJson;
-	const repo = `${API}/repos/${login}/${UPSTREAM_REPO}`;
+	const repo = `${API}/repos/${login}/${upstream().repo}`;
 
 	try {
 		const commit = await post(`${repo}/git/commits`, {
@@ -444,7 +463,8 @@ async function commitAndBranch({ token, login, ticketId, message, treeSha, paren
 async function createPullRequest({ token, login, branch, title, body }, deps = {}) {
 	const post = deps.post || postJson;
 	try {
-		const res = await post(`${API}/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/pulls`, {
+		const up = upstream();
+		const res = await post(`${API}/repos/${up.owner}/${up.repo}/pulls`, {
 			title,
 			body,
 			head: `${login}:${branch}`,
@@ -525,7 +545,7 @@ async function openPullRequest({ token, login, ticketId, baseSha, files, title, 
 	// the wrong one silently produces a tree with no history behind it.
 	let baseCommit;
 	try {
-		baseCommit = await get(`${API}/repos/${login}/${UPSTREAM_REPO}/git/commits/${base.sha}`, { token });
+		baseCommit = await get(`${API}/repos/${login}/${upstream().repo}/git/commits/${base.sha}`, { token });
 	} catch (e) {
 		return at('syncing', { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) });
 	}
@@ -546,6 +566,22 @@ async function openPullRequest({ token, login, ticketId, baseSha, files, title, 
 		parentSha: base.sha
 	}, deps);
 	if (!branched.ok) return at('committing', branched);
+
+	// Everything up to here wrote only to the contributor's own fork, where a
+	// spare branch bothers nobody. The pull request is the one step the
+	// upstream's watchers hear about, so it is the one a dry run skips —
+	// letting the rest of the flow be exercised against the real API without
+	// generating noise.
+	if (process.env.WP_DEV_ENV_GITHUB_DRY_RUN) {
+		return {
+			ok: true,
+			dryRun: true,
+			url: `https://github.com/${login}/${upstream().repo}/tree/${branched.branch}`,
+			number: null,
+			branch: branched.branch,
+			exactBase: base.exact
+		};
+	}
 
 	report('opening');
 	const pr = await createPullRequest({ token, login, branch: branched.branch, title, body }, deps);
