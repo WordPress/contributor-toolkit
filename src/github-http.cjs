@@ -50,6 +50,15 @@ const REQUEST_TIMEOUT_MS = 15000;
  * @param {boolean} [opts.useSessionCookies]
  * @return {Promise<{status: number, headers: Object, body: string}>}
  */
+// Opt-in wire log for the one bug that survives every reproduction: set
+// WP_DEV_ENV_HTTP_LOG=1 and every GitHub request prints its method, URL and
+// status to the terminal the app was started from. Never the token, never the
+// body — the shape of the traffic, not its contents.
+function wireLog(line) {
+	// eslint-disable-next-line no-console -- deliberate: this is the debug channel, enabled explicitly by env var.
+	if (process.env.WP_DEV_ENV_HTTP_LOG) console.log(`[github-http] ${line}`);
+}
+
 function httpRequest(method, url, headers = {}, opts = {}) {
 	// Required lazily, not at module load: requiring `electron` outside Electron
 	// resolves the binary and can spawn its installer on a cold checkout, and the
@@ -61,6 +70,7 @@ function httpRequest(method, url, headers = {}, opts = {}) {
 		let settled = false;
 		const finish = (fn, arg) => { if (!settled) { settled = true; fn(arg); } };
 
+		wireLog(`→ ${method} ${url}${opts.token ? ' (authorized)' : ''}`);
 		const requestOptions = { method, url };
 		// A token-bearing request never follows a redirect: whether Chromium's
 		// stack would re-send the Authorization header to a different host is
@@ -95,6 +105,7 @@ function httpRequest(method, url, headers = {}, opts = {}) {
 				for (const [key, value] of Object.entries(response.headers || {})) {
 					lowerHeaders[key.toLowerCase()] = Array.isArray(value) ? value[0] : value;
 				}
+				wireLog(`← ${response.statusCode} ${method} ${url}${lowerHeaders['x-github-request-id'] ? ` [${lowerHeaders['x-github-request-id']}]` : ''}`);
 				finish(resolve, { status: response.statusCode, headers: lowerHeaders, body: Buffer.concat(chunks).toString('utf8') });
 			});
 			response.on('error', (e) => { clearTimeoutImpl(timer); finish(reject, e); });
