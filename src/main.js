@@ -622,7 +622,11 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
     // knows: keeping a token that GitHub has stopped honouring would leave the
     // panel offering a button that cannot work.
     if (!result.ok && result.reason === 'unauthorized') forgetGithubToken();
-    logEvent('github', result.ok ? `opened pull request #${result.number}` : `pull request failed at ${result.stage}: ${result.reason}`);
+    // The error detail carries GitHub's own words plus the request id, so it is
+    // bounded the way every externally-influenced string in this log is.
+    logEvent('github', result.ok
+        ? `opened pull request #${result.number}`
+        : `pull request failed at ${result.stage}: ${result.reason} — ${describeRefused(result.error)}`);
     return result;
 });
 

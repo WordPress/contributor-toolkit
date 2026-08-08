@@ -74,13 +74,31 @@ function classifyFailure(res) {
 }
 
 /**
+ * The trailing diagnostic exists because a failure here has already survived
+ * three wrong theories: the status, GitHub's request id and the scopes GitHub
+ * says the presented token had make the error self-describing enough to take
+ * to GitHub support — or to disprove the next theory without another round
+ * trip through a contributor.
+ *
  * @param {{status: number, headers: Object, json: Object|null}} res
  * @param {string}                                               what
  * @return {{ok: false, reason: string, error: string}}
  */
 function failure(res, what) {
 	const detail = res.json && res.json.message ? res.json.message : `GitHub returned ${res.status}`;
-	return { ok: false, reason: classifyFailure(res), error: `${what}: ${detail}` };
+	return { ok: false, reason: classifyFailure(res), error: `${what}: ${detail}${describeResponse(res)}` };
+}
+
+/**
+ * @param {{status: number, headers: Object}} res
+ * @return {string}
+ */
+function describeResponse(res) {
+	const headers = res.headers || {};
+	const parts = [`status ${res.status}`];
+	if (headers['x-oauth-scopes'] !== undefined) parts.push(`token scopes: ${headers['x-oauth-scopes'] || '(none)'}`);
+	if (headers['x-github-request-id']) parts.push(`request ${headers['x-github-request-id']}`);
+	return ` [${parts.join('; ')}]`;
 }
 
 /**
@@ -346,7 +364,7 @@ async function commitAndBranch({ token, login, ticketId, message, treeSha, paren
 				return {
 					ok: false,
 					reason: 'error',
-					error: 'Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.'
+					error: `Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.${describeResponse(ref)}`
 				};
 			}
 			// 422 is how GitHub says the reference already exists — the only
