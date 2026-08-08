@@ -15,15 +15,16 @@
  * arrive as five commits with four intermediate states that never compiled.
  * Blobs → tree → commit produces the one commit a reviewer expects.
  *
- * Two things in here exist because of a fork that already exists and is months
- * stale — the case unit tests can only approximate and the one that will
- * actually be hit at a contributor day:
+ * Two things in here exist because of what a real first run taught (all of it
+ * verified by hand on 2026-08-08):
  *
- *   - the commit is based on the local checkout's HEAD, and a stale fork does
- *     not contain that commit at all, so creating a ref from it would 422. The
- *     sync step is load-bearing, not hygiene.
- *   - a fork that has diverged cannot be fast-forwarded, so the base falls back
- *     to the fork's own trunk tip and the result says so, rather than failing.
+ *   - the branch bases on the fork's trunk tip, never on the local checkout's
+ *     HEAD — `git/refs` refuses a commit parented anywhere else, and the fork
+ *     answers 200 for *any* commit in the fork network, so "does the fork have
+ *     it" cannot even be asked honestly. See resolveBase.
+ *   - basing on the tip replaces whole files, so a checkout that is behind
+ *     trunk must not touch a file upstream also changed — that would silently
+ *     revert other people's work. See staleTouchedPaths.
  *
  * Every failure is typed, because every failure has the same fallback — the
  * patch file, which is always still there — but not the same explanation.
@@ -225,20 +226,28 @@ async function ensureFork({ token, login }, deps = {}) {
 }
 
 /**
- * Which commit the new branch is based on.
+ * Which commit the new branch is based on: the fork's trunk tip, always.
  *
- * The honest answer is the local checkout's HEAD: that is what the contributor
- * edited, and basing on anything else would silently fold in upstream changes
- * they have not seen. A fresh fork contains it. A stale one does not, so the
- * fork's trunk is fast-forwarded first; a fork that has diverged cannot be, and
- * then the fork's own tip is the best available base — reported as
- * `exact: false` so the caller can say the pull request may show more than the
- * contributor changed.
+ * An earlier version based the branch on the local checkout's HEAD whenever
+ * `GET git/commits/{sha}` on the fork answered 200 — and that answer is a lie.
+ * Forks share their upstream's object store, so the fork serves *any* commit
+ * in the network, reachable from its own refs or not. Worse, verified by hand
+ * on 2026-08-08: `POST git/refs` refuses (404, not 422) a freshly API-created
+ * commit whose parent is anything but the current branch tip — even a
+ * plainly-reachable ancestor. The tip is not merely the safest base; it is
+ * the only one GitHub will let a branch point at.
+ *
+ * Basing on the tip has one sharp edge the caller must handle: the tree API
+ * replaces whole files, so a contributor whose checkout is behind trunk would
+ * silently revert any upstream change to a file they also touched. That is
+ * what `staleTouchedPaths` below is for — openPullRequest refuses that case
+ * and sends the contributor to the app's own "Update to latest trunk" flow
+ * instead of opening a pull request that undoes other people's work.
  *
  * @param {Object} root0
  * @param {string} root0.token
  * @param {string} root0.login
- * @param {string} root0.baseSha
+ * @param {string} root0.baseSha The local checkout's HEAD, for the exact flag.
  * @param {Object} [deps]
  * @return {Promise<{ok: true, sha: string, exact: boolean}|{ok: false, reason: string, error: string}>}
  */
@@ -247,28 +256,69 @@ async function resolveBase({ token, login, baseSha }, deps = {}) {
 	const post = deps.post || postJson;
 	const repo = `${API}/repos/${login}/${UPSTREAM_REPO}`;
 
-	const hasCommit = async (sha) => {
-		const res = await get(`${repo}/git/commits/${sha}`, { token });
-		return res.status === 200;
-	};
-
 	try {
-		if (baseSha && (await hasCommit(baseSha))) return { ok: true, sha: baseSha, exact: true };
-
-		// 409 here is a diverged fork, which is a normal state for someone who
-		// has contributed before — not a failure to report.
+		// Always fast-forward first, so "the tip" means today's trunk and not
+		// wherever the fork was left. 409 here is a diverged fork, which is a
+		// normal state for someone who has contributed before — not a failure
+		// to report; the branch then bases on the fork's own tip.
 		await post(`${repo}/merge-upstream`, { branch: BASE_BRANCH }, { token });
-
-		if (baseSha && (await hasCommit(baseSha))) return { ok: true, sha: baseSha, exact: true };
 
 		const ref = await get(`${repo}/git/ref/heads/${BASE_BRANCH}`, { token });
 		if (ref.status !== 200 || !ref.json || !ref.json.object || !ref.json.object.sha) {
 			return failure(ref, 'Could not read your fork’s trunk');
 		}
-		return { ok: true, sha: String(ref.json.object.sha), exact: false };
+		const tip = String(ref.json.object.sha);
+		return { ok: true, sha: tip, exact: tip === baseSha };
 	} catch (e) {
 		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
 	}
+}
+
+/**
+ * Which of the contributor's files upstream has also changed since the local
+ * checkout's HEAD. Non-empty means opening the pull request would replace
+ * those files wholesale and silently revert the upstream work.
+ *
+ * Asked per file through the contents API rather than once through compare:
+ * compare caps its file list at 300, and a checkout a few weeks old is behind
+ * by more than that repo-wide — a cap that silently hides exactly the clash
+ * being looked for. The contributor's own file count is small.
+ *
+ * A path answers with its blob sha at each of the two commits; any difference
+ * — content, or existing on one side only — is a clash. An error reading
+ * either side counts as a clash too: the check exists to prevent silent
+ * damage, so it fails closed.
+ *
+ * @param {Object}   root0
+ * @param {string}   root0.token
+ * @param {string}   root0.login
+ * @param {string}   root0.baseSha Local checkout's HEAD.
+ * @param {string}   root0.tipSha  The fork's trunk tip.
+ * @param {string[]} root0.paths   Repo-relative paths the contributor changed.
+ * @param {Object}   [deps]
+ * @return {Promise<{ok: true, clashes: string[]}|{ok: false, reason: string, error: string}>}
+ */
+async function staleTouchedPaths({ token, login, baseSha, tipSha, paths }, deps = {}) {
+	const get = deps.get || getJson;
+	const repo = `${API}/repos/${login}/${UPSTREAM_REPO}`;
+
+	const blobShaAt = async (path, ref) => {
+		const res = await get(`${repo}/contents/${encodeURI(path)}?ref=${ref}`, { token });
+		if (res.status === 404) return null;
+		if (res.status !== 200 || !res.json || !res.json.sha) throw new Error(`GitHub returned ${res.status} for ${path}`);
+		return String(res.json.sha);
+	};
+
+	const clashes = [];
+	try {
+		for (const path of paths) {
+			const [atBase, atTip] = await Promise.all([blobShaAt(path, baseSha), blobShaAt(path, tipSha)]);
+			if (atBase !== atTip) clashes.push(path);
+		}
+	} catch (e) {
+		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
+	}
+	return { ok: true, clashes };
 }
 
 /**
@@ -445,6 +495,31 @@ async function openPullRequest({ token, login, ticketId, baseSha, files, title, 
 	const base = await resolveBase({ token, login, baseSha }, deps);
 	if (!base.ok) return at('syncing', base);
 
+	// A stale checkout is fine — the branch bases on today's trunk and carries
+	// the contributor's files on top — except where upstream also changed one
+	// of those same files. There the tree API's whole-file replacement would
+	// silently revert other people's work, so that case stops here, pointed at
+	// the app's own update flow rather than at a pull request that undoes
+	// commits its author never saw.
+	if (!base.exact) {
+		const stale = await staleTouchedPaths({
+			token,
+			login,
+			baseSha,
+			tipSha: base.sha,
+			paths: files.map((f) => f.path)
+		}, deps);
+		if (!stale.ok) return at('syncing', stale);
+		if (stale.clashes.length > 0) {
+			return {
+				ok: false,
+				reason: 'stale',
+				error: `Trunk has moved under ${stale.clashes.length === 1 ? 'a file you edited' : 'files you edited'} (${stale.clashes.slice(0, 3).join(', ')}${stale.clashes.length > 3 ? ', …' : ''}). Update this site to the latest trunk, check your changes still apply, and try again.`,
+				stage: 'syncing'
+			};
+		}
+	}
+
 	// The tree the commit inherits from, read off the base commit rather than
 	// assumed: a commit sha and its tree sha are different objects, and passing
 	// the wrong one silently produces a tree with no history behind it.
@@ -489,6 +564,7 @@ module.exports = {
 	branchNameFor,
 	ensureFork,
 	resolveBase,
+	staleTouchedPaths,
 	createTree,
 	commitAndBranch,
 	createPullRequest,

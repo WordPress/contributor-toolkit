@@ -2397,14 +2397,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             {' '}from <code style={{ fontSize:12 }}>{prResult.branch}</code>.
           </div>
           {/*
-            A fork that had diverged could not be fast-forwarded, so the branch
-            sits on the fork's own trunk and the pull request may show upstream
-            changes alongside the contributor's. Saying so beats letting them
-            discover it in the Files tab.
+            The branch always bases on today's trunk (see resolveBase); this
+            names the consequence when the local checkout was behind it. The
+            clash guard has already ruled out upstream changes to the same
+            files, so this is information, not alarm.
           */}
           {prResult.exactBase === false ? (
             <div style={{ fontSize:12, color:'#6e5406', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, padding:'8px 10px' }}>
-              Your fork had drifted from trunk, so this branch is based on your fork&apos;s copy. The pull request may show changes you did not make.
+              Your checkout was behind trunk, so the branch was based on today&apos;s trunk. None of your files were changed upstream in between — the pull request shows only your work.
             </div>
           ) : null}
           <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
@@ -2487,7 +2487,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             <div style={{ fontSize:12, color:'#6c6f72' }}>{PR_STAGE_LABELS[prStage] || 'Working…'}</div>
           ) : (
             <div style={{ fontSize:12, color:'#6c6f72' }}>
-              Signed in as {githubAccount.login}. <Button variant="link" onClick={signOutOfGithub} style={{ fontSize:12 }}>Sign out</Button>
+              {/*
+                The destination is named, not implied: "the fork is made for
+                you" answers what, this answers where — which account the fork
+                and the branch land in.
+              */}
+              Signed in as {githubAccount.login} — the fork and branch go to{' '}
+              <Button
+                variant="link"
+                onClick={()=>window.api.openExternal(`https://github.com/${githubAccount.login}/wordpress-develop`)}
+                style={{ fontSize:12 }}
+              >{githubAccount.login}/wordpress-develop</Button>.{' '}
+              <Button variant="link" onClick={signOutOfGithub} style={{ fontSize:12 }}>Sign out</Button>
             </div>
           )}
         </>

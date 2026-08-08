@@ -21,6 +21,7 @@ const {
 	classifyFailure,
 	ensureFork,
 	resolveBase,
+	staleTouchedPaths,
 	createTree,
 	commitAndBranch,
 	createPullRequest,
@@ -208,37 +209,37 @@ test('ensureFork reports a revoked token as unauthorized rather than as a missin
 	assert.strictEqual(res.reason, 'unauthorized');
 });
 
-test('resolveBase uses the local HEAD when the fork already contains it', async () => {
-	const api = router({ 'GET git/commits/abc123': { status: 200 } });
+// The base is the fork's trunk tip, always — verified by hand: git/refs 404s
+// a fresh commit parented anywhere else, even on a plainly-reachable ancestor,
+// and GET git/commits answers 200 for anything in the fork network, so "does
+// the fork contain the local HEAD" cannot even be asked honestly.
+test('resolveBase syncs the fork and bases on its trunk tip', async () => {
+	const api = router({
+		'POST merge-upstream': { status: 200 },
+		'GET git/ref/heads/trunk': { status: 200, json: { object: { sha: 'tipsha' } } }
+	});
 
-	const res = await resolveBase({ token: TOKEN, login: LOGIN, baseSha: 'abc123' }, api);
+	const res = await resolveBase({ token: TOKEN, login: LOGIN, baseSha: 'oldlocal' }, api);
 
-	assert.deepStrictEqual(res, { ok: true, sha: 'abc123', exact: true });
-	// No sync needed, so none attempted.
-	assert.strictEqual(api.calls.filter((c) => c.method === 'POST').length, 0);
+	assert.deepStrictEqual(res, { ok: true, sha: 'tipsha', exact: false });
+	assert.ok(api.calls.some((c) => c.url.includes('merge-upstream') && c.payload.branch === 'trunk'));
 });
 
-// The stale fork. Without the sync the next step would create a ref from a
-// commit the fork has never heard of, and GitHub would refuse it.
-test('resolveBase syncs a stale fork, then finds the base commit there', async () => {
+test('resolveBase reports exact when the local HEAD is the tip', async () => {
 	const api = router({
-		'GET git/commits/abc123': (seen) => ({ status: seen === 1 ? 404 : 200 }),
-		'POST merge-upstream': { status: 200 }
+		'POST merge-upstream': { status: 200 },
+		'GET git/ref/heads/trunk': { status: 200, json: { object: { sha: 'abc123' } } }
 	});
 
 	const res = await resolveBase({ token: TOKEN, login: LOGIN, baseSha: 'abc123' }, api);
 
 	assert.deepStrictEqual(res, { ok: true, sha: 'abc123', exact: true });
-	assert.ok(api.calls.some((c) => c.url.includes('merge-upstream') && c.payload.branch === 'trunk'));
 });
 
-// A fork that has been committed to directly cannot be fast-forwarded. Failing
-// there would strand a contributor who is more experienced, not less — so the
-// fork's own tip becomes the base, and `exact: false` is what lets the panel
-// warn that the pull request may show more than they changed.
-test('resolveBase falls back to the fork’s own trunk when it cannot be fast-forwarded', async () => {
+// A fork that has been committed to directly cannot be fast-forwarded — a 409
+// from merge-upstream is a normal state, and the fork's own tip is the base.
+test('resolveBase survives a fork that cannot be fast-forwarded', async () => {
 	const api = router({
-		'GET git/commits/abc123': { status: 404 },
 		'POST merge-upstream': { status: 409, json: { message: 'diverged' } },
 		'GET git/ref/heads/trunk': { status: 200, json: { object: { sha: 'forktip' } } }
 	});
@@ -246,6 +247,54 @@ test('resolveBase falls back to the fork’s own trunk when it cannot be fast-fo
 	const res = await resolveBase({ token: TOKEN, login: LOGIN, baseSha: 'abc123' }, api);
 
 	assert.deepStrictEqual(res, { ok: true, sha: 'forktip', exact: false });
+});
+
+// The guard for the sharp edge tip-basing has: the tree API replaces whole
+// files, so a contributor behind trunk who touched a file upstream also
+// changed would silently revert that upstream work.
+test('staleTouchedPaths names the files upstream changed since the local HEAD', async () => {
+	const shaAt = {
+		'a.php?ref=local': 'blob1', 'a.php?ref=tip': 'blob1', // untouched upstream
+		'b.php?ref=local': 'blob2', 'b.php?ref=tip': 'blob2-new', // changed upstream
+		'c.php?ref=local': 'blob3' // deleted upstream → 404 at tip
+	};
+	const api = {
+		get: async (url) => {
+			const key = Object.keys(shaAt).find((k) => url.includes(k));
+			return key ? { status: 200, json: { sha: shaAt[key] } } : { status: 404, json: {} };
+		}
+	};
+
+	const res = await staleTouchedPaths(
+		{ token: TOKEN, login: LOGIN, baseSha: 'local', tipSha: 'tip', paths: ['a.php', 'b.php', 'c.php'] },
+		api
+	);
+
+	assert.deepStrictEqual(res, { ok: true, clashes: ['b.php', 'c.php'] });
+});
+
+test('openPullRequest refuses a stale checkout whose files upstream also changed', async () => {
+	const api = router({
+		...happyPathRoutes(),
+		// Same key as the happy path's, so this override wins outright rather
+		// than competing on pattern length.
+		[`GET ${FORK_URL}/git/ref/heads/trunk`]: { status: 200, json: { object: { sha: 'newer-tip' } } },
+		'GET contents/a.php?ref=abc123': { status: 200, json: { sha: 'blob-old' } },
+		'GET contents/a.php?ref=newer-tip': { status: 200, json: { sha: 'blob-upstream' } }
+	});
+
+	const res = await openPullRequest({
+		token: TOKEN, login: LOGIN, ticketId: 1, baseSha: 'abc123',
+		files: [{ path: 'a.php', kind: 'modify', content: Buffer.from('x'), mode: '100644' }],
+		title: 't', body: 'b'
+	}, api);
+
+	assert.strictEqual(res.ok, false);
+	assert.strictEqual(res.reason, 'stale');
+	assert.match(res.error, /a\.php/);
+	assert.match(res.error, /Update this site/);
+	// Refused before anything was uploaded.
+	assert.strictEqual(api.calls.filter((c) => c.url.includes('git/blobs')).length, 0);
 });
 
 test('createTree uploads each file as a base64 blob and inherits the rest', async () => {
@@ -392,7 +441,9 @@ test('createPullRequest opens it on upstream, from the fork’s branch', async (
 function happyPathRoutes() {
 	return {
 		[`GET ${FORK_URL}`]: { status: 200, json: FORK_JSON },
-		[`GET ${FORK_URL}/git/ref/heads/trunk`]: { status: 200, json: { object: { sha: 'tip' } } },
+		// The tip equals the local HEAD, so the happy path is the exact-base one.
+		[`GET ${FORK_URL}/git/ref/heads/trunk`]: { status: 200, json: { object: { sha: 'abc123' } } },
+		'POST merge-upstream': { status: 200 },
 		'GET git/commits/abc123': { status: 200, json: { tree: { sha: 'basetree' } } },
 		'POST git/blobs': { status: 201, json: { sha: 'blob1' } },
 		'POST git/trees': { status: 201, json: { sha: 'tree1' } },
