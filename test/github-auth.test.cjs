@@ -194,3 +194,31 @@ test('fetchViewer returns the login, and calls a rejected token unauthorized', a
 	const revoked = await fetchViewer('gho_test', { get: async () => ({ status: 401, json: {} }) });
 	assert.strictEqual(revoked.reason, 'unauthorized');
 });
+
+// The bug found by hand: a device-flow sign-in against an app the account
+// authorized before can reuse the old grant with the old scopes. The token
+// then signs in fine, uploads blobs and the commit fine — the Git object
+// endpoints accept it — and 404s on the branch, the very last write. What
+// GitHub actually granted is in the X-OAuth-Scopes header, so a token that
+// cannot push is named at sign-in, with the remedy, instead of at the end.
+test('fetchViewer refuses a token whose granted scopes cannot push', async () => {
+	const viewer = (scopes) => fetchViewer('gho_test', {
+		get: async () => ({
+			status: 200,
+			headers: scopes === undefined ? {} : { 'x-oauth-scopes': scopes },
+			json: { login: 'janedoe' }
+		})
+	});
+
+	// A reused grant with no scopes, and one with only unrelated scopes.
+	assert.strictEqual((await viewer('')).reason, 'insufficient-scope');
+	assert.strictEqual((await viewer('gist, read:org')).reason, 'insufficient-scope');
+	assert.match((await viewer('')).error, /sign in here again/i);
+
+	// Either granted scope that can push passes; `repo` contains `public_repo`.
+	assert.strictEqual((await viewer('public_repo')).ok, true);
+	assert.strictEqual((await viewer('repo, gist')).ok, true);
+
+	// No header is no evidence — some token types omit it entirely.
+	assert.strictEqual((await viewer(undefined)).ok, true);
+});

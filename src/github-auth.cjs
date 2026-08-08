@@ -26,7 +26,11 @@
  * `node --test` exercises every poll outcome without a network or a real wait.
  */
 
-const { postJson, getJson } = require('./github-http.cjs');
+// postForm, not postJson: the github.com/login/* endpoints' documented request
+// format is URL-encoded parameters. The scope grant rides in that body, and a
+// scope that fails to arrive produces a token that signs in fine and cannot
+// push — a failure that surfaces at the last write of the whole flow.
+const { postForm, getJson } = require('./github-http.cjs');
 
 // The WordPress organisation's OAuth application, "WordPress Contributor
 // Toolkit". An empty value here means this build has no sign-in configured,
@@ -68,13 +72,13 @@ function sleep(ms) {
  * Asks GitHub for a code to show the contributor.
  *
  * @param {Object}   [deps]
- * @param {Function} [deps.post]     Stands in for postJson.
+ * @param {Function} [deps.post]     Stands in for postForm.
  * @param {Function} [deps.now]      Stands in for Date.now.
  * @param {string}   [deps.clientId]
  * @return {Promise<{ok: true, userCode: string, verificationUri: string, deviceCode: string, interval: number, expiresAt: number}|{ok: false, reason: string, error: string}>}
  */
 async function requestDeviceCode(deps = {}) {
-	const post = deps.post || postJson;
+	const post = deps.post || postForm;
 	const now = deps.now || Date.now;
 	// Present-but-empty is a real answer — "this build has no application" — so the
 	// key's presence decides, not its truthiness.
@@ -142,7 +146,7 @@ async function requestDeviceCode(deps = {}) {
  * @return {Promise<{ok: true, token: string}|{ok: false, reason: string, error: string}>}
  */
 async function pollForToken({ deviceCode, interval, expiresAt }, deps = {}) {
-	const post = deps.post || postJson;
+	const post = deps.post || postForm;
 	const wait = deps.sleep || sleep;
 	const now = deps.now || Date.now;
 	const isCanceled = deps.isCanceled || (() => false);
@@ -202,8 +206,30 @@ async function pollForToken({ deviceCode, interval, expiresAt }, deps = {}) {
 }
 
 /**
- * Who the token belongs to. The login is the fork's owner and the only part of
- * the sign-in the renderer is ever told.
+ * True when a token's granted scopes can push to a public repository. `repo`
+ * contains `public_repo`, so either satisfies.
+ *
+ * @param {string} header The X-OAuth-Scopes response header.
+ * @return {boolean}
+ */
+function scopesCanPush(header) {
+	const granted = String(header).split(',').map((s) => s.trim());
+	return granted.includes('public_repo') || granted.includes('repo');
+}
+
+/**
+ * Who the token belongs to — and what it was actually granted. The login is
+ * the fork's owner and the only part of the sign-in the renderer is ever told.
+ *
+ * The scope check exists because what GitHub grants is not always what was
+ * asked: a device-flow sign-in against an application the account authorized
+ * before can reuse the old grant with the old scopes. A token without push
+ * then fails in the worst possible place — the Git object endpoints accept it,
+ * so blobs, trees and the commit all succeed, and the 404 lands on the very
+ * last write, the branch. Verified by hand: same fork, same call, a
+ * `public_repo` token succeeds where the reused grant's token 404s. Naming it
+ * at sign-in, with the remedy, is the difference between a checkbox and a
+ * dead end.
  *
  * @param {string} token
  * @param {Object} [deps]
@@ -222,6 +248,17 @@ async function fetchViewer(token, deps = {}) {
 	}
 	if (res.status !== 200 || !res.json || !res.json.login) {
 		return { ok: false, reason: 'error', error: `GitHub returned ${res.status}` };
+	}
+	// Only judged when GitHub states the scopes: the header is how OAuth
+	// tokens carry them, and its absence (some token types omit it) is not
+	// evidence of anything.
+	const scopes = res.headers && res.headers['x-oauth-scopes'];
+	if (typeof scopes === 'string' && !scopesCanPush(scopes)) {
+		return {
+			ok: false,
+			reason: 'insufficient-scope',
+			error: 'GitHub granted this sign-in no access to public repositories — an older authorization of this app was likely reused. Revoke "WordPress Contributor Toolkit" under github.com → Settings → Applications, then sign in here again.'
+		};
 	}
 	return { ok: true, login: String(res.json.login) };
 }

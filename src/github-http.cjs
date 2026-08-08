@@ -140,6 +140,30 @@ async function postJson(url, payload, opts = {}) {
 }
 
 /**
+ * A form-encoded POST with a JSON answer — the shape of GitHub's OAuth
+ * endpoints under github.com/login/*, whose documented request format is
+ * URL-encoded parameters even though they answer JSON when asked. The API
+ * proper (api.github.com) takes JSON and uses postJson above; sending the
+ * login endpoints their documented format instead of relying on them
+ * tolerating JSON keeps the scope grant — the part that decides whether the
+ * token can push at all — out of the realm of undocumented behaviour.
+ *
+ * @param {string} url
+ * @param {Object} params
+ * @param {Object} [opts]
+ * @return {Promise<{status: number, headers: Object, body: string, json: Object|null}>}
+ */
+async function postForm(url, params, opts = {}) {
+	const res = await httpRequest('POST', url, {
+		Accept: 'application/json',
+		'Content-Type': 'application/x-www-form-urlencoded'
+	}, { ...opts, body: new URLSearchParams(params || {}).toString() });
+	let json = null;
+	try { json = JSON.parse(res.body); } catch { json = null; }
+	return { ...res, json };
+}
+
+/**
  * A JSON GET, in the same shape as postJson so callers can treat the two alike.
  *
  * @param {string} url
@@ -153,4 +177,4 @@ async function getJson(url, opts = {}) {
 	return { ...res, json };
 }
 
-module.exports = { USER_AGENT, REQUEST_TIMEOUT_MS, httpRequest, httpGet, postJson, getJson };
+module.exports = { USER_AGENT, REQUEST_TIMEOUT_MS, httpRequest, httpGet, postJson, postForm, getJson };

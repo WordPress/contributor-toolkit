@@ -9,7 +9,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { EventEmitter } = require('node:events');
-const { httpRequest, postJson, getJson } = require('../src/github-http.cjs');
+const { httpRequest, postJson, postForm, getJson } = require('../src/github-http.cjs');
 
 // A stand-in for Electron's `net`, recording what the request was told to be:
 // the method and URL it was opened with, every header set on it, and everything
@@ -97,6 +97,23 @@ test('postJson serialises the payload and parses the answer', async () => {
 	assert.strictEqual(net.sent.headers['Content-Type'], 'application/json');
 	assert.strictEqual(res.status, 201);
 	assert.deepStrictEqual(res.json, { sha: 'abc' });
+});
+
+// The OAuth endpoints' documented request format. The scope grant rides in
+// this body — a scope that fails to arrive produces a token that signs in
+// fine and cannot push, and that failure surfaces at the last write of the
+// whole pull-request flow.
+test('postForm sends URL-encoded parameters and parses the JSON answer', async () => {
+	const net = fakeNet((req) => respond(req, { status: 200, body: '{"device_code":"d"}' }));
+
+	const res = await postForm('https://github.com/login/device/code', {
+		client_id: 'Ov23liTEST',
+		scope: 'public_repo'
+	}, { net: net.client });
+
+	assert.strictEqual(net.sent.headers['Content-Type'], 'application/x-www-form-urlencoded');
+	assert.deepStrictEqual(net.sent.written, ['client_id=Ov23liTEST&scope=public_repo']);
+	assert.deepStrictEqual(res.json, { device_code: 'd' });
 });
 
 // A proxy's HTML error page, a truncated response, an empty 204: all of them
