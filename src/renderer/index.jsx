@@ -1267,13 +1267,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setTracTicket(res.ticket);
       setTicketInput('');
       if (metaPatchRef.current) metaPatchRef.current(sitePath, { tracTicket: res.ticket });
-      loadBranches().catch(() => {});
+      // Both, and awaited: the branch list decides which rows show, and
+      // appliedPatch/updateIncomplete are per-branch (#108) — without the
+      // status reload, switching tickets would keep showing the other
+      // ticket's "patch applied · Revert" banner over this branch's tree.
+      await Promise.all([loadBranches(), loadStatus()]);
     } catch (e) {
       setTicketError(String(e));
     } finally {
       setTicketSaving(false);
     }
-  }, [sitePath, loadBranches]);
+  }, [sitePath, loadBranches, loadStatus]);
   const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
   const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
 
@@ -1289,10 +1293,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         return;
       }
       await loadBranches();
-      // The panel never offers the checked-out branch, so deleting the active
-      // one only happens if the two drifted — in which case main has cleared
-      // the ticket and moved to trunk, and a status reload re-syncs the panel
-      // and the sidebar to that.
+      // 'trunk' is the literal main returns (TRUNK in ticket-branches.js,
+      // which the renderer cannot import — it pulls in fs). It means the site
+      // now sits on trunk: usually because the delete was made from there,
+      // but also when the deleted branch was somehow the active one — main
+      // then cleared the ticket, and the status reload re-syncs the panel and
+      // the sidebar to that.
       if (res.current === 'trunk') await loadStatus();
     } catch (e) {
       setTicketError(String(e));
@@ -1816,8 +1822,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Trac ticket panel. The sentence differs — an unlinked panel offers to
   // continue, a linked one points out the other open tickets — but the rows,
   // the ordering and the delete action are the same list.
+  //
+  // Switch and delete are checkouts of the same working directory that an
+  // install, a build or a trunk update is using, so they block on the long
+  // operations as well as on each other — the same trio every destructive
+  // control in this panel guards on.
   const branchRows = ticketBranchRows({ branches: ticketBranches.branches, current: ticketBranches.current, now: Date.now() });
-  const ticketActionsBlocked = ticketSaving || deletingBranch !== null;
+  const ticketActionsBlocked = ticketSaving || deletingBranch !== null || updateState !== 'idle' || installing || building;
   const renderBranchRows = (linked) => (
     <div style={{ marginTop: 8, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
       {branchRows.map((row, i) => (
@@ -2787,7 +2798,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 #{tracTicket}
               </span>
               <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
-              <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketSaving}>Unlink</Button>
+              <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketActionsBlocked}>Unlink</Button>
             </div>
 
             {branchRows.length ? (
@@ -2944,7 +2955,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   value={ticketInput}
                   onChange={(value) => { setTicketInput(value); setTicketError(''); }}
                   onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
-                  disabled={ticketSaving}
+                  disabled={ticketActionsBlocked}
                   placeholder="Ticket number or URL, e.g. 62281"
                   aria-label="Trac ticket number or URL"
                 />
@@ -2953,7 +2964,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 variant="secondary"
                 onClick={linkTicket}
                 isBusy={ticketSaving}
-                disabled={ticketSaving || !ticketInput.trim()}
+                disabled={ticketActionsBlocked || !ticketInput.trim()}
                 style={{ padding: '10px 16px', borderRadius: 10 }}
               >Link ticket</Button>
             </div>
@@ -3308,7 +3319,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           value={ticketInput}
                           onChange={(value) => { setTicketInput(value); setTicketError(''); }}
                           onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
-                          disabled={ticketSaving}
+                          disabled={ticketActionsBlocked}
                           placeholder="Ticket number or URL, e.g. 62281"
                           aria-label="Trac ticket number or URL"
                         />
@@ -3316,7 +3327,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           variant="secondary"
                           onClick={linkTicket}
                           isBusy={ticketSaving}
-                          disabled={ticketSaving || !ticketInput.trim()}
+                          disabled={ticketActionsBlocked || !ticketInput.trim()}
                           style={{ justifyContent:'center' }}
                         >Link ticket</Button>
                         {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
