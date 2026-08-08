@@ -38,10 +38,12 @@ const UPSTREAM_REPO = 'wordpress-develop';
 const BASE_BRANCH = 'trunk';
 const API = 'https://api.github.com';
 
-// Forking is asynchronous: the POST returns 202 and the repository appears a
-// moment later. GitHub's own guidance is to poll; these bounds are ~90 seconds,
-// which covers a repository of this size without hanging the panel forever.
-const FORK_POLL_ATTEMPTS = 30;
+// Forking is asynchronous: the POST returns 202 and the repository fills in
+// afterwards. GitHub documents up to five minutes for a large repository, and
+// wordpress-develop is one — the first real run took minutes to become ready.
+// These bounds are that documented worst case; the progress label says what
+// the wait is, so a long one reads as work rather than a hang.
+const FORK_POLL_ATTEMPTS = 100;
 const FORK_POLL_INTERVAL_MS = 3000;
 
 // How many `-2`, `-3`… suffixes to try before giving up on a branch name. A
@@ -150,39 +152,57 @@ async function ensureFork({ token, login }, deps = {}) {
 		error: `You already have a repository named ${UPSTREAM_REPO} that is not a fork of ${UPSTREAM_OWNER}/${UPSTREAM_REPO}, so there is nowhere to push this. The patch file still works.`
 	});
 
+	// Ready means the fork's own trunk ref answers — not that the repo
+	// metadata exists. Forks share their upstream's object store, so on a fork
+	// that is still initialising every blob, tree and commit write *succeeds*
+	// while the fork's own ref database is not there yet, and the failure
+	// surfaces at the very last write — the branch — as an opaque 404. Found
+	// by hand on the first real run against this repository, which is big
+	// enough for that window to be minutes wide.
+	const readRefs = () => get(`${forkUrl}/git/ref/heads/${BASE_BRANCH}`, { token });
+
 	let existing;
 	try {
 		existing = await get(forkUrl, { token });
 	} catch (e) {
 		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
 	}
-	if (existing.status === 200) return isOurFork(existing.json) ? { ok: true, created: false } : notAFork();
-	if (existing.status !== 404) return failure(existing, 'Could not check for your fork');
+	if (existing.status === 200 && !isOurFork(existing.json)) return notAFork();
+	if (existing.status !== 200 && existing.status !== 404) return failure(existing, 'Could not check for your fork');
 
-	let created;
-	try {
-		created = await post(`${API}/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/forks`, {}, { token });
-	} catch (e) {
-		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
-	}
-	if (created.status !== 202 && created.status !== 200) return failure(created, 'Could not fork wordpress-develop');
-
-	for (let i = 0; i < attempts; i++) {
-		await wait(FORK_POLL_INTERVAL_MS);
-		let poll;
+	let created = false;
+	if (existing.status === 404) {
+		let forked;
 		try {
-			poll = await get(forkUrl, { token });
+			forked = await post(`${API}/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/forks`, {}, { token });
 		} catch (e) {
 			return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
 		}
-		if (poll.status === 200) return { ok: true, created: true };
-		if (poll.status !== 404) return failure(poll, 'Could not read your fork');
+		if (forked.status !== 202 && forked.status !== 200) return failure(forked, 'Could not fork wordpress-develop');
+		created = true;
+	}
+
+	// One wait loop for both cases: a fork this call just made, and one from an
+	// earlier attempt that is still initialising — which is exactly the state a
+	// contributor retrying after the first try "failed" arrives in.
+	try {
+		for (let i = 0; i < attempts; i++) {
+			const ref = await readRefs();
+			if (ref.status === 200) return { ok: true, created };
+			// 404 is the fork still initialising, the state this loop exists to
+			// wait out. Anything else — a token revoked mid-wait, a spent rate
+			// limit — will not resolve by waiting, so it is reported as itself.
+			if (ref.status !== 404) return failure(ref, 'Could not read your fork');
+			await wait(FORK_POLL_INTERVAL_MS);
+		}
+	} catch (e) {
+		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
 	}
 
 	return {
 		ok: false,
 		reason: 'error',
-		error: 'Your fork is taking longer than expected to appear on GitHub. It may exist by now — try again in a minute.'
+		error: 'Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.'
 	};
 }
 
@@ -318,6 +338,17 @@ async function commitAndBranch({ token, login, ticketId, message, treeSha, paren
 			const branch = branchNameFor(ticketId, attempt);
 			const ref = await post(`${repo}/git/refs`, { ref: `refs/heads/${branch}`, sha }, { token });
 			if (ref.status === 201) return { ok: true, branch, sha };
+			// A 404 here is the fork's ref database still initialising — the
+			// residual window the readiness gate in ensureFork cannot fully
+			// close, since the commit just succeeded against the shared object
+			// store. "Not Found" told the contributor nothing.
+			if (ref.status === 404) {
+				return {
+					ok: false,
+					reason: 'error',
+					error: 'Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.'
+				};
+			}
 			// 422 is how GitHub says the reference already exists — the only
 			// status worth another name. Anything else is a real failure and
 			// retrying it nine more times would only slow down the report.

@@ -95,7 +95,10 @@ test('classifyFailure calls a 401 unauthorized, and still recognises a spent quo
 const FORK_JSON = { fork: true, parent: { full_name: 'WordPress/wordpress-develop' } };
 
 test('ensureFork uses the fork that is already there, without forking again', async () => {
-	const api = router({ [`GET ${FORK_URL}`]: { status: 200, json: FORK_JSON } });
+	const api = router({
+		[`GET ${FORK_URL}`]: { status: 200, json: FORK_JSON },
+		[`GET ${FORK_URL}/git/ref/heads/trunk`]: { status: 200, json: { object: { sha: 'tip' } } }
+	});
 
 	const res = await ensureFork({ token: TOKEN, login: LOGIN }, api);
 
@@ -138,14 +141,51 @@ test('ensureFork refuses a fork of a different repository', async () => {
 // request would 404 on a repository that is about to exist.
 test('ensureFork waits for a new fork to appear before reporting success', async () => {
 	const api = router({
-		[`GET ${FORK_URL}`]: (seen) => ({ status: seen < 3 ? 404 : 200 }),
+		[`GET ${FORK_URL}`]: (seen) => (seen < 3
+			? { status: 404 }
+			: { status: 200, json: FORK_JSON }),
+		[`GET ${FORK_URL}/git/ref/heads/trunk`]: { status: 200, json: { object: { sha: 'tip' } } },
 		'POST repos/WordPress/wordpress-develop/forks': { status: 202 }
 	});
 
 	const res = await ensureFork({ token: TOKEN, login: LOGIN }, api);
 
 	assert.deepStrictEqual(res, { ok: true, created: true });
-	assert.strictEqual(api.calls.filter((c) => c.method === 'GET').length, 3);
+});
+
+// The bug found by hand on the first real run: the repository *metadata*
+// appears well before the fork's own ref database is ready. Forks share their
+// upstream's object store, so every blob, tree and commit write succeeds
+// against a fork that cannot yet take a branch — and the failure surfaces at
+// the very last write as an opaque 404. Ready means the fork's own trunk ref
+// answers, not that the repo shell exists.
+test('ensureFork waits for the fork’s refs, not just its metadata', async () => {
+	const api = router({
+		[`GET ${FORK_URL}`]: { status: 200, json: FORK_JSON },
+		// The ref database catches up two polls after the metadata.
+		[`GET ${FORK_URL}/git/ref/heads/trunk`]: (seen) => (seen < 3
+			? { status: 404 }
+			: { status: 200, json: { object: { sha: 'tip' } } }),
+		'POST repos/WordPress/wordpress-develop/forks': { status: 202 }
+	});
+
+	const res = await ensureFork({ token: TOKEN, login: LOGIN }, api);
+
+	assert.strictEqual(res.ok, true);
+	assert.strictEqual(api.calls.filter((c) => c.url.endsWith('git/ref/heads/trunk')).length, 3);
+});
+
+test('ensureFork gives up on a fork whose refs never become ready, naming the wait', async () => {
+	const api = router({
+		[`GET ${FORK_URL}`]: { status: 200, json: FORK_JSON },
+		[`GET ${FORK_URL}/git/ref/heads/trunk`]: { status: 404 },
+		'POST repos/WordPress/wordpress-develop/forks': { status: 202 }
+	});
+
+	const res = await ensureFork({ token: TOKEN, login: LOGIN }, { ...api, forkPollAttempts: 2 });
+
+	assert.strictEqual(res.ok, false);
+	assert.match(res.error, /try again/i);
 });
 
 test('ensureFork gives up with something actionable when the fork never appears', async () => {
@@ -157,7 +197,7 @@ test('ensureFork gives up with something actionable when the fork never appears'
 	const res = await ensureFork({ token: TOKEN, login: LOGIN }, { ...api, forkPollAttempts: 2 });
 
 	assert.strictEqual(res.ok, false);
-	assert.match(res.error, /try again in a minute/);
+	assert.match(res.error, /still being set up/);
 });
 
 test('ensureFork reports a revoked token as unauthorized rather than as a missing fork', async () => {
@@ -307,6 +347,22 @@ test('commitAndBranch takes the next name when the branch already exists', async
 	assert.strictEqual(api.calls.filter((c) => c.url.includes('git/commits')).length, 1);
 });
 
+// The readiness gate in ensureFork shrinks this window but cannot close it: a
+// 404 here is the fork's ref database still initialising, and "Not Found" told
+// the contributor nothing.
+test('commitAndBranch names a still-initialising fork instead of saying Not Found', async () => {
+	const api = router({
+		'POST git/commits': { status: 201, json: { sha: 'commit1' } },
+		'POST git/refs': { status: 404, json: { message: 'Not Found' } }
+	});
+
+	const res = await commitAndBranch({ token: TOKEN, login: LOGIN, ticketId: 1, message: 'm', treeSha: 't', parentSha: 'p' }, api);
+
+	assert.strictEqual(res.ok, false);
+	assert.match(res.error, /still being set up/);
+	assert.match(res.error, /try again/i);
+});
+
 test('commitAndBranch stops on a failure that another name would not fix', async () => {
 	const api = router({
 		'POST git/commits': { status: 201, json: { sha: 'commit1' } },
@@ -336,6 +392,7 @@ test('createPullRequest opens it on upstream, from the fork’s branch', async (
 function happyPathRoutes() {
 	return {
 		[`GET ${FORK_URL}`]: { status: 200, json: FORK_JSON },
+		[`GET ${FORK_URL}/git/ref/heads/trunk`]: { status: 200, json: { object: { sha: 'tip' } } },
 		'GET git/commits/abc123': { status: 200, json: { tree: { sha: 'basetree' } } },
 		'POST git/blobs': { status: 201, json: { sha: 'blob1' } },
 		'POST git/trees': { status: 201, json: { sha: 'tree1' } },
