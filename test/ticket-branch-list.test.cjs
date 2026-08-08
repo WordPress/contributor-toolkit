@@ -61,6 +61,21 @@ test('rows: the checked-out branch is not offered — its ticket is the one the 
 	assert.deepStrictEqual(rows.map((r) => r.ticketId), [61002]);
 });
 
+// Regression, seen in manual testing: right after "Continue working on
+// #59234" the panel is linked to 59234, but the branch list on screen is
+// still the one loaded on trunk — its `current` says nothing to exclude, and
+// the panel offered "You also have work on #59234" while on #59234. The
+// linked ticket is excluded by number, independently of `current`.
+test('rows: the linked ticket is excluded even when the list\'s current is stale (issue #108)', () => {
+	const rows = ticketBranchRows({
+		branches: [branch(59234, { lastUsedAt: ago(MINUTE_MS) }), branch(61002)],
+		current: 'trunk',
+		tracTicket: 59234,
+		now: NOW
+	});
+	assert.deepStrictEqual(rows.map((r) => r.ticketId), [61002]);
+});
+
 test('rows: on trunk nothing is excluded', () => {
 	const rows = ticketBranchRows({
 		branches: [branch(59234), branch(61002)],

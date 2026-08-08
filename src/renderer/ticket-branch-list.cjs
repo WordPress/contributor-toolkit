@@ -56,24 +56,31 @@ function relativeTimeLabel(iso, now) {
  *
  * Branches without a ticket id are dropped — a branch someone made with their
  * own git client is not a ticket this panel can offer to resume. So is the
- * branch currently checked out: its ticket is the one the panel already names,
- * and offering to "continue" it would be a button that does nothing. When the
- * site is on trunk (or nothing resolves), no ref matches and every ticket is
- * offered — which is exactly right for the unlinked state.
+ * branch currently checked out, and so is the ticket the panel is linked to:
+ * both mean "the one you are on", and offering to "continue" it would be a
+ * button that does nothing. They are excluded independently because they can
+ * disagree — `current` arrives with the branch list, which is loaded
+ * asynchronously and can be stale for a moment after a switch, while the
+ * linked ticket is what the panel is already showing. Seen in manual testing
+ * as "You also have work on #59234" while linked to #59234. When the site is
+ * on trunk with no ticket, neither matches and every ticket is offered —
+ * which is exactly right for the unlinked state.
  *
  * Most recently used first, so the ticket someone is coming back for is the
  * top row; branches with no record sort last, tickets ascending, rather than
  * interleaving with the ones that can prove their recency.
  *
  * @param {Object}  input
- * @param {?Array}  input.branches As returned by `branches:list`.
- * @param {?string} input.current  The checked-out ref, or null.
- * @param {number}  input.now      Epoch milliseconds, injected for tests.
+ * @param {?Array}  input.branches   As returned by `branches:list`.
+ * @param {?string} input.current    The checked-out ref, or null.
+ * @param {?number} input.tracTicket The ticket the panel is linked to, or null.
+ * @param {number}  input.now        Epoch milliseconds, injected for tests.
  * @return {Array<{ref: string, ticketId: number, timeLabel: ?string}>}
  */
-function ticketBranchRows({ branches, current, now }) {
+function ticketBranchRows({ branches, current, tracTicket, now }) {
 	return (Array.isArray(branches) ? branches : [])
-		.filter((b) => b && typeof b.ticketId === 'number' && b.ref !== current)
+		.filter((b) => b && typeof b.ticketId === 'number' && b.ref !== current
+			&& (typeof tracTicket !== 'number' || b.ticketId !== tracTicket))
 		.sort((a, b) => {
 			const aAt = a.lastUsedAt ? Date.parse(a.lastUsedAt) : NaN;
 			const bAt = b.lastUsedAt ? Date.parse(b.lastUsedAt) : NaN;

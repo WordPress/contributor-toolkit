@@ -1827,24 +1827,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // install, a build or a trunk update is using, so they block on the long
   // operations as well as on each other — the same trio every destructive
   // control in this panel guards on.
-  const branchRows = ticketBranchRows({ branches: ticketBranches.branches, current: ticketBranches.current, now: Date.now() });
+  const branchRows = ticketBranchRows({ branches: ticketBranches.branches, current: ticketBranches.current, tracTicket, now: Date.now() });
   const ticketActionsBlocked = ticketSaving || deletingBranch !== null || updateState !== 'idle' || installing || building;
   const renderBranchRows = (linked) => (
     <div style={{ marginTop: 8, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
       {branchRows.map((row, i) => (
         <div key={row.ref} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: i < branchRows.length - 1 ? '1px solid #f0f0f1' : 'none' }}>
           <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-            {linked ? (
-              <span style={{ fontSize: 13, color: '#1d2327' }}>
-                You also have work on #{row.ticketId}
-                {' — '}
-                <Button variant="link" onClick={() => saveTicket(String(row.ticketId))} disabled={ticketActionsBlocked} style={{ fontSize: 13 }}>switch</Button>
-              </span>
-            ) : (
-              <Button variant="secondary" isBusy={ticketSaving} disabled={ticketActionsBlocked} onClick={() => saveTicket(String(row.ticketId))}>
-                Continue working on #{row.ticketId}
+            <span style={{ fontSize: 13, color: '#1d2327' }}>
+              {linked ? <>You also have work on #{row.ticketId}{' — '}</> : null}
+              <Button variant="link" onClick={() => saveTicket(String(row.ticketId))} disabled={ticketActionsBlocked} style={{ fontSize: 13 }}>
+                {linked ? 'switch' : `Continue working on #${row.ticketId}`}
               </Button>
-            )}
+            </span>
             {row.timeLabel ? (
               <div style={{ marginTop: 2, fontSize: 11, color: '#6c6f72' }}>{row.timeLabel}</div>
             ) : null}
