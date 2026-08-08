@@ -18,6 +18,7 @@ import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
 import { computeSetupStepState } from './setup-steps.cjs';
+import { computeTerminalBusy } from './terminal-busy.cjs';
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
@@ -997,6 +998,22 @@ function DestinationGroup({ children }) {
   );
 }
 
+// A command named in the hints under the Terminal (#182). Clicking it types the
+// command at the prompt and stops there — running it is the contributor's
+// keypress, so the hint teaches where these commands live instead of becoming a
+// second, hidden set of build buttons. Rendered as plain text while something is
+// running, since prefilling then would land in the middle of live output.
+function TerminalCommandLink({ command, onPrefill, disabled }) {
+  if (disabled) return <code>{command}</code>;
+  return (
+    <Button
+      variant="link"
+      onClick={() => onPrefill(command)}
+      style={{ fontSize: 12, fontFamily: 'monospace', height: 'auto' }}
+    >{command}</Button>
+  );
+}
+
 function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, editor, wporg, isPending = false, setupLogs = '', isActive = false }) {
   // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
   // recreated callback prop must not retrigger the status-loading effect.
@@ -1405,6 +1422,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   useEffect(() => { runningRef.current = running; }, [running]);
   useEffect(() => { waitingForWatchRef.current = waitingForWatch; }, [waitingForWatch]);
 
+  // The terminal's own busy flag lives in a ref, so nothing re-renders when it
+  // moves — fine for the guards that read it inline, useless for anything the
+  // UI has to reflect. The hints under the Terminal (#182) do have to reflect
+  // it, so every write goes through here and keeps a state copy in step. The
+  // direction that hurts is the ref saying "busy" while the state says "free":
+  // the hint links stay enabled and their click is silently refused.
+  const [terminalRunning, setTerminalRunning] = useState(false);
+  const markTerminalRunning = useCallback((value) => {
+    const next = Boolean(value);
+    terminalStateRef.current.running = next;
+    setTerminalRunning(next);
+  }, []);
+
   const normalizeForTerminal = useCallback((text) => String(text ?? '').replace(/\r?\n/g, '\r\n'), []);
 
   const writeToTerminal = useCallback((text) => {
@@ -1460,6 +1490,26 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     if (terminalStickRef.current) term.scrollToBottom();
   }, []);
 
+  // Drops a command at the prompt without running it, for the hints under the
+  // Terminal (#182). Build and install are one-time steps in the setup
+  // checklist, so a contributor who edits files or adds a dependency later has
+  // no button left to press — the terminal is the path that still works, and
+  // nothing pointed at it. Prefilling rather than running is the point: the
+  // command lands where they can see it, and they press Enter themselves.
+  const prefillTerminalCommand = useCallback((command) => {
+    // The links are already rendered as plain text while the terminal is busy,
+    // so this is the belt to that braces — but it says so rather than returning
+    // silently, matching every other busy guard in this file. A guard that
+    // swallows the click is how a link becomes a control that does nothing.
+    if (terminalStateRef.current.running) {
+      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      return;
+    }
+    replaceTerminalInput(command);
+    const term = terminalRef.current;
+    if (term) term.focus();
+  }, [replaceTerminalInput, writeToTerminal]);
+
   const addCommandToHistory = useCallback((value) => {
     const trimmed = value.trim();
     if (!trimmed) return;
@@ -1479,6 +1529,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     writeToTerminal('  help                        Show this help text\n');
     writeToTerminal('  npm install                 Run npm install in the site directory\n');
     writeToTerminal('  npm run <script>            Run one of: ' + TERMINAL_ALLOWED_SCRIPTS.join(', ') + '\n');
+    writeToTerminal('\nThe setup checklist runs npm install and npm run build once. Run them here\nwhenever you change files or add a dependency afterwards.\n');
   }, [writeToTerminal]);
 
   const executeTerminalCommand = useCallback((rawCommand) => {
@@ -1504,14 +1555,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
     const lower = command.toLowerCase();
     if (TERMINAL_INSTALL_ALIASES.includes(lower)) {
-      state.running = true;
+      markTerminalRunning(true);
       terminalKillRef.current = () => { killCurrent().catch(() => {}); };
       writeToTerminal('Running npm install…\n');
       runInstall({
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
           writeToTerminal(`npm install exited with code ${code}\n`);
-          state.running = false;
+          markTerminalRunning(false);
           terminalKillRef.current = null;
           showPrompt(false);
         }
@@ -1531,14 +1582,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         showPrompt(false);
         return;
       }
-      state.running = true;
+      markTerminalRunning(true);
       terminalKillRef.current = () => { killCurrent().catch(() => {}); };
       writeToTerminal(`Running npm run ${script}…\n`);
       runScript(script, {
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
           writeToTerminal(`npm run ${script} exited with code ${code}\n`);
-          state.running = false;
+          markTerminalRunning(false);
           terminalKillRef.current = null;
           showPrompt(false);
         }
@@ -1548,7 +1599,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
     writeToTerminal(`Unsupported command: ${command}\nTry "help" for the list of supported commands.\n`);
     showPrompt(false);
-  }, [addCommandToHistory, killCurrent, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
+  }, [addCommandToHistory, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
 
   const handleTerminalData = useCallback((data) => {
     const term = terminalRef.current;
@@ -1677,9 +1728,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     stoppingRef.current = false;
     waitingForWatchRef.current = false;
     terminalKillRef.current = null;
-    terminalStateRef.current.running = false;
+    markTerminalRunning(false);
     currentRunIdRef.current = null;
-  }, [setRunning, setServerUrl, setSmtpPort, setStarting, setWaitingForWatch, sitePath]);
+  }, [markTerminalRunning, setRunning, setServerUrl, setSmtpPort, setStarting, setWaitingForWatch, sitePath]);
 
   const startPhpServer = useCallback(async () => {
     if (serverStartRequestedRef.current || stoppingRef.current || !terminalStateRef.current.running) {
@@ -1751,7 +1802,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
         return;
       }
-      state.running = true;
+      markTerminalRunning(true);
       terminalKillRef.current = () => {
         killCurrent().catch(() => {});
         stopDevServer().catch(() => {});
@@ -1776,8 +1827,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           },
           onDone: ({ code }) => {
             writeToTerminal(`${plan.watch.label} exited with code ${code}\n`);
-            const currentState = terminalStateRef.current;
-            currentState.running = false;
+            markTerminalRunning(false);
             terminalKillRef.current = null;
             if (!stoppingRef.current && (runningRef.current || serverStartRequestedRef.current)) {
               stopDevServer().catch(() => {});
@@ -1806,7 +1856,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           onDone: ({ code }) => {
             if (code !== 0 || stoppingRef.current || !terminalStateRef.current.running) {
               if (code !== 0) writeToTerminal(`npm run build failed with code ${code} — dev server not started.\n`);
-              terminalStateRef.current.running = false;
+              markTerminalRunning(false);
               terminalKillRef.current = null;
               setWaitingForWatch(false);
               waitingForWatchRef.current = false;
@@ -1854,7 +1904,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
   const finishUpdate = (message) => {
-    terminalStateRef.current.running = false;
+    markTerminalRunning(false);
     terminalKillRef.current = null;
     setUpdateState('idle');
     if (message) writeToTerminal(message);
@@ -1906,6 +1956,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Same three-stage shape as the update chain, and the same npm wrappers, so
   // exit codes and terminal streaming behave identically.
   const isApplying = applyState !== 'idle';
+  const terminalBusy = computeTerminalBusy({
+    terminalRunning, installing, building, starting, running, isUpdating, isApplying
+  });
   const applySteps = planApplySteps({ needsInstall: applyNeedsInstall });
   const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
 
@@ -1927,7 +1980,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   ) : null);
 
   const finishApply = (message) => {
-    terminalStateRef.current.running = false;
+    markTerminalRunning(false);
     terminalKillRef.current = null;
     setApplyState('idle');
     if (message) writeToTerminal(message);
@@ -2131,7 +2184,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setApplyError('');
     setApplyNeedsInstall(needsInstall);
     setApplyState('applying');
-    state.running = true;
+    markTerminalRunning(true);
     // Same contract as the other chains: while `running` is set, Ctrl+C in the
     // terminal has to reach the child process the chain is about to spawn.
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
@@ -2164,7 +2217,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
       return;
     }
-    state.running = true;
+    markTerminalRunning(true);
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(false);
     setLastUpdateSummary(null);
@@ -2245,7 +2298,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
       return;
     }
-    state.running = true;
+    markTerminalRunning(true);
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(true);
     setLastUpdateSummary(null);
@@ -2784,7 +2837,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     {
       key: 'install',
       label: 'Install npm dependencies',
-      description: 'Install npm packages so commands can run.',
+      // Once done, this button never re-enables (#182), so the step says where
+      // a later install lives rather than leaving a dead control unexplained.
+      description: stepState.install.done
+        ? 'Installed. Added a dependency to package.json since? Run npm install in the Terminal below.'
+        : 'Install npm packages so commands can run.',
       ...stepState.install,
       action: (
         <Button
@@ -2798,7 +2855,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     {
       key: 'build',
       label: 'Run full build',
-      description: 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
+      description: hasBuilt
+        ? 'Built. Changed files since? Run npm run build in the Terminal below — updates and applied patches rebuild on their own.'
+        : 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
       ...stepState.build,
       action: (
         <Button
@@ -3430,7 +3489,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             }}
           />
           <div style={{ marginTop: 8, fontSize: 12, color: '#3c434a' }}>
-            Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
+            <div>Changed files in your checkout? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
+            <div style={{ marginTop: 2 }}>Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
+            <div style={{ marginTop: 6 }}>
+              Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
+            </div>
           </div>
         </div>
         <div>
