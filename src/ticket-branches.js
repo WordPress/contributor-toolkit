@@ -189,7 +189,10 @@ async function parkCurrentWork(dir, { baseOid, author = WIP_AUTHOR, onProgress =
 	// wiped by hand, a site adopted from disk) still parks against something
 	// sane instead of throwing.
 	const parent = baseOid || await git.resolveRef({ fs, dir, ref: TRUNK });
-	await stageWorktree(dir, matrix, onProgress);
+	// `from` added here rather than inside the loop: staging is the longest
+	// stretch of a park, and without it the sentence loses the ticket number for
+	// exactly the seconds it most needs to name it.
+	await stageWorktree(dir, matrix, onProgress && ((p) => onProgress({ from: branch, ...p })));
 	if (onProgress) onProgress({ stage: 'commit', from: branch });
 	const oid = await git.commit({ fs, dir, message: WIP_MESSAGE, author, parent: [parent] });
 	return { parked: true, branch, oid };

@@ -711,9 +711,10 @@ async function withSwitchMarker(sitePath, run) {
 /**
  * Switch progress as terminal lines, for the trunk update (#173).
  *
- * `intervalMs: Infinity` suppresses everything except a change of stage and the
- * final flush, which turns a switch into about five lines instead of fifteen —
- * the same module the panel uses, in the mode an append-only log wants.
+ * `intervalMs: Infinity` suppresses everything except the first frame of a
+ * stage and the last one held when it turns over, which is a handful of lines per switch instead of
+ * thousands — the same module the panel drives live, in the mode an
+ * append-only log wants.
  *
  * @param {Function} sendLog Writes one chunk to the update's log stream.
  * @return {{emit: Function, flush: Function}} Pass `emit` as `onProgress`.
@@ -889,11 +890,16 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
                 // how the two end up disagreeing. `Infinity` keeps it to one
                 // line per stage, since this log is append-only.
                 const parkLog = updateSwitchLogger(sendLog);
-                await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, {
-                    baseOid: branchMetaBefore && branchMetaBefore.baseOid,
-                    onProgress: parkLog.emit
-                }));
-                parkLog.flush();
+                try {
+                    await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, {
+                        baseOid: branchMetaBefore && branchMetaBefore.baseOid,
+                        onProgress: parkLog.emit
+                    }));
+                } finally {
+                    // The last line of the stage a park died in is the one line
+                    // a contributor reading this log actually wants.
+                    parkLog.flush();
+                }
                 await mergeSiteMeta(sitePath, { currentBranch: TRUNK });
             }
 
@@ -926,8 +932,11 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             if (ticketBefore !== null) {
                 sendLog(`\nReturning to your work on ${branchBefore}…\n`);
                 const returnLog = updateSwitchLogger(sendLog);
-                await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchBefore, { onProgress: returnLog.emit }));
-                returnLog.flush();
+                try {
+                    await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchBefore, { onProgress: returnLog.emit }));
+                } finally {
+                    returnLog.flush();
+                }
                 await mergeSiteMeta(sitePath, { currentBranch: branchBefore, tracTicket: ticketBefore });
             }
             sendDone({ ok: true, ...result, branch: branchBefore });
@@ -1451,8 +1460,13 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref) => withRegistere
 		const { ref: current, meta } = await activeBranch(sitePath, { migrate: true });
 		if (current !== TRUNK) {
 			const progress = switchProgressReporter(event, sitePath);
-			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
-			progress.flush();
+			try {
+				await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
+			} finally {
+				// In a finally because a switch that dies mid-checkout is exactly
+				// when the last frame it reached is worth having.
+				progress.flush();
+			}
 		}
 		await mergeSiteMeta(sitePath, { tracTicket: null, currentBranch: TRUNK });
 		return { ok: true, ticket: null, branch: TRUNK };
@@ -1474,8 +1488,11 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref) => withRegistere
 	let baseOid;
 	if (known.includes(branchRef)) {
 		const progress = switchProgressReporter(event, sitePath);
-		await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
-		progress.flush();
+		try {
+			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
+		} finally {
+			progress.flush();
+		}
 		baseOid = ((await readSiteMeta(sitePath)).branches || {})[branchRef]?.baseOid || null;
 	} else {
 		// Starting a ticket from another ticket parks that one first; from trunk
@@ -1483,8 +1500,11 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref) => withRegistere
 		// "I started editing, then realised which ticket this is").
 		if (current !== TRUNK) {
 			const progress = switchProgressReporter(event, sitePath);
-			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
-			progress.flush();
+			try {
+				await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
+			} finally {
+				progress.flush();
+			}
 		}
 		({ baseOid } = await startTicketBranch(sitePath, parsed.id));
 	}
@@ -1519,8 +1539,12 @@ ipcMain.handle('branches:switch', async (event, sitePath, targetRef) => withRegi
 	if (blocked) return blocked;
 	const { ref: current, meta } = await activeBranch(sitePath, { migrate: true });
 	const progress = switchProgressReporter(event, sitePath);
-	const result = await withSwitchMarker(sitePath, () => switchToBranch(sitePath, targetRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
-	progress.flush();
+	let result;
+	try {
+		result = await withSwitchMarker(sitePath, () => switchToBranch(sitePath, targetRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
+	} finally {
+		progress.flush();
+	}
 	const ticketId = ticketIdFromRef(targetRef);
 	if (targetRef !== TRUNK) {
 		await mergeBranchMeta(sitePath, targetRef, { lastUsedAt: new Date().toISOString() });

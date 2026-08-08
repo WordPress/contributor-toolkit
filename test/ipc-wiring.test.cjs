@@ -1820,6 +1820,39 @@ test('a window closed mid-switch does not turn a finished switch into a failure 
 	assert.equal(result.ticket, null);
 });
 
+// A switch that dies mid-checkout is exactly when the last frame it reached is
+// worth having — and it is the case where nothing calls flush unless the flush
+// is in a finally.
+test('a switch that fails still delivers the last frame it reached (issue #173)', async () => {
+	const switchToBranch = spy(async (dir, ref, options) => {
+		options.onProgress({ stage: 'apply', loaded: 1, total: 900, to: ref });
+		// Suppressed by the throttle: same stage, well inside the interval.
+		options.onProgress({ stage: 'apply', loaded: 400, total: 900, to: ref });
+		const e = new Error('EPERM');
+		e.stage = 'checkout';
+		throw e;
+	});
+	const currentBranchName = spy(async () => 'ticket/59234');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/59234': { baseOid: 'abc' } }, currentBranch: 'ticket/59234' } }
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { switchToBranch, currentBranchName } }
+	});
+
+	const event = createIpcEvent();
+	const result = await main.invokeWith('branches:switch', event, '/sites/wp', 'ticket/61002');
+
+	assert.equal(result.ok, false, 'the failure is still a failure');
+	const progress = event.sent.filter((m) => m.channel === SWITCH_PROGRESS_CHANNEL);
+	assert.deepEqual(
+		progress.map((m) => m.payload.loaded),
+		[1, 400],
+		'the frame held back by the throttle has to arrive, or the line freezes part-way'
+	);
+});
+
 // No renderer calls this door yet. It streams anyway: the day the switcher is
 // wired to it, silence would arrive with nothing failing — the guard below
 // cannot see a send-only channel.

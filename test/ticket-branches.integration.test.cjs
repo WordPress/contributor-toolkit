@@ -25,6 +25,7 @@ const {
 	switchToBranch,
 	deleteTicketBranch
 } = require('../src/ticket-branches.js');
+const { describeSwitchProgress } = require('../src/switch-progress.cjs');
 
 const AUTHOR = { name: 'test', email: 'test@example.com' };
 
@@ -267,6 +268,16 @@ test('switchToBranch reports every stage of a park and a checkout (issue #173)',
 	const staging = seen.filter((p) => p.stage === 'stage');
 	assert.ok(staging.length > 0);
 	assert.equal(staging.every((p) => Number.isFinite(p.total) && p.total > 0), true);
+	// And it is the longest stretch of the park, so it has to keep naming the
+	// ticket — a sentence that drops to "Saving your work…" for most of the wait
+	// is the one that fails to stop someone force-quitting.
+	assert.equal(staging.every((p) => p.from === ticketBranchRef(61002)), true);
+	assert.equal(
+		seen.every((p) => describeSwitchProgress(p).length > 0),
+		true,
+		'every payload has to render as something'
+	);
+	assert.match(describeSwitchProgress(staging[0]), /#61002/);
 });
 
 // Nothing to park is the common case — switching away from a ticket you only

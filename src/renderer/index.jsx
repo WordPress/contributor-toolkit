@@ -1337,6 +1337,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const discardTrunkWorkAndSwitch = useCallback(async (ref) => {
     setTicketSaving(true);
     setTicketError('');
+    // The refused attempt left its last frame behind — without this, the
+    // discard runs under a spinner describing a switch that never happened.
+    if (onClearSwitchProgress) onClearSwitchProgress(sitePath);
     try {
       const res = await window.api.discardChanges(sitePath);
       if (!res?.ok) {
@@ -1354,7 +1357,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     // Outside the guard above: saveTicket owns the busy flag itself, and the
     // discard has already succeeded — a failure here is about the switch.
     await saveTicket(ref);
-  }, [sitePath, saveTicket]);
+  }, [sitePath, saveTicket, onClearSwitchProgress]);
 
   // "Delete this ticket's work" (#108) — destroys the branch, which is why it
   // sits behind a confirm while switching does not.
