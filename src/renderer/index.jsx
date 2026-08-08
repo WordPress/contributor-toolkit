@@ -3575,10 +3575,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             */}
             {!patchLoading && patchHasChanges && (
               <div>
-                <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:8 }}>
-                  <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Where this patch goes</div>
-                  <div style={{ fontSize:12, color:'#6c6f72' }}>Nothing is uploaded and no account is asked for here.</div>
-                </div>
+                {/*
+                  The heading this block used to carry is the screen's own now
+                  (#190) — the chooser is a state of the modal, not a section
+                  inside it, and saying it twice three lines apart read as two
+                  different questions.
+                */}
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:12, alignItems:'stretch' }}>
                   <DestinationCard
                     title="Attach to Trac"
