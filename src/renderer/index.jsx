@@ -1003,6 +1003,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // chain starts, and the step list still has to know whether install runs.
   const [applyNeedsInstall, setApplyNeedsInstall] = useState(false);
   const [applyError, setApplyError] = useState('');
+  // Not every unhappy ending is a failure: a revert can find that the patch is
+  // already gone, which resolves the situation rather than blocking it. Red
+  // would read as "you broke something" when nothing is left to do.
+  const [applyNotice, setApplyNotice] = useState('');
   const [appliedPatch, setAppliedPatch] = useState(null);
   const [prUrlInput, setPrUrlInput] = useState('');
   const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
@@ -1892,6 +1896,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // checkout — the contributor decides after seeing the file list.
   const choosePatchFile = async () => {
     setApplyError('');
+    setApplyNotice('');
     try {
       const chosen = await window.api.choosePatchFile();
       if (!chosen) return;
@@ -1967,6 +1972,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // so applying a PR and applying a downloaded patch are one path from here on.
   const previewPr = async (pr) => {
     setApplyError('');
+    setApplyNotice('');
     setFetchingPr(pr.number);
     try {
       const diff = await window.api.fetchPrDiff(pr.number);
@@ -2011,6 +2017,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // to the same preview the PR and file paths use.
   const previewAttachment = async (att) => {
     setApplyError('');
+    setApplyNotice('');
     setFetchingAttachment(att.url);
     try {
       const res = await window.api.fetchTracAttachment(att.url);
@@ -2035,7 +2042,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // linked to the ticket — same fetch → preview flow as the linked-PR list.
   const previewPrFromInput = () => {
     const parsed = parsePrRef(prUrlInput);
-    if (!parsed.ok) { setApplyError(parsed.error); return; }
+    if (!parsed.ok) { setApplyError(parsed.error); setApplyNotice(''); return; }
     setPrUrlInput('');
     previewPr({ number: parsed.number, url: `https://github.com/WordPress/wordpress-develop/pull/${parsed.number}` });
   };
@@ -2051,6 +2058,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ? Boolean(appliedPatch?.files?.includes('package-lock.json'))
       : Boolean(preview.needsInstall);
     setApplyError('');
+    setApplyNotice('');
     setApplyNeedsInstall(needsInstall);
     setApplyState('applying');
     state.running = true;
@@ -2063,6 +2071,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ({ data }) => writeToTerminal(data),
       (res) => {
         if (!res || !res.ok) {
+          // The main process has already dropped the stale record, so reloading
+          // the status is what takes the "is applied" banner down and frees the
+          // panel to accept another patch. Nothing was written, so there is
+          // nothing to install or build.
+          if (res?.notApplied) {
+            if (res.recordCleared) {
+              setApplyNotice(`${res.error} The applied-patch record has been cleared.`);
+            } else {
+              setApplyError(`${res.error} The record of it could not be cleared, so this site still thinks it is applied.`);
+            }
+            // finishApply reloads the status, which is what takes the banner
+            // down now that the main process has dropped the record.
+            finishApply();
+            return;
+          }
           setApplyError(res?.error || 'The patch could not be applied.');
           finishApply();
           return;
@@ -2923,7 +2946,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               ) : null}
               <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
                 <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>Apply and rebuild</Button>
-                <Button variant="tertiary" onClick={() => { setApplyPreview(null); setApplyError(''); }}>Cancel</Button>
+                <Button variant="tertiary" onClick={() => { setApplyPreview(null); setApplyError(''); setApplyNotice(''); }}>Cancel</Button>
               </div>
             </div>
           ) : null}
@@ -2945,8 +2968,32 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           ) : null}
 
           {applyError ? (
-            <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21' }}>
-              {/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`} The checkout was not changed.
+            <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ flex: '1 1 auto' }}>{/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`} The checkout was not changed.</span>
+              <Button
+                variant="tertiary"
+                isSmall
+                aria-label="Dismiss"
+                onClick={() => setApplyError('')}
+                style={{ color: '#8a1f21' }}
+              >✕</Button>
+            </div>
+          ) : null}
+
+          {applyNotice ? (
+            // Dismissible, like the update summary above: the notice reports
+            // something already resolved, so it outlives its usefulness the
+            // moment it has been read, and nothing else in this panel takes it
+            // down until the next patch.
+            <div role="status" style={{ marginTop: 12, padding: '8px 10px', background: '#f0f6fc', border: '1px solid #3582c4', borderRadius: 6, fontSize: 12, color: '#1d3a5f', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ flex: '1 1 auto' }}>{applyNotice}</span>
+              <Button
+                variant="tertiary"
+                isSmall
+                aria-label="Dismiss"
+                onClick={() => setApplyNotice('')}
+                style={{ color: '#1d3a5f' }}
+              >✕</Button>
             </div>
           ) : null}
 
@@ -2956,7 +3003,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div style={{ minWidth: 280, flex: '1 1 280px' }}>
                   <TextControl
                     value={prUrlInput}
-                    onChange={(value) => { setPrUrlInput(value); setApplyError(''); }}
+                    onChange={(value) => { setPrUrlInput(value); setApplyError(''); setApplyNotice(''); }}
                     onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); previewPrFromInput(); } }}
                     disabled={isUpdating || installing || building}
                     placeholder="Paste a pull request URL or number"

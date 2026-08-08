@@ -479,6 +479,81 @@ test('git:update-trunk hands the update to trunk-update and streams its log back
 	]);
 });
 
+// An update that dies after the forced checkout has already reset the tree
+// (#184): the "incomplete" flag is still true, but the patch went with the
+// reset, so its record cannot be allowed to outlive it — that is precisely the
+// phantom the revert then cannot find.
+test('git:update-trunk drops the applied-patch record when it fails after the checkout', async () => {
+	const updateToLatestTrunk = spy(async () => {
+		const e = new Error('worktree write failed');
+		e.stage = 'checkout';
+		e.worktreeReset = true;
+		throw e;
+	});
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'PR #8913', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { updateToLatestTrunk } } });
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	for (let i = 0; i < 50 && !event.sent.some((m) => m.channel === 'git:update-trunk:done'); i++) {
+		await new Promise((r) => setImmediate(r));
+	}
+
+	const done = event.sent.find((m) => m.channel === 'git:update-trunk:done');
+	assert.deepEqual(done.payload.updateId, updateId);
+	assert.equal(done.payload.stage, 'checkout');
+	assert.equal(settings.values.siteMeta['/sites/wp'].updateIncomplete, true);
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
+});
+
+// The stage is coarser than the reset: it is set before the index walk and the
+// ref write, either of which can fail with every file still in place. Reading
+// it as "the tree was reset" would discard the only copy of a patch that is
+// still applied, which is the failure #184 describes, inverted.
+test('git:update-trunk keeps the applied-patch record when the checkout never started', async () => {
+	const updateToLatestTrunk = spy(async () => {
+		const e = new Error('could not read the index');
+		e.stage = 'checkout';
+		e.worktreeReset = false;
+		throw e;
+	});
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'PR #8913', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { updateToLatestTrunk } } });
+
+	const event = createIpcEvent();
+	await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	for (let i = 0; i < 50 && !event.sent.some((m) => m.channel === 'git:update-trunk:done'); i++) {
+		await new Promise((r) => setImmediate(r));
+	}
+
+	assert.equal(settings.values.siteMeta['/sites/wp'].updateIncomplete, true, 'the rebuild hint still applies');
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch.text, 'STORED');
+});
+
+// A fetch failure moved nothing, so a patch still in the tree keeps its record.
+test('git:update-trunk keeps the applied-patch record when the fetch fails', async () => {
+	const updateToLatestTrunk = spy(async () => { throw new Error('offline'); });
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'PR #8913', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { updateToLatestTrunk } } });
+
+	const event = createIpcEvent();
+	await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	for (let i = 0; i < 50 && !event.sent.some((m) => m.channel === 'git:update-trunk:done'); i++) {
+		await new Promise((r) => setImmediate(r));
+	}
+
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch.text, 'STORED');
+});
+
 test('sites:add normalizes line endings before adopting a directory', async () => {
 	// Throwing ends the handler at its first delegation, which is the only thing
 	// under test — and it has to end there. The next line is a store write, and
@@ -1247,6 +1322,44 @@ test('git:apply-patch reverts using the stored patch text and clears the record'
 	assert.equal(args.reverse, true);
 	assert.equal(args.patchText, 'STORED', 'a revert applies the patch the app stored, not the renderer');
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
+});
+
+// The patch is gone from the tree but its record survived (#183/#184). Keeping
+// the record would be a dead end: the revert can never succeed, and the
+// one-patch-at-a-time guard would refuse every other patch on its behalf.
+test('git:apply-patch clears the record when the revert finds no patch to undo', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: false, notApplied: true, error: 'That patch is not in this checkout any more.', applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'L', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { reverse: true });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.ok, false);
+	assert.equal(done.notApplied, true, 'the renderer needs this to tell a resolution from a failure');
+	assert.equal(done.recordCleared, true, 'claimed only when the store write actually landed');
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
+});
+
+// The mirror of the above: a real failure must leave the record alone, or the
+// patch stays in the tree with nothing offering to undo it.
+test('git:apply-patch keeps the record when a revert fails for any other reason', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: false, error: 'src/a.php has moved on since the patch was written', applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'L', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { reverse: true });
+	await applyDone(event, applyId);
+
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch.text, 'STORED');
 });
 
 // A store whose siteMeta write throws: the patch lands on disk but its revert

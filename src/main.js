@@ -504,8 +504,18 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             // A failure during checkout leaves the ref moved over a partial
             // worktree — that is the "code is new, assets are old" state, so
             // persist it; a fetch failure moved nothing and stays plain.
+            //
+            // The applied-patch record needs the narrower question, which is why
+            // it reads worktreeReset rather than the stage: once the forced
+            // checkout has started it has taken the patch off disk, so keeping
+            // the record would offer a revert the app cannot honour (#184). The
+            // stage covers index and ref work that can fail with every file
+            // untouched, and dropping the only copy of the patch text there
+            // would strand a patch that is still applied.
             if (stage === 'checkout') {
-                try { await mergeSiteMeta(sitePath, { updateIncomplete: true }); } catch {}
+                const patch = { updateIncomplete: true };
+                if (e && e.worktreeReset) patch.appliedPatch = null;
+                try { await mergeSiteMeta(sitePath, patch); } catch {}
             }
             sendLog(`\nUpdate failed during ${stage}: ${String(e && e.message ? e.message : e)}\n`);
             sendDone({ ok: false, upToDate: false, error: String(e), stage });
@@ -673,7 +683,23 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
 
             const result = await applyPatchToDir({ dir: sitePath, patchText, reverse, onLog: sendLog });
             if (!result.ok) {
-                sendDone({ ok: false, ...result });
+                // Nothing to revert means the record is describing a patch the
+                // checkout no longer has. Keeping it would leave the site stuck:
+                // the revert can never succeed, and the one-patch-at-a-time guard
+                // above would refuse every other patch on its behalf.
+                let recordCleared = false;
+                if (reverse && result.notApplied) {
+                    // Reported rather than assumed: if the store write fails the
+                    // site is still stuck, and telling the contributor it is
+                    // sorted would send them back to a button that still refuses.
+                    try {
+                        await mergeSiteMeta(sitePath, { appliedPatch: null });
+                        recordCleared = true;
+                    } catch (e) {
+                        logError('git:apply-patch', `clearing stale applied-patch record failed: ${String(e && e.stack ? e.stack : e)}`);
+                    }
+                }
+                sendDone({ ok: false, ...result, recordCleared });
                 return;
             }
 
