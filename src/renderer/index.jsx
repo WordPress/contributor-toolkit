@@ -24,6 +24,7 @@ import { pickLatest } from '../latest-patch.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { highlightDiff } from './diff-highlight.cjs';
+import { patchScreenStep, patchScreenCopy, prFailureMessage } from './patch-screen.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // What the app is doing while a pull request is being opened (#167). Each step
@@ -34,15 +35,6 @@ const PR_STAGE_LABELS = {
   syncing: 'Bringing your fork up to date…',
   committing: 'Uploading your changes…',
   opening: 'Opening the pull request…'
-};
-// Why it failed, in a sentence that says what to do about it. Every one of
-// these still leaves the patch file, which is what the card offers underneath.
-const PR_FAILURE_MESSAGES = {
-  unauthorized: 'That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.',
-  'rate-limited': 'GitHub is rate-limiting this connection. It usually clears within the hour.',
-  offline: 'No connection to GitHub.',
-  'no-ticket': 'Link a Trac ticket to this site first — a pull request has to cite one.',
-  empty: 'There are no changes to open a pull request with.'
 };
 // Per-status wording for the update chain card (#94), following the issue's
 // mockups: the skipped install step is named, never hidden, and the build
@@ -2248,6 +2240,29 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     && patchText.trim() !== 'No changes.'
     && !patchText.startsWith('Error');
 
+  // Which moment the patch screen is in, and what it says there (#190). Derived
+  // from the flow's own state rather than tracked beside it, so the screen and
+  // the pull request can never disagree about where the contributor is.
+  const patchStep = patchScreenStep({
+    prResult,
+    prError,
+    prStage,
+    deviceCode: githubDeviceCode
+  });
+  const patchCopy = patchScreenCopy({
+    step: patchStep,
+    dryRun: Boolean(prResult && prResult.dryRun),
+    failureReason: prError ? prError.reason : ''
+  });
+  // Leaving a finished moment means clearing what put the screen there. The
+  // sign-in is the one that has to reach the main process too: a poll left
+  // running would resolve into a screen nobody is on.
+  const leavePatchStep = () => {
+    if (patchStep === 'signin') { cancelGithubSignIn(); return; }
+    setPrResult(null);
+    setPrError(null);
+  };
+
   // Saving the file, for every destination that needs one (#166). `handoff`
   // asks the main process for the provenance header and the name that carries
   // the handle; without it this is the plain diff the Save button has always
@@ -2383,64 +2398,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } catch {}
   };
 
-  // The pull request card has six states and they are genuinely sequential —
-  // done, still asking, waiting on the browser, ready, declined, not started.
-  // Written as nested ternaries in the JSX that is one expression six levels
-  // deep and unreadable at the point where the wording matters most, so the
-  // states get early returns and the card body gets one call.
-  const renderPullRequestBody = () => {
-    if (prResult) {
-      return (
-        <>
-          {/*
-            A dry run (WP_DEV_ENV_GITHUB_DRY_RUN) stops after the branch: the
-            fork writes are private, the pull request is the step watchers
-            hear about. Saying so beats a "pull request #null".
-          */}
-          {prResult.dryRun ? (
-            <div style={{ fontSize:13, color:'#0f5132' }}>
-              Dry run — branch <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}><code style={{ fontSize:12 }}>{prResult.branch}</code></Button> was created on your fork; no pull request was opened.
-            </div>
-          ) : (
-          <div style={{ fontSize:13, color:'#0f5132' }}>
-            Opened <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}>pull request #{prResult.number}</Button>
-            {' '}from <code style={{ fontSize:12 }}>{prResult.branch}</code>.
-          </div>
-          )}
-          {/*
-            The branch always bases on today's trunk (see resolveBase); this
-            names the consequence when the local checkout was behind it. The
-            clash guard has already ruled out upstream changes to the same
-            files, so this is information, not alarm.
-          */}
-          {prResult.exactBase === false ? (
-            <div style={{ fontSize:12, color:'#6e5406', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, padding:'8px 10px' }}>
-              Your checkout was behind trunk, so the branch was based on today&apos;s trunk. None of your files were changed upstream in between — the pull request shows only your work.
-            </div>
-          ) : null}
-          {/*
-            The Trac loop-back is for a pull request that exists — a dry run
-            has no link worth posting on a ticket.
-          */}
-          {!prResult.dryRun && (
-            <>
-              <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-                Triage and props live on the ticket, so the link belongs there too.
-              </div>
-              <Button variant="secondary" onClick={copyPrLink} icon={prLinkCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
-                {prLinkCopied ? 'Link copied' : 'Copy the link'}
-              </Button>
-              {tracTicket ? (
-                <Button variant="primary" onClick={()=>window.api.openExternal(ticketUrl(tracTicket))} style={{ justifyContent:'center' }}>
-                  Open #{tracTicket} to comment
-                </Button>
-              ) : null}
-            </>
-          )}
-        </>
-      );
-    }
-
+  // What the chooser asks about the pull request destination: whether there is
+  // an account, and the button that starts everything. The states that used to
+  // sit in this same card — the code, the wait, the outcome — own the screen
+  // now (#190) and render from the four functions below it.
+  //
+  // Still early returns rather than nested ternaries: written inline that is
+  // one expression several levels deep, unreadable exactly where the wording
+  // matters most.
+  const renderPullRequestChoice = () => {
     // Not yet asked, which is not the same as signed out: offering "Sign in"
     // before the answer arrives makes the card flicker on every open.
     if (githubAccount === null) {
@@ -2455,27 +2421,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       );
     }
 
-    if (githubDeviceCode) {
-      return (
-        <>
-          <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-            Enter this code at <strong>github.com/login/device</strong>, which has been opened in your browser.
-          </div>
-          <div style={{ fontFamily:'Menlo, Consolas, monospace', fontSize:24, letterSpacing:2, fontWeight:600, textAlign:'center', padding:'10px 0', color:'#1d2327' }}>
-            {githubDeviceCode.userCode}
-          </div>
-          <Button variant="secondary" onClick={copyDeviceCode} icon={codeCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
-            {codeCopied ? 'Code copied' : 'Copy the code'}
-          </Button>
-          <Flex justify="center" gap={2}>
-            <Spinner />
-            <div style={{ fontSize:12, color:'#6c6f72' }}>Waiting for you to finish in the browser…</div>
-          </Flex>
-          <Button variant="link" onClick={cancelGithubSignIn} style={{ fontSize:12 }}>Cancel</Button>
-        </>
-      );
-    }
-
     if (githubAccount.login) {
       return (
         <>
@@ -2484,7 +2429,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <TextControl
                 value={prTitle}
                 onChange={setPrTitle}
-                disabled={Boolean(prStage)}
                 placeholder={`Ticket #${tracTicket}`}
                 label="Title"
                 help="The ticket link and your WordPress.org username go in the description."
@@ -2497,8 +2441,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <Button
                 variant="primary"
                 onClick={openPullRequest}
-                isBusy={Boolean(prStage)}
-                disabled={Boolean(prStage)}
                 style={{ justifyContent:'center' }}
               >{githubAccount?.testMode?.dryRun ? 'Push branch (dry run)' : 'Open pull request'}</Button>
             </>
@@ -2507,24 +2449,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.
             </div>
           )}
-          {prStage ? (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>{PR_STAGE_LABELS[prStage] || 'Working…'}</div>
-          ) : (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>
-              {/*
-                The destination is named, not implied: "the fork is made for
-                you" answers what, this answers where — which account the fork
-                and the branch land in.
-              */}
-              Signed in as {githubAccount.login} — the fork and branch go to{' '}
-              <Button
-                variant="link"
-                onClick={()=>window.api.openExternal(`https://github.com/${githubAccount.login}/wordpress-develop`)}
-                style={{ fontSize:12 }}
-              >{githubAccount.login}/wordpress-develop</Button>.{' '}
-              <Button variant="link" onClick={signOutOfGithub} style={{ fontSize:12 }}>Sign out</Button>
-            </div>
-          )}
+          <div style={{ fontSize:12, color:'#6c6f72' }}>
+            {/*
+              The destination is named, not implied: "the fork is made for
+              you" answers what, this answers where — which account the fork
+              and the branch land in.
+            */}
+            Signed in as {githubAccount.login} — the fork and branch go to{' '}
+            <Button
+              variant="link"
+              onClick={()=>window.api.openExternal(`https://github.com/${githubAccount.login}/wordpress-develop`)}
+              style={{ fontSize:12 }}
+            >{githubAccount.login}/wordpress-develop</Button>.{' '}
+            <Button variant="link" onClick={signOutOfGithub} style={{ fontSize:12 }}>Sign out</Button>
+          </div>
         </>
       );
     }
@@ -2556,6 +2494,118 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         <Button variant="primary" onClick={startGithubSignIn} style={{ justifyContent:'center' }}>Sign in with GitHub</Button>
         <Button variant="link" onClick={()=>{ setGithubDeclined(true); setGithubError(''); }} style={{ fontSize:12 }}>Not now</Button>
       </>
+    );
+  };
+
+  const renderSignInStep = () => (
+    <div style={{ display:'flex', flexDirection:'column', gap:12, maxWidth:520 }}>
+      <div style={{ fontSize:13, color:'#3c434a', lineHeight:1.5 }}>
+        Enter this code at <strong>github.com/login/device</strong>, which has been opened in your browser.
+      </div>
+      <div style={{ fontFamily:'Menlo, Consolas, monospace', fontSize:32, letterSpacing:4, fontWeight:600, color:'#1d2327' }}>
+        {githubDeviceCode?.userCode}
+      </div>
+      <div>
+        <Button variant="secondary" onClick={copyDeviceCode} icon={codeCopied ? checkIcon : copyIcon}>
+          {codeCopied ? 'Code copied' : 'Copy the code'}
+        </Button>
+      </div>
+      <Flex justify="flex-start" gap={2}>
+        <Spinner />
+        <div style={{ fontSize:12, color:'#6c6f72' }}>Waiting for you to finish in the browser…</div>
+      </Flex>
+      <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.6 }}>
+        You are asked for one thing: permission to fork wordpress-develop and push a branch. No credential is written to disk, and the authorization is forgotten when you quit.
+      </div>
+    </div>
+  );
+
+  const renderWorkingStep = () => (
+    <Flex justify="flex-start" gap={2}>
+      <Spinner />
+      <div style={{ fontSize:13, color:'#3c434a' }}>{PR_STAGE_LABELS[prStage] || 'Working…'}</div>
+    </Flex>
+  );
+
+  // What the last save did. Rendered wherever a save can be started from — the
+  // chooser and the failed attempt — because a save that reports nowhere is
+  // "the button did nothing", and the path matters: it is the file the
+  // contributor is about to upload or hand over.
+  const renderSaveOutcome = () => (
+    <>
+      {patchSaved ? (
+        <div style={{ fontSize:13, color:'#0f5132' }}>Saved to {patchSaved}</div>
+      ) : null}
+      {patchSaveError ? (
+        <div role="alert" style={{ fontSize:13, color:'#d63638' }}>Could not save the patch: {patchSaveError}</div>
+      ) : null}
+    </>
+  );
+
+  const renderFailedStep = () => (
+    <div style={{ display:'flex', flexDirection:'column', gap:12, alignItems:'flex-start', maxWidth:520 }}>
+      <div role="alert" style={{ fontSize:13, color:'#d63638', lineHeight:1.5 }}>
+        {prFailureMessage(prError)}
+      </div>
+      {/*
+        Every failure lands here, and every failure has the same floor: the file
+        exists regardless of what GitHub did.
+      */}
+      <Button variant="secondary" onClick={savePatch}>Save the patch file instead</Button>
+      {renderSaveOutcome()}
+    </div>
+  );
+
+  const renderDoneStep = () => {
+    if (!prResult) return null;
+    return (
+      <div style={{ display:'flex', flexDirection:'column', gap:12, alignItems:'flex-start', maxWidth:640 }}>
+        {/*
+          A dry run (WP_DEV_ENV_GITHUB_DRY_RUN) stops after the branch: the
+          fork writes are private, the pull request is the step watchers
+          hear about. Saying so beats a "pull request #null".
+        */}
+        {prResult.dryRun ? (
+          <div style={{ fontSize:13, color:'#0f5132' }}>
+            Dry run — branch <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}><code style={{ fontSize:12 }}>{prResult.branch}</code></Button> was created on your fork; no pull request was opened.
+          </div>
+        ) : (
+        <div style={{ fontSize:13, color:'#0f5132' }}>
+          Opened <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}>pull request #{prResult.number}</Button>
+          {' '}from <code style={{ fontSize:12 }}>{prResult.branch}</code>.
+        </div>
+        )}
+        {/*
+          The branch always bases on today's trunk (see resolveBase); this
+          names the consequence when the local checkout was behind it. The
+          clash guard has already ruled out upstream changes to the same
+          files, so this is information, not alarm.
+        */}
+        {prResult.exactBase === false ? (
+          <div style={{ fontSize:12, color:'#6e5406', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, padding:'8px 10px' }}>
+            Your checkout was behind trunk, so the branch was based on today&apos;s trunk. None of your files were changed upstream in between — the pull request shows only your work.
+          </div>
+        ) : null}
+        {/*
+          The Trac loop-back is for a pull request that exists — a dry run
+          has no link worth posting on a ticket.
+        */}
+        {!prResult.dryRun && (
+          <>
+            <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
+              Triage and props live on the ticket, so the link belongs there too.
+            </div>
+            <Button variant="secondary" onClick={copyPrLink} icon={prLinkCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
+              {prLinkCopied ? 'Link copied' : 'Copy the link'}
+            </Button>
+            {tracTicket ? (
+              <Button variant="primary" onClick={()=>window.api.openExternal(ticketUrl(tracTicket))} style={{ justifyContent:'center' }}>
+                Open #{tracTicket} to comment
+              </Button>
+            ) : null}
+          </>
+        )}
+      </div>
     );
   };
 
@@ -3481,13 +3531,26 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ) : null}
       {isPatchOpen && (
         <Modal
-          title="Patch"
+          title={patchCopy.heading}
           onRequestClose={()=>setIsPatchOpen(false)}
           shouldCloseOnClickOutside
           isFullScreen
           headerClassName="patch-modal-header"
         >
           <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
+            {/*
+              Said in every moment, not once at the top (#190). The state where
+              a contributor most needs to hear that the patch file is untouched
+              is the one where they are least able to go looking for it.
+            */}
+            <div style={{ fontSize:13, color:'#6c6f72', lineHeight:1.5 }}>{patchCopy.subheading}</div>
+            {/*
+              One moment owns the screen at a time. Everything from here to the
+              diff is the chooser's; the four states of the pull request flow
+              render on their own below it.
+            */}
+            {patchStep === 'choose' ? (
+            <>
             {!patchLoading && age.stale && (
               <div style={{ padding:'12px 16px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:13, lineHeight:1.5, color:'#6e5406' }}>
                 This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
@@ -3647,21 +3710,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         </span>
                       </div>
                     ) : null}
-                    {renderPullRequestBody()}
+                    {renderPullRequestChoice()}
+                    {/*
+                      A sign-in that failed is not given the screen the way a
+                      failed pull request is: it leaves nothing behind, and the
+                      contributor is still standing in front of the destination
+                      they were about to choose.
+                    */}
                     {githubError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{githubError}</div> : null}
-                    {prError ? (
-                      <>
-                        <div role="alert" style={{ color:'#d63638', fontSize:12 }}>
-                          {PR_FAILURE_MESSAGES[prError.reason] || prError.error}
-                        </div>
-                        {/*
-                          Every failure lands here, and every failure has the
-                          same floor: the file exists regardless of what GitHub
-                          did.
-                        */}
-                        <Button variant="secondary" onClick={savePatch} style={{ justifyContent:'center' }}>Save the patch file instead</Button>
-                      </>
-                    ) : null}
                   </DestinationCard>
                 </div>
               </div>
@@ -3671,12 +3727,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               over the diff is still there when there is nothing to send, and an
               outcome that renders nowhere is the alert this replaced.
             */}
-            {patchSaved ? (
-              <div style={{ fontSize:13, color:'#0f5132' }}>Saved to {patchSaved}</div>
-            ) : null}
-            {patchSaveError ? (
-              <div role="alert" style={{ fontSize:13, color:'#d63638' }}>Could not save the patch: {patchSaveError}</div>
-            ) : null}
+            {renderSaveOutcome()}
             <div style={{ position:'relative', flex:1, minHeight:0 }}>
               {patchLoading ? (
                 <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:16 }}>
@@ -3709,6 +3760,37 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 </>
               )}
             </div>
+            </>
+            ) : (
+              // The other four moments each get the room the diff was taking:
+              // a live authorization and a wall of green and red are not two
+              // things anyone reads at once.
+              <div style={{ flex:1, minHeight:0, overflowY:'auto', paddingTop:4 }}>
+                {patchStep === 'signin' ? renderSignInStep() : null}
+                {patchStep === 'working' ? renderWorkingStep() : null}
+                {patchStep === 'done' ? renderDoneStep() : null}
+                {patchStep === 'failed' ? renderFailedStep() : null}
+              </div>
+            )}
+            {/*
+              The footer belongs to the moment too: what this step costs on the
+              left, the way out of it on the right. The chooser has neither —
+              it is already the way out, and its destinations carry their own
+              buttons.
+            */}
+            {patchStep !== 'choose' ? (
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, borderTop:'1px solid #dcdcde', paddingTop:12 }}>
+                <span style={{ fontSize:12, color:'#6c6f72' }}>{patchCopy.footerNote}</span>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  {patchCopy.backLabel ? (
+                    <Button variant="tertiary" onClick={leavePatchStep}>{patchCopy.backLabel}</Button>
+                  ) : null}
+                  {patchStep === 'done' ? (
+                    <Button variant="primary" onClick={()=>setIsPatchOpen(false)}>Done</Button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
         </Modal>
       )}
