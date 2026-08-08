@@ -32,6 +32,19 @@ const USER_AGENT = 'WordPress-Contributor-Toolkit (+https://github.com/WordPress
 const REQUEST_TIMEOUT_MS = 15000;
 
 /**
+ * Opt-in wire log for the one bug that survives every reproduction: set
+ * WP_DEV_ENV_HTTP_LOG=1 and every GitHub request prints its method, URL and
+ * status to the terminal the app was started from. Never the token, never the
+ * body — the shape of the traffic, not its contents.
+ *
+ * @param {string} line
+ */
+function wireLog(line) {
+	// eslint-disable-next-line no-console -- deliberate: this is the debug channel, enabled explicitly by env var.
+	if (process.env.WP_DEV_ENV_HTTP_LOG) console.log(`[github-http] ${line}`);
+}
+
+/**
  * A single request over Electron net.
  *
  * `opts` carries both test doubles and request options. `partition` +
@@ -50,15 +63,6 @@ const REQUEST_TIMEOUT_MS = 15000;
  * @param {boolean} [opts.useSessionCookies]
  * @return {Promise<{status: number, headers: Object, body: string}>}
  */
-// Opt-in wire log for the one bug that survives every reproduction: set
-// WP_DEV_ENV_HTTP_LOG=1 and every GitHub request prints its method, URL and
-// status to the terminal the app was started from. Never the token, never the
-// body — the shape of the traffic, not its contents.
-function wireLog(line) {
-	// eslint-disable-next-line no-console -- deliberate: this is the debug channel, enabled explicitly by env var.
-	if (process.env.WP_DEV_ENV_HTTP_LOG) console.log(`[github-http] ${line}`);
-}
-
 function httpRequest(method, url, headers = {}, opts = {}) {
 	// Required lazily, not at module load: requiring `electron` outside Electron
 	// resolves the binary and can spawn its installer on a cold checkout, and the
