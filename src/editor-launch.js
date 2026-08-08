@@ -290,9 +290,16 @@ const REFUSAL_REASONS = {
 // editor that has since been uninstalled, is refused rather than resolved
 // through an environment that is not there.
 //
-// The spawn options are the ones main.js holds everywhere else it starts a
-// child: no shell, hidden on Windows, detached with no stdio so the editor
-// outlives the app and cannot block on a pipe nobody reads.
+// The spawn options: never a shell, and detached with no stdio so the editor
+// outlives the app and cannot block on a pipe nobody reads. `detached` is
+// unconditional here, unlike the runners in main.js which set it only off
+// Windows — they are killed as a process group, and this child is released
+// rather than ever signalled.
+//
+// No `windowsHide`. That flag fills STARTUPINFO with "start hidden", and a GUI
+// application that honors it — VS Code does — launches with its window
+// invisible while the spawn still reports success (#181). It is for children
+// the app runs to collect their output; here the window is the point.
 async function openSiteInEditor(sitePath, editorPath, {
 	sites,
 	platform,
@@ -321,8 +328,7 @@ async function openSiteInEditor(sitePath, editorPath, {
 		child = spawn(command, args, {
 			detached: true,
 			stdio: 'ignore',
-			shell: false,
-			windowsHide: true
+			shell: false
 		});
 	} catch (e) {
 		// A synchronous throw is the argument-shape failure only. The one that

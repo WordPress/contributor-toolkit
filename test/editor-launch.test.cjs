@@ -390,7 +390,7 @@ test('a refusal is logged on one bounded line', async () => {
 	assert.ok(description.length <= 121);
 });
 
-test('the child is detached, shell-free and hidden, and its handle released', async () => {
+test('the child is detached and shell-free, and its handle released', async () => {
 	const { calls, options } = launchDeps();
 
 	await openSiteInEditor(SITE, EDITOR, options);
@@ -398,10 +398,32 @@ test('the child is detached, shell-free and hidden, and its handle released', as
 	assert.deepEqual(calls[0].options, {
 		detached: true,
 		stdio: 'ignore',
-		shell: false,
-		windowsHide: true
+		shell: false
 	});
 	assert.equal(calls[0].unrefed, true);
+});
+
+// `windowsHide` fills the new process's STARTUPINFO with "start hidden", and a
+// GUI application that honors it — VS Code does — launches with its window
+// invisible while the spawn still reports success, so the app said ok and the
+// contributor saw nothing (#181). The flag exists to suppress console windows
+// the app's own tooling creates; the editor's window is the point of the click.
+test('the editor is not asked to start hidden on Windows', async () => {
+	const winEditor = 'C:\\Users\\dev\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe';
+	const winSite = 'C:\\Users\\dev\\Desktop\\wp';
+	const fs = fakeFs({ [winEditor]: 'exe' });
+	const { calls, spawn } = recordingSpawn();
+
+	const result = await openSiteInEditor(winSite, winEditor, {
+		sites: [winSite],
+		platform: 'win32',
+		statPath: fs.statPath,
+		spawn
+	});
+
+	assert.deepEqual(result, { ok: true });
+	assert.ok(!('windowsHide' in calls[0].options),
+		'a GUI editor must not inherit a hidden first window');
 });
 
 test('a spawn that throws is reported, not raised at the window', async () => {
