@@ -105,7 +105,19 @@ honest; you own the result even though the agent produced it.
 2. **Fix or consciously defer** every finding — a deferral is a decision, not an omission.
 3. **Summarise the outcome in the PR description**: what the checks reported, what you fixed, and
    what you left as a follow-up and why.
-4. Optionally **assign Copilot** as a second reader against the same standard.
+4. **Write a "How to test this" section** — a starting state, numbered steps naming what to click,
+   the expected result of each, and what must *not* have happened. Required on every PR, including
+   ones with green tests: this app fails in places the suite cannot reach, and a reviewer should
+   never have to guess how to drive the change. The shape is spelled out in
+   [AGENTS.md](AGENTS.md#every-pull-request-says-how-to-test-it-by-hand).
+5. Optionally **assign Copilot** as a second reader against the same standard.
 
-Nothing enforces steps 1–3. Skipping them means a human reviewer is the first person to read the
+GitHub fills every new pull request with
+[the template](.github/pull_request_template.md); steps 3 and 4 have their place in it already.
+It is built so a reviewer gets the change in five minutes — Why, What changes, How to test this,
+Risks, Related stay visible and everything deeper goes in a collapsed `<details>` block. Move detail
+out of the way rather than dropping it. The same template covers a fix, a feature and a process
+change; it flags the few places where the three want different things.
+
+Nothing enforces steps 1–4. Skipping them means a human reviewer is the first person to read the
 diff — which is exactly the cost this process exists to avoid.
