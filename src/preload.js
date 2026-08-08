@@ -56,6 +56,14 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	openInEditor: (sitePath) => ipcRenderer.invoke('editor:open', sitePath)
 ,
+	// Who the patch came from and where, app-wide (#166). An empty ref forgets
+	// the field it is passed to.
+	getProvenance: () => ipcRenderer.invoke('provenance:get')
+,
+	setWporgHandle: (ref) => ipcRenderer.invoke('provenance:set-handle', ref)
+,
+	setContributionEvent: (ref) => ipcRenderer.invoke('provenance:set-event', ref)
+,
 	showSiteInFileManager: (sitePath) => ipcRenderer.invoke('dir:show', sitePath)
 ,
 	markSiteInitialized: (sitePath) => ipcRenderer.invoke('sites:mark-initialized', sitePath)
@@ -92,7 +100,10 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	getPatch: (sitePath) => ipcRenderer.invoke('git:get-patch', sitePath)
 ,
-	savePatch: (sitePath) => ipcRenderer.invoke('git:save-patch', sitePath)
+	// With `{ handoff: true }` the saved file carries the provenance header and a
+	// name that says whose work it is (#166); without options it is the bare
+	// diff, which is what gets attached to a ticket.
+	savePatch: (sitePath, options) => ipcRenderer.invoke('git:save-patch', sitePath, options)
 ,
 	isWorktreeDirty: (sitePath) => ipcRenderer.invoke('git:worktree-dirty', sitePath)
 ,

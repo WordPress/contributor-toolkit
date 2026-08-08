@@ -30,6 +30,25 @@ function ticketUrl(id) {
 }
 
 /**
+ * The page that attaches a file to a ticket (issue #166).
+ *
+ * This is the whole of the "attach to Trac" destination: a deep link, opened in
+ * the contributor's browser, where they are already signed in or will be asked
+ * to sign in by wordpress.org rather than by this app. Posting the file here
+ * automatically would mean carrying a wordpress.org session, which is the one
+ * thing #166 rules out — and one manual click is a step a first-time
+ * contributor should see anyway.
+ *
+ * `?action=new` is Trac's own attach form; without it the same path lists the
+ * attachments that are already there.
+ *
+ * @param {number|string} id
+ */
+function attachUrl(id) {
+	return `https://${TRAC_HOST}/attachment/ticket/${id}/?action=new`;
+}
+
+/**
  * @param {string} digits
  */
 function fromDigits(digits) {
@@ -87,5 +106,6 @@ module.exports = {
 	TRAC_HOST,
 	MAX_TICKET_ID,
 	ticketUrl,
+	attachUrl,
 	parseTicketRef
 };

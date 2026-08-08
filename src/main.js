@@ -47,6 +47,8 @@ const {
 } = require('./ticket-branches');
 const { getStore } = require('./settings-store');
 const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
+const { parseHandle } = require('./wporg-handle.cjs');
+const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
 const { detectEditors, knownEditorName, isLaunchableEditorPath, openSiteInEditor } = require('./editor-launch');
 
@@ -398,12 +400,49 @@ ipcMain.handle('git:create-patch', async (_e, sitePath) => {
     }
 });
 
-ipcMain.handle('git:save-patch', async (_e, sitePath) => {
+// Saving a patch, with or without the provenance a mentor handoff needs (#166).
+//
+// `{ handoff: true }` is the only difference: the file gets the header from
+// patch-provenance.cjs and a name that says whose work it is, so someone else
+// can push it and the props still land on the person who wrote it. Every other
+// caller — the Trac destination, the save-before-update prompt — passes nothing
+// and gets the bare diff under the name it has always had, because that is what
+// gets attached to a ticket.
+ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
     try {
-        const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
+        const handoff = Boolean(options && options.handoff);
+        const baseOid = await patchBaseOid(sitePath);
+        const patch = await createMinimalPatchForDir(sitePath, baseOid);
+
+        // The header describes what was diffed, so it is read from the same
+        // recorded state the status handler reports, not asked of the caller:
+        // the renderer should not be able to put a different handle or a
+        // different base on someone's patch than the one this site has.
+        let header = '';
+        let name = 'wordpress.patch';
+        if (handoff) {
+            const s = await getStore();
+            const meta = (s.get('siteMeta') || {})[sitePath] || {};
+            const { wporgHandle: handle = null, contributionEvent: event = null } = s.get('preferences') || {};
+            header = buildProvenanceHeader({
+                handle,
+                event,
+                ticketId: meta.tracTicket,
+                // The base the patch was actually diffed against, which on a
+                // ticket branch is the trunk it was born at — not the site's
+                // current trunk, which "Update to latest trunk" may have moved
+                // forward since (#108). Reading the date off that commit rather
+                // than the site record keeps the two halves of the line
+                // describing the same commit.
+                ...(await baseProvenance(sitePath, baseOid, meta)),
+                generatedAt: new Date().toISOString()
+            });
+            name = handoffFilename({ handle, ticketId: meta.tracTicket });
+        }
+
         const { filePath, canceled } = await dialog.showSaveDialog({
-            title: 'Save Diff File',
-            defaultPath: path.join(os.homedir(), 'wordpress.patch'),
+            title: handoff ? 'Save Patch for Handoff' : 'Save Diff File',
+            defaultPath: path.join(os.homedir(), name),
             filters: [
                 { name: 'Patch Files', extensions: ['patch', 'diff'] },
                 { name: 'All Files', extensions: ['*'] }
@@ -414,7 +453,7 @@ ipcMain.handle('git:save-patch', async (_e, sitePath) => {
             return { ok: false, canceled: true };
         }
 
-        await fs.promises.writeFile(filePath, patch, 'utf8');
+        await fs.promises.writeFile(filePath, header + patch, 'utf8');
         return { ok: true, filePath };
     } catch (e) {
         return { ok: false, error: String(e) };
@@ -620,6 +659,34 @@ async function patchBaseOid(sitePath) {
         return await git.resolveRef({ fs, dir: sitePath, ref: 'refs/heads/trunk' });
     } catch {
         return null;
+    }
+}
+
+/**
+ * The `trunkOid`/`trunkDate` pair a handoff header should carry (#166), for the
+ * base the patch was really diffed against (#108).
+ *
+ * On trunk there is nothing to correct and the site record is used as it always
+ * was. On a ticket branch the site record describes where trunk is *now*, which
+ * an "Update to latest trunk" can have moved past the branch's own base — so the
+ * date is read off the base commit itself. If that read fails the date is
+ * dropped rather than guessed: a header with no date is honest, one that dates a
+ * commit it is not describing is not.
+ *
+ * @param {string}  dir     Site working directory.
+ * @param {?string} baseOid Base the patch was diffed against, or null on trunk.
+ * @param {Object}  meta    The site's stored metadata.
+ * @return {Promise<{trunkOid: ?string, trunkDate: ?string}>} Header fields.
+ */
+async function baseProvenance(dir, baseOid, meta) {
+    if (!baseOid || baseOid === meta.trunkOid) {
+        return { trunkOid: meta.trunkOid, trunkDate: meta.trunkDate };
+    }
+    try {
+        const { commit } = await git.readCommit({ fs, dir, oid: baseOid });
+        return { trunkOid: baseOid, trunkDate: new Date(commit.committer.timestamp * 1000).toISOString() };
+    } catch {
+        return { trunkOid: baseOid, trunkDate: null };
     }
 }
 
@@ -1449,6 +1516,60 @@ ipcMain.handle('editor:open', async (_e, sitePath) => {
 		spawn,
 		onRefused: (reason, description) => logEvent('editor', `refused to open ${description} — ${reason}`)
 	});
+});
+
+// --- Who the patch came from, and where (#166) ---
+//
+// Both fields are stored beside the editor choice and for the same reason: they
+// are facts about the contributor and their afternoon, asked once, not
+// properties of a checkout. They exist so a handed-off patch can say who wrote
+// it and at which event; nothing here contacts wordpress.org, and the handle is
+// never checked against a real account — an unverified name is what a props
+// line is anyway.
+
+async function setPreference(key, value) {
+	const s = await getStore();
+	s.set('preferences', { ...(s.get('preferences') || {}), [key]: value });
+}
+
+ipcMain.handle('provenance:get', async () => {
+	const s = await getStore();
+	const { wporgHandle, contributionEvent } = s.get('preferences') || {};
+	return {
+		ok: true,
+		handle: typeof wporgHandle === 'string' ? wporgHandle : null,
+		event: typeof contributionEvent === 'string' ? contributionEvent : null
+	};
+});
+
+// Validation happens here rather than only in the window, because these values
+// become a filename and lines in a file other people read. An empty ref clears
+// the field, so "forget it" needs no second channel — the same shape
+// `sites:set-ticket` uses.
+ipcMain.handle('provenance:set-handle', async (_e, ref) => {
+	if (typeof ref === 'string' && ref.trim() === '') {
+		await setPreference('wporgHandle', null);
+		return { ok: true, handle: null };
+	}
+
+	const parsed = parseHandle(ref);
+	if (!parsed.ok) return { ok: false, error: parsed.error };
+
+	await setPreference('wporgHandle', parsed.handle);
+	return { ok: true, handle: parsed.handle };
+});
+
+ipcMain.handle('provenance:set-event', async (_e, ref) => {
+	if (typeof ref === 'string' && ref.trim() === '') {
+		await setPreference('contributionEvent', null);
+		return { ok: true, event: null };
+	}
+
+	const parsed = parseEventName(ref);
+	if (!parsed.ok) return { ok: false, error: parsed.error };
+
+	await setPreference('contributionEvent', parsed.name);
+	return { ok: true, event: parsed.name };
 });
 
 // The fallback that needs no configuration at all — see site-registry.js for why
