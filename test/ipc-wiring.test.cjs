@@ -1804,6 +1804,39 @@ test('sites:set-ticket switches back to a ticket the site already has, without r
 	assert.equal(result.ticket, 62281);
 });
 
+// The refusal reaches the renderer as a *code*, not only as a sentence. The
+// panel keys its two ways out — save the edits as a patch, or discard them —
+// off `dirty-trunk`; a handler that returned the message alone would leave a
+// contributor staring at a dead end with their work still on trunk.
+test('sites:set-ticket surfaces the dirty-trunk refusal by code, not just as text', async () => {
+	const switchToBranch = spy(async () => {
+		const e = new Error('Uncommitted work on trunk would be lost by switching');
+		e.code = 'dirty-trunk';
+		throw e;
+	});
+	const listTicketBranches = spy(async () => ['ticket/62281']);
+	const currentBranchName = spy(async () => 'trunk');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/62281': { baseOid: 'abc' } }, currentBranch: 'trunk' } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./ticket-branches': { switchToBranch, listTicketBranches, currentBranchName }
+		}
+	});
+
+	const result = await main.invoke('sites:set-ticket', '/sites/wp', '62281');
+
+	assert.equal(result.ok, false);
+	assert.equal(result.code, 'dirty-trunk');
+	assert.match(result.error, /would be lost/);
+	// Refused, not half-done: the ticket is not recorded as linked.
+	assert.equal(settings.values.siteMeta['/sites/wp'].tracTicket, undefined);
+});
+
 test('unlinking a ticket returns to trunk but keeps the branch and its work', async () => {
 	const switchToBranch = spy(async () => ({ switched: true, parked: true }));
 	const deleteTicketBranch = spy(async () => ({}));
