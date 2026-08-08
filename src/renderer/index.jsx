@@ -24,6 +24,7 @@ import { pickLatest } from '../latest-patch.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { highlightDiff } from './diff-highlight.cjs';
+import { carryTestMode } from './github-account.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // What the app is doing while a pull request is being opened (#167). Each step
@@ -2309,7 +2310,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       started = await window.api.signInToGithub((done) => {
         setGithubDeviceCode(null);
         if (done && done.ok) {
-          setGithubAccount({ login: done.login, configured: true });
+          setGithubAccount((prev) => carryTestMode(prev, { login: done.login, configured: true }));
           setGithubError('');
           return;
         }
@@ -2341,7 +2342,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
   const signOutOfGithub = async () => {
     try { await window.api.signOutOfGithub(); } catch {}
-    setGithubAccount({ login: null, configured: githubAccount?.configured !== false });
+    setGithubAccount((prev) => carryTestMode(prev, { login: null, configured: prev?.configured !== false }));
     setPrResult(null);
     setPrError(null);
   };
@@ -2364,7 +2365,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         setPrError(res || { reason: 'error', error: 'The pull request could not be opened.' });
         // A revoked authorization is forgotten in the main process, so the card
         // has to stop claiming an account it no longer has.
-        if (res && res.reason === 'unauthorized') setGithubAccount({ login: null, configured: true });
+        if (res && res.reason === 'unauthorized') setGithubAccount((prev) => carryTestMode(prev, { login: null, configured: true }));
       }
     } catch (e) {
       setPrError({ reason: 'error', error: e && e.message ? e.message : String(e) });
