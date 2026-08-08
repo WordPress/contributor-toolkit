@@ -1623,7 +1623,7 @@ test('github:open-pr asks github-pr to open one, for the ticket this site is lin
 	await settle();
 	await settle();
 
-	const result = await main.invoke('github:open-pr', dir, { title: 'Fix the thing' });
+	const result = await main.invoke('github:open-pr', dir, { title: 'Fix the thing', notes: 'What it does, and how to see it.' });
 
 	assert.equal(result.ok, true);
 	assert.equal(result.number, 9);
@@ -1636,7 +1636,10 @@ test('github:open-pr asks github-pr to open one, for the ticket this site is lin
 	// The ticket comes from the site's stored metadata, not from the caller: the
 	// renderer must not be able to file against a different one.
 	assert.equal(args.ticketId, 62281);
-	assert.deepEqual(buildPullRequestBody.calls, [[{ ticketId: 62281, handle: 'janedoe', event: 'WordCamp Europe 2026' }]]);
+	// The notes are the caller's to supply — unlike the ticket, the handle and
+	// the event, which are read from stored state so the renderer cannot claim
+	// a different contributor or a different ticket than this site's.
+	assert.deepEqual(buildPullRequestBody.calls, [[{ ticketId: 62281, handle: 'janedoe', event: 'WordCamp Europe 2026', notes: 'What it does, and how to see it.' }]]);
 	// The changed file the fixture leaves in the working tree, in the shape the
 	// tree API takes rather than as a diff.
 	assert.deepEqual(args.files.map((f) => [f.path, f.kind]), [['text.txt', 'modify']]);

@@ -617,7 +617,7 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
         baseSha: collected.headOid,
         files: collected.files,
         title,
-        body: buildPullRequestBody({ ticketId, handle, event: contributionEvent }),
+        body: buildPullRequestBody({ ticketId, handle, event: contributionEvent, notes: options.notes }),
         onProgress: (stage) => {
             if (!event.sender.isDestroyed()) event.sender.send('github:pr:progress', { sitePath, stage });
         }

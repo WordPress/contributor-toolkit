@@ -10,6 +10,7 @@ import {
   DropdownMenu,
   Modal,
   TextControl,
+  TextareaControl,
   Spinner
 } from '@wordpress/components';
 import { plus, chevronLeft, chevronRight, copy as copyIcon, check as checkIcon, edit, download, comment } from '@wordpress/icons';
@@ -1023,6 +1024,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [githubDeclined, setGithubDeclined] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   const [prTitle, setPrTitle] = useState('');
+  const [prNotes, setPrNotes] = useState('');
   const [prStage, setPrStage] = useState('');
   const [prResult, setPrResult] = useState(null);
   const [prError, setPrError] = useState(null);
@@ -2253,6 +2255,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setPrResult(null);
     setPrError(null);
     setPrStage('');
+    setPrNotes('');
     setGithubError('');
     setGithubDeclined(false);
     loadGithubAccount();
@@ -2388,7 +2391,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       if (payload && payload.sitePath === sitePath) setPrStage(payload.stage);
     });
     try {
-      const res = await window.api.openPullRequest(sitePath, { title: prTitle });
+      const res = await window.api.openPullRequest(sitePath, { title: prTitle, notes: prNotes });
       if (res && res.ok) {
         setPrResult(res);
       } else {
@@ -2512,14 +2515,62 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         <>
           {tracTicket ? (
             <>
+              {/*
+                The placeholder used to be the fallback title, `Ticket #NNNNN`,
+                which taught the wrong thing by example: a reviewer scanning a
+                list of pull requests learns nothing from a ticket number they
+                can already see. It shows a good title instead, and the line
+                under the field says what an empty box will produce, so the
+                fallback stays honest without being the model.
+              */}
               <TextControl
                 value={prTitle}
                 onChange={setPrTitle}
                 disabled={Boolean(prStage)}
-                placeholder={`Ticket #${tracTicket}`}
+                placeholder="Reject a theme zip in the plugin installer"
                 label="Title"
-                help="The ticket link and your WordPress.org username go in the description."
+                help="What the change does, in one line. Reviewers scan these."
               />
+              {!prTitle.trim() ? (
+                <div style={{ fontSize:12, color:'#6c6f72', marginTop:-4 }}>
+                  Left empty, it will be titled <strong>Ticket #{tracTicket}</strong>.
+                </div>
+              ) : null}
+              {/*
+                The one part of the body a human writes, and the reason the
+                field exists: everything else — the ticket link, the handle,
+                the event — the app already knows and adds. It goes to the top
+                of the description, above the ticket line.
+              */}
+              <TextareaControl
+                value={prNotes}
+                onChange={setPrNotes}
+                disabled={Boolean(prStage)}
+                rows={4}
+                label="Notes for reviewers (optional)"
+                placeholder={'What the change does, and why.\nHow to see it working — the steps you used.\nAnything you are unsure about.'}
+                help="Goes at the top of the description. The ticket link and your WordPress.org username are added underneath."
+              />
+              {/*
+                Two facts from the core handbook that a first-timer has no way
+                to know and that change what they do next: nobody is watching
+                GitHub, and nothing is merged there. Both make the Trac step
+                this flow ends on the point rather than the postscript, so they
+                are stated before the button, not after the pull request
+                exists.
+              */}
+              <details style={{ fontSize:12, color:'#6c6f72' }}>
+                <summary style={{ cursor:'pointer', color:'#3858e9' }}>How pull requests work in core</summary>
+                <div style={{ padding:'8px 0 0', lineHeight:1.6, display:'flex', flexDirection:'column', gap:6 }}>
+                  <div>Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.</div>
+                  <div>Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.</div>
+                  <Button
+                    variant="link"
+                    onClick={()=>window.api.openExternal('https://make.wordpress.org/core/handbook/contribute/git/github-pull-requests-for-code-review/')}
+                    style={{ fontSize:12 }}
+                  >The handbook page on pull requests</Button>
+                </div>
+              </details>
               {/*
                 The button says what it will actually do. A dry run's button
                 reading "Open pull request" is the label lying about the mode,
@@ -3544,7 +3595,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <div>
                 <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:8, flexWrap:'wrap' }}>
                   <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Where this patch goes</div>
-                  <div style={{ fontSize:12, color:'#6c6f72' }}>Two destinations save a file for you to send. The pull request is the one the app sends for you.</div>
+                  <div style={{ fontSize:12, color:'#6c6f72' }}>The pull request is the one the app sends for you. The other two save a file for you to send.</div>
                 </div>
                 {/*
                   `start`, not `stretch`: the groups hold different amounts, and
@@ -3552,6 +3603,56 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   under its button that reads as something failing to load.
                 */}
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:12, alignItems:'start' }}>
+
+                  {/*
+                    Alone in its own group, because it is the one destination
+                    that acts for the contributor: it signs them in, forks, and
+                    pushes. That is also where the signup cliff is (#167), named
+                    here before anything happens rather than sprung after they
+                    have left the venue.
+                  */}
+                  <DestinationGroup>
+                    <Destination
+                      title="Open a pull request"
+                      cost="A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk."
+                      after="Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen."
+                    >
+                      {/*
+                        Absent from every shipped build. When a test switch is
+                        set it sits above the button, because that is where the
+                        decision is made — a mode set in a terminal minutes
+                        earlier, in an app that otherwise looks identical, is how
+                        a dry run that silently was not one opened a real pull
+                        request during testing.
+                      */}
+                      {githubAccount?.testMode ? (
+                        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', background:'#f0f0f1', border:'1px dashed #949494', borderRadius:6, fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
+                          <span style={{ fontWeight:600, letterSpacing:0.5, textTransform:'uppercase', fontSize:10, color:'#1d2327' }}>Test mode</span>
+                          <span>
+                            {githubAccount.testMode.dryRun
+                              ? 'Dry run — a branch is pushed to your fork, no pull request is opened.'
+                              : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to wordpress-develop.</>}
+                          </span>
+                        </div>
+                      ) : null}
+                      {renderPullRequestBody()}
+                      {githubError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{githubError}</div> : null}
+                      {prError ? (
+                        <>
+                          <div role="alert" style={{ color:'#d63638', fontSize:12 }}>
+                            {PR_FAILURE_MESSAGES[prError.reason] || prError.error}
+                          </div>
+                          {/*
+                            Every failure lands here, and every failure has the
+                            same floor: the file exists regardless of what GitHub
+                            did.
+                          */}
+                          <Button variant="secondary" onClick={savePatch} style={{ justifyContent:'center' }}>Save the patch file instead</Button>
+                        </>
+                      ) : null}
+                    </Destination>
+                  </DestinationGroup>
+
                   <DestinationGroup>
                     <Destination
                       title="Attach to Trac"
@@ -3652,55 +3753,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           {handleError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{handleError}</div> : null}
                         </>
                       )}
-                    </Destination>
-                  </DestinationGroup>
-
-                  {/*
-                    Alone in its own group, because it is the one destination
-                    that acts for the contributor: it signs them in, forks, and
-                    pushes. That is also where the signup cliff is (#167), named
-                    here before anything happens rather than sprung after they
-                    have left the venue.
-                  */}
-                  <DestinationGroup>
-                    <Destination
-                      title="Open a pull request"
-                      cost="A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk."
-                      after="Automated checks run on it. Post the link back on the ticket — a pull request does not replace one."
-                    >
-                      {/*
-                        Absent from every shipped build. When a test switch is
-                        set it sits above the button, because that is where the
-                        decision is made — a mode set in a terminal minutes
-                        earlier, in an app that otherwise looks identical, is how
-                        a dry run that silently was not one opened a real pull
-                        request during testing.
-                      */}
-                      {githubAccount?.testMode ? (
-                        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', background:'#f0f0f1', border:'1px dashed #949494', borderRadius:6, fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-                          <span style={{ fontWeight:600, letterSpacing:0.5, textTransform:'uppercase', fontSize:10, color:'#1d2327' }}>Test mode</span>
-                          <span>
-                            {githubAccount.testMode.dryRun
-                              ? 'Dry run — a branch is pushed to your fork, no pull request is opened.'
-                              : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to wordpress-develop.</>}
-                          </span>
-                        </div>
-                      ) : null}
-                      {renderPullRequestBody()}
-                      {githubError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{githubError}</div> : null}
-                      {prError ? (
-                        <>
-                          <div role="alert" style={{ color:'#d63638', fontSize:12 }}>
-                            {PR_FAILURE_MESSAGES[prError.reason] || prError.error}
-                          </div>
-                          {/*
-                            Every failure lands here, and every failure has the
-                            same floor: the file exists regardless of what GitHub
-                            did.
-                          */}
-                          <Button variant="secondary" onClick={savePatch} style={{ justifyContent:'center' }}>Save the patch file instead</Button>
-                        </>
-                      ) : null}
                     </Destination>
                   </DestinationGroup>
                   </div>
