@@ -1,0 +1,447 @@
+'use strict';
+
+/**
+ * Opening a pull request against wordpress-develop from the working tree (#167).
+ *
+ * Nothing here shells out to git and nothing here writes a credential to disk.
+ * The whole sequence is GitHub's own API: fork the repository, bring the fork's
+ * trunk up to date, upload the changed files as blobs, assemble a tree, commit
+ * it, create a branch pointing at that commit, and open the pull request. The
+ * only thing that ever holds the token is the main process, in memory, for the
+ * length of one app run.
+ *
+ * Why the Git Data API rather than the contents API, which is simpler: the
+ * contents endpoint writes one commit per file, so a five-file change would
+ * arrive as five commits with four intermediate states that never compiled.
+ * Blobs → tree → commit produces the one commit a reviewer expects.
+ *
+ * Two things in here exist because of a fork that already exists and is months
+ * stale — the case unit tests can only approximate and the one that will
+ * actually be hit at a contributor day:
+ *
+ *   - the commit is based on the local checkout's HEAD, and a stale fork does
+ *     not contain that commit at all, so creating a ref from it would 422. The
+ *     sync step is load-bearing, not hygiene.
+ *   - a fork that has diverged cannot be fast-forwarded, so the base falls back
+ *     to the fork's own trunk tip and the result says so, rather than failing.
+ *
+ * Every failure is typed, because every failure has the same fallback — the
+ * patch file, which is always still there — but not the same explanation.
+ */
+
+const { getJson, postJson } = require('./github-http.cjs');
+const { classifyHttpFailure } = require('./patch-sources.cjs');
+const { ticketUrl } = require('./renderer/trac-ticket.cjs');
+
+const UPSTREAM_OWNER = 'WordPress';
+const UPSTREAM_REPO = 'wordpress-develop';
+const BASE_BRANCH = 'trunk';
+const API = 'https://api.github.com';
+
+// Forking is asynchronous: the POST returns 202 and the repository appears a
+// moment later. GitHub's own guidance is to poll; these bounds are ~90 seconds,
+// which covers a repository of this size without hanging the panel forever.
+const FORK_POLL_ATTEMPTS = 30;
+const FORK_POLL_INTERVAL_MS = 3000;
+
+// How many `-2`, `-3`… suffixes to try before giving up on a branch name. A
+// contributor with ten open branches for one ticket has a different problem.
+const MAX_BRANCH_ATTEMPTS = 10;
+
+const DEFAULT_MODE = '100644';
+
+function sleep(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Why a request failed, in the terms the panel can act on.
+ *
+ * 401 is checked before the shared classifier because in the GitHub API it
+ * always means the token is no longer good — a revoked authorization, most
+ * often — and that has its own recovery: forget the token and offer sign-in
+ * again. classifyHttpFailure reads a 401 with a spent quota as rate-limiting,
+ * which is right for the anonymous reads it was written for and wrong here.
+ *
+ * @param {{status: number, headers: Object}} res
+ * @return {string}
+ */
+function classifyFailure(res) {
+	if (res.status === 401) return 'unauthorized';
+	return classifyHttpFailure(res.status, res.headers || {});
+}
+
+/**
+ * @param {{status: number, headers: Object, json: Object|null}} res
+ * @param {string}                                               what
+ * @return {{ok: false, reason: string, error: string}}
+ */
+function failure(res, what) {
+	const detail = res.json && res.json.message ? res.json.message : `GitHub returned ${res.status}`;
+	return { ok: false, reason: classifyFailure(res), error: `${what}: ${detail}` };
+}
+
+/**
+ * The pull request body, in the form core's Trac↔GitHub convention expects.
+ *
+ * The ticket line is not decoration: it is what links the pull request back to
+ * the ticket, what Trac's own bot reads, and — pleasingly — what this app's own
+ * `bodyCitesTicket` in patch-sources.cjs looks for, so a pull request opened
+ * here shows up in the site's "patches on this ticket" list afterwards.
+ *
+ * @param {Object}        root0
+ * @param {number|string} root0.ticketId
+ * @param {string}        [root0.handle]
+ * @param {string}        [root0.event]
+ * @return {string}
+ */
+function buildPullRequestBody({ ticketId, handle, event } = {}) {
+	const lines = [`Trac ticket: ${ticketUrl(ticketId)}`];
+	// The same two facts the mentor-handoff header carries (#166), for the same
+	// reason: props follow whoever wrote the patch, and a contributor-day room
+	// is worth naming while it is still happening.
+	if (handle) lines.push('', `Written by @${handle} on WordPress.org.`);
+	if (event) lines.push(handle ? `At ${event}.` : `Written at ${event}.`);
+	lines.push('', 'Opened from the WordPress Contributor Toolkit.');
+	return lines.join('\n');
+}
+
+/**
+ * A branch name for a ticket, and the alternatives to try if it is taken.
+ *
+ * @param {number|string} ticketId
+ * @param {number}        attempt  Zero for the first try.
+ * @return {string}
+ */
+function branchNameFor(ticketId, attempt = 0) {
+	const base = `trac-${String(ticketId).replace(/[^0-9]/g, '')}`;
+	return attempt === 0 ? base : `${base}-${attempt + 1}`;
+}
+
+/**
+ * The fork, creating it first if the contributor has none.
+ *
+ * An existing fork short-circuits: forking twice is not an error at GitHub, but
+ * it is a wasted write and a needless wait.
+ *
+ * @param {Object} root0
+ * @param {string} root0.token
+ * @param {string} root0.login
+ * @param {Object} [deps]
+ * @return {Promise<{ok: true, created: boolean}|{ok: false, reason: string, error: string}>}
+ */
+async function ensureFork({ token, login }, deps = {}) {
+	const get = deps.get || getJson;
+	const post = deps.post || postJson;
+	const wait = deps.sleep || sleep;
+	const attempts = deps.forkPollAttempts || FORK_POLL_ATTEMPTS;
+	const forkUrl = `${API}/repos/${login}/${UPSTREAM_REPO}`;
+
+	// A repository under the fork's name is only usable if it actually is a
+	// fork of upstream. A contributor who happens to own an unrelated
+	// repository called wordpress-develop must be told at step one — the
+	// alternative is writing a branch and a commit into their project and
+	// failing at the very end with an opaque 422.
+	const isOurFork = (json) => Boolean(json && json.fork)
+		&& [json.parent, json.source].some((repo) => repo && repo.full_name === `${UPSTREAM_OWNER}/${UPSTREAM_REPO}`);
+	const notAFork = () => ({
+		ok: false,
+		reason: 'error',
+		error: `You already have a repository named ${UPSTREAM_REPO} that is not a fork of ${UPSTREAM_OWNER}/${UPSTREAM_REPO}, so there is nowhere to push this. The patch file still works.`
+	});
+
+	let existing;
+	try {
+		existing = await get(forkUrl, { token });
+	} catch (e) {
+		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
+	}
+	if (existing.status === 200) return isOurFork(existing.json) ? { ok: true, created: false } : notAFork();
+	if (existing.status !== 404) return failure(existing, 'Could not check for your fork');
+
+	let created;
+	try {
+		created = await post(`${API}/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/forks`, {}, { token });
+	} catch (e) {
+		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
+	}
+	if (created.status !== 202 && created.status !== 200) return failure(created, 'Could not fork wordpress-develop');
+
+	for (let i = 0; i < attempts; i++) {
+		await wait(FORK_POLL_INTERVAL_MS);
+		let poll;
+		try {
+			poll = await get(forkUrl, { token });
+		} catch (e) {
+			return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
+		}
+		if (poll.status === 200) return { ok: true, created: true };
+		if (poll.status !== 404) return failure(poll, 'Could not read your fork');
+	}
+
+	return {
+		ok: false,
+		reason: 'error',
+		error: 'Your fork is taking longer than expected to appear on GitHub. It may exist by now — try again in a minute.'
+	};
+}
+
+/**
+ * Which commit the new branch is based on.
+ *
+ * The honest answer is the local checkout's HEAD: that is what the contributor
+ * edited, and basing on anything else would silently fold in upstream changes
+ * they have not seen. A fresh fork contains it. A stale one does not, so the
+ * fork's trunk is fast-forwarded first; a fork that has diverged cannot be, and
+ * then the fork's own tip is the best available base — reported as
+ * `exact: false` so the caller can say the pull request may show more than the
+ * contributor changed.
+ *
+ * @param {Object} root0
+ * @param {string} root0.token
+ * @param {string} root0.login
+ * @param {string} root0.baseSha
+ * @param {Object} [deps]
+ * @return {Promise<{ok: true, sha: string, exact: boolean}|{ok: false, reason: string, error: string}>}
+ */
+async function resolveBase({ token, login, baseSha }, deps = {}) {
+	const get = deps.get || getJson;
+	const post = deps.post || postJson;
+	const repo = `${API}/repos/${login}/${UPSTREAM_REPO}`;
+
+	const hasCommit = async (sha) => {
+		const res = await get(`${repo}/git/commits/${sha}`, { token });
+		return res.status === 200;
+	};
+
+	try {
+		if (baseSha && (await hasCommit(baseSha))) return { ok: true, sha: baseSha, exact: true };
+
+		// 409 here is a diverged fork, which is a normal state for someone who
+		// has contributed before — not a failure to report.
+		await post(`${repo}/merge-upstream`, { branch: BASE_BRANCH }, { token });
+
+		if (baseSha && (await hasCommit(baseSha))) return { ok: true, sha: baseSha, exact: true };
+
+		const ref = await get(`${repo}/git/ref/heads/${BASE_BRANCH}`, { token });
+		if (ref.status !== 200 || !ref.json || !ref.json.object || !ref.json.object.sha) {
+			return failure(ref, 'Could not read your fork’s trunk');
+		}
+		return { ok: true, sha: String(ref.json.object.sha), exact: false };
+	} catch (e) {
+		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
+	}
+}
+
+/**
+ * Uploads the changed files and assembles the tree they belong in.
+ *
+ * `base_tree` is the base commit's tree, so unchanged files are inherited
+ * rather than re-uploaded — the alternative is sending all of wordpress-develop
+ * over a contributor day's wifi.
+ *
+ * A deletion is an entry with a null sha; that is the only way the tree API
+ * expresses one, and it is why deletions work here even though the `.diff` this
+ * app writes still drops them (#174).
+ *
+ * @param {Object} root0
+ * @param {string} root0.token
+ * @param {string} root0.login
+ * @param {string} root0.baseTreeSha
+ * @param {Array}  root0.files       `{ path, kind, content: Buffer|null, mode }`
+ * @param {Object} [deps]
+ * @return {Promise<{ok: true, sha: string}|{ok: false, reason: string, error: string}>}
+ */
+async function createTree({ token, login, baseTreeSha, files }, deps = {}) {
+	const post = deps.post || postJson;
+	const repo = `${API}/repos/${login}/${UPSTREAM_REPO}`;
+	const entries = [];
+
+	try {
+		for (const file of files) {
+			if (file.kind === 'delete') {
+				entries.push({ path: file.path, mode: file.mode || DEFAULT_MODE, type: 'blob', sha: null });
+				continue;
+			}
+			// base64 for every file, not just the binary ones: it is the only
+			// encoding that survives a file the API's utf-8 mode would mangle,
+			// and there is no benefit to picking per file.
+			const blob = await post(`${repo}/git/blobs`, {
+				content: Buffer.from(file.content || Buffer.alloc(0)).toString('base64'),
+				encoding: 'base64'
+			}, { token });
+			if (blob.status !== 201 || !blob.json || !blob.json.sha) {
+				return failure(blob, `Could not upload ${file.path}`);
+			}
+			entries.push({ path: file.path, mode: file.mode || DEFAULT_MODE, type: 'blob', sha: blob.json.sha });
+		}
+
+		const tree = await post(`${repo}/git/trees`, { base_tree: baseTreeSha, tree: entries }, { token });
+		if (tree.status !== 201 || !tree.json || !tree.json.sha) return failure(tree, 'Could not assemble the change');
+		return { ok: true, sha: String(tree.json.sha) };
+	} catch (e) {
+		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
+	}
+}
+
+/**
+ * The commit, and the branch that points at it.
+ *
+ * The branch is created last and separately so a name collision — the same
+ * ticket worked on twice — costs one retry rather than re-uploading everything.
+ *
+ * @param {Object}        root0
+ * @param {string}        root0.token
+ * @param {string}        root0.login
+ * @param {number|string} root0.ticketId
+ * @param {string}        root0.message
+ * @param {string}        root0.treeSha
+ * @param {string}        root0.parentSha
+ * @param {Object}        [deps]
+ * @return {Promise<{ok: true, branch: string, sha: string}|{ok: false, reason: string, error: string}>}
+ */
+async function commitAndBranch({ token, login, ticketId, message, treeSha, parentSha }, deps = {}) {
+	const post = deps.post || postJson;
+	const repo = `${API}/repos/${login}/${UPSTREAM_REPO}`;
+
+	try {
+		const commit = await post(`${repo}/git/commits`, {
+			message,
+			tree: treeSha,
+			parents: [parentSha]
+		}, { token });
+		if (commit.status !== 201 || !commit.json || !commit.json.sha) return failure(commit, 'Could not create the commit');
+		const sha = String(commit.json.sha);
+
+		let lastRes = null;
+		for (let attempt = 0; attempt < MAX_BRANCH_ATTEMPTS; attempt++) {
+			const branch = branchNameFor(ticketId, attempt);
+			const ref = await post(`${repo}/git/refs`, { ref: `refs/heads/${branch}`, sha }, { token });
+			if (ref.status === 201) return { ok: true, branch, sha };
+			// 422 is how GitHub says the reference already exists — the only
+			// status worth another name. Anything else is a real failure and
+			// retrying it nine more times would only slow down the report.
+			if (ref.status !== 422) return failure(ref, 'Could not create the branch');
+			lastRes = ref;
+		}
+		return failure(lastRes, 'Could not find an unused branch name');
+	} catch (e) {
+		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
+	}
+}
+
+/**
+ * The pull request itself, opened on upstream from the fork's branch.
+ *
+ * @param {Object} root0
+ * @param {string} root0.token
+ * @param {string} root0.login
+ * @param {string} root0.branch
+ * @param {string} root0.title
+ * @param {string} root0.body
+ * @param {Object} [deps]
+ * @return {Promise<{ok: true, url: string, number: number}|{ok: false, reason: string, error: string}>}
+ */
+async function createPullRequest({ token, login, branch, title, body }, deps = {}) {
+	const post = deps.post || postJson;
+	try {
+		const res = await post(`${API}/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/pulls`, {
+			title,
+			body,
+			head: `${login}:${branch}`,
+			base: BASE_BRANCH,
+			maintainer_can_modify: true
+		}, { token });
+		if (res.status !== 201 || !res.json || !res.json.html_url) return failure(res, 'Could not open the pull request');
+		return { ok: true, url: String(res.json.html_url), number: Number(res.json.number) };
+	} catch (e) {
+		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
+	}
+}
+
+/**
+ * The whole sequence, reporting each step as it starts.
+ *
+ * Returns rather than throws on every failure, and the caller's fallback is
+ * always the same: the patch file. `stage` says how far it got, which is what
+ * makes "your fork exists, the pull request does not" a message a contributor
+ * can act on instead of a dead end.
+ *
+ * @param {Object}        root0
+ * @param {string}        root0.token
+ * @param {string}        root0.login
+ * @param {number|string} root0.ticketId
+ * @param {string}        root0.baseSha
+ * @param {Array}         root0.files
+ * @param {string}        root0.title
+ * @param {string}        root0.body
+ * @param {Function}      [root0.onProgress]
+ * @param {Object}        [deps]
+ * @return {Promise<{ok: true, url: string, number: number, branch: string, exactBase: boolean}|{ok: false, reason: string, error: string, stage: string}>}
+ */
+async function openPullRequest({ token, login, ticketId, baseSha, files, title, body, onProgress }, deps = {}) {
+	const get = deps.get || getJson;
+	const report = typeof onProgress === 'function' ? onProgress : () => {};
+	const at = (stage, result) => ({ ...result, stage });
+
+	if (!files || files.length === 0) {
+		return { ok: false, reason: 'empty', error: 'There are no changes to open a pull request with.', stage: 'collect' };
+	}
+
+	report('forking');
+	const fork = await ensureFork({ token, login }, deps);
+	if (!fork.ok) return at('forking', fork);
+
+	report('syncing');
+	const base = await resolveBase({ token, login, baseSha }, deps);
+	if (!base.ok) return at('syncing', base);
+
+	// The tree the commit inherits from, read off the base commit rather than
+	// assumed: a commit sha and its tree sha are different objects, and passing
+	// the wrong one silently produces a tree with no history behind it.
+	let baseCommit;
+	try {
+		baseCommit = await get(`${API}/repos/${login}/${UPSTREAM_REPO}/git/commits/${base.sha}`, { token });
+	} catch (e) {
+		return at('syncing', { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) });
+	}
+	if (baseCommit.status !== 200 || !baseCommit.json || !baseCommit.json.tree) {
+		return at('syncing', failure(baseCommit, 'Could not read the base commit'));
+	}
+
+	report('committing');
+	const tree = await createTree({ token, login, baseTreeSha: baseCommit.json.tree.sha, files }, deps);
+	if (!tree.ok) return at('committing', tree);
+
+	const branched = await commitAndBranch({
+		token,
+		login,
+		ticketId,
+		message: title,
+		treeSha: tree.sha,
+		parentSha: base.sha
+	}, deps);
+	if (!branched.ok) return at('committing', branched);
+
+	report('opening');
+	const pr = await createPullRequest({ token, login, branch: branched.branch, title, body }, deps);
+	if (!pr.ok) return at('opening', pr);
+
+	return { ok: true, url: pr.url, number: pr.number, branch: branched.branch, exactBase: base.exact };
+}
+
+module.exports = {
+	UPSTREAM_OWNER,
+	UPSTREAM_REPO,
+	BASE_BRANCH,
+	MAX_BRANCH_ATTEMPTS,
+	classifyFailure,
+	buildPullRequestBody,
+	branchNameFor,
+	ensureFork,
+	resolveBase,
+	createTree,
+	commitAndBranch,
+	createPullRequest,
+	openPullRequest
+};
