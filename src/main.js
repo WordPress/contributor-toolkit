@@ -45,7 +45,14 @@ const {
 	switchToBranch,
 	deleteTicketBranch
 } = require('./ticket-branches');
+const { createProgressThrottle, describeSwitchProgress } = require('./switch-progress.cjs');
 const { getStore } = require('./settings-store');
+
+// One name for the send-only progress channel (#173), shared with preload.js
+// through the tests rather than by import — the renderer bundle and the main
+// process do not share a module graph, and a rename that only lands on one side
+// unsubscribes the panel silently.
+const SWITCH_PROGRESS_CHANNEL = 'switch:progress';
 const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
@@ -702,6 +709,48 @@ async function withSwitchMarker(sitePath, run) {
 }
 
 /**
+ * Switch progress as terminal lines, for the trunk update (#173).
+ *
+ * `intervalMs: Infinity` suppresses everything except a change of stage and the
+ * final flush, which turns a switch into about five lines instead of fifteen —
+ * the same module the panel uses, in the mode an append-only log wants.
+ *
+ * @param {Function} sendLog Writes one chunk to the update's log stream.
+ * @return {{emit: Function, flush: Function}} Pass `emit` as `onProgress`.
+ */
+function updateSwitchLogger(sendLog) {
+    return createProgressThrottle({
+        intervalMs: Infinity,
+        onEmit: (payload) => sendLog(`  ${describeSwitchProgress(payload)}\n`)
+    });
+}
+
+/**
+ * Streams a switch's progress to the window that asked for it (#173).
+ *
+ * Additive on purpose: the handler still awaits and returns its result exactly
+ * as before, and this only sends alongside. Restructuring into an
+ * invoke-then-done pair would have meant the renderer subscribing after the
+ * invoke answers — and the first checkout event lands about 4ms in, so the
+ * beginning of every switch would be lost.
+ *
+ * Sends are wrapped because the window can be gone by the time a multi-second
+ * checkout finishes, and a closed window must not turn a completed switch into
+ * a failure.
+ *
+ * @param {Object} event    The IPC event, for its sender.
+ * @param {string} sitePath Which site the progress belongs to.
+ * @return {{emit: Function, flush: Function}} Pass `emit` as `onProgress`.
+ */
+function switchProgressReporter(event, sitePath) {
+    return createProgressThrottle({
+        onEmit: (payload) => {
+            try { event.sender.send(SWITCH_PROGRESS_CHANNEL, { sitePath, ...payload }); } catch {}
+        }
+    });
+}
+
+/**
  * Where the state that describes the *work* lives: per branch once a ticket is
  * being worked on, at site level on trunk and for sites that predate #108. One
  * reader and one writer, so `appliedPatch` and `updateIncomplete` cannot drift
@@ -834,9 +883,17 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             ticketBefore = branchBefore === TRUNK ? null : ticketIdFromRef(branchBefore);
             if (branchBefore !== TRUNK) {
                 sendLog(`Parking your work on ${branchBefore} before updating…\n`);
+                // The same progress the ticket panel shows (#173), but into the
+                // terminal this flow already streams to rather than onto the
+                // switch channel: one operation with two progress surfaces is
+                // how the two end up disagreeing. `Infinity` keeps it to one
+                // line per stage, since this log is append-only.
+                const parkLog = updateSwitchLogger(sendLog);
                 await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, {
-                    baseOid: branchMetaBefore && branchMetaBefore.baseOid
+                    baseOid: branchMetaBefore && branchMetaBefore.baseOid,
+                    onProgress: parkLog.emit
                 }));
+                parkLog.flush();
                 await mergeSiteMeta(sitePath, { currentBranch: TRUNK });
             }
 
@@ -868,7 +925,9 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             // the app never silently rebases anyone.
             if (ticketBefore !== null) {
                 sendLog(`\nReturning to your work on ${branchBefore}…\n`);
-                await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchBefore, {}));
+                const returnLog = updateSwitchLogger(sendLog);
+                await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchBefore, { onProgress: returnLog.emit }));
+                returnLog.flush();
                 await mergeSiteMeta(sitePath, { currentBranch: branchBefore, tracTicket: ticketBefore });
             }
             sendDone({ ok: true, ...result, branch: branchBefore });
@@ -1383,7 +1442,7 @@ async function withRegisteredSite(sitePath, run) {
 // The site-level `tracTicket` is kept in step with the active branch so the
 // handlers that read it (`git:list-ticket-patches`, `trac:list-attachments`,
 // `site:status`) need no change.
-ipcMain.handle('sites:set-ticket', async (_e, sitePath, ref) => withRegisteredSite(sitePath, async () => {
+ipcMain.handle('sites:set-ticket', async (event, sitePath, ref) => withRegisteredSite(sitePath, async () => {
 	// Empty means unlink — the panel's Unlink button and a cleared field both
 	// land here, and neither is an error. The branch and its work stay; going
 	// back to trunk is not the same as throwing a ticket away.
@@ -1391,7 +1450,9 @@ ipcMain.handle('sites:set-ticket', async (_e, sitePath, ref) => withRegisteredSi
 	if (!raw) {
 		const { ref: current, meta } = await activeBranch(sitePath, { migrate: true });
 		if (current !== TRUNK) {
-			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid }));
+			const progress = switchProgressReporter(event, sitePath);
+			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
+			progress.flush();
 		}
 		await mergeSiteMeta(sitePath, { tracTicket: null, currentBranch: TRUNK });
 		return { ok: true, ticket: null, branch: TRUNK };
@@ -1412,14 +1473,18 @@ ipcMain.handle('sites:set-ticket', async (_e, sitePath, ref) => withRegisteredSi
 	const known = await listTicketBranches(sitePath);
 	let baseOid;
 	if (known.includes(branchRef)) {
-		await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchRef, { baseOid: meta && meta.baseOid }));
+		const progress = switchProgressReporter(event, sitePath);
+		await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
+		progress.flush();
 		baseOid = ((await readSiteMeta(sitePath)).branches || {})[branchRef]?.baseOid || null;
 	} else {
 		// Starting a ticket from another ticket parks that one first; from trunk
 		// the loose edits ride along into the new branch (that is deliberate —
 		// "I started editing, then realised which ticket this is").
 		if (current !== TRUNK) {
-			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid }));
+			const progress = switchProgressReporter(event, sitePath);
+			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
+			progress.flush();
 		}
 		({ baseOid } = await startTicketBranch(sitePath, parsed.id));
 	}
@@ -1449,11 +1514,13 @@ ipcMain.handle('branches:list', async (_e, sitePath) => withRegisteredSite(siteP
 	return { ok: true, current, branches };
 }));
 
-ipcMain.handle('branches:switch', async (_e, sitePath, targetRef) => withRegisteredSite(sitePath, async () => {
+ipcMain.handle('branches:switch', async (event, sitePath, targetRef) => withRegisteredSite(sitePath, async () => {
 	const blocked = await midSwitchBlock(sitePath);
 	if (blocked) return blocked;
 	const { ref: current, meta } = await activeBranch(sitePath, { migrate: true });
-	const result = await withSwitchMarker(sitePath, () => switchToBranch(sitePath, targetRef, { baseOid: meta && meta.baseOid }));
+	const progress = switchProgressReporter(event, sitePath);
+	const result = await withSwitchMarker(sitePath, () => switchToBranch(sitePath, targetRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit }));
+	progress.flush();
 	const ticketId = ticketIdFromRef(targetRef);
 	if (targetRef !== TRUNK) {
 		await mergeBranchMeta(sitePath, targetRef, { lastUsedAt: new Date().toISOString() });

@@ -84,6 +84,17 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	deleteBranch: (sitePath, ref) => ipcRenderer.invoke('branches:delete', sitePath, ref)
 ,
+	// A long-lived subscription rather than the per-run pair the installs use
+	// (#173): a switch's first progress event lands a few milliseconds in, well
+	// before its `invoke` answers, and a listener attached afterwards would miss
+	// the start of every switch. Payloads carry `sitePath`, so one subscription
+	// serves every site.
+	subscribeSwitchProgress: (handler) => {
+		const h = (_e, payload) => handler && handler(payload);
+		ipcRenderer.on('switch:progress', h);
+		return () => ipcRenderer.removeListener('switch:progress', h);
+	}
+,
 	subscribeSetupProgress: (handler) => {
 		const h = (_e, payload) => handler && handler(payload);
 		ipcRenderer.on('download:progress', h);

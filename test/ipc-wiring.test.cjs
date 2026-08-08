@@ -1744,6 +1744,144 @@ test('branches:list reports the branches on disk with their stored context', asy
 	assert.equal(result.branches[1].baseOid, null, 'a branch the registry has never seen still lists');
 });
 
+// The same wait, for the trunk update's own :done channel.
+async function updateDone(event, updateId, cap = 50) {
+	for (let i = 0; i < cap; i++) {
+		const hit = event.sent.find((m) => m.channel === 'git:update-trunk:done' && m.payload.updateId === updateId);
+		if (hit) return hit.payload;
+		await new Promise((r) => setImmediate(r));
+	}
+	throw new Error('git:update-trunk never reported done');
+}
+
+// --- switch progress -> src/switch-progress.cjs (#173) ---------------------
+
+// The channel name, in one place. It is a send-only channel, so the
+// classification guard below cannot see it and a rename would silently
+// unsubscribe the panel instead of failing anything.
+const SWITCH_PROGRESS_CHANNEL = 'switch:progress';
+
+// A switch is a worktree scan and a full checkout — seconds during which the
+// window said nothing and looked hung. The handler still returns its result the
+// way it always did; the progress rides alongside, so nothing about the call
+// shape changed.
+test('sites:set-ticket streams switch progress for the site it is switching (issue #173)', async () => {
+	const switchToBranch = spy(async (dir, ref, options) => {
+		options.onProgress({ stage: 'scan', from: 'ticket/59234', to: ref });
+		options.onProgress({ stage: 'done', from: 'ticket/59234', to: ref });
+		return { switched: true, parked: true };
+	});
+	const currentBranchName = spy(async () => 'ticket/59234');
+	const listTicketBranches = spy(async () => ['ticket/61002']);
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/59234': { baseOid: 'abc' } }, currentBranch: 'ticket/59234' } }
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { switchToBranch, currentBranchName, listTicketBranches } }
+	});
+
+	const event = createIpcEvent();
+	const result = await main.invokeWith('sites:set-ticket', event, '/sites/wp', '61002');
+
+	assert.equal(result.ok, true, 'progress is additive — the answer is unchanged');
+	const progress = event.sent.filter((m) => m.channel === SWITCH_PROGRESS_CHANNEL);
+	assert.deepEqual(progress.map((m) => m.payload.stage), ['scan', 'done']);
+	assert.equal(
+		progress.every((m) => m.payload.sitePath === '/sites/wp'),
+		true,
+		'the renderer keeps one subscription for every site, so each frame has to say which one it is'
+	);
+});
+
+// A multi-second checkout easily outlives the window that asked for it. The
+// switch itself completed; reporting that it failed because nobody was left to
+// tell would be a lie with a mid-switch marker attached.
+test('a window closed mid-switch does not turn a finished switch into a failure (issue #173)', async () => {
+	const switchToBranch = spy(async (dir, ref, options) => {
+		options.onProgress({ stage: 'scan', to: ref });
+		return { switched: true, parked: false };
+	});
+	const currentBranchName = spy(async () => 'ticket/59234');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/59234': { baseOid: 'abc' } }, currentBranch: 'ticket/59234' } }
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { switchToBranch, currentBranchName } }
+	});
+
+	const event = createIpcEvent();
+	event.sender.send = () => { throw new Error('Object has been destroyed'); };
+
+	const result = await main.invokeWith('sites:set-ticket', event, '/sites/wp', '');
+
+	assert.equal(result.ok, true);
+	assert.equal(result.ticket, null);
+});
+
+// No renderer calls this door yet. It streams anyway: the day the switcher is
+// wired to it, silence would arrive with nothing failing — the guard below
+// cannot see a send-only channel.
+test('branches:switch streams the same progress as sites:set-ticket (issue #173)', async () => {
+	const switchToBranch = spy(async (dir, ref, options) => {
+		options.onProgress({ stage: 'apply', loaded: 1, total: 2, to: ref });
+		return { switched: true, parked: false };
+	});
+	const currentBranchName = spy(async () => 'ticket/59234');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/59234': { baseOid: 'abc' } }, currentBranch: 'ticket/59234' } }
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { switchToBranch, currentBranchName } }
+	});
+
+	const event = createIpcEvent();
+	await main.invokeWith('branches:switch', event, '/sites/wp', 'ticket/61002');
+
+	const progress = event.sent.filter((m) => m.channel === SWITCH_PROGRESS_CHANNEL);
+	assert.deepEqual(progress.map((m) => m.payload.stage), ['apply']);
+	assert.equal(progress[0].payload.sitePath, '/sites/wp');
+});
+
+// The trunk update parks and returns, and it already owns a log stream the
+// renderer is watching. Sending its switch stages to the panel's channel as
+// well would give one operation two progress surfaces, which is how the two end
+// up disagreeing.
+test('the trunk update reports its switches in its own log, not on the switch channel (issue #173)', async () => {
+	const switchToBranch = spy(async (dir, ref, options) => {
+		if (options && options.onProgress) options.onProgress({ stage: 'scan', from: 'ticket/59234', to: ref });
+		return { switched: true, parked: true };
+	});
+	const currentBranchName = spy(async () => 'ticket/59234');
+	const updateToLatestTrunk = spy(async () => { throw new Error('stop after the park'); });
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/59234': { baseOid: 'abc' } }, currentBranch: 'ticket/59234' } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./ticket-branches': { switchToBranch, currentBranchName },
+			'./trunk-update': { updateToLatestTrunk, ensureAutocrlf: async () => {}, readTrunkInfo: async () => ({}) }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await updateDone(event, updateId);
+
+	const logs = event.sent.filter((m) => m.channel === 'git:update-trunk:log').map((m) => m.payload.data).join('');
+	assert.match(logs, /Saving your work on #59234/, 'the stage reaches the terminal it belongs to');
+	assert.deepEqual(
+		event.sent.filter((m) => m.channel === SWITCH_PROGRESS_CHANNEL),
+		[],
+		'and not the panel channel, which would be a second surface for one operation'
+	);
+});
+
 test('branches:switch delegates to ticket-branches and records the new active branch', async () => {
 	const switchToBranch = spy(async () => ({ switched: true, from: 'ticket/59234', to: 'ticket/61002', parked: true }));
 	const currentBranchName = spy(async () => 'ticket/59234');
