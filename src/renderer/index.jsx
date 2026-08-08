@@ -23,6 +23,7 @@ import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE
 import { pickLatest } from '../latest-patch.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
+import { ticketBranchRows } from './ticket-branch-list.cjs';
 import { highlightDiff } from './diff-highlight.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
@@ -983,6 +984,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [ticketInput, setTicketInput] = useState('');
   const [ticketError, setTicketError] = useState('');
   const [ticketSaving, setTicketSaving] = useState(false);
+  // The site's ticket branches (#108): what branches:list reported, so the
+  // panel can offer the tickets that already have work here.
+  const [ticketBranches, setTicketBranches] = useState({ current: null, branches: [] });
+  const [deletingBranch, setDeletingBranch] = useState(null);
   // Patches on the linked ticket (#11): { status, items, cachedAt } or null.
   const [ticketPatches, setTicketPatches] = useState(null);
   const [ticketPatchesLoading, setTicketPatchesLoading] = useState(false);
@@ -1235,8 +1240,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   }, [sitePath]);
   useEffect(()=>{ loadStatus(); }, [loadStatus]);
 
+  // Deliberately not part of loadStatus: that one is called after every long
+  // operation, and the branch list only changes when a ticket is linked,
+  // resumed or deleted — the three paths that call this themselves.
+  const loadBranches = useCallback(async () => {
+    try {
+      const res = await window.api.listBranches(sitePath);
+      if (res?.ok) setTicketBranches({ current: res.current, branches: res.branches || [] });
+    } catch {}
+  }, [sitePath]);
+  useEffect(()=>{ loadBranches(); }, [loadBranches]);
+
   // Linking and unlinking are the same write (#109): an empty ref clears the
-  // association, so Unlink needs no second channel.
+  // association, so Unlink needs no second channel. Resuming a ticket that
+  // already has a branch is also this write (#108) — main switches to the
+  // existing branch instead of creating one, with the same parking rules.
   const saveTicket = useCallback(async (ref) => {
     setTicketSaving(true);
     setTicketError('');
@@ -1249,14 +1267,39 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setTracTicket(res.ticket);
       setTicketInput('');
       if (metaPatchRef.current) metaPatchRef.current(sitePath, { tracTicket: res.ticket });
+      loadBranches().catch(() => {});
     } catch (e) {
       setTicketError(String(e));
     } finally {
       setTicketSaving(false);
     }
-  }, [sitePath]);
+  }, [sitePath, loadBranches]);
   const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
   const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
+
+  // "Delete this ticket's work" (#108) — destroys the branch, which is why it
+  // sits behind a confirm while switching does not.
+  const deleteTicketWork = useCallback(async (ref) => {
+    setDeletingBranch(ref);
+    setTicketError('');
+    try {
+      const res = await window.api.deleteBranch(sitePath, ref);
+      if (!res?.ok) {
+        setTicketError(res?.error || 'Could not delete the branch.');
+        return;
+      }
+      await loadBranches();
+      // The panel never offers the checked-out branch, so deleting the active
+      // one only happens if the two drifted — in which case main has cleared
+      // the ticket and moved to trunk, and a status reload re-syncs the panel
+      // and the sidebar to that.
+      if (res.current === 'trunk') await loadStatus();
+    } catch (e) {
+      setTicketError(String(e));
+    } finally {
+      setDeletingBranch(null);
+    }
+  }, [sitePath, loadBranches, loadStatus]);
 
   const runInstall = useCallback((options = {}) => {
     const { onLog, onDone } = options;
@@ -1768,6 +1811,45 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   }, [sitePath]);
   // eslint-disable-next-line no-alert -- see the note above onRename.
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
+
+  // The tickets with work on this site (#108), rendered in both states of the
+  // Trac ticket panel. The sentence differs — an unlinked panel offers to
+  // continue, a linked one points out the other open tickets — but the rows,
+  // the ordering and the delete action are the same list.
+  const branchRows = ticketBranchRows({ branches: ticketBranches.branches, current: ticketBranches.current, now: Date.now() });
+  const ticketActionsBlocked = ticketSaving || deletingBranch !== null;
+  const renderBranchRows = (linked) => (
+    <div style={{ marginTop: 8, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
+      {branchRows.map((row, i) => (
+        <div key={row.ref} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: i < branchRows.length - 1 ? '1px solid #f0f0f1' : 'none' }}>
+          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+            {linked ? (
+              <span style={{ fontSize: 13, color: '#1d2327' }}>
+                You also have work on #{row.ticketId}
+                {' — '}
+                <Button variant="link" onClick={() => saveTicket(String(row.ticketId))} disabled={ticketActionsBlocked} style={{ fontSize: 13 }}>switch</Button>
+              </span>
+            ) : (
+              <Button variant="secondary" isBusy={ticketSaving} disabled={ticketActionsBlocked} onClick={() => saveTicket(String(row.ticketId))}>
+                Continue working on #{row.ticketId}
+              </Button>
+            )}
+            {row.timeLabel ? (
+              <div style={{ marginTop: 2, fontSize: 11, color: '#6c6f72' }}>{row.timeLabel}</div>
+            ) : null}
+          </div>
+          <Button
+            variant="link"
+            isDestructive
+            isBusy={deletingBranch === row.ref}
+            disabled={ticketActionsBlocked}
+            onClick={() => confirmAnd(`Delete all work on #${row.ticketId} on this site? This cannot be undone.`, () => deleteTicketWork(row.ref))}
+            style={{ fontSize: 12, flex: '0 0 auto' }}
+          >Delete this ticket&apos;s work</Button>
+        </div>
+      ))}
+    </div>
+  );
 
   // --- Update to latest trunk (#94) ---
   const age = trunkAgeInfo({ trunkDate });
@@ -2708,6 +2790,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketSaving}>Unlink</Button>
             </div>
 
+            {branchRows.length ? (
+              <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Other tickets on this site</div>
+                {renderBranchRows(true)}
+              </div>
+            ) : null}
+
             <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Linked pull requests</div>
@@ -2843,6 +2932,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
               Tell the app which ticket you are working on. It is stored with the site, so it survives restarts, and you can change or remove it at any time.
             </div>
+            {branchRows.length ? (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Your tickets on this site</div>
+                {renderBranchRows(false)}
+              </div>
+            ) : null}
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 260 }}>
                 <TextControl
