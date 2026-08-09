@@ -3,7 +3,20 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { computeTerminalBusy } = require('../src/renderer/terminal-busy.cjs');
+const { shouldShowTerminalHints, computeTerminalBusy } = require('../src/renderer/terminal-hints.cjs');
+
+test('the hints stay hidden until a build has completed (issue #182)', () => {
+	// They were showing from the moment a site existed, so a contributor watched
+	// "Changed files in your checkout? Run npm run build" scroll past while the
+	// clone was still writing the checkout that would contain those files.
+	assert.strictEqual(shouldShowTerminalHints({ hasBuilt: false }), false);
+	assert.strictEqual(shouldShowTerminalHints({}), false, 'a site mid-clone must not show them');
+	assert.strictEqual(shouldShowTerminalHints(), false, 'no flags at all must not show them');
+});
+
+test('a completed build is what puts the hints on screen (issue #182)', () => {
+	assert.strictEqual(shouldShowTerminalHints({ hasBuilt: true }), true);
+});
 
 test('an idle terminal is free, so the hint links stay clickable (issue #182)', () => {
 	assert.strictEqual(computeTerminalBusy({}), false);

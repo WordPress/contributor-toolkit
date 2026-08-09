@@ -18,7 +18,7 @@ import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
 import { computeSetupStepState } from './setup-steps.cjs';
-import { computeTerminalBusy } from './terminal-busy.cjs';
+import { shouldShowTerminalHints, computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
@@ -1956,6 +1956,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Same three-stage shape as the update chain, and the same npm wrappers, so
   // exit codes and terminal streaming behave identically.
   const isApplying = applyState !== 'idle';
+  const showTerminalHints = shouldShowTerminalHints({ hasBuilt });
   const terminalBusy = computeTerminalBusy({
     terminalRunning, installing, building, starting, running, isUpdating, isApplying
   });
@@ -3489,9 +3490,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             }}
           />
           <div style={{ marginTop: 8, fontSize: 12, color: '#3c434a' }}>
-            <div>Changed files in your checkout? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
-            <div style={{ marginTop: 2 }}>Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
-            <div style={{ marginTop: 6 }}>
+            {showTerminalHints ? (
+              <>
+                <div>Changed files in your checkout? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
+                <div style={{ marginTop: 2, marginBottom: 6 }}>Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
+              </>
+            ) : null}
+            <div>
               Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
             </div>
           </div>
