@@ -2878,7 +2878,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         {tracTicket ? (
           <>
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', background: '#f0f0f1', color: '#1d2327' }}>
+              {/* The ticket number is what the site is *for* once one is linked
+                  — and under #108 it also names the branch you are on, so it
+                  answers "which of my tickets am I looking at" at a glance.
+                  Sized to read as the panel's subject rather than as a tag. */}
+              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: 999, fontSize: 18, fontWeight: 600, letterSpacing: '0.01em', background: '#f0f0f1', color: '#1d2327' }}>
                 #{tracTicket}
               </span>
               <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
