@@ -18,6 +18,35 @@
     .path { font-family: Menlo, monospace; font-size: 12px; color: #333; word-break: break-all; }
     #log { white-space: pre-wrap; background: #111; color: #eee; padding: 12px; border-radius: 6px; height: 220px; overflow: auto; }
     .patch-modal-header .components-modal__header-heading { color: #1e1e1e !important; }
+    /*
+      The patch screen's two columns (#186): the diff takes the room and where
+      it can go stands beside it.
+
+      A media query rather than flex-wrap, which was tried first and cannot do
+      this. Wrapping keeps both columns on one flex line whose height is fixed
+      by the modal, so the wrapped sidebar had nowhere to go and the diff
+      overlapped it. Stacking has to change what scrolls as well as what sits
+      where: side by side the sidebar scrolls alone and the diff stays put;
+      stacked, the pair scrolls as one and the diff keeps a floor so it cannot
+      collapse to a sliver above the destinations.
+
+      The breakpoint is where a 300px sidebar starts squeezing the code rather
+      than sitting next to it, which is what the screen is for.
+    */
+    .patch-columns { display: flex; gap: 16px; flex: 1; min-height: 0; align-items: stretch; }
+    .patch-columns > .patch-diff { flex: 2 1 460px; min-width: 0; display: flex; flex-direction: column; min-height: 0; gap: 8px; }
+    .patch-columns > .patch-destinations { flex: 1 1 340px; min-width: 300px; max-width: 460px; display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; }
+    @media (max-width: 900px) {
+      .patch-columns { flex-direction: column; overflow-y: auto; }
+      /*
+        A definite height, not a minimum: the diff pane fills its column with
+        `height: 100%`, and a percentage against a parent whose own height is
+        content-derived resolves to nothing — the pane then grew past the
+        column and sat on top of the destinations below it.
+      */
+      .patch-columns > .patch-diff { flex: none; height: 340px; }
+      .patch-columns > .patch-destinations { flex: none; max-width: none; overflow-y: visible; }
+    }
     .components-dropdown-menu__toggle { display: flex; flex-direction: row-reverse; gap: 4px; }
   </style>
   <link rel="stylesheet" href="index.css" />
@@ -31,7 +60,20 @@
   <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
   <meta http-equiv="Permissions-Policy" content="clipboard-read=(self), clipboard-write=(self)" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="color-scheme" content="light dark" />
+  <!--
+    `light`, not `light dark`: this window has no dark theme. Every surface in
+    it is painted light by hand — white cards, #1e1e1e text — and
+    @wordpress/components ships light styles only. Declaring support for both
+    let the browser paint the parts it owns, the native form controls, to match
+    the OS instead. On a machine in dark mode that produced charcoal inputs on
+    white cards, with placeholder text at dark-on-dark contrast: unreadable,
+    and the guidance this app puts in placeholders is exactly what a first-timer
+    needs to read.
+
+    This was a promise the app could not keep, so it stops making it. The day a
+    real dark theme exists, this goes back to `light dark` along with it.
+  -->
+  <meta name="color-scheme" content="light" />
   <meta name="robots" content="noindex, nofollow" />
   <meta name="referrer" content="no-referrer" />
 </head>

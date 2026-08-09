@@ -55,6 +55,61 @@ its place, so skipping it means a human reviewer is the first reader of the diff
 That file carries the procedure as well as the standard. Follow it rather than improvising a
 review.
 
+### The pull request description follows the template
+
+[`.github/pull_request_template.md`](.github/pull_request_template.md) is the shape, and GitHub
+loads it into every new pull request automatically — including ones opened with `gh pr create`, as
+long as you do not pass a `--body` that replaces it. Fill it in rather than writing your own
+structure.
+
+The rule it is built around: **a reviewer understands the change in five minutes.** So what stays
+visible is Why, What changes, How to test this, Risks, Related — and everything else goes in a
+`<details>` block, collapsed by default. Depth is not the enemy of a readable PR; depth *in the way*
+is. Do not delete detail to hit the five minutes, move it.
+
+**One template, not one per kind of change.** GitHub shows no picker when a pull request is opened —
+selecting among several requires appending `?template=name.md` to the URL, which nobody remembers,
+so the default loads anyway. The template is written to serve a fix, a feature and a process change
+equally, and calls out the three places where they genuinely differ: a fix names its root cause and
+the test that fails without it, a feature names what it deliberately leaves out and shows its
+surface, and either way the testing steps follow the path a contributor actually takes.
+
+That includes the review outcome AGENTS.md requires below: it lives in a collapsed block, with the
+headline count surfaced in **Risks and limitations** when it changes how the PR should be read.
+
+Titles are `[Action] [what] [where or why]` — "Fix the patch panel's empty diff after a trunk
+update", not "Fix bug".
+
+If the diff is over ~800 lines, the first question is whether it should be two pull requests. A
+stacked pair reviews faster than one that nobody wants to start.
+
+### Every pull request says how to test it by hand
+
+A **How to test this** section is required, not optional, and a green test suite does not replace
+it. This app's failures live where the unit tests cannot go: a real clone of `wordpress-develop`, a
+`node_modules` that takes minutes to install, an OS file dialog, a Windows path with a space in it.
+The suite proves the logic; only a person driving the app proves the feature.
+
+Write it for someone who did not write the change and does not know where the button is. That means:
+
+- **A starting state.** "A site with a linked ticket and an uncommitted edit", not "a site". Say how
+  to reach it if it is not the state the app opens in.
+- **Numbered steps naming what to click**, in the words on screen.
+- **The expected result after each step that has one**, stated so it can come out false. "The patch
+  contains only `wp-login.php`" — not "the patch looks right".
+- **What must NOT have happened.** Most of this project's regressions are silent: work quietly
+  discarded, `node_modules` quietly rebuilt, a patch quietly missing a file. Name the thing that
+  would be easy not to notice.
+- **The platforms it needs.** Default to "any" and say so; call out macOS or Windows explicitly when
+  the change touches paths, spawning, line endings, or signing. Buildkite builds signed artifacts
+  for every branch with an open PR, so a reviewer can test on a real machine without building —
+  check the build matches the current head commit, since force-pushing invalidates earlier ones.
+- **What cannot be tested by hand, and why.** An honest "the mid-switch recovery needs a checkout to
+  fail part-way, which I could not stage" is worth more than silence.
+
+If a change genuinely has no user-visible surface — a refactor, a CI fix — say that, and give the
+command that demonstrates it instead. The section is never simply absent.
+
 For the human-facing version of all this — the CI checks each PR runs and the guardrails in prose —
 see [`CONTRIBUTING.md`](CONTRIBUTING.md). It points back here; it does not restate the standard.
 
