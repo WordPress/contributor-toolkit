@@ -1757,14 +1757,10 @@ test('branches:list reports the branches on disk with their stored context', asy
 	assert.equal(result.branches[1].baseOid, null, 'a branch the registry has never seen still lists');
 });
 
-// The same wait, for the trunk update's own :done channel.
-async function updateDone(event, updateId, cap = 50) {
-	for (let i = 0; i < cap; i++) {
-		const hit = event.sent.find((m) => m.channel === 'git:update-trunk:done' && m.payload.updateId === updateId);
-		if (hit) return hit.payload;
-		await new Promise((r) => setImmediate(r));
-	}
-	throw new Error('git:update-trunk never reported done');
+// The same wait, for the trunk update's own :done channel — and on the clock
+// for the same reason, since a park reads the worktree before anything else.
+async function updateDone(event, updateId) {
+	return waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
 }
 
 // --- switch progress -> src/switch-progress.cjs (#173) ---------------------
