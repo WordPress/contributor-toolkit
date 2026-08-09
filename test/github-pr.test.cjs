@@ -292,25 +292,81 @@ test('resolveBase survives a fork that cannot be fast-forwarded', async () => {
 // The guard for the sharp edge tip-basing has: the tree API replaces whole
 // files, so a contributor behind trunk who touched a file upstream also
 // changed would silently revert that upstream work.
-test('staleTouchedPaths names the files upstream changed since the local HEAD', async () => {
-	const shaAt = {
-		'a.php?ref=local': 'blob1', 'a.php?ref=tip': 'blob1', // untouched upstream
-		'b.php?ref=local': 'blob2', 'b.php?ref=tip': 'blob2-new', // changed upstream
-		'c.php?ref=local': 'blob3' // deleted upstream → 404 at tip
+//
+// The base side is the blob sha the checkout already holds, not a second
+// lookup — which is the bug this shape fixes, below.
+test('staleTouchedPaths names the files upstream changed since the local base', async () => {
+	const atTip = {
+		'a.php': 'blob1',        // unchanged upstream
+		'b.php': 'blob2-new',    // changed upstream
+		'd.php': 'blob4'         // added upstream, absent from the base
 	};
 	const api = {
 		get: async (url) => {
-			const key = Object.keys(shaAt).find((k) => url.includes(k));
-			return key ? { status: 200, json: { sha: shaAt[key] } } : { status: 404, json: {} };
+			const name = decodeURI(url).split('/contents/')[1].split('?')[0];
+			return name in atTip
+				? { status: 200, json: { sha: atTip[name] } }
+				: { status: 404, json: {} };
+		}
+	};
+
+	const res = await staleTouchedPaths({
+		token: TOKEN,
+		login: LOGIN,
+		tipSha: 'tip',
+		files: [
+			{ path: 'a.php', baseBlobSha: 'blob1' },
+			{ path: 'b.php', baseBlobSha: 'blob2' },
+			// Present at the base, gone at the tip: upstream deleted it, and
+			// uploading would bring it back.
+			{ path: 'c.php', baseBlobSha: 'blob3' },
+			// The contributor is adding it; upstream added one too.
+			{ path: 'd.php', baseBlobSha: null }
+		]
+	}, api);
+
+	assert.deepStrictEqual(res, { ok: true, clashes: ['b.php', 'c.php', 'd.php'] });
+});
+
+// A file the contributor is adding that upstream does not have is not a clash,
+// and must not be reported as one — it is the ordinary case for a new test
+// file.
+test('staleTouchedPaths does not call a genuinely new file a clash', async () => {
+	const api = { get: async () => ({ status: 404, json: {} }) };
+
+	const res = await staleTouchedPaths(
+		{ token: TOKEN, login: LOGIN, tipSha: 'tip', files: [{ path: 'tests/new-test.php', baseBlobSha: null }] },
+		api
+	);
+
+	assert.deepStrictEqual(res, { ok: true, clashes: [] });
+});
+
+// The false positive this shape exists to prevent, reported from a real run:
+// the guard fired on CONTRIBUTING.md, a file upstream had not touched since
+// 2021. The base side used to be a second lookup against the fork, and a fork
+// answers 404 for a commit it has not heard of — indistinguishable from "the
+// file was not there", so an unrecognised base read as every touched file
+// having changed. Now the base is the sha the checkout holds, and no request
+// can produce that answer.
+test('staleTouchedPaths cannot be misled about the base by the fork', async () => {
+	const asked = [];
+	const api = {
+		get: async (url) => {
+			asked.push(url);
+			return { status: 200, json: { sha: 'unchanged-since-2021' } };
 		}
 	};
 
 	const res = await staleTouchedPaths(
-		{ token: TOKEN, login: LOGIN, baseSha: 'local', tipSha: 'tip', paths: ['a.php', 'b.php', 'c.php'] },
+		{ token: TOKEN, login: LOGIN, tipSha: 'tip', files: [{ path: 'CONTRIBUTING.md', baseBlobSha: 'unchanged-since-2021' }] },
 		api
 	);
 
-	assert.deepStrictEqual(res, { ok: true, clashes: ['b.php', 'c.php'] });
+	assert.deepStrictEqual(res, { ok: true, clashes: [] });
+	// One request, for the tip. The base is never asked about.
+	assert.strictEqual(asked.length, 1);
+	assert.ok(asked[0].includes('ref=tip'));
 });
 
 test('openPullRequest refuses a stale checkout whose files upstream also changed', async () => {
@@ -319,13 +375,12 @@ test('openPullRequest refuses a stale checkout whose files upstream also changed
 		// Same key as the happy path's, so this override wins outright rather
 		// than competing on pattern length.
 		[`GET ${FORK_URL}/git/ref/heads/trunk`]: { status: 200, json: { object: { sha: 'newer-tip' } } },
-		'GET contents/a.php?ref=abc123': { status: 200, json: { sha: 'blob-old' } },
 		'GET contents/a.php?ref=newer-tip': { status: 200, json: { sha: 'blob-upstream' } }
 	});
 
 	const res = await openPullRequest({
 		token: TOKEN, login: LOGIN, ticketId: 1, baseSha: 'abc123',
-		files: [{ path: 'a.php', kind: 'modify', content: Buffer.from('x'), mode: '100644' }],
+		files: [{ path: 'a.php', kind: 'modify', content: Buffer.from('x'), mode: '100644', baseBlobSha: 'blob-old' }],
 		title: 't', body: 'b'
 	}, api);
 

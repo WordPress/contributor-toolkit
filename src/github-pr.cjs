@@ -344,45 +344,52 @@ async function resolveBase({ token, login, baseSha }, deps = {}) {
 }
 
 /**
- * Which of the contributor's files upstream has also changed since the local
- * checkout's HEAD. Non-empty means opening the pull request would replace
- * those files wholesale and silently revert the upstream work.
+ * Which of the contributor's files upstream has changed since the commit their
+ * checkout started from. Non-empty means opening the pull request would
+ * replace those files wholesale and silently revert the upstream work.
  *
- * Asked per file through the contents API rather than once through compare:
- * compare caps its file list at 300, and a checkout a few weeks old is behind
- * by more than that repo-wide — a cap that silently hides exactly the clash
- * being looked for. The contributor's own file count is small.
+ * Only the tip side is asked of GitHub. The base side is `baseBlobSha`,
+ * computed from the blob already in the checkout — an earlier version asked
+ * the fork for the base commit too, and that was wrong twice over: it spent a
+ * request per file to learn something local git already knew, and it made the
+ * answer depend on the fork resolving a commit that a fork need not have.
+ * A 404 on that lookup is indistinguishable from "the file was not there",
+ * so an unrecognised base commit read as *every touched file having changed*
+ * — the guard firing on a file upstream had not touched since 2021.
  *
- * A path answers with its blob sha at each of the two commits; any difference
- * — content, or existing on one side only — is a clash. An error reading
- * either side counts as a clash too: the check exists to prevent silent
- * damage, so it fails closed.
+ * Asked per file rather than through compare, whose file list caps at 300: a
+ * checkout a few weeks old is behind by more than that repo-wide, and the cap
+ * would silently hide the clash being looked for.
  *
- * @param {Object}   root0
- * @param {string}   root0.token
- * @param {string}   root0.login
- * @param {string}   root0.baseSha Local checkout's HEAD.
- * @param {string}   root0.tipSha  The fork's trunk tip.
- * @param {string[]} root0.paths   Repo-relative paths the contributor changed.
- * @param {Object}   [deps]
+ * An error reading the tip counts as a clash. The check exists to prevent
+ * silent damage, so it fails closed.
+ *
+ * @param {Object} root0
+ * @param {string} root0.token
+ * @param {string} root0.login
+ * @param {string} root0.tipSha The fork's trunk tip.
+ * @param {Array}  root0.files  `{ path, baseBlobSha }` per changed file.
+ * @param {Object} [deps]
  * @return {Promise<{ok: true, clashes: string[]}|{ok: false, reason: string, error: string}>}
  */
-async function staleTouchedPaths({ token, login, baseSha, tipSha, paths }, deps = {}) {
+async function staleTouchedPaths({ token, login, tipSha, files }, deps = {}) {
 	const get = deps.get || getJson;
 	const repo = `${API}/repos/${login}/${upstream().repo}`;
 
-	const blobShaAt = async (path, ref) => {
-		const res = await get(`${repo}/contents/${encodeURI(path)}?ref=${ref}`, { token });
-		if (res.status === 404) return null;
-		if (res.status !== 200 || !res.json || !res.json.sha) throw new Error(`GitHub returned ${res.status} for ${path}`);
-		return String(res.json.sha);
-	};
-
 	const clashes = [];
 	try {
-		for (const path of paths) {
-			const [atBase, atTip] = await Promise.all([blobShaAt(path, baseSha), blobShaAt(path, tipSha)]);
-			if (atBase !== atTip) clashes.push(path);
+		for (const file of files) {
+			const res = await get(`${repo}/contents/${encodeURI(file.path)}?ref=${tipSha}`, { token });
+			// Absent at the tip: a clash only if it was present at the base,
+			// which means upstream deleted a file this change would restore.
+			if (res.status === 404) {
+				if (file.baseBlobSha) clashes.push(file.path);
+				continue;
+			}
+			if (res.status !== 200 || !res.json || !res.json.sha) {
+				throw new Error(`GitHub returned ${res.status} for ${file.path}`);
+			}
+			if (String(res.json.sha) !== file.baseBlobSha) clashes.push(file.path);
 		}
 	} catch (e) {
 		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
@@ -572,13 +579,7 @@ async function openPullRequest({ token, login, ticketId, baseSha, files, title, 
 	// the app's own update flow rather than at a pull request that undoes
 	// commits its author never saw.
 	if (!base.exact) {
-		const stale = await staleTouchedPaths({
-			token,
-			login,
-			baseSha,
-			tipSha: base.sha,
-			paths: files.map((f) => f.path)
-		}, deps);
+		const stale = await staleTouchedPaths({ token, login, tipSha: base.sha, files }, deps);
 		if (!stale.ok) return at('syncing', stale);
 		if (stale.clashes.length > 0) {
 			return {
