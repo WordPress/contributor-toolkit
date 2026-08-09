@@ -1373,17 +1373,21 @@ test('trac:fetch-attachment goes through trac-view', async () => {
 const SITE = '/Users/dev/sites/wp';
 const EDITOR = '/Applications/Cursor.app';
 
+// `editor:open` now asks editor-launch which detected application a path is; a
+// stub that answers with one stands in for a machine that has it installed.
+const matching = (candidate) => spy((wanted) => (wanted === candidate.path ? candidate : null));
+
 test('editor:open asks editor-launch to open the site, with the registry as its boundary', async () => {
 	const openSiteInEditor = spy(async () => ({ ok: true }));
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
-			...fakeSettingsStore({ sites: [SITE], preferences: { editor: { path: EDITOR, name: 'Cursor' } } }).stubs,
-			'./editor-launch': { openSiteInEditor }
+			...fakeSettingsStore({ sites: [SITE] }).stubs,
+			'./editor-launch': { openSiteInEditor, matchDetectedEditor: matching({ id: 'cursor', name: 'Cursor', path: EDITOR }) }
 		}
 	});
 
-	assert.deepEqual(await main.invoke('editor:open', SITE), { ok: true });
+	assert.deepEqual(await main.invoke('editor:open', SITE, EDITOR), { ok: true });
 
 	assert.equal(openSiteInEditor.calls.length, 1);
 	const [sitePath, editorPath, options] = openSiteInEditor.calls[0];
@@ -1398,66 +1402,72 @@ test('editor:open asks editor-launch to open the site, with the registry as its 
 	assert.equal(options.platform, process.platform);
 });
 
+// The renderer names the application now, where it used to come out of the store
+// — so "which applications may this app be asked to launch?" is answered here,
+// and this is the test that says so. A path detection did not return is refused
+// before the module that would spawn it is even reached.
+test('editor:open refuses an application detection did not find', async () => {
+	const openSiteInEditor = spy(async () => ({ ok: true }));
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ sites: [SITE] }).stubs,
+			'./editor-launch': { openSiteInEditor, matchDetectedEditor: matching({ id: 'cursor', name: 'Cursor', path: EDITOR }), REFUSAL_REASONS: { UNKNOWN_EDITOR: 'unknown-editor' } }
+		}
+	});
+
+	const result = await main.invoke('editor:open', SITE, '/Applications/Something Else.app');
+
+	assert.equal(result.ok, false);
+	assert.equal(result.reason, 'unknown-editor');
+	assert.deepEqual(openSiteInEditor.calls, []);
+});
+
 // The end of the wire, with the real module in place. This is the assertion that
-// fails if the handler ever spawns an editor itself.
+// fails if the handler ever spawns an editor itself. Detection is the one thing
+// stubbed, because the alternative is a test whose answer depends on which
+// editors the machine running it happens to have installed.
 test('editor:open does not spawn for a path the registry does not hold', async () => {
 	const cp = { spawn: spy(() => { throw new Error('a refused open must not reach spawn'); }) };
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
-			...fakeSettingsStore({ sites: [SITE], preferences: { editor: { path: EDITOR, name: 'Cursor' } } }).stubs,
+			...fakeSettingsStore({ sites: [SITE] }).stubs,
+			'./editor-launch': {
+				...require(path.join(SRC_DIR, 'editor-launch.js')),
+				matchDetectedEditor: matching({ id: 'cursor', name: 'Cursor', path: EDITOR })
+			},
 			child_process: cp
 		}
 	});
 
-	const result = await main.invoke('editor:open', '/Users/dev/somewhere-else');
+	const result = await main.invoke('editor:open', '/Users/dev/somewhere-else', EDITOR);
 
 	assert.equal(result.ok, false);
 	assert.equal(result.reason, 'unregistered-site');
 	assert.deepEqual(cp.spawn.calls, []);
 });
 
-test('editor:open with nothing chosen asks for a choice rather than guessing', async () => {
+// No path is not a failure: it is "the one you are looking for is not in that
+// list", which is the file dialog. Nothing is opened when it is dismissed.
+test('editor:open with no application named goes to the file dialog', async () => {
 	const openSiteInEditor = spy(async () => ({ ok: true }));
+	const matchDetectedEditor = matching({ id: 'cursor', name: 'Cursor', path: EDITOR });
 	const main = loadMain({
-		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, './editor-launch': { openSiteInEditor } }
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, './editor-launch': { openSiteInEditor, matchDetectedEditor } }
 	});
 
-	assert.deepEqual(await main.invoke('editor:open', SITE), { ok: false, reason: 'no-editor' });
+	assert.deepEqual(await main.invoke('editor:open', SITE, null), { ok: false, reason: 'cancelled' });
+	assert.equal(main.calls.showOpenDialog.length, 1);
 	assert.deepEqual(openSiteInEditor.calls, []);
-});
+	// The dialog's answer is the contributor's own; checking it against the
+	// detection table would refuse exactly the editors that table misses.
+	assert.deepEqual(matchDetectedEditor.calls, []);
 
-test('editor:choose validates what the dialog returned before remembering it', async () => {
-	const isLaunchableEditorPath = spy(() => false);
-	const main = loadMain({
-		stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './editor-launch': { isLaunchableEditorPath } }
-	});
-
-	const result = await main.invoke('editor:choose', '/Users/dev/not-an-app');
-
-	assert.equal(result.ok, false);
-	assert.equal(result.reason, 'unlaunchable-editor');
-	assert.equal(isLaunchableEditorPath.calls.length, 1);
-	assert.equal(isLaunchableEditorPath.calls[0][0], '/Users/dev/not-an-app');
-});
-
-// The window asks this on load, for every site it has. It must not turn into a
-// filesystem sweep: detection belongs to `editor:list`, which runs when the
-// picker opens.
-test('editor:get reads the remembered choice and touches nothing else', async () => {
-	const detectEditors = spy(() => []);
-	const isLaunchableEditorPath = spy(() => true);
-	const main = loadMain({
-		stubs: {
-			...silentLogging(),
-			...fakeSettingsStore({ preferences: { editor: { path: EDITOR, name: 'Cursor' } } }).stubs,
-			'./editor-launch': { detectEditors, isLaunchableEditorPath }
-		}
-	});
-
-	assert.deepEqual(await main.invoke('editor:get'), { path: EDITOR, name: 'Cursor' });
-	assert.deepEqual(detectEditors.calls, []);
-	assert.deepEqual(isLaunchableEditorPath.calls, []);
+	main.dialogResults.showOpenDialog = { canceled: false, filePaths: ['/Applications/Something Else.app'] };
+	assert.deepEqual(await main.invoke('editor:open', SITE, null), { ok: true });
+	assert.equal(openSiteInEditor.calls.length, 1);
+	assert.equal(openSiteInEditor.calls[0][1], '/Applications/Something Else.app');
 });
 
 test('editor:list asks editor-launch what is installed, without a shell', async () => {
@@ -1563,9 +1573,7 @@ const WIRED = new Set([
 	'git:fetch-pr-diff',
 	'git:list-ticket-patches',
 	'trac:fetch-attachment',
-	'editor:get',
 	'editor:list',
-	'editor:choose',
 	'editor:open',
 	'dir:show',
 	'provenance:set-handle',

@@ -47,14 +47,11 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	openExternal: (url) => ipcRenderer.invoke('url:open', url)
 ,
-	getEditor: () => ipcRenderer.invoke('editor:get')
-,
 	listEditors: () => ipcRenderer.invoke('editor:list')
 ,
-	// With a path, remembers that editor; without one, opens the file dialog.
-	chooseEditor: (editorPath) => ipcRenderer.invoke('editor:choose', editorPath)
-,
-	openInEditor: (sitePath) => ipcRenderer.invoke('editor:open', sitePath)
+	// With a path, opens the folder in that application — one of the detected
+	// ones, which main checks. Without one, the file dialog answers instead.
+	openInEditor: (sitePath, editorPath = null) => ipcRenderer.invoke('editor:open', sitePath, editorPath)
 ,
 	// Who the patch came from and where, app-wide (#166). An empty ref forgets
 	// the field it is passed to.

@@ -19,6 +19,7 @@ const {
 	REFUSAL_REASONS,
 	editorCandidates,
 	detectEditors,
+	matchDetectedEditor,
 	knownEditorName,
 	isLaunchableEditorPath,
 	resolveLaunch,
@@ -207,6 +208,52 @@ test('on Linux a file the OS will not execute is not an application', async () =
 
 	assert.equal(await isLaunchableEditorPath('/home/dev/notes.txt', { platform: 'linux', statPath: fs.statPath }), false);
 	assert.equal(await isLaunchableEditorPath('/usr/bin/code', { platform: 'linux', statPath: fs.statPath }), true);
+});
+
+// --- which applications may be launched at all ----------------------------
+//
+// The window names the application now, so this is the set the main process
+// re-establishes rather than trusts. Every case below is written from one
+// machine by injecting `platform` and `exists`: a check that only holds on
+// Windows is a check CI never runs.
+
+test('an application detection found is matched, and answered with the path detection vouches for', async () => {
+	const fs = fakeFs({ '/Applications/Cursor.app': 'dir' });
+
+	const match = await matchDetectedEditor('/Applications/Cursor.app', { platform: 'darwin', env: MAC_ENV, exists: fs.exists });
+
+	assert.equal(match.path, '/Applications/Cursor.app');
+	assert.equal(match.name, 'Cursor');
+});
+
+test('an application detection did not find is not matched, however plausible it looks', async () => {
+	const fs = fakeFs({ '/Applications/Cursor.app': 'dir' });
+	const onMac = { platform: 'darwin', env: MAC_ENV, exists: fs.exists };
+
+	// Installed, but not where the table looks, so this app has never seen it.
+	assert.equal(await matchDetectedEditor('/Applications/Some Editor.app', onMac), null);
+	// In the table, but not on this machine.
+	assert.equal(await matchDetectedEditor('/Applications/Zed.app', onMac), null);
+	for (const value of [null, undefined, 42, '', {}]) {
+		assert.equal(await matchDetectedEditor(value, onMac), null);
+	}
+});
+
+// The same three-way split as knownEditorName, and for the same reason: the
+// platform decides whether two differently-cased paths are one file.
+test('the match is case-insensitive exactly where the filesystem is', async () => {
+	const mac = fakeFs({ '/Applications/Cursor.app': 'dir' });
+	const matched = await matchDetectedEditor('/applications/cursor.app', { platform: 'darwin', env: MAC_ENV, exists: mac.exists });
+	// Answered with the detected casing, which is the path that will be spawned.
+	assert.equal(matched.path, '/Applications/Cursor.app');
+
+	const win = fakeFs({ 'C:\\Users\\dev\\AppData\\Local\\Programs\\cursor\\Cursor.exe': 'file' });
+	const onWin = await matchDetectedEditor('c:\\users\\dev\\appdata\\local\\programs\\cursor\\cursor.exe', { platform: 'win32', env: WIN_ENV, exists: win.exists });
+	assert.equal(onWin.path, 'C:\\Users\\dev\\AppData\\Local\\Programs\\cursor\\Cursor.exe');
+
+	// Linux is case-sensitive, so this is a different file and must not match.
+	const linux = fakeFs({ '/usr/bin/code': 'exe' });
+	assert.equal(await matchDetectedEditor('/USR/BIN/CODE', { platform: 'linux', env: {}, exists: linux.exists }), null);
 });
 
 // --- what the editor is called -------------------------------------------
