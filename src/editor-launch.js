@@ -170,6 +170,32 @@ async function detectEditors({ platform, env = {}, exists } = {}) {
 	return found.filter(Boolean);
 }
 
+// The detected application at this path, or null for a path detection did not
+// return — the answer to "may this app be asked to launch that?".
+//
+// It exists because the window now names the application: the folder-opening
+// menu lists what detection found and sends back one of those paths, where the
+// choice used to be read from the store on this side of the wire. So the set of
+// launchable applications has to be re-established here rather than trusted, and
+// this is where that lives — a pure check with its effects injected, like every
+// other guard in this file, so both the case-sensitive and case-insensitive
+// branches are testable from one machine.
+//
+// It returns the *detected* path rather than true. A caller that checked one
+// string and then launched the caller's own string would not have checked
+// anything (see the note on the parsed URL in external-url.js); handing back the
+// path detection vouches for makes that mistake impossible to write.
+async function matchDetectedEditor(editorPath, { platform, env = {}, exists } = {}) {
+	if (typeof editorPath !== 'string' || editorPath === '') return null;
+
+	const insensitive = platform === 'win32' || platform === 'darwin';
+	const normalize = (p) => (insensitive ? p.toLowerCase() : p);
+	const wanted = normalize(editorPath);
+
+	const detected = await detectEditors({ platform, env, exists });
+	return detected.find((candidate) => normalize(candidate.path) === wanted) || null;
+}
+
 // The name the table has for an application at this path, or null for one it
 // does not know.
 //
@@ -250,7 +276,8 @@ function resolveLaunch(editorPath, sitePath, { platform } = {}) {
 
 const REFUSAL_REASONS = {
 	UNREGISTERED_SITE: 'unregistered-site',
-	UNLAUNCHABLE_EDITOR: 'unlaunchable-editor'
+	UNLAUNCHABLE_EDITOR: 'unlaunchable-editor',
+	UNKNOWN_EDITOR: 'unknown-editor'
 };
 
 // The `editor:open` handler's body.
@@ -358,6 +385,7 @@ module.exports = {
 	REFUSAL_REASONS,
 	editorCandidates,
 	detectEditors,
+	matchDetectedEditor,
 	knownEditorName,
 	isLaunchableEditorPath,
 	resolveLaunch,

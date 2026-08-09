@@ -43,7 +43,7 @@ const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
-const { detectEditors, knownEditorName, isLaunchableEditorPath, openSiteInEditor } = require('./editor-launch');
+const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
 
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
@@ -1192,9 +1192,10 @@ ipcMain.handle('url:open', async (_e, url) => openExternalUrl(url, {
 // --- opening a site's code -----------------------------------------------
 //
 // See editor-launch.js for why none of this consults PATH. What is here is the
-// wiring: the store holds one app-wide editor choice, and every path — detected,
-// picked, or remembered from a previous run — goes through the same check before
-// anything is spawned.
+// wiring, and it holds no state: the application is an argument to "open this
+// folder", not a setting configured beforehand. The window lists what is
+// installed, the contributor names one, and that name is checked against the
+// same detection before anything is spawned.
 
 // Asynchronous on purpose: this runs on the process that draws the window, and
 // probing a dozen locations that mostly do not exist is exactly what a slow
@@ -1223,41 +1224,44 @@ async function statPath(targetPath) {
 
 const editorLaunchDeps = () => ({ platform: process.platform, statPath });
 
-async function getChosenEditor() {
-	const s = await getStore();
-	const chosen = (s.get('preferences') || {}).editor;
-	return chosen && typeof chosen.path === 'string' ? chosen : null;
-}
-
-// The remembered choice, and nothing else. This is what the window asks for on
-// load — just enough to name the button "Open in Cursor" — so it touches no
-// filesystem at all. Whether that editor is still installed is answered by
-// trying to open it, which is a question the contributor has just asked anyway.
-ipcMain.handle('editor:get', async () => getChosenEditor());
+const detectionDeps = () => ({
+	platform: process.platform,
+	env: process.env,
+	exists: async (p) => (await statPath(p)) !== null
+});
 
 // The editors on this machine. Detection stats a dozen or so absolute locations,
-// so it runs when the contributor opens the picker rather than on every load —
-// `editor:get` is the cheap one.
-ipcMain.handle('editor:list', async () => ({
-	detected: await detectEditors({
-		platform: process.platform,
-		env: process.env,
-		exists: async (p) => (await statPath(p)) !== null
-	}),
-	chosen: await getChosenEditor()
-}));
+// so it runs when the contributor opens the menu rather than on every load.
+ipcMain.handle('editor:list', async () => ({ detected: await detectEditors(detectionDeps()) }));
 
-// Remembers an editor. With a path it is the one the contributor picked from the
-// detected list; without one it opens the file dialog, which is the answer for
-// every editor the detection table does not know about — the reason no editor is
-// ever shown as unavailable with nothing to do about it.
+// The application the contributor just named, or null for "one this list does
+// not have" — which opens the file dialog, and is the reason no editor is ever
+// shown as unavailable with nothing to do about it.
 //
-// The dialog's result is validated exactly like a detected path. A dialog is
-// still input.
-ipcMain.handle('editor:choose', async (_e, editorPath) => {
-	let target = typeof editorPath === 'string' ? editorPath : null;
+// A named path is checked against a fresh detection before it is used. Nothing
+// downstream needs that check to be safe — `openSiteInEditor` refuses anything
+// that is not an absolute application of the platform's shape, and the folder
+// must be one the registry holds — but this handler is now the one place where
+// the *window* names an executable, and the window is where injected content
+// ends up. So the answer to "which applications may this app be asked to
+// launch?" stays what it always was: the ones detection found on this machine,
+// plus the one a human picked in a native dialog.
+//
+// Everything after that is unchanged from when the path came out of the store.
+ipcMain.handle('editor:open', async (_e, sitePath, editorPath) => {
+	let target = typeof editorPath === 'string' && editorPath !== '' ? editorPath : null;
 
-	if (!target) {
+	if (target) {
+		const detected = await matchDetectedEditor(target, detectionDeps());
+		if (!detected) {
+			logEvent('editor', `refused to open ${describeRefused(target)} — not an application detection found`);
+			return { ok: false, reason: REFUSAL_REASONS.UNKNOWN_EDITOR };
+		}
+		// The detected path, not the one that arrived: checking one string and
+		// launching another is not a check. See external-url.js, which hands the
+		// OS its parsed URL for the same reason.
+		target = detected.path;
+	} else {
 		const filtersByPlatform = {
 			darwin: [{ name: 'Applications', extensions: ['app'] }],
 			win32: [{ name: 'Programs', extensions: ['exe'] }]
@@ -1266,42 +1270,19 @@ ipcMain.handle('editor:choose', async (_e, editorPath) => {
 		// narrow what can be picked.
 		const filters = filtersByPlatform[process.platform] || [];
 		const result = await dialog.showOpenDialog({
-			title: 'Choose the editor to open sites in',
+			title: 'Choose the application to open this folder in',
 			properties: ['openFile'],
 			defaultPath: process.platform === 'darwin' ? '/Applications' : undefined,
 			filters
 		});
+		// Closing the dialog is an answer, not a failure: the caller says nothing
+		// rather than showing an error for something the contributor just decided.
 		if (result.canceled || result.filePaths.length === 0) return { ok: false, reason: 'cancelled' };
 		target = result.filePaths[0];
 	}
 
-	if (!await isLaunchableEditorPath(target, editorLaunchDeps())) {
-		logEvent('editor', `refused to remember ${describeRefused(target)} — not an application this app can launch`);
-		return { ok: false, reason: 'unlaunchable-editor' };
-	}
-
 	const s = await getStore();
-	const editor = {
-		path: target,
-		// The table's name for a known application; a filename only for one the
-		// contributor pointed at that the table has never heard of.
-		name: knownEditorName(target, { platform: process.platform, env: process.env })
-			|| path.basename(target, path.extname(target))
-	};
-	s.set('preferences', { ...(s.get('preferences') || {}), editor });
-	return { ok: true, editor };
-});
-
-// Only a path the app has on record is opened, and only in an application that
-// is still where it was — see editor-launch.js. A refusal is logged rather than
-// dropped so a caller that trips the guard shows up in the log file instead of
-// just doing nothing.
-ipcMain.handle('editor:open', async (_e, sitePath) => {
-	const chosen = await getChosenEditor();
-	if (!chosen) return { ok: false, reason: 'no-editor' };
-
-	const s = await getStore();
-	return openSiteInEditor(sitePath, chosen.path, {
+	return openSiteInEditor(sitePath, target, {
 		...editorLaunchDeps(),
 		sites: s.get('sites'),
 		spawn,
@@ -1311,9 +1292,9 @@ ipcMain.handle('editor:open', async (_e, sitePath) => {
 
 // --- Who the patch came from, and where (#166) ---
 //
-// Both fields are stored beside the editor choice and for the same reason: they
-// are facts about the contributor and their afternoon, asked once, not
-// properties of a checkout. They exist so a handed-off patch can say who wrote
+// Both fields are asked once and kept, because they are facts about the
+// contributor and their afternoon rather than properties of a checkout — unlike
+// the application a folder is opened in, which is now named per open. They exist so a handed-off patch can say who wrote
 // it and at which event; nothing here contacts wordpress.org, and the handle is
 // never checked against a real account — an unverified name is what a props
 // line is anyway.
