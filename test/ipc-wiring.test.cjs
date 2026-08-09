@@ -1509,6 +1509,189 @@ test('dir:show refuses a path the registry does not hold, and logs it', async ()
 	assert.deepEqual(main.calls.openPath, [SITE]);
 });
 
+// --- opening a pull request (#167) ---------------------------------------
+
+// Sign-in is two-legged: the handler returns as soon as there is a code to
+// show, and the outcome of the wait arrives on an event. `settle` gives the
+// background poll the turns it needs, since nothing the handler returns is tied
+// to it.
+const settle = () => new Promise((resolve) => setImmediate(resolve));
+
+function fakeGithubAuth({ login = 'contributor', token = 'gho_test' } = {}) {
+	return {
+		getClientId: () => 'Ov23liTEST',
+		requestDeviceCode: spy(async () => ({
+			ok: true,
+			userCode: 'WDJB-MJHT',
+			verificationUri: 'https://github.com/login/device',
+			deviceCode: 'dev-code',
+			interval: 5,
+			expiresAt: 1
+		})),
+		pollForToken: spy(async () => ({ ok: true, token })),
+		fetchViewer: spy(async () => ({ ok: true, login }))
+	};
+}
+
+test('github:sign-in asks github-auth for a code, then for the token and the account', async () => {
+	const auth = fakeGithubAuth();
+	const main = loadMain({ stubs: { ...silentLogging(), './github-auth.cjs': auth } });
+	const event = createIpcEvent();
+
+	const started = await main.invokeWith('github:sign-in', event);
+	assert.equal(started.ok, true);
+	assert.equal(started.userCode, 'WDJB-MJHT');
+	assert.equal(started.verificationUri, 'https://github.com/login/device');
+	// The token is what the whole design is about: it must not be on the way
+	// back to the renderer, only the code the contributor types.
+	assert.equal(JSON.stringify(started).includes('gho_test'), false);
+
+	await settle();
+	await settle();
+
+	assert.equal(auth.requestDeviceCode.calls.length, 1);
+	assert.equal(auth.pollForToken.calls.length, 1);
+	assert.equal(auth.pollForToken.calls[0][0].deviceCode, 'dev-code');
+	assert.deepEqual(auth.fetchViewer.calls, [['gho_test']]);
+	assert.deepEqual(event.sent, [{ channel: 'github:sign-in:done', payload: { ok: true, login: 'contributor' } }]);
+});
+
+test('github:account reports the login the sign-in produced, and forgets it on sign-out', async () => {
+	const auth = fakeGithubAuth({ login: 'janedoe' });
+	const main = loadMain({ stubs: { ...silentLogging(), './github-auth.cjs': auth } });
+
+	// testMode null is the load-bearing half: it is what keeps the test-mode
+	// badge off a real contributor's screen in a shipped build.
+	assert.deepEqual(await main.invoke('github:account'), { ok: true, login: null, configured: true, testMode: null });
+
+	await main.invokeWith('github:sign-in', createIpcEvent());
+	await settle();
+	await settle();
+
+	assert.equal((await main.invoke('github:account')).login, 'janedoe');
+	await main.invoke('github:sign-out');
+	assert.equal((await main.invoke('github:account')).login, null);
+});
+
+// The race the earlier shape had: the in-flight session became unreachable
+// during fetchViewer, so Cancel in that window was a no-op and the contributor
+// ended up signed in anyway. The fetchViewer here does not resolve until the
+// cancel has landed.
+test('github:sign-in-cancel during the account lookup wins: nothing is signed in', async () => {
+	let releaseViewer;
+	const auth = {
+		...fakeGithubAuth(),
+		fetchViewer: () => new Promise((resolve) => { releaseViewer = () => resolve({ ok: true, login: 'janedoe' }); })
+	};
+	const main = loadMain({ stubs: { ...silentLogging(), './github-auth.cjs': auth } });
+	const event = createIpcEvent();
+
+	await main.invokeWith('github:sign-in', event);
+	// Let the poll resolve and the viewer lookup start.
+	await settle();
+	await settle();
+
+	await main.invoke('github:sign-in-cancel');
+	releaseViewer();
+	await settle();
+
+	assert.equal((await main.invoke('github:account')).login, null);
+	// And the renderer heard nothing: a canceled sign-in has no outcome.
+	assert.deepEqual(event.sent, []);
+});
+
+test('github:open-pr asks github-pr to open one, for the ticket this site is linked to', async (t) => {
+	const dir = await fixtureRepo(t);
+	const auth = fakeGithubAuth({ login: 'janedoe' });
+	const openPullRequest = spy(async () => ({ ok: true, url: 'https://github.com/WordPress/wordpress-develop/pull/9', number: 9, branch: 'trac-62281', exactBase: true }));
+	const buildPullRequestBody = spy(() => 'BODY');
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281 } },
+		preferences: { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Europe 2026' }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./github-auth.cjs': auth,
+			'./github-pr.cjs': { openPullRequest, buildPullRequestBody }
+		}
+	});
+
+	await main.invokeWith('github:sign-in', createIpcEvent());
+	await settle();
+	await settle();
+
+	const result = await main.invoke('github:open-pr', dir, { title: 'Fix the thing' });
+
+	assert.equal(result.ok, true);
+	assert.equal(result.number, 9);
+	assert.equal(openPullRequest.calls.length, 1);
+	const [args] = openPullRequest.calls[0];
+	assert.equal(args.token, 'gho_test');
+	assert.equal(args.login, 'janedoe');
+	assert.equal(args.title, 'Fix the thing');
+	assert.equal(args.body, 'BODY');
+	// The ticket comes from the site's stored metadata, not from the caller: the
+	// renderer must not be able to file against a different one.
+	assert.equal(args.ticketId, 62281);
+	assert.deepEqual(buildPullRequestBody.calls, [[{ ticketId: 62281, handle: 'janedoe', event: 'WordCamp Europe 2026' }]]);
+	// The changed file the fixture leaves in the working tree, in the shape the
+	// tree API takes rather than as a diff.
+	assert.deepEqual(args.files.map((f) => [f.path, f.kind]), [['text.txt', 'modify']]);
+});
+
+test('github:open-pr refuses before it reaches GitHub when nothing is signed in, or no ticket is linked', async (t) => {
+	const dir = await fixtureRepo(t);
+	const openPullRequest = spy(async () => ({ ok: true }));
+	const auth = fakeGithubAuth();
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./github-auth.cjs': auth,
+			'./github-pr.cjs': { openPullRequest, buildPullRequestBody: () => '' }
+		}
+	});
+
+	assert.equal((await main.invoke('github:open-pr', dir, {})).reason, 'unauthorized');
+
+	await main.invokeWith('github:sign-in', createIpcEvent());
+	await settle();
+	await settle();
+
+	assert.equal((await main.invoke('github:open-pr', dir, {})).reason, 'no-ticket');
+	assert.deepEqual(openPullRequest.calls, []);
+});
+
+test('github:open-pr forgets a revoked authorization rather than keep offering it', async (t) => {
+	const dir = await fixtureRepo(t);
+	const auth = fakeGithubAuth();
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { tracTicket: 1 } } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./github-auth.cjs': auth,
+			'./github-pr.cjs': {
+				openPullRequest: async () => ({ ok: false, reason: 'unauthorized', error: 'gone', stage: 'forking' }),
+				buildPullRequestBody: () => ''
+			}
+		}
+	});
+
+	await main.invokeWith('github:sign-in', createIpcEvent());
+	await settle();
+	await settle();
+	assert.notEqual((await main.invoke('github:account')).login, null);
+
+	await main.invoke('github:open-pr', dir, {});
+
+	assert.equal((await main.invoke('github:account')).login, null);
+});
+
 // --- the harness's own guard ---------------------------------------------
 
 // Requiring the real `electron` package is not a harmless fallback: its
@@ -1569,7 +1752,10 @@ const WIRED = new Set([
 	'editor:open',
 	'dir:show',
 	'provenance:set-handle',
-	'provenance:set-event'
+	'provenance:set-event',
+	'github:account',
+	'github:sign-in',
+	'github:open-pr'
 ]);
 
 // Channels with no module to reach: they read or write electron-store, drive a
@@ -1593,7 +1779,9 @@ const NO_DELEGATION = new Map([
 	['smtp:start', 'starts the in-process SMTP server'],
 	['smtp:stop', 'stops the in-process SMTP server'],
 	['wp-debug:start', 'tails a file'],
-	['wp-debug:stop', 'stops a tail']
+	['wp-debug:stop', 'stops a tail'],
+	['github:sign-out', 'clears the in-memory token; asserted through github:account above'],
+	['github:sign-in-cancel', 'sets a flag the in-flight poll reads']
 ]);
 
 // There used to be a third list here, UNWIRED_INVARIANTS: the Playground and

@@ -32,6 +32,9 @@ const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, update
 const { applyPatchToDir } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
 const { fetchLinkedPrs, fetchPrDiff } = require('./github-prs');
+const { getClientId: getGithubClientId, requestDeviceCode, pollForToken, fetchViewer } = require('./github-auth.cjs');
+const { openPullRequest, buildPullRequestBody, testMode: githubTestMode } = require('./github-pr.cjs');
+const { buildPullRequestEntries } = require('./pr-files.cjs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { deleteRegisteredSite, revealRegisteredSite } = require('./site-registry');
@@ -309,7 +312,17 @@ function buildPatchHtml(content) {
     </body></html>`;
 }
 
-async function createMinimalPatchForDir(dir) {
+// What this checkout has that its copy of trunk does not: one walk, read by
+// both destinations that need it.
+//
+// The `.diff` and the pull request (#167) must never disagree about what
+// changed — they are two renderings of one answer, and a contributor choosing
+// between them is choosing a destination, not a different set of edits. So the
+// walk lives here, once, and each destination interprets the result.
+//
+// Returns the base commit alongside the files because the pull request needs it
+// as the commit's parent, and it is the same oid the diff was taken against.
+async function collectChangedFiles(dir) {
     await ensureAutocrlf(dir);
     // The diff base is deliberately the local HEAD (the cloned trunk
     // snapshot), NOT the remote trunk ref: diffing local edits against a
@@ -343,23 +356,55 @@ async function createMinimalPatchForDir(dir) {
     // Compare working tree vs HEAD (which points to trunk tip after clone)
     const matrixAfterAdd = await git.statusMatrix({ fs, dir });
     const changed = matrixAfterAdd.filter(([, head, workdir]) => head !== workdir);
-    let patch = '';
+    const files = [];
     for (const [filepath, head, workdir] of changed) {
-        const abs = require('path').join(dir, filepath);
+        const abs = path.join(dir, filepath);
         const workBuf = workdir ? await fs.promises.readFile(abs).catch(() => null) : null;
         const base = head && headOid ? await git.readBlob({ fs, dir, oid: headOid, filepath }).catch(() => null) : null;
+        files.push({
+            path: filepath,
+            // The status codes, not the buffers, are what say whether a file is
+            // gone: a read that failed for any other reason must not be reported
+            // as a deletion, which in a pull request would actually delete it.
+            inHead: head !== 0,
+            inWorkdir: workdir !== 0,
+            base: base ? Buffer.from(base.blob) : null,
+            work: workBuf
+        });
+    }
+    return { headOid, files };
+}
+
+async function createMinimalPatchForDir(dir) {
+    const { files } = await collectChangedFiles(dir);
+    let patch = '';
+    for (const file of files) {
         // CRLF→LF on both sides: the workdir may be a CRLF checkout (native
         // git on Windows), and a patch full of line-ending churn applies
         // nowhere on Trac.
-        const a = base ? normalizeEol(Buffer.from(base.blob).toString('utf8')) : '';
-        const b = workBuf ? normalizeEol(workBuf.toString('utf8')) : a;
+        const a = file.base ? normalizeEol(file.base.toString('utf8')) : '';
+        const b = file.work ? normalizeEol(file.work.toString('utf8')) : a;
         if (a === b) continue;
         // Skip likely-binary
         if ((a.indexOf('\0') !== -1) || (b.indexOf('\0') !== -1)) continue;
-        const filePatch = JsDiff.createTwoFilesPatch(`a/${filepath}`, `b/${filepath}`, a, b, '', '', { context: 3 });
+        const filePatch = JsDiff.createTwoFilesPatch(`a/${file.path}`, `b/${file.path}`, a, b, '', '', { context: 3 });
         patch += filePatch + '\n';
     }
     return patch || 'No changes.';
+}
+
+// The same change, in the shape the tree API takes (#167).
+//
+// Two differences from the `.diff`, both of them the pull request being more
+// faithful rather than different: binary files are carried, because a blob is
+// base64 and a unified diff is not; and deletions are carried, which the patch
+// builder above still drops (#174). The shaping — modes, deletions, and the
+// CRLF handling that keeps a Windows checkout from rewriting every line —
+// lives in pr-files.cjs, where both platform branches are testable.
+async function collectPullRequestFiles(dir) {
+    const { headOid, files } = await collectChangedFiles(dir);
+    const entries = await buildPullRequestEntries(files, { git, fs, dir, headOid, platform: process.platform });
+    return { headOid, files: entries };
 }
 
 ipcMain.handle('git:get-patch', async (_e, sitePath) => {
@@ -436,6 +481,158 @@ ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
     } catch (e) {
         return { ok: false, error: String(e) };
     }
+});
+
+// --- Opening a pull request (#167) ---
+//
+// The access token lives here and nowhere else: one module-level variable, for
+// the length of one app run. It is never written to electron-store, never
+// logged, and never sent to the renderer — the renderer is told a login, which
+// is a name, not a credential. Signing out is forgetting a variable, and so is
+// quitting the app.
+//
+// That is a deliberate cost. A contributor who restarts the app signs in again.
+// The machine this runs on is often a borrowed laptop in a contributor-day
+// room, and a `repo` token outliving the session on one of those is a
+// worse trade than a second sign-in.
+let githubToken = null;
+let githubLogin = null;
+// Set while a device-flow poll is in flight; the object identity is what the
+// poll checks, so a cancel followed immediately by a new sign-in cannot cancel
+// the new one.
+let githubSignIn = null;
+
+function forgetGithubToken() {
+    githubToken = null;
+    githubLogin = null;
+}
+
+ipcMain.handle('github:account', async () => ({
+    ok: true,
+    login: githubLogin,
+    // The panel says "sign-in is not set up in this build" rather than offering
+    // a button that can only fail.
+    configured: Boolean(getGithubClientId()),
+    // Null in every shipped build. When an env switch is set, the card has to
+    // say so: the switches are typed in a terminal minutes earlier, and an
+    // app that looks identical either way is how a dry run that silently was
+    // not one opened a real pull request during testing.
+    testMode: githubTestMode()
+}));
+
+ipcMain.handle('github:sign-out', async () => {
+    forgetGithubToken();
+    return { ok: true };
+});
+
+ipcMain.handle('github:sign-in-cancel', async () => {
+    if (githubSignIn) githubSignIn.canceled = true;
+    githubSignIn = null;
+    return { ok: true };
+});
+
+ipcMain.handle('github:sign-in', async (event) => {
+    const started = await requestDeviceCode();
+    if (!started.ok) {
+        logEvent('github', `sign-in could not start: ${started.reason}`);
+        return started;
+    }
+
+    // A second sign-in supersedes the first rather than racing it.
+    if (githubSignIn) githubSignIn.canceled = true;
+    const session = { canceled: false };
+    githubSignIn = session;
+
+    // The poll runs past this handler's return so the code can be on screen
+    // while the contributor is in the browser. Its outcome comes back as an
+    // event, the same shape the install and script runners use.
+    //
+    // `githubSignIn` stays pointing at this session until the very end,
+    // including through the fetchViewer await: it is how the cancel handler
+    // reaches an in-flight sign-in, and clearing it early opened a window where
+    // Cancel was a no-op and the contributor ended up signed in anyway.
+    (async () => {
+        const finish = (payload) => {
+            if (githubSignIn === session) githubSignIn = null;
+            if (!session.canceled && !event.sender.isDestroyed()) event.sender.send('github:sign-in:done', payload);
+        };
+
+        const polled = await pollForToken(started, { isCanceled: () => session.canceled });
+        if (session.canceled) return finish(null);
+        if (!polled.ok) {
+            logEvent('github', `sign-in ended: ${polled.reason}`);
+            return finish(polled);
+        }
+
+        const viewer = await fetchViewer(polled.token);
+        if (session.canceled) return finish(null);
+        if (!viewer.ok) {
+            logEvent('github', `sign-in could not identify the account: ${viewer.reason}`);
+            return finish(viewer);
+        }
+
+        githubToken = polled.token;
+        githubLogin = viewer.login;
+        logEvent('github', `signed in as ${describeRefused(viewer.login)}`);
+        finish({ ok: true, login: viewer.login });
+    })();
+
+    // The device code is not the token, and the renderer needs both halves of
+    // it — the code to show and the page to open.
+    return { ok: true, userCode: started.userCode, verificationUri: started.verificationUri };
+});
+
+ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
+    if (!githubToken || !githubLogin) {
+        return { ok: false, reason: 'unauthorized', error: 'Sign in to GitHub first.', stage: 'auth' };
+    }
+
+    // The ticket is read from this site's stored metadata rather than taken
+    // from the caller, for the reason the handoff header is: the renderer
+    // should not be able to file a pull request against a different ticket than
+    // the one this site is linked to.
+    const s = await getStore();
+    const meta = (s.get('siteMeta') || {})[sitePath] || {};
+    const ticketId = meta.tracTicket;
+    if (!ticketId) {
+        return { ok: false, reason: 'no-ticket', error: 'Link a Trac ticket to this site first.', stage: 'auth' };
+    }
+    const { wporgHandle: handle = null, contributionEvent = null } = s.get('preferences') || {};
+
+    let collected;
+    try {
+        collected = await collectPullRequestFiles(sitePath);
+    } catch (e) {
+        return { ok: false, reason: 'error', error: String(e), stage: 'collect' };
+    }
+
+    const title = typeof options.title === 'string' && options.title.trim()
+        ? options.title.trim()
+        : `Ticket #${ticketId}`;
+
+    const result = await openPullRequest({
+        token: githubToken,
+        login: githubLogin,
+        ticketId,
+        baseSha: collected.headOid,
+        files: collected.files,
+        title,
+        body: buildPullRequestBody({ ticketId, handle, event: contributionEvent }),
+        onProgress: (stage) => {
+            if (!event.sender.isDestroyed()) event.sender.send('github:pr:progress', { sitePath, stage });
+        }
+    });
+
+    // A revoked authorization is the one failure that changes what the app
+    // knows: keeping a token that GitHub has stopped honouring would leave the
+    // panel offering a button that cannot work.
+    if (!result.ok && result.reason === 'unauthorized') forgetGithubToken();
+    // The error detail carries GitHub's own words plus the request id, so it is
+    // bounded the way every externally-influenced string in this log is.
+    logEvent('github', result.ok
+        ? `opened pull request #${result.number}`
+        : `pull request failed at ${result.stage}: ${result.reason} — ${describeRefused(result.error)}`);
+    return result;
 });
 
 // --- Trunk update path (#94) --- git mechanics live in src/trunk-update.js;

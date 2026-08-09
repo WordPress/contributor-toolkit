@@ -24,8 +24,27 @@ import { pickLatest } from '../latest-patch.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { highlightDiff } from './diff-highlight.cjs';
+import { carryTestMode } from './github-account.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
+// What the app is doing while a pull request is being opened (#167). Each step
+// is named because they take visibly different amounts of time — forking is the
+// slow one, and an unlabelled spinner there reads as a hang.
+const PR_STAGE_LABELS = {
+  forking: 'Creating your fork of wordpress-develop…',
+  syncing: 'Bringing your fork up to date…',
+  committing: 'Uploading your changes…',
+  opening: 'Opening the pull request…'
+};
+// Why it failed, in a sentence that says what to do about it. Every one of
+// these still leaves the patch file, which is what the card offers underneath.
+const PR_FAILURE_MESSAGES = {
+  unauthorized: 'That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.',
+  'rate-limited': 'GitHub is rate-limiting this connection. It usually clears within the hour.',
+  offline: 'No connection to GitHub.',
+  'no-ticket': 'Link a Trac ticket to this site first — a pull request has to cite one.',
+  empty: 'There are no changes to open a pull request with.'
+};
 // Per-status wording for the update chain card (#94), following the issue's
 // mockups: the skipped install step is named, never hidden, and the build
 // step points at the Terminal instead of opening a second log surface.
@@ -964,6 +983,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [handleError, setHandleError] = useState('');
   const [handleSaving, setHandleSaving] = useState(false);
   const [editingHandle, setEditingHandle] = useState(false);
+  // Opening a pull request (#167). `githubAccount` is null until the panel has
+  // asked; `{ login: null }` is a real answer meaning signed out, and the two
+  // must not render the same way — offering "Sign in" before the app knows
+  // whether it already is signed in makes the panel flicker on every open.
+  const [githubAccount, setGithubAccount] = useState(null);
+  const [githubDeviceCode, setGithubDeviceCode] = useState(null);
+  const [githubError, setGithubError] = useState('');
+  const [githubDeclined, setGithubDeclined] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [prTitle, setPrTitle] = useState('');
+  const [prStage, setPrStage] = useState('');
+  const [prResult, setPrResult] = useState(null);
+  const [prError, setPrError] = useState(null);
+  const [prLinkCopied, setPrLinkCopied] = useState(false);
   const [emails, setEmails] = useState([]);
   const [smtpPort, setSmtpPort] = useState(0);
   const newEmailUnsubRef = useRef(null);
@@ -2184,6 +2217,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setPatchSaveError('');
     setHandleError('');
     setEditingHandle(false);
+    // Same rule for the pull request card: last time's outcome belongs to last
+    // time's patch. The account is not reset — that survives the modal — but it
+    // is re-read, since it can have been signed out from another site's panel.
+    setPrResult(null);
+    setPrError(null);
+    setPrStage('');
+    setGithubError('');
+    setGithubDeclined(false);
+    loadGithubAccount();
     try {
       const res = await window.api.getPatch(sitePath);
       if (res && res.ok) setPatchText((res.patch && res.patch.trim().length) ? res.patch : 'No changes.');
@@ -2244,6 +2286,287 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const saveForHandoff = async () => {
     if (!wporg?.handle) return;
     await savePatchFile({ handoff: true });
+  };
+
+  // --- The pull request destination (#167) ---
+
+  const loadGithubAccount = async () => {
+    try {
+      const res = await window.api.getGithubAccount();
+      setGithubAccount(res && res.ok ? res : { login: null, configured: false });
+    } catch {
+      setGithubAccount({ login: null, configured: false });
+    }
+  };
+
+  // Sign-in is two-legged on purpose: this resolves as soon as there is a code
+  // to show, because the contributor's next move is in a browser, and the
+  // outcome of the wait arrives later on the callback.
+  const startGithubSignIn = async () => {
+    setGithubError('');
+    setCodeCopied(false);
+    let started;
+    try {
+      started = await window.api.signInToGithub((done) => {
+        setGithubDeviceCode(null);
+        if (done && done.ok) {
+          setGithubAccount((prev) => carryTestMode(prev, { login: done.login, configured: true }));
+          setGithubError('');
+          return;
+        }
+        // Declining is a choice, not a fault, so it reads as one.
+        setGithubError(done && done.reason === 'denied'
+          ? 'The authorization was declined on GitHub. Nothing was changed.'
+          : (done && done.error) || 'Sign-in did not complete.');
+      });
+    } catch (e) {
+      setGithubError(e && e.message ? e.message : String(e));
+      return;
+    }
+    if (!started || !started.ok) {
+      setGithubError((started && started.error) || 'Could not start sign-in.');
+      return;
+    }
+    setGithubDeviceCode({ userCode: started.userCode, verificationUri: started.verificationUri });
+    // Opening the page here rather than making it a second button: the code on
+    // screen is only useful on that page, and a contributor who has just been
+    // told what will happen should not have to go looking for where.
+    window.api.openExternal(started.verificationUri);
+  };
+
+  const cancelGithubSignIn = async () => {
+    setGithubDeviceCode(null);
+    setGithubError('');
+    try { await window.api.cancelGithubSignIn(); } catch {}
+  };
+
+  const signOutOfGithub = async () => {
+    try { await window.api.signOutOfGithub(); } catch {}
+    setGithubAccount((prev) => carryTestMode(prev, { login: null, configured: prev?.configured !== false }));
+    setPrResult(null);
+    setPrError(null);
+  };
+
+  const openPullRequest = async () => {
+    setPrError(null);
+    setPrResult(null);
+    setPrStage('forking');
+    // Subscribed only for the duration of the attempt: the event carries a site
+    // path because one main process serves every open site, and a stale
+    // listener would move another site's spinner.
+    const unsubscribe = window.api.subscribePullRequestProgress((payload) => {
+      if (payload && payload.sitePath === sitePath) setPrStage(payload.stage);
+    });
+    try {
+      const res = await window.api.openPullRequest(sitePath, { title: prTitle });
+      if (res && res.ok) {
+        setPrResult(res);
+      } else {
+        setPrError(res || { reason: 'error', error: 'The pull request could not be opened.' });
+        // A revoked authorization is forgotten in the main process, so the card
+        // has to stop claiming an account it no longer has.
+        if (res && res.reason === 'unauthorized') setGithubAccount((prev) => carryTestMode(prev, { login: null, configured: true }));
+      }
+    } catch (e) {
+      setPrError({ reason: 'error', error: e && e.message ? e.message : String(e) });
+    } finally {
+      setPrStage('');
+      unsubscribe();
+    }
+  };
+
+  const copyPrLink = async () => {
+    if (!prResult?.url) return;
+    try {
+      await navigator.clipboard.writeText(prResult.url);
+      setPrLinkCopied(true);
+      setTimeout(() => setPrLinkCopied(false), 2000);
+    } catch {}
+  };
+
+  // The pull request card has six states and they are genuinely sequential —
+  // done, still asking, waiting on the browser, ready, declined, not started.
+  // Written as nested ternaries in the JSX that is one expression six levels
+  // deep and unreadable at the point where the wording matters most, so the
+  // states get early returns and the card body gets one call.
+  const renderPullRequestBody = () => {
+    if (prResult) {
+      return (
+        <>
+          {/*
+            A dry run (WP_DEV_ENV_GITHUB_DRY_RUN) stops after the branch: the
+            fork writes are private, the pull request is the step watchers
+            hear about. Saying so beats a "pull request #null".
+          */}
+          {prResult.dryRun ? (
+            <div style={{ fontSize:13, color:'#0f5132' }}>
+              Dry run — branch <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}><code style={{ fontSize:12 }}>{prResult.branch}</code></Button> was created on your fork; no pull request was opened.
+            </div>
+          ) : (
+          <div style={{ fontSize:13, color:'#0f5132' }}>
+            Opened <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}>pull request #{prResult.number}</Button>
+            {' '}from <code style={{ fontSize:12 }}>{prResult.branch}</code>.
+          </div>
+          )}
+          {/*
+            The branch always bases on today's trunk (see resolveBase); this
+            names the consequence when the local checkout was behind it. The
+            clash guard has already ruled out upstream changes to the same
+            files, so this is information, not alarm.
+          */}
+          {prResult.exactBase === false ? (
+            <div style={{ fontSize:12, color:'#6e5406', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, padding:'8px 10px' }}>
+              Your checkout was behind trunk, so the branch was based on today&apos;s trunk. None of your files were changed upstream in between — the pull request shows only your work.
+            </div>
+          ) : null}
+          {/*
+            The Trac loop-back is for a pull request that exists — a dry run
+            has no link worth posting on a ticket.
+          */}
+          {!prResult.dryRun && (
+            <>
+              <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
+                Triage and props live on the ticket, so the link belongs there too.
+              </div>
+              <Button variant="secondary" onClick={copyPrLink} icon={prLinkCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
+                {prLinkCopied ? 'Link copied' : 'Copy the link'}
+              </Button>
+              {tracTicket ? (
+                <Button variant="primary" onClick={()=>window.api.openExternal(ticketUrl(tracTicket))} style={{ justifyContent:'center' }}>
+                  Open #{tracTicket} to comment
+                </Button>
+              ) : null}
+            </>
+          )}
+        </>
+      );
+    }
+
+    // Not yet asked, which is not the same as signed out: offering "Sign in"
+    // before the answer arrives makes the card flicker on every open.
+    if (githubAccount === null) {
+      return <div style={{ fontSize:12, color:'#6c6f72' }}>Checking…</div>;
+    }
+
+    if (githubAccount.configured === false) {
+      return (
+        <div style={{ fontSize:12, color:'#6c6f72' }}>
+          This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.
+        </div>
+      );
+    }
+
+    if (githubDeviceCode) {
+      return (
+        <>
+          <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
+            Enter this code at <strong>github.com/login/device</strong>, which has been opened in your browser.
+          </div>
+          <div style={{ fontFamily:'Menlo, Consolas, monospace', fontSize:24, letterSpacing:2, fontWeight:600, textAlign:'center', padding:'10px 0', color:'#1d2327' }}>
+            {githubDeviceCode.userCode}
+          </div>
+          <Button variant="secondary" onClick={copyDeviceCode} icon={codeCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
+            {codeCopied ? 'Code copied' : 'Copy the code'}
+          </Button>
+          <Flex justify="center" gap={2}>
+            <Spinner />
+            <div style={{ fontSize:12, color:'#6c6f72' }}>Waiting for you to finish in the browser…</div>
+          </Flex>
+          <Button variant="link" onClick={cancelGithubSignIn} style={{ fontSize:12 }}>Cancel</Button>
+        </>
+      );
+    }
+
+    if (githubAccount.login) {
+      return (
+        <>
+          {tracTicket ? (
+            <>
+              <TextControl
+                value={prTitle}
+                onChange={setPrTitle}
+                disabled={Boolean(prStage)}
+                placeholder={`Ticket #${tracTicket}`}
+                label="Title"
+                help="The ticket link and your WordPress.org username go in the description."
+              />
+              {/*
+                The button says what it will actually do. A dry run's button
+                reading "Open pull request" is the label lying about the mode,
+                which is the failure this whole indicator exists to prevent.
+              */}
+              <Button
+                variant="primary"
+                onClick={openPullRequest}
+                isBusy={Boolean(prStage)}
+                disabled={Boolean(prStage)}
+                style={{ justifyContent:'center' }}
+              >{githubAccount?.testMode?.dryRun ? 'Push branch (dry run)' : 'Open pull request'}</Button>
+            </>
+          ) : (
+            <div style={{ fontSize:12, color:'#6c6f72' }}>
+              No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.
+            </div>
+          )}
+          {prStage ? (
+            <div style={{ fontSize:12, color:'#6c6f72' }}>{PR_STAGE_LABELS[prStage] || 'Working…'}</div>
+          ) : (
+            <div style={{ fontSize:12, color:'#6c6f72' }}>
+              {/*
+                The destination is named, not implied: "the fork is made for
+                you" answers what, this answers where — which account the fork
+                and the branch land in.
+              */}
+              Signed in as {githubAccount.login} — the fork and branch go to{' '}
+              <Button
+                variant="link"
+                onClick={()=>window.api.openExternal(`https://github.com/${githubAccount.login}/wordpress-develop`)}
+                style={{ fontSize:12 }}
+              >{githubAccount.login}/wordpress-develop</Button>.{' '}
+              <Button variant="link" onClick={signOutOfGithub} style={{ fontSize:12 }}>Sign out</Button>
+            </div>
+          )}
+        </>
+      );
+    }
+
+    if (githubDeclined) {
+      return (
+        <>
+          <div style={{ fontSize:12, color:'#6c6f72' }}>
+            Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other two destinations are unchanged.
+          </div>
+          <Button variant="link" onClick={()=>setGithubDeclined(false)} style={{ fontSize:12 }}>Show this again</Button>
+        </>
+      );
+    }
+
+    return (
+      <>
+        {/*
+          The whole ask, before any of it happens — including the part the app
+          cannot do for you. Declining has to be as visible as accepting, or the
+          cliff is sprung rather than named.
+        */}
+        <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.6 }}>
+          Signing in lets the app fork wordpress-develop to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.
+        </div>
+        <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.6 }}>
+          It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.
+        </div>
+        <Button variant="primary" onClick={startGithubSignIn} style={{ justifyContent:'center' }}>Sign in with GitHub</Button>
+        <Button variant="link" onClick={()=>{ setGithubDeclined(true); setGithubError(''); }} style={{ fontSize:12 }}>Not now</Button>
+      </>
+    );
+  };
+
+  const copyDeviceCode = async () => {
+    if (!githubDeviceCode?.userCode) return;
+    try {
+      await navigator.clipboard.writeText(githubDeviceCode.userCode);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    } catch {}
   };
 
   // Both fields are written in one go, because they are asked in one form. The
@@ -3294,6 +3617,52 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         {handleError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{handleError}</div> : null}
                       </>
                     )}
+                  </DestinationCard>
+
+                  {/*
+                    The destination that actually gets automated checks and the
+                    one reviewers watch — and the one with the signup cliff
+                    (#167). The cliff is named here, before anything happens,
+                    rather than sprung after the contributor has left the venue.
+                  */}
+                  <DestinationCard
+                    title="Open a pull request"
+                    cost="A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk."
+                    after="Automated checks run on it. Post the link back on the ticket — a pull request does not replace one."
+                  >
+                    {/*
+                      Absent from every shipped build. When a test switch is
+                      set it sits above the button, because that is where the
+                      decision is made — a mode set in a terminal minutes
+                      earlier, in an app that otherwise looks identical, is how
+                      a dry run that silently was not one opened a real pull
+                      request during testing.
+                    */}
+                    {githubAccount?.testMode ? (
+                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', background:'#f0f0f1', border:'1px dashed #949494', borderRadius:6, fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
+                        <span style={{ fontWeight:600, letterSpacing:0.5, textTransform:'uppercase', fontSize:10, color:'#1d2327' }}>Test mode</span>
+                        <span>
+                          {githubAccount.testMode.dryRun
+                            ? 'Dry run — a branch is pushed to your fork, no pull request is opened.'
+                            : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to wordpress-develop.</>}
+                        </span>
+                      </div>
+                    ) : null}
+                    {renderPullRequestBody()}
+                    {githubError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{githubError}</div> : null}
+                    {prError ? (
+                      <>
+                        <div role="alert" style={{ color:'#d63638', fontSize:12 }}>
+                          {PR_FAILURE_MESSAGES[prError.reason] || prError.error}
+                        </div>
+                        {/*
+                          Every failure lands here, and every failure has the
+                          same floor: the file exists regardless of what GitHub
+                          did.
+                        */}
+                        <Button variant="secondary" onClick={savePatch} style={{ justifyContent:'center' }}>Save the patch file instead</Button>
+                      </>
+                    ) : null}
                   </DestinationCard>
                 </div>
               </div>
