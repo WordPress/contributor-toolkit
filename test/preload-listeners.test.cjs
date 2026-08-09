@@ -261,6 +261,114 @@ for (const run of RUNS) {
 	});
 }
 
+// --- GitHub sign-in (#167) -----------------------------------------------
+//
+// The same listener-leak shape as the run subscriptions above, in a bridge with
+// one difference that matters: the subscription is made *before* the invoke,
+// because the outcome event can arrive at any point after it and missing it
+// would leave the card waiting forever on a sign-in that already finished. That
+// ordering is what creates the leak this pins — a sign-in that never starts has
+// no outcome coming, and the listener left behind would fire on the next one.
+
+test('signInToGithub subscribes before invoking, and unsubscribes once the outcome arrives', async () => {
+	const { api, ipcRenderer } = loadPreload({
+		invokeResults: { 'github:sign-in': () => ({ ok: true, userCode: 'WDJB-MJHT' }) }
+	});
+	const outcomes = [];
+
+	const started = await api.signInToGithub((payload) => outcomes.push(payload));
+
+	assert.deepEqual(started, { ok: true, userCode: 'WDJB-MJHT' });
+	assert.equal(ipcRenderer.listenerCount('github:sign-in:done'), 1);
+
+	ipcRenderer.emit('github:sign-in:done', { ok: true, login: 'janedoe' });
+
+	assert.deepEqual(outcomes, [{ ok: true, login: 'janedoe' }]);
+	assert.equal(ipcRenderer.listenerCount('github:sign-in:done'), 0);
+
+	// A second event on a global channel must reach nobody: the card is done
+	// with this sign-in, and a callback firing again would overwrite the
+	// account it just settled on.
+	ipcRenderer.emit('github:sign-in:done', { ok: false, reason: 'denied' });
+	assert.equal(outcomes.length, 1);
+});
+
+test('signInToGithub leaves no listener behind when the sign-in never starts', async () => {
+	const { api, ipcRenderer } = loadPreload({
+		invokeResults: { 'github:sign-in': () => ({ ok: false, reason: 'not-configured', error: 'no application' }) }
+	});
+	const outcomes = [];
+
+	const started = await api.signInToGithub((payload) => outcomes.push(payload));
+
+	assert.equal(started.ok, false);
+	assert.equal(ipcRenderer.listenerCount('github:sign-in:done'), 0);
+
+	// The next sign-in's outcome must not reach the callback from the one that
+	// failed to start.
+	ipcRenderer.emit('github:sign-in:done', { ok: true, login: 'someone-else' });
+	assert.deepEqual(outcomes, []);
+});
+
+// The path with neither outcome nor failed start: a cancelled sign-in. The
+// main process deliberately goes quiet, so nothing arrives to trigger the
+// self-removal — cancel itself has to drop the listener, or every
+// sign-in→cancel cycle leaks one for the life of the window and a later
+// successful sign-in fires all the stale callbacks.
+test('cancelGithubSignIn drops the outcome listener the quiet cancel would strand', async () => {
+	const { api, ipcRenderer } = loadPreload({
+		invokeResults: {
+			'github:sign-in': () => ({ ok: true, userCode: 'WDJB-MJHT' }),
+			'github:sign-in-cancel': () => ({ ok: true })
+		}
+	});
+	const outcomes = [];
+
+	await api.signInToGithub((payload) => outcomes.push(payload));
+	await api.cancelGithubSignIn();
+
+	assert.equal(ipcRenderer.listenerCount('github:sign-in:done'), 0);
+
+	// The next sign-in must reach only its own callback, once.
+	const next = [];
+	await api.signInToGithub((payload) => next.push(payload));
+	ipcRenderer.emit('github:sign-in:done', { ok: true, login: 'janedoe' });
+	assert.deepEqual(outcomes, []);
+	assert.deepEqual(next, [{ ok: true, login: 'janedoe' }]);
+});
+
+// A second sign-in supersedes the first in the main process, so the first's
+// outcome is never coming either — starting again must not accumulate.
+test('a superseding sign-in replaces the previous listener instead of stacking one', async () => {
+	const { api, ipcRenderer } = loadPreload({
+		invokeResults: { 'github:sign-in': () => ({ ok: true, userCode: 'WDJB-MJHT' }) }
+	});
+	const first = [];
+	const second = [];
+
+	await api.signInToGithub((payload) => first.push(payload));
+	await api.signInToGithub((payload) => second.push(payload));
+
+	assert.equal(ipcRenderer.listenerCount('github:sign-in:done'), 1);
+
+	ipcRenderer.emit('github:sign-in:done', { ok: true, login: 'janedoe' });
+	assert.deepEqual(first, []);
+	assert.deepEqual(second, [{ ok: true, login: 'janedoe' }]);
+});
+
+test('subscribePullRequestProgress hands back its own unsubscribe', () => {
+	const { api, ipcRenderer } = loadPreload();
+	const seen = [];
+
+	const unsubscribe = api.subscribePullRequestProgress((payload) => seen.push(payload));
+	ipcRenderer.emit('github:pr:progress', { sitePath: '/sites/wp', stage: 'forking' });
+	unsubscribe();
+	ipcRenderer.emit('github:pr:progress', { sitePath: '/sites/wp', stage: 'opening' });
+
+	assert.deepEqual(seen, [{ sitePath: '/sites/wp', stage: 'forking' }]);
+	assert.equal(ipcRenderer.listenerCount('github:pr:progress'), 0);
+});
+
 // The guard for the paragraph above isElectronPackage: if the stub ever stops
 // covering a path, this fails here rather than as a mystery download in another
 // file's test on a cold checkout.

@@ -14,80 +14,15 @@
  *
  * Requests use Electron's `net` rather than a new HTTP dependency: it rides the
  * Chromium network stack, so it honours the same proxy and TLS configuration
- * the rest of the app already relies on, and adds nothing to install.
+ * the rest of the app already relies on, and adds nothing to install. That
+ * request primitive now lives in github-http.cjs, because opening a pull
+ * request (#167) needs the same one with a method and a body.
  */
 
 const { parseLinkedPrs, classifyHttpFailure } = require('./patch-sources.cjs');
+const { httpGet } = require('./github-http.cjs');
 
 const REPO = 'WordPress/wordpress-develop';
-// GitHub rejects API requests with no User-Agent; an identifying one is also
-// the honest thing to send.
-const USER_AGENT = 'WordPress-Contributor-Toolkit (+https://github.com/WordPress/experimental-wp-dev-env)';
-const REQUEST_TIMEOUT_MS = 15000;
-
-/**
- * A single GET over Electron net. Never rejects on an HTTP status — the status
- * is data the caller classifies — only on a transport failure or timeout.
- * Modelled on the never-reject readiness probe in main.js.
- *
- * `opts` carries both test doubles and request options. The doubles (net client
- * and timers) exist only so the response, transport-error, timeout, and
- * settle-once paths can be exercised without the network or a real 15s wait;
- * production callers pass none and get Electron's `net` and the global timers.
- * `partition` + `useSessionCookies` let a caller ride a specific session's
- * cookies — the Trac attachment fetch reuses the session that passed the
- * proof-of-work challenge, so its `_hcc` cookie authorises the download; net
- * does not send session cookies unless asked, hence the explicit flag.
- *
- * @param {string}  url
- * @param {Object}  [headers]
- * @param {Object}  [opts]
- * @param {string}  [opts.partition]
- * @param {boolean} [opts.useSessionCookies]
- * @return {Promise<{status: number, headers: Object, body: string}>}
- */
-function httpGet(url, headers = {}, opts = {}) {
-	// Required lazily, not at module load: requiring `electron` outside Electron
-	// resolves the binary and can spawn its installer on a cold checkout, and the
-	// standalone tests inject their own client and must never reach it.
-	const netImpl = opts.net || require('electron').net;
-	const setTimeoutImpl = opts.setTimeout || setTimeout;
-	const clearTimeoutImpl = opts.clearTimeout || clearTimeout;
-	return new Promise((resolve, reject) => {
-		let settled = false;
-		const finish = (fn, arg) => { if (!settled) { settled = true; fn(arg); } };
-
-		const requestOptions = { method: 'GET', url };
-		if (opts.partition) {
-			requestOptions.partition = opts.partition;
-			requestOptions.useSessionCookies = opts.useSessionCookies !== false;
-		}
-		const request = netImpl.request(requestOptions);
-		request.setHeader('User-Agent', USER_AGENT);
-		for (const [key, value] of Object.entries(headers)) request.setHeader(key, value);
-
-		const timer = setTimeoutImpl(() => {
-			try { request.abort(); } catch {}
-			finish(reject, new Error(`Timed out after ${REQUEST_TIMEOUT_MS}ms`));
-		}, REQUEST_TIMEOUT_MS);
-
-		request.on('response', (response) => {
-			const chunks = [];
-			response.on('data', (chunk) => chunks.push(chunk));
-			response.on('end', () => {
-				clearTimeoutImpl(timer);
-				const lowerHeaders = {};
-				for (const [key, value] of Object.entries(response.headers || {})) {
-					lowerHeaders[key.toLowerCase()] = Array.isArray(value) ? value[0] : value;
-				}
-				finish(resolve, { status: response.statusCode, headers: lowerHeaders, body: Buffer.concat(chunks).toString('utf8') });
-			});
-			response.on('error', (e) => { clearTimeoutImpl(timer); finish(reject, e); });
-		});
-		request.on('error', (e) => { clearTimeoutImpl(timer); finish(reject, e); });
-		request.end();
-	});
-}
 
 /**
  * The pull requests that cite a ticket, newest first.
