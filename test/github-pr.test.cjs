@@ -19,6 +19,7 @@ const {
 	buildPullRequestBody,
 	branchNameFor,
 	classifyFailure,
+	MAX_NOTES_LENGTH,
 	testMode,
 	ensureFork,
 	resolveBase,
@@ -77,6 +78,44 @@ test('buildPullRequestBody cites the ticket in the form core’s convention expe
 	const bare = buildPullRequestBody({ ticketId: 1 });
 	assert.ok(bare.includes('/ticket/1'));
 	assert.ok(!bare.includes('undefined'));
+});
+
+// The contributor's own words are the only part of the body a human writes,
+// so they lead — a reviewer wants to know what the change is before they want
+// its paperwork.
+test('buildPullRequestBody puts the contributor’s notes above the ticket line', () => {
+	const body = buildPullRequestBody({
+		ticketId: 62281,
+		handle: 'janedoe',
+		notes: '  Rejects a theme zip in the plugin installer.\n\nSteps: upload twentytwentyfour.zip under Plugins → Add New.  '
+	});
+
+	assert.ok(body.startsWith('Rejects a theme zip'), 'the notes lead, and are trimmed');
+	assert.ok(body.indexOf('Rejects a theme zip') < body.indexOf('Trac ticket:'));
+	// Blank lines inside the notes survive: they are the contributor's
+	// paragraphs, and flattening them would rewrite what they wrote.
+	assert.ok(body.includes('installer.\n\nSteps:'));
+	// The ticket line still has to be there and still has to be findable by
+	// bodyCitesTicket, whatever a contributor typed above it.
+	assert.ok(body.includes('Trac ticket: https://core.trac.wordpress.org/ticket/62281'));
+	assert.ok(body.includes('@janedoe'));
+});
+
+test('buildPullRequestBody without notes is what it always was', () => {
+	const body = buildPullRequestBody({ ticketId: 62281 });
+	assert.ok(body.startsWith('Trac ticket:'));
+	// Whitespace-only notes are no notes; they must not open the body with a
+	// blank line above the ticket.
+	assert.strictEqual(buildPullRequestBody({ ticketId: 62281, notes: '   \n  ' }), body);
+});
+
+// A body over GitHub's 65,536-character limit is rejected outright — at the
+// last step, after every file has been uploaded. Nothing typed reaches this;
+// a paste of the wrong thing does.
+test('buildPullRequestBody bounds the notes it was given', () => {
+	const body = buildPullRequestBody({ ticketId: 1, notes: 'x'.repeat(MAX_NOTES_LENGTH + 5000) });
+	assert.ok(body.length < MAX_NOTES_LENGTH + 500);
+	assert.ok(body.includes('Trac ticket:'), 'the ticket line survives the truncation');
 });
 
 test('branchNameFor suffixes rather than reusing a taken name', () => {

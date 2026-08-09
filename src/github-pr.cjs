@@ -150,22 +150,42 @@ function describeResponse(res) {
 	return ` [${parts.join('; ')}]`;
 }
 
+// A pull request body is not a place to be terse, but it is a place to be
+// bounded: GitHub caps a body at 65,536 characters and rejects the whole
+// request past it, which would fail at the last step after every file was
+// uploaded. Nothing a contributor types into a notes box comes near this;
+// a paste of the wrong thing does.
+const MAX_NOTES_LENGTH = 20000;
+
 /**
  * The pull request body, in the form core's Trac↔GitHub convention expects.
  *
- * The ticket line is not decoration: it is what links the pull request back to
- * the ticket, what Trac's own bot reads, and — pleasingly — what this app's own
- * `bodyCitesTicket` in patch-sources.cjs looks for, so a pull request opened
- * here shows up in the site's "patches on this ticket" list afterwards.
+ * The ticket line is not decoration. The core handbook is blunt about why:
+ * pull requests on GitHub are not monitored, and one that is not attached to a
+ * Trac ticket is not considered for inclusion. It is also what Trac's own bot
+ * reads and — pleasingly — what this app's `bodyCitesTicket` in
+ * patch-sources.cjs looks for, so a pull request opened here shows up in the
+ * site's "patches on this ticket" list afterwards.
+ *
+ * The contributor's own notes go first, above the ticket line: a reviewer
+ * opening this wants to know what the change is before they want its
+ * paperwork. Everything the app adds sits underneath, in a fixed order, so the
+ * one part a human wrote is the part at the top.
  *
  * @param {Object}        root0
  * @param {number|string} root0.ticketId
  * @param {string}        [root0.handle]
  * @param {string}        [root0.event]
+ * @param {string}        [root0.notes]  Free text from the contributor.
  * @return {string}
  */
-function buildPullRequestBody({ ticketId, handle, event } = {}) {
-	const lines = [`Trac ticket: ${ticketUrl(ticketId)}`];
+function buildPullRequestBody({ ticketId, handle, event, notes } = {}) {
+	const lines = [];
+
+	const written = typeof notes === 'string' ? notes.trim().slice(0, MAX_NOTES_LENGTH) : '';
+	if (written) lines.push(written, '');
+
+	lines.push(`Trac ticket: ${ticketUrl(ticketId)}`);
 	// The same two facts the mentor-handoff header carries (#166), for the same
 	// reason: props follow whoever wrote the patch, and a contributor-day room
 	// is worth naming while it is still happening.
@@ -626,6 +646,7 @@ module.exports = {
 	BASE_BRANCH,
 	MAX_BRANCH_ATTEMPTS,
 	classifyFailure,
+	MAX_NOTES_LENGTH,
 	upstream,
 	isDryRun,
 	testMode,
