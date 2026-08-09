@@ -941,19 +941,49 @@ function DiffText({ text }) {
 // app used to leave the contributor to find out on their own — so every
 // destination states one, in the same place and the same shape, rather than the
 // cheap one being presented as the obvious choice.
-function DestinationCard({ title, cost, after, children }) {
+function Destination({ title, cost, after, children }) {
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:8, padding:'14px 16px', border:'1px solid #dcdcde', borderRadius:10, background:'#fff' }}>
+    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
       <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>{title}</div>
       <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>{cost}</div>
       <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>{after}</div>
       {/*
         The actions follow the prose rather than being pushed to the bottom of
-        the row: the cards carry different numbers of controls, so bottom-
-        aligning them lines up nothing and leaves a hole above the shorter
-        card's button.
+        the row: the destinations carry different numbers of controls, so
+        bottom-aligning them lines up nothing and leaves a hole above the
+        shorter one's button.
       */}
       <div style={{ paddingTop:4, display:'flex', flexDirection:'column', gap:8 }}>{children}</div>
+    </div>
+  );
+}
+
+// The card around the destinations that ask the same thing of the contributor.
+//
+// Three equal cards said the three destinations were three variations on one
+// choice. They are not: two of them save a file and stop, leaving the
+// contributor to carry it somewhere, and the third signs them in and pushes on
+// their behalf. That is the fork in the road, and a layout that hides it makes
+// the reader rediscover it by reading all three in full.
+//
+// So the shared card is the grouping, and the hairline between destinations
+// inside it says "another way to do the same kind of thing" — as against the
+// gap between cards, which says "a different kind of thing". No group heading:
+// the line above the grid names the split once, and a heading per card would
+// say it twice while pushing the destinations themselves further down.
+function DestinationGroup({ children }) {
+  // Filtered because a conditional destination renders as false, and an empty
+  // section would draw a divider with nothing under it.
+  const destinations = React.Children.toArray(children).filter(Boolean);
+  return (
+    <div style={{ display:'flex', flexDirection:'column', border:'1px solid #dcdcde', borderRadius:10, background:'#fff' }}>
+      {destinations.map((destination, index) => (
+        // Position is the only identity a destination in a fixed list has, and
+        // the list is rebuilt whole when it changes.
+        <div key={index} style={{ padding:'14px 16px', borderTop: index === 0 ? 'none' : '1px solid #dcdcde' }}>
+          {destination}
+        </div>
+      ))}
     </div>
   );
 }
@@ -3504,168 +3534,177 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               destination with what it costs — a tool that emits a file and stops
               leaves the contributor to work that out alone.
 
-              Opening a pull request is not offered here. It is the destination
-              that actually gets reviewed, but there is no path to one from a
-              .diff that this app can walk: GitHub cannot ingest a patch file,
-              and every manual route needs a GitHub credential. Sending someone
-              to a handbook page is not an action on the patch in front of them,
-              so the card became noise. #167 is the version that can act.
+              Grouped by who does the sending. The subtitle states that split
+              once, in the only place a reader passes before the cards; it used
+              to promise that nothing was uploaded and no account was asked for,
+              which stopped being true the moment #167 put a pull request on
+              this screen.
             */}
             {!patchLoading && patchHasChanges && (
               <div>
-                <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:8 }}>
+                <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:8, flexWrap:'wrap' }}>
                   <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Where this patch goes</div>
-                  <div style={{ fontSize:12, color:'#6c6f72' }}>Nothing is uploaded and no account is asked for here.</div>
+                  <div style={{ fontSize:12, color:'#6c6f72' }}>Two destinations save a file for you to send. The pull request is the one the app sends for you.</div>
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:12, alignItems:'stretch' }}>
-                  <DestinationCard
-                    title="Attach to Trac"
-                    cost="A WordPress.org account — needed anyway, for props and to comment."
-                    after="No automated checks. Often followed by a request to open a pull request."
-                  >
-                    {tracTicket ? (
-                      <Button variant="primary" onClick={saveForTrac} style={{ justifyContent:'center' }}>
-                        Save, then open #{tracTicket}
-                      </Button>
-                    ) : (
-                      <>
-                        <div style={{ fontSize:12, color:'#6c6f72' }}>
-                          No ticket is linked to this site, so there is nowhere to attach it yet.
-                        </div>
-                        <TextControl
-                          value={ticketInput}
-                          onChange={(value) => { setTicketInput(value); setTicketError(''); }}
-                          onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
-                          disabled={ticketSaving}
-                          placeholder="Ticket number or URL, e.g. 62281"
-                          aria-label="Trac ticket number or URL"
-                        />
-                        <Button
-                          variant="secondary"
-                          onClick={linkTicket}
-                          isBusy={ticketSaving}
-                          disabled={ticketSaving || !ticketInput.trim()}
-                          style={{ justifyContent:'center' }}
-                        >Link ticket</Button>
-                        {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
-                      </>
-                    )}
-                  </DestinationCard>
-
-                  <DestinationCard
-                    title="Hand it to a mentor"
-                    cost="No accounts at all. The patch carries your WordPress.org username, and the event you are at."
-                    after="Someone else pushes it; the props still land on you."
-                  >
-                    {wporg?.handle && !editingHandle ? (
-                      <>
-                        <Button variant="primary" onClick={saveForHandoff} style={{ justifyContent:'center' }}>
-                          Save patch as {wporg.handle}
+                {/*
+                  `start`, not `stretch`: the groups hold different amounts, and
+                  stretching the shorter one to match leaves a tall empty box
+                  under its button that reads as something failing to load.
+                */}
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:12, alignItems:'start' }}>
+                  <DestinationGroup>
+                    <Destination
+                      title="Attach to Trac"
+                      cost="A WordPress.org account — needed anyway, for props and to comment."
+                      after="No automated checks. Often followed by a request to open a pull request."
+                    >
+                      {tracTicket ? (
+                        <Button variant="primary" onClick={saveForTrac} style={{ justifyContent:'center' }}>
+                          Save, then open #{tracTicket}
                         </Button>
-                        {/*
-                          The event is shown on every save rather than only when
-                          it is set: a remembered WordCamp from last year would
-                          otherwise keep stamping patches with nobody seeing it.
-                        */}
-                        <div style={{ fontSize:12, color:'#6c6f72' }}>
-                          {wporg.event ? <>The patch will say it was written at <strong>{wporg.event}</strong>.</> : 'No event on the patch.'}
-                        </div>
-                        <Button
-                          variant="link"
-                          onClick={() => {
-                            setHandleInput(wporg.handle);
-                            setEventInput(wporg.event || '');
-                            setHandleError('');
-                            setEditingHandle(true);
-                          }}
-                          style={{ fontSize:12 }}
-                        >Change these</Button>
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ fontSize:12, color:'#6c6f72' }}>
-                          Asked once and remembered for every site — these are facts about you, not about this checkout.
-                        </div>
-                        <TextControl
-                          value={handleInput}
-                          onChange={(value) => { setHandleInput(value); setHandleError(''); }}
-                          onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); rememberContributor(); } }}
-                          disabled={handleSaving}
-                          placeholder="WordPress.org username, e.g. janedoe"
-                          aria-label="WordPress.org username"
-                        />
-                        <TextControl
-                          value={eventInput}
-                          onChange={(value) => { setEventInput(value); setHandleError(''); }}
-                          onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); rememberContributor(); } }}
-                          disabled={handleSaving}
-                          placeholder="Event, e.g. WordCamp Europe 2026 (optional)"
-                          aria-label="Event this patch was written at"
-                        />
-                        <Button
-                          variant="secondary"
-                          onClick={rememberContributor}
-                          isBusy={handleSaving}
-                          // Empty is a valid answer only when there is
-                          // something to clear — a shared laptop at a
-                          // contributor day, the next person taking over.
-                          // Before the first answer it would just be a button
-                          // that does nothing.
-                          disabled={handleSaving || (!handleInput.trim() && !wporg?.handle)}
-                          style={{ justifyContent:'center' }}
-                        >Remember this</Button>
-                        {handleError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{handleError}</div> : null}
-                      </>
-                    )}
-                  </DestinationCard>
+                      ) : (
+                        <>
+                          <div style={{ fontSize:12, color:'#6c6f72' }}>
+                            No ticket is linked to this site, so there is nowhere to attach it yet.
+                          </div>
+                          <TextControl
+                            value={ticketInput}
+                            onChange={(value) => { setTicketInput(value); setTicketError(''); }}
+                            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
+                            disabled={ticketSaving}
+                            placeholder="Ticket number or URL, e.g. 62281"
+                            aria-label="Trac ticket number or URL"
+                          />
+                          <Button
+                            variant="secondary"
+                            onClick={linkTicket}
+                            isBusy={ticketSaving}
+                            disabled={ticketSaving || !ticketInput.trim()}
+                            style={{ justifyContent:'center' }}
+                          >Link ticket</Button>
+                          {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
+                        </>
+                      )}
+                    </Destination>
+
+                    <Destination
+                      title="Hand it to a mentor"
+                      cost="No accounts at all. The patch carries your WordPress.org username, and the event you are at."
+                      after="Someone else pushes it; the props still land on you."
+                    >
+                      {wporg?.handle && !editingHandle ? (
+                        <>
+                          <Button variant="primary" onClick={saveForHandoff} style={{ justifyContent:'center' }}>
+                            Save patch as {wporg.handle}
+                          </Button>
+                          {/*
+                            The event is shown on every save rather than only when
+                            it is set: a remembered WordCamp from last year would
+                            otherwise keep stamping patches with nobody seeing it.
+                          */}
+                          <div style={{ fontSize:12, color:'#6c6f72' }}>
+                            {wporg.event ? <>The patch will say it was written at <strong>{wporg.event}</strong>.</> : 'No event on the patch.'}
+                          </div>
+                          <Button
+                            variant="link"
+                            onClick={() => {
+                              setHandleInput(wporg.handle);
+                              setEventInput(wporg.event || '');
+                              setHandleError('');
+                              setEditingHandle(true);
+                            }}
+                            style={{ fontSize:12 }}
+                          >Change these</Button>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize:12, color:'#6c6f72' }}>
+                            Asked once and remembered for every site — these are facts about you, not about this checkout.
+                          </div>
+                          <TextControl
+                            value={handleInput}
+                            onChange={(value) => { setHandleInput(value); setHandleError(''); }}
+                            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); rememberContributor(); } }}
+                            disabled={handleSaving}
+                            placeholder="WordPress.org username, e.g. janedoe"
+                            aria-label="WordPress.org username"
+                          />
+                          <TextControl
+                            value={eventInput}
+                            onChange={(value) => { setEventInput(value); setHandleError(''); }}
+                            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); rememberContributor(); } }}
+                            disabled={handleSaving}
+                            placeholder="Event, e.g. WordCamp Europe 2026 (optional)"
+                            aria-label="Event this patch was written at"
+                          />
+                          <Button
+                            variant="secondary"
+                            onClick={rememberContributor}
+                            isBusy={handleSaving}
+                            // Empty is a valid answer only when there is
+                            // something to clear — a shared laptop at a
+                            // contributor day, the next person taking over.
+                            // Before the first answer it would just be a button
+                            // that does nothing.
+                            disabled={handleSaving || (!handleInput.trim() && !wporg?.handle)}
+                            style={{ justifyContent:'center' }}
+                          >Remember this</Button>
+                          {handleError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{handleError}</div> : null}
+                        </>
+                      )}
+                    </Destination>
+                  </DestinationGroup>
 
                   {/*
-                    The destination that actually gets automated checks and the
-                    one reviewers watch — and the one with the signup cliff
-                    (#167). The cliff is named here, before anything happens,
-                    rather than sprung after the contributor has left the venue.
+                    Alone in its own group, because it is the one destination
+                    that acts for the contributor: it signs them in, forks, and
+                    pushes. That is also where the signup cliff is (#167), named
+                    here before anything happens rather than sprung after they
+                    have left the venue.
                   */}
-                  <DestinationCard
-                    title="Open a pull request"
-                    cost="A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk."
-                    after="Automated checks run on it. Post the link back on the ticket — a pull request does not replace one."
-                  >
-                    {/*
-                      Absent from every shipped build. When a test switch is
-                      set it sits above the button, because that is where the
-                      decision is made — a mode set in a terminal minutes
-                      earlier, in an app that otherwise looks identical, is how
-                      a dry run that silently was not one opened a real pull
-                      request during testing.
-                    */}
-                    {githubAccount?.testMode ? (
-                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', background:'#f0f0f1', border:'1px dashed #949494', borderRadius:6, fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-                        <span style={{ fontWeight:600, letterSpacing:0.5, textTransform:'uppercase', fontSize:10, color:'#1d2327' }}>Test mode</span>
-                        <span>
-                          {githubAccount.testMode.dryRun
-                            ? 'Dry run — a branch is pushed to your fork, no pull request is opened.'
-                            : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to wordpress-develop.</>}
-                        </span>
-                      </div>
-                    ) : null}
-                    {renderPullRequestBody()}
-                    {githubError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{githubError}</div> : null}
-                    {prError ? (
-                      <>
-                        <div role="alert" style={{ color:'#d63638', fontSize:12 }}>
-                          {PR_FAILURE_MESSAGES[prError.reason] || prError.error}
+                  <DestinationGroup>
+                    <Destination
+                      title="Open a pull request"
+                      cost="A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk."
+                      after="Automated checks run on it. Post the link back on the ticket — a pull request does not replace one."
+                    >
+                      {/*
+                        Absent from every shipped build. When a test switch is
+                        set it sits above the button, because that is where the
+                        decision is made — a mode set in a terminal minutes
+                        earlier, in an app that otherwise looks identical, is how
+                        a dry run that silently was not one opened a real pull
+                        request during testing.
+                      */}
+                      {githubAccount?.testMode ? (
+                        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', background:'#f0f0f1', border:'1px dashed #949494', borderRadius:6, fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
+                          <span style={{ fontWeight:600, letterSpacing:0.5, textTransform:'uppercase', fontSize:10, color:'#1d2327' }}>Test mode</span>
+                          <span>
+                            {githubAccount.testMode.dryRun
+                              ? 'Dry run — a branch is pushed to your fork, no pull request is opened.'
+                              : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to wordpress-develop.</>}
+                          </span>
                         </div>
-                        {/*
-                          Every failure lands here, and every failure has the
-                          same floor: the file exists regardless of what GitHub
-                          did.
-                        */}
-                        <Button variant="secondary" onClick={savePatch} style={{ justifyContent:'center' }}>Save the patch file instead</Button>
-                      </>
-                    ) : null}
-                  </DestinationCard>
+                      ) : null}
+                      {renderPullRequestBody()}
+                      {githubError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{githubError}</div> : null}
+                      {prError ? (
+                        <>
+                          <div role="alert" style={{ color:'#d63638', fontSize:12 }}>
+                            {PR_FAILURE_MESSAGES[prError.reason] || prError.error}
+                          </div>
+                          {/*
+                            Every failure lands here, and every failure has the
+                            same floor: the file exists regardless of what GitHub
+                            did.
+                          */}
+                          <Button variant="secondary" onClick={savePatch} style={{ justifyContent:'center' }}>Save the patch file instead</Button>
+                        </>
+                      ) : null}
+                    </Destination>
+                  </DestinationGroup>
+                  </div>
                 </div>
-              </div>
             )}
             {/*
               Outside the destinations block on purpose: the plain Save button
