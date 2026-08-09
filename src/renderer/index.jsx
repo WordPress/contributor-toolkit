@@ -2835,7 +2835,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       key: 'build',
       label: 'Run full build',
       description: hasBuilt
-        ? 'Built. Changed files since? Run npm run build in the Terminal below — updates and applied patches rebuild on their own.'
+        ? 'Built. Edited files in src/ since? Run npm run build in the Terminal below so the site picks them up — updates and applied patches rebuild on their own.'
         : 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
       ...stepState.build,
       action: (
@@ -3511,7 +3511,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           <div style={{ marginTop: 8, fontSize: 12, color: '#3c434a' }}>
             {showTerminalHints ? (
               <>
-                <div>Changed files in your checkout? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
+                <div>Edited files in <code>src/</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</div>
                 <div style={{ marginTop: 2, marginBottom: 6 }}>Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
               </>
             ) : null}
