@@ -28,6 +28,14 @@ import { highlightDiff } from './diff-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
+// What the Copy button says about the press just made. Keyed rather than
+// nested ternaries, so a fourth state is a line here instead of another branch
+// in the middle of the JSX.
+const COPY_BUTTON_LABELS = {
+  idle: 'Copy',
+  copied: 'Copied',
+  failed: 'Could not copy'
+};
 // What the app is doing while a pull request is being opened (#167). Each step
 // is named because they take visibly different amounts of time — forking is the
 // slow one, and an unlabelled spinner there reads as a hang.
@@ -1008,6 +1016,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // the destination panel is where the contributor is looking, and the path
   // matters — it is the file they are about to upload or hand over (#166).
   const [patchSaved, setPatchSaved] = useState(null);
+  // '' | 'copied' | 'failed', shown on the Copy button for two seconds.
+  const [patchCopied, setPatchCopied] = useState('');
+  // Held so a second press restarts the message rather than being cut short by
+  // the first press's timer, and so an unmount does not leave one running.
+  const copyFeedbackTimer = useRef(null);
   const [patchSaveError, setPatchSaveError] = useState('');
   const [handleInput, setHandleInput] = useState('');
   const [eventInput, setEventInput] = useState('');
@@ -2270,8 +2283,28 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   };
 
-  const copyPatch = async ()=>{
-    try { await navigator.clipboard.writeText(patchText); } catch {}
+  // Copying is the one action here with no visible result: the clipboard is
+  // somewhere else, the diff does not move, and a button that answers nothing
+  // reads as a button that did nothing — so it gets pressed again, and the
+  // contributor is left unsure whether they have the patch at all.
+  //
+  // A failed copy says so rather than staying quiet. `writeText` rejects when
+  // the document is not focused, which is exactly the case where someone has
+  // clicked away mid-action and is least likely to notice nothing happened.
+  useEffect(() => () => { if (copyFeedbackTimer.current) clearTimeout(copyFeedbackTimer.current); }, []);
+
+  const copyPatch = async () => {
+    // Cleared first so a second press restarts the message instead of
+    // inheriting the timer of the one before it.
+    if (copyFeedbackTimer.current) clearTimeout(copyFeedbackTimer.current);
+    let state = 'copied';
+    try {
+      await navigator.clipboard.writeText(patchText);
+    } catch {
+      state = 'failed';
+    }
+    setPatchCopied(state);
+    copyFeedbackTimer.current = setTimeout(() => setPatchCopied(''), 2000);
   };
 
   // Naming destinations for a patch that does not exist would be noise, and
@@ -3618,7 +3651,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   */}
                   <div style={{ display:'flex', gap:8 }}>
                     <Button variant="secondary" icon={download} onClick={savePatch} disabled={patchLoading}>Save</Button>
-                    <Button variant="secondary" icon={copyIcon} onClick={copyPatch} disabled={patchLoading}>Copy</Button>
+                    <Button
+                      variant="secondary"
+                      icon={patchCopied === 'copied' ? checkIcon : copyIcon}
+                      onClick={copyPatch}
+                      disabled={patchLoading}
+                      // The label carries the outcome rather than a tooltip or
+                      // a toast: it is the thing that was just pressed, so it
+                      // is where the eye already is, and a screen reader
+                      // announces the change on the focused control.
+                    >{COPY_BUTTON_LABELS[patchCopied] || COPY_BUTTON_LABELS.idle}</Button>
                   </div>
                 </div>
                 {/*
