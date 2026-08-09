@@ -1442,13 +1442,26 @@ test('git:preview-patch reads the patch through patch-plan', async () => {
 // git:apply-patch reads the store for its guard before delegating, which is the
 // seam fakeSettingsStore stands in for — so it is a wired handler, not a hole.
 // It streams, so its result comes back on the :done channel, not the return.
-async function applyDone(event, applyId, cap = 50) {
-	for (let i = 0; i < cap; i++) {
-		const hit = event.sent.find((m) => m.channel === 'git:apply-patch:done' && m.payload.applyId === applyId);
+//
+// Waited on the clock rather than on a count of event-loop turns. These
+// handlers read the worktree to decide where per-branch state lives (#108), so
+// how many turns a result takes is a property of the filesystem underneath —
+// a fixed tick budget passed on macOS and ran out on Windows, where the same
+// failing path lookup is slower. This returns as soon as the message lands, so
+// the budget costs nothing in the normal case; do not tighten it back into a
+// tick count.
+async function waitForDone(event, channel, key, id, budgetMs = 4000) {
+	const started = Date.now();
+	while (Date.now() - started < budgetMs) {
+		const hit = event.sent.find((m) => m.channel === channel && m.payload[key] === id);
 		if (hit) return hit.payload;
-		await new Promise((r) => setImmediate(r));
+		await new Promise((r) => setTimeout(r, 5));
 	}
-	throw new Error('git:apply-patch never reported done');
+	throw new Error(`${channel} never arrived`);
+}
+
+async function applyDone(event, applyId) {
+	return waitForDone(event, 'git:apply-patch:done', 'applyId', applyId);
 }
 
 test('git:apply-patch refuses an unregistered site path before touching patch-apply', async () => {
