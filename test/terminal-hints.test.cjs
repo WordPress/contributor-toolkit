@@ -7,8 +7,8 @@ const { shouldShowTerminalHints, computeTerminalBusy } = require('../src/rendere
 
 test('the hints stay hidden until a build has completed (issue #182)', () => {
 	// They were showing from the moment a site existed, so a contributor watched
-	// "Changed files in your checkout? Run npm run build" scroll past while the
-	// clone was still writing the checkout that would contain those files.
+	// "Edited files in src/? Run npm run build" scroll past while the clone was
+	// still writing the checkout that would contain those files.
 	assert.strictEqual(shouldShowTerminalHints({ hasBuilt: false }), false);
 	assert.strictEqual(shouldShowTerminalHints({}), false, 'a site mid-clone must not show them');
 	assert.strictEqual(shouldShowTerminalHints(), false, 'no flags at all must not show them');
