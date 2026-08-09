@@ -14,6 +14,7 @@ const {
 	fileModeForEntry,
 	buildPullRequestEntries,
 	isProbablyBinary,
+	blobSha,
 	GIT_MODE_FILE,
 	GIT_MODE_EXECUTABLE
 } = require('../src/pr-files.cjs');
@@ -113,7 +114,15 @@ test('a deletion reads its mode from HEAD without touching the missing path', as
 			git: fakeGitWithModes({ 'src/wp-includes/gone.php': '100644' })
 		})
 	);
-	assert.deepStrictEqual(entries, [{ path: 'src/wp-includes/gone.php', kind: 'delete', content: null, mode: '100644' }]);
+	assert.deepStrictEqual(entries, [{
+		path: 'src/wp-includes/gone.php',
+		kind: 'delete',
+		content: null,
+		mode: '100644',
+		// The blob the checkout held, so the staleness check can tell an
+		// upstream change to this file from the deletion being proposed.
+		baseBlobSha: blobSha(Buffer.from('x'))
+	}]);
 	assert.strictEqual(statted, false);
 });
 
@@ -188,4 +197,18 @@ test('adds and modifies carry their kind', async () => {
 		deps()
 	);
 	assert.deepStrictEqual(entries.map((e) => [e.path, e.kind]), [['new.php', 'add'], ['old.php', 'modify']]);
+	// A file the contributor is adding has no base blob; a modified one does.
+	assert.strictEqual(entries[0].baseBlobSha, null);
+	assert.strictEqual(entries[1].baseBlobSha, blobSha(Buffer.from('a\n')));
+});
+
+// The sha has to be git's, not any hash: it is compared against what GitHub
+// reports for the same file, and a different scheme would make every file look
+// changed. This is the value `git hash-object` prints for an empty blob and for
+// "hello\n" — both fixed by the format, not by this implementation.
+test('blobSha computes git’s own object id', () => {
+	assert.strictEqual(blobSha(Buffer.alloc(0)), 'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391');
+	assert.strictEqual(blobSha(Buffer.from('hello\n')), 'ce013625030ba8dba906f756967f9e9ca394464a');
+	// No file at that commit is not a hash of nothing.
+	assert.strictEqual(blobSha(null), null);
 });

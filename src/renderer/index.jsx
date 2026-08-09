@@ -28,6 +28,14 @@ import { highlightDiff } from './diff-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
+// What the Copy button says about the press just made. Keyed rather than
+// nested ternaries, so a fourth state is a line here instead of another branch
+// in the middle of the JSX.
+const COPY_BUTTON_LABELS = {
+  idle: 'Copy',
+  copied: 'Copied',
+  failed: 'Could not copy'
+};
 // What the app is doing while a pull request is being opened (#167). Each step
 // is named because they take visibly different amounts of time — forking is the
 // slow one, and an unlabelled spinner there reads as a hang.
@@ -1008,6 +1016,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // the destination panel is where the contributor is looking, and the path
   // matters — it is the file they are about to upload or hand over (#166).
   const [patchSaved, setPatchSaved] = useState(null);
+  // '' | 'copied' | 'failed', shown on the Copy button for two seconds.
+  const [patchCopied, setPatchCopied] = useState('');
+  // Held so a second press restarts the message rather than being cut short by
+  // the first press's timer, and so an unmount does not leave one running.
+  const copyFeedbackTimer = useRef(null);
   const [patchSaveError, setPatchSaveError] = useState('');
   const [handleInput, setHandleInput] = useState('');
   const [eventInput, setEventInput] = useState('');
@@ -2270,8 +2283,28 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   };
 
-  const copyPatch = async ()=>{
-    try { await navigator.clipboard.writeText(patchText); } catch {}
+  // Copying is the one action here with no visible result: the clipboard is
+  // somewhere else, the diff does not move, and a button that answers nothing
+  // reads as a button that did nothing — so it gets pressed again, and the
+  // contributor is left unsure whether they have the patch at all.
+  //
+  // A failed copy says so rather than staying quiet. `writeText` rejects when
+  // the document is not focused, which is exactly the case where someone has
+  // clicked away mid-action and is least likely to notice nothing happened.
+  useEffect(() => () => { if (copyFeedbackTimer.current) clearTimeout(copyFeedbackTimer.current); }, []);
+
+  const copyPatch = async () => {
+    // Cleared first so a second press restarts the message instead of
+    // inheriting the timer of the one before it.
+    if (copyFeedbackTimer.current) clearTimeout(copyFeedbackTimer.current);
+    let state = 'copied';
+    try {
+      await navigator.clipboard.writeText(patchText);
+    } catch {
+      state = 'failed';
+    }
+    setPatchCopied(state);
+    copyFeedbackTimer.current = setTimeout(() => setPatchCopied(''), 2000);
   };
 
   // Naming destinations for a patch that does not exist would be noise, and
@@ -3580,29 +3613,109 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 There is nothing to send yet — this site has no changes against its copy of trunk.
               </div>
             )}
-            {/*
-              Where the patch goes, named at the moment it exists (#166), each
-              destination with what it costs — a tool that emits a file and stops
-              leaves the contributor to work that out alone.
+{/*
+              Diff on the left, destinations on the right (#186).
 
-              Grouped by who does the sending. The subtitle states that split
-              once, in the only place a reader passes before the cards; it used
-              to promise that nothing was uploaded and no account was asked for,
-              which stopped being true the moment #167 put a pull request on
-              this screen.
+              The patch used to sit under the destinations, which put the
+              choice above the thing being chosen for: a contributor scrolled
+              past three cards to read their own code, then scrolled back. The
+              code is what they came to look at and the largest thing on the
+              screen, so it takes the room, and where it can go stands beside
+              it — visible the whole time they are reading, rather than
+              something to scroll back to.
+
+              This is the shape of an earlier take on the same screen (#6),
+              revived here on top of the destinations this app has now.
             */}
-            {!patchLoading && patchHasChanges && (
-              <div>
-                <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:8, flexWrap:'wrap' }}>
-                  <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Where this patch goes</div>
-                  <div style={{ fontSize:12, color:'#6c6f72' }}>The pull request is the one the app sends for you. The other two save a file for you to send.</div>
+            <div className="patch-columns">
+
+              {/*
+                The column widths, the stacking breakpoint and what scrolls in
+                each case are in index.html — a media query can express them and
+                an inline style cannot. `min-width: 0` there is load-bearing on
+                a flex child holding a <pre>: without it the diff's longest line
+                sets the column's floor and pushes the destinations off the
+                modal instead of scrolling.
+              */}
+              <div className="patch-diff">
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
+                  <div>
+                    <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Your changes</div>
+                    <div style={{ fontSize:12, color:'#6c6f72' }}>Everything this site has that its copy of trunk does not.</div>
+                  </div>
+                  {/*
+                    Out of the diff and into the header: these used to float
+                    over the top-right of the code, which was survivable at
+                    full width and covers the first line of a hunk once the
+                    pane is a column.
+                  */}
+                  <div style={{ display:'flex', gap:8 }}>
+                    <Button variant="secondary" icon={download} onClick={savePatch} disabled={patchLoading}>Save</Button>
+                    <Button
+                      variant="secondary"
+                      icon={patchCopied === 'copied' ? checkIcon : copyIcon}
+                      onClick={copyPatch}
+                      disabled={patchLoading}
+                      // The label carries the outcome rather than a tooltip or
+                      // a toast: it is the thing that was just pressed, so it
+                      // is where the eye already is, and a screen reader
+                      // announces the change on the focused control.
+                    >{COPY_BUTTON_LABELS[patchCopied] || COPY_BUTTON_LABELS.idle}</Button>
+                  </div>
                 </div>
                 {/*
-                  `start`, not `stretch`: the groups hold different amounts, and
-                  stretching the shorter one to match leaves a tall empty box
-                  under its button that reads as something failing to load.
+                  Under the diff rather than beside the destinations that
+                  trigger it: this is the outcome for the file, the file is
+                  what this column is, and the header's own Save button needs
+                  somewhere to report even when there are no destinations to
+                  show.
                 */}
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:12, alignItems:'start' }}>
+                {patchSaved ? (
+                  <div style={{ fontSize:13, color:'#0f5132' }}>Saved to {patchSaved}</div>
+                ) : null}
+                {patchSaveError ? (
+                  <div role="alert" style={{ fontSize:13, color:'#d63638' }}>Could not save the patch: {patchSaveError}</div>
+                ) : null}
+                <div style={{ position:'relative', flex:1, minHeight:0 }}>
+              {patchLoading ? (
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:16 }}>
+                  <Spinner />
+                  <div style={{ color:'#666', fontSize:14 }}>Generating patch...</div>
+                </div>
+              ) : (
+                <>
+                  {/*
+                      `boxSizing: border-box` with `height: 100%` and a
+                      padding: without it the pane is its container plus
+                      24px of padding, and it overflows by exactly that.
+                      Invisible while the diff spanned the modal and the
+                      overflow fell off the bottom; beside a sidebar it
+                      sits on top of the destinations.
+                    */}
+                    <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', boxSizing:'border-box', overflowY:'auto' }}>
+                    {patchText && patchText.trim().length ? <DiffText text={patchText} /> : 'No changes.'}
+                  </pre>
+                </>
+              )}
+                </div>
+              </div>
+
+              {/*
+                Where the patch goes, named at the moment it exists (#166),
+                each destination with what it costs — a tool that emits a file
+                and stops leaves the contributor to work that out alone.
+
+                Grouped by who does the sending, and stacked rather than laid
+                side by side: in a column the grouping is what the shared card
+                says, and the sidebar can scroll on its own while the diff
+                stays put.
+              */}
+              {!patchLoading && patchHasChanges && (
+                <div className="patch-destinations">
+                  <div>
+                  <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Where this patch goes</div>
+                  <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>The pull request is the one the app sends for you. The other two save a file for you to send.</div>
+                  </div>
 
                   {/*
                     Alone in its own group, because it is the one destination
@@ -3756,49 +3869,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     </Destination>
                   </DestinationGroup>
                   </div>
-                </div>
-            )}
-            {/*
-              Outside the destinations block on purpose: the plain Save button
-              over the diff is still there when there is nothing to send, and an
-              outcome that renders nowhere is the alert this replaced.
-            */}
-            {patchSaved ? (
-              <div style={{ fontSize:13, color:'#0f5132' }}>Saved to {patchSaved}</div>
-            ) : null}
-            {patchSaveError ? (
-              <div role="alert" style={{ fontSize:13, color:'#d63638' }}>Could not save the patch: {patchSaveError}</div>
-            ) : null}
-            <div style={{ position:'relative', flex:1, minHeight:0 }}>
-              {patchLoading ? (
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:16 }}>
-                  <Spinner />
-                  <div style={{ color:'#666', fontSize:14 }}>Generating patch...</div>
-                </div>
-              ) : (
-                <>
-                  <div style={{ position:'absolute', top:8, right:8, zIndex:2, display:'flex', gap:8 }}>
-                    <Button
-                      icon={download}
-                      label="Save"
-                      onClick={savePatch}
-                      style={{
-                        background:'#fff', border:'1px solid #ddd', color:'#111', boxShadow:'none'
-                      }}
-                    />
-                    <Button
-                      icon={copyIcon}
-                      label="Copy"
-                      onClick={copyPatch}
-                      style={{
-                        background:'#fff', border:'1px solid #ddd', color:'#111', boxShadow:'none'
-                      }}
-                    />
-                  </div>
-                  <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', overflowY:'auto' }}>
-                    {patchText && patchText.trim().length ? <DiffText text={patchText} /> : 'No changes.'}
-                  </pre>
-                </>
               )}
             </div>
           </div>

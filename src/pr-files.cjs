@@ -26,6 +26,7 @@
  */
 
 const path = require('path');
+const crypto = require('crypto');
 const { normalizeEolBuffer } = require('./git-update.cjs');
 
 // The two modes a file in this repo can have. Git records nothing else for a
@@ -33,6 +34,30 @@ const { normalizeEolBuffer } = require('./git-update.cjs');
 // wordpress-develop does not use.
 const GIT_MODE_FILE = '100644';
 const GIT_MODE_EXECUTABLE = '100755';
+
+/**
+ * Git's own object id for a blob: sha1 over `blob <length>\0` and the bytes.
+ *
+ * Computed here rather than asked of GitHub, because the answer is already on
+ * disk. The staleness check needs to know what upstream had at the commit the
+ * contributor started from, and that is exactly the blob their checkout holds
+ * — asking a fork about a commit it may not have heard of, to learn something
+ * local git already knows, is a network round trip that can also be wrong.
+ *
+ * Raw bytes, not the EOL-normalised ones sent as content: this has to equal
+ * the sha upstream recorded, and upstream recorded what it stored.
+ *
+ * @param {Buffer|null} content
+ * @return {string|null} Null when the file did not exist at that commit.
+ */
+function blobSha(content) {
+	if (!Buffer.isBuffer(content)) return null;
+	return crypto
+		.createHash('sha1')
+		.update(`blob ${content.length}\0`)
+		.update(content)
+		.digest('hex');
+}
 
 /**
  * The same heuristic the patch builder uses: a NUL byte means binary. Null and
@@ -121,7 +146,7 @@ async function buildPullRequestEntries(files, deps) {
 	for (const file of files) {
 		const mode = await fileModeForEntry(deps, file);
 		if (!file.inWorkdir) {
-			entries.push({ path: file.path, kind: 'delete', content: null, mode });
+			entries.push({ path: file.path, kind: 'delete', content: null, mode, baseBlobSha: blobSha(file.base) });
 			continue;
 		}
 		if (!file.work) continue;
@@ -138,7 +163,10 @@ async function buildPullRequestEntries(files, deps) {
 			path: file.path,
 			kind: file.inHead ? 'modify' : 'add',
 			content: work,
-			mode
+			mode,
+			// What upstream had at the commit this checkout started from, which
+			// is what the staleness check compares against.
+			baseBlobSha: blobSha(file.base)
 		});
 	}
 	return entries;
@@ -148,6 +176,7 @@ module.exports = {
 	GIT_MODE_FILE,
 	GIT_MODE_EXECUTABLE,
 	isProbablyBinary,
+	blobSha,
 	modeInCommit,
 	fileModeForEntry,
 	buildPullRequestEntries
