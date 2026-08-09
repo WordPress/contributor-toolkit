@@ -105,6 +105,60 @@ contextBridge.exposeInMainWorld('api', {
 	// diff, which is what gets attached to a ticket.
 	savePatch: (sitePath, options) => ipcRenderer.invoke('git:save-patch', sitePath, options)
 ,
+	// Opening a pull request (#167). The token stays in the main process; what
+	// crosses this bridge is a login, a device code and a pull request URL —
+	// nothing that authorises anything.
+	getGithubAccount: () => ipcRenderer.invoke('github:account')
+,
+	// Resolves as soon as there is a code to show; the outcome of the wait
+	// arrives at `onDone`, since the contributor is in the browser by then.
+	//
+	// Exactly one done-listener exists at a time, tracked in the closure below:
+	// a cancelled sign-in gets no outcome event at all — the main process
+	// deliberately goes quiet — so the listener cannot clean itself up the way
+	// the install and script handlers above do, and each sign-in→cancel cycle
+	// would otherwise leave one behind for the life of the window.
+	...(() => {
+		let activeDoneHandler = null;
+		const dropDoneHandler = () => {
+			if (!activeDoneHandler) return;
+			ipcRenderer.removeListener('github:sign-in:done', activeDoneHandler);
+			activeDoneHandler = null;
+		};
+		return {
+			signInToGithub: async (onDone) => {
+				// A second sign-in supersedes the first in the main process, so
+				// the first's outcome is never coming either.
+				dropDoneHandler();
+				const doneHandler = (_e, payload) => {
+					if (activeDoneHandler === doneHandler) activeDoneHandler = null;
+					ipcRenderer.removeListener('github:sign-in:done', doneHandler);
+					if (onDone) onDone(payload);
+				};
+				activeDoneHandler = doneHandler;
+				ipcRenderer.on('github:sign-in:done', doneHandler);
+				const started = await ipcRenderer.invoke('github:sign-in');
+				// A sign-in that never started has no outcome coming.
+				if (!started || !started.ok) dropDoneHandler();
+				return started;
+			},
+			cancelGithubSignIn: () => {
+				dropDoneHandler();
+				return ipcRenderer.invoke('github:sign-in-cancel');
+			}
+		};
+	})()
+,
+	signOutOfGithub: () => ipcRenderer.invoke('github:sign-out')
+,
+	openPullRequest: (sitePath, options) => ipcRenderer.invoke('github:open-pr', sitePath, options)
+,
+	subscribePullRequestProgress: (handler) => {
+		const h = (_e, payload) => handler && handler(payload);
+		ipcRenderer.on('github:pr:progress', h);
+		return () => ipcRenderer.removeListener('github:pr:progress', h);
+	}
+,
 	isWorktreeDirty: (sitePath) => ipcRenderer.invoke('git:worktree-dirty', sitePath)
 ,
 	discardChanges: (sitePath) => ipcRenderer.invoke('git:discard-changes', sitePath)
