@@ -18,6 +18,35 @@
     .path { font-family: Menlo, monospace; font-size: 12px; color: #333; word-break: break-all; }
     #log { white-space: pre-wrap; background: #111; color: #eee; padding: 12px; border-radius: 6px; height: 220px; overflow: auto; }
     .patch-modal-header .components-modal__header-heading { color: #1e1e1e !important; }
+    /*
+      The patch screen's two columns (#186): the diff takes the room and where
+      it can go stands beside it.
+
+      A media query rather than flex-wrap, which was tried first and cannot do
+      this. Wrapping keeps both columns on one flex line whose height is fixed
+      by the modal, so the wrapped sidebar had nowhere to go and the diff
+      overlapped it. Stacking has to change what scrolls as well as what sits
+      where: side by side the sidebar scrolls alone and the diff stays put;
+      stacked, the pair scrolls as one and the diff keeps a floor so it cannot
+      collapse to a sliver above the destinations.
+
+      The breakpoint is where a 300px sidebar starts squeezing the code rather
+      than sitting next to it, which is what the screen is for.
+    */
+    .patch-columns { display: flex; gap: 16px; flex: 1; min-height: 0; align-items: stretch; }
+    .patch-columns > .patch-diff { flex: 2 1 460px; min-width: 0; display: flex; flex-direction: column; min-height: 0; gap: 8px; }
+    .patch-columns > .patch-destinations { flex: 1 1 340px; min-width: 300px; max-width: 460px; display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; }
+    @media (max-width: 900px) {
+      .patch-columns { flex-direction: column; overflow-y: auto; }
+      /*
+        A definite height, not a minimum: the diff pane fills its column with
+        `height: 100%`, and a percentage against a parent whose own height is
+        content-derived resolves to nothing — the pane then grew past the
+        column and sat on top of the destinations below it.
+      */
+      .patch-columns > .patch-diff { flex: none; height: 340px; }
+      .patch-columns > .patch-destinations { flex: none; max-width: none; overflow-y: visible; }
+    }
     .components-dropdown-menu__toggle { display: flex; flex-direction: row-reverse; gap: 4px; }
   </style>
   <link rel="stylesheet" href="index.css" />
