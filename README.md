@@ -4,7 +4,7 @@
 [![Latest release](https://img.shields.io/github/v/release/WordPress/experimental-wp-dev-env)](https://github.com/WordPress/experimental-wp-dev-env/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/WordPress/experimental-wp-dev-env/total)](https://github.com/WordPress/experimental-wp-dev-env/releases)
 
-The [WordPress Contributor Toolkit](https://github.com/WordPress/contributor-toolkit) is a desktop Electron application (macOS on Apple Silicon, Windows, and Linux) that sets up a full WordPress core development environment with zero prerequisites — no Git, Node.js, npm or Docker on the host.
+The [WordPress Contributor Toolkit](https://make.wordpress.org/core/2026/04/16/wordpress-core-dev-environment-toolkit-a-faster-path-to-your-first-core-contribution/) is a desktop Electron application (macOS on Apple Silicon, Windows, and Linux) that sets up a full WordPress core development environment with zero prerequisites — no Git, Node.js, npm or Docker on the host.
 
 ### Why
 
