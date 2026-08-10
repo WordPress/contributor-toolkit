@@ -113,6 +113,118 @@ test('applyPatchToDir: reverting keeps unrelated local work (issue #11)', async 
 	assert.strictEqual(fs.readFileSync(path.join(dir, BAR), 'utf8'), 'my own work\n');
 });
 
+// A trunk update or a discard resets the worktree and takes the patch with it,
+// but the record of it can outlive the reset (#183/#184). Reverting then finds
+// a pristine file: not a conflict, nothing left to undo. Saying "the file has
+// moved on" sends the contributor looking for a change that is not there, and
+// leaves them unable to revert or to apply anything else.
+test('applyPatchToDir: reverting a patch that is no longer in the tree reports it as gone (issue #183)', async (t) => {
+	const dir = await makeRepo(t, { [FOO]: FOO_BODY });
+	await applyPatchToDir({ dir, patchText: FOO_PATCH });
+	fs.writeFileSync(path.join(dir, FOO), FOO_BODY); // the reset
+	const before = snapshot(dir);
+
+	const res = await applyPatchToDir({ dir, patchText: FOO_PATCH, reverse: true });
+
+	assert.strictEqual(res.ok, false);
+	assert.strictEqual(res.notApplied, true);
+	assert.doesNotMatch(res.error, /moved on/);
+	assert.match(res.error, /not in this checkout/);
+	assert.deepStrictEqual(snapshot(dir), before, 'reverting nothing must write nothing');
+});
+
+// The other half of the same judgement: a file that genuinely drifted is a
+// conflict, and clearing the record for it would strand a patch that is still
+// in the tree.
+test('applyPatchToDir: a file edited since the patch is still a conflict, not a missing patch (issue #183)', async (t) => {
+	const dir = await makeRepo(t, { [FOO]: FOO_BODY });
+	await applyPatchToDir({ dir, patchText: FOO_PATCH });
+	fs.writeFileSync(path.join(dir, FOO), 'ONE\nTWO\nTHREE\n');
+
+	const res = await applyPatchToDir({ dir, patchText: FOO_PATCH, reverse: true });
+
+	assert.strictEqual(res.ok, false);
+	assert.ok(!res.notApplied, 'a drifted file must not be mistaken for an absent patch');
+	assert.match(res.error, /moved on/);
+});
+
+// Unanimity matters: with one file reverted by hand and one still patched, the
+// patch is half present. Dropping the record would leave the applied half in
+// the tree with nothing offering to undo it.
+test('applyPatchToDir: a half-present patch stays a conflict (issue #183)', async (t) => {
+	const twoFilePatch = `${FOO_PATCH}diff --git a/${BAR} b/${BAR}
+--- a/${BAR}
++++ b/${BAR}
+@@ -1,3 +1,3 @@
+ alpha
+-beta
++BETA
+ gamma
+`;
+	const dir = await makeRepo(t, { [FOO]: FOO_BODY, [BAR]: BAR_BODY });
+	const applied = await applyPatchToDir({ dir, patchText: twoFilePatch });
+	assert.strictEqual(applied.ok, true);
+	fs.writeFileSync(path.join(dir, FOO), FOO_BODY); // only one file reset
+	const before = snapshot(dir);
+
+	const res = await applyPatchToDir({ dir, patchText: twoFilePatch, reverse: true });
+
+	assert.strictEqual(res.ok, false);
+	assert.ok(!res.notApplied, 'half a patch is not an absent patch');
+	assert.deepStrictEqual(snapshot(dir), before, 'nothing may change on a half-present patch');
+});
+
+// applyPatch searches by offset for somewhere the context fits, so a hunk whose
+// context repeats can succeed against a file that already carries it — patching
+// the other copy. A forward resolve is therefore not on its own proof that the
+// patch is gone, and treating it as one would drop the record for a patch still
+// sitting in the tree.
+test('applyPatchToDir: repeated context does not make a still-applied patch look absent (issue #183)', async (t) => {
+	const AMBIGUOUS = 'src/wp-includes/dup.php';
+	const body = 'x\ntwo\ny\nx\ntwo\ny\n';
+	const patch = `diff --git a/${AMBIGUOUS} b/${AMBIGUOUS}
+--- a/${AMBIGUOUS}
++++ b/${AMBIGUOUS}
+@@ -4,3 +4,3 @@
+ x
+-two
++TWO
+ y
+`;
+	const dir = await makeRepo(t, { [AMBIGUOUS]: body, [FOO]: FOO_BODY });
+	const twoFilePatch = `${patch}${FOO_PATCH}`;
+	assert.strictEqual((await applyPatchToDir({ dir, patchText: twoFilePatch })).ok, true);
+	fs.writeFileSync(path.join(dir, FOO), FOO_BODY); // only the unambiguous file is reset
+	const before = snapshot(dir);
+
+	const res = await applyPatchToDir({ dir, patchText: twoFilePatch, reverse: true });
+
+	assert.strictEqual(res.ok, false);
+	assert.ok(!res.notApplied, 'one file still carries the patch, so the record must stand');
+	assert.deepStrictEqual(snapshot(dir), before);
+});
+
+// Added files survive a forced checkout, so an add is the kind most likely to
+// still be there when the modify beside it has been reset.
+test('applyPatchToDir: an added file still present keeps the patch from reading as absent (issue #183)', async (t) => {
+	const dir = await makeRepo(t, { [FOO]: FOO_BODY });
+	const addAndModify = `${FOO_PATCH}diff --git a/src/added.php b/src/added.php
+new file mode 100644
+--- /dev/null
++++ b/src/added.php
+@@ -0,0 +1,1 @@
++added
+`;
+	assert.strictEqual((await applyPatchToDir({ dir, patchText: addAndModify })).ok, true);
+	fs.writeFileSync(path.join(dir, FOO), FOO_BODY); // the modify is reset, the untracked add survives
+
+	const res = await applyPatchToDir({ dir, patchText: addAndModify, reverse: true });
+
+	assert.strictEqual(res.ok, false);
+	assert.ok(!res.notApplied, 'the added file is still in the tree, so the patch is not absent');
+	assert.strictEqual(fs.existsSync(path.join(dir, 'src/added.php')), true);
+});
+
 test('applyPatchToDir: a patch creates and removes files (issue #11)', async (t) => {
 	const dir = await makeRepo(t, { [FOO]: FOO_BODY });
 	const addPatch = `diff --git a/src/new.php b/src/new.php

@@ -485,6 +485,81 @@ test('git:update-trunk hands the update to trunk-update and streams its log back
 	]);
 });
 
+// An update that dies after the forced checkout has already reset the tree
+// (#184): the "incomplete" flag is still true, but the patch went with the
+// reset, so its record cannot be allowed to outlive it — that is precisely the
+// phantom the revert then cannot find.
+test('git:update-trunk drops the applied-patch record when it fails after the checkout', async () => {
+	const updateToLatestTrunk = spy(async () => {
+		const e = new Error('worktree write failed');
+		e.stage = 'checkout';
+		e.worktreeReset = true;
+		throw e;
+	});
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'PR #8913', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { updateToLatestTrunk } } });
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	for (let i = 0; i < 50 && !event.sent.some((m) => m.channel === 'git:update-trunk:done'); i++) {
+		await new Promise((r) => setImmediate(r));
+	}
+
+	const done = event.sent.find((m) => m.channel === 'git:update-trunk:done');
+	assert.deepEqual(done.payload.updateId, updateId);
+	assert.equal(done.payload.stage, 'checkout');
+	assert.equal(settings.values.siteMeta['/sites/wp'].updateIncomplete, true);
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
+});
+
+// The stage is coarser than the reset: it is set before the index walk and the
+// ref write, either of which can fail with every file still in place. Reading
+// it as "the tree was reset" would discard the only copy of a patch that is
+// still applied, which is the failure #184 describes, inverted.
+test('git:update-trunk keeps the applied-patch record when the checkout never started', async () => {
+	const updateToLatestTrunk = spy(async () => {
+		const e = new Error('could not read the index');
+		e.stage = 'checkout';
+		e.worktreeReset = false;
+		throw e;
+	});
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'PR #8913', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { updateToLatestTrunk } } });
+
+	const event = createIpcEvent();
+	await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	for (let i = 0; i < 50 && !event.sent.some((m) => m.channel === 'git:update-trunk:done'); i++) {
+		await new Promise((r) => setImmediate(r));
+	}
+
+	assert.equal(settings.values.siteMeta['/sites/wp'].updateIncomplete, true, 'the rebuild hint still applies');
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch.text, 'STORED');
+});
+
+// A fetch failure moved nothing, so a patch still in the tree keeps its record.
+test('git:update-trunk keeps the applied-patch record when the fetch fails', async () => {
+	const updateToLatestTrunk = spy(async () => { throw new Error('offline'); });
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'PR #8913', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { updateToLatestTrunk } } });
+
+	const event = createIpcEvent();
+	await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	for (let i = 0; i < 50 && !event.sent.some((m) => m.channel === 'git:update-trunk:done'); i++) {
+		await new Promise((r) => setImmediate(r));
+	}
+
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch.text, 'STORED');
+});
+
 test('sites:add normalizes line endings before adopting a directory', async () => {
 	// Throwing ends the handler at its first delegation, which is the only thing
 	// under test — and it has to end there. The next line is a store write, and
@@ -1357,6 +1432,44 @@ test('git:apply-patch reverts using the stored patch text and clears the record'
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
 });
 
+// The patch is gone from the tree but its record survived (#183/#184). Keeping
+// the record would be a dead end: the revert can never succeed, and the
+// one-patch-at-a-time guard would refuse every other patch on its behalf.
+test('git:apply-patch clears the record when the revert finds no patch to undo', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: false, notApplied: true, error: 'That patch is not in this checkout any more.', applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'L', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { reverse: true });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.ok, false);
+	assert.equal(done.notApplied, true, 'the renderer needs this to tell a resolution from a failure');
+	assert.equal(done.recordCleared, true, 'claimed only when the store write actually landed');
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
+});
+
+// The mirror of the above: a real failure must leave the record alone, or the
+// patch stays in the tree with nothing offering to undo it.
+test('git:apply-patch keeps the record when a revert fails for any other reason', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: false, error: 'src/a.php has moved on since the patch was written', applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'L', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { reverse: true });
+	await applyDone(event, applyId);
+
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch.text, 'STORED');
+});
+
 // A store whose siteMeta write throws: the patch lands on disk but its revert
 // record cannot be saved. Persistence is part of the transaction.
 function storeThatFailsToPersist() {
@@ -1859,17 +1972,21 @@ test('trac:fetch-attachment goes through trac-view', async () => {
 const SITE = '/Users/dev/sites/wp';
 const EDITOR = '/Applications/Cursor.app';
 
+// `editor:open` now asks editor-launch which detected application a path is; a
+// stub that answers with one stands in for a machine that has it installed.
+const matching = (candidate) => spy((wanted) => (wanted === candidate.path ? candidate : null));
+
 test('editor:open asks editor-launch to open the site, with the registry as its boundary', async () => {
 	const openSiteInEditor = spy(async () => ({ ok: true }));
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
-			...fakeSettingsStore({ sites: [SITE], preferences: { editor: { path: EDITOR, name: 'Cursor' } } }).stubs,
-			'./editor-launch': { openSiteInEditor }
+			...fakeSettingsStore({ sites: [SITE] }).stubs,
+			'./editor-launch': { openSiteInEditor, matchDetectedEditor: matching({ id: 'cursor', name: 'Cursor', path: EDITOR }) }
 		}
 	});
 
-	assert.deepEqual(await main.invoke('editor:open', SITE), { ok: true });
+	assert.deepEqual(await main.invoke('editor:open', SITE, EDITOR), { ok: true });
 
 	assert.equal(openSiteInEditor.calls.length, 1);
 	const [sitePath, editorPath, options] = openSiteInEditor.calls[0];
@@ -1884,66 +2001,72 @@ test('editor:open asks editor-launch to open the site, with the registry as its 
 	assert.equal(options.platform, process.platform);
 });
 
+// The renderer names the application now, where it used to come out of the store
+// — so "which applications may this app be asked to launch?" is answered here,
+// and this is the test that says so. A path detection did not return is refused
+// before the module that would spawn it is even reached.
+test('editor:open refuses an application detection did not find', async () => {
+	const openSiteInEditor = spy(async () => ({ ok: true }));
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ sites: [SITE] }).stubs,
+			'./editor-launch': { openSiteInEditor, matchDetectedEditor: matching({ id: 'cursor', name: 'Cursor', path: EDITOR }), REFUSAL_REASONS: { UNKNOWN_EDITOR: 'unknown-editor' } }
+		}
+	});
+
+	const result = await main.invoke('editor:open', SITE, '/Applications/Something Else.app');
+
+	assert.equal(result.ok, false);
+	assert.equal(result.reason, 'unknown-editor');
+	assert.deepEqual(openSiteInEditor.calls, []);
+});
+
 // The end of the wire, with the real module in place. This is the assertion that
-// fails if the handler ever spawns an editor itself.
+// fails if the handler ever spawns an editor itself. Detection is the one thing
+// stubbed, because the alternative is a test whose answer depends on which
+// editors the machine running it happens to have installed.
 test('editor:open does not spawn for a path the registry does not hold', async () => {
 	const cp = { spawn: spy(() => { throw new Error('a refused open must not reach spawn'); }) };
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
-			...fakeSettingsStore({ sites: [SITE], preferences: { editor: { path: EDITOR, name: 'Cursor' } } }).stubs,
+			...fakeSettingsStore({ sites: [SITE] }).stubs,
+			'./editor-launch': {
+				...require(path.join(SRC_DIR, 'editor-launch.js')),
+				matchDetectedEditor: matching({ id: 'cursor', name: 'Cursor', path: EDITOR })
+			},
 			child_process: cp
 		}
 	});
 
-	const result = await main.invoke('editor:open', '/Users/dev/somewhere-else');
+	const result = await main.invoke('editor:open', '/Users/dev/somewhere-else', EDITOR);
 
 	assert.equal(result.ok, false);
 	assert.equal(result.reason, 'unregistered-site');
 	assert.deepEqual(cp.spawn.calls, []);
 });
 
-test('editor:open with nothing chosen asks for a choice rather than guessing', async () => {
+// No path is not a failure: it is "the one you are looking for is not in that
+// list", which is the file dialog. Nothing is opened when it is dismissed.
+test('editor:open with no application named goes to the file dialog', async () => {
 	const openSiteInEditor = spy(async () => ({ ok: true }));
+	const matchDetectedEditor = matching({ id: 'cursor', name: 'Cursor', path: EDITOR });
 	const main = loadMain({
-		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, './editor-launch': { openSiteInEditor } }
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, './editor-launch': { openSiteInEditor, matchDetectedEditor } }
 	});
 
-	assert.deepEqual(await main.invoke('editor:open', SITE), { ok: false, reason: 'no-editor' });
+	assert.deepEqual(await main.invoke('editor:open', SITE, null), { ok: false, reason: 'cancelled' });
+	assert.equal(main.calls.showOpenDialog.length, 1);
 	assert.deepEqual(openSiteInEditor.calls, []);
-});
+	// The dialog's answer is the contributor's own; checking it against the
+	// detection table would refuse exactly the editors that table misses.
+	assert.deepEqual(matchDetectedEditor.calls, []);
 
-test('editor:choose validates what the dialog returned before remembering it', async () => {
-	const isLaunchableEditorPath = spy(() => false);
-	const main = loadMain({
-		stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './editor-launch': { isLaunchableEditorPath } }
-	});
-
-	const result = await main.invoke('editor:choose', '/Users/dev/not-an-app');
-
-	assert.equal(result.ok, false);
-	assert.equal(result.reason, 'unlaunchable-editor');
-	assert.equal(isLaunchableEditorPath.calls.length, 1);
-	assert.equal(isLaunchableEditorPath.calls[0][0], '/Users/dev/not-an-app');
-});
-
-// The window asks this on load, for every site it has. It must not turn into a
-// filesystem sweep: detection belongs to `editor:list`, which runs when the
-// picker opens.
-test('editor:get reads the remembered choice and touches nothing else', async () => {
-	const detectEditors = spy(() => []);
-	const isLaunchableEditorPath = spy(() => true);
-	const main = loadMain({
-		stubs: {
-			...silentLogging(),
-			...fakeSettingsStore({ preferences: { editor: { path: EDITOR, name: 'Cursor' } } }).stubs,
-			'./editor-launch': { detectEditors, isLaunchableEditorPath }
-		}
-	});
-
-	assert.deepEqual(await main.invoke('editor:get'), { path: EDITOR, name: 'Cursor' });
-	assert.deepEqual(detectEditors.calls, []);
-	assert.deepEqual(isLaunchableEditorPath.calls, []);
+	main.dialogResults.showOpenDialog = { canceled: false, filePaths: ['/Applications/Something Else.app'] };
+	assert.deepEqual(await main.invoke('editor:open', SITE, null), { ok: true });
+	assert.equal(openSiteInEditor.calls.length, 1);
+	assert.equal(openSiteInEditor.calls[0][1], '/Applications/Something Else.app');
 });
 
 test('editor:list asks editor-launch what is installed, without a shell', async () => {
@@ -1993,6 +2116,85 @@ test('dir:show refuses a path the registry does not hold, and logs it', async ()
 
 	assert.deepEqual(await main.invoke('dir:show', SITE), { ok: true });
 	assert.deepEqual(main.calls.openPath, [SITE]);
+});
+
+// --- wp-debug:clear -> src/site-registry.js -------------------------------
+//
+// The Clear button under the debug.log panel. It empties
+// build/wp-content/debug.log inside the named site, so it is behind the same
+// registry boundary as sites:delete and dir:show — without it the renderer
+// could name any path and have the app truncate a file under it.
+
+test('wp-debug:clear asks site-registry whether the log may be emptied', async () => {
+	const clearRegisteredSiteLog = spy(async () => ({ ok: true }));
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, './site-registry': { clearRegisteredSiteLog } }
+	});
+
+	await main.invoke('wp-debug:clear', SITE);
+
+	assert.equal(clearRegisteredSiteLog.calls.length, 1);
+	const [sitePath, options] = clearRegisteredSiteLog.calls[0];
+	assert.equal(sitePath, SITE);
+	assert.deepEqual(options.sites, [SITE]);
+	assert.equal(typeof options.truncate, 'function');
+	assert.equal(typeof options.onRefused, 'function');
+});
+
+test('wp-debug:clear refuses a path the registry does not hold, and logs it', async () => {
+	const logEvent = spy();
+	const main = loadMain({
+		stubs: { './logging': { ...silentLogging()['./logging'], logEvent }, ...fakeSettingsStore({ sites: [SITE] }).stubs }
+	});
+
+	const result = await main.invoke('wp-debug:clear', '/Users/dev/somewhere-else');
+
+	assert.equal(result.ok, false);
+	assert.equal(result.reason, 'unregistered-site');
+	assert.equal(logEvent.calls.length, 1);
+	assert.match(logEvent.calls[0][1], /refused to clear the debug log for \/Users\/dev\/somewhere-else/);
+});
+
+test('wp-debug:reveal asks site-registry whether the log may be shown', async () => {
+	const revealRegisteredSite = spy(async () => ({ ok: true }));
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, './site-registry': { revealRegisteredSite } }
+	});
+
+	await main.invoke('wp-debug:reveal', SITE);
+
+	assert.equal(revealRegisteredSite.calls.length, 1);
+	const [sitePath, options] = revealRegisteredSite.calls[0];
+	assert.equal(sitePath, SITE);
+	assert.deepEqual(options.sites, [SITE]);
+	assert.equal(typeof options.reveal, 'function');
+	assert.equal(typeof options.onRefused, 'function');
+});
+
+test('wp-debug:reveal refuses a path the registry does not hold, and logs it', async () => {
+	const logEvent = spy();
+	const main = loadMain({
+		stubs: { './logging': { ...silentLogging()['./logging'], logEvent }, ...fakeSettingsStore({ sites: [SITE] }).stubs }
+	});
+
+	const result = await main.invoke('wp-debug:reveal', '/Users/dev/somewhere-else');
+
+	assert.equal(result.ok, false);
+	assert.deepEqual(main.calls.showItemInFolder, []);
+	assert.equal(logEvent.calls.length, 1);
+	assert.match(logEvent.calls[0][1], /refused to reveal the debug log for \/Users\/dev\/somewhere-else/);
+});
+
+// The path is what the panel displays, so a handler that started the tail but
+// answered with a bare `true` would leave the line blank and Show in folder
+// disabled, with nothing failing.
+test('wp-debug:start answers with the log path', async () => {
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs } });
+
+	const started = await main.invoke('wp-debug:start', SITE);
+
+	assert.equal(started.ok, true);
+	assert.equal(started.filePath, path.join(SITE, 'build', 'wp-content', 'debug.log'));
 });
 
 // --- opening a pull request (#167) ---------------------------------------
@@ -2294,11 +2496,11 @@ const WIRED = new Set([
 	'git:fetch-pr-diff',
 	'git:list-ticket-patches',
 	'trac:fetch-attachment',
-	'editor:get',
 	'editor:list',
-	'editor:choose',
 	'editor:open',
 	'dir:show',
+	'wp-debug:clear',
+	'wp-debug:reveal',
 	'provenance:set-handle',
 	'provenance:set-event',
 	'github:account',
