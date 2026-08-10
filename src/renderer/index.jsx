@@ -3433,6 +3433,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           ) : null}
         </div>
       ) : null}
+      {skipInit ? (
       <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
         <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Trac ticket</div>
         {tracTicket ? (
@@ -3617,6 +3618,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           </div>
         )}
       </div>
+      ) : null}
       {skipInit ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
           <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Apply a patch or PR</div>
