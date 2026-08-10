@@ -1123,6 +1123,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // The ticket a switch was refused for because trunk had loose edits, and
   // where those edits were saved if the contributor chose to keep them.
   const [blockedByTrunkWork, setBlockedByTrunkWork] = useState(null);
+  // Where the edits went when "save them as a patch, then start clean" ran
+  // to completion (#234) — the panel that showed the path is gone by then.
+  const [patchSavedNotice, setPatchSavedNotice] = useState('');
   // How many loose files rode along into a ticket that had no branch yet, so
   // the panel can say where they went instead of moving them in silence.
   const [patchSavedTo, setPatchSavedTo] = useState('');
@@ -1447,6 +1450,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setTicketSaving(true);
     setTicketError('');
     setBlockedByTrunkWork(null);
+    setPatchSavedNotice('');
     // The previous switch's last sentence must not be this one's first frame.
     if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
     try {
@@ -1518,9 +1522,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // steps the contributor has to sequence themselves (#234). The discard only
   // runs once the save dialog has really produced a file: cancelling the
   // dialog cancels the whole option, and a failed save leaves the edits in
-  // the working tree with the question still open.
+  // the working tree with the question still open. The busy flag is held
+  // while the dialog is up because it is not window-modal — without it the
+  // panel underneath keeps taking clicks, and a discard chosen there would
+  // run again when the dialog finally answers.
   const saveTrunkWorkThenStartClean = useCallback(async (ref) => {
     setTicketError('');
+    let savedTo = '';
+    setTicketSaving(true);
     try {
       const res = await window.api.savePatch(sitePath);
       if (res?.canceled) return;
@@ -1528,12 +1537,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         setTicketError(res?.error || 'Could not save the patch.');
         return;
       }
-      setPatchSavedTo(res.filePath || '');
+      savedTo = res.filePath || '';
+      setPatchSavedTo(savedTo);
     } catch (e) {
       setTicketError(String(e));
       return;
+    } finally {
+      setTicketSaving(false);
     }
     await discardTrunkWorkAndSwitch(ref);
+    // After the panel is gone, the only on-screen record of where the work
+    // went. The switch clears `patchSavedTo` with the rest of the panel
+    // state, so the sentence that survives is its own notice — same shape as
+    // carriedNotice, and true even if the switch itself failed: by now the
+    // patch is written and the tree is clean.
+    setPatchSavedNotice(savedTo);
   }, [sitePath, discardTrunkWorkAndSwitch]);
 
   // "Delete this ticket's work" (#108) — destroys the branch, which is why it
@@ -2143,6 +2161,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const carriedNotice = carriedWork ? (
     <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, color: '#1d2327', fontSize: 12 }}>
       Your {carriedWork.files} uncommitted {carriedWork.files === 1 ? 'change' : 'changes'} came along into #{carriedWork.ticket}, and will go into its patch.
+    </div>
+  ) : null;
+
+  // The counterpart for the other answer to the same question: the edits were
+  // saved and the ticket started clean. Rendered wherever the panel that
+  // asked could have been, because that panel — and the path it showed — is
+  // gone once the switch completes.
+  const savedCleanNotice = patchSavedNotice ? (
+    <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, color: '#1d2327', fontSize: 12 }}>
+      Your edits were saved to {patchSavedNotice} and are no longer in the working tree.
     </div>
   ) : null;
 
@@ -3790,6 +3818,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         ) : null}
         {switchProgressLine}
         {carriedNotice}
+        {savedCleanNotice}
         {blockedPanel}
         {tracTicket ? null : (
           <div style={{ marginTop: 8 }}>
@@ -4309,6 +4338,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           >Link ticket</Button>
                           {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
                           {switchProgressLine}
+                          {savedCleanNotice}
                           {blockedPanel}
                         </>
                       )}
