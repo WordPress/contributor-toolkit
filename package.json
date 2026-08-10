@@ -18,7 +18,11 @@
     "test": "node --test",
     "test:electron": "node scripts/run-tests-electron.cjs",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "shots": "npm run build:once && node scripts/screenshots/capture.cjs",
+    "docs:dev": "npm --prefix docs run dev",
+    "docs:build": "npm --prefix docs run build",
+    "docs:preview": "npm --prefix docs run preview"
   },
   "build": {
     "appId": "org.wordpress.contributor.toolkit",
@@ -85,7 +89,8 @@
     "electron": "^43.2.0",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.23.0",
-    "eslint": "^9.39.5"
+    "eslint": "^9.39.5",
+    "playwright-core": "^1.62.1"
   },
   "allowScripts": {
     "electron@43.2.0": true,

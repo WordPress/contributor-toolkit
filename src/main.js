@@ -57,6 +57,28 @@ const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./pa
 const { describeRefused } = require('./safe-log');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
 
+// Screenshot harness only (scripts/screenshots/): point userData at a throwaway
+// directory so a seeded settings.json is read instead of the contributor's real
+// site registry. Must run before `ready` — electron-store resolves its file path
+// from userData on first use. Guarded to dev runs: a packaged app ignores the
+// variable, so no installed build can be redirected to an attacker-chosen store
+// path via environment.
+//
+// The call is wrapped because `setPath` throws when the directory does not exist,
+// and this runs at module scope — before initLogging() and before any window, so
+// an uncaught throw here kills `npm start` with a stack on stdout and nothing in
+// the log file. A stale variable left in a shell profile, or a temp directory the
+// OS has since reaped, is enough to hit it. Falling back to the real userData is
+// wrong for the harness but right for the contributor, and the harness always
+// passes a directory it just created.
+if (!app.isPackaged && process.env.TOOLKIT_USER_DATA_DIR) {
+	try {
+		app.setPath('userData', process.env.TOOLKIT_USER_DATA_DIR);
+	} catch (e) {
+		process.stderr.write(`Ignoring TOOLKIT_USER_DATA_DIR: ${String(e && e.message ? e.message : e)}\n`);
+	}
+}
+
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
 // Provide a PATH shim so npm's spawned scripts can find a 'node' binary that maps to Electron's Node
