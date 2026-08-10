@@ -185,6 +185,41 @@ function resolveFile(dir, file) {
 }
 
 /**
+ * Whether the checkout looks like the patch was never applied — every file it
+ * names sits at its pre-patch state.
+ *
+ * Only asked when a reverse has already failed, and only to tell two failures
+ * apart: a file that drifted since the patch was written, and a file that is
+ * pristine because something reset the tree (a trunk update, a discard) and
+ * took the patch with it. The second one is not a conflict, it is a stale
+ * record, and saying "the file has moved on" about an untouched file sends the
+ * contributor looking for a change that is not there.
+ *
+ * The question is answered by resolving the patch *forwards*: resolveFile
+ * already encodes what each kind needs — a modify whose hunks still match, an
+ * add whose target is absent, a delete whose target is present — so there is no
+ * second matching implementation to keep in step. Nothing is written; this only
+ * ever runs on the failure path, where the checkout is already being left
+ * alone. It has to be unanimous: a patch that is half in the tree is a real
+ * conflict, and dropping its record would strand the applied half.
+ *
+ * Unanimity here is necessary but not sufficient, which is why the caller also
+ * requires that nothing reversed. `JsDiff.applyPatch` searches by offset for a
+ * place the context fits, so a hunk whose context repeats in the file can
+ * "apply forwards" to a file that already has it — patching the other copy.
+ * The caller's guard is what keeps that from reading as an absent patch.
+ *
+ * @param {string} dir
+ * @param {Array}  files Forward (un-reversed) parsed files.
+ * @return {boolean}
+ */
+function patchIsAbsent(dir, files) {
+	const text = files.filter((f) => f.kind !== 'binary');
+	if (!text.length) return false;
+	return text.every((f) => !resolveFile(dir, f).error);
+}
+
+/**
  * Puts back everything a failed run had already written.
  *
  * Returns the paths it could not restore. The same full-disk, lock, or
@@ -265,6 +300,21 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 	}
 
 	if (failures.length) {
+		// A reverse that fails on a checkout still holding the pre-patch content
+		// is not a conflict: the patch is gone and only the record of it is left.
+		// Naming that is what lets the caller drop the record instead of leaving
+		// the contributor with a patch they can neither revert nor replace.
+		//
+		// `!actions.length` — not a single file reversed — is the load-bearing
+		// half. A file that is still patched can nonetheless resolve forwards
+		// when its hunk context repeats, because applyPatch finds the other
+		// copy; requiring that nothing at all reversed means a half-present
+		// patch keeps its record and its conflict.
+		if (reverse && !actions.length && patchIsAbsent(dir, parsed.files)) {
+			const error = 'That patch is not in this checkout any more — something reset it, probably a trunk update or a discard. Nothing was reverted.';
+			onLog(`\n${error}\n`);
+			return { ok: false, notApplied: true, error, applied: [], skipped };
+		}
 		onLog(`\nThe patch was not applied — the checkout is unchanged.\n${failures.map((f) => `  • ${f}\n`).join('')}`);
 		return { ok: false, error: failures[0], failures, applied: [], skipped };
 	}
