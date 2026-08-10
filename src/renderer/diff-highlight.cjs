@@ -79,9 +79,32 @@ function highlightDiff(text) {
 	return lines.map((line) => ({ text: line, kind: classifyLine(line) }));
 }
 
+/**
+ * Whether a patch actually carries a change, as opposed to only saying why it
+ * does not (#85).
+ *
+ * The generator can now put `#` lines above the diff naming the binaries a text
+ * diff cannot carry, and a handoff patch carries a `#` provenance header too
+ * (#166). Both mean a plain `!== 'No changes.'` test reads a patch with nothing
+ * in it as one with something in it — and the app would offer to attach an
+ * empty diff to a ticket. A `#` at column 0 is never part of a unified diff, so
+ * the question is whether any other content survives.
+ *
+ * @param {string} text The patch as generated.
+ * @return {boolean} True when there is a diff under the commentary.
+ */
+function hasDiffLines(text) {
+	if (typeof text !== 'string') return false;
+	return text.split('\n').some((line) => {
+		const trimmed = line.trim();
+		return trimmed !== '' && trimmed !== 'No changes.' && !line.startsWith('#');
+	});
+}
+
 module.exports = {
 	META_PREFIXES,
 	MAX_HIGHLIGHTED_LINES,
 	classifyLine,
-	highlightDiff
+	highlightDiff,
+	hasDiffLines
 };

@@ -410,7 +410,9 @@ async function collectChangedFiles(dir, baseOid = null) {
             path: filepath,
             // The status codes, not the buffers, are what say whether a file is
             // gone: a read that failed for any other reason must not be reported
-            // as a deletion, which in a pull request would actually delete it.
+            // as a deletion, which in a pull request would actually delete it —
+            // and in a `.diff` would tell the next checkout to remove a file
+            // nobody removed (#85).
             inHead: head !== 0,
             inWorkdir: workdir !== 0,
             base: baseBlob ? Buffer.from(baseBlob.blob) : null,
@@ -423,29 +425,115 @@ async function collectChangedFiles(dir, baseOid = null) {
 async function createMinimalPatchForDir(dir, baseOid = null) {
     const { files } = await collectChangedFiles(dir, baseOid);
     let patch = '';
+    const binaries = [];
+    const unreadable = [];
     for (const file of files) {
+        const gone = !file.inWorkdir;
+        // Present but it would not open — not a deletion, and not something to
+        // guess about either. Named above the diff, for the same reason a
+        // binary is: a change this patch does not carry is one the contributor
+        // has to hear about.
+        if (!gone && !file.work) {
+            unreadable.push(file.path);
+            continue;
+        }
+        // The base side is on record but unreadable — a damaged object store.
+        // Carrying on would name this `/dev/null` and turn an edit into an
+        // addition that applies nowhere.
+        if (file.inHead && !file.base) {
+            unreadable.push(file.path);
+            continue;
+        }
+        // Checked on the bytes, before a utf8 decode turns undecodable ones
+        // into U+FFFD and hides them. A unified diff cannot carry a binary.
+        if ((file.base && file.base.includes(0)) || (file.work && file.work.includes(0))) {
+            binaries.push(file.path);
+            continue;
+        }
         // CRLF→LF on both sides: the workdir may be a CRLF checkout (native
         // git on Windows), and a patch full of line-ending churn applies
         // nowhere on Trac.
         const a = file.base ? normalizeEol(file.base.toString('utf8')) : '';
-        const b = file.work ? normalizeEol(file.work.toString('utf8')) : a;
+        const b = file.work ? normalizeEol(file.work.toString('utf8')) : '';
         if (a === b) continue;
-        // Skip likely-binary
-        if ((a.indexOf('\0') !== -1) || (b.indexOf('\0') !== -1)) continue;
-        const filePatch = JsDiff.createTwoFilesPatch(`a/${file.path}`, `b/${file.path}`, a, b, '', '', { context: 3 });
-        patch += filePatch + '\n';
+        // `/dev/null` names whichever side does not exist, and it is not
+        // decoration: classify() in patch-plan.cjs reads an add or a delete
+        // from the filename alone, never from "the hunk removes every line".
+        // Named `b/<path>`, a deletion comes back through this app's own
+        // reader as a modification, and the applier writes an empty file where
+        // the patch said remove.
+        //
+        // Which side exists is the walk's answer, not the buffers'.
+        const oldName = file.inHead ? `a/${file.path}` : '/dev/null';
+        const newName = gone ? '/dev/null' : `b/${file.path}`;
+        // No blank line between sections. jsdiff keeps consuming lines past a
+        // `\ No newline at end of file` marker, so a separator becomes a
+        // phantom empty context line and the section stops applying to any
+        // file that does not end in a newline — the file it just described.
+        // Each section already ends in one.
+        patch += withoutPhantomNoNewline(
+            JsDiff.createTwoFilesPatch(oldName, newName, a, b, '', '', { context: 3 }),
+            gone && a.endsWith('\n')
+        );
     }
-    return patch || 'No changes.';
+    return skippedNotice(binaries, unreadable) + (patch || 'No changes.');
+}
+
+/**
+ * Drops the `\ No newline at end of file` marker jsdiff adds to a deletion
+ * whether or not it is true (#85).
+ *
+ * jsdiff decides the marker from the *new* side, and a deletion's new side is
+ * the empty string — which it reads as "no trailing newline", so every deletion
+ * comes out claiming the removed file lacked one. The marker attaches to the
+ * preceding `-` line, so on a file that did end in a newline it asserts
+ * something false about the old side and `git apply` refuses the patch — the
+ * whole patch, since it is all-or-nothing, unrelated files included. `patch(1)`
+ * tolerates it; the destination is a Trac ticket read by a committer running
+ * `git apply`, so tolerance elsewhere is not enough.
+ *
+ * @param {string}  section One createTwoFilesPatch section.
+ * @param {boolean} phantom True when the marker is jsdiff's invention.
+ * @return {string} The section, marker removed only when it was not earned.
+ */
+function withoutPhantomNoNewline(section, phantom) {
+    if (!phantom) return section;
+    return section.replace(/\n\\ No newline at end of file\n$/, '\n');
+}
+
+/**
+ * The `#` lines naming the changed files this patch does not carry (#85).
+ *
+ * Above the whole diff rather than between sections, which is the placement
+ * patch-provenance.cjs already established for the handoff header: `git apply`
+ * and `patch` skip leading comment lines, this app's own parser starts at the
+ * first `---`, and the blocks stack readably when a patch has several.
+ *
+ * @param {Array<string>} binaries   Files a unified diff cannot represent.
+ * @param {Array<string>} unreadable Files whose contents would not load.
+ * @return {string} The notice, or an empty string when there is nothing to say.
+ */
+function skippedNotice(binaries, unreadable) {
+    const block = (paths, reason) => {
+        if (!paths.length) return '';
+        const many = paths.length > 1;
+        return `# ${paths.length} ${many ? 'files are' : 'file is'} not in this patch — ${reason(many)}:\n`
+            + paths.map((p) => `#   ${p}\n`).join('');
+    };
+    const notice = block(binaries, () => 'a text diff cannot carry binary content')
+        + block(unreadable, (many) => `${many ? 'their' : 'its'} contents could not be read`);
+    return notice ? `${notice}\n` : '';
 }
 
 // The same change, in the shape the tree API takes (#167).
 //
-// Two differences from the `.diff`, both of them the pull request being more
+// One difference from the `.diff`, and it is the pull request being more
 // faithful rather than different: binary files are carried, because a blob is
-// base64 and a unified diff is not; and deletions are carried, which the patch
-// builder above still drops (#174). The shaping — modes, deletions, and the
-// CRLF handling that keeps a Windows checkout from rewriting every line —
-// lives in pr-files.cjs, where both platform branches are testable.
+// base64 and a unified diff is not — the patch names them above the diff
+// instead (#85). Deletions are carried by both now (#85/#174). The shaping —
+// modes, deletions, and the CRLF handling that keeps a Windows checkout from
+// rewriting every line — lives in pr-files.cjs, where both platform branches
+// are testable.
 async function collectPullRequestFiles(dir, baseOid = null) {
     const { baseOid: base, files } = await collectChangedFiles(dir, baseOid);
     // pr-files.cjs calls it `headOid`, from when the base always was HEAD. It is
@@ -469,7 +557,7 @@ ipcMain.handle('git:create-patch', async (_e, sitePath) => {
     try {
         const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
         const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
-        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml(patch || 'No changes.')));
+        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml(patch)));
         return { ok: true };
     } catch (e) {
         const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });

@@ -643,6 +643,184 @@ test('git:get-patch includes an untracked file without staging it (issues #108, 
 	);
 });
 
+// --- what the patch says about deletions, additions and binaries (#85) ---
+
+// A repository with a committed base, for the generation tests below. Returns
+// the directory; callers mutate the worktree and then invoke the handler.
+async function patchRepo(t, files) {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-patch-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	for (const [name, content] of Object.entries(files)) {
+		fs.writeFileSync(path.join(dir, name), content);
+	}
+	await git.add({ fs, dir, filepath: Object.keys(files) });
+	await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
+	return dir;
+}
+
+function patchMain() {
+	return loadMain({ stubs: { ...silentLogging(), './trunk-update': { ensureAutocrlf: async () => {} } } });
+}
+
+// The patch is what a contributor hands over, so a change it does not mention
+// did not happen as far as anyone reviewing it can tell. A removed file used to
+// fall out of the diff entirely: the status matrix reports it, but with no
+// working copy to read the new side was defaulted to the old one and the file
+// compared equal to itself.
+test('git:get-patch reports a deleted file as a deletion (#85)', async (t) => {
+	const dir = await patchRepo(t, { 'gone.php': '<?php // removed\n', 'kept.php': '<?php // stays\n' });
+	fs.rmSync(path.join(dir, 'gone.php'));
+
+	const result = await patchMain().invoke('git:get-patch', dir);
+
+	assert.equal(result.ok, true);
+	assert.match(result.patch, /--- a\/gone\.php/);
+	assert.match(result.patch, /\+\+\+ \/dev\/null/, 'the absent side has to be named /dev/null');
+	assert.match(result.patch, /^-<\?php \/\/ removed/m);
+	assert.doesNotMatch(result.patch, /kept\.php/, 'an untouched file stays out');
+});
+
+// `/dev/null` is not decoration: patch-plan.cjs reads add and delete from the
+// filename alone, never from "the hunk removes every line". Named `b/gone.php`
+// the app's own reader calls this a modification, and the applier writes an
+// empty file where the patch said remove.
+test('a generated deletion parses back as a deletion, not an empty file (#85)', async (t) => {
+	const dir = await patchRepo(t, { 'gone.php': '<?php // removed\n' });
+	fs.rmSync(path.join(dir, 'gone.php'));
+
+	const { patch } = await patchMain().invoke('git:get-patch', dir);
+	const parsed = require('../src/patch-plan.cjs').parsePatchFiles(patch);
+
+	assert.equal(parsed.ok, true, parsed.error);
+	assert.deepEqual(parsed.files.map((f) => [f.kind, f.path]), [['delete', 'gone.php']]);
+});
+
+// The same rule on the other side. An addition named `a/<path>` parses as a
+// modification, and the applier refuses it — "is not in this checkout".
+test('a generated addition parses back as an addition (#85)', async (t) => {
+	const dir = await patchRepo(t, { 'kept.php': '<?php // stays\n' });
+	fs.writeFileSync(path.join(dir, 'added.php'), '<?php // new\n');
+
+	const { patch } = await patchMain().invoke('git:get-patch', dir);
+	const parsed = require('../src/patch-plan.cjs').parsePatchFiles(patch);
+
+	assert.equal(parsed.ok, true, parsed.error);
+	assert.deepEqual(parsed.files.map((f) => [f.kind, f.path]), [['add', 'added.php']]);
+});
+
+// The bytes, not the round trip: jsdiff decides the `\ No newline at end of
+// file` marker from the new side, and a deletion's new side is the empty
+// string — so it stamps every deletion as if the removed file had lacked a
+// trailing newline. The marker attaches to the preceding `-` line, so on a
+// file that did end in one it asserts something false about the old side and
+// `git apply` refuses the patch. All of it, unrelated files included, since it
+// is all-or-nothing. The app's own applier tolerates the lie, which is exactly
+// why this is checked here and not through applyPatchToDir.
+test('a deletion does not claim the removed file lacked a trailing newline (#85)', async (t) => {
+	const dir = await patchRepo(t, { 'gone.php': '<?php // removed\n' });
+	fs.rmSync(path.join(dir, 'gone.php'));
+
+	const { patch } = await patchMain().invoke('git:get-patch', dir);
+
+	assert.match(patch, /^-<\?php \/\/ removed$/m);
+	assert.doesNotMatch(patch, /No newline at end of file/);
+});
+
+// The other side of it: when the file really had no trailing newline the
+// marker is true and load-bearing — `git apply` refuses the patch without it.
+test('a deletion keeps the marker when the removed file really lacked a newline (#85)', async (t) => {
+	const dir = await patchRepo(t, { 'gone.php': 'one\ntwo' });
+	fs.rmSync(path.join(dir, 'gone.php'));
+
+	const { patch } = await patchMain().invoke('git:get-patch', dir);
+
+	assert.match(patch, /^-two\n\\ No newline at end of file$/m);
+});
+
+// The round trip is the point: this app reads its own patches back when a
+// mentor applies one (#166), so what it emits has to survive its own applier.
+async function roundTrip(t, base, mutate) {
+	const source = await patchRepo(t, base);
+	mutate(source);
+	const { patch } = await patchMain().invoke('git:get-patch', source);
+
+	const target = await patchRepo(t, base);
+	const applied = await require('../src/patch-apply').applyPatchToDir({ dir: target, patchText: patch });
+	return { patch, applied, target };
+}
+
+test('a generated patch applies into another checkout, deletions and all (#85)', async (t) => {
+	const { applied, target } = await roundTrip(t, {
+		'gone.php': '<?php // removed\n',
+		'edited.php': 'line1\nline2\n'
+	}, (dir) => {
+		fs.rmSync(path.join(dir, 'gone.php'));
+		fs.writeFileSync(path.join(dir, 'edited.php'), 'line1\nline2\nline3\n');
+		fs.writeFileSync(path.join(dir, 'added.php'), '<?php // new\n');
+	});
+
+	assert.equal(applied.ok, true, applied.error);
+	assert.equal(fs.existsSync(path.join(target, 'gone.php')), false, 'the deletion has to actually delete');
+	assert.equal(fs.readFileSync(path.join(target, 'edited.php'), 'utf8'), 'line1\nline2\nline3\n');
+	assert.equal(fs.readFileSync(path.join(target, 'added.php'), 'utf8'), '<?php // new\n');
+});
+
+// Files without a trailing newline are the case that catches the blank line
+// this generator used to put between sections: jsdiff keeps reading past the
+// `\ No newline at end of file` marker, so the separator became a phantom
+// context line and the section stopped applying to the very file it described.
+test('a generated patch applies when the files have no trailing newline (#85)', async (t) => {
+	const { applied, target } = await roundTrip(t, {
+		'gone.php': 'one\ntwo',
+		'edited.php': 'line1\nline2'
+	}, (dir) => {
+		fs.rmSync(path.join(dir, 'gone.php'));
+		fs.writeFileSync(path.join(dir, 'edited.php'), 'line1\nline2\nline3');
+	});
+
+	assert.equal(applied.ok, true, applied.error);
+	assert.equal(fs.existsSync(path.join(target, 'gone.php')), false);
+	assert.equal(fs.readFileSync(path.join(target, 'edited.php'), 'utf8'), 'line1\nline2\nline3');
+});
+
+// A unified diff cannot carry a binary, but dropping it without a word means a
+// contributor hands over a patch that is missing a file they changed and has no
+// way to know. Named above the diff, following the handoff header's placement,
+// so the patch itself still parses.
+test('a binary file is named above the patch instead of vanishing (#85)', async (t) => {
+	const dir = await patchRepo(t, {
+		'logo.png': Buffer.from([0x89, 0x50, 0x00, 0x01, 0x02]),
+		'text.php': '<?php // stays\n'
+	});
+	// A different length on purpose: statusMatrix takes a stat shortcut, and a
+	// same-size rewrite in the same millisecond reads as unchanged.
+	fs.writeFileSync(path.join(dir, 'logo.png'), Buffer.from([0x89, 0x50, 0x00, 0x09, 0x09, 0x0a]));
+	fs.writeFileSync(path.join(dir, 'text.php'), '<?php // edited\n');
+
+	const { patch } = await patchMain().invoke('git:get-patch', dir);
+
+	assert.match(patch, /^# 1 file is not in this patch — a text diff cannot carry binary content:$/m);
+	assert.match(patch, /^#\s+logo\.png$/m);
+	assert.match(patch, /^\+<\?php \/\/ edited/m, 'the text change is still there');
+	const parsed = require('../src/patch-plan.cjs').parsePatchFiles(patch);
+	assert.equal(parsed.ok, true, parsed.error);
+	assert.deepEqual(parsed.files.map((f) => f.path), ['text.php'], 'the notice is not mistaken for a file');
+});
+
+test('a tree whose only change is binary still reports no changes (#85)', async (t) => {
+	const dir = await patchRepo(t, { 'logo.png': Buffer.from([0x89, 0x00, 0x01]) });
+	fs.writeFileSync(path.join(dir, 'logo.png'), Buffer.from([0x89, 0x00, 0x02, 0x03]));
+
+	const { patch } = await patchMain().invoke('git:get-patch', dir);
+
+	assert.match(patch, /^# 1 file is not in this patch/m);
+	// What the panel actually asks before offering Trac and the other
+	// destinations — the sentinel is how it is spelled, not what is meant.
+	assert.equal(require('../src/renderer/diff-highlight.cjs').hasDiffLines(patch), false);
+	assert.ok(patch.endsWith('No changes.'), JSON.stringify(patch));
+});
+
 // The other two entry points into the same patch path. They differ only in what
 // they do with the result — a window, or a save dialog — so what is checked here
 // is that they go through it at all rather than assembling a diff of their own.
@@ -2793,3 +2971,4 @@ test('every IPC channel is classified: wired, or explicitly not', () => {
 	const stale = CLASSIFIED.filter((channel) => !registered.includes(channel));
 	assert.deepEqual(stale, [], 'Classified channels that main.js no longer registers');
 });
+

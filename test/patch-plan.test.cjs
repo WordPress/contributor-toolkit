@@ -268,3 +268,22 @@ test('planApplySteps: the update chain is unaffected by the new state map (issue
 		['pending', 'pending', 'pending']
 	);
 });
+
+// Every deletion fixture above carries a `diff --git` line, which this app's
+// own generator does not emit — it produces bare createTwoFilesPatch sections
+// (issue #85). So the shape the app most needs to read back was the one shape
+// not covered here: a mentor applying a handoff patch reads exactly this.
+test('parsePatchFiles: a deletion in this app\'s own generated shape is a delete (issue #85)', () => {
+	const generated = `===================================================================
+--- a/src/old.php\t
++++ /dev/null\t
+@@ -1,2 +0,0 @@
+-one
+-two
+`;
+
+	const res = parsePatchFiles(generated);
+	assert.strictEqual(res.ok, true, res.error);
+	assert.strictEqual(res.files[0].kind, 'delete');
+	assert.strictEqual(res.files[0].path, 'src/old.php');
+});

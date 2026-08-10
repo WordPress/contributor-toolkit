@@ -14,7 +14,12 @@
  * A worktree is dirty when any file's working copy differs from HEAD. The
  * stage column is deliberately ignored: a file staged but byte-identical to
  * HEAD produces no patch hunks, so warning about it would show a scary
- * modal for a no-op. This matches exactly what the patch generator emits.
+ * modal for a no-op.
+ *
+ * These are exactly the rows the patch generator walks — including deletions,
+ * which it used to drop (#85). A binary among them is named above the diff
+ * rather than diffed, so the count here can still exceed the number of file
+ * sections in the patch.
  *
  * @param {Array} matrix
  */
