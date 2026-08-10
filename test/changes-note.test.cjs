@@ -43,7 +43,7 @@ test('changesNoteParts reassures about Unlink only where Unlink is', () => {
 	const ticket = changesNoteParts({ dirty: true, changedCount: 1, tracTicket: '12345' });
 	assert.equal(
 		ticket.unlinkNote,
-		'Unlinking this ticket does not touch your changes — they stay in this site, ready for when you link it again.'
+		'Unlinking this ticket doesn\'t affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.'
 	);
 	assert.equal(changesNoteParts({ dirty: true, changedCount: 1, tracTicket: null }).unlinkNote, undefined);
 });

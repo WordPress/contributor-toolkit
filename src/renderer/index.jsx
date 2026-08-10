@@ -2482,10 +2482,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // One discard for both entry points — the note's link and the modal's. The
   // confirm is the same native one the dirty-update modal uses; the user has
   // already chosen, this is the last chance to notice they chose wrong.
-  // Both links disable through discardBlocked, and the handler re-checks it:
-  // the states it names can flip while the confirm dialog is up.
+  // Both links disable through discardBlocked; no re-check in here. The
+  // native confirm blocks the renderer, so the states discardBlocked names
+  // cannot flip while the dialog is up — a check after it would read the
+  // same render-time values the disabled prop already enforced.
   const discardAllChanges = () => confirmAnd(DISCARD_CONFIRM_MESSAGE, async () => {
-    if (discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding })) return;
     setDiscarding(true);
     setDiscardError(null);
     try {
