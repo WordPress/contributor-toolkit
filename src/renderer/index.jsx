@@ -35,6 +35,7 @@ import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { ticketBranchRows } from './ticket-branch-list.cjs';
 import { highlightDiff } from './diff-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
+import { changesNoteParts, discardOutcome, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // Shared by both log panes so the tabs cannot drift apart visually.
@@ -1033,6 +1034,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // the first press's timer, and so an unmount does not leave one running.
   const copyFeedbackTimer = useRef(null);
   const [patchSaveError, setPatchSaveError] = useState('');
+  // The unsubmitted-changes note. Null until the first probe answers, so a
+  // card never opens on a note that a clean tree then takes away.
+  const [worktreeDirty, setWorktreeDirty] = useState(null);
+  const [discarding, setDiscarding] = useState(false);
+  const [discardError, setDiscardError] = useState(null);
   const [handleInput, setHandleInput] = useState('');
   const [eventInput, setEventInput] = useState('');
   const [handleError, setHandleError] = useState('');
@@ -1393,6 +1399,46 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } catch {}
   }, [sitePath]);
   useEffect(()=>{ loadBranches(); }, [loadBranches]);
+
+  // The note's probe. A failed probe keeps the last answer rather than
+  // reporting: the note is advisory, and losing it over a transient git error
+  // would read as "your changes are gone".
+  //
+  // The ref guards two races the probe's cost makes real — it walks the whole
+  // checkout, so it can still be in flight when the next focus fires or when
+  // a discard answers the question locally. `inFlight` keeps walks from
+  // stacking; `generation` lets a local answer outrank a probe that started
+  // before it, so a stale "dirty" cannot resurrect the note over a tree that
+  // was just reset.
+  const dirtyProbeRef = useRef({ inFlight: false, generation: 0 });
+  const markTreeClean = () => {
+    dirtyProbeRef.current.generation++;
+    setWorktreeDirty({ dirty: false, changedCount: 0 });
+  };
+  const refreshDirty = useCallback(async () => {
+    const probe = dirtyProbeRef.current;
+    if (probe.inFlight) return;
+    probe.inFlight = true;
+    const generation = probe.generation;
+    try {
+      const res = await window.api.isWorktreeDirty(sitePath);
+      if (res && res.ok && probe.generation === generation) {
+        setWorktreeDirty({ dirty: Boolean(res.dirty), changedCount: res.changedCount });
+      }
+    } catch {}
+    finally { probe.inFlight = false; }
+  }, [sitePath]);
+
+  // Only the open card probes, and only while it is open: the probe walks the
+  // whole checkout, which is too much to pay for every card on the shelf. The
+  // edits themselves happen in an external editor, so returning focus to the
+  // app is the moment the answer can have changed.
+  useEffect(() => {
+    if (!isActive) return undefined;
+    refreshDirty();
+    window.addEventListener('focus', refreshDirty);
+    return () => window.removeEventListener('focus', refreshDirty);
+  }, [isActive, refreshDirty]);
 
   // Linking and unlinking are the same write (#109): an empty ref clears the
   // association, so Unlink needs no second channel. Resuming a ticket that
@@ -2100,6 +2146,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // --- Update to latest trunk (#94) ---
   const age = trunkAgeInfo({ trunkDate });
   const isUpdating = updateState !== 'idle';
+  // Where the note goes moves with the ticket: a change that belongs to
+  // #12345 is news for the ticket card, one that belongs to nothing is news
+  // for the buttons that would give it somewhere to go.
+  const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket });
   const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged });
   const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
@@ -2109,6 +2159,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setUpdateState('idle');
     if (message) writeToTerminal(message);
     loadStatus().catch(() => {});
+    refreshDirty();
   };
 
   // Steps 2 and 3 of the chain: npm install (only when the lockfile moved,
@@ -2186,6 +2237,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setApplyState('idle');
     if (message) writeToTerminal(message);
     loadStatus().catch(() => {});
+    refreshDirty();
   };
 
   const runApplyInstallAndBuild = (needsInstall, verb) => {
@@ -2489,6 +2541,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         return;
       }
       savedPatchPathRef.current = res.filePath;
+      markTreeClean();
       setDirtyModalOpen(false);
       writeToTerminal(`\nSaved your changes to ${res.filePath} and reset the working tree.\n`);
       beginTrunkUpdate();
@@ -2497,13 +2550,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   };
 
-  const dirtyDiscardAndUpdate = () => confirmAnd('Discard all local changes? This cannot be undone.', async () => {
+  const dirtyDiscardAndUpdate = () => confirmAnd(DISCARD_CONFIRM_MESSAGE, async () => {
     setDirtyError(null);
     const d = await window.api.discardChanges(sitePath);
     if (!d || !d.ok) {
       setDirtyError(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
       return;
     }
+    markTreeClean();
     setDirtyModalOpen(false);
     writeToTerminal('\nDiscarded local changes.\n');
     beginTrunkUpdate();
@@ -2526,13 +2580,29 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     runUpdateInstallAndBuild(true);
   };
 
+  // The diff fetch, shared by opening the modal and by a discard that happens
+  // while it is open — the pane has to show what the tree now holds, which
+  // after a discard is the "nothing to send" banner.
+  const loadPatchText = async () => {
+    setPatchLoading(true);
+    try {
+      const res = await window.api.getPatch(sitePath);
+      if (res && res.ok) setPatchText((res.patch && res.patch.trim().length) ? res.patch : 'No changes.');
+      else setPatchText(res && res.error ? `Error: ${res.error}` : 'Failed to generate patch');
+    } catch (e) {
+      setPatchText(`Error: ${e && e.message ? e.message : String(e)}`);
+    } finally {
+      setPatchLoading(false);
+    }
+  };
+
   const openPatchModal = async ()=>{
     setIsPatchOpen(true);
-    setPatchLoading(true);
     setPatchText('');
     // Last time's outcome belongs to last time's patch.
     setPatchSaved(null);
     setPatchSaveError('');
+    setDiscardError(null);
     setHandleError('');
     setEditingHandle(false);
     // Same rule for the pull request card: last time's outcome belongs to last
@@ -2545,16 +2615,52 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setGithubError('');
     setGithubDeclined(false);
     loadGithubAccount();
-    try {
-      const res = await window.api.getPatch(sitePath);
-      if (res && res.ok) setPatchText((res.patch && res.patch.trim().length) ? res.patch : 'No changes.');
-      else setPatchText(res && res.error ? `Error: ${res.error}` : 'Failed to generate patch');
-    } catch (e) {
-      setPatchText(`Error: ${e && e.message ? e.message : String(e)}`);
-    } finally {
-      setPatchLoading(false);
-    }
+    await loadPatchText();
   };
+
+  // One discard for both entry points — the note's link and the modal's. The
+  // confirm is the same native one the dirty-update modal uses; the user has
+  // already chosen, this is the last chance to notice they chose wrong.
+  // Both links disable through discardBlocked; no re-check in here. The
+  // native confirm blocks the renderer, so the states discardBlocked names
+  // cannot flip while the dialog is up — a check after it would read the
+  // same render-time values the disabled prop already enforced.
+  const discardAllChanges = () => confirmAnd(DISCARD_CONFIRM_MESSAGE, async () => {
+    setDiscarding(true);
+    setDiscardError(null);
+    try {
+      let outcome;
+      try {
+        outcome = discardOutcome(await window.api.discardChanges(sitePath));
+      } catch (e) {
+        // A rejected invoke never returns a reply object; shape it into one so
+        // the failure reaches the same red line instead of vanishing.
+        outcome = discardOutcome({ ok: false, error: e && e.message ? e.message : String(e) });
+      }
+      if (!outcome.ok) {
+        setDiscardError(outcome.message);
+        return;
+      }
+      markTreeClean();
+      setAppliedPatch(null);
+      writeToTerminal('\nDiscarded local changes.\n');
+      if (isPatchOpen) await loadPatchText();
+    } finally {
+      setDiscarding(false);
+    }
+  });
+
+  // The sentence is one thing wherever it renders; only the wrapper differs.
+  const changesNoteBody = changesNote ? (
+    <>
+      {changesNote.lead}
+      <Button variant="link" onClick={openPatchModal} disabled={isUpdating}>{changesNote.patchLabel}</Button>
+      {changesNote.middle}
+      <Button variant="link" isDestructive onClick={discardAllChanges} disabled={discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding })}>{changesNote.discardLabel}</Button>
+      {changesNote.end}
+      {discardError ? <div style={{ color: '#d63638', fontSize: 12, marginTop: 4 }}>{discardError}</div> : null}
+    </>
+  ) : null;
 
   // Copying is the one action here with no visible result: the clipboard is
   // somewhere else, the diff does not move, and a button that answers nothing
@@ -3436,7 +3542,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               onClick={openPatchModal}
               disabled={isUpdating}
               style={{ padding: '10px 16px', borderRadius: 10 }}
-            >Submit changes</Button>
+            >Review & submit changes</Button>
             {running && serverUrl ? (
               <Button
                 variant="secondary"
@@ -3448,6 +3554,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               >Open Adminer</Button>
             ) : null}
           </div>
+          {changesNote && changesNote.placement === 'buttons' ? (
+            <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2 }}>
+              {changesNoteBody}
+            </div>
+          ) : null}
           {(isServerStarting || serverUrl) ? (
             <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
               {serverUrl ? (
@@ -3462,6 +3573,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           ) : null}
         </div>
       ) : null}
+      {skipInit ? (
       <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
         <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Trac ticket</div>
         {tracTicket ? (
@@ -3477,6 +3589,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
               <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketActionsBlocked}>Unlink</Button>
             </div>
+            {changesNote && changesNote.placement === 'ticket' ? (
+              <div style={{ marginTop: 8, fontSize: 13, color: '#1d2327' }}>
+                {changesNoteBody}
+                <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>{changesNote.unlinkNote}</div>
+              </div>
+            ) : null}
 
             {branchRows.length ? (
               <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
@@ -3684,6 +3802,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           </div>
         )}
       </div>
+      ) : null}
       {skipInit ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
           <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Apply a patch or PR</div>
@@ -3992,7 +4111,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ) : null}
       {isPatchOpen && (
         <Modal
-          title="Submit changes"
+          title="Review & submit changes"
           onRequestClose={()=>setIsPatchOpen(false)}
           shouldCloseOnClickOutside
           isFullScreen
@@ -4036,8 +4155,22 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <div className="patch-diff">
                 <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
                   <div>
-                    <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Your changes</div>
+                    <div style={{ fontWeight:600, fontSize:14, color:'#1d2327', display:'flex', alignItems:'baseline', gap:4, flexWrap:'wrap' }}>
+                      Your changes
+                      <span style={{ fontWeight:400 }}>
+                        {'('}
+                        <Button
+                          variant="link"
+                          isDestructive
+                          onClick={discardAllChanges}
+                          disabled={modalDiscardDisabled({ patchLoading, patchHasChanges, discarding }) || discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding })}
+                          style={{ fontSize: 12 }}
+                        >Discard all changes</Button>
+                        {')'}
+                      </span>
+                    </div>
                     <div style={{ fontSize:12, color:'#6c6f72' }}>Everything this site has that its copy of trunk does not.</div>
+                    {discardError ? <div style={{ color:'#d63638', fontSize:12, marginTop:4 }}>{discardError}</div> : null}
                   </div>
                   {/*
                     Out of the diff and into the header: these used to float
