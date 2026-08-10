@@ -3448,6 +3448,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             {changesNote && changesNote.placement === 'ticket' ? (
               <div style={{ marginTop: 8, fontSize: 13, color: '#1d2327' }}>
                 {changesNoteBody}
+                <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>{changesNote.unlinkNote}</div>
               </div>
             ) : null}
 

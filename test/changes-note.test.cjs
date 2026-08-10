@@ -31,6 +31,23 @@ test('changesNoteParts places a ticketed note in the ticket card and names the t
 	assert.equal(parts.lead, 'You have 3 unsubmitted changes for ticket #12345. You can ');
 });
 
+test('changesNoteParts names the modal in the ticket card and the patch by the buttons', () => {
+	// The ticket sentence already says where the changes go, so its link
+	// borrows the modal's own name; by the buttons the link says what it
+	// produces instead.
+	assert.equal(changesNoteParts({ dirty: true, tracTicket: '12345' }).patchLabel, 'review and submit');
+	assert.equal(changesNoteParts({ dirty: true, tracTicket: null }).patchLabel, 'create and save a patch');
+});
+
+test('changesNoteParts reassures about Unlink only where Unlink is', () => {
+	const ticket = changesNoteParts({ dirty: true, changedCount: 1, tracTicket: '12345' });
+	assert.equal(
+		ticket.unlinkNote,
+		'Unlinking this ticket does not touch your changes — they stay in this site, ready for when you link it again.'
+	);
+	assert.equal(changesNoteParts({ dirty: true, changedCount: 1, tracTicket: null }).unlinkNote, undefined);
+});
+
 test('changesNoteParts uses the singular for one change', () => {
 	assert.equal(
 		changesNoteParts({ dirty: true, changedCount: 1, tracTicket: null }).lead,
@@ -57,12 +74,13 @@ test('changesNoteParts stays true when the count is missing', () => {
 	);
 });
 
-test('changesNoteParts always offers the same two actions', () => {
-	const parts = changesNoteParts({ dirty: true, changedCount: 2, tracTicket: null });
-	assert.equal(parts.patchLabel, 'create and save a patch');
-	assert.equal(parts.middle, ' or ');
-	assert.equal(parts.discardLabel, 'discard your changes');
-	assert.equal(parts.end, '.');
+test('changesNoteParts always offers a discard, in the same words', () => {
+	for (const tracTicket of [null, '12345']) {
+		const parts = changesNoteParts({ dirty: true, changedCount: 2, tracTicket });
+		assert.equal(parts.middle, ' or ');
+		assert.equal(parts.discardLabel, 'discard your changes');
+		assert.equal(parts.end, '.');
+	}
 });
 
 test('the confirm message matches the dirty-update modal byte for byte', () => {

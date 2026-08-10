@@ -19,20 +19,36 @@ const DISCARD_CONFIRM_MESSAGE = 'Discard all local changes? This cannot be undon
  * `changedCount` can be missing: the dirty probe may have answered before a
  * count existed, and "You have changes" is still true then.
  *
+ * The action labels move with the placement. By the buttons the modal has
+ * not been named yet, so the link says what it produces — a patch. In the
+ * ticket card the sentence already says where the changes are going, so the
+ * link borrows the modal's own name, "review and submit". The ticket card
+ * also carries a reassurance the buttons never need: Unlink sits right
+ * above, and the changes must not look like they hang on it.
+ *
  * @param {{dirty?: boolean, changedCount?: number, tracTicket?: *}} state
  * @return {{placement: 'buttons'|'ticket', lead: string, patchLabel: string,
- *          middle: string, discardLabel: string, end: string}|null}
+ *          middle: string, discardLabel: string, end: string,
+ *          unlinkNote?: string}|null}
  */
 function changesNoteParts({ dirty, changedCount, tracTicket } = {}) {
 	if (!dirty) return null;
 	const count = Number.isInteger(changedCount) && changedCount > 0 ? changedCount : null;
 	const noun = count === 1 ? 'change' : 'changes';
-	const lead = tracTicket
-		? `You have ${count === null ? '' : `${count} `}unsubmitted ${noun} for ticket #${tracTicket}. You can `
-		: `You have ${count === null ? '' : `${count} `}${noun} not assigned to any ticket. You can `;
+	if (tracTicket) {
+		return {
+			placement: 'ticket',
+			lead: `You have ${count === null ? '' : `${count} `}unsubmitted ${noun} for ticket #${tracTicket}. You can `,
+			patchLabel: 'review and submit',
+			middle: ' or ',
+			discardLabel: 'discard your changes',
+			end: '.',
+			unlinkNote: 'Unlinking this ticket does not touch your changes — they stay in this site, ready for when you link it again.'
+		};
+	}
 	return {
-		placement: tracTicket ? 'ticket' : 'buttons',
-		lead,
+		placement: 'buttons',
+		lead: `You have ${count === null ? '' : `${count} `}${noun} not assigned to any ticket. You can `,
 		patchLabel: 'create and save a patch',
 		middle: ' or ',
 		discardLabel: 'discard your changes',
