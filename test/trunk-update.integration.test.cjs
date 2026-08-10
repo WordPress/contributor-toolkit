@@ -72,3 +72,41 @@ test('readTrunkInfo: returns the HEAD oid and its committer date (issue #94)', a
 	const { commit } = await git.readCommit({ fs, dir, oid: trunkOid });
 	assert.strictEqual(trunkDate, new Date(commit.committer.timestamp * 1000).toISOString());
 });
+
+test('readTrunkInfo: reports the trunk snapshot, not the ticket branch HEAD (issue #108)', async (t) => {
+	const dir = await makeRepo(t);
+	const trunkTip = await git.resolveRef({ fs, dir, ref: 'refs/heads/trunk' });
+
+	// A ticket branch with parked work: HEAD is now a commit made seconds ago.
+	// Reading it would date the checkout by the contributor's own work, and the
+	// staleness dot (#94) would never light up no matter how old trunk got.
+	await git.branch({ fs, dir, ref: 'ticket/59234', object: 'trunk', checkout: true });
+	fs.writeFileSync(path.join(dir, 'text.txt'), 'work in progress\n');
+	await git.add({ fs, dir, filepath: 'text.txt' });
+	const wip = await git.commit({ fs, dir, message: 'WIP', author: AUTHOR, parent: [trunkTip] });
+
+	const { trunkOid } = await readTrunkInfo(dir);
+	assert.notStrictEqual(trunkOid, wip, 'the WIP commit is not the trunk snapshot');
+	assert.strictEqual(trunkOid, trunkTip);
+});
+
+test('discardChanges: stays on the ticket branch and keeps its parked work (issue #108)', async (t) => {
+	const dir = await makeRepo(t);
+	const trunkTip = await git.resolveRef({ fs, dir, ref: 'refs/heads/trunk' });
+	await git.branch({ fs, dir, ref: 'ticket/59234', object: 'trunk', checkout: true });
+	fs.writeFileSync(path.join(dir, 'text.txt'), 'parked work\n');
+	await git.add({ fs, dir, filepath: 'text.txt' });
+	await git.commit({ fs, dir, message: 'WIP', author: AUTHOR, parent: [trunkTip] });
+
+	// Uncommitted edits on top of the parked work — the only thing discard
+	// should remove. Checking out `trunk` by name here would silently move the
+	// contributor to another ticket and take their parked work off screen.
+	fs.writeFileSync(path.join(dir, 'text.txt'), 'unsaved scribble\n');
+	fs.writeFileSync(path.join(dir, 'untracked.txt'), 'new\n');
+
+	await discardChanges(dir);
+
+	assert.strictEqual(await git.currentBranch({ fs, dir, fullname: false }), 'ticket/59234');
+	assert.strictEqual(fs.readFileSync(path.join(dir, 'text.txt'), 'utf8'), 'parked work\n');
+	assert.strictEqual(fs.existsSync(path.join(dir, 'untracked.txt')), false);
+});

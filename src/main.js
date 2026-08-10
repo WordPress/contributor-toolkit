@@ -40,6 +40,16 @@ const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
 const { createSetupTracker } = require('./setup-tracker');
 const { planInitialRead, planTailRead } = require('./log-tail');
+const {
+	TRUNK,
+	ticketBranchRef,
+	ticketIdFromRef,
+	currentBranchName,
+	listTicketBranches,
+	startTicketBranch,
+	switchToBranch,
+	deleteTicketBranch
+} = require('./ticket-branches');
 const { getStore } = require('./settings-store');
 const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
@@ -351,45 +361,51 @@ function buildPatchHtml(content) {
 //
 // Returns the base commit alongside the files because the pull request needs it
 // as the commit's parent, and it is the same oid the diff was taken against.
-async function collectChangedFiles(dir) {
+async function collectChangedFiles(dir, baseOid = null) {
     await ensureAutocrlf(dir);
-    // The diff base is deliberately the local HEAD (the cloned trunk
-    // snapshot), NOT the remote trunk ref: diffing local edits against a
-    // trunk that has moved would embed reversed upstream changes and foreign
-    // context lines into the patch, and it would apply nowhere. The route to
-    // Trac-applicable patches is the "Update to latest trunk" action (#94),
-    // after which HEAD == origin/trunk and the two bases coincide.
-    // Ensure we have origin/trunk and HEAD reference
-    try { await git.resolveRef({ fs, dir, ref: 'refs/remotes/origin/trunk' }); }
-    catch { await git.fetch({ fs, http, dir, url: WORDPRESS_GIT_URL, depth: 1, singleBranch: true, ref: 'trunk' }); }
-    let headOid = null;
-    try { headOid = await git.resolveRef({ fs, dir, ref: 'HEAD' }); } catch {}
-    if (!headOid) {
-        // fallback to local trunk if HEAD missing
-        try { headOid = await git.resolveRef({ fs, dir, ref: 'refs/heads/trunk' }); } catch {}
-    }
-
-    // Add untracked files to the index (except those in .gitignore)
-    const matrix = await git.statusMatrix({ fs, dir });
-    for (const [filepath, head, workdir, stage] of matrix) {
-        // If file is untracked (head=0, workdir=2, stage=0)
-        if (head === 0 && workdir === 2 && stage === 0) {
-            try {
-                await git.add({ fs, dir, filepath });
-            } catch {
-                // Ignore errors for files that can't be added (e.g., in .gitignore)
-            }
+    // The diff base is the branch point of whatever ticket is being worked on
+    // (#108) — the trunk snapshot this branch was created from, passed in by the
+    // caller from the site's registry entry.
+    //
+    // It is deliberately NOT the remote `origin/trunk`: diffing local edits
+    // against a trunk that has moved would embed reversed upstream changes and
+    // foreign context lines into the patch, and it would apply nowhere. The
+    // route to Trac-applicable patches is the "Update to latest trunk" action
+    // (#94), after which the branch point and origin/trunk coincide.
+    //
+    // Nor is it the live `refs/heads/trunk`, which that same update moves while
+    // existing ticket branches stay where they were born — reading it would
+    // reintroduce exactly the upstream drift described above for every branch
+    // created before the update.
+    //
+    // And it cannot be HEAD any more: parked work lives in a WIP commit, so
+    // HEAD-relative would report an empty patch for a ticket the contributor has
+    // been working on all morning.
+    let base = baseOid;
+    if (!base) {
+        // No branch point on record: a site still on trunk, or one adopted from
+        // disk. HEAD is the trunk snapshot there, which is what this always used
+        // to diff against.
+        try { base = await git.resolveRef({ fs, dir, ref: 'HEAD' }); } catch {}
+        if (!base) {
+            try { base = await git.resolveRef({ fs, dir, ref: 'refs/heads/trunk' }); } catch {}
         }
     }
 
-    // Compare working tree vs HEAD (which points to trunk tip after clone)
-    const matrixAfterAdd = await git.statusMatrix({ fs, dir });
-    const changed = matrixAfterAdd.filter(([, head, workdir]) => head !== workdir);
+    // One scan, against the branch point. Untracked files need no staging to
+    // appear: statusMatrix already reports them as [path, 0, 2, 0] and the
+    // head !== workdir filter below keeps them. The `git.add` loop that used to
+    // stand here staged every untracked file into the contributor's real index
+    // and never unstaged it (#85) — with the branch point as the base it earns
+    // nothing, so it is gone. (`staleStagedPaths` in trunk-update.js stays: it
+    // still has to clean up residue left in indexes by earlier versions.)
+    const matrix = await git.statusMatrix({ fs, dir, ref: base });
+    const changed = matrix.filter(([, head, workdir]) => head !== workdir);
     const files = [];
     for (const [filepath, head, workdir] of changed) {
         const abs = path.join(dir, filepath);
         const workBuf = workdir ? await fs.promises.readFile(abs).catch(() => null) : null;
-        const base = head && headOid ? await git.readBlob({ fs, dir, oid: headOid, filepath }).catch(() => null) : null;
+        const baseBlob = head && base ? await git.readBlob({ fs, dir, oid: base, filepath }).catch(() => null) : null;
         files.push({
             path: filepath,
             // The status codes, not the buffers, are what say whether a file is
@@ -397,15 +413,15 @@ async function collectChangedFiles(dir) {
             // as a deletion, which in a pull request would actually delete it.
             inHead: head !== 0,
             inWorkdir: workdir !== 0,
-            base: base ? Buffer.from(base.blob) : null,
+            base: baseBlob ? Buffer.from(baseBlob.blob) : null,
             work: workBuf
         });
     }
-    return { headOid, files };
+    return { baseOid: base, files };
 }
 
-async function createMinimalPatchForDir(dir) {
-    const { files } = await collectChangedFiles(dir);
+async function createMinimalPatchForDir(dir, baseOid = null) {
+    const { files } = await collectChangedFiles(dir, baseOid);
     let patch = '';
     for (const file of files) {
         // CRLF→LF on both sides: the workdir may be a CRLF checkout (native
@@ -430,15 +446,19 @@ async function createMinimalPatchForDir(dir) {
 // builder above still drops (#174). The shaping — modes, deletions, and the
 // CRLF handling that keeps a Windows checkout from rewriting every line —
 // lives in pr-files.cjs, where both platform branches are testable.
-async function collectPullRequestFiles(dir) {
-    const { headOid, files } = await collectChangedFiles(dir);
-    const entries = await buildPullRequestEntries(files, { git, fs, dir, headOid, platform: process.platform });
-    return { headOid, files: entries };
+async function collectPullRequestFiles(dir, baseOid = null) {
+    const { baseOid: base, files } = await collectChangedFiles(dir, baseOid);
+    // pr-files.cjs calls it `headOid`, from when the base always was HEAD. It is
+    // the commit the files were compared against, which under #108 is the
+    // branch point — the same oid the pull request needs as its parent, so the
+    // value is right even where the name has not caught up.
+    const entries = await buildPullRequestEntries(files, { git, fs, dir, headOid: base, platform: process.platform });
+    return { baseOid: base, files: entries };
 }
 
 ipcMain.handle('git:get-patch', async (_e, sitePath) => {
     try {
-        const patch = await createMinimalPatchForDir(sitePath);
+        const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
         return { ok: true, patch };
     } catch (e) {
         return { ok: false, error: String(e) };
@@ -447,7 +467,7 @@ ipcMain.handle('git:get-patch', async (_e, sitePath) => {
 
 ipcMain.handle('git:create-patch', async (_e, sitePath) => {
     try {
-        const patch = await createMinimalPatchForDir(sitePath);
+        const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
         const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
         win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml(patch || 'No changes.')));
         return { ok: true };
@@ -469,7 +489,8 @@ ipcMain.handle('git:create-patch', async (_e, sitePath) => {
 ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
     try {
         const handoff = Boolean(options && options.handoff);
-        const patch = await createMinimalPatchForDir(sitePath);
+        const baseOid = await patchBaseOid(sitePath);
+        const patch = await createMinimalPatchForDir(sitePath, baseOid);
 
         // The header describes what was diffed, so it is read from the same
         // recorded state the status handler reports, not asked of the caller:
@@ -485,8 +506,13 @@ ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
                 handle,
                 event,
                 ticketId: meta.tracTicket,
-                trunkOid: meta.trunkOid,
-                trunkDate: meta.trunkDate,
+                // The base the patch was actually diffed against, which on a
+                // ticket branch is the trunk it was born at — not the site's
+                // current trunk, which "Update to latest trunk" may have moved
+                // forward since (#108). Reading the date off that commit rather
+                // than the site record keeps the two halves of the line
+                // describing the same commit.
+                ...(await baseProvenance(sitePath, baseOid, meta)),
                 generatedAt: new Date().toISOString()
             });
             name = handoffFilename({ handle, ticketId: meta.tracTicket });
@@ -630,7 +656,7 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
 
     let collected;
     try {
-        collected = await collectPullRequestFiles(sitePath);
+        collected = await collectPullRequestFiles(sitePath, await patchBaseOid(sitePath));
     } catch (e) {
         return { ok: false, reason: 'error', error: String(e), stage: 'collect' };
     }
@@ -643,7 +669,7 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
         token: githubToken,
         login: githubLogin,
         ticketId,
-        baseSha: collected.headOid,
+        baseSha: collected.baseOid,
         files: collected.files,
         title,
         body: buildPullRequestBody({ ticketId, handle, event: contributionEvent, notes: options.notes }),
@@ -674,6 +700,226 @@ async function mergeSiteMeta(sitePath, patch) {
     s.set('siteMeta', meta);
 }
 
+// --- Ticket branches (#108) --- git mechanics live in src/ticket-branches.js;
+// what follows is the electron-store half: which branch is active and what
+// context each one carries.
+//
+// `tracTicket`, `appliedPatch` and `updateIncomplete` describe the *work*, not
+// the site, so under this model they live per branch. `label`, `initialized`,
+// `trunkOid` and friends stay on the site — one clone, one substrate.
+
+async function readSiteMeta(sitePath) {
+    const s = await getStore();
+    return (s.get('siteMeta') || {})[sitePath] || {};
+}
+
+/**
+ * Moves a pre-#108 site onto the branch shape without anyone losing a worktree.
+ *
+ * A site with a linked ticket gets that ticket's branch created at the current
+ * trunk tip, its uncommitted work carried onto it (branch+checkout leaves the
+ * files alone), and the three work-shaped fields moved underneath. A site with
+ * no ticket stays on trunk and simply gains an empty `branches` map, so the
+ * migration is a no-op for anyone who never linked one.
+ *
+ * Idempotent and best-effort: a site whose directory is missing or is not a
+ * repository must not block the app from starting.
+ *
+ * @param {string} sitePath
+ */
+async function migrateSiteToBranches(sitePath) {
+    const m = await readSiteMeta(sitePath);
+    if (m.branches) return m;
+    // Nothing was being worked on, so there is no work to put on a branch. The
+    // empty map is recorded so this does not re-run, and it costs no git I/O.
+    if (!m.tracTicket) {
+        const migrated = { branches: {}, currentBranch: TRUNK };
+        await mergeSiteMeta(sitePath, migrated);
+        return { ...m, ...migrated };
+    }
+
+    try {
+        const ref = ticketBranchRef(m.tracTicket);
+        const existing = await listTicketBranches(sitePath);
+        // A branch that already exists was not created by this app, so its fork
+        // point is not on record and cannot be recovered on a depth-1 clone.
+        // Left null deliberately: patchBaseOid has one documented fallback for
+        // exactly this, and guessing here would put a second, wrong one in the
+        // codebase. (`trunkOid` is the *current* tip, not the fork point.)
+        const baseOid = existing.includes(ref)
+            ? null
+            : (await startTicketBranch(sitePath, m.tracTicket)).baseOid;
+        const migrated = {
+            branches: {
+                [ref]: {
+                    tracTicket: m.tracTicket,
+                    baseOid,
+                    appliedPatch: m.appliedPatch || null,
+                    updateIncomplete: Boolean(m.updateIncomplete),
+                    lastUsedAt: new Date().toISOString()
+                }
+            },
+            currentBranch: ref
+        };
+        await mergeSiteMeta(sitePath, migrated);
+        return { ...m, ...migrated };
+    } catch (e) {
+        // A site that cannot be branched right now — directory on a volume that
+        // is not mounted, a clone that never finished — keeps working exactly as
+        // it did before. Nothing is persisted, so the next attempt retries:
+        // writing an empty `branches` map here would trip the guard above and
+        // strand the site on the old shape permanently.
+        logEvent('branches', `could not migrate ${describeRefused(sitePath)} — ${String(e && e.message ? e.message : e)}`);
+        return m;
+    }
+}
+
+/**
+ * The branch the app believes is active, reconciled against what is actually
+ * checked out — a user with their own git client can move HEAD behind our back,
+ * and the registry is not the authority on the worktree.
+ *
+ * `migrate` is opt-in because migrating creates a branch and moves HEAD. That
+ * must not happen as a side effect of a read — `branches:list` can be called
+ * while an install, a build or the Playground server is running against the
+ * directory. Only the handlers that are already about to move HEAD pass it.
+ *
+ * @param {string}  sitePath
+ * @param {Object}  [root0]
+ * @param {boolean} [root0.migrate]
+ */
+async function activeBranch(sitePath, { migrate = false } = {}) {
+    const m = migrate ? await migrateSiteToBranches(sitePath) : await readSiteMeta(sitePath);
+    let ref = null;
+    try { ref = await currentBranchName(sitePath); } catch {}
+    if (!ref) ref = m.currentBranch || TRUNK;
+    return { ref, meta: (m.branches || {})[ref] || null, site: m };
+}
+
+/**
+ * A switch whose checkout died part-way leaves HEAD on the branch it was
+ * leaving, over a worktree that is half the other branch's. Parking in that
+ * state would commit the mixture over the good WIP commit, so every operation
+ * that parks refuses until it is reconciled.
+ *
+ * @param {string} sitePath
+ */
+async function midSwitchBlock(sitePath) {
+    const { switchInProgress } = await readSiteMeta(sitePath);
+    if (!switchInProgress) return null;
+    return {
+        ok: false,
+        code: 'switch-incomplete',
+        switchInProgress,
+        error: `A previous switch from ${switchInProgress.from} to ${switchInProgress.to} did not finish. `
+            + `Retry it before making other changes — your work on ${switchInProgress.from} is still committed on that branch.`
+    };
+}
+
+/**
+ * Runs a branch switch with the mid-switch marker around it. The marker is set
+ * only when the checkout itself fails: a failure while parking moved nothing, so
+ * a retry is safe and does not deserve a blocked site.
+ *
+ * @param {string}   sitePath
+ * @param {Function} run
+ */
+async function withSwitchMarker(sitePath, run) {
+    try {
+        const result = await run();
+        await mergeSiteMeta(sitePath, { switchInProgress: null });
+        return result;
+    } catch (e) {
+        if (e && e.stage === 'checkout') {
+            await mergeSiteMeta(sitePath, { switchInProgress: { from: e.from || null, to: e.to || null } });
+            logError('branches', `checkout failed mid-switch in ${describeRefused(sitePath)}: ${String(e && e.stack ? e.stack : e)}`);
+        }
+        throw e;
+    }
+}
+
+/**
+ * Where the state that describes the *work* lives: per branch once a ticket is
+ * being worked on, at site level on trunk and for sites that predate #108. One
+ * reader and one writer, so `appliedPatch` and `updateIncomplete` cannot drift
+ * between the two shapes.
+ *
+ * @param {string} sitePath
+ */
+async function readWorkMeta(sitePath) {
+    const { ref, meta, site } = await activeBranch(sitePath);
+    return ref === TRUNK || !meta ? site : meta;
+}
+
+async function writeWorkMeta(sitePath, patch) {
+    const { ref, meta } = await activeBranch(sitePath);
+    if (ref === TRUNK || !meta) return mergeSiteMeta(sitePath, patch);
+    return mergeBranchMeta(sitePath, ref, patch);
+}
+
+async function mergeBranchMeta(sitePath, ref, patch) {
+    const m = await readSiteMeta(sitePath);
+    const branches = { ...(m.branches || {}) };
+    branches[ref] = { ...(branches[ref] || {}), ...patch };
+    await mergeSiteMeta(sitePath, { branches });
+}
+
+/**
+ * The diff base for whatever is checked out: a ticket branch's recorded branch
+ * point, or null on trunk — where the patch generator falls back to HEAD, which
+ * is what it has always diffed against.
+ *
+ * @param {string} sitePath
+ */
+async function patchBaseOid(sitePath) {
+    try {
+        // What is checked out decides this, so ask the worktree before the
+        // registry: a site on trunk — every site before #108, and every site
+        // whose owner never linked a ticket — answers without a store read at
+        // all, and takes exactly the path it always took.
+        let ref = null;
+        try { ref = await currentBranchName(sitePath); } catch {}
+        if (!ref || ref === TRUNK) return null;
+
+        const recorded = ((await readSiteMeta(sitePath)).branches || {})[ref];
+        if (recorded && recorded.baseOid) return recorded.baseOid;
+        // A ticket branch with no recorded base (registry edited by hand, or a
+        // branch the user made themselves). The live trunk ref is the closest
+        // honest answer available.
+        return await git.resolveRef({ fs, dir: sitePath, ref: 'refs/heads/trunk' });
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * The `trunkOid`/`trunkDate` pair a handoff header should carry (#166), for the
+ * base the patch was really diffed against (#108).
+ *
+ * On trunk there is nothing to correct and the site record is used as it always
+ * was. On a ticket branch the site record describes where trunk is *now*, which
+ * an "Update to latest trunk" can have moved past the branch's own base — so the
+ * date is read off the base commit itself. If that read fails the date is
+ * dropped rather than guessed: a header with no date is honest, one that dates a
+ * commit it is not describing is not.
+ *
+ * @param {string}  dir     Site working directory.
+ * @param {?string} baseOid Base the patch was diffed against, or null on trunk.
+ * @param {Object}  meta    The site's stored metadata.
+ * @return {Promise<{trunkOid: ?string, trunkDate: ?string}>} Header fields.
+ */
+async function baseProvenance(dir, baseOid, meta) {
+    if (!baseOid || baseOid === meta.trunkOid) {
+        return { trunkOid: meta.trunkOid, trunkDate: meta.trunkDate };
+    }
+    try {
+        const { commit } = await git.readCommit({ fs, dir, oid: baseOid });
+        return { trunkOid: baseOid, trunkDate: new Date(commit.committer.timestamp * 1000).toISOString() };
+    } catch {
+        return { trunkOid: baseOid, trunkDate: null };
+    }
+}
+
 ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
     try {
         const files = await collectDirtyFiles(sitePath);
@@ -690,7 +936,7 @@ ipcMain.handle('git:discard-changes', async (_e, sitePath) => {
         // the patch from the tree — not with the trunk update that may follow and
         // fail on the network, which would leave a revert banner for a patch that
         // is already gone.
-        await mergeSiteMeta(sitePath, { appliedPatch: null });
+        await writeWorkMeta(sitePath, { appliedPatch: null });
         return { ok: true };
     } catch (e) {
         return { ok: false, error: String(e) };
@@ -708,22 +954,61 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
     };
 
     (async () => {
+        // Declared out here so the failure path can say which branch the work
+        // was parked on — that message is the difference between "my work is
+        // gone" and "my work is over there".
+        let branchBefore = TRUNK;
+        let ticketBefore = null;
         try {
+            // The update rewrites `trunk` and checks it out, so it has to run
+            // from trunk (#108). Park the ticket first, and return to it after.
+            const blocked = await midSwitchBlock(sitePath);
+            if (blocked) { sendLog(`\n${blocked.error}\n`); sendDone(blocked); return; }
+
+            const active = await activeBranch(sitePath, { migrate: true });
+            const branchMetaBefore = active.meta;
+            branchBefore = active.ref;
+            ticketBefore = branchBefore === TRUNK ? null : ticketIdFromRef(branchBefore);
+            if (branchBefore !== TRUNK) {
+                sendLog(`Parking your work on ${branchBefore} before updating…\n`);
+                await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, {
+                    baseOid: branchMetaBefore && branchMetaBefore.baseOid
+                }));
+                await mergeSiteMeta(sitePath, { currentBranch: TRUNK });
+            }
+
             const result = await updateToLatestTrunk({ dir: sitePath, url: WORDPRESS_GIT_URL, onLog: sendLog });
             // An update resets the worktree, so any applied patch is gone with
             // it either way — clear the record so the "applied" banner does not
             // outlive the patch. (This is also where a discard's cleanup lands:
             // the dirty-tree modal always discards and then updates.)
-            if (result.upToDate) {
-                await mergeSiteMeta(sitePath, { trunkOid: result.oldOid, trunkDate: result.trunkDate, appliedPatch: null });
-            } else {
-                // HEAD has moved but install/build have not run yet: persist
-                // the incomplete flag now so the state survives a crash or
-                // quit mid-chain; the renderer clears it after a successful
-                // build.
-                await mergeSiteMeta(sitePath, { trunkOid: result.newOid, trunkDate: result.trunkDate, updateIncomplete: true, appliedPatch: null });
+            await mergeSiteMeta(sitePath, {
+                trunkOid: result.upToDate ? result.oldOid : result.newOid,
+                trunkDate: result.trunkDate
+            });
+            // HEAD has moved but install/build have not run yet: persist the
+            // incomplete flag now so the state survives a crash or quit
+            // mid-chain; the renderer clears it after a successful build.
+            await writeWorkMeta(sitePath, {
+                appliedPatch: null,
+                ...(result.upToDate ? {} : { updateIncomplete: true })
+            });
+
+            // Put the contributor back where they were. Without this the site
+            // sits on trunk while the panel still names the ticket, every patch
+            // comes out empty, and the only route back to a morning's work is to
+            // unlink the ticket and link it again.
+            //
+            // The branch keeps its original branch point, so its patch stays
+            // correct against the trunk it was written on. Bringing it forward
+            // onto the new trunk is the replay flow, which is its own issue —
+            // the app never silently rebases anyone.
+            if (ticketBefore !== null) {
+                sendLog(`\nReturning to your work on ${branchBefore}…\n`);
+                await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchBefore, {}));
+                await mergeSiteMeta(sitePath, { currentBranch: branchBefore, tracTicket: ticketBefore });
             }
-            sendDone({ ok: true, ...result });
+            sendDone({ ok: true, ...result, branch: branchBefore });
         } catch (e) {
             logError('git:update-trunk', String(e && e.stack ? e.stack : e));
             const stage = (e && e.stage) || 'fetch';
@@ -741,10 +1026,28 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             if (stage === 'checkout') {
                 const patch = { updateIncomplete: true };
                 if (e && e.worktreeReset) patch.appliedPatch = null;
-                try { await mergeSiteMeta(sitePath, patch); } catch {}
+                // Through writeWorkMeta, not mergeSiteMeta: both of these are
+                // per-branch under #108, and the site is on trunk here only
+                // because the park succeeded — a failure before it leaves the
+                // ticket checked out, where the site-level record is the wrong
+                // place for either.
+                try { await writeWorkMeta(sitePath, patch); } catch {}
             }
             sendLog(`\nUpdate failed during ${stage}: ${String(e && e.message ? e.message : e)}\n`);
-            sendDone({ ok: false, upToDate: false, error: String(e), stage });
+            // The ticket was parked and the site left on trunk before this went
+            // wrong. Saying so is the whole difference between "my work is gone"
+            // and "my work is over there": the registry must not keep naming a
+            // ticket the worktree is no longer on, or every patch from here
+            // comes out empty under a panel that still says #59234.
+            try {
+                const { ref: nowOn } = await activeBranch(sitePath);
+                if (nowOn === TRUNK && ticketBefore !== null) {
+                    await mergeSiteMeta(sitePath, { currentBranch: TRUNK, tracTicket: null });
+                    sendLog(`Your work on #${ticketBefore} is safe — it is committed on ${branchBefore}. `
+                        + 'Link that ticket again to return to it.\n');
+                }
+            } catch {}
+            sendDone({ ok: false, upToDate: false, error: String(e), stage, parkedOn: ticketBefore === null ? null : branchBefore });
         }
     })();
 
@@ -891,7 +1194,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                 sendDone({ ok: false, error: 'Site is not registered' });
                 return;
             }
-            const stored = ((s.get('siteMeta') || {})[sitePath] || {}).appliedPatch;
+            const stored = (await readWorkMeta(sitePath)).appliedPatch;
             if (reverse) {
                 if (!stored || !stored.text) {
                     sendDone({ ok: false, error: 'There is no stored patch to revert.' });
@@ -930,14 +1233,14 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             }
 
             if (reverse) {
-                await mergeSiteMeta(sitePath, { appliedPatch: null });
+                await writeWorkMeta(sitePath, { appliedPatch: null });
             } else {
                 const revertable = patchText.length <= REVERTABLE_PATCH_LIMIT;
                 if (!revertable) {
                     sendLog('This patch is too large to keep for an undo, so Revert will not be offered.\n');
                 }
                 try {
-                    await mergeSiteMeta(sitePath, {
+                    await writeWorkMeta(sitePath, {
                         appliedPatch: {
                             label,
                             appliedAt: new Date().toISOString(),
@@ -973,7 +1276,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
 });
 
 ipcMain.handle('sites:mark-update-complete', async (_e, sitePath) => {
-    await mergeSiteMeta(sitePath, { updateIncomplete: false });
+    await writeWorkMeta(sitePath, { updateIncomplete: false });
     return true;
 });
 
@@ -1051,18 +1354,24 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 			}
 		} catch {}
 
+		// The applied patch and the incomplete-update flag belong to the ticket
+		// being worked on, not to the site (#108) — otherwise switching tickets
+		// would carry the other one's "patch applied · Revert" banner over, and
+		// Revert would reverse its hunks against this ticket's tree.
+		const work = await readWorkMeta(sitePath);
+
 		// Summarised rather than passed through: the stored patch text is only
 		// needed by the main process to reverse it, and this is polled.
-		const appliedPatch = m.appliedPatch
+		const appliedPatch = work.appliedPatch
 			? {
-				label: m.appliedPatch.label,
-				appliedAt: m.appliedPatch.appliedAt,
-				files: m.appliedPatch.files || [],
-				revertable: Boolean(m.appliedPatch.text)
+				label: work.appliedPatch.label,
+				appliedAt: work.appliedPatch.appliedAt,
+				files: work.appliedPatch.files || [],
+				revertable: Boolean(work.appliedPatch.text)
 			}
 			: null;
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(m.updateIncomplete), tracTicket: m.tracTicket || null, appliedPatch };
+		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, appliedPatch };
 	} catch {
 		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, appliedPatch: null };
 	}
@@ -1219,29 +1528,135 @@ ipcMain.handle('sites:set-label', async (_e, sitePath, label) => {
 	return true;
 });
 
-// Which Trac ticket a site is being used to work on (#109). Stored as a plain
-// number in siteMeta: the association is local and offline, so linking a
-// ticket never depends on Trac being reachable.
-ipcMain.handle('sites:set-ticket', async (_e, sitePath, ref) => {
-	try {
-		const s = await getStore();
-		const sites = s.get('sites') || [];
-		if (!sites.includes(sitePath)) return { ok: false, error: 'Site is not registered' };
-		// Empty means unlink — the panel's Unlink button and a cleared field
-		// both land here, and neither is an error.
-		const raw = typeof ref === 'string' ? ref.trim() : '';
-		if (!raw) {
-			await mergeSiteMeta(sitePath, { tracTicket: null });
-			return { ok: true, ticket: null };
-		}
-		const parsed = parseTicketRef(raw);
-		if (!parsed.ok) return { ok: false, error: parsed.error };
-		await mergeSiteMeta(sitePath, { tracTicket: parsed.id });
-		return { ok: true, ticket: parsed.id };
-	} catch (e) {
-		return { ok: false, error: String(e) };
+// Every branch handler takes a path from the renderer, and each one ends in a
+// checkout or a branch deletion. Same boundary as `sites:delete`: a path the app
+// does not have on record is not one it acts on.
+async function withRegisteredSite(sitePath, run) {
+	const s = await getStore();
+	const sites = s.get('sites') || [];
+	if (!sites.includes(sitePath)) {
+		logEvent('branches', `refused ${describeRefused(sitePath)} — not a registered site`);
+		return { ok: false, error: 'Site is not registered' };
 	}
-});
+	try {
+		return await run();
+	} catch (e) {
+		// These handlers end in a checkout or a branch deletion. A failure that
+		// only reaches the renderer as a returned string is invisible in the log
+		// file a contributor attaches to a bug report — and two of the three
+		// channels have no UI to show that string yet.
+		logError('branches', `${describeRefused(sitePath)}: ${String(e && e.stack ? e.stack : e)}`);
+		return { ok: false, error: String(e && e.message ? e.message : e), code: e && e.code };
+	}
+}
+
+// Which Trac ticket a site is being used to work on (#109), which under #108 is
+// also which branch is checked out. Linking a ticket the site has seen before
+// switches back to its branch — files and context as they were left; a new one
+// starts a branch at the current trunk tip, carrying any loose edits along.
+//
+// The site-level `tracTicket` is kept in step with the active branch so the
+// handlers that read it (`git:list-ticket-patches`, `trac:list-attachments`,
+// `site:status`) need no change.
+ipcMain.handle('sites:set-ticket', async (_e, sitePath, ref) => withRegisteredSite(sitePath, async () => {
+	// Empty means unlink — the panel's Unlink button and a cleared field both
+	// land here, and neither is an error. The branch and its work stay; going
+	// back to trunk is not the same as throwing a ticket away.
+	const raw = typeof ref === 'string' ? ref.trim() : '';
+	if (!raw) {
+		const { ref: current, meta } = await activeBranch(sitePath, { migrate: true });
+		if (current !== TRUNK) {
+			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid }));
+		}
+		await mergeSiteMeta(sitePath, { tracTicket: null, currentBranch: TRUNK });
+		return { ok: true, ticket: null, branch: TRUNK };
+	}
+
+	const parsed = parseTicketRef(raw);
+	if (!parsed.ok) return { ok: false, error: parsed.error };
+
+	const blocked = await midSwitchBlock(sitePath);
+	if (blocked) return blocked;
+	const branchRef = ticketBranchRef(parsed.id);
+	const { ref: current, meta } = await activeBranch(sitePath, { migrate: true });
+	if (current === branchRef) {
+		await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: branchRef });
+		return { ok: true, ticket: parsed.id, branch: branchRef };
+	}
+
+	const known = await listTicketBranches(sitePath);
+	let baseOid;
+	if (known.includes(branchRef)) {
+		await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchRef, { baseOid: meta && meta.baseOid }));
+		baseOid = ((await readSiteMeta(sitePath)).branches || {})[branchRef]?.baseOid || null;
+	} else {
+		// Starting a ticket from another ticket parks that one first; from trunk
+		// the loose edits ride along into the new branch (that is deliberate —
+		// "I started editing, then realised which ticket this is").
+		if (current !== TRUNK) {
+			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, TRUNK, { baseOid: meta && meta.baseOid }));
+		}
+		({ baseOid } = await startTicketBranch(sitePath, parsed.id));
+	}
+
+	await mergeBranchMeta(sitePath, branchRef, {
+		tracTicket: parsed.id,
+		baseOid,
+		lastUsedAt: new Date().toISOString()
+	});
+	await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: branchRef });
+	return { ok: true, ticket: parsed.id, branch: branchRef };
+}));
+
+// The tickets open in a site, for the "Working on:" switcher. Reads the branches
+// on disk rather than the registry alone, so a branch made outside the app shows
+// up instead of being invisible until it collides with something.
+ipcMain.handle('branches:list', async (_e, sitePath) => withRegisteredSite(sitePath, async () => {
+	const { ref: current, site } = await activeBranch(sitePath);
+	const stored = site.branches || {};
+	const branches = (await listTicketBranches(sitePath)).map((branchRef) => ({
+		ref: branchRef,
+		ticketId: ticketIdFromRef(branchRef),
+		baseOid: (stored[branchRef] || {}).baseOid || null,
+		lastUsedAt: (stored[branchRef] || {}).lastUsedAt || null,
+		appliedPatch: Boolean((stored[branchRef] || {}).appliedPatch)
+	}));
+	return { ok: true, current, branches };
+}));
+
+ipcMain.handle('branches:switch', async (_e, sitePath, targetRef) => withRegisteredSite(sitePath, async () => {
+	const blocked = await midSwitchBlock(sitePath);
+	if (blocked) return blocked;
+	const { ref: current, meta } = await activeBranch(sitePath, { migrate: true });
+	const result = await withSwitchMarker(sitePath, () => switchToBranch(sitePath, targetRef, { baseOid: meta && meta.baseOid }));
+	const ticketId = ticketIdFromRef(targetRef);
+	if (targetRef !== TRUNK) {
+		await mergeBranchMeta(sitePath, targetRef, { lastUsedAt: new Date().toISOString() });
+	}
+	await mergeSiteMeta(sitePath, { currentBranch: targetRef, tracTicket: ticketId });
+	return { ok: true, from: current, to: targetRef, parked: result.parked, ticket: ticketId };
+}));
+
+// "Delete this ticket's work" — a branch deletion, not a site reset (#108). The
+// registry entry goes with it, or the switcher would keep offering a ticket that
+// no longer exists.
+ipcMain.handle('branches:delete', async (_e, sitePath, targetRef) => withRegisteredSite(sitePath, async () => {
+	// Deleting a ticket you are not on leaves you where you are — the module
+	// only checks out trunk when the branch being deleted is the current one, so
+	// resetting these unconditionally would unlink the ticket the contributor is
+	// actually working on and strand its patch base.
+	const { ref: current } = await activeBranch(sitePath);
+	await deleteTicketBranch(sitePath, targetRef);
+	const m = await readSiteMeta(sitePath);
+	const branches = { ...(m.branches || {}) };
+	delete branches[targetRef];
+	const wasActive = current === targetRef;
+	await mergeSiteMeta(sitePath, {
+		branches,
+		...(wasActive ? { currentBranch: TRUNK, tracTicket: null } : {})
+	});
+	return { ok: true, deleted: targetRef, current: wasActive ? TRUNK : current };
+}));
 
 // Only the schemes the app actually uses reach the OS — see external-url.js for
 // why. A refusal is logged rather than dropped so a future caller that trips the

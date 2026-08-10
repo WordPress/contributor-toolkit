@@ -43,13 +43,24 @@ async function ensureAutocrlf(dir) {
 }
 
 /**
- * The commit the site's HEAD points at; its committer date is the age of the
- * trunk snapshot. One object read, no network.
+ * The commit the site's `trunk` branch points at; its committer date is the age
+ * of the trunk snapshot. One object read, no network.
+ *
+ * Deliberately `trunk` and not `HEAD`: with ticket branches (#108) HEAD is a WIP
+ * commit made minutes ago, so reading it would report the age of the
+ * contributor's own work and the staleness dot would never light up. Falls back
+ * to HEAD only for a repository with no `trunk` branch, which the app never
+ * creates but a site adopted from disk can be.
  *
  * @param {string} dir
  */
 async function readTrunkInfo(dir) {
-	const trunkOid = await git.resolveRef({ fs, dir, ref: 'HEAD' });
+	let trunkOid;
+	try {
+		trunkOid = await git.resolveRef({ fs, dir, ref: 'refs/heads/trunk' });
+	} catch {
+		trunkOid = await git.resolveRef({ fs, dir, ref: 'HEAD' });
+	}
 	const { commit } = await git.readCommit({ fs, dir, oid: trunkOid });
 	const trunkDate = new Date(commit.committer.timestamp * 1000).toISOString();
 	return { trunkOid, trunkDate };
@@ -103,6 +114,12 @@ async function collectDirtyFiles(dir) {
  * index AND the workdir — a "discard" that leaves new files behind would put
  * them straight back into the next patch.
  *
+ * Checks out whatever branch is current rather than `trunk` by name: with
+ * ticket branches (#108) that would silently move the contributor to another
+ * ticket. Discarding means "throw away my uncommitted edits", so parked work on
+ * the branch survives — destroying a whole ticket is what deleting its branch
+ * is for.
+ *
  * @param {string} dir
  */
 async function discardChanges(dir) {
@@ -116,7 +133,8 @@ async function discardChanges(dir) {
 			}
 		}
 	}
-	await git.checkout({ fs, dir, ref: 'trunk', force: true });
+	const ref = (await git.currentBranch({ fs, dir, fullname: false })) || 'trunk';
+	await git.checkout({ fs, dir, ref, force: true });
 }
 
 /**
