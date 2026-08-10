@@ -1443,20 +1443,32 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // association, so Unlink needs no second channel. Resuming a ticket that
   // already has a branch is also this write (#108) — main switches to the
   // existing branch instead of creating one, with the same parking rules.
-  const saveTicket = useCallback(async (ref) => {
+  const saveTicket = useCallback(async (ref, options = undefined) => {
     setTicketSaving(true);
     setTicketError('');
     setBlockedByTrunkWork(null);
     // The previous switch's last sentence must not be this one's first frame.
     if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
     try {
-      const res = await window.api.setSiteTicket(sitePath, ref);
+      const res = await window.api.setSiteTicket(sitePath, ref, options);
       if (!res?.ok) {
-        setTicketError(res?.error || 'Could not save the ticket.');
-        // A refusal with nowhere to go is a dead end, so remember what was
-        // being attempted: trunk's loose edits cannot be parked (#108's first
-        // invariant), and the panel offers the two ways out below the message.
-        if (res?.code === 'dirty-trunk') setBlockedByTrunkWork(String(ref));
+        // `dirty-trunk` is a question, not a failure (#234): main refuses it
+        // on both paths — a new ticket that would carry the edits, a known
+        // one that cannot — and the panel asks what happens to them. A red
+        // error line over a set of choices would read as a fault, so the
+        // message is kept for real failures only. `canCarry` is main's word
+        // on whether the edits can ride into this ticket, and the count
+        // arrives only on the path that scanned before refusing.
+        if (res?.code === 'dirty-trunk') {
+          setBlockedByTrunkWork({
+            ref: String(ref),
+            canCarry: Boolean(res.canCarry),
+            files: typeof res.files === 'number' ? res.files : null,
+            ticket: res.ticket || null
+          });
+        } else {
+          setTicketError(res?.error || 'Could not save the ticket.');
+        }
         return;
       }
       setTracTicket(res.ticket);
@@ -1476,25 +1488,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   }, [sitePath, loadBranches, loadStatus, onClearSwitchNotices]);
   const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
   const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
-
-  // The way out of a refused switch, in two steps that are deliberately
-  // separate: saving a patch does NOT empty the working tree, so the switch is
-  // still refused afterwards. Saying so — and only then offering the discard —
-  // is what keeps "keep my work" from quietly meaning "lose my work".
-  const saveTrunkWorkAsPatch = useCallback(async () => {
-    setTicketError('');
-    try {
-      const res = await window.api.savePatch(sitePath);
-      if (res?.canceled) return;
-      if (!res?.ok) {
-        setTicketError(res?.error || 'Could not save the patch.');
-        return;
-      }
-      setPatchSavedTo(res.filePath || '');
-    } catch (e) {
-      setTicketError(String(e));
-    }
-  }, [sitePath]);
 
   const discardTrunkWorkAndSwitch = useCallback(async (ref) => {
     setTicketSaving(true);
@@ -1520,6 +1513,28 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     // discard has already succeeded — a failure here is about the switch.
     await saveTicket(ref);
   }, [sitePath, saveTicket, onClearSwitchNotices]);
+
+  // "Save them as a patch, then start clean" — one chosen outcome, not two
+  // steps the contributor has to sequence themselves (#234). The discard only
+  // runs once the save dialog has really produced a file: cancelling the
+  // dialog cancels the whole option, and a failed save leaves the edits in
+  // the working tree with the question still open.
+  const saveTrunkWorkThenStartClean = useCallback(async (ref) => {
+    setTicketError('');
+    try {
+      const res = await window.api.savePatch(sitePath);
+      if (res?.canceled) return;
+      if (!res?.ok) {
+        setTicketError(res?.error || 'Could not save the patch.');
+        return;
+      }
+      setPatchSavedTo(res.filePath || '');
+    } catch (e) {
+      setTicketError(String(e));
+      return;
+    }
+    await discardTrunkWorkAndSwitch(ref);
+  }, [sitePath, discardTrunkWorkAndSwitch]);
 
   // "Delete this ticket's work" (#108) — destroys the branch, which is why it
   // sits behind a confirm while switching does not.
@@ -2121,10 +2136,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // What the switch is doing, while it does it (#173). Gated on the busy flag
   // rather than merely cleared by it: the last sends can land after the invoke
   // has already answered, which would flash a sentence under an idle panel.
-  // Where loose work went, said once and plainly (#108). Linking a ticket that
-  // has no branch here yet carries whatever is uncommitted into it — the right
-  // behaviour, and the one the app used to perform in silence, so the same
-  // gesture read as a refusal on one ticket and as a move on another.
+  // Where loose work went, said once and plainly (#108). Carrying uncommitted
+  // edits into a new ticket is now something the contributor chooses in the
+  // panel below (#234), so this confirms an answered question rather than
+  // announcing a move the app made on its own.
   const carriedNotice = carriedWork ? (
     <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, color: '#1d2327', fontSize: 12 }}>
       Your {carriedWork.files} uncommitted {carriedWork.files === 1 ? 'change' : 'changes'} came along into #{carriedWork.ticket}, and will go into its patch.
@@ -2138,6 +2153,58 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     </div>
   ) : null;
   const ticketActionsBlocked = ticketSaving || deletingBranch !== null || updateState !== 'idle' || installing || building;
+
+  // The one question both paths now ask (#234). Picking a ticket while trunk
+  // has uncommitted edits used to do opposite things — carry them silently
+  // into a new ticket, refuse the switch to a known one — split by an
+  // implementation fact the contributor cannot see. Now main refuses both
+  // ways with `dirty-trunk` and this panel asks once. Only the carry needs
+  // the ticket to be new: an existing branch has its own work to restore, so
+  // loose edits cannot ride into it. Rendered as a variable because two
+  // views hold a "Link ticket" field, and a refusal with no panel under it
+  // would be a dead end in the second one.
+  const blockedPanel = blockedByTrunkWork ? (
+    <div style={{ marginTop: 8, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
+      <div>
+        {blockedByTrunkWork.files
+          ? `You have ${blockedByTrunkWork.files === 1 ? '1 uncommitted change' : `${blockedByTrunkWork.files} uncommitted changes`} on this site, not on any ticket yet.`
+          : 'You have uncommitted changes on this site, not on any ticket yet.'}
+        {' '}What should happen to them?
+        {blockedByTrunkWork.canCarry ? '' : ' This ticket already has its own work here, so these edits cannot come along into it.'}
+      </div>
+      {patchSavedTo ? (
+        <div style={{ marginTop: 6, fontWeight: 600 }}>
+          Saved to {patchSavedTo}. The edits are still in the working tree.
+        </div>
+      ) : null}
+      <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        {blockedByTrunkWork.canCarry ? (
+          <Button
+            variant="link"
+            isBusy={ticketSaving}
+            disabled={ticketActionsBlocked}
+            onClick={() => saveTicket(blockedByTrunkWork.ref, { carryTrunkWork: true })}
+            style={{ fontSize: 12 }}
+          >Take these edits into {blockedByTrunkWork.ticket ? `#${blockedByTrunkWork.ticket}` : 'the ticket'}</Button>
+        ) : null}
+        <Button variant="link" disabled={ticketActionsBlocked} onClick={() => saveTrunkWorkThenStartClean(blockedByTrunkWork.ref)} style={{ fontSize: 12 }}>
+          Save them as a patch, then start clean…
+        </Button>
+        <Button
+          variant="link"
+          isDestructive
+          disabled={ticketActionsBlocked}
+          onClick={() => confirmAnd('Discard the uncommitted edits on trunk? This cannot be undone.', () => discardTrunkWorkAndSwitch(blockedByTrunkWork.ref))}
+          style={{ fontSize: 12 }}
+        >Discard them and start clean</Button>
+        {/* The way out that touches nothing — three consequential actions
+            with no fourth door is its own trap (#234). */}
+        <Button variant="link" disabled={ticketActionsBlocked} onClick={() => { setBlockedByTrunkWork(null); setPatchSavedTo(''); }} style={{ fontSize: 12 }}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  ) : null;
   const renderBranchRows = (linked) => (
     <div style={{ marginTop: 8, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
       {branchRows.map((row, i) => (
@@ -3709,12 +3776,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 style={{ padding: '10px 16px', borderRadius: 10 }}
               >Link ticket</Button>
             </div>
-            {/* Scoped, because it is only true of a ticket this site has not
-                worked on: resuming one of the tickets listed above is refused
-                while trunk is dirty, and offers the ways out then. Said without
-                asking the worktree, so it costs nothing. */}
+            {/* Expectation-setting, not the warning itself: since #234 the
+                app asks before moving or discarding anything, so this only
+                has to be true, not load-bearing. Said without asking the
+                worktree, so it costs nothing. */}
             <div style={{ marginTop: 6, fontSize: 12, color: '#6c6f72' }}>
-              Anything you have edited so far will come along into a ticket this site has not worked on yet.
+              If you have edited anything already, you will be asked what should happen to those edits.
             </div>
           </>
         )}
@@ -3723,32 +3790,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         ) : null}
         {switchProgressLine}
         {carriedNotice}
-        {blockedByTrunkWork ? (
-          <div style={{ marginTop: 8, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
-            <div>
-              These edits are not on any ticket yet, so there is nowhere to keep them once the files change.
-              Save them first, or discard them — or type a ticket number above and they will come along into a new ticket.
-            </div>
-            {patchSavedTo ? (
-              <div style={{ marginTop: 6, fontWeight: 600 }}>
-                Saved to {patchSavedTo}. The edits are still in the working tree — discarding is now safe.
-              </div>
-            ) : null}
-            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <Button variant="link" onClick={saveTrunkWorkAsPatch} disabled={ticketActionsBlocked} style={{ fontSize: 12 }}>
-                Save these edits as a patch…
-              </Button>
-              <Button
-                variant="link"
-                isDestructive
-                isBusy={ticketSaving}
-                disabled={ticketActionsBlocked}
-                onClick={() => confirmAnd('Discard the uncommitted edits on trunk? This cannot be undone.', () => discardTrunkWorkAndSwitch(blockedByTrunkWork))}
-                style={{ fontSize: 12 }}
-              >Discard them and continue</Button>
-            </div>
-          </div>
-        ) : null}
+        {blockedPanel}
         {tracTicket ? null : (
           <div style={{ marginTop: 8 }}>
             <Button variant="link" onClick={() => window.api.openExternal(TRAC_TICKET_LISTS_URL)} style={{ fontSize: 12 }}>
@@ -4267,6 +4309,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           >Link ticket</Button>
                           {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
                           {switchProgressLine}
+                          {blockedPanel}
                         </>
                       )}
                     </Destination>
