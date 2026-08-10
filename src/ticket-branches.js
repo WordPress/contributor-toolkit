@@ -141,6 +141,23 @@ async function hasChangesAgainst(dir, ref = 'HEAD') {
 }
 
 /**
+ * How many files differ from `ref` — the same scan, when the answer has to be
+ * a number rather than a yes.
+ *
+ * Used where loose work is about to be carried into a new ticket branch (#108):
+ * the app moves it silently otherwise, and "your 3 changes came with you" is
+ * the difference between that reading as a feature and as a loss.
+ *
+ * @param {string} dir
+ * @param {string} [ref]
+ * @return {Promise<number>} Count of differing paths, gitignored ones excluded.
+ */
+async function countChangesAgainst(dir, ref = 'HEAD') {
+	const { matrix } = await scanWorktree(dir, ref);
+	return matrix.filter(([, head, workdir]) => head !== workdir).length;
+}
+
+/**
  * One worktree scan, and what the callers need from it. Split out because the
  * scan is the expensive part of every park and every switch — `statusMatrix`
  * hashes every non-ignored file, and wordpress-develop has thousands.
@@ -364,6 +381,7 @@ module.exports = {
 	stageWorktree,
 	scanWorktree,
 	hasChangesAgainst,
+	countChangesAgainst,
 	parkCurrentWork,
 	startTicketBranch,
 	switchToBranch,

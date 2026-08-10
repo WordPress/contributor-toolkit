@@ -2125,7 +2125,7 @@ test('sites:set-ticket starts a branch for a ticket the site has not seen', asyn
 		stubs: {
 			...silentLogging(),
 			...settings.stubs,
-			'./ticket-branches': { startTicketBranch, listTicketBranches, currentBranchName }
+			'./ticket-branches': { startTicketBranch, listTicketBranches, currentBranchName, countChangesAgainst: async () => 0 }
 		}
 	});
 
@@ -2136,6 +2136,79 @@ test('sites:set-ticket starts a branch for a ticket the site has not seen', asyn
 	const meta = settings.values.siteMeta['/sites/wp'];
 	assert.equal(meta.tracTicket, 62281);
 	assert.equal(meta.branches['ticket/62281'].baseOid, 'abc', 'the branch point is recorded — it is the diff base');
+});
+
+// Linking a ticket this site has never seen carries whatever is loose in the
+// worktree into the new branch. That is deliberate — "I started editing, then
+// realised which ticket this is" — but it is also the app moving someone's work
+// for them, and the same gesture on a ticket that does have a branch is refused
+// instead. Reporting how much came along is what tells those two apart on
+// screen (#108).
+test('sites:set-ticket says how much loose work it carried into a new ticket (issue #108)', async (t) => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-carry-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // trunk\n');
+	fs.writeFileSync(path.join(dir, 'wp-comments-post.php'), '<?php // trunk\n');
+	await git.add({ fs, dir, filepath: ['wp-login.php', 'wp-comments-post.php'] });
+	await git.commit({ fs, dir, message: 'trunk', author: { name: 't', email: 't@e' } });
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // work started before the ticket was known\n');
+	fs.writeFileSync(path.join(dir, 'brand-new.php'), '<?php // and a new file\n');
+
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const result = await main.invokeWith('sites:set-ticket', createIpcEvent(), dir, '62281');
+
+	assert.equal(result.ok, true, result.error);
+	assert.equal(result.carried, 2, 'an edited file and an untracked one both came along');
+	// And they really did: the branch exists and the work is still on disk.
+	assert.equal(await require('../src/ticket-branches.js').currentBranchName(dir), 'ticket/62281');
+	assert.match(fs.readFileSync(path.join(dir, 'wp-login.php'), 'utf8'), /before the ticket was known/);
+});
+
+// The count is for a sentence. A worktree it cannot walk — a permission, a
+// volume that went away — must cost the contributor the sentence and nothing
+// else; refusing them their ticket over it would be the tail wagging the dog.
+test('a count that fails costs the notice, not the ticket (issue #108)', async () => {
+	const startTicketBranch = spy(async () => ({ ref: 'ticket/62281', baseOid: 'abc', ticketId: 62281 }));
+	const countChangesAgainst = spy(async () => { throw new Error('EACCES'); });
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./ticket-branches': {
+				startTicketBranch,
+				countChangesAgainst,
+				listTicketBranches: async () => [],
+				currentBranchName: async () => 'trunk'
+			}
+		}
+	});
+
+	const result = await main.invoke('sites:set-ticket', '/sites/wp', '62281');
+
+	assert.equal(result.ok, true);
+	assert.equal(result.branch, 'ticket/62281');
+	assert.equal(result.carried, 0, 'no number to report, so nothing is claimed');
+});
+
+test('sites:set-ticket carries nothing, and says so, from a clean trunk (issue #108)', async (t) => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-carry-clean-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // trunk\n');
+	await git.add({ fs, dir, filepath: 'wp-login.php' });
+	await git.commit({ fs, dir, message: 'trunk', author: { name: 't', email: 't@e' } });
+
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const result = await main.invokeWith('sites:set-ticket', createIpcEvent(), dir, '62281');
+
+	assert.equal(result.ok, true, result.error);
+	assert.equal(result.carried, 0, 'nothing moved, so the panel must say nothing');
 });
 
 test('sites:set-ticket switches back to a ticket the site already has, without re-branching', async () => {

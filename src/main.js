@@ -44,6 +44,7 @@ const {
 	ticketIdFromRef,
 	currentBranchName,
 	listTicketBranches,
+	countChangesAgainst,
 	startTicketBranch,
 	switchToBranch,
 	deleteTicketBranch
@@ -1682,6 +1683,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref) => withRegistere
 
 	const known = await listTicketBranches(sitePath);
 	let baseOid;
+	let carried = 0;
 	if (known.includes(branchRef)) {
 		const progress = switchProgressReporter(event, sitePath);
 		try {
@@ -1701,6 +1703,24 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref) => withRegistere
 			} finally {
 				progress.flush();
 			}
+		} else {
+			// Counted before the branch exists, and reported back so the panel
+			// can say where the work went. Carrying it is the right behaviour
+			// and stays; carrying it in silence is not — the same gesture is a
+			// refusal when the branch already exists, and a contributor cannot
+			// tell the two apart from what is on screen.
+			//
+			// The scan costs a worktree walk, which is why it is only here: this
+			// is the one path that moves loose work without saying so, and it
+			// runs once per ticket rather than once per switch.
+			const progress = switchProgressReporter(event, sitePath);
+			progress.emit({ stage: 'scan', from: TRUNK, to: branchRef });
+			// Swallowed on purpose: this scan feeds a sentence, and a sentence
+			// that cannot be written is not a reason to refuse someone their
+			// ticket. Losing the notice is a worse day than not having it, but
+			// it is nothing like failing the link.
+			carried = await countChangesAgainst(sitePath).catch(() => 0);
+			progress.emit({ stage: 'done', to: branchRef });
 		}
 		({ baseOid } = await startTicketBranch(sitePath, parsed.id));
 	}
@@ -1711,7 +1731,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref) => withRegistere
 		lastUsedAt: new Date().toISOString()
 	});
 	await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: branchRef });
-	return { ok: true, ticket: parsed.id, branch: branchRef };
+	return { ok: true, ticket: parsed.id, branch: branchRef, carried };
 }));
 
 // The tickets open in a site, for the "Working on:" switcher. Reads the branches

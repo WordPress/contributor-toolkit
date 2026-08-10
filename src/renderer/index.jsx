@@ -1091,6 +1091,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // The ticket a switch was refused for because trunk had loose edits, and
   // where those edits were saved if the contributor chose to keep them.
   const [blockedByTrunkWork, setBlockedByTrunkWork] = useState(null);
+  // How many loose files rode along into a ticket that had no branch yet, so
+  // the panel can say where they went instead of moving them in silence.
+  const [carriedIntoTicket, setCarriedIntoTicket] = useState(null);
   const [patchSavedTo, setPatchSavedTo] = useState('');
   // Patches on the linked ticket (#11): { status, items, cachedAt } or null.
   const [ticketPatches, setTicketPatches] = useState(null);
@@ -1363,6 +1366,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setTicketSaving(true);
     setTicketError('');
     setBlockedByTrunkWork(null);
+    setCarriedIntoTicket(null);
     // The previous switch's last sentence must not be this one's first frame.
     if (onClearSwitchProgress) onClearSwitchProgress(sitePath);
     try {
@@ -1378,6 +1382,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setTracTicket(res.ticket);
       setTicketInput('');
       setPatchSavedTo('');
+      if (res.carried > 0) setCarriedIntoTicket({ ticket: res.ticket, files: res.carried });
       if (metaPatchRef.current) metaPatchRef.current(sitePath, { tracTicket: res.ticket });
       // Both, and awaited: the branch list decides which rows show, and
       // appliedPatch/updateIncomplete are per-branch (#108) — without the
@@ -1987,6 +1992,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // What the switch is doing, while it does it (#173). Gated on the busy flag
   // rather than merely cleared by it: the last sends can land after the invoke
   // has already answered, which would flash a sentence under an idle panel.
+  // Where loose work went, said once and plainly (#108). Linking a ticket that
+  // has no branch here yet carries whatever is uncommitted into it — the right
+  // behaviour, and the one the app used to perform in silence, so the same
+  // gesture read as a refusal on one ticket and as a move on another.
+  const carriedNotice = carriedIntoTicket ? (
+    <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, color: '#1d2327', fontSize: 12 }}>
+      Your {carriedIntoTicket.files} uncommitted {carriedIntoTicket.files === 1 ? 'change' : 'changes'} came along into #{carriedIntoTicket.ticket}, and {carriedIntoTicket.files === 1 ? 'is' : 'are'} part of that ticket now.
+    </div>
+  ) : null;
+
   const switchProgressLine = ticketSaving && switchProgress ? (
     <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 12 }}>
       <Spinner />
@@ -3493,12 +3508,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 style={{ padding: '10px 16px', borderRadius: 10 }}
               >Link ticket</Button>
             </div>
+            {/* Said without asking the worktree, so it costs nothing and holds
+                either way: on a ticket this site has not seen, loose work comes
+                along; on one it has, the switch is refused and the notice above
+                offers the ways out. */}
+            <div style={{ marginTop: 6, fontSize: 12, color: '#6c6f72' }}>
+              Anything you have edited and not yet put on a ticket will come along into the one you link.
+            </div>
           </>
         )}
         {ticketError ? (
           <div role="alert" style={{ marginTop: 8, color: '#d63638', fontSize: 12 }}>{ticketError}</div>
         ) : null}
         {switchProgressLine}
+        {carriedNotice}
         {blockedByTrunkWork ? (
           <div style={{ marginTop: 8, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
             <div>
@@ -4019,6 +4042,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           >Link ticket</Button>
                           {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
                           {switchProgressLine}
+                          {carriedNotice}
                         </>
                       )}
                     </Destination>
