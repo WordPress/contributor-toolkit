@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { isRegisteredSite, describeRefusedSite, deleteRegisteredSite, revealRegisteredSite } = require('../src/site-registry.js');
+const { isRegisteredSite, describeRefusedSite, deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('../src/site-registry.js');
 
 // A couple of paths the app might actually hold in its registry, one per platform
 // shape, so the tests aren't accidentally tied to POSIX separators.
@@ -160,4 +160,57 @@ test('a reveal the OS declines is reported rather than swallowed', async () => {
 	assert.equal(result.ok, false);
 	assert.equal(result.reason, 'open-failed');
 	assert.equal(result.error, 'Failed to open path');
+});
+
+// --- clearRegisteredSiteLog ---
+//
+// The Clear button under the debug.log panel empties build/wp-content/debug.log
+// inside the named site. Less severe than the two above, same shape: the
+// renderer names the path and the app writes at a location derived from it.
+
+function clearRecorder(sites = REGISTERED, result = { ok: true }) {
+	const truncated = [];
+	const refused = [];
+	return {
+		truncated,
+		refused,
+		options: {
+			sites,
+			truncate: async (p) => { truncated.push(p); return result; },
+			onRefused: (description) => { refused.push(description); }
+		}
+	};
+}
+
+test('a registered site has its log truncated', async () => {
+	const rec = clearRecorder();
+
+	assert.deepEqual(await clearRegisteredSiteLog('/Users/dev/sites/my-site', rec.options), { ok: true });
+
+	assert.deepEqual(rec.truncated, ['/Users/dev/sites/my-site']);
+	assert.deepEqual(rec.refused, []);
+});
+
+test('a path the registry does not hold has nothing truncated', async () => {
+	const rec = clearRecorder();
+
+	const result = await clearRegisteredSiteLog('/Users/dev/somewhere-else', rec.options);
+
+	assert.equal(result.ok, false);
+	assert.equal(result.reason, 'unregistered-site');
+	assert.deepEqual(rec.truncated, [], 'a file was emptied in a directory the app never registered');
+	assert.deepEqual(rec.refused, ['/Users/dev/somewhere-else']);
+});
+
+// A read-only or locked file is the case the panel has to report: it has already
+// cleared itself by the time this answers, so a swallowed failure leaves the
+// pane empty and the file full, and the lines reappear on the next start with
+// no explanation.
+test('a truncation the filesystem declines is passed back, not swallowed', async () => {
+	const rec = clearRecorder(REGISTERED, { ok: false, reason: 'truncate-failed', error: 'EACCES' });
+
+	const result = await clearRegisteredSiteLog('/Users/dev/sites/my-site', rec.options);
+
+	assert.equal(result.ok, false);
+	assert.equal(result.error, 'EACCES');
 });

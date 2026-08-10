@@ -37,7 +37,8 @@ const { openPullRequest, buildPullRequestBody, testMode: githubTestMode } = requ
 const { buildPullRequestEntries } = require('./pr-files.cjs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
-const { deleteRegisteredSite, revealRegisteredSite } = require('./site-registry');
+const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
+const { planInitialRead, planTailRead } = require('./log-tail');
 const {
 	TRUNK,
 	ticketBranchRef,
@@ -67,7 +68,7 @@ const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
-const { detectEditors, knownEditorName, isLaunchableEditorPath, openSiteInEditor } = require('./editor-launch');
+const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
 
 const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
@@ -1177,8 +1178,23 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             // A failure during checkout leaves the ref moved over a partial
             // worktree — that is the "code is new, assets are old" state, so
             // persist it; a fetch failure moved nothing and stays plain.
+            //
+            // The applied-patch record needs the narrower question, which is why
+            // it reads worktreeReset rather than the stage: once the forced
+            // checkout has started it has taken the patch off disk, so keeping
+            // the record would offer a revert the app cannot honour (#184). The
+            // stage covers index and ref work that can fail with every file
+            // untouched, and dropping the only copy of the patch text there
+            // would strand a patch that is still applied.
             if (stage === 'checkout') {
-                try { await writeWorkMeta(sitePath, { updateIncomplete: true }); } catch {}
+                const patch = { updateIncomplete: true };
+                if (e && e.worktreeReset) patch.appliedPatch = null;
+                // Through writeWorkMeta, not mergeSiteMeta: both of these are
+                // per-branch under #108, and the site is on trunk here only
+                // because the park succeeded — a failure before it leaves the
+                // ticket checked out, where the site-level record is the wrong
+                // place for either.
+                try { await writeWorkMeta(sitePath, patch); } catch {}
             }
             sendLog(`\nUpdate failed during ${stage}: ${String(e && e.message ? e.message : e)}\n`);
             // The ticket was parked and the site left on trunk before this went
@@ -1359,7 +1375,23 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
 
             const result = await applyPatchToDir({ dir: sitePath, patchText, reverse, onLog: sendLog });
             if (!result.ok) {
-                sendDone({ ok: false, ...result });
+                // Nothing to revert means the record is describing a patch the
+                // checkout no longer has. Keeping it would leave the site stuck:
+                // the revert can never succeed, and the one-patch-at-a-time guard
+                // above would refuse every other patch on its behalf.
+                let recordCleared = false;
+                if (reverse && result.notApplied) {
+                    // Reported rather than assumed: if the store write fails the
+                    // site is still stuck, and telling the contributor it is
+                    // sorted would send them back to a button that still refuses.
+                    try {
+                        await mergeSiteMeta(sitePath, { appliedPatch: null });
+                        recordCleared = true;
+                    } catch (e) {
+                        logError('git:apply-patch', `clearing stale applied-patch record failed: ${String(e && e.stack ? e.stack : e)}`);
+                    }
+                }
+                sendDone({ ok: false, ...result, recordCleared });
                 return;
             }
 
@@ -1825,9 +1857,10 @@ ipcMain.handle('url:open', async (_e, url) => openExternalUrl(url, {
 // --- opening a site's code -----------------------------------------------
 //
 // See editor-launch.js for why none of this consults PATH. What is here is the
-// wiring: the store holds one app-wide editor choice, and every path — detected,
-// picked, or remembered from a previous run — goes through the same check before
-// anything is spawned.
+// wiring, and it holds no state: the application is an argument to "open this
+// folder", not a setting configured beforehand. The window lists what is
+// installed, the contributor names one, and that name is checked against the
+// same detection before anything is spawned.
 
 // Asynchronous on purpose: this runs on the process that draws the window, and
 // probing a dozen locations that mostly do not exist is exactly what a slow
@@ -1856,41 +1889,44 @@ async function statPath(targetPath) {
 
 const editorLaunchDeps = () => ({ platform: process.platform, statPath });
 
-async function getChosenEditor() {
-	const s = await getStore();
-	const chosen = (s.get('preferences') || {}).editor;
-	return chosen && typeof chosen.path === 'string' ? chosen : null;
-}
-
-// The remembered choice, and nothing else. This is what the window asks for on
-// load — just enough to name the button "Open in Cursor" — so it touches no
-// filesystem at all. Whether that editor is still installed is answered by
-// trying to open it, which is a question the contributor has just asked anyway.
-ipcMain.handle('editor:get', async () => getChosenEditor());
+const detectionDeps = () => ({
+	platform: process.platform,
+	env: process.env,
+	exists: async (p) => (await statPath(p)) !== null
+});
 
 // The editors on this machine. Detection stats a dozen or so absolute locations,
-// so it runs when the contributor opens the picker rather than on every load —
-// `editor:get` is the cheap one.
-ipcMain.handle('editor:list', async () => ({
-	detected: await detectEditors({
-		platform: process.platform,
-		env: process.env,
-		exists: async (p) => (await statPath(p)) !== null
-	}),
-	chosen: await getChosenEditor()
-}));
+// so it runs when the contributor opens the menu rather than on every load.
+ipcMain.handle('editor:list', async () => ({ detected: await detectEditors(detectionDeps()) }));
 
-// Remembers an editor. With a path it is the one the contributor picked from the
-// detected list; without one it opens the file dialog, which is the answer for
-// every editor the detection table does not know about — the reason no editor is
-// ever shown as unavailable with nothing to do about it.
+// The application the contributor just named, or null for "one this list does
+// not have" — which opens the file dialog, and is the reason no editor is ever
+// shown as unavailable with nothing to do about it.
 //
-// The dialog's result is validated exactly like a detected path. A dialog is
-// still input.
-ipcMain.handle('editor:choose', async (_e, editorPath) => {
-	let target = typeof editorPath === 'string' ? editorPath : null;
+// A named path is checked against a fresh detection before it is used. Nothing
+// downstream needs that check to be safe — `openSiteInEditor` refuses anything
+// that is not an absolute application of the platform's shape, and the folder
+// must be one the registry holds — but this handler is now the one place where
+// the *window* names an executable, and the window is where injected content
+// ends up. So the answer to "which applications may this app be asked to
+// launch?" stays what it always was: the ones detection found on this machine,
+// plus the one a human picked in a native dialog.
+//
+// Everything after that is unchanged from when the path came out of the store.
+ipcMain.handle('editor:open', async (_e, sitePath, editorPath) => {
+	let target = typeof editorPath === 'string' && editorPath !== '' ? editorPath : null;
 
-	if (!target) {
+	if (target) {
+		const detected = await matchDetectedEditor(target, detectionDeps());
+		if (!detected) {
+			logEvent('editor', `refused to open ${describeRefused(target)} — not an application detection found`);
+			return { ok: false, reason: REFUSAL_REASONS.UNKNOWN_EDITOR };
+		}
+		// The detected path, not the one that arrived: checking one string and
+		// launching another is not a check. See external-url.js, which hands the
+		// OS its parsed URL for the same reason.
+		target = detected.path;
+	} else {
 		const filtersByPlatform = {
 			darwin: [{ name: 'Applications', extensions: ['app'] }],
 			win32: [{ name: 'Programs', extensions: ['exe'] }]
@@ -1899,42 +1935,19 @@ ipcMain.handle('editor:choose', async (_e, editorPath) => {
 		// narrow what can be picked.
 		const filters = filtersByPlatform[process.platform] || [];
 		const result = await dialog.showOpenDialog({
-			title: 'Choose the editor to open sites in',
+			title: 'Choose the application to open this folder in',
 			properties: ['openFile'],
 			defaultPath: process.platform === 'darwin' ? '/Applications' : undefined,
 			filters
 		});
+		// Closing the dialog is an answer, not a failure: the caller says nothing
+		// rather than showing an error for something the contributor just decided.
 		if (result.canceled || result.filePaths.length === 0) return { ok: false, reason: 'cancelled' };
 		target = result.filePaths[0];
 	}
 
-	if (!await isLaunchableEditorPath(target, editorLaunchDeps())) {
-		logEvent('editor', `refused to remember ${describeRefused(target)} — not an application this app can launch`);
-		return { ok: false, reason: 'unlaunchable-editor' };
-	}
-
 	const s = await getStore();
-	const editor = {
-		path: target,
-		// The table's name for a known application; a filename only for one the
-		// contributor pointed at that the table has never heard of.
-		name: knownEditorName(target, { platform: process.platform, env: process.env })
-			|| path.basename(target, path.extname(target))
-	};
-	s.set('preferences', { ...(s.get('preferences') || {}), editor });
-	return { ok: true, editor };
-});
-
-// Only a path the app has on record is opened, and only in an application that
-// is still where it was — see editor-launch.js. A refusal is logged rather than
-// dropped so a caller that trips the guard shows up in the log file instead of
-// just doing nothing.
-ipcMain.handle('editor:open', async (_e, sitePath) => {
-	const chosen = await getChosenEditor();
-	if (!chosen) return { ok: false, reason: 'no-editor' };
-
-	const s = await getStore();
-	return openSiteInEditor(sitePath, chosen.path, {
+	return openSiteInEditor(sitePath, target, {
 		...editorLaunchDeps(),
 		sites: s.get('sites'),
 		spawn,
@@ -1944,9 +1957,9 @@ ipcMain.handle('editor:open', async (_e, sitePath) => {
 
 // --- Who the patch came from, and where (#166) ---
 //
-// Both fields are stored beside the editor choice and for the same reason: they
-// are facts about the contributor and their afternoon, asked once, not
-// properties of a checkout. They exist so a handed-off patch can say who wrote
+// Both fields are asked once and kept, because they are facts about the
+// contributor and their afternoon rather than properties of a checkout — unlike
+// the application a folder is opened in, which is now named per open. They exist so a handed-off patch can say who wrote
 // it and at which event; nothing here contacts wordpress.org, and the handle is
 // never checked against a real account — an unverified name is what a props
 // line is anyway.
@@ -2507,39 +2520,68 @@ ipcMain.handle('smtp:stop', async (_e, sitePath) => {
 });
 
 // --- WordPress debug.log tailing ---
+
+// Written into the stream between the backlog replayed on attach and the lines
+// this run produces. Distinguishable from a WordPress entry, which always opens
+// with a bracketed timestamp.
+const WP_DEBUG_SESSION_MARKER = '—— tail attached; everything above is from an earlier run ——';
+
+// Where WordPress writes it, for the three things that need to agree on it: the
+// tail, the Clear button and Show in folder. Composed here rather than in the
+// renderer, which would have to concatenate with '/' and be wrong on Windows.
+//
+// Under `build/`, not `src/`, because `build/` is what Playground serves — the
+// asymmetry worth naming, since a contributor editing src/wp-content/themes/…
+// will look for their log next to the file they just edited.
+function wpDebugLogPath(sitePath) {
+	return path.join(sitePath, 'build', 'wp-content', 'debug.log');
+}
+
 function startWpDebugTail(sitePath, webContents) {
 	if (wpDebugWatchers[sitePath]?.fileWatcher || wpDebugWatchers[sitePath]?.dirWatcher) {
 		return true;
 	}
-	const wpContentDir = path.join(sitePath, 'build', 'wp-content');
-	const filePath = path.join(wpContentDir, 'debug.log');
+	const filePath = wpDebugLogPath(sitePath);
+	const wpContentDir = path.dirname(filePath);
 	wpDebugWatchers[sitePath] = { filePath, lastSize: 0 };
 	const state = wpDebugWatchers[sitePath];
+
+	function send(data) {
+		webContents.send('wp:debug-log:data', { sitePath, data });
+	}
 
 	function attachFileWatcher() {
 		try {
 			const stat = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
 			if (!stat) return false;
-			// Send initial tail (cap to last 256KB)
-			const maxInitial = 256 * 1024;
-			const start = stat.size > maxInitial ? stat.size - maxInitial : 0;
-			state.lastSize = stat.size;
-			if (stat.size > 0) {
-				const rs = fs.createReadStream(filePath, { start });
-				rs.on('data', (chunk) => {
-					webContents.send('wp:debug-log:data', { sitePath, data: chunk.toString() });
-				});
+			const initial = planInitialRead(stat.size);
+			state.lastSize = initial.lastSize;
+			if (initial.read) {
+				const rs = fs.createReadStream(filePath, initial.read);
+				rs.on('data', (chunk) => send(chunk.toString()));
+				// The file outlives the dev server, so what was just replayed is
+				// whatever previous runs left behind — with WordPress's own
+				// timestamps on it, which is exactly what makes it read as
+				// something that happened just now. The marker is the app saying
+				// where the backlog ends.
+				rs.on('end', () => send(`${WP_DEBUG_SESSION_MARKER}\n`));
 			}
 			state.fileWatcher = fs.watch(filePath, (evt) => {
+				// 'rename' is the file being replaced or removed under the
+				// watcher, which stays bound to the old inode and would never
+				// fire again. Re-attaching is what keeps the panel alive across a
+				// `grunt clean` or a manual delete.
+				if (evt === 'rename') { reattachAfterLoss(); return; }
 				if (evt !== 'change') return;
 				try {
-					const s = fs.statSync(filePath);
-					if (s.size > state.lastSize) {
-						const rs2 = fs.createReadStream(filePath, { start: state.lastSize });
-						rs2.on('data', (chunk) => {
-							webContents.send('wp:debug-log:data', { sitePath, data: chunk.toString() });
-						});
-						state.lastSize = s.size;
+					// Including the case the panel's Clear button creates: a file
+					// that shrank has to be re-read from the start, not from the
+					// old offset. See log-tail.js.
+					const next = planTailRead(state.lastSize, fs.statSync(filePath).size);
+					state.lastSize = next.lastSize;
+					if (next.read) {
+						const rs2 = fs.createReadStream(filePath, next.read);
+						rs2.on('data', (chunk) => send(chunk.toString()));
 					}
 				} catch {}
 			});
@@ -2549,8 +2591,11 @@ function startWpDebugTail(sitePath, webContents) {
 		}
 	}
 
-	// Watch directory for creation if the file doesn't exist yet
-	if (!attachFileWatcher()) {
+	// Watch the directory for the file appearing. Used both before it exists at
+	// all — the common case, since nothing writes it until WordPress logs
+	// something — and again if it is later removed.
+	function watchForFile() {
+		if (attachFileWatcher()) return;
 		try {
 			state.dirWatcher = fs.watch(wpContentDir, () => {
 				if (attachFileWatcher() && state.dirWatcher) {
@@ -2560,6 +2605,15 @@ function startWpDebugTail(sitePath, webContents) {
 			});
 		} catch {}
 	}
+
+	function reattachAfterLoss() {
+		try { state.fileWatcher?.close(); } catch {}
+		state.fileWatcher = undefined;
+		state.lastSize = 0;
+		watchForFile();
+	}
+
+	watchForFile();
 	return true;
 }
 
@@ -2571,12 +2625,72 @@ function stopWpDebugTail(sitePath) {
 	delete wpDebugWatchers[sitePath];
 }
 
+// Returns the path as well as starting the tail. The panel shows it, because a
+// contributor who wants to `tail -f` it in a terminal, open it in an editor or
+// attach it to a ticket cannot guess it: the log is under `build/`, while the
+// file they were editing when it appeared is under `src/`.
 ipcMain.handle('wp-debug:start', async (event, sitePath) => {
 	startWpDebugTail(sitePath, event.sender);
-	return true;
+	return { ok: true, filePath: wpDebugLogPath(sitePath) };
 });
 
 ipcMain.handle('wp-debug:stop', async (_event, sitePath) => {
 	stopWpDebugTail(sitePath);
 	return true;
+});
+
+// Clearing the panel alone would be a promise the app cannot keep: the file
+// outlives the dev server, and the tail replays it the next time it attaches, so
+// the same lines come straight back. This empties the file the panel is showing.
+ipcMain.handle('wp-debug:clear', async (_event, sitePath) => {
+	const s = await getStore();
+	return clearRegisteredSiteLog(sitePath, {
+		sites: s.get('sites'),
+		truncate: async (target) => {
+			const filePath = wpDebugLogPath(target);
+			try {
+				// Truncated rather than unlinked: WordPress opens the file per
+				// write, but the app's own fs.watch is bound to the inode, and
+				// removing it would leave the watcher listening to a file nothing
+				// writes to again. The watcher's own truncation branch handles
+				// this too — this keeps the two in step without waiting for it.
+				await fs.promises.truncate(filePath, 0);
+				const state = wpDebugWatchers[target];
+				if (state) state.lastSize = 0;
+				return { ok: true };
+			} catch (e) {
+				// Nothing has been logged yet, so there is nothing to clear and
+				// nothing went wrong.
+				if (e && e.code === 'ENOENT') return { ok: true };
+				logError('wp-debug', `could not clear the debug log: ${String(e && e.message ? e.message : e)}`);
+				return { ok: false, reason: 'truncate-failed', error: String(e && e.message ? e.message : e) };
+			}
+		},
+		onRefused: (description) => logEvent('sites', `refused to clear the debug log for ${description} — not a registered site`)
+	});
+});
+
+// Shows the log file in Finder/Explorer. Same boundary and same helper as
+// `dir:show` — this reveals a file inside the site rather than the site itself,
+// which is the only difference, so the gate is reused rather than reimplemented.
+ipcMain.handle('wp-debug:reveal', async (_event, sitePath) => {
+	const s = await getStore();
+	return revealRegisteredSite(sitePath, {
+		sites: s.get('sites'),
+		// Resolves to electron's convention: '' for success, a message otherwise.
+		// The existence check is the message that matters — showItemInFolder does
+		// nothing at all for a path that is not there, which from the contributor's
+		// chair is a button that did nothing.
+		reveal: async (target) => {
+			const filePath = wpDebugLogPath(target);
+			try {
+				await fs.promises.access(filePath);
+			} catch {
+				return 'WordPress has not written a debug.log for this site yet.';
+			}
+			shell.showItemInFolder(filePath);
+			return '';
+		},
+		onRefused: (description) => logEvent('sites', `refused to reveal the debug log for ${description} — not a registered site`)
+	});
 });

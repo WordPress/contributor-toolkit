@@ -28,6 +28,8 @@ const assert = require('node:assert/strict');
 const Module = require('node:module');
 const path = require('node:path');
 
+const { WP_DEBUG_CONSTANTS } = require('../src/wp-debug-constants');
+
 const SRC_DIR = path.join(__dirname, '..', 'src');
 const SERVER_RUNNER = path.join(SRC_DIR, 'server-runner.js');
 const WEB_RUNNER = path.join(SRC_DIR, 'playground-web-runner.js');
@@ -58,7 +60,7 @@ function realPackageLoaded() {
 }
 
 // Loads a runner with its side-effecting dependencies replaced, and returns the
-// ordered log of what it called and loaded.
+// ordered log of what it called and loaded, plus the options it handed runCLI.
 //
 // hideChildWindows/bindLoopbackOnly are recorded when the runner *calls* them;
 // the Playground CLI is recorded when the runner *requires* it. Comparing their
@@ -71,7 +73,10 @@ function realPackageLoaded() {
 // already recorded by the time require(runnerPath) returns.
 function loadRunner(runnerPath, extraArgv) {
 	const events = [];
-	const cliStub = { runCLI: () => new Promise(() => {}) };
+	// runCLI is called synchronously, before the `await` main() parks at, so its
+	// argument is already recorded by the time require(runnerPath) returns.
+	const cliCalls = [];
+	const cliStub = { runCLI: (options) => { cliCalls.push(options); return new Promise(() => {}); } };
 	const phpWasmStub = { writeFiles: async () => {} };
 	const hideStub = { hideChildWindows: () => { events.push('call:hideChildWindows'); } };
 	const bindStub = { bindLoopbackOnly: () => { events.push('call:bindLoopbackOnly'); } };
@@ -105,7 +110,7 @@ function loadRunner(runnerPath, extraArgv) {
 		clearSrcCache();
 	}
 
-	return events;
+	return { events, cliOptions: cliCalls[0] };
 }
 
 // The shared assertion: both patches were called, the CLI was loaded, and both
@@ -129,13 +134,44 @@ function assertPatchesPrecedeCli(events, runner) {
 }
 
 test('server-runner patches loopback and hides child windows before loading the Playground CLI', () => {
-	const events = loadRunner(SERVER_RUNNER, ['/tmp/does-not-need-to-exist']);
+	const { events } = loadRunner(SERVER_RUNNER, ['/tmp/does-not-need-to-exist']);
 	assertPatchesPrecedeCli(events, 'server-runner');
 	assert.equal(realPackageLoaded(), false, 'server-runner loaded a real electron/Playground package instead of the stub');
 });
 
 test('playground-web-runner patches loopback and hides child windows before loading the Playground CLI', () => {
-	const events = loadRunner(WEB_RUNNER, ['/tmp/does-not-need-to-exist']);
+	const { events } = loadRunner(WEB_RUNNER, ['/tmp/does-not-need-to-exist']);
 	assertPatchesPrecedeCli(events, 'playground-web-runner');
 	assert.equal(realPackageLoaded(), false, 'playground-web-runner loaded a real electron/Playground package instead of the stub');
+});
+
+// The blueprint's `constants` step is the only place these can be set: Playground
+// generates the wp-config.php itself, and a constant has to be defined before
+// WordPress loads to have any effect.
+//
+// test/wp-debug-constants.test.cjs asserts the values. This asserts the wiring,
+// which is where the bug actually lived — the app tailed build/wp-content/debug.log
+// for a file WordPress was never told to write, and the module exporting the
+// right constants would not have caught that on its own.
+test('server-runner passes the WordPress debug constants to Playground', () => {
+	const { cliOptions } = loadRunner(SERVER_RUNNER, ['/tmp/does-not-need-to-exist']);
+
+	assert.ok(cliOptions, 'runCLI was never called');
+	const constants = cliOptions.blueprint && cliOptions.blueprint.constants;
+	assert.ok(constants, 'the blueprint carries no constants at all');
+
+	for (const [name, value] of Object.entries(WP_DEBUG_CONSTANTS)) {
+		assert.strictEqual(constants[name], value, `${name} did not reach the blueprint`);
+	}
+});
+
+// Spreading the debug constants in ahead of the mail ones must not have taken
+// the mail ones out: this is how a site's outgoing mail reaches the app's SMTP
+// catcher, and losing it is silent — mail simply stops arriving.
+test('the SMTP constants survive alongside them', () => {
+	const { cliOptions } = loadRunner(SERVER_RUNNER, ['/tmp/does-not-need-to-exist']);
+	const constants = cliOptions.blueprint.constants;
+
+	assert.strictEqual(constants.WP_MAIL_SMTP_HOST, '127.0.0.1');
+	assert.strictEqual(typeof constants.WP_MAIL_SMTP_PORT, 'number');
 });
