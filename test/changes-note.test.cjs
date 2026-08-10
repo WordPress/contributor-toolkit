@@ -1,0 +1,110 @@
+// The changes note's sentence and placement, and the discard guards. All the
+// branching lives in changes-note.cjs so this suite can reach it without a
+// DOM; index.jsx only interleaves the parts with its two link buttons.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const {
+	changesNoteParts,
+	discardOutcome,
+	modalDiscardDisabled,
+	discardBlocked,
+	DISCARD_CONFIRM_MESSAGE
+} = require('../src/renderer/changes-note.cjs');
+
+test('changesNoteParts says nothing about a clean tree', () => {
+	assert.equal(changesNoteParts({ dirty: false, changedCount: 0, tracTicket: null }), null);
+	assert.equal(changesNoteParts({ dirty: false, changedCount: 3, tracTicket: '12345' }), null);
+	assert.equal(changesNoteParts({}), null);
+	assert.equal(changesNoteParts(), null);
+});
+
+test('changesNoteParts places an unticketed note by the buttons', () => {
+	const parts = changesNoteParts({ dirty: true, changedCount: 3, tracTicket: null });
+	assert.equal(parts.placement, 'buttons');
+	assert.equal(parts.lead, 'You have 3 changes not assigned to any ticket. You can ');
+});
+
+test('changesNoteParts places a ticketed note in the ticket card and names the ticket', () => {
+	const parts = changesNoteParts({ dirty: true, changedCount: 3, tracTicket: '12345' });
+	assert.equal(parts.placement, 'ticket');
+	assert.equal(parts.lead, 'You have 3 unsubmitted changes for ticket #12345. You can ');
+});
+
+test('changesNoteParts uses the singular for one change', () => {
+	assert.equal(
+		changesNoteParts({ dirty: true, changedCount: 1, tracTicket: null }).lead,
+		'You have 1 change not assigned to any ticket. You can '
+	);
+	assert.equal(
+		changesNoteParts({ dirty: true, changedCount: 1, tracTicket: '12345' }).lead,
+		'You have 1 unsubmitted change for ticket #12345. You can '
+	);
+});
+
+test('changesNoteParts stays true when the count is missing', () => {
+	// A dirty answer can arrive without a usable count; "changes" is still
+	// accurate where "0 changes" would be a lie next to a discard link.
+	for (const changedCount of [undefined, 0, -1, 2.5]) {
+		assert.equal(
+			changesNoteParts({ dirty: true, changedCount, tracTicket: null }).lead,
+			'You have changes not assigned to any ticket. You can '
+		);
+	}
+	assert.equal(
+		changesNoteParts({ dirty: true, tracTicket: '12345' }).lead,
+		'You have unsubmitted changes for ticket #12345. You can '
+	);
+});
+
+test('changesNoteParts always offers the same two actions', () => {
+	const parts = changesNoteParts({ dirty: true, changedCount: 2, tracTicket: null });
+	assert.equal(parts.patchLabel, 'create and save a patch');
+	assert.equal(parts.middle, ' or ');
+	assert.equal(parts.discardLabel, 'discard your changes');
+	assert.equal(parts.end, '.');
+});
+
+test('the confirm message matches the dirty-update modal byte for byte', () => {
+	// index.jsx used this literal before the note existed; one action, one
+	// wording, wherever it is triggered from.
+	assert.equal(DISCARD_CONFIRM_MESSAGE, 'Discard all local changes? This cannot be undone.');
+});
+
+test('discardOutcome passes a success through', () => {
+	assert.deepEqual(discardOutcome({ ok: true }), { ok: true });
+});
+
+test('discardOutcome always carries a message on failure', () => {
+	assert.deepEqual(discardOutcome({ ok: false, error: 'EACCES' }), {
+		ok: false,
+		message: 'Failed to discard changes: EACCES'
+	});
+	assert.deepEqual(discardOutcome({ ok: false }), {
+		ok: false,
+		message: 'Failed to discard changes: Unknown error'
+	});
+	assert.deepEqual(discardOutcome(null), {
+		ok: false,
+		message: 'Failed to discard changes: Unknown error'
+	});
+});
+
+test('modalDiscardDisabled frees the link only for a loaded diff with changes', () => {
+	assert.equal(modalDiscardDisabled({ patchLoading: false, patchHasChanges: true, discarding: false }), false);
+	assert.equal(modalDiscardDisabled({ patchLoading: true, patchHasChanges: true, discarding: false }), true);
+	assert.equal(modalDiscardDisabled({ patchLoading: false, patchHasChanges: false, discarding: false }), true);
+	assert.equal(modalDiscardDisabled({ patchLoading: false, patchHasChanges: true, discarding: true }), true);
+	assert.equal(modalDiscardDisabled({}), true);
+	assert.equal(modalDiscardDisabled(), true);
+});
+
+test('discardBlocked holds the discard while anything is rewriting the tree', () => {
+	// The same states that block starting a trunk update: a force checkout
+	// under a running install, build or dev server corrupts both.
+	assert.equal(discardBlocked({}), false);
+	assert.equal(discardBlocked(), false);
+	for (const flag of ['isUpdating', 'installing', 'building', 'devServerActive', 'discarding']) {
+		assert.equal(discardBlocked({ [flag]: true }), true, flag);
+	}
+});
