@@ -126,6 +126,12 @@ async function discardChanges(dir) {
  * plain failure) or 'checkout' (HEAD moved over a partial tree — the caller
  * must persist the incomplete state).
  *
+ * A thrown error also carries `error.worktreeReset`, true only once the forced
+ * checkout has actually begun. `stage` is deliberately coarser: it covers the
+ * index and ref work that precedes the checkout, and a caller that treats it as
+ * "the working tree was reset" would discard state — an applied patch's record
+ * — over a failure that touched no file.
+ *
  * Shallow-clone safe: a depth-1 re-fetch negotiates a new shallow tip, and
  * the forced checkout resets tracked files while untracked ones survive.
  *
@@ -137,6 +143,7 @@ async function discardChanges(dir) {
 async function updateToLatestTrunk({ dir, url, onLog = () => {} }) {
 	await ensureAutocrlf(dir);
 	let stage = 'fetch';
+	let worktreeReset = false;
 	try {
 		const oldOid = await git.resolveRef({ fs, dir, ref: 'HEAD' });
 		onLog('Fetching latest trunk…\n');
@@ -174,6 +181,11 @@ async function updateToLatestTrunk({ dir, url, onLog = () => {} }) {
 		}
 		onLog(`\nResetting to latest trunk (${newOid.slice(0, 7)})…\n`);
 		await git.writeRef({ fs, dir, ref: 'refs/heads/trunk', value: newOid, force: true });
+		// Everything above this line can fail with the working tree untouched —
+		// statusMatrix walks a 5k-file checkout and writeRef only moves a ref.
+		// From here on, files are being overwritten, so anything the tree used to
+		// hold (an applied patch) has to be assumed gone even if the call throws.
+		worktreeReset = true;
 		await git.checkout({
 			fs, dir, ref: 'trunk', force: true,
 			onProgress: (evt) => onLog(`${evt.phase || 'checkout'} ${evt.loaded || 0}/${evt.total || 0}\r`)
@@ -183,7 +195,10 @@ async function updateToLatestTrunk({ dir, url, onLog = () => {} }) {
 		onLog(`\nNow on trunk as of ${trunkDate}.\n`);
 		return { upToDate: false, oldOid, newOid, lockfileChanged, trunkDate };
 	} catch (e) {
-		if (e && typeof e === 'object') e.stage = stage;
+		if (e && typeof e === 'object') {
+			e.stage = stage;
+			e.worktreeReset = worktreeReset;
+		}
 		throw e;
 	}
 }

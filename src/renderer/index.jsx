@@ -23,7 +23,9 @@ import 'xterm/css/xterm.css';
 import { computeSetupStepState } from './setup-steps.cjs';
 import { shouldShowTerminalHints, computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
+import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
+import { noticeForOpenResult } from './open-failure.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
@@ -32,6 +34,8 @@ import { highlightDiff } from './diff-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
+// Shared by both log panes so the tabs cannot drift apart visually.
+const LOG_PANE_STYLE = { whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 12, borderRadius: 6, height: 220, overflow: 'auto' };
 // What the Copy button says about the press just made. Keyed rather than
 // nested ternaries, so a fourth state is a line here instead of another branch
 // in the middle of the JSX.
@@ -1010,6 +1014,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [installing, setInstalling] = useState(false);
   const [npmLogs, setNpmLogs] = useState('');
   const [runtimeLogs, setRuntimeLogs] = useState('');
+  // WordPress's own debug.log, kept apart from the server's output: one is what
+  // Playground is doing, the other is what the contributor's code is doing, and
+  // interleaving them buries the second in the first.
+  const [debugLogs, setDebugLogs] = useState('');
+  const [debugUnread, setDebugUnread] = useState(0);
+  // Kept after the dev server stops: the file is still there, and so is the
+  // reason someone wants the path.
+  const [debugLogPath, setDebugLogPath] = useState('');
+  const [activeLogTab, setActiveLogTab] = useState('runtime');
+  const activeLogTabRef = useRef('runtime');
+  // '' | 'copied' | 'failed', on the debug.log Copy button for two seconds.
+  const [debugCopied, setDebugCopied] = useState('');
+  const debugCopyTimer = useRef(null);
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [patchText, setPatchText] = useState('');
   const [patchLoading, setPatchLoading] = useState(false);
@@ -1047,6 +1064,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [smtpPort, setSmtpPort] = useState(0);
   const newEmailUnsubRef = useRef(null);
   const smtpStartedUnsubRef = useRef(null);
+  const wpDebugUnsubRef = useRef(null);
   const [isEmailOpen, setIsEmailOpen] = useState(false);
   const [activeEmail, setActiveEmail] = useState(null);
   const [, setEmailViewTab] = useState('rendered');
@@ -1082,6 +1100,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // chain starts, and the step list still has to know whether install runs.
   const [applyNeedsInstall, setApplyNeedsInstall] = useState(false);
   const [applyError, setApplyError] = useState('');
+  // Not every unhappy ending is a failure: a revert can find that the patch is
+  // already gone, which resolves the situation rather than blocking it. Red
+  // would read as "you broke something" when nothing is left to do.
+  const [applyNotice, setApplyNotice] = useState('');
   const [appliedPatch, setAppliedPatch] = useState(null);
   const [prUrlInput, setPrUrlInput] = useState('');
   const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
@@ -1098,9 +1120,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // sticky refs per log
   const npmRef = useRef(null);
   const runtimeRef = useRef(null);
+  const debugRef = useRef(null);
   const currentRunIdRef = useRef(null);
   const threshold = 8;
-  const [logStick, setLogStick] = useState({ npm: true, runtime: true });
+  const [logStick, setLogStick] = useState({ npm: true, runtime: true, debug: true });
   const updateStick = useCallback((key, value) => {
     setLogStick((prev) => (prev[key] === value ? prev : { ...prev, [key]: value }));
   }, []);
@@ -1108,7 +1131,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setLogStick((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
   }, []);
   useEffect(() => { if (logStick.npm && npmRef.current) npmRef.current.scrollTop = npmRef.current.scrollHeight; }, [npmLogs, logStick.npm]);
-  useEffect(() => { if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight; }, [runtimeLogs, logStick.runtime]);
+  // Both log effects watch `activeLogTab` because TabPanel renders only the
+  // selected tab: the pane is a fresh element every time it is switched back to,
+  // scrolled to the top, and the arriving-text dependency alone would not fire
+  // to put it back at the bottom. The guard is not just for the dependency — the
+  // other tab's element is unmounted, so there is nothing to scroll.
+  useEffect(() => {
+    if (activeLogTab !== 'runtime') return;
+    if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight;
+  }, [runtimeLogs, logStick.runtime, activeLogTab]);
+  useEffect(() => {
+    if (activeLogTab !== 'debug') return;
+    if (logStick.debug && debugRef.current) debugRef.current.scrollTop = debugRef.current.scrollHeight;
+  }, [debugLogs, logStick.debug, activeLogTab]);
   const makeOnScroll = useCallback((key) => (e) => {
     const el = e.currentTarget;
     const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
@@ -1207,36 +1242,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // entry is ever drawn disabled: an application this app cannot find is not one
   // it refuses to use, and the copy button above is the floor under all of it.
   const { detected: detectedEditors, loading: detectingEditors, loadDetected } = editor;
-  const [editorNotice, setEditorNotice] = useState('');
+  // `{ message, offerPicker }` from open-failure.cjs, or null for nothing to
+  // say. Both what it reads and whether "Choose application…" is a way out of
+  // it are decided there, per reason — the two callers below deciding that
+  // separately is what #180 was.
+  const [editorNotice, setEditorNotice] = useState(null);
 
   const fileManagerLabel = FILE_MANAGER_LABELS[window.api?.platform] || 'Show in file manager';
   const fileManagerName = FILE_MANAGER_NAMES[window.api?.platform] || 'File manager';
-
-  // `picked` says which of the two failures 'unlaunchable-editor' is: an
-  // application detection offered that has since moved, or one the contributor
-  // just pointed at that is not an application at all. Main cannot tell them
-  // apart — the guard is the same — but the caller knows which it asked for, and
-  // the two need different next steps.
-  const describeOpenFailure = useCallback((result, { picked = false } = {}) => {
-    if (result?.reason === 'unlaunchable-editor') {
-      return picked
-        ? 'That is not an application this app can open a folder in.'
-        : 'That application is no longer where it was. Choose another.';
-    }
-    if (result?.reason === 'unknown-editor') {
-      return 'That application is no longer where it was. Choose another.';
-    }
-    if (result?.reason === 'spawn-failed') {
-      return `The application would not start: ${result.error || 'unknown error'}`;
-    }
-    if (result?.reason === 'unregistered-site') {
-      return 'This app has no record of that folder, so it will not open it.';
-    }
-    if (result?.reason === 'unavailable') {
-      return `Could not reach the app's main process: ${result.error || 'unknown error'}`;
-    }
-    return 'Could not open the folder in an application.';
-  }, []);
 
   // `editorPath` is one of the detected applications; null asks the main process
   // for the file dialog instead.
@@ -1254,19 +1267,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       console.error('Could not open the site directory:', err);
       result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
-    // Closing the dialog is an answer, not a failure — saying something about it
-    // would be the app arguing with a decision the contributor just made.
-    if (result?.ok || result?.reason === 'cancelled') {
-      setEditorNotice('');
-      return;
-    }
-    setEditorNotice(describeOpenFailure(result, { picked: editorPath === null }));
+    const notice = noticeForOpenResult(result, { picked: editorPath === null });
+    setEditorNotice(notice);
     // An application that was detected and then failed is one detection should be
     // asked about again, so the next menu does not offer it as if nothing had
     // happened.
-    if (editorPath !== null) await loadDetected();
-  }, [describeOpenFailure, loadDetected, sitePath]);
+    if (notice && editorPath !== null) await loadDetected();
+  }, [loadDetected, sitePath]);
 
+  // Through the same function as `openIn` above, deliberately: this used to
+  // build its own sentence out of `error` alone, so a refusal — which carries a
+  // `reason` and no `error` — came out as the words "unknown error" (#180).
   const showInFileManager = useCallback(async () => {
     let result;
     try {
@@ -1274,13 +1285,76 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } catch (err) {
       // eslint-disable-next-line no-console -- see the note on the first console.error above.
       console.error('Could not reveal the site folder:', err);
-      result = { ok: false, error: String(err?.message ?? err) };
+      result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
-    setEditorNotice(result?.ok ? '' : `Could not open the folder: ${result?.error || 'unknown error'}`);
+    setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
 
   const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
   const appendRuntime = useCallback((s)=>setRuntimeLogs((v)=>v + String(s ?? '')),[]);
+  const appendDebug = useCallback((s) => {
+    const chunk = String(s ?? '');
+    if (!chunk) return;
+    setDebugLogs((v) => appendBounded(v, chunk));
+    // Counted only while the tab is not the one being read. Selecting it zeroes
+    // the badge, so incrementing there would flicker it straight back on.
+    if (activeLogTabRef.current !== 'debug') setDebugUnread((n) => n + countLines(chunk));
+  }, []);
+  const selectLogTab = useCallback((name) => {
+    activeLogTabRef.current = name;
+    setActiveLogTab(name);
+    if (name === 'debug') setDebugUnread(0);
+  }, []);
+  // The count is on the tab rather than beside it because the tab is what the
+  // contributor is not looking at: a notice landing while they read the server
+  // output is the case this panel exists for.
+  const logTabs = useMemo(() => ([
+    { name: 'runtime', title: 'Server' },
+    { name: 'debug', title: debugUnread ? `debug.log (${debugUnread})` : 'debug.log' }
+  ]), [debugUnread]);
+  const clearDebugLog = useCallback(async () => {
+    setDebugLogs('');
+    setDebugUnread(0);
+    // The file has to go with the pane. Clearing only the pane looks like it
+    // worked and then hands the same lines back on the next dev-server start,
+    // because the tail replays whatever is on disk when it attaches.
+    let cleared;
+    try {
+      cleared = await window.api.clearWpDebug(sitePath);
+    } catch (e) {
+      cleared = { ok: false, error: e && e.message ? e.message : String(e) };
+    }
+    if (!cleared?.ok) appendDebug(`Could not clear ${pathBasename(sitePath)}'s debug.log: ${cleared?.error || cleared?.reason || 'unknown error'}. The panel was cleared; the file was not.\n`);
+  }, [appendDebug, sitePath]);
+  // Same shape as copyPatch below, and for the same reason: a clipboard write
+  // has no visible result, so the button has to report one. This log goes
+  // straight into a Trac ticket or a pull request comment.
+  const copyDebugLog = useCallback(async () => {
+    if (debugCopyTimer.current) clearTimeout(debugCopyTimer.current);
+    let state = 'copied';
+    try {
+      await navigator.clipboard.writeText(debugLogs);
+    } catch {
+      state = 'failed';
+    }
+    setDebugCopied(state);
+    debugCopyTimer.current = setTimeout(() => setDebugCopied(''), 2000);
+  }, [debugLogs]);
+  useEffect(() => () => { if (debugCopyTimer.current) clearTimeout(debugCopyTimer.current); }, []);
+  // Switching to another site unmounts this panel without going through
+  // stopDevServer, so the listener has to come off here too.
+  useEffect(() => () => { try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {} }, []);
+  const revealDebugLog = useCallback(async () => {
+    let revealed;
+    try {
+      revealed = await window.api.revealWpDebug(sitePath);
+    } catch (e) {
+      revealed = { ok: false, error: e && e.message ? e.message : String(e) };
+    }
+    // Nothing on screen moves when a file manager opens behind the app, so a
+    // refusal that says nothing is a button that did nothing.
+    if (!revealed?.ok) appendDebug(`Could not show the log file: ${revealed?.error || revealed?.reason || 'unknown error'}\n`);
+  }, [appendDebug, sitePath]);
   const sortEmails = useCallback((list)=>[...list].sort((a,b)=>new Date(b.sentAt||b.date||0)-new Date(a.sentAt||a.date||0)),[]);
   const openEmail = useCallback((m)=>{ setActiveEmail(m); setEmailViewTab('rendered'); setIsEmailOpen(true); },[]);
   const clearEmails = useCallback(async ()=>{ await window.api.clearEmails(sitePath); setEmails([]); }, [sitePath]);
@@ -1697,6 +1771,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setStarting(false);
     try { await window.api.stopServer(sitePath); } catch {}
     try { window.api.stopWpDebug(sitePath); } catch {}
+    // stopWpDebug only tears down the watcher in the main process. The renderer
+    // keeps its own 'wp:debug-log:data' listener until this runs, and a second
+    // start would add another one on top of it — every line then appended once
+    // per dev-server run the session has had.
+    try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {}
     try { if (newEmailUnsubRef.current) { newEmailUnsubRef.current(); newEmailUnsubRef.current = null; } } catch {}
     try { if (smtpStartedUnsubRef.current) { smtpStartedUnsubRef.current(); smtpStartedUnsubRef.current = null; } } catch {}
     setRunning(false);
@@ -1767,9 +1846,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       runningRef.current = false;
       return;
     }
-    window.api.startWpDebug(sitePath,(d)=>appendRuntime(d || ''));
+    // Reset before subscribing: the tail replays the tail of the file when it
+    // attaches (up to 256KB, startWpDebugTail in main.js), so a restart would
+    // otherwise show the previous session's log a second time below itself.
+    // Stopping the server does not clear the pane — after a crash that log is
+    // the thing to read — but starting a new run does.
+    setDebugLogs('');
+    setDebugUnread(0);
+    try {
+      if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; }
+      const tail = await window.api.startWpDebug(sitePath,(d)=>appendDebug(d || ''));
+      wpDebugUnsubRef.current = tail?.unsubscribe || null;
+      if (tail?.filePath) setDebugLogPath(tail.filePath);
+    } catch {}
     try { const { port, emails: fetchedEmails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(fetchedEmails||[]); } catch {}
-  }, [appendRuntime, ensureStick, killCurrent, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
+  }, [appendDebug, appendRuntime, ensureStick, killCurrent, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
 
   const toggleDevServer = async ()=>{
     if (!running) {
@@ -2002,6 +2093,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // checkout — the contributor decides after seeing the file list.
   const choosePatchFile = async () => {
     setApplyError('');
+    setApplyNotice('');
     try {
       const chosen = await window.api.choosePatchFile();
       if (!chosen) return;
@@ -2077,6 +2169,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // so applying a PR and applying a downloaded patch are one path from here on.
   const previewPr = async (pr) => {
     setApplyError('');
+    setApplyNotice('');
     setFetchingPr(pr.number);
     try {
       const diff = await window.api.fetchPrDiff(pr.number);
@@ -2121,6 +2214,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // to the same preview the PR and file paths use.
   const previewAttachment = async (att) => {
     setApplyError('');
+    setApplyNotice('');
     setFetchingAttachment(att.url);
     try {
       const res = await window.api.fetchTracAttachment(att.url);
@@ -2145,7 +2239,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // linked to the ticket — same fetch → preview flow as the linked-PR list.
   const previewPrFromInput = () => {
     const parsed = parsePrRef(prUrlInput);
-    if (!parsed.ok) { setApplyError(parsed.error); return; }
+    if (!parsed.ok) { setApplyError(parsed.error); setApplyNotice(''); return; }
     setPrUrlInput('');
     previewPr({ number: parsed.number, url: `https://github.com/WordPress/wordpress-develop/pull/${parsed.number}` });
   };
@@ -2161,6 +2255,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ? Boolean(appliedPatch?.files?.includes('package-lock.json'))
       : Boolean(preview.needsInstall);
     setApplyError('');
+    setApplyNotice('');
     setApplyNeedsInstall(needsInstall);
     setApplyState('applying');
     markTerminalRunning(true);
@@ -2173,6 +2268,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ({ data }) => writeToTerminal(data),
       (res) => {
         if (!res || !res.ok) {
+          // The main process has already dropped the stale record, so reloading
+          // the status is what takes the "is applied" banner down and frees the
+          // panel to accept another patch. Nothing was written, so there is
+          // nothing to install or build.
+          if (res?.notApplied) {
+            if (res.recordCleared) {
+              setApplyNotice(`${res.error} The applied-patch record has been cleared.`);
+            } else {
+              setApplyError(`${res.error} The record of it could not be cleared, so this site still thinks it is applied.`);
+            }
+            // finishApply reloads the status, which is what takes the banner
+            // down now that the main process has dropped the record.
+            finishApply();
+            return;
+          }
           setApplyError(res?.error || 'The patch could not be applied.');
           finishApply();
           return;
@@ -2993,8 +3103,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               contributor to find the menu again. */}
           {editorNotice ? (
             <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-              <span style={{ flex: '1 1 240px' }}>{editorNotice}</span>
-              <Button variant="tertiary" isSmall onClick={() => void openIn(null)}>Choose application…</Button>
+              <span style={{ flex: '1 1 240px' }}>{editorNotice.message}</span>
+              {editorNotice.offerPicker ? (
+                <Button variant="tertiary" isSmall onClick={() => void openIn(null)}>Choose application…</Button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -3193,7 +3305,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               onClick={openPatchModal}
               disabled={isUpdating}
               style={{ padding: '10px 16px', borderRadius: 10 }}
-            >Create patch</Button>
+            >Submit changes</Button>
             {running && serverUrl ? (
               <Button
                 variant="secondary"
@@ -3446,7 +3558,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               ) : null}
               <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
                 <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>Apply and rebuild</Button>
-                <Button variant="tertiary" onClick={() => { setApplyPreview(null); setApplyError(''); }}>Cancel</Button>
+                <Button variant="tertiary" onClick={() => { setApplyPreview(null); setApplyError(''); setApplyNotice(''); }}>Cancel</Button>
               </div>
             </div>
           ) : null}
@@ -3468,8 +3580,32 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           ) : null}
 
           {applyError ? (
-            <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21' }}>
-              {/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`} The checkout was not changed.
+            <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ flex: '1 1 auto' }}>{/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`} The checkout was not changed.</span>
+              <Button
+                variant="tertiary"
+                isSmall
+                aria-label="Dismiss"
+                onClick={() => setApplyError('')}
+                style={{ color: '#8a1f21' }}
+              >✕</Button>
+            </div>
+          ) : null}
+
+          {applyNotice ? (
+            // Dismissible, like the update summary above: the notice reports
+            // something already resolved, so it outlives its usefulness the
+            // moment it has been read, and nothing else in this panel takes it
+            // down until the next patch.
+            <div role="status" style={{ marginTop: 12, padding: '8px 10px', background: '#f0f6fc', border: '1px solid #3582c4', borderRadius: 6, fontSize: 12, color: '#1d3a5f', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ flex: '1 1 auto' }}>{applyNotice}</span>
+              <Button
+                variant="tertiary"
+                isSmall
+                aria-label="Dismiss"
+                onClick={() => setApplyNotice('')}
+                style={{ color: '#1d3a5f' }}
+              >✕</Button>
             </div>
           ) : null}
 
@@ -3479,7 +3615,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div style={{ minWidth: 280, flex: '1 1 280px' }}>
                   <TextControl
                     value={prUrlInput}
-                    onChange={(value) => { setPrUrlInput(value); setApplyError(''); }}
+                    onChange={(value) => { setPrUrlInput(value); setApplyError(''); setApplyNotice(''); }}
                     onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); previewPrFromInput(); } }}
                     disabled={isUpdating || installing || building}
                     placeholder="Paste a pull request URL or number"
@@ -3528,8 +3664,36 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           </div>
         </div>
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Server & WordPress logs</div>
-          <div ref={runtimeRef} onScroll={makeOnScroll('runtime')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:220, overflow:'auto' }}>{runtimeLogs}</div>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Logs</div>
+          <TabPanel className="log-tabs" activeClass="is-active" onSelect={selectLogTab} tabs={logTabs}>
+            {(tab) => (tab.name === 'runtime' ? (
+              <div ref={runtimeRef} onScroll={makeOnScroll('runtime')} style={LOG_PANE_STYLE}>{runtimeLogs}</div>
+            ) : (
+              <>
+                <div ref={debugRef} onScroll={makeOnScroll('debug')} style={LOG_PANE_STYLE}>
+                  {debugLogs || (
+                    // An empty pane reads as broken, which is what this one was
+                    // for as long as WP_DEBUG_LOG was never set. Say what fills
+                    // it instead.
+                    <span style={{ color:'#888' }}>No PHP notices or errors yet. Anything WordPress or your code writes — <code>error_log()</code>, notices, deprecations, fatals — appears here while the dev server runs.</span>
+                  )}
+                </div>
+                <div style={{ display:'flex', gap:8, marginTop:8, alignItems:'center', justifyContent:'space-between', flexWrap:'wrap' }}>
+                  {/* The file is under build/, while the file being edited when
+                      it filled up is under src/ — so it cannot be guessed, and
+                      it is what someone needs to tail it in a terminal or attach
+                      it to a ticket. Selectable rather than truncated with an
+                      ellipsis: a path you cannot copy is decoration. */}
+                  <code style={{ fontSize:11, color:'#666', userSelect:'text', wordBreak:'break-all', flex:'1 1 240px' }}>{debugLogPath || 'The log file appears once the dev server has run.'}</code>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <Button size="small" variant="secondary" onClick={revealDebugLog} disabled={!debugLogPath}>Show in folder</Button>
+                    <Button size="small" variant="secondary" onClick={copyDebugLog} disabled={!debugLogs}>{COPY_BUTTON_LABELS[debugCopied] || COPY_BUTTON_LABELS.idle}</Button>
+                    <Button size="small" variant="secondary" onClick={clearDebugLog} disabled={!debugLogs}>Clear</Button>
+                  </div>
+                </div>
+              </>
+            ))}
+          </TabPanel>
         </div>
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Mail</div>
@@ -3654,7 +3818,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ) : null}
       {isPatchOpen && (
         <Modal
-          title="Patch"
+          title="Submit changes"
           onRequestClose={()=>setIsPatchOpen(false)}
           shouldCloseOnClickOutside
           isFullScreen

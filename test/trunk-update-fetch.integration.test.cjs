@@ -260,8 +260,24 @@ test("updateToLatestTrunk: a failure after HEAD moves is tagged stage 'checkout'
 
 	await assert.rejects(
 		() => updateToLatestTrunk({ dir, url }),
-		(e) => e.stage === 'checkout'
+		(e) => e.stage === 'checkout' && e.worktreeReset === true
 	);
 	// HEAD moved over a partial tree — this is why the caller has to persist.
 	assert.strictEqual(await git.resolveRef({ fs, dir, ref: 'HEAD' }), newOid);
+});
+
+// A fetch failure is the other end of the same contract: nothing moved, so
+// nothing the caller holds about the worktree may be discarded. The
+// pre-checkout half of `stage: 'checkout'` — statusMatrix and writeRef, which
+// can fail with every file untouched — cannot be provoked portably from here
+// (it needs a filesystem permission trick Windows ignores), so the decision
+// that hangs off the flag is tested at the caller instead, in
+// test/ipc-wiring.test.cjs.
+test("updateToLatestTrunk: a fetch failure reports the worktree untouched (issue #183)", async (t) => {
+	const { dir, url } = await makeSiteAndOrigin(t);
+
+	await assert.rejects(
+		() => updateToLatestTrunk({ dir, url: `${url}/does-not-exist` }),
+		(e) => e.worktreeReset === false
+	);
 });

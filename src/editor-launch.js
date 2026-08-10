@@ -274,10 +274,15 @@ function resolveLaunch(editorPath, sitePath, { platform } = {}) {
 	return { command: editorPath, args: [sitePath] };
 }
 
+// Every `reason` this module can answer `editor:open` with, refusals and
+// failures alike. Exported as the complete list on purpose: the renderer's
+// open-failure.cjs owes each of these a sentence, and its tests check that
+// against this object rather than a copy that could go stale.
 const REFUSAL_REASONS = {
 	UNREGISTERED_SITE: 'unregistered-site',
 	UNLAUNCHABLE_EDITOR: 'unlaunchable-editor',
-	UNKNOWN_EDITOR: 'unknown-editor'
+	UNKNOWN_EDITOR: 'unknown-editor',
+	SPAWN_FAILED: 'spawn-failed'
 };
 
 // The `editor:open` handler's body.
@@ -291,9 +296,16 @@ const REFUSAL_REASONS = {
 // editor that has since been uninstalled, is refused rather than resolved
 // through an environment that is not there.
 //
-// The spawn options are the ones main.js holds everywhere else it starts a
-// child: no shell, hidden on Windows, detached with no stdio so the editor
-// outlives the app and cannot block on a pipe nobody reads.
+// The spawn options: never a shell, and detached with no stdio so the editor
+// outlives the app and cannot block on a pipe nobody reads. `detached` is
+// unconditional here, unlike the runners in main.js which set it only off
+// Windows — they are killed as a process group, and this child is released
+// rather than ever signalled.
+//
+// No `windowsHide`. That flag fills STARTUPINFO with "start hidden", and a GUI
+// application that honors it — VS Code does — launches with its window
+// invisible while the spawn still reports success (#181). It is for children
+// the app runs to collect their output; here the window is the point.
 async function openSiteInEditor(sitePath, editorPath, {
 	sites,
 	pending,
@@ -323,13 +335,12 @@ async function openSiteInEditor(sitePath, editorPath, {
 		child = spawn(command, args, {
 			detached: true,
 			stdio: 'ignore',
-			shell: false,
-			windowsHide: true
+			shell: false
 		});
 	} catch (e) {
 		// A synchronous throw is the argument-shape failure only. The one that
 		// actually happens — the target cannot be executed — arrives as an event.
-		return { ok: false, reason: 'spawn-failed', error: e?.message ?? String(e) };
+		return { ok: false, reason: REFUSAL_REASONS.SPAWN_FAILED, error: e?.message ?? String(e) };
 	}
 
 	return awaitLaunch(child, { platform });
@@ -367,14 +378,14 @@ function awaitLaunch(child, { platform } = {}) {
 		};
 
 		child.on('error', (e) => {
-			settle({ ok: false, reason: 'spawn-failed', error: e?.message ?? String(e) });
+			settle({ ok: false, reason: REFUSAL_REASONS.SPAWN_FAILED, error: e?.message ?? String(e) });
 		});
 
 		if (platform === 'darwin') {
 			child.on('close', (code) => {
 				settle(code === 0
 					? { ok: true }
-					: { ok: false, reason: 'spawn-failed', error: `the editor could not be opened (exit code ${code})` });
+					: { ok: false, reason: REFUSAL_REASONS.SPAWN_FAILED, error: `the editor could not be opened (exit code ${code})` });
 			});
 			return;
 		}

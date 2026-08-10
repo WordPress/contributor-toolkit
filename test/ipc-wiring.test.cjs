@@ -483,6 +483,81 @@ test('git:update-trunk hands the update to trunk-update and streams its log back
 	]);
 });
 
+// An update that dies after the forced checkout has already reset the tree
+// (#184): the "incomplete" flag is still true, but the patch went with the
+// reset, so its record cannot be allowed to outlive it — that is precisely the
+// phantom the revert then cannot find.
+test('git:update-trunk drops the applied-patch record when it fails after the checkout', async () => {
+	const updateToLatestTrunk = spy(async () => {
+		const e = new Error('worktree write failed');
+		e.stage = 'checkout';
+		e.worktreeReset = true;
+		throw e;
+	});
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'PR #8913', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { updateToLatestTrunk } } });
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	for (let i = 0; i < 50 && !event.sent.some((m) => m.channel === 'git:update-trunk:done'); i++) {
+		await new Promise((r) => setImmediate(r));
+	}
+
+	const done = event.sent.find((m) => m.channel === 'git:update-trunk:done');
+	assert.deepEqual(done.payload.updateId, updateId);
+	assert.equal(done.payload.stage, 'checkout');
+	assert.equal(settings.values.siteMeta['/sites/wp'].updateIncomplete, true);
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
+});
+
+// The stage is coarser than the reset: it is set before the index walk and the
+// ref write, either of which can fail with every file still in place. Reading
+// it as "the tree was reset" would discard the only copy of a patch that is
+// still applied, which is the failure #184 describes, inverted.
+test('git:update-trunk keeps the applied-patch record when the checkout never started', async () => {
+	const updateToLatestTrunk = spy(async () => {
+		const e = new Error('could not read the index');
+		e.stage = 'checkout';
+		e.worktreeReset = false;
+		throw e;
+	});
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'PR #8913', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { updateToLatestTrunk } } });
+
+	const event = createIpcEvent();
+	await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	for (let i = 0; i < 50 && !event.sent.some((m) => m.channel === 'git:update-trunk:done'); i++) {
+		await new Promise((r) => setImmediate(r));
+	}
+
+	assert.equal(settings.values.siteMeta['/sites/wp'].updateIncomplete, true, 'the rebuild hint still applies');
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch.text, 'STORED');
+});
+
+// A fetch failure moved nothing, so a patch still in the tree keeps its record.
+test('git:update-trunk keeps the applied-patch record when the fetch fails', async () => {
+	const updateToLatestTrunk = spy(async () => { throw new Error('offline'); });
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'PR #8913', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { updateToLatestTrunk } } });
+
+	const event = createIpcEvent();
+	await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	for (let i = 0; i < 50 && !event.sent.some((m) => m.channel === 'git:update-trunk:done'); i++) {
+		await new Promise((r) => setImmediate(r));
+	}
+
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch.text, 'STORED');
+});
+
 test('sites:add normalizes line endings before adopting a directory', async () => {
 	// Throwing ends the handler at its first delegation, which is the only thing
 	// under test — and it has to end there. The next line is a store write, and
@@ -1253,6 +1328,44 @@ test('git:apply-patch reverts using the stored patch text and clears the record'
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
 });
 
+// The patch is gone from the tree but its record survived (#183/#184). Keeping
+// the record would be a dead end: the revert can never succeed, and the
+// one-patch-at-a-time guard would refuse every other patch on its behalf.
+test('git:apply-patch clears the record when the revert finds no patch to undo', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: false, notApplied: true, error: 'That patch is not in this checkout any more.', applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'L', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { reverse: true });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.ok, false);
+	assert.equal(done.notApplied, true, 'the renderer needs this to tell a resolution from a failure');
+	assert.equal(done.recordCleared, true, 'claimed only when the store write actually landed');
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
+});
+
+// The mirror of the above: a real failure must leave the record alone, or the
+// patch stays in the tree with nothing offering to undo it.
+test('git:apply-patch keeps the record when a revert fails for any other reason', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: false, error: 'src/a.php has moved on since the patch was written', applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'L', text: 'STORED' } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { reverse: true });
+	await applyDone(event, applyId);
+
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch.text, 'STORED');
+});
+
 // A store whose siteMeta write throws: the patch lands on disk but its revert
 // record cannot be saved. Persistence is part of the transaction.
 function storeThatFailsToPersist() {
@@ -1664,6 +1777,85 @@ test('the cloning status names the directory the guards are keyed on', async () 
 	assert.equal(cloning.target, siteDir);
 });
 
+// --- wp-debug:clear -> src/site-registry.js -------------------------------
+//
+// The Clear button under the debug.log panel. It empties
+// build/wp-content/debug.log inside the named site, so it is behind the same
+// registry boundary as sites:delete and dir:show — without it the renderer
+// could name any path and have the app truncate a file under it.
+
+test('wp-debug:clear asks site-registry whether the log may be emptied', async () => {
+	const clearRegisteredSiteLog = spy(async () => ({ ok: true }));
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, './site-registry': { clearRegisteredSiteLog } }
+	});
+
+	await main.invoke('wp-debug:clear', SITE);
+
+	assert.equal(clearRegisteredSiteLog.calls.length, 1);
+	const [sitePath, options] = clearRegisteredSiteLog.calls[0];
+	assert.equal(sitePath, SITE);
+	assert.deepEqual(options.sites, [SITE]);
+	assert.equal(typeof options.truncate, 'function');
+	assert.equal(typeof options.onRefused, 'function');
+});
+
+test('wp-debug:clear refuses a path the registry does not hold, and logs it', async () => {
+	const logEvent = spy();
+	const main = loadMain({
+		stubs: { './logging': { ...silentLogging()['./logging'], logEvent }, ...fakeSettingsStore({ sites: [SITE] }).stubs }
+	});
+
+	const result = await main.invoke('wp-debug:clear', '/Users/dev/somewhere-else');
+
+	assert.equal(result.ok, false);
+	assert.equal(result.reason, 'unregistered-site');
+	assert.equal(logEvent.calls.length, 1);
+	assert.match(logEvent.calls[0][1], /refused to clear the debug log for \/Users\/dev\/somewhere-else/);
+});
+
+test('wp-debug:reveal asks site-registry whether the log may be shown', async () => {
+	const revealRegisteredSite = spy(async () => ({ ok: true }));
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, './site-registry': { revealRegisteredSite } }
+	});
+
+	await main.invoke('wp-debug:reveal', SITE);
+
+	assert.equal(revealRegisteredSite.calls.length, 1);
+	const [sitePath, options] = revealRegisteredSite.calls[0];
+	assert.equal(sitePath, SITE);
+	assert.deepEqual(options.sites, [SITE]);
+	assert.equal(typeof options.reveal, 'function');
+	assert.equal(typeof options.onRefused, 'function');
+});
+
+test('wp-debug:reveal refuses a path the registry does not hold, and logs it', async () => {
+	const logEvent = spy();
+	const main = loadMain({
+		stubs: { './logging': { ...silentLogging()['./logging'], logEvent }, ...fakeSettingsStore({ sites: [SITE] }).stubs }
+	});
+
+	const result = await main.invoke('wp-debug:reveal', '/Users/dev/somewhere-else');
+
+	assert.equal(result.ok, false);
+	assert.deepEqual(main.calls.showItemInFolder, []);
+	assert.equal(logEvent.calls.length, 1);
+	assert.match(logEvent.calls[0][1], /refused to reveal the debug log for \/Users\/dev\/somewhere-else/);
+});
+
+// The path is what the panel displays, so a handler that started the tail but
+// answered with a bare `true` would leave the line blank and Show in folder
+// disabled, with nothing failing.
+test('wp-debug:start answers with the log path', async () => {
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs } });
+
+	const started = await main.invoke('wp-debug:start', SITE);
+
+	assert.equal(started.ok, true);
+	assert.equal(started.filePath, path.join(SITE, 'build', 'wp-content', 'debug.log'));
+});
+
 // --- opening a pull request (#167) ---------------------------------------
 
 // Sign-in is two-legged: the handler returns as soon as there is a code to
@@ -1908,6 +2100,8 @@ const WIRED = new Set([
 	'editor:open',
 	'dir:show',
 	'wordpress:setup',
+	'wp-debug:clear',
+	'wp-debug:reveal',
 	'provenance:set-handle',
 	'provenance:set-event',
 	'github:account',
