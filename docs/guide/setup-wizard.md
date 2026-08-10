@@ -39,6 +39,6 @@ Steps also lock temporarily while a [trunk update](./trunk-updates) is running, 
 
 ## Skipping the wizard
 
-Below the checklist is a **Skip initialization wizard** link. Clicking it hides the checklist for this site, for good, and shows the compact action bar instead: the dev server start/stop button, **Submit changes**, and — while the server is running — **Open Adminer**.
+Below the checklist is a **Skip initialization wizard** link. Clicking it hides the checklist for this site, for good, and shows the compact action bar instead: the dev server start/stop button, **Review & submit changes**, and — while the server is running — **Open Adminer**.
 
 Skipping does not run any of the steps for you. If the dependencies were never installed or the build never ran, the dev server will not have anything to serve, so only skip on a site you know is already set up (for example, a `wordpress-develop` checkout you prepared outside the app). For everything else, finishing step 4 gets you to the same action bar with the work actually done.

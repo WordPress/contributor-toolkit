@@ -4,7 +4,7 @@
 
 ## What the app does, and what you do
 
-The app does not post to Trac on your behalf — that would mean it holding a WordPress.org session, which it deliberately never does. Instead, the destination on the [Submit changes](submitting-changes) screen splits the work:
+The app does not post to Trac on your behalf — that would mean it holding a WordPress.org session, which it deliberately never does. Instead, the destination on the [Review & submit changes](submitting-changes) screen splits the work:
 
 1. Click **Save, then open #NNNNN**.
 2. The app saves your patch as a file wherever you choose.
@@ -27,4 +27,4 @@ After uploading, leave a comment on the ticket saying what the patch does and ho
 
 ## Before you attach
 
-If the warning at the top of the **Submit changes** screen says your site's WordPress code is old, the patch may not apply cleanly on Trac. Update to the latest trunk first — see [Staying up to date with trunk](trunk-updates) — and check your change still works.
+If the warning at the top of the **Review & submit changes** screen says your site's WordPress code is old, the patch may not apply cleanly on Trac. Update to the latest trunk first — see [Staying up to date with trunk](trunk-updates) — and check your change still works.

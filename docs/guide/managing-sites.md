@@ -32,7 +32,9 @@ The ☰ menu at the top right of the site view contains:
   it stay on disk; you can add the folder back later.
 - **Delete this site** — removes the site from the list **and deletes its directory from disk**.
   This cannot be undone. The app will only ever delete a directory it has on record as a site —
-  never an arbitrary path.
+  never an arbitrary path. It takes every ticket's work in the site with it; to throw away one
+  ticket and keep the rest, use **Delete this ticket's work** on the tickets card instead — see
+  [Working on several tickets](./ticket-branches#deleting-a-ticket-s-work).
 
 Both **Forget** and **Delete** ask for confirmation first. If you are unsure which you want:
 forget is reversible, delete is not.

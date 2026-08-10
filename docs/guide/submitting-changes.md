@@ -1,17 +1,34 @@
 # Submitting your changes
 
-When your change works and you want to contribute it, open the **Submit changes** screen. It shows your work as a patch and, next to it, the places that patch can go.
+When your change works and you want to contribute it, open the **Review & submit changes** screen. It shows your work as a patch and, next to it, the places that patch can go.
 
 ## Your changes
 
-The left side of the screen is the diff, titled **Your changes** — everything this site has that its copy of trunk does not. This is exactly what will be submitted, so read it before choosing a destination.
+The left side of the screen is the diff, titled **Your changes**. This is exactly what will be submitted, so read it before choosing a destination.
+
+What it contains is the work on the ticket you are on, and only that: everything the ticket's branch has gained since it was created, including whatever was parked the last time you switched away from it. Another ticket's work is never in it, and neither is a change that arrived from a [trunk update](trunk-updates). On a site with no ticket linked, it is simply everything the checkout has that its copy of trunk does not.
 
 Two buttons sit above the diff:
 
 - **Save** — saves the diff as a patch file wherever you choose.
 - **Copy** — copies the whole diff to the clipboard.
 
-If the site has no changes against its copy of trunk, the screen says there is nothing to send yet. If the site's WordPress code is old, a warning says the patch may not apply on Trac and suggests updating to the latest trunk first — see [Staying up to date with trunk](trunk-updates).
+If there are no changes to send, the screen says so. If the site's WordPress code is old, a warning says the patch may not apply on Trac and suggests updating to the latest trunk first — see [Staying up to date with trunk](trunk-updates).
+
+## What a patch can and cannot carry
+
+The patch carries files you added, files you edited, and files you deleted. A deletion is written the way `git apply` and `patch` expect one, so a reviewer applying your patch really does lose the file.
+
+Some things a text diff cannot represent. Images and other binary files are one, and so is a file the app could not read. Those are not dropped in silence: they are named in `#` comment lines above the diff, for example
+
+```
+# 1 file is not in this patch — a text diff cannot carry binary content:
+#   src/wp-includes/images/example.png
+```
+
+Tools that apply patches skip those lines, so the patch still applies; the point of them is that you know what to attach or mention by hand. If a binary file is the *only* thing you changed, there is no diff to attach and the screen offers no destination.
+
+The one gap left: adding or deleting an empty file is still not represented in the patch.
 
 ## Where this patch goes
 
