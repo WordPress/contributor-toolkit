@@ -464,6 +464,7 @@ test('runNpmScript returns the run id to the caller', async () => {
 // handler would silence a site that is still open.
 const SUBSCRIPTIONS = [
 	{ name: 'subscribeSwitchProgress', channel: 'switch:progress' },
+	{ name: 'subscribeCarriedWork', channel: 'ticket:carried-work' },
 	{ name: 'subscribeSetupProgress', channel: 'download:progress' },
 	{ name: 'subscribeSetupStatus', channel: 'download:status' }
 ];
