@@ -826,6 +826,48 @@ test('provenance:get reads the remembered handle and event', async () => {
 	});
 });
 
+// --- main must not take the windowsHide patch (#181) ---------------------
+//
+// The inverse of test/runner-wiring.test.cjs, which pins that the four runners
+// DO call hideChildWindows(). Main must not: that patch forces `windowsHide` on
+// every child_process entry point of the process, overriding even an explicit
+// `false`, and main.js is what spawns the contributor's editor — a GUI
+// application, which the flag starts with no window while the spawn still
+// reports success.
+//
+// Until now that was a convention nobody had written down. "Hide the console
+// flashes everywhere, do it once at startup" is the plausible-looking change
+// that reinstates the bug, and nothing else here would fail:
+// test/editor-launch.test.cjs injects its own spawn, so it never sees the real
+// module at all.
+//
+// Asserted as a call that does not happen rather than by reading the flag off
+// the real child_process, because patchChildProcess is a no-op off Windows —
+// that version would be green on macOS whatever main.js did.
+//
+// Scoped to module evaluation, which is where "once at startup" lands. A call
+// made lazily inside a handler would slip past this; it is also a much less
+// likely shape, and the module header says what the rule is.
+test('main.js does not apply the windowsHide patch when it loads', () => {
+	const calls = [];
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'./hide-child-windows': {
+				hideChildWindows: () => { calls.push('hideChildWindows'); },
+				patchChildProcess: (cp) => { calls.push('patchChildProcess'); return cp; }
+			}
+		}
+	});
+
+	assert.ok(main.channels().length > 0, 'main.js registered no handlers, so it did not really load');
+	assert.deepEqual(
+		calls,
+		[],
+		'main.js patched its own child_process with windowsHide — every spawn in the process now carries the flag, including the editor launch (#181)'
+	);
+});
+
 // --- npm:* -> src/npm-runner.js + src/kill-tree.js -----------------------
 
 // The npm handlers run the real runNpmWithEngineRetry, which calls

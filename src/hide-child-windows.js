@@ -11,6 +11,20 @@
 // requiring that CLI — reaches those spawns. `windowsHide: true` maps to
 // CREATE_NO_WINDOW, which gives cmd.exe a console that is never displayed and
 // which its own descendants inherit, so one patch covers the whole subtree.
+//
+// Who must NOT call this: the main process. The patch is deliberately blunt. It
+// forces the flag on every child_process entry point of the process, overriding
+// even an explicit `windowsHide: false`, and main.js is the process that spawns
+// the contributor's editor — a GUI application, which the flag starts with no
+// window while the spawn still reports success (#181; the comment above
+// openSiteInEditor in src/editor-launch.js has the mechanism). Whether a given
+// call site escapes depends on whether it captured its `spawn` binding before
+// the patch ran, which is exactly the kind of thing nobody should have to
+// reason about. "Hide the console flashes everywhere, once at startup" is the
+// plausible-looking change that reinstates that bug; the ipc-wiring suite
+// asserts main.js does not make it. Only the four runners — install, script,
+// server, playground-web — take this patch, and only because they load npm's or
+// Playground's CLI in-process.
 
 const PATCHED = Symbol.for('wp-dev-env.windowsHidePatched');
 
