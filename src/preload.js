@@ -95,6 +95,15 @@ contextBridge.exposeInMainWorld('api', {
 		return () => ipcRenderer.removeListener('switch:progress', h);
 	}
 ,
+	// The work that came along into a newly linked ticket (#108). Send-only and
+	// after the fact, like the switch progress above and for the same reason:
+	// the count is a worktree walk, so it arrives when it arrives.
+	subscribeCarriedWork: (handler) => {
+		const h = (_e, payload) => handler && handler(payload);
+		ipcRenderer.on('ticket:carried-work', h);
+		return () => ipcRenderer.removeListener('ticket:carried-work', h);
+	}
+,
 	subscribeSetupProgress: (handler) => {
 		const h = (_e, payload) => handler && handler(payload);
 		ipcRenderer.on('download:progress', h);

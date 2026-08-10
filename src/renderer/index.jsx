@@ -260,6 +260,7 @@ function App() {
   // SiteRow because every row stays mounted — subscribing per row would open one
   // listener per registered site and wake all of them for each other's events.
   const [switchProgressBySite, setSwitchProgressBySite] = useState({});
+  const [carriedWorkBySite, setCarriedWorkBySite] = useState({});
 
   const appendSetupLog = useCallback((siteTarget, message) => {
     const key = siteTarget ? String(siteTarget) : '';
@@ -366,8 +367,9 @@ function App() {
 
   // Dropped when a switch begins, so a failed switch's last sentence is not the
   // next one's first frame.
-  const clearSwitchProgress = useCallback((sitePath) => {
+  const clearSwitchNotices = useCallback((sitePath) => {
     setSwitchProgressBySite((prev) => (prev[sitePath] ? { ...prev, [sitePath]: null } : prev));
+    setCarriedWorkBySite((prev) => (prev[sitePath] ? { ...prev, [sitePath]: null } : prev));
   }, []);
 
   // One subscription for every site; the payload says which one (#173).
@@ -375,6 +377,16 @@ function App() {
     const unsub = window.api.subscribeSwitchProgress((p) => {
       if (!p || !p.sitePath) return;
       setSwitchProgressBySite((prev) => ({ ...prev, [p.sitePath]: p.stage === 'done' ? null : p }));
+    });
+    return () => { if (unsub) unsub(); };
+  }, []);
+
+  // Arrives after the link has already answered (#108), so it is its own
+  // subscription rather than a stage of the switch.
+  useEffect(() => {
+    const unsub = window.api.subscribeCarriedWork((p) => {
+      if (!p || !p.sitePath) return;
+      setCarriedWorkBySite((prev) => ({ ...prev, [p.sitePath]: p }));
     });
     return () => { if (unsub) unsub(); };
   }, []);
@@ -852,7 +864,8 @@ function App() {
                       isPending={pendingSites.includes(s)}
                       setupLogs={setupLogsBySite[s] || ''}
                       switchProgress={switchProgressBySite[s] || null}
-                      onClearSwitchProgress={clearSwitchProgress}
+                      onClearSwitchNotices={clearSwitchNotices}
+                      carriedWork={carriedWorkBySite[s] || null}
                       isActive={activeSite === s}
                     />
                   </div>
@@ -1020,7 +1033,7 @@ function DestinationGroup({ children }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, editor, wporg, isPending = false, setupLogs = '', isActive = false, switchProgress = null, onClearSwitchProgress = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, editor, wporg, isPending = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null }) {
   // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
   // recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
@@ -1093,7 +1106,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [blockedByTrunkWork, setBlockedByTrunkWork] = useState(null);
   // How many loose files rode along into a ticket that had no branch yet, so
   // the panel can say where they went instead of moving them in silence.
-  const [carriedIntoTicket, setCarriedIntoTicket] = useState(null);
   const [patchSavedTo, setPatchSavedTo] = useState('');
   // Patches on the linked ticket (#11): { status, items, cachedAt } or null.
   const [ticketPatches, setTicketPatches] = useState(null);
@@ -1366,9 +1378,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setTicketSaving(true);
     setTicketError('');
     setBlockedByTrunkWork(null);
-    setCarriedIntoTicket(null);
     // The previous switch's last sentence must not be this one's first frame.
-    if (onClearSwitchProgress) onClearSwitchProgress(sitePath);
+    if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
     try {
       const res = await window.api.setSiteTicket(sitePath, ref);
       if (!res?.ok) {
@@ -1382,7 +1393,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setTracTicket(res.ticket);
       setTicketInput('');
       setPatchSavedTo('');
-      if (res.carried > 0) setCarriedIntoTicket({ ticket: res.ticket, files: res.carried });
       if (metaPatchRef.current) metaPatchRef.current(sitePath, { tracTicket: res.ticket });
       // Both, and awaited: the branch list decides which rows show, and
       // appliedPatch/updateIncomplete are per-branch (#108) — without the
@@ -1394,7 +1404,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } finally {
       setTicketSaving(false);
     }
-  }, [sitePath, loadBranches, loadStatus, onClearSwitchProgress]);
+  }, [sitePath, loadBranches, loadStatus, onClearSwitchNotices]);
   const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
   const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
 
@@ -1422,7 +1432,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setTicketError('');
     // The refused attempt left its last frame behind — without this, the
     // discard runs under a spinner describing a switch that never happened.
-    if (onClearSwitchProgress) onClearSwitchProgress(sitePath);
+    if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
     try {
       const res = await window.api.discardChanges(sitePath);
       if (!res?.ok) {
@@ -1440,7 +1450,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     // Outside the guard above: saveTicket owns the busy flag itself, and the
     // discard has already succeeded — a failure here is about the switch.
     await saveTicket(ref);
-  }, [sitePath, saveTicket, onClearSwitchProgress]);
+  }, [sitePath, saveTicket, onClearSwitchNotices]);
 
   // "Delete this ticket's work" (#108) — destroys the branch, which is why it
   // sits behind a confirm while switching does not.
@@ -1996,9 +2006,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // has no branch here yet carries whatever is uncommitted into it — the right
   // behaviour, and the one the app used to perform in silence, so the same
   // gesture read as a refusal on one ticket and as a move on another.
-  const carriedNotice = carriedIntoTicket ? (
+  const carriedNotice = carriedWork ? (
     <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, color: '#1d2327', fontSize: 12 }}>
-      Your {carriedIntoTicket.files} uncommitted {carriedIntoTicket.files === 1 ? 'change' : 'changes'} came along into #{carriedIntoTicket.ticket}, and {carriedIntoTicket.files === 1 ? 'is' : 'are'} part of that ticket now.
+      Your {carriedWork.files} uncommitted {carriedWork.files === 1 ? 'change' : 'changes'} came along into #{carriedWork.ticket}, and will go into its patch.
     </div>
   ) : null;
 
@@ -3508,12 +3518,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 style={{ padding: '10px 16px', borderRadius: 10 }}
               >Link ticket</Button>
             </div>
-            {/* Said without asking the worktree, so it costs nothing and holds
-                either way: on a ticket this site has not seen, loose work comes
-                along; on one it has, the switch is refused and the notice above
-                offers the ways out. */}
+            {/* Scoped, because it is only true of a ticket this site has not
+                worked on: resuming one of the tickets listed above is refused
+                while trunk is dirty, and offers the ways out then. Said without
+                asking the worktree, so it costs nothing. */}
             <div style={{ marginTop: 6, fontSize: 12, color: '#6c6f72' }}>
-              Anything you have edited and not yet put on a ticket will come along into the one you link.
+              Anything you have edited so far will come along into a ticket this site has not worked on yet.
             </div>
           </>
         )}
@@ -4042,7 +4052,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           >Link ticket</Button>
                           {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
                           {switchProgressLine}
-                          {carriedNotice}
                         </>
                       )}
                     </Destination>

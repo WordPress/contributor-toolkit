@@ -57,6 +57,12 @@ const { getStore } = require('./settings-store');
 // process do not share a module graph, and a rename that only lands on one side
 // unsubscribes the panel silently.
 const SWITCH_PROGRESS_CHANNEL = 'switch:progress';
+
+// Loose work that rode along into a newly created ticket branch (#108). Its own
+// channel rather than a progress stage: it is one fact after the fact, not a
+// step of an operation, and describing it as progress would have the panel say
+// "Saving your work…" about trunk — which is the one thing this refuses to do.
+const CARRIED_WORK_CHANNEL = 'ticket:carried-work';
 const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
@@ -924,6 +930,34 @@ function updateSwitchLogger(sendLog) {
 }
 
 /**
+ * Tells the window how much loose work just came along into a new ticket (#108).
+ *
+ * Deliberately after the answer and deliberately not awaited: the count is a
+ * full worktree walk, and linking a ticket is otherwise instant — `git.branch`
+ * with a checkout only moves HEAD. Holding the reply for a sentence would make
+ * the common Contributor Day sequence (install, link a ticket, then start
+ * editing) pay a scan for an answer that is always zero.
+ *
+ * Counted against HEAD, which the branch now is, so the number says what this
+ * ticket's patch will contain rather than what trunk happened to have.
+ *
+ * @param {Object} event    The IPC event, for its sender.
+ * @param {string} sitePath
+ * @param {number} ticketId
+ */
+function reportCarriedWork(event, sitePath, ticketId) {
+    countChangesAgainst(sitePath).then((files) => {
+        if (!files) return;
+        try { event.sender.send(CARRIED_WORK_CHANNEL, { sitePath, ticket: ticketId, files }); } catch {}
+    }).catch((e) => {
+        // The link already happened and is not in doubt; what is lost is the
+        // sentence about it. Logged rather than swallowed, because a worktree
+        // this cannot walk is a state someone will need diagnosed later.
+        logError('branches', `could not count the work carried into ticket/${ticketId} in ${describeRefused(sitePath)}: ${String(e && e.stack ? e.stack : e)}`);
+    });
+}
+
+/**
  * Streams a switch's progress to the window that asked for it (#173).
  *
  * Additive on purpose: the handler still awaits and returns its result exactly
@@ -1683,7 +1717,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref) => withRegistere
 
 	const known = await listTicketBranches(sitePath);
 	let baseOid;
-	let carried = 0;
+	let carriedFrom = null;
 	if (known.includes(branchRef)) {
 		const progress = switchProgressReporter(event, sitePath);
 		try {
@@ -1704,23 +1738,12 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref) => withRegistere
 				progress.flush();
 			}
 		} else {
-			// Counted before the branch exists, and reported back so the panel
-			// can say where the work went. Carrying it is the right behaviour
-			// and stays; carrying it in silence is not — the same gesture is a
-			// refusal when the branch already exists, and a contributor cannot
-			// tell the two apart from what is on screen.
-			//
-			// The scan costs a worktree walk, which is why it is only here: this
-			// is the one path that moves loose work without saying so, and it
-			// runs once per ticket rather than once per switch.
-			const progress = switchProgressReporter(event, sitePath);
-			progress.emit({ stage: 'scan', from: TRUNK, to: branchRef });
-			// Swallowed on purpose: this scan feeds a sentence, and a sentence
-			// that cannot be written is not a reason to refuse someone their
-			// ticket. Losing the notice is a worse day than not having it, but
-			// it is nothing like failing the link.
-			carried = await countChangesAgainst(sitePath).catch(() => 0);
-			progress.emit({ stage: 'done', to: branchRef });
+			// Loose work on trunk is about to become this ticket's, and the app
+			// used to move it without a word — while the same gesture on a
+			// ticket that already has a branch is refused. Counting it is how
+			// the panel tells those apart, and it happens after the answer
+			// rather than before it (see reportCarriedWork).
+			carriedFrom = TRUNK;
 		}
 		({ baseOid } = await startTicketBranch(sitePath, parsed.id));
 	}
@@ -1731,7 +1754,8 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref) => withRegistere
 		lastUsedAt: new Date().toISOString()
 	});
 	await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: branchRef });
-	return { ok: true, ticket: parsed.id, branch: branchRef, carried };
+	if (carriedFrom === TRUNK) reportCarriedWork(event, sitePath, parsed.id);
+	return { ok: true, ticket: parsed.id, branch: branchRef };
 }));
 
 // The tickets open in a site, for the "Working on:" switcher. Reads the branches
