@@ -66,10 +66,15 @@ test('resolveTargetDir with no root is the folder name alone', () => {
 });
 
 // What follows pins what this function does with the entries it actually gets,
-// which is not the same as what it was written for. See #228: the `path`
-// property it prefers was removed from `File` in Electron 32, this app pins
-// Electron 43, and no `webUtils` bridge replaces it — so every real entry takes
-// the fallback. Asserting the `path` shapes would be green and prove nothing.
+// which is not the same as what it was written for. The `path` property it
+// prefers was removed from `File` in Electron 32, this app pins Electron 43,
+// and no `webUtils` bridge replaces it — so every real entry takes the
+// fallback. Asserting the `path` shapes would be green and prove nothing.
+//
+// The only route that reaches this at all is dropping a folder on the control,
+// which the app does not support; #228 decides whether it should. So these
+// record where that route currently ends, and are the failing tests to write
+// against when it is taken up.
 
 test('directoryFromFileEntry gets nothing from a real dropped entry', () => {
 	// A File in Electron 43. No `path`, and `webkitRelativePath` alone carries
@@ -81,10 +86,10 @@ test('directoryFromFileEntry gets nothing from a real dropped entry', () => {
 });
 
 test('directoryFromFileEntry passes C:\\fakepath through — #228', () => {
-	// The bug, pinned rather than endorsed. A file input's `value` is either
-	// empty or this literal prefix on every platform, browsers substituting it
-	// for the real path, so the fallback's "typed path" is a fiction. The
-	// modal shows this as the chosen folder and submit hands it to setup.
+	// Recorded, not endorsed. A file input's `value` is either empty or this
+	// literal prefix on every platform, browsers substituting it for the real
+	// path, so the fallback's "typed path" is a fiction. The modal shows this
+	// as the chosen folder and submit hands it to setup.
 	assert.equal(directoryFromFileEntry({}, 'C:\\fakepath\\my-folder'), 'C:\\fakepath');
 });
 

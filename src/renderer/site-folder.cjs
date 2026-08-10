@@ -56,9 +56,12 @@ function resolveTargetDir(root, folder) {
 /**
  * The directory an `<input type="file" webkitdirectory>` selection points at.
  *
- * Extracted as it stood, dead branch included, because #216 is a refactor and
- * this is the wrong PR to change what it answers. What it answers today is
- * wrong, and #228 is where that gets decided:
+ * Nothing reaches this by the intended route: the input's click and keyboard
+ * handlers are intercepted and go to the native dialog. It runs only when a
+ * folder is dropped onto the control, which is a second route the app does not
+ * currently support — see #228, where supporting it or closing it off gets
+ * decided. Extracted as it stood, dead branch included, because #216 is a
+ * refactor and not the place to change what it answers:
  *
  * - `path` plus `webkitRelativePath`, and `path` alone, are the two shapes this
  *   was written for. Electron removed the `path` augmentation on `File` in v32
@@ -68,9 +71,6 @@ function resolveTargetDir(root, folder) {
  *   value is empty or the literal `C:\fakepath\` prefix on every platform. So a
  *   dropped folder resolves to '' or to `C:\fakepath`, and the modal presents
  *   the second as a real destination.
- *
- * The click and keyboard handlers on that input are intercepted and go to the
- * native dialog, so nothing here runs unless a folder is dropped onto it.
  *
  * @param {*} file       The first entry of the input's `files` list.
  * @param {*} inputValue The input's `value`, read only when `file` has no path.
