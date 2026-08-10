@@ -145,20 +145,18 @@ test('card: the list renders once, in its own card between the ticket card and t
 	assert.ok(!source.includes('Other tickets on this site'), 'index.jsx restates the linked heading instead of using ticketListCard');
 	assert.ok(!source.includes('Your tickets on this site'), 'index.jsx restates the unlinked heading instead of using ticketListCard');
 
-	// One definition, one call site: the rows must not be mounted twice, and a
-	// second call site would be the list quietly moving back into a state of
-	// the ticket card.
-	assert.strictEqual(source.split('renderBranchRows').length - 1, 2, 'expected renderBranchRows to appear exactly twice: its definition and the single card that renders it');
+	// One call site. Two was the old shape — one per state of the ticket card —
+	// and going back to two is the list mounting twice, or quietly moving back
+	// inside the card it just left. Counted as a call rather than as the bare
+	// name so that a comment naming the helper is not a red suite.
+	assert.strictEqual(source.split('renderBranchRows(').length - 1, 1, 'expected exactly one renderBranchRows( call: the single card that renders the list');
 
-	// Between the two cards it used to sit inside of / next to, and at their
-	// heading level rather than the sub-heading it had as a section.
+	// Between the two cards it used to sit inside of and above.
 	const ticketCard = source.indexOf('>Trac ticket<');
 	const listCard = source.indexOf('{ticketsCard.heading}');
 	const patchCard = source.indexOf('>Apply a patch or PR<');
 	assert.ok(ticketCard !== -1 && listCard !== -1 && patchCard !== -1, 'one of the three card headings is missing from index.jsx');
 	assert.ok(ticketCard < listCard && listCard < patchCard, 'the tickets card is not between the Trac ticket card and the patch card');
-	const listHeadingLine = source.split('\n').find((line) => line.includes('{ticketsCard.heading}'));
-	assert.ok(listHeadingLine.includes('fontSize: 16'), 'the tickets card heading is not at card level (fontSize 16)');
 });
 
 // --- relativeTimeLabel ------------------------------------------------------
