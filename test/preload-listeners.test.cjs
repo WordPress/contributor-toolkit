@@ -369,6 +369,61 @@ test('subscribePullRequestProgress hands back its own unsubscribe', () => {
 	assert.equal(ipcRenderer.listenerCount('github:pr:progress'), 0);
 });
 
+// startWpDebug's unsubscribe went unused for as long as nothing wrote a
+// debug.log to tail. Now that WordPress is booted with WP_DEBUG_LOG the renderer
+// depends on it: stopWpDebug only tears down the watcher in the main process, so
+// without this the listener survives every stop and a second dev-server run
+// appends each line twice.
+//
+// The renderer's half of that — actually holding the function and calling it —
+// is in index.jsx and out of this suite's reach. What is pinned here is the
+// contract it now relies on: that an unsubscribe comes back at all, and that it
+// removes only its own listener rather than clearing the channel for the other
+// sites subscribed to it.
+test('startWpDebug hands back an unsubscribe that drops only its own listener', async () => {
+	const { api, ipcRenderer } = loadPreload();
+	const mine = [];
+	const other = [];
+
+	const { unsubscribe } = await api.startWpDebug('/sites/wp', (data) => mine.push(data));
+	await api.startWpDebug('/sites/other', (data) => other.push(data));
+
+	ipcRenderer.emit('wp:debug-log:data', { sitePath: '/sites/wp', data: 'first\n' });
+	unsubscribe();
+	ipcRenderer.emit('wp:debug-log:data', { sitePath: '/sites/wp', data: 'after\n' });
+	ipcRenderer.emit('wp:debug-log:data', { sitePath: '/sites/other', data: 'theirs\n' });
+
+	assert.deepEqual(mine, ['first\n'], 'the unsubscribed callback kept receiving data');
+	assert.deepEqual(other, ['theirs\n'], 'unsubscribing one site removed another site listener');
+	assert.equal(ipcRenderer.listenerCount('wp:debug-log:data'), 1);
+});
+
+// The panel shows the path so it can be tailed in a terminal or attached to a
+// ticket. Composed in the main process — the renderer would have to join it with
+// '/' and be wrong on Windows — so the bridge has to carry it back out.
+test('startWpDebug carries the log path back to the renderer', async () => {
+	const { api } = loadPreload({
+		invokeResults: { 'wp-debug:start': () => ({ ok: true, filePath: '/sites/wp/build/wp-content/debug.log' }) }
+	});
+
+	const started = await api.startWpDebug('/sites/wp', () => {});
+
+	assert.equal(started.filePath, '/sites/wp/build/wp-content/debug.log');
+	assert.equal(typeof started.unsubscribe, 'function');
+});
+
+// A main process that answered with the old bare `true` — or with nothing —
+// must still leave a usable unsubscribe rather than throwing on `.filePath`.
+test('startWpDebug survives a reply carrying no path', async () => {
+	const { api, ipcRenderer } = loadPreload({ invokeResults: { 'wp-debug:start': () => undefined } });
+
+	const started = await api.startWpDebug('/sites/wp', () => {});
+
+	assert.equal(started.filePath, '');
+	started.unsubscribe();
+	assert.equal(ipcRenderer.listenerCount('wp:debug-log:data'), 0);
+});
+
 // The guard for the paragraph above isElectronPackage: if the stub ever stops
 // covering a path, this fails here rather than as a mystery download in another
 // file's test on a cold checkout.

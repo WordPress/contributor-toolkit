@@ -68,9 +68,28 @@ async function revealRegisteredSite(sitePath, { sites, reveal, onRefused } = {})
 	return error ? { ok: false, reason: 'open-failed', error } : { ok: true };
 }
 
+// The `wp-debug:clear` handler's body. Emptying a file is nowhere near as
+// severe as `fse.remove`, but the shape is the same one this module exists for:
+// the renderer names a path and the app then writes to a location derived from
+// it. A path outside the registry would have the app truncating a file in a
+// directory it never created.
+//
+// `truncate` is injected like `remove` and `reveal` above, and reports whether
+// it succeeded rather than throwing, so the renderer can say that the pane was
+// cleared and the file was not.
+async function clearRegisteredSiteLog(sitePath, { sites, truncate, onRefused } = {}) {
+	if (!isRegisteredSite(sitePath, sites)) {
+		if (typeof onRefused === 'function') onRefused(describeRefusedSite(sitePath));
+		return { ok: false, reason: 'unregistered-site' };
+	}
+
+	return truncate(sitePath);
+}
+
 module.exports = {
 	isRegisteredSite,
 	describeRefusedSite,
 	revealRegisteredSite,
-	deleteRegisteredSite
+	deleteRegisteredSite,
+	clearRegisteredSiteLog
 };
