@@ -47,14 +47,11 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	openExternal: (url) => ipcRenderer.invoke('url:open', url)
 ,
-	getEditor: () => ipcRenderer.invoke('editor:get')
-,
 	listEditors: () => ipcRenderer.invoke('editor:list')
 ,
-	// With a path, remembers that editor; without one, opens the file dialog.
-	chooseEditor: (editorPath) => ipcRenderer.invoke('editor:choose', editorPath)
-,
-	openInEditor: (sitePath) => ipcRenderer.invoke('editor:open', sitePath)
+	// With a path, opens the folder in that application — one of the detected
+	// ones, which main checks. Without one, the file dialog answers instead.
+	openInEditor: (sitePath, editorPath = null) => ipcRenderer.invoke('editor:open', sitePath, editorPath)
 ,
 	// Who the patch came from and where, app-wide (#166). An empty ref forgets
 	// the field it is passed to.
@@ -222,17 +219,28 @@ contextBridge.exposeInMainWorld('api', {
 		return { updateId };
 	}
 ,
+	// Resolves to the log's path as well as its unsubscribe: the panel shows the
+	// path, and only the main process can compose it correctly on both platforms.
 	startWpDebug: async (sitePath, onData) => {
 		const handler = (_e, payload) => {
 			if (payload.sitePath === sitePath && onData) onData(payload.data);
 		};
 		ipcRenderer.on('wp:debug-log:data', handler);
-		await ipcRenderer.invoke('wp-debug:start', sitePath);
-		return () => ipcRenderer.removeListener('wp:debug-log:data', handler);
+		const started = await ipcRenderer.invoke('wp-debug:start', sitePath);
+		return {
+			filePath: started?.filePath || '',
+			unsubscribe: () => ipcRenderer.removeListener('wp:debug-log:data', handler)
+		};
 	},
 	stopWpDebug: async (sitePath) => {
 		await ipcRenderer.invoke('wp-debug:stop', sitePath);
-	}
+	},
+	// Empties the file, not just the panel: the tail replays what is on disk
+	// every time it attaches, so a pane cleared on its own fills straight back up
+	// on the next dev-server start.
+	clearWpDebug: (sitePath) => ipcRenderer.invoke('wp-debug:clear', sitePath)
+,
+	revealWpDebug: (sitePath) => ipcRenderer.invoke('wp-debug:reveal', sitePath)
 ,
 	startServer: async (sitePath, onLog, onUrl, onStopped) => {
 		const logHandler = (_e, payload) => {

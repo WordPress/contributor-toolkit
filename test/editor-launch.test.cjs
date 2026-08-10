@@ -19,6 +19,7 @@ const {
 	REFUSAL_REASONS,
 	editorCandidates,
 	detectEditors,
+	matchDetectedEditor,
 	knownEditorName,
 	isLaunchableEditorPath,
 	resolveLaunch,
@@ -209,6 +210,52 @@ test('on Linux a file the OS will not execute is not an application', async () =
 	assert.equal(await isLaunchableEditorPath('/usr/bin/code', { platform: 'linux', statPath: fs.statPath }), true);
 });
 
+// --- which applications may be launched at all ----------------------------
+//
+// The window names the application now, so this is the set the main process
+// re-establishes rather than trusts. Every case below is written from one
+// machine by injecting `platform` and `exists`: a check that only holds on
+// Windows is a check CI never runs.
+
+test('an application detection found is matched, and answered with the path detection vouches for', async () => {
+	const fs = fakeFs({ '/Applications/Cursor.app': 'dir' });
+
+	const match = await matchDetectedEditor('/Applications/Cursor.app', { platform: 'darwin', env: MAC_ENV, exists: fs.exists });
+
+	assert.equal(match.path, '/Applications/Cursor.app');
+	assert.equal(match.name, 'Cursor');
+});
+
+test('an application detection did not find is not matched, however plausible it looks', async () => {
+	const fs = fakeFs({ '/Applications/Cursor.app': 'dir' });
+	const onMac = { platform: 'darwin', env: MAC_ENV, exists: fs.exists };
+
+	// Installed, but not where the table looks, so this app has never seen it.
+	assert.equal(await matchDetectedEditor('/Applications/Some Editor.app', onMac), null);
+	// In the table, but not on this machine.
+	assert.equal(await matchDetectedEditor('/Applications/Zed.app', onMac), null);
+	for (const value of [null, undefined, 42, '', {}]) {
+		assert.equal(await matchDetectedEditor(value, onMac), null);
+	}
+});
+
+// The same three-way split as knownEditorName, and for the same reason: the
+// platform decides whether two differently-cased paths are one file.
+test('the match is case-insensitive exactly where the filesystem is', async () => {
+	const mac = fakeFs({ '/Applications/Cursor.app': 'dir' });
+	const matched = await matchDetectedEditor('/applications/cursor.app', { platform: 'darwin', env: MAC_ENV, exists: mac.exists });
+	// Answered with the detected casing, which is the path that will be spawned.
+	assert.equal(matched.path, '/Applications/Cursor.app');
+
+	const win = fakeFs({ 'C:\\Users\\dev\\AppData\\Local\\Programs\\cursor\\Cursor.exe': 'file' });
+	const onWin = await matchDetectedEditor('c:\\users\\dev\\appdata\\local\\programs\\cursor\\cursor.exe', { platform: 'win32', env: WIN_ENV, exists: win.exists });
+	assert.equal(onWin.path, 'C:\\Users\\dev\\AppData\\Local\\Programs\\cursor\\Cursor.exe');
+
+	// Linux is case-sensitive, so this is a different file and must not match.
+	const linux = fakeFs({ '/usr/bin/code': 'exe' });
+	assert.equal(await matchDetectedEditor('/USR/BIN/CODE', { platform: 'linux', env: {}, exists: linux.exists }), null);
+});
+
 // --- what the editor is called -------------------------------------------
 
 // The button promises to name the editor. On Windows the filename does not:
@@ -343,7 +390,7 @@ test('a refusal is logged on one bounded line', async () => {
 	assert.ok(description.length <= 121);
 });
 
-test('the child is detached, shell-free and hidden, and its handle released', async () => {
+test('the child is detached and shell-free, and its handle released', async () => {
 	const { calls, options } = launchDeps();
 
 	await openSiteInEditor(SITE, EDITOR, options);
@@ -351,10 +398,32 @@ test('the child is detached, shell-free and hidden, and its handle released', as
 	assert.deepEqual(calls[0].options, {
 		detached: true,
 		stdio: 'ignore',
-		shell: false,
-		windowsHide: true
+		shell: false
 	});
 	assert.equal(calls[0].unrefed, true);
+});
+
+// `windowsHide` fills the new process's STARTUPINFO with "start hidden", and a
+// GUI application that honors it — VS Code does — launches with its window
+// invisible while the spawn still reports success, so the app said ok and the
+// contributor saw nothing (#181). The flag exists to suppress console windows
+// the app's own tooling creates; the editor's window is the point of the click.
+test('the editor is not asked to start hidden on Windows', async () => {
+	const winEditor = 'C:\\Users\\dev\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe';
+	const winSite = 'C:\\Users\\dev\\Desktop\\wp';
+	const fs = fakeFs({ [winEditor]: 'exe' });
+	const { calls, spawn } = recordingSpawn();
+
+	const result = await openSiteInEditor(winSite, winEditor, {
+		sites: [winSite],
+		platform: 'win32',
+		statPath: fs.statPath,
+		spawn
+	});
+
+	assert.deepEqual(result, { ok: true });
+	assert.ok(!('windowsHide' in calls[0].options),
+		'a GUI editor must not inherit a hidden first window');
 });
 
 test('a spawn that throws is reported, not raised at the window', async () => {

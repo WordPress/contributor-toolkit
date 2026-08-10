@@ -8,18 +8,24 @@ import {
   Dropdown,
   Flex,
   DropdownMenu,
+  Icon,
+  MenuGroup,
+  MenuItem,
   Modal,
   TextControl,
   TextareaControl,
   Spinner
 } from '@wordpress/components';
-import { plus, chevronLeft, chevronRight, copy as copyIcon, check as checkIcon, edit, download, comment } from '@wordpress/icons';
+import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, edit, download, comment } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
 import { computeSetupStepState } from './setup-steps.cjs';
+import { shouldShowTerminalHints, computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
+import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
+import { noticeForOpenResult } from './open-failure.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
@@ -30,6 +36,8 @@ import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
+// Shared by both log panes so the tabs cannot drift apart visually.
+const LOG_PANE_STYLE = { whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 12, borderRadius: 6, height: 220, overflow: 'auto' };
 // What the Copy button says about the press just made. Keyed rather than
 // nested ternaries, so a fourth state is a line here instead of another branch
 // in the middle of the JSX.
@@ -72,7 +80,12 @@ const UPDATE_STEP_MARKS = {
 };
 // The file manager has a name on the two platforms that have one; everywhere
 // else it is whatever the desktop provides, so it is called what it is.
+//
+// Two forms, because it appears in two places: an instruction in a list of
+// commands ("Show in Finder"), and an application named alongside the editors in
+// the "Open directory in" menu, where every other row is a bare name.
 const FILE_MANAGER_LABELS = { darwin: 'Show in Finder', win32: 'Show in Explorer' };
+const FILE_MANAGER_NAMES = { darwin: 'Finder', win32: 'File Explorer' };
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
@@ -94,69 +107,44 @@ function formatEmailDate(email) {
 }
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
-// The editor is one app-wide choice, so it is held once for the window rather
-// than once per site. Every site is mounted at all times (the inactive ones are
-// hidden), so per-row state here would mean N copies of the same answer: N loads
-// on startup, and a choice made in one row leaving every other row's button
-// still saying "Open in editor".
+// Which applications this machine has is a fact about the machine, not about a
+// site, so it is held once for the window rather than once per site. Every site
+// is mounted at all times (the inactive ones are hidden), so per-row state here
+// would mean N copies of the same answer and N filesystem sweeps.
 //
-// Detection is deliberately not part of the load: `editor:get` is a store read,
-// and the filesystem probe behind `editor:list` waits until the picker is
-// actually opened.
-function useEditorChoice() {
-  const [chosen, setChosen] = useState(null);
+// Detection is deliberately not part of the load: the probe behind `editor:list`
+// waits until a menu is actually opened. It is re-run on every open rather than
+// cached for the session, because an editor installed while this app is running
+// is one the next menu should offer. The previous answer is kept on screen in the
+// meantime, so reopening the menu does not blink through an empty list.
+function useDetectedEditors() {
   const [detected, setDetected] = useState([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    window.api.getEditor()
-      .then((editor) => { if (!cancelled) setChosen(editor || null); })
-      // The window carries on with no remembered editor, which is a state it
-      // handles — but "the store could not be read" and "nothing chosen yet"
-      // must not be the same event to whoever reads the log afterwards.
-      // eslint-disable-next-line no-console -- reaches the log file: logging.js initializes electron-log with spyRendererConsole, so this is how the renderer records a diagnostic.
-      .catch((err) => console.error('Could not read the remembered editor:', err));
-    return () => { cancelled = true; };
-  }, []);
+  const [loading, setLoading] = useState(false);
 
   const loadDetected = useCallback(async () => {
+    setLoading(true);
     try {
       const result = await window.api.listEditors();
       setDetected(result?.detected || []);
-      setChosen(result?.chosen || null);
     } catch (err) {
-      // eslint-disable-next-line no-console -- see the note on the first console.error above.
+      // The menu still offers the file manager and "Other application…", which
+      // is enough to finish the job — but "detection failed" and "nothing is
+      // installed" must not be the same event to whoever reads the log.
+      // eslint-disable-next-line no-console -- reaches the log file: logging.js initializes electron-log with spyRendererConsole, so this is how the renderer records a diagnostic.
       console.error('Could not list the editors on this machine:', err);
       setDetected([]);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  // `editorPath` is one of the detected editors; without one the main process
-  // opens the file dialog, which is what covers every editor detection misses.
-  //
-  // A rejected invoke is reported as a refusal rather than raised: the caller
-  // draws a notice from it, and an unhandled rejection here would be a button
-  // that silently did nothing.
-  const remember = useCallback(async (editorPath) => {
-    let result;
-    try {
-      result = await window.api.chooseEditor(editorPath);
-    } catch (err) {
-      // eslint-disable-next-line no-console -- see the note on the first console.error above.
-      console.error('Could not remember that editor:', err);
-      return { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
-    }
-    if (result?.ok) setChosen(result.editor);
-    return result;
-  }, []);
-
-  return { chosen, detected, loadDetected, remember };
+  return { detected, loading, loadDetected };
 }
 
 // Who this contributor is and where they are contributing from (#166), held
-// once for the same reason the editor choice is: both are facts about the
-// person, not about a checkout, so answering them in one site's patch modal
-// must not leave every other site still asking.
+// once for the same reason the detected editors are: both are facts about the
+// person or their machine, not about a checkout, so answering them in one site's
+// patch modal must not leave every other site still asking.
 function useContributorProvenance() {
   const [handle, setHandle] = useState(null);
   const [event, setEvent] = useState(null);
@@ -171,8 +159,8 @@ function useContributorProvenance() {
       })
       // "nothing answered yet" is an ordinary state; "the store could not be
       // read" is not, and the two must not look the same in the log. Same
-      // argument as useEditorChoice above.
-      // eslint-disable-next-line no-console -- reaches the log file, see the note in useEditorChoice.
+      // argument as useDetectedEditors above.
+      // eslint-disable-next-line no-console -- reaches the log file, see the note in useDetectedEditors.
       .catch((err) => console.error('Could not read the remembered contributor details:', err));
     return () => { cancelled = true; };
   }, []);
@@ -222,8 +210,9 @@ function useSites() {
 
 function App() {
   const { sites, siteMeta, refresh, setSiteMeta, setSites } = useSites();
-  // One choice for the window, shared by every site row.
-  const editorChoice = useEditorChoice();
+  // One answer for the window, shared by every site row: which applications this
+  // machine has is a fact about the machine, not about a site.
+  const detectedApplications = useDetectedEditors();
   const wporg = useContributorProvenance();
   const [downloadPhase, setDownloadPhase] = useState('');
   // Directories whose clone is still running. An array rather than a single
@@ -847,7 +836,7 @@ function App() {
                       onForget={onForget}
                       onDelete={onDelete}
                       onRename={onRename}
-                      editor={editorChoice}
+                      editor={detectedApplications}
                       wporg={wporg}
                       isPending={pendingSites.includes(s)}
                       setupLogs={setupLogsBySite[s] || ''}
@@ -1020,6 +1009,22 @@ function DestinationGroup({ children }) {
   );
 }
 
+// A command named in the hints under the Terminal (#182). Clicking it types the
+// command at the prompt and stops there — running it is the contributor's
+// keypress, so the hint teaches where these commands live instead of becoming a
+// second, hidden set of build buttons. Rendered as plain text while something is
+// running, since prefilling then would land in the middle of live output.
+function TerminalCommandLink({ command, onPrefill, disabled }) {
+  if (disabled) return <code>{command}</code>;
+  return (
+    <Button
+      variant="link"
+      onClick={() => onPrefill(command)}
+      style={{ fontSize: 12, fontFamily: 'monospace', height: 'auto' }}
+    >{command}</Button>
+  );
+}
+
 function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, editor, wporg, isPending = false, setupLogs = '', isActive = false, switchProgress = null, onClearSwitchProgress = null }) {
   // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
   // recreated callback prop must not retrigger the status-loading effect.
@@ -1032,6 +1037,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [installing, setInstalling] = useState(false);
   const [npmLogs, setNpmLogs] = useState('');
   const [runtimeLogs, setRuntimeLogs] = useState('');
+  // WordPress's own debug.log, kept apart from the server's output: one is what
+  // Playground is doing, the other is what the contributor's code is doing, and
+  // interleaving them buries the second in the first.
+  const [debugLogs, setDebugLogs] = useState('');
+  const [debugUnread, setDebugUnread] = useState(0);
+  // Kept after the dev server stops: the file is still there, and so is the
+  // reason someone wants the path.
+  const [debugLogPath, setDebugLogPath] = useState('');
+  const [activeLogTab, setActiveLogTab] = useState('runtime');
+  const activeLogTabRef = useRef('runtime');
+  // '' | 'copied' | 'failed', on the debug.log Copy button for two seconds.
+  const [debugCopied, setDebugCopied] = useState('');
+  const debugCopyTimer = useRef(null);
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [patchText, setPatchText] = useState('');
   const [patchLoading, setPatchLoading] = useState(false);
@@ -1069,6 +1087,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [smtpPort, setSmtpPort] = useState(0);
   const newEmailUnsubRef = useRef(null);
   const smtpStartedUnsubRef = useRef(null);
+  const wpDebugUnsubRef = useRef(null);
   const [isEmailOpen, setIsEmailOpen] = useState(false);
   const [activeEmail, setActiveEmail] = useState(null);
   const [, setEmailViewTab] = useState('rendered');
@@ -1112,6 +1131,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // chain starts, and the step list still has to know whether install runs.
   const [applyNeedsInstall, setApplyNeedsInstall] = useState(false);
   const [applyError, setApplyError] = useState('');
+  // Not every unhappy ending is a failure: a revert can find that the patch is
+  // already gone, which resolves the situation rather than blocking it. Red
+  // would read as "you broke something" when nothing is left to do.
+  const [applyNotice, setApplyNotice] = useState('');
   const [appliedPatch, setAppliedPatch] = useState(null);
   const [prUrlInput, setPrUrlInput] = useState('');
   const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
@@ -1128,9 +1151,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // sticky refs per log
   const npmRef = useRef(null);
   const runtimeRef = useRef(null);
+  const debugRef = useRef(null);
   const currentRunIdRef = useRef(null);
   const threshold = 8;
-  const [logStick, setLogStick] = useState({ npm: true, runtime: true });
+  const [logStick, setLogStick] = useState({ npm: true, runtime: true, debug: true });
   const updateStick = useCallback((key, value) => {
     setLogStick((prev) => (prev[key] === value ? prev : { ...prev, [key]: value }));
   }, []);
@@ -1138,7 +1162,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setLogStick((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
   }, []);
   useEffect(() => { if (logStick.npm && npmRef.current) npmRef.current.scrollTop = npmRef.current.scrollHeight; }, [npmLogs, logStick.npm]);
-  useEffect(() => { if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight; }, [runtimeLogs, logStick.runtime]);
+  // Both log effects watch `activeLogTab` because TabPanel renders only the
+  // selected tab: the pane is a fresh element every time it is switched back to,
+  // scrolled to the top, and the arriving-text dependency alone would not fire
+  // to put it back at the bottom. The guard is not just for the dependency — the
+  // other tab's element is unmounted, so there is nothing to scroll.
+  useEffect(() => {
+    if (activeLogTab !== 'runtime') return;
+    if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight;
+  }, [runtimeLogs, logStick.runtime, activeLogTab]);
+  useEffect(() => {
+    if (activeLogTab !== 'debug') return;
+    if (logStick.debug && debugRef.current) debugRef.current.scrollTop = debugRef.current.scrollHeight;
+  }, [debugLogs, logStick.debug, activeLogTab]);
   const makeOnScroll = useCallback((key) => (e) => {
     const el = e.currentTarget;
     const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
@@ -1225,84 +1261,54 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   }, [sitePath]);
 
-  // --- opening the code ---------------------------------------------------
+  // --- opening the directory ------------------------------------------------
   //
-  // The editor itself is chosen once for the whole window (see useEditorChoice);
-  // what is per-site here is only the UI around it. Every path out of this ends
-  // somewhere the contributor can act: a launch that fails opens the picker, the
-  // picker always offers "Choose application…", and the copy button above is the
-  // floor under all of it.
-  const { chosen: chosenEditor, detected: detectedEditors, loadDetected, remember } = editor;
-  const [editorPickerOpen, setEditorPickerOpen] = useState(false);
-  const [editorNotice, setEditorNotice] = useState('');
+  // One menu, one intention: open this folder, in that. The application is the
+  // argument to the action rather than a setting configured first, so there is
+  // nothing remembered, nothing to change later, and no first-run picker.
+  //
+  // What the menu offers is what detection found (see editor-launch.js — a
+  // convenience, not a claim about what is installed) plus the file manager and
+  // "Other application…", which is what covers everything the table misses. No
+  // entry is ever drawn disabled: an application this app cannot find is not one
+  // it refuses to use, and the copy button above is the floor under all of it.
+  const { detected: detectedEditors, loading: detectingEditors, loadDetected } = editor;
+  // `{ message, offerPicker }` from open-failure.cjs, or null for nothing to
+  // say. Both what it reads and whether "Choose application…" is a way out of
+  // it are decided there, per reason — the two callers below deciding that
+  // separately is what #180 was.
+  const [editorNotice, setEditorNotice] = useState(null);
 
   const fileManagerLabel = FILE_MANAGER_LABELS[window.api?.platform] || 'Show in file manager';
+  const fileManagerName = FILE_MANAGER_NAMES[window.api?.platform] || 'File manager';
 
-  const describeOpenFailure = useCallback((result) => {
-    if (result?.reason === 'unlaunchable-editor') {
-      return 'That editor is no longer where it was. Choose it again.';
-    }
-    if (result?.reason === 'spawn-failed') {
-      return `The editor would not start: ${result.error || 'unknown error'}`;
-    }
-    if (result?.reason === 'unregistered-site') {
-      return 'This app has no record of that folder, so it will not open it.';
-    }
-    if (result?.reason === 'unavailable') {
-      return `Could not reach the app's main process: ${result.error || 'unknown error'}`;
-    }
-    return 'Could not open the folder in an editor.';
-  }, []);
-
+  // `editorPath` is one of the detected applications; null asks the main process
+  // for the file dialog instead.
+  //
   // The invoke itself can reject — a handler that throws, a window being torn
-  // down — and a rejection here would leave the notice unset and the picker
-  // unopened: the button would appear to do nothing, which is the one outcome
-  // this feature is not allowed to produce.
-  const askToOpen = useCallback(async () => {
+  // down — and a rejection here would leave the notice unset: the menu item
+  // would appear to do nothing, which is the one outcome this feature is not
+  // allowed to produce.
+  const openIn = useCallback(async (editorPath = null) => {
+    let result;
     try {
-      return await window.api.openInEditor(sitePath);
+      result = await window.api.openInEditor(sitePath, editorPath);
     } catch (err) {
       // eslint-disable-next-line no-console -- see the note on the first console.error above.
-      console.error('Could not open the site in an editor:', err);
-      return { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
+      console.error('Could not open the site directory:', err);
+      result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
-  }, [sitePath]);
+    const notice = noticeForOpenResult(result, { picked: editorPath === null });
+    setEditorNotice(notice);
+    // An application that was detected and then failed is one detection should be
+    // asked about again, so the next menu does not offer it as if nothing had
+    // happened.
+    if (notice && editorPath !== null) await loadDetected();
+  }, [loadDetected, sitePath]);
 
-  const openInEditor = useCallback(async () => {
-    const result = await askToOpen();
-    if (result?.ok) {
-      setEditorNotice('');
-      return;
-    }
-    // Nothing chosen yet is not an error, it is the first use. Anything else is
-    // worth saying out loud — but both end at the same place: the picker.
-    setEditorNotice(result?.reason === 'no-editor' ? '' : describeOpenFailure(result));
-    await loadDetected();
-    setEditorPickerOpen(true);
-  }, [askToOpen, describeOpenFailure, loadDetected]);
-
-  const rememberEditor = useCallback(async (editorPath) => {
-    const result = await remember(editorPath);
-    if (!result?.ok) {
-      if (result?.reason === 'unlaunchable-editor') {
-        setEditorNotice('That is not an application this app can open a folder in.');
-      } else if (result?.reason === 'unavailable') {
-        setEditorNotice(describeOpenFailure(result));
-      }
-      // 'cancelled' is the contributor closing the dialog, which is an answer,
-      // not a failure. The picker stays open either way: it is where the next
-      // attempt starts from.
-      return;
-    }
-    const opened = await askToOpen();
-    setEditorNotice(opened?.ok ? '' : describeOpenFailure(opened));
-    // Only a launch that actually worked closes the picker. Closing it on the
-    // choice alone would leave a contributor whose editor failed looking at a
-    // notice with no picker, one step further from a working editor than before
-    // they clicked.
-    if (opened?.ok) setEditorPickerOpen(false);
-  }, [askToOpen, describeOpenFailure, remember]);
-
+  // Through the same function as `openIn` above, deliberately: this used to
+  // build its own sentence out of `error` alone, so a refusal — which carries a
+  // `reason` and no `error` — came out as the words "unknown error" (#180).
   const showInFileManager = useCallback(async () => {
     let result;
     try {
@@ -1310,13 +1316,76 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } catch (err) {
       // eslint-disable-next-line no-console -- see the note on the first console.error above.
       console.error('Could not reveal the site folder:', err);
-      result = { ok: false, error: String(err?.message ?? err) };
+      result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
-    setEditorNotice(result?.ok ? '' : `Could not open the folder: ${result?.error || 'unknown error'}`);
+    setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
 
   const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
   const appendRuntime = useCallback((s)=>setRuntimeLogs((v)=>v + String(s ?? '')),[]);
+  const appendDebug = useCallback((s) => {
+    const chunk = String(s ?? '');
+    if (!chunk) return;
+    setDebugLogs((v) => appendBounded(v, chunk));
+    // Counted only while the tab is not the one being read. Selecting it zeroes
+    // the badge, so incrementing there would flicker it straight back on.
+    if (activeLogTabRef.current !== 'debug') setDebugUnread((n) => n + countLines(chunk));
+  }, []);
+  const selectLogTab = useCallback((name) => {
+    activeLogTabRef.current = name;
+    setActiveLogTab(name);
+    if (name === 'debug') setDebugUnread(0);
+  }, []);
+  // The count is on the tab rather than beside it because the tab is what the
+  // contributor is not looking at: a notice landing while they read the server
+  // output is the case this panel exists for.
+  const logTabs = useMemo(() => ([
+    { name: 'runtime', title: 'Server' },
+    { name: 'debug', title: debugUnread ? `debug.log (${debugUnread})` : 'debug.log' }
+  ]), [debugUnread]);
+  const clearDebugLog = useCallback(async () => {
+    setDebugLogs('');
+    setDebugUnread(0);
+    // The file has to go with the pane. Clearing only the pane looks like it
+    // worked and then hands the same lines back on the next dev-server start,
+    // because the tail replays whatever is on disk when it attaches.
+    let cleared;
+    try {
+      cleared = await window.api.clearWpDebug(sitePath);
+    } catch (e) {
+      cleared = { ok: false, error: e && e.message ? e.message : String(e) };
+    }
+    if (!cleared?.ok) appendDebug(`Could not clear ${pathBasename(sitePath)}'s debug.log: ${cleared?.error || cleared?.reason || 'unknown error'}. The panel was cleared; the file was not.\n`);
+  }, [appendDebug, sitePath]);
+  // Same shape as copyPatch below, and for the same reason: a clipboard write
+  // has no visible result, so the button has to report one. This log goes
+  // straight into a Trac ticket or a pull request comment.
+  const copyDebugLog = useCallback(async () => {
+    if (debugCopyTimer.current) clearTimeout(debugCopyTimer.current);
+    let state = 'copied';
+    try {
+      await navigator.clipboard.writeText(debugLogs);
+    } catch {
+      state = 'failed';
+    }
+    setDebugCopied(state);
+    debugCopyTimer.current = setTimeout(() => setDebugCopied(''), 2000);
+  }, [debugLogs]);
+  useEffect(() => () => { if (debugCopyTimer.current) clearTimeout(debugCopyTimer.current); }, []);
+  // Switching to another site unmounts this panel without going through
+  // stopDevServer, so the listener has to come off here too.
+  useEffect(() => () => { try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {} }, []);
+  const revealDebugLog = useCallback(async () => {
+    let revealed;
+    try {
+      revealed = await window.api.revealWpDebug(sitePath);
+    } catch (e) {
+      revealed = { ok: false, error: e && e.message ? e.message : String(e) };
+    }
+    // Nothing on screen moves when a file manager opens behind the app, so a
+    // refusal that says nothing is a button that did nothing.
+    if (!revealed?.ok) appendDebug(`Could not show the log file: ${revealed?.error || revealed?.reason || 'unknown error'}\n`);
+  }, [appendDebug, sitePath]);
   const sortEmails = useCallback((list)=>[...list].sort((a,b)=>new Date(b.sentAt||b.date||0)-new Date(a.sentAt||a.date||0)),[]);
   const openEmail = useCallback((m)=>{ setActiveEmail(m); setEmailViewTab('rendered'); setIsEmailOpen(true); },[]);
   const clearEmails = useCallback(async ()=>{ await window.api.clearEmails(sitePath); setEmails([]); }, [sitePath]);
@@ -1532,6 +1601,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   useEffect(() => { runningRef.current = running; }, [running]);
   useEffect(() => { waitingForWatchRef.current = waitingForWatch; }, [waitingForWatch]);
 
+  // The terminal's own busy flag lives in a ref, so nothing re-renders when it
+  // moves — fine for the guards that read it inline, useless for anything the
+  // UI has to reflect. The hints under the Terminal (#182) do have to reflect
+  // it, so every write goes through here and keeps a state copy in step. The
+  // direction that hurts is the ref saying "busy" while the state says "free":
+  // the hint links stay enabled and their click is silently refused.
+  const [terminalRunning, setTerminalRunning] = useState(false);
+  const markTerminalRunning = useCallback((value) => {
+    const next = Boolean(value);
+    terminalStateRef.current.running = next;
+    setTerminalRunning(next);
+  }, []);
+
   const normalizeForTerminal = useCallback((text) => String(text ?? '').replace(/\r?\n/g, '\r\n'), []);
 
   const writeToTerminal = useCallback((text) => {
@@ -1587,6 +1669,26 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     if (terminalStickRef.current) term.scrollToBottom();
   }, []);
 
+  // Drops a command at the prompt without running it, for the hints under the
+  // Terminal (#182). Build and install are one-time steps in the setup
+  // checklist, so a contributor who edits files or adds a dependency later has
+  // no button left to press — the terminal is the path that still works, and
+  // nothing pointed at it. Prefilling rather than running is the point: the
+  // command lands where they can see it, and they press Enter themselves.
+  const prefillTerminalCommand = useCallback((command) => {
+    // The links are already rendered as plain text while the terminal is busy,
+    // so this is the belt to that braces — but it says so rather than returning
+    // silently, matching every other busy guard in this file. A guard that
+    // swallows the click is how a link becomes a control that does nothing.
+    if (terminalStateRef.current.running) {
+      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      return;
+    }
+    replaceTerminalInput(command);
+    const term = terminalRef.current;
+    if (term) term.focus();
+  }, [replaceTerminalInput, writeToTerminal]);
+
   const addCommandToHistory = useCallback((value) => {
     const trimmed = value.trim();
     if (!trimmed) return;
@@ -1606,6 +1708,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     writeToTerminal('  help                        Show this help text\n');
     writeToTerminal('  npm install                 Run npm install in the site directory\n');
     writeToTerminal('  npm run <script>            Run one of: ' + TERMINAL_ALLOWED_SCRIPTS.join(', ') + '\n');
+    writeToTerminal('\nThe setup checklist runs npm install and npm run build once. Run them here\nwhenever you change files or add a dependency afterwards.\n');
   }, [writeToTerminal]);
 
   const executeTerminalCommand = useCallback((rawCommand) => {
@@ -1631,14 +1734,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
     const lower = command.toLowerCase();
     if (TERMINAL_INSTALL_ALIASES.includes(lower)) {
-      state.running = true;
+      markTerminalRunning(true);
       terminalKillRef.current = () => { killCurrent().catch(() => {}); };
       writeToTerminal('Running npm install…\n');
       runInstall({
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
           writeToTerminal(`npm install exited with code ${code}\n`);
-          state.running = false;
+          markTerminalRunning(false);
           terminalKillRef.current = null;
           showPrompt(false);
         }
@@ -1658,14 +1761,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         showPrompt(false);
         return;
       }
-      state.running = true;
+      markTerminalRunning(true);
       terminalKillRef.current = () => { killCurrent().catch(() => {}); };
       writeToTerminal(`Running npm run ${script}…\n`);
       runScript(script, {
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
           writeToTerminal(`npm run ${script} exited with code ${code}\n`);
-          state.running = false;
+          markTerminalRunning(false);
           terminalKillRef.current = null;
           showPrompt(false);
         }
@@ -1675,7 +1778,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
     writeToTerminal(`Unsupported command: ${command}\nTry "help" for the list of supported commands.\n`);
     showPrompt(false);
-  }, [addCommandToHistory, killCurrent, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
+  }, [addCommandToHistory, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
 
   const handleTerminalData = useCallback((data) => {
     const term = terminalRef.current;
@@ -1795,6 +1898,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setStarting(false);
     try { await window.api.stopServer(sitePath); } catch {}
     try { window.api.stopWpDebug(sitePath); } catch {}
+    // stopWpDebug only tears down the watcher in the main process. The renderer
+    // keeps its own 'wp:debug-log:data' listener until this runs, and a second
+    // start would add another one on top of it — every line then appended once
+    // per dev-server run the session has had.
+    try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {}
     try { if (newEmailUnsubRef.current) { newEmailUnsubRef.current(); newEmailUnsubRef.current = null; } } catch {}
     try { if (smtpStartedUnsubRef.current) { smtpStartedUnsubRef.current(); smtpStartedUnsubRef.current = null; } } catch {}
     setRunning(false);
@@ -1804,9 +1912,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     stoppingRef.current = false;
     waitingForWatchRef.current = false;
     terminalKillRef.current = null;
-    terminalStateRef.current.running = false;
+    markTerminalRunning(false);
     currentRunIdRef.current = null;
-  }, [setRunning, setServerUrl, setSmtpPort, setStarting, setWaitingForWatch, sitePath]);
+  }, [markTerminalRunning, setRunning, setServerUrl, setSmtpPort, setStarting, setWaitingForWatch, sitePath]);
 
   const startPhpServer = useCallback(async () => {
     if (serverStartRequestedRef.current || stoppingRef.current || !terminalStateRef.current.running) {
@@ -1865,9 +1973,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       runningRef.current = false;
       return;
     }
-    window.api.startWpDebug(sitePath,(d)=>appendRuntime(d || ''));
+    // Reset before subscribing: the tail replays the tail of the file when it
+    // attaches (up to 256KB, startWpDebugTail in main.js), so a restart would
+    // otherwise show the previous session's log a second time below itself.
+    // Stopping the server does not clear the pane — after a crash that log is
+    // the thing to read — but starting a new run does.
+    setDebugLogs('');
+    setDebugUnread(0);
+    try {
+      if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; }
+      const tail = await window.api.startWpDebug(sitePath,(d)=>appendDebug(d || ''));
+      wpDebugUnsubRef.current = tail?.unsubscribe || null;
+      if (tail?.filePath) setDebugLogPath(tail.filePath);
+    } catch {}
     try { const { port, emails: fetchedEmails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(fetchedEmails||[]); } catch {}
-  }, [appendRuntime, ensureStick, killCurrent, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
+  }, [appendDebug, appendRuntime, ensureStick, killCurrent, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
 
   const toggleDevServer = async ()=>{
     if (!running) {
@@ -1878,7 +1998,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
         return;
       }
-      state.running = true;
+      markTerminalRunning(true);
       terminalKillRef.current = () => {
         killCurrent().catch(() => {});
         stopDevServer().catch(() => {});
@@ -1903,8 +2023,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           },
           onDone: ({ code }) => {
             writeToTerminal(`${plan.watch.label} exited with code ${code}\n`);
-            const currentState = terminalStateRef.current;
-            currentState.running = false;
+            markTerminalRunning(false);
             terminalKillRef.current = null;
             if (!stoppingRef.current && (runningRef.current || serverStartRequestedRef.current)) {
               stopDevServer().catch(() => {});
@@ -1933,7 +2052,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           onDone: ({ code }) => {
             if (code !== 0 || stoppingRef.current || !terminalStateRef.current.running) {
               if (code !== 0) writeToTerminal(`npm run build failed with code ${code} — dev server not started.\n`);
-              terminalStateRef.current.running = false;
+              markTerminalRunning(false);
               terminalKillRef.current = null;
               setWaitingForWatch(false);
               waitingForWatchRef.current = false;
@@ -2029,7 +2148,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
   const finishUpdate = (message) => {
-    terminalStateRef.current.running = false;
+    markTerminalRunning(false);
     terminalKillRef.current = null;
     setUpdateState('idle');
     if (message) writeToTerminal(message);
@@ -2081,6 +2200,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Same three-stage shape as the update chain, and the same npm wrappers, so
   // exit codes and terminal streaming behave identically.
   const isApplying = applyState !== 'idle';
+  const showTerminalHints = shouldShowTerminalHints({ hasBuilt });
+  const terminalBusy = computeTerminalBusy({
+    terminalRunning, installing, building, starting, running, isUpdating, isApplying
+  });
   const applySteps = planApplySteps({ needsInstall: applyNeedsInstall });
   const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
 
@@ -2102,7 +2225,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   ) : null);
 
   const finishApply = (message) => {
-    terminalStateRef.current.running = false;
+    markTerminalRunning(false);
     terminalKillRef.current = null;
     setApplyState('idle');
     if (message) writeToTerminal(message);
@@ -2145,6 +2268,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // checkout — the contributor decides after seeing the file list.
   const choosePatchFile = async () => {
     setApplyError('');
+    setApplyNotice('');
     try {
       const chosen = await window.api.choosePatchFile();
       if (!chosen) return;
@@ -2220,6 +2344,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // so applying a PR and applying a downloaded patch are one path from here on.
   const previewPr = async (pr) => {
     setApplyError('');
+    setApplyNotice('');
     setFetchingPr(pr.number);
     try {
       const diff = await window.api.fetchPrDiff(pr.number);
@@ -2264,6 +2389,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // to the same preview the PR and file paths use.
   const previewAttachment = async (att) => {
     setApplyError('');
+    setApplyNotice('');
     setFetchingAttachment(att.url);
     try {
       const res = await window.api.fetchTracAttachment(att.url);
@@ -2288,7 +2414,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // linked to the ticket — same fetch → preview flow as the linked-PR list.
   const previewPrFromInput = () => {
     const parsed = parsePrRef(prUrlInput);
-    if (!parsed.ok) { setApplyError(parsed.error); return; }
+    if (!parsed.ok) { setApplyError(parsed.error); setApplyNotice(''); return; }
     setPrUrlInput('');
     previewPr({ number: parsed.number, url: `https://github.com/WordPress/wordpress-develop/pull/${parsed.number}` });
   };
@@ -2304,9 +2430,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ? Boolean(appliedPatch?.files?.includes('package-lock.json'))
       : Boolean(preview.needsInstall);
     setApplyError('');
+    setApplyNotice('');
     setApplyNeedsInstall(needsInstall);
     setApplyState('applying');
-    state.running = true;
+    markTerminalRunning(true);
     // Same contract as the other chains: while `running` is set, Ctrl+C in the
     // terminal has to reach the child process the chain is about to spawn.
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
@@ -2316,6 +2443,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ({ data }) => writeToTerminal(data),
       (res) => {
         if (!res || !res.ok) {
+          // The main process has already dropped the stale record, so reloading
+          // the status is what takes the "is applied" banner down and frees the
+          // panel to accept another patch. Nothing was written, so there is
+          // nothing to install or build.
+          if (res?.notApplied) {
+            if (res.recordCleared) {
+              setApplyNotice(`${res.error} The applied-patch record has been cleared.`);
+            } else {
+              setApplyError(`${res.error} The record of it could not be cleared, so this site still thinks it is applied.`);
+            }
+            // finishApply reloads the status, which is what takes the banner
+            // down now that the main process has dropped the record.
+            finishApply();
+            return;
+          }
           setApplyError(res?.error || 'The patch could not be applied.');
           finishApply();
           return;
@@ -2339,7 +2481,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
       return;
     }
-    state.running = true;
+    markTerminalRunning(true);
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(false);
     setLastUpdateSummary(null);
@@ -2420,7 +2562,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
       return;
     }
-    state.running = true;
+    markTerminalRunning(true);
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(true);
     setLastUpdateSummary(null);
@@ -2961,7 +3103,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     {
       key: 'install',
       label: 'Install npm dependencies',
-      description: 'Install npm packages so commands can run.',
+      // Once done, this button never re-enables (#182), so the step says where
+      // a later install lives rather than leaving a dead control unexplained.
+      description: stepState.install.done
+        ? 'Installed. Added a dependency to package.json since? Run npm install in the Terminal below.'
+        : 'Install npm packages so commands can run.',
       ...stepState.install,
       action: (
         <Button
@@ -2975,7 +3121,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     {
       key: 'build',
       label: 'Run full build',
-      description: 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
+      description: hasBuilt
+        ? 'Built. Edited files in src/ since? Run npm run build in the Terminal below so the site picks them up — updates and applied patches rebuild on their own.'
+        : 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
       ...stepState.build,
       action: (
         <Button
@@ -3078,23 +3226,64 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               isSmall
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-            <Button variant="secondary" onClick={openInEditor}>
-              {chosenEditor ? `Open in ${chosenEditor.name}` : 'Open in editor'}
-            </Button>
-            <Button variant="tertiary" onClick={showInFileManager}>{fileManagerLabel}</Button>
-            {chosenEditor ? (
-              <Button
-                variant="tertiary"
-                isSmall
-                onClick={async () => { await loadDetected(); setEditorPickerOpen(true); }}
-              >Change editor</Button>
-            ) : null}
+          {/* One control for one intention, directly under the path it acts on.
+              Detection runs when the menu is opened rather than on load: it is a
+              filesystem sweep, and the answer is only needed once someone asks.
+              It is re-read on every open, so an application installed while this
+              app is running shows up the next time the menu is used. */}
+          <div style={{ marginTop: 4 }}>
+            <Dropdown
+              popoverProps={{ placement: 'bottom-start', offset: 4 }}
+              renderToggle={({ isOpen, onToggle }) => (
+                <Button
+                  variant="link"
+                  aria-expanded={isOpen}
+                  aria-haspopup="menu"
+                  onClick={() => {
+                    if (!isOpen) void loadDetected();
+                    onToggle();
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 12 }}
+                >
+                  Open directory in
+                  <Icon icon={chevronDown} size={18} />
+                </Button>
+              )}
+              renderContent={({ onClose }) => (
+                <MenuGroup>
+                  <MenuItem onClick={() => { onClose(); void showInFileManager(); }}>
+                    {fileManagerName}
+                  </MenuItem>
+                  {detectedEditors.map((candidate) => (
+                    <MenuItem key={candidate.path} onClick={() => { onClose(); void openIn(candidate.path); }}>
+                      {candidate.name}
+                    </MenuItem>
+                  ))}
+                  {/* A menu that is still counting is not an empty menu, and the
+                      difference has to be visible: without this, a slow sweep
+                      looks exactly like a machine with no editors on it. */}
+                  {detectingEditors ? (
+                    <MenuItem disabled>Looking for applications…</MenuItem>
+                  ) : null}
+                  {/* Always offered, never only as a fallback: detection is a
+                      shortcut, and an application it misses is not one this app
+                      refuses to use. */}
+                  <MenuItem onClick={() => { onClose(); void openIn(null); }}>
+                    Other application…
+                  </MenuItem>
+                </MenuGroup>
+              )}
+            />
           </div>
+          {/* With no modal in the way, this is the only place a failed open can
+              speak — and it carries the way out with it, rather than leaving the
+              contributor to find the menu again. */}
           {editorNotice ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-              <span style={{ flex: '1 1 240px' }}>{editorNotice}</span>
-              <Button variant="tertiary" isSmall onClick={() => rememberEditor()}>Choose application…</Button>
+            <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
+              <span style={{ flex: '1 1 240px' }}>{editorNotice.message}</span>
+              {editorNotice.offerPicker ? (
+                <Button variant="tertiary" isSmall onClick={() => void openIn(null)}>Choose application…</Button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -3104,7 +3293,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             text=""
             controls={[
               { title: 'Copy path', onClick: copyPath },
-              { title: chosenEditor ? `Open in ${chosenEditor.name}` : 'Open in editor', onClick: openInEditor },
+              // Opening the folder lives in the header's "Open directory in"
+              // menu, next to the path it acts on. Repeating it here would be two
+              // menus answering the same question a few pixels apart.
               { title: fileManagerLabel, onClick: showInFileManager },
               // Also reachable when the site is not yet stale (the staleness
               // notice is the primary entry point) — a fresh site just gets
@@ -3284,7 +3475,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               onClick={openPatchModal}
               disabled={isUpdating}
               style={{ padding: '10px 16px', borderRadius: 10 }}
-            >Create patch</Button>
+            >Submit changes</Button>
             {running && serverUrl ? (
               <Button
                 variant="secondary"
@@ -3581,7 +3772,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               ) : null}
               <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
                 <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>Apply and rebuild</Button>
-                <Button variant="tertiary" onClick={() => { setApplyPreview(null); setApplyError(''); }}>Cancel</Button>
+                <Button variant="tertiary" onClick={() => { setApplyPreview(null); setApplyError(''); setApplyNotice(''); }}>Cancel</Button>
               </div>
             </div>
           ) : null}
@@ -3603,8 +3794,32 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           ) : null}
 
           {applyError ? (
-            <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21' }}>
-              {/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`} The checkout was not changed.
+            <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ flex: '1 1 auto' }}>{/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`} The checkout was not changed.</span>
+              <Button
+                variant="tertiary"
+                isSmall
+                aria-label="Dismiss"
+                onClick={() => setApplyError('')}
+                style={{ color: '#8a1f21' }}
+              >✕</Button>
+            </div>
+          ) : null}
+
+          {applyNotice ? (
+            // Dismissible, like the update summary above: the notice reports
+            // something already resolved, so it outlives its usefulness the
+            // moment it has been read, and nothing else in this panel takes it
+            // down until the next patch.
+            <div role="status" style={{ marginTop: 12, padding: '8px 10px', background: '#f0f6fc', border: '1px solid #3582c4', borderRadius: 6, fontSize: 12, color: '#1d3a5f', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ flex: '1 1 auto' }}>{applyNotice}</span>
+              <Button
+                variant="tertiary"
+                isSmall
+                aria-label="Dismiss"
+                onClick={() => setApplyNotice('')}
+                style={{ color: '#1d3a5f' }}
+              >✕</Button>
             </div>
           ) : null}
 
@@ -3614,7 +3829,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div style={{ minWidth: 280, flex: '1 1 280px' }}>
                   <TextControl
                     value={prUrlInput}
-                    onChange={(value) => { setPrUrlInput(value); setApplyError(''); }}
+                    onChange={(value) => { setPrUrlInput(value); setApplyError(''); setApplyNotice(''); }}
                     onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); previewPrFromInput(); } }}
                     disabled={isUpdating || installing || building}
                     placeholder="Paste a pull request URL or number"
@@ -3651,12 +3866,48 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             }}
           />
           <div style={{ marginTop: 8, fontSize: 12, color: '#3c434a' }}>
-            Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
+            {showTerminalHints ? (
+              <>
+                <div>Edited files in <code>src/</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</div>
+                <div style={{ marginTop: 2, marginBottom: 6 }}>Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
+              </>
+            ) : null}
+            <div>
+              Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
+            </div>
           </div>
         </div>
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Server & WordPress logs</div>
-          <div ref={runtimeRef} onScroll={makeOnScroll('runtime')} style={{ whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:220, overflow:'auto' }}>{runtimeLogs}</div>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Logs</div>
+          <TabPanel className="log-tabs" activeClass="is-active" onSelect={selectLogTab} tabs={logTabs}>
+            {(tab) => (tab.name === 'runtime' ? (
+              <div ref={runtimeRef} onScroll={makeOnScroll('runtime')} style={LOG_PANE_STYLE}>{runtimeLogs}</div>
+            ) : (
+              <>
+                <div ref={debugRef} onScroll={makeOnScroll('debug')} style={LOG_PANE_STYLE}>
+                  {debugLogs || (
+                    // An empty pane reads as broken, which is what this one was
+                    // for as long as WP_DEBUG_LOG was never set. Say what fills
+                    // it instead.
+                    <span style={{ color:'#888' }}>No PHP notices or errors yet. Anything WordPress or your code writes — <code>error_log()</code>, notices, deprecations, fatals — appears here while the dev server runs.</span>
+                  )}
+                </div>
+                <div style={{ display:'flex', gap:8, marginTop:8, alignItems:'center', justifyContent:'space-between', flexWrap:'wrap' }}>
+                  {/* The file is under build/, while the file being edited when
+                      it filled up is under src/ — so it cannot be guessed, and
+                      it is what someone needs to tail it in a terminal or attach
+                      it to a ticket. Selectable rather than truncated with an
+                      ellipsis: a path you cannot copy is decoration. */}
+                  <code style={{ fontSize:11, color:'#666', userSelect:'text', wordBreak:'break-all', flex:'1 1 240px' }}>{debugLogPath || 'The log file appears once the dev server has run.'}</code>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <Button size="small" variant="secondary" onClick={revealDebugLog} disabled={!debugLogPath}>Show in folder</Button>
+                    <Button size="small" variant="secondary" onClick={copyDebugLog} disabled={!debugLogs}>{COPY_BUTTON_LABELS[debugCopied] || COPY_BUTTON_LABELS.idle}</Button>
+                    <Button size="small" variant="secondary" onClick={clearDebugLog} disabled={!debugLogs}>Clear</Button>
+                  </div>
+                </div>
+              </>
+            ))}
+          </TabPanel>
         </div>
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Mail</div>
@@ -3686,42 +3937,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           </div>
         </div>
       </div>
-      {editorPickerOpen ? (
-        <Modal
-          title="Open sites in"
-          onRequestClose={() => setEditorPickerOpen(false)}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 420 }}>
-            {/* Why the picker is open, inside the picker. The notice below the
-                path row says the same thing, but the modal takes focus, so a
-                contributor using the keyboard or a screen reader would otherwise
-                be reading generic copy with the reason left behind them. */}
-            {editorNotice ? (
-              <div
-                role="alert"
-                style={{ padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}
-              >{editorNotice}</div>
-            ) : null}
-            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-              {detectedEditors.length
-                ? 'Choose the editor to open this site in. This app will remember it.'
-                : 'This app could not find an editor in the usual place. Point at yours and it will remember it.'}
-            </p>
-            {detectedEditors.map((candidate) => (
-              <Button
-                key={candidate.path}
-                variant="secondary"
-                onClick={() => rememberEditor(candidate.path)}
-                style={{ justifyContent: 'flex-start' }}
-              >{candidate.name}</Button>
-            ))}
-            {/* Always offered, never only as a fallback: the detection list is a
-                shortcut, and an editor missing from it is not an editor this app
-                refuses to use. */}
-            <Button variant="tertiary" onClick={() => rememberEditor()}>Choose application…</Button>
-          </div>
-        </Modal>
-      ) : null}
       {dirtyModalOpen ? (
         <Modal
           title="Update to latest trunk?"
@@ -3817,7 +4032,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ) : null}
       {isPatchOpen && (
         <Modal
-          title="Patch"
+          title="Submit changes"
           onRequestClose={()=>setIsPatchOpen(false)}
           shouldCloseOnClickOutside
           isFullScreen
