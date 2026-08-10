@@ -72,13 +72,25 @@ function bodyCitesTicket(body, ticketId) {
 }
 
 /**
+ * What happened to one pull request, from a `search/issues` item: open, merged
+ * or closed-unmerged.
+ *
+ * @param {Object} item
+ * @return {'open'|'merged'|'closed'}
+ */
+function prState(item) {
+	if (item.pull_request && item.pull_request.merged_at) return 'merged';
+	return item.state === 'closed' ? 'closed' : 'open';
+}
+
+/**
  * Reduces a GitHub `search/issues` response to the PRs that cite the ticket.
  * Returns newest-first — for a moving target like a PR the freshest is the one
  * a contributor most likely wants.
  *
  * @param {Object}        searchJson
  * @param {number|string} ticketId
- * @return {Array<{number: number, title: string, state: string, updatedAt: string, url: string}>}
+ * @return {Array<{number: number, title: string, state: 'open'|'merged'|'closed', updatedAt: string, url: string}>}
  */
 function parseLinkedPrs(searchJson, ticketId) {
 	const items = searchJson && Array.isArray(searchJson.items) ? searchJson.items : [];
@@ -94,7 +106,12 @@ function parseLinkedPrs(searchJson, ticketId) {
 		prs.push({
 			number: item.number,
 			title: typeof item.title === 'string' ? item.title : '',
-			state: item.state === 'closed' ? 'closed' : 'open',
+			// Merged is a third state, not a flavour of closed: `state` only ever
+			// says open or closed, and the merge shows in `pull_request.merged_at`
+			// — which this same search response already carries, so keeping the
+			// distinction costs no second request against the shared
+			// unauthenticated quota this file is careful with.
+			state: prState(item),
 			updatedAt: item.updated_at || item.created_at || '',
 			url: item.html_url || `https://github.com/WordPress/wordpress-develop/pull/${item.number}`
 		});

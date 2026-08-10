@@ -59,6 +59,31 @@ test('parseLinkedPrs: a closed PR is marked closed, not dropped (issue #11)', ()
 	assert.strictEqual(prs[0].state, 'closed');
 });
 
+// The three states the row colours (#227). GitHub's `state` says only open or
+// closed, so a merged PR arrives as closed and the merge is visible solely in
+// `pull_request.merged_at` — collapsing it loses which of two very different
+// outcomes the work reached.
+test('parseLinkedPrs: a merged PR is merged, not closed (issue #227)', () => {
+	const prs = parseLinkedPrs({
+		items: [item(7, { state: 'closed', pull_request: { url: 'x', merged_at: '2026-08-02T00:00:00Z' } })]
+	}, 62281);
+	assert.strictEqual(prs[0].state, 'merged');
+});
+
+test('parseLinkedPrs: closed with nothing merged stays closed (issue #227)', () => {
+	const prs = parseLinkedPrs({
+		items: [item(7, { state: 'closed', pull_request: { url: 'x', merged_at: null } })]
+	}, 62281);
+	assert.strictEqual(prs[0].state, 'closed');
+});
+
+test('parseLinkedPrs: an open PR stays open (issue #227)', () => {
+	const prs = parseLinkedPrs({
+		items: [item(7, { state: 'open', pull_request: { url: 'x', merged_at: null } })]
+	}, 62281);
+	assert.strictEqual(prs[0].state, 'open');
+});
+
 test('parseLinkedPrs: an empty or malformed response yields an empty list, not a throw (issue #11)', () => {
 	assert.deepStrictEqual(parseLinkedPrs({ items: [] }, 62281), []);
 	assert.deepStrictEqual(parseLinkedPrs({}, 62281), []);

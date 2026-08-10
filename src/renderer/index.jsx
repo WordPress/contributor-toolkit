@@ -31,6 +31,7 @@ import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
+import { prStateBadge } from './pr-state.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
@@ -2437,11 +2438,22 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const patchAttachments = (tracAttachments?.items || []).filter((a) => a.applyable);
   const tracAttachmentsRead = tracAttachments
     && (tracAttachments.status === 'ok' || tracAttachments.status === 'no-attachments');
+  // One pill shape, two uses: the "Latest" marker on a patch row and a linked
+  // pull request's state. Only the words and the colours differ.
+  const pillStyle = { display: 'inline-flex', alignItems: 'center', flex: '0 0 auto', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' };
   const latestPill = (isLatest) => (isLatest ? (
-    <span style={{ display: 'inline-flex', alignItems: 'center', flex: '0 0 auto', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', background: '#e7f1ff', color: '#0b5d95', marginLeft: 8 }}>
+    <span style={{ ...pillStyle, background: '#e7f1ff', color: '#0b5d95', marginLeft: 8 }}>
       Latest
     </span>
   ) : null);
+  const prStatePill = (state) => {
+    const badge = prStateBadge(state);
+    return (
+      <span style={{ ...pillStyle, background: badge.background, color: badge.color }}>
+        {badge.label}
+      </span>
+    );
+  };
 
   const finishApply = (message) => {
     markTerminalRunning(false);
@@ -3850,8 +3862,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           </span>
                           {latestPill(latestPatch?.kind === 'pr' && latestPatch.key === pr.number)}
                         </div>
-                        <div style={{ fontSize: 11, color: '#6c6f72' }}>
-                          {pr.state === 'closed' ? 'closed' : 'open'}{pr.updatedAt ? ` · updated ${new Date(pr.updatedAt).toLocaleDateString()}` : ''}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, fontSize: 11, color: '#6c6f72' }}>
+                          {prStatePill(pr.state)}
+                          {pr.updatedAt ? <span>updated {new Date(pr.updatedAt).toLocaleDateString()}</span> : null}
                         </div>
                       </div>
                       <Button
