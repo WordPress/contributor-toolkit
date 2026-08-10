@@ -93,6 +93,20 @@ test('discardOutcome passes a success through', () => {
 	assert.deepEqual(discardOutcome({ ok: true }), { ok: true });
 });
 
+test('discardOutcome carries the recount of what survived the discard (#239)', () => {
+	// On a ticket branch the parked work survives a discard, and the reply
+	// says how much. Dropping that here would leave the card marking the tree
+	// clean over work that is still there — the silence #239 is about.
+	assert.deepEqual(
+		discardOutcome({ ok: true, dirty: true, changedCount: 2 }),
+		{ ok: true, dirty: true, changedCount: 2 }
+	);
+	assert.deepEqual(
+		discardOutcome({ ok: true, dirty: false, changedCount: 0 }),
+		{ ok: true, dirty: false, changedCount: 0 }
+	);
+});
+
 test('discardOutcome always carries a message on failure', () => {
 	assert.deepEqual(discardOutcome({ ok: false, error: 'EACCES' }), {
 		ok: false,

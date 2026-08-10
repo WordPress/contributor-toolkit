@@ -178,6 +178,8 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	isWorktreeDirty: (sitePath) => ipcRenderer.invoke('git:worktree-dirty', sitePath)
 ,
+	hasUnsubmittedWork: (sitePath) => ipcRenderer.invoke('git:unsubmitted-work', sitePath)
+,
 	discardChanges: (sitePath) => ipcRenderer.invoke('git:discard-changes', sitePath)
 ,
 	markUpdateComplete: (sitePath) => ipcRenderer.invoke('sites:mark-update-complete', sitePath)

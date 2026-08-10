@@ -1440,9 +1440,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   }, [sitePath]);
   useEffect(()=>{ loadBranches(); }, [loadBranches]);
 
-  // The note's probe. A failed probe keeps the last answer rather than
-  // reporting: the note is advisory, and losing it over a transient git error
-  // would read as "your changes are gone".
+  // The note's probe. It asks the wide question — unsubmitted work measured
+  // from the ticket's branch point, the same measurement the patch makes —
+  // not whether the tree has uncommitted edits (#239): under the ticket-as-
+  // branch model a ticket's work is parked in a WIP commit, so the narrow
+  // reading is correctly "clean" for every change that has survived a ticket
+  // switch, which is exactly the work this note exists to speak about. The
+  // checkout guards (startTrunkUpdate) keep asking the narrow question:
+  // parked work survives a force checkout, uncommitted edits do not.
+  //
+  // A failed probe keeps the last answer rather than reporting: the note is
+  // advisory, and losing it over a transient git error would read as "your
+  // changes are gone".
   //
   // The ref guards two races the probe's cost makes real — it walks the whole
   // checkout, so it can still be in flight when the next focus fires or when
@@ -1451,9 +1460,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // before it, so a stale "dirty" cannot resurrect the note over a tree that
   // was just reset.
   const dirtyProbeRef = useRef({ inFlight: false, generation: 0 });
-  const markTreeClean = () => {
+  // The local answer a discard supplies (#239). Its reply carries what
+  // survived the reset — on a ticket branch the parked work is not the
+  // discard's to take, so "clean" would hide the note over changes that are
+  // still there. A reply from before the recount existed lands as clean,
+  // which is what the old markTreeClean asserted; the next probe corrects it.
+  const noteAfterDiscard = (res) => {
     dirtyProbeRef.current.generation++;
-    setWorktreeDirty({ dirty: false, changedCount: 0 });
+    setWorktreeDirty({
+      dirty: Boolean(res && res.dirty),
+      changedCount: res && Number.isInteger(res.changedCount) ? res.changedCount : 0
+    });
   };
   const refreshDirty = useCallback(async () => {
     const probe = dirtyProbeRef.current;
@@ -1461,7 +1478,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     probe.inFlight = true;
     const generation = probe.generation;
     try {
-      const res = await window.api.isWorktreeDirty(sitePath);
+      const res = await window.api.hasUnsubmittedWork(sitePath);
       if (res && res.ok && probe.generation === generation) {
         setWorktreeDirty({ dirty: Boolean(res.dirty), changedCount: res.changedCount });
       }
@@ -2697,7 +2714,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         return;
       }
       savedPatchPathRef.current = res.filePath;
-      markTreeClean();
+      noteAfterDiscard(d);
       setDirtyModalOpen(false);
       writeToTerminal(`\nSaved your changes to ${res.filePath} and reset the working tree.\n`);
       beginTrunkUpdate();
@@ -2713,7 +2730,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setDirtyError(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
       return;
     }
-    markTreeClean();
+    noteAfterDiscard(d);
     setDirtyModalOpen(false);
     writeToTerminal('\nDiscarded local changes.\n');
     beginTrunkUpdate();
@@ -2797,7 +2814,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         setDiscardError(outcome.message);
         return;
       }
-      markTreeClean();
+      noteAfterDiscard(outcome);
       setAppliedPatch(null);
       writeToTerminal('\nDiscarded local changes.\n');
       if (isPatchOpen) await loadPatchText();
