@@ -32,6 +32,7 @@ import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
+import { ticketBranchRows } from './ticket-branch-list.cjs';
 import { highlightDiff } from './diff-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
 import { changesNoteParts, discardOutcome, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
@@ -1078,6 +1079,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [ticketInput, setTicketInput] = useState('');
   const [ticketError, setTicketError] = useState('');
   const [ticketSaving, setTicketSaving] = useState(false);
+  // The site's ticket branches (#108): what branches:list reported, so the
+  // panel can offer the tickets that already have work here.
+  const [ticketBranches, setTicketBranches] = useState({ current: null, branches: [] });
+  const [deletingBranch, setDeletingBranch] = useState(null);
+  // The ticket a switch was refused for because trunk had loose edits, and
+  // where those edits were saved if the contributor chose to keep them.
+  const [blockedByTrunkWork, setBlockedByTrunkWork] = useState(null);
+  const [patchSavedTo, setPatchSavedTo] = useState('');
   // Patches on the linked ticket (#11): { status, items, cachedAt } or null.
   const [ticketPatches, setTicketPatches] = useState(null);
   const [ticketPatchesLoading, setTicketPatchesLoading] = useState(false);
@@ -1380,6 +1389,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   }, [sitePath]);
   useEffect(()=>{ loadStatus(); }, [loadStatus]);
 
+  // Deliberately not part of loadStatus: that one is called after every long
+  // operation, and the branch list only changes when a ticket is linked,
+  // resumed or deleted — the three paths that call this themselves.
+  const loadBranches = useCallback(async () => {
+    try {
+      const res = await window.api.listBranches(sitePath);
+      if (res?.ok) setTicketBranches({ current: res.current, branches: res.branches || [] });
+    } catch {}
+  }, [sitePath]);
+  useEffect(()=>{ loadBranches(); }, [loadBranches]);
+
   // The note's probe. A failed probe keeps the last answer rather than
   // reporting: the note is advisory, and losing it over a transient git error
   // would read as "your changes are gone".
@@ -1421,27 +1441,107 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   }, [isActive, refreshDirty]);
 
   // Linking and unlinking are the same write (#109): an empty ref clears the
-  // association, so Unlink needs no second channel.
+  // association, so Unlink needs no second channel. Resuming a ticket that
+  // already has a branch is also this write (#108) — main switches to the
+  // existing branch instead of creating one, with the same parking rules.
   const saveTicket = useCallback(async (ref) => {
     setTicketSaving(true);
     setTicketError('');
+    setBlockedByTrunkWork(null);
     try {
       const res = await window.api.setSiteTicket(sitePath, ref);
       if (!res?.ok) {
         setTicketError(res?.error || 'Could not save the ticket.');
+        // A refusal with nowhere to go is a dead end, so remember what was
+        // being attempted: trunk's loose edits cannot be parked (#108's first
+        // invariant), and the panel offers the two ways out below the message.
+        if (res?.code === 'dirty-trunk') setBlockedByTrunkWork(String(ref));
         return;
       }
       setTracTicket(res.ticket);
       setTicketInput('');
+      setPatchSavedTo('');
       if (metaPatchRef.current) metaPatchRef.current(sitePath, { tracTicket: res.ticket });
+      // Both, and awaited: the branch list decides which rows show, and
+      // appliedPatch/updateIncomplete are per-branch (#108) — without the
+      // status reload, switching tickets would keep showing the other
+      // ticket's "patch applied · Revert" banner over this branch's tree.
+      await Promise.all([loadBranches(), loadStatus()]);
     } catch (e) {
       setTicketError(String(e));
     } finally {
       setTicketSaving(false);
     }
-  }, [sitePath]);
+  }, [sitePath, loadBranches, loadStatus]);
   const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
   const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
+
+  // The way out of a refused switch, in two steps that are deliberately
+  // separate: saving a patch does NOT empty the working tree, so the switch is
+  // still refused afterwards. Saying so — and only then offering the discard —
+  // is what keeps "keep my work" from quietly meaning "lose my work".
+  const saveTrunkWorkAsPatch = useCallback(async () => {
+    setTicketError('');
+    try {
+      const res = await window.api.savePatch(sitePath);
+      if (res?.canceled) return;
+      if (!res?.ok) {
+        setTicketError(res?.error || 'Could not save the patch.');
+        return;
+      }
+      setPatchSavedTo(res.filePath || '');
+    } catch (e) {
+      setTicketError(String(e));
+    }
+  }, [sitePath]);
+
+  const discardTrunkWorkAndSwitch = useCallback(async (ref) => {
+    setTicketSaving(true);
+    setTicketError('');
+    try {
+      const res = await window.api.discardChanges(sitePath);
+      if (!res?.ok) {
+        setTicketError(res?.error || 'Could not discard the changes.');
+        return;
+      }
+      setPatchSavedTo('');
+      setBlockedByTrunkWork(null);
+    } catch (e) {
+      setTicketError(String(e));
+      return;
+    } finally {
+      setTicketSaving(false);
+    }
+    // Outside the guard above: saveTicket owns the busy flag itself, and the
+    // discard has already succeeded — a failure here is about the switch.
+    await saveTicket(ref);
+  }, [sitePath, saveTicket]);
+
+  // "Delete this ticket's work" (#108) — destroys the branch, which is why it
+  // sits behind a confirm while switching does not.
+  const deleteTicketWork = useCallback(async (ref) => {
+    setDeletingBranch(ref);
+    setTicketError('');
+    try {
+      const res = await window.api.deleteBranch(sitePath, ref);
+      if (!res?.ok) {
+        setTicketError(res?.error || 'Could not delete the branch.');
+        return;
+      }
+      await loadBranches();
+      // 'trunk' is the literal main returns (TRUNK in ticket-branches.js,
+      // which the renderer cannot import — it pulls in fs). It means the site
+      // now sits on trunk: usually because the delete was made from there,
+      // but also when the deleted branch was somehow the active one — main
+      // then cleared the ticket, and the status reload re-syncs the panel and
+      // the sidebar to that.
+      if (res.current === 'trunk') await loadStatus();
+    } catch (e) {
+      setTicketError(String(e));
+    } finally {
+      setDeletingBranch(null);
+    }
+  }, [sitePath, loadBranches, loadStatus]);
 
   const runInstall = useCallback((options = {}) => {
     const { onLog, onDone } = options;
@@ -2003,6 +2103,45 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   }, [sitePath]);
   // eslint-disable-next-line no-alert -- see the note above onRename.
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
+
+  // The tickets with work on this site (#108), rendered in both states of the
+  // Trac ticket panel. The sentence differs — an unlinked panel offers to
+  // continue, a linked one points out the other open tickets — but the rows,
+  // the ordering and the delete action are the same list.
+  //
+  // Switch and delete are checkouts of the same working directory that an
+  // install, a build or a trunk update is using, so they block on the long
+  // operations as well as on each other — the same trio every destructive
+  // control in this panel guards on.
+  const branchRows = ticketBranchRows({ branches: ticketBranches.branches, current: ticketBranches.current, tracTicket, now: Date.now() });
+  const ticketActionsBlocked = ticketSaving || deletingBranch !== null || updateState !== 'idle' || installing || building;
+  const renderBranchRows = (linked) => (
+    <div style={{ marginTop: 8, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
+      {branchRows.map((row, i) => (
+        <div key={row.ref} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: i < branchRows.length - 1 ? '1px solid #f0f0f1' : 'none' }}>
+          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+            <span style={{ fontSize: 13, color: '#1d2327' }}>
+              {linked ? <>You also have work on #{row.ticketId}{' — '}</> : null}
+              <Button variant="link" onClick={() => saveTicket(String(row.ticketId))} disabled={ticketActionsBlocked} style={{ fontSize: 13 }}>
+                {linked ? 'switch' : `Continue working on #${row.ticketId}`}
+              </Button>
+            </span>
+            {row.timeLabel ? (
+              <div style={{ marginTop: 2, fontSize: 11, color: '#6c6f72' }}>{row.timeLabel}</div>
+            ) : null}
+          </div>
+          <Button
+            variant="link"
+            isDestructive
+            isBusy={deletingBranch === row.ref}
+            disabled={ticketActionsBlocked}
+            onClick={() => confirmAnd(`Delete all work on #${row.ticketId} on this site? This cannot be undone.`, () => deleteTicketWork(row.ref))}
+            style={{ fontSize: 12, flex: '0 0 auto' }}
+          >Delete this ticket&apos;s work</Button>
+        </div>
+      ))}
+    </div>
+  );
 
   // --- Update to latest trunk (#94) ---
   const age = trunkAgeInfo({ trunkDate });
@@ -3440,16 +3579,27 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         {tracTicket ? (
           <>
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', background: '#f0f0f1', color: '#1d2327' }}>
+              {/* The ticket number is what the site is *for* once one is linked
+                  — and under #108 it also names the branch you are on, so it
+                  answers "which of my tickets am I looking at" at a glance.
+                  Sized to read as the panel's subject rather than as a tag. */}
+              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: 999, fontSize: 18, fontWeight: 600, letterSpacing: '0.01em', background: '#f0f0f1', color: '#1d2327' }}>
                 #{tracTicket}
               </span>
               <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
-              <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketSaving}>Unlink</Button>
+              <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketActionsBlocked}>Unlink</Button>
             </div>
             {changesNote && changesNote.placement === 'ticket' ? (
               <div style={{ marginTop: 8, fontSize: 13, color: '#1d2327' }}>
                 {changesNoteBody}
                 <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>{changesNote.unlinkNote}</div>
+              </div>
+            ) : null}
+
+            {branchRows.length ? (
+              <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Other tickets on this site</div>
+                {renderBranchRows(true)}
               </div>
             ) : null}
 
@@ -3588,13 +3738,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
               Tell the app which ticket you are working on. It is stored with the site, so it survives restarts, and you can change or remove it at any time.
             </div>
+            {branchRows.length ? (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Your tickets on this site</div>
+                {renderBranchRows(false)}
+              </div>
+            ) : null}
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 260 }}>
                 <TextControl
                   value={ticketInput}
                   onChange={(value) => { setTicketInput(value); setTicketError(''); }}
                   onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
-                  disabled={ticketSaving}
+                  disabled={ticketActionsBlocked}
                   placeholder="Ticket number or URL, e.g. 62281"
                   aria-label="Trac ticket number or URL"
                 />
@@ -3603,7 +3759,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 variant="secondary"
                 onClick={linkTicket}
                 isBusy={ticketSaving}
-                disabled={ticketSaving || !ticketInput.trim()}
+                disabled={ticketActionsBlocked || !ticketInput.trim()}
                 style={{ padding: '10px 16px', borderRadius: 10 }}
               >Link ticket</Button>
             </div>
@@ -3611,6 +3767,32 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         )}
         {ticketError ? (
           <div role="alert" style={{ marginTop: 8, color: '#d63638', fontSize: 12 }}>{ticketError}</div>
+        ) : null}
+        {blockedByTrunkWork ? (
+          <div style={{ marginTop: 8, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
+            <div>
+              These edits are not on any ticket yet, so there is nowhere to keep them once the files change.
+              Save them first, or discard them — or type a ticket number above and they will come along into a new ticket.
+            </div>
+            {patchSavedTo ? (
+              <div style={{ marginTop: 6, fontWeight: 600 }}>
+                Saved to {patchSavedTo}. The edits are still in the working tree — discarding is now safe.
+              </div>
+            ) : null}
+            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <Button variant="link" onClick={saveTrunkWorkAsPatch} disabled={ticketActionsBlocked} style={{ fontSize: 12 }}>
+                Save these edits as a patch…
+              </Button>
+              <Button
+                variant="link"
+                isDestructive
+                isBusy={ticketSaving}
+                disabled={ticketActionsBlocked}
+                onClick={() => confirmAnd('Discard the uncommitted edits on trunk? This cannot be undone.', () => discardTrunkWorkAndSwitch(blockedByTrunkWork))}
+                style={{ fontSize: 12 }}
+              >Discard them and continue</Button>
+            </div>
+          </div>
         ) : null}
         {tracTicket ? null : (
           <div style={{ marginTop: 8 }}>
@@ -4132,7 +4314,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                             value={ticketInput}
                             onChange={(value) => { setTicketInput(value); setTicketError(''); }}
                             onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
-                            disabled={ticketSaving}
+                            disabled={ticketActionsBlocked}
                             placeholder="Ticket number or URL, e.g. 62281"
                             aria-label="Trac ticket number or URL"
                           />
@@ -4140,7 +4322,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                             variant="secondary"
                             onClick={linkTicket}
                             isBusy={ticketSaving}
-                            disabled={ticketSaving || !ticketInput.trim()}
+                            disabled={ticketActionsBlocked || !ticketInput.trim()}
                             style={{ justifyContent:'center' }}
                           >Link ticket</Button>
                           {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
