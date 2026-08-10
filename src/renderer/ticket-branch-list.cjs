@@ -96,7 +96,32 @@ function ticketBranchRows({ branches, current, tracTicket, now }) {
 		}));
 }
 
+/**
+ * Whether the site's tickets get a card of their own, and under what heading
+ * (#240). The list left the Trac ticket card because only one of its sections
+ * described the ticket in front of you — this one lists everywhere else you
+ * could be. Its heading still changes with the state: with a ticket linked the
+ * rows are the *other* tickets, with none linked they are *your* tickets and
+ * the primary way to start.
+ *
+ * Returns null when there are no rows — an empty card with nothing but a
+ * heading is worse than no card, and unlike the input field it used to share a
+ * card with, this card has nothing else to justify the space.
+ *
+ * @param {Object}  input
+ * @param {number}  input.rowCount How many rows ticketBranchRows produced.
+ * @param {boolean} input.linked   Whether a ticket is linked to the site.
+ * @return {?{heading: string}} What the card says, or null for no card.
+ */
+function ticketListCard({ rowCount, linked }) {
+	if (!rowCount) return null;
+	return {
+		heading: linked ? 'Other tickets on this site' : 'Your tickets on this site'
+	};
+}
+
 module.exports = {
 	relativeTimeLabel,
-	ticketBranchRows
+	ticketBranchRows,
+	ticketListCard
 };

@@ -32,7 +32,7 @@ import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
-import { ticketBranchRows } from './ticket-branch-list.cjs';
+import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
@@ -2231,16 +2231,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // eslint-disable-next-line no-alert -- see the note above onRename.
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
 
-  // The tickets with work on this site (#108), rendered in both states of the
-  // Trac ticket panel. The sentence differs — an unlinked panel offers to
-  // continue, a linked one points out the other open tickets — but the rows,
-  // the ordering and the delete action are the same list.
+  // The tickets with work on this site (#108), in a card of their own (#240)
+  // between the Trac ticket card and the patch one — which ticket am I on,
+  // which of my tickets do I want, bring in work from elsewhere. The sentence
+  // differs with the state — with no ticket linked the rows offer to continue,
+  // with one linked they point out the other open tickets — but the rows, the
+  // ordering and the delete action are the same list, and it lives in the one
+  // card in both states rather than jumping somewhere else on unlink.
   //
   // Switch and delete are checkouts of the same working directory that an
   // install, a build or a trunk update is using, so they block on the long
   // operations as well as on each other — the same trio every destructive
-  // control in this panel guards on.
+  // control in the ticket panel guards on.
   const branchRows = ticketBranchRows({ branches: ticketBranches.branches, current: ticketBranches.current, tracTicket, now: Date.now() });
+  const ticketsCard = ticketListCard({ rowCount: branchRows.length, linked: Boolean(tracTicket) });
   // What the switch is doing, while it does it (#173). Gated on the busy flag
   // rather than merely cleared by it: the last sends can land after the invoke
   // has already answered, which would flash a sentence under an idle panel.
@@ -3806,13 +3810,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               </div>
             ) : null}
 
-            {branchRows.length ? (
-              <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Other tickets on this site</div>
-                {renderBranchRows(true)}
-              </div>
-            ) : null}
-
             <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Linked pull requests</div>
@@ -3948,12 +3945,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
               Tell the app which ticket you are working on. It is stored with the site, so it survives restarts, and you can change or remove it at any time.
             </div>
-            {branchRows.length ? (
-              <div style={{ marginTop: 12 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Your tickets on this site</div>
-                {renderBranchRows(false)}
-              </div>
-            ) : null}
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 260 }}>
                 <TextControl
@@ -3997,6 +3988,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           </div>
         )}
       </div>
+      ) : null}
+      {skipInit && ticketsCard ? (
+        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{ticketsCard.heading}</div>
+          {renderBranchRows(Boolean(tracTicket))}
+        </div>
       ) : null}
       {skipInit ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>

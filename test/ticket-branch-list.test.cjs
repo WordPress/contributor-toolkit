@@ -2,7 +2,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { relativeTimeLabel, ticketBranchRows } = require('../src/renderer/ticket-branch-list.cjs');
+const fs = require('node:fs');
+const path = require('node:path');
+const { relativeTimeLabel, ticketBranchRows, ticketListCard } = require('../src/renderer/ticket-branch-list.cjs');
 
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -115,6 +117,46 @@ test('rows: each row carries the ref to act on and the label to show', () => {
 		now: NOW
 	});
 	assert.deepStrictEqual(rows, [{ ref: 'ticket/59234', ticketId: 59234, timeLabel: 'edited 2 days ago' }]);
+});
+
+// --- ticketListCard ---------------------------------------------------------
+
+test('card: the heading follows the state — other tickets when linked, your tickets when not (issue #240)', () => {
+	assert.deepStrictEqual(ticketListCard({ rowCount: 2, linked: true }), { heading: 'Other tickets on this site' });
+	assert.deepStrictEqual(ticketListCard({ rowCount: 2, linked: false }), { heading: 'Your tickets on this site' });
+});
+
+test('card: no rows means no card, not an empty one', () => {
+	assert.strictEqual(ticketListCard({ rowCount: 0, linked: true }), null);
+	assert.strictEqual(ticketListCard({ rowCount: 0, linked: false }), null);
+});
+
+// The card's position is the whole point of #240, and no test renders the
+// DOM, so the layout is pinned at the source: the rows render once, from a
+// card of their own that sits between the Trac ticket card and the patch one.
+// Reading order is a behaviour here — which ticket am I on, which of my
+// tickets do I want, bring in work from elsewhere.
+test('card: the list renders once, in its own card between the ticket card and the patch card (issue #240)', () => {
+	const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'index.jsx'), 'utf8');
+
+	// The headings come from ticketListCard, so the card cannot say one thing
+	// while the tested module says another. Restated literals in index.jsx
+	// would be the two-copies drift this module exists to prevent.
+	assert.ok(!source.includes('Other tickets on this site'), 'index.jsx restates the linked heading instead of using ticketListCard');
+	assert.ok(!source.includes('Your tickets on this site'), 'index.jsx restates the unlinked heading instead of using ticketListCard');
+
+	// One call site. Two was the old shape — one per state of the ticket card —
+	// and going back to two is the list mounting twice, or quietly moving back
+	// inside the card it just left. Counted as a call rather than as the bare
+	// name so that a comment naming the helper is not a red suite.
+	assert.strictEqual(source.split('renderBranchRows(').length - 1, 1, 'expected exactly one renderBranchRows( call: the single card that renders the list');
+
+	// Between the two cards it used to sit inside of and above.
+	const ticketCard = source.indexOf('>Trac ticket<');
+	const listCard = source.indexOf('{ticketsCard.heading}');
+	const patchCard = source.indexOf('>Apply a patch or PR<');
+	assert.ok(ticketCard !== -1 && listCard !== -1 && patchCard !== -1, 'one of the three card headings is missing from index.jsx');
+	assert.ok(ticketCard < listCard && listCard < patchCard, 'the tickets card is not between the Trac ticket card and the patch card');
 });
 
 // --- relativeTimeLabel ------------------------------------------------------
