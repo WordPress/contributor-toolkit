@@ -2422,7 +2422,7 @@ test('resuming a ticket and unlinking never pay for the count (issue #108)', asy
 	await main.invoke('sites:set-ticket', '/sites/wp', '62281');
 	await main.invoke('sites:set-ticket', '/sites/wp', '');
 
-	assert.deepEqual(countChangesAgainst.calls, [], 'only the path that moves work without saying so counts it');
+	assert.deepEqual(countChangesAgainst.calls, [], 'only the path that could move trunk work has to look before answering');
 });
 
 // Once the carry is chosen, the link already happened and is not in doubt;
