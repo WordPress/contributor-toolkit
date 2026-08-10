@@ -25,6 +25,7 @@ import { shouldShowTerminalHints, computeTerminalBusy } from './terminal-hints.c
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
+import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
@@ -395,21 +396,6 @@ function App() {
     setCreateModalOpen(true);
   }, [createSubmitting]);
 
-  const sanitizeSiteFolder = useCallback((value) => (
-    value
-      .replace(/[\\/:*?"<>|]+/g, '-')
-      .replace(/\s+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      || 'wordpress-site'
-  ), []);
-
-  const resolveTargetDir = useCallback((root, folder) => {
-    if (!root) return folder;
-    const normalizedRoot = root.replace(/[\\/]+$/, '');
-    const separator = /\\/.test(normalizedRoot) && !normalizedRoot.includes('/') ? '\\' : '/';
-    return `${normalizedRoot}${separator}${folder}`;
-  }, []);
-
   const openDirectoryPicker = useCallback(async () => {
     try {
       const dir = await window.api.chooseDirectory();
@@ -423,40 +409,17 @@ function App() {
   const handleCreateDirInputChange = useCallback((event) => {
     const inputEl = event.target;
     createDirInputRef.current = inputEl;
-    const finalize = (rawDir) => {
-      const normalized = typeof rawDir === 'string' ? rawDir.replace(/[\\/]+$/, '') : '';
-      if (normalized) {
-        setCreateSiteDir(normalized);
-        setCreateSiteError('');
-      } else {
-        setCreateSiteDir('');
-      }
-    };
     const files = inputEl.files;
     if (!files || files.length === 0) {
       inputEl.value = '';
       return;
     }
 
-    const first = files[0];
-    const relative = first?.webkitRelativePath || '';
-    const rawPath = first?.path || '';
-    let resolved = '';
-
-    if (rawPath) {
-      if (relative) {
-        resolved = rawPath.slice(0, rawPath.length - relative.length);
-      } else {
-        resolved = rawPath.replace(/[\\/][^\\/]*$/, '');
-      }
-    }
-
-    if (!resolved && inputEl.value) {
-      resolved = inputEl.value.replace(/[^\\/]*$/, '');
-    }
-
-    resolved = resolved.replace(/[\\/]+$/, '');
-    finalize(resolved);
+    const resolved = directoryFromFileEntry(files[0], inputEl.value);
+    setCreateSiteDir(resolved);
+    // Clearing the error only when there is a directory: a selection that
+    // resolved to nothing has not fixed anything the message was about.
+    if (resolved) setCreateSiteError('');
     inputEl.value = '';
   }, [setCreateSiteDir, setCreateSiteError]);
 
@@ -527,7 +490,7 @@ function App() {
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
