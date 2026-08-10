@@ -362,6 +362,10 @@ test('sites:delete asks site-registry whether the path may be removed', async ()
 	// callbacks: without the store's own `sites` array it would be deciding
 	// against nothing, and without the callbacks it could not act on its answer.
 	assert.deepEqual(options.sites, ['/sites/wp']);
+	// And the sites being created right now, which the module refuses outright.
+	// Without this the handler would be asking a question with half the facts,
+	// and the answer would be to delete a tree a clone is writing into.
+	assert.ok(Array.isArray(options.pending), 'the in-flight setups must reach the guard');
 	assert.equal(typeof options.forget, 'function');
 	assert.equal(typeof options.remove, 'function');
 	assert.equal(typeof options.onRefused, 'function');
@@ -908,6 +912,48 @@ test('provenance:get reads the remembered handle and event', async () => {
 		handle: 'janedoe',
 		event: 'WordCamp Europe 2026'
 	});
+});
+
+// --- main must not take the windowsHide patch (#181) ---------------------
+//
+// The inverse of test/runner-wiring.test.cjs, which pins that the four runners
+// DO call hideChildWindows(). Main must not: that patch forces `windowsHide` on
+// every child_process entry point of the process, overriding even an explicit
+// `false`, and main.js is what spawns the contributor's editor — a GUI
+// application, which the flag starts with no window while the spawn still
+// reports success.
+//
+// Until now that was a convention nobody had written down. "Hide the console
+// flashes everywhere, do it once at startup" is the plausible-looking change
+// that reinstates the bug, and nothing else here would fail:
+// test/editor-launch.test.cjs injects its own spawn, so it never sees the real
+// module at all.
+//
+// Asserted as a call that does not happen rather than by reading the flag off
+// the real child_process, because patchChildProcess is a no-op off Windows —
+// that version would be green on macOS whatever main.js did.
+//
+// Scoped to module evaluation, which is where "once at startup" lands. A call
+// made lazily inside a handler would slip past this; it is also a much less
+// likely shape, and the module header says what the rule is.
+test('main.js does not apply the windowsHide patch when it loads', () => {
+	const calls = [];
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'./hide-child-windows': {
+				hideChildWindows: () => { calls.push('hideChildWindows'); },
+				patchChildProcess: (cp) => { calls.push('patchChildProcess'); return cp; }
+			}
+		}
+	});
+
+	assert.ok(main.channels().length > 0, 'main.js registered no handlers, so it did not really load');
+	assert.deepEqual(
+		calls,
+		[],
+		'main.js patched its own child_process with windowsHide — every spawn in the process now carries the flag, including the editor launch (#181)'
+	);
 });
 
 // --- npm:* -> src/npm-runner.js + src/kill-tree.js -----------------------
@@ -1995,6 +2041,9 @@ test('editor:open asks editor-launch to open the site, with the registry as its 
 	// boundary, `statPath` is how it checks the application is still there, and
 	// `spawn` is the effect it is being asked to guard.
 	assert.deepEqual(options.sites, [SITE]);
+	// The registry is not the whole boundary: a site still being cloned is not
+	// in it yet, and opening that folder is the point of #180.
+	assert.ok(Array.isArray(options.pending), 'the in-flight setups must reach the guard');
 	assert.equal(typeof options.statPath, 'function');
 	assert.equal(typeof options.spawn, 'function');
 	assert.equal(options.platform, process.platform);
@@ -2096,6 +2145,7 @@ test('dir:show asks site-registry whether the path may be revealed', async () =>
 	const [sitePath, options] = revealRegisteredSite.calls[0];
 	assert.equal(sitePath, SITE);
 	assert.deepEqual(options.sites, [SITE]);
+	assert.ok(Array.isArray(options.pending), 'the in-flight setups must reach the guard');
 	assert.equal(typeof options.reveal, 'function');
 	assert.equal(typeof options.onRefused, 'function');
 });
@@ -2115,6 +2165,143 @@ test('dir:show refuses a path the registry does not hold, and logs it', async ()
 
 	assert.deepEqual(await main.invoke('dir:show', SITE), { ok: true });
 	assert.deepEqual(main.calls.openPath, [SITE]);
+});
+
+// --- creating a site, and opening it while it is still being created -----
+//
+// This handler was listed as NOT_REACHABLE, on the grounds that it clones
+// wordpress-develop over the network. It does not have to: `resolveStubs`
+// resolves bare packages through `require.resolve`, so `isomorphic-git` is
+// stubbable like any other module and the whole handler runs offline. That
+// matters here beyond coverage — #180 is a bug about *when* things are true
+// during the clone, and only a test that can be inside the clone can see it.
+
+// Runs `wordpress:setup` with a stubbed clone, and calls `duringClone` at the
+// moment the real clone would be running: the directory exists, nothing is in
+// the store yet. `clone` can be made to fail instead.
+async function runSetup({ duringClone, cloneFails = false, existing = [], extraStubs = {} } = {}) {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-setup-'));
+	for (const name of existing) fs.mkdirSync(path.join(root, name));
+
+	const settings = fakeSettingsStore();
+	const seen = [];
+	let inside;
+
+	const clone = async ({ dir }) => {
+		if (duringClone) inside = await duringClone({ dir, root, main, settings });
+		if (cloneFails) throw new Error('clone failed');
+	};
+
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'isomorphic-git': { clone },
+			'./trunk-update': { ensureAutocrlf: async () => {}, readTrunkInfo: async () => ({ trunkOid: 'abc', trunkDate: '2026-01-01' }) },
+			...extraStubs
+		}
+	});
+
+	const event = createIpcEvent();
+	const settled = await main.invokeWith('wordpress:setup', event, root, { siteName: 'demo', siteLabel: 'Demo' })
+		.then((siteDir) => ({ siteDir }), (error) => ({ error }));
+
+	for (const { channel, payload } of event.sent) if (channel === 'download:status') seen.push(payload);
+	return { root, main, settings, inside, statuses: seen, ...settled };
+}
+
+test('the folder can be revealed while it is still being cloned, without being registered', async () => {
+	const { root, settings, inside, siteDir } = await runSetup({
+		duringClone: async ({ dir, main: m, settings: st }) => ({
+			revealed: await m.invoke('dir:show', dir),
+			openPathCalls: [...m.calls.openPath],
+			registeredMidClone: structuredClone(st.values.sites)
+		})
+	});
+
+	// The bug, stated: this was `{ ok: false, reason: 'unregistered-site' }`.
+	assert.deepEqual(inside.revealed, { ok: true });
+	assert.deepEqual(inside.openPathCalls, [path.join(root, 'demo')]);
+	// And the reason it could not simply be registered early: nothing
+	// half-finished may reach the store, where it would outlive the process.
+	assert.deepEqual(inside.registeredMidClone, [], 'no phantom site while the clone runs');
+
+	assert.equal(siteDir, path.join(root, 'demo'));
+	assert.deepEqual(settings.values.sites, [siteDir], 'and it is registered once the clone finishes');
+});
+
+test('deleting a site is refused while its clone is running, and the directory survives', async () => {
+	const { root, inside } = await runSetup({
+		duringClone: async ({ dir, main: m }) => ({
+			deleted: await m.invoke('sites:delete', dir),
+			stillThere: fs.existsSync(dir)
+		})
+	});
+
+	assert.equal(inside.deleted, false);
+	assert.equal(inside.stillThere, true);
+	assert.equal(fs.existsSync(path.join(root, 'demo')), true, 'the finished clone is still on disk');
+});
+
+test('a clone that fails leaves nothing registered and nothing in flight', async () => {
+	const { root, main, settings, error } = await runSetup({ cloneFails: true });
+
+	assert.match(String(error), /clone failed/);
+	assert.deepEqual(settings.values.sites, []);
+	assert.deepEqual(settings.values.siteMeta, {});
+	// The entry is released however the setup ends, so the path is refused again
+	// rather than staying openable — and, more importantly, staying undeletable.
+	assert.equal((await main.invoke('dir:show', path.join(root, 'demo'))).ok, false);
+});
+
+test('a name already taken on disk is the one that opens, from the first moment', async () => {
+	const { root, inside, siteDir } = await runSetup({
+		existing: ['demo'],
+		duringClone: async ({ dir, root: destDir, main: m }) => ({
+			dir,
+			collided: await m.invoke('dir:show', path.join(destDir, 'demo')),
+			real: await m.invoke('dir:show', dir)
+		})
+	});
+
+	assert.equal(siteDir, path.join(root, 'demo-2'));
+	assert.equal(inside.dir, path.join(root, 'demo-2'));
+	assert.deepEqual(inside.real, { ok: true });
+	// The directory that merely shares the name is not the site being created,
+	// and is not opened on its behalf.
+	assert.equal(inside.collided.ok, false);
+});
+
+// The other half of #180, and the half the unit tests cannot see: they hand
+// `pending` to the guard themselves, so they stay green if main stops sending
+// it. This asserts the list main actually builds, at the one moment it matters.
+test('the folder can be opened in an editor while it is still being cloned', async () => {
+	const openSiteInEditor = spy(async () => ({ ok: true }));
+	const { inside, siteDir } = await runSetup({
+		extraStubs: {
+			'./editor-launch': {
+				openSiteInEditor,
+				matchDetectedEditor: async () => ({ id: 'cursor', name: 'Cursor', path: EDITOR })
+			}
+		},
+		duringClone: async ({ dir, main: m }) => ({
+			opened: await m.invoke('editor:open', dir, EDITOR),
+			handed: openSiteInEditor.calls.at(-1)[2]
+		})
+	});
+
+	assert.deepEqual(inside.opened, { ok: true });
+	assert.deepEqual(inside.handed.sites, [], 'the registry cannot know about it yet');
+	assert.deepEqual(inside.handed.pending, [siteDir], 'so this is what lets the guard say yes');
+});
+
+test('the cloning status names the directory the guards are keyed on', async () => {
+	const { statuses, siteDir } = await runSetup({ existing: ['demo'] });
+
+	const cloning = statuses.find((p) => p.phase === 'cloning');
+	// PR 3 has the window adopt this; it is only safe if it is the same string
+	// the tracker holds, verbatim.
+	assert.equal(cloning.target, siteDir);
 });
 
 // --- wp-debug:clear -> src/site-registry.js -------------------------------
@@ -2498,6 +2685,7 @@ const WIRED = new Set([
 	'editor:list',
 	'editor:open',
 	'dir:show',
+	'wordpress:setup',
 	'wp-debug:clear',
 	'wp-debug:reveal',
 	'provenance:set-handle',
@@ -2545,7 +2733,6 @@ const NO_DELEGATION = new Map([
 // Channels that do delegate, but whose call sits behind something this harness
 // cannot stand in for yet. Each one is a known hole, not an oversight.
 const NOT_REACHABLE = new Map([
-	['wordpress:setup', 'calls ensureAutocrlf and readTrunkInfo only after cloning wordpress-develop over the network'],
 	['trac:list-attachments', 'reads electron-store for the ticket before it can open the Trac window']
 ]);
 
