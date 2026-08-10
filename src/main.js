@@ -1947,7 +1947,11 @@ ipcMain.handle('branches:delete', async (_e, sitePath, targetRef) => withRegiste
 		branches,
 		...(wasActive ? { currentBranch: TRUNK, tracTicket: null } : {})
 	});
-	return { ok: true, deleted: targetRef, current: wasActive ? TRUNK : current };
+	// `movedToTrunk` says the checkout itself changed, which `current` alone
+	// cannot: a delete made from trunk reports trunk either way, and the note
+	// re-walks the tree on this answer (#239) — re-walking one that never moved
+	// blanks the sentence and rebuilds the identical one.
+	return { ok: true, deleted: targetRef, current: wasActive ? TRUNK : current, movedToTrunk: wasActive };
 }));
 
 // Only the schemes the app actually uses reach the OS — see external-url.js for

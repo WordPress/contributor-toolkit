@@ -2285,6 +2285,49 @@ test('branches:delete leaves the active ticket alone when deleting another one (
 	assert.equal(meta.branches['ticket/61002'], undefined);
 });
 
+// The note re-walks the checkout on this answer (#239), so it has to say
+// whether the checkout moved — which `current` alone cannot: a delete made
+// from trunk reports trunk whether or not anything was checked out.
+test('branches:delete says whether the checkout moved, not just where it is (#239)', async () => {
+	const deleteBranchWith = (currentRef) => {
+		const settings = fakeSettingsStore({
+			sites: ['/sites/wp'],
+			siteMeta: {
+				'/sites/wp': {
+					currentBranch: currentRef,
+					branches: { 'ticket/61002': { baseOid: 'def' } }
+				}
+			}
+		});
+		return loadMain({
+			stubs: {
+				...silentLogging(),
+				...settings.stubs,
+				'./ticket-branches': {
+					deleteTicketBranch: async () => ({ deleted: true, ref: 'ticket/61002' }),
+					currentBranchName: async () => currentRef
+				}
+			}
+		});
+	};
+
+	// Deleting the ticket that is checked out: the tree is trunk's now, and the
+	// note is measuring against a branch that no longer exists.
+	const active = await deleteBranchWith('ticket/61002').invoke('branches:delete', '/sites/wp', 'ticket/61002');
+	assert.equal(active.movedToTrunk, true);
+
+	// Deleting a stale ticket from trunk. `current` is trunk on both, which is
+	// exactly why it cannot be the renderer's signal — nothing was checked out
+	// here, and the note is still describing the same tree.
+	const fromTrunk = await deleteBranchWith('trunk').invoke('branches:delete', '/sites/wp', 'ticket/61002');
+	assert.equal(fromTrunk.current, 'trunk');
+	assert.equal(fromTrunk.movedToTrunk, false);
+
+	// And from another ticket, where neither says trunk.
+	const fromOther = await deleteBranchWith('ticket/59234').invoke('branches:delete', '/sites/wp', 'ticket/61002');
+	assert.equal(fromOther.movedToTrunk, false);
+});
+
 test('the applied patch belongs to the ticket, not the site (issue #108)', async () => {
 	const currentBranchName = spy(async () => 'ticket/61002');
 	const settings = fakeSettingsStore({

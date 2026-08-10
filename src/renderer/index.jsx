@@ -1585,6 +1585,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       }
       setPatchSavedTo('');
       setBlockedByTrunkWork(null);
+      // The switch below re-walks the tree, so on the happy path this is
+      // redundant — but a switch that fails returns without reprobing, and
+      // the note would go on offering to discard trunk work that is already
+      // gone (#239).
+      applyDiscardToNote(discardOutcome(res));
     } catch (e) {
       setTicketError(String(e));
       return;
@@ -1644,9 +1649,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         return;
       }
       await loadBranches();
-      // Deleting the active ticket's work leaves the site on trunk, so the
-      // note is describing a branch that no longer exists (#239).
-      reprobeAfterBranchChange();
       // 'trunk' is the literal main returns (TRUNK in ticket-branches.js,
       // which the renderer cannot import — it pulls in fs). It means the site
       // now sits on trunk: usually because the delete was made from there,
@@ -1654,6 +1656,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       // then cleared the ticket, and the status reload re-syncs the panel and
       // the sidebar to that.
       if (res.current === 'trunk') await loadStatus();
+      // Only a delete that took the checkout with it changed what the note is
+      // measuring against (#239): deleting a ticket you are not on — including
+      // from trunk, where `current` says trunk either way — leaves the tree
+      // alone, and re-walking it would blank the sentence and rebuild the
+      // identical one. After loadStatus, so a fast walk cannot render trunk's
+      // count under the ticket number the delete just cleared.
+      if (res.movedToTrunk) reprobeAfterBranchChange();
     } catch (e) {
       setTicketError(String(e));
     } finally {
