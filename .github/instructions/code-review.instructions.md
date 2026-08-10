@@ -199,10 +199,18 @@ not assume a path has no spaces; contributors pick their own directories.
 `src/kill-tree.js`. A new spawn that does not set `detached` correctly, or that is terminated with
 a bare `child.kill()`, will leave orphaned processes on one platform or the other.
 
-**Windows specifics.** Executables need their extension (`.cmd`, `.bat`, `.exe`) resolved;
-`windowsHide: true` keeps console windows from flashing; `EPERM` and `EINVAL` have
-Windows-specific causes. `src/win-spawn-patch.js` documents the traps that have already bitten —
-consult it rather than re-deriving them.
+**Windows specifics.** Executables need their extension (`.cmd`, `.bat`, `.exe`) resolved; `EPERM`
+and `EINVAL` have Windows-specific causes. `src/win-spawn-patch.js` documents the traps that have
+already bitten — consult it rather than re-deriving them.
+
+**`windowsHide: true` turns on the child's subsystem, not on whether anyone reads its output.**
+Node sets `CREATE_NO_WINDOW` and STARTUPINFO's "start hidden" together; which of the two the child
+honors is what differs. A console application takes the first and gets a console that is never
+displayed — the flashing fix, and why `src/kill-tree.js` sets it on `taskkill` even though nothing
+reads that output. A GUI application takes the second, and one that passes it through to its first
+window — Chromium does, so VS Code and Cursor both — launches invisible while the spawn still
+reports success (#181). So: set it on a console child; leave it off a child whose window is the
+point. `src/editor-launch.js` is the only case of the second kind.
 
 **Line endings** matter when generating patches, which are destined for Trac.
 
