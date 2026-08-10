@@ -51,7 +51,7 @@ The app is signed and notarized by Automattic, so macOS should open it without i
 The rest of this guide walks through each of these screens in detail, starting with [creating a site](./creating-a-site).
 
 ::: tip A second ticket does not need a second site
-Link another ticket number on the same site and the app gives it its own branch: your first ticket's work is kept, and switching between the two takes seconds with no reinstall and no rebuild. See [Working on several tickets](./ticket-branches).
+Every ticket you link gets its own branch inside the site and keeps its own work, so moving between two of them takes seconds instead of another clone and another install. See [Working on several tickets](./ticket-branches).
 :::
 
 ::: tip You never need a new site to get newer code

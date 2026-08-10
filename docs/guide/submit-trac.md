@@ -19,6 +19,8 @@ The saved file is the plain diff shown under **Your changes** — no header is a
 
 The card says there is nowhere to attach the patch yet, and offers the same field as the [Trac ticket panel](trac-tickets): type the ticket number or URL and click **Link ticket**. The ticket is stored with the site, and the **Save, then open** button appears in its place.
 
+It is the same field in every respect, so if you have edits that are not on any ticket yet, the same question appears here — see [Edits you made before picking a ticket](ticket-branches#edits-you-made-before-picking-a-ticket).
+
 ## What happens afterwards
 
 No automated checks run on a Trac attachment. It is common for a reviewer to then ask for the same change as a pull request, where the test suite runs — if that happens, the [pull request destination](submit-github-pr) sends the identical diff.

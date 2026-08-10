@@ -39,6 +39,8 @@ While a patch is applied, the panel shows it in a green box with a **Revert this
 
 Very large patches cannot be undone automatically. The panel says so; use **Update to latest trunk** to reset the checkout instead — see [Staying up to date with trunk](trunk-updates).
 
+That escape hatch only resets a site sitting on trunk. On a ticket, an update parks your branch before it resets trunk and checks the branch back out afterwards — applied patch and all — so it leaves you where you were. On a ticket, the way to be rid of both the patch and the work under it is [deleting that ticket's work](ticket-branches).
+
 ## Your own changes
 
 Applying and reverting patches never discards your own edits. The only risk is overlap: if a patch touches the same lines you changed, the apply fails cleanly rather than mixing the two. The preview names the files where you both have changes, so you see this before pressing anything.

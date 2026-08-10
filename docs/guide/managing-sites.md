@@ -41,9 +41,9 @@ forget is reversible, delete is not.
 
 ## Updating with uncommitted changes
 
-If you start **Update to latest trunk** while the site has local edits, the app does not silently
-throw them away. A dialog titled **Update to latest trunk?** lists every changed file and offers
-two choices:
+If you start **Update to latest trunk** while the site has edits loose in the working tree, the app
+does not silently throw them away. A dialog titled **Update to latest trunk?** lists every changed
+file and offers two choices:
 
 - **Save them as a patch first (as a local file)** — writes a `.diff` to your machine, then
   updates. Nothing is sent to Trac.
@@ -52,3 +52,7 @@ two choices:
 Confirm with **Save patch & update** or **Discard & update**, or **Cancel** to keep everything as
 it is. If you meant to keep the changes as a contribution instead, see
 [Submitting your changes](./submitting-changes).
+
+Work that is already parked on a ticket branch is never what this dialog is offering to discard —
+the update carries it across untouched. See
+[Updating while you are on a ticket](./trunk-updates#updating-while-you-are-on-a-ticket).

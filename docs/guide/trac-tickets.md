@@ -26,7 +26,7 @@ Once a ticket is linked, the panel shows its number with two actions:
 
 When the linked ticket has changes you have not submitted anywhere, the panel says so — *You have 1 unsubmitted change for ticket #29798* — with links to **review and submit** or **discard your changes**.
 
-The count is the ticket's whole work, including everything parked when you last switched away from it, and it is measured the same way the patch is. If it says two changes, [the diff](./submitting-changes) has two files.
+The count is the ticket's whole work, including everything parked when you last switched away from it, and it is measured the same way [the patch](./submitting-changes) is — the note and the diff read the same walk of your files.
 
 ## Linked pull requests
 

@@ -2,7 +2,7 @@
 
 You do not need a second site to work on a second ticket.
 
-A site is the expensive part: a clone of `wordpress-develop`, an `npm install`, and a first build — minutes of work, and the thing this app exists to spare you. A ticket is the cheap part. Each ticket you link gets its own branch inside the site, so moving between them is a file swap that takes seconds, with no reinstall and no rebuild.
+A site is the expensive part: a clone of `wordpress-develop`, an `npm install`, and a first build — minutes of work, and the thing this app exists to spare you. A ticket is the cheap part. Each ticket you link gets its own branch inside the site, so moving between them is a file swap that takes seconds rather than another clone and another install.
 
 Each ticket keeps its own work. What you edited for one ticket is not in the tree while you are on another, and the patch you submit for a ticket contains only that ticket's changes.
 
@@ -10,13 +10,18 @@ Each ticket keeps its own work. What you edited for one ticket is not in the tre
 
 ## Starting a second ticket
 
-Link it the same way you linked the first: type the number into the **Trac ticket** panel and click **Link ticket**. The app parks what you have on the current ticket, creates a branch for the new one, and swaps the files.
+While a ticket is linked, the **Trac ticket** panel shows that ticket rather than a field to type another one into. So starting a second ticket is two steps:
 
-Nothing is installed and nothing is rebuilt. `node_modules`, the `build/` directory, the dev server and the database belong to the site, and all of them stay exactly as they are.
+1. Click **Unlink**. Your work on the first ticket is parked on its branch and the site returns to trunk — nothing is lost, and the ticket appears under **Your tickets on this site**.
+2. Type the second ticket's number into the field that is now back, and click **Link ticket**.
+
+Nothing is installed and nothing is rebuilt: `node_modules` and the database belong to the site, and both stay exactly as they are.
+
+The `build/` directory belongs to the site too, which has a consequence. A switch changes the source under `src/`, but it does not rebuild — so a dev server that is running keeps serving the assets built for the ticket you just left. Run `npm run build` in the [Terminal](./terminal) after switching if you want to see the other ticket's changes in the browser. The site view says the same thing: *Edited files in `src/`? Run `npm run build` so the site picks them up.*
 
 ## Your tickets on this site
 
-The site's tickets get their own card, between the **Trac ticket** card and **Apply a patch or PR**. It appears once the site has work on a ticket other than the one you are on; a site with only one ticket does not get an empty card.
+The site's tickets get their own card, between the **Trac ticket** card and **Apply a patch or PR**. Like those two, it appears once the [setup checklist](./setup-wizard) is finished or skipped, and only when the site has work on a ticket other than the one you are on — a site with nothing else to offer does not get an empty card.
 
 With a ticket linked, the card is headed **Other tickets on this site**, and each row offers to **switch**:
 
@@ -37,13 +42,17 @@ A switch is a scan of the working tree followed by a checkout. On a real `wordpr
 - **Swapping files for #61002… 63%**
 - **Ready to work on #61002**
 
-Do not force-quit during a switch. Quitting part-way through the file swap leaves the checkout half of one ticket and half of the other. The app notices — the next ticket action is refused with *A previous switch from … to … did not finish. Retry it before making other changes* — and the way out is to retry the same switch, which finishes the swap. Your work on the ticket you were leaving is safe either way: it was committed to its branch before any file moved.
+If the file swap itself fails part-way — an editor or an antivirus holding a file open is the usual cause — the app marks the site and refuses every further ticket action with *A previous switch from … to … did not finish. Retry it before making other changes*. The refusal is on the switch too, so the way out is **Unlink**, which is the one action it allows: that puts you back on trunk, and you can then link the ticket you wanted. Your work on the ticket you were leaving is not at risk; it was committed to its branch before any file moved.
+
+Do not force-quit during a switch. A killed process writes no such marker, so the half-swapped tree is left behind with nothing saying so.
 
 ## Deleting a ticket's work
 
 **Delete this ticket's work**, on each row, throws that ticket's branch away — every change you made for it, whether or not you ever submitted it. It asks first: *Delete all work on #61002 on this site? This cannot be undone.* There is no undo afterwards.
 
-It is deliberately a different gesture from switching, and from unlinking. **Unlink** on the **Trac ticket** panel only puts the site back on trunk: the ticket's work stays on its branch, and the ticket reappears under **Your tickets on this site**, ready to continue.
+The card only lists tickets you are not on, so this is never offered for the ticket in hand. To throw away the one you are working on, **Unlink** it first; its row then appears with the rest.
+
+Deleting is deliberately a different gesture from switching, and from unlinking. **Unlink** on the **Trac ticket** panel only puts the site back on trunk: the ticket's work stays on its branch, and the ticket reappears under **Your tickets on this site**, ready to continue.
 
 ## Edits you made before picking a ticket
 
@@ -72,7 +81,7 @@ Once a ticket has changes that have not been submitted anywhere, the **Trac tick
 
 > You have 1 unsubmitted change for ticket #29798. You can **review and submit** or **discard your changes**.
 
-This counts the ticket's whole work — including everything parked when you last switched away, which is most of it if you move between tickets. It is measured the same way the patch is, so the note and [the diff](./submitting-changes) never disagree: if the note says two changes, the patch has two files.
+This counts the ticket's whole work — including everything parked when you last switched away, which is most of it if you move between tickets. It is measured the same way [the patch](./submitting-changes) is, so the note and the diff are two readings of one walk rather than two answers. The count is of everything the patch speaks about, which includes the files it can only [name rather than carry](./submitting-changes#what-a-patch-can-and-cannot-carry): change nothing but an image and the note still says one unsubmitted change, while the diff itself is empty.
 
 Under it is the reassurance that matters here: unlinking the ticket does not touch those changes. They stay attached to the ticket in this site, ready for when you link it again.
 
@@ -82,7 +91,7 @@ A patch is everything on the ticket's branch since the point it was created — 
 
 That last point has a consequence worth knowing. A ticket branch keeps the snapshot of trunk it was born on, even after you [update the site to the latest trunk](./trunk-updates). The patch stays correct against that snapshot, which is what keeps it free of upstream changes you did not write — but a branch you started weeks ago produces a patch that may no longer apply to today's trunk.
 
-The app has no way to replay an old ticket branch onto a newer trunk. Doing it by hand means saving the ticket's patch, deleting the ticket's work, linking the ticket again so a branch is created on the current trunk, and [applying the saved patch](./applying-patches) to it.
+The app has no way to replay an old ticket branch onto a newer trunk. Doing it by hand means, in order: [update the site to the latest trunk](./trunk-updates) so there is a newer snapshot to branch from; save the ticket's patch from **Review & submit changes**; **Unlink** the ticket, so its row appears on the tickets card and **Delete this ticket's work** becomes available for it — the card never offers to delete the ticket you are on; link the ticket again, which creates a fresh branch on the updated trunk; and [apply the saved patch](./applying-patches) to it.
 
 ## Next steps
 
