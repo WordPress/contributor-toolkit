@@ -436,40 +436,55 @@ async function collectChangedFiles(dir, baseOid = null) {
     return { baseOid: base, files };
 }
 
+// What the patch will say about one of the walk's rows, decided once and read
+// twice: patch generation renders the answer, and the unsubmitted-work count
+// (#239) totals it. Sharing the decision is what keeps the card's note and the
+// patch modal from ever disagreeing about whether there is anything to say.
+//
+// - 'unreadable': present but it would not open — not a deletion, and not
+//   something to guess about either. Or the base side is on record but will
+//   not read back — a damaged object store; carrying on would name it
+//   `/dev/null` and turn an edit into an addition that applies nowhere.
+//   Either way it is named above the diff (#85): a change the patch does not
+//   carry is one the contributor has to hear about, so it counts.
+// - 'binary': checked on the bytes, before a utf8 decode turns undecodable
+//   ones into U+FFFD and hides them. A unified diff cannot carry it, so it
+//   too is named above the diff, and counts.
+// - 'unchanged': both sides equal once line endings are normalized — the
+//   churn of a CRLF checkout (native git on Windows), which must reach
+//   neither a Trac patch nor the note's count.
+// - 'text': a real difference, normalized on both sides for the same reason.
+function classifyChangedFile(file) {
+    const gone = !file.inWorkdir;
+    if (!gone && !file.work) return { kind: 'unreadable' };
+    if (file.inHead && !file.base) return { kind: 'unreadable' };
+    if ((file.base && file.base.includes(0)) || (file.work && file.work.includes(0))) {
+        return { kind: 'binary' };
+    }
+    const a = file.base ? normalizeEol(file.base.toString('utf8')) : '';
+    const b = file.work ? normalizeEol(file.work.toString('utf8')) : '';
+    if (a === b) return { kind: 'unchanged' };
+    return { kind: 'text', a, b };
+}
+
 async function createMinimalPatchForDir(dir, baseOid = null) {
     const { files } = await collectChangedFiles(dir, baseOid);
     let patch = '';
     const binaries = [];
     const unreadable = [];
     for (const file of files) {
-        const gone = !file.inWorkdir;
-        // Present but it would not open — not a deletion, and not something to
-        // guess about either. Named above the diff, for the same reason a
-        // binary is: a change this patch does not carry is one the contributor
-        // has to hear about.
-        if (!gone && !file.work) {
+        const kind = classifyChangedFile(file);
+        if (kind.kind === 'unchanged') continue;
+        if (kind.kind === 'unreadable') {
             unreadable.push(file.path);
             continue;
         }
-        // The base side is on record but unreadable — a damaged object store.
-        // Carrying on would name this `/dev/null` and turn an edit into an
-        // addition that applies nowhere.
-        if (file.inHead && !file.base) {
-            unreadable.push(file.path);
-            continue;
-        }
-        // Checked on the bytes, before a utf8 decode turns undecodable ones
-        // into U+FFFD and hides them. A unified diff cannot carry a binary.
-        if ((file.base && file.base.includes(0)) || (file.work && file.work.includes(0))) {
+        if (kind.kind === 'binary') {
             binaries.push(file.path);
             continue;
         }
-        // CRLF→LF on both sides: the workdir may be a CRLF checkout (native
-        // git on Windows), and a patch full of line-ending churn applies
-        // nowhere on Trac.
-        const a = file.base ? normalizeEol(file.base.toString('utf8')) : '';
-        const b = file.work ? normalizeEol(file.work.toString('utf8')) : '';
-        if (a === b) continue;
+        const gone = !file.inWorkdir;
+        const { a, b } = kind;
         // `/dev/null` names whichever side does not exist, and it is not
         // decoration: classify() in patch-plan.cjs reads an add or a delete
         // from the filename alone, never from "the hunk removes every line".
@@ -1093,9 +1108,47 @@ async function baseProvenance(dir, baseOid, meta) {
     }
 }
 
+/**
+ * The files standing between where this ticket started and where it is now —
+ * the note's measurement (#239). Same base and same walk as the patch, filtered
+ * to the rows the patch would actually speak about, so the note and the modal
+ * are two renderings of one answer. On trunk `patchBaseOid` answers null and
+ * the walk falls back to HEAD, which is what the note has always read there.
+ *
+ * @param {string} sitePath
+ * @return {Promise<Array<string>>} Paths, gitignored ones excluded.
+ */
+async function collectUnsubmittedFiles(sitePath) {
+    const baseOid = await patchBaseOid(sitePath);
+    const { files } = await collectChangedFiles(sitePath, baseOid);
+    return files
+        .filter((file) => classifyChangedFile(file).kind !== 'unchanged')
+        .map((file) => file.path);
+}
+
+// Two questions, deliberately two channels (#239). This one asks "are there
+// edits not written down yet" — the narrow reading the checkout guards need:
+// the trunk-update dirty dialog and the patch-apply collision scan protect
+// exactly the files a force checkout would overwrite, and parked work is not
+// among them. The card's note asks `git:unsubmitted-work` instead.
 ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
     try {
         const files = await collectDirtyFiles(sitePath);
+        return { ok: true, dirty: files.length > 0, changedCount: files.length, files };
+    } catch (e) {
+        return { ok: false, error: String(e) };
+    }
+});
+
+// The other question: "is there work on this ticket that has not been
+// submitted", measured from the branch point rather than from the last time
+// anything was written down. Under the ticket-as-branch model (#108) a
+// ticket's work lives in its parked WIP commit, so the HEAD-relative reading
+// above is correctly "clean" for every change that has survived a ticket
+// switch — which is exactly the work the note exists to speak about.
+ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
+    try {
+        const files = await collectUnsubmittedFiles(sitePath);
         return { ok: true, dirty: files.length > 0, changedCount: files.length, files };
     } catch (e) {
         return { ok: false, error: String(e) };
@@ -1110,7 +1163,18 @@ ipcMain.handle('git:discard-changes', async (_e, sitePath) => {
         // fail on the network, which would leave a revert banner for a patch that
         // is already gone.
         await writeWorkMeta(sitePath, { appliedPatch: null });
-        return { ok: true };
+        // What survived rides on the reply: a discard rewinds to the last park,
+        // and on a ticket branch the WIP commit is not its to take — destroying
+        // a ticket is what deleting its branch is for. Answering nothing here
+        // would let the card mark the tree clean over work that is still there,
+        // the same silence #239 starts from. Counted after the reset; a count
+        // that fails does not turn a discard that succeeded into an error, the
+        // reply just says less and the next probe fills it in.
+        let files = null;
+        try { files = await collectUnsubmittedFiles(sitePath); } catch {}
+        return files
+            ? { ok: true, dirty: files.length > 0, changedCount: files.length }
+            : { ok: true };
     } catch (e) {
         return { ok: false, error: String(e) };
     }
@@ -1905,7 +1969,11 @@ ipcMain.handle('branches:delete', async (_e, sitePath, targetRef) => withRegiste
 		branches,
 		...(wasActive ? { currentBranch: TRUNK, tracTicket: null } : {})
 	});
-	return { ok: true, deleted: targetRef, current: wasActive ? TRUNK : current };
+	// `movedToTrunk` says the checkout itself changed, which `current` alone
+	// cannot: a delete made from trunk reports trunk either way, and the note
+	// re-walks the tree on this answer (#239) — re-walking one that never moved
+	// blanks the sentence and rebuilds the identical one.
+	return { ok: true, deleted: targetRef, current: wasActive ? TRUNK : current, movedToTrunk: wasActive };
 }));
 
 // Only the schemes the app actually uses reach the OS — see external-url.js for

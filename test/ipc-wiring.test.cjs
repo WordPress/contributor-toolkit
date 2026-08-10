@@ -460,6 +460,135 @@ test('git:discard-changes resets through trunk-update and clears the applied-pat
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
 });
 
+// --- git:unsubmitted-work — the note's own question (#239) ----------------
+
+// A site the way the ticket-as-branch model leaves it: the contributor's work
+// parked in the branch's single WIP commit, the worktree clean. `git status`
+// says nothing; the patch says +1 line. The note has to side with the patch.
+async function parkedTicketRepo(t) {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-parked-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	const author = { name: 'test', email: 'test@example.com' };
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // login\n');
+	await git.add({ fs, dir, filepath: 'wp-login.php' });
+	const baseOid = await git.commit({ fs, dir, message: 'trunk snapshot', author });
+	await git.branch({ fs, dir, ref: 'ticket/62281', object: 'trunk', checkout: true });
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // login\n// the ticket work\n');
+	await git.add({ fs, dir, filepath: 'wp-login.php' });
+	await git.commit({
+		fs, dir,
+		message: 'Work in progress (WordPress Contributor Toolkit)',
+		author,
+		parent: [baseOid]
+	});
+	return { dir, baseOid };
+}
+
+function parkedTicketMain(dir, baseOid) {
+	return loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({
+				sites: [dir],
+				siteMeta: {
+					[dir]: {
+						tracTicket: 62281,
+						branches: { 'ticket/62281': { tracTicket: 62281, baseOid } }
+					}
+				}
+			}).stubs
+		}
+	});
+}
+
+// The bug #239 describes, end to end: the same tree answers "clean" to the
+// narrow question and "one file" to the note's. Both answers are correct —
+// the note just has to ask the second one.
+test('git:unsubmitted-work sees the parked ticket work a clean status hides (#239)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t);
+	const main = parkedTicketMain(dir, baseOid);
+
+	// The narrow question keeps its answer: nothing is uncommitted, and the
+	// callers that guard checkouts with it must keep hearing that.
+	const narrow = await main.invoke('git:worktree-dirty', dir);
+	assert.equal(narrow.ok, true);
+	assert.equal(narrow.dirty, false);
+
+	const wide = await main.invoke('git:unsubmitted-work', dir);
+	assert.deepEqual(wide, { ok: true, dirty: true, changedCount: 1, files: ['wp-login.php'] });
+});
+
+// Fresh edits and parked ones are one body of work as far as the ticket is
+// concerned — the count is files against the branch point, not a sum of two
+// separate answers.
+test('git:unsubmitted-work counts parked and uncommitted work as one answer (#239)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t);
+	fs.writeFileSync(path.join(dir, 'loose.php'), '<?php // not parked yet\n');
+	const main = parkedTicketMain(dir, baseOid);
+
+	const wide = await main.invoke('git:unsubmitted-work', dir);
+	assert.equal(wide.dirty, true);
+	assert.equal(wide.changedCount, 2);
+	assert.deepEqual([...wide.files].sort(), ['loose.php', 'wp-login.php']);
+});
+
+// On trunk there is no branch point and nothing parked, so the two questions
+// coincide — a site that never linked a ticket must see no change at all.
+test('git:unsubmitted-work matches git:worktree-dirty on trunk (#239)', async (t) => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-trunk-note-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // login\n');
+	await git.add({ fs, dir, filepath: 'wp-login.php' });
+	await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } }).stubs }
+	});
+
+	assert.equal((await main.invoke('git:unsubmitted-work', dir)).dirty, false);
+
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // login\n// edited\n');
+	const wide = await main.invoke('git:unsubmitted-work', dir);
+	assert.deepEqual(wide, { ok: true, dirty: true, changedCount: 1, files: ['wp-login.php'] });
+});
+
+// The count is the patch's count. A binary edit is named above the diff rather
+// than diffed (#85), but it is still a change the contributor has to hear
+// about — where a file whose bytes differ only in line endings is not.
+test('git:unsubmitted-work counts what the patch would speak about (#239, #85)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t);
+	fs.writeFileSync(path.join(dir, 'logo.png'), Buffer.from([0x89, 0x50, 0x00, 0x01]));
+	const main = parkedTicketMain(dir, baseOid);
+
+	const wide = await main.invoke('git:unsubmitted-work', dir);
+	assert.equal(wide.changedCount, 2);
+	assert.ok(wide.files.includes('logo.png'), 'a binary change still counts — the patch names it');
+});
+
+// What a discard leaves behind rides on its reply: on a ticket branch the
+// parked work survives the reset (destroying a ticket is what deleting its
+// branch is for), so answering "clean" would hide the note over work that is
+// still there — the same silence #239 starts from, reintroduced one click
+// after it was fixed.
+test('git:discard-changes reports the parked work that survives it (#239)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t);
+	fs.writeFileSync(path.join(dir, 'loose.php'), '<?php // uncommitted\n');
+	const main = parkedTicketMain(dir, baseOid);
+
+	const res = await main.invoke('git:discard-changes', dir);
+
+	assert.equal(res.ok, true);
+	assert.equal(fs.existsSync(path.join(dir, 'loose.php')), false, 'the uncommitted edit was discarded');
+	assert.match(
+		fs.readFileSync(path.join(dir, 'wp-login.php'), 'utf8'),
+		/the ticket work/,
+		'the parked work is not the discard\'s to take'
+	);
+	assert.equal(res.dirty, true, 'the reply has to admit what survived');
+	assert.equal(res.changedCount, 1);
+});
+
 test('git:update-trunk hands the update to trunk-update and streams its log back', async () => {
 	let called;
 	const started = new Promise((resolve) => { called = resolve; });
@@ -2156,6 +2285,49 @@ test('branches:delete leaves the active ticket alone when deleting another one (
 	assert.equal(meta.branches['ticket/61002'], undefined);
 });
 
+// The note re-walks the checkout on this answer (#239), so it has to say
+// whether the checkout moved — which `current` alone cannot: a delete made
+// from trunk reports trunk whether or not anything was checked out.
+test('branches:delete says whether the checkout moved, not just where it is (#239)', async () => {
+	const deleteBranchWith = (currentRef) => {
+		const settings = fakeSettingsStore({
+			sites: ['/sites/wp'],
+			siteMeta: {
+				'/sites/wp': {
+					currentBranch: currentRef,
+					branches: { 'ticket/61002': { baseOid: 'def' } }
+				}
+			}
+		});
+		return loadMain({
+			stubs: {
+				...silentLogging(),
+				...settings.stubs,
+				'./ticket-branches': {
+					deleteTicketBranch: async () => ({ deleted: true, ref: 'ticket/61002' }),
+					currentBranchName: async () => currentRef
+				}
+			}
+		});
+	};
+
+	// Deleting the ticket that is checked out: the tree is trunk's now, and the
+	// note is measuring against a branch that no longer exists.
+	const active = await deleteBranchWith('ticket/61002').invoke('branches:delete', '/sites/wp', 'ticket/61002');
+	assert.equal(active.movedToTrunk, true);
+
+	// Deleting a stale ticket from trunk. `current` is trunk on both, which is
+	// exactly why it cannot be the renderer's signal — nothing was checked out
+	// here, and the note is still describing the same tree.
+	const fromTrunk = await deleteBranchWith('trunk').invoke('branches:delete', '/sites/wp', 'ticket/61002');
+	assert.equal(fromTrunk.current, 'trunk');
+	assert.equal(fromTrunk.movedToTrunk, false);
+
+	// And from another ticket, where neither says trunk.
+	const fromOther = await deleteBranchWith('ticket/59234').invoke('branches:delete', '/sites/wp', 'ticket/61002');
+	assert.equal(fromOther.movedToTrunk, false);
+});
+
 test('the applied patch belongs to the ticket, not the site (issue #108)', async () => {
 	const currentBranchName = spy(async () => 'ticket/61002');
 	const settings = fakeSettingsStore({
@@ -3222,6 +3394,7 @@ test('the harness never loads the real electron package', () => {
 const WIRED = new Set([
 	'url:open',
 	'git:worktree-dirty',
+	'git:unsubmitted-work',
 	'git:discard-changes',
 	'git:update-trunk',
 	'git:get-patch',

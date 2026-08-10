@@ -1,7 +1,11 @@
 // What the card says about unsubmitted changes, and when a discard may run.
 //
-// The note under the buttons is the first place the app admits the working
-// tree is dirty without the contributor opening the patch modal to find out.
+// The note under the buttons is the first place the app admits there is
+// unsubmitted work without the contributor opening the patch modal to find
+// out. "Unsubmitted" is measured the way the patch measures it — from the
+// ticket's branch point, parked WIP included — not as "uncommitted" (#239):
+// under the ticket-as-branch model those diverged, and the note reads the
+// wide answer while the checkout guards keep the narrow one.
 // Its sentence branches three ways — clean tree, dirty with a linked ticket,
 // dirty without one — and where it renders moves with the ticket: a change
 // that belongs to #12345 is news for the ticket card, a change that belongs
@@ -61,12 +65,45 @@ function changesNoteParts({ dirty, changedCount, tracTicket } = {}) {
  * Failure always carries a message — a discard that silently did nothing
  * would leave the contributor believing their tree is clean.
  *
+ * Success carries the reply's recount of what survived when there is one
+ * (#239): on a ticket branch the parked work outlives a discard, and dropping
+ * the count here would leave the card marking the tree clean over changes
+ * that are still there.
+ *
  * @param {*} res
- * @return {{ok: true}|{ok: false, message: string}}
+ * @return {{ok: true, dirty?: boolean, changedCount?: number}
+ *         |{ok: false, message: string}}
  */
 function discardOutcome(res) {
-	if (res && res.ok) return { ok: true };
+	if (res && res.ok) {
+		return typeof res.dirty === 'boolean'
+			? { ok: true, dirty: res.dirty, changedCount: res.changedCount }
+			: { ok: true };
+	}
 	return { ok: false, message: `Failed to discard changes: ${res && res.error ? res.error : 'Unknown error'}` };
+}
+
+/**
+ * What the note shows in the frame straight after a discard, before any probe
+ * has walked the checkout again.
+ *
+ * The reply's own recount decides it (#239): a discard rewinds to the last
+ * park, and on a ticket branch the parked WIP is not the discard's to take —
+ * so "clean" is only true when the reply says so. A reply carrying no recount
+ * falls back to clean, which is what this asserted before the recount existed;
+ * the next probe corrects it either way.
+ *
+ * @param {*} outcome A `discardOutcome` result.
+ * @return {{dirty: boolean, changedCount: number}}
+ */
+function noteAfterDiscard(outcome) {
+	if (!outcome || !outcome.ok || typeof outcome.dirty !== 'boolean') {
+		return { dirty: false, changedCount: 0 };
+	}
+	return {
+		dirty: outcome.dirty,
+		changedCount: Number.isInteger(outcome.changedCount) ? outcome.changedCount : 0
+	};
 }
 
 /**
@@ -96,4 +133,4 @@ function discardBlocked({ isUpdating, installing, building, devServerActive, dis
 	return Boolean(isUpdating || installing || building || devServerActive || discarding);
 }
 
-module.exports = { changesNoteParts, discardOutcome, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE };
+module.exports = { changesNoteParts, discardOutcome, noteAfterDiscard, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE };

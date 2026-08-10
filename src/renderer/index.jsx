@@ -36,7 +36,7 @@ import { ticketBranchRows } from './ticket-branch-list.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
-import { changesNoteParts, discardOutcome, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
+import { changesNoteParts, discardOutcome, noteAfterDiscard, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // Shared by both log panes so the tabs cannot drift apart visually.
@@ -1440,9 +1440,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   }, [sitePath]);
   useEffect(()=>{ loadBranches(); }, [loadBranches]);
 
-  // The note's probe. A failed probe keeps the last answer rather than
-  // reporting: the note is advisory, and losing it over a transient git error
-  // would read as "your changes are gone".
+  // The note's probe. It asks the wide question — unsubmitted work measured
+  // from the ticket's branch point, the same measurement the patch makes —
+  // not whether the tree has uncommitted edits (#239): under the ticket-as-
+  // branch model a ticket's work is parked in a WIP commit, so the narrow
+  // reading is correctly "clean" for every change that has survived a ticket
+  // switch, which is exactly the work this note exists to speak about. The
+  // checkout guards (startTrunkUpdate) keep asking the narrow question:
+  // parked work survives a force checkout, uncommitted edits do not.
+  //
+  // A failed probe keeps the last answer rather than reporting: the note is
+  // advisory, and losing it over a transient git error would read as "your
+  // changes are gone".
   //
   // The ref guards two races the probe's cost makes real — it walks the whole
   // checkout, so it can still be in flight when the next focus fires or when
@@ -1450,24 +1459,53 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // stacking; `generation` lets a local answer outrank a probe that started
   // before it, so a stale "dirty" cannot resurrect the note over a tree that
   // was just reset.
-  const dirtyProbeRef = useRef({ inFlight: false, generation: 0 });
-  const markTreeClean = () => {
+  const dirtyProbeRef = useRef({ inFlight: false, generation: 0, again: false });
+  // The local answer a discard supplies (#239) — what survived the reset,
+  // decided by the module so the card has one rule for it and a test to hold
+  // it. The generation bump is what makes it outrank a probe that started
+  // before the discard did.
+  const applyDiscardToNote = (outcome) => {
     dirtyProbeRef.current.generation++;
-    setWorktreeDirty({ dirty: false, changedCount: 0 });
+    setWorktreeDirty(noteAfterDiscard(outcome));
   };
   const refreshDirty = useCallback(async () => {
     const probe = dirtyProbeRef.current;
-    if (probe.inFlight) return;
+    // A walk already running answers for the tree as it was when it started.
+    // Asking again mid-walk used to be dropped, which was safe while the
+    // answer could only change behind the app's back — a branch switch
+    // changes it in-app, without the window ever losing focus (#239), so the
+    // request is remembered and re-run rather than lost.
+    if (probe.inFlight) {
+      probe.again = true;
+      return;
+    }
     probe.inFlight = true;
-    const generation = probe.generation;
     try {
-      const res = await window.api.isWorktreeDirty(sitePath);
-      if (res && res.ok && probe.generation === generation) {
-        setWorktreeDirty({ dirty: Boolean(res.dirty), changedCount: res.changedCount });
-      }
-    } catch {}
-    finally { probe.inFlight = false; }
+      do {
+        probe.again = false;
+        const generation = probe.generation;
+        try {
+          const res = await window.api.hasUnsubmittedWork(sitePath);
+          if (res && res.ok && probe.generation === generation) {
+            setWorktreeDirty({ dirty: Boolean(res.dirty), changedCount: res.changedCount });
+          }
+        } catch {}
+      } while (probe.again);
+    } finally { probe.inFlight = false; }
   }, [sitePath]);
+
+  // A branch change invalidates the note outright rather than staling it: the
+  // count is measured from the ticket's branch point (#239), so the previous
+  // ticket's answer is not an old version of this one's, it is about a
+  // different body of work. Left alone it would put the outgoing ticket's
+  // count and the incoming ticket's number in the same sentence, over a
+  // discard link — so the note is cleared while the new walk runs, and the
+  // generation bump keeps the outgoing branch's answer from landing on it.
+  const reprobeAfterBranchChange = useCallback(() => {
+    dirtyProbeRef.current.generation++;
+    setWorktreeDirty(null);
+    refreshDirty();
+  }, [refreshDirty]);
 
   // Only the open card probes, and only while it is open: the probe walks the
   // whole checkout, which is too much to pay for every card on the shelf. The
@@ -1522,12 +1560,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       // status reload, switching tickets would keep showing the other
       // ticket's "patch applied · Revert" banner over this branch's tree.
       await Promise.all([loadBranches(), loadStatus()]);
+      // The tree under the note is a different branch's now (#239).
+      reprobeAfterBranchChange();
     } catch (e) {
       setTicketError(String(e));
     } finally {
       setTicketSaving(false);
     }
-  }, [sitePath, loadBranches, loadStatus, onClearSwitchNotices]);
+  }, [sitePath, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
   const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
   const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
 
@@ -1545,6 +1585,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       }
       setPatchSavedTo('');
       setBlockedByTrunkWork(null);
+      // The switch below re-walks the tree, so on the happy path this is
+      // redundant — but a switch that fails returns without reprobing, and
+      // the note would go on offering to discard trunk work that is already
+      // gone (#239).
+      applyDiscardToNote(discardOutcome(res));
     } catch (e) {
       setTicketError(String(e));
       return;
@@ -1611,12 +1656,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       // then cleared the ticket, and the status reload re-syncs the panel and
       // the sidebar to that.
       if (res.current === 'trunk') await loadStatus();
+      // Only a delete that took the checkout with it changed what the note is
+      // measuring against (#239): deleting a ticket you are not on — including
+      // from trunk, where `current` says trunk either way — leaves the tree
+      // alone, and re-walking it would blank the sentence and rebuild the
+      // identical one. After loadStatus, so a fast walk cannot render trunk's
+      // count under the ticket number the delete just cleared.
+      if (res.movedToTrunk) reprobeAfterBranchChange();
     } catch (e) {
       setTicketError(String(e));
     } finally {
       setDeletingBranch(null);
     }
-  }, [sitePath, loadBranches, loadStatus]);
+  }, [sitePath, loadBranches, loadStatus, reprobeAfterBranchChange]);
 
   const runInstall = useCallback((options = {}) => {
     const { onLog, onDone } = options;
@@ -2697,7 +2749,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         return;
       }
       savedPatchPathRef.current = res.filePath;
-      markTreeClean();
+      applyDiscardToNote(discardOutcome(d));
       setDirtyModalOpen(false);
       writeToTerminal(`\nSaved your changes to ${res.filePath} and reset the working tree.\n`);
       beginTrunkUpdate();
@@ -2713,7 +2765,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setDirtyError(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
       return;
     }
-    markTreeClean();
+    applyDiscardToNote(discardOutcome(d));
     setDirtyModalOpen(false);
     writeToTerminal('\nDiscarded local changes.\n');
     beginTrunkUpdate();
@@ -2797,7 +2849,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         setDiscardError(outcome.message);
         return;
       }
-      markTreeClean();
+      applyDiscardToNote(outcome);
       setAppliedPatch(null);
       writeToTerminal('\nDiscarded local changes.\n');
       if (isPatchOpen) await loadPatchText();
