@@ -504,13 +504,10 @@ test('git:update-trunk drops the applied-patch record when it fails after the ch
 
 	const event = createIpcEvent();
 	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
-	for (let i = 0; i < 50 && !event.sent.some((m) => m.channel === 'git:update-trunk:done'); i++) {
-		await new Promise((r) => setImmediate(r));
-	}
+	await waitForSend(event, 'git:update-trunk:done');
 
-	const done = event.sent.find((m) => m.channel === 'git:update-trunk:done');
-	assert.deepEqual(done.payload.updateId, updateId);
-	assert.equal(done.payload.stage, 'checkout');
+	const done = await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+	assert.equal(done.stage, 'checkout');
 	assert.equal(settings.values.siteMeta['/sites/wp'].updateIncomplete, true);
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
 });
@@ -534,9 +531,7 @@ test('git:update-trunk keeps the applied-patch record when the checkout never st
 
 	const event = createIpcEvent();
 	await main.invokeWith('git:update-trunk', event, '/sites/wp');
-	for (let i = 0; i < 50 && !event.sent.some((m) => m.channel === 'git:update-trunk:done'); i++) {
-		await new Promise((r) => setImmediate(r));
-	}
+	await waitForSend(event, 'git:update-trunk:done');
 
 	assert.equal(settings.values.siteMeta['/sites/wp'].updateIncomplete, true, 'the rebuild hint still applies');
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch.text, 'STORED');
@@ -553,9 +548,7 @@ test('git:update-trunk keeps the applied-patch record when the fetch fails', asy
 
 	const event = createIpcEvent();
 	await main.invokeWith('git:update-trunk', event, '/sites/wp');
-	for (let i = 0; i < 50 && !event.sent.some((m) => m.channel === 'git:update-trunk:done'); i++) {
-		await new Promise((r) => setImmediate(r));
-	}
+	await waitForSend(event, 'git:update-trunk:done');
 
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch.text, 'STORED');
 });
@@ -1518,21 +1511,27 @@ test('git:preview-patch reads the patch through patch-plan', async () => {
 // seam fakeSettingsStore stands in for — so it is a wired handler, not a hole.
 // It streams, so its result comes back on the :done channel, not the return.
 //
-// Waited on the clock rather than on a count of event-loop turns. These
+// Waited on the clock rather than on a count of event-loop turns, and the only
+// way anything in this file should wait for a streamed message — a new inline
+// tick loop is the bug below waiting to happen again. These
 // handlers read the worktree to decide where per-branch state lives (#108), so
 // how many turns a result takes is a property of the filesystem underneath —
 // a fixed tick budget passed on macOS and ran out on Windows, where the same
 // failing path lookup is slower. This returns as soon as the message lands, so
 // the budget costs nothing in the normal case; do not tighten it back into a
 // tick count.
-async function waitForDone(event, channel, key, id, budgetMs = 4000) {
+async function waitForSend(event, channel, match = () => true, budgetMs = 4000) {
 	const started = Date.now();
 	while (Date.now() - started < budgetMs) {
-		const hit = event.sent.find((m) => m.channel === channel && m.payload[key] === id);
+		const hit = event.sent.find((m) => m.channel === channel && match(m));
 		if (hit) return hit.payload;
 		await new Promise((r) => setTimeout(r, 5));
 	}
 	throw new Error(`${channel} never arrived`);
+}
+
+async function waitForDone(event, channel, key, id) {
+	return waitForSend(event, channel, (m) => m.payload[key] === id);
 }
 
 async function applyDone(event, applyId) {
