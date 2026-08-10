@@ -33,6 +33,7 @@ import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './
 import { parsePrRef } from '../patch-sources.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { ticketBranchRows } from './ticket-branch-list.cjs';
+import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
 import { changesNoteParts, discardOutcome, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
@@ -263,6 +264,10 @@ function App() {
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
   const setupLogAliasRef = useRef({});
+  // Where a ticket switch has got to, per site (#173). Held here rather than in
+  // SiteRow because every row stays mounted — subscribing per row would open one
+  // listener per registered site and wake all of them for each other's events.
+  const [switchProgressBySite, setSwitchProgressBySite] = useState({});
 
   const appendSetupLog = useCallback((siteTarget, message) => {
     const key = siteTarget ? String(siteTarget) : '';
@@ -382,6 +387,21 @@ function App() {
     });
     return () => { if (unsubProg) unsubProg(); if (unsubStat) unsubStat(); };
   }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, moveSetupLog]);
+
+  // Dropped when a switch begins, so a failed switch's last sentence is not the
+  // next one's first frame.
+  const clearSwitchProgress = useCallback((sitePath) => {
+    setSwitchProgressBySite((prev) => (prev[sitePath] ? { ...prev, [sitePath]: null } : prev));
+  }, []);
+
+  // One subscription for every site; the payload says which one (#173).
+  useEffect(() => {
+    const unsub = window.api.subscribeSwitchProgress((p) => {
+      if (!p || !p.sitePath) return;
+      setSwitchProgressBySite((prev) => ({ ...prev, [p.sitePath]: p.stage === 'done' ? null : p }));
+    });
+    return () => { if (unsub) unsub(); };
+  }, []);
 
   // Refused while one is already running. Everything about this flow is
   // single-file and always has been — one pending card, one terminal, one
@@ -813,6 +833,8 @@ function App() {
                       wporg={wporg}
                       isPending={pendingSites.includes(s)}
                       setupLogs={setupLogsBySite[s] || ''}
+                      switchProgress={switchProgressBySite[s] || null}
+                      onClearSwitchProgress={clearSwitchProgress}
                       isActive={activeSite === s}
                     />
                   </div>
@@ -996,7 +1018,7 @@ function TerminalCommandLink({ command, onPrefill, disabled }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, editor, wporg, isPending = false, setupLogs = '', isActive = false }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, editor, wporg, isPending = false, setupLogs = '', isActive = false, switchProgress = null, onClearSwitchProgress = null }) {
   // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
   // recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
@@ -1448,6 +1470,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setTicketSaving(true);
     setTicketError('');
     setBlockedByTrunkWork(null);
+    // The previous switch's last sentence must not be this one's first frame.
+    if (onClearSwitchProgress) onClearSwitchProgress(sitePath);
     try {
       const res = await window.api.setSiteTicket(sitePath, ref);
       if (!res?.ok) {
@@ -1472,7 +1496,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } finally {
       setTicketSaving(false);
     }
-  }, [sitePath, loadBranches, loadStatus]);
+  }, [sitePath, loadBranches, loadStatus, onClearSwitchProgress]);
   const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
   const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
 
@@ -1498,6 +1522,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const discardTrunkWorkAndSwitch = useCallback(async (ref) => {
     setTicketSaving(true);
     setTicketError('');
+    // The refused attempt left its last frame behind — without this, the
+    // discard runs under a spinner describing a switch that never happened.
+    if (onClearSwitchProgress) onClearSwitchProgress(sitePath);
     try {
       const res = await window.api.discardChanges(sitePath);
       if (!res?.ok) {
@@ -1515,7 +1542,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     // Outside the guard above: saveTicket owns the busy flag itself, and the
     // discard has already succeeded — a failure here is about the switch.
     await saveTicket(ref);
-  }, [sitePath, saveTicket]);
+  }, [sitePath, saveTicket, onClearSwitchProgress]);
 
   // "Delete this ticket's work" (#108) — destroys the branch, which is why it
   // sits behind a confirm while switching does not.
@@ -2114,6 +2141,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // operations as well as on each other — the same trio every destructive
   // control in this panel guards on.
   const branchRows = ticketBranchRows({ branches: ticketBranches.branches, current: ticketBranches.current, tracTicket, now: Date.now() });
+  // What the switch is doing, while it does it (#173). Gated on the busy flag
+  // rather than merely cleared by it: the last sends can land after the invoke
+  // has already answered, which would flash a sentence under an idle panel.
+  const switchProgressLine = ticketSaving && switchProgress ? (
+    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 12 }}>
+      <Spinner />
+      <span>{describeSwitchProgress(switchProgress)}</span>
+    </div>
+  ) : null;
   const ticketActionsBlocked = ticketSaving || deletingBranch !== null || updateState !== 'idle' || installing || building;
   const renderBranchRows = (linked) => (
     <div style={{ marginTop: 8, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
@@ -3770,6 +3806,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         {ticketError ? (
           <div role="alert" style={{ marginTop: 8, color: '#d63638', fontSize: 12 }}>{ticketError}</div>
         ) : null}
+        {switchProgressLine}
         {blockedByTrunkWork ? (
           <div style={{ marginTop: 8, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
             <div>
@@ -4328,6 +4365,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                             style={{ justifyContent:'center' }}
                           >Link ticket</Button>
                           {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
+                          {switchProgressLine}
                         </>
                       )}
                     </Destination>

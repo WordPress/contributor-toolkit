@@ -25,6 +25,7 @@ const {
 	switchToBranch,
 	deleteTicketBranch
 } = require('../src/ticket-branches.js');
+const { describeSwitchProgress } = require('../src/switch-progress.cjs');
 
 const AUTHOR = { name: 'test', email: 'test@example.com' };
 
@@ -233,4 +234,111 @@ test('switching to a branch that does not exist refuses (issue #108)', async (t)
 		() => switchToBranch(dir, 'ticket/12345', { baseOid }),
 		(e) => e.code === 'no-such-branch'
 	);
+});
+
+// --- progress while the worktree is swapped (issue #173) -------------------
+
+// A switch is a worktree scan and a full checkout: seconds of silence on a real
+// wordpress-develop, during which the window is indistinguishable from hung.
+// The stages below are what the panel turns into a sentence, so their order and
+// their presence is the contract — particularly the park stages, which cover
+// the stretch where the contributor's edits are not committed anywhere yet.
+test('switchToBranch reports every stage of a park and a checkout (issue #173)', async (t) => {
+	const { dir, baseOid } = await makeSite(t);
+	await startTicketBranch(dir, 59234);
+	await switchToBranch(dir, TRUNK, { baseOid });
+	await startTicketBranch(dir, 61002);
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // work on 61002\n');
+
+	const seen = [];
+	await switchToBranch(dir, ticketBranchRef(59234), { baseOid, author: AUTHOR, onProgress: (p) => seen.push(p) });
+
+	const stages = seen.map((p) => p.stage);
+	assert.ok(stages.includes('scan'), stages.join(','));
+	assert.ok(stages.includes('stage'), stages.join(','));
+	assert.ok(stages.includes('commit'), stages.join(','));
+	assert.equal(stages.indexOf('scan') < stages.indexOf('stage'), true, 'the scan comes before what it feeds');
+	assert.equal(stages.indexOf('stage') < stages.indexOf('commit'), true);
+	assert.equal(stages[stages.length - 1], 'done', 'the line has to reach the end');
+	// Where it is going, on every payload, so the panel need not track it.
+	assert.equal(seen.every((p) => p.to === ticketBranchRef(59234)), true);
+	// And where the work being saved came from.
+	assert.equal(seen.find((p) => p.stage === 'commit').from, ticketBranchRef(61002));
+	// The staging stage is the one with an honest total.
+	const staging = seen.filter((p) => p.stage === 'stage');
+	assert.ok(staging.length > 0);
+	assert.equal(staging.every((p) => Number.isFinite(p.total) && p.total > 0), true);
+	// And it is the longest stretch of the park, so it has to keep naming the
+	// ticket — a sentence that drops to "Saving your work…" for most of the wait
+	// is the one that fails to stop someone force-quitting.
+	assert.equal(staging.every((p) => p.from === ticketBranchRef(61002)), true);
+	assert.equal(
+		seen.every((p) => describeSwitchProgress(p).length > 0),
+		true,
+		'every payload has to render as something'
+	);
+	assert.match(describeSwitchProgress(staging[0]), /#61002/);
+});
+
+// Nothing to park is the common case — switching away from a ticket you only
+// read. The scan still runs and still costs, so it is still announced; the
+// commit never happens and must not be claimed.
+test('a clean branch reports the scan but never claims to commit (issue #173)', async (t) => {
+	const { dir, baseOid } = await makeSite(t);
+	await startTicketBranch(dir, 59234);
+	await switchToBranch(dir, TRUNK, { baseOid });
+	await startTicketBranch(dir, 61002);
+
+	const seen = [];
+	await switchToBranch(dir, ticketBranchRef(59234), { baseOid, onProgress: (p) => seen.push(p) });
+
+	const stages = seen.map((p) => p.stage);
+	assert.equal(stages[0], 'scan');
+	assert.equal(stages.includes('commit'), false, 'nothing was committed, so nothing may say so');
+	assert.equal(stages[stages.length - 1], 'done');
+});
+
+// Leaving trunk runs a full scan that usually ends in "nothing to do". Silent
+// before this, and it is the same cost as any other scan.
+test('leaving a clean trunk still reports its scan (issue #173)', async (t) => {
+	const { dir, baseOid } = await makeSite(t);
+	await startTicketBranch(dir, 59234);
+	await switchToBranch(dir, TRUNK, { baseOid });
+
+	const seen = [];
+	await switchToBranch(dir, ticketBranchRef(59234), { baseOid, onProgress: (p) => seen.push(p) });
+
+	assert.equal(seen[0].stage, 'scan');
+	assert.equal(seen[0].from, TRUNK);
+	assert.equal(seen[seen.length - 1].stage, 'done');
+});
+
+// A refused switch changed nothing, so it must not report a checkout it never
+// ran, and must not say it is done.
+test('a refused dirty-trunk switch reports the scan and stops there (issue #173)', async (t) => {
+	const { dir, baseOid } = await makeSite(t);
+	await startTicketBranch(dir, 59234);
+	await switchToBranch(dir, TRUNK, { baseOid });
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // loose edits on trunk\n');
+
+	const seen = [];
+	await assert.rejects(
+		() => switchToBranch(dir, ticketBranchRef(59234), { baseOid, onProgress: (p) => seen.push(p) }),
+		(e) => e.code === 'dirty-trunk'
+	);
+
+	assert.deepEqual(seen.map((p) => p.stage), ['scan']);
+});
+
+// Progress is an addition, not a requirement: every existing caller passes no
+// callback and must keep working.
+test('a switch without a progress callback still works (issue #173)', async (t) => {
+	const { dir, baseOid } = await makeSite(t);
+	await startTicketBranch(dir, 59234);
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // work\n');
+
+	const result = await switchToBranch(dir, TRUNK, { baseOid, author: AUTHOR });
+
+	assert.equal(result.switched, true);
+	assert.equal(result.parked, true);
 });

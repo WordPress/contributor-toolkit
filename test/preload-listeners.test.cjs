@@ -450,3 +450,68 @@ test('runNpmScript returns the run id to the caller', async () => {
 // attached so early logs/URL are captured"), which is what the fix would look
 // like here. Left as a note rather than a test: asserting the current ordering
 // would pin the gap shut, and closing it is not #149.
+
+// --- the subscribe* family (#173) ------------------------------------------
+//
+// The other half of the bridge, and until now untested. These are long-lived
+// subscriptions rather than the per-run pairs above, which is exactly why the
+// switch progress uses one: a switch emits its first event milliseconds in,
+// well before its invoke answers, so the ordering gap noted at the end of this
+// file would have swallowed the start of every switch.
+//
+// The leak shape here is different too. `App` subscribes once for every site
+// rather than per run, so an unsubscribe that removed by channel instead of by
+// handler would silence a site that is still open.
+const SUBSCRIPTIONS = [
+	{ name: 'subscribeSwitchProgress', channel: 'switch:progress' },
+	{ name: 'subscribeSetupProgress', channel: 'download:progress' },
+	{ name: 'subscribeSetupStatus', channel: 'download:status' }
+];
+
+for (const sub of SUBSCRIPTIONS) {
+	test(`${sub.name}: subscribing listens once and unsubscribing stops (issue #173)`, () => {
+		const { api, ipcRenderer } = loadPreload();
+
+		const unsubscribe = api[sub.name](() => {});
+		assert.equal(ipcRenderer.listenerCount(sub.channel), 1);
+
+		unsubscribe();
+		assert.equal(ipcRenderer.listenerCount(sub.channel), 0);
+	});
+
+	test(`${sub.name}: the handler gets the payload, never the Electron event (issue #173)`, () => {
+		const { api, ipcRenderer } = loadPreload();
+		const seen = [];
+
+		api[sub.name]((payload) => seen.push(payload));
+		ipcRenderer.emit(sub.channel, { sitePath: '/sites/wp', stage: 'scan' });
+
+		assert.deepEqual(seen, [{ sitePath: '/sites/wp', stage: 'scan' }]);
+	});
+
+	test(`${sub.name}: one unsubscribe leaves other subscribers alone (issue #173)`, () => {
+		const { api, ipcRenderer } = loadPreload();
+		const mine = [];
+		const theirs = [];
+
+		const unsubscribeMine = api[sub.name]((p) => mine.push(p));
+		api[sub.name]((p) => theirs.push(p));
+		unsubscribeMine();
+
+		ipcRenderer.emit(sub.channel, { stage: 'done' });
+		assert.equal(ipcRenderer.listenerCount(sub.channel), 1);
+		assert.deepEqual(mine, []);
+		assert.deepEqual(theirs, [{ stage: 'done' }]);
+	});
+
+	test(`${sub.name}: unsubscribing twice, and no handler at all, are both safe (issue #173)`, () => {
+		const { api, ipcRenderer } = loadPreload();
+
+		const unsubscribe = api[sub.name]();
+		ipcRenderer.emit(sub.channel, { stage: 'scan' });
+		unsubscribe();
+		unsubscribe();
+
+		assert.equal(ipcRenderer.listenerCount(sub.channel), 0);
+	});
+}
