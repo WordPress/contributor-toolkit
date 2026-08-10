@@ -1519,6 +1519,85 @@ test('dir:show refuses a path the registry does not hold, and logs it', async ()
 	assert.deepEqual(main.calls.openPath, [SITE]);
 });
 
+// --- wp-debug:clear -> src/site-registry.js -------------------------------
+//
+// The Clear button under the debug.log panel. It empties
+// build/wp-content/debug.log inside the named site, so it is behind the same
+// registry boundary as sites:delete and dir:show — without it the renderer
+// could name any path and have the app truncate a file under it.
+
+test('wp-debug:clear asks site-registry whether the log may be emptied', async () => {
+	const clearRegisteredSiteLog = spy(async () => ({ ok: true }));
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, './site-registry': { clearRegisteredSiteLog } }
+	});
+
+	await main.invoke('wp-debug:clear', SITE);
+
+	assert.equal(clearRegisteredSiteLog.calls.length, 1);
+	const [sitePath, options] = clearRegisteredSiteLog.calls[0];
+	assert.equal(sitePath, SITE);
+	assert.deepEqual(options.sites, [SITE]);
+	assert.equal(typeof options.truncate, 'function');
+	assert.equal(typeof options.onRefused, 'function');
+});
+
+test('wp-debug:clear refuses a path the registry does not hold, and logs it', async () => {
+	const logEvent = spy();
+	const main = loadMain({
+		stubs: { './logging': { ...silentLogging()['./logging'], logEvent }, ...fakeSettingsStore({ sites: [SITE] }).stubs }
+	});
+
+	const result = await main.invoke('wp-debug:clear', '/Users/dev/somewhere-else');
+
+	assert.equal(result.ok, false);
+	assert.equal(result.reason, 'unregistered-site');
+	assert.equal(logEvent.calls.length, 1);
+	assert.match(logEvent.calls[0][1], /refused to clear the debug log for \/Users\/dev\/somewhere-else/);
+});
+
+test('wp-debug:reveal asks site-registry whether the log may be shown', async () => {
+	const revealRegisteredSite = spy(async () => ({ ok: true }));
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, './site-registry': { revealRegisteredSite } }
+	});
+
+	await main.invoke('wp-debug:reveal', SITE);
+
+	assert.equal(revealRegisteredSite.calls.length, 1);
+	const [sitePath, options] = revealRegisteredSite.calls[0];
+	assert.equal(sitePath, SITE);
+	assert.deepEqual(options.sites, [SITE]);
+	assert.equal(typeof options.reveal, 'function');
+	assert.equal(typeof options.onRefused, 'function');
+});
+
+test('wp-debug:reveal refuses a path the registry does not hold, and logs it', async () => {
+	const logEvent = spy();
+	const main = loadMain({
+		stubs: { './logging': { ...silentLogging()['./logging'], logEvent }, ...fakeSettingsStore({ sites: [SITE] }).stubs }
+	});
+
+	const result = await main.invoke('wp-debug:reveal', '/Users/dev/somewhere-else');
+
+	assert.equal(result.ok, false);
+	assert.deepEqual(main.calls.showItemInFolder, []);
+	assert.equal(logEvent.calls.length, 1);
+	assert.match(logEvent.calls[0][1], /refused to reveal the debug log for \/Users\/dev\/somewhere-else/);
+});
+
+// The path is what the panel displays, so a handler that started the tail but
+// answered with a bare `true` would leave the line blank and Show in folder
+// disabled, with nothing failing.
+test('wp-debug:start answers with the log path', async () => {
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs } });
+
+	const started = await main.invoke('wp-debug:start', SITE);
+
+	assert.equal(started.ok, true);
+	assert.equal(started.filePath, path.join(SITE, 'build', 'wp-content', 'debug.log'));
+});
+
 // --- opening a pull request (#167) ---------------------------------------
 
 // Sign-in is two-legged: the handler returns as soon as there is a code to
@@ -1762,6 +1841,8 @@ const WIRED = new Set([
 	'editor:list',
 	'editor:open',
 	'dir:show',
+	'wp-debug:clear',
+	'wp-debug:reveal',
 	'provenance:set-handle',
 	'provenance:set-event',
 	'github:account',

@@ -37,7 +37,8 @@ const { openPullRequest, buildPullRequestBody, testMode: githubTestMode } = requ
 const { buildPullRequestEntries } = require('./pr-files.cjs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
-const { deleteRegisteredSite, revealRegisteredSite } = require('./site-registry');
+const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
+const { planInitialRead, planTailRead } = require('./log-tail');
 const { getStore } = require('./settings-store');
 const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
@@ -1855,39 +1856,68 @@ ipcMain.handle('smtp:stop', async (_e, sitePath) => {
 });
 
 // --- WordPress debug.log tailing ---
+
+// Written into the stream between the backlog replayed on attach and the lines
+// this run produces. Distinguishable from a WordPress entry, which always opens
+// with a bracketed timestamp.
+const WP_DEBUG_SESSION_MARKER = '—— tail attached; everything above is from an earlier run ——';
+
+// Where WordPress writes it, for the three things that need to agree on it: the
+// tail, the Clear button and Show in folder. Composed here rather than in the
+// renderer, which would have to concatenate with '/' and be wrong on Windows.
+//
+// Under `build/`, not `src/`, because `build/` is what Playground serves — the
+// asymmetry worth naming, since a contributor editing src/wp-content/themes/…
+// will look for their log next to the file they just edited.
+function wpDebugLogPath(sitePath) {
+	return path.join(sitePath, 'build', 'wp-content', 'debug.log');
+}
+
 function startWpDebugTail(sitePath, webContents) {
 	if (wpDebugWatchers[sitePath]?.fileWatcher || wpDebugWatchers[sitePath]?.dirWatcher) {
 		return true;
 	}
-	const wpContentDir = path.join(sitePath, 'build', 'wp-content');
-	const filePath = path.join(wpContentDir, 'debug.log');
+	const filePath = wpDebugLogPath(sitePath);
+	const wpContentDir = path.dirname(filePath);
 	wpDebugWatchers[sitePath] = { filePath, lastSize: 0 };
 	const state = wpDebugWatchers[sitePath];
+
+	function send(data) {
+		webContents.send('wp:debug-log:data', { sitePath, data });
+	}
 
 	function attachFileWatcher() {
 		try {
 			const stat = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
 			if (!stat) return false;
-			// Send initial tail (cap to last 256KB)
-			const maxInitial = 256 * 1024;
-			const start = stat.size > maxInitial ? stat.size - maxInitial : 0;
-			state.lastSize = stat.size;
-			if (stat.size > 0) {
-				const rs = fs.createReadStream(filePath, { start });
-				rs.on('data', (chunk) => {
-					webContents.send('wp:debug-log:data', { sitePath, data: chunk.toString() });
-				});
+			const initial = planInitialRead(stat.size);
+			state.lastSize = initial.lastSize;
+			if (initial.read) {
+				const rs = fs.createReadStream(filePath, initial.read);
+				rs.on('data', (chunk) => send(chunk.toString()));
+				// The file outlives the dev server, so what was just replayed is
+				// whatever previous runs left behind — with WordPress's own
+				// timestamps on it, which is exactly what makes it read as
+				// something that happened just now. The marker is the app saying
+				// where the backlog ends.
+				rs.on('end', () => send(`${WP_DEBUG_SESSION_MARKER}\n`));
 			}
 			state.fileWatcher = fs.watch(filePath, (evt) => {
+				// 'rename' is the file being replaced or removed under the
+				// watcher, which stays bound to the old inode and would never
+				// fire again. Re-attaching is what keeps the panel alive across a
+				// `grunt clean` or a manual delete.
+				if (evt === 'rename') { reattachAfterLoss(); return; }
 				if (evt !== 'change') return;
 				try {
-					const s = fs.statSync(filePath);
-					if (s.size > state.lastSize) {
-						const rs2 = fs.createReadStream(filePath, { start: state.lastSize });
-						rs2.on('data', (chunk) => {
-							webContents.send('wp:debug-log:data', { sitePath, data: chunk.toString() });
-						});
-						state.lastSize = s.size;
+					// Including the case the panel's Clear button creates: a file
+					// that shrank has to be re-read from the start, not from the
+					// old offset. See log-tail.js.
+					const next = planTailRead(state.lastSize, fs.statSync(filePath).size);
+					state.lastSize = next.lastSize;
+					if (next.read) {
+						const rs2 = fs.createReadStream(filePath, next.read);
+						rs2.on('data', (chunk) => send(chunk.toString()));
 					}
 				} catch {}
 			});
@@ -1897,8 +1927,11 @@ function startWpDebugTail(sitePath, webContents) {
 		}
 	}
 
-	// Watch directory for creation if the file doesn't exist yet
-	if (!attachFileWatcher()) {
+	// Watch the directory for the file appearing. Used both before it exists at
+	// all — the common case, since nothing writes it until WordPress logs
+	// something — and again if it is later removed.
+	function watchForFile() {
+		if (attachFileWatcher()) return;
 		try {
 			state.dirWatcher = fs.watch(wpContentDir, () => {
 				if (attachFileWatcher() && state.dirWatcher) {
@@ -1908,6 +1941,15 @@ function startWpDebugTail(sitePath, webContents) {
 			});
 		} catch {}
 	}
+
+	function reattachAfterLoss() {
+		try { state.fileWatcher?.close(); } catch {}
+		state.fileWatcher = undefined;
+		state.lastSize = 0;
+		watchForFile();
+	}
+
+	watchForFile();
 	return true;
 }
 
@@ -1919,12 +1961,72 @@ function stopWpDebugTail(sitePath) {
 	delete wpDebugWatchers[sitePath];
 }
 
+// Returns the path as well as starting the tail. The panel shows it, because a
+// contributor who wants to `tail -f` it in a terminal, open it in an editor or
+// attach it to a ticket cannot guess it: the log is under `build/`, while the
+// file they were editing when it appeared is under `src/`.
 ipcMain.handle('wp-debug:start', async (event, sitePath) => {
 	startWpDebugTail(sitePath, event.sender);
-	return true;
+	return { ok: true, filePath: wpDebugLogPath(sitePath) };
 });
 
 ipcMain.handle('wp-debug:stop', async (_event, sitePath) => {
 	stopWpDebugTail(sitePath);
 	return true;
+});
+
+// Clearing the panel alone would be a promise the app cannot keep: the file
+// outlives the dev server, and the tail replays it the next time it attaches, so
+// the same lines come straight back. This empties the file the panel is showing.
+ipcMain.handle('wp-debug:clear', async (_event, sitePath) => {
+	const s = await getStore();
+	return clearRegisteredSiteLog(sitePath, {
+		sites: s.get('sites'),
+		truncate: async (target) => {
+			const filePath = wpDebugLogPath(target);
+			try {
+				// Truncated rather than unlinked: WordPress opens the file per
+				// write, but the app's own fs.watch is bound to the inode, and
+				// removing it would leave the watcher listening to a file nothing
+				// writes to again. The watcher's own truncation branch handles
+				// this too — this keeps the two in step without waiting for it.
+				await fs.promises.truncate(filePath, 0);
+				const state = wpDebugWatchers[target];
+				if (state) state.lastSize = 0;
+				return { ok: true };
+			} catch (e) {
+				// Nothing has been logged yet, so there is nothing to clear and
+				// nothing went wrong.
+				if (e && e.code === 'ENOENT') return { ok: true };
+				logError('wp-debug', `could not clear the debug log: ${String(e && e.message ? e.message : e)}`);
+				return { ok: false, reason: 'truncate-failed', error: String(e && e.message ? e.message : e) };
+			}
+		},
+		onRefused: (description) => logEvent('sites', `refused to clear the debug log for ${description} — not a registered site`)
+	});
+});
+
+// Shows the log file in Finder/Explorer. Same boundary and same helper as
+// `dir:show` — this reveals a file inside the site rather than the site itself,
+// which is the only difference, so the gate is reused rather than reimplemented.
+ipcMain.handle('wp-debug:reveal', async (_event, sitePath) => {
+	const s = await getStore();
+	return revealRegisteredSite(sitePath, {
+		sites: s.get('sites'),
+		// Resolves to electron's convention: '' for success, a message otherwise.
+		// The existence check is the message that matters — showItemInFolder does
+		// nothing at all for a path that is not there, which from the contributor's
+		// chair is a button that did nothing.
+		reveal: async (target) => {
+			const filePath = wpDebugLogPath(target);
+			try {
+				await fs.promises.access(filePath);
+			} catch {
+				return 'WordPress has not written a debug.log for this site yet.';
+			}
+			shell.showItemInFolder(filePath);
+			return '';
+		},
+		onRefused: (description) => logEvent('sites', `refused to reveal the debug log for ${description} — not a registered site`)
+	});
 });

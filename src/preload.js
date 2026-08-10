@@ -201,17 +201,28 @@ contextBridge.exposeInMainWorld('api', {
 		return { updateId };
 	}
 ,
+	// Resolves to the log's path as well as its unsubscribe: the panel shows the
+	// path, and only the main process can compose it correctly on both platforms.
 	startWpDebug: async (sitePath, onData) => {
 		const handler = (_e, payload) => {
 			if (payload.sitePath === sitePath && onData) onData(payload.data);
 		};
 		ipcRenderer.on('wp:debug-log:data', handler);
-		await ipcRenderer.invoke('wp-debug:start', sitePath);
-		return () => ipcRenderer.removeListener('wp:debug-log:data', handler);
+		const started = await ipcRenderer.invoke('wp-debug:start', sitePath);
+		return {
+			filePath: started?.filePath || '',
+			unsubscribe: () => ipcRenderer.removeListener('wp:debug-log:data', handler)
+		};
 	},
 	stopWpDebug: async (sitePath) => {
 		await ipcRenderer.invoke('wp-debug:stop', sitePath);
-	}
+	},
+	// Empties the file, not just the panel: the tail replays what is on disk
+	// every time it attaches, so a pane cleared on its own fills straight back up
+	// on the next dev-server start.
+	clearWpDebug: (sitePath) => ipcRenderer.invoke('wp-debug:clear', sitePath)
+,
+	revealWpDebug: (sitePath) => ipcRenderer.invoke('wp-debug:reveal', sitePath)
 ,
 	startServer: async (sitePath, onLog, onUrl, onStopped) => {
 		const logHandler = (_e, payload) => {

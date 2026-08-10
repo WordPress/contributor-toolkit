@@ -3,6 +3,7 @@ const fs = require('fs');
 const { hideChildWindows } = require('./hide-child-windows');
 const { bindLoopbackOnly } = require('./bind-loopback');
 const { formatErrorChain } = require('./error-chain');
+const { WP_DEBUG_CONSTANTS } = require('./wp-debug-constants');
 
 // Must run before the Playground CLI is required, so anything it spawns is
 // covered too.
@@ -50,6 +51,10 @@ async function main() {
 			verbosity: 'debug',
 			blueprint: {
 				constants: {
+					// Debug first, mail second. This is the only point at which
+					// constants can be set: Playground generates the wp-config.php
+					// itself, and these have to be defined before WordPress loads.
+					...WP_DEBUG_CONSTANTS,
 					'WP_MAIL_SMTP_HOST': process.env.WP_MAIL_SMTP_HOST || '127.0.0.1',
 					'WP_MAIL_SMTP_PORT': Number(process.env.WP_MAIL_SMTP_PORT || 25),
 					'WP_MAIL_SMTP_AUTH': String(process.env.WP_MAIL_SMTP_AUTH || 'false') === 'true',
