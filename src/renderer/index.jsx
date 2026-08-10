@@ -25,9 +25,11 @@ import { shouldShowTerminalHints, computeTerminalBusy } from './terminal-hints.c
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
+import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
+import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { ticketBranchRows } from './ticket-branch-list.cjs';
@@ -195,25 +197,41 @@ function useContributorProvenance() {
   return { handle, event, rememberHandle, rememberEvent };
 }
 
+// The two halves are one piece of state because one change moves both: adopting
+// the directory the app really created has to retire the guessed row and carry
+// its metadata across, and two setters cannot do that without a render in
+// between where the site has a path under one key and a label under another.
+// `setSiteMeta` keeps its old signature so every other caller is untouched;
+// `applySetup` is for the changes that need the pair, which is every change the
+// create flow makes.
 function useSites() {
-  const [sites, setSites] = useState([]);
-  const [siteMeta, setSiteMeta] = useState({});
+  const [state, setState] = useState({ sites: [], siteMeta: {} });
+  const setSiteMeta = useCallback((update) => setState((prev) => ({
+    ...prev,
+    siteMeta: typeof update === 'function' ? update(prev.siteMeta) : update
+  })), []);
+  const applySetup = useCallback((fn) => setState(fn), []);
   const refresh = useCallback(async () => {
     const { sites: list, siteMeta: meta } = await window.api.getSitesWithMeta();
-    setSites(list);
-    setSiteMeta(meta || {});
+    setState({ sites: list, siteMeta: meta || {} });
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
-  return { sites, siteMeta, refresh, setSiteMeta, setSites };
+  return { sites: state.sites, siteMeta: state.siteMeta, refresh, setSiteMeta, applySetup };
 }
 
 function App() {
-  const { sites, siteMeta, refresh, setSiteMeta, setSites } = useSites();
+  const { sites, siteMeta, refresh, setSiteMeta, applySetup } = useSites();
   // One answer for the window, shared by every site row: which applications this
   // machine has is a fact about the machine, not about a site.
   const detectedApplications = useDetectedEditors();
   const wporg = useContributorProvenance();
   const [downloadPhase, setDownloadPhase] = useState('');
+  // Where the row for the setup in flight currently lives. It starts as the
+  // window's guess and becomes the directory the main process reports, and it
+  // is a ref because the status subscription below has to read it without being
+  // torn down and rebuilt every time it changes. Null when nothing is being
+  // created.
+  const setupRowPathRef = useRef(null);
   // Directories whose clone is still running. An array rather than a single
   // path because the main process may settle on a different (deduplicated)
   // directory than the one the renderer optimistically created a row for.
@@ -335,6 +353,22 @@ function App() {
     });
     const unsubStat = window.api.subscribeSetupStatus((s) => {
       if (!s) return;
+      // The first moment the window learns where the site is actually being
+      // made. Until now the row kept the guess it was drawn with, which differs
+      // whenever the folder name was taken — so it showed the wrong path and,
+      // once the guards started keying on the real directory, asked about a
+      // folder the app had never created (#180).
+      const guess = setupRowPathRef.current;
+      const adopted = rowPathAfterStatus(guess, s);
+      if (adopted) {
+        setupRowPathRef.current = adopted;
+        moveSetupLog(guess, adopted);
+        applySetup((state) => adoptSetupPath(state, { from: guess, to: adopted }));
+        // The selection follows the row. Without this the panel is pointed at a
+        // path that no longer exists in the list, and the contributor watches
+        // their new site's checklist disappear mid-clone.
+        setActiveSite((current) => (current === guess ? adopted : current));
+      }
       if (s.target && s.phase !== 'done') addPendingSite(s.target);
       const key = s.sitePath || s.target;
       if (key) {
@@ -346,29 +380,22 @@ function App() {
       else if (s.phase === 'done') { setDownloadPhase(''); clearPendingSites(); setTerminalMsgs(''); }
     });
     return () => { if (unsubProg) unsubProg(); if (unsubStat) unsubStat(); };
-  }, [addPendingSite, appendSetupLog, clearPendingSites]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, moveSetupLog]);
 
+  // Refused while one is already running. Everything about this flow is
+  // single-file and always has been — one pending card, one terminal, one
+  // `clearPendingSites()` that clears them all — and `setupRowPathRef` is one
+  // slot for the row being created. The button was the only door left open on a
+  // second setup, and a second setup does not half-work: it adopts the other
+  // one's row. Until the flow is genuinely per-site, saying no is the honest
+  // shape.
   const chooseAndSetup = useCallback(() => {
+    if (createSubmitting) return;
     setCreateSiteName('');
     setCreateSiteDir('');
     setCreateSiteError('');
     setCreateModalOpen(true);
-  }, []);
-
-  const sanitizeSiteFolder = useCallback((value) => (
-    value
-      .replace(/[\\/:*?"<>|]+/g, '-')
-      .replace(/\s+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      || 'wordpress-site'
-  ), []);
-
-  const resolveTargetDir = useCallback((root, folder) => {
-    if (!root) return folder;
-    const normalizedRoot = root.replace(/[\\/]+$/, '');
-    const separator = /\\/.test(normalizedRoot) && !normalizedRoot.includes('/') ? '\\' : '/';
-    return `${normalizedRoot}${separator}${folder}`;
-  }, []);
+  }, [createSubmitting]);
 
   const openDirectoryPicker = useCallback(async () => {
     try {
@@ -383,40 +410,17 @@ function App() {
   const handleCreateDirInputChange = useCallback((event) => {
     const inputEl = event.target;
     createDirInputRef.current = inputEl;
-    const finalize = (rawDir) => {
-      const normalized = typeof rawDir === 'string' ? rawDir.replace(/[\\/]+$/, '') : '';
-      if (normalized) {
-        setCreateSiteDir(normalized);
-        setCreateSiteError('');
-      } else {
-        setCreateSiteDir('');
-      }
-    };
     const files = inputEl.files;
     if (!files || files.length === 0) {
       inputEl.value = '';
       return;
     }
 
-    const first = files[0];
-    const relative = first?.webkitRelativePath || '';
-    const rawPath = first?.path || '';
-    let resolved = '';
-
-    if (rawPath) {
-      if (relative) {
-        resolved = rawPath.slice(0, rawPath.length - relative.length);
-      } else {
-        resolved = rawPath.replace(/[\\/][^\\/]*$/, '');
-      }
-    }
-
-    if (!resolved && inputEl.value) {
-      resolved = inputEl.value.replace(/[^\\/]*$/, '');
-    }
-
-    resolved = resolved.replace(/[\\/]+$/, '');
-    finalize(resolved);
+    const resolved = directoryFromFileEntry(files[0], inputEl.value);
+    setCreateSiteDir(resolved);
+    // Clearing the error only when there is a directory: a selection that
+    // resolved to nothing has not fixed anything the message was about.
+    if (resolved) setCreateSiteError('');
     inputEl.value = '';
   }, [setCreateSiteDir, setCreateSiteError]);
 
@@ -436,15 +440,11 @@ function App() {
     let finalSitePath = targetDir;
     const placeholderCreatedAt = new Date().toISOString();
 
-    setSites((prev) => (prev.includes(targetDir) ? prev : [...prev, targetDir]));
-    setSiteMeta((prev = {}) => ({
-      ...prev,
-      [targetDir]: {
-        ...(prev[targetDir] || {}),
-        label: nameTrimmed,
-        createdAt: prev[targetDir]?.createdAt || placeholderCreatedAt,
-        initialized: false
-      }
+    setupRowPathRef.current = targetDir;
+    applySetup((state) => beginSetup(state, {
+      path: targetDir,
+      label: nameTrimmed,
+      createdAt: placeholderCreatedAt
     }));
     setActiveSite(targetDir);
     setCreateModalOpen(false);
@@ -460,48 +460,38 @@ function App() {
       const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
       if (createdPath) {
         finalSitePath = createdPath;
-        if (createdPath !== targetDir) {
+        // Ordinarily already done, by the `cloning` status this handler's own
+        // clone sent minutes ago. Kept because the status event is not a
+        // guarantee — a missed one would otherwise leave the row on the guess
+        // for good — and adopting a path the row already has is a no-op.
+        const current = setupRowPathRef.current;
+        if (current && current !== createdPath) {
           addPendingSite(createdPath);
-          moveSetupLog(targetDir, createdPath);
-          setSites((prev) => {
-            const filtered = prev.filter((path) => path !== targetDir);
-            return filtered.includes(createdPath) ? filtered : [...filtered, createdPath];
-          });
-          setSiteMeta((prev = {}) => {
-            const next = { ...prev };
-            const placeholder = next[targetDir] || { createdAt: placeholderCreatedAt, initialized: false };
-            delete next[targetDir];
-            next[createdPath] = {
-              ...placeholder,
-              label: nameTrimmed,
-              createdAt: placeholder.createdAt || placeholderCreatedAt,
-              initialized: false
-            };
-            return next;
-          });
+          moveSetupLog(current, createdPath);
+          applySetup((state) => adoptSetupPath(state, { from: current, to: createdPath }));
         }
+        setupRowPathRef.current = createdPath;
       }
       await refresh();
       setActiveSite(finalSitePath);
       appendSetupLog(finalSitePath, 'Site setup request completed.\n');
     } catch (e) {
+      // Whatever the row is *now*, which is not necessarily what it started as:
+      // once the clone reports its directory the guess no longer exists, and
+      // discarding the guess here would strand a row for a setup that failed.
+      const rowPath = setupRowPathRef.current || targetDir;
       setCreateSiteError(String(e));
-      appendSetupLog(targetDir, `Setup failed: ${String(e)}\n`);
-      setSites((prev) => prev.filter((path) => path !== targetDir));
-      setSiteMeta((prev = {}) => {
-        if (!prev[targetDir]) return prev;
-        const next = { ...prev };
-        delete next[targetDir];
-        return next;
-      });
+      appendSetupLog(rowPath, `Setup failed: ${String(e)}\n`);
+      applySetup((state) => discardSetup(state, rowPath));
     } finally {
+      setupRowPathRef.current = null;
       // `setupWordPress` resolving (or throwing) *is* the clone finishing, so
       // clearing here guarantees the checklist can never stay locked even if
       // the `done` status event is missed.
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
@@ -741,8 +731,10 @@ function App() {
             icon={plus}
             variant="primary"
             onClick={chooseAndSetup}
+            disabled={createSubmitting}
             style={{ width: '100%', justifyContent: 'center' }}
             aria-label="Create WordPress Core site"
+            label={createSubmitting ? 'Finish creating the current site first' : undefined}
           >
             {!sidebarCollapsed ? 'Create WordPress Core site' : null}
           </Button>
@@ -3264,7 +3256,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               // "Already up to date." in the terminal.
               { title: 'Update to latest trunk', onClick: startTrunkUpdate },
               { title:'Forget this site', onClick:()=>confirmAnd('Remove this site from the list?', ()=>onForget(sitePath)) },
-              { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
+              // Not while the clone is running: deleting the site would be
+              // removing a directory the app is still writing into. The main
+              // process refuses it either way (see site-registry.js) — that is
+              // the backstop, and not offering a control that cannot work is
+              // the actual answer.
+              ...(isPending ? [] : [
+                { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
+              ])
             ]}
           />
         </div>
