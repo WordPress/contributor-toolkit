@@ -3186,7 +3186,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               onClick={openPatchModal}
               disabled={isUpdating}
               style={{ padding: '10px 16px', borderRadius: 10 }}
-            >Create patch</Button>
+            >Submit changes</Button>
             {running && serverUrl ? (
               <Button
                 variant="secondary"
@@ -3647,7 +3647,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ) : null}
       {isPatchOpen && (
         <Modal
-          title="Patch"
+          title="Submit changes"
           onRequestClose={()=>setIsPatchOpen(false)}
           shouldCloseOnClickOutside
           isFullScreen
