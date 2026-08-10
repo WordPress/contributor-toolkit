@@ -125,6 +125,20 @@ spawn failure, and `runNpmWithEngineRetry` in `src/main.js` shows the expected s
 chair. And a setup that dies halfway must leave the site registry consistent — no phantom site
 in `electron-store` for a directory that was never finished.
 
+**Renderer decisions live in modules, not in `index.jsx`.** `src/renderer/index.jsx` mounts itself
+at module scope and cannot be loaded without a DOM, so nothing in the suite can reach it: a
+decision made there is untestable by construction. Anything with more than one branch — a string
+the user reads, a path joined, a status derived, a command parsed — belongs in a
+`src/renderer/*.cjs` module with its own test, leaving the component holding JSX, state
+assignments and the call. `site-folder.cjs` and `open-failure.cjs` are the shape.
+
+This is the direction chosen in #216 over building a DOM harness, which was judged too much setup
+for the coverage it buys against a 4000-line component. The consequence is that it is enforced
+here, by review, and nowhere else — `no-unused-vars` catches a module whose last call site is
+deleted, but nothing catches a second code path that answers the same question inline. That is
+exactly what #180 was. Reopen the harness question if a bug ever lands in the assignments the
+modules cannot absorb.
+
 **New dependencies are findings by default.** Native compilation or a host binary breaks the
 zero-prerequisite promise on user machines. A dependency with lifecycle scripts also needs an
 `allowScripts` entry in `package.json` — the mechanism already exists, and a missing entry means
@@ -199,10 +213,18 @@ not assume a path has no spaces; contributors pick their own directories.
 `src/kill-tree.js`. A new spawn that does not set `detached` correctly, or that is terminated with
 a bare `child.kill()`, will leave orphaned processes on one platform or the other.
 
-**Windows specifics.** Executables need their extension (`.cmd`, `.bat`, `.exe`) resolved;
-`windowsHide: true` keeps console windows from flashing; `EPERM` and `EINVAL` have
-Windows-specific causes. `src/win-spawn-patch.js` documents the traps that have already bitten —
-consult it rather than re-deriving them.
+**Windows specifics.** Executables need their extension (`.cmd`, `.bat`, `.exe`) resolved; `EPERM`
+and `EINVAL` have Windows-specific causes. `src/win-spawn-patch.js` documents the traps that have
+already bitten — consult it rather than re-deriving them.
+
+**`windowsHide: true` turns on the child's subsystem, not on whether anyone reads its output.**
+Node sets `CREATE_NO_WINDOW` and STARTUPINFO's "start hidden" together; which of the two the child
+honors is what differs. A console application takes the first and gets a console that is never
+displayed — the flashing fix, and why `src/kill-tree.js` sets it on `taskkill` even though nothing
+reads that output. A GUI application takes the second, and one that passes it through to its first
+window — Chromium does, so VS Code and Cursor both — launches invisible while the spawn still
+reports success (#181). So: set it on a console child; leave it off a child whose window is the
+point. `src/editor-launch.js` is the only case of the second kind.
 
 **Line endings** matter when generating patches, which are destined for Trac.
 
@@ -235,6 +257,10 @@ is dependency injection, not skipping: `test/win-spawn-patch.test.cjs` exercises
 paths from macOS by injecting `platform`, lookup and env rather than reading `process.platform`.
 A new platform split tested with `it.skip` on the other OS is a coverage hole CI will never
 close, since the suite runs on both platforms but each skips the other's branch.
+
+**Renderer logic is tested through its module, so check it has one.** A PR that puts a branch
+inside `src/renderer/index.jsx` has written code the suite cannot reach — see the invariant in §1.
+The finding is the missing module, not the missing test.
 
 **Scope stays proportional.** Missing tests on a touched line of legacy code is `[follow-up]`,
 not `[fix here]` — the strong rule applies to what the PR introduces, not to everything it

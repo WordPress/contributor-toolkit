@@ -25,15 +25,18 @@ import { shouldShowTerminalHints, computeTerminalBusy } from './terminal-hints.c
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
+import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
+import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { ticketBranchRows } from './ticket-branch-list.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
+import { changesNoteParts, discardOutcome, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // Shared by both log panes so the tabs cannot drift apart visually.
@@ -196,25 +199,41 @@ function useContributorProvenance() {
   return { handle, event, rememberHandle, rememberEvent };
 }
 
+// The two halves are one piece of state because one change moves both: adopting
+// the directory the app really created has to retire the guessed row and carry
+// its metadata across, and two setters cannot do that without a render in
+// between where the site has a path under one key and a label under another.
+// `setSiteMeta` keeps its old signature so every other caller is untouched;
+// `applySetup` is for the changes that need the pair, which is every change the
+// create flow makes.
 function useSites() {
-  const [sites, setSites] = useState([]);
-  const [siteMeta, setSiteMeta] = useState({});
+  const [state, setState] = useState({ sites: [], siteMeta: {} });
+  const setSiteMeta = useCallback((update) => setState((prev) => ({
+    ...prev,
+    siteMeta: typeof update === 'function' ? update(prev.siteMeta) : update
+  })), []);
+  const applySetup = useCallback((fn) => setState(fn), []);
   const refresh = useCallback(async () => {
     const { sites: list, siteMeta: meta } = await window.api.getSitesWithMeta();
-    setSites(list);
-    setSiteMeta(meta || {});
+    setState({ sites: list, siteMeta: meta || {} });
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
-  return { sites, siteMeta, refresh, setSiteMeta, setSites };
+  return { sites: state.sites, siteMeta: state.siteMeta, refresh, setSiteMeta, applySetup };
 }
 
 function App() {
-  const { sites, siteMeta, refresh, setSiteMeta, setSites } = useSites();
+  const { sites, siteMeta, refresh, setSiteMeta, applySetup } = useSites();
   // One answer for the window, shared by every site row: which applications this
   // machine has is a fact about the machine, not about a site.
   const detectedApplications = useDetectedEditors();
   const wporg = useContributorProvenance();
   const [downloadPhase, setDownloadPhase] = useState('');
+  // Where the row for the setup in flight currently lives. It starts as the
+  // window's guess and becomes the directory the main process reports, and it
+  // is a ref because the status subscription below has to read it without being
+  // torn down and rebuilt every time it changes. Null when nothing is being
+  // created.
+  const setupRowPathRef = useRef(null);
   // Directories whose clone is still running. An array rather than a single
   // path because the main process may settle on a different (deduplicated)
   // directory than the one the renderer optimistically created a row for.
@@ -341,6 +360,22 @@ function App() {
     });
     const unsubStat = window.api.subscribeSetupStatus((s) => {
       if (!s) return;
+      // The first moment the window learns where the site is actually being
+      // made. Until now the row kept the guess it was drawn with, which differs
+      // whenever the folder name was taken — so it showed the wrong path and,
+      // once the guards started keying on the real directory, asked about a
+      // folder the app had never created (#180).
+      const guess = setupRowPathRef.current;
+      const adopted = rowPathAfterStatus(guess, s);
+      if (adopted) {
+        setupRowPathRef.current = adopted;
+        moveSetupLog(guess, adopted);
+        applySetup((state) => adoptSetupPath(state, { from: guess, to: adopted }));
+        // The selection follows the row. Without this the panel is pointed at a
+        // path that no longer exists in the list, and the contributor watches
+        // their new site's checklist disappear mid-clone.
+        setActiveSite((current) => (current === guess ? adopted : current));
+      }
       if (s.target && s.phase !== 'done') addPendingSite(s.target);
       const key = s.sitePath || s.target;
       if (key) {
@@ -352,7 +387,7 @@ function App() {
       else if (s.phase === 'done') { setDownloadPhase(''); clearPendingSites(); setTerminalMsgs(''); }
     });
     return () => { if (unsubProg) unsubProg(); if (unsubStat) unsubStat(); };
-  }, [addPendingSite, appendSetupLog, clearPendingSites]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, moveSetupLog]);
 
   // Dropped when a switch begins, so a failed switch's last sentence is not the
   // next one's first frame.
@@ -380,27 +415,20 @@ function App() {
     return () => { if (unsub) unsub(); };
   }, []);
 
+  // Refused while one is already running. Everything about this flow is
+  // single-file and always has been — one pending card, one terminal, one
+  // `clearPendingSites()` that clears them all — and `setupRowPathRef` is one
+  // slot for the row being created. The button was the only door left open on a
+  // second setup, and a second setup does not half-work: it adopts the other
+  // one's row. Until the flow is genuinely per-site, saying no is the honest
+  // shape.
   const chooseAndSetup = useCallback(() => {
+    if (createSubmitting) return;
     setCreateSiteName('');
     setCreateSiteDir('');
     setCreateSiteError('');
     setCreateModalOpen(true);
-  }, []);
-
-  const sanitizeSiteFolder = useCallback((value) => (
-    value
-      .replace(/[\\/:*?"<>|]+/g, '-')
-      .replace(/\s+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      || 'wordpress-site'
-  ), []);
-
-  const resolveTargetDir = useCallback((root, folder) => {
-    if (!root) return folder;
-    const normalizedRoot = root.replace(/[\\/]+$/, '');
-    const separator = /\\/.test(normalizedRoot) && !normalizedRoot.includes('/') ? '\\' : '/';
-    return `${normalizedRoot}${separator}${folder}`;
-  }, []);
+  }, [createSubmitting]);
 
   const openDirectoryPicker = useCallback(async () => {
     try {
@@ -415,40 +443,17 @@ function App() {
   const handleCreateDirInputChange = useCallback((event) => {
     const inputEl = event.target;
     createDirInputRef.current = inputEl;
-    const finalize = (rawDir) => {
-      const normalized = typeof rawDir === 'string' ? rawDir.replace(/[\\/]+$/, '') : '';
-      if (normalized) {
-        setCreateSiteDir(normalized);
-        setCreateSiteError('');
-      } else {
-        setCreateSiteDir('');
-      }
-    };
     const files = inputEl.files;
     if (!files || files.length === 0) {
       inputEl.value = '';
       return;
     }
 
-    const first = files[0];
-    const relative = first?.webkitRelativePath || '';
-    const rawPath = first?.path || '';
-    let resolved = '';
-
-    if (rawPath) {
-      if (relative) {
-        resolved = rawPath.slice(0, rawPath.length - relative.length);
-      } else {
-        resolved = rawPath.replace(/[\\/][^\\/]*$/, '');
-      }
-    }
-
-    if (!resolved && inputEl.value) {
-      resolved = inputEl.value.replace(/[^\\/]*$/, '');
-    }
-
-    resolved = resolved.replace(/[\\/]+$/, '');
-    finalize(resolved);
+    const resolved = directoryFromFileEntry(files[0], inputEl.value);
+    setCreateSiteDir(resolved);
+    // Clearing the error only when there is a directory: a selection that
+    // resolved to nothing has not fixed anything the message was about.
+    if (resolved) setCreateSiteError('');
     inputEl.value = '';
   }, [setCreateSiteDir, setCreateSiteError]);
 
@@ -468,15 +473,11 @@ function App() {
     let finalSitePath = targetDir;
     const placeholderCreatedAt = new Date().toISOString();
 
-    setSites((prev) => (prev.includes(targetDir) ? prev : [...prev, targetDir]));
-    setSiteMeta((prev = {}) => ({
-      ...prev,
-      [targetDir]: {
-        ...(prev[targetDir] || {}),
-        label: nameTrimmed,
-        createdAt: prev[targetDir]?.createdAt || placeholderCreatedAt,
-        initialized: false
-      }
+    setupRowPathRef.current = targetDir;
+    applySetup((state) => beginSetup(state, {
+      path: targetDir,
+      label: nameTrimmed,
+      createdAt: placeholderCreatedAt
     }));
     setActiveSite(targetDir);
     setCreateModalOpen(false);
@@ -492,48 +493,38 @@ function App() {
       const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
       if (createdPath) {
         finalSitePath = createdPath;
-        if (createdPath !== targetDir) {
+        // Ordinarily already done, by the `cloning` status this handler's own
+        // clone sent minutes ago. Kept because the status event is not a
+        // guarantee — a missed one would otherwise leave the row on the guess
+        // for good — and adopting a path the row already has is a no-op.
+        const current = setupRowPathRef.current;
+        if (current && current !== createdPath) {
           addPendingSite(createdPath);
-          moveSetupLog(targetDir, createdPath);
-          setSites((prev) => {
-            const filtered = prev.filter((path) => path !== targetDir);
-            return filtered.includes(createdPath) ? filtered : [...filtered, createdPath];
-          });
-          setSiteMeta((prev = {}) => {
-            const next = { ...prev };
-            const placeholder = next[targetDir] || { createdAt: placeholderCreatedAt, initialized: false };
-            delete next[targetDir];
-            next[createdPath] = {
-              ...placeholder,
-              label: nameTrimmed,
-              createdAt: placeholder.createdAt || placeholderCreatedAt,
-              initialized: false
-            };
-            return next;
-          });
+          moveSetupLog(current, createdPath);
+          applySetup((state) => adoptSetupPath(state, { from: current, to: createdPath }));
         }
+        setupRowPathRef.current = createdPath;
       }
       await refresh();
       setActiveSite(finalSitePath);
       appendSetupLog(finalSitePath, 'Site setup request completed.\n');
     } catch (e) {
+      // Whatever the row is *now*, which is not necessarily what it started as:
+      // once the clone reports its directory the guess no longer exists, and
+      // discarding the guess here would strand a row for a setup that failed.
+      const rowPath = setupRowPathRef.current || targetDir;
       setCreateSiteError(String(e));
-      appendSetupLog(targetDir, `Setup failed: ${String(e)}\n`);
-      setSites((prev) => prev.filter((path) => path !== targetDir));
-      setSiteMeta((prev = {}) => {
-        if (!prev[targetDir]) return prev;
-        const next = { ...prev };
-        delete next[targetDir];
-        return next;
-      });
+      appendSetupLog(rowPath, `Setup failed: ${String(e)}\n`);
+      applySetup((state) => discardSetup(state, rowPath));
     } finally {
+      setupRowPathRef.current = null;
       // `setupWordPress` resolving (or throwing) *is* the clone finishing, so
       // clearing here guarantees the checklist can never stay locked even if
       // the `done` status event is missed.
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh, resolveTargetDir, sanitizeSiteFolder, setSiteMeta, setSites]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
@@ -773,8 +764,10 @@ function App() {
             icon={plus}
             variant="primary"
             onClick={chooseAndSetup}
+            disabled={createSubmitting}
             style={{ width: '100%', justifyContent: 'center' }}
             aria-label="Create WordPress Core site"
+            label={createSubmitting ? 'Finish creating the current site first' : undefined}
           >
             {!sidebarCollapsed ? 'Create WordPress Core site' : null}
           </Button>
@@ -1076,6 +1069,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // the first press's timer, and so an unmount does not leave one running.
   const copyFeedbackTimer = useRef(null);
   const [patchSaveError, setPatchSaveError] = useState('');
+  // The unsubmitted-changes note. Null until the first probe answers, so a
+  // card never opens on a note that a clean tree then takes away.
+  const [worktreeDirty, setWorktreeDirty] = useState(null);
+  const [discarding, setDiscarding] = useState(false);
+  const [discardError, setDiscardError] = useState(null);
   const [handleInput, setHandleInput] = useState('');
   const [eventInput, setEventInput] = useState('');
   const [handleError, setHandleError] = useState('');
@@ -1441,6 +1439,46 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } catch {}
   }, [sitePath]);
   useEffect(()=>{ loadBranches(); }, [loadBranches]);
+
+  // The note's probe. A failed probe keeps the last answer rather than
+  // reporting: the note is advisory, and losing it over a transient git error
+  // would read as "your changes are gone".
+  //
+  // The ref guards two races the probe's cost makes real — it walks the whole
+  // checkout, so it can still be in flight when the next focus fires or when
+  // a discard answers the question locally. `inFlight` keeps walks from
+  // stacking; `generation` lets a local answer outrank a probe that started
+  // before it, so a stale "dirty" cannot resurrect the note over a tree that
+  // was just reset.
+  const dirtyProbeRef = useRef({ inFlight: false, generation: 0 });
+  const markTreeClean = () => {
+    dirtyProbeRef.current.generation++;
+    setWorktreeDirty({ dirty: false, changedCount: 0 });
+  };
+  const refreshDirty = useCallback(async () => {
+    const probe = dirtyProbeRef.current;
+    if (probe.inFlight) return;
+    probe.inFlight = true;
+    const generation = probe.generation;
+    try {
+      const res = await window.api.isWorktreeDirty(sitePath);
+      if (res && res.ok && probe.generation === generation) {
+        setWorktreeDirty({ dirty: Boolean(res.dirty), changedCount: res.changedCount });
+      }
+    } catch {}
+    finally { probe.inFlight = false; }
+  }, [sitePath]);
+
+  // Only the open card probes, and only while it is open: the probe walks the
+  // whole checkout, which is too much to pay for every card on the shelf. The
+  // edits themselves happen in an external editor, so returning focus to the
+  // app is the moment the answer can have changed.
+  useEffect(() => {
+    if (!isActive) return undefined;
+    refreshDirty();
+    window.addEventListener('focus', refreshDirty);
+    return () => window.removeEventListener('focus', refreshDirty);
+  }, [isActive, refreshDirty]);
 
   // Linking and unlinking are the same write (#109): an empty ref clears the
   // association, so Unlink needs no second channel. Resuming a ticket that
@@ -2264,6 +2302,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // --- Update to latest trunk (#94) ---
   const age = trunkAgeInfo({ trunkDate });
   const isUpdating = updateState !== 'idle';
+  // Where the note goes moves with the ticket: a change that belongs to
+  // #12345 is news for the ticket card, one that belongs to nothing is news
+  // for the buttons that would give it somewhere to go.
+  const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket });
   const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged });
   const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
@@ -2273,6 +2315,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setUpdateState('idle');
     if (message) writeToTerminal(message);
     loadStatus().catch(() => {});
+    refreshDirty();
   };
 
   // Steps 2 and 3 of the chain: npm install (only when the lockfile moved,
@@ -2350,6 +2393,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setApplyState('idle');
     if (message) writeToTerminal(message);
     loadStatus().catch(() => {});
+    refreshDirty();
   };
 
   const runApplyInstallAndBuild = (needsInstall, verb) => {
@@ -2653,6 +2697,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         return;
       }
       savedPatchPathRef.current = res.filePath;
+      markTreeClean();
       setDirtyModalOpen(false);
       writeToTerminal(`\nSaved your changes to ${res.filePath} and reset the working tree.\n`);
       beginTrunkUpdate();
@@ -2661,13 +2706,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   };
 
-  const dirtyDiscardAndUpdate = () => confirmAnd('Discard all local changes? This cannot be undone.', async () => {
+  const dirtyDiscardAndUpdate = () => confirmAnd(DISCARD_CONFIRM_MESSAGE, async () => {
     setDirtyError(null);
     const d = await window.api.discardChanges(sitePath);
     if (!d || !d.ok) {
       setDirtyError(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
       return;
     }
+    markTreeClean();
     setDirtyModalOpen(false);
     writeToTerminal('\nDiscarded local changes.\n');
     beginTrunkUpdate();
@@ -2690,13 +2736,29 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     runUpdateInstallAndBuild(true);
   };
 
+  // The diff fetch, shared by opening the modal and by a discard that happens
+  // while it is open — the pane has to show what the tree now holds, which
+  // after a discard is the "nothing to send" banner.
+  const loadPatchText = async () => {
+    setPatchLoading(true);
+    try {
+      const res = await window.api.getPatch(sitePath);
+      if (res && res.ok) setPatchText((res.patch && res.patch.trim().length) ? res.patch : 'No changes.');
+      else setPatchText(res && res.error ? `Error: ${res.error}` : 'Failed to generate patch');
+    } catch (e) {
+      setPatchText(`Error: ${e && e.message ? e.message : String(e)}`);
+    } finally {
+      setPatchLoading(false);
+    }
+  };
+
   const openPatchModal = async ()=>{
     setIsPatchOpen(true);
-    setPatchLoading(true);
     setPatchText('');
     // Last time's outcome belongs to last time's patch.
     setPatchSaved(null);
     setPatchSaveError('');
+    setDiscardError(null);
     setHandleError('');
     setEditingHandle(false);
     // Same rule for the pull request card: last time's outcome belongs to last
@@ -2709,16 +2771,52 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setGithubError('');
     setGithubDeclined(false);
     loadGithubAccount();
-    try {
-      const res = await window.api.getPatch(sitePath);
-      if (res && res.ok) setPatchText((res.patch && res.patch.trim().length) ? res.patch : 'No changes.');
-      else setPatchText(res && res.error ? `Error: ${res.error}` : 'Failed to generate patch');
-    } catch (e) {
-      setPatchText(`Error: ${e && e.message ? e.message : String(e)}`);
-    } finally {
-      setPatchLoading(false);
-    }
+    await loadPatchText();
   };
+
+  // One discard for both entry points — the note's link and the modal's. The
+  // confirm is the same native one the dirty-update modal uses; the user has
+  // already chosen, this is the last chance to notice they chose wrong.
+  // Both links disable through discardBlocked; no re-check in here. The
+  // native confirm blocks the renderer, so the states discardBlocked names
+  // cannot flip while the dialog is up — a check after it would read the
+  // same render-time values the disabled prop already enforced.
+  const discardAllChanges = () => confirmAnd(DISCARD_CONFIRM_MESSAGE, async () => {
+    setDiscarding(true);
+    setDiscardError(null);
+    try {
+      let outcome;
+      try {
+        outcome = discardOutcome(await window.api.discardChanges(sitePath));
+      } catch (e) {
+        // A rejected invoke never returns a reply object; shape it into one so
+        // the failure reaches the same red line instead of vanishing.
+        outcome = discardOutcome({ ok: false, error: e && e.message ? e.message : String(e) });
+      }
+      if (!outcome.ok) {
+        setDiscardError(outcome.message);
+        return;
+      }
+      markTreeClean();
+      setAppliedPatch(null);
+      writeToTerminal('\nDiscarded local changes.\n');
+      if (isPatchOpen) await loadPatchText();
+    } finally {
+      setDiscarding(false);
+    }
+  });
+
+  // The sentence is one thing wherever it renders; only the wrapper differs.
+  const changesNoteBody = changesNote ? (
+    <>
+      {changesNote.lead}
+      <Button variant="link" onClick={openPatchModal} disabled={isUpdating}>{changesNote.patchLabel}</Button>
+      {changesNote.middle}
+      <Button variant="link" isDestructive onClick={discardAllChanges} disabled={discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding })}>{changesNote.discardLabel}</Button>
+      {changesNote.end}
+      {discardError ? <div style={{ color: '#d63638', fontSize: 12, marginTop: 4 }}>{discardError}</div> : null}
+    </>
+  ) : null;
 
   // Copying is the one action here with no visible result: the clipboard is
   // somewhere else, the diff does not move, and a button that answers nothing
@@ -3422,7 +3520,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               // "Already up to date." in the terminal.
               { title: 'Update to latest trunk', onClick: startTrunkUpdate },
               { title:'Forget this site', onClick:()=>confirmAnd('Remove this site from the list?', ()=>onForget(sitePath)) },
-              { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
+              // Not while the clone is running: deleting the site would be
+              // removing a directory the app is still writing into. The main
+              // process refuses it either way (see site-registry.js) — that is
+              // the backstop, and not offering a control that cannot work is
+              // the actual answer.
+              ...(isPending ? [] : [
+                { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
+              ])
             ]}
           />
         </div>
@@ -3595,7 +3700,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               onClick={openPatchModal}
               disabled={isUpdating}
               style={{ padding: '10px 16px', borderRadius: 10 }}
-            >Submit changes</Button>
+            >Review & submit changes</Button>
             {running && serverUrl ? (
               <Button
                 variant="secondary"
@@ -3607,6 +3712,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               >Open Adminer</Button>
             ) : null}
           </div>
+          {changesNote && changesNote.placement === 'buttons' ? (
+            <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2 }}>
+              {changesNoteBody}
+            </div>
+          ) : null}
           {(isServerStarting || serverUrl) ? (
             <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
               {serverUrl ? (
@@ -3621,6 +3731,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           ) : null}
         </div>
       ) : null}
+      {skipInit ? (
       <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
         <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Trac ticket</div>
         {tracTicket ? (
@@ -3636,6 +3747,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
               <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketActionsBlocked}>Unlink</Button>
             </div>
+            {changesNote && changesNote.placement === 'ticket' ? (
+              <div style={{ marginTop: 8, fontSize: 13, color: '#1d2327' }}>
+                {changesNoteBody}
+                <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>{changesNote.unlinkNote}</div>
+              </div>
+            ) : null}
 
             {branchRows.length ? (
               <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
@@ -3828,6 +3945,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           </div>
         )}
       </div>
+      ) : null}
       {skipInit ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
           <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Apply a patch or PR</div>
@@ -4136,7 +4254,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ) : null}
       {isPatchOpen && (
         <Modal
-          title="Submit changes"
+          title="Review & submit changes"
           onRequestClose={()=>setIsPatchOpen(false)}
           shouldCloseOnClickOutside
           isFullScreen
@@ -4180,8 +4298,22 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <div className="patch-diff">
                 <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
                   <div>
-                    <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Your changes</div>
+                    <div style={{ fontWeight:600, fontSize:14, color:'#1d2327', display:'flex', alignItems:'baseline', gap:4, flexWrap:'wrap' }}>
+                      Your changes
+                      <span style={{ fontWeight:400 }}>
+                        {'('}
+                        <Button
+                          variant="link"
+                          isDestructive
+                          onClick={discardAllChanges}
+                          disabled={modalDiscardDisabled({ patchLoading, patchHasChanges, discarding }) || discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding })}
+                          style={{ fontSize: 12 }}
+                        >Discard all changes</Button>
+                        {')'}
+                      </span>
+                    </div>
                     <div style={{ fontSize:12, color:'#6c6f72' }}>Everything this site has that its copy of trunk does not.</div>
+                    {discardError ? <div style={{ color:'#d63638', fontSize:12, marginTop:4 }}>{discardError}</div> : null}
                   </div>
                   {/*
                     Out of the diff and into the header: these used to float

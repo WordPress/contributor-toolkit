@@ -29,7 +29,7 @@
 
 const path = require('path');
 const { describeRefused } = require('./safe-log');
-const { isRegisteredSite } = require('./site-registry');
+const { isActionableSite } = require('./site-registry');
 
 // Path semantics follow the platform being asked about, not the platform the
 // test happens to run on: `path.isAbsolute('C:\\x')` is false under POSIX, and a
@@ -288,7 +288,8 @@ const REFUSAL_REASONS = {
 // The `editor:open` handler's body.
 //
 // Two gates, both of which have to pass before anything is spawned. The folder
-// must be one the app has on record — `isRegisteredSite` from site-registry.js,
+// must be one the app has on record, or one it is creating right now —
+// `isActionableSite` from site-registry.js,
 // the same boundary `sites:delete` uses — so "open this site" cannot become
 // "open this arbitrary directory". And the application must be absolute and of
 // the platform's shape, so an editor path that has been tampered with, or an
@@ -307,12 +308,13 @@ const REFUSAL_REASONS = {
 // the app runs to collect their output; here the window is the point.
 async function openSiteInEditor(sitePath, editorPath, {
 	sites,
+	pending,
 	platform,
 	statPath,
 	spawn,
 	onRefused
 } = {}) {
-	if (!isRegisteredSite(sitePath, sites)) {
+	if (!isActionableSite(sitePath, { sites, pending })) {
 		if (typeof onRefused === 'function') {
 			onRefused(REFUSAL_REASONS.UNREGISTERED_SITE, describeRefused(sitePath));
 		}
