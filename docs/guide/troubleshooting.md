@@ -15,6 +15,20 @@ the site may not run correctly until install and build succeed. Click **Retry in
 in the notice. If it fails again, the reason is in the [Terminal](./terminal) output — a network
 drop during `npm install` is the most common cause.
 
+## "A previous switch … did not finish"
+
+A ticket switch whose file swap died part-way leaves the checkout half of one ticket and half of
+the other, so the app refuses further ticket actions rather than committing the mixture:
+**A previous switch from … to … did not finish. Retry it before making other changes.**
+
+The refusal covers switching too, so the way out is **Unlink** on the **Trac ticket** panel — the
+one action it still allows. That puts the site back on trunk, and you can link the ticket you
+wanted from there. Nothing is lost: the work on the ticket you were leaving was committed to its
+branch before any file moved. See [Working on several tickets](./ticket-branches).
+
+The usual cause is a file held open by an editor or an antivirus scanner during the swap. Closing
+whatever had the checkout open before retrying makes a repeat less likely.
+
 ## The dev server won't start
 
 Starting the server can legitimately take a while — booting WASM PHP on a slow machine can take

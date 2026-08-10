@@ -29,11 +29,17 @@ The panel shows each step as it runs: applying the patch, installing dependencie
 
 If a step fails, the error says what went wrong and the checkout was not changed.
 
+## Applied patches belong to a ticket
+
+What is applied is recorded against the ticket you are on, not against the site. Switch to another ticket and the green "applied" box goes with the first one; switch back and it is there again, describing the patch you actually applied on that ticket. See [Working on several tickets](ticket-branches).
+
 ## Reverting an applied patch
 
 While a patch is applied, the panel shows it in a green box with a **Revert this patch** button. Reverting removes the patch's changes and rebuilds, again leaving your own edits alone.
 
 Very large patches cannot be undone automatically. The panel says so; use **Update to latest trunk** to reset the checkout instead — see [Staying up to date with trunk](trunk-updates).
+
+That escape hatch only resets a site sitting on trunk. On a ticket, an update parks your branch before it resets trunk and checks the branch back out afterwards — applied patch and all — so it leaves you where you were. On a ticket, the way to be rid of both the patch and the work under it is [deleting that ticket's work](ticket-branches).
 
 ## Your own changes
 

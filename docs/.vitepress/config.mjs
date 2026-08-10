@@ -63,6 +63,7 @@ export default defineConfig( {
 				text: 'Contributing changes',
 				items: [
 					{ text: 'Working on a Trac ticket', link: '/guide/trac-tickets' },
+					{ text: 'Working on several tickets', link: '/guide/ticket-branches' },
 					{ text: 'Applying patches and PRs', link: '/guide/applying-patches' },
 					{ text: 'Submitting your changes', link: '/guide/submitting-changes' },
 					{ text: 'Opening a pull request', link: '/guide/submit-github-pr' },

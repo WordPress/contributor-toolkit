@@ -42,13 +42,17 @@ The app is signed and notarized by Automattic, so macOS should open it without i
 5. Click **Start dev server**.
 6. A browser window opens automatically. If not, open it by clicking the site URL.
 7. Make changes to the code — [open the site in your editor](./editors) straight from the app.
-8. Click **Submit changes** to see a diff of everything you changed.
+8. Click **Review & submit changes** to see a diff of everything you changed.
 9. Pick where the patch goes: [a pull request](./submit-github-pr), [a Trac ticket](./submit-trac), or [a file for your mentor](./submit-mentor).
 10. That's it — you've contributed to WordPress core.
 
-![A site ready for work: Start dev server, Submit changes, the Trac ticket panel and the patch panel](/screenshots/site-view.png)
+![A site ready for work: Start dev server, Review & submit changes, the Trac ticket panel and the patch panel](/screenshots/site-view.png)
 
 The rest of this guide walks through each of these screens in detail, starting with [creating a site](./creating-a-site).
+
+::: tip A second ticket does not need a second site
+Every ticket you link gets its own branch inside the site and keeps its own work, so moving between two of them takes seconds instead of another clone and another install. See [Working on several tickets](./ticket-branches).
+:::
 
 ::: tip You never need a new site to get newer code
 **Update to latest trunk**, in the ☰ menu at the top right of any site, is available at any time on any site, however old: it fetches the latest trunk, reinstalls dependencies if they changed, and rebuilds. See [Staying up to date with trunk](./trunk-updates).

@@ -20,4 +20,6 @@ features:
     details: First-time contributors often spend a whole session fighting their local setup. The Toolkit removes that step so the day is spent contributing.
   - title: From code change to contribution
     details: Link a Trac ticket, apply an existing patch or PR, and submit your own changes as a pull request, a Trac attachment, or a patch for your mentor.
+  - title: One site, as many tickets as you like
+    details: Each ticket gets its own branch inside the site and keeps its own work. Moving between two tickets takes seconds — no second clone and no reinstall.
 ---

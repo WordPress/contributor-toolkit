@@ -1,6 +1,6 @@
 # Opening a pull request
 
-**Open a pull request** is the one destination on the [Submit changes](submitting-changes) screen where the app does the sending: it forks `wordpress-develop` to your GitHub account, pushes your change to a branch there, and opens the pull request — all through GitHub's API, as a single commit.
+**Open a pull request** is the one destination on the [Review & submit changes](submitting-changes) screen where the app does the sending: it forks `wordpress-develop` to your GitHub account, pushes your change to a branch there, and opens the pull request — all through GitHub's API, as a single commit.
 
 You need a GitHub account, and the site must have a [linked Trac ticket](trac-tickets) — a core pull request has to cite one. The app cannot create the GitHub account for you, and it cannot post to Trac on your behalf.
 

@@ -2,6 +2,8 @@
 
 A site is your own copy of `wordpress-develop`, the WordPress core development repository, cloned into a folder you choose. You can create as many sites as you like — each one is an independent checkout with its own working tree.
 
+You do not need one, though, for every ticket you work on. A site holds as many tickets as you like, each on its own branch, and moving between them costs seconds rather than another clone and another build — see [Working on several tickets](./ticket-branches). Create a second site when you want a genuinely separate environment: a different snapshot of trunk, or somewhere to test a patch without disturbing the site you are working in.
+
 When the app starts with no sites, the main area shows a short prompt to create your first one.
 
 ![The app before any site exists: an empty main area and the Create WordPress Core site button at the bottom of the sidebar](/screenshots/empty-state.png)

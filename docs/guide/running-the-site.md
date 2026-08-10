@@ -2,7 +2,7 @@
 
 Once the [setup wizard](./setup-wizard) is complete, the site view shows a **Start dev server** button. This starts a local WordPress that serves the code in your site's `build/` directory, so you can see your changes running.
 
-![The site view with Start dev server and Submit changes](/screenshots/site-view.png)
+![The site view with Start dev server and Review & submit changes](/screenshots/site-view.png)
 
 ## Start and stop
 

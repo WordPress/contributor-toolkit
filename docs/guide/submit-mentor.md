@@ -1,6 +1,6 @@
 # Handing a patch to a mentor
 
-**Hand it to a mentor** is the destination on the [Submit changes](submitting-changes) screen for the contributor who will not create a GitHub account today — common at a contributor day, where a mentor collects patches and pushes them on the contributors' behalf. It needs no accounts at all. Someone else pushes the patch, and the props still land on you.
+**Hand it to a mentor** is the destination on the [Review & submit changes](submitting-changes) screen for the contributor who will not create a GitHub account today — common at a contributor day, where a mentor collects patches and pushes them on the contributors' behalf. It needs no accounts at all. Someone else pushes the patch, and the props still land on you.
 
 ## What the app asks for
 

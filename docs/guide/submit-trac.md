@@ -4,7 +4,7 @@
 
 ## What the app does, and what you do
 
-The app does not post to Trac on your behalf — that would mean it holding a WordPress.org session, which it deliberately never does. Instead, the destination on the [Submit changes](submitting-changes) screen splits the work:
+The app does not post to Trac on your behalf — that would mean it holding a WordPress.org session, which it deliberately never does. Instead, the destination on the [Review & submit changes](submitting-changes) screen splits the work:
 
 1. Click **Save, then open #NNNNN**.
 2. The app saves your patch as a file wherever you choose.
@@ -19,6 +19,8 @@ The saved file is the plain diff shown under **Your changes** — no header is a
 
 The card says there is nowhere to attach the patch yet, and offers the same field as the [Trac ticket panel](trac-tickets): type the ticket number or URL and click **Link ticket**. The ticket is stored with the site, and the **Save, then open** button appears in its place.
 
+It is the same field in every respect, so if you have edits that are not on any ticket yet, the same question appears here — see [Edits you made before picking a ticket](ticket-branches#edits-you-made-before-picking-a-ticket).
+
 ## What happens afterwards
 
 No automated checks run on a Trac attachment. It is common for a reviewer to then ask for the same change as a pull request, where the test suite runs — if that happens, the [pull request destination](submit-github-pr) sends the identical diff.
@@ -27,4 +29,4 @@ After uploading, leave a comment on the ticket saying what the patch does and ho
 
 ## Before you attach
 
-If the warning at the top of the **Submit changes** screen says your site's WordPress code is old, the patch may not apply cleanly on Trac. Update to the latest trunk first — see [Staying up to date with trunk](trunk-updates) — and check your change still works.
+If the warning at the top of the **Review & submit changes** screen says your site's WordPress code is old, the patch may not apply cleanly on Trac. Update to the latest trunk first — see [Staying up to date with trunk](trunk-updates) — and check your change still works.
