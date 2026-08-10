@@ -7,6 +7,10 @@ CLAUDE.local.md
 node_modules
 dist
 
+# VitePress output and cache (docs site). Built by CI and `npm run docs:build`.
+docs/.vitepress/dist
+docs/.vitepress/cache
+
 # esbuild output. Built by `postinstall`, `npm start` and `npm run dist`, so it never has to
 # be committed — and cannot drift from src/renderer/index.jsx the way it used to (#120).
 src/renderer/index.js

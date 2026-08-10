@@ -121,3 +121,22 @@ change; it flags the few places where the three want different things.
 
 Nothing enforces steps 1–4. Skipping them means a human reviewer is the first person to read the
 diff — which is exactly the cost this process exists to avoid.
+
+## The documentation site
+
+The user guide under `docs/` is a VitePress site, deployed to GitHub Pages by
+`.github/workflows/docs.yml` on every push to trunk that touches it.
+
+It is a **separate npm package** with its own lockfile, so a root `npm ci` does not install it and
+the commands below fail with `vitepress: not found` until you run this once:
+
+```bash
+npm ci --prefix docs
+```
+
+- `npm run docs:dev` — live-reloading editing server. Pages are served at their `.html` paths
+  (`/guide/getting-started.html`); the bare directory URL the banner prints does not resolve in
+  dev, only in the built site.
+- `npm run docs:build` — what CI runs. It fails on dead links, so run it before pushing.
+- `npm run docs:preview` — serves the built site exactly as GitHub Pages will, clean URLs and all.
+  This is the one to check a change against before opening a PR.
