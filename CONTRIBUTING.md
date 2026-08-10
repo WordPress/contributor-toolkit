@@ -140,3 +140,11 @@ npm ci --prefix docs
 - `npm run docs:build` — what CI runs. It fails on dead links, so run it before pushing.
 - `npm run docs:preview` — serves the built site exactly as GitHub Pages will, clean URLs and all.
   This is the one to check a change against before opening a PR.
+
+Its screenshots are captured by `npm run shots` (see `scripts/screenshots/`), not by CI: the harness
+launches the app against a seeded, throwaway site registry and photographs each screen at a fixed
+size. **A PR that changes what a documented screen looks like re-runs `npm run shots` and commits
+the new images** — nothing automated catches a stale screenshot. Shots the fixture registry cannot
+reach (a running dev server, a real diff) are listed in the live tier: `npm run shots -- --tier=live`
+pauses per shot while you set the real screen up, and those images show real paths, so look at each
+one before committing it.
