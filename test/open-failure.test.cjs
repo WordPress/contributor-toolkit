@@ -13,30 +13,26 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 
 const { describeOpenFailure, noticeForOpenResult } = require('../src/renderer/open-failure.cjs');
 const { REFUSAL_REASONS } = require('../src/editor-launch.js');
+const { REVEAL_REASONS } = require('../src/site-registry.js');
 
-// The two modules that answer `editor:open` and `dir:show`. Everything they can
-// refuse with has to have a sentence here, and a hand-kept list of reasons is
-// the kind that goes stale in the direction of the generic fallback — which is
-// the failure this whole module exists to stop.
-const GUARD_MODULES = ['../src/editor-launch.js', '../src/site-registry.js'];
-
-// The two the scan below cannot see: `cancelled` is the file dialog closing,
-// returned by the `editor:open` handler itself (src/main.js), and `unavailable`
-// is synthesised in the renderer when the invoke rejects.
+// The two the guard modules cannot list: `cancelled` is the file dialog
+// closing, returned by the `editor:open` handler itself (src/main.js), and
+// `unavailable` is synthesised in the renderer when the invoke rejects.
 const REASONS_FROM_ELSEWHERE = ['cancelled', 'unavailable'];
 
+// Everything `editor:open` and `dir:show` can answer with has to have a
+// sentence here, and a hand-kept copy of that list is the kind that goes stale
+// in the direction of the generic fallback — which is the failure this whole
+// module exists to stop. So the list is the guard modules' own exports, which
+// their answers are built from, plus the two above.
 function reasonsInGuardModules() {
-	const found = new Set(Object.values(REFUSAL_REASONS));
-	for (const relative of GUARD_MODULES) {
-		const source = fs.readFileSync(path.join(__dirname, relative), 'utf8');
-		for (const [, reason] of source.matchAll(/reason: '([a-z-]+)'/g)) found.add(reason);
-	}
-	return [...found];
+	return [...new Set([
+		...Object.values(REFUSAL_REASONS),
+		...Object.values(REVEAL_REASONS)
+	])];
 }
 
 // --- the whole notice ----------------------------------------------------
@@ -111,17 +107,14 @@ test('an OS failure with nothing to quote still names the failure', () => {
 	assert.doesNotMatch(sentence, /undefined/);
 });
 
-// Read out of the guard modules rather than listed here, so a refusal added to
-// either one fails this instead of silently arriving as "Could not open the
-// folder." — the generic sentence is a fallback, not a destination.
+// Read from the guard modules' own exports rather than listed here, so a
+// refusal added to either one fails this instead of silently arriving as
+// "Could not open the folder." — the generic sentence is a fallback, not a
+// destination.
 test('every reason the main process can refuse with has its own sentence', () => {
 	const generic = describeOpenFailure({ ok: false });
-	const reasons = reasonsInGuardModules();
 
-	// A scan that matched nothing would make this test vacuously green.
-	assert.ok(reasons.length >= 5, `expected the guard modules to yield reasons, got ${reasons.length}`);
-
-	for (const reason of [...reasons, ...REASONS_FROM_ELSEWHERE]) {
+	for (const reason of [...reasonsInGuardModules(), ...REASONS_FROM_ELSEWHERE]) {
 		if (reason === 'cancelled') continue; // Not a failure; noticeForOpenResult drops it.
 		assert.notEqual(describeOpenFailure({ ok: false, reason }), generic, reason);
 	}

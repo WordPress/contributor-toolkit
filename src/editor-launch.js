@@ -274,10 +274,15 @@ function resolveLaunch(editorPath, sitePath, { platform } = {}) {
 	return { command: editorPath, args: [sitePath] };
 }
 
+// Every `reason` this module can answer `editor:open` with, refusals and
+// failures alike. Exported as the complete list on purpose: the renderer's
+// open-failure.cjs owes each of these a sentence, and its tests check that
+// against this object rather than a copy that could go stale.
 const REFUSAL_REASONS = {
 	UNREGISTERED_SITE: 'unregistered-site',
 	UNLAUNCHABLE_EDITOR: 'unlaunchable-editor',
-	UNKNOWN_EDITOR: 'unknown-editor'
+	UNKNOWN_EDITOR: 'unknown-editor',
+	SPAWN_FAILED: 'spawn-failed'
 };
 
 // The `editor:open` handler's body.
@@ -327,7 +332,7 @@ async function openSiteInEditor(sitePath, editorPath, {
 	} catch (e) {
 		// A synchronous throw is the argument-shape failure only. The one that
 		// actually happens — the target cannot be executed — arrives as an event.
-		return { ok: false, reason: 'spawn-failed', error: e?.message ?? String(e) };
+		return { ok: false, reason: REFUSAL_REASONS.SPAWN_FAILED, error: e?.message ?? String(e) };
 	}
 
 	return awaitLaunch(child, { platform });
@@ -365,14 +370,14 @@ function awaitLaunch(child, { platform } = {}) {
 		};
 
 		child.on('error', (e) => {
-			settle({ ok: false, reason: 'spawn-failed', error: e?.message ?? String(e) });
+			settle({ ok: false, reason: REFUSAL_REASONS.SPAWN_FAILED, error: e?.message ?? String(e) });
 		});
 
 		if (platform === 'darwin') {
 			child.on('close', (code) => {
 				settle(code === 0
 					? { ok: true }
-					: { ok: false, reason: 'spawn-failed', error: `the editor could not be opened (exit code ${code})` });
+					: { ok: false, reason: REFUSAL_REASONS.SPAWN_FAILED, error: `the editor could not be opened (exit code ${code})` });
 			});
 			return;
 		}
