@@ -3125,7 +3125,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               // "Already up to date." in the terminal.
               { title: 'Update to latest trunk', onClick: startTrunkUpdate },
               { title:'Forget this site', onClick:()=>confirmAnd('Remove this site from the list?', ()=>onForget(sitePath)) },
-              { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
+              // Not while the clone is running: deleting the site would be
+              // removing a directory the app is still writing into. The main
+              // process refuses it either way (see site-registry.js) — that is
+              // the backstop, and not offering a control that cannot work is
+              // the actual answer.
+              ...(isPending ? [] : [
+                { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
+              ])
             ]}
           />
         </div>
