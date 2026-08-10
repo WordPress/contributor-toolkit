@@ -58,10 +58,10 @@ function resolveTargetDir(root, folder) {
  *
  * Nothing reaches this by the intended route: the input's click and keyboard
  * handlers are intercepted and go to the native dialog. It runs only when a
- * folder is dropped onto the control, which is a second route the app does not
- * currently support — see #228, where supporting it or closing it off gets
- * decided. Extracted as it stood, dead branch included, because #216 is a
- * refactor and not the place to change what it answers:
+ * folder is dropped onto the control — a route the app deliberately does not
+ * support, decided in #228 and closed there. Extracted as it stood, dead branch
+ * included, because #216 is a refactor and not the place to change what it
+ * answers:
  *
  * - `path` plus `webkitRelativePath`, and `path` alone, are the two shapes this
  *   was written for. Electron removed the `path` augmentation on `File` in v32

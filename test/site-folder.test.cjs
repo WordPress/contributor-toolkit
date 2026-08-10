@@ -72,9 +72,9 @@ test('resolveTargetDir with no root is the folder name alone', () => {
 // fallback. Asserting the `path` shapes would be green and prove nothing.
 //
 // The only route that reaches this at all is dropping a folder on the control,
-// which the app does not support; #228 decides whether it should. So these
-// record where that route currently ends, and are the failing tests to write
-// against when it is taken up.
+// which the app deliberately does not support — #228, closed as not planned.
+// So these record where an unsupported route ends, and are the tests a change
+// of mind would have to rewrite.
 
 test('directoryFromFileEntry gets nothing from a real dropped entry', () => {
 	// A File in Electron 43. No `path`, and `webkitRelativePath` alone carries
