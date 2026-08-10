@@ -1,0 +1,14 @@
+{
+	"name": "contributor-toolkit-docs",
+	"private": true,
+	"description": "User documentation site for the WordPress Contributor Toolkit, built with VitePress.",
+	"license": "GPL-2.0-or-later",
+	"scripts": {
+		"dev": "vitepress dev",
+		"build": "vitepress build",
+		"preview": "vitepress preview"
+	},
+	"devDependencies": {
+		"vitepress": "^1.6.4"
+	}
+}
