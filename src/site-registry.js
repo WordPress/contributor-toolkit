@@ -13,6 +13,13 @@
 // one the app should carry out. This is the same shape as external-url.js — a
 // pure check, a safe log formatter, and a wrapper whose effects are injected so
 // both branches can be tested without an Electron process.
+//
+// There is a second, shorter-lived record: the sites this process is creating
+// right now (setup-tracker.js). A site's directory exists from the moment the
+// app makes it, minutes before the clone finishes and the store hears about it,
+// and the two verbs here want opposite answers about it — open it, yes; delete
+// it, absolutely not. So `pending` widens `revealRegisteredSite` and is an
+// outright refusal in `deleteRegisteredSite`. The asymmetry is the point.
 
 const { describeRefused } = require('./safe-log');
 
@@ -36,6 +43,21 @@ function isRegisteredSite(sitePath, sites) {
 	return sites.includes(sitePath);
 }
 
+// True for a path this app is responsible for right now: one it has on record,
+// or one it is creating this very moment (see setup-tracker.js for why the
+// second kind is deliberately not in the store).
+//
+// `pending` goes through the same exact-match predicate as `sites` rather than
+// any looser comparison. It is a list of directories the app is writing into,
+// so a prefix match would turn "this site is being cloned" into a lever on
+// everything beneath it.
+//
+// This widens what may be *opened*. It must never be used to widen what may be
+// removed — see `deleteRegisteredSite`, which refuses a pending path outright.
+function isActionableSite(sitePath, { sites, pending } = {}) {
+	return isRegisteredSite(sitePath, sites) || isRegisteredSite(sitePath, pending);
+}
+
 // A refused path is attacker-influenced by hypothesis, and it is about to be
 // written into the file contributors attach to bug reports, so it has to stay on
 // one line and it has to be bounded. safe-log.js is where both live, and why.
@@ -48,7 +70,18 @@ function describeRefusedSite(sitePath) {
 // the store, `remove` is the real `fse.remove` in the app, and both are recording
 // stubs in the tests. A path that is not registered performs neither: no store
 // mutation and no removal, just a logged refusal.
-async function deleteRegisteredSite(sitePath, { sites, forget, remove, onRefused } = {}) {
+async function deleteRegisteredSite(sitePath, { sites, pending, forget, remove, onRefused } = {}) {
+	// Checked before the registry, and separately from it. A site whose clone is
+	// still running is the one case where `remove` would delete a tree another
+	// part of this process is actively writing into, so it is refused whether or
+	// not it is registered. Until this existed the refusal came for free from the
+	// path not being in `sites` yet; making the folder openable mid-clone is what
+	// took that accident away.
+	if (isRegisteredSite(sitePath, pending)) {
+		if (typeof onRefused === 'function') onRefused(describeRefusedSite(sitePath));
+		return false;
+	}
+
 	if (!isRegisteredSite(sitePath, sites)) {
 		if (typeof onRefused === 'function') onRefused(describeRefusedSite(sitePath));
 		return false;
@@ -60,15 +93,17 @@ async function deleteRegisteredSite(sitePath, { sites, forget, remove, onRefused
 }
 
 // The `dir:show` handler's body. `shell.openPath` hands a local path to whatever
-// the OS has registered for it, so "show this site in the file manager" gets the
-// same boundary as "delete this site": only a path the app has on record. The
-// reveal itself is injected, like `remove` above.
+// the OS has registered for it, so "show this site in the file manager" is
+// bounded the same way "delete this site" is — except that a site still being
+// created counts here and does not there, since opening a folder mid-clone is
+// what a contributor watching one wants and removing it is not. The reveal
+// itself is injected, like `remove` above.
 //
 // `reveal` resolves to electron's own convention — the empty string on success,
 // an error message otherwise — and that is passed through rather than reduced to
 // a boolean, so the renderer can say what went wrong.
-async function revealRegisteredSite(sitePath, { sites, reveal, onRefused } = {}) {
-	if (!isRegisteredSite(sitePath, sites)) {
+async function revealRegisteredSite(sitePath, { sites, pending, reveal, onRefused } = {}) {
+	if (!isActionableSite(sitePath, { sites, pending })) {
 		if (typeof onRefused === 'function') onRefused(describeRefusedSite(sitePath));
 		return { ok: false, reason: REVEAL_REASONS.UNREGISTERED_SITE };
 	}
@@ -98,6 +133,7 @@ async function clearRegisteredSiteLog(sitePath, { sites, truncate, onRefused } =
 module.exports = {
 	REVEAL_REASONS,
 	isRegisteredSite,
+	isActionableSite,
 	describeRefusedSite,
 	revealRegisteredSite,
 	deleteRegisteredSite,

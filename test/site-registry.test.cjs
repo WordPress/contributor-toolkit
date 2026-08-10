@@ -162,6 +162,71 @@ test('a reveal the OS declines is reported rather than swallowed', async () => {
 	assert.equal(result.error, 'Failed to open path');
 });
 
+// --- a site that is still being created ----------------------------------
+//
+// Creating a site clones wordpress-develop, which takes minutes, and the
+// registry does not learn about the site until that finishes. The directory
+// exists the whole time and the window shows it, so refusing to open it was the
+// app declining to open a folder it had just created (#180).
+//
+// `pending` is the other half of the boundary: paths the main process is
+// setting up right now, computed by main itself and never sent by the renderer.
+// It widens what may be *opened*, and it narrows what may be *deleted* — a
+// recursive remove of a tree isomorphic-git is writing into is the one thing
+// worse than the bug.
+
+const PENDING = '/Users/dev/sites/being-cloned';
+
+test('a site still being created is revealed', async () => {
+	const rec = revealRecorder([]);
+
+	const result = await revealRegisteredSite(PENDING, { ...rec.options, pending: [PENDING] });
+
+	assert.deepEqual(result, { ok: true });
+	assert.deepEqual(rec.revealed, [PENDING]);
+	assert.deepEqual(rec.refused, []);
+});
+
+test('a site still being created is not deleted, registered or not', async () => {
+	for (const sites of [[], [PENDING]]) {
+		const rec = recorder(sites);
+
+		assert.equal(await deleteRegisteredSite(PENDING, { ...rec.options, pending: [PENDING] }), false);
+
+		assert.equal(rec.forgotten(), 0, 'the store must not be touched mid-clone');
+		assert.deepEqual(rec.removed, [], 'the clone must not be removed from under itself');
+		assert.equal(rec.refused.length, 1);
+	}
+});
+
+// The asymmetry is the design, so it is asserted rather than assumed: being in
+// flight is a reason to open and a reason not to delete.
+test('pending never widens what may be deleted', async () => {
+	const rec = recorder([]);
+
+	assert.equal(await deleteRegisteredSite('/Users/dev/elsewhere', { ...rec.options, pending: [PENDING] }), false);
+
+	assert.deepEqual(rec.removed, []);
+});
+
+test('a pending path is matched exactly, like a registered one', async () => {
+	for (const near of ['/Users/dev/sites', `${PENDING}/wp-content`, `${PENDING}/`]) {
+		const rec = revealRecorder([]);
+
+		const result = await revealRegisteredSite(near, { ...rec.options, pending: [PENDING] });
+
+		assert.equal(result.ok, false, near);
+		assert.deepEqual(rec.revealed, []);
+	}
+});
+
+test('no pending list at all behaves exactly as before', async () => {
+	const rec = revealRecorder();
+
+	assert.deepEqual(await revealRegisteredSite('/Users/dev/sites/my-site', rec.options), { ok: true });
+	assert.equal((await revealRegisteredSite(PENDING, rec.options)).reason, 'unregistered-site');
+});
+
 // --- clearRegisteredSiteLog ---
 //
 // The Clear button under the debug.log panel empties build/wp-content/debug.log

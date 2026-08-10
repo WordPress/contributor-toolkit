@@ -38,6 +38,7 @@ const { buildPullRequestEntries } = require('./pr-files.cjs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
+const { createSetupTracker } = require('./setup-tracker');
 const { planInitialRead, planTailRead } = require('./log-tail');
 const {
 	TRUNK,
@@ -182,6 +183,11 @@ const cancelledChildren = new WeakSet();
 const runIdByDirectory = {};
 /** @type {Record<string, { child: import('child_process').ChildProcess, url?: string }>} */
 const playgroundServers = {};
+// The sites being created right now — liveness, not truth, which is why it is
+// here beside the other per-site maps and not in the store. See
+// setup-tracker.js: a directory exists minutes before its clone finishes, and
+// the guards need to know that without anything half-finished being persisted.
+const setupTracker = createSetupTracker();
 /** @type {Record<string, { filePath: string, fileWatcher?: import('fs').FSWatcher, dirWatcher?: import('fs').FSWatcher, lastSize: number }>} */
 const wpDebugWatchers = {};
 /** @type {Record<string, { server: import('smtp-server').SMTPServer, port: number }>} */
@@ -1588,8 +1594,15 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 	const uniqueName = findAvailableDirName(destDir, sanitizedName);
 	const siteDir = path.join(destDir, uniqueName);
 	await fse.ensureDir(siteDir);
-	event.sender.send('download:status', { phase: 'cloning', target: siteDir });
-	try {
+
+	// Tracked from here, where the directory starts existing, to the `done`
+	// below, where the store takes over. In between, `siteDir` is a real folder
+	// the app made and the registry has never heard of — so without this the
+	// guards refuse to open it for the whole clone (#180), and `sites:delete`
+	// would happily remove it if they did not. setup-tracker.js has the why;
+	// `track` releases the entry however this ends.
+	return setupTracker.track(siteDir, async () => {
+		event.sender.send('download:status', { phase: 'cloning', target: siteDir });
 		await git.clone({
 			http,
 			fs,
@@ -1604,37 +1617,34 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 				event.sender.send('download:progress', { target: siteDir, message: msg });
 			}
 		});
-	} catch (e) {
-		// Fallback/error
-		throw e;
-	}
-	await ensureAutocrlf(siteDir);
+		await ensureAutocrlf(siteDir);
 
-	const s = await getStore();
-	const sites = s.get('sites');
-	if (!sites.includes(siteDir)) {
-		sites.push(siteDir);
-		s.set('sites', sites);
-		const meta = s.get('siteMeta');
-		const siteLabel = typeof options.siteLabel === 'string' && options.siteLabel.trim().length
-			? options.siteLabel.trim()
-			: uniqueName;
-		const existingMeta = meta[siteDir] || {};
-		meta[siteDir] = {
-			...existingMeta,
-			initialized: false,
-			createdAt: existingMeta.createdAt || new Date().toISOString(),
-			label: existingMeta.label || siteLabel
-		};
-		try {
-			const { trunkOid, trunkDate } = await readTrunkInfo(siteDir);
-			meta[siteDir].trunkOid = trunkOid;
-			meta[siteDir].trunkDate = trunkDate;
-		} catch {}
-		s.set('siteMeta', meta);
-	}
-	event.sender.send('download:status', { phase: 'done', target: siteDir, sitePath: siteDir });
-	return siteDir;
+		const s = await getStore();
+		const sites = s.get('sites');
+		if (!sites.includes(siteDir)) {
+			sites.push(siteDir);
+			s.set('sites', sites);
+			const meta = s.get('siteMeta');
+			const siteLabel = typeof options.siteLabel === 'string' && options.siteLabel.trim().length
+				? options.siteLabel.trim()
+				: uniqueName;
+			const existingMeta = meta[siteDir] || {};
+			meta[siteDir] = {
+				...existingMeta,
+				initialized: false,
+				createdAt: existingMeta.createdAt || new Date().toISOString(),
+				label: existingMeta.label || siteLabel
+			};
+			try {
+				const { trunkOid, trunkDate } = await readTrunkInfo(siteDir);
+				meta[siteDir].trunkOid = trunkOid;
+				meta[siteDir].trunkDate = trunkDate;
+			} catch {}
+			s.set('siteMeta', meta);
+		}
+		event.sender.send('download:status', { phase: 'done', target: siteDir, sitePath: siteDir });
+		return siteDir;
+	});
 });
 
 ipcMain.handle('sites:mark-initialized', async (_e, sitePath) => {
@@ -1662,6 +1672,9 @@ ipcMain.handle('sites:delete', async (_e, sitePath) => {
 	const s = await getStore();
 	return deleteRegisteredSite(sitePath, {
 		sites: s.get('sites'),
+		// A site whose clone is still running is refused outright, registered or
+		// not: `remove` would be deleting a tree isomorphic-git is writing into.
+		pending: setupTracker.paths(),
 		forget: () => {
 			s.set('sites', s.get('sites').filter((p) => p !== sitePath));
 			const meta = s.get('siteMeta');
@@ -1671,7 +1684,7 @@ ipcMain.handle('sites:delete', async (_e, sitePath) => {
 		// Best-effort, as before: a site whose registry entry is gone should not be
 		// stuck undeletable because its directory is missing or locked.
 		remove: async (p) => { try { await fse.remove(p); } catch {} },
-		onRefused: (description) => logEvent('sites', `refused to delete ${description} — not a registered site`)
+		onRefused: (description) => logEvent('sites', `refused to delete ${description} — not a registered site, or still being created`)
 	});
 });
 
@@ -1950,6 +1963,7 @@ ipcMain.handle('editor:open', async (_e, sitePath, editorPath) => {
 	return openSiteInEditor(sitePath, target, {
 		...editorLaunchDeps(),
 		sites: s.get('sites'),
+		pending: setupTracker.paths(),
 		spawn,
 		onRefused: (reason, description) => logEvent('editor', `refused to open ${description} — ${reason}`)
 	});
@@ -2015,6 +2029,7 @@ ipcMain.handle('dir:show', async (_e, sitePath) => {
 	const s = await getStore();
 	return revealRegisteredSite(sitePath, {
 		sites: s.get('sites'),
+		pending: setupTracker.paths(),
 		reveal: (target) => shell.openPath(target),
 		onRefused: (description) => logEvent('sites', `refused to reveal ${description} — not a registered site`)
 	});
