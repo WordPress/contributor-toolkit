@@ -483,3 +483,42 @@ test('a long-lived editor answers as soon as the OS accepts it', async () => {
 	assert.deepEqual(result, { ok: true });
 	assert.equal(calls[0].unrefed, true);
 });
+
+// --- a site that is still being created ----------------------------------
+//
+// The same boundary as revealing the folder, and for the same reason: the
+// directory exists from the moment the app creates it, but the registry does
+// not hear about it until the clone finishes minutes later, so opening the
+// site in an editor was refused for the whole of it (#180). `pending` is the
+// main process's own record of what it is setting up right now.
+
+const CLONING = '/Users/dev/sites/being-cloned';
+
+test('a site still being created opens in an editor', async () => {
+	const { calls, refusals, options } = launchDeps({ sites: [] });
+
+	const result = await openSiteInEditor(CLONING, EDITOR, { ...options, pending: [CLONING] });
+
+	assert.deepEqual(result, { ok: true });
+	assert.deepEqual(refusals, []);
+	assert.equal(calls.length, 1);
+	assert.deepEqual(calls[0].args, ['-a', EDITOR, CLONING]);
+});
+
+test('a pending path is matched exactly, like a registered one', async () => {
+	for (const near of ['/Users/dev/sites', `${CLONING}/wp-content`, `${CLONING}/`]) {
+		const { calls, options } = launchDeps({ sites: [] });
+
+		const result = await openSiteInEditor(near, EDITOR, { ...options, pending: [CLONING] });
+
+		assert.equal(result.ok, false, near);
+		assert.deepEqual(calls, []);
+	}
+});
+
+test('no pending list at all behaves exactly as before', async () => {
+	const { options } = launchDeps();
+
+	assert.deepEqual(await openSiteInEditor(SITE, EDITOR, options), { ok: true });
+	assert.equal((await openSiteInEditor(CLONING, EDITOR, options)).reason, REFUSAL_REASONS.UNREGISTERED_SITE);
+});
