@@ -25,6 +25,7 @@ import { shouldShowTerminalHints, computeTerminalBusy } from './terminal-hints.c
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
+import { noticeForOpenResult } from './open-failure.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
@@ -1241,36 +1242,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // entry is ever drawn disabled: an application this app cannot find is not one
   // it refuses to use, and the copy button above is the floor under all of it.
   const { detected: detectedEditors, loading: detectingEditors, loadDetected } = editor;
-  const [editorNotice, setEditorNotice] = useState('');
+  // `{ message, offerPicker }` from open-failure.cjs, or null for nothing to
+  // say. Both what it reads and whether "Choose application…" is a way out of
+  // it are decided there, per reason — the two callers below deciding that
+  // separately is what #180 was.
+  const [editorNotice, setEditorNotice] = useState(null);
 
   const fileManagerLabel = FILE_MANAGER_LABELS[window.api?.platform] || 'Show in file manager';
   const fileManagerName = FILE_MANAGER_NAMES[window.api?.platform] || 'File manager';
-
-  // `picked` says which of the two failures 'unlaunchable-editor' is: an
-  // application detection offered that has since moved, or one the contributor
-  // just pointed at that is not an application at all. Main cannot tell them
-  // apart — the guard is the same — but the caller knows which it asked for, and
-  // the two need different next steps.
-  const describeOpenFailure = useCallback((result, { picked = false } = {}) => {
-    if (result?.reason === 'unlaunchable-editor') {
-      return picked
-        ? 'That is not an application this app can open a folder in.'
-        : 'That application is no longer where it was. Choose another.';
-    }
-    if (result?.reason === 'unknown-editor') {
-      return 'That application is no longer where it was. Choose another.';
-    }
-    if (result?.reason === 'spawn-failed') {
-      return `The application would not start: ${result.error || 'unknown error'}`;
-    }
-    if (result?.reason === 'unregistered-site') {
-      return 'This app has no record of that folder, so it will not open it.';
-    }
-    if (result?.reason === 'unavailable') {
-      return `Could not reach the app's main process: ${result.error || 'unknown error'}`;
-    }
-    return 'Could not open the folder in an application.';
-  }, []);
 
   // `editorPath` is one of the detected applications; null asks the main process
   // for the file dialog instead.
@@ -1288,19 +1267,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       console.error('Could not open the site directory:', err);
       result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
-    // Closing the dialog is an answer, not a failure — saying something about it
-    // would be the app arguing with a decision the contributor just made.
-    if (result?.ok || result?.reason === 'cancelled') {
-      setEditorNotice('');
-      return;
-    }
-    setEditorNotice(describeOpenFailure(result, { picked: editorPath === null }));
+    const notice = noticeForOpenResult(result, { picked: editorPath === null });
+    setEditorNotice(notice);
     // An application that was detected and then failed is one detection should be
     // asked about again, so the next menu does not offer it as if nothing had
     // happened.
-    if (editorPath !== null) await loadDetected();
-  }, [describeOpenFailure, loadDetected, sitePath]);
+    if (notice && editorPath !== null) await loadDetected();
+  }, [loadDetected, sitePath]);
 
+  // Through the same function as `openIn` above, deliberately: this used to
+  // build its own sentence out of `error` alone, so a refusal — which carries a
+  // `reason` and no `error` — came out as the words "unknown error" (#180).
   const showInFileManager = useCallback(async () => {
     let result;
     try {
@@ -1308,9 +1285,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } catch (err) {
       // eslint-disable-next-line no-console -- see the note on the first console.error above.
       console.error('Could not reveal the site folder:', err);
-      result = { ok: false, error: String(err?.message ?? err) };
+      result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
-    setEditorNotice(result?.ok ? '' : `Could not open the folder: ${result?.error || 'unknown error'}`);
+    setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
 
   const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
@@ -3126,8 +3103,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               contributor to find the menu again. */}
           {editorNotice ? (
             <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-              <span style={{ flex: '1 1 240px' }}>{editorNotice}</span>
-              <Button variant="tertiary" isSmall onClick={() => void openIn(null)}>Choose application…</Button>
+              <span style={{ flex: '1 1 240px' }}>{editorNotice.message}</span>
+              {editorNotice.offerPicker ? (
+                <Button variant="tertiary" isSmall onClick={() => void openIn(null)}>Choose application…</Button>
+              ) : null}
             </div>
           ) : null}
         </div>

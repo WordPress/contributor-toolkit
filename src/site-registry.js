@@ -16,6 +16,15 @@
 
 const { describeRefused } = require('./safe-log');
 
+// Every `reason` this module can answer `dir:show` with, same convention as
+// REFUSAL_REASONS in editor-launch.js: the renderer's open-failure.cjs owes
+// each of these a sentence, and its tests read this object rather than keeping
+// a copy that could go stale.
+const REVEAL_REASONS = {
+	UNREGISTERED_SITE: 'unregistered-site',
+	OPEN_FAILED: 'open-failed'
+};
+
 // True only for a path the app has on record. Exact string match, the same
 // convention `sites:add`/`sites:delete` already use (`sites.includes(sitePath)`,
 // `filter((p) => p !== sitePath)`): the registry stores the paths verbatim, so a
@@ -61,11 +70,11 @@ async function deleteRegisteredSite(sitePath, { sites, forget, remove, onRefused
 async function revealRegisteredSite(sitePath, { sites, reveal, onRefused } = {}) {
 	if (!isRegisteredSite(sitePath, sites)) {
 		if (typeof onRefused === 'function') onRefused(describeRefusedSite(sitePath));
-		return { ok: false, reason: 'unregistered-site' };
+		return { ok: false, reason: REVEAL_REASONS.UNREGISTERED_SITE };
 	}
 
 	const error = await reveal(sitePath);
-	return error ? { ok: false, reason: 'open-failed', error } : { ok: true };
+	return error ? { ok: false, reason: REVEAL_REASONS.OPEN_FAILED, error } : { ok: true };
 }
 
 // The `wp-debug:clear` handler's body. Emptying a file is nowhere near as
@@ -87,6 +96,7 @@ async function clearRegisteredSiteLog(sitePath, { sites, truncate, onRefused } =
 }
 
 module.exports = {
+	REVEAL_REASONS,
 	isRegisteredSite,
 	describeRefusedSite,
 	revealRegisteredSite,
