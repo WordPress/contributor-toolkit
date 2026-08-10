@@ -1744,12 +1744,15 @@ async function withRegisteredSite(sitePath, run) {
 // Which Trac ticket a site is being used to work on (#109), which under #108 is
 // also which branch is checked out. Linking a ticket the site has seen before
 // switches back to its branch — files and context as they were left; a new one
-// starts a branch at the current trunk tip, carrying any loose edits along.
+// starts a branch at the current trunk tip. Loose edits on trunk are no longer
+// carried along unasked (#234): the handler refuses with `dirty-trunk` on both
+// paths and the renderer asks, with `options.carryTrunkWork` as the answer that
+// re-enters here and performs the old carry.
 //
 // The site-level `tracTicket` is kept in step with the active branch so the
 // handlers that read it (`git:list-ticket-patches`, `trac:list-attachments`,
 // `site:status`) need no change.
-ipcMain.handle('sites:set-ticket', async (event, sitePath, ref) => withRegisteredSite(sitePath, async () => {
+ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => withRegisteredSite(sitePath, async () => {
 	// Empty means unlink — the panel's Unlink button and a cleared field both
 	// land here, and neither is an error. The branch and its work stay; going
 	// back to trunk is not the same as throwing a ticket away.
@@ -1804,13 +1807,37 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref) => withRegistere
 			} finally {
 				progress.flush();
 			}
-		} else {
-			// Loose work on trunk is about to become this ticket's, and the app
-			// used to move it without a word — while the same gesture on a
-			// ticket that already has a branch is refused. Counting it is how
-			// the panel tells those apart, and it happens after the answer
+		} else if (options && options.carryTrunkWork) {
+			// The contributor chose to bring trunk's loose edits along (#234),
+			// so this is the carry the app used to perform unasked: the
+			// branch+checkout moves HEAD without touching the worktree, and the
+			// count that confirms what came along still runs after the answer
 			// rather than before it (see reportCarriedWork).
 			carriedFrom = TRUNK;
+		} else {
+			// Deciding whether to ask means looking at the worktree before
+			// answering — the scan #218 deliberately kept off this path.
+			// Spent here on purpose (#234): the wait lands in front of a
+			// question the contributor is about to read, not behind a move of
+			// their work that has already happened. A tree this cannot scan
+			// refuses the link (via withRegisteredSite) instead of guessing
+			// that there is nothing to carry.
+			const files = await countChangesAgainst(sitePath);
+			if (files > 0) {
+				logEvent('branches', `asked before carrying ${files} loose file(s) on trunk into ticket/${parsed.id} in ${describeRefused(sitePath)}`);
+				// Same code the refused switch to an existing branch returns,
+				// so the renderer asks the one question either way. `canCarry`
+				// is what only this path can offer: an existing branch has its
+				// own work to restore, so loose edits cannot ride into it.
+				return {
+					ok: false,
+					error: 'There is uncommitted work on trunk — decide what happens to it before starting the ticket',
+					code: 'dirty-trunk',
+					canCarry: true,
+					files,
+					ticket: parsed.id
+				};
+			}
 		}
 		({ baseOid } = await startTicketBranch(sitePath, parsed.id));
 	}

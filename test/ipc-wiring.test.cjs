@@ -2296,11 +2296,13 @@ test('sites:set-ticket starts a branch for a ticket the site has not seen', asyn
 	assert.equal(meta.branches['ticket/62281'].baseOid, 'abc', 'the branch point is recorded — it is the diff base');
 });
 
-// Linking a ticket this site has never seen carries whatever is loose in the
-// worktree into the new branch. That is deliberate — "I started editing, then
-// realised which ticket this is" — but it is also the app moving someone's work
-// for them, and the same gesture on a ticket that does have a branch is refused
-// instead. Saying how much came along is what tells those two apart on screen.
+// Linking a ticket this site has never seen used to carry whatever was loose
+// in the worktree into the new branch without asking, while the same gesture
+// on a ticket that already had a branch was refused — split by an
+// implementation fact the contributor cannot see. Since #234 both paths
+// refuse with `dirty-trunk` and the renderer asks; carrying happens only when
+// the answer is `carryTrunkWork`, and saying how much came along is what
+// confirms the choice on screen.
 const CARRIED_WORK_CHANNEL = 'ticket:carried-work';
 
 async function carriedWork(event, budgetMs = 4000) {
@@ -2313,22 +2315,53 @@ async function carriedWork(event, budgetMs = 4000) {
 	return null;
 }
 
-test('sites:set-ticket says how much loose work it carried into a new ticket (issue #108)', async (t) => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-carry-'));
+// One repo shape both #234 tests need: a committed trunk with an edited file
+// and an untracked one on top of it.
+function dirtyTrunkFixture(t, prefix) {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
-	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // trunk\n');
-	fs.writeFileSync(path.join(dir, 'wp-comments-post.php'), '<?php // trunk\n');
-	await git.add({ fs, dir, filepath: ['wp-login.php', 'wp-comments-post.php'] });
-	await git.commit({ fs, dir, message: 'trunk', author: { name: 't', email: 't@e' } });
-	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // work started before the ticket was known\n');
-	fs.writeFileSync(path.join(dir, 'brand-new.php'), '<?php // and a new file\n');
+	return (async () => {
+		await git.init({ fs, dir, defaultBranch: 'trunk' });
+		fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // trunk\n');
+		fs.writeFileSync(path.join(dir, 'wp-comments-post.php'), '<?php // trunk\n');
+		await git.add({ fs, dir, filepath: ['wp-login.php', 'wp-comments-post.php'] });
+		await git.commit({ fs, dir, message: 'trunk', author: { name: 't', email: 't@e' } });
+		fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // work started before the ticket was known\n');
+		fs.writeFileSync(path.join(dir, 'brand-new.php'), '<?php // and a new file\n');
+		return dir;
+	})();
+}
 
+// The ask itself (#234): the same gesture that used to move the work asks
+// first, moves nothing, and records nothing — Cancel has to cost zero.
+test('sites:set-ticket asks before carrying loose trunk work into a new ticket (issue #234)', async (t) => {
+	const dir = await dirtyTrunkFixture(t, 'ipc-wiring-ask-');
 	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
 	const event = createIpcEvent();
 	const result = await main.invokeWith('sites:set-ticket', event, dir, '62281');
+
+	assert.equal(result.ok, false);
+	assert.equal(result.code, 'dirty-trunk', 'the same code the refused switch to an existing branch returns');
+	assert.equal(result.canCarry, true, 'only this path can offer the carry, so it has to say so');
+	assert.equal(result.files, 2, 'the dialog says how much is at stake');
+	assert.equal(result.ticket, 62281);
+
+	// Asked, not half-done: still on trunk, no branch, nothing recorded.
+	assert.equal(await require('../src/ticket-branches.js').currentBranchName(dir), 'trunk');
+	assert.equal((await git.listBranches({ fs, dir })).includes('ticket/62281'), false);
+	assert.equal(settings.values.siteMeta[dir].tracTicket, undefined);
+	assert.equal(await carriedWork(event, 300), null, 'nothing was carried, so nothing is claimed');
+});
+
+test('sites:set-ticket says how much loose work the chosen carry took into a new ticket (issue #108/#234)', async (t) => {
+	const dir = await dirtyTrunkFixture(t, 'ipc-wiring-carry-');
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const event = createIpcEvent();
+	const result = await main.invokeWith('sites:set-ticket', event, dir, '62281', { carryTrunkWork: true });
 
 	// The answer does not wait for the count: linking is a HEAD move, and the
 	// scan that feeds the sentence is a walk of the whole worktree.
@@ -2389,12 +2422,13 @@ test('resuming a ticket and unlinking never pay for the count (issue #108)', asy
 	await main.invoke('sites:set-ticket', '/sites/wp', '62281');
 	await main.invoke('sites:set-ticket', '/sites/wp', '');
 
-	assert.deepEqual(countChangesAgainst.calls, [], 'only the path that moves work without saying so counts it');
+	assert.deepEqual(countChangesAgainst.calls, [], 'only the path that could move trunk work has to look before answering');
 });
 
-// The link already happened and is not in doubt; what a failed walk costs is
-// the sentence about it. It is logged rather than swallowed, because a worktree
-// this cannot walk is a state someone will need diagnosed later.
+// Once the carry is chosen, the link already happened and is not in doubt;
+// what a failed walk costs is the sentence about it. It is logged rather than
+// swallowed, because a worktree this cannot walk is a state someone will need
+// diagnosed later.
 test('a count that fails costs the notice, not the ticket (issue #108)', async () => {
 	const logError = spy(() => {});
 	const startTicketBranch = spy(async () => ({ ref: 'ticket/62281', baseOid: 'abc', ticketId: 62281 }));
@@ -2414,12 +2448,38 @@ test('a count that fails costs the notice, not the ticket (issue #108)', async (
 	});
 
 	const event = createIpcEvent();
-	const result = await main.invokeWith('sites:set-ticket', event, '/sites/wp', '62281');
+	const result = await main.invokeWith('sites:set-ticket', event, '/sites/wp', '62281', { carryTrunkWork: true });
 
 	assert.equal(result.ok, true);
 	assert.equal(result.branch, 'ticket/62281');
 	assert.equal(await carriedWork(event, 300), null, 'nothing countable, so nothing claimed');
 	assert.equal(logError.calls.length, 1, 'and it is in the log file a bug report carries');
+});
+
+// Before the choice is made the same failed walk means the opposite thing:
+// the handler cannot know whether there is anything to ask about, and
+// guessing "nothing" is how work gets moved in silence again (#234).
+test('a scan that fails before the ask refuses the link instead of guessing (issue #234)', async () => {
+	const startTicketBranch = spy(async () => ({ ref: 'ticket/62281', baseOid: 'abc', ticketId: 62281 }));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./ticket-branches': {
+				startTicketBranch,
+				countChangesAgainst: async () => { throw new Error('EACCES'); },
+				listTicketBranches: async () => [],
+				currentBranchName: async () => 'trunk'
+			}
+		}
+	});
+
+	const result = await main.invoke('sites:set-ticket', '/sites/wp', '62281');
+
+	assert.equal(result.ok, false);
+	assert.deepEqual(startTicketBranch.calls, [], 'no branch on a tree whose state is unknown');
+	assert.equal(settings.values.siteMeta['/sites/wp'].tracTicket, undefined);
 });
 
 test('sites:set-ticket switches back to a ticket the site already has, without re-branching', async () => {

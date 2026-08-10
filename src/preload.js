@@ -72,7 +72,7 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	setSiteLabel: (sitePath, label) => ipcRenderer.invoke('sites:set-label', sitePath, label)
 ,
-	setSiteTicket: (sitePath, ref) => ipcRenderer.invoke('sites:set-ticket', sitePath, ref)
+	setSiteTicket: (sitePath, ref, options) => ipcRenderer.invoke('sites:set-ticket', sitePath, ref, options)
 ,
 	// Ticket branches (#108): the tickets open in a site, and moving between them.
 	listBranches: (sitePath) => ipcRenderer.invoke('branches:list', sitePath)
