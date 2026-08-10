@@ -18,7 +18,10 @@
     "test": "node --test",
     "test:electron": "node scripts/run-tests-electron.cjs",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "docs:dev": "npm --prefix docs run dev",
+    "docs:build": "npm --prefix docs run build",
+    "docs:preview": "npm --prefix docs run preview"
   },
   "build": {
     "appId": "org.wordpress.contributor.toolkit",

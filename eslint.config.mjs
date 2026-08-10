@@ -29,6 +29,10 @@ export default [
 			'build/',
 			'dist/',
 			'node_modules/',
+			// VitePress build output and cache: generated code, same reasoning as
+			// src/renderer/index.js above.
+			'docs/.vitepress/dist/',
+			'docs/.vitepress/cache/',
 		],
 	},
 
@@ -73,6 +77,18 @@ export default [
 		},
 		rules: {
 			'react/react-in-jsx-scope': 'off',
+		},
+	},
+
+	{
+		// The docs site is a nested npm package (docs/package.json) with its own
+		// install. CI lints from the root, where `vitepress` was never installed, so
+		// import/no-unresolved fires on an import that resolves perfectly well at the
+		// only moment it runs — inside `npm run docs:build`. Everything else the rule
+		// protects still applies to this file.
+		files: [ 'docs/.vitepress/**/*.{js,mjs}' ],
+		rules: {
+			'import/no-unresolved': 'off',
 		},
 	},
 
