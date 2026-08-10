@@ -24,9 +24,9 @@ async function getStore() {
 				const Store = m.default || m;
 				store = new Store({
 					name: 'settings',
-					// `preferences` is app-wide rather than per-site: the editor a
-					// contributor uses is a fact about them, asked once, not a
-					// property of each checkout.
+					// `preferences` is app-wide rather than per-site: who the
+					// contributor is and where they are contributing from are facts
+					// about them, asked once, not properties of each checkout.
 					defaults: { sites: [], siteMeta: {}, preferences: {} }
 				});
 			});
