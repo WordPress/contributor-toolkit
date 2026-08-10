@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const {
 	changesNoteParts,
 	discardOutcome,
+	noteAfterDiscard,
 	modalDiscardDisabled,
 	discardBlocked,
 	DISCARD_CONFIRM_MESSAGE
@@ -120,6 +121,34 @@ test('discardOutcome always carries a message on failure', () => {
 		ok: false,
 		message: 'Failed to discard changes: Unknown error'
 	});
+});
+
+test('noteAfterDiscard keeps the note over work the discard did not take (#239)', () => {
+	// The case the recount exists for: on a ticket branch the parked WIP
+	// survives the reset, so the card must not go quiet over it.
+	assert.deepEqual(
+		noteAfterDiscard({ ok: true, dirty: true, changedCount: 2 }),
+		{ dirty: true, changedCount: 2 }
+	);
+	assert.deepEqual(
+		noteAfterDiscard({ ok: true, dirty: false, changedCount: 0 }),
+		{ dirty: false, changedCount: 0 }
+	);
+});
+
+test('noteAfterDiscard falls back to clean when the reply carries no recount (#239)', () => {
+	// What the old markTreeClean asserted unconditionally. A reply without a
+	// recount — the count itself failed — must not invent a dirty note; the
+	// next probe is what corrects it either way.
+	assert.deepEqual(noteAfterDiscard({ ok: true }), { dirty: false, changedCount: 0 });
+	assert.deepEqual(noteAfterDiscard({ ok: false, message: 'EACCES' }), { dirty: false, changedCount: 0 });
+	assert.deepEqual(noteAfterDiscard(undefined), { dirty: false, changedCount: 0 });
+	// A count that arrives unusable next to a true `dirty` still leaves the
+	// note honest — "you have changes", with no number (see changesNoteParts).
+	assert.deepEqual(
+		noteAfterDiscard({ ok: true, dirty: true, changedCount: undefined }),
+		{ dirty: true, changedCount: 0 }
+	);
 });
 
 test('modalDiscardDisabled frees the link only for a loaded diff with changes', () => {

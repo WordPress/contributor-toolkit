@@ -84,6 +84,29 @@ function discardOutcome(res) {
 }
 
 /**
+ * What the note shows in the frame straight after a discard, before any probe
+ * has walked the checkout again.
+ *
+ * The reply's own recount decides it (#239): a discard rewinds to the last
+ * park, and on a ticket branch the parked WIP is not the discard's to take —
+ * so "clean" is only true when the reply says so. A reply carrying no recount
+ * falls back to clean, which is what this asserted before the recount existed;
+ * the next probe corrects it either way.
+ *
+ * @param {*} outcome A `discardOutcome` result.
+ * @return {{dirty: boolean, changedCount: number}}
+ */
+function noteAfterDiscard(outcome) {
+	if (!outcome || !outcome.ok || typeof outcome.dirty !== 'boolean') {
+		return { dirty: false, changedCount: 0 };
+	}
+	return {
+		dirty: outcome.dirty,
+		changedCount: Number.isInteger(outcome.changedCount) ? outcome.changedCount : 0
+	};
+}
+
+/**
  * Whether the modal's discard link is inert: while the diff is loading there
  * is nothing to confirm against, with no changes there is nothing to lose,
  * and mid-discard a second click would race the first.
@@ -110,4 +133,4 @@ function discardBlocked({ isUpdating, installing, building, devServerActive, dis
 	return Boolean(isUpdating || installing || building || devServerActive || discarding);
 }
 
-module.exports = { changesNoteParts, discardOutcome, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE };
+module.exports = { changesNoteParts, discardOutcome, noteAfterDiscard, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE };
