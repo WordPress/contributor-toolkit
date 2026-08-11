@@ -65,8 +65,6 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	markSiteInitialized: (sitePath) => ipcRenderer.invoke('sites:mark-initialized', sitePath)
 ,
-	forgetSite: (sitePath) => ipcRenderer.invoke('sites:forget', sitePath)
-,
 	deleteSite: (sitePath) => ipcRenderer.invoke('sites:delete', sitePath)
 
 ,

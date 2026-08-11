@@ -3442,7 +3442,6 @@ const NO_DELEGATION = new Map([
 	['sites:getAll', 'electron-store read'],
 	['sites:set-skip-init', 'electron-store write'],
 	['sites:mark-initialized', 'electron-store write'],
-	['sites:forget', 'electron-store write'],
 	['sites:set-label', 'electron-store write'],
 	['dialog:choose-dir', 'opens the directory dialog'],
 	['dialog:choose-patch-file', 'opens the file-open dialog and reads the chosen file'],
