@@ -76,6 +76,21 @@ const shots = [
 		}
 	},
 	{
+		// The content column's width cap, which no other shot can show: at the
+		// default 1200px window the content area is ~856px, narrower than the
+		// 880px cap, so the cap has no effect and the image looks the same with
+		// or without it. This is the only shot that proves --wpct-content-max-width
+		// does anything, and the only one that would catch its removal.
+		slug: 'site-view-wide',
+		tier: 'fixture',
+		variant: 'seeded',
+		window: { width: 1600, height: 800 },
+		prepare: async (page) => {
+			await selectSite(page, 'my-first-patch');
+			await page.getByRole('button', { name: 'Submit changes' }).waitFor();
+		}
+	},
+	{
 		slug: 'site-menu',
 		tier: 'fixture',
 		variant: 'seeded',

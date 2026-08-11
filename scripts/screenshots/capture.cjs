@@ -36,6 +36,12 @@ const outDir = path.join(repoRoot, 'docs', 'public', 'screenshots');
 // Every image the same size, every run: a fixed window and DPR 1. Without the
 // scale-factor switch a retina display doubles the pixel size of half the
 // screenshots and the docs pages render them inconsistently.
+//
+// A shot can override the width with its own `window` — see `site-view-wide` in
+// shots.cjs. Layout that only appears past a breakpoint is invisible to a
+// harness with one window size, which is how the content column's width cap
+// went unphotographed: at 1200px the window is narrower than the cap, so every
+// image looked identical whether the cap was there or not.
 const WINDOW = { width: 1200, height: 800 };
 const ELECTRON_SWITCHES = ['--force-device-scale-factor=1'];
 
@@ -52,6 +58,13 @@ function parseArgs(argv) {
 	return args;
 }
 
+async function setWindow(app, bounds) {
+	await app.evaluate(({ BrowserWindow }, size) => {
+		const win = BrowserWindow.getAllWindows()[0];
+		win.setBounds({ x: 40, y: 40, ...size });
+	}, bounds);
+}
+
 async function launchApp(env) {
 	const app = await _electron.launch({
 		// From plain Node, require('electron') resolves to the binary's path —
@@ -61,10 +74,7 @@ async function launchApp(env) {
 		env: { ...process.env, ...env }
 	});
 	const page = await app.firstWindow();
-	await app.evaluate(({ BrowserWindow }, bounds) => {
-		const win = BrowserWindow.getAllWindows()[0];
-		win.setBounds({ x: 40, y: 40, ...bounds });
-	}, WINDOW);
+	await setWindow(app, WINDOW);
 	return { app, page };
 }
 
@@ -85,6 +95,11 @@ async function runFixtureTier(selected) {
 		const { app, page } = await launchApp({ TOOLKIT_USER_DATA_DIR: userDataDir });
 		try {
 			for (const shot of selected.filter((s) => s.variant === variant)) {
+				// Set unconditionally, not only when the shot asks for it: the
+				// previous shot may have widened the window, and a shot that
+				// silently inherits another's size is the bug this whole file
+				// exists to avoid.
+				await setWindow(app, shot.window || WINDOW);
 				// Fresh renderer per shot: open menus and modals from the
 				// previous shot cannot leak into this one.
 				await page.reload();
