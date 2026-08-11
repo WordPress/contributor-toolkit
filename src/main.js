@@ -1741,16 +1741,6 @@ ipcMain.handle('sites:mark-initialized', async (_e, sitePath) => {
 	return true;
 });
 
-ipcMain.handle('sites:forget', async (_e, sitePath) => {
-	const s = await getStore();
-	const sites = s.get('sites').filter((p) => p !== sitePath);
-	s.set('sites', sites);
-	const meta = s.get('siteMeta');
-	delete meta[sitePath];
-	s.set('siteMeta', meta);
-	return true;
-});
-
 // Only a path the app has on record gets removed from disk — see site-registry.js
 // for why. A refusal is logged rather than dropped so a future caller that trips
 // the guard shows up in the log file instead of just doing nothing.

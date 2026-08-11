@@ -28,16 +28,13 @@ The ☰ menu at the top right of the site view contains:
 - **Update to latest trunk** — fetches the latest `wordpress-develop` trunk and rebuilds. Also
   reachable from the staleness notice; on an already-fresh site it just prints "Already up to
   date." See [Staying up to date with trunk](./trunk-updates).
-- **Forget this site** — removes the site from the app's list. The directory and everything in
-  it stay on disk; you can add the folder back later.
 - **Delete this site** — removes the site from the list **and deletes its directory from disk**.
   This cannot be undone. The app will only ever delete a directory it has on record as a site —
   never an arbitrary path. It takes every ticket's work in the site with it; to throw away one
   ticket and keep the rest, use **Delete this ticket's work** on the tickets card instead — see
   [Working on several tickets](./ticket-branches#deleting-a-ticket-s-work).
 
-Both **Forget** and **Delete** ask for confirmation first. If you are unsure which you want:
-forget is reversible, delete is not.
+**Delete** asks for confirmation first.
 
 ## Updating with uncommitted changes
 

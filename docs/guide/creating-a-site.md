@@ -33,7 +33,7 @@ to look when a site never finishes.
 
 ## Where sites live on disk
 
-Each site is an ordinary folder on your disk: the parent folder you chose in **Site location**, plus a directory named after the site. Inside is a normal `wordpress-develop` checkout — you can open it in any editor or file manager. The app only records the path and some metadata; deleting a site from the app can also delete this folder (see [Managing sites](./managing-sites)).
+Each site is an ordinary folder on your disk: the parent folder you chose in **Site location**, plus a directory named after the site. Inside is a normal `wordpress-develop` checkout — you can open it in any editor or file manager. The app only records the path and some metadata; deleting a site from the app deletes this folder too (see [Managing sites](./managing-sites)).
 
 ## The site list
 

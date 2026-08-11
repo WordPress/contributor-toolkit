@@ -590,12 +590,6 @@ function App() {
     setSiteMeta((m) => ({ ...(m || {}), [sitePath]: { ...(m?.[sitePath] || {}), ...patch } }));
   }, [setSiteMeta]);
 
-  const onForget = useCallback(async (sitePath) => {
-    await window.api.forgetSite(sitePath);
-    await refresh();
-    removeSetupLog(sitePath);
-  }, [refresh, removeSetupLog]);
-
   const onDelete = useCallback(async (sitePath) => {
     await window.api.deleteSite(sitePath);
     await refresh();
@@ -840,7 +834,6 @@ function App() {
                       label={siteMeta?.[s]?.label}
                       onInitialized={onInitialized}
                       onSiteMetaPatch={onSiteMetaPatch}
-                      onForget={onForget}
                       onDelete={onDelete}
                       onRename={onRename}
                       editor={detectedApplications}
@@ -1033,7 +1026,7 @@ function TerminalCommandLink({ command, onPrefill, disabled }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onForget, onDelete, onRename, editor, wporg, isPending = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onDelete, onRename, editor, wporg, isPending = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null }) {
   // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
   // recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
@@ -3592,7 +3585,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               // notice is the primary entry point) — a fresh site just gets
               // "Already up to date." in the terminal.
               { title: 'Update to latest trunk', onClick: startTrunkUpdate },
-              { title:'Forget this site', onClick:()=>confirmAnd('Remove this site from the list?', ()=>onForget(sitePath)) },
               // Not while the clone is running: deleting the site would be
               // removing a directory the app is still writing into. The main
               // process refuses it either way (see site-registry.js) — that is
