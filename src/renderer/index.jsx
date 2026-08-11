@@ -20,7 +20,7 @@ import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check a
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
-import { computeSetupStepState } from './setup-steps.cjs';
+import { computeSetupStepState, setupStepLabel } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
 import { shouldShowTerminalHints, computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
@@ -3351,9 +3351,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     ? { background: '#e7f6e7', color: '#0f5132' }
     : { background: '#fff4ce', color: '#8a6d1c' };
 
+  // Colours and indicator per step status. The status *word* is not here — it
+  // lives in `setupStepLabel`, the one place that distinguishes a step that is
+  // merely next from one that is running (#257).
   const checklistVisuals = {
     complete: {
-      label: 'Completed',
       color: '#0f5132',
       background: '#f4fbf4',
       border: '#94d3ae',
@@ -3363,7 +3365,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       indicatorContent: '✓'
     },
     current: {
-      label: 'In progress',
       color: '#0b5d95',
       background: '#e8f3ff',
       border: '#66afe9',
@@ -3373,7 +3374,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       indicatorContent: '•'
     },
     pending: {
-      label: 'Pending',
       color: '#6c6f72',
       background: '#f8f9f9',
       border: '#dcdcde',
@@ -3383,7 +3383,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       indicatorContent: '•'
     },
     locked: {
-      label: 'Locked',
       color: '#6c6f72',
       background: '#f5f5f7',
       border: '#dcdcde',
@@ -3417,7 +3416,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       description: isPending
         ? 'Cloning the WordPress develop repository… the next step unlocks when it finishes.'
         : 'Clone the WordPress develop repository.',
-      ...stepState.download
+      ...stepState.download,
+      running: isPending
     },
     {
       key: 'install',
@@ -3428,6 +3428,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         ? 'Installed. Added a dependency to package.json since? Run npm install in the Terminal below.'
         : 'Install npm packages so commands can run.',
       ...stepState.install,
+      running: installing,
       action: (
         <Button
           isBusy={installing}
@@ -3444,6 +3445,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         ? 'Built. Edited files in src/ since? Run npm run build in the Terminal below so the site picks them up — updates and applied patches rebuild on their own.'
         : 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
       ...stepState.build,
+      running: building,
       action: (
         <Button
           isBusy={building}
@@ -3458,6 +3460,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       label: 'Start dev server & finish wizard',
       description: 'Launch the development server once to complete the WordPress setup wizard.',
       ...stepState.dev,
+      running: starting,
       action: (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Button
@@ -3798,7 +3801,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   </div>
                   <div style={{ gridColumn: '2 / 3', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, minWidth: 0, flexWrap: 'wrap' }}>
                     <div style={{ fontWeight: 600, color: '#1d2327', lineHeight: 1.4 }}>{step.label}</div>
-                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: visuals.color, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{visuals.label}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: visuals.color, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{setupStepLabel(step.status, step.running)}</div>
                   </div>
                   <div style={{ gridColumn: '2 / 3', fontSize: 12, color: '#3c434a', lineHeight: 1.5 }}>{step.description}</div>
                   <div style={{ gridRow: '1 / span 2', gridColumn: '3 / 4', alignSelf: 'center', display: 'flex', alignItems: 'center' }}>

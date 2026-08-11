@@ -56,4 +56,38 @@ function computeSetupStepState(flags = {}) {
 	};
 }
 
-module.exports = { computeSetupStepState };
+/**
+ * The status word shown on a checklist step.
+ *
+ * `current` is the step a contributor should act on next — but being next is
+ * not the same as being under way (#257). Its old label, "In progress", read as
+ * "the app is already doing this" on a step whose button had not been touched:
+ * on a fresh site *Install npm dependencies* announced itself as running while
+ * nothing was, so a contributor waited instead of clicking. The distinction the
+ * label was missing is `isRunning` — whether the step's own action (the clone,
+ * install, build or dev-server start) is actually in flight — which the caller
+ * already knows from the flags that drive the buttons. A current step reads
+ * "Ready" until that is true, and "In progress" only once it is.
+ *
+ * Kept here, pure and tested, rather than as a lookup in the component: it is a
+ * decision with branches, and those belong in a module by this project's own
+ * rule.
+ *
+ * @param {string}  status    One of complete|current|pending|locked.
+ * @param {boolean} isRunning The current step's action is under way.
+ * @return {string}
+ */
+function setupStepLabel(status, isRunning) {
+	switch (status) {
+		case 'complete':
+			return 'Completed';
+		case 'pending':
+			return 'Pending';
+		case 'locked':
+			return 'Locked';
+		default:
+			return isRunning ? 'In progress' : 'Ready';
+	}
+}
+
+module.exports = { computeSetupStepState, setupStepLabel };
