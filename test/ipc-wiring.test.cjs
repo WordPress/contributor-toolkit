@@ -1610,10 +1610,12 @@ test('playground:start spawns the server runner with the environment npm-runner 
 	const env = { PATH: '/shims' };
 	const buildChildEnv = spy(() => env);
 	const cp = stubbedSpawn();
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
 			...noSmtpServer(),
+			...settings.stubs,
 			'child_process': { spawn: cp.spawn },
 			'./npm-runner': { buildChildEnv }
 		}
@@ -1631,6 +1633,35 @@ test('playground:start spawns the server runner with the environment npm-runner 
 	assert.equal(buildChildEnv.calls[0][0].extraEnv.WP_MAIL_SMTP_HOST, '127.0.0.1');
 	assert.equal(buildChildEnv.calls[0][0].extraEnv.WP_MAIL_SMTP_PORT, '25');
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'playground:start');
+
+	// A site with no project type is Core: served as a docroot, the build/ dir
+	// mounted as WordPress (#251).
+	const serveConfig = JSON.parse(cp.spawned[0].args[1]);
+	assert.equal(serveConfig.strategy, 'docroot');
+	assert.equal(path.basename(serveConfig.docroot), 'build');
+});
+
+// A Gutenberg site is a plugin, not a WordPress: the runner is handed the
+// checkout to mount into a stock WordPress, not a docroot to serve (#251).
+test('playground:start serves a Gutenberg site as a mounted plugin', async (t) => {
+	const cp = stubbedSpawn();
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noSmtpServer(),
+			...settings.stubs,
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { buildChildEnv: () => ({ PATH: '/shims' }) }
+		}
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground:start', '/sites/gb'));
+
+	const serveConfig = JSON.parse(cp.spawned[0].args[1]);
+	assert.equal(serveConfig.strategy, 'plugin-mount');
+	assert.equal(serveConfig.pluginDir, '/sites/gb', 'the checkout root is the plugin, not its build/ subdir');
+	assert.equal(serveConfig.pluginSlug, 'gutenberg');
 });
 
 test('playground-web:start spawns its runner through npm-runner too', async (t) => {
@@ -1658,10 +1689,12 @@ test('playground-web:start spawns its runner through npm-runner too', async (t) 
 test('playground:stop ends the server tree rather than signalling the child', async (t) => {
 	const cp = stubbedSpawn();
 	const killChildTree = spy();
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
 			...noSmtpServer(),
+			...settings.stubs,
 			'child_process': { spawn: cp.spawn },
 			'./kill-tree': { killChildTree }
 		}

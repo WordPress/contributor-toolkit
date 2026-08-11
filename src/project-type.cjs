@@ -86,8 +86,9 @@ const PROJECT_TYPES = {
 		},
 
 		// 'plugin-mount' — Gutenberg is a plugin, so Playground boots a stock
-		// WordPress and mounts the built checkout as an active plugin.
-		serve: { strategy: 'plugin-mount' },
+		// WordPress and mounts the built checkout as an active plugin under
+		// wp-content/plugins/<pluginSlug>.
+		serve: { strategy: 'plugin-mount', pluginSlug: 'gutenberg' },
 
 		// 'repo-relative' — Gutenberg PR diffs are already repo-relative
 		// (packages/…); no src-layout rewrite.

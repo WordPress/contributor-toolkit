@@ -4,6 +4,7 @@ const { hideChildWindows } = require('./hide-child-windows');
 const { bindLoopbackOnly } = require('./bind-loopback');
 const { formatErrorChain } = require('./error-chain');
 const { WP_DEBUG_CONSTANTS } = require('./wp-debug-constants');
+const { planPlaygroundLaunch } = require('./playground-plan.cjs');
 
 // Must run before the Playground CLI is required, so anything it spawns is
 // covered too.
@@ -16,40 +17,44 @@ bindLoopbackOnly();
 const { writeFiles: playgroundWriteFiles } = require('@php-wasm/universal');
 
 async function main() {
-	const buildDir = process.argv[2];
-	if (!buildDir) {
-		console.error('No build directory provided');
+	// The parent passes a JSON serve config (#251): either the Core docroot to
+	// mount as WordPress, or a Gutenberg plugin checkout to mount into a stock
+	// WordPress. planPlaygroundLaunch turns the strategy into the runCLI mount /
+	// install-mode / blueprint-step options; the SMTP + debug constants are added
+	// here because they come from this process's environment.
+	const raw = process.argv[2];
+	if (!raw) {
+		console.error('No serve config provided');
 		process.exit(1);
 	}
-	const absBuild = path.resolve(buildDir);
+	let serveConfig;
+	try {
+		serveConfig = JSON.parse(raw);
+	} catch (e) {
+		console.error(`Invalid serve config: ${String(e && e.message ? e.message : e)}`);
+		process.exit(1);
+	}
 
 	try {
+		const launch = planPlaygroundLaunch(serveConfig);
 		const { runCLI } = require('@wp-playground/cli');
 		console.log("Running CLI");
 		const result = await runCLI({
 			command: 'server',
-			// Mount the build directory before install as /wordpress to use existing build
-			'mount-before-install': [ { hostPath: absBuild, vfsPath: '/wordpress' } ],
-			// The mounted build/ already is WordPress, so Playground must not go
-			// looking for one. Left unset this defaults to `download-and-install`:
-			// it fetches a WordPress release and unpacks it over the mount, failing
-			// on every file that is already there. That wasted pass is what makes
-			// startup take minutes on Windows.
-			//
-			// Only `download-and-install` downloads, so any other value skips it —
-			// but not all of them are safe here. `do-not-attempt-installing` (the
-			// mode Playground also calls `mount-only`) additionally skips setting up
-			// the SQLite integration plugin, and a wordpress-develop build/ carries
-			// no database driver of its own, so WordPress would boot with nothing to
-			// connect to. `install-from-existing-files-if-needed` skips the download
-			// and still prepares SQLite.
-			//
-			// Passed as `wordpressInstallMode` rather than the equivalent `mode`
-			// option because `mode` is only read on the Blueprint v2 code path, and
-			// the blueprint below is v1. Passing both is an error.
-			wordpressInstallMode: 'install-from-existing-files-if-needed',
+			// The mount layout and install mode that fit this site's project type.
+			// For Core, `mount-before-install` puts the build/ at /wordpress and
+			// `wordpressInstallMode: install-from-existing-files-if-needed` skips the
+			// download (a fresh unpack over the mount is what made startup take
+			// minutes on Windows; `do-not-attempt-installing` would skip SQLite too
+			// and leave WordPress with no database driver). For Gutenberg, `mount`
+			// puts the checkout under wp-content/plugins and the default install mode
+			// downloads a stock WordPress for it to run in.
+			...launch,
 			verbosity: 'debug',
 			blueprint: {
+				// Passed as a v1 blueprint (constants + steps). `wordpressInstallMode`
+				// above is used rather than the v2-only `mode`; passing both is an
+				// error.
 				constants: {
 					// Debug first, mail second. This is the only point at which
 					// constants can be set: Playground generates the wp-config.php

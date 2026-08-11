@@ -83,8 +83,9 @@ function loadRunner(runnerPath, extraArgv) {
 
 	const originalLoad = Module._load;
 	const originalArgv = process.argv;
-	// The runners read argv[2] (a build / mount directory) and exit(1) without
-	// one, which would end main() before it ever reaches the CLI require.
+	// The runners read argv[2] and exit(1) without one, which would end main()
+	// before it ever reaches the CLI require. For the web runner that argument is
+	// a directory; for server-runner it is a JSON serve config (#251).
 	process.argv = [process.execPath, runnerPath, ...extraArgv];
 
 	// Matched by request string, not resolved path: `@wp-playground/cli` and
@@ -134,7 +135,7 @@ function assertPatchesPrecedeCli(events, runner) {
 }
 
 test('server-runner patches loopback and hides child windows before loading the Playground CLI', () => {
-	const { events } = loadRunner(SERVER_RUNNER, ['/tmp/does-not-need-to-exist']);
+	const { events } = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'docroot', docroot: '/tmp/does-not-need-to-exist' })]);
 	assertPatchesPrecedeCli(events, 'server-runner');
 	assert.equal(realPackageLoaded(), false, 'server-runner loaded a real electron/Playground package instead of the stub');
 });
@@ -154,7 +155,7 @@ test('playground-web-runner patches loopback and hides child windows before load
 // for a file WordPress was never told to write, and the module exporting the
 // right constants would not have caught that on its own.
 test('server-runner passes the WordPress debug constants to Playground', () => {
-	const { cliOptions } = loadRunner(SERVER_RUNNER, ['/tmp/does-not-need-to-exist']);
+	const { cliOptions } = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'docroot', docroot: '/tmp/does-not-need-to-exist' })]);
 
 	assert.ok(cliOptions, 'runCLI was never called');
 	const constants = cliOptions.blueprint && cliOptions.blueprint.constants;
@@ -169,7 +170,7 @@ test('server-runner passes the WordPress debug constants to Playground', () => {
 // the mail ones out: this is how a site's outgoing mail reaches the app's SMTP
 // catcher, and losing it is silent — mail simply stops arriving.
 test('the SMTP constants survive alongside them', () => {
-	const { cliOptions } = loadRunner(SERVER_RUNNER, ['/tmp/does-not-need-to-exist']);
+	const { cliOptions } = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'docroot', docroot: '/tmp/does-not-need-to-exist' })]);
 	const constants = cliOptions.blueprint.constants;
 
 	assert.strictEqual(constants.WP_MAIL_SMTP_HOST, '127.0.0.1');
