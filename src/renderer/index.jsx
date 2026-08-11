@@ -4406,6 +4406,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
                     <span aria-hidden="true" style={{ color: '#8c8f94' }}>·</span>
                     <a href={adminUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminUrl(serverUrl)); }}>wp-admin</a>
+                    {running ? (
+                      <>
+                        <span aria-hidden="true" style={{ color: '#8c8f94' }}>·</span>
+                        <a href={adminerUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminerUrl(serverUrl)); }}>Adminer</a>
+                      </>
+                    ) : null}
                   </div>
                   <span style={{ fontSize: 12, color: '#3c434a' }}>Log in with <code>admin</code> / <code>password</code>.</span>
                 </>
