@@ -66,7 +66,7 @@ const SWITCH_PROGRESS_CHANNEL = 'switch:progress';
 // step of an operation, and describing it as progress would have the panel say
 // "Saving your work…" about trunk — which is the one thing this refuses to do.
 const CARRIED_WORK_CHANNEL = 'ticket:carried-work';
-const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
+const { workItemProvider } = require('./work-item.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
@@ -619,10 +619,16 @@ ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
             const s = await getStore();
             const meta = (s.get('siteMeta') || {})[sitePath] || {};
             const { wporgHandle: handle = null, contributionEvent: event = null } = s.get('preferences') || {};
+            // The work item is named the way this site's project names it
+            // (#251) — a Gutenberg patch must not cite a core.trac ticket that
+            // merely shares its number.
+            const wi = siteWorkItemProvider(meta);
             header = buildProvenanceHeader({
                 handle,
                 event,
                 ticketId: meta.tracTicket,
+                workItemLabel: wi.kind === 'trac' ? 'Ticket' : 'Issue',
+                workItemUrl: meta.tracTicket ? wi.urlFor(meta.tracTicket) : null,
                 // The base the patch was actually diffed against, which on a
                 // ticket branch is the trunk it was born at — not the site's
                 // current trunk, which "Update to latest trunk" may have moved
@@ -766,8 +772,11 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
     const s = await getStore();
     const meta = (s.get('siteMeta') || {})[sitePath] || {};
     const ticketId = meta.tracTicket;
+    // What the work item is called, and where its pull request goes, both follow
+    // the site's project (#251).
+    const projectType = projectTypeForSite(meta);
     if (!ticketId) {
-        return { ok: false, reason: 'no-ticket', error: 'Link a Trac ticket to this site first.', stage: 'auth' };
+        return { ok: false, reason: 'no-ticket', error: `Link a ${projectType.workItem.label} to this site first — a pull request has to cite one.`, stage: 'auth' };
     }
     const { wporgHandle: handle = null, contributionEvent = null } = s.get('preferences') || {};
 
@@ -778,9 +787,10 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
         return { ok: false, reason: 'error', error: String(e), stage: 'collect' };
     }
 
+    const provider = siteWorkItemProvider(meta);
     const title = typeof options.title === 'string' && options.title.trim()
         ? options.title.trim()
-        : `Ticket #${ticketId}`;
+        : `${provider.noun.charAt(0).toUpperCase()}${provider.noun.slice(1)} #${ticketId}`;
 
     const result = await openPullRequest({
         token: githubToken,
@@ -789,7 +799,14 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
         baseSha: collected.baseOid,
         files: collected.files,
         title,
-        body: buildPullRequestBody({ ticketId, handle, event: contributionEvent, notes: options.notes }),
+        project: { upstream: projectType.upstream, branchPrefix: projectType.pr.branchPrefix },
+        body: buildPullRequestBody({
+            ticketId,
+            handle,
+            event: contributionEvent,
+            notes: options.notes,
+            project: { bodyLine: projectType.pr.bodyLine, workItemUrl: provider.urlFor(ticketId) }
+        }),
         onProgress: (stage) => {
             if (!event.sender.isDestroyed()) event.sender.send('github:pr:progress', { sitePath, stage });
         }
@@ -1327,6 +1344,11 @@ const upstreamRepoPath = (meta) => {
     const up = projectTypeForSite(meta).upstream;
     return `${up.owner}/${up.repo}`;
 };
+
+// The work-item provider for a site — Trac tickets for Core, GitHub issues for
+// Gutenberg (#251). Defaults to Trac for a site with no project type.
+const siteWorkItemProvider = (meta) =>
+    workItemProvider(projectTypeForSite(meta).workItem.provider, upstreamRepoPath(meta));
 
 ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
     try {
@@ -1869,7 +1891,10 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 		return { ok: true, ticket: null, branch: TRUNK };
 	}
 
-	const parsed = parseTicketRef(raw);
+	// What counts as a work item follows the site's project (#251): a Trac ticket
+	// for Core, a GitHub issue for Gutenberg. Both parse to a number, so the
+	// `ticket/<id>` branch key and every reader of `tracTicket` are unchanged.
+	const parsed = siteWorkItemProvider(await readSiteMeta(sitePath)).parseRef(raw);
 	if (!parsed.ok) return { ok: false, error: parsed.error };
 
 	const blocked = await midSwitchBlock(sitePath);

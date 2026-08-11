@@ -54,7 +54,13 @@ const PROJECT_TYPES = {
 		// src/wp-includes layout (patch-plan.cjs mapToSrcLayout).
 		patch: { layout: 'src-layout' },
 
-		workItem: { provider: 'trac' },
+		workItem: {
+			provider: 'trac',
+			// What the panel calls it, and where a newcomer goes to find one.
+			label: 'Trac ticket',
+			browseUrl: 'https://core.trac.wordpress.org/tickets/good-first-bugs',
+			browseLabel: 'Browse good first bugs on Trac'
+		},
 
 		pr: {
 			branchPrefix: 'trac-',
@@ -94,7 +100,12 @@ const PROJECT_TYPES = {
 		// (packages/…); no src-layout rewrite.
 		patch: { layout: 'repo-relative' },
 
-		workItem: { provider: 'github-issue' },
+		workItem: {
+			provider: 'github-issue',
+			label: 'GitHub issue',
+			browseUrl: 'https://github.com/WordPress/gutenberg/issues?q=is%3Aissue+is%3Aopen+label%3A%22Good+First+Issue%22',
+			browseLabel: 'Browse good first issues on GitHub'
+		},
 
 		pr: {
 			branchPrefix: 'fix/issue-',

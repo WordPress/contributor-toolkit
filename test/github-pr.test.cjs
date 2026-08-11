@@ -687,3 +687,101 @@ test('openPullRequest refuses an empty change before it touches GitHub', async (
 	assert.strictEqual(res.reason, 'empty');
 	assert.deepStrictEqual(api.calls, []);
 });
+
+// --- per-project pull requests (#251) --------------------------------------
+
+test('branchNameFor uses the project’s prefix, and still de-duplicates', () => {
+	// Core, unchanged.
+	assert.strictEqual(branchNameFor(62281), 'trac-62281');
+	assert.strictEqual(branchNameFor(62281, 1), 'trac-62281-2');
+	// Gutenberg: the branch has to read correctly in the repository it lands in.
+	assert.strictEqual(branchNameFor(71234, 0, 'fix/issue-'), 'fix/issue-71234');
+	assert.strictEqual(branchNameFor(71234, 1, 'fix/issue-'), 'fix/issue-71234-2');
+});
+
+test('buildPullRequestBody cites the work item the project’s way', () => {
+	// Core, unchanged: the Trac URL, on its own line.
+	const core = buildPullRequestBody({ ticketId: 62281 });
+	assert.ok(core.includes('Trac ticket: https://core.trac.wordpress.org/ticket/62281'), core);
+
+	// Gutenberg: a closing keyword, so merging the PR closes the issue.
+	const gutenberg = buildPullRequestBody({
+		ticketId: 71234,
+		project: { bodyLine: (id) => `Fixes #${id}`, workItemUrl: 'https://github.com/WordPress/gutenberg/issues/71234' }
+	});
+	assert.ok(gutenberg.includes('Fixes #71234'), gutenberg);
+	assert.ok(!gutenberg.includes('core.trac.wordpress.org'), 'a Gutenberg PR must not cite Trac');
+	// The rest of the body is unchanged — it is not project-specific.
+	assert.ok(gutenberg.includes('Opened from the WordPress Contributor Toolkit.'));
+});
+
+test('buildPullRequestBody keeps the contributor’s notes above the citation', () => {
+	const body = buildPullRequestBody({
+		ticketId: 71234,
+		notes: 'What it does.',
+		project: { bodyLine: (id) => `Fixes #${id}` }
+	});
+	assert.ok(body.indexOf('What it does.') < body.indexOf('Fixes #71234'), body);
+});
+
+// The single highest-risk behaviour of the per-project flow: a Gutenberg run has
+// to fork, sync, branch and open against WordPress/gutenberg. Every helper reads
+// the project out of `deps`, so one that forgets would silently open a pull
+// request against wordpress-develop — a real PR, on the wrong project, from a
+// contributor who asked for neither. Pinned end to end rather than per helper.
+test('a Gutenberg project opens its pull request against WordPress/gutenberg', async () => {
+	const api = router({
+		'GET repos/janedoe/gutenberg': { status: 200, json: { fork: true, parent: { full_name: 'WordPress/gutenberg' } } },
+		'GET repos/janedoe/gutenberg/git/ref/heads/trunk': { status: 200, json: { object: { sha: 'abc123' } } },
+		'POST merge-upstream': { status: 200 },
+		'GET git/commits/abc123': { status: 200, json: { tree: { sha: 'basetree' } } },
+		'POST git/blobs': { status: 201, json: { sha: 'blob1' } },
+		'POST git/trees': { status: 201, json: { sha: 'tree1' } },
+		'POST git/commits': { status: 201, json: { sha: 'commit1' } },
+		'POST git/refs': { status: 201 },
+		'POST repos/WordPress/gutenberg/pulls': { status: 201, json: { html_url: 'https://github.com/WordPress/gutenberg/pull/1', number: 1 } }
+	});
+
+	const res = await openPullRequest({
+		token: TOKEN, login: LOGIN, ticketId: 71234, baseSha: 'abc123',
+		files: [{ path: 'packages/a/index.js', kind: 'modify', content: Buffer.from('x'), mode: '100644' }],
+		title: 't', body: 'b',
+		project: { upstream: { owner: 'WordPress', repo: 'gutenberg', base: 'trunk' }, branchPrefix: 'fix/issue-' }
+	}, api);
+
+	assert.strictEqual(res.ok, true, res.error);
+	assert.strictEqual(res.url, 'https://github.com/WordPress/gutenberg/pull/1');
+	// The branch reads correctly in the repository it landed in.
+	assert.strictEqual(res.branch, 'fix/issue-71234');
+	// And nothing in the whole sequence — fork, ref read, sync, tree, commit,
+	// branch, pull request — went near the other project.
+	assert.strictEqual(api.calls.some((c) => c.url.includes('wordpress-develop')), false, 'a Gutenberg run must not touch wordpress-develop');
+	// The fork it uses is the Gutenberg one, not a wordpress-develop fork.
+	assert.ok(api.calls.some((c) => c.url.includes('repos/janedoe/gutenberg')), 'the fork is the project’s own');
+});
+
+// The other side of the same coin: with no project, every call still goes to
+// wordpress-develop exactly as it always did.
+test('with no project the flow still targets wordpress-develop', async () => {
+	const api = router({
+		'GET repos/janedoe/wordpress-develop': { status: 200, json: { fork: true, parent: { full_name: 'WordPress/wordpress-develop' } } },
+		'GET repos/janedoe/wordpress-develop/git/ref/heads/trunk': { status: 200, json: { object: { sha: 'abc123' } } },
+		'POST merge-upstream': { status: 200 },
+		'GET git/commits/abc123': { status: 200, json: { tree: { sha: 'basetree' } } },
+		'POST git/blobs': { status: 201, json: { sha: 'blob1' } },
+		'POST git/trees': { status: 201, json: { sha: 'tree1' } },
+		'POST git/commits': { status: 201, json: { sha: 'commit1' } },
+		'POST git/refs': { status: 201 },
+		'POST repos/WordPress/wordpress-develop/pulls': { status: 201, json: { html_url: 'https://github.com/WordPress/wordpress-develop/pull/9', number: 9 } }
+	});
+
+	const res = await openPullRequest({
+		token: TOKEN, login: LOGIN, ticketId: 62281, baseSha: 'abc123',
+		files: [{ path: 'src/a.php', kind: 'modify', content: Buffer.from('x'), mode: '100644' }],
+		title: 't', body: 'b'
+	}, api);
+
+	assert.strictEqual(res.ok, true, res.error);
+	assert.strictEqual(res.branch, 'trac-62281');
+	assert.strictEqual(api.calls.some((c) => c.url.includes('gutenberg')), false);
+});

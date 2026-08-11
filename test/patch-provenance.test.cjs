@@ -168,3 +168,20 @@ test('handoffFilename: a handle that never passed validation does not reach the 
 	}
 	assert.strictEqual(handoffFilename(), 'wordpress.patch');
 });
+
+// A handed-off patch names its work item the way the project does (#251). The
+// header used to derive a Trac URL from the number alone, so a Gutenberg site's
+// patch cited a core.trac ticket that merely shared its issue number — the same
+// wrong-project confusion the app guards against elsewhere.
+test('the header cites the work item the caller names, not always Trac', () => {
+	const core = buildProvenanceHeader({ ticketId: 62281 });
+	assert.ok(core.includes('# Ticket: https://core.trac.wordpress.org/ticket/62281'), core);
+
+	const gutenberg = buildProvenanceHeader({
+		ticketId: 71234,
+		workItemLabel: 'Issue',
+		workItemUrl: 'https://github.com/WordPress/gutenberg/issues/71234'
+	});
+	assert.ok(gutenberg.includes('# Issue: https://github.com/WordPress/gutenberg/issues/71234'), gutenberg);
+	assert.ok(!gutenberg.includes('core.trac.wordpress.org'), 'a Gutenberg patch must not cite Trac');
+});

@@ -35,7 +35,7 @@ import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { prStateBadge } from './pr-state.cjs';
-import { ticketUrl, attachUrl } from './trac-ticket.cjs';
+import { workItemProvider } from '../work-item.cjs';
 import { adminUrl, adminerUrl } from './site-urls.cjs';
 import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
@@ -80,7 +80,6 @@ const PR_FAILURE_MESSAGES = {
   unauthorized: 'That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.',
   'rate-limited': 'GitHub is rate-limiting this connection. It usually clears within the hour.',
   offline: 'No connection to GitHub.',
-  'no-ticket': 'Link a Trac ticket to this site first — a pull request has to cite one.',
   empty: 'There are no changes to open a pull request with.'
 };
 // Per-status wording for the update chain card (#94), following the issue's
@@ -119,7 +118,6 @@ const TICKET_PATCH_STATUS_MESSAGE = {
   offline: 'Could not reach GitHub.',
   error: 'Could not read the pull requests from GitHub.'
 };
-const TRAC_TICKET_LISTS_URL = 'https://core.trac.wordpress.org/tickets/good-first-bugs';
 const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
 
 function formatEmailDate(email) {
@@ -1283,6 +1281,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const allowedScripts = projectBuildConfig.allowedScripts;
   // `owner/repo` this site's pull requests come from and go to.
   const upstreamRepoPath = `${projectConfig.upstream.owner}/${projectConfig.upstream.repo}`;
+  // The work item this site tracks — a Trac ticket for Core, a GitHub issue for
+  // Gutenberg (#251). `workItem.attachUrlFor` is null where the concept does not
+  // exist, which is what the attachments panel keys off.
+  const workItemConfig = projectConfig.workItem;
+  const workItem = workItemProvider(workItemConfig.provider, upstreamRepoPath);
+  const isTracWorkItem = workItem.kind === 'trac';
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
   // Trac ticket association (#109)
@@ -3297,7 +3301,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // an attach form with nothing to attach.
   const saveForTrac = async () => {
     const filePath = await savePatchFile();
-    if (filePath && tracTicket) window.api.openExternal(attachUrl(tracTicket));
+    if (filePath && tracTicket && workItem.attachUrlFor) window.api.openExternal(workItem.attachUrlFor(tracTicket));
   };
 
   const saveForHandoff = async () => {
@@ -3452,7 +3456,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 {prLinkCopied ? 'Link copied' : 'Copy the link'}
               </Button>
               {tracTicket ? (
-                <Button variant="primary" onClick={()=>window.api.openExternal(ticketUrl(tracTicket))} style={{ justifyContent:'center' }}>
+                <Button variant="primary" onClick={()=>window.api.openExternal(workItem.urlFor(tracTicket))} style={{ justifyContent:'center' }}>
                   Open #{tracTicket} to comment
                 </Button>
               ) : null}
@@ -3573,7 +3577,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             </>
           ) : (
             <div style={{ fontSize:12, color:'#6c6f72' }}>
-              No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.
+              No work item is linked to this site. A pull request has to cite one — link it in the {workItemConfig.label} card.
             </div>
           )}
           {prStage ? (
@@ -4218,7 +4222,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ) : null}
       {skipInit ? (
       <div {...cueProps('link-ticket')} style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Trac ticket</div>
+        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{workItemConfig.label}</div>
         {tracTicket ? (
           <>
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -4229,7 +4233,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: 999, fontSize: 18, fontWeight: 600, letterSpacing: '0.01em', background: '#f0f0f1', color: '#1d2327' }}>
                 #{tracTicket}
               </span>
-              <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
+              <Button variant="link" onClick={() => window.api.openExternal(workItem.urlFor(tracTicket))}>{isTracWorkItem ? 'Open in Trac' : 'Open on GitHub'}</Button>
               <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketActionsBlocked}>Unlink</Button>
             </div>
             {changesNote && changesNote.placement === 'ticket' ? (
@@ -4297,12 +4301,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               ) : null}
             </div>
 
-            {latestIsAttachment ? (
+            {latestIsAttachment && isTracWorkItem ? (
               <div style={{ marginTop: 12, padding: '8px 10px', background: '#e7f1ff', border: '1px solid #9ec5f0', borderRadius: 6, fontSize: 12, color: '#0b5d95' }}>
                 The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.
               </div>
             ) : null}
 
+            {/* Only Trac carries patch attachments (#251). A GitHub issue's work
+                arrives as a pull request, which the panel above already lists —
+                and offering "Show Trac attachments" on a Gutenberg site would
+                open a core.trac ticket that merely shares its number, then offer
+                its Core patch for apply into a Gutenberg checkout. */}
+            {isTracWorkItem ? (
             <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Trac attachments</div>
@@ -4369,11 +4379,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 </div>
               ) : null}
             </div>
+            ) : null}
           </>
         ) : (
           <>
             <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-              Tell the app which ticket you are working on. It is stored with the site, so it survives restarts, and you can change or remove it at any time.
+              Tell the app which work item you are on. It is stored with the site, so it survives restarts, and you can change or remove it at any time.
             </div>
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 260 }}>
@@ -4382,8 +4393,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   onChange={(value) => { setTicketInput(value); setTicketError(''); }}
                   onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
                   disabled={ticketActionsBlocked}
-                  placeholder="Ticket number or URL, e.g. 62281"
-                  aria-label="Trac ticket number or URL"
+                  placeholder={isTracWorkItem ? 'Ticket number or URL, e.g. 62281' : 'Issue number or URL, e.g. 71234'}
+                  aria-label={`${workItemConfig.label} number or URL`}
                 />
               </div>
               <Button
@@ -4412,8 +4423,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         {blockedPanel}
         {tracTicket ? null : (
           <div style={{ marginTop: 8 }}>
-            <Button variant="link" onClick={() => window.api.openExternal(TRAC_TICKET_LISTS_URL)} style={{ fontSize: 12 }}>
-              Not sure yet? Browse good first bugs on Trac
+            <Button variant="link" onClick={() => window.api.openExternal(workItemConfig.browseUrl)} style={{ fontSize: 12 }}>
+              Not sure yet? {workItemConfig.browseLabel}
             </Button>
           </div>
         )}
@@ -4932,6 +4943,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   </DestinationGroup>
 
                   <DestinationGroup>
+                    {/* Attaching a patch file to the work item is a Trac concept
+                        (#251). A GitHub issue takes no attachments — Gutenberg
+                        work arrives as a pull request, which the destination
+                        above already offers — so this is hidden rather than
+                        rendered with a button that saves the file and then
+                        silently has nowhere to send it. */}
+                    {isTracWorkItem ? (
                     <Destination
                       title="Attach to Trac"
                       cost="A WordPress.org account — needed anyway, for props and to comment."
@@ -4951,8 +4969,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                             onChange={(value) => { setTicketInput(value); setTicketError(''); }}
                             onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
                             disabled={ticketActionsBlocked}
-                            placeholder="Ticket number or URL, e.g. 62281"
-                            aria-label="Trac ticket number or URL"
+                            placeholder={isTracWorkItem ? 'Ticket number or URL, e.g. 62281' : 'Issue number or URL, e.g. 71234'}
+                            aria-label={`${workItemConfig.label} number or URL`}
                           />
                           <Button
                             variant="secondary"
@@ -4968,6 +4986,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         </>
                       )}
                     </Destination>
+                    ) : null}
 
                     <Destination
                       title="Hand it to a mentor"

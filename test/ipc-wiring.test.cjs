@@ -1780,6 +1780,29 @@ test('sites:set-ticket validates the reference through trac-ticket', async () =>
 	assert.deepEqual(result, { ok: false, error: 'not a ticket' });
 });
 
+// A Gutenberg site's work item is a GitHub issue, so the same handler has to
+// validate through the issue parser instead (#251) — otherwise pasting an issue
+// URL would be rejected as "not a core.trac.wordpress.org ticket".
+test('sites:set-ticket validates a Gutenberg site’s reference as a GitHub issue', async () => {
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const parseIssueRef = spy(() => ({ ok: false, error: 'not an issue' }));
+	const parseTicketRef = spy(() => ({ ok: true, id: 1 }));
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./renderer/github-issue.cjs': { parseIssueRef },
+			'./renderer/trac-ticket.cjs': { parseTicketRef }
+		}
+	});
+
+	const result = await main.invoke('sites:set-ticket', '/sites/gb', 'https://github.com/WordPress/gutenberg/issues/71234');
+
+	assert.equal(parseIssueRef.calls.length, 1, 'a Gutenberg site parses issues');
+	assert.deepEqual(parseTicketRef.calls, [], 'and must not fall through to the Trac parser');
+	assert.deepEqual(result, { ok: false, error: 'not an issue' });
+});
+
 test('sites:set-ticket refuses unregistered site paths before writing metadata', async () => {
 	const settings = fakeSettingsStore({ sites: ['/sites/wp'] });
 	const parseTicketRef = spy(() => ({ ok: true, id: 62281 }));
@@ -3545,10 +3568,59 @@ test('github:open-pr asks github-pr to open one, for the ticket this site is lin
 	// The ticket comes from the site's stored metadata, not from the caller: the
 	// renderer must not be able to file against a different one.
 	assert.equal(args.ticketId, 62281);
+	// Where the pull request goes follows the site's project (#251); a site with
+	// no type is Core's.
+	assert.deepEqual(args.project.upstream, { owner: 'WordPress', repo: 'wordpress-develop', base: 'trunk' });
+	assert.equal(args.project.branchPrefix, 'trac-');
 	// The notes are the caller's to supply — unlike the ticket, the handle and
 	// the event, which are read from stored state so the renderer cannot claim
 	// a different contributor or a different ticket than this site's.
-	assert.deepEqual(buildPullRequestBody.calls, [[{ ticketId: 62281, handle: 'janedoe', event: 'WordCamp Europe 2026', notes: 'What it does, and how to see it.' }]]);
+	const [bodyArgs] = buildPullRequestBody.calls[0];
+	assert.equal(bodyArgs.ticketId, 62281);
+	assert.equal(bodyArgs.handle, 'janedoe');
+	assert.equal(bodyArgs.event, 'WordCamp Europe 2026');
+	assert.equal(bodyArgs.notes, 'What it does, and how to see it.');
+	// And how it cites its work item, which is the project's own convention.
+	assert.equal(bodyArgs.project.bodyLine(62281, 'URL'), 'Trac ticket: URL');
+	assert.equal(bodyArgs.project.workItemUrl, 'https://core.trac.wordpress.org/ticket/62281');
+});
+
+// The same handler for a Gutenberg site: the project it hands github-pr decides
+// which repository the pull request is opened against, so this is what stops a
+// Gutenberg contribution landing on wordpress-develop.
+test('github:open-pr targets a Gutenberg site’s own project', async (t) => {
+	const dir = await fixtureRepo(t);
+	const auth = fakeGithubAuth({ login: 'janedoe' });
+	const openPullRequest = spy(async () => ({ ok: true, url: 'https://github.com/WordPress/gutenberg/pull/1', number: 1, branch: 'fix/issue-71234', exactBase: true }));
+	const buildPullRequestBody = spy(() => 'BODY');
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 71234, projectType: 'gutenberg' } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./github-auth.cjs': auth,
+			'./github-pr.cjs': { openPullRequest, buildPullRequestBody }
+		}
+	});
+
+	await main.invokeWith('github:sign-in', createIpcEvent());
+	await settle();
+	await settle();
+
+	await main.invoke('github:open-pr', dir, {});
+
+	const [args] = openPullRequest.calls[0];
+	assert.deepEqual(args.project.upstream, { owner: 'WordPress', repo: 'gutenberg', base: 'trunk' });
+	assert.equal(args.project.branchPrefix, 'fix/issue-');
+	// The default title uses the project's noun, not "Ticket".
+	assert.equal(args.title, 'Issue #71234');
+	// And the body closes the issue rather than citing a Trac URL.
+	const [bodyArgs] = buildPullRequestBody.calls[0];
+	assert.equal(bodyArgs.project.bodyLine(71234), 'Fixes #71234');
+	assert.equal(bodyArgs.project.workItemUrl, 'https://github.com/WordPress/gutenberg/issues/71234');
 	// The changed file the fixture leaves in the working tree, in the shape the
 	// tree API takes rather than as a diff.
 	assert.deepEqual(args.files.map((f) => [f.path, f.kind]), [['text.txt', 'modify']]);

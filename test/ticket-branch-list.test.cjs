@@ -151,12 +151,15 @@ test('card: the list renders once, in its own card between the ticket card and t
 	// name so that a comment naming the helper is not a red suite.
 	assert.strictEqual(source.split('renderBranchRows(').length - 1, 1, 'expected exactly one renderBranchRows( call: the single card that renders the list');
 
-	// Between the two cards it used to sit inside of and above.
-	const ticketCard = source.indexOf('>Trac ticket<');
+	// Between the two cards it used to sit inside of and above. The work-item
+	// card's heading is per project since #251 ("Trac ticket" / "GitHub issue"),
+	// so the anchor is the expression that renders it rather than one project's
+	// wording.
+	const ticketCard = source.indexOf('>{workItemConfig.label}<');
 	const listCard = source.indexOf('{ticketsCard.heading}');
 	const patchCard = source.indexOf('>Apply a patch or PR<');
 	assert.ok(ticketCard !== -1 && listCard !== -1 && patchCard !== -1, 'one of the three card headings is missing from index.jsx');
-	assert.ok(ticketCard < listCard && listCard < patchCard, 'the tickets card is not between the Trac ticket card and the patch card');
+	assert.ok(ticketCard < listCard && listCard < patchCard, 'the tickets card is not between the work-item card and the patch card');
 });
 
 // --- relativeTimeLabel ------------------------------------------------------

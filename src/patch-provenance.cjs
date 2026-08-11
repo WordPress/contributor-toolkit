@@ -124,15 +124,17 @@ function ticketNumber(ticketId) {
  * recorded.
  *
  * @param {Object}        details
- * @param {string}        [details.handle]      WordPress.org handle, already validated.
- * @param {string}        [details.event]       Where it was written — a WordCamp, a meetup.
+ * @param {string}        [details.handle]        WordPress.org handle, already validated.
+ * @param {string}        [details.event]         Where it was written — a WordCamp, a meetup.
  * @param {number|string} [details.ticketId]
+ * @param {string}        [details.workItemLabel] 'Ticket' (default) or 'Issue'.
+ * @param {string}        [details.workItemUrl]   Defaults to the Trac ticket URL.
  * @param {string}        [details.trunkOid]
- * @param {string}        [details.trunkDate]   ISO timestamp of the base commit.
- * @param {string}        [details.generatedAt] ISO timestamp for "now".
+ * @param {string}        [details.trunkDate]     ISO timestamp of the base commit.
+ * @param {string}        [details.generatedAt]   ISO timestamp for "now".
  * @return {string}
  */
-function buildProvenanceHeader({ handle, event, ticketId, trunkOid, trunkDate, generatedAt } = {}) {
+function buildProvenanceHeader({ handle, event, ticketId, workItemLabel, workItemUrl, trunkOid, trunkDate, generatedAt } = {}) {
 	const lines = [];
 
 	const contributor = field(handle);
@@ -145,8 +147,12 @@ function buildProvenanceHeader({ handle, event, ticketId, trunkOid, trunkDate, g
 	const where = field(event);
 	if (where) lines.push(`# Event: ${where}`);
 
+	// The work item, named the way its own project names it (#251): a Core patch
+	// cites a Trac ticket, a Gutenberg one its GitHub issue. `workItemUrl` is
+	// supplied by the caller, which knows the site's project; without it this
+	// falls back to Trac, which is what every existing caller meant.
 	const ticket = ticketNumber(ticketId);
-	if (ticket) lines.push(`# Ticket: ${ticketUrl(ticket)}`);
+	if (ticket) lines.push(`# ${workItemLabel || 'Ticket'}: ${workItemUrl || ticketUrl(ticket)}`);
 
 	const oid = field(trunkOid);
 	const based = day(trunkDate);
