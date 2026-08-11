@@ -139,4 +139,17 @@ test('the running site reads as one row of destinations (issue #249)', () => {
 		1,
 		'expected exactly one Adminer link beside the site URL'
 	);
+
+	// Placement is the whole point of #249, and the assertions above pin only the
+	// widget: an anchor rendered back inside the action-button row passes all of
+	// them. Anchoring it between the site page's wp-admin link and the
+	// credentials line puts it in the row it was moved into. lastIndexOf,
+	// because the wizard step has a wp-admin link of its own, earlier.
+	const wpAdmin = source.lastIndexOf('>wp-admin</a>');
+	const adminer = source.indexOf('>Adminer</a>');
+	const credentials = source.indexOf('Log in with <code>admin</code>');
+	assert.ok(
+		wpAdmin < adminer && adminer < credentials,
+		'expected the Adminer link on the links row, after wp-admin and above the credentials line'
+	);
 });
