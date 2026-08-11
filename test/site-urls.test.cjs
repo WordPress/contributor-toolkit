@@ -100,10 +100,15 @@ test('the renderer derives both destinations here, not inline (issue #248)', () 
 	// Counted as calls so a comment naming a helper is not a red suite. The href
 	// specifically, not the click handler: a link could otherwise open the right
 	// page while pointing somewhere else.
-	assert.strictEqual(
+assert.strictEqual(
 		source.split('href={adminUrl(').length - 1,
 		2,
 		'expected both wp-admin anchors to take their href from adminUrl'
+	);
+	assert.strictEqual(
+		source.split('e.preventDefault(); window.api.openExternal(adminUrl(').length - 1,
+		2,
+		'expected both wp-admin anchors to prevent in-app navigation and open adminUrl externally'
 	);
 
 	assert.strictEqual(
