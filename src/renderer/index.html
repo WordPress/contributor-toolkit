@@ -79,6 +79,43 @@
       white-space: nowrap;
       border: 0;
     }
+    /*
+      The confirmation toasts (#253). SnackbarList ships
+      `position: absolute; width: 100%` so it can anchor inside a sized editor
+      region; ours lives in a fixed, shrink-to-fit corner wrapper, where that
+      absolute list collapses to zero width and the toast never shows. Letting
+      it flow normally hands positioning back to the wrapper: the stack sits at
+      the wrapper's bottom-left and the newest notice lands nearest the corner.
+    */
+    .toolkit-snackbars.components-snackbar-list { position: static; width: auto; }
+    /* Right anchor: keep each toast flush to the right so a shorter one does not
+       drift left of a taller stack. */
+    .toolkit-snackbars .components-snackbar-list__notice-container { display: flex; justify-content: flex-end; }
+    /*
+      The default snackbar is a faint, translucent pill that is easy to miss —
+      too quiet for a confirmation that has to register (#253). This gives it
+      weight: a solid surface, a larger bolder line, a real shadow, and a
+      status-coloured left edge with a matching icon so "it worked" reads at a
+      glance and an error stands apart from a success.
+    */
+    .toolkit-snackbars .components-snackbar.toolkit-toast {
+      background: #1e1e1e;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 14px 20px;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32), 0 2px 6px rgba(0, 0, 0, 0.24);
+    }
+    /* Give the status icon room and centre it — its default -8px offset tucks it
+       behind the coloured edge we add below. */
+    .toolkit-snackbars .toolkit-toast .components-snackbar__content-with-icon { padding-left: 30px; }
+    .toolkit-snackbars .toolkit-toast .components-snackbar__icon { left: 0; top: 50%; transform: translateY(-50%); }
+    .toolkit-snackbars .toolkit-toast--success { border-left: 5px solid #00a32a; }
+    .toolkit-snackbars .toolkit-toast--success .components-snackbar__icon { color: #4ab866; }
+    .toolkit-snackbars .toolkit-toast--error { border-left: 5px solid #f86368; }
+    .toolkit-snackbars .toolkit-toast--error .components-snackbar__icon { color: #f86368; }
   </style>
   <link rel="stylesheet" href="index.css" />
   <script defer src="index.js"></script>

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Button,
@@ -12,6 +12,7 @@ import {
   MenuGroup,
   MenuItem,
   Modal,
+  SnackbarList,
   TextControl,
   TextareaControl,
   Spinner
@@ -40,6 +41,7 @@ import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
 import { changesNoteParts, discardOutcome, noteAfterDiscard, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
+import { initialConfirmations, confirmationReducer, prConfirmationMessage } from './confirmations.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // Shared by both log panes so the tabs cannot drift apart visually.
@@ -252,8 +254,28 @@ function useSites() {
   return { sites: state.sites, siteMeta: state.siteMeta, refresh, setSiteMeta, applySetup };
 }
 
+// The one way any panel confirms a completed action (#253). `confirm(message)`
+// queues a transient, screen-reader-announced notice; the provider below renders
+// the queue once for the window. The default is a no-op so a component rendered
+// outside the provider (a test, say) does not throw on a stray confirm.
+const ConfirmationContext = createContext(() => {});
+
+function useConfirmation() {
+  return useContext(ConfirmationContext);
+}
+
 function App() {
   const { sites, siteMeta, refresh, setSiteMeta, applySetup } = useSites();
+  // The confirmation queue for the whole window. It lives here, above every
+  // SiteRow, because only one row is visible at a time and a per-row toast would
+  // be hidden along with its inactive row. See ConfirmationContext above.
+  const [confirmations, dispatchConfirmation] = useReducer(confirmationReducer, initialConfirmations);
+  const confirm = useCallback((content, options = {}) => {
+    dispatchConfirmation({ type: 'add', content, tone: options.tone });
+  }, []);
+  const removeConfirmation = useCallback((id) => {
+    dispatchConfirmation({ type: 'remove', id });
+  }, []);
   // One answer for the window, shared by every site row: which applications this
   // machine has is a fact about the machine, not about a site.
   const detectedApplications = useDetectedEditors();
@@ -664,6 +686,7 @@ function App() {
   }, []);
 
   return (
+    <ConfirmationContext.Provider value={confirm}>
     <div style={{ display: 'flex', height: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>
       <div style={{ width: sidebarCollapsed ? 56 : 280, background: '#1f1f1f', color: '#f7f7f7', display: 'flex', flexDirection: 'column', transition: 'width 0.2s ease', borderRight: '1px solid #2b2b2b' }}>
         <div style={{ padding: sidebarCollapsed ? '12px 8px' : '16px', borderBottom: '1px solid #2b2b2b' }}>
@@ -949,6 +972,31 @@ function App() {
         </Modal>
       ) : null}
     </div>
+    {/* One toast region for the window (#253). Anchored top-right and sized to
+        its content so it never covers the rest of the UI; SnackbarList announces
+        each message via aria-live. The z-index clears the modal overlay
+        (components-modal__screen-overlay is 100000, and a modal is a later body
+        portal that would otherwise win the tie) so a confirmation for an action
+        taken inside a modal — saving a patch, opening a PR — is still seen. It
+        stays below popovers/dropdowns (1000000), which should sit over it. */}
+    <div style={{ position: 'fixed', right: 24, top: 24, zIndex: 100001, pointerEvents: 'none' }}>
+      <SnackbarList
+        className="toolkit-snackbars"
+        // The icon and the tone class are added here, at render, rather than in
+        // the reducer — an icon is a React element and the tone class is styling,
+        // neither of which belongs in the DOM-free confirmations module.
+        notices={confirmations.notices.map((n) => ({
+          ...n,
+          // Wrapped in <Icon> so it renders at a set size with the tone colour;
+          // Snackbar drops the raw icon element straight into the DOM, where the
+          // bare @wordpress/icons export has no dimensions of its own.
+          icon: n.tone === 'error' ? undefined : <Icon icon={checkIcon} size={20} />,
+          className: n.tone === 'error' ? 'toolkit-toast toolkit-toast--error' : 'toolkit-toast toolkit-toast--success'
+        }))}
+        onRemove={removeConfirmation}
+      />
+    </div>
+    </ConfirmationContext.Provider>
   );
 }
 
@@ -1056,6 +1104,10 @@ function TerminalCommandLink({ command, onPrefill, disabled }) {
 }
 
 function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onDelete, onRename, editor, wporg, isPending = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null }) {
+  // The window's confirmation queue (#253): confirm(message) after an action
+  // completes, so the outcome is announced rather than left silent or buried in
+  // the terminal.
+  const confirm = useConfirmation();
   // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
   // recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
@@ -2416,6 +2468,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             try { await window.api.markUpdateComplete(sitePath); } catch {}
             const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
             setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
+            confirm('Updated to the latest trunk');
             finishUpdate('\nUpdate complete — this site is now on the latest trunk.\n');
           } else {
             finishUpdate('\nUpdate incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.\n');
@@ -2497,6 +2550,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       runScript('build', {
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
+          // Only now is the apply genuinely done — the patch is on disk and the
+          // site is rebuilt around it, so "open the site to try it out" is true
+          // (#253). A failed build leaves stale assets and its own banner, so it
+          // gets no success confirmation.
+          if (code === 0) confirm(`${verb} the patch`);
           finishApply(code === 0
             ? `\n${verb} — open the site to try it out.\n`
             : `\nThe patch is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.\n`);
@@ -2721,6 +2779,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           return;
         }
         setApplyPreview(null);
+        // The confirmation waits until the rebuild finishes (see runBuildStep) —
+        // the patch is on disk now, but the site is not usable until it is built
+        // around it, so announcing "applied" here would be premature.
         runApplyInstallAndBuild(needsInstall, reverse ? 'Reverted' : 'Applied');
       }
     ).catch((e) => {
@@ -2746,9 +2807,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     updateStartRef.current = Date.now();
     setUpdateState('fetching');
     window.api.updateTrunk(sitePath, ({ data }) => writeToTerminal(data), (res) => {
-      if (!res || !res.ok || res.upToDate) {
-        // The main process already wrote the failure or "Already up to
-        // date." message to the stream.
+      if (!res || !res.ok) {
+        // The main process already wrote the failure message to the stream.
+        finishUpdate();
+        return;
+      }
+      if (res.upToDate) {
+        // Nothing to fetch — but "Already up to date." only reaching the
+        // terminal left the contributor unsure the check had even run (#253).
+        // The confirmation says so where it will be seen; there is no install
+        // or build to follow.
+        confirm('Already up to date with trunk');
         finishUpdate();
         return;
       }
@@ -2794,6 +2863,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       applyDiscardToNote(discardOutcome(d));
       setDirtyModalOpen(false);
       writeToTerminal(`\nSaved your changes to ${res.filePath} and reset the working tree.\n`);
+      // This ran as the contributor closed the modal; the confirmation is the
+      // only trace of it outside the terminal (#253).
+      confirm(`Saved your changes to ${pathBasename(res.filePath)} and reset the working tree`);
       beginTrunkUpdate();
     } finally {
       setDirtySaving(false);
@@ -2958,6 +3030,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       const res = await window.api.savePatch(sitePath, options);
       if (res && res.ok && res.filePath) {
         setPatchSaved(res.filePath);
+        // The green line below is the record of where it went; this is the
+        // announcement, for a contributor who saved from a menu and is no
+        // longer looking at the pane (#253).
+        confirm(`Patch saved to ${pathBasename(res.filePath)}`);
         return res.filePath;
       }
       if (res && res.canceled) return null;
@@ -3058,6 +3134,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       const res = await window.api.openPullRequest(sitePath, { title: prTitle, notes: prNotes });
       if (res && res.ok) {
         setPrResult(res);
+        // The result panel below carries the link; this announces the outcome
+        // for a contributor who looked away during the slow fork step (#253).
+        confirm(prConfirmationMessage(res));
       } else {
         setPrError(res || { reason: 'error', error: 'The pull request could not be opened.' });
         // A revoked authorization is forgotten in the main process, so the card
