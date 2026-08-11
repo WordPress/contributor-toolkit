@@ -33,6 +33,7 @@ import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './
 import { parsePrRef } from '../patch-sources.cjs';
 import { prStateBadge } from './pr-state.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
+import { adminUrl, adminerUrl } from './site-urls.cjs';
 import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
@@ -3440,7 +3441,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             <span style={{ fontSize: 12 }}>
               {starting ? `Starting… (${formatElapsed(startElapsed)})` : null}
               {!starting && serverUrl ? (
-                <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
+                <>
+                  <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
+                  <span aria-hidden="true"> · </span>
+                  <a href={adminUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminUrl(serverUrl)); }}>wp-admin</a>
+                </>
               ) : null}
             </span>
           ) : null}
@@ -3773,8 +3778,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <Button
                 variant="secondary"
                 onClick={() => {
-                  const adminer = (serverUrl || '').replace(/\/$/, '/') + 'adminer.php';
-                  window.api.openExternal(adminer);
+                  window.api.openExternal(adminerUrl(serverUrl));
                 }}
                 style={{ padding: '10px 16px', borderRadius: 10 }}
               >Open Adminer</Button>
@@ -3789,7 +3793,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
               {serverUrl ? (
                 <>
-                  <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
+                    <span aria-hidden="true" style={{ color: '#8c8f94' }}>·</span>
+                    <a href={adminUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminUrl(serverUrl)); }}>wp-admin</a>
+                  </div>
                   <span style={{ fontSize: 12, color: '#3c434a' }}>Log in with <code>admin</code> / <code>password</code>.</span>
                 </>
               ) : (
