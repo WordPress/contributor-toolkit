@@ -66,6 +66,19 @@
       border-radius: 10px;
       box-shadow: 0 0 0 3px rgba(240, 184, 73, 0.45), 0 0 14px 3px rgba(240, 184, 73, 0.30);
     }
+    /* Visually hidden but read aloud — the spoken half of the next-action cue
+       (#252), for the live region that names the next step. */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
   </style>
   <link rel="stylesheet" href="index.css" />
   <script defer src="index.js"></script>
