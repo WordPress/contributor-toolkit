@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { computeSetupStepState } = require('../src/renderer/setup-steps.cjs');
+const { computeSetupStepState, setupStepLabel } = require('../src/renderer/setup-steps.cjs');
 
 test('while the clone is still running, the install step is locked (issue #47)', () => {
 	const steps = computeSetupStepState({ isPending: true });
@@ -107,4 +107,22 @@ test('a finished update releases the checklist again', () => {
 	assert.strictEqual(steps.install.disabled, true, 'nothing left to install');
 	assert.strictEqual(steps.build.disabled, true, 'nothing left to build');
 	assert.strictEqual(steps.dev.disabled, false);
+});
+
+test('the current step reads "Ready" until its action starts (#257)', () => {
+	// The exact case from the report: a fresh site, install is the next step,
+	// nothing is running. It must not claim to be under way.
+	assert.strictEqual(setupStepLabel('current', false), 'Ready');
+});
+
+test('the current step reads "In progress" once its action is running (#257)', () => {
+	assert.strictEqual(setupStepLabel('current', true), 'In progress');
+});
+
+test('the other statuses keep their fixed labels regardless of the running flag', () => {
+	for (const running of [true, false]) {
+		assert.strictEqual(setupStepLabel('complete', running), 'Completed');
+		assert.strictEqual(setupStepLabel('pending', running), 'Pending');
+		assert.strictEqual(setupStepLabel('locked', running), 'Locked');
+	}
 });
