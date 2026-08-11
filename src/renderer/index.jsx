@@ -3515,6 +3515,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     skipInit,
     currentSetupStep,
     isApplying,
+    applyPreview: Boolean(applyPreview),
     updateIncomplete,
     isUpdating,
     stale: age.stale,
@@ -4123,7 +4124,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           ) : null}
 
           {applyPreview && !isApplying ? (
-            <div style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
+            <div {...cueProps('apply-preview')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
               <div style={{ fontSize: 13, color: '#1d2327' }}>
                 <strong>{applyPreview.label}</strong> changes {applyPreview.paths.length} file{applyPreview.paths.length === 1 ? '' : 's'}:
               </div>
