@@ -45,6 +45,13 @@ const REPO = 'WordPress/wordpress-develop';
 const MAX_COMMIT_LOOKUPS = 4;
 
 /**
+ * How far ahead of now a commit date may sit before it is treated as a wrong
+ * clock rather than a fresh commit. Machines drift by minutes; a commit dated
+ * next month is not a fix anyone can apply.
+ */
+const CLOCK_SKEW_TOLERANCE_MS = 10 * 60 * 1000;
+
+/**
  * The date of a pull request's most recent commit, or null when it cannot be
  * read (issue #281).
  *
@@ -86,13 +93,18 @@ async function fetchPrCommitDate(number, get, spent) {
 	if (!first.ok) return first;
 
 	// Only the last page can hold the newest commit, so a paginated pull request
-	// costs a second request and not a walk through the middle.
+	// costs a second request and not a walk through the middle. That second one
+	// is checked against the cap here rather than only at the top of the walk:
+	// the cap counts requests, and a guard that admits a row and then spends two
+	// makes the real ceiling one higher than the number it is written as.
 	const lastPage = lastPageNumber(first.headers.link);
 	let commits = first.commits;
 	if (lastPage > 1) {
+		// Refusing is the honest outcome, not falling back to the first page: its
+		// newest commit is the oldest part of this pull request, so using it would
+		// be a confident wrong answer rather than a missing one.
+		if (spent.count >= MAX_COMMIT_LOOKUPS) return { ok: false, status: 'capped' };
 		const rest = await page(`${base}&page=${lastPage}`);
-		// A failure here leaves the first page's commits in hand: older than the
-		// truth, and using them would be a confident wrong answer.
 		if (!rest.ok) return rest;
 		commits = rest.commits;
 	}
@@ -163,27 +175,34 @@ async function resolveCommitDates(prs, get, known) {
 	let bestMs = -Infinity;
 	let complete = true;
 
-	// A commit dated ahead of now is a contributor's clock, not a fresher fix.
-	// It has to be discarded rather than merely ignored for the pill: as
+	// A commit dated well ahead of now is a contributor's clock, not a fresher
+	// fix. It has to be discarded rather than merely ignored for the pill: as
 	// `bestMs` it would clear every remaining bound at once, ending the walk and
 	// reporting the whole ranking complete on the strength of the one date that
-	// is wrong.
-	const nowMs = Date.now();
+	// is wrong. The tolerance is for the ordinary case of a machine a few
+	// minutes out — a just-pushed commit is the freshest thing on the ticket and
+	// should not be thrown away over a clock, which is the failure this guard
+	// could otherwise cause instead of prevent.
+	const horizonMs = Date.now() + CLOCK_SKEW_TOLERANCE_MS;
 	const usable = (date) => {
 		const ms = date ? Date.parse(date) : NaN;
-		return Number.isFinite(ms) && ms <= nowMs ? ms : NaN;
+		return Number.isFinite(ms) && ms <= horizonMs ? ms : NaN;
 	};
 
 	// Cached dates are free, so they are applied to every row before the walk
 	// starts rather than only to the rows it reaches — a date the walk would
-	// have stopped short of is still a date the row can show.
+	// have stopped short of is still a date the row can show. A cached date gets
+	// the same horizon check as a fetched one: a clock corrected backwards since
+	// it was written would otherwise leave a future date on the row, winning the
+	// pill and never being re-read, because a dated row is one the walk skips.
 	for (const pr of prs) {
 		const cached = known instanceof Map ? known.get(pr.number) : null;
 		if (!cached || !cached.commitDate || !cached.updatedAt) continue;
 		if (cached.updatedAt !== pr.updatedAt) continue;
-		pr.commitDate = cached.commitDate;
 		const cachedMs = usable(cached.commitDate);
-		if (Number.isFinite(cachedMs) && cachedMs > bestMs) bestMs = cachedMs;
+		if (!Number.isFinite(cachedMs)) continue;
+		pr.commitDate = cached.commitDate;
+		if (cachedMs > bestMs) bestMs = cachedMs;
 	}
 
 	for (const pr of prs) {

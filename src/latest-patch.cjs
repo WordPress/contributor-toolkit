@@ -26,10 +26,10 @@
  * github-prs.js, and an unresolved one does not compete at all — falling back
  * to `updatedAt` would be falling back to the bug.
  *
- * Which leaves two cases where the honest answer is no pill rather than a
- * guess, both handled in pickLatest: a ranking that could not be completed, and
- * a margin too small to mean anything. The dates stay on every row either way,
- * so the contributor can still read them.
+ * Which leaves the cases where the honest answer is no pill rather than a
+ * guess, all handled in pickLatest by the same comparison: a row that has not
+ * been ruled out, and a margin too small to mean anything. The dates stay on
+ * every row either way, so the contributor can still read them.
  */
 
 /**
@@ -97,11 +97,24 @@ function prDateMs(pr) {
  * sends a contributor into an apply that cannot succeed, which costs far more
  * than the pill was ever worth.
  *
- * A PR list is treated as incomplete whenever any PR lacks a resolved commit
- * date, whatever `prRankComplete` says. That covers a caller that does not pass
- * the flag and a list restored from a cache written before commit dates
- * existed: an undated PR is not old, it is unknown, and an unknown row could be
- * the real winner.
+ * An undated PR does not disqualify the answer; it competes as an upper bound.
+ * That single rule replaces what used to be a special case, and it is worth
+ * spelling out because getting it wrong cost this feature its pill on the
+ * ordinary ticket:
+ *
+ * - A PR the walk *ruled out* is undated on purpose — the walk stopped early
+ *   precisely because its `updatedAt` was already below a resolved date. Its
+ *   bound therefore sits far below the winner, and the pill shows. Treating it
+ *   as "unknown, so no answer" threw away the pill in exactly the cheap,
+ *   one-lookup case the walk exists to produce.
+ * - A PR the walk never *reached* — the cap, a failed lookup, a cache written
+ *   before commit dates existed — carries the stamp that has not been ruled
+ *   out, which in a force-push sweep sits at or above the winner. The near-tie
+ *   check then suppresses the pill on its own.
+ *
+ * So both cases fall out of the same comparison, with no flag distinguishing
+ * them. A PR with neither a date nor a usable stamp is unbounded, and takes the
+ * answer with it.
  *
  * @param {Object}  root0
  * @param {Array}   [root0.prs]
@@ -121,15 +134,21 @@ function pickLatest({ prs, attachments, prRankComplete } = {}) {
 		}
 		runnerUpMs = Math.max(runnerUpMs, whenMs);
 	};
+	// A bound can only ever argue that the answer is too close to call. It never
+	// becomes the answer: `updatedAt` is not a date this app is willing to put a
+	// pill on, which is the whole of #281.
+	const considerBound = (whenMs) => {
+		runnerUpMs = Number.isFinite(whenMs) ? Math.max(runnerUpMs, whenMs) : Infinity;
+	};
 
-	const prList = Array.isArray(prs) ? prs : [];
-	let ranked = prRankComplete !== false;
-	for (const pr of prList) {
+	for (const pr of Array.isArray(prs) ? prs : []) {
 		const whenMs = prDateMs(pr);
-		if (!Number.isFinite(whenMs)) ranked = false;
-		consider('pr', pr.number, whenMs);
+		if (Number.isFinite(whenMs)) consider('pr', pr.number, whenMs);
+		else considerBound(pr && pr.updatedAt ? Date.parse(pr.updatedAt) : NaN);
 	}
-	if (!ranked) return null;
+	// A walk that broke on a failed lookup may not have left a usable bound on
+	// the row it died at, so the flag still gets the last word.
+	if (prRankComplete === false) return null;
 
 	for (const att of Array.isArray(attachments) ? attachments : []) {
 		if (!att.applyable) continue;

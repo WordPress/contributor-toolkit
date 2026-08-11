@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { EventEmitter } = require('node:events');
 const { httpGet, fetchLinkedPrs, MAX_COMMIT_LOOKUPS } = require('../src/github-prs');
+const { pickLatest } = require('../src/latest-patch.cjs');
 
 // A stand-in for Electron's `net`: request() hands back an EventEmitter whose
 // end() lets the test drive the response (or an error) the way the real client
@@ -256,6 +257,81 @@ test('fetchLinkedPrs discards a commit dated in the future rather than crowning 
 	const byNumber = Object.fromEntries(res.items.map((p) => [p.number, p.commitDate]));
 	assert.strictEqual(byNumber[1], null, 'a date ahead of now is not a date');
 	assert.strictEqual(byNumber[2], '2026-04-12T11:30:00Z');
+});
+
+// --- the seam: what the walk produces, fed to what decides the pill ---------
+//
+// Both halves were green in isolation while the feature was broken between
+// them: the walk correctly reported a complete ranking with rows left undated,
+// and pickLatest correctly refused to rank a list with undated rows. Nothing
+// drove one into the other, so the headline behaviour — a pill on the ticket
+// this issue is about — was the one thing untested. These run the real modules
+// end to end, no doubles beyond the network.
+
+test('the pill lands on the winner of a one-lookup ticket (issue #281)', async () => {
+	// The cheap path the bound exists to produce: PR 8455 is fetched, its commit
+	// date is already past PR 7382's stamp, so 7382 is never fetched and stays
+	// undated. That must not cost the ticket its pill.
+	const gh = ghDouble(
+		[searchItem(8455, '2026-07-20T00:00:00Z'), searchItem(7382, '2024-11-19T00:00:00Z')],
+		{ 8455: ['2026-07-19T00:00:00Z'] }
+	);
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet });
+	assert.strictEqual(gh.commitCalls().length, 1);
+
+	const latest = pickLatest({ prs: res.items, prRankComplete: res.rankComplete });
+	assert.deepStrictEqual({ kind: latest.kind, key: latest.key }, { kind: 'pr', key: 8455 });
+});
+
+test('the pill is withheld when the sweep left the ranking unfinished (issue #281)', async () => {
+	// #62064's shape widened past the cap: every stamp identical, so no row can
+	// be ruled out and the rows past the cap are genuinely unknown.
+	const stamp = '2026-07-06T03:10:00Z';
+	const numbers = [1, 2, 3, 4, 5, 6];
+	const commits = {};
+	for (const n of numbers) commits[n] = [`2026-0${n}-01T00:00:00Z`];
+	const gh = ghDouble(numbers.map((n) => searchItem(n, stamp)), commits);
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet });
+
+	assert.strictEqual(res.rankComplete, false);
+	assert.strictEqual(pickLatest({ prs: res.items, prRankComplete: res.rankComplete }), null);
+});
+
+test('the pill survives a Refresh that could not reach GitHub at all (issue #281)', async () => {
+	// The spent-quota Refresh: the search answers from cache-backed reuse, every
+	// commit lookup would fail, and the contributor keeps the pill they had.
+	const known = [
+		{ number: 8455, updatedAt: '2026-07-20T00:00:00Z', commitDate: '2026-07-19T00:00:00Z' },
+		{ number: 7382, updatedAt: '2024-11-19T00:00:00Z', commitDate: '2024-11-19T00:00:00Z' }
+	];
+	const gh = ghDouble(
+		[searchItem(8455, '2026-07-20T00:00:00Z'), searchItem(7382, '2024-11-19T00:00:00Z')],
+		{ 8455: () => { throw new Error('quota'); }, 7382: () => { throw new Error('quota'); } }
+	);
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet, known });
+	const latest = pickLatest({ prs: res.items, prRankComplete: res.rankComplete });
+	assert.deepStrictEqual({ kind: latest.kind, key: latest.key }, { kind: 'pr', key: 8455 });
+});
+
+test('a paginated PR cannot push the walk past the request cap (issue #281)', async () => {
+	// Every row paginated and every stamp identical: without the cap check on
+	// the second page, four admitted rows would spend eight requests.
+	const stamp = '2026-07-06T03:10:00Z';
+	const numbers = [1, 2, 3, 4, 5, 6];
+	const commits = {};
+	for (const n of numbers) {
+		commits[n] = (url) => (url.includes('page=2')
+			? { status: 200, headers: {}, body: JSON.stringify([{ commit: { committer: { date: `2026-0${n}-01T00:00:00Z` } } }]) }
+			: {
+				status: 200,
+				headers: { link: `<https://api.github.com/repos/WordPress/wordpress-develop/pulls/${n}/commits?per_page=100&page=2>; rel="last"` },
+				body: JSON.stringify([{ commit: { committer: { date: '2020-01-01T00:00:00Z' } } }])
+			});
+	}
+	const gh = ghDouble(numbers.map((n) => searchItem(n, stamp)), commits);
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet });
+	assert.strictEqual(gh.commitCalls().length, MAX_COMMIT_LOOKUPS, 'the cap counts requests, and pagination spends two');
+	assert.strictEqual(res.rankComplete, false);
 });
 
 test('fetchLinkedPrs falls back to the author date when a commit has no committer date (issue #281)', async () => {
