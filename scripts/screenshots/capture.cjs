@@ -99,7 +99,14 @@ async function runFixtureTier(selected) {
 				// previous shot may have widened the window, and a shot that
 				// silently inherits another's size is the bug this whole file
 				// exists to avoid.
-				await setWindow(app, shot.window || WINDOW);
+				//
+				// Merged over WINDOW rather than substituted for it, for the
+				// same reason. `setBounds` accepts a partial rectangle, so a
+				// shot declaring only `{ width: 1600 }` — the natural thing to
+				// write when only the width matters — would otherwise keep
+				// whatever height the shot before it left, and `--only=<slug>`
+				// would produce a different image than a full run.
+				await setWindow(app, { ...WINDOW, ...shot.window });
 				// Fresh renderer per shot: open menus and modals from the
 				// previous shot cannot leak into this one.
 				await page.reload();
@@ -145,6 +152,15 @@ async function main() {
 	if (!selected.length) {
 		const known = shots.filter((s) => s.tier === args.tier).map((s) => s.slug);
 		throw new Error(`No ${args.tier}-tier shot matches. Known slugs: ${known.join(', ')}`);
+	}
+	// A `window` on a live shot does nothing — the maintainer owns the window in
+	// that tier — and a silently ignored key is the shape of a wasted hour.
+	const sized = selected.filter((s) => s.tier === 'live' && s.window);
+	if (sized.length) {
+		throw new Error(
+			`Live-tier shots cannot set "window": ${sized.map((s) => s.slug).join(', ')}. ` +
+				'The maintainer sizes the window in that tier.'
+		);
 	}
 	fs.mkdirSync(outDir, { recursive: true });
 	console.log(`Capturing ${selected.length} ${args.tier}-tier screenshot(s) into ${path.relative(repoRoot, outDir)}/`);

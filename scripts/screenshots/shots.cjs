@@ -1,6 +1,6 @@
 // The declarative list of documentation screenshots.
 //
-// Each entry is { slug, tier, variant, prepare, target }:
+// Each entry is { slug, tier, variant, prepare, target, window }:
 //   - slug: the output filename, docs/public/screenshots/<slug>.png — docs pages
 //     reference these names, so renaming one is a docs change too;
 //   - tier 'fixture': captured fully automatically against seeded state;
@@ -12,7 +12,13 @@
 //     if a label changes, the shot fails loudly instead of photographing the
 //     wrong thing;
 //   - target (optional): a locator for an element screenshot instead of the
-//     whole window. Panels read better cropped; whole-window shots orient.
+//     whole window. Panels read better cropped; whole-window shots orient;
+//   - window (optional, fixture tier only): { width, height } for this shot
+//     alone, merged over the harness default of 1200x800. Reach for it when the
+//     layout worth showing only appears at another size — `site-view-wide` is
+//     the case, and its comment explains why. Partial is fine: `{ width: 1600 }`
+//     keeps the default height. The live tier ignores it, because there the
+//     maintainer owns the window.
 
 /**
  * Clicks a site in the sidebar and waits for its view to render.
@@ -77,10 +83,16 @@ const shots = [
 	},
 	{
 		// The content column's width cap, which no other shot can show: at the
-		// default 1200px window the content area is ~856px, narrower than the
+		// default 1200px window the content area is 855px — the width every
+		// cropped panel shot here comes out at — which is narrower than the
 		// 880px cap, so the cap has no effect and the image looks the same with
 		// or without it. This is the only shot that proves --wpct-content-max-width
 		// does anything, and the only one that would catch its removal.
+		//
+		// Unlike its neighbours it is referenced by no docs page. It ships in
+		// the VitePress build as a review artifact, deliberately: the cap is
+		// otherwise unfalsifiable by eye, and test/content-column.test.cjs
+		// asserts this image exists and was captured at the declared width.
 		slug: 'site-view-wide',
 		tier: 'fixture',
 		variant: 'seeded',
