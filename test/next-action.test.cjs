@@ -77,6 +77,33 @@ test('an in-flight patch operation outranks the stale-state warnings', () => {
 	assert.strictEqual(next.id, 'applying-patch');
 });
 
+test('a staged patch preview is pointed at as the next action', () => {
+	const next = deriveNextAction({ skipInit: true, applyPreview: true, running: true });
+
+	assert.strictEqual(next.id, 'apply-preview');
+});
+
+test('a staged preview outranks the stale-state warnings and routine steps', () => {
+	const next = deriveNextAction({
+		skipInit: true,
+		applyPreview: true,
+		updateIncomplete: true,
+		stale: true,
+		running: false,
+		ticketLinked: false
+	});
+
+	assert.strictEqual(next.id, 'apply-preview');
+});
+
+test('an in-flight apply outranks a staged preview (the preview block is gone by then)', () => {
+	// Once applying starts the preview block unmounts, so the cue must follow to
+	// the progress tracker, not stay on a preview that is no longer on screen.
+	const next = deriveNextAction({ skipInit: true, applyPreview: true, isApplying: true });
+
+	assert.strictEqual(next.id, 'applying-patch');
+});
+
 test('a stale tree outranks the routine steps', () => {
 	const next = deriveNextAction({
 		skipInit: true,

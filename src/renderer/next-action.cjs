@@ -30,6 +30,7 @@
  * @param {boolean} state.skipInit         Init wizard skipped; post-init view shown.
  * @param {?string} state.currentSetupStep The checklist's current step key, or null.
  * @param {boolean} state.isApplying       A patch is being applied or reverted now.
+ * @param {boolean} state.applyPreview     A patch is staged, awaiting apply or cancel.
  * @param {boolean} state.updateIncomplete Code updated but built assets are stale.
  * @param {boolean} state.isUpdating       A trunk update is running now.
  * @param {boolean} state.stale            The trunk snapshot is old (#94).
@@ -68,6 +69,15 @@ function deriveNextAction(state = {}) {
 
 	if (Boolean(state.isUpdating)) {
 		return { id: 'updating', reason: 'The trunk update in progress.' };
+	}
+
+	// A staged patch preview is not work in flight, but it is the one thing the
+	// contributor just set up and is looking at: they pasted a PR, it previewed,
+	// and the decision to apply or cancel is now theirs. It outranks the
+	// stale-state warnings and routine steps below — an explicit, waiting choice
+	// beats a standing suggestion.
+	if (Boolean(state.applyPreview)) {
+		return { id: 'apply-preview', reason: 'A patch is staged — apply and rebuild, or cancel.' };
 	}
 
 	if (Boolean(state.updateIncomplete)) {
