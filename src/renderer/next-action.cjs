@@ -29,6 +29,7 @@
  * @param {Object}  state
  * @param {boolean} state.skipInit         Init wizard skipped; post-init view shown.
  * @param {?string} state.currentSetupStep The checklist's current step key, or null.
+ * @param {boolean} state.isApplying       A patch is being applied or reverted now.
  * @param {boolean} state.updateIncomplete Code updated but built assets are stale.
  * @param {boolean} state.isUpdating       A trunk update is running now.
  * @param {boolean} state.stale            The trunk snapshot is old (#94).
@@ -54,17 +55,26 @@ function deriveNextAction(state = {}) {
 		return null;
 	}
 
-	if (Boolean(state.updateIncomplete) && !Boolean(state.isUpdating)) {
+	// An operation in flight is the thing happening, not an action to take — but
+	// it is still where attention belongs, so a contributor who looked away can
+	// find where the work is (and see it is not stuck). It outranks the
+	// stale-state warnings below, which are only warnings; an applying or
+	// reverting patch is live. `isApplying` covers both — a revert runs through
+	// the same apply machinery — and the two operations that own the working tree
+	// (this and a trunk update) never run at once.
+	if (Boolean(state.isApplying)) {
+		return { id: 'applying-patch', reason: 'A patch is being applied or reverted.' };
+	}
+
+	if (Boolean(state.isUpdating)) {
+		return { id: 'updating', reason: 'The trunk update in progress.' };
+	}
+
+	if (Boolean(state.updateIncomplete)) {
 		return {
 			id: 'retry-install-build',
 			reason: 'The update left the build stale; install and build to recover.'
 		};
-	}
-
-	// An update in flight is not an action, but it is the thing happening — point
-	// at its tracker so a contributor who looked away can find where the work is.
-	if (Boolean(state.isUpdating)) {
-		return { id: 'updating', reason: 'The trunk update in progress.' };
 	}
 
 	if (Boolean(state.stale)) {

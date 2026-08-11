@@ -56,6 +56,27 @@ test('an update in flight suppresses the retry banner and points at its tracker'
 	assert.strictEqual(next.id, 'updating');
 });
 
+test('a patch being applied or reverted points at its progress block', () => {
+	// One flag: a revert runs through the same apply machinery, so the resolver
+	// sees the same isApplying for both and there is no separate reverting id.
+	const next = deriveNextAction({ skipInit: true, isApplying: true });
+
+	assert.strictEqual(next.id, 'applying-patch');
+});
+
+test('an in-flight patch operation outranks the stale-state warnings', () => {
+	const next = deriveNextAction({
+		skipInit: true,
+		isApplying: true,
+		updateIncomplete: true,
+		stale: true,
+		hasChanges: true,
+		ticketLinked: false
+	});
+
+	assert.strictEqual(next.id, 'applying-patch');
+});
+
 test('a stale tree outranks the routine steps', () => {
 	const next = deriveNextAction({
 		skipInit: true,
