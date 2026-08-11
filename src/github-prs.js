@@ -29,14 +29,18 @@ const { httpGet } = require('./github-http.cjs');
 const REPO = 'WordPress/wordpress-develop';
 
 /**
- * How many pull requests may have their commit date looked up for one ticket.
+ * How many requests the commit-date walk may spend on one ticket.
  *
- * Each lookup is one request against the shared unauthenticated 60/hour, so the
+ * Each is one request against the shared unauthenticated 60/hour, so the
  * ranking below spends them only while they can still change the answer and
  * stops at this cap regardless. Four covers every ticket seen in practice
  * except one caught inside a fresh upstream force-push sweep, where no number
- * of lookups is obviously right and admitting the ranking is incomplete is
- * better than emptying the quota.
+ * is obviously right and admitting the ranking is incomplete is better than
+ * emptying the quota.
+ *
+ * It counts requests rather than pull requests because that is what the quota
+ * counts: a pull request over 100 commits costs two, and four rows of those
+ * would be eight requests under a cap that reads like four.
  */
 const MAX_COMMIT_LOOKUPS = 4;
 
@@ -141,16 +145,50 @@ function lastPageNumber(link) {
  * the cap or on a failed lookup. The caller shows no "Latest" pill on an
  * incomplete ranking, because an unread row could be the real winner.
  *
- * @param {Array}    prs Sorted by `updatedAt` descending; mutated in place.
+ * A date already known from the cache is reused rather than fetched again, on
+ * the same bound that makes the walk cheap: `updated_at` moves when a branch is
+ * pushed, so a row whose stamp has not changed since it was cached has not had
+ * new code pushed to it either. Without this a Refresh on a rate-limited
+ * quota would replace a ranking the contributor could already read with an
+ * unranked list, and the request that failed would have destroyed the evidence
+ * rather than merely failed to add to it.
+ *
+ * @param {Array}    prs   Sorted by `updatedAt` descending; mutated in place.
  * @param {Function} get
+ * @param {Map}      known PR number → `{updatedAt, commitDate}` last seen.
  * @return {Promise<boolean>} Whether the ranking is complete.
  */
-async function resolveCommitDates(prs, get) {
+async function resolveCommitDates(prs, get, known) {
 	const spent = { count: 0 };
 	let bestMs = -Infinity;
 	let complete = true;
 
+	// A commit dated ahead of now is a contributor's clock, not a fresher fix.
+	// It has to be discarded rather than merely ignored for the pill: as
+	// `bestMs` it would clear every remaining bound at once, ending the walk and
+	// reporting the whole ranking complete on the strength of the one date that
+	// is wrong.
+	const nowMs = Date.now();
+	const usable = (date) => {
+		const ms = date ? Date.parse(date) : NaN;
+		return Number.isFinite(ms) && ms <= nowMs ? ms : NaN;
+	};
+
+	// Cached dates are free, so they are applied to every row before the walk
+	// starts rather than only to the rows it reaches — a date the walk would
+	// have stopped short of is still a date the row can show.
 	for (const pr of prs) {
+		const cached = known instanceof Map ? known.get(pr.number) : null;
+		if (!cached || !cached.commitDate || !cached.updatedAt) continue;
+		if (cached.updatedAt !== pr.updatedAt) continue;
+		pr.commitDate = cached.commitDate;
+		const cachedMs = usable(cached.commitDate);
+		if (Number.isFinite(cachedMs) && cachedMs > bestMs) bestMs = cachedMs;
+	}
+
+	for (const pr of prs) {
+		if (pr.commitDate) continue;
+
 		const boundMs = pr.updatedAt ? Date.parse(pr.updatedAt) : NaN;
 		// Nothing from here down can beat what is already resolved.
 		if (Number.isFinite(boundMs) && bestMs >= boundMs) break;
@@ -162,8 +200,8 @@ async function resolveCommitDates(prs, get) {
 		// diff they are about to apply.
 		if (!res.ok) { complete = false; break; }
 
-		pr.commitDate = res.date;
-		const ms = res.date ? Date.parse(res.date) : NaN;
+		const ms = usable(res.date);
+		pr.commitDate = Number.isFinite(ms) ? res.date : null;
 		if (Number.isFinite(ms) && ms > bestMs) bestMs = ms;
 	}
 
@@ -173,12 +211,23 @@ async function resolveCommitDates(prs, get) {
 /**
  * The pull requests that cite a ticket, newest first.
  *
+ * `deps.known` is the last-seen list for this ticket, if the caller kept one.
+ * Its commit dates are reused for rows whose `updatedAt` has not moved since,
+ * which is what stops a Refresh from re-spending the walk — and, on a spent
+ * quota, from replacing a ranking the contributor could already read.
+ *
  * @param {number|string} ticketId
  * @param {Object}        [deps]
+ * @param {Function}      [deps.httpGet]
+ * @param {Array}         [deps.known]
  * @return {Promise<{status: 'ok'|'rate-limited'|'error'|'offline', items: Array, rankComplete?: boolean, error?: string}>}
  */
 async function fetchLinkedPrs(ticketId, deps = {}) {
 	const get = deps.httpGet || httpGet;
+	const known = new Map();
+	for (const pr of Array.isArray(deps.known) ? deps.known : []) {
+		if (pr && typeof pr.number === 'number') known.set(pr.number, { updatedAt: pr.updatedAt, commitDate: pr.commitDate });
+	}
 	const id = String(ticketId).replace(/[^0-9]/g, '');
 	if (!id) return { status: 'error', items: [], error: 'No ticket number' };
 
@@ -217,7 +266,7 @@ async function fetchLinkedPrs(ticketId, deps = {}) {
 	// The list arrives ordered by `updatedAt`, which is the bound the walk needs
 	// and not an ordering worth showing (#281). Rank it by real commit dates,
 	// then reorder for display.
-	const rankComplete = await resolveCommitDates(items, get);
+	const rankComplete = await resolveCommitDates(items, get, known);
 	return { status: 'ok', items: orderByCommitDate(items), rankComplete };
 }
 

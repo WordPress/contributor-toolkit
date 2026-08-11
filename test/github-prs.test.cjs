@@ -207,6 +207,57 @@ test('fetchLinkedPrs follows Link rel="last" once for a long PR, and takes the n
 	assert.strictEqual(res.items[0].commitDate, '2026-07-30T12:00:00Z');
 });
 
+// The failure the cache reuse exists to prevent: `search/issues` and the core
+// API have separate unauthenticated allowances, so "the search works, the
+// commit lookups are 403" is the ordinary state on a shared Contributor Day IP.
+// Without reuse, that Refresh would replace a ranking the contributor could
+// already read with an unranked list — the failed request destroying the
+// evidence rather than merely failing to add to it.
+test('fetchLinkedPrs reuses cached commit dates, so a spent quota cannot downgrade a ranking (issue #281)', async () => {
+	const known = [
+		{ number: 7382, updatedAt: '2026-07-06T03:10:47Z', commitDate: '2024-11-19T09:00:00Z' },
+		{ number: 8455, updatedAt: '2026-07-06T03:10:28Z', commitDate: '2026-04-12T11:30:00Z' }
+	];
+	const gh = ghDouble(
+		[searchItem(7382, '2026-07-06T03:10:47Z'), searchItem(8455, '2026-07-06T03:10:28Z')],
+		{ 7382: () => { throw new Error('must not be fetched'); }, 8455: () => { throw new Error('must not be fetched'); } }
+	);
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet, known });
+	assert.strictEqual(gh.commitCalls().length, 0, 'nothing moved, so nothing is re-fetched');
+	assert.strictEqual(res.rankComplete, true);
+	assert.deepStrictEqual(res.items.map((p) => p.number), [8455, 7382]);
+});
+
+test('fetchLinkedPrs re-fetches a PR whose updatedAt moved since it was cached (issue #281)', async () => {
+	// A push moves `updated_at`, so a changed stamp is the signal that the
+	// cached commit date may be stale. It is only a signal in one direction —
+	// a comment moves it too — so this costs a request it sometimes did not
+	// need to, which is the safe side of that trade.
+	const known = [{ number: 42, updatedAt: '2026-01-01T00:00:00Z', commitDate: '2025-12-30T10:00:00Z' }];
+	const gh = ghDouble([searchItem(42, '2026-08-01T00:00:00Z')], { 42: ['2026-07-31T10:00:00Z'] });
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet, known });
+	assert.strictEqual(gh.commitCalls().length, 1);
+	assert.strictEqual(res.items[0].commitDate, '2026-07-31T10:00:00Z');
+});
+
+// A commit date is written by whoever made the commit, so it can be ahead of
+// now. Left alone it would be the worst possible input to the walk: as the
+// running best it clears every remaining bound at once, ending the walk and
+// declaring the ranking complete on the strength of the one date that is wrong.
+test('fetchLinkedPrs discards a commit dated in the future rather than crowning it (issue #281)', async () => {
+	const future = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+	const stamp = '2026-07-06T03:10:00Z';
+	const gh = ghDouble(
+		[searchItem(1, stamp), searchItem(2, stamp)],
+		{ 1: [future], 2: ['2026-04-12T11:30:00Z'] }
+	);
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet });
+	assert.strictEqual(gh.commitCalls().length, 2, 'the bad date must not end the walk');
+	const byNumber = Object.fromEntries(res.items.map((p) => [p.number, p.commitDate]));
+	assert.strictEqual(byNumber[1], null, 'a date ahead of now is not a date');
+	assert.strictEqual(byNumber[2], '2026-04-12T11:30:00Z');
+});
+
 test('fetchLinkedPrs falls back to the author date when a commit has no committer date (issue #281)', async () => {
 	const gh = ghDouble([searchItem(4, '2026-08-01T00:00:00Z')], {
 		4: () => ({ status: 200, headers: {}, body: JSON.stringify([{ commit: { author: { date: '2026-05-05T00:00:00Z' } } }]) })

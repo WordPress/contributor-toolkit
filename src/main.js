@@ -1322,7 +1322,13 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
         const ticketId = meta.tracTicket;
         if (!ticketId) return { ok: true, ticket: null, prs: { status: 'no-ticket', items: [] } };
 
-        const result = await fetchLinkedPrs(ticketId);
+        // The cached list is passed back in, not just fallen back to: its commit
+        // dates are still valid for any pull request GitHub reports with the
+        // same `updatedAt`, so a Refresh does not re-spend the ranking, and a
+        // Refresh on a spent quota cannot replace a ranking the contributor
+        // could already read with an unranked one (#281).
+        const cachedBefore = s.get(patchCacheKey(ticketId)) || null;
+        const result = await fetchLinkedPrs(ticketId, { known: cachedBefore ? cachedBefore.items : null });
         if (result.status === 'ok') {
             // `rankComplete` is cached with the items and handed back with them:
             // a list whose commit-date ranking was cut short must not come back
@@ -1335,7 +1341,7 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
         // Could not read GitHub. Fall back to whatever was last seen for this
         // ticket, labelled with when — a stale-but-shown list beats a short one
         // presented as complete.
-        const cached = s.get(patchCacheKey(ticketId)) || null;
+        const cached = cachedBefore;
         return {
             ok: true,
             ticket: ticketId,

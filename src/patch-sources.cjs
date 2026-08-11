@@ -130,11 +130,17 @@ function parseLinkedPrs(searchJson, ticketId) {
  * The order a contributor reads: newest code first (issue #281).
  *
  * Pull requests whose commit date was resolved come first, freshest first. The
- * rest follow in `updatedAt` order — not because that says anything about
- * their freshness, but because the alternative is an arbitrary shuffle, and
- * they are either provably older than everything above them (the walk stopped
- * on its bound) or explicitly unranked (it stopped on its cap), which the
- * caller reflects by showing no "Latest" pill at all.
+ * rest follow in `updatedAt` order, which is not a claim about them — it is
+ * simply better than an arbitrary shuffle.
+ *
+ * Worth being exact about what the tail does and does not mean, because the
+ * walk that produced it stops on a bound: an unresolved row is known to be
+ * older than the *newest* resolved one, which is what the "Latest" pill needs,
+ * but not older than every resolved row above it. So a 2020 commit can sit
+ * above an unresolved row whose real commit is last month. The pill is still
+ * correct; the ordering below the top is a best effort, and the row's own date
+ * — blank where it is unknown — is what a contributor should read rather than
+ * the position.
  *
  * @param {Array} prs
  * @return {Array}

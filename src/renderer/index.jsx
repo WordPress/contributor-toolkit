@@ -34,6 +34,7 @@ import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { prStateBadge } from './pr-state.cjs';
+import { prDateLabel } from './pr-date-label.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { adminUrl, adminerUrl } from './site-urls.cjs';
 import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
@@ -4083,12 +4084,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, fontSize: 11, color: '#6c6f72' }}>
                           {prStatePill(pr.state)}
-                          {/* The commit date when it is known, so the row agrees
-                              with the pill above it. "updated" is the fallback
-                              and says only that something was touched — a
-                              comment, a label, a force-push upstream (#281). */}
-                          {pr.commitDate ? <span>last commit {new Date(pr.commitDate).toLocaleDateString()}</span> : null}
-                          {!pr.commitDate && pr.updatedAt ? <span>updated {new Date(pr.updatedAt).toLocaleDateString()}</span> : null}
+                          {(() => {
+                            const dated = prDateLabel(pr);
+                            return dated ? <span>{dated.prefix} {new Date(dated.when).toLocaleDateString()}</span> : null;
+                          })()}
                         </div>
                       </div>
                       <Button
