@@ -20,8 +20,9 @@ import {
 import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, edit, download, comment } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
 // After the @wordpress/components stylesheet, deliberately: esbuild concatenates
-// CSS imports in import order, so this is what puts the app's own tokens last in
-// the cascade without any build configuration.
+// CSS imports in import order, so this is what lets the app's own tokens win
+// against it without any build configuration. xterm's stylesheet is imported
+// after these, which is harmless — it only selects inside .xterm.
 import './styles/tokens.css';
 import { Section } from './ui/Section.jsx';
 import { ActionRow } from './ui/ActionRow.jsx';
@@ -3694,7 +3695,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               It is re-read on every open, so an application installed while this
               app is running shows up the next time the menu is used. */}
           <MetaText>
-            <code>{sitePath}</code>
+            <code className="wpct-chip">{sitePath}</code>
             <Button
               icon={pathCopied ? checkIcon : copyIcon}
               label={pathCopied ? 'Copied!' : 'Copy path'}
@@ -3957,7 +3958,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     <span aria-hidden="true" className="wpct-meta">·</span>
                     <a href={adminUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminUrl(serverUrl)); }}>wp-admin</a>
                   </div>
-                  <MetaText>Log in with <code>admin</code> / <code>password</code>.</MetaText>
+                  <MetaText flow>Log in with <code>admin</code> / <code>password</code>.</MetaText>
                 </>
               ) : (
                 `Dev server is starting… (${formatElapsed(startElapsed)})`

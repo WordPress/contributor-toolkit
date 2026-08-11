@@ -55,7 +55,15 @@ const NEUTRAL = { label: '', tone: 'neutral' };
  */
 function statusTone( status ) {
 	const key = typeof status === 'string' ? status.toLowerCase() : '';
-	return STATUS_TONES[ key ] || NEUTRAL;
+	// `Object.hasOwn`, not a plain lookup: a bare `STATUS_TONES[key]` reads
+	// through Object.prototype, so `statusTone('constructor')` returned the
+	// Object constructor and `statusTone('__proto__')` returned the prototype
+	// itself. Both destructure to an undefined tone, which renders a badge
+	// classed `wpct-badge--undefined` — unstyled, and carrying no word either.
+	// Only already-lowercase prototype keys could reach it, since the lookup
+	// lowercases first, but the guarantee this function documents has to hold
+	// for every string rather than for most of them.
+	return Object.hasOwn( STATUS_TONES, key ) ? STATUS_TONES[ key ] : NEUTRAL;
 }
 
 module.exports = { STATUS_TONES, statusTone };

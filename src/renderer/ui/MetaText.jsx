@@ -9,6 +9,10 @@
  * It lays out as a wrapping flex row because that is what every caller does with
  * it: a badge, a date, a dot separator, a path chip. Pass `column` for the cases
  * that stack.
+ *
+ * Pass `flow` when the content is a sentence. A flex row makes each contiguous
+ * run of text its own anonymous flex item, so prose comes out gapped between
+ * every fragment and wrapping in the wrong places.
  */
 
 import React from 'react';
@@ -16,11 +20,14 @@ import React from 'react';
 /**
  * @param {Object}          props
  * @param {boolean}         [props.column]    Stack the children instead of inlining them.
+ * @param {boolean}         [props.flow]      The content is prose; lay it out inline.
  * @param {string}          [props.className] Extra classes.
  * @param {React.ReactNode} props.children
  */
-export function MetaText( { column = false, className = '', children, ...rest } ) {
-	const classes = [ 'wpct-meta', className ].filter( Boolean ).join( ' ' );
+export function MetaText( { column = false, flow = false, className = '', children, ...rest } ) {
+	const classes = [ 'wpct-meta', flow ? 'wpct-meta--flow' : '', className ]
+		.filter( Boolean )
+		.join( ' ' );
 	// The one inline style left here, because it is the component's own single
 	// axis switch rather than a design decision a token should own.
 	const style = column ? { flexDirection: 'column', alignItems: 'flex-start' } : undefined;

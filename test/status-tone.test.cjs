@@ -45,11 +45,27 @@ test('the checklist statuses carry no word, because setupStepLabel owns them', (
 
 // A status the map has not been taught about is exactly the case where the app
 // must not assert success or failure. Neutral, and the caller keeps its own text.
+//
+// The prototype keys are in this list because they were the hole: a plain
+// `STATUS_TONES[key]` lookup reads through Object.prototype, so 'constructor'
+// resolved to the Object constructor and '__proto__' to the prototype itself.
+// Both carry no `tone`, which renders a badge classed `wpct-badge--undefined`.
+// Only already-lowercase keys could reach it — the lookup lowercases first, so
+// 'toString' was always safe and 'constructor' never was.
 test('an unknown status is neutral and unlabelled, never green or red', () => {
-	for (const input of ['exploded', '', null, undefined, 42, {}]) {
+	const unknown = ['exploded', '', null, undefined, 42, {}, 'constructor', '__proto__', 'tostring', 'valueof'];
+	for (const input of unknown) {
 		const resolved = statusTone(input);
 		assert.strictEqual(resolved.tone, 'neutral', `${String(input)} must not claim an outcome`);
 		assert.strictEqual(resolved.label, '', `${String(input)} must not invent a label`);
+	}
+});
+
+// The badge's class is built as `wpct-badge--${tone}`, so a tone that is not a
+// string does not degrade — it produces a class no stylesheet defines.
+test('every resolved tone is a string, so no badge can render unstyled', () => {
+	for (const input of ['constructor', '__proto__', 'complete', 'nonsense', '']) {
+		assert.strictEqual(typeof statusTone(input).tone, 'string', `${String(input)} resolved to a non-string tone`);
 	}
 });
 

@@ -70,8 +70,8 @@
 
 	/*
 	 * Notice palettes. Four triples, each currently hand-inlined in several
-	 * places — see the tone map in src/renderer/notice-tone.cjs when Phase 4
-	 * converts the call sites.
+	 * places. Defined here now because StatusBadge's tones already read them;
+	 * the notice boxes themselves are converted in a later phase.
 	 */
 	--wpct-info-background: #f0f6fc;
 	--wpct-info-border: #c5d9ed;
@@ -221,12 +221,37 @@ h1.wpct-section__title {
 	min-width: 0;
 }
 
-.wpct-meta code {
+/*
+ * A meta line that is a sentence rather than a row of items.
+ *
+ * The flex layout above makes each contiguous run of text its own anonymous
+ * flex item, so "Log in with <code>admin</code> / <code>password</code>." lays
+ * out as five items with a gap between every one — including before the full
+ * stop — each free to wrap onto its own line. Prose needs normal inline flow.
+ */
+.wpct-meta--flow {
+	display: block;
+}
+
+/*
+ * The path chip.
+ *
+ * Deliberately its own class rather than `.wpct-meta code`. That rule caught
+ * every `code` element in a meta line, which meant the `admin` / `password` in
+ * the dev-server credentials line picked up a chip background it never had and
+ * did not want — they are words in a sentence, not a value to be copied.
+ *
+ * --wpct-text rather than --wpct-text-muted: muted grey is for supporting text,
+ * and this is a string the contributor reads in order to act. It also has to
+ * clear AA on the chip's own background, which the muted grey does not —
+ * #6c6f72 on #f0f0f1 is 4.44:1, just under the 4.5:1 threshold at this size.
+ */
+.wpct-chip {
 	background: var(--wpct-surface-subtle);
 	border-radius: var(--wpct-radius-control);
 	padding: 2px 6px;
 	overflow-wrap: anywhere;
-	color: var(--wpct-text-muted);
+	color: var(--wpct-text);
 	font-size: var(--wpct-font-size-small);
 }
 
