@@ -3507,6 +3507,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const nextAction = deriveNextAction({
     skipInit,
     currentSetupStep,
+    isApplying,
     updateIncomplete,
     isUpdating,
     stale: age.stale,
@@ -4142,7 +4143,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           ) : null}
 
           {isApplying ? (
-            <div style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
+            <div {...cueProps('applying-patch')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
               {applyStepStates.map((state, i) => {
                 const step = applySteps[i];
                 const mark = UPDATE_STEP_MARKS[state.status];
