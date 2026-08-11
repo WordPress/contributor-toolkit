@@ -21,7 +21,7 @@ import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check a
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
-import { computeSetupStepState, setupStepLabel } from './setup-steps.cjs';
+import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision, setupStepLabel } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
 import { shouldShowTerminalHints, computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
@@ -29,7 +29,7 @@ import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
-import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP } from './update-plan.cjs';
+import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
@@ -1253,6 +1253,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [building, setBuilding] = useState(false);
   const [hasNodeModules, setHasNodeModules] = useState(false);
   const [installFailed, setInstallFailed] = useState(false);
+  // The build's counterpart to installFailed — session-local, because only the
+  // install outcome is persisted (main.js records it on the site's meta). After
+  // a restart a failed build reads "Ready" again, which is the honest fallback:
+  // the app knows there is no build on disk, just not that the last attempt lost.
+  const [buildFailed, setBuildFailed] = useState(false);
   const [hasBuilt, setHasBuilt] = useState(false);
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
@@ -1288,6 +1293,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [trunkDate, setTrunkDate] = useState(null);
   const [updateIncomplete, setUpdateIncomplete] = useState(false);
   const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
+  // Initial setup chain (#246): install then build, started by the clone
+  // finishing rather than by a click. Same shape as the two chains below.
+  const [setupChainState, setSetupChainState] = useState('idle'); // idle | installing | building
+  // How the last chain ended, or null while one is running or none has run.
+  const [setupChainEnd, setSetupChainEnd] = useState(null);
   // Applying someone else's patch (#11)
   const [applyState, setApplyState] = useState('idle'); // idle | applying | installing | building
   const [applyPreview, setApplyPreview] = useState(null);
@@ -1599,8 +1609,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         if (s?.trunkDate) patch.trunkDate = s.trunkDate;
         metaPatchRef.current(sitePath, patch);
       }
+      // Returned as well as stored: the setup chain (#246) re-probes when the
+      // clone finishes and has to decide from that read, not from state React
+      // has not committed yet.
+      return s;
     } catch {}
     finally { setStatusLoading(false); }
+    return null;
   }, [sitePath]);
   useEffect(()=>{ loadStatus(); }, [loadStatus]);
 
@@ -1872,7 +1887,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const runScript = useCallback((name, options = {}) => {
     const { onLog, onDone, args = [], track = true, mirrorToNpm = true, onStart } = options;
     ensureStick('npm');
-    if (name === 'build') setBuilding(true);
+    // Clearing the failure here rather than on the next exit is what stops the
+    // step reading "Failed" while its own retry is streaming to the terminal.
+    if (name === 'build') { setBuilding(true); setBuildFailed(false); }
     if (track) currentRunIdRef.current = null;
     return window.api.runNpmScript(sitePath, name, args, ({ data }) => {
       if (mirrorToNpm) appendNpm(data);
@@ -1881,6 +1898,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       if (mirrorToNpm) appendNpm(`\n${name} exited with code ${code}\n`);
       if (name === 'build') {
         setBuilding(false);
+        setBuildFailed(code !== 0);
         try { await loadStatus(); } catch {}
       }
       if (track) currentRunIdRef.current = null;
@@ -1963,7 +1981,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     if (terminalStickRef.current) term.scrollToBottom();
   }, [normalizeForTerminal]);
 
+  // Taking a step back by hand is the answer to "Setup stopped." — so the
+  // notice goes away here rather than lingering over work already resumed.
   const runInstallWithTerminal = useCallback(() => {
+    setSetupChainEnd(null);
     writeToTerminal('Running npm install…\n');
     runInstall({
       onLog: (chunk) => writeToTerminal(chunk),
@@ -1974,6 +1995,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   }, [runInstall, writeToTerminal]);
 
   const runBuildWithTerminal = useCallback(() => {
+    setSetupChainEnd(null);
     writeToTerminal('Running npm run build…\n');
     runScript('build', {
       onLog: (chunk) => writeToTerminal(chunk),
@@ -2688,6 +2710,125 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   });
   const applySteps = planApplySteps({ needsInstall: applyNeedsInstall, buildByWatcher: applyBuildByWatcher });
   const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
+
+  // --- Initial setup, as one chain (#246) ---
+  // The third chain, and the only one nobody starts: between the clone, the
+  // install and the build there is no decision to make, so making the
+  // contributor notice each one end and click the next was work the app was
+  // handing back for nothing. It runs on its own once the clone finishes.
+  //
+  // What makes that reasonable rather than presumptuous is that it is visible
+  // and it stops: the checklist names the running step, and Stop actually ends
+  // the child (an install included, since the kill path learned to reach one).
+  const isSettingUp = setupChainState !== 'idle';
+  const setupSteps = planSetupSteps();
+  const setupStepStates = updateStepStatuses(setupSteps, setupChainState, SETUP_STATE_TO_STEP);
+  // Whether this chain is ending because the contributor asked it to. A killed
+  // npm exits non-zero — on Windows without even a signal — so the exit code
+  // cannot tell a stop from a failure; only the fact that we asked for the kill
+  // can.
+  const setupStoppedRef = useRef(false);
+
+  // One sentence per way the chain can end, and `setupOutcome` is what picks
+  // between them. Every one of them ends by naming where the rest of the work
+  // now lives, because the chain going quiet is otherwise indistinguishable
+  // from the app having forgotten about the site.
+  const SETUP_END_MESSAGES = {
+    done: '\nSetup complete — start the dev server when you are ready.\n',
+    stopped: '\nSetup stopped. The remaining steps are in the checklist above — run them whenever you are ready.\n',
+    'failed-install': '\nnpm install failed — setup stopped here. Its output is above; retry the install from the checklist.\n',
+    'failed-build': '\nThe build failed — dependencies are installed. Its output is above; retry the build from the checklist.\n'
+  };
+
+  const finishSetupChain = (outcome) => {
+    markTerminalRunning(false);
+    terminalKillRef.current = null;
+    setSetupChainState('idle');
+    setSetupChainEnd(outcome);
+    writeToTerminal(SETUP_END_MESSAGES[outcome] || '');
+    if (outcome === 'done') confirm('This site is ready to work on');
+  };
+
+  const stopSetupChain = () => {
+    setupStoppedRef.current = true;
+    writeToTerminal('\nStopping setup…\n');
+    killCurrent().catch(() => {});
+  };
+
+  const startSetupChain = () => {
+    const state = terminalStateRef.current;
+    if (state.running) return;
+    setupStoppedRef.current = false;
+    setSetupChainEnd(null);
+    markTerminalRunning(true);
+    terminalKillRef.current = () => { stopSetupChain(); };
+    setSetupChainState('installing');
+    writeToTerminal('\nSetting this site up — running npm install…\n');
+    runInstall({
+      onLog: (chunk) => writeToTerminal(chunk),
+      onDone: ({ code }) => {
+        const stopped = setupStoppedRef.current;
+        // Stopping at the first failure is not politeness — a build on a
+        // half-installed tree cannot work, and its failure would bury the one
+        // that mattered (#42).
+        if (stopped || code !== 0) {
+          finishSetupChain(setupOutcome({ stopped, installCode: code }));
+          return;
+        }
+        // Checked again here: Stop is reachable in the moment between the
+        // install ending and the build being spawned, and a stop that quietly
+        // started a half-hour build would be the worst possible answer to it.
+        if (setupStoppedRef.current) {
+          finishSetupChain(setupOutcome({ stopped: true }));
+          return;
+        }
+        setSetupChainState('building');
+        writeToTerminal('\nRunning npm run build…\n');
+        runScript('build', {
+          onLog: (chunk) => writeToTerminal(chunk),
+          onDone: ({ code: buildCode }) => {
+            finishSetupChain(setupOutcome({
+              stopped: setupStoppedRef.current,
+              installCode: 0,
+              buildCode
+            }));
+          }
+        });
+      }
+    });
+  };
+
+  // The chain is started by an edge, not by a state: the clone finishing. The
+  // ref keeps that edge reachable from an effect that must not re-run whenever
+  // the chain's own callbacks are rebuilt on a render.
+  const startSetupChainRef = useRef(startSetupChain);
+  useEffect(() => { startSetupChainRef.current = startSetupChain; });
+
+  const wasPendingRef = useRef(isPending);
+  const setupChainArmedRef = useRef(false);
+  useEffect(() => {
+    const gate = {
+      wasPending: wasPendingRef.current,
+      isPending,
+      alreadyArmed: setupChainArmedRef.current
+    };
+    wasPendingRef.current = isPending;
+    // Two calls, because the decision is: is this the clone-finished edge (so
+    // reading the site's state off disk is worth it), and then does that state
+    // say this is a fresh clone we should drive. See setupAutoStartDecision.
+    if (setupAutoStartDecision(gate) !== 'probe') return undefined;
+    setupChainArmedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      // The status this row is holding was probed while the clone was still
+      // running, so it is re-read here rather than trusted.
+      const status = (await loadStatus()) || null;
+      if (cancelled) return;
+      if (setupAutoStartDecision({ ...gate, status }) !== 'start') return;
+      startSetupChainRef.current();
+    })();
+    return () => { cancelled = true; };
+  }, [isPending, loadStatus]);
 
   // The single most recent patch across whatever is loaded — PRs always, Trac
   // attachments once the contributor has opened them (#11). Drives the "Latest"
@@ -3655,6 +3796,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       indicatorBorder: 'none',
       indicatorContent: '•'
     },
+    failed: {
+      color: '#8a1f21',
+      background: '#fcf0f1',
+      border: '#d63638',
+      indicatorBg: '#d63638',
+      indicatorColor: '#fff',
+      indicatorBorder: 'none',
+      indicatorContent: '✕'
+    },
     pending: {
       color: '#6c6f72',
       background: '#f8f9f9',
@@ -3675,7 +3825,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   };
 
-  const stepState = computeSetupStepState({
+  const setupFlags = {
     isPending,
     statusLoading,
     hasNodeModules,
@@ -3684,19 +3834,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     building,
     starting,
     installFailed,
+    buildFailed,
     isUpdating
-  });
-
-  let installLabel = 'Install npm dependencies';
-  if (stepState.install.done) installLabel = 'Dependencies installed';
-  else if (installFailed) installLabel = 'Retry npm install';
+  };
+  const stepState = computeSetupStepState(setupFlags);
+  const { installLabel, installDescription, buildLabel, buildDescription } = setupStepCopy(setupFlags);
 
   const baseSteps = [
     {
       key: 'download',
       label: 'Download WordPress development version',
       description: isPending
-        ? 'Cloning the WordPress develop repository… the next step unlocks when it finishes.'
+        // The clone is also the trigger for everything after it (#246), so the
+        // step says what happens next rather than implying a click is coming.
+        ? 'Cloning the WordPress develop repository… install and build start on their own when it finishes.'
         : 'Clone the WordPress develop repository.',
       ...stepState.download,
       running: isPending
@@ -3704,11 +3855,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     {
       key: 'install',
       label: 'Install npm dependencies',
-      // Once done, this button never re-enables (#182), so the step says where
-      // a later install lives rather than leaving a dead control unexplained.
-      description: stepState.install.done
-        ? 'Installed. Added a dependency to package.json since? Run npm install in the Terminal below.'
-        : 'Install npm packages so commands can run.',
+      description: installDescription,
       ...stepState.install,
       running: installing,
       action: (
@@ -3723,9 +3870,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     {
       key: 'build',
       label: 'Run full build',
-      description: hasBuilt
-        ? 'Built. Edited files in src/ since? Run npm run build in the Terminal below so the site picks them up — updates and applied patches rebuild on their own.'
-        : 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
+      description: buildDescription,
       ...stepState.build,
       running: building,
       action: (
@@ -3734,7 +3879,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           variant={hasBuilt ? 'secondary' : 'primary'}
           onClick={runBuildWithTerminal}
           disabled={stepState.build.disabled}
-        >{hasBuilt ? 'Build complete' : 'Run full build'}</Button>
+        >{buildLabel}</Button>
       )
     },
     {
@@ -3771,28 +3916,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   ];
 
-  let currentStepCaptured = false;
-  const stepItems = baseSteps.map((step) => {
-    let status;
-    if (step.done) {
-      status = 'complete';
-    } else if (!currentStepCaptured && step.ready) {
-      status = 'current';
-      currentStepCaptured = true;
-    } else if (step.ready) {
-      status = 'pending';
-    } else {
-      status = 'locked';
-    }
-    return { ...step, status };
-  });
+  const stepItems = setupStepStatuses(baseSteps);
 
   // The one block to point the contributor at next (#252). The checklist has
   // already worked out its own current step; the resolver folds that together
   // with the post-init state into a single id, which the render tags onto the
   // matching block (`data-next-action` + the `.next-action-cue` class) and the
   // cue hook scrolls into view.
-  const currentSetupStep = stepItems.find((s) => s.status === 'current')?.key || null;
+  // A failed step counts as the one to point at: retrying it is exactly what
+  // the contributor should do next, and it consumes no `current` of its own, so
+  // without this a chain that stopped would leave the view with no cue at all.
+  const currentSetupStep = stepItems.find((s) => s.status === 'current' || s.status === 'failed')?.key || null;
   const nextAction = deriveNextAction({
     skipInit,
     currentSetupStep,
@@ -4038,6 +4172,33 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       {!skipInit ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
           <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Initial setup checklist</div>
+          {/*
+            Nobody pressed a button to start this, so the banner has to say what
+            is happening, how far along it is and how to stop it — that is the
+            whole licence for running unattended. The step counter comes from
+            the same `updateStepStatuses` the update panel uses.
+          */}
+          {isSettingUp ? (
+            <div role="status" style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#e8f3ff', border: '1px solid #66afe9', borderRadius: 8, fontSize: 13, color: '#0b5d95' }}>
+              <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <strong style={{ color: '#0b5d95' }}>
+                  Setting this site up for you — step {setupStepStates.filter((s) => s.status === 'complete').length + 1} of {setupSteps.length}
+                </strong>
+                <span>
+                  {setupChainState === 'installing'
+                    ? 'Installing dependencies. You can leave this running — the build follows on its own.'
+                    : 'Running the full build. This can take up to half an hour on Windows; the Terminal below shows what it is doing.'}
+                </span>
+              </div>
+              <Button variant="secondary" onClick={stopSetupChain}>Stop setup</Button>
+            </div>
+          ) : null}
+          {!isSettingUp && setupChainEnd === 'stopped' ? (
+            <div style={{ marginTop: 12, padding: '12px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
+              <strong style={{ color: '#5c4400' }}>Setup stopped.</strong>{' '}
+              Nothing was lost — pick it back up with the buttons below whenever you want.
+            </div>
+          ) : null}
           <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>Complete each step to prepare this site for development.</div>
           <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {stepItems.map((step) => {

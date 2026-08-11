@@ -5,6 +5,12 @@
  * a site's trunk snapshot is, which steps an update runs, and how the chain
  * ends.
  *
+ * It has since become the home of every multi-step chain the renderer runs —
+ * updating (#94), applying a patch (#11) and initial setup (#246) — because all
+ * three share `updateStepStatuses` and the same outcome vocabulary. Keeping the
+ * three plans beside the machinery they share is what stops a fourth chain
+ * growing its own.
+ *
  * Kept as a pure, dependency-free module so it can be unit tested without a
  * DOM: the renderer bundle imports it, `node --test` requires it directly
  * (same convention as setup-steps.cjs and dev-server-command.cjs).
@@ -94,6 +100,32 @@ function planApplySteps({ needsInstall, buildByWatcher } = {}) {
 	];
 }
 
+// Initial setup (#246) is the third chain, and the one the contributor does not
+// start: it runs on its own the moment the clone finishes, so a newcomer who
+// walks away comes back to a built environment instead of a checklist waiting
+// on two clicks with no decision between them.
+const SETUP_STATE_TO_STEP = { cloning: 'download', installing: 'install', building: 'build' };
+
+/**
+ * The chain initial setup runs. Nothing is ever skipped here: a fresh clone has
+ * no node_modules and no build, so both always run — the `skipped` field is kept
+ * only so the three plans share one shape.
+ *
+ * Starting the dev server is deliberately not part of it. It is the step that
+ * marks the initialization wizard finished and hands the contributor to a
+ * WordPress setup wizard in a browser, so running it unattended would end the
+ * checklist on their behalf and leave a server listening that nobody asked for.
+ *
+ * @return {Array}
+ */
+function planSetupSteps() {
+	return [
+		{ key: 'download', label: 'Download WordPress', skipped: false },
+		{ key: 'install', label: 'Install dependencies', skipped: false },
+		{ key: 'build', label: 'Run full build', skipped: false }
+	];
+}
+
 /**
  * How applying a patch (or updating trunk) should treat a running build watch
  * (#247, #262). A watch that is running already recompiles src/ on save, so a
@@ -122,7 +154,8 @@ function planWatchImpact({ needsInstall, watcherActive } = {}) {
  * current, later ones pending; skipped steps stay 'skipped' once passed.
  *
  * The state→step map is a parameter so a different chain can reuse this: the
- * applying chain (#11) has the same three-stage shape with its own state names.
+ * applying chain (#11) has the same three-stage shape with its own state names,
+ * and the setup chain (#246) uses it for its progress counter.
  *
  * @param {Array}  steps
  * @param {string} updateState
@@ -167,16 +200,44 @@ function updateOutcome({ fetchOk, upToDate, moved, installNeeded, installCode, b
 	return 'done';
 }
 
+/**
+ * How the setup chain ended, and the only thing that decides what the
+ * contributor is told. `stopped` is separated from `failed-install` /
+ * `failed-build` on purpose: a chain the contributor stopped is not a problem to
+ * report, and telling someone their install "failed" when they pressed Stop is
+ * how a tool loses their trust.
+ *
+ * A stop and a failure are otherwise indistinguishable from the exit code — a
+ * killed npm exits non-zero, and on Windows without even a signal — so the
+ * caller passes `stopped` from the fact that it asked for the kill, not from
+ * what the process did.
+ *
+ * @param {Object}  root0
+ * @param {boolean} [root0.stopped]     The contributor pressed Stop.
+ * @param {number}  [root0.installCode] Exit code of npm install, if it ran.
+ * @param {number}  [root0.buildCode]   Exit code of npm run build, if it ran.
+ * @return {string}
+ */
+function setupOutcome({ stopped, installCode, buildCode } = {}) {
+	if (stopped) return 'stopped';
+	if (installCode !== 0) return 'failed-install';
+	if (buildCode !== 0) return 'failed-build';
+	return 'done';
+}
+
 module.exports = {
 	STALE_THRESHOLD_DAYS,
 	SKIP_INSTALL_MESSAGE,
 	BUILD_BY_WATCHER_MESSAGE,
 	STATE_TO_STEP,
 	APPLY_STATE_TO_STEP,
+	SETUP_STATE_TO_STEP,
 	planApplySteps,
 	planWatchImpact,
+	planSetupSteps,
 	trunkAgeInfo,
 	planUpdateSteps,
 	updateStepStatuses,
+	setupOutcome,
 	updateOutcome
 };
