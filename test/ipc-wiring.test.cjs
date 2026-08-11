@@ -431,6 +431,45 @@ test('site:status reports the trunk snapshot trunk-update read, not its own gues
 	assert.equal(settings.values.siteMeta['/sites/wp'].trunkOid, 'abc123');
 });
 
+// "Is this site built?" is answered from a per-project marker path (#251): Core
+// has a built wp-includes dist dir, Gutenberg builds into build/block-library.
+// A marker from the wrong project must not read as built — that is what makes
+// the path type-driven rather than a shared guess.
+test('site:status reads the built marker its project type names (#251)', async (t) => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-built-'));
+	t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+	const coreSite = path.join(root, 'core');
+	const gbSite = path.join(root, 'gb');
+	const gbWithCoreMarker = path.join(root, 'gb-wrong');
+	fs.mkdirSync(path.join(coreSite, 'build', 'wp-includes', 'js', 'dist'), { recursive: true });
+	fs.mkdirSync(path.join(gbSite, 'build', 'block-library'), { recursive: true });
+	// A Gutenberg site that only has Core's dist dir — not its own marker.
+	fs.mkdirSync(path.join(gbWithCoreMarker, 'build', 'wp-includes', 'js', 'dist'), { recursive: true });
+
+	const settings = fakeSettingsStore({
+		sites: [coreSite, gbSite, gbWithCoreMarker],
+		siteMeta: {
+			[coreSite]: { projectType: 'core' },
+			[gbSite]: { projectType: 'gutenberg' },
+			[gbWithCoreMarker]: { projectType: 'gutenberg' }
+		}
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { readTrunkInfo: async () => ({ trunkOid: null, trunkDate: null }) } }
+	});
+
+	const core = await main.invoke('site:status', coreSite);
+	assert.equal(core.hasBuilt, true, 'Core is built when its wp-includes dist dir exists');
+	assert.equal(core.projectType, 'core');
+
+	assert.equal((await main.invoke('site:status', gbSite)).hasBuilt, true, 'Gutenberg is built when build/block-library exists');
+
+	const wrong = await main.invoke('site:status', gbWithCoreMarker);
+	assert.equal(wrong.hasBuilt, false, 'Core’s marker must not count a Gutenberg site as built');
+	assert.equal(wrong.projectType, 'gutenberg');
+});
+
 // --- git:* -> src/trunk-update.js ----------------------------------------
 
 test('git:worktree-dirty reports what trunk-update found, not its own guess', async () => {
@@ -616,6 +655,23 @@ test('git:update-trunk hands the update to trunk-update and streams its log back
 	assert.deepEqual(event.sent, [
 		{ channel: 'git:update-trunk:log', payload: { updateId, data: 'Fetching…\n' } }
 	]);
+});
+
+// "Update to latest trunk" must pull from the site's OWN upstream (#251):
+// updating a Gutenberg checkout from wordpress-develop's trunk would overwrite
+// it with a different project. The URL comes from the site's project type.
+test('git:update-trunk pulls from the upstream the project type names', async () => {
+	let called;
+	const started = new Promise((resolve) => { called = resolve; });
+	const updateToLatestTrunk = spy((options) => { called(options); return new Promise(() => {}); });
+
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg', branches: {} } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { updateToLatestTrunk } } });
+
+	await main.invokeWith('git:update-trunk', createIpcEvent(), '/sites/gb');
+	const options = await started;
+
+	assert.equal(options.url, 'https://github.com/WordPress/gutenberg.git');
 });
 
 // An update that dies after the forced checkout has already reset the tree
@@ -2915,15 +2971,18 @@ test('dir:show refuses a path the registry does not hold, and logs it', async ()
 // Runs `wordpress:setup` with a stubbed clone, and calls `duringClone` at the
 // moment the real clone would be running: the directory exists, nothing is in
 // the store yet. `clone` can be made to fail instead.
-async function runSetup({ duringClone, cloneFails = false, existing = [], extraStubs = {} } = {}) {
+async function runSetup({ duringClone, cloneFails = false, existing = [], extraStubs = {}, setupOptions = {} } = {}) {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-setup-'));
 	for (const name of existing) fs.mkdirSync(path.join(root, name));
 
 	const settings = fakeSettingsStore();
 	const seen = [];
 	let inside;
+	let cloneArgs;
 
-	const clone = async ({ dir }) => {
+	const clone = async (args) => {
+		cloneArgs = args;
+		const { dir } = args;
 		if (duringClone) inside = await duringClone({ dir, root, main, settings });
 		if (cloneFails) throw new Error('clone failed');
 	};
@@ -2939,11 +2998,11 @@ async function runSetup({ duringClone, cloneFails = false, existing = [], extraS
 	});
 
 	const event = createIpcEvent();
-	const settled = await main.invokeWith('wordpress:setup', event, root, { siteName: 'demo', siteLabel: 'Demo' })
+	const settled = await main.invokeWith('wordpress:setup', event, root, { siteName: 'demo', siteLabel: 'Demo', ...setupOptions })
 		.then((siteDir) => ({ siteDir }), (error) => ({ error }));
 
 	for (const { channel, payload } of event.sent) if (channel === 'download:status') seen.push(payload);
-	return { root, main, settings, inside, statuses: seen, ...settled };
+	return { root, main, settings, inside, statuses: seen, cloneArgs, ...settled };
 }
 
 test('the folder can be revealed while it is still being cloned, without being registered', async () => {
@@ -3029,6 +3088,45 @@ test('the folder can be opened in an editor while it is still being cloned', asy
 	assert.deepEqual(inside.opened, { ok: true });
 	assert.deepEqual(inside.handed.sites, [], 'the registry cannot know about it yet');
 	assert.deepEqual(inside.handed.pending, [siteDir], 'so this is what lets the guard say yes');
+});
+
+// The project type chosen in the wizard is a property of the site (#251), so
+// setup has to record it. Passed through, it must land in siteMeta under the id
+// the registry knows — not the raw string — so later reads resolve it directly.
+test('wordpress:setup records the chosen project type on the new site', async () => {
+	const { settings, siteDir } = await runSetup({ setupOptions: { projectType: 'gutenberg' } });
+
+	assert.equal(settings.values.siteMeta[siteDir].projectType, 'gutenberg');
+});
+
+// The default is the invariant the whole feature rests on: a setup that names no
+// type — every existing caller, and every site made before the picker existed —
+// is a Core site, and nothing about the Core path changes.
+test('wordpress:setup defaults the project type to core when none is given', async () => {
+	const { settings, siteDir } = await runSetup();
+
+	assert.equal(settings.values.siteMeta[siteDir].projectType, 'core');
+});
+
+// An unknown id cannot be stored as-is: it would coerce to Core on every read
+// but read back as its bogus self anywhere that inspects the field directly.
+// Setup normalizes it to the default at the write boundary.
+test('wordpress:setup normalizes an unknown project type to core', async () => {
+	const { settings, siteDir } = await runSetup({ setupOptions: { projectType: 'not-a-type' } });
+
+	assert.equal(settings.values.siteMeta[siteDir].projectType, 'core');
+});
+
+// The type does not just get stored — it picks the repository cloned. A
+// Gutenberg site must clone Gutenberg, not wordpress-develop (#251).
+test('wordpress:setup clones the repository the chosen type names', async () => {
+	const core = await runSetup();
+	assert.equal(core.cloneArgs.url, 'https://github.com/WordPress/wordpress-develop.git');
+	assert.equal(core.cloneArgs.ref, 'trunk');
+
+	const gb = await runSetup({ setupOptions: { projectType: 'gutenberg' } });
+	assert.equal(gb.cloneArgs.url, 'https://github.com/WordPress/gutenberg.git');
+	assert.equal(gb.cloneArgs.ref, 'trunk');
 });
 
 test('the cloning status names the directory the guards are keyed on', async () => {

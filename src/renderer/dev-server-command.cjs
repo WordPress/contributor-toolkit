@@ -8,7 +8,12 @@
  * DOM: the renderer bundle imports it, `node --test` requires it directly
  * (same convention as setup-steps.cjs).
  *
- * Why the watcher is `grunt -- _watch` and not `npm run watch`:
+ * The build and watch commands are not the same for every contribution target,
+ * so they come from the project-type registry's `build` config rather than
+ * being hard-coded here. `planDevServerStart` defaults to Core's config, which
+ * keeps every existing caller (and its tests) unchanged.
+ *
+ * Why Core's watcher is `grunt -- _watch` and not `npm run watch`:
  * wordpress-develop's Gruntfile renames the real watch task to `_watch` and
  * registers a `watch` wrapper that runs the entire production `build` task
  * first when invoked without arguments. On a site that has already completed
@@ -16,29 +21,33 @@
  * tens of minutes go on every dev-server start (30+ on a Windows VM).
  * Invoking `_watch` through the `grunt` passthrough script starts the same
  * watchers immediately. Sites without a completed build still need one, so
- * they get `npm run build` — whose exit code is a real completion signal —
- * before the watcher starts.
+ * they get `npm run <buildScript>` — whose exit code is a real completion
+ * signal — before the watcher starts.
  *
- * The `'--'` in the watcher args is load-bearing: script-runner.js
+ * The `'--'` in Core's watcher args is load-bearing: script-runner.js
  * deliberately does not insert a separator, and without one npm consumes
  * `_watch` as its own argument and runs bare `grunt` — the default task,
- * i.e. a full build with no watcher.
+ * i.e. a full build with no watcher. Gutenberg's watcher is `npm run dev`,
+ * already an incremental watcher, so it takes no such separator.
  */
 
-const WATCH_SCRIPT = 'grunt';
-const WATCH_ARGS = ['--', '_watch'];
-const WATCH_COMMAND_LABEL = 'npm run grunt -- _watch';
+const { getProjectType } = require('../project-type.cjs');
 
-function planDevServerStart(flags = {}) {
+const CORE_BUILD_CONFIG = getProjectType('core').build;
+
+function planDevServerStart(flags = {}, buildConfig = CORE_BUILD_CONFIG) {
 	const hasBuilt = Boolean(flags.hasBuilt);
+	const build = buildConfig || CORE_BUILD_CONFIG;
 	return {
-		// True when `npm run build` must run (and exit 0) before the watcher
-		// and the server may start.
+		// True when the build must run (and exit 0) before the watcher and the
+		// server may start.
 		needsBuild: !hasBuilt,
+		// The npm script that produces a completed build for this project.
+		buildScript: build.buildScript,
 		watch: {
-			script: WATCH_SCRIPT,
-			args: WATCH_ARGS.slice(),
-			label: WATCH_COMMAND_LABEL
+			script: build.watch.script,
+			args: build.watch.args.slice(),
+			label: build.watch.label
 		}
 	};
 }

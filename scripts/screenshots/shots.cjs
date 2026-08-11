@@ -53,7 +53,7 @@ const shots = [
 		tier: 'fixture',
 		variant: 'empty',
 		prepare: async (page) => {
-			await page.getByRole('button', { name: 'Create WordPress Core site' }).click();
+			await page.getByRole('button', { name: 'Create a contributor site' }).click();
 			await page.getByRole('dialog').getByText('Site name').waitFor();
 		}
 	},

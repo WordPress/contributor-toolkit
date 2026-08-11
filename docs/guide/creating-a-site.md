@@ -6,14 +6,15 @@ You do not need one, though, for every ticket you work on. A site holds as many 
 
 When the app starts with no sites, the main area shows a short prompt to create your first one.
 
-![The app before any site exists: an empty main area and the Create WordPress Core site button at the bottom of the sidebar](/screenshots/empty-state.png)
+![The app before any site exists: an empty main area and the Create a contributor site button at the bottom of the sidebar](/screenshots/empty-state.png)
 
 ## Start the creation flow
 
-Click **Create WordPress Core site** at the bottom of the sidebar. A dialog opens with two fields.
+Click **Create a contributor site** at the bottom of the sidebar. A dialog opens.
 
-![The Create WordPress Core site dialog, with a Site name text field and a Site location folder picker](/screenshots/create-site-modal.png)
+![The Create a contributor site dialog, with a Contribute to choice, a Site name text field and a Site location folder picker](/screenshots/create-site-modal.png)
 
+- **Contribute to** — the project this site targets: **WordPress Core** (Trac tickets) or **Gutenberg** (GitHub issues). This sets which repository is cloned and where its pull requests go, and cannot be changed later. WordPress Core is selected by default.
 - **Site name** — the label shown in the sidebar. It also determines the folder name: spaces and characters that are not valid in file names become hyphens, so a site named `My WordPress site` lives in a folder called `My-WordPress-site`.
 - **Site location** — the parent folder where the site will be created. The app adds a new directory inside it for the project; it does not clone into the folder you pick directly.
 

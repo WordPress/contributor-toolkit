@@ -53,6 +53,7 @@ const {
 } = require('./ticket-branches');
 const { createProgressThrottle, describeSwitchProgress } = require('./switch-progress.cjs');
 const { getStore } = require('./settings-store');
+const { normalizeProjectType, getProjectType, projectTypeForSite } = require('./project-type.cjs');
 
 // One name for the send-only progress channel (#173), shared with preload.js
 // through the tests rather than by import — the renderer bundle and the main
@@ -93,7 +94,6 @@ if (!app.isPackaged && process.env.TOOLKIT_USER_DATA_DIR) {
 	}
 }
 
-const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 
 // Provide a PATH shim so npm's spawned scripts can find a 'node' binary that maps to Electron's Node
 let nodeShimDir = null;
@@ -1227,7 +1227,11 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
                 await mergeSiteMeta(sitePath, { currentBranch: TRUNK });
             }
 
-            const result = await updateToLatestTrunk({ dir: sitePath, url: WORDPRESS_GIT_URL, onLog: sendLog });
+            // Pull from the site's own upstream, not always wordpress-develop
+            // (#251): updating a Gutenberg checkout from Core's trunk would
+            // overwrite it with a different project entirely. Defaults to Core.
+            const updateUrl = projectTypeForSite(await readSiteMeta(sitePath)).clone.url;
+            const result = await updateToLatestTrunk({ dir: sitePath, url: updateUrl, onLog: sendLog });
             // An update resets the worktree, so any applied patch is gone with
             // it either way — clear the record so the "applied" banner does not
             // outlive the patch. (This is also where a discard's cleanup lands:
@@ -1588,12 +1592,15 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		const nmDir = path.join(sitePath, 'node_modules');
 		const hasNodeModules = fs.existsSync(nmDir) && (() => { try { return fs.readdirSync(nmDir).length > 0; } catch { return false; } })();
 
-		const distDir = path.join(sitePath, 'build', 'wp-includes', 'js', 'dist');
-		const hasBuilt = fs.existsSync(distDir);
-
 		const s = await getStore();
 		const meta = s.get('siteMeta') || {};
 		const m = meta[sitePath] || {};
+
+		// "Is this site built?" is answered differently per project (#251): Core
+		// has a built wp-includes dist dir, Gutenberg builds into build/<package>.
+		// The marker path comes from the site's project type, defaulting to Core.
+		const builtDir = path.join(sitePath, ...projectTypeForSite(m).build.builtCheckRelPath);
+		const hasBuilt = fs.existsSync(builtDir);
 
 		// Trunk snapshot age (#94). Read from HEAD each time (one object
 		// read) and written through to siteMeta, so the sidebar can render
@@ -1626,9 +1633,9 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 			}
 			: null;
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, appliedPatch };
+		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, projectType: m.projectType || 'core', appliedPatch };
 	} catch {
-		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, appliedPatch: null };
+		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, projectType: 'core', appliedPatch: null };
 	}
 });
 
@@ -1675,6 +1682,11 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 
 	await fse.ensureDir(destDir);
 
+	// The contribution target for this site (#251), resolved once: it drives both
+	// the clone below and the metadata written after it, so they cannot disagree.
+	const projectType = normalizeProjectType(options.projectType);
+	const projectConfig = getProjectType(projectType);
+
 	const requestedName = typeof options.siteName === 'string' ? options.siteName.trim() : '';
 	const sanitizedName = requestedName.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').replace(/^-+|-+$/g, '') || 'wordpress-develop-trunk';
 	const uniqueName = findAvailableDirName(destDir, sanitizedName);
@@ -1692,11 +1704,11 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 		await git.clone({
 			http,
 			fs,
-			url: WORDPRESS_GIT_URL,
+			url: projectConfig.clone.url,
 			dir: siteDir,
-			singleBranch: true,
-			depth: 1,
-			ref: 'trunk',
+			singleBranch: projectConfig.clone.singleBranch,
+			depth: projectConfig.clone.depth,
+			ref: projectConfig.clone.ref,
 			onProgress: (evt) => {
 				// evt: {phase,total,loaded,lengthComputable} - forward as terminal-like output
 				const msg = `${evt.phase || 'clone'} ${evt.loaded || 0}/${evt.total || 0}`;
@@ -1719,7 +1731,12 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 				...existingMeta,
 				initialized: false,
 				createdAt: existingMeta.createdAt || new Date().toISOString(),
-				label: existingMeta.label || siteLabel
+				label: existingMeta.label || siteLabel,
+				// The contribution target chosen in the wizard (#251), normalized to a
+				// known id so an unknown value is stored as Core rather than left to
+				// coerce on every read. Preserved on re-setup of a folder, and the
+				// same id the clone above used.
+				projectType: existingMeta.projectType || projectType
 			};
 			try {
 				const { trunkOid, trunkDate } = await readTrunkInfo(siteDir);

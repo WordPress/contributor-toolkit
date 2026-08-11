@@ -12,6 +12,7 @@ import {
   MenuGroup,
   MenuItem,
   Modal,
+  RadioControl,
   SnackbarList,
   TextControl,
   TextareaControl,
@@ -43,8 +44,8 @@ import { highlightLog } from './log-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
 import { changesNoteParts, discardOutcome, noteAfterDiscard, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { initialConfirmations, confirmationReducer, prConfirmationMessage } from './confirmations.cjs';
+import { PROJECT_TYPES, DEFAULT_PROJECT_TYPE, getProjectType } from '../project-type.cjs';
 
-const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // One face for everything that is process output: the terminal below and every
 // log pane above it. Shared rather than repeated because the panes had drifted
 // into the app's sans-serif, which does not line up a stack trace and does not
@@ -109,6 +110,9 @@ const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
 const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
 const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
+// The contribution-target choices for the create-site wizard, sourced from the
+// project-type registry so the copy lives in one place. Core is first (default).
+const CREATE_SITE_TYPE_OPTIONS = Object.values(PROJECT_TYPES).map((t) => ({ label: t.wizardLabel, value: t.id }));
 // Why the ticket's PR list could not be read, worded for the contributor.
 const TICKET_PATCH_STATUS_MESSAGE = {
   'rate-limited': 'GitHub is rate-limiting this connection.',
@@ -323,6 +327,7 @@ function App() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createSiteName, setCreateSiteName] = useState('');
   const [createSiteDir, setCreateSiteDir] = useState('');
+  const [createSiteType, setCreateSiteType] = useState(DEFAULT_PROJECT_TYPE);
   const [createSiteError, setCreateSiteError] = useState('');
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
@@ -489,6 +494,7 @@ function App() {
     if (createSubmitting) return;
     setCreateSiteName('');
     setCreateSiteDir('');
+    setCreateSiteType(DEFAULT_PROJECT_TYPE);
     setCreateSiteError('');
     setCreateModalOpen(true);
   }, [createSubmitting]);
@@ -546,6 +552,8 @@ function App() {
     setCreateModalOpen(false);
     setCreateSiteName('');
     setCreateSiteDir('');
+    const chosenType = createSiteType;
+    setCreateSiteType(DEFAULT_PROJECT_TYPE);
 
     try {
       setCreateSubmitting(true);
@@ -553,7 +561,7 @@ function App() {
       setTerminalMsgs('');
       addPendingSite(targetDir);
       appendSetupLog(targetDir, 'Starting site setup…\n');
-      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
+      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed, projectType: chosenType });
       if (createdPath) {
         finalSitePath = createdPath;
         // Ordinarily already done, by the `cloning` status this handler's own
@@ -587,7 +595,7 @@ function App() {
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, createSiteType, moveSetupLog, refresh]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
@@ -824,10 +832,10 @@ function App() {
             onClick={chooseAndSetup}
             disabled={createSubmitting}
             style={{ width: '100%', justifyContent: 'center' }}
-            aria-label="Create WordPress Core site"
+            aria-label="Create a contributor site"
             label={createSubmitting ? 'Finish creating the current site first' : undefined}
           >
-            {!sidebarCollapsed ? 'Create WordPress Core site' : null}
+            {!sidebarCollapsed ? 'Create a contributor site' : null}
           </Button>
         </div>
       </div>
@@ -924,7 +932,7 @@ function App() {
       {createModalOpen ? (
         <Modal
           className="create-site-modal"
-          title="Create WordPress Core site"
+          title="Create a contributor site"
           onRequestClose={closeCreateModal}
           shouldCloseOnClickOutside={!createSubmitting}
         >
@@ -943,6 +951,14 @@ function App() {
               placeholder="My WordPress site"
               // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: this is the first field of a just-opened modal.
               autoFocus
+            />
+            <RadioControl
+              label="Contribute to"
+              help="Sets which project this site targets: the repository it clones and where its pull requests go. This can't be changed later."
+              selected={createSiteType}
+              options={CREATE_SITE_TYPE_OPTIONS}
+              onChange={(value) => setCreateSiteType(value)}
+              disabled={createSubmitting}
             />
             <label htmlFor={CREATE_SITE_LOCATION_INPUT_ID} style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#1d2327' }}>Site location</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -1254,7 +1270,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [hasNodeModules, setHasNodeModules] = useState(false);
   const [installFailed, setInstallFailed] = useState(false);
   const [hasBuilt, setHasBuilt] = useState(false);
+  // The site's contribution target (#251), reported by site:status. Drives the
+  // dev/build commands and the terminal's allowed-script list below. Defaults to
+  // Core for any site created before the field existed.
+  const [projectType, setProjectType] = useState(DEFAULT_PROJECT_TYPE);
   const [skipInit, setSkipInit] = useState(false);
+  // The build/watch commands and the terminal's allowed scripts for this site's
+  // project type. A plain lookup, not a hook — recomputed each render from the
+  // current type, defaulting to Core.
+  const projectBuildConfig = getProjectType(projectType).build;
+  const allowedScripts = projectBuildConfig.allowedScripts;
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
   // Trac ticket association (#109)
@@ -1587,6 +1612,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setHasNodeModules(Boolean(s?.hasNodeModules));
       setInstallFailed(Boolean(s?.installFailed));
       setHasBuilt(Boolean(s?.hasBuilt));
+      setProjectType(s?.projectType || DEFAULT_PROJECT_TYPE);
       setSkipInit(Boolean(s?.skipInitWizard));
       setTrunkDate(s?.trunkDate || null);
       setUpdateIncomplete(Boolean(s?.updateIncomplete));
@@ -2047,9 +2073,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     writeToTerminal('Available commands:\n');
     writeToTerminal('  help                        Show this help text\n');
     writeToTerminal('  npm install                 Run npm install in the site directory\n');
-    writeToTerminal('  npm run <script>            Run one of: ' + TERMINAL_ALLOWED_SCRIPTS.join(', ') + '\n');
+    writeToTerminal('  npm run <script>            Run one of: ' + allowedScripts.join(', ') + '\n');
     writeToTerminal('\nThe setup checklist runs npm install and npm run build once. Run them here\nwhenever you change files or add a dependency afterwards.\n');
-  }, [writeToTerminal]);
+    // allowedScripts is a stable reference per project type (the same registry
+    // array), so it only re-memoizes when the site's type actually changes.
+  }, [writeToTerminal, allowedScripts]);
 
   const executeTerminalCommand = useCallback((rawCommand) => {
     const command = rawCommand.trim();
@@ -2096,8 +2124,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         showPrompt(false);
         return;
       }
-      if (!TERMINAL_ALLOWED_SCRIPTS.includes(script)) {
-        writeToTerminal(`Unsupported script "${script}". Allowed scripts: ${TERMINAL_ALLOWED_SCRIPTS.join(', ')}\n`);
+      if (!allowedScripts.includes(script)) {
+        writeToTerminal(`Unsupported script "${script}". Allowed scripts: ${allowedScripts.join(', ')}\n`);
         showPrompt(false);
         return;
       }
@@ -2118,7 +2146,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
     writeToTerminal(`Unsupported command: ${command}\nTry "help" for the list of supported commands.\n`);
     showPrompt(false);
-  }, [addCommandToHistory, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
+  }, [addCommandToHistory, allowedScripts, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
 
   const handleTerminalData = useCallback((data) => {
     const term = terminalRef.current;
@@ -2335,7 +2363,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // The watcher process itself (grunt _watch), streaming into its own tab. No
   // terminal lock, no server coupling — that independence is the point of #247.
   const startWatchProcess = useCallback(() => {
-    const plan = planDevServerStart({ hasBuilt: true });
+    const plan = planDevServerStart({ hasBuilt: true }, projectBuildConfig);
     markWatchState('watching');
     watchWasActiveRef.current = true;
     appendWatch(`Running ${plan.watch.label}…\n`);
@@ -2357,7 +2385,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         }
       }
     });
-  }, [appendWatch, markWatchState, runScript]);
+  }, [appendWatch, markWatchState, projectBuildConfig, runScript]);
 
   // Start the build watch, building first if the site has no completed build
   // (the _watch task deliberately skips that full build). `onReady` fires once
@@ -2379,15 +2407,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       watchWasActiveRef.current = true;
       markTerminalRunning(true);
       terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-      appendWatch('No completed build found — running npm run build first…\n');
-      runScript('build', {
+      const buildScript = projectBuildConfig.buildScript;
+      appendWatch(`No completed build found — running npm run ${buildScript} first…\n`);
+      runScript(buildScript, {
         mirrorToNpm: false,
         onLog: (chunk) => { appendWatch(chunk); },
         onDone: ({ code }) => {
           markTerminalRunning(false);
           terminalKillRef.current = null;
           if (code !== 0 || watchStateRef.current !== 'building') {
-            if (code !== 0) { appendWatch(`\nnpm run build failed with code ${code} — build watch not started.\n`); markWatchState('exited', code); }
+            if (code !== 0) { appendWatch(`\nnpm run ${buildScript} failed with code ${code} — build watch not started.\n`); markWatchState('exited', code); }
             else markWatchState('idle');
             watchWasActiveRef.current = false;
             return;
@@ -2400,7 +2429,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       startWatchProcess();
       if (onReady) onReady();
     }
-  }, [appendWatch, hasBuilt, killCurrent, markTerminalRunning, markWatchState, runScript, selectLogTab, startWatchProcess]);
+  }, [appendWatch, hasBuilt, killCurrent, markTerminalRunning, markWatchState, projectBuildConfig, runScript, selectLogTab, startWatchProcess]);
 
   // User-initiated stop of the watch (its own button). Never touches the server.
   const stopWatcher = useCallback(async () => {

@@ -35,7 +35,7 @@ The app is signed and notarized by Automattic, so macOS should open it without i
 
 ## Your first contribution, in ten steps
 
-1. Click **Create WordPress Core site** and choose a destination folder for your site.
+1. Click **Create a contributor site**, leave **Contribute to** on WordPress Core, and choose a destination folder for your site.
 2. Wait while the app downloads `wordpress-develop`.
 3. Click **Install npm dependencies**.
 4. Click **Run full build**.

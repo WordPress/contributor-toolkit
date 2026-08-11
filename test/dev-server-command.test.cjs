@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 
 const { planDevServerStart, formatElapsed, watchTabLabel } = require('../src/renderer/dev-server-command.cjs');
+const { getProjectType } = require('../src/project-type.cjs');
 
 test('a built site skips the build and goes straight to the watcher (issue #72)', () => {
 	const plan = planDevServerStart({ hasBuilt: true });
@@ -11,6 +12,32 @@ test('a built site skips the build and goes straight to the watcher (issue #72)'
 	assert.strictEqual(plan.needsBuild, false, 'a completed build must not be redone at dev-server start');
 	assert.strictEqual(plan.watch.script, 'grunt');
 	assert.deepStrictEqual(plan.watch.args, ['--', '_watch']);
+	assert.strictEqual(plan.buildScript, 'build', 'the pre-build script is reported for the caller to run');
+});
+
+// With no build config, the plan is Core's — the default that keeps every
+// existing caller and its behaviour unchanged (#251).
+test('planDevServerStart defaults to the Core build config', () => {
+	const plan = planDevServerStart({ hasBuilt: true });
+
+	assert.strictEqual(plan.watch.label, 'npm run grunt -- _watch');
+	assert.strictEqual(plan.buildScript, 'build');
+});
+
+// A Gutenberg site's watcher is `npm run dev`, already incremental, so it takes
+// no `--` separator — passing Core's grunt dance would run a full build instead.
+test('a Gutenberg build config runs `npm run dev` with no separator', () => {
+	const gutenberg = getProjectType('gutenberg').build;
+	const built = planDevServerStart({ hasBuilt: true }, gutenberg);
+
+	assert.strictEqual(built.needsBuild, false);
+	assert.strictEqual(built.watch.script, 'dev');
+	assert.deepStrictEqual(built.watch.args, [], 'Gutenberg’s dev watcher takes no npm passthrough separator');
+	assert.strictEqual(built.buildScript, 'build');
+
+	const unbuilt = planDevServerStart({ hasBuilt: false }, gutenberg);
+	assert.strictEqual(unbuilt.needsBuild, true, 'an unbuilt Gutenberg site still builds before watching');
+	assert.strictEqual(unbuilt.watch.script, 'dev');
 });
 
 test('an unbuilt site builds first, then runs the same watcher', () => {
