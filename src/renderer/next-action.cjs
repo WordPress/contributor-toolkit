@@ -1,0 +1,95 @@
+'use strict';
+
+/**
+ * Decides the one thing the contributor should do next, anywhere in a site's
+ * detail view.
+ *
+ * The view is a stack of panels — a setup checklist, then (once the wizard is
+ * skipped) banners for an incomplete or stale update, a dev-server bar, a
+ * ticket panel, a patch panel. Each panel already knows whether it has
+ * something to offer, but nothing looked across them to say which one is *the*
+ * next step. A contributor lands on the screen and the relevant control may be
+ * scrolled out of view, or sit among several with nothing to say "start here"
+ * (#252).
+ *
+ * This is that decision, and only the decision. It returns the `id` of the
+ * block to point at — a stable string the render tags onto that block with
+ * `data-next-action` — or `null` when nothing is pending. Pure and
+ * dependency-free so it can be unit tested without a DOM: the renderer imports
+ * it, `node --test` requires it directly, exactly like `setup-steps.cjs`.
+ *
+ * The order below is a priority ladder, most urgent first. It is deliberate,
+ * not incidental: an incomplete update (the code moved but the built assets did
+ * not, so the site may not run) outranks everything, because ignoring it wastes
+ * the rest of the session. A stale tree outranks routine work because a patch
+ * made against old code may not apply on Trac. Only then do the routine steps
+ * come — get the server up, review pending changes, link a ticket — and a site
+ * that is running, clean and linked has no next action at all.
+ *
+ * @param {Object}  state
+ * @param {boolean} state.skipInit         Init wizard skipped; post-init view shown.
+ * @param {?string} state.currentSetupStep The checklist's current step key, or null.
+ * @param {boolean} state.updateIncomplete Code updated but built assets are stale.
+ * @param {boolean} state.isUpdating       A trunk update is running now.
+ * @param {boolean} state.stale            The trunk snapshot is old (#94).
+ * @param {boolean} state.running          The dev server is up.
+ * @param {boolean} state.hasChanges       The working tree has uncommitted edits.
+ * @param {boolean} state.ticketLinked     A Trac ticket is linked.
+ * @return {?{id: string, reason: string}} The block to point at, or null.
+ */
+function deriveNextAction(state = {}) {
+	const skipInit = Boolean(state.skipInit);
+
+	// Before the wizard is skipped the checklist is the whole story, and it has
+	// already worked out its own next step (exactly one row is `current`). Reuse
+	// that rather than re-deriving it from the raw flags — there is one source of
+	// truth for the checklist, and it is the checklist.
+	if (!skipInit) {
+		if (typeof state.currentSetupStep === 'string' && state.currentSetupStep) {
+			return {
+				id: `setup-${state.currentSetupStep}`,
+				reason: 'The next step in the setup checklist.'
+			};
+		}
+		return null;
+	}
+
+	if (Boolean(state.updateIncomplete) && !Boolean(state.isUpdating)) {
+		return {
+			id: 'retry-install-build',
+			reason: 'The update left the build stale; install and build to recover.'
+		};
+	}
+
+	// An update in flight is not an action, but it is the thing happening — point
+	// at its tracker so a contributor who looked away can find where the work is.
+	if (Boolean(state.isUpdating)) {
+		return { id: 'updating', reason: 'The trunk update in progress.' };
+	}
+
+	if (Boolean(state.stale)) {
+		return {
+			id: 'update-trunk',
+			reason: 'The trunk snapshot is old; update before making a patch.'
+		};
+	}
+
+	if (!Boolean(state.running)) {
+		return { id: 'start-dev', reason: 'Start the dev server to work on the site.' };
+	}
+
+	if (Boolean(state.hasChanges)) {
+		return {
+			id: 'review-changes',
+			reason: 'You have uncommitted changes ready to review and submit.'
+		};
+	}
+
+	if (!Boolean(state.ticketLinked)) {
+		return { id: 'link-ticket', reason: 'Link a Trac ticket to give your work a home.' };
+	}
+
+	return null;
+}
+
+module.exports = { deriveNextAction };

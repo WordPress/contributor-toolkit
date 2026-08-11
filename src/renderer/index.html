@@ -48,6 +48,24 @@
       .patch-columns > .patch-destinations { flex: none; max-width: none; overflow-y: visible; }
     }
     .components-dropdown-menu__toggle { display: flex; flex-direction: row-reverse; gap: 4px; }
+    /*
+      The cue that points a contributor at the next thing to do (#252). The
+      render puts `.next-action-cue` on exactly one block — whichever the
+      resolver named — and the cue hook scrolls it into view. A soft amber glow
+      marks it: subtle, no motion, and it sits over the block's own background
+      rather than replacing it, so a coloured banner (the red "update
+      incomplete", say) keeps its meaning. The block's own status text names the
+      step, so the glow carries no label. No animation, so nothing here needs a
+      reduced-motion guard; the only movement is the scroll, gated in the hook.
+
+      `border-radius` here only rounds the glow around the wrapped action
+      buttons, which set none of their own. The blocks set their radius inline,
+      which the glow follows and this does not override.
+    */
+    .next-action-cue {
+      border-radius: 10px;
+      box-shadow: 0 0 0 3px rgba(240, 184, 73, 0.45), 0 0 14px 3px rgba(240, 184, 73, 0.30);
+    }
   </style>
   <link rel="stylesheet" href="index.css" />
   <script defer src="index.js"></script>
