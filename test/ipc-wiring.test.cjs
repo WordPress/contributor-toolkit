@@ -589,6 +589,35 @@ test('git:discard-changes reports the parked work that survives it (#239)', asyn
 	assert.equal(res.changedCount, 1);
 });
 
+// The submit modal's "Discard all changes" is the opposite promise (#270): it
+// throws away the whole diff the modal shows — measured from the branch point,
+// so parked WIP included — by rewinding the branch ref to its base. The branch
+// survives and the ticket stays linked; only its work is gone, so the reply is
+// clean.
+test('git:discard-to-base rewinds the branch to its base, parked work included (#270)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t);
+	fs.writeFileSync(path.join(dir, 'loose.php'), '<?php // uncommitted\n');
+	const main = parkedTicketMain(dir, baseOid);
+
+	const res = await main.invoke('git:discard-to-base', dir);
+
+	assert.equal(res.ok, true);
+	assert.equal(fs.existsSync(path.join(dir, 'loose.php')), false, 'the uncommitted edit is gone');
+	assert.doesNotMatch(
+		fs.readFileSync(path.join(dir, 'wp-login.php'), 'utf8'),
+		/the ticket work/,
+		'the parked work is rewound too, unlike a plain discard'
+	);
+	assert.equal(await git.resolveRef({ fs, dir, ref: 'HEAD' }), baseOid, 'HEAD is the branch base');
+	assert.equal(
+		await git.currentBranch({ fs, dir, fullname: false }),
+		'ticket/62281',
+		'still on the ticket branch — the ticket stays linked'
+	);
+	assert.equal(res.dirty, false, 'nothing survives, so the note goes clean');
+	assert.equal(res.changedCount, 0);
+});
+
 test('git:update-trunk hands the update to trunk-update and streams its log back', async () => {
 	let called;
 	const started = new Promise((resolve) => { called = resolve; });
@@ -3396,6 +3425,7 @@ const WIRED = new Set([
 	'git:worktree-dirty',
 	'git:unsubmitted-work',
 	'git:discard-changes',
+	'git:discard-to-base',
 	'git:update-trunk',
 	'git:get-patch',
 	'git:create-patch',

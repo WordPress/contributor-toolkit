@@ -28,7 +28,7 @@ const {
 const { buildMenuTemplate } = require('./menu');
 const { killChildTree } = require('./kill-tree');
 const { normalizeEol } = require('./git-update.cjs');
-const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, updateToLatestTrunk } = require('./trunk-update');
+const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
 const { applyPatchToDir } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
 const { fetchLinkedPrs, fetchPrDiff } = require('./github-prs');
@@ -1150,6 +1150,32 @@ ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
     try {
         const files = await collectUnsubmittedFiles(sitePath);
         return { ok: true, dirty: files.length > 0, changedCount: files.length, files };
+    } catch (e) {
+        return { ok: false, error: String(e) };
+    }
+});
+
+// "Discard all changes" in the review-and-submit modal: throws away everything
+// the modal shows, which on a ticket branch is measured from the branch point
+// (#108/#239) and so includes the parked WIP commit. Rewinds to `patchBaseOid`
+// — the same base the diff was taken against — so the modal ends on "No
+// changes". The branch survives and the ticket stays linked; only its work is
+// gone. On trunk (or a branch with no recorded base) there is nothing past
+// HEAD to rewind, so it falls back to the uncommitted-only reset.
+ipcMain.handle('git:discard-to-base', async (_e, sitePath) => {
+    try {
+        const baseOid = await patchBaseOid(sitePath);
+        if (baseOid) {
+            await discardToBase(sitePath, baseOid);
+        } else {
+            await discardChanges(sitePath);
+        }
+        await writeWorkMeta(sitePath, { appliedPatch: null });
+        let files = null;
+        try { files = await collectUnsubmittedFiles(sitePath); } catch {}
+        return files
+            ? { ok: true, dirty: files.length > 0, changedCount: files.length }
+            : { ok: true };
     } catch (e) {
         return { ok: false, error: String(e) };
     }

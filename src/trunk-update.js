@@ -138,6 +138,55 @@ async function discardChanges(dir) {
 }
 
 /**
+ * Discards everything the patch modal shows — the whole diff against `baseOid`,
+ * not just the uncommitted edits `discardChanges` rewinds. On a ticket branch
+ * the modal measures from the branch point (#108/#239), so its "your changes"
+ * includes the parked WIP commit; rewinding the branch ref to `baseOid` before
+ * the forced checkout throws that commit away too, leaving the tree at the base
+ * with "No changes" to show.
+ *
+ * Kept separate from `discardChanges` on purpose: the trunk-update dirty flow
+ * and the switch-off-trunk flow must reset only uncommitted edits and preserve
+ * parked ticket work, so they stay on `discardChanges`. This one is the modal's
+ * "Discard all changes", where the contributor has asked for the whole thing to
+ * go. The branch is not deleted and the ticket stays linked — the substrate
+ * survives, only its work is rewound; deleting the branch is what "Delete this
+ * ticket's work" is for.
+ *
+ * @param {string} dir
+ * @param {string} baseOid The commit the modal diffed against — the branch point.
+ */
+async function discardToBase(dir, baseOid) {
+	await ensureAutocrlf(dir);
+	const matrix = await git.statusMatrix({ fs, dir });
+	for (const [filepath, head, workdir] of matrix) {
+		if (head === 0) {
+			try { await git.remove({ fs, dir, filepath }); } catch {}
+			if (workdir !== 0) {
+				try { await fs.promises.unlink(path.join(dir, filepath)); } catch {}
+			}
+		}
+	}
+	const ref = (await git.currentBranch({ fs, dir, fullname: false })) || 'trunk';
+	// Only rewind the ref when baseOid really is this branch's own history — its
+	// point off trunk. patchBaseOid falls back to the live `trunk` tip for a
+	// branch with no recorded base (hand-created, or a hand-edited registry);
+	// that tip need not be an ancestor of HEAD, and moving the ref onto it would
+	// orphan the branch's commits and re-point it at unrelated work. When it is
+	// not an ancestor, leave the ref alone and just reset the worktree to HEAD —
+	// the uncommitted-only discard, which never throws away committed work.
+	const head = await git.resolveRef({ fs, dir, ref: 'HEAD' });
+	let rewind = false;
+	if (baseOid !== head) {
+		try { rewind = await git.isDescendent({ fs, dir, oid: head, ancestor: baseOid }); } catch { rewind = false; }
+	}
+	if (rewind) {
+		await git.writeRef({ fs, dir, ref: `refs/heads/${ref}`, value: baseOid, force: true });
+	}
+	await git.checkout({ fs, dir, ref, force: true });
+}
+
+/**
  * Step 1 of the update chain: fetch the latest remote trunk and hard-reset
  * the site to it. Returns { upToDate, oldOid, newOid, lockfileChanged,
  * trunkDate }; throws with `error.stage` set to 'fetch' (nothing moved —
@@ -226,5 +275,6 @@ module.exports = {
 	readTrunkInfo,
 	collectDirtyFiles,
 	discardChanges,
+	discardToBase,
 	updateToLatestTrunk
 };
