@@ -1428,6 +1428,47 @@ test('npm:kill ends the script tree rather than signalling the runner alone', as
 	assert.deepEqual(cp.children[0].kill.calls, []);
 });
 
+// The install is the other thing a directory can be busy with, and it was the
+// one Stop could not reach: `npm:kill` resolved children out of the script
+// registry alone, so a running install answered "No running script" and carried
+// on to completion. Nothing exercised that path, because nothing in the app
+// stopped an install until the setup chain (#246) needed to.
+//
+// A directory is all the caller can offer here — `npm:install` keeps its
+// installId inside the preload, so unlike a script there is no id to pass back.
+test('npm:kill ends a running install, which only its directory can name', async (t) => {
+	const cp = stubbedSpawn();
+	const killChildTree = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			// Same reason as the quit sweep below: npm:install's onDone reaches
+			// getStore() to record installFailed, and the close emitted at the end
+			// of this test would otherwise pull in the real electron-store, and
+			// through it the real electron package the harness must never load.
+			...fakeSettingsStore().stubs,
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTree }
+		}
+	});
+
+	await main.invoke('npm:install', '/sites/wp');
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+
+	assert.deepEqual(await main.invoke('npm:kill', { directoryPath: '/sites/wp' }), { ok: true });
+
+	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
+	assert.deepEqual(cp.children[0].kill.calls, []);
+
+	// A stopped install exits non-zero, which is indistinguishable from an engine
+	// mismatch on Windows (the kill surfaces as a plain code, not a signal). The
+	// handler marks the child cancelled so `runNpmWithEngineRetry` does not read
+	// the stop as a failure worth retrying and respawn the install the
+	// contributor just stopped.
+	cp.children[0].emit('close', 1, null);
+	assert.equal(cp.spawned.length, 1);
+});
+
 // Spins until the stubbed spawn has been called `count` times, so a test can wait
 // for a handler that spawns after an await without knowing how many microtasks
 // that takes. Unlike reachSpawn it counts cumulatively, so several handlers can be
