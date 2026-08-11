@@ -4,7 +4,10 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { attachmentDateMs, pickLatest } = require('../src/latest-patch.cjs');
 
-const pr = (number, updatedAt) => ({ number, updatedAt });
+// A PR is dated by its newest commit (#281). `updatedAt` rides along because
+// the real object carries it and the row falls back to it, but nothing here may
+// rank by it.
+const pr = (number, commitDate, updatedAt = '2026-07-06T03:10:00Z') => ({ number, commitDate, updatedAt });
 const att = (filename, dateText, applyable = true) => ({ filename, url: `https://core.trac.wordpress.org/raw-attachment/ticket/1/${filename}`, dateText, applyable });
 
 test('attachmentDateMs: a US-format absolute date parses, a relative one does not (issue #11)', () => {
@@ -24,7 +27,7 @@ test('attachmentDateMs: parses to a fixed UTC instant, timezone-independent (iss
 });
 
 // The common case: attachments not loaded yet, so the newest PR is the latest.
-test('pickLatest: with only PRs, the most recently updated PR wins (issue #11)', () => {
+test('pickLatest: with only PRs, the one with the newest commit wins (issue #11)', () => {
 	const latest = pickLatest({ prs: [pr(1, '2026-01-01T00:00:00Z'), pr(2, '2026-08-06T00:00:00Z')] });
 	assert.deepStrictEqual({ kind: latest.kind, key: latest.key }, { kind: 'pr', key: 2 });
 });
@@ -79,4 +82,74 @@ test('pickLatest: attachments-only (no PRs cite the ticket) still picks the newe
 	});
 	assert.strictEqual(latest.kind, 'attachment');
 	assert.ok(String(latest.key).endsWith('b.diff'));
+});
+
+// --- ranking by commit, and refusing to guess (issue #281) ---------------
+
+// Trac #62064, as it shipped: one force-push upstream restamped both PRs 19
+// seconds apart, and the app crowned the November 2024 patch — which no longer
+// applies — over the April 2026 one, which does.
+test('pickLatest: the force-push stamps do not decide it; the newest commit does (issue #281)', () => {
+	const latest = pickLatest({
+		prs: [
+			pr(7382, '2024-11-19T09:00:00Z', '2026-07-06T03:10:47Z'),
+			pr(8455, '2026-04-12T11:30:00Z', '2026-07-06T03:10:28Z')
+		],
+		prRankComplete: true
+	});
+	assert.deepStrictEqual({ kind: latest.kind, key: latest.key }, { kind: 'pr', key: 8455 });
+});
+
+test('pickLatest: an incomplete ranking shows nothing rather than a guess (issue #281)', () => {
+	const prs = [pr(1, '2026-04-12T11:30:00Z'), pr(2, '2024-11-19T09:00:00Z')];
+	assert.strictEqual(pickLatest({ prs, prRankComplete: false }), null);
+	assert.ok(pickLatest({ prs, prRankComplete: true }), 'the same list ranks fine once the walk finished');
+});
+
+// A PR whose commit date was never resolved is unknown, not old — so it makes
+// the whole answer unknown, whatever the flag says. This is also what a list
+// restored from a cache written before commit dates existed looks like.
+test('pickLatest: an undated PR suppresses the pill, never falling back to updatedAt (issue #281)', () => {
+	const prs = [pr(1, '2020-01-01T00:00:00Z'), { number: 2, updatedAt: '2026-08-01T00:00:00Z' }];
+	assert.strictEqual(pickLatest({ prs, prRankComplete: true }), null);
+	assert.strictEqual(pickLatest({ prs }), null, 'a caller that passes no flag gets the same answer');
+});
+
+// An undated PR is also unknown next to an attachment: it could be the newer
+// fix, so the attachment cannot be crowned either.
+test('pickLatest: an undated PR blocks an attachment from winning too (issue #281)', () => {
+	const latest = pickLatest({
+		prs: [{ number: 2, updatedAt: '2026-08-01T00:00:00Z' }],
+		attachments: [att('fix.diff', '05/16/2025 11:00:00 AM')]
+	});
+	assert.strictEqual(latest, null);
+});
+
+test('pickLatest: two patches within the hour are not a ranking (issue #281)', () => {
+	const near = pickLatest({
+		prs: [pr(1, '2026-04-12T11:30:00Z'), pr(2, '2026-04-12T11:55:00Z')],
+		prRankComplete: true
+	});
+	assert.strictEqual(near, null, '25 minutes apart is one piece of work, not a newer and an older fix');
+
+	const clear = pickLatest({
+		prs: [pr(1, '2026-04-12T11:30:00Z'), pr(2, '2026-04-12T14:30:00Z')],
+		prRankComplete: true
+	});
+	assert.deepStrictEqual({ kind: clear.kind, key: clear.key }, { kind: 'pr', key: 2 });
+});
+
+// The near-tie rule reads the runner-up wherever it is, not just the previous
+// winner: three candidates must not let an early loser hide a close second.
+test('pickLatest: the near-tie is measured against the true runner-up (issue #281)', () => {
+	const latest = pickLatest({
+		prs: [pr(1, '2020-01-01T00:00:00Z'), pr(2, '2026-04-12T14:30:00Z'), pr(3, '2026-04-12T14:20:00Z')],
+		prRankComplete: true
+	});
+	assert.strictEqual(latest, null);
+});
+
+test('pickLatest: a single PR still gets the pill (issue #281)', () => {
+	const latest = pickLatest({ prs: [pr(9026, '2026-04-12T11:30:00Z')], prRankComplete: true });
+	assert.deepStrictEqual({ kind: latest.kind, key: latest.key }, { kind: 'pr', key: 9026 });
 });

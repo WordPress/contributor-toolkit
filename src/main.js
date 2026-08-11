@@ -1324,8 +1324,12 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
 
         const result = await fetchLinkedPrs(ticketId);
         if (result.status === 'ok') {
-            s.set(patchCacheKey(ticketId), { checkedAt: new Date().toISOString(), items: result.items });
-            return { ok: true, ticket: ticketId, prs: { status: 'ok', items: result.items } };
+            // `rankComplete` is cached with the items and handed back with them:
+            // a list whose commit-date ranking was cut short must not come back
+            // from the cache looking complete, or the "Latest" pill returns
+            // without the evidence for it (#281).
+            s.set(patchCacheKey(ticketId), { checkedAt: new Date().toISOString(), items: result.items, rankComplete: result.rankComplete });
+            return { ok: true, ticket: ticketId, prs: { status: 'ok', items: result.items, rankComplete: result.rankComplete } };
         }
 
         // Could not read GitHub. Fall back to whatever was last seen for this
@@ -1335,7 +1339,13 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
         return {
             ok: true,
             ticket: ticketId,
-            prs: { status: result.status, items: cached ? cached.items : [], cachedAt: cached ? cached.checkedAt : null, error: result.error }
+            prs: {
+                status: result.status,
+                items: cached ? cached.items : [],
+                rankComplete: cached ? cached.rankComplete === true : false,
+                cachedAt: cached ? cached.checkedAt : null,
+                error: result.error
+            }
         };
     } catch (e) {
         return { ok: false, error: String(e) };

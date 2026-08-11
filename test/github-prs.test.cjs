@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { EventEmitter } = require('node:events');
-const { httpGet, fetchLinkedPrs } = require('../src/github-prs');
+const { httpGet, fetchLinkedPrs, MAX_COMMIT_LOOKUPS } = require('../src/github-prs');
 
 // A stand-in for Electron's `net`: request() hands back an EventEmitter whose
 // end() lets the test drive the response (or an error) the way the real client
@@ -83,16 +83,136 @@ test('httpGet settles once: a timeout after a successful response is a no-op', a
 
 const CITE = (id) => `Trac: https://core.trac.wordpress.org/ticket/${id}`;
 
+const searchItem = (number, updatedAt) => ({
+	number,
+	pull_request: { url: 'x' },
+	title: `PR ${number}`,
+	state: 'open',
+	updated_at: updatedAt,
+	html_url: `https://github.com/WordPress/wordpress-develop/pull/${number}`,
+	body: CITE(123)
+});
+
+/**
+ * An httpGet that answers the search once and each `pulls/N/commits` from a
+ * table, recording every URL it was asked for. The request count is the point
+ * of most of the tests below: this feature spends a shared 60/hour quota, so
+ * "does it get the right answer" and "how many requests did that take" are the
+ * same question.
+ *
+ * @param {Array}  items     `search/issues` items the one search request answers with.
+ * @param {Object} [commits] PR number → an array of commit dates, or a function
+ *                           of the URL for the pagination and failure cases.
+ * @return {Object}
+ */
+function ghDouble(items, commits = {}) {
+	const calls = [];
+	const searchBody = JSON.stringify({ total_count: items.length, incomplete_results: false, items });
+	const httpGetImpl = async (url) => {
+		calls.push(url);
+		if (url.includes('/search/issues')) return { status: 200, headers: {}, body: searchBody };
+		const n = Number(/\/pulls\/(\d+)\/commits/.exec(url)[1]);
+		const entry = commits[n];
+		if (typeof entry === 'function') return entry(url);
+		const dates = Array.isArray(entry) ? entry : [];
+		return { status: 200, headers: {}, body: JSON.stringify(dates.map((d) => ({ commit: { committer: { date: d } } }))) };
+	};
+	return { httpGet: httpGetImpl, calls, commitCalls: () => calls.filter((u) => u.includes('/commits')) };
+}
+
 test('fetchLinkedPrs returns ok with the citing PRs when the result is complete', async () => {
-	const body = JSON.stringify({
-		total_count: 1,
-		incomplete_results: false,
-		items: [{ number: 42, pull_request: { url: 'x' }, title: 'Fix', state: 'open', updated_at: '2026-01-01T00:00:00Z', html_url: 'u', body: CITE(123) }]
-	});
-	const res = await fetchLinkedPrs('123', { httpGet: async () => ({ status: 200, headers: {}, body }) });
+	const gh = ghDouble([searchItem(42, '2026-01-01T00:00:00Z')], { 42: ['2025-12-30T10:00:00Z'] });
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet });
 	assert.strictEqual(res.status, 'ok');
 	assert.strictEqual(res.items.length, 1);
 	assert.strictEqual(res.items[0].number, 42);
+	assert.strictEqual(res.items[0].commitDate, '2025-12-30T10:00:00Z');
+	assert.strictEqual(res.rankComplete, true);
+	assert.strictEqual(gh.commitCalls().length, 1, 'one PR, one lookup');
+});
+
+// --- ranking by commit date (issue #281) ---------------------------------
+
+// The bug, in the shape it actually shipped: an upstream force-push restamped
+// both PRs 19 seconds apart, so updatedAt crowned the November 2024 patch that
+// no longer applies over the April 2026 one that does.
+test('fetchLinkedPrs ranks by newest commit, not by an upstream force-push stamp (issue #281)', async () => {
+	const gh = ghDouble(
+		[searchItem(7382, '2026-07-06T03:10:47Z'), searchItem(8455, '2026-07-06T03:10:28Z')],
+		{ 7382: ['2024-11-19T09:00:00Z'], 8455: ['2026-01-02T08:00:00Z', '2026-04-12T11:30:00Z'] }
+	);
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet });
+	assert.deepStrictEqual(res.items.map((p) => p.number), [8455, 7382]);
+	assert.strictEqual(res.items[0].commitDate, '2026-04-12T11:30:00Z', 'newest commit on the PR, not its first');
+	assert.strictEqual(res.rankComplete, true);
+});
+
+// The saving that makes the extra requests affordable: updatedAt is never
+// earlier than the last commit, so it bounds every row below.
+test('fetchLinkedPrs stops looking up once no remaining PR can win (issue #281)', async () => {
+	const gh = ghDouble(
+		[searchItem(1, '2026-08-01T00:00:00Z'), searchItem(2, '2026-02-01T00:00:00Z'), searchItem(3, '2026-01-01T00:00:00Z')],
+		{ 1: ['2026-07-01T00:00:00Z'], 2: ['2026-01-15T00:00:00Z'], 3: ['2025-01-01T00:00:00Z'] }
+	);
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet });
+	assert.strictEqual(gh.commitCalls().length, 1, 'PR 1 beats the bound on PR 2, so 2 and 3 are never fetched');
+	assert.strictEqual(res.rankComplete, true, 'the tail was ruled out, not merely unread');
+	assert.deepStrictEqual(res.items.map((p) => p.number), [1, 2, 3]);
+});
+
+test('fetchLinkedPrs stops at the lookup cap and says the ranking is incomplete (issue #281)', async () => {
+	// Every bound identical — a force-push sweep — so the walk cannot rule
+	// anything out and would otherwise fetch the lot.
+	const stamp = '2026-07-06T03:10:00Z';
+	const numbers = [1, 2, 3, 4, 5, 6];
+	const commits = {};
+	for (const n of numbers) commits[n] = [`2026-0${n}-01T00:00:00Z`];
+	const gh = ghDouble(numbers.map((n) => searchItem(n, stamp)), commits);
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet });
+	assert.strictEqual(gh.commitCalls().length, MAX_COMMIT_LOOKUPS);
+	assert.strictEqual(res.rankComplete, false);
+});
+
+test('fetchLinkedPrs stops looking up after a failed lookup rather than spending the rest (issue #281)', async () => {
+	const stamp = '2026-07-06T03:10:00Z';
+	const gh = ghDouble(
+		[searchItem(1, stamp), searchItem(2, stamp), searchItem(3, stamp)],
+		{
+			1: ['2026-01-01T00:00:00Z'],
+			2: () => ({ status: 403, headers: { 'x-ratelimit-remaining': '0' }, body: '' }),
+			3: ['2026-06-01T00:00:00Z']
+		}
+	);
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet });
+	assert.strictEqual(gh.commitCalls().length, 2, 'PR 3 is not attempted against a spent quota');
+	assert.strictEqual(res.rankComplete, false);
+	// The list itself still came back — a ranking we could not finish is not a
+	// reason to hide the work that exists.
+	assert.strictEqual(res.status, 'ok');
+	assert.strictEqual(res.items.length, 3);
+});
+
+test('fetchLinkedPrs follows Link rel="last" once for a long PR, and takes the newest there (issue #281)', async () => {
+	const gh = ghDouble([searchItem(9, '2026-08-01T00:00:00Z')], {
+		9: (url) => (url.includes('page=3')
+			? { status: 200, headers: {}, body: JSON.stringify([{ commit: { committer: { date: '2026-07-30T12:00:00Z' } } }]) }
+			: {
+				status: 200,
+				headers: { link: '<https://api.github.com/repos/WordPress/wordpress-develop/pulls/9/commits?per_page=100&page=3>; rel="last"' },
+				body: JSON.stringify([{ commit: { committer: { date: '2024-01-01T00:00:00Z' } } }])
+			})
+	});
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet });
+	assert.strictEqual(gh.commitCalls().length, 2, 'the last page, not a walk through the middle');
+	assert.strictEqual(res.items[0].commitDate, '2026-07-30T12:00:00Z');
+});
+
+test('fetchLinkedPrs falls back to the author date when a commit has no committer date (issue #281)', async () => {
+	const gh = ghDouble([searchItem(4, '2026-08-01T00:00:00Z')], {
+		4: () => ({ status: 200, headers: {}, body: JSON.stringify([{ commit: { author: { date: '2026-05-05T00:00:00Z' } } }]) })
+	});
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet });
+	assert.strictEqual(res.items[0].commitDate, '2026-05-05T00:00:00Z');
 });
 
 test('fetchLinkedPrs refuses to cache a truncated result, so the cache is used instead', async () => {

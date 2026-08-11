@@ -85,8 +85,14 @@ function prState(item) {
 
 /**
  * Reduces a GitHub `search/issues` response to the PRs that cite the ticket.
- * Returns newest-first — for a moving target like a PR the freshest is the one
- * a contributor most likely wants.
+ *
+ * Returns sorted by `updatedAt` descending. That is deliberately *not* the
+ * order shown to a contributor: `updatedAt` moves on a comment, a label or an
+ * upstream force-push, so as a claim about freshness it is worthless (#281).
+ * What it is worth is a bound — it never sits earlier than the last commit —
+ * so this ordering is the one the commit-date walk in github-prs.js needs to
+ * decide how few lookups it can get away with. The display order comes from
+ * orderByCommitDate below, once those lookups have happened.
  *
  * @param {Object}        searchJson
  * @param {number|string} ticketId
@@ -121,6 +127,36 @@ function parseLinkedPrs(searchJson, ticketId) {
 }
 
 /**
+ * The order a contributor reads: newest code first (issue #281).
+ *
+ * Pull requests whose commit date was resolved come first, freshest first. The
+ * rest follow in `updatedAt` order — not because that says anything about
+ * their freshness, but because the alternative is an arbitrary shuffle, and
+ * they are either provably older than everything above them (the walk stopped
+ * on its bound) or explicitly unranked (it stopped on its cap), which the
+ * caller reflects by showing no "Latest" pill at all.
+ *
+ * @param {Array} prs
+ * @return {Array}
+ */
+function orderByCommitDate(prs) {
+	const list = Array.isArray(prs) ? prs.slice() : [];
+	const ms = (pr) => {
+		const parsed = pr && typeof pr.commitDate === 'string' && pr.commitDate ? Date.parse(pr.commitDate) : NaN;
+		return Number.isFinite(parsed) ? parsed : null;
+	};
+	list.sort((a, b) => {
+		const x = ms(a);
+		const y = ms(b);
+		if (x !== null && y !== null) return y - x;
+		if (x !== null) return -1;
+		if (y !== null) return 1;
+		return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+	});
+	return list;
+}
+
+/**
  * Classifies a non-2xx GitHub response so the UI can tell "nothing on this
  * ticket" apart from "we could not read it". A rate-limited answer is not an
  * empty ticket: on a shared Contributor-Day IP the unauthenticated 60/hour is
@@ -145,6 +181,7 @@ module.exports = {
 	TICKET_HOST,
 	bodyCitesTicket,
 	parseLinkedPrs,
+	orderByCommitDate,
 	classifyHttpFailure,
 	parsePrRef
 };
