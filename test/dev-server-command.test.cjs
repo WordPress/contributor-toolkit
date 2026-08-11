@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { planDevServerStart, formatElapsed } = require('../src/renderer/dev-server-command.cjs');
+const { planDevServerStart, formatElapsed, watchTabLabel } = require('../src/renderer/dev-server-command.cjs');
 
 test('a built site skips the build and goes straight to the watcher (issue #72)', () => {
 	const plan = planDevServerStart({ hasBuilt: true });
@@ -63,4 +63,32 @@ test('formatElapsed clamps negatives and non-numbers to 0s', () => {
 	assert.strictEqual(formatElapsed(NaN), '0s');
 	assert.strictEqual(formatElapsed(undefined), '0s');
 	assert.strictEqual(formatElapsed(12.9), '12s');
+});
+
+// The watcher runs decoupled from the dev server (issue #247), so its tab title
+// is the only place its state is shown. Each lifecycle state gets its own label.
+test('watchTabLabel names each watcher lifecycle state', () => {
+	assert.strictEqual(watchTabLabel('idle'), 'Build watcher');
+	assert.strictEqual(watchTabLabel('watching'), 'Build watcher (watching)');
+	assert.strictEqual(watchTabLabel('building'), 'Build watcher (building)');
+	assert.strictEqual(watchTabLabel('paused'), 'Build watcher (paused)');
+});
+
+test('watchTabLabel shows the exit code when the watcher has exited', () => {
+	assert.strictEqual(watchTabLabel('exited', 0), 'Build watcher (exited 0)');
+	assert.strictEqual(watchTabLabel('exited', 1), 'Build watcher (exited 1)');
+});
+
+// A watcher we killed on purpose (pause, dev-server stop) has no meaningful
+// exit code to show — 'stopped' reads better than 'exited null'.
+test('watchTabLabel falls back to "stopped" when the exit code is unknown', () => {
+	assert.strictEqual(watchTabLabel('exited'), 'Build watcher (stopped)');
+	assert.strictEqual(watchTabLabel('exited', null), 'Build watcher (stopped)');
+	assert.strictEqual(watchTabLabel('exited', NaN), 'Build watcher (stopped)');
+});
+
+// An unknown state must never blank the tab or throw — it stays identifiable.
+test('watchTabLabel falls back to the bare name for unknown states', () => {
+	assert.strictEqual(watchTabLabel(undefined), 'Build watcher');
+	assert.strictEqual(watchTabLabel('bogus'), 'Build watcher');
 });
