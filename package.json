@@ -31,6 +31,9 @@
     "directories": {
       "buildResources": "build"
     },
+    "files": [
+      "!vendor{,/**/*}"
+    ],
     "icon": "build/icon.png",
     "linux": {
       "maintainer": "WordPress.org",
