@@ -8,7 +8,7 @@ const {
 	parsePatchFiles,
 	planApply
 } = require('../src/patch-plan.cjs');
-const { updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } = require('../src/renderer/update-plan.cjs');
+const { updateStepStatuses, SKIP_INSTALL_MESSAGE, BUILD_BY_WATCHER_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP } = require('../src/renderer/update-plan.cjs');
 
 // The four header shapes that actually reach the app. Kept verbatim rather than
 // generated: the whole point of these tests is that real-world formatting —
@@ -267,6 +267,54 @@ test('planApplySteps: the update chain is unaffected by the new state map (issue
 		updateStepStatuses(steps, 'fetching', APPLY_STATE_TO_STEP).map((s) => s.status),
 		['pending', 'pending', 'pending']
 	);
+});
+
+// #262: when a build watch is running it recompiles src/ on save, so the build
+// step is shown skipped, naming the watch as the thing doing the recompile.
+test('planApplySteps: the build step is skipped and attributed to the watch (issue #262)', () => {
+	const steps = planApplySteps({ needsInstall: false, buildByWatcher: true });
+	assert.strictEqual(steps[2].key, 'build');
+	assert.strictEqual(steps[2].skipped, true);
+	assert.strictEqual(steps[2].skipMessage, BUILD_BY_WATCHER_MESSAGE);
+	// Default (no watch) still runs the build, exactly as before.
+	assert.strictEqual(planApplySteps({ needsInstall: false })[2].skipped, false);
+});
+
+// This is the bug in #262: with a watch running, a src-only patch must NOT run
+// its own build (the watch does it) and must NOT pause the watch.
+test('planWatchImpact: a src-only patch under a running watch neither builds nor pauses (issue #262)', () => {
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: false, watcherActive: true }),
+		{ pauseWatcher: false, runBuild: false }
+	);
+});
+
+// No watch running: nothing is recompiling on save, so the build has to run.
+test('planWatchImpact: a src-only patch with no watch runs the build itself (issue #262)', () => {
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: false, watcherActive: false }),
+		{ pauseWatcher: false, runBuild: true }
+	);
+});
+
+// A lockfile change needs install + a full build, which need the build
+// directory and node_modules to themselves — so a live watch is paused.
+test('planWatchImpact: a lockfile-changing patch builds, and pauses a live watch (issue #262)', () => {
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: true, watcherActive: true }),
+		{ pauseWatcher: true, runBuild: true }
+	);
+	// With no watch to collide with, it builds but has nothing to pause.
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: true, watcherActive: false }),
+		{ pauseWatcher: false, runBuild: true }
+	);
+});
+
+// Missing flags must behave as the safe default: run the build, pause nothing.
+test('planWatchImpact: missing flags build and pause nothing (issue #262)', () => {
+	assert.deepStrictEqual(planWatchImpact(), { pauseWatcher: false, runBuild: true });
+	assert.deepStrictEqual(planWatchImpact({}), { pauseWatcher: false, runBuild: true });
 });
 
 // Every deletion fixture above carries a `diff --git` line, which this app's
