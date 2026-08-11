@@ -21,6 +21,7 @@ import '@wordpress/components/build-style/style.css';
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
 import { computeSetupStepState } from './setup-steps.cjs';
+import { deriveNextAction } from './next-action.cjs';
 import { shouldShowTerminalHints, computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, formatElapsed } from './dev-server-command.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
@@ -199,6 +200,34 @@ function useContributorProvenance() {
   }, []);
 
   return { handle, event, rememberHandle, rememberEvent };
+}
+
+// Brings the block the contributor should act on next into view when it changes,
+// so their one hint is never left below the fold (#252). The mark itself is
+// drawn by React — the `.next-action-cue` class the render binds to this same id
+// — because a className survives re-render where an imperative one would be
+// reconciled away; this handles only the movement, which no className can do.
+//
+// Gated on `isActive` because every SiteRow stays mounted at once: without it a
+// background site could yank the viewport the moment its own state changed. It
+// fires on a *change* of the id (or on becoming active), not on every render, so
+// a contributor reading one block is not dragged off it by an unrelated update.
+function useNextActionCue(nextActionId, isActive, containerRef) {
+  useEffect(() => {
+    if (!isActive || !nextActionId) return;
+    const root = containerRef.current;
+    if (!root) return;
+    const el = root.querySelector(`[data-next-action="${nextActionId}"]`);
+    if (!el) return;
+    // `center` brings the block clearly into view rather than just nudging it to
+    // the nearest edge — the cue only fires when the target *changes*, so this
+    // moves the viewport to whatever is newly worth looking at (a step that just
+    // became current, an operation that just started) without fighting a
+    // contributor mid-read. Reduced motion drops the smooth glide to an instant
+    // jump.
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [nextActionId, isActive, containerRef]);
 }
 
 // The two halves are one piece of state because one change moves both: adopting
@@ -1721,6 +1750,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
   // terminal refs/state (after run helpers so dependencies are available)
   const terminalContainerRef = useRef(null);
+  // The scroll root for the next-action cue (#252): the whole detail section, so
+  // the cue can find whichever block is the next step wherever it sits.
+  const nextActionSectionRef = useRef(null);
   const terminalRef = useRef(null);
   const terminalStickRef = useRef(true);
   const terminalInputHandlerRef = useRef(() => {});
@@ -3463,8 +3495,27 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     return { ...step, status };
   });
 
+  // The one block to point the contributor at next (#252). The checklist has
+  // already worked out its own current step; the resolver folds that together
+  // with the post-init state into a single id, which the render tags onto the
+  // matching block (`data-next-action` + the `.next-action-cue` class) and the
+  // cue hook scrolls into view.
+  const currentSetupStep = stepItems.find((s) => s.status === 'current')?.key || null;
+  const nextAction = deriveNextAction({
+    skipInit,
+    currentSetupStep,
+    updateIncomplete,
+    isUpdating,
+    stale: age.stale,
+    running,
+    hasChanges: Boolean(worktreeDirty && worktreeDirty.dirty),
+    ticketLinked: Boolean(tracTicket)
+  });
+  const nextActionId = nextAction ? nextAction.id : null;
+  useNextActionCue(nextActionId, isActive, nextActionSectionRef);
+
   return (
-    <section style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
+    <section ref={nextActionSectionRef} style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
       <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 440px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -3679,9 +3730,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {stepItems.map((step) => {
               const visuals = checklistVisuals[step.status] || checklistVisuals.locked;
+              const cueId = `setup-${step.key}`;
               return (
                 <div
                   key={step.key}
+                  data-next-action={cueId}
+                  className={nextActionId === cueId ? 'next-action-cue' : undefined}
                   style={{
                     border: `1px solid ${visuals.border}`,
                     background: visuals.background,
