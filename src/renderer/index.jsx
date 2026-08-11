@@ -39,13 +39,20 @@ import { adminUrl, adminerUrl } from './site-urls.cjs';
 import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
+import { highlightLog } from './log-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
 import { changesNoteParts, discardOutcome, noteAfterDiscard, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { initialConfirmations, confirmationReducer, prConfirmationMessage } from './confirmations.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
-// Shared by both log panes so the tabs cannot drift apart visually.
-const LOG_PANE_STYLE = { whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 12, borderRadius: 6, height: 220, overflow: 'auto' };
+// One face for everything that is process output: the terminal below and every
+// log pane above it. Shared rather than repeated because the panes had drifted
+// into the app's sans-serif, which does not line up a stack trace and does not
+// read as a console even though that is exactly what it is.
+const TERMINAL_FONT = { fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace', fontSize: 13 };
+// Shared by every log pane so the tabs cannot drift apart visually. The line
+// height is looser than xterm's: this is wrapped text in a div, not painted rows.
+const LOG_PANE_STYLE = { ...TERMINAL_FONT, lineHeight: 1.4, whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 12, borderRadius: 6, height: 220, overflow: 'auto' };
 // What the Copy button says about the press just made. Keyed rather than
 // nested ternaries, so a fourth state is a line here instead of another branch
 // in the middle of the JSX.
@@ -856,7 +863,7 @@ function App() {
                     </div>
                   </div>
                   {webError ? (<div style={{ marginTop:6, color:'#C00', fontSize:12 }}>{webError}</div>) : null}
-                  <div ref={webLogRef} style={{ marginTop:8, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:8, borderRadius:6, height:140, overflow:'auto' }}>{webLogs}</div>
+                  <div ref={webLogRef} style={{ ...LOG_PANE_STYLE, marginTop:8, padding:8, height:140 }}><LogText text={webLogs} /></div>
                 </CardBody>
               </Card>
             ) : null}
@@ -1033,6 +1040,51 @@ function DiffText({ text }) {
       {line.text || ' '}
     </span>
   ));
+}
+
+// What each kind of log line looks like. Same split as the diff pane: the
+// classification is in log-highlight.cjs, the colours are a property of this
+// pane. Colour is never the only signal — the words `Fatal error`, `Warning`,
+// `Deprecated` stay in the text, and the severity is a re-statement of them, so
+// nothing is lost without colour vision.
+const LOG_LINE_STYLES = {
+  fatal: { color: '#ffa198' },
+  warning: { color: '#ffb86c' },
+  deprecated: { color: '#e3d16a' },
+  notice: { color: '#e3d16a' },
+  // Stack frames and node's "(Use `…`)" follow-ups: they belong to the line
+  // above and are most of the volume in a full pane, so they recede.
+  trace: { color: '#8b949e' },
+  ready: { color: '#7ee787', fontWeight: 600 },
+  plain: {}
+};
+// The `[11-Aug-2026 …]` every debug.log line opens with. It is worth keeping —
+// it is how two runs of the same request are told apart — but it is the same 26
+// characters on every line, so it is the last thing that should catch the eye.
+const LOG_STAMP_STYLE = { color: '#6e7681' };
+
+// A log pane, painted. Memoised on the text because a running dev server streams
+// chunks into it: without this, an unrelated SiteRow re-render re-splits the
+// whole buffer. Only the tail is turned into per-line spans (see
+// MAX_HIGHLIGHTED_LINES); everything older is one plain string, so the element
+// count stays flat however long the server runs.
+function LogText({ text }) {
+  const painted = useMemo(() => highlightLog(text), [text]);
+  if (!painted) return null;
+  return (
+    <>
+      {painted.head}
+      {painted.lines.map((line, index) => (
+        // A log line has no identity beyond its position, and lines only ever
+        // arrive at the end.
+        <span key={index} style={{ display: 'block', ...LOG_LINE_STYLES[line.kind] }}>
+          {line.stamp ? <span style={LOG_STAMP_STYLE}>{line.stamp}</span> : null}
+          {/* A blank line still has to occupy one, same as in the diff pane. */}
+          {line.stamp === '' && line.text === '' ? ' ' : line.text}
+        </span>
+      ))}
+    </>
+  );
 }
 
 // One destination for a finished patch (#166): what it is, what it costs to
@@ -2071,8 +2123,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       scrollback: 4000,
       convertEol: false,
       theme: { background: '#111', foreground: '#f5f5f5' },
-      fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
-      fontSize: 13
+      ...TERMINAL_FONT
     });
     terminalRef.current = term;
     term.open(container);
@@ -4326,15 +4377,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Logs</div>
           <TabPanel className="log-tabs" activeClass="is-active" onSelect={selectLogTab} tabs={logTabs}>
             {(tab) => (tab.name === 'runtime' ? (
-              <div ref={runtimeRef} onScroll={makeOnScroll('runtime')} style={LOG_PANE_STYLE}>{runtimeLogs}</div>
+              <div ref={runtimeRef} onScroll={makeOnScroll('runtime')} style={LOG_PANE_STYLE}><LogText text={runtimeLogs} /></div>
             ) : (
               <>
                 <div ref={debugRef} onScroll={makeOnScroll('debug')} style={LOG_PANE_STYLE}>
-                  {debugLogs || (
+                  {debugLogs ? <LogText text={debugLogs} /> : (
                     // An empty pane reads as broken, which is what this one was
                     // for as long as WP_DEBUG_LOG was never set. Say what fills
-                    // it instead.
-                    <span style={{ color:'#888' }}>No PHP notices or errors yet. Anything WordPress or your code writes — <code>error_log()</code>, notices, deprecations, fatals — appears here while the dev server runs.</span>
+                    // it instead. In the app's own font, not the terminal's:
+                    // this is interface copy rather than log output, and it is
+                    // what keeps the `<code>` bits in it distinguishable.
+                    <span style={{ color:'#888', fontFamily:'-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>No PHP notices or errors yet. Anything WordPress or your code writes — <code>error_log()</code>, notices, deprecations, fatals — appears here while the dev server runs.</span>
                   )}
                 </div>
                 <div style={{ display:'flex', gap:8, marginTop:8, alignItems:'center', justifyContent:'space-between', flexWrap:'wrap' }}>
