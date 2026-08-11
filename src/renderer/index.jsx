@@ -29,7 +29,7 @@ import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
-import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, APPLY_STATE_TO_STEP } from './update-plan.cjs';
+import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
@@ -1294,6 +1294,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Held separately from applyPreview: the preview is cleared the moment the
   // chain starts, and the step list still has to know whether install runs.
   const [applyNeedsInstall, setApplyNeedsInstall] = useState(false);
+  // True when a running build watch will recompile the change, so the apply
+  // chain shows its build step skipped and attributed to the watch (#262).
+  const [applyBuildByWatcher, setApplyBuildByWatcher] = useState(false);
   const [applyError, setApplyError] = useState('');
   // Not every unhappy ending is a failure: a revert can find that the patch is
   // already gone, which resolves the situation rather than blocking it. Red
@@ -2414,6 +2417,26 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   }, [killCurrent, killWatcher, markTerminalRunning, markWatchState]);
 
+  // Pause the watch for an operation that needs the build directory and
+  // node_modules to itself — an install, a full build, a trunk reset (#262).
+  // Returns whether it actually paused, so a caller can log accordingly; resume
+  // is safe to call unconditionally since it no-ops unless the state is 'paused'.
+  const pauseWatcher = useCallback(async () => {
+    if (watchStateRef.current !== 'watching' && watchStateRef.current !== 'building') return false;
+    markWatchState('paused');
+    appendWatch('\nPaused while another operation uses the build.\n');
+    try { await killWatcher(); } catch {}
+    return true;
+  }, [appendWatch, killWatcher, markWatchState]);
+
+  // Bring the watch back after a pause. Guarded on 'paused' so a dev-server stop
+  // or a manual stop mid-operation (which sets 'idle') is never resurrected.
+  const resumeWatcher = useCallback(() => {
+    if (watchStateRef.current !== 'paused') return;
+    appendWatch('\nResumed.\n');
+    startWatchProcess();
+  }, [appendWatch, startWatchProcess]);
+
   const toggleWatch = useCallback(() => {
     const s = watchStateRef.current;
     if (s === 'watching' || s === 'building') { stopWatcher(); return; }
@@ -2606,6 +2629,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     terminalKillRef.current = null;
     setUpdateState('idle');
     if (message) writeToTerminal(message);
+    // Resume the watch if the update paused it (#262). Safe on every exit path
+    // and a no-op if nothing was paused.
+    resumeWatcher();
     loadStatus().catch(() => {});
     refreshDirty();
   };
@@ -2660,7 +2686,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const terminalBusy = computeTerminalBusy({
     terminalRunning, installing, building, starting, running, isUpdating, isApplying
   });
-  const applySteps = planApplySteps({ needsInstall: applyNeedsInstall });
+  const applySteps = planApplySteps({ needsInstall: applyNeedsInstall, buildByWatcher: applyBuildByWatcher });
   const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
 
   // The single most recent patch across whatever is loaded — PRs always, Trac
@@ -2696,11 +2722,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     terminalKillRef.current = null;
     setApplyState('idle');
     if (message) writeToTerminal(message);
+    // Resume the watch if this apply paused it. Safe on every exit path
+    // (success, failure, cancel) and a no-op if nothing was paused (#262).
+    resumeWatcher();
     loadStatus().catch(() => {});
     refreshDirty();
   };
 
-  const runApplyInstallAndBuild = (needsInstall, verb) => {
+  const runApplyInstallAndBuild = (needsInstall, verb, { runBuild = true } = {}) => {
     const runBuildStep = () => {
       setApplyState('building');
       writeToTerminal('\nRunning npm run build…\n');
@@ -2718,6 +2747,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         }
       });
     };
+    if (!runBuild) {
+      // A running build watch recompiles the src/ change on its own, so there is
+      // no install and no build of our own to run — just hand off to it (#262).
+      confirm(`${verb} the patch`);
+      finishApply(`\n${verb} — the build watch is recompiling it. Open the site to try it out.\n`);
+      return;
+    }
     if (needsInstall) {
       setApplyState('installing');
       writeToTerminal('\nThe patch changes package-lock.json — running npm install…\n');
@@ -2892,7 +2928,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     previewPr({ number: parsed.number, url: `https://github.com/WordPress/wordpress-develop/pull/${parsed.number}` });
   };
 
-  const runApply = ({ reverse = false } = {}) => {
+  const runApply = async ({ reverse = false } = {}) => {
     const state = terminalStateRef.current;
     if (state.running) {
       writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
@@ -2902,11 +2938,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     const needsInstall = reverse
       ? Boolean(appliedPatch?.files?.includes('package-lock.json'))
       : Boolean(preview.needsInstall);
+    // A running build watch already recompiles src/, so a src-only patch skips
+    // the build and is not interrupted; an install/full build pauses it (#262).
+    const watcherActive = watchStateRef.current === 'watching';
+    const impact = planWatchImpact({ needsInstall, watcherActive });
     setApplyError('');
     setApplyNotice('');
     setApplyNeedsInstall(needsInstall);
+    setApplyBuildByWatcher(!impact.runBuild);
     setApplyState('applying');
     markTerminalRunning(true);
+    if (impact.pauseWatcher) await pauseWatcher();
     // Same contract as the other chains: while `running` is set, Ctrl+C in the
     // terminal has to reach the child process the chain is about to spawn.
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
@@ -2938,8 +2980,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         setApplyPreview(null);
         // The confirmation waits until the rebuild finishes (see runBuildStep) —
         // the patch is on disk now, but the site is not usable until it is built
-        // around it, so announcing "applied" here would be premature.
-        runApplyInstallAndBuild(needsInstall, reverse ? 'Reverted' : 'Applied');
+        // around it, so announcing "applied" here would be premature. When a
+        // watch will rebuild it, runApplyInstallAndBuild confirms right away.
+        runApplyInstallAndBuild(needsInstall, reverse ? 'Reverted' : 'Applied', { runBuild: impact.runBuild });
       }
     ).catch((e) => {
       // A rejected invoke never reaches onDone, so without this the terminal
@@ -2951,12 +2994,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
   // Step 1: fetch + reset in the main process, then hand over to the npm
   // steps. Assumes the tree is clean (startTrunkUpdate handles dirty trees).
-  const beginTrunkUpdate = () => {
+  const beginTrunkUpdate = async () => {
     const state = terminalStateRef.current;
     if (state.running) {
       writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
       return;
     }
+    // A trunk reset rewrites the whole tree at once; a live watch would try to
+    // recompile mid-reset. Pause it for the update; finishUpdate resumes it. The
+    // PHP server stays up — the rebuild regenerates build/ under it (#262).
+    await pauseWatcher();
     markTerminalRunning(true);
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(false);
@@ -2984,7 +3031,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   };
 
   const startTrunkUpdate = async () => {
-    if (isUpdating || installing || building || isDevProcessActive) return;
+    // The dev server no longer blocks an update: the watch is paused for the
+    // reset and the PHP server stays up (#262). Only real in-progress work
+    // (an update, install or build already running) still blocks.
+    if (isUpdating || installing || building) return;
     savedPatchPathRef.current = null;
     try {
       const res = await window.api.isWorktreeDirty(sitePath);
@@ -3045,12 +3095,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Re-entry point for a previously interrupted update: trunk already moved,
   // so only install+build remain. Install runs unconditionally — the
   // lockfile delta from the failed run is no longer known.
-  const retryInstallAndBuild = () => {
+  const retryInstallAndBuild = async () => {
     const state = terminalStateRef.current;
     if (state.running) {
       writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
       return;
     }
+    // Same as beginTrunkUpdate: install + a full build need the tree to
+    // themselves, so pause the watch; finishUpdate resumes it (#262).
+    await pauseWatcher();
     markTerminalRunning(true);
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(true);
@@ -3917,7 +3970,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             variant="secondary"
             isDestructive
             onClick={retryInstallAndBuild}
-            disabled={installing || building || isDevProcessActive}
+            disabled={installing || building}
           >Retry install &amp; build</Button>
         </div>
       ) : null}
@@ -3930,8 +3983,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           <Button
             variant="secondary"
             onClick={startTrunkUpdate}
-            disabled={installing || building || isDevProcessActive}
-            title={isDevProcessActive ? 'Stop the dev server before updating' : undefined}
+            disabled={installing || building}
           >Update to latest trunk</Button>
         </div>
       ) : null}

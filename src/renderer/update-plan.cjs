@@ -73,20 +73,47 @@ const STATE_TO_STEP = { fetching: 'fetch', installing: 'install', building: 'bui
 // would drag the `diff` package in for two constants.
 const APPLY_STATE_TO_STEP = { applying: 'apply', installing: 'install', building: 'build' };
 
+const BUILD_BY_WATCHER_MESSAGE = 'The build watch will recompile the change';
+
 /**
  * The chain applying a patch runs. Like the update chain, the install step is
- * named even when skipped so "apply" always means the same thing.
+ * named even when skipped so "apply" always means the same thing. When the
+ * running build watch will recompile the change (a src-only patch, #262), the
+ * build step is skipped too — with a message saying who is doing it instead.
  *
  * @param {Object}  root0
  * @param {boolean} [root0.needsInstall]
+ * @param {boolean} [root0.buildByWatcher]
  * @return {Array}
  */
-function planApplySteps({ needsInstall } = {}) {
+function planApplySteps({ needsInstall, buildByWatcher } = {}) {
 	return [
 		{ key: 'apply', label: 'Apply the patch', skipped: false },
 		{ key: 'install', label: 'Install dependencies', skipped: !needsInstall, skipMessage: SKIP_INSTALL_MESSAGE },
-		{ key: 'build', label: 'Rebuild', skipped: false }
+		{ key: 'build', label: 'Rebuild', skipped: Boolean(buildByWatcher), skipMessage: BUILD_BY_WATCHER_MESSAGE }
 	];
+}
+
+/**
+ * How applying a patch (or updating trunk) should treat a running build watch
+ * (#247, #262). A watch that is running already recompiles src/ on save, so a
+ * patch that only touches src/ needs no build of its own and no interruption —
+ * apply it and let the watch pick it up. Anything that has to install
+ * dependencies or run a full build needs the build directory and node_modules
+ * to itself, so the watch is paused for the duration and resumed after.
+ *
+ * @param {Object}  root0
+ * @param {boolean} [root0.needsInstall]  the patch/update changes the lockfile
+ * @param {boolean} [root0.watcherActive] a build watch is currently running
+ * @return {{ pauseWatcher: boolean, runBuild: boolean }}
+ */
+function planWatchImpact({ needsInstall, watcherActive } = {}) {
+	// A full build runs unless a live watch can do the recompile instead.
+	const runBuild = Boolean(needsInstall) || !watcherActive;
+	// Pause only when we run a build/install ourselves and a watch is live to
+	// collide with it; a src-only patch with a watch never pauses.
+	const pauseWatcher = Boolean(watcherActive) && runBuild;
+	return { pauseWatcher, runBuild };
 }
 
 /**
@@ -143,9 +170,11 @@ function updateOutcome({ fetchOk, upToDate, moved, installNeeded, installCode, b
 module.exports = {
 	STALE_THRESHOLD_DAYS,
 	SKIP_INSTALL_MESSAGE,
+	BUILD_BY_WATCHER_MESSAGE,
 	STATE_TO_STEP,
 	APPLY_STATE_TO_STEP,
 	planApplySteps,
+	planWatchImpact,
 	trunkAgeInfo,
 	planUpdateSteps,
 	updateStepStatuses,
