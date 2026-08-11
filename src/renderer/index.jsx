@@ -3521,8 +3521,27 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const nextActionId = nextAction ? nextAction.id : null;
   useNextActionCue(nextActionId, isActive, nextActionSectionRef);
 
+  // Tags a block as a cue target: the `data-next-action` the hook scrolls to,
+  // and the `.next-action-cue` class React draws the ring with when this block
+  // is the one. Spread onto the block that carries the id's action.
+  const cueProps = (id) => ({
+    'data-next-action': id,
+    className: nextActionId === id ? 'next-action-cue' : undefined
+  });
+
   return (
     <section ref={nextActionSectionRef} style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
+      {/* The glow on the next-action block is purely visual, invisible to a
+          screen reader. This is its spoken equivalent: a polite live region that
+          names the next step as the cue moves, so a non-sighted contributor gets
+          the same hint. The region is always mounted and only its text toggles —
+          a live region that appears already holding text is not reliably read,
+          whereas a change to one already in the DOM is. Only the active row ever
+          holds text, so only the visible site speaks; it clears to nothing when
+          there is no next action. */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {isActive && nextAction ? `Next step: ${nextAction.reason}` : ''}
+      </div>
       <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 440px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -3657,7 +3676,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         </div>
       </Flex>
       {updateIncomplete && !isUpdating ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
+        <div {...cueProps('retry-install-build')} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
           <span style={{ flex: '1 1 320px' }}>
             <strong>Update incomplete</strong> — the code is new but the built assets are old. The site may not run correctly until install and build succeed.
           </span>
@@ -3670,7 +3689,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         </div>
       ) : null}
       {age.stale && !updateIncomplete && !isUpdating ? (
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '14px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
+        <div {...cueProps('update-trunk')} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '14px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
           <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
             <strong style={{ color: '#5c4400' }}>This site&apos;s WordPress code is {age.ageDays} days old</strong>
             <span>Patches you create now may not apply on Trac. Updating takes a few minutes.</span>
@@ -3684,7 +3703,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         </div>
       ) : null}
       {isUpdating ? (
-        <div style={{ padding: '14px 16px', background: '#fff', border: '1px solid #dcdcde', borderRadius: 8 }}>
+        <div {...cueProps('updating')} style={{ padding: '14px 16px', background: '#fff', border: '1px solid #dcdcde', borderRadius: 8 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 600, fontSize: 14, color: '#1d2327' }}>Updating to latest trunk</span>
             <span style={{ fontSize: 12, color: '#6c6f72' }}>
@@ -3799,6 +3818,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       {skipInit ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, flexWrap: 'wrap' }}>
+            <span {...cueProps('start-dev')} style={{ display: 'inline-flex' }}>
             <Button
               isBusy={isServerStarting}
               variant={isDevProcessActive ? 'secondary' : 'primary'}
@@ -3822,12 +3842,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               ) : null}
               <span style={{ fontWeight: 600 }}>{devServerButtonLabel}</span>
             </Button>
+            </span>
+            <span {...cueProps('review-changes')} style={{ display: 'inline-flex' }}>
             <Button
               variant="secondary"
               onClick={openPatchModal}
               disabled={isUpdating}
               style={{ padding: '10px 16px', borderRadius: 10 }}
             >Review & submit changes</Button>
+            </span>
             {running && serverUrl ? (
               <Button
                 variant="secondary"
@@ -3862,7 +3885,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         </div>
       ) : null}
       {skipInit ? (
-      <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
+      <div {...cueProps('link-ticket')} style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
         <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Trac ticket</div>
         {tracTicket ? (
           <>
