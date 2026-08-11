@@ -272,11 +272,15 @@ function rollback(done) {
  * @param {string}   root0.dir
  * @param {string}   root0.patchText
  * @param {boolean}  [root0.reverse]
+ * @param {string}   [root0.layout]  Path layout: 'src-layout' (default) or 'repo-relative'.
  * @param {Function} [root0.onLog]
  * @return {Promise<Object>}
  */
-async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => {} }) {
-	const parsed = parsePatchFiles(patchText);
+async function applyPatchToDir({ dir, patchText, reverse = false, layout, onLog = () => {} }) {
+	// The layout must match the one the preview used, or the two disagree about
+	// where a file lives and the patch applies somewhere the contributor was
+	// never shown (#251). Defaults to Core's src-layout.
+	const parsed = parsePatchFiles(patchText, { layout });
 	if (!parsed.ok) return { ok: false, error: parsed.error };
 
 	await ensureAutocrlf(dir);

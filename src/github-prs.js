@@ -19,20 +19,25 @@
  * request (#167) needs the same one with a method and a body.
  */
 
-const { parseLinkedPrs, classifyHttpFailure } = require('./patch-sources.cjs');
+const { parseLinkedPrs, classifyHttpFailure, citesWorkItemFor, PR_REPO_PATH } = require('./patch-sources.cjs');
 const { httpGet } = require('./github-http.cjs');
 
-const REPO = 'WordPress/wordpress-develop';
+// The default upstream. Both functions take a `repo` so a Gutenberg site reads
+// its own pull requests (#251); left unset they behave exactly as before.
+const REPO = PR_REPO_PATH;
 
 /**
  * The pull requests that cite a ticket, newest first.
  *
  * @param {number|string} ticketId
  * @param {Object}        [deps]
+ * @param {string}        [deps.repo]     `owner/repo` to search (defaults to wordpress-develop).
+ * @param {string}        [deps.provider] Work-item provider deciding what "cites" means.
  * @return {Promise<{status: 'ok'|'rate-limited'|'error'|'offline', items: Array, error?: string}>}
  */
 async function fetchLinkedPrs(ticketId, deps = {}) {
 	const get = deps.httpGet || httpGet;
+	const repo = deps.repo || REPO;
 	const id = String(ticketId).replace(/[^0-9]/g, '');
 	if (!id) return { status: 'error', items: [], error: 'No ticket number' };
 
@@ -40,7 +45,7 @@ async function fetchLinkedPrs(ticketId, deps = {}) {
 	// paginating would multiply requests against the shared unauthenticated quota
 	// this whole feature is careful with, so instead a result that does not fit in
 	// one page is treated as incomplete below.
-	const query = encodeURIComponent(`repo:${REPO} is:pr ${id}`);
+	const query = encodeURIComponent(`repo:${repo} is:pr ${id}`);
 	const url = `https://api.github.com/search/issues?q=${query}&per_page=100`;
 
 	let res;
@@ -67,22 +72,26 @@ async function fetchLinkedPrs(ticketId, deps = {}) {
 		return { status: 'error', items: [], error: 'Too many results to list reliably' };
 	}
 
-	return { status: 'ok', items: parseLinkedPrs(json, id) };
+	const cites = citesWorkItemFor(deps.provider, repo);
+	return { status: 'ok', items: parseLinkedPrs(json, id, { cites, repoPath: repo }) };
 }
 
 /**
  * The unified diff for one pull request.
  *
- * @param {number} number
+ * @param {number}   number
+ * @param {Object}   [options]
+ * @param {string}   [options.repo]    `owner/repo` the pull request belongs to.
+ * @param {Function} [options.httpGet] Injected for tests, like fetchLinkedPrs.
  * @return {Promise<{ok: true, text: string}|{ok: false, status: string, error: string}>}
  */
-async function fetchPrDiff(number) {
+async function fetchPrDiff(number, { repo = REPO, httpGet: get = httpGet } = {}) {
 	const n = String(number).replace(/[^0-9]/g, '');
 	if (!n) return { ok: false, status: 'error', error: 'No pull request number' };
 
 	let res;
 	try {
-		res = await httpGet(`https://api.github.com/repos/${REPO}/pulls/${n}`, { Accept: 'application/vnd.github.v3.diff' });
+		res = await get(`https://api.github.com/repos/${repo}/pulls/${n}`, { Accept: 'application/vnd.github.v3.diff' });
 	} catch (e) {
 		return { ok: false, status: 'offline', error: String(e && e.message ? e.message : e) };
 	}

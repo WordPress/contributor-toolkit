@@ -335,3 +335,60 @@ test('parsePatchFiles: a deletion in this app\'s own generated shape is a delete
 	assert.strictEqual(res.files[0].kind, 'delete');
 	assert.strictEqual(res.files[0].path, 'src/old.php');
 });
+
+// --- per-project path layout (#251) ---------------------------------------
+//
+// Core patches are normalised into wordpress-develop's src/ layout, because a
+// patch attached to a ticket years ago still names `wp-admin/…`. Gutenberg
+// diffs are already repo-relative (`packages/…`), and a top-level `wp-` path in
+// one would be moved under a `src/` directory that does not exist there.
+
+test('parsePatchFiles: the default layout still rewrites into src/ (Core)', () => {
+	const patch = `--- a/wp-login.php
++++ b/wp-login.php
+@@ -1,1 +1,2 @@
+ one
++two
+`;
+	const res = parsePatchFiles(patch);
+	assert.strictEqual(res.ok, true, res.error);
+	assert.strictEqual(res.files[0].path, 'src/wp-login.php');
+});
+
+test('parsePatchFiles: repo-relative leaves a wp-prefixed path alone (Gutenberg)', () => {
+	const patch = `--- a/wp-login.php
++++ b/wp-login.php
+@@ -1,1 +1,2 @@
+ one
++two
+`;
+	const res = parsePatchFiles(patch, { layout: 'repo-relative' });
+	assert.strictEqual(res.ok, true, res.error);
+	assert.strictEqual(res.files[0].path, 'wp-login.php', 'no src/ rewrite for a repo-relative project');
+});
+
+// The paths Gutenberg diffs actually carry pass through both layouts unchanged
+// — this is the case that must not regress when the gate is added.
+test('parsePatchFiles: a packages/ path is untouched under either layout', () => {
+	const patch = `--- a/packages/block-editor/src/index.js
++++ b/packages/block-editor/src/index.js
+@@ -1,1 +1,2 @@
+ one
++two
+`;
+	for (const layout of [undefined, 'src-layout', 'repo-relative']) {
+		const res = parsePatchFiles(patch, { layout });
+		assert.strictEqual(res.ok, true, res.error);
+		assert.strictEqual(res.files[0].path, 'packages/block-editor/src/index.js', `layout=${layout}`);
+	}
+});
+
+test('parsePatchFiles: an unknown layout falls back to the Core rewrite', () => {
+	const patch = `--- a/wp-login.php
++++ b/wp-login.php
+@@ -1,1 +1,2 @@
+ one
++two
+`;
+	assert.strictEqual(parsePatchFiles(patch, { layout: 'nonsense' }).files[0].path, 'src/wp-login.php');
+});

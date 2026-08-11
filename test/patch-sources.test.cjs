@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { bodyCitesTicket, parseLinkedPrs, classifyHttpFailure } = require('../src/patch-sources.cjs');
+const { bodyCitesTicket, bodyCitesIssue, citesWorkItemFor, parseLinkedPrs, classifyHttpFailure } = require('../src/patch-sources.cjs');
 
 // Shaped like a real search/issues item, trimmed to the fields the parser reads.
 function item(number, overrides = {}) {
@@ -132,4 +132,79 @@ test('parsePrRef: non-PR and empty input are rejected with a reason (issue #11)'
 	assert.strictEqual(parsePrRef('https://github.com/WordPress/wordpress-develop/issues/4496').ok, false);
 	assert.strictEqual(parsePrRef('https://example.com/pull/1').ok, false);
 	assert.strictEqual(parsePrRef('not a url').ok, false);
+});
+
+// --- GitHub-issue work items (#251) ---------------------------------------
+//
+// A Gutenberg pull request has no Trac URL to cite: it references its issue the
+// GitHub way. The verification still has to be narrow, because the search that
+// feeds it matches the bare number anywhere in the text.
+
+test('bodyCitesIssue: a #-prefixed reference counts', () => {
+	assert.strictEqual(bodyCitesIssue('Fixes #1234, at last.', 1234), true);
+	assert.strictEqual(bodyCitesIssue('Closes #1234', 1234), true);
+	assert.strictEqual(bodyCitesIssue('see #1234.', '1234'), true);
+});
+
+// The guard that makes the check trustworthy rather than merely plausible.
+test('bodyCitesIssue: a longer number is not a match for its prefix', () => {
+	assert.strictEqual(bodyCitesIssue('Fixes #12345', 1234), false);
+	assert.strictEqual(bodyCitesIssue('Fixes #1234', 12345), false);
+});
+
+// A bare number is exactly the prose match the verification exists to reject:
+// GitHub's search tokeniser finds "1234" in unrelated sentences.
+test('bodyCitesIssue: a bare number without # does not count', () => {
+	assert.strictEqual(bodyCitesIssue('This fixes 1234 rendering bugs.', 1234), false);
+});
+
+test('bodyCitesIssue: the issue URL counts when the repo is known', () => {
+	const body = 'Fixes https://github.com/WordPress/gutenberg/issues/1234';
+	assert.strictEqual(bodyCitesIssue(body, 1234, 'WordPress/gutenberg'), true);
+	// Without a repo the URL form cannot be checked, but the #-form in it can't
+	// be faked either — a URL alone with no `#1234` is not a match.
+	assert.strictEqual(bodyCitesIssue(body, 1234), false);
+});
+
+test('bodyCitesIssue: non-string bodies and empty ids are rejected', () => {
+	assert.strictEqual(bodyCitesIssue(null, 1234), false);
+	assert.strictEqual(bodyCitesIssue('#1234', ''), false);
+});
+
+test('citesWorkItemFor: picks the provider’s test, defaulting to Trac', () => {
+	const trac = citesWorkItemFor('trac');
+	assert.strictEqual(trac, bodyCitesTicket);
+	assert.strictEqual(citesWorkItemFor(undefined), bodyCitesTicket, 'an unknown provider is Core’s');
+
+	const gh = citesWorkItemFor('github-issue', 'WordPress/gutenberg');
+	assert.strictEqual(gh('Fixes #1234', 1234), true);
+	// And it does NOT accept the Trac form, which would be a different project.
+	assert.strictEqual(gh('core.trac.wordpress.org/ticket/1234', 1234), false);
+});
+
+// The whole point of threading `cites` through: a Gutenberg search result is
+// filtered by the GitHub convention, not by a Trac URL that will never be there.
+test('parseLinkedPrs: uses the supplied citation test', () => {
+	const json = { items: [item(11, { body: 'Fixes #1234' }), item(12, { body: 'unrelated' })] };
+	const cites = citesWorkItemFor('github-issue', 'WordPress/gutenberg');
+
+	const prs = parseLinkedPrs(json, 1234, { cites, repoPath: 'WordPress/gutenberg' });
+	assert.deepStrictEqual(prs.map((p) => p.number), [11]);
+});
+
+// The repo guard is what stops a diff from the wrong project being applied to a
+// checkout it cannot fit — so it moves with the site, it does not go away.
+test('parsePrRef: a Gutenberg site accepts gutenberg PRs and rejects Core ones', () => {
+	const opts = { repoPath: 'WordPress/gutenberg' };
+
+	const ok = parsePrRef('https://github.com/WordPress/gutenberg/pull/4496', opts);
+	assert.strictEqual(ok.ok, true);
+	assert.strictEqual(ok.number, 4496);
+
+	const wrong = parsePrRef('https://github.com/WordPress/wordpress-develop/pull/7319', opts);
+	assert.strictEqual(wrong.ok, false);
+	assert.match(wrong.error, /WordPress\/gutenberg/);
+
+	// A bare number is still just a number — it names no repo to disagree with.
+	assert.deepStrictEqual(parsePrRef('#4496', opts), { ok: true, number: 4496 });
 });

@@ -1798,12 +1798,30 @@ test('sites:set-ticket refuses unregistered site paths before writing metadata',
 
 test('git:preview-patch reads the patch through patch-plan', async () => {
 	const parsePatchFiles = spy(() => ({ ok: false, error: 'unreadable' }));
-	const main = loadMain({ stubs: { ...silentLogging(), './patch-plan.cjs': { parsePatchFiles, planApply: () => ({}) } } });
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './patch-plan.cjs': { parsePatchFiles, planApply: () => ({}) } }
+	});
 
 	const result = await main.invoke('git:preview-patch', '/sites/wp', 'PATCH TEXT');
 
-	assert.deepEqual(parsePatchFiles.calls, [['PATCH TEXT']]);
+	// The layout rides along (#251) — a site with no project type is Core's.
+	assert.deepEqual(parsePatchFiles.calls, [['PATCH TEXT', { layout: 'src-layout' }]]);
 	assert.deepEqual(result, { ok: false, error: 'unreadable' });
+});
+
+// A Gutenberg diff is already repo-relative, so it must NOT go through Core's
+// src/ rewrite — the preview and the apply both have to say so (#251).
+test('git:preview-patch reads a Gutenberg patch as repo-relative', async () => {
+	const parsePatchFiles = spy(() => ({ ok: false, error: 'unreadable' }));
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './patch-plan.cjs': { parsePatchFiles, planApply: () => ({}) } }
+	});
+
+	await main.invoke('git:preview-patch', '/sites/gb', 'PATCH TEXT');
+
+	assert.deepEqual(parsePatchFiles.calls, [['PATCH TEXT', { layout: 'repo-relative' }]]);
 });
 
 // git:apply-patch reads the store for its guard before delegating, which is the
@@ -1864,12 +1882,30 @@ test('git:apply-patch delegates a forward apply to patch-apply and records it', 
 	assert.equal(args.dir, '/sites/wp');
 	assert.equal(args.patchText, 'PATCH');
 	assert.equal(args.reverse, false);
+	// The layout has to reach the applier, not just the preview (#251): without
+	// it a Gutenberg diff would silently go through Core's src/ rewrite and land
+	// on paths the contributor was never shown.
+	assert.equal(args.layout, 'src-layout');
 	// The revert record is what makes Revert possible; without it the patch is
 	// applied but silently unrevertable.
 	const stored = settings.values.siteMeta['/sites/wp'].appliedPatch;
 	assert.equal(stored.label, 'PR 11705');
 	assert.equal(stored.text, 'PATCH');
 	assert.deepEqual(stored.files, ['src/a.php']);
+});
+
+// The other half of the same invariant: preview and apply must resolve the same
+// layout, so the site's own type has to reach the applier too.
+test('git:apply-patch applies a Gutenberg patch with the repo-relative layout', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['packages/a/index.js'], skipped: [] }));
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/gb', { patchText: 'PATCH', label: 'PR 4496' });
+	await applyDone(event, applyId);
+
+	assert.equal(applyPatchToDir.calls[0][0].layout, 'repo-relative');
 });
 
 test('git:apply-patch refuses a second patch while one is already applied', async () => {
@@ -1905,6 +1941,9 @@ test('git:apply-patch reverts using the stored patch text and clears the record'
 	const [args] = applyPatchToDir.calls[0];
 	assert.equal(args.reverse, true);
 	assert.equal(args.patchText, 'STORED', 'a revert applies the patch the app stored, not the renderer');
+	// A revert has to resolve paths the same way the apply did, or it reverses
+	// hunks against files the patch never touched (#251).
+	assert.equal(args.layout, 'src-layout');
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
 });
 
@@ -2001,12 +2040,30 @@ test('git:apply-patch reports applied-but-untracked when the undo also fails', a
 
 test('git:fetch-pr-diff asks github-prs for the diff', async () => {
 	const fetchPrDiff = spy(async () => ({ ok: true, text: 'DIFF' }));
-	const main = loadMain({ stubs: { ...silentLogging(), './github-prs': { fetchPrDiff, fetchLinkedPrs: async () => ({}) } } });
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { fetchPrDiff, fetchLinkedPrs: async () => ({}) } }
+	});
 
-	const result = await main.invoke('git:fetch-pr-diff', 7319);
+	const result = await main.invoke('git:fetch-pr-diff', '/sites/wp', 7319);
 
-	assert.deepEqual(fetchPrDiff.calls, [[7319]]);
+	// The repository comes from the site, not the caller (#251).
+	assert.deepEqual(fetchPrDiff.calls, [[7319, { repo: 'WordPress/wordpress-develop' }]]);
 	assert.deepEqual(result, { ok: true, text: 'DIFF' });
+});
+
+// A Gutenberg site reads its own pull requests — fetching #7319 from
+// wordpress-develop would hand it a diff from a different project entirely.
+test('git:fetch-pr-diff reads a Gutenberg site’s PR from WordPress/gutenberg', async () => {
+	const fetchPrDiff = spy(async () => ({ ok: true, text: 'DIFF' }));
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { fetchPrDiff, fetchLinkedPrs: async () => ({}) } }
+	});
+
+	await main.invoke('git:fetch-pr-diff', '/sites/gb', 71234);
+
+	assert.deepEqual(fetchPrDiff.calls, [[71234, { repo: 'WordPress/gutenberg' }]]);
 });
 
 // git:list-ticket-patches reads the stored ticket, then delegates to github-prs
@@ -2018,7 +2075,9 @@ test('git:list-ticket-patches fetches the linked PRs for the stored ticket', asy
 
 	const result = await main.invoke('git:list-ticket-patches', '/sites/wp');
 
-	assert.deepEqual(fetchLinkedPrs.calls, [[62281]]);
+	// Which repo to search, and what "cites this work item" means, follow the
+	// site's project type (#251); a typeless site is Core's.
+	assert.deepEqual(fetchLinkedPrs.calls, [[62281, { repo: 'WordPress/wordpress-develop', provider: 'trac' }]]);
 	assert.equal(result.ok, true);
 	assert.equal(result.ticket, 62281);
 	assert.equal(result.prs.status, 'ok');

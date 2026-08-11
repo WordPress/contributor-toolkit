@@ -138,13 +138,32 @@ function classify(file, oldPath, newPath) {
 }
 
 /**
+ * Chooses the per-path normalisation for a project's layout (#251).
+ *
+ * `src-layout` (WordPress Core, the default) rewrites pre-`src/` paths — a patch
+ * attached to a ticket years ago still names `wp-admin/…`. `repo-relative`
+ * (Gutenberg) leaves paths alone: its diffs are already repo-relative
+ * (`packages/…`), and running them through the Core rewrite would move any
+ * top-level `wp-`-prefixed path under a `src/` directory that does not exist
+ * there.
+ *
+ * @param {string} [layout]
+ * @return {(filePath: string) => string}
+ */
+function pathMapperFor(layout) {
+	return layout === 'repo-relative' ? (filePath) => filePath : mapToSrcLayout;
+}
+
+/**
  * Parses a patch into the files it touches, with paths normalised to
- * repo-relative form for today's layout.
+ * repo-relative form for the target project's layout.
  *
  * @param {string} text
+ * @param {Object} [options]
+ * @param {string} [options.layout] 'src-layout' (default) or 'repo-relative'.
  * @return {{ok: true, files: Array}|{ok: false, error: string}}
  */
-function parsePatchFiles(text) {
+function parsePatchFiles(text, { layout } = {}) {
 	const raw = typeof text === 'string' ? text : '';
 	if (!raw.trim()) return { ok: false, error: 'The patch is empty.' };
 
@@ -162,6 +181,7 @@ function parsePatchFiles(text) {
 	}
 
 	const sections = scanSections(normalizeEol(raw));
+	const mapPath = pathMapperFor(layout);
 	const files = [];
 
 	for (let i = 0; i < parsed.length; i++) {
@@ -172,13 +192,13 @@ function parsePatchFiles(text) {
 			// what this was.
 			const section = sections[i];
 			if (section && section.renameFrom && section.renameTo) {
-				const oldPath = mapToSrcLayout(section.renameFrom);
-				const newPath = mapToSrcLayout(section.renameTo);
+				const oldPath = mapPath(section.renameFrom);
+				const newPath = mapPath(section.renameTo);
 				files.push({ kind: 'rename', oldPath, newPath, path: newPath, hunks: [], patch: file });
 				continue;
 			}
 			if (section && section.isBinary) {
-				const binaryPath = mapToSrcLayout(stripPathPrefix(section.path, section.path).newPath);
+				const binaryPath = mapPath(stripPathPrefix(section.path, section.path).newPath);
 				files.push({ kind: 'binary', oldPath: binaryPath, newPath: binaryPath, path: binaryPath, hunks: [], patch: file });
 				continue;
 			}
@@ -192,9 +212,9 @@ function parsePatchFiles(text) {
 		const target = kind === 'delete' ? oldPath : newPath;
 		files.push({
 			kind,
-			oldPath: mapToSrcLayout(oldPath),
-			newPath: mapToSrcLayout(newPath),
-			path: mapToSrcLayout(target),
+			oldPath: mapPath(oldPath),
+			newPath: mapPath(newPath),
+			path: mapPath(target),
 			hunks: file.hunks,
 			patch: file
 		});
@@ -242,6 +262,7 @@ module.exports = {
 	SRC_FILES,
 	stripPathPrefix,
 	mapToSrcLayout,
+	pathMapperFor,
 	parsePatchFiles,
 	planApply
 };

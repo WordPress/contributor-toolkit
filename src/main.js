@@ -1317,7 +1317,16 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
 // GitHub; the network code is in src/github-prs.js, these handlers add the
 // cache and IPC. A last-known-good copy per ticket, in electron-store, is what
 // lets a rate-limited or offline lookup still show the work that exists.
-const patchCacheKey = (ticketId) => `ticketPatches:${ticketId}`;
+// Keyed by repository as well as number (#251): a Trac ticket #123 and a
+// Gutenberg issue #123 are different work items, and one cache entry for both
+// would show a Core site's pull requests under a Gutenberg issue.
+const patchCacheKey = (ticketId, repoPath) => `ticketPatches:${repoPath}#${ticketId}`;
+
+// `owner/repo` for a site's upstream, defaulting to Core's.
+const upstreamRepoPath = (meta) => {
+    const up = projectTypeForSite(meta).upstream;
+    return `${up.owner}/${up.repo}`;
+};
 
 ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
     try {
@@ -1326,16 +1335,22 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
         const ticketId = meta.tracTicket;
         if (!ticketId) return { ok: true, ticket: null, prs: { status: 'no-ticket', items: [] } };
 
-        const result = await fetchLinkedPrs(ticketId);
+        // Which repository holds the pull requests, and what "cites this work
+        // item" means, both follow the site's project type (#251).
+        const type = projectTypeForSite(meta);
+        const repo = upstreamRepoPath(meta);
+        const cacheKey = patchCacheKey(ticketId, repo);
+
+        const result = await fetchLinkedPrs(ticketId, { repo, provider: type.workItem.provider });
         if (result.status === 'ok') {
-            s.set(patchCacheKey(ticketId), { checkedAt: new Date().toISOString(), items: result.items });
+            s.set(cacheKey, { checkedAt: new Date().toISOString(), items: result.items });
             return { ok: true, ticket: ticketId, prs: { status: 'ok', items: result.items } };
         }
 
         // Could not read GitHub. Fall back to whatever was last seen for this
         // ticket, labelled with when — a stale-but-shown list beats a short one
         // presented as complete.
-        const cached = s.get(patchCacheKey(ticketId)) || null;
+        const cached = s.get(cacheKey) || null;
         return {
             ok: true,
             ticket: ticketId,
@@ -1346,9 +1361,11 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
     }
 });
 
-ipcMain.handle('git:fetch-pr-diff', async (_e, number) => {
+ipcMain.handle('git:fetch-pr-diff', async (_e, sitePath, number) => {
     try {
-        return await fetchPrDiff(number);
+        // The pull request belongs to this site's own upstream (#251) — a
+        // Gutenberg site reads WordPress/gutenberg, not wordpress-develop.
+        return await fetchPrDiff(number, { repo: upstreamRepoPath(await readSiteMeta(sitePath)) });
     } catch (e) {
         return { ok: false, status: 'error', error: String(e) };
     }
@@ -1391,7 +1408,12 @@ const REVERTABLE_PATCH_LIMIT = 512 * 1024;
 // before deciding.
 ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
     try {
-        const parsed = parsePatchFiles(patchText);
+        // The patch layout follows the site's project (#251): Core rewrites
+        // pre-src/ paths, Gutenberg diffs are already repo-relative. The apply
+        // below must be given the same layout or the two disagree about where a
+        // file lives.
+        const layout = projectTypeForSite(await readSiteMeta(sitePath)).patch.layout;
+        const parsed = parsePatchFiles(patchText, { layout });
         if (!parsed.ok) return { ok: false, error: parsed.error };
         let dirtyPaths;
         try {
@@ -1469,7 +1491,10 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             }
             sendLog(`\n${reverse ? 'Reverting' : 'Applying'} ${label}…\n`);
 
-            const result = await applyPatchToDir({ dir: sitePath, patchText, reverse, onLog: sendLog });
+            // Same layout the preview used (#251) — a Gutenberg diff is already
+            // repo-relative and must not go through Core's src/ rewrite.
+            const layout = projectTypeForSite(await readSiteMeta(sitePath)).patch.layout;
+            const result = await applyPatchToDir({ dir: sitePath, patchText, reverse, layout, onLog: sendLog });
             if (!result.ok) {
                 // Nothing to revert means the record is describing a patch the
                 // checkout no longer has. Keeping it would leave the site stuck:
@@ -1513,7 +1538,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                     // rather than leave a patch the app cannot revert. If the undo
                     // also fails, say so plainly instead of reporting a clean fail.
                     logError('git:apply-patch', `persist failed, undoing apply: ${String(persistErr && persistErr.stack ? persistErr.stack : persistErr)}`);
-                    const undo = await applyPatchToDir({ dir: sitePath, patchText, reverse: true, onLog: sendLog });
+                    const undo = await applyPatchToDir({ dir: sitePath, patchText, reverse: true, layout, onLog: sendLog });
                     const why = String(persistErr && persistErr.message ? persistErr.message : persistErr);
                     if (undo.ok) {
                         sendDone({ ok: false, error: `The patch applied but its revert record could not be saved, so it was undone. ${why}` });

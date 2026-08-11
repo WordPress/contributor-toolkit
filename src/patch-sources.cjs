@@ -24,14 +24,20 @@ const PR_REPO_PATH = 'WordPress/wordpress-develop';
 
 /**
  * Resolves what a contributor pastes into "apply a PR" to a pull request
- * number. Accepts a bare number or a wordpress-develop PR URL (with any
- * trailing `/files`, `#…`, `?…`). A PR from another repo is rejected by name —
- * its diff would not fit this checkout.
+ * number. Accepts a bare number or a PR URL (with any trailing `/files`, `#…`,
+ * `?…`) belonging to this site's own upstream. A PR from another repo is
+ * rejected by name — its diff would not fit this checkout.
+ *
+ * `repoPath` is the site's upstream (#251): a Gutenberg site applies
+ * WordPress/gutenberg PRs, a Core site wordpress-develop ones. It defaults to
+ * wordpress-develop so existing callers are unchanged.
  *
  * @param {string} input
+ * @param {Object} [options]
+ * @param {string} [options.repoPath] `owner/repo` this checkout accepts.
  * @return {{ok: true, number: number}|{ok: false, error: string}}
  */
-function parsePrRef(input) {
+function parsePrRef(input, { repoPath = PR_REPO_PATH } = {}) {
 	const raw = typeof input === 'string' ? input.trim() : '';
 	if (!raw) return { ok: false, error: 'Enter a pull request URL or number.' };
 
@@ -48,8 +54,8 @@ function parsePrRef(input) {
 	}
 	const match = /^\/([^/]+\/[^/]+)\/pull\/(\d+)(?:[/?#]|$)/.exec(parsed.pathname + (parsed.pathname.endsWith('/') ? '' : '/'));
 	if (!match) return { ok: false, error: 'That does not look like a pull request URL.' };
-	if (match[1].toLowerCase() !== PR_REPO_PATH.toLowerCase()) {
-		return { ok: false, error: `Only ${PR_REPO_PATH} pull requests can be applied here.` };
+	if (match[1].toLowerCase() !== String(repoPath).toLowerCase()) {
+		return { ok: false, error: `Only ${repoPath} pull requests can be applied here.` };
 	}
 	return { ok: true, number: Number(match[2]) };
 }
@@ -72,6 +78,44 @@ function bodyCitesTicket(body, ticketId) {
 }
 
 /**
+ * The same question for a GitHub-issue work item (#251). There is no ticket URL
+ * to look for: a Gutenberg pull request cites its issue the GitHub way, as
+ * `#1234` (usually behind a closing keyword) or as the issue's own URL.
+ *
+ * The `(?![0-9])` guard is why this is not a bare `includes`: `#658` must not
+ * match inside `#6580`. A bare number with no `#` is deliberately not accepted —
+ * that is the prose match the verification exists to reject.
+ *
+ * @param {string}        body
+ * @param {number|string} issueId
+ * @param {string}        [repoPath] `owner/repo`, for the URL form.
+ * @return {boolean}
+ */
+function bodyCitesIssue(body, issueId, repoPath = '') {
+	if (typeof body !== 'string') return false;
+	const id = String(issueId).replace(/[^0-9]/g, '');
+	if (!id) return false;
+	if (new RegExp(`#${id}(?![0-9])`).test(body)) return true;
+	if (!repoPath) return false;
+	const path = String(repoPath).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	return new RegExp(`github\\.com/${path}/issues/${id}(?![0-9])`, 'i').test(body);
+}
+
+/**
+ * Picks the citation test for a work-item provider, so a caller can ask "does
+ * this PR belong to this work item?" without knowing which kind it is.
+ *
+ * @param {string} provider   'trac' (default) or 'github-issue'.
+ * @param {string} [repoPath]
+ * @return {(body: string, id: number|string) => boolean}
+ */
+function citesWorkItemFor(provider, repoPath) {
+	return provider === 'github-issue'
+		? (body, id) => bodyCitesIssue(body, id, repoPath)
+		: bodyCitesTicket;
+}
+
+/**
  * What happened to one pull request, from a `search/issues` item: open, merged
  * or closed-unmerged.
  *
@@ -90,9 +134,12 @@ function prState(item) {
  *
  * @param {Object}        searchJson
  * @param {number|string} ticketId
+ * @param {Object}        [root0]
+ * @param {Function}      [root0.cites]    Citation test (defaults to the Trac one).
+ * @param {string}        [root0.repoPath] `owner/repo`, for the fallback URL.
  * @return {Array<{number: number, title: string, state: 'open'|'merged'|'closed', updatedAt: string, url: string}>}
  */
-function parseLinkedPrs(searchJson, ticketId) {
+function parseLinkedPrs(searchJson, ticketId, { cites = bodyCitesTicket, repoPath = PR_REPO_PATH } = {}) {
 	const items = searchJson && Array.isArray(searchJson.items) ? searchJson.items : [];
 	const seen = new Set();
 	const prs = [];
@@ -100,7 +147,7 @@ function parseLinkedPrs(searchJson, ticketId) {
 		// `search/issues` returns issues and PRs together; only PRs carry
 		// `pull_request`.
 		if (!item || !item.pull_request) continue;
-		if (!bodyCitesTicket(item.body, ticketId)) continue;
+		if (!cites(item.body, ticketId)) continue;
 		if (seen.has(item.number)) continue;
 		seen.add(item.number);
 		prs.push({
@@ -113,7 +160,7 @@ function parseLinkedPrs(searchJson, ticketId) {
 			// unauthenticated quota this file is careful with.
 			state: prState(item),
 			updatedAt: item.updated_at || item.created_at || '',
-			url: item.html_url || `https://github.com/WordPress/wordpress-develop/pull/${item.number}`
+			url: item.html_url || `https://github.com/${repoPath}/pull/${item.number}`
 		});
 	}
 	prs.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
@@ -143,7 +190,10 @@ function classifyHttpFailure(status, headers = {}) {
 
 module.exports = {
 	TICKET_HOST,
+	PR_REPO_PATH,
 	bodyCitesTicket,
+	bodyCitesIssue,
+	citesWorkItemFor,
 	parseLinkedPrs,
 	classifyHttpFailure,
 	parsePrRef

@@ -1278,8 +1278,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // The build/watch commands and the terminal's allowed scripts for this site's
   // project type. A plain lookup, not a hook — recomputed each render from the
   // current type, defaulting to Core.
-  const projectBuildConfig = getProjectType(projectType).build;
+  const projectConfig = getProjectType(projectType);
+  const projectBuildConfig = projectConfig.build;
   const allowedScripts = projectBuildConfig.allowedScripts;
+  // `owner/repo` this site's pull requests come from and go to.
+  const upstreamRepoPath = `${projectConfig.upstream.owner}/${projectConfig.upstream.repo}`;
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
   // Trac ticket association (#109)
@@ -2885,7 +2888,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setApplyNotice('');
     setFetchingPr(pr.number);
     try {
-      const diff = await window.api.fetchPrDiff(pr.number);
+      const diff = await window.api.fetchPrDiff(sitePath, pr.number);
       if (!diff || !diff.ok) {
         setApplyError(diff?.status === 'rate-limited'
           ? 'GitHub is rate-limiting this connection right now. Open the PR and download its .diff, then use “Choose a patch file”.'
@@ -2951,10 +2954,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Apply a PR straight from a pasted URL or number, without needing it to be
   // linked to the ticket — same fetch → preview flow as the linked-PR list.
   const previewPrFromInput = () => {
-    const parsed = parsePrRef(prUrlInput);
+    // Only this site's own upstream (#251): a Gutenberg diff does not fit a Core
+    // checkout, and vice versa.
+    const parsed = parsePrRef(prUrlInput, { repoPath: upstreamRepoPath });
     if (!parsed.ok) { setApplyError(parsed.error); setApplyNotice(''); return; }
     setPrUrlInput('');
-    previewPr({ number: parsed.number, url: `https://github.com/WordPress/wordpress-develop/pull/${parsed.number}` });
+    previewPr({ number: parsed.number, url: `https://github.com/${upstreamRepoPath}/pull/${parsed.number}` });
   };
 
   const runApply = async ({ reverse = false } = {}) => {

@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { EventEmitter } = require('node:events');
-const { httpGet, fetchLinkedPrs } = require('../src/github-prs');
+const { httpGet, fetchLinkedPrs, fetchPrDiff } = require('../src/github-prs');
 
 // A stand-in for Electron's `net`: request() hands back an EventEmitter whose
 // end() lets the test drive the response (or an error) the way the real client
@@ -119,4 +119,52 @@ test('fetchLinkedPrs reports offline on a transport failure rather than empty', 
 	const res = await fetchLinkedPrs('123', { httpGet: async () => { throw new Error('no network'); } });
 	assert.strictEqual(res.status, 'offline');
 	assert.deepStrictEqual(res.items, []);
+});
+
+// --- per-project upstream (#251) ------------------------------------------
+//
+// Both functions default to wordpress-develop, but a Gutenberg site has to read
+// its own repository. Nothing else asserts that `repo`/`provider` actually reach
+// the request and the citation test — the IPC-wiring tests stub this module out,
+// so a typo in the plumbing would ship green.
+
+test('fetchLinkedPrs searches the repository it is given', async () => {
+	const urls = [];
+	const body = JSON.stringify({ total_count: 0, incomplete_results: false, items: [] });
+	const httpGetSpy = async (url) => { urls.push(url); return { status: 200, headers: {}, body }; };
+
+	await fetchLinkedPrs('123', { httpGet: httpGetSpy });
+	assert.match(decodeURIComponent(urls[0]), /repo:WordPress\/wordpress-develop/, 'defaults to Core');
+
+	await fetchLinkedPrs('123', { httpGet: httpGetSpy, repo: 'WordPress/gutenberg' });
+	assert.match(decodeURIComponent(urls[1]), /repo:WordPress\/gutenberg/);
+});
+
+// The provider decides what "cites this work item" means. A Gutenberg PR says
+// `Fixes #123`; filtering it with Core's Trac-URL test would drop every result.
+test('fetchLinkedPrs filters by the provider’s citation convention', async () => {
+	const items = [{ number: 42, pull_request: { url: 'x' }, title: 'Fix', state: 'open', updated_at: '2026-01-01T00:00:00Z', html_url: 'u', body: 'Fixes #123' }];
+	const body = JSON.stringify({ total_count: 1, incomplete_results: false, items });
+	const httpGetStub = async () => ({ status: 200, headers: {}, body });
+
+	// Core's test looks for a Trac URL, which this PR does not have.
+	const asCore = await fetchLinkedPrs('123', { httpGet: httpGetStub, repo: 'WordPress/gutenberg' });
+	assert.strictEqual(asCore.items.length, 0);
+
+	const asGutenberg = await fetchLinkedPrs('123', { httpGet: httpGetStub, repo: 'WordPress/gutenberg', provider: 'github-issue' });
+	assert.strictEqual(asGutenberg.items.length, 1);
+	assert.strictEqual(asGutenberg.items[0].number, 42);
+});
+
+test('fetchPrDiff reads the pull request from the repository it is given', async () => {
+	const urls = [];
+	const httpGetSpy = async (url) => { urls.push(url); return { status: 200, headers: {}, body: 'DIFF' }; };
+
+	const core = await fetchPrDiff(7319, { httpGet: httpGetSpy });
+	assert.strictEqual(core.ok, true);
+	assert.strictEqual(core.text, 'DIFF');
+	assert.match(urls[0], /repos\/WordPress\/wordpress-develop\/pulls\/7319$/, 'defaults to Core');
+
+	await fetchPrDiff(4496, { repo: 'WordPress/gutenberg', httpGet: httpGetSpy });
+	assert.match(urls[1], /repos\/WordPress\/gutenberg\/pulls\/4496$/);
 });
