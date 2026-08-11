@@ -112,8 +112,31 @@ assert.strictEqual(
 	);
 
 	assert.strictEqual(
-		source.split('adminerUrl(').length - 1,
+		source.split('href={adminerUrl(').length - 1,
 		1,
-		'expected exactly one adminerUrl( call: the Open Adminer button'
+		'expected the Adminer link to take its href from adminerUrl'
+	);
+	assert.strictEqual(
+		source.split('e.preventDefault(); window.api.openExternal(adminerUrl(').length - 1,
+		1,
+		'expected the Adminer link to prevent in-app navigation and open adminerUrl externally'
+	);
+});
+
+// Adminer became an anchor here, so it needs the same preventDefault the other
+// two links have — as a Button it could not navigate the window at all.
+test('the running site reads as one row of destinations (issue #249)', () => {
+	const source = fs.readFileSync(INDEX_JSX, 'utf8');
+
+	assert.strictEqual(
+		source.split('Open Adminer').length - 1,
+		0,
+		'Open Adminer is still a button in the action row'
+	);
+
+	assert.strictEqual(
+		source.split('>Adminer</a>').length - 1,
+		1,
+		'expected exactly one Adminer link beside the site URL'
 	);
 });
