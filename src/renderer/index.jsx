@@ -4729,6 +4729,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     </div>
                   ))}
 
+                  {applyConflict.advice ? (
+                    <div style={{ marginTop: 8 }}>{applyConflict.advice}</div>
+                  ) : null}
+
                   {applyConflict.offerOtherPatches || applyConflict.prUrl ? (
                     <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {applyConflict.offerOtherPatches ? (
@@ -4753,7 +4757,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                       ) : null}
                       {applyConflict.prUrl ? (
                         <Button variant="secondary" isSmall onClick={() => window.api.openExternal(applyConflict.prUrl)}>
-                          Open the pull request
+                          Ask its author for a rebase
                         </Button>
                       ) : null}
                     </div>

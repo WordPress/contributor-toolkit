@@ -257,6 +257,65 @@ test('describeApplyFailure: offers the other patches only when there are some (i
 	assert.equal(describeApplyFailure(payload).offerOtherPatches, false);
 });
 
+// --- the pull-request framing --------------------------------------------
+//
+// The regions belong to whoever updates the pull request — its author. The
+// contributor gets the situation, the scale, and their one real act: telling
+// the author. Line-level detail is for patches with nobody behind them.
+
+const PR_URL = 'https://github.com/WordPress/wordpress-develop/pull/7871';
+
+test('describeApplyFailure: a pull request failure names the stale side and the scale, not the lines (issue #282)', () => {
+	const result = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [conflict(FOO, 24, [
+			{ index: 0, line: 18, status: 'moved', lines: ['-a', '+b'] },
+			{ index: 1, line: 69, status: 'moved' }
+		])]
+	}, { prUrl: PR_URL, otherPatchCount: 1 });
+
+	// The stale side is the pull request, said outright — not "your checkout".
+	assert.match(result.headline, /written against an older trunk/);
+	// The scale, so the contributor can size it: places and files.
+	assert.match(result.headline, /2 of its 24 changes, in 1 file/);
+	// Whose work the fix is, and what the contributor can actually do.
+	assert.match(result.advice, /author's work/);
+	assert.match(result.advice, /comment on the pull request/);
+	// The file row survives for the summary; the regions do not.
+	assert.equal(result.items[0].failed, 2);
+	assert.deepEqual(result.items[0].regions, []);
+});
+
+test('describeApplyFailure: a pull request already in trunk asks for nothing (issue #226)', () => {
+	const result = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [conflict(FOO, 2, [
+			{ index: 0, line: 4, status: 'already-applied' },
+			{ index: 1, line: 9, status: 'already-applied' }
+		])]
+	}, { prUrl: PR_URL });
+
+	assert.match(result.headline, /already in trunk — there is nothing left to apply/);
+	// No rebase to ask for: the advice line stands down.
+	assert.equal(result.advice, '');
+});
+
+test('describeApplyFailure: a loose patch keeps the full breakdown — there is no author to send to (issue #282)', () => {
+	const result = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [conflict(FOO, 3, [
+			{ index: 0, line: 7, status: 'moved', lines: ['-x', '+y'] }
+		])]
+	});
+
+	assert.equal(result.items[0].regions.length, 1);
+	assert.deepEqual(result.items[0].regions[0].lines, ['-x', '+y']);
+	assert.equal(result.advice, '');
+});
+
 // The count feeding offerOtherPatches, as its own unit: it lives here rather
 // than in index.jsx so the label-matching (a failed PR by `PR #n`, a failed
 // attachment — or the same file picked from disk — by filename) is testable.

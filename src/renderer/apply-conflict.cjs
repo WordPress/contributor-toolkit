@@ -107,8 +107,54 @@ function otherPatchCount({ label, prs = [], attachments = [] } = {}) {
 }
 
 /**
+ * The pull-request framing: whose problem this is, and how big.
+ *
+ * The regions belong to whoever updates the pull request, and that is its
+ * author, not the contributor reading this notice — showing them line-level
+ * detail invites them into work that is not theirs. What they need instead is
+ * the situation named (the PR is behind trunk), the scale (files and places),
+ * and the one act that is genuinely theirs: telling the author.
+ *
+ * "No longer fits today's trunk" rather than "has conflicts": the app matches
+ * without the pull request's base, so its count can include a region a real
+ * merge would settle — close enough to size the problem, not a claim GitHub
+ * will show the identical number.
+ *
+ * @param {Array} conflicts
+ * @return {{headline: string, advice: string}}
+ */
+function prFraming(conflicts) {
+	const failed = conflicts.reduce((sum, c) => sum + c.regions.length, 0);
+	const total = conflicts.reduce((sum, c) => sum + c.total, 0);
+	const allApplied = conflicts.every((c) => c.regions.every((r) => r.status === 'already-applied'));
+
+	// A pull request whose changes are all in trunk already needs no rebase and
+	// no message — there is nothing left for anyone to do with it.
+	if (allApplied && failed === total) {
+		return {
+			headline: `All ${total} of this pull request's change${total === 1 ? '' : 's'} look like they are already in trunk — there is nothing left to apply.`,
+			advice: ''
+		};
+	}
+
+	const files = conflicts.length;
+	const scale = `${failed} of its ${total} change${total === 1 ? '' : 's'}, in ${files} file${files === 1 ? '' : 's'},`;
+	return {
+		headline: `This pull request was written against an older trunk and no longer fits it: ${scale} would need rework.`,
+		advice: 'Bringing it up to date is its author\'s work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.'
+	};
+}
+
+/**
  * Everything the panel needs to explain a failed apply, or null when there is
  * nothing to explain.
+ *
+ * Two framings, chosen by where the patch came from. A pull request has an
+ * author who is the one to fix it, so the notice names the situation and the
+ * scale and points at them — no line-level detail. A loose patch (a Trac
+ * attachment, a file from disk) has nobody to send the contributor to, so it
+ * keeps the full per-region breakdown: there, the contributor with the failing
+ * lines in hand is the only way out.
  *
  * `items` follows the order of `failures` so that a patch failing for mixed
  * reasons — one file with drifted regions, another simply not in the checkout —
@@ -133,6 +179,8 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 	// the panel keeps rendering it exactly as it did before.
 	if (!failures.length && !conflicts.length) return null;
 
+	const fromPr = Boolean(prUrl);
+
 	// Each conflict is consumed as it is matched, not looked up in a map: a
 	// concatenated patch can fail the same file twice with the identical
 	// sentence, and a map would show one breakdown twice while dropping the
@@ -148,14 +196,24 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 			path: conflict.path,
 			total: conflict.total,
 			failed: conflict.regions.length,
-			regions: conflict.regions.map(describeRegion)
+			// For a pull request the regions are the author's problem; the file
+			// row with its counts is the whole story the contributor needs.
+			regions: fromPr ? [] : conflict.regions.map(describeRegion)
 		};
 	});
 
+	// With no conflicts to count there is nothing to summarise that the items
+	// do not already say, so the headline stands down rather than padding.
+	let headline = '';
+	let advice = '';
+	if (conflicts.length) {
+		const framing = fromPr ? prFraming(conflicts) : { headline: headlineFor(conflicts), advice: '' };
+		headline = framing.headline;
+		advice = framing.advice;
+	}
 	return {
-		// With no conflicts to count there is nothing to summarise that the items
-		// do not already say, so the headline stands down rather than padding.
-		headline: conflicts.length ? headlineFor(conflicts) : '',
+		headline,
+		advice,
 		items,
 		// Both are offered only when they lead somewhere, the way open-failure.cjs
 		// withholds its picker: a way out that returns to the same dead end is
