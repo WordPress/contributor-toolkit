@@ -1,8 +1,9 @@
 // Captures the documentation screenshots in docs/public/screenshots/.
 //
-//   npm run shots                    # fixture tier: fully automatic (builds the renderer first)
-//   npm run shots -- --tier=live     # live tier: pauses per shot, maintainer drives
-//   npm run shots -- --only=terminal # one shot, by slug
+//   npm run shots                        # fixture tier: fully automatic (builds the renderer first)
+//   npm run shots -- --tier=live         # live tier: pauses per shot, maintainer drives
+//   npm run shots -- --only=terminal     # one shot, by slug
+//   npm run shots -- --tier=live --user-data=~/wpct-docs-profile   # live tier, own site list
 //
 // Fixture tier launches the repo's own Electron binary through playwright-core's
 // Electron driver, pointed at a throwaway userData dir (TOOLKIT_USER_DATA_DIR —
@@ -10,10 +11,13 @@
 // is never touched. One launch per fixture variant, and every shot starts from
 // a freshly reloaded window, so no shot depends on the one before it.
 //
-// Live tier launches the app against the real registry with no seeding at all:
-// the harness prints what to set up, waits for Enter, and takes the picture —
-// a camera with a timer, not automation. Screenshots taken this way show real
-// paths; review each image before committing it.
+// Live tier launches the app with no seeding at all: the harness prints what to
+// set up, waits for Enter, and takes the picture — a camera with a timer, not
+// automation. Screenshots taken this way show real paths; review each image
+// before committing it. It defaults to the maintainer's own registry, and
+// --user-data=<dir> points it at a separate profile instead — a site list kept
+// for documentation, so a capture session neither adds to nor photographs the
+// sites the maintainer actually works on.
 //
 // playwright-core rather than playwright: it ships the same Electron driver
 // with no postinstall script and no browser download — the only browser needed
@@ -24,6 +28,7 @@
 // e2e/ is the Playwright `testDir`, and nothing here is run by `npm run test:e2e`.
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const readline = require('readline');
 const { _electron } = require('playwright-core');
@@ -40,16 +45,37 @@ const WINDOW = { width: 1200, height: 800 };
 const ELECTRON_SWITCHES = ['--force-device-scale-factor=1'];
 
 function parseArgs(argv) {
-	const args = { tier: 'fixture', only: null };
+	const args = { tier: 'fixture', only: null, userData: null };
 	for (const arg of argv.slice(2)) {
 		if (arg.startsWith('--tier=')) args.tier = arg.slice('--tier='.length);
 		else if (arg.startsWith('--only=')) args.only = arg.slice('--only='.length);
+		else if (arg.startsWith('--user-data=')) args.userData = arg.slice('--user-data='.length);
 		else throw new Error(`Unknown argument: ${arg}`);
 	}
 	if (args.tier !== 'fixture' && args.tier !== 'live') {
 		throw new Error(`--tier must be "fixture" or "live", got "${args.tier}"`);
 	}
+	// The fixture tier builds its own throwaway profile per variant; letting a
+	// path in here would either be ignored or quietly overwrite a real one.
+	if (args.userData && args.tier !== 'live') {
+		throw new Error('--user-data only applies to --tier=live');
+	}
+	if (args.userData) {
+		args.userData = path.resolve(expandHome(args.userData));
+		fs.mkdirSync(args.userData, { recursive: true });
+	}
 	return args;
+}
+
+/**
+ * `~` is the shell's, not Node's: an unexpanded one would become a literal directory.
+ *
+ * @param {string} p
+ */
+function expandHome(p) {
+	if (p === '~') return os.homedir();
+	if (p.startsWith('~/') || p.startsWith(`~${path.sep}`)) return path.join(os.homedir(), p.slice(2));
+	return p;
 }
 
 async function launchApp(env) {
@@ -100,16 +126,21 @@ async function runFixtureTier(selected) {
 	cleanFixtureSites();
 }
 
-async function runLiveTier(selected) {
+async function runLiveTier(selected, userData) {
 	// Explicitly undefined rather than omitted: launchApp spreads process.env, so a
 	// TOOLKIT_USER_DATA_DIR exported while debugging the fixture tier would silently
 	// point the "real sites" tier at fixture state, and the images would be wrong in
-	// a way only a careful look at the sidebar reveals.
-	const { app, page } = await launchApp({ TOOLKIT_USER_DATA_DIR: undefined });
+	// a way only a careful look at the sidebar reveals. --user-data overrides it,
+	// because a path typed on the command line is a decision, not a leftover.
+	const { app, page } = await launchApp({ TOOLKIT_USER_DATA_DIR: userData || undefined });
 	const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 	const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
 	try {
-		console.log('\nLive tier: the app just opened against your real sites.');
+		console.log(
+			userData
+				? `\nLive tier: the app just opened against the site list in ${userData}.`
+				: '\nLive tier: the app just opened against your real sites.'
+		);
 		console.log('Screenshots will show real paths — review every image before committing.\n');
 		for (const shot of selected) {
 			console.log(`\n${shot.slug}:\n  ${shot.instructions}`);
@@ -134,7 +165,7 @@ async function main() {
 	fs.mkdirSync(outDir, { recursive: true });
 	console.log(`Capturing ${selected.length} ${args.tier}-tier screenshot(s) into ${path.relative(repoRoot, outDir)}/`);
 	if (args.tier === 'fixture') await runFixtureTier(selected);
-	else await runLiveTier(selected);
+	else await runLiveTier(selected, args.userData);
 }
 
 main().catch((err) => {
