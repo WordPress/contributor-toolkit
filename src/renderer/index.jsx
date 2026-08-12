@@ -29,6 +29,7 @@ import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
+import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
@@ -1309,6 +1310,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // chain shows its build step skipped and attributed to the watch (#262).
   const [applyBuildByWatcher, setApplyBuildByWatcher] = useState(false);
   const [applyError, setApplyError] = useState('');
+  // The failure broken down: which regions of the patch no longer fit, where,
+  // why, and what they were trying to change (#282, #226). Held beside
+  // applyError rather than replacing it — a refusal with nothing to break down
+  // (a parse error, a rolled-back write) still has only its sentence.
+  const [applyConflict, setApplyConflict] = useState(null);
+  // One call, because the breakdown must never outlive the sentence it belongs
+  // to: every place that took the error banner down predates it, and any that
+  // cleared only one would leave regions on screen describing a patch the
+  // contributor has moved on from.
+  const clearApplyError = () => { setApplyError(''); setApplyConflict(null); };
+  // Where "try another patch" goes. The list is already on screen when a patch
+  // fails — three rows above, in the case that prompted this — so the way out
+  // is a scroll, not a fetch.
+  const ticketPatchesRef = useRef(null);
   // Not every unhappy ending is a failure: a revert can find that the patch is
   // already gone, which resolves the situation rather than blocking it. Red
   // would read as "you broke something" when nothing is left to do.
@@ -2925,7 +2940,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Reads a patch file and works out what it would do, without touching the
   // checkout — the contributor decides after seeing the file list.
   const choosePatchFile = async () => {
-    setApplyError('');
+    clearApplyError();
     setApplyNotice('');
     try {
       const chosen = await window.api.choosePatchFile();
@@ -3001,7 +3016,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Fetches a PR's diff and drops into the same preview the file picker uses,
   // so applying a PR and applying a downloaded patch are one path from here on.
   const previewPr = async (pr) => {
-    setApplyError('');
+    clearApplyError();
     setApplyNotice('');
     setFetchingPr(pr.number);
     try {
@@ -3017,7 +3032,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         setApplyError(preview?.error || 'Could not read that diff.');
         return;
       }
-      setApplyPreview({ ...preview, label: `PR #${pr.number}`, text: diff.text });
+      // `url` and `state` ride along so a conflict can offer the pull request
+      // itself, framed by what it is: an open one is rebased by its author, a
+      // closed one is nobody's to update (#282). State is absent when the PR
+      // came from a pasted number rather than the linked list.
+      setApplyPreview({ ...preview, label: `PR #${pr.number}`, text: diff.text, prUrl: pr.url, prState: pr.state || null });
     } catch (e) {
       setApplyError(String(e));
     } finally {
@@ -3029,7 +3048,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // scrapes its attachment list, and shows it in-app. On demand, not on link.
   const loadTracAttachments = async () => {
     const gen = scrapeGenRef.current;
-    setApplyError('');
+    clearApplyError();
     setTracAttachmentsLoading(true);
     try {
       const res = await window.api.listTracAttachments(sitePath);
@@ -3046,7 +3065,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Downloads an attachment through the challenge-passing session and hands it
   // to the same preview the PR and file paths use.
   const previewAttachment = async (att) => {
-    setApplyError('');
+    clearApplyError();
     setApplyNotice('');
     setFetchingAttachment(att.url);
     try {
@@ -3072,7 +3091,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // linked to the ticket — same fetch → preview flow as the linked-PR list.
   const previewPrFromInput = () => {
     const parsed = parsePrRef(prUrlInput);
-    if (!parsed.ok) { setApplyError(parsed.error); setApplyNotice(''); return; }
+    // clearApplyError first, not setApplyError alone: a parse error arriving on
+    // top of a conflict breakdown would otherwise leave the stale regions on
+    // screen hiding it, since the banner leads with the breakdown's headline.
+    if (!parsed.ok) { clearApplyError(); setApplyError(parsed.error); setApplyNotice(''); return; }
     setPrUrlInput('');
     previewPr({ number: parsed.number, url: `https://github.com/WordPress/wordpress-develop/pull/${parsed.number}` });
   };
@@ -3091,7 +3113,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     // the build and is not interrupted; an install/full build pauses it (#262).
     const watcherActive = watchStateRef.current === 'watching';
     const impact = planWatchImpact({ needsInstall, watcherActive });
-    setApplyError('');
+    clearApplyError();
     setApplyNotice('');
     setApplyNeedsInstall(needsInstall);
     setApplyBuildByWatcher(!impact.runBuild);
@@ -3123,6 +3145,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             return;
           }
           setApplyError(res?.error || 'The patch could not be applied.');
+          // A conflict is where the panel used to stop: one file named, the
+          // rest of the failures left in the terminal, and no sense of whether
+          // one region of twenty missed or all of them. The breakdown is what
+          // turns that into a decision (#282). A reverse is left out — the
+          // patch it names came from this app and the ticket's other patches
+          // are no help against it.
+          setApplyConflict(reverse ? null : describeApplyFailure(res, {
+            otherPatchCount: otherPatchCount({
+              label: preview?.label,
+              prs: ticketPatches?.items,
+              attachments: patchAttachments
+            }),
+            prUrl: preview?.prUrl || null,
+            prState: preview?.prState || null
+          }));
           finishApply();
           return;
         }
@@ -4376,7 +4413,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               </div>
             ) : null}
 
-            <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
+            <div ref={ticketPatchesRef} style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Linked pull requests</div>
                 <Button variant="link" onClick={loadTicketPatches} disabled={ticketPatchesLoading} style={{ fontSize: 12 }}>
@@ -4613,7 +4650,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               ) : null}
               <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
                 <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>Apply and rebuild</Button>
-                <Button variant="tertiary" onClick={() => { setApplyPreview(null); setApplyError(''); setApplyNotice(''); }}>Cancel</Button>
+                <Button variant="tertiary" onClick={() => { setApplyPreview(null); clearApplyError(); setApplyNotice(''); }}>Cancel</Button>
               </div>
             </div>
           ) : null}
@@ -4635,15 +4672,100 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           ) : null}
 
           {applyError ? (
-            <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ flex: '1 1 auto' }}>{/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`} The checkout was not changed.</span>
-              <Button
-                variant="tertiary"
-                isSmall
-                aria-label="Dismiss"
-                onClick={() => setApplyError('')}
-                style={{ color: '#8a1f21' }}
-              >✕</Button>
+            <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                {/* The headline replaces the sentence when there is one: it says
+                    the same thing in counts, which is the part that decides
+                    whether the patch is worth rescuing. Without a breakdown the
+                    original sentence is still the whole story. */}
+                <span style={{ flex: '1 1 auto' }}>
+                  {applyConflict?.headline || (/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`)} The checkout was not changed.
+                </span>
+                <Button
+                  variant="tertiary"
+                  isSmall
+                  aria-label="Dismiss"
+                  onClick={() => clearApplyError()}
+                  style={{ color: '#8a1f21' }}
+                >✕</Button>
+              </div>
+
+              {applyConflict ? (
+                <div style={{ marginTop: 8 }}>
+                  {applyConflict.items.map((item, i) => (
+                    <div key={i} style={{ marginTop: i ? 8 : 0 }}>
+                      {item.kind === 'note' ? (
+                        <div>{item.text}</div>
+                      ) : (
+                        <>
+                          <div style={{ fontWeight: 600, wordBreak: 'break-all' }}>
+                            {item.path} — {item.failed} of {item.total} {item.total === 1 ? 'change' : 'changes'}
+                          </div>
+                          {item.regions.map((region) => (
+                            // index, not line: a concatenated patch can carry
+                            // two hunks whose oldStart coincides.
+                            <div key={region.index} style={{ marginTop: 4, paddingLeft: 10, borderLeft: '2px solid #d63638' }}>
+                              {/* A searchable line, not a line number: the patch's
+                                  numbers are coordinates in the file as its author
+                                  had it, and on an old patch they miss by dozens.
+                                  Text survives the drift — copy it into the
+                                  editor's search and land on the region. */}
+                              <div>
+                                {region.anchor
+                                  ? <>near <code style={{ fontSize: 11, wordBreak: 'break-all' }}>{region.anchor}</code></>
+                                  : `line ${region.line} of the patch`} · {region.reason}
+                              </div>
+                              {/* The lines themselves, because a location alone
+                                  cannot answer the question that decides the
+                                  next ten minutes: is this the change that
+                                  matters, or reformatting that came with it. */}
+                              {region.lines.length ? (
+                                <pre style={{ margin: '2px 0 0', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                                  {region.lines.join('\n')}{region.more ? `\n… ${region.more} more ${region.more === 1 ? 'line' : 'lines'}` : ''}
+                                </pre>
+                              ) : null}
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  ))}
+
+                  {applyConflict.advice ? (
+                    <div style={{ marginTop: 8 }}>{applyConflict.advice}</div>
+                  ) : null}
+
+                  {applyConflict.offerOtherPatches || applyConflict.prUrl ? (
+                    <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {applyConflict.offerOtherPatches ? (
+                        <Button
+                          variant="secondary"
+                          isSmall
+                          onClick={() => {
+                            // Choosing another patch is walking away from this
+                            // one, so everything about it goes: the preview
+                            // (whose presence keeps the lists' Apply buttons
+                            // disabled) and the failure banner itself — an
+                            // error describing an abandoned attempt would sit
+                            // above the new one as noise.
+                            setApplyPreview(null);
+                            clearApplyError();
+                            ticketPatchesRef.current?.scrollIntoView({
+                              block: 'center',
+                              behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+                            });
+                          }}
+                        >Try another patch on this ticket</Button>
+                      ) : null}
+                      {applyConflict.prUrl && applyConflict.prButton ? (
+                        <Button variant="secondary" isSmall onClick={() => window.api.openExternal(applyConflict.prUrl)}>
+                          {applyConflict.prButton}
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -4670,7 +4792,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div style={{ minWidth: 280, flex: '1 1 280px' }}>
                   <TextControl
                     value={prUrlInput}
-                    onChange={(value) => { setPrUrlInput(value); setApplyError(''); setApplyNotice(''); }}
+                    onChange={(value) => { setPrUrlInput(value); clearApplyError(); setApplyNotice(''); }}
                     onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); previewPrFromInput(); } }}
                     disabled={isUpdating || installing || building}
                     placeholder="Paste a pull request URL or number"

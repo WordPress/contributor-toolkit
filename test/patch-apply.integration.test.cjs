@@ -6,7 +6,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const git = require('isomorphic-git');
-const { applyPatchToDir, resolveInside, dominantEol, rollback } = require('../src/patch-apply');
+const JsDiff = require('diff');
+const { applyPatchToDir, resolveInside, dominantEol, rollback, diagnoseHunks } = require('../src/patch-apply');
+const { parsePatchFiles } = require('../src/patch-plan.cjs');
 
 // A real on-disk repo, like trunk-update.integration.test.cjs: applyPatchToDir
 // calls ensureAutocrlf, which reads and writes git config, so a bare temp
@@ -548,4 +550,245 @@ test('rollback: returns an empty list when it restores everything (issue #11)', 
 
 	assert.deepStrictEqual(recovery, []);
 	assert.strictEqual(fs.existsSync(path.join(dir, 'added')), false, 'an added file is removed on rollback');
+});
+
+// --- how badly it failed (issue #282) ------------------------------------
+//
+// The refusal is right and stays; what it says is what changed. "This file has
+// moved on" read identically whether one region of twenty missed or all twenty
+// did, which is the difference between a patch worth rescuing by hand and one
+// worth abandoning. These assert the counts the panel is built from.
+
+// A file long enough to hold three regions that do not merge into one hunk.
+const LONG = 'src/wp-includes/long.php';
+const LONG_BODY = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`).join('\n') + '\n';
+
+// Three regions: near the top, the middle and the bottom.
+const LONG_PATCH = `diff --git a/${LONG} b/${LONG}
+--- a/${LONG}
++++ b/${LONG}
+@@ -1,3 +1,3 @@
+ line 1
+-line 2
++LINE TWO
+ line 3
+@@ -14,3 +14,3 @@
+ line 14
+-line 15
++LINE FIFTEEN
+ line 16
+@@ -27,3 +27,3 @@
+ line 27
+-line 28
++LINE TWENTY-EIGHT
+ line 29
+`;
+
+test('applyPatchToDir: names how many regions missed, not just the file (issue #282)', async (t) => {
+	const dir = await makeRepo(t, { [LONG]: LONG_BODY });
+	// Only the first region's surroundings are disturbed.
+	fs.writeFileSync(path.join(dir, LONG), LONG_BODY.replace('line 1\n', 'line one, rewritten\n'));
+
+	const res = await applyPatchToDir({ dir, patchText: LONG_PATCH });
+
+	assert.strictEqual(res.ok, false);
+	assert.strictEqual(res.conflicts.length, 1);
+	const [conflict] = res.conflicts;
+	assert.strictEqual(conflict.path, LONG);
+	assert.strictEqual(conflict.total, 3, 'the patch has three regions');
+	assert.strictEqual(conflict.regions.length, 1, 'only one of them missed');
+	assert.strictEqual(conflict.regions[0].line, 1);
+	// The sentence carries the same counts, for the terminal and for anywhere
+	// the structured detail does not reach.
+	assert.match(res.error, /1 of its 3 changes no longer fit/);
+	assert.match(res.error, /the other 2 do/);
+});
+
+test('applyPatchToDir: a region carries the lines it was trying to change (issue #282)', async (t) => {
+	const dir = await makeRepo(t, { [LONG]: LONG_BODY });
+	fs.writeFileSync(path.join(dir, LONG), LONG_BODY.replace('line 1\n', 'line one, rewritten\n'));
+
+	const res = await applyPatchToDir({ dir, patchText: LONG_PATCH });
+
+	// Without these there is a location and no way to judge whether it is the
+	// change that matters or reformatting noise, which is the judgement the
+	// whole diagnosis exists to enable.
+	assert.deepStrictEqual(res.conflicts[0].regions[0].lines, ['-line 2', '+LINE TWO']);
+});
+
+// The anchor is a line to search for, because the hunk's numbers are in the
+// patched file's coordinates and an old patch misses by its whole drift. For a
+// "moved" region the `-` line is the one thing known to still be in the file —
+// the failure means the *neighbours* changed, not it.
+test('applyPatchToDir: a region\'s anchor is a line still present in the checkout (issue #282)', async (t) => {
+	const dir = await makeRepo(t, { [LONG]: LONG_BODY });
+	const drifted = LONG_BODY.replace('line 1\n', 'line one, rewritten\n');
+	fs.writeFileSync(path.join(dir, LONG), drifted);
+
+	const res = await applyPatchToDir({ dir, patchText: LONG_PATCH });
+
+	const region = res.conflicts[0].regions[0];
+	assert.strictEqual(region.anchor, 'line 2');
+	assert.ok(drifted.includes(region.anchor), 'searching the anchor finds the region');
+});
+
+// An already-applied region carries the change, not its precondition: the `-`
+// line is gone from the file by definition, and the `+` line is what a search
+// will actually hit.
+test('applyPatchToDir: an already-applied region anchors on its result (issue #226)', async (t) => {
+	const dir = await makeRepo(t, { [LONG]: LONG_BODY });
+	const current = LONG_BODY
+		.replace('line 2\n', 'LINE TWO\n')
+		.replace('line 14\n', 'line fourteen!\n');
+	fs.writeFileSync(path.join(dir, LONG), current);
+
+	const res = await applyPatchToDir({ dir, patchText: LONG_PATCH });
+
+	const applied = res.conflicts[0].regions.find((r) => r.status === 'already-applied');
+	assert.strictEqual(applied.anchor, 'LINE TWO');
+	assert.ok(current.includes(applied.anchor), 'searching the anchor finds the region');
+});
+
+// The other half of the same question (issue #226): a region can miss because
+// its change is already there, which means the patch is redundant rather than
+// stale — the opposite conclusion from the same failure.
+test('applyPatchToDir: a region already in the tree is told apart from one that drifted (issue #226)', async (t) => {
+	const dir = await makeRepo(t, { [LONG]: LONG_BODY });
+	const current = LONG_BODY
+		.replace('line 2\n', 'LINE TWO\n')          // the patch's own change, already here
+		.replace('line 14\n', 'line fourteen!\n');  // and genuine drift around another region
+	fs.writeFileSync(path.join(dir, LONG), current);
+
+	const res = await applyPatchToDir({ dir, patchText: LONG_PATCH });
+
+	assert.strictEqual(res.ok, false);
+	const byLine = Object.fromEntries(res.conflicts[0].regions.map((r) => [r.line, r.status]));
+	assert.strictEqual(byLine[1], 'already-applied');
+	assert.strictEqual(byLine[14], 'moved');
+});
+
+// Every failing file reaches the caller. The panel showed `error` alone and
+// sent the rest to the terminal, where a contributor has no reason to look.
+test('applyPatchToDir: a second conflicting file is reported, not swallowed (issue #282)', async (t) => {
+	const dir = await makeRepo(t, { [FOO]: FOO_BODY, [BAR]: BAR_BODY });
+	const twoFilePatch = `${FOO_PATCH}diff --git a/${BAR} b/${BAR}
+--- a/${BAR}
++++ b/${BAR}
+@@ -1,3 +1,3 @@
+ alpha
+-beta
++BETA
+ gamma
+`;
+	fs.writeFileSync(path.join(dir, FOO), 'ONE\nTWO\nTHREE\n');
+	fs.writeFileSync(path.join(dir, BAR), 'ALPHA\nBETA\nGAMMA\n');
+
+	const res = await applyPatchToDir({ dir, patchText: twoFilePatch });
+
+	assert.strictEqual(res.failures.length, 2);
+	assert.strictEqual(res.conflicts.length, 2);
+	assert.deepStrictEqual(res.conflicts.map((c) => c.path), [FOO, BAR]);
+});
+
+// A file that is simply not there has no regions to break down, so it keeps the
+// sentence it always had. The panel has to render both kinds side by side.
+test('applyPatchToDir: a failure with no regions carries no conflict detail (issue #282)', async (t) => {
+	const dir = await makeRepo(t, { [FOO]: FOO_BODY });
+	const missingFilePatch = FOO_PATCH.replace(new RegExp(FOO, 'g'), 'src/wp-includes/gone.php');
+
+	const res = await applyPatchToDir({ dir, patchText: missingFilePatch });
+
+	assert.strictEqual(res.ok, false);
+	assert.deepStrictEqual(res.conflicts, []);
+	assert.match(res.error, /not in this checkout/);
+});
+
+// --- diagnoseHunks directly, for what the integration path cannot reach ---
+//
+// The caps and fallbacks fire only on shapes no small fixture hits through
+// applyPatchToDir: a hunk with more changed lines than the cap, more failing
+// regions than carry detail, a hunk none of whose lines survive in the file.
+
+// A one-hunk patch against `original`, parsed the way applyPatchToDir would.
+function parsedFile(patchText) {
+	const parsed = parsePatchFiles(patchText);
+	assert.ok(parsed.ok, parsed.error);
+	return parsed.files[0];
+}
+
+test('diagnoseHunks: caps the lines one region carries and counts the rest (issue #282)', () => {
+	const before = Array.from({ length: 14 }, (_, i) => `alpha ${i}`).join('\n') + '\n';
+	const after = Array.from({ length: 14 }, (_, i) => `beta ${i}`).join('\n') + '\n';
+	const patch = JsDiff.createPatch('big.txt', before, after);
+	const file = parsedFile(`diff --git a/big.txt b/big.txt\n${patch.split('\n').slice(1).join('\n')}`);
+
+	// A file the hunk cannot fit at all, so the one region fails.
+	const diagnosis = diagnoseHunks('something else entirely\n', file);
+
+	assert.strictEqual(diagnosis.regions.length, 1);
+	assert.strictEqual(diagnosis.regions[0].lines.length, 10, 'REGION_LINE_LIMIT caps the carried lines');
+	// 14 removed + 14 added = 28 changed lines; 10 carried, 18 counted.
+	assert.strictEqual(diagnosis.regions[0].more, 18);
+});
+
+test('diagnoseHunks: regions beyond the detail cap are located but carry no lines (issue #282)', () => {
+	// Five separated regions, all of which will fail.
+	const body = Array.from({ length: 41 }, (_, i) => `row ${i}`).join('\n') + '\n';
+	const changed = body
+		.replace('row 2\n', 'ROW 2\n').replace('row 10\n', 'ROW 10\n')
+		.replace('row 18\n', 'ROW 18\n').replace('row 26\n', 'ROW 26\n')
+		.replace('row 34\n', 'ROW 34\n');
+	const patch = JsDiff.createPatch('rows.txt', body, changed, '', '', { context: 2 });
+	const file = parsedFile(`diff --git a/rows.txt b/rows.txt\n${patch.split('\n').slice(1).join('\n')}`);
+
+	const diagnosis = diagnoseHunks('unrelated\n', file);
+
+	assert.strictEqual(diagnosis.total, 5);
+	assert.strictEqual(diagnosis.regions.length, 5);
+	const detailed = diagnosis.regions.filter((r) => Array.isArray(r.lines));
+	assert.strictEqual(detailed.length, 3, 'REGION_DETAIL_LIMIT caps which regions carry lines');
+	assert.ok(diagnosis.regions.slice(3).every((r) => r.lines === undefined));
+	// Every region still has an anchor, even past the detail cap.
+	assert.ok(diagnosis.regions.every((r) => typeof r.anchor === 'string' && r.anchor));
+});
+
+test('diagnoseHunks: a hunk with nothing left in the file still offers its best anchor (issue #282)', () => {
+	const file = parsedFile([
+		'diff --git a/gone.txt b/gone.txt',
+		'--- a/gone.txt',
+		'+++ b/gone.txt',
+		'@@ -1,3 +1,3 @@',
+		' context line',
+		'-old line',
+		'+new line',
+		' other context',
+		''
+	].join('\n'));
+
+	const diagnosis = diagnoseHunks('completely different file\n', file);
+
+	// Nothing from the hunk survives in the file, so the preference order alone
+	// decides: for a moved region, the first `-` line.
+	assert.strictEqual(diagnosis.regions[0].anchor, 'old line');
+});
+
+test('diagnoseHunks: overlapping hunks that each pass alone yield null, not zero conflicts (issue #282)', () => {
+	// Both hunks fit the file individually (their contexts are present), but the
+	// whole patch fails because the first hunk's insertion shifts the second's.
+	// diagnoseHunks must decline to explain rather than claim nothing failed.
+	const body = 'one\ntwo\nthree\nfour\nfive\nsix\nseven\n';
+	const file = parsedFile([
+		'diff --git a/f.txt b/f.txt',
+		'--- a/f.txt',
+		'+++ b/f.txt',
+		'@@ -1,3 +1,3 @@',
+		' one',
+		'-two',
+		'+TWO',
+		' three',
+		''
+	].join('\n'));
+
+	// Sanity: the single hunk applies, so per-hunk diagnosis finds no failures.
+	assert.strictEqual(diagnoseHunks(body, file), null);
 });
