@@ -949,6 +949,114 @@ test('a generated patch applies when the files have no trailing newline (#85)', 
 	assert.equal(fs.readFileSync(path.join(target, 'edited.php'), 'utf8'), 'line1\nline2\nline3');
 });
 
+// --- empty files added and deleted (#311) ---------------------------------
+
+// The generator used to compare the two sides' text before consulting the
+// status codes that say which side the file is on. An added empty file renders
+// '' on both sides, so it came out "unchanged" and was skipped — a contributor
+// adding a placeholder was told their ticket had no changes at all.
+test('an added empty file reaches the patch (#311)', async (t) => {
+	const dir = await patchRepo(t, { 'kept.php': '<?php // stays\n' });
+	fs.writeFileSync(path.join(dir, 'placeholder.php'), '');
+
+	const { patch } = await patchMain().invoke('git:get-patch', dir);
+
+	assert.match(patch, /^new file mode 100644$/m, 'an empty file has no line to diff, so the header is what carries it');
+	assert.match(patch, /^--- \/dev\/null$/m);
+	assert.match(patch, /^\+\+\+ b\/placeholder\.php$/m);
+	assert.doesNotMatch(patch, /No changes\./, 'the tree is not unchanged');
+});
+
+// The same on the other side: deleting a file that was already empty.
+test('a deleted empty file reaches the patch (#311)', async (t) => {
+	const dir = await patchRepo(t, { 'placeholder.php': '', 'kept.php': '<?php // stays\n' });
+	fs.rmSync(path.join(dir, 'placeholder.php'));
+
+	const { patch } = await patchMain().invoke('git:get-patch', dir);
+
+	assert.match(patch, /^deleted file mode 100644$/m);
+	assert.match(patch, /^--- a\/placeholder\.php$/m);
+	assert.match(patch, /^\+\+\+ \/dev\/null$/m);
+	assert.doesNotMatch(patch, /No changes\./);
+});
+
+// `/dev/null` has to survive the round trip for an empty file too: it is the
+// only thing this app's reader classifies an add or a delete from (#85), and a
+// section with no hunk is the shape jsdiff hands back for a rename and for
+// prose that is not a patch at all.
+test('a generated empty addition parses back as an addition (#311)', async (t) => {
+	const dir = await patchRepo(t, { 'kept.php': '<?php // stays\n' });
+	fs.writeFileSync(path.join(dir, 'placeholder.php'), '');
+
+	const { patch } = await patchMain().invoke('git:get-patch', dir);
+	const parsed = require('../src/patch-plan.cjs').parsePatchFiles(patch);
+
+	assert.equal(parsed.ok, true, parsed.error);
+	assert.deepEqual(parsed.files.map((f) => [f.kind, f.path]), [['add', 'placeholder.php']]);
+});
+
+test('a generated empty deletion parses back as a deletion (#311)', async (t) => {
+	const dir = await patchRepo(t, { 'placeholder.php': '', 'kept.php': '<?php // stays\n' });
+	fs.rmSync(path.join(dir, 'placeholder.php'));
+
+	const { patch } = await patchMain().invoke('git:get-patch', dir);
+	const parsed = require('../src/patch-plan.cjs').parsePatchFiles(patch);
+
+	assert.equal(parsed.ok, true, parsed.error);
+	assert.deepEqual(parsed.files.map((f) => [f.kind, f.path]), [['delete', 'placeholder.php']]);
+});
+
+// And it has to apply, alongside an ordinary edit in the same patch — the
+// mixed case is the one that would break everything else if the empty section
+// were malformed, since applying is all-or-nothing.
+test('a generated patch carries empty additions and deletions into another checkout (#311)', async (t) => {
+	const { applied, target } = await roundTrip(t, {
+		'was-empty.php': '',
+		'edited.php': 'line1\nline2\n'
+	}, (dir) => {
+		fs.rmSync(path.join(dir, 'was-empty.php'));
+		fs.writeFileSync(path.join(dir, 'placeholder.php'), '');
+		fs.writeFileSync(path.join(dir, 'edited.php'), 'line1\nline2\nline3\n');
+	});
+
+	assert.equal(applied.ok, true, applied.error);
+	assert.equal(fs.existsSync(path.join(target, 'was-empty.php')), false, 'the empty deletion has to actually delete');
+	assert.equal(fs.readFileSync(path.join(target, 'placeholder.php'), 'utf8'), '', 'the empty addition has to actually create');
+	assert.equal(fs.readFileSync(path.join(target, 'edited.php'), 'utf8'), 'line1\nline2\nline3\n');
+});
+
+// The card's note reads the same classification, so the omission was silent on
+// both surfaces: nothing on screen suggested a file had been dropped.
+test('git:unsubmitted-work counts empty files added and deleted (#311, #239)', async (t) => {
+	const dir = await patchRepo(t, { 'was-empty.php': '', 'kept.php': '<?php // stays\n' });
+	fs.rmSync(path.join(dir, 'was-empty.php'));
+	fs.writeFileSync(path.join(dir, 'placeholder.php'), '');
+
+	const wide = await patchMain().invoke('git:unsubmitted-work', dir);
+
+	assert.equal(wide.ok, true, wide.error);
+	assert.deepEqual(wide.files.sort(), ['placeholder.php', 'was-empty.php']);
+	assert.equal(wide.changedCount, 2);
+});
+
+// The other side of the condition #311 narrowed. A file that exists on both
+// sides and differs only in line endings — the churn a CRLF checkout produces
+// on Windows — is still nothing, and must reach neither the patch nor the note.
+// Without this, widening the existence test to cover empty adds and deletes
+// would be indistinguishable from dropping the text comparison altogether.
+test('a file that differs only in line endings is still no change (#311, #85)', async (t) => {
+	const dir = await patchRepo(t, { 'text.php': '<?php // one\n// two\n' });
+	fs.writeFileSync(path.join(dir, 'text.php'), '<?php // one\r\n// two\r\n');
+
+	const main = patchMain();
+	const { patch } = await main.invoke('git:get-patch', dir);
+	const wide = await main.invoke('git:unsubmitted-work', dir);
+
+	assert.ok(patch.endsWith('No changes.'), JSON.stringify(patch));
+	assert.deepEqual(wide.files, []);
+	assert.equal(wide.changedCount, 0);
+});
+
 // A unified diff cannot carry a binary, but dropping it without a word means a
 // contributor hands over a patch that is missing a file they changed and has no
 // way to know. Named above the diff, following the handoff header's placement,
