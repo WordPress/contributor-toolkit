@@ -2781,6 +2781,25 @@ test('site:status does not guess that a ticket is behind without a recorded base
 	assert.equal(status.ticketBehindTrunk, false);
 });
 
+test('site:status reports a ticket born from current trunk as current (#305)', async () => {
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { tracTicket: 61002, currentBranch: 'ticket/61002', branches: { 'ticket/61002': { baseOid: 'same' } } } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'same', trunkDate: 'd' }) },
+			'./ticket-branches': { currentBranchName: async () => 'ticket/61002' }
+		}
+	});
+
+	const status = await main.invoke('site:status', '/sites/wp');
+
+	assert.equal(status.ticketBehindTrunk, false);
+});
+
 test('a checkout that died mid-switch blocks further switching (issue #108)', async () => {
 	const switchToBranch = spy(async () => ({ switched: true }));
 	const settings = fakeSettingsStore({
