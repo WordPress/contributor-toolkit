@@ -40,8 +40,8 @@ The build watcher compiles what you edit under `src/` into `build/`, which is wh
 
 | Dot | State |
 | --- | --- |
-| Green | Watching — waiting for you to save something. |
-| Amber | Building — compiling a change, or paused while another action owns the build directory. |
+| Green | Watching. It stays green while it recompiles a save — that is its normal working state. |
+| Amber | Either the one-off full build that runs before the watch can start on a site that has never been built, or the watch paused while another action owns the build directory. |
 | Red | It exited on its own. Read the **Build watcher** log tab to find out why. |
 | Grey | Stopped. |
 
@@ -52,7 +52,7 @@ The watch and the server are independent in both directions:
 - The watch exiting never touches the server.
 - You can start and stop the watch on its own, at any time, whether or not a server is up.
 
-While the watch is running, applying a patch or updating trunk uses it rather than fighting it. A change that only touches `src/` is applied and left for the watch to rebuild — the checklist shows the build step skipped and names the watch as doing it. Anything that installs dependencies or needs a full build pauses the watch for the duration and resumes it after, with the PHP server up throughout.
+While the watch is running, applying a patch or updating trunk uses it rather than fighting it. A patch that does not move `package-lock.json` is applied and left for the watch to recompile — the checklist shows the build step skipped and names the watch as doing it. One that does move the lockfile has to install and build, so it pauses the watch for the duration and resumes it after, with the PHP server up throughout.
 
 Its output goes to its own **Build watcher** log tab, not to the terminal, and it no longer holds the terminal's "running" lock — so the terminal and one-shot actions stay available while it runs.
 

@@ -37,4 +37,4 @@ If an application fails to open the directory — it was uninstalled, or the lau
 
 ## What to edit
 
-WordPress source lives under `src/` in the site directory. While the dev server is running, a watcher rebuilds your edits into `build/` automatically — see [Running the site](./running-the-site). When your change is ready, see [Submitting changes](./submitting-changes).
+WordPress source lives under `src/` in the site directory. While the [build watch](./running-the-site#the-build-watch) is running, your edits are rebuilt into `build/` as you save them. It runs on its own control, so it does not need the dev server up — though starting the server starts it too. When your change is ready, see [Submitting changes](./submitting-changes).

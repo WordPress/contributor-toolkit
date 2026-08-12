@@ -27,7 +27,7 @@ Click **Apply and rebuild** to go ahead, or **Cancel** to back out.
 
 The panel shows each step as it runs: applying the patch, installing dependencies if needed, and rebuilding. When it finishes, the panel reports what is applied — the patch's name, how many files it changed, and when.
 
-If the [build watch](running-the-site#the-build-watch) is running and the patch only touches `src/`, there is no build step: the patch is applied and left for the watch to compile, and the checklist says so. A patch that moves `package-lock.json` or needs a full build pauses the watch for the duration and resumes it after — the dev server stays up throughout.
+If the [build watch](running-the-site#the-build-watch) is running and the patch does not move `package-lock.json`, there is no build step: the patch is applied and left for the watch to compile, and the checklist says so. A patch that does move the lockfile has to install and build, so it pauses the watch for the duration and resumes it after — the dev server stays up throughout.
 
 ## When a patch will not apply
 
@@ -42,7 +42,7 @@ You get the full breakdown, because you are the only one who can rescue it. Each
 - **the code around it has changed** — the patch was written against an older trunk and the lines it expected have moved.
 - **looks like it is already in your checkout** — that change is present. The app tells the two apart by testing whether the region's reverse fits.
 
-Each region shows the lines it wanted to add and remove, and — more usefully — an **anchor line taken from your own file** to search for. A hunk's line numbers are coordinates in the file as its author had it, so on an old patch they miss by exactly the drift that made it fail; a line you can search for does not.
+Every region carries an **anchor line taken from your own file** to search for. A hunk's line numbers are coordinates in the file as its author had it, so on an old patch they miss by exactly the drift that made it fail; a line you can search for does not. The first few regions of each file also show the lines the patch wanted to add and remove — enough to recognise the change without turning the panel into the diff itself.
 
 ### For a pull request
 

@@ -17,10 +17,10 @@ Linking a ticket gives it its own branch inside the site, so the work you do for
 
 If you have edited anything before linking, the app asks what should happen to those edits rather than deciding for you. The four choices are described under [Edits you made before picking a ticket](./ticket-branches#edits-you-made-before-picking-a-ticket).
 
-Once a ticket is linked, the panel shows its number with two actions:
+Once a ticket is linked, the panel shows its number with these actions:
 
 - **Open in Trac** — opens the ticket in your browser.
-- **Read details from Trac** — fills in what the ticket actually says, described below.
+- **Read details from Trac** — fills in what the ticket actually says, described below. It is only there until the details are loaded; once they are on screen it has nothing left to do and goes.
 - **Unlink** — removes the link and puts the site back on trunk. Nothing on Trac is affected, and nothing you did for the ticket is lost: the work stays attached to the ticket in this site, and the ticket moves to the **Your tickets on this site** card, ready to continue.
 
 ## What the ticket says

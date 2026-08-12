@@ -40,7 +40,7 @@ Each step carries a state label:
 - **Pending** — ready but waiting for you to reach it.
 - **Locked** — its prerequisites are not met yet; the button is disabled.
 
-The step to act on also carries a **Start here** ring and scrolls itself into view, and is announced to screen readers as *Next step: …*. The cue clears when the action completes, not on a timer, and it follows the work: while a patch is applying or trunk is updating, it points at the block doing the work.
+The step to act on is also ringed in amber and scrolls itself into view, and is announced to screen readers as *Next step: …*. The ring carries no label of its own — the step's own status text names it. It moves when the step it points at is done, not on a timer.
 
 Steps also lock temporarily while a [trunk update](./trunk-updates) is running, since the update owns the working tree during that time.
 

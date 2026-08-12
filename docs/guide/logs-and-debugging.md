@@ -5,8 +5,9 @@ The **Logs** section of the site view has three tabs:
 - **Server** — the dev server's own output: everything the Playground server prints while
   starting and running.
 - **Build watcher** — the [build watch](./running-the-site#the-build-watch)'s output. The tab title
-  carries its state: *Build watcher (watching)*, *(building)*, *(paused)*, *(stopped)*, or
-  *(exited 1)* when it ended on its own.
+  carries its state while it is doing something: *Build watcher (watching)*, *(building)*,
+  *(paused)*, or *(exited 1)* when it stopped on its own. Stop it yourself and the title goes back
+  to a plain *Build watcher*.
 - **debug.log** — WordPress's PHP log for this site, streamed live while the dev server runs.
 
 Output from `npm install` and `npm run` commands appears in the [Terminal](./terminal), not here.
