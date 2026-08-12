@@ -2998,13 +2998,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const tracScrapeRef = useRef(null);
   // A Trac scrape can run up to 90s. Bump a generation on every ticket change so
   // a scrape that resolves after the ticket has moved on is dropped, rather than
-  // shown under the wrong ticket or clearing a newer request's loading flag.
+  // shown under the wrong ticket or clearing a newer request's loading flag. Kept
+  // on its own [tracTicket]-only effect, deliberately not folded into the one
+  // below: that effect also re-runs on an `isActive` toggle (switching site tabs
+  // and back), which must not bump the generation of an in-flight scrape that
+  // has nothing to do with this ticket change (#299 follow-up). Declared first —
+  // React runs same-component passive effects in declaration order — so the
+  // bump always lands before the auto-triggered scrape a few lines down (#299).
   const scrapeGenRef = useRef(0);
+  useEffect(() => { scrapeGenRef.current += 1; }, [tracTicket]);
   useEffect(() => {
-    // Bumped first, synchronously, before anything below can trigger a scrape
-    // (#299): loadTracAttachments reads this ref at call time, so the auto-read
-    // a few lines down must never run against last ticket's generation.
-    scrapeGenRef.current += 1;
     if (!tracTicket) {
       setTicketPatches(null);
       // Attachments are per-ticket and loaded on demand; a stale list from the
