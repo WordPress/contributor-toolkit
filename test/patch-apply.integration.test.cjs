@@ -533,6 +533,56 @@ deleted file mode 100644
 	assert.strictEqual(fs.existsSync(path.join(dir, 'src/placeholder.php')), false);
 });
 
+// The read half of the same story (#316): real git writes an empty file's
+// section with no `---`/`+++` pair at all, unlike the #311 sections above.
+// Verbatim `git diff` output, inlined so the test does not need a git binary.
+// The mix — an ordinary edit alongside the empty add and delete — is the case
+// that used to fail whole-patch, so every file's fate is asserted.
+test('applyPatchToDir: a git-authored patch with empty adds and deletes applies whole (#316)', async (t) => {
+	const dir = await makeRepo(t, { 'edited.php': 'line1\nline2\n', 'was-empty.php': '' });
+	const gitPatch = `diff --git a/edited.php b/edited.php
+index c0d0fb4..83db48f 100644
+--- a/edited.php
++++ b/edited.php
+@@ -1,2 +1,3 @@
+ line1
+ line2
++line3
+diff --git a/placeholder.php b/placeholder.php
+new file mode 100644
+index 0000000..e69de29
+diff --git a/was-empty.php b/was-empty.php
+deleted file mode 100644
+index e69de29..0000000
+`;
+
+	const res = await applyPatchToDir({ dir, patchText: gitPatch });
+
+	assert.strictEqual(res.ok, true, res.error);
+	assert.deepStrictEqual(res.applied.sort(), ['edited.php', 'placeholder.php', 'was-empty.php']);
+	assert.strictEqual(fs.readFileSync(path.join(dir, 'edited.php'), 'utf8'), 'line1\nline2\nline3\n');
+	assert.strictEqual(fs.readFileSync(path.join(dir, 'placeholder.php'), 'utf8'), '', 'the empty addition has to actually create');
+	assert.strictEqual(fs.existsSync(path.join(dir, 'was-empty.php')), false, 'the empty deletion has to actually delete');
+});
+
+// The add-side twin of the deletion guard above: a `new file mode` section
+// claims the file does not exist yet, so one already in the checkout — with
+// whatever content — is refused all-or-nothing, not overwritten or skipped.
+test('applyPatchToDir: a git-authored empty addition refuses a file that already exists (#316)', async (t) => {
+	const dir = await makeRepo(t, { 'placeholder.php': 'my own work\n' });
+	const before = snapshot(dir);
+	const addPatch = `diff --git a/placeholder.php b/placeholder.php
+new file mode 100644
+index 0000000..e69de29
+`;
+
+	const res = await applyPatchToDir({ dir, patchText: addPatch });
+
+	assert.strictEqual(res.ok, false);
+	assert.match(res.error, /already exists/);
+	assert.deepStrictEqual(snapshot(dir), before, 'the existing file must not be touched');
+});
+
 // A rename that completes and is then undone by a later failure must restore the
 // source and remove the destination — registering each action before its
 // mutations is what lets rollback see a half-done one. (Copilot #3.)

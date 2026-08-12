@@ -109,6 +109,92 @@ test('parsePatchFiles: added and deleted files are classified, not treated as re
 	assert.strictEqual(deleted.path, 'src/old.php');
 });
 
+// --- empty files as real git writes them (#316) ----------------------------
+//
+// Real git carries an added or deleted empty file as headers alone: no
+// `---`/`+++` pair at all, the fate on the `new file mode` / `deleted file
+// mode` line. The fixtures below are verbatim `git diff` output (git 2.x in a
+// scratch repo), inlined so the tests do not need a git binary; #311's own
+// sections keep the `---`/`+++` pair and are covered in ipc-wiring.test.cjs.
+const GIT_EMPTY_ADD_DIFF = `diff --git a/placeholder.php b/placeholder.php
+new file mode 100644
+index 0000000..e69de29
+`;
+
+const GIT_EMPTY_DELETE_NO_INDEX_DIFF = `diff --git a/was-empty.php b/was-empty.php
+deleted file mode 100644
+`;
+
+const GIT_MIXED_EMPTY_DIFF = `diff --git a/edited.php b/edited.php
+index c0d0fb4..83db48f 100644
+--- a/edited.php
++++ b/edited.php
+@@ -1,2 +1,3 @@
+ line1
+ line2
++line3
+diff --git a/new file.php b/new file.php
+new file mode 100644
+index 0000000..e69de29
+diff --git a/placeholder.php b/placeholder.php
+new file mode 100644
+index 0000000..e69de29
+diff --git a/was-empty.php b/was-empty.php
+deleted file mode 100644
+index e69de29..0000000
+`;
+
+test('parsePatchFiles: a git-authored empty addition parses as an add (#316)', () => {
+	const res = parsePatchFiles(GIT_EMPTY_ADD_DIFF);
+	assert.strictEqual(res.ok, true, res.error);
+	assert.deepStrictEqual(res.files.map((f) => [f.kind, f.path]), [['add', 'placeholder.php']]);
+});
+
+test('parsePatchFiles: a git-authored empty deletion parses as a delete, with or without an index line (#316)', () => {
+	const res = parsePatchFiles(GIT_EMPTY_DELETE_NO_INDEX_DIFF);
+	assert.strictEqual(res.ok, true, res.error);
+	assert.deepStrictEqual(res.files.map((f) => [f.kind, f.path]), [['delete', 'was-empty.php']]);
+
+	const withIndex = parsePatchFiles('diff --git a/was-empty.php b/was-empty.php\ndeleted file mode 100644\nindex e69de29..0000000\n');
+	assert.strictEqual(withIndex.ok, true, withIndex.error);
+	assert.deepStrictEqual(withIndex.files.map((f) => [f.kind, f.path]), [['delete', 'was-empty.php']]);
+});
+
+// The whole point of the fix: one empty-file section used to reject the entire
+// patch when it came last, and to vanish silently when another section
+// followed it — either way the unrelated files went with it. The full list is
+// what proves both failure modes gone.
+test('parsePatchFiles: one git-authored empty file does not take the rest of the patch down (#316)', () => {
+	const res = parsePatchFiles(GIT_MIXED_EMPTY_DIFF);
+	assert.strictEqual(res.ok, true, res.error);
+	assert.deepStrictEqual(res.files.map((f) => [f.kind, f.path]), [
+		['modify', 'edited.php'],
+		// A path with a space stays whole: for an add or a delete both sides of
+		// the `diff --git` line are the same path, so the split is unambiguous.
+		['add', 'new file.php'],
+		['add', 'placeholder.php'],
+		['delete', 'was-empty.php']
+	]);
+});
+
+test('parsePatchFiles: an empty add ahead of other sections keeps them all (#316)', () => {
+	const res = parsePatchFiles(GIT_EMPTY_ADD_DIFF + GITHUB_DIFF);
+	assert.strictEqual(res.ok, true, res.error);
+	assert.deepStrictEqual(res.files.map((f) => [f.kind, f.path]), [
+		['add', 'placeholder.php'],
+		['modify', 'src/wp-includes/foo.php']
+	]);
+});
+
+// A binary addition carries `new file mode` too. Its fate is the binary
+// marker's, not the mode line's — rewriting it as an empty text add would
+// report success while silently writing an empty file in an image's place.
+test('parsePatchFiles: a binary addition with new file mode stays binary (#316)', () => {
+	const res = parsePatchFiles('diff --git a/x.png b/x.png\nnew file mode 100644\nindex 0000000..1111111\nBinary files /dev/null and b/x.png differ\n');
+	assert.strictEqual(res.ok, true, res.error);
+	assert.deepStrictEqual(res.files.map((f) => [f.kind, f.path]), [['binary', 'x.png']]);
+});
+
 // jsdiff represents a binary file as an entry with no hunks. Left unchecked
 // that reads as "a file with no changes", so applying would report success
 // while silently skipping it.
