@@ -465,24 +465,31 @@ test('git:discard-changes resets through trunk-update and clears the applied-pat
 // A site the way the ticket-as-branch model leaves it: the contributor's work
 // parked in the branch's single WIP commit, the worktree clean. `git status`
 // says nothing; the patch says +1 line. The note has to side with the patch.
-async function parkedTicketRepo(t) {
+// `workFile` is where the parked edit lands. The default keeps this repo as the
+// note's tests have always had it; the patch-preview tests below ask for the
+// `src/` layout instead, because a patch's paths are read through
+// `mapToSrcLayout` and a collision is a string match on the result.
+async function parkedTicketRepo(t, { workFile = 'wp-login.php' } = {}) {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-parked-'));
 	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 	await git.init({ fs, dir, defaultBranch: 'trunk' });
 	const author = { name: 'test', email: 'test@example.com' };
-	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // login\n');
-	await git.add({ fs, dir, filepath: 'wp-login.php' });
+	const abs = path.join(dir, workFile);
+	fs.mkdirSync(path.dirname(abs), { recursive: true });
+	const baseText = '<?php // login\n';
+	fs.writeFileSync(abs, baseText);
+	await git.add({ fs, dir, filepath: workFile });
 	const baseOid = await git.commit({ fs, dir, message: 'trunk snapshot', author });
 	await git.branch({ fs, dir, ref: 'ticket/62281', object: 'trunk', checkout: true });
-	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // login\n// the ticket work\n');
-	await git.add({ fs, dir, filepath: 'wp-login.php' });
+	fs.writeFileSync(abs, `${baseText}// the ticket work\n`);
+	await git.add({ fs, dir, filepath: workFile });
 	await git.commit({
 		fs, dir,
 		message: 'Work in progress (WordPress Contributor Toolkit)',
 		author,
 		parent: [baseOid]
 	});
-	return { dir, baseOid };
+	return { dir, baseOid, workFile, baseText };
 }
 
 function parkedTicketMain(dir, baseOid) {
@@ -1750,6 +1757,68 @@ test('git:preview-patch reads the patch through patch-plan', async () => {
 
 	assert.deepEqual(parsePatchFiles.calls, [['PATCH TEXT']]);
 	assert.deepEqual(result, { ok: false, error: 'unreadable' });
+});
+
+// --- what the collision warning is measured against (#301) ----------------
+
+// A patch against `src/wp-login.php`, the file the parked repo's ticket work is
+// in. Written the way the app's own reader expects to read it back.
+const LOGIN_DIFF = `diff --git a/src/wp-login.php b/src/wp-login.php
+index 384bf9e..dbfa038 100644
+--- a/src/wp-login.php
++++ b/src/wp-login.php
+@@ -1,2 +1,2 @@
+ <?php // login
+-// the ticket work
++// somebody else's change
+`;
+
+// The silence #301 is about, end to end. A resumed ticket has its work in the
+// WIP commit and a worktree that matches it exactly, so the narrow question
+// answers "clean" — correctly, and it must keep doing so for the checkout
+// guards. The warning cannot be built on that answer: measured from HEAD it
+// says nothing at all, and the patch lands on top of the contributor's work
+// with no warning.
+test('git:preview-patch warns about work parked in the WIP commit (#301)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t, { workFile: 'src/wp-login.php' });
+	const main = parkedTicketMain(dir, baseOid);
+
+	const narrow = await main.invoke('git:worktree-dirty', dir);
+	assert.equal(narrow.dirty, false, 'nothing is uncommitted — the guards keep their answer');
+
+	const preview = await main.invoke('git:preview-patch', dir, LOGIN_DIFF);
+	assert.equal(preview.ok, true);
+	assert.deepEqual(preview.conflicts, ['src/wp-login.php']);
+});
+
+// The other direction: a file edited back to what the base holds carries none
+// of the contributor's work, whatever HEAD says about it. Announcing it sends
+// someone looking for changes they never made.
+test('git:preview-patch does not warn about a file that matches the base (#301)', async (t) => {
+	const { dir, baseOid, workFile, baseText } = await parkedTicketRepo(t, { workFile: 'src/wp-login.php' });
+	// Differs from HEAD (the parked commit), identical to the branch point.
+	fs.writeFileSync(path.join(dir, workFile), baseText);
+	const main = parkedTicketMain(dir, baseOid);
+
+	const narrow = await main.invoke('git:worktree-dirty', dir);
+	assert.equal(narrow.dirty, true, 'HEAD-relative this file reads as edited');
+
+	const preview = await main.invoke('git:preview-patch', dir, LOGIN_DIFF);
+	assert.equal(preview.ok, true);
+	assert.deepEqual(preview.conflicts, []);
+});
+
+// And a patch that touches nothing the ticket has worked on still warns about
+// nothing — the wider baseline widens what counts as the contributor's work,
+// it does not warn about every file in the patch.
+test('git:preview-patch stays quiet about files the ticket never touched (#301)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t, { workFile: 'src/wp-login.php' });
+	const main = parkedTicketMain(dir, baseOid);
+
+	const preview = await main.invoke('git:preview-patch', dir, LOGIN_DIFF.replace(/wp-login\.php/g, 'wp-signup.php'));
+	assert.equal(preview.ok, true);
+	assert.deepEqual(preview.paths, ['src/wp-signup.php']);
+	assert.deepEqual(preview.conflicts, []);
 });
 
 // git:apply-patch reads the store for its guard before delegating, which is the
