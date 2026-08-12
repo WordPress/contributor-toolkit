@@ -35,6 +35,7 @@ import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { prStateBadge } from './pr-state.cjs';
+import { statusBadge } from '../trac-ticket-info.cjs';
 import { prDateLabel } from './pr-date-label.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { adminUrl, adminerUrl } from './site-urls.cjs';
@@ -1758,6 +1759,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         return;
       }
       setTracTicket(res.ticket);
+      if (res.ticket) autoReadTicketRef.current = res.ticket;
       setTicketInput('');
       setPatchSavedTo('');
       if (metaPatchRef.current) metaPatchRef.current(sitePath, { tracTicket: res.ticket });
@@ -2862,6 +2864,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // attachments are noise here. The parser still returns them (pickLatest and
   // tests rely on the full list); the filtering is purely what's shown.
   const patchAttachments = (tracAttachments?.items || []).filter((a) => a.applyable);
+  // The ticket's own facts (#292), riding the same scrape as the attachments:
+  // one Trac visit, one challenge, both answers.
+  const tracInfo = tracAttachments?.ticket || null;
+  const tracInfoBadge = statusBadge(tracInfo);
   const tracAttachmentsRead = tracAttachments
     && (tracAttachments.status === 'ok' || tracAttachments.status === 'no-attachments');
   // One pill shape, two uses: the "Latest" marker on a patch row and a linked
@@ -2983,6 +2989,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // the list. Placed after loadTicketPatches is defined: an effect that named it
   // earlier in the body would read the const before its declaration ran.
   const loadedTicketRef = useRef(null);
+  // Set only by saveTicket, on a link the contributor just performed. The
+  // per-ticket effect below consumes it to auto-read the ticket's details:
+  // there, after the generation bump, so the scrape's result is not dropped as
+  // stale. A ref and not state — it must not survive a remount, or selecting
+  // an already-linked site would open a Trac window nobody asked for (#292).
+  const autoReadTicketRef = useRef(null);
+  const tracScrapeRef = useRef(null);
   useEffect(() => {
     if (!tracTicket) {
       setTicketPatches(null);
@@ -3005,6 +3018,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setTracAttachmentsLoading(false);
     loadedTicketRef.current = tracTicket;
     loadTicketPatches();
+    // Auto-read the ticket's own facts when this ticket was just linked by
+    // hand (#292). Only then: the contributor just acted on this ticket, so a
+    // human-check window appearing has context. On mount or re-activation the
+    // ref is empty and nothing opens — details stay on demand, the #109 rule.
+    if (autoReadTicketRef.current === tracTicket) {
+      autoReadTicketRef.current = null;
+      // Through the ref, not the function: loadTracAttachments is declared
+      // below this effect and recreated per render — the same shape as
+      // metaPatchRef above.
+      if (tracScrapeRef.current) tracScrapeRef.current();
+    }
   }, [tracTicket, isActive, loadTicketPatches]);
 
   // A Trac scrape can run up to 90s. Bump a generation on every ticket change so
@@ -3064,6 +3088,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
   // Downloads an attachment through the challenge-passing session and hands it
   // to the same preview the PR and file paths use.
+  useEffect(() => { tracScrapeRef.current = loadTracAttachments; });
+
   const previewAttachment = async (att) => {
     clearApplyError();
     setApplyNotice('');
@@ -4404,8 +4430,64 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 #{tracTicket}
               </span>
               <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
+              {!tracInfo ? (
+                <Button variant="link" onClick={loadTracAttachments} disabled={tracAttachmentsLoading}>
+                  {tracAttachmentsLoading ? 'Reading ticket…' : 'Read details from Trac'}
+                </Button>
+              ) : null}
               <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketActionsBlocked}>Unlink</Button>
             </div>
+
+            {tracInfo ? (
+              <div style={{ marginTop: 10 }}>
+                {tracInfo.summary ? (
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2327' }}>{tracInfo.summary}</div>
+                ) : null}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap', fontSize: 12, color: '#3c434a' }}>
+                  {tracInfoBadge ? (
+                    <span style={{ padding: '1px 8px', borderRadius: 999, fontWeight: 600, fontSize: 11,
+                      background: tracInfoBadge.tone === 'closed' ? '#fcf0f1' : '#edfaef',
+                      color: tracInfoBadge.tone === 'closed' ? '#8a1f21' : '#005c12' }}>
+                      {tracInfoBadge.label}
+                    </span>
+                  ) : null}
+                  {tracInfo.type ? (
+                    <span style={{ padding: '1px 8px', borderRadius: 999, fontSize: 11, background: '#f0f0f1', color: '#3c434a' }}>{tracInfo.type}</span>
+                  ) : null}
+                  {tracInfo.opened ? (
+                    <span title={tracInfo.opened.absolute}>opened {tracInfo.opened.relative}</span>
+                  ) : null}
+                  {tracInfo.milestone ? <span>milestone: {tracInfo.milestone}</span> : null}
+                </div>
+                {tracInfo.component || tracInfo.keywords.length ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap', fontSize: 12, color: '#6c6f72' }}>
+                    {tracInfo.component ? (
+                      <span>
+                        component:{' '}
+                        {tracInfo.component.url ? (
+                          <Button variant="link" style={{ fontSize: 12 }} onClick={() => window.api.openExternal(tracInfo.component.url)}>
+                            {tracInfo.component.label}
+                          </Button>
+                        ) : tracInfo.component.label}
+                      </span>
+                    ) : null}
+                    {tracInfo.keywords.length ? (
+                      <span>
+                        keywords:{' '}
+                        {tracInfo.keywords.map((kw, i) => (
+                          <span key={kw.label}>
+                            {i ? ' ' : ''}
+                            {kw.url ? (
+                              <Button variant="link" style={{ fontSize: 12 }} onClick={() => window.api.openExternal(kw.url)}>{kw.label}</Button>
+                            ) : kw.label}
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             {changesNote && changesNote.placement === 'ticket' ? (
               <div style={{ marginTop: 8, fontSize: 13, color: '#1d2327' }}>
                 {changesNoteBody}

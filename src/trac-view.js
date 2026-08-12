@@ -20,6 +20,7 @@
 
 const { BrowserWindow, session } = require('electron');
 const { parseAttachments, secureTracUrl } = require('./trac-attachments.cjs');
+const { parseTicketInfo } = require('./trac-ticket-info.cjs');
 const { httpGet } = require('./github-prs');
 
 const TRAC_HOST = 'core.trac.wordpress.org';
@@ -113,7 +114,21 @@ async function openAndScrape(ticketId) {
 			.executeJavaScript('(document.querySelector("#attachments") || {}).outerHTML || ""')
 			.catch(() => '');
 		const items = parseAttachments(html, id);
-		return { status: items.length ? 'ok' : 'no-attachments', items };
+		// The ticket's own facts ride the same visit (#292): the page is already
+		// loaded and the challenge already cleared, so reading them costs
+		// nothing. The description is cut before the HTML crosses out of the
+		// page — it is the bulk of the block and nothing in it is parsed.
+		const ticketHtml = await win.webContents
+			.executeJavaScript(`(() => {
+				const t = document.querySelector('#ticket');
+				if (!t) return '';
+				const copy = t.cloneNode(true);
+				for (const el of copy.querySelectorAll('.description, form, script')) el.remove();
+				return copy.outerHTML;
+			})()`)
+			.catch(() => '');
+		const ticket = parseTicketInfo(ticketHtml);
+		return { status: items.length ? 'ok' : 'no-attachments', items, ticket };
 	} catch (e) {
 		return { status: 'error', items: [], error: String(e && e.message ? e.message : e) };
 	} finally {
