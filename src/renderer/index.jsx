@@ -1762,6 +1762,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         }
         return;
       }
+      // The status belongs to the branch we just left. Clear it in the same
+      // render that names the new ticket; loadStatus will restore the new
+      // branch's answer below (#305).
+      setTicketBehindTrunk(false);
       setTracTicket(res.ticket);
       if (res.ticket) autoReadTicketRef.current = res.ticket;
       setTicketInput('');

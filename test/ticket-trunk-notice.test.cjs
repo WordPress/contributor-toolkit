@@ -27,4 +27,9 @@ test('the ticket card renders the stale-ticket notice returned by status (#305)'
 	assert.match(source, /ticketTrunkNotice\(\{ ticketId: tracTicket, behind: ticketBehindTrunk \}\)/);
 	assert.match(source, /staleTicketNotice\.title/);
 	assert.match(source, /staleTicketNotice\.body/);
+	assert.match(
+		source,
+		/setTicketBehindTrunk\(false\);\s+setTracTicket\(res\.ticket\);/,
+		'a switched ticket must not render with the previous ticket\'s stale flag'
+	);
 });
