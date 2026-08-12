@@ -160,7 +160,7 @@ function prFraming(conflicts, prState) {
 	if (closed) {
 		return {
 			headline: `This pull request is closed and was written against an older trunk — it no longer fits: ${scale} would need rework.`,
-			advice: 'Nobody is coming back to update a closed pull request — its discussion may say why it ended. Redoing the change against today\'s code is a contribution in itself.',
+			advice: 'Nobody is coming back to update a closed pull request — its discussion may say why it ended.',
 			prButton: 'See why it was closed'
 		};
 	}

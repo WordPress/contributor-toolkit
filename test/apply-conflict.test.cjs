@@ -299,7 +299,7 @@ test('describeApplyFailure: a closed pull request is not offered a rebase (issue
 
 	assert.match(result.headline, /closed and was written against an older trunk/);
 	assert.doesNotMatch(result.advice, /rebase/);
-	assert.match(result.advice, /Redoing the change against today's code/);
+	assert.match(result.advice, /Nobody is coming back/);
 	// The PR is still worth opening — its discussion says why it ended — but
 	// the button says that, not "ask for a rebase".
 	assert.equal(result.prButton, 'See why it was closed');
