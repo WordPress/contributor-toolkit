@@ -1935,11 +1935,29 @@ test('git:list-ticket-patches fetches the linked PRs for the stored ticket', asy
 
 	const result = await main.invoke('git:list-ticket-patches', '/sites/wp');
 
-	assert.deepEqual(fetchLinkedPrs.calls, [[62281]]);
+	assert.deepEqual(fetchLinkedPrs.calls, [[62281, { known: null }]], 'nothing cached yet, so no dates to reuse');
 	assert.equal(result.ok, true);
 	assert.equal(result.ticket, 62281);
 	assert.equal(result.prs.status, 'ok');
 	assert.deepEqual(result.prs.items, [{ number: 7, title: 'x' }]);
+});
+
+// The commit dates behind the "Latest" pill cost a request each against a
+// shared quota, so a Refresh hands the last-seen list back to the fetcher to
+// reuse rather than re-spending the walk — and, on a spent quota, so that a
+// failed lookup cannot replace a ranking the contributor could already read
+// (issue #281).
+test('git:list-ticket-patches hands the cached list back so commit dates are not re-fetched', async () => {
+	const cachedItems = [{ number: 7, updatedAt: '2026-07-06T03:10:28Z', commitDate: '2026-04-12T11:30:00Z' }];
+	const fetchLinkedPrs = spy(async () => ({ status: 'ok', items: cachedItems, rankComplete: true }));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { tracTicket: 62281 } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { fetchLinkedPrs } } });
+
+	await main.invoke('git:list-ticket-patches', '/sites/wp'); // populates the cache
+	const result = await main.invoke('git:list-ticket-patches', '/sites/wp');
+
+	assert.deepEqual(fetchLinkedPrs.calls[1], [62281, { known: cachedItems }]);
+	assert.equal(result.prs.rankComplete, true, 'the completeness of the ranking survives the cache');
 });
 
 test('git:list-ticket-patches falls back to the cached list when GitHub cannot be read', async () => {

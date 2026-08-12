@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { bodyCitesTicket, parseLinkedPrs, classifyHttpFailure } = require('../src/patch-sources.cjs');
+const { bodyCitesTicket, parseLinkedPrs, orderByCommitDate, classifyHttpFailure } = require('../src/patch-sources.cjs');
 
 // Shaped like a real search/issues item, trimmed to the fields the parser reads.
 function item(number, overrides = {}) {
@@ -44,7 +44,10 @@ test('parseLinkedPrs: keeps only PRs whose body cites the ticket (issue #11)', (
 	assert.deepStrictEqual(prs.map((p) => p.number), [101], 'only the verified PR survives; the issue and the passing mention drop');
 });
 
-test('parseLinkedPrs: newest first, and duplicates collapse (issue #11)', () => {
+// The order parseLinkedPrs returns is the bound the commit-date walk needs, not
+// the order a contributor sees. Naming it here so a later reader does not
+// "simplify" one into the other (#281).
+test('parseLinkedPrs: sorted by updatedAt, and duplicates collapse (issue #11)', () => {
 	const json = { items: [
 		item(1, { updated_at: '2026-01-01T00:00:00Z' }),
 		item(2, { updated_at: '2026-08-06T00:00:00Z' }),
@@ -52,6 +55,37 @@ test('parseLinkedPrs: newest first, and duplicates collapse (issue #11)', () => 
 	] };
 	const prs = parseLinkedPrs(json, 62281);
 	assert.deepStrictEqual(prs.map((p) => p.number), [2, 1]);
+});
+
+// --- display order (issue #281) ------------------------------------------
+
+// The #62064 shape: the force-push sweep left the older PR with the later
+// `updatedAt`, so ordering by it puts the dead patch on top.
+test('orderByCommitDate: newest commit first, whatever updatedAt says (issue #281)', () => {
+	const ordered = orderByCommitDate([
+		{ number: 7382, updatedAt: '2026-07-06T03:10:47Z', commitDate: '2024-11-19T09:00:00Z' },
+		{ number: 8455, updatedAt: '2026-07-06T03:10:28Z', commitDate: '2026-04-12T11:30:00Z' }
+	]);
+	assert.deepStrictEqual(ordered.map((p) => p.number), [8455, 7382]);
+});
+
+test('orderByCommitDate: unresolved PRs sink below every dated one (issue #281)', () => {
+	const ordered = orderByCommitDate([
+		{ number: 1, updatedAt: '2026-08-01T00:00:00Z', commitDate: null },
+		{ number: 2, updatedAt: '2026-07-01T00:00:00Z', commitDate: '2020-01-01T00:00:00Z' },
+		{ number: 3, updatedAt: '2026-06-01T00:00:00Z' }
+	]);
+	assert.deepStrictEqual(ordered.map((p) => p.number), [2, 1, 3],
+		'even a 2020 commit outranks an unknown one: unknown is not a date, and the row order must not imply it is');
+});
+
+test('orderByCommitDate: does not mutate its input (issue #281)', () => {
+	const input = [
+		{ number: 1, updatedAt: '2026-01-01T00:00:00Z', commitDate: '2024-01-01T00:00:00Z' },
+		{ number: 2, updatedAt: '2026-01-02T00:00:00Z', commitDate: '2026-01-01T00:00:00Z' }
+	];
+	orderByCommitDate(input);
+	assert.deepStrictEqual(input.map((p) => p.number), [1, 2]);
 });
 
 test('parseLinkedPrs: a closed PR is marked closed, not dropped (issue #11)', () => {

@@ -34,6 +34,7 @@ import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { prStateBadge } from './pr-state.cjs';
+import { prDateLabel } from './pr-date-label.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { adminUrl, adminerUrl } from './site-urls.cjs';
 import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
@@ -2692,7 +2693,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // The single most recent patch across whatever is loaded — PRs always, Trac
   // attachments once the contributor has opened them (#11). Drives the "Latest"
   // pill and the "latest is a patch file" note.
-  const latestPatch = pickLatest({ prs: ticketPatches?.items, attachments: tracAttachments?.items });
+  // `rankComplete` travels with the list: when the commit-date walk stopped
+  // early there is no pill, because an unranked row could be the newer fix
+  // (#281).
+  const latestPatch = pickLatest({
+    prs: ticketPatches?.items,
+    attachments: tracAttachments?.items,
+    prRankComplete: ticketPatches?.rankComplete
+  });
   const latestIsAttachment = latestPatch?.kind === 'attachment';
   // The panel lists only what can be applied — screenshots and other non-patch
   // attachments are noise here. The parser still returns them (pickLatest and
@@ -4247,7 +4255,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, fontSize: 11, color: '#6c6f72' }}>
                           {prStatePill(pr.state)}
-                          {pr.updatedAt ? <span>updated {new Date(pr.updatedAt).toLocaleDateString()}</span> : null}
+                          {(() => {
+                            const dated = prDateLabel(pr);
+                            return dated ? <span>{dated.prefix} {new Date(dated.when).toLocaleDateString()}</span> : null;
+                          })()}
                         </div>
                       </div>
                       <Button
