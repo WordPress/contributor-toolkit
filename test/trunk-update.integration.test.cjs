@@ -13,7 +13,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const git = require('isomorphic-git');
-const { collectDirtyFiles, discardChanges, readTrunkInfo } = require('../src/trunk-update.js');
+const { collectDirtyFiles, discardChanges, discardToBase, readTrunkInfo } = require('../src/trunk-update.js');
 
 const AUTHOR = { name: 'test', email: 'test@example.com' };
 
@@ -63,6 +63,58 @@ test('discardChanges: restores tracked files and deletes untracked ones, even st
 	assert.strictEqual(fs.existsSync(path.join(dir, 'untracked.txt')), false);
 	assert.strictEqual(fs.existsSync(path.join(dir, 'staged-untracked.txt')), false);
 	assert.deepStrictEqual(await collectDirtyFiles(dir), []);
+});
+
+test('discardToBase: rewinds the branch to base, dropping parked WIP and edits (issue #270)', async (t) => {
+	const dir = await makeRepo(t);
+	const baseOid = await git.resolveRef({ fs, dir, ref: 'refs/heads/trunk' });
+	await git.branch({ fs, dir, ref: 'ticket/36259', object: 'trunk', checkout: true });
+
+	// Parked work: a committed WIP on top of the branch point — what the patch
+	// modal measures as "your changes" but a plain discard would keep (#108).
+	fs.writeFileSync(path.join(dir, 'text.txt'), 'parked work\n');
+	await git.add({ fs, dir, filepath: 'text.txt' });
+	await git.commit({ fs, dir, message: 'WIP', author: AUTHOR, parent: [baseOid] });
+	// Uncommitted edits and an untracked file on top of the parked commit.
+	fs.appendFileSync(path.join(dir, 'text.txt'), 'unsaved scribble\n');
+	fs.writeFileSync(path.join(dir, 'untracked.txt'), 'new\n');
+
+	await discardToBase(dir, baseOid);
+
+	// The whole diff is gone: tree is the base tree, HEAD is the base commit
+	// (parked WIP orphaned), still on the ticket branch, untracked file removed.
+	assert.strictEqual(fs.readFileSync(path.join(dir, 'text.txt'), 'utf8'), 'line1\nline2\n');
+	assert.strictEqual(fs.existsSync(path.join(dir, 'untracked.txt')), false);
+	assert.strictEqual(await git.resolveRef({ fs, dir, ref: 'HEAD' }), baseOid);
+	assert.strictEqual(await git.currentBranch({ fs, dir, fullname: false }), 'ticket/36259');
+	assert.deepStrictEqual(await collectDirtyFiles(dir), []);
+});
+
+test('discardToBase: a base that is not an ancestor of HEAD does not rewind the branch (issue #270)', async (t) => {
+	const dir = await makeRepo(t);
+	const trunkStart = await git.resolveRef({ fs, dir, ref: 'refs/heads/trunk' });
+	// A ticket branch with a committed WIP off the original trunk point.
+	await git.branch({ fs, dir, ref: 'ticket/36259', object: 'trunk', checkout: true });
+	fs.writeFileSync(path.join(dir, 'text.txt'), 'committed ticket work\n');
+	await git.add({ fs, dir, filepath: 'text.txt' });
+	const wip = await git.commit({ fs, dir, message: 'WIP', author: AUTHOR, parent: [trunkStart] });
+	// Trunk advances to a commit that is a sibling of the ticket HEAD, not an
+	// ancestor — the shape patchBaseOid's fallback would hand a branch with no
+	// recorded base once trunk has moved on.
+	await git.checkout({ fs, dir, ref: 'trunk' });
+	fs.writeFileSync(path.join(dir, 'other.txt'), 'unrelated trunk work\n');
+	await git.add({ fs, dir, filepath: 'other.txt' });
+	const trunkTip = await git.commit({ fs, dir, message: 'trunk moves on', author: AUTHOR, parent: [trunkStart] });
+	await git.checkout({ fs, dir, ref: 'ticket/36259' });
+	fs.appendFileSync(path.join(dir, 'text.txt'), 'unsaved scribble\n');
+
+	await discardToBase(dir, trunkTip);
+
+	// The non-ancestor base is refused: the branch is not rewound onto it, the
+	// committed work survives, and only the uncommitted scribble is cleared.
+	assert.strictEqual(await git.resolveRef({ fs, dir, ref: 'HEAD' }), wip, 'the ref is left at the WIP commit');
+	assert.strictEqual(fs.readFileSync(path.join(dir, 'text.txt'), 'utf8'), 'committed ticket work\n');
+	assert.strictEqual(await git.currentBranch({ fs, dir, fullname: false }), 'ticket/36259');
 });
 
 test('readTrunkInfo: returns the HEAD oid and its committer date (issue #94)', async (t) => {

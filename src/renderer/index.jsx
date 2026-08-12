@@ -3097,6 +3097,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     applyDiscardToNote(discardOutcome(d));
     setDirtyModalOpen(false);
     writeToTerminal('\nDiscarded local changes.\n');
+    confirm('Local changes discarded.');
     beginTrunkUpdate();
   });
 
@@ -3171,7 +3172,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     try {
       let outcome;
       try {
-        outcome = discardOutcome(await window.api.discardChanges(sitePath));
+        outcome = discardOutcome(await window.api.discardToBase(sitePath));
       } catch (e) {
         // A rejected invoke never returns a reply object; shape it into one so
         // the failure reaches the same red line instead of vanishing.
@@ -3184,6 +3185,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       applyDiscardToNote(outcome);
       setAppliedPatch(null);
       writeToTerminal('\nDiscarded local changes.\n');
+      confirm('All changes discarded.');
       if (isPatchOpen) await loadPatchText();
     } finally {
       setDiscarding(false);
@@ -4769,7 +4771,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
                   <div>
                     <div style={{ fontWeight:600, fontSize:14, color:'#1d2327', display:'flex', alignItems:'baseline', gap:4, flexWrap:'wrap' }}>
-                      Your changes
+                      {tracTicket ? `Your changes for ticket #${tracTicket}` : 'Your changes'}
                       <span style={{ fontWeight:400 }}>
                         {'('}
                         <Button
