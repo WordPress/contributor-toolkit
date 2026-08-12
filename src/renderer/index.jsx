@@ -3209,6 +3209,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               }),
               prUrl: preview?.prUrl || null,
               prState: preview?.prState || null,
+              appliedPatch,
               // The preview's own collision list: the files this ticket has work
               // in, measured from its base (#301). Without it an open pull
               // request is always narrated as stale, so a failure caused by the
