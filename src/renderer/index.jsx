@@ -2995,6 +2995,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // stale. A ref and not state — it must not survive a remount, or selecting
   // an already-linked site would open a Trac window nobody asked for (#292).
   const autoReadTicketRef = useRef(null);
+  const tracScrapeRef = useRef(null);
   useEffect(() => {
     if (!tracTicket) {
       setTicketPatches(null);
@@ -3023,7 +3024,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     // ref is empty and nothing opens — details stay on demand, the #109 rule.
     if (autoReadTicketRef.current === tracTicket) {
       autoReadTicketRef.current = null;
-      loadTracAttachments();
+      // Through the ref, not the function: loadTracAttachments is declared
+      // below this effect and recreated per render — the same shape as
+      // metaPatchRef above.
+      if (tracScrapeRef.current) tracScrapeRef.current();
     }
   }, [tracTicket, isActive, loadTicketPatches]);
 
@@ -3084,6 +3088,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
   // Downloads an attachment through the challenge-passing session and hands it
   // to the same preview the PR and file paths use.
+  useEffect(() => { tracScrapeRef.current = loadTracAttachments; });
+
   const previewAttachment = async (att) => {
     clearApplyError();
     setApplyNotice('');
