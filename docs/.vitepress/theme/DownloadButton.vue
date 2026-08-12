@@ -118,9 +118,11 @@ onMounted( async () => {
 </template>
 
 <style scoped>
+/* Alignment is deliberately not set here: it is inherited, so the hero can
+   follow the hero's alignment and an in-page usage can follow the prose. A
+   scoped rule would out-specify both. */
 .download-button {
 	margin: 24px 0;
-	text-align: center;
 }
 
 /* Sized and colored like the hero's brand action button. */
