@@ -5,9 +5,12 @@ const assert = require('node:assert');
 const {
 	STALE_THRESHOLD_DAYS,
 	SKIP_INSTALL_MESSAGE,
+	SETUP_STATE_TO_STEP,
 	trunkAgeInfo,
 	planUpdateSteps,
+	planSetupSteps,
 	updateStepStatuses,
+	setupOutcome,
 	updateOutcome
 } = require('../src/renderer/update-plan.cjs');
 
@@ -125,4 +128,61 @@ test('updateOutcome: full chain success (issue #94)', () => {
 		updateOutcome({ fetchOk: true, upToDate: false, moved: true, installNeeded: true, installCode: 0, buildCode: 0 }),
 		'done'
 	);
+});
+
+// --- the setup chain (#246) ----------------------------------------------
+
+test('planSetupSteps: clone, install, build — and nothing is ever skipped (issue #246)', () => {
+	const steps = planSetupSteps();
+
+	assert.deepStrictEqual(steps.map((s) => s.key), ['download', 'install', 'build']);
+	// The update and apply chains skip the install when the lockfile did not
+	// move; a fresh clone has no node_modules at all, so there is nothing this
+	// chain can honestly skip.
+	assert.deepStrictEqual(steps.map((s) => s.skipped), [false, false, false]);
+	// Starting the dev server is deliberately outside the chain: it marks the
+	// wizard finished and hands the contributor to a browser wizard.
+	assert.ok(!steps.some((s) => s.key === 'dev'), 'the dev server is not part of the chain');
+});
+
+test('the setup chain reuses updateStepStatuses with its own state names (issue #246)', () => {
+	const steps = planSetupSteps();
+	const at = (state) => updateStepStatuses(steps, state, SETUP_STATE_TO_STEP)
+		.map((s) => s.status);
+
+	assert.deepStrictEqual(at('cloning'), ['current', 'pending', 'pending']);
+	assert.deepStrictEqual(at('installing'), ['complete', 'current', 'pending']);
+	assert.deepStrictEqual(at('building'), ['complete', 'complete', 'current']);
+	assert.deepStrictEqual(at('done'), ['complete', 'complete', 'complete']);
+});
+
+test('an idle setup chain claims no step (issue #246)', () => {
+	// 'idle' is not in the map, so nothing is current and nothing is complete —
+	// which is what keeps the banner off the screen when no chain is running.
+	assert.deepStrictEqual(
+		updateStepStatuses(planSetupSteps(), 'idle', SETUP_STATE_TO_STEP).map((s) => s.status),
+		['pending', 'pending', 'pending']
+	);
+});
+
+test('setupOutcome: install and build both succeeded -> done (issue #246)', () => {
+	assert.strictEqual(setupOutcome({ installCode: 0, buildCode: 0 }), 'done');
+});
+
+test('setupOutcome: a failed install never reaches the build (issue #246)', () => {
+	// buildCode is undefined because the build never ran — the outcome has to
+	// name the install, not read the missing build as the failure.
+	assert.strictEqual(setupOutcome({ installCode: 1 }), 'failed-install');
+});
+
+test('setupOutcome: a failed build after a good install (issue #246)', () => {
+	assert.strictEqual(setupOutcome({ installCode: 0, buildCode: 2 }), 'failed-build');
+});
+
+test('setupOutcome: Stop is not a failure, whatever exit code the kill produced (issue #246)', () => {
+	// A killed npm exits non-zero, and on Windows without even a signal, so the
+	// exit code cannot tell a stop from a failure. Telling a contributor their
+	// install "failed" when they pressed Stop is how a tool loses their trust.
+	assert.strictEqual(setupOutcome({ stopped: true, installCode: 1 }), 'stopped');
+	assert.strictEqual(setupOutcome({ stopped: true, installCode: 0, buildCode: 143 }), 'stopped');
 });
