@@ -479,7 +479,7 @@ test('describeApplyFailure: the mixed framing reads with several files on each s
 	assert.equal(result.prButton, 'Open the pull request');
 });
 
-test('describeApplyFailure: own work does not change the closed or landed framing (issue #303)', () => {
+test('describeApplyFailure: own work preserves closed framing but prevents a false landed claim (issue #303)', () => {
 	const closed = describeApplyFailure({
 		ok: false,
 		failures: [`${FOO} has moved on`],
@@ -500,8 +500,9 @@ test('describeApplyFailure: own work does not change the closed or landed framin
 		])]
 	}, { prUrl: PR_URL, prState: 'closed', ownWorkPaths: [FOO] });
 
-	assert.match(landed.headline, /likely committed to core/);
-	assert.equal(landed.prButton, null);
+	assert.match(landed.headline, /already in your checkout/);
+	assert.doesNotMatch(landed.headline, /committed to core|already in trunk/);
+	assert.equal(landed.prButton, 'Open the pull request');
 });
 
 // A patch from disk or a Trac attachment has no author to misblame, so the

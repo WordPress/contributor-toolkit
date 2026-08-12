@@ -81,6 +81,23 @@ test('describeApplyFailure: an applied-layer-only conflict keeps ownership uncer
 	assert.doesNotMatch(notice.headline, /Your own work is also in/);
 });
 
+test('describeApplyFailure: already-present layer changes are not claimed as trunk (#306)', () => {
+	const notice = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} looks already applied`],
+		conflicts: [{ path: FOO, total: 1, regions: [{ index: 0, line: 7, status: 'already-applied' }] }]
+	}, {
+		prUrl: 'https://example.invalid/pr/456',
+		prState: 'open',
+		ownWorkPaths: [FOO],
+		appliedPatch: layer()
+	});
+
+	assert.match(notice.headline, /already in your checkout/);
+	assert.doesNotMatch(notice.headline, /already in trunk/);
+	assert.equal(notice.prButton, 'Open the pull request');
+});
+
 test('listOf: reads as a sentence rather than a join (#306)', () => {
 	assert.strictEqual(listOf([]), '');
 	assert.strictEqual(listOf(['a']), 'a');

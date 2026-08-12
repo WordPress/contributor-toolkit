@@ -2156,6 +2156,35 @@ test('git:apply-patch clears the record when the revert finds no patch to undo',
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
 });
 
+test('git:apply-patch clears a stale revert record from the active ticket branch (#306)', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: false, notApplied: true, error: 'That patch is not in this checkout any more.', applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 62281,
+				currentBranch: 'ticket/62281',
+				branches: { 'ticket/62281': { baseOid: 'base', appliedPatch: { label: 'L', text: 'STORED' } } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./patch-apply': { applyPatchToDir },
+			'./ticket-branches': { currentBranchName: async () => 'ticket/62281' }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { reverse: true });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.recordCleared, true);
+	assert.equal(settings.values.siteMeta['/sites/wp'].branches['ticket/62281'].appliedPatch, null);
+});
+
 // The mirror of the above: a real failure must leave the record alone, or the
 // patch stays in the tree with nothing offering to undo it.
 test('git:apply-patch keeps the record when a revert fails for any other reason', async () => {
