@@ -2084,6 +2084,24 @@ test('git:list-ticket-patches fetches the linked PRs for the stored ticket', asy
 	assert.deepEqual(result.prs.items, [{ number: 7, title: 'x' }]);
 });
 
+// The Gutenberg half of the same pair. This is the one call where the provider
+// decides whether any result survives at all: a Gutenberg PR cites its work item
+// as `#71234`, never as a Trac URL, so a handler that resolved the repo per-site
+// but left the provider hardcoded would search the right repository and then
+// filter every genuine match away — an empty "Linked pull requests" list with no
+// error to explain it.
+test('git:list-ticket-patches searches a Gutenberg site’s own repo, with its own provider', async () => {
+	const fetchLinkedPrs = spy(async () => ({ status: 'ok', items: [{ number: 71300, title: 'x' }] }));
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg', tracTicket: 71234 } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { fetchLinkedPrs } } });
+
+	const result = await main.invoke('git:list-ticket-patches', '/sites/gb');
+
+	assert.deepEqual(fetchLinkedPrs.calls, [[71234, { repo: 'WordPress/gutenberg', provider: 'github-issue' }]]);
+	assert.equal(result.ok, true);
+	assert.equal(result.ticket, 71234);
+});
+
 test('git:list-ticket-patches falls back to the cached list when GitHub cannot be read', async () => {
 	let call = 0;
 	const fetchLinkedPrs = spy(async () => (++call === 1
