@@ -35,6 +35,7 @@ import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { prStateBadge } from './pr-state.cjs';
+import { statusBadge } from '../trac-ticket-info.cjs';
 import { prDateLabel } from './pr-date-label.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { adminUrl, adminerUrl } from './site-urls.cjs';
@@ -2862,6 +2863,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // attachments are noise here. The parser still returns them (pickLatest and
   // tests rely on the full list); the filtering is purely what's shown.
   const patchAttachments = (tracAttachments?.items || []).filter((a) => a.applyable);
+  // The ticket's own facts (#292), riding the same scrape as the attachments:
+  // one Trac visit, one challenge, both answers.
+  const tracInfo = tracAttachments?.ticket || null;
+  const tracInfoBadge = statusBadge(tracInfo);
   const tracAttachmentsRead = tracAttachments
     && (tracAttachments.status === 'ok' || tracAttachments.status === 'no-attachments');
   // One pill shape, two uses: the "Latest" marker on a patch row and a linked
@@ -4404,8 +4409,64 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 #{tracTicket}
               </span>
               <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
+              {!tracInfo ? (
+                <Button variant="link" onClick={loadTracAttachments} disabled={tracAttachmentsLoading}>
+                  {tracAttachmentsLoading ? 'Reading ticket…' : 'Read details from Trac'}
+                </Button>
+              ) : null}
               <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketActionsBlocked}>Unlink</Button>
             </div>
+
+            {tracInfo ? (
+              <div style={{ marginTop: 10 }}>
+                {tracInfo.summary ? (
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2327' }}>{tracInfo.summary}</div>
+                ) : null}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap', fontSize: 12, color: '#3c434a' }}>
+                  {tracInfoBadge ? (
+                    <span style={{ padding: '1px 8px', borderRadius: 999, fontWeight: 600, fontSize: 11,
+                      background: tracInfoBadge.tone === 'closed' ? '#fcf0f1' : '#edfaef',
+                      color: tracInfoBadge.tone === 'closed' ? '#8a1f21' : '#005c12' }}>
+                      {tracInfoBadge.label}
+                    </span>
+                  ) : null}
+                  {tracInfo.type ? (
+                    <span style={{ padding: '1px 8px', borderRadius: 999, fontSize: 11, background: '#f0f0f1', color: '#3c434a' }}>{tracInfo.type}</span>
+                  ) : null}
+                  {tracInfo.opened ? (
+                    <span title={tracInfo.opened.absolute}>opened {tracInfo.opened.relative}</span>
+                  ) : null}
+                  {tracInfo.milestone ? <span>milestone: {tracInfo.milestone}</span> : null}
+                </div>
+                {tracInfo.component || tracInfo.keywords.length ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap', fontSize: 12, color: '#6c6f72' }}>
+                    {tracInfo.component ? (
+                      <span>
+                        component:{' '}
+                        {tracInfo.component.url ? (
+                          <Button variant="link" style={{ fontSize: 12 }} onClick={() => window.api.openExternal(tracInfo.component.url)}>
+                            {tracInfo.component.label}
+                          </Button>
+                        ) : tracInfo.component.label}
+                      </span>
+                    ) : null}
+                    {tracInfo.keywords.length ? (
+                      <span>
+                        keywords:{' '}
+                        {tracInfo.keywords.map((kw, i) => (
+                          <span key={kw.label}>
+                            {i ? ' ' : ''}
+                            {kw.url ? (
+                              <Button variant="link" style={{ fontSize: 12 }} onClick={() => window.api.openExternal(kw.url)}>{kw.label}</Button>
+                            ) : kw.label}
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             {changesNote && changesNote.placement === 'ticket' ? (
               <div style={{ marginTop: 8, fontSize: 13, color: '#1d2327' }}>
                 {changesNoteBody}
