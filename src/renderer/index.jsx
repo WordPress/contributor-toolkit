@@ -3449,9 +3449,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           */}
           {!prResult.dryRun && (
             <>
-              <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-                Triage and props live on the ticket, so the link belongs there too.
-              </div>
+              {/*
+                Core-only: on Trac the pull request is a link somebody has to
+                carry back to the ticket, which is why this flow ends there. On
+                GitHub the pull request is the venue — saying the same thing
+                would send a Gutenberg contributor looking for a step that does
+                not exist.
+              */}
+              {isTracWorkItem ? (
+                <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
+                  Triage and props live on the ticket, so the link belongs there too.
+                </div>
+              ) : null}
               <Button variant="secondary" onClick={copyPrLink} icon={prLinkCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
                 {prLinkCopied ? 'Link copied' : 'Copy the link'}
               </Button>
@@ -3524,7 +3533,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               />
               {!prTitle.trim() ? (
                 <div style={{ fontSize:12, color:'#6c6f72', marginTop:-4 }}>
-                  Left empty, it will be titled <strong>Ticket #{tracTicket}</strong>.
+                  Left empty, it will be titled <strong>{workItem.defaultPrTitle(tracTicket)}</strong>.
                 </div>
               ) : null}
               {/*
@@ -3549,7 +3558,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 this flow ends on the point rather than the postscript, so they
                 are stated before the button, not after the pull request
                 exists.
+
+                Both are false for Gutenberg, where the pull request IS the
+                review venue and IS what gets merged — and the audience least
+                able to spot that the app is describing a different project is
+                exactly this one. Core-only until the Gutenberg counterpart is
+                written.
               */}
+              {isTracWorkItem ? (
               <details style={{ fontSize:12, color:'#6c6f72' }}>
                 <summary style={{ cursor:'pointer', color:'#3858e9' }}>How pull requests work in core</summary>
                 <div style={{ padding:'8px 0 0', lineHeight:1.6, display:'flex', flexDirection:'column', gap:6 }}>
@@ -3562,6 +3578,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   >The handbook page on pull requests</Button>
                 </div>
               </details>
+              ) : null}
               {/*
                 The button says what it will actually do. A dry run's button
                 reading "Open pull request" is the label lying about the mode,
@@ -4393,7 +4410,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   onChange={(value) => { setTicketInput(value); setTicketError(''); }}
                   onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
                   disabled={ticketActionsBlocked}
-                  placeholder={isTracWorkItem ? 'Ticket number or URL, e.g. 62281' : 'Issue number or URL, e.g. 71234'}
+                  placeholder={workItem.refPlaceholder}
                   aria-label={`${workItemConfig.label} number or URL`}
                 />
               </div>
@@ -4969,7 +4986,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                             onChange={(value) => { setTicketInput(value); setTicketError(''); }}
                             onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
                             disabled={ticketActionsBlocked}
-                            placeholder={isTracWorkItem ? 'Ticket number or URL, e.g. 62281' : 'Issue number or URL, e.g. 71234'}
+                            placeholder={workItem.refPlaceholder}
                             aria-label={`${workItemConfig.label} number or URL`}
                           />
                           <Button

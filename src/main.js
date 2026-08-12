@@ -790,7 +790,7 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
     const provider = siteWorkItemProvider(meta);
     const title = typeof options.title === 'string' && options.title.trim()
         ? options.title.trim()
-        : `${provider.noun.charAt(0).toUpperCase()}${provider.noun.slice(1)} #${ticketId}`;
+        : provider.defaultPrTitle(ticketId);
 
     const result = await openPullRequest({
         token: githubToken,

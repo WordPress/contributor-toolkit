@@ -1077,6 +1077,58 @@ test('git:save-patch with handoff asks patch-provenance for the header and the n
 	assert.equal(path.basename(main.calls.showSaveDialog[0].defaultPath), '62281.janedoe.diff');
 });
 
+// The two halves of the same header on a Gutenberg site. Nothing pinned this
+// before: the builder was tested (label/url in -> right line out) and the
+// handler was tested for Core, but the wiring between them — the label and the
+// URL the handler derives from the site's provider — was unexercised for either
+// project. A regression that dropped them leaves a Gutenberg patch citing
+// core.trac.wordpress.org/ticket/71234, a Core ticket that merely shares its
+// number, which is the exact confusion this wiring exists to prevent.
+test('git:save-patch names the work item the way a Gutenberg site names it', async (t) => {
+	const dir = await fixtureRepo(t);
+	const buildProvenanceHeader = spy(() => '# header\n\n');
+	const handoffFilename = spy(() => '71234.janedoe.diff');
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({
+				siteMeta: { [dir]: { projectType: 'gutenberg', tracTicket: 71234, trunkOid: 'abcdef1234567890', trunkDate: '2026-08-05T09:14:00.000Z' } },
+				preferences: { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Europe 2026' }
+			}).stubs,
+			'./patch-provenance.cjs': { buildProvenanceHeader, handoffFilename }
+		}
+	});
+
+	await main.invoke('git:save-patch', dir, { handoff: true });
+
+	const details = buildProvenanceHeader.calls[0][0];
+	assert.equal(details.workItemLabel, 'Issue', 'a Gutenberg patch must not call its work item a ticket');
+	assert.equal(details.workItemUrl, 'https://github.com/WordPress/gutenberg/issues/71234');
+});
+
+// And the Core half of the same pair, which the test above would otherwise let
+// regress in the opposite direction.
+test('git:save-patch still names a Core site’s work item a Trac ticket', async (t) => {
+	const dir = await fixtureRepo(t);
+	const buildProvenanceHeader = spy(() => '# header\n\n');
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({
+				siteMeta: { [dir]: { tracTicket: 62281, trunkOid: 'abcdef1234567890', trunkDate: '2026-08-05T09:14:00.000Z' } },
+				preferences: { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Europe 2026' }
+			}).stubs,
+			'./patch-provenance.cjs': { buildProvenanceHeader, handoffFilename: () => '62281.janedoe.diff' }
+		}
+	});
+
+	await main.invoke('git:save-patch', dir, { handoff: true });
+
+	const details = buildProvenanceHeader.calls[0][0];
+	assert.equal(details.workItemLabel, 'Ticket');
+	assert.equal(details.workItemUrl, 'https://core.trac.wordpress.org/ticket/62281');
+});
+
 // A handoff header names the base the patch was diffed against, and on a ticket
 // branch that is the trunk the branch was born at — not the site's current
 // trunk, which "Update to latest trunk" moves forward while existing branches
