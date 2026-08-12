@@ -195,6 +195,14 @@ test('parsePatchFiles: a binary addition with new file mode stays binary (#316)'
 	assert.deepStrictEqual(res.files.map((f) => [f.kind, f.path]), [['binary', 'x.png']]);
 });
 
+test('parsePatchFiles: an undecodable quoted empty-file section rejects the whole mixed patch (#316)', () => {
+	const quotedEmpty = 'diff --git "a/empty\\303\\251.txt" "b/empty\\303\\251.txt"\nnew file mode 100644\nindex 0000000..e69de29\n';
+	const res = parsePatchFiles(quotedEmpty + GITHUB_DIFF);
+
+	assert.strictEqual(res.ok, false);
+	assert.match(res.error, /empty file path/i);
+});
+
 // jsdiff represents a binary file as an entry with no hunks. Left unchecked
 // that reads as "a file with no changes", so applying would report success
 // while silently skipping it.
