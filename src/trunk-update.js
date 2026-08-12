@@ -169,8 +169,9 @@ async function discardToBase(dir, baseOid) {
 	}
 	const ref = (await git.currentBranch({ fs, dir, fullname: false })) || 'trunk';
 	// Only rewind the ref when baseOid really is this branch's own history — its
-	// point off trunk. patchBaseOid falls back to the live `trunk` tip for a
-	// branch with no recorded base (hand-created, or a hand-edited registry);
+	// point off trunk. `patchBase` in main.js answers `unrecorded` for a branch
+	// with no recorded base (hand-created, or a hand-edited registry) and hands
+	// over the live `trunk` tip with it;
 	// that tip need not be an ancestor of HEAD, and moving the ref onto it would
 	// orphan the branch's commits and re-point it at unrelated work. When it is
 	// not an ancestor, leave the ref alone and just reset the worktree to HEAD —

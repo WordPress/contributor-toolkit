@@ -58,6 +58,16 @@ test('buildProvenanceHeader: a base with only one half of it still says that hal
 	assert.ok(buildProvenanceHeader({ trunkDate: FULL.trunkDate }).includes('# Base: trunk @ 2026-08-05\n'));
 });
 
+// A base the app worked out rather than recorded is still the commit the patch
+// was diffed against, so it is named — but a mentor reading it as fact would
+// rebase onto a commit this ticket may never have been on (issue #308).
+test('buildProvenanceHeader: an approximate base says so on its own line (issue #308)', () => {
+	const header = buildProvenanceHeader({ ...FULL, baseApproximate: true });
+	assert.ok(header.includes('# Base: trunk @ 59a1c3e, 2026-08-05 (approximate — this ticket\'s starting point was not recorded)\n'));
+	// The recorded path is untouched: no hedge appears where the base is exact.
+	assert.ok(!buildProvenanceHeader(FULL).includes('approximate'));
+});
+
 test('buildProvenanceHeader: nothing to say produces no header at all (issue #166)', () => {
 	assert.strictEqual(buildProvenanceHeader(), '');
 	assert.strictEqual(buildProvenanceHeader({}), '');
