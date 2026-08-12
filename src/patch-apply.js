@@ -294,6 +294,14 @@ function resolveFile(dir, file, { diagnose = true } = {}) {
 		if (file.hunks && file.hunks.length) {
 			const text = normalizeEol(previous.toString('utf8'));
 			if (JsDiff.applyPatch(text, file.patch) === false) return conflict(file.path, text);
+		} else if (previous.length) {
+			// A deletion with no hunk is the removal of an *empty* file (#311) —
+			// there was nothing to describe, which is also the whole claim it
+			// makes about the old side. A file that has content since is not the
+			// file the patch described, and removing it would discard work no
+			// hunk ever mentioned. `git apply` refuses this outright ("removal
+			// patch leaves file contents"); so does this.
+			return conflict(file.path, normalizeEol(previous.toString('utf8')));
 		}
 		return { op: 'delete', abs: target, path: file.path, previous };
 	}

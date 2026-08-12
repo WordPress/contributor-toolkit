@@ -496,6 +496,43 @@ deleted file mode 100644
 	assert.deepStrictEqual(snapshot(dir), before, 'the edited file must not be deleted');
 });
 
+// The same protection where there is no pre-image to match against. An empty
+// file's deletion has no hunk (#311), so the hunk check above cannot run — and
+// without a check of its own the applier would remove a file the patch only
+// ever claimed was empty, contributor's work and all. `git apply` refuses this
+// as "removal patch leaves file contents"; so must this.
+test('applyPatchToDir: an empty-file deletion refuses a file that has content (#311)', async (t) => {
+	const dir = await makeRepo(t, { 'src/placeholder.php': '' });
+	const deletePatch = `diff --git a/src/placeholder.php b/src/placeholder.php
+deleted file mode 100644
+--- a/src/placeholder.php
++++ /dev/null
+`;
+	fs.writeFileSync(path.join(dir, 'src/placeholder.php'), 'my own work\n');
+	const before = snapshot(dir);
+
+	const res = await applyPatchToDir({ dir, patchText: deletePatch });
+
+	assert.strictEqual(res.ok, false);
+	assert.match(res.error, /moved on since the patch was written/);
+	assert.deepStrictEqual(snapshot(dir), before, 'the file that grew content must not be deleted');
+});
+
+// And it still removes the file it does describe.
+test('applyPatchToDir: an empty-file deletion removes the empty file (#311)', async (t) => {
+	const dir = await makeRepo(t, { 'src/placeholder.php': '' });
+	const deletePatch = `diff --git a/src/placeholder.php b/src/placeholder.php
+deleted file mode 100644
+--- a/src/placeholder.php
++++ /dev/null
+`;
+
+	const res = await applyPatchToDir({ dir, patchText: deletePatch });
+
+	assert.strictEqual(res.ok, true, res.error);
+	assert.strictEqual(fs.existsSync(path.join(dir, 'src/placeholder.php')), false);
+});
+
 // A rename that completes and is then undone by a later failure must restore the
 // source and remove the destination — registering each action before its
 // mutations is what lets rollback see a half-done one. (Copilot #3.)

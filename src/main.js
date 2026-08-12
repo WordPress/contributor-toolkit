@@ -458,7 +458,13 @@ async function collectChangedFiles(dir, baseOid = null) {
 //   too is named above the diff, and counts.
 // - 'unchanged': both sides equal once line endings are normalized — the
 //   churn of a CRLF checkout (native git on Windows), which must reach
-//   neither a Trac patch nor the note's count.
+//   neither a Trac patch nor the note's count. Only a file that exists on
+//   both sides can be unchanged: whether one was added or deleted is a
+//   question about which side it is on, and the status codes are what answer
+//   it (#85), not the text. An empty file added, and an empty file deleted,
+//   both render '' on both sides and used to come out 'unchanged' — dropped
+//   from the patch and uncounted by the note, with nothing on screen to say
+//   so (#311).
 // - 'text': a real difference, normalized on both sides for the same reason.
 function classifyChangedFile(file) {
     const gone = !file.inWorkdir;
@@ -469,7 +475,7 @@ function classifyChangedFile(file) {
     }
     const a = file.base ? normalizeEol(file.base.toString('utf8')) : '';
     const b = file.work ? normalizeEol(file.work.toString('utf8')) : '';
-    if (a === b) return { kind: 'unchanged' };
+    if (file.inHead === file.inWorkdir && a === b) return { kind: 'unchanged' };
     return { kind: 'text', a, b };
 }
 
@@ -501,6 +507,15 @@ async function createMinimalPatchForDir(dir, baseOid = null) {
         // Which side exists is the walk's answer, not the buffers'.
         const oldName = file.inHead ? `a/${file.path}` : '/dev/null';
         const newName = gone ? '/dev/null' : `b/${file.path}`;
+        // An empty file added, or an empty file deleted: there is no line on
+        // either side, so jsdiff emits a section with no hunk at all — which
+        // `git apply` rejects as "no valid patches in input", taking the whole
+        // patch and every unrelated file in it. Git's own extended header is
+        // how an empty file is carried, so that is what this emits (#311).
+        if (a === b) {
+            patch += emptyFileSection(file.path, oldName, newName, gone);
+            continue;
+        }
         // No blank line between sections. jsdiff keeps consuming lines past a
         // `\ No newline at end of file` marker, so a separator becomes a
         // phantom empty context line and the section stops applying to any
@@ -512,6 +527,36 @@ async function createMinimalPatchForDir(dir, baseOid = null) {
         );
     }
     return skippedNotice(binaries, unreadable) + (patch || 'No changes.');
+}
+
+/**
+ * The section for an empty file that was added or deleted (#311).
+ *
+ * A unified diff describes a file by its lines, and an empty file has none —
+ * so what says this happened at all is the header. `git apply` reads an
+ * addition or a deletion with no hunk only from the `diff --git` line plus
+ * `new file mode` / `deleted file mode`; without them it refuses the input as
+ * garbage. The `---`/`+++` pair is kept alongside because `/dev/null` is what
+ * this app's own reader classifies from (#85), and it is what makes the
+ * section look like every other one in the patch.
+ *
+ * The mode is the plain-file default, which is what this generator carries for
+ * every file: it does not record modes, so an executable bit is not preserved
+ * here any more than it is on a non-empty addition.
+ *
+ * @param {string}  filepath Repo-relative path.
+ * @param {string}  oldName  Old side as the patch names it.
+ * @param {string}  newName  New side as the patch names it.
+ * @param {boolean} gone     True when the file is the one being deleted.
+ * @return {string} One patch section, ending in a newline.
+ */
+function emptyFileSection(filepath, oldName, newName, gone) {
+    const mode = gone ? 'deleted file mode 100644' : 'new file mode 100644';
+    return `${'='.repeat(67)}\n`
+        + `diff --git a/${filepath} b/${filepath}\n`
+        + `${mode}\n`
+        + `--- ${oldName}\n`
+        + `+++ ${newName}\n`;
 }
 
 /**
