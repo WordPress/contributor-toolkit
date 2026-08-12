@@ -5,8 +5,8 @@ so you can look inside that database from your browser.
 
 ## Opening Adminer
 
-While the dev server is running, an **Adminer** link appears beside the server URL in the site
-view, after **wp-admin**. Clicking it opens Adminer in your browser, already logged into the site's
+While the dev server is running, a **DB inspect (Adminer)** link appears beside the server URL in
+the site view, after **wp-admin**. Clicking it opens Adminer in your browser, already logged into the site's
 SQLite database — no credentials to enter. From there you can browse tables, inspect rows, and run
 SQL, the same way you would against a MySQL-backed install.
 

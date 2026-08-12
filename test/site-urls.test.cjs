@@ -8,6 +8,8 @@ const { siteUrl, adminUrl, adminerUrl } = require('../src/renderer/site-urls.cjs
 
 const INDEX_JSX = path.join(__dirname, '..', 'src', 'renderer', 'index.jsx');
 
+const ADMINER_LINK = '>DB inspect (Adminer)</a>';
+
 // The shape server-runner.js actually produces: `http://127.0.0.1:${port}/`.
 const RUNNING = 'http://127.0.0.1:8881/';
 
@@ -135,9 +137,9 @@ test('the running site reads as one row of destinations (issue #249)', () => {
 	);
 
 	assert.strictEqual(
-		source.split('>Adminer</a>').length - 1,
+		source.split(ADMINER_LINK).length - 1,
 		1,
-		'expected exactly one Adminer link beside the site URL'
+		'expected exactly one DB inspect (Adminer) link beside the site URL'
 	);
 
 	// Placement is the whole point of #249, and the assertions above pin only the
@@ -146,7 +148,7 @@ test('the running site reads as one row of destinations (issue #249)', () => {
 	// credentials line puts it in the row it was moved into. lastIndexOf,
 	// because the wizard step has a wp-admin link of its own, earlier.
 	const wpAdmin = source.lastIndexOf('>wp-admin</a>');
-	const adminer = source.indexOf('>Adminer</a>');
+	const adminer = source.indexOf(ADMINER_LINK);
 	const credentials = source.indexOf('Log in with <code>admin</code>');
 	assert.ok(
 		wpAdmin < adminer && adminer < credentials,
