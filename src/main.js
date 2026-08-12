@@ -1716,6 +1716,10 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		// would carry the other one's "patch applied · Revert" banner over, and
 		// Revert would reverse its hunks against this ticket's tree.
 		const work = await readWorkMeta(sitePath);
+		// A recorded branch point and the current trunk tip are enough to warn
+		// that the context changed (#305). Missing metadata stays false: 1.0
+		// refuses to guess, and deliberately offers no checkout rewrite.
+		const ticketBehindTrunk = Boolean(m.tracTicket && work.baseOid && trunkOid && work.baseOid !== trunkOid);
 
 		// Summarised rather than passed through: the stored patch text is only
 		// needed by the main process to reverse it, and this is polled.
@@ -1736,9 +1740,9 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 			}
 			: null;
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, appliedPatch };
+		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch };
 	} catch {
-		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, appliedPatch: null };
+		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, ticketBehindTrunk: false, appliedPatch: null };
 	}
 });
 

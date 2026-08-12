@@ -2733,6 +2733,7 @@ test('the applied patch belongs to the ticket, not the site (issue #108)', async
 		siteMeta: {
 			'/sites/wp': {
 				currentBranch: 'ticket/61002',
+				tracTicket: 61002,
 				// The site-level value: what a pre-#108 install left behind, and
 				// what the migration copies onto the ticket it belonged to. It
 				// must never be what the panel reads once a ticket is active.
@@ -2758,6 +2759,26 @@ test('the applied patch belongs to the ticket, not the site (issue #108)', async
 	// Reading it from the site would show ticket A's patch while on ticket B —
 	// and offer a Revert that reverses A's hunks against B's tree.
 	assert.equal(status.appliedPatch, null, 'the other ticket\'s applied patch must not leak here');
+	assert.equal(status.ticketBehindTrunk, true, 'the active ticket started before the current trunk');
+});
+
+test('site:status does not guess that a ticket is behind without a recorded base (#305)', async () => {
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { tracTicket: 61002, currentBranch: 'ticket/61002', branches: { 'ticket/61002': { baseOid: null } } } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'new', trunkDate: 'd' }) },
+			'./ticket-branches': { currentBranchName: async () => 'ticket/61002' }
+		}
+	});
+
+	const status = await main.invoke('site:status', '/sites/wp');
+
+	assert.equal(status.ticketBehindTrunk, false);
 });
 
 test('a checkout that died mid-switch blocks further switching (issue #108)', async () => {
