@@ -4736,11 +4736,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           variant="secondary"
                           isSmall
                           onClick={() => {
-                            // The lists' Apply buttons are disabled while a
-                            // preview is up, so scrolling there without clearing
-                            // it would land on greyed-out rows — the same dead
-                            // end this button exists to escape.
+                            // Choosing another patch is walking away from this
+                            // one, so everything about it goes: the preview
+                            // (whose presence keeps the lists' Apply buttons
+                            // disabled) and the failure banner itself — an
+                            // error describing an abandoned attempt would sit
+                            // above the new one as noise.
                             setApplyPreview(null);
+                            clearApplyError();
                             ticketPatchesRef.current?.scrollIntoView({
                               block: 'center',
                               behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
