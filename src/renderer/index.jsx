@@ -30,7 +30,8 @@ import { pathBasename } from './path-basename.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
-import { describeOwnWorkWarning } from './ticket-base.cjs';
+import { baseIsApproximate, UNRECORDED_CLEAR_NOTE } from './ticket-base.cjs';
+import { describeAppliedLayer, attributeConflicts, absorbedExitFailure } from './applied-layer.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
@@ -2742,6 +2743,22 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // — the preview carries the status of the base it was measured against (#308).
   const applyOwnWorkNotice = applyPreview ? describeOwnWorkWarning(applyPreview) : null;
 
+  // The applied patch as a layer with a name (#306), not an undo blob. Both
+  // answers come from the same record: whether it can still be lifted out —
+  // measured in main on every status read, so it comes back on its own when the
+  // overlapping edit is undone — and whose changes the next patch would land on.
+  const appliedLayer = describeAppliedLayer(appliedPatch, {
+    when: appliedPatch?.appliedAt ? new Date(appliedPatch.appliedAt).toLocaleString() : ''
+  });
+  const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
+  const previewBaseApproximate = Boolean(applyPreview) && baseIsApproximate(applyPreview.baseStatus);
+  // The absorbed exits reach the same two operations the changes note does, so
+  // they go through the same guard: a discard is a force checkout, and running
+  // it under a live dev server or a half-finished install rewrites the tree
+  // from under it. Not re-derived here — that is how a second answer starts.
+  const absorbedExitBlocked = discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding });
+  const absorbedExit = absorbedExitFailure({ patchSaveError, discardError });
+
   // --- Initial setup, as one chain (#246) ---
   // The third chain, and the only one nobody starts: between the clone, the
   // install and the build there is no decision to make, so making the
@@ -3189,24 +3206,27 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           // A conflict is where the panel used to stop: one file named, the
           // rest of the failures left in the terminal, and no sense of whether
           // one region of twenty missed or all of them. The breakdown is what
-          // turns that into a decision (#282). A reverse is left out — the
-          // patch it names came from this app and the ticket's other patches
-          // are no help against it.
-          setApplyConflict(reverse ? null : describeApplyFailure(res, {
-            otherPatchCount: otherPatchCount({
-              label: preview?.label,
-              prs: ticketPatches?.items,
-              attachments: patchAttachments
-            }),
-            prUrl: preview?.prUrl || null,
-            prState: preview?.prState || null,
-            // The preview's own collision list: the files this ticket has work
-            // in, measured from its base (#301). Without it an open pull request
-            // is always narrated as stale, so a failure caused by the
-            // contributor's own edits sends them to ask a stranger for a rebase
-            // that would not help (#303).
-            ownWorkPaths: preview?.conflicts || []
-          }));
+          // turns that into a decision (#282). A reverse gets its own framing
+          // (#306): it fails only because the contributor's own edits are on the
+          // patch's lines, so the ticket's other patches and the pull request's
+          // author are both the wrong place to send them.
+          setApplyConflict(describeApplyFailure(res, reverse
+            ? { reverting: appliedPatch?.label || 'That patch' }
+            : {
+              otherPatchCount: otherPatchCount({
+                label: preview?.label,
+                prs: ticketPatches?.items,
+                attachments: patchAttachments
+              }),
+              prUrl: preview?.prUrl || null,
+              prState: preview?.prState || null,
+              // The preview's own collision list: the files this ticket has work
+              // in, measured from its base (#301). Without it an open pull
+              // request is always narrated as stale, so a failure caused by the
+              // contributor's own edits sends them to ask a stranger for a
+              // rebase that would not help (#303).
+              ownWorkPaths: preview?.conflicts || []
+            }));
           finishApply();
           return;
         }
@@ -4714,19 +4734,38 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             </div>
           ) : null}
 
-          {appliedPatch && !isApplying ? (
-            <div style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #94d3ae', background: '#f4fbf4', borderRadius: 8 }}>
-              <div style={{ fontSize: 13, color: '#0f5132' }}>
-                <strong>{appliedPatch.label}</strong> is applied — {appliedPatch.files.length} file{appliedPatch.files.length === 1 ? '' : 's'}
-                {appliedPatch.appliedAt ? `, ${new Date(appliedPatch.appliedAt).toLocaleString()}` : ''}.
+          {appliedLayer && !isApplying ? (
+            <div style={{ marginTop: 12, padding: '14px 16px', border: `1px solid ${appliedLayer.canRevert ? '#94d3ae' : '#dba617'}`, background: appliedLayer.canRevert ? '#f4fbf4' : '#fcf9e8', borderRadius: 8 }}>
+              <div style={{ fontSize: 13, color: appliedLayer.canRevert ? '#0f5132' : '#6e5406' }}>
+                <strong>{appliedLayer.label}</strong> {appliedLayer.summary}
               </div>
+              {appliedLayer.explanation ? (
+                <div style={{ marginTop: 8, fontSize: 12, color: '#6e5406' }}>{appliedLayer.explanation}</div>
+              ) : null}
+              {appliedLayer.detail.map((line) => (
+                <div key={line} style={{ marginTop: 4, fontSize: 12, color: '#6e5406', wordBreak: 'break-all' }}>{line}</div>
+              ))}
+              {appliedLayer.note ? (
+                <div style={{ marginTop: 8, fontSize: 12, color: '#6c6f72' }}>{appliedLayer.note}</div>
+              ) : null}
               <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                {appliedPatch.revertable ? (
+                {appliedLayer.canRevert ? (
                   <Button variant="secondary" onClick={() => runApply({ reverse: true })} disabled={isUpdating || installing || building}>Revert this patch</Button>
-                ) : (
-                  <span style={{ fontSize: 12, color: '#6c6f72' }}>Too large to undo automatically — use Update to latest trunk to reset.</span>
-                )}
+                ) : null}
+                {appliedLayer.offerCopy ? (
+                  <>
+                    <Button variant="secondary" onClick={savePatch} disabled={absorbedExitBlocked}>Save a copy of your work</Button>
+                    <Button variant="tertiary" onClick={discardAllChanges} disabled={absorbedExitBlocked}>Discard this ticket to its base</Button>
+                  </>
+                ) : null}
               </div>
+              {/* Both exits report failure through state the changes note and the
+                  patch modal own, and neither is on screen here — so a save that
+                  could not write, or a discard that refused, would be a button
+                  that did nothing on the one way out this banner recommends. */}
+              {absorbedExit.message ? (
+                <div role="alert" style={{ marginTop: 8, fontSize: 12, color: '#d63638' }}>{absorbedExit.message}</div>
+              ) : null}
             </div>
           ) : null}
 
@@ -4738,10 +4777,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <div style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere', maxHeight: 140, overflowY: 'auto' }}>
                 {applyPreview.paths.map((p) => <div key={p}>{p}</div>)}
               </div>
-              {applyOwnWorkNotice ? (
-                <div role={OWN_WORK_NOTICE_STYLES[applyOwnWorkNotice.level].role} style={OWN_WORK_NOTICE_STYLES[applyOwnWorkNotice.level].style}>
-                  {applyOwnWorkNotice.text}
+              {/* Who the colliding work belongs to (#306) is the sentence, and
+                  how sure the app is of the base it was measured from (#308)
+                  rides with it: on an unrecorded base the list can name files
+                  the contributor never touched and miss ones they did, so an
+                  unhedged sentence would overstate what was checked. With no
+                  collisions the hedge is all that is left, said quietly —
+                  "nothing collided" is not a promise an approximate base can
+                  make. */}
+              {previewAttribution.sentences.length ? (
+                <div role="alert" style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
+                  {previewAttribution.sentences.map((sentence) => <div key={sentence} style={{ marginTop: 2 }}>{sentence}</div>)}
+                  {previewBaseApproximate ? <div style={{ marginTop: 6 }}>{UNRECORDED_CLEAR_NOTE}</div> : null}
                 </div>
+              ) : previewBaseApproximate ? (
+                <div style={{ marginTop: 10, fontSize: 12, color: '#6c6f72' }}>{UNRECORDED_CLEAR_NOTE}</div>
               ) : null}
               {applyPreview.unsupported.length ? (
                 <div style={{ marginTop: 10, fontSize: 12, color: '#6e5406' }}>
@@ -4838,8 +4888,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     <div style={{ marginTop: 8 }}>{applyConflict.advice}</div>
                   ) : null}
 
-                  {applyConflict.offerOtherPatches || applyConflict.prUrl ? (
+                  {applyConflict.offerOtherPatches || applyConflict.prUrl || applyConflict.offerDiscardToBase ? (
                     <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {applyConflict.offerDiscardToBase ? (
+                        <>
+                          <Button variant="secondary" isSmall onClick={savePatch} disabled={absorbedExitBlocked}>Save a copy of your work</Button>
+                          <Button variant="secondary" isSmall onClick={discardAllChanges} disabled={absorbedExitBlocked}>Discard this ticket to its base</Button>
+                        </>
+                      ) : null}
                       {applyConflict.offerOtherPatches ? (
                         <Button
                           variant="secondary"
@@ -4866,6 +4922,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         </Button>
                       ) : null}
                     </div>
+                  ) : null}
+
+                  {applyConflict.offerDiscardToBase && absorbedExit.message ? (
+                    <div style={{ marginTop: 8 }}>{absorbedExit.message}</div>
                   ) : null}
                 </div>
               ) : null}

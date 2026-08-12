@@ -378,6 +378,74 @@ function patchIsAbsent(dir, files) {
 }
 
 /**
+ * Whether the patch the app applied could still be taken back out of this
+ * checkout, asked right now rather than remembered (#306).
+ *
+ * The record the app keeps says only that a patch text was stored. That is not
+ * the question the banner needs answering: once the contributor's own edits sit
+ * on the patch's lines it has been **absorbed** — it has become their changes,
+ * and no revert can separate the two again. Undoing those edits makes it
+ * removable again, which is why this is measured on demand and never tracked as
+ * a flag.
+ *
+ * Nothing here writes. `resolveFile` reads each file and works out what a
+ * reverse *would* produce, and `diagnoseHunks` behind it says how much of the
+ * patch the file no longer holds — the same machinery the apply path uses, so
+ * there is no second way to ask whether a patch still fits. The resolved
+ * contents are discarded.
+ *
+ * A patch that is simply gone — a trunk update or a discard reset the tree — is
+ * not absorbed, and gets the same two-part guard the revert itself uses: not one
+ * file reversed, *and* the whole patch resolves forwards. Its record is stale,
+ * and Revert stays offered because pressing it is what clears it.
+ *
+ * @param {Object} root0
+ * @param {string} root0.dir       Site working directory.
+ * @param {string} root0.patchText The stored patch, forward as it was applied.
+ * @return {{absorbed: Array<{path: string, editedOver: boolean, failed: number, total: number}>, missing: boolean, error?: string}}
+ */
+function diagnoseRemoval({ dir, patchText }) {
+	const parsed = parsePatchFiles(String(patchText || ''));
+	if (!parsed.ok) return { absorbed: [], missing: false, error: parsed.error };
+
+	const absorbed = [];
+	let intact = 0;
+	for (const file of parsed.files) {
+		// Binary files were never applied, so they cannot be in the way of a
+		// removal either — the apply path skips them the same way.
+		if (file.kind === 'binary') continue;
+		const reversed = reverseFile(file);
+		const resolved = resolveFile(dir, reversed);
+		if (!resolved.error) {
+			intact += 1;
+			continue;
+		}
+		const conflict = resolved.conflict;
+		absorbed.push({
+			// The forward path, not the reversed one: a rename's reverse names the
+			// file it moves *back* to, while the record of what was applied holds
+			// the name the patch moved it to. Keyed on the reversed name, the
+			// caller's attribution could never match its own record.
+			path: file.path,
+			// Not every refusal is an edit over the patch's lines: a file the
+			// contributor deleted outright, or one a reversed add can no longer
+			// find, blocks the removal without anything having been written over.
+			// Withholding Revert is right either way — the revert is all or
+			// nothing — but the sentence about it is not, so the two are told
+			// apart here rather than guessed at by the caller.
+			editedOver: Boolean(conflict),
+			failed: conflict ? conflict.regions.length : 0,
+			total: conflict ? conflict.total : 0
+		});
+	}
+
+	if (absorbed.length && !intact && patchIsAbsent(dir, parsed.files)) {
+		return { absorbed: [], missing: true };
+	}
+	return { absorbed, missing: false };
+}
+
+/**
  * Puts back everything a failed run had already written.
  *
  * Returns the paths it could not restore. The same full-disk, lock, or
@@ -450,10 +518,12 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 			skipped.push(file.path);
 			continue;
 		}
-		// No diagnosis on a reverse: the panel discards it — the patch being
-		// reverted came through this app, and the ticket's other patches are no
-		// answer to a revert that failed.
-		const resolved = resolveFile(dir, file, { diagnose: !reverse });
+		// Diagnosed on a reverse too (#306). The ticket's other patches are still
+		// no answer to a revert that failed, but the *reason* it failed is: a
+		// revert only fails because the contributor's own edits are on the
+		// patch's lines, and naming how many of them, and where, is the whole
+		// difference between an explanation and a generic error.
+		const resolved = resolveFile(dir, file);
 		if (resolved.error) {
 			failures.push(resolved.error);
 			if (resolved.conflict) conflicts.push(resolved.conflict);
@@ -536,4 +606,4 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 	return { ok: true, applied, skipped };
 }
 
-module.exports = { applyPatchToDir, resolveInside, reverseFile, dominantEol, rollback, diagnoseHunks };
+module.exports = { applyPatchToDir, diagnoseRemoval, resolveInside, reverseFile, dominantEol, rollback, diagnoseHunks };

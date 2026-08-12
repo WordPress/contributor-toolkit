@@ -30,17 +30,29 @@ const REASONS = {
 	moved: 'the code around it has changed'
 };
 
+// The same two statuses read backwards, for a revert (#306). `already-applied`
+// is derived by testing the inverse of what is being applied, so on a reverse it
+// means the *forward* hunk fits — that region's change is not in the checkout
+// any more. Rendering the forward wording there would put "already in your
+// checkout" under a headline saying the contributor has edited over it.
+const REVERT_REASONS = {
+	'already-applied': 'looks like that change is not in your checkout any more',
+	moved: 'the code around it has changed'
+};
+
 /**
  * One failing region, ready to render.
  *
- * @param {Object} region
+ * @param {Object}  region
+ * @param {boolean} [reversing] Whether the failed run was a revert.
  * @return {Object}
  */
-function describeRegion(region) {
+function describeRegion(region, reversing = false) {
+	const reasons = reversing ? REVERT_REASONS : REASONS;
 	return {
 		line: region.line,
 		status: region.status,
-		reason: REASONS[region.status] || 'it no longer fits',
+		reason: reasons[region.status] || 'it no longer fits',
 		// A line to search for, not a number to go to: the hunk's line numbers
 		// are in the patched file's coordinates and miss by the drift the patch
 		// failed on. The panel leads with this and keeps `line` as the fallback.
@@ -249,6 +261,36 @@ function prFraming(conflicts, prState, ownWorkPaths = []) {
 }
 
 /**
+ * The framing for a revert that would not come back out (#306).
+ *
+ * A revert fails for one reason: the contributor's own edits are on the lines
+ * the patch brought. There is no third party here and no rebase to ask anyone
+ * for — the patch and the edits are one body of work now, which is what
+ * absorption means. So the sentence names that, and the two ways forward are
+ * undoing the overlapping edits, or saving a copy and discarding the ticket to
+ * its base, which on this project is a normal step rather than a defeat.
+ *
+ * Regions are kept, unlike the pull-request framing: these lines are the
+ * contributor's own, so pointing at them is pointing at their work.
+ *
+ * @param {Array}  conflicts
+ * @param {string} label
+ * @return {{headline: string, advice: string, prButton: ?string}}
+ */
+function revertFraming(conflicts, label) {
+	const failed = conflicts.reduce((sum, c) => sum + c.regions.length, 0);
+	const total = conflicts.reduce((sum, c) => sum + c.total, 0);
+	const files = conflicts.length;
+	const where = files === 1 ? '' : `, across ${files} files`;
+
+	return {
+		headline: `${label} cannot be lifted back out on its own: your own edits are on ${failed} of its ${total} change${total === 1 ? '' : 's'}${where}.`,
+		advice: 'It is part of your changes now. Undoing your edits on those lines brings Revert back; otherwise save a copy of your work and discard the ticket to its base — on this project that is a normal way forward, not a lost afternoon.',
+		prButton: null
+	};
+}
+
+/**
  * Everything the panel needs to explain a failed apply, or null when there is
  * nothing to explain.
  *
@@ -273,9 +315,10 @@ function prFraming(conflicts, prState, ownWorkPaths = []) {
  * @param {?string}  [options.prState]         Its state, when known.
  * @param {string[]} [options.ownWorkPaths]    Files this ticket has work in, from
  *                                             the preview's collision list (#303).
+ * @param {?string}  [options.reverting]       Label of the layer being reverted.
  * @return {?Object}
  */
-function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, prUrl = null, prState = null, ownWorkPaths = [] } = {}) {
+function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, prUrl = null, prState = null, ownWorkPaths = [], reverting = null } = {}) {
 	if (!result || result.ok) return null;
 
 	const failures = Array.isArray(result.failures) ? result.failures : [];
@@ -285,7 +328,10 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 	// the panel keeps rendering it exactly as it did before.
 	if (!failures.length && !conflicts.length) return null;
 
-	const fromPr = Boolean(prUrl);
+	// A revert is never "someone else's patch does not fit": it is the
+	// contributor's own edits sitting on lines they applied. The pull-request
+	// framing would send them to an author who has nothing to do with it.
+	const fromPr = Boolean(prUrl) && !reverting;
 
 	// Each conflict is consumed as it is matched, not looked up in a map: a
 	// concatenated patch can fail the same file twice with the identical
@@ -304,7 +350,7 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 			failed: conflict.regions.length,
 			// For a pull request the regions are the author's problem; the file
 			// row with its counts is the whole story the contributor needs.
-			regions: fromPr ? [] : conflict.regions.map(describeRegion)
+			regions: fromPr ? [] : conflict.regions.map((region) => describeRegion(region, Boolean(reverting)))
 		};
 	});
 
@@ -314,9 +360,13 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 	let advice = '';
 	let prButton = fromPr ? 'Open the pull request' : null;
 	if (conflicts.length) {
-		const framing = fromPr
-			? prFraming(conflicts, prState, ownWorkPaths)
-			: { headline: headlineFor(conflicts), advice: '', prButton: null };
+		// A failed revert is never the pull request having gone stale, so it is
+		// asked first: the only thing that stops a layer coming back out is the
+		// contributor's own work sitting on its lines (#306).
+		let framing;
+		if (reverting) framing = revertFraming(conflicts, reverting);
+		else if (fromPr) framing = prFraming(conflicts, prState, ownWorkPaths);
+		else framing = { headline: headlineFor(conflicts), advice: '', prButton: null };
 		headline = framing.headline;
 		advice = framing.advice;
 		prButton = framing.prButton;
@@ -325,13 +375,17 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 		headline,
 		advice,
 		items,
+		// The absorbed exit, for the panel to offer alongside the sentence. Only
+		// a revert has one: every other failure left the checkout untouched, so
+		// there is nothing to save a copy of that is not already safe.
+		offerDiscardToBase: Boolean(reverting) && conflicts.length > 0,
 		// Both are offered only when they lead somewhere, the way open-failure.cjs
 		// withholds its picker: a way out that returns to the same dead end is
 		// worse than no button, because it costs a click to find that out.
-		offerOtherPatches: othersAvailable > 0,
+		offerOtherPatches: !reverting && othersAvailable > 0,
 		prUrl: prUrl && prButton ? prUrl : null,
 		prButton
 	};
 }
 
-module.exports = { describeApplyFailure, headlineFor, otherPatchCount, REASONS };
+module.exports = { describeApplyFailure, headlineFor, otherPatchCount, revertFraming, REASONS, REVERT_REASONS };
