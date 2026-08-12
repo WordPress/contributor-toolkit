@@ -30,7 +30,7 @@ import { pathBasename } from './path-basename.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
-import { describeAppliedLayer, attributeConflicts, absorbedExitFailure } from './applied-layer.cjs';
+import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
@@ -2738,12 +2738,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     when: appliedPatch?.appliedAt ? new Date(appliedPatch.appliedAt).toLocaleString() : ''
   });
   const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
-  // The absorbed exits reach the same two operations the changes note does, so
+  // The layer exits reach the same two operations the changes note does, so
   // they go through the same guard: a discard is a force checkout, and running
   // it under a live dev server or a half-finished install rewrites the tree
   // from under it. Not re-derived here — that is how a second answer starts.
-  const absorbedExitBlocked = discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding });
-  const absorbedExit = absorbedExitFailure({ patchSaveError, discardError });
+  const layerExitBlocked = discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding });
+  const layerExit = layerExitFailure({ patchSaveError, discardError });
 
   // --- Initial setup, as one chain (#246) ---
   // The third chain, and the only one nobody starts: between the clone, the
@@ -4740,8 +4740,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 ) : null}
                 {appliedLayer.offerCopy ? (
                   <>
-                    <Button variant="secondary" onClick={savePatch} disabled={absorbedExitBlocked}>Save a copy of your work</Button>
-                    <Button variant="tertiary" onClick={discardAllChanges} disabled={absorbedExitBlocked}>Discard this ticket to its base</Button>
+                    <Button variant="secondary" onClick={savePatch} disabled={layerExitBlocked}>Save a copy of your work</Button>
+                    <Button variant="tertiary" onClick={discardAllChanges} disabled={layerExitBlocked}>Discard this ticket to its base</Button>
                   </>
                 ) : null}
               </div>
@@ -4749,8 +4749,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   patch modal own, and neither is on screen here — so a save that
                   could not write, or a discard that refused, would be a button
                   that did nothing on the one way out this banner recommends. */}
-              {absorbedExit.message ? (
-                <div role="alert" style={{ marginTop: 8, fontSize: 12, color: '#d63638' }}>{absorbedExit.message}</div>
+              {layerExit.message ? (
+                <div role="alert" style={{ marginTop: 8, fontSize: 12, color: '#d63638' }}>{layerExit.message}</div>
               ) : null}
             </div>
           ) : null}
@@ -4868,8 +4868,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {applyConflict.offerDiscardToBase ? (
                         <>
-                          <Button variant="secondary" isSmall onClick={savePatch} disabled={absorbedExitBlocked}>Save a copy of your work</Button>
-                          <Button variant="secondary" isSmall onClick={discardAllChanges} disabled={absorbedExitBlocked}>Discard this ticket to its base</Button>
+                          <Button variant="secondary" isSmall onClick={savePatch} disabled={layerExitBlocked}>Save a copy of your work</Button>
+                          <Button variant="secondary" isSmall onClick={discardAllChanges} disabled={layerExitBlocked}>Discard this ticket to its base</Button>
                         </>
                       ) : null}
                       {applyConflict.offerOtherPatches ? (
@@ -4900,8 +4900,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     </div>
                   ) : null}
 
-                  {applyConflict.offerDiscardToBase && absorbedExit.message ? (
-                    <div style={{ marginTop: 8 }}>{absorbedExit.message}</div>
+                  {applyConflict.offerDiscardToBase && layerExit.message ? (
+                    <div style={{ marginTop: 8 }}>{layerExit.message}</div>
                   ) : null}
                 </div>
               ) : null}

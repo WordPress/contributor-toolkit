@@ -6,7 +6,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { attributeConflicts, describeAppliedLayer, absorbedExitFailure, listOf } = require('../src/renderer/applied-layer.cjs');
+const { attributeConflicts, describeAppliedLayer, layerExitFailure, listOf } = require('../src/renderer/applied-layer.cjs');
 const { describeApplyFailure } = require('../src/renderer/apply-conflict.cjs');
 
 const FOO = 'src/wp-login.php';
@@ -17,14 +17,13 @@ const layer = (over = {}) => ({
 	appliedAt: '2026-08-12T10:00:00.000Z',
 	files: [FOO],
 	kept: true,
-	absorbed: [],
 	revertable: true,
 	...over
 });
 
 // --- attribution ----------------------------------------------------------
 
-test('attributeConflicts: a file only the applied patch touched is not called your work (#306)', () => {
+test('attributeConflicts: a layer file is named without excluding later contributor edits (#306)', () => {
 	const { yours, fromLayer, sentences } = attributeConflicts({
 		conflicts: [FOO],
 		appliedPatch: layer()
@@ -34,18 +33,9 @@ test('attributeConflicts: a file only the applied patch touched is not called yo
 	assert.deepStrictEqual(fromLayer, [FOO]);
 	// The warning does not go quiet — the file is still named, just attributed.
 	assert.ok(sentences.some((s) => s.includes(FOO) && s.includes('PR #123')));
+	assert.ok(sentences.some((s) => /includes changes from/.test(s)));
+	assert.ok(!sentences.some((s) => /not by you/.test(s)));
 	assert.ok(!sentences.some((s) => s.startsWith('You have your own edits')));
-});
-
-test('attributeConflicts: a file the contributor also edited keeps naming their work (#306)', () => {
-	const { yours, fromLayer, sentences } = attributeConflicts({
-		conflicts: [FOO],
-		appliedPatch: layer({ absorbed: [{ path: FOO, failed: 1, total: 3 }], revertable: false })
-	});
-
-	assert.deepStrictEqual(yours, [FOO]);
-	assert.deepStrictEqual(fromLayer, []);
-	assert.ok(sentences[0].startsWith('You have your own edits'));
 });
 
 test('attributeConflicts: the two owners are named separately, not merged (#306)', () => {
@@ -91,51 +81,24 @@ test('describeAppliedLayer: while it still comes out, Revert is the only offer (
 	const face = describeAppliedLayer(layer(), { when: '12/08/2026' });
 
 	assert.strictEqual(face.canRevert, true);
-	assert.strictEqual(face.absorbed, false);
 	assert.strictEqual(face.offerCopy, false);
 	assert.strictEqual(face.explanation, '');
 	assert.strictEqual(face.summary, 'is applied — 1 file, 12/08/2026.');
 });
 
-test('describeAppliedLayer: absorbed drops Revert and offers the copy-and-discard exit (#306)', () => {
-	const face = describeAppliedLayer(layer({
-		revertable: false,
-		absorbed: [{ path: FOO, failed: 2, total: 5 }]
-	}));
-
-	assert.strictEqual(face.canRevert, false);
-	assert.strictEqual(face.absorbed, true);
-	assert.strictEqual(face.offerCopy, true);
-	assert.ok(face.explanation.includes(FOO));
-	assert.ok(face.explanation.includes('part of your changes now'));
-	// Not a one-way door, and the banner has to say so.
-	assert.ok(/Undo those edits and Revert comes back/.test(face.explanation));
-	assert.deepStrictEqual(face.detail, [`${FOO} — you have edited 2 of the 5 changes it brought`]);
-});
-
-// The constraint the whole design rests on: absorption is not a way to apply a
-// second patch. The banner has to say the slot is still taken.
-test('describeAppliedLayer: absorption does not free the one-patch slot (#306)', () => {
-	const face = describeAppliedLayer(layer({ revertable: false, absorbed: [{ path: FOO, failed: 1, total: 1 }] }));
-
-	assert.ok(/one applied patch/.test(face.note));
-	assert.ok(/reverted or discarded/.test(face.note));
-});
-
 // Discarding is a recommendable step here, not an admission of failure — the
 // wording is the point, so it is asserted rather than left to drift.
 test('describeAppliedLayer: the exit is worded as a normal way forward (#306)', () => {
-	const face = describeAppliedLayer(layer({ revertable: false, absorbed: [{ path: FOO, failed: 1, total: 1 }] }));
+	const face = describeAppliedLayer(layer({ kept: false, revertable: false }));
 
 	assert.ok(/not a lost afternoon/.test(face.note));
 	assert.ok(/Save a copy of your work/.test(face.note));
 });
 
-test('describeAppliedLayer: a patch too large to keep is a different sentence from absorption (#306)', () => {
+test('describeAppliedLayer: a patch too large to keep offers the disposable-ticket exit (#306)', () => {
 	const face = describeAppliedLayer(layer({ kept: false, revertable: false }));
 
 	assert.strictEqual(face.canRevert, false);
-	assert.strictEqual(face.absorbed, false);
 	assert.strictEqual(face.offerCopy, true);
 	assert.ok(/too large to keep a copy of/.test(face.explanation));
 	assert.deepStrictEqual(face.detail, []);
@@ -195,37 +158,6 @@ test('describeApplyFailure: a forward apply is unaffected by the revert framing 
 	assert.ok(/author/.test(notice.advice));
 });
 
-// A file blocked for a reason that is not an edit over the patch's lines — the
-// contributor deleted it outright — must not be described as one. Withholding
-// Revert is still right; the sentence about it is what changes.
-test('describeAppliedLayer: a file that is simply gone gets its own sentence (#306)', () => {
-	const face = describeAppliedLayer(layer({
-		revertable: false,
-		absorbed: [{ path: FOO, editedOver: false, failed: 0, total: 0 }]
-	}));
-
-	assert.strictEqual(face.canRevert, false);
-	assert.ok(!/your own edits are on the lines/.test(face.explanation));
-	assert.ok(/no longer where it left it/.test(face.explanation));
-	// Nothing to count, so nothing is counted.
-	assert.deepStrictEqual(face.detail, []);
-});
-
-test('describeAppliedLayer: both reasons at once read as one sentence (#306)', () => {
-	const face = describeAppliedLayer(layer({
-		files: [FOO, BAR],
-		revertable: false,
-		absorbed: [
-			{ path: FOO, editedOver: true, failed: 1, total: 2 },
-			{ path: BAR, editedOver: false, failed: 0, total: 0 }
-		]
-	}));
-
-	assert.ok(face.explanation.includes(`your own edits are on the lines it brought to ${FOO}`));
-	assert.ok(face.explanation.includes(`${BAR} is no longer where it left it`));
-	assert.deepStrictEqual(face.detail, [`${FOO} — you have edited 1 of the 2 changes it brought`]);
-});
-
 // `already-applied` is derived by testing the inverse of what is being applied,
 // so on a revert it means the opposite of what it means going forwards. Reading
 // the forward wording out loud there contradicts the headline above it.
@@ -244,15 +176,15 @@ test('describeApplyFailure: a revert reads `already-applied` backwards (#306)', 
 
 // --- the exits' own failures ---------------------------------------------
 
-test('absorbedExitFailure: silence when neither exit has failed (#306)', () => {
-	assert.strictEqual(absorbedExitFailure().message, '');
-	assert.strictEqual(absorbedExitFailure({ patchSaveError: '', discardError: '' }).message, '');
+test('layerExitFailure: silence when neither exit has failed (#306)', () => {
+	assert.strictEqual(layerExitFailure().message, '');
+	assert.strictEqual(layerExitFailure({ patchSaveError: '', discardError: '' }).message, '');
 });
 
-test('absorbedExitFailure: the save is the failure that must not be missed (#306)', () => {
-	const both = absorbedExitFailure({ patchSaveError: 'EACCES', discardError: 'could not reset' });
+test('layerExitFailure: the save is the failure that must not be missed (#306)', () => {
+	const both = layerExitFailure({ patchSaveError: 'EACCES', discardError: 'could not reset' });
 	assert.ok(both.message.includes('EACCES'));
 	assert.ok(!both.message.includes('could not reset'));
 
-	assert.strictEqual(absorbedExitFailure({ discardError: 'could not reset' }).message, 'could not reset');
+	assert.strictEqual(layerExitFailure({ discardError: 'could not reset' }).message, 'could not reset');
 });
