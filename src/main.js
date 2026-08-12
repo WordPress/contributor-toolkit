@@ -31,6 +31,7 @@ const { normalizeEol } = require('./git-update.cjs');
 const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
 const { applyPatchToDir } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
+const { BASE_STATUS, baseIsApproximate, baseUnreadableMessage } = require('./renderer/ticket-base.cjs');
 const { fetchLinkedPrs, fetchPrDiff } = require('./github-prs');
 const { getClientId: getGithubClientId, requestDeviceCode, pollForToken, fetchViewer } = require('./github-auth.cjs');
 const { openPullRequest, buildPullRequestBody, testMode: githubTestMode } = require('./github-pr.cjs');
@@ -579,9 +580,17 @@ async function collectPullRequestFiles(dir, baseOid = null) {
     return { baseOid: base, files: entries };
 }
 
+// A base the app could not read is a patch it cannot take (#308). Every
+// generator below refuses instead of falling back, because the fallback is
+// HEAD — and HEAD on a resumed ticket is the contributor's own parked work, so
+// the "patch" would come back empty and look like there was nothing to submit.
+const NO_BASE_PATCH_ERROR = baseUnreadableMessage('no patch was created');
+
 ipcMain.handle('git:get-patch', async (_e, sitePath) => {
     try {
-        const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
+        const base = await patchBase(sitePath);
+        if (base.status === BASE_STATUS.UNREADABLE) return { ok: false, error: NO_BASE_PATCH_ERROR };
+        const patch = await createMinimalPatchForDir(sitePath, base.baseOid);
         return { ok: true, patch };
     } catch (e) {
         return { ok: false, error: String(e) };
@@ -589,14 +598,20 @@ ipcMain.handle('git:get-patch', async (_e, sitePath) => {
 });
 
 ipcMain.handle('git:create-patch', async (_e, sitePath) => {
-    try {
-        const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
+    const showPatchWindow = (text) => {
         const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
-        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml(patch)));
+        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml(text)));
+    };
+    try {
+        const base = await patchBase(sitePath);
+        if (base.status === BASE_STATUS.UNREADABLE) {
+            showPatchWindow(NO_BASE_PATCH_ERROR);
+            return { ok: false, error: NO_BASE_PATCH_ERROR };
+        }
+        showPatchWindow(await createMinimalPatchForDir(sitePath, base.baseOid));
         return { ok: true };
     } catch (e) {
-        const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
-        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml('Failed to generate diff: ' + String(e))));
+        showPatchWindow('Failed to generate diff: ' + String(e));
         return { ok: false, error: String(e) };
     }
 });
@@ -612,8 +627,9 @@ ipcMain.handle('git:create-patch', async (_e, sitePath) => {
 ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
     try {
         const handoff = Boolean(options && options.handoff);
-        const baseOid = await patchBaseOid(sitePath);
-        const patch = await createMinimalPatchForDir(sitePath, baseOid);
+        const base = await patchBase(sitePath);
+        if (base.status === BASE_STATUS.UNREADABLE) return { ok: false, error: NO_BASE_PATCH_ERROR };
+        const patch = await createMinimalPatchForDir(sitePath, base.baseOid);
 
         // The header describes what was diffed, so it is read from the same
         // recorded state the status handler reports, not asked of the caller:
@@ -635,7 +651,7 @@ ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
                 // forward since (#108). Reading the date off that commit rather
                 // than the site record keeps the two halves of the line
                 // describing the same commit.
-                ...(await baseProvenance(sitePath, baseOid, meta)),
+                ...(await baseProvenance(sitePath, base, meta)),
                 generatedAt: new Date().toISOString()
             });
             name = handoffFilename({ handle, ticketId: meta.tracTicket });
@@ -779,7 +795,14 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
 
     let collected;
     try {
-        collected = await collectPullRequestFiles(sitePath, await patchBaseOid(sitePath));
+        // The base is the pull request's parent commit, so an unreadable one
+        // cannot be papered over with HEAD: that would open a pull request
+        // against the contributor's own parked work (#308).
+        const base = await patchBase(sitePath);
+        if (base.status === BASE_STATUS.UNREADABLE) {
+            return { ok: false, reason: 'error', error: baseUnreadableMessage('no pull request was opened'), stage: 'collect' };
+        }
+        collected = await collectPullRequestFiles(sitePath, base.baseOid);
     } catch (e) {
         return { ok: false, reason: 'error', error: String(e), stage: 'collect' };
     }
@@ -866,9 +889,10 @@ async function migrateSiteToBranches(sitePath) {
         const existing = await listTicketBranches(sitePath);
         // A branch that already exists was not created by this app, so its fork
         // point is not on record and cannot be recovered on a depth-1 clone.
-        // Left null deliberately: patchBaseOid has one documented fallback for
-        // exactly this, and guessing here would put a second, wrong one in the
-        // codebase. (`trunkOid` is the *current* tip, not the fork point.)
+        // Left null deliberately: `patchBase` answers `unrecorded` for exactly
+        // this and hedges every surface that shows it, where guessing here
+        // would put a second, silent guess in the codebase. (`trunkOid` is the
+        // *current* tip, not the fork point.)
         const baseOid = existing.includes(ref)
             ? null
             : (await startTicketBranch(sitePath, m.tracTicket)).baseOid;
@@ -1059,30 +1083,46 @@ async function mergeBranchMeta(sitePath, ref, patch) {
 }
 
 /**
- * The diff base for whatever is checked out: a ticket branch's recorded branch
- * point, or null on trunk — where the patch generator falls back to HEAD, which
- * is what it has always diffed against.
+ * The diff base for whatever is checked out, and how well the app knows it.
+ *
+ * Four answers, not two (#308): `trunk` has no branch point and the callers
+ * fall back to HEAD as they always have; `recorded` is the branch point the app
+ * wrote down when it created the branch; `unrecorded` is a ticket branch with
+ * none, measured against today's trunk because there is nothing better and
+ * qualified as approximate wherever it is shown; `unreadable` is a read that
+ * failed, which is emphatically not "this site is on trunk" — resolving it to
+ * that sends every measurement back to HEAD through the failure path.
  *
  * @param {string} sitePath
+ * @return {Promise<{status: string, baseOid: ?string}>}
  */
-async function patchBaseOid(sitePath) {
+async function patchBase(sitePath) {
     try {
         // What is checked out decides this, so ask the worktree before the
         // registry: a site on trunk — every site before #108, and every site
         // whose owner never linked a ticket — answers without a store read at
         // all, and takes exactly the path it always took.
-        let ref = null;
-        try { ref = await currentBranchName(sitePath); } catch {}
-        if (!ref || ref === TRUNK) return null;
+        //
+        // A *null* branch (a detached HEAD, an empty repository) is trunk's
+        // answer and always was. A *throw* is not: that is the read failing,
+        // and it falls through to the catch below.
+        const ref = await currentBranchName(sitePath);
+        if (!ref || ref === TRUNK) return { status: BASE_STATUS.TRUNK, baseOid: null };
 
         const recorded = ((await readSiteMeta(sitePath)).branches || {})[ref];
-        if (recorded && recorded.baseOid) return recorded.baseOid;
-        // A ticket branch with no recorded base (registry edited by hand, or a
-        // branch the user made themselves). The live trunk ref is the closest
-        // honest answer available.
-        return await git.resolveRef({ fs, dir: sitePath, ref: 'refs/heads/trunk' });
+        if (recorded && recorded.baseOid) return { status: BASE_STATUS.RECORDED, baseOid: recorded.baseOid };
+        // A ticket branch with no recorded base (registry edited by hand, a
+        // site adopted from disk, a branch the contributor made themselves).
+        // The live trunk ref is the closest thing available — but it is where
+        // trunk is *now*, which an update has very likely moved past the point
+        // the branch was born at, so the status says so and every surface that
+        // shows this answer hedges it.
+        return {
+            status: BASE_STATUS.UNRECORDED,
+            baseOid: await git.resolveRef({ fs, dir: sitePath, ref: 'refs/heads/trunk' })
+        };
     } catch {
-        return null;
+        return { status: BASE_STATUS.UNREADABLE, baseOid: null };
     }
 }
 
@@ -1097,20 +1137,27 @@ async function patchBaseOid(sitePath) {
  * dropped rather than guessed: a header with no date is honest, one that dates a
  * commit it is not describing is not.
  *
- * @param {string}  dir     Site working directory.
- * @param {?string} baseOid Base the patch was diffed against, or null on trunk.
- * @param {Object}  meta    The site's stored metadata.
- * @return {Promise<{trunkOid: ?string, trunkDate: ?string}>} Header fields.
+ * A branch with no recorded base is the same argument one step further (#308):
+ * today's trunk is what the patch was diffed against, so it is what the header
+ * names, but it is flagged approximate — a mentor reading "Base: trunk @ ..."
+ * as fact would rebase against a commit this ticket may never have seen.
+ *
+ * @param {string} dir  Site working directory.
+ * @param {Object} base A `patchBase` result.
+ * @param {Object} meta The site's stored metadata.
+ * @return {Promise<{trunkOid: ?string, trunkDate: ?string, baseApproximate: boolean}>} Header fields.
  */
-async function baseProvenance(dir, baseOid, meta) {
+async function baseProvenance(dir, base, meta) {
+    const baseApproximate = baseIsApproximate(base.status);
+    const { baseOid } = base;
     if (!baseOid || baseOid === meta.trunkOid) {
-        return { trunkOid: meta.trunkOid, trunkDate: meta.trunkDate };
+        return { trunkOid: meta.trunkOid, trunkDate: meta.trunkDate, baseApproximate };
     }
     try {
         const { commit } = await git.readCommit({ fs, dir, oid: baseOid });
-        return { trunkOid: baseOid, trunkDate: new Date(commit.committer.timestamp * 1000).toISOString() };
+        return { trunkOid: baseOid, trunkDate: new Date(commit.committer.timestamp * 1000).toISOString(), baseApproximate };
     } catch {
-        return { trunkOid: baseOid, trunkDate: null };
+        return { trunkOid: baseOid, trunkDate: null, baseApproximate };
     }
 }
 
@@ -1118,18 +1165,30 @@ async function baseProvenance(dir, baseOid, meta) {
  * The files standing between where this ticket started and where it is now —
  * the note's measurement (#239). Same base and same walk as the patch, filtered
  * to the rows the patch would actually speak about, so the note and the modal
- * are two renderings of one answer. On trunk `patchBaseOid` answers null and
- * the walk falls back to HEAD, which is what the note has always read there.
+ * are two renderings of one answer. On trunk `patchBase` answers no oid and the
+ * walk falls back to HEAD, which is what the note has always read there.
+ *
+ * Throws when the base could not be read (#308) rather than measuring against
+ * HEAD: on a resumed ticket HEAD is the contributor's own parked work, so the
+ * fallback answers "nothing here" about the very tree this exists to speak for.
+ * The status rides back with the files so the surfaces that show this answer
+ * can say how exact it is.
  *
  * @param {string} sitePath
- * @return {Promise<Array<string>>} Paths, gitignored ones excluded.
+ * @return {Promise<{baseStatus: string, files: Array<string>}>} Paths, gitignored ones excluded.
  */
 async function collectUnsubmittedFiles(sitePath) {
-    const baseOid = await patchBaseOid(sitePath);
-    const { files } = await collectChangedFiles(sitePath, baseOid);
-    return files
-        .filter((file) => classifyChangedFile(file).kind !== 'unchanged')
-        .map((file) => file.path);
+    const base = await patchBase(sitePath);
+    if (base.status === BASE_STATUS.UNREADABLE) {
+        throw new Error(baseUnreadableMessage('your work could not be measured against it'));
+    }
+    const { files } = await collectChangedFiles(sitePath, base.baseOid);
+    return {
+        baseStatus: base.status,
+        files: files
+            .filter((file) => classifyChangedFile(file).kind !== 'unchanged')
+            .map((file) => file.path)
+    };
 }
 
 // Two questions, deliberately two channels (#239). This one asks "are there
@@ -1155,7 +1214,10 @@ ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
 // switch — which is exactly the work the note exists to speak about.
 ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
     try {
-        const files = await collectUnsubmittedFiles(sitePath);
+        // The reply keeps its shape: the card's note counts files and does not
+        // yet say how exact the measurement is — qualifying it there is a
+        // follow-up, not something to smuggle in on this channel.
+        const { files } = await collectUnsubmittedFiles(sitePath);
         return { ok: true, dirty: files.length > 0, changedCount: files.length, files };
     } catch (e) {
         return { ok: false, error: String(e) };
@@ -1164,22 +1226,34 @@ ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
 
 // "Discard all changes" in the review-and-submit modal: throws away everything
 // the modal shows, which on a ticket branch is measured from the branch point
-// (#108/#239) and so includes the parked WIP commit. Rewinds to `patchBaseOid`
+// (#108/#239) and so includes the parked WIP commit. Rewinds to `patchBase`
 // — the same base the diff was taken against — so the modal ends on "No
 // changes". The branch survives and the ticket stays linked; only its work is
-// gone. On trunk (or a branch with no recorded base) there is nothing past
-// HEAD to rewind, so it falls back to the uncommitted-only reset.
+// gone. On trunk there is nothing past HEAD to rewind, so it falls back to the
+// uncommitted-only reset.
+//
+// A base the app could not read refuses outright (#308). The uncommitted-only
+// reset is not a safe stand-in for it: it looks like a discard, leaves the
+// parked WIP commit untouched, and the modal would come back still listing the
+// work it just promised to throw away.
 ipcMain.handle('git:discard-to-base', async (_e, sitePath) => {
     try {
-        const baseOid = await patchBaseOid(sitePath);
-        if (baseOid) {
-            await discardToBase(sitePath, baseOid);
+        const base = await patchBase(sitePath);
+        if (base.status === BASE_STATUS.UNREADABLE) {
+            return { ok: false, error: baseUnreadableMessage('nothing was discarded') };
+        }
+        if (base.baseOid) {
+            // On an unrecorded base this is today's trunk, which need not be an
+            // ancestor of the branch — `discardToBase` refuses to rewind onto a
+            // base that is not one and clears the uncommitted work only, so the
+            // guess cannot take a commit with it.
+            await discardToBase(sitePath, base.baseOid);
         } else {
             await discardChanges(sitePath);
         }
         await writeWorkMeta(sitePath, { appliedPatch: null });
         let files = null;
-        try { files = await collectUnsubmittedFiles(sitePath); } catch {}
+        try { ({ files } = await collectUnsubmittedFiles(sitePath)); } catch {}
         return files
             ? { ok: true, dirty: files.length > 0, changedCount: files.length }
             : { ok: true };
@@ -1204,7 +1278,7 @@ ipcMain.handle('git:discard-changes', async (_e, sitePath) => {
         // that fails does not turn a discard that succeeded into an error, the
         // reply just says less and the next probe fills it in.
         let files = null;
-        try { files = await collectUnsubmittedFiles(sitePath); } catch {}
+        try { ({ files } = await collectUnsubmittedFiles(sitePath)); } catch {}
         return files
             ? { ok: true, dirty: files.length > 0, changedCount: files.length }
             : { ok: true };
@@ -1447,16 +1521,21 @@ ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
         const parsed = parsePatchFiles(patchText);
         if (!parsed.ok) return { ok: false, error: parsed.error };
         let dirtyPaths;
+        let baseStatus;
         try {
-            dirtyPaths = await collectUnsubmittedFiles(sitePath);
+            ({ files: dirtyPaths, baseStatus } = await collectUnsubmittedFiles(sitePath));
         } catch (e) {
             // Failing open here would promise "no collisions" precisely when the
-            // app could not look — surface the failure instead.
+            // app could not look — surface the failure instead. An unreadable
+            // base arrives here as a throw for exactly that reason (#308).
             logError('git:preview-patch', String(e && e.stack ? e.stack : e));
             return { ok: false, error: 'Could not check your work for conflicts, so the preview was not shown.' };
         }
         const plan = planApply({ files: parsed.files, dirtyPaths });
-        return { ok: true, ...plan, files: parsed.files.map((f) => ({ kind: f.kind, path: f.path })) };
+        // How exact that collision list is rides back with it: on a branch with
+        // no recorded base it was measured against today's trunk, and the panel
+        // says so rather than presenting it in the same voice as an exact one.
+        return { ok: true, ...plan, baseStatus, files: parsed.files.map((f) => ({ kind: f.kind, path: f.path })) };
     } catch (e) {
         return { ok: false, error: String(e) };
     }

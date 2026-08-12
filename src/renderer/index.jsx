@@ -30,6 +30,7 @@ import { pathBasename } from './path-basename.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
+import { describeOwnWorkWarning } from './ticket-base.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
@@ -98,6 +99,15 @@ const UPDATE_STEP_LABELS = {
 const UPDATE_STEP_MARKS = {
   complete: { symbol: '✓', color: '#0f5132' },
   current: { symbol: '›', color: '#0b5d95' }
+};
+// How the preview renders what it has to say about the contributor's own work
+// (#308). `warning` is the amber block that has always been there — a patch is
+// about to land on files someone edited. `note` is the quieter case: nothing
+// collided, but the base it was measured against was approximate, so the
+// silence needs a sentence rather than an alert.
+const OWN_WORK_NOTICE_STYLES = {
+  warning: { role: 'alert', style: { marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' } },
+  note: { role: undefined, style: { marginTop: 10, fontSize: 12, color: '#6c6f72' } }
 };
 // The file manager has a name on the two platforms that have one; everywhere
 // else it is whatever the desktop provides, so it is called what it is.
@@ -2728,6 +2738,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   });
   const applySteps = planApplySteps({ needsInstall: applyNeedsInstall, buildByWatcher: applyBuildByWatcher });
   const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
+  // What the preview says about the contributor's own work, and how confidently
+  // — the preview carries the status of the base it was measured against (#308).
+  const applyOwnWorkNotice = applyPreview ? describeOwnWorkWarning(applyPreview) : null;
 
   // --- Initial setup, as one chain (#246) ---
   // The third chain, and the only one nobody starts: between the clone, the
@@ -4725,9 +4738,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <div style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere', maxHeight: 140, overflowY: 'auto' }}>
                 {applyPreview.paths.map((p) => <div key={p}>{p}</div>)}
               </div>
-              {applyPreview.conflicts.length ? (
-                <div role="alert" style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-                  You have your own edits to {applyPreview.conflicts.join(', ')}. The patch is applied on top of them: it succeeds if the changes do not overlap, and fails without touching anything if they do. Save a patch of your work first if you want a copy.
+              {applyOwnWorkNotice ? (
+                <div role={OWN_WORK_NOTICE_STYLES[applyOwnWorkNotice.level].role} style={OWN_WORK_NOTICE_STYLES[applyOwnWorkNotice.level].style}>
+                  {applyOwnWorkNotice.text}
                 </div>
               ) : null}
               {applyPreview.unsupported.length ? (
