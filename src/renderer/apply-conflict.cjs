@@ -163,10 +163,9 @@ function namePaths(rows) {
  *
  * The app cannot prove the region, but it knows the file: `ownWorkPaths` is the
  * preview's own collision list, the files this ticket has work in measured from
- * its base (#301). A file on that list gets the collision named for what it is
- * and the ways out that are the contributor's own; a file off it keeps the
- * stale-pull-request framing. When both are present the notice says both, since
- * choosing one would be guessing again.
+ * its base (#301). That is evidence the contributor's work may be involved, not
+ * proof it caused the failed region. The safe route is to try the pull request
+ * on a clean ticket before asking its author to update it.
  *
  * @param {Array}    conflicts
  * @param {?string}  prState        'open' | 'merged' | 'closed' | null when unknown.
@@ -218,26 +217,24 @@ function prFraming(conflicts, prState, ownWorkPaths = []) {
 	// a copy and starting clean is a recommended way forward here, not a defeat.
 	// What must never happen is work going quietly; going on purpose, with the
 	// copy already saved, is a good outcome.
-	const YOUR_WORK_WAY_OUT = 'Save a patch of your work first to keep a copy. Then apply this on a ticket that does not have that work, or discard it here once the copy is saved.';
+	const YOUR_WORK_WAY_OUT = 'Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.';
 
-	// Every failing file is one this ticket has work in, so nothing here is the
-	// pull request being behind trunk, and there is no rebase to ask anyone for.
-	// The pull request is still worth opening — reading it is how the
-	// contributor decides whether to start a clean ticket for it — so the button
-	// stays and only the ask goes.
+	// File overlap cannot identify the failing region. Keep the pull request
+	// reachable, but make the rebase advice conditional on it also failing in a
+	// clean ticket.
 	if (!theirs.count) {
 		return {
-			headline: `This pull request does not fit your checkout: ${scale} would need rework. Your own work is in the way, in ${mine.text}.`,
-			advice: `This is your work meeting the pull request, not a pull request that has gone stale, so asking its author for a rebase would not help. ${YOUR_WORK_WAY_OUT}`,
+			headline: `This pull request does not fit your checkout: ${scale} would need rework. Your own work is also in ${mine.text}, so it may be part of why the pull request does not fit.`,
+			advice: YOUR_WORK_WAY_OUT,
 			prButton: 'Open the pull request'
 		};
 	}
 
 	if (mine.count) {
 		return {
-			headline: `This pull request does not fit your checkout: ${scale} would need rework. Your own work is in the way in ${mine.text}. The rest is the pull request being behind trunk: ${theirs.text}.`,
-			advice: `${REBASE_IS_THEIRS} Your own files are yours to sort out. ${YOUR_WORK_WAY_OUT}`,
-			prButton: 'Ask its author for a rebase'
+			headline: `This pull request does not fit your checkout: ${scale} would need rework. Your own work is also in ${mine.text} and may be part of the failure. Other failures are in ${theirs.text}.`,
+			advice: YOUR_WORK_WAY_OUT,
+			prButton: 'Open the pull request'
 		};
 	}
 

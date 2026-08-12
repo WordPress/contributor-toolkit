@@ -357,7 +357,8 @@ test('describeApplyFailure: a pull request already in trunk asks for nothing (is
 // change will not fit is the contributor's own work in the same file, and that
 // button asks a stranger for work that would not help. The app cannot prove
 // which side a single region belongs to — it matches without the PR's base — but
-// it knows which files this ticket has work in, and that is enough.
+// it knows which files this ticket has work in. That is enough to recommend a
+// clean-ticket check, not enough to name which side caused a failed region.
 
 test('describeApplyFailure: a failure in the contributor\'s own file is not blamed on the author (issue #303)', () => {
 	const result = describeApplyFailure({
@@ -366,21 +367,36 @@ test('describeApplyFailure: a failure in the contributor\'s own file is not blam
 		conflicts: [conflict(FOO, 4, [{ index: 0, line: 7, status: 'moved' }])]
 	}, { prUrl: PR_URL, prState: 'open', ownWorkPaths: [FOO] });
 
-	// The culprit is named, and it is not the pull request's age.
-	assert.match(result.headline, /Your own work is in the way/);
+	// The overlap is named without turning file-level evidence into a verdict.
+	assert.match(result.headline, /Your own work is also in/);
+	assert.match(result.headline, /may be part of why/);
 	assert.doesNotMatch(result.headline, /older trunk/);
-	// No rebase to ask for, and no button offering one. The advice says the ask
-	// would not help; what it never does is hand the work to the author.
-	assert.doesNotMatch(result.advice, /author's work/);
 	// The pull request is still reachable — reading it is how the contributor
-	// decides whether to start a clean ticket for it. Only the ask is gone.
+	// decides what to do after the clean-ticket check. The ask is conditional.
 	assert.equal(result.prButton, 'Open the pull request');
 	assert.equal(result.prUrl, PR_URL);
-	// What actually moves it forward: a copy, then a clean ticket or a discard.
+	// What actually moves it forward: a copy, then a clean ticket.
 	assert.match(result.advice, /Save a patch of your work/);
-	assert.match(result.advice, /discard it here/);
+	assert.match(result.advice, /try this pull request on a clean ticket/);
+	assert.match(result.advice, /If it still does not fit/);
 	// The scale still says how much missed — that decision is unchanged.
 	assert.match(result.headline, /1 of its 4 changes, in 1 file/);
+});
+
+// File overlap is evidence that the contributor's work may matter, not proof
+// that it caused the failed region. They may have edited one function while an
+// old pull request fails against another function in the same file.
+test('describeApplyFailure: same-file overlap preserves uncertainty about the failing region (issue #303)', () => {
+	const result = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [conflict(FOO, 4, [{ index: 2, line: 240, status: 'moved' }])]
+	}, { prUrl: PR_URL, prState: 'open', ownWorkPaths: [FOO] });
+
+	assert.match(result.headline, /may be part of why/);
+	assert.match(result.advice, /If it still does not fit/);
+	assert.doesNotMatch(result.advice, /not a pull request that has gone stale/);
+	assert.equal(result.prButton, 'Open the pull request');
 });
 
 test('describeApplyFailure: a failure in files the ticket never touched keeps the stale framing (issue #303)', () => {
@@ -406,14 +422,12 @@ test('describeApplyFailure: a failure in both kinds of file says both (issue #30
 		]
 	}, { prUrl: PR_URL, prState: 'open', ownWorkPaths: [FOO] });
 
-	// Each file is named on the side it belongs to; neither is picked over the
-	// other, because the app has no way to know which one really failed first.
-	assert.match(result.headline, new RegExp(`Your own work is in the way in ${FOO}`));
-	assert.match(result.headline, new RegExp(`the pull request being behind trunk: ${BAR}`));
-	// The rebase ask survives, because there is a file it genuinely applies to.
-	assert.match(result.advice, /author's work/);
+	// The overlap and the other failure are both named without assigning either
+	// failed region to a side the app cannot prove.
+	assert.match(result.headline, new RegExp(`Your own work is also in ${FOO}`));
+	assert.match(result.headline, new RegExp(`Other failures are in ${BAR}`));
 	assert.match(result.advice, /Save a patch of your work/);
-	assert.equal(result.prButton, 'Ask its author for a rebase');
+	assert.equal(result.prButton, 'Open the pull request');
 	assert.equal(result.prUrl, PR_URL);
 });
 
@@ -433,7 +447,7 @@ test('describeApplyFailure: the named files are deduplicated and capped (issue #
 
 	// A concatenated patch failing the same file twice must not name it twice —
 	// nor count it twice in the same sentence that goes on to list it.
-	assert.match(twice.headline, new RegExp(`in ${FOO}\\.$`));
+	assert.match(twice.headline, new RegExp(`in ${FOO}, so it may be part`));
 	assert.match(twice.headline, /in 1 file,/);
 
 	const many = ['a', 'b', 'c', 'd', 'e'].map((n) => `src/wp-includes/${n}.php`);
@@ -461,8 +475,8 @@ test('describeApplyFailure: the mixed framing reads with several files on each s
 		]
 	}, { prUrl: PR_URL, prState: 'open', ownWorkPaths: [FOO] });
 
-	assert.match(result.headline, new RegExp(`the pull request being behind trunk: ${BAR}, ${BAZ}\\.$`));
-	assert.equal(result.prButton, 'Ask its author for a rebase');
+	assert.match(result.headline, new RegExp(`Other failures are in ${BAR}, ${BAZ}\\.$`));
+	assert.equal(result.prButton, 'Open the pull request');
 });
 
 test('describeApplyFailure: own work does not change the closed or landed framing (issue #303)', () => {
