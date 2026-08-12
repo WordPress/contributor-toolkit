@@ -99,6 +99,15 @@ contextBridge.exposeInMainWorld('api', {
 		return () => ipcRenderer.removeListener('ticket:carried-work', h);
 	}
 ,
+	// Where trunk is on the remote (#307), pushed when the probe lands rather
+	// than waited for: site:status answers immediately with whatever was last
+	// known, and this arrives a moment later if it changed anything.
+	subscribeRemoteTrunk: (handler) => {
+		const h = (_e, payload) => handler && handler(payload);
+		ipcRenderer.on('trunk:remote', h);
+		return () => ipcRenderer.removeListener('trunk:remote', h);
+	}
+,
 	subscribeSetupProgress: (handler) => {
 		const h = (_e, payload) => handler && handler(payload);
 		ipcRenderer.on('download:progress', h);

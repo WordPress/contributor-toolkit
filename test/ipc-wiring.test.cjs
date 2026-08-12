@@ -218,6 +218,13 @@ function spy(implementation = () => undefined) {
 	return fn;
 }
 
+// The default `readRemoteTrunkOid`. Rejecting rather than resolving null is on
+// purpose: the probe's failure path is what the app takes offline, so the
+// default stub puts every unrelated test on the honest side of it.
+const NEVER_REACH_THE_NETWORK = async () => {
+	throw new Error('the suite does not talk to the network');
+};
+
 // Returns the recorders plus `invoke`, which calls a handler the way ipcMain
 // would.
 function loadMain({ stubs = {} } = {}) {
@@ -247,7 +254,14 @@ function loadMain({ stubs = {} } = {}) {
 	try {
 		// Inside the hook, deliberately: building the stubs requires the real
 		// modules, and src/logging.js requires `electron`.
-		resolveStubs(stubs, stubbed);
+		//
+		// `./trunk-remote` is stubbed by default and overridable, for the same
+		// reason `electron` is replaced outright: `site:status` starts a remote
+		// refs lookup behind its reply (#307), so every one of the many
+		// `site:status` tests below would otherwise reach github.com — slowly,
+		// flakily, and invisibly, since the call is deliberately not awaited.
+		// A test that wants to exercise the probe passes its own stub.
+		resolveStubs({ './trunk-remote': { readRemoteTrunkOid: NEVER_REACH_THE_NETWORK }, ...stubs }, stubbed);
 		require(MAIN_PATH);
 	} finally {
 		Module._load = originalLoad;
@@ -434,6 +448,145 @@ test('site:status reports the trunk snapshot trunk-update read, not its own gues
 	// Written through to siteMeta so the sidebar can render staleness dots from
 	// siteMeta alone, without per-site git I/O (#94).
 	assert.equal(settings.values.siteMeta['/sites/wp'].trunkOid, 'abc123');
+});
+
+// --- site:status -> src/trunk-remote.js (#307) ---------------------------
+
+// The probe is started behind the reply and never awaited, so the assertion has
+// to wait for the store write rather than for the handler.
+async function waitFor(condition, message) {
+	for (let i = 0; i < 200; i++) {
+		if (condition()) return;
+		await new Promise((resolve) => setTimeout(resolve, 5));
+	}
+	assert.fail(message);
+}
+
+test('site:status asks trunk-remote where trunk is, without making the reply wait for it (issue #307)', async () => {
+	let released;
+	const inFlight = new Promise((resolve) => { released = resolve; });
+	const readRemoteTrunkOid = spy(async () => {
+		await inFlight;
+		return 'remote-oid';
+	});
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'local-oid', trunkDate: '2026-01-01T00:00:00Z' }) },
+			'./trunk-remote': { readRemoteTrunkOid }
+		}
+	});
+
+	// The probe has not answered yet — and must not be able to hold this up,
+	// because opening a site waits on this handler.
+	const event = createIpcEvent();
+	const status = await main.invokeWith('site:status', event, '/sites/wp');
+	assert.equal(status.remoteTrunkOid, null, 'the reply must not wait on the probe');
+	assert.equal(status.trunkOid, 'local-oid');
+	assert.equal(readRemoteTrunkOid.calls.length, 1, 'the handler never reached trunk-remote');
+	assert.equal(readRemoteTrunkOid.calls[0][0].url, 'https://github.com/WordPress/wordpress-develop.git');
+
+	released();
+	await waitFor(
+		() => settings.values.siteMeta['/sites/wp'].remoteTrunkOid === 'remote-oid',
+		'the probe answer was never written to the site record'
+	);
+
+	// And pushed. site:status is read on mount and after long operations, never
+	// on a timer, so without this send the answer would sit in the store until
+	// the next launch and the signal would always be a session late.
+	await waitFor(() => event.sent.length > 0, 'the probe answer was never sent to the renderer');
+	assert.deepEqual(event.sent[0], {
+		channel: 'trunk:remote',
+		payload: { sitePath: '/sites/wp', remoteTrunkOid: 'remote-oid' }
+	});
+
+	// A later status read agrees with what was pushed.
+	const next = await main.invoke('site:status', '/sites/wp');
+	assert.equal(next.remoteTrunkOid, 'remote-oid');
+});
+
+test('a remote that answers with no trunk clears the oid rather than keeping the old one (issue #307)', async () => {
+	const readRemoteTrunkOid = spy(async () => null);
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { remoteTrunkOid: 'oid-from-an-earlier-probe' } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'local-oid', trunkDate: '2026-01-01T00:00:00Z' }) },
+			'./trunk-remote': { readRemoteTrunkOid }
+		}
+	});
+
+	await main.invoke('site:status', '/sites/wp');
+
+	// Keeping the stale oid would leave the site comparing against a commit
+	// nothing will ever match, reporting itself behind for good. This is the one
+	// case that must not be treated like an unreachable remote.
+	await waitFor(
+		() => settings.values.siteMeta['/sites/wp'].remoteTrunkOid === null,
+		'a null answer left the previous oid in place'
+	);
+});
+
+test('a probe that fails is silent, and site:status still answers from the calendar (issue #307)', async () => {
+	const logError = spy();
+	const readRemoteTrunkOid = spy(async () => { throw new Error('getaddrinfo ENOTFOUND github.com'); });
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'./logging': { ...silentLogging()['./logging'], logError },
+			...settings.stubs,
+			'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'local-oid', trunkDate: '2026-01-01T00:00:00Z' }) },
+			'./trunk-remote': { readRemoteTrunkOid }
+		}
+	});
+
+	// Offline is a normal state, not a failure to report: the handler answers as
+	// it always did, and the age fields the calendar fallback reads are intact.
+	const status = await main.invoke('site:status', '/sites/wp');
+	assert.equal(status.remoteTrunkOid, null);
+	assert.equal(status.trunkDate, '2026-01-01T00:00:00Z');
+
+	await waitFor(
+		() => logError.calls.length > 0,
+		'the failure was swallowed without even reaching the app log'
+	);
+	assert.equal(logError.calls[0][0], 'trunk-remote');
+	// Never a stored answer from a failed probe — a wrong oid would report a
+	// site as up to date forever.
+	assert.equal(settings.values.siteMeta['/sites/wp'].remoteTrunkOid, undefined);
+});
+
+test('the probe is throttled, not run on every site:status (issue #307)', async () => {
+	const readRemoteTrunkOid = spy(async () => 'remote-oid');
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'local-oid', trunkDate: '2026-01-01T00:00:00Z' }) },
+			'./trunk-remote': { readRemoteTrunkOid }
+		}
+	});
+
+	await main.invoke('site:status', '/sites/wp');
+	await waitFor(
+		() => Boolean(settings.values.siteMeta['/sites/wp'].remoteTrunkOid),
+		'the first probe never completed'
+	);
+
+	// site:status is read on mount and again after every install, build, update,
+	// apply and ticket switch. Only the real throttle, read from the stamp the
+	// probe wrote, keeps each of those from being a request to github.com.
+	for (let i = 0; i < 5; i++) await main.invoke('site:status', '/sites/wp');
+	assert.equal(readRemoteTrunkOid.calls.length, 1, 'the probe ran again inside its interval');
 });
 
 // --- git:* -> src/trunk-update.js ----------------------------------------

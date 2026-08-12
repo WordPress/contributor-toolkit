@@ -31,7 +31,7 @@ import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
 import { describeAppliedLayer, describePreviewNotice, absorbedExitFailure } from './applied-layer.cjs';
-import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
+import { trunkAgeInfo, trunkUpdateAdvice, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
@@ -784,13 +784,17 @@ function App() {
             // Staleness surfaces in the sidebar before the site is even
             // opened (#94): amber = old trunk snapshot, red = an update that
             // moved trunk but never finished install/build.
-            const trunkAge = trunkAgeInfo({ trunkDate: meta.trunkDate });
+            const trunkAge = trunkAgeInfo({ trunkDate: meta.trunkDate, trunkOid: meta.trunkOid, remoteTrunkOid: meta.remoteTrunkOid });
+            // The dot is shown whenever trunk has moved on, including when the
+            // site has work that updating would disturb: the advice below it is
+            // what softens, never the fact.
+            const trunkAdvice = trunkUpdateAdvice({ trunkAge });
             let staleDotColor = null;
             if (meta.updateIncomplete) staleDotColor = '#d63638';
             else if (trunkAge.stale) staleDotColor = '#dba617';
             const staleDotTitle = meta.updateIncomplete
               ? 'Update incomplete — code is new, built assets are old'
-              : `WordPress code is ${trunkAge.ageDays} days old — update to latest trunk`;
+              : trunkAdvice.dotTitle;
             const staleDot = staleDotColor ? (
               <span
                 title={staleDotTitle}
@@ -1304,6 +1308,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [fetchingAttachment, setFetchingAttachment] = useState(null);
   // Trunk update path (#94)
   const [trunkDate, setTrunkDate] = useState(null);
+  // The pair the staleness signal is actually read from (#307): where this
+  // site's trunk is, and where the remote's was when it was last asked.
+  const [trunkOid, setTrunkOid] = useState(null);
+  const [remoteTrunkOid, setRemoteTrunkOid] = useState(null);
   const [updateIncomplete, setUpdateIncomplete] = useState(false);
   const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
   // Initial setup chain (#246): install then build, started by the clone
@@ -1626,14 +1634,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setHasBuilt(Boolean(s?.hasBuilt));
       setSkipInit(Boolean(s?.skipInitWizard));
       setTrunkDate(s?.trunkDate || null);
+      setTrunkOid(s?.trunkOid || null);
+      setRemoteTrunkOid(s?.remoteTrunkOid || null);
       setUpdateIncomplete(Boolean(s?.updateIncomplete));
       setTracTicket(s?.tracTicket || null);
       setAppliedPatch(s?.appliedPatch || null);
       if (metaPatchRef.current) {
         // A null trunkDate here means the git read failed (e.g. clone still
         // running) — keep whatever the sidebar already shows in that case.
-        const patch = { updateIncomplete: Boolean(s?.updateIncomplete), tracTicket: s?.tracTicket || null };
+        const patch = { updateIncomplete: Boolean(s?.updateIncomplete), tracTicket: s?.tracTicket || null, remoteTrunkOid: s?.remoteTrunkOid || null };
         if (s?.trunkDate) patch.trunkDate = s.trunkDate;
+        if (s?.trunkOid) patch.trunkOid = s.trunkOid;
         metaPatchRef.current(sitePath, patch);
       }
       // Returned as well as stored: the setup chain (#246) re-probes when the
@@ -1645,6 +1656,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     return null;
   }, [sitePath]);
   useEffect(()=>{ loadStatus(); }, [loadStatus]);
+
+  // The remote probe (#307) answers after site:status has already replied — it
+  // is started behind that reply so opening a site never waits on the network.
+  // Without this subscription the answer would only be read on the next launch,
+  // because site:status is called on mount and after long operations, not on a
+  // timer. Two consumers: this card, and the sidebar dot through the meta patch.
+  useEffect(() => {
+    const unsub = window.api.subscribeRemoteTrunk((p) => {
+      if (!p || p.sitePath !== sitePath) return;
+      setRemoteTrunkOid(p.remoteTrunkOid || null);
+      if (metaPatchRef.current) metaPatchRef.current(sitePath, { remoteTrunkOid: p.remoteTrunkOid || null });
+    });
+    return () => { if (unsub) unsub(); };
+  }, [sitePath]);
 
   // Deliberately not part of loadStatus: that one is called after every long
   // operation, and the branch list only changes when a ticket is linked,
@@ -2665,7 +2690,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   );
 
   // --- Update to latest trunk (#94) ---
-  const age = trunkAgeInfo({ trunkDate });
+  const age = trunkAgeInfo({ trunkDate, trunkOid, remoteTrunkOid });
+  // Every sentence the contributor reads about staleness, and whether the app
+  // pushes at all — it stays quiet when updating would cost them something.
+  const trunkAdvice = trunkUpdateAdvice({
+    trunkAge: age,
+    appliedPatch: Boolean(appliedPatch),
+    ticketLinked: Boolean(tracTicket)
+  });
   const isUpdating = updateState !== 'idle';
   // Where the note goes moves with the ticket: a change that belongs to
   // #12345 is news for the ticket card, one that belongs to nothing is news
@@ -4047,7 +4079,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     applyPreview: Boolean(applyPreview),
     updateIncomplete,
     isUpdating,
-    stale: age.stale,
+    stale: trunkAdvice.recommendUpdate,
     running,
     hasChanges: Boolean(worktreeDirty && worktreeDirty.dirty),
     ticketLinked: Boolean(tracTicket)
@@ -4100,7 +4132,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 {age.stale ? (
                   <span
                     aria-hidden="true"
-                    title={`Trunk snapshot is ${age.ageDays} days old`}
+                    title={trunkAdvice.dotTitle}
                     style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#dba617' }}
                   />
                 ) : null}
@@ -4221,17 +4253,29 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           >Retry install &amp; build</Button>
         </div>
       ) : null}
-      {age.stale && !updateIncomplete && !isUpdating ? (
+      {trunkAdvice.recommendUpdate && !updateIncomplete && !isUpdating ? (
         <div {...cueProps('update-trunk')} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '14px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
           <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <strong style={{ color: '#5c4400' }}>This site&apos;s WordPress code is {age.ageDays} days old</strong>
-            <span>Patches you create now may not apply on Trac. Updating takes a few minutes.</span>
+            <strong style={{ color: '#5c4400' }}>{trunkAdvice.headline}</strong>
+            <span>{trunkAdvice.detail} Updating takes a few minutes.</span>
           </div>
           <Button
             variant="secondary"
             onClick={startTrunkUpdate}
             disabled={installing || building}
           >Update to latest trunk</Button>
+        </div>
+      ) : null}
+      {trunkAdvice.atRisk && !updateIncomplete && !isUpdating ? (
+        /* The same fact, without the push. Updating resets the working tree, so
+           urging it at someone holding an applied patch or unsaved edits would
+           be nagging them toward losing it — but hiding that trunk has moved
+           would leave them to find out from a patch that will not apply. So it
+           is stated, in the panel's own neutral voice, with no button: the
+           control is still in the header menu when they want it. */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 16px', background: '#f6f7f7', border: '1px solid #dcdcde', borderRadius: 8, fontSize: 13, color: '#3c434a' }}>
+          <strong style={{ color: '#1d2327' }}>{trunkAdvice.headline}</strong>
+          <span>{trunkAdvice.detail}</span>
         </div>
       ) : null}
       {isUpdating ? (
@@ -4697,6 +4741,22 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 app asks before moving or discarding anything, so this only
                 has to be true, not load-bearing. Said without asking the
                 worktree, so it costs nothing. */}
+            {/* The one moment the staleness signal is worth interrupting for
+                (#307): a ticket linked onto trunk that has already moved starts
+                behind, and every patch written on it inherits that. Updating
+                afterwards would not move the ticket — that is #305's action —
+                so this is said here or not at all. */}
+            {trunkAdvice.preLinkNote ? (
+              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 12, color: '#6e5406' }}>
+                <span style={{ flex: '1 1 240px' }}>{trunkAdvice.preLinkNote}</span>
+                <Button
+                  variant="secondary"
+                  isSmall
+                  onClick={startTrunkUpdate}
+                  disabled={installing || building || ticketActionsBlocked}
+                >Update to latest trunk</Button>
+              </div>
+            ) : null}
             <div style={{ marginTop: 6, fontSize: 12, color: '#6c6f72' }}>
               If you have edited anything already, you will be asked what should happen to those edits.
             </div>
@@ -5169,7 +5229,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
             {!patchLoading && age.stale && (
               <div style={{ padding:'12px 16px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:13, lineHeight:1.5, color:'#6e5406' }}>
-                This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
+                {trunkAdvice.headline} — this patch may not apply on Trac. Consider updating to the latest trunk first.
               </div>
             )}
             {!patchLoading && !patchHasChanges && (

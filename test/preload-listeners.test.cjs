@@ -466,7 +466,11 @@ const SUBSCRIPTIONS = [
 	{ name: 'subscribeSwitchProgress', channel: 'switch:progress' },
 	{ name: 'subscribeCarriedWork', channel: 'ticket:carried-work' },
 	{ name: 'subscribeSetupProgress', channel: 'download:progress' },
-	{ name: 'subscribeSetupStatus', channel: 'download:status' }
+	{ name: 'subscribeSetupStatus', channel: 'download:status' },
+	// The remote-trunk probe's answer (#307), and the first channel where every
+	// mounted SiteRow is a live subscriber at once — which is precisely the leak
+	// shape described above, so it belongs in this list rather than beside it.
+	{ name: 'subscribeRemoteTrunk', channel: 'trunk:remote' }
 ];
 
 for (const sub of SUBSCRIPTIONS) {

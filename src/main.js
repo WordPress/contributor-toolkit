@@ -29,6 +29,7 @@ const { buildMenuTemplate } = require('./menu');
 const { killChildTree } = require('./kill-tree');
 const { normalizeEol } = require('./git-update.cjs');
 const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
+const { remoteProbeDue, readRemoteTrunkOid } = require('./trunk-remote');
 const { applyPatchToDir, diagnoseRemoval } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
 const { BASE_STATUS, baseIsApproximate, baseUnreadableMessage } = require('./renderer/ticket-base.cjs');
@@ -66,6 +67,11 @@ const SWITCH_PROGRESS_CHANNEL = 'switch:progress';
 // step of an operation, and describing it as progress would have the panel say
 // "Saving your work…" about trunk — which is the one thing this refuses to do.
 const CARRIED_WORK_CHANNEL = 'ticket:carried-work';
+// The probe's answer, pushed when it lands (#307). site:status is not polled —
+// it is read on mount and after the long operations — so without this the oid
+// would sit in the site record until the next launch and the signal would
+// always be a session late.
+const REMOTE_TRUNK_CHANNEL = 'trunk:remote';
 const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
@@ -846,6 +852,61 @@ async function mergeSiteMeta(sitePath, patch) {
     s.set('siteMeta', meta);
 }
 
+/**
+ * Refresh this site's record of where trunk is on the remote (#307).
+ *
+ * Started, never awaited: `site:status` is what a site being opened waits on,
+ * so a network round trip inside it would make opening a site depend on the
+ * network — the one thing this must not cost. The answer is written to the site
+ * record *and* pushed on REMOTE_TRUNK_CHANNEL, because `site:status` is not on
+ * a timer: it is read on mount and after the long operations, so a stored-only
+ * answer would first be read on the next launch.
+ *
+ * The attempt is stamped *before* it runs, which does two jobs at once: a
+ * `site:status` a moment later (mount, then an install finishing) sees a fresh
+ * stamp and does not launch a second probe, and a failure backs off for the
+ * whole interval instead of retrying on every call. Offline is not an error
+ * condition to retry out of — it is a normal state for this app's users, and
+ * the calendar fallback already covers it.
+ *
+ * The failure is logged to the app log and nowhere else, deliberately. The "no
+ * silent catch" rule exists so a contributor is never left with a button that
+ * did nothing; nobody pressed anything here, and streaming "could not reach
+ * github.com" into the terminal of an offline contributor every hour would be
+ * noise about a thing that is working as designed.
+ *
+ * @param {string}  sitePath
+ * @param {?Object} sender   The renderer to push the answer to, when it lands.
+ * @return {Promise<void>}
+ */
+async function refreshRemoteTrunk(sitePath, sender) {
+    // The probe holds this path across a network wait the site can be deleted
+    // during, and mergeSiteMeta creates the key it writes to. Without this the
+    // answer would resurrect the record `sites:delete` just removed, leaving a
+    // phantom entry for a directory that is gone — and a site later created at
+    // the same path would adopt its oid and skip its first probe.
+    const stillRegistered = async () => {
+        const store = await getStore();
+        return (store.get('sites') || []).includes(sitePath);
+    };
+    try {
+        if (!await stillRegistered()) return;
+        await mergeSiteMeta(sitePath, { remoteTrunkCheckedAt: new Date().toISOString() });
+        // `null` is stored, not skipped: an answer of "this remote has no trunk"
+        // has to be able to clear an oid an earlier probe stored, or a site
+        // would compare against a commit nothing will ever match and report
+        // itself behind for good.
+        const remoteTrunkOid = await readRemoteTrunkOid({ url: WORDPRESS_GIT_URL });
+        if (!await stillRegistered()) return;
+        await mergeSiteMeta(sitePath, { remoteTrunkOid });
+        try {
+            if (sender && !sender.isDestroyed()) sender.send(REMOTE_TRUNK_CHANNEL, { sitePath, remoteTrunkOid });
+        } catch {}
+    } catch (e) {
+        logError('trunk-remote', `could not read trunk from the remote: ${String(e && e.message ? e.message : e)}`);
+    }
+}
+
 // --- Ticket branches (#108) --- git mechanics live in src/ticket-branches.js;
 // what follows is the electron-store half: which branch is active and what
 // context each one carries.
@@ -1341,7 +1402,13 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             // the dirty-tree modal always discards and then updates.)
             await mergeSiteMeta(sitePath, {
                 trunkOid: result.upToDate ? result.oldOid : result.newOid,
-                trunkDate: result.trunkDate
+                trunkDate: result.trunkDate,
+                // The fetch just asked the remote where trunk is, which is the
+                // same question the background probe asks (#307) — recording it
+                // here means the staleness signal clears the moment the update
+                // finishes, instead of an hour later when the probe next runs.
+                remoteTrunkOid: result.newOid,
+                remoteTrunkCheckedAt: new Date().toISOString()
             });
             // HEAD has moved but install/build have not run yet: persist the
             // incomplete flag now so the state survives a crash or quit
@@ -1719,7 +1786,7 @@ ipcMain.handle('sites:getAll', async () => {
 	return { sites: s.get('sites'), siteMeta: s.get('siteMeta') };
 });
 
-ipcMain.handle('site:status', async (_e, sitePath) => {
+ipcMain.handle('site:status', async (event, sitePath) => {
 	try {
 		const nmDir = path.join(sitePath, 'node_modules');
 		const hasNodeModules = fs.existsSync(nmDir) && (() => { try { return fs.readdirSync(nmDir).length > 0; } catch { return false; } })();
@@ -1744,6 +1811,16 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 				await mergeSiteMeta(sitePath, { trunkOid, trunkDate });
 			}
 		} catch {}
+
+		// Where trunk is on the remote (#307), which is what actually decides
+		// staleness — the snapshot's age is only the offline fallback. The
+		// stored answer is returned as it stands and the refresh runs behind
+		// this reply, so nothing on this path touches the network before
+		// returning. See refreshRemoteTrunk.
+		const remoteTrunkOid = m.remoteTrunkOid || null;
+		if (remoteProbeDue({ checkedAt: m.remoteTrunkCheckedAt })) {
+			void refreshRemoteTrunk(sitePath, event && event.sender);
+		}
 
 		// The applied patch and the incomplete-update flag belong to the ticket
 		// being worked on, not to the site (#108) — otherwise switching tickets
@@ -1791,9 +1868,9 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 			}
 			: null;
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, appliedPatch };
+		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, remoteTrunkOid, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, appliedPatch };
 	} catch {
-		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, appliedPatch: null };
+		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, remoteTrunkOid: null, updateIncomplete: false, tracTicket: null, appliedPatch: null };
 	}
 });
 
