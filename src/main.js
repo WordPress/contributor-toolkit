@@ -203,6 +203,12 @@ const runningScripts = {};
 const cancelledChildren = new WeakSet();
 /** @type {Record<string, string>} */
 const runIdByDirectory = {};
+// The same directory index for installs. The renderer knows a script's runId
+// (`npm:run-script` returns it before the first log line) but never an
+// installId — `runNpmInstall` keeps that correlation id to itself in the
+// preload — so a directory is all a Stop control can offer for an install.
+/** @type {Record<string, string>} */
+const installIdByDirectory = {};
 /** @type {Record<string, { child: import('child_process').ChildProcess, url?: string }>} */
 const playgroundServers = {};
 // The sites being created right now — liveness, not truth, which is why it is
@@ -2261,6 +2267,7 @@ ipcMain.handle('npm:install', async (event, directoryPath) => {
 		retryOnEngineMismatch: true,
 		register: (child) => {
 			runningInstalls[installId] = child;
+			installIdByDirectory[directoryPath] = installId;
 		},
 		onLog: (type, data) => {
 			event.sender.send('npm:install:log', { installId, type, data });
@@ -2280,6 +2287,12 @@ ipcMain.handle('npm:install', async (event, directoryPath) => {
 			} catch {}
 			event.sender.send('npm:install:done', { installId, code });
 			delete runningInstalls[installId];
+			// Guarded on identity: a second install for the same directory has
+			// already claimed the slot, and clearing it blind would leave that
+			// one unkillable.
+			if (installIdByDirectory[directoryPath] === installId) {
+				delete installIdByDirectory[directoryPath];
+			}
 		}
 	});
 
@@ -2328,12 +2341,23 @@ ipcMain.handle('npm:kill', async (_event, { runId, directoryPath }) => {
 		const id = runIdByDirectory[directoryPath];
 		child = runningScripts[id];
 	}
+	// An install is the other thing a directory can be busy with, and until this
+	// fallback existed it was unstoppable: Stop resolved nothing, returned "No
+	// running script", and the install ran to completion regardless. Checked
+	// after the scripts because a runId can only ever mean a script, and the two
+	// never run for the same directory at once.
+	if (!child && directoryPath && installIdByDirectory[directoryPath]) {
+		child = runningInstalls[installIdByDirectory[directoryPath]];
+	}
 	if (!child) return { ok: false, error: 'No running script' };
 	try {
+		// Also what stops `runNpmWithEngineRetry` respawning an install that a
+		// cancel pushed into a non-zero exit — it reads this set to tell a real
+		// engine mismatch from a stop.
 		cancelledChildren.add(child);
 		// A script is a tree — runner -> npm -> shell -> grunt — and child.kill()
 		// signals only the first link, so stopping a build left the rest of it
-		// running (#83, #146).
+		// running (#83, #146). An install is the same shape: runner -> npm.
 		killChildTree(child);
 		// Last resort for a child that ignores SIGTERM. Only the direct child: by
 		// this point the tree has had its chance, and the runner dying takes the
