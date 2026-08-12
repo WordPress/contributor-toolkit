@@ -107,6 +107,22 @@ function noteAfterDiscard(outcome) {
 }
 
 /**
+ * What a completed probe may leave on the card.
+ *
+ * A failed measurement clears the previous answer. Keeping an old count would
+ * present it as current even when the app has just learned that it cannot read
+ * the ticket's base (#308).
+ *
+ * @param {*} _current The note shown while the probe was running.
+ * @param {*} result   A `git:unsubmitted-work` reply.
+ * @return {{dirty: boolean, changedCount: *}|null}
+ */
+function noteAfterProbe(_current, result) {
+	if (!result || !result.ok) return null;
+	return { dirty: Boolean(result.dirty), changedCount: result.changedCount };
+}
+
+/**
  * Whether the modal's discard link is inert: while the diff is loading there
  * is nothing to confirm against, with no changes there is nothing to lose,
  * and mid-discard a second click would race the first.
@@ -133,4 +149,4 @@ function discardBlocked({ isUpdating, installing, building, devServerActive, dis
 	return Boolean(isUpdating || installing || building || devServerActive || discarding);
 }
 
-module.exports = { changesNoteParts, discardOutcome, noteAfterDiscard, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE };
+module.exports = { changesNoteParts, discardOutcome, noteAfterDiscard, noteAfterProbe, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE };

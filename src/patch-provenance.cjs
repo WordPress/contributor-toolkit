@@ -124,16 +124,15 @@ function ticketNumber(ticketId) {
  * recorded.
  *
  * @param {Object}        details
- * @param {string}        [details.handle]          WordPress.org handle, already validated.
- * @param {string}        [details.event]           Where it was written — a WordCamp, a meetup.
+ * @param {string}        [details.handle]      WordPress.org handle, already validated.
+ * @param {string}        [details.event]       Where it was written — a WordCamp, a meetup.
  * @param {number|string} [details.ticketId]
  * @param {string}        [details.trunkOid]
- * @param {string}        [details.trunkDate]       ISO timestamp of the base commit.
- * @param {boolean}       [details.baseApproximate] The branch point was not recorded (#308).
- * @param {string}        [details.generatedAt]     ISO timestamp for "now".
+ * @param {string}        [details.trunkDate]   ISO timestamp of the base commit.
+ * @param {string}        [details.generatedAt] ISO timestamp for "now".
  * @return {string}
  */
-function buildProvenanceHeader({ handle, event, ticketId, trunkOid, trunkDate, baseApproximate, generatedAt } = {}) {
+function buildProvenanceHeader({ handle, event, ticketId, trunkOid, trunkDate, generatedAt } = {}) {
 	const lines = [];
 
 	const contributor = field(handle);
@@ -153,13 +152,7 @@ function buildProvenanceHeader({ handle, event, ticketId, trunkOid, trunkDate, b
 	const based = day(trunkDate);
 	if (oid || based) {
 		const base = [oid ? oid.slice(0, SHORT_OID_LENGTH) : null, based].filter(Boolean).join(', ');
-		// A base the app worked out rather than recorded is still worth naming —
-		// a mentor with no commit at all has nothing to apply this against — but
-		// it is named as the guess it is (#308). Read as fact, it would send
-		// someone rebasing onto a commit this ticket may never have been on.
-		lines.push(baseApproximate
-			? `# Base: trunk @ ${base} (approximate — this ticket's starting point was not recorded)`
-			: `# Base: trunk @ ${base}`);
+		lines.push(`# Base: trunk @ ${base}`);
 	}
 
 	const generated = day(generatedAt);

@@ -30,7 +30,6 @@ import { pathBasename } from './path-basename.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
-import { describeOwnWorkWarning } from './ticket-base.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
@@ -45,7 +44,7 @@ import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { highlightLog } from './log-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
-import { changesNoteParts, discardOutcome, noteAfterDiscard, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
+import { changesNoteParts, discardOutcome, noteAfterDiscard, noteAfterProbe, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { initialConfirmations, confirmationReducer, prConfirmationMessage } from './confirmations.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
@@ -99,15 +98,6 @@ const UPDATE_STEP_LABELS = {
 const UPDATE_STEP_MARKS = {
   complete: { symbol: '✓', color: '#0f5132' },
   current: { symbol: '›', color: '#0b5d95' }
-};
-// How the preview renders what it has to say about the contributor's own work
-// (#308). `warning` is the amber block that has always been there — a patch is
-// about to land on files someone edited. `note` is the quieter case: nothing
-// collided, but the base it was measured against was approximate, so the
-// silence needs a sentence rather than an alert.
-const OWN_WORK_NOTICE_STYLES = {
-  warning: { role: 'alert', style: { marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' } },
-  note: { role: undefined, style: { marginTop: 10, fontSize: 12, color: '#6c6f72' } }
 };
 // The file manager has a name on the two platforms that have one; everywhere
 // else it is whatever the desktop provides, so it is called what it is.
@@ -1666,9 +1656,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // checkout guards (startTrunkUpdate) keep asking the narrow question:
   // parked work survives a force checkout, uncommitted edits do not.
   //
-  // A failed probe keeps the last answer rather than reporting: the note is
-  // advisory, and losing it over a transient git error would read as "your
-  // changes are gone".
+  // A failed probe clears the last answer. Once the app knows it could not
+  // measure this ticket, keeping an earlier count would present stale data as
+  // current (#308).
   //
   // The ref guards two races the probe's cost makes real — it walks the whole
   // checkout, so it can still be in flight when the next focus fires or when
@@ -1703,8 +1693,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         const generation = probe.generation;
         try {
           const res = await window.api.hasUnsubmittedWork(sitePath);
-          if (res && res.ok && probe.generation === generation) {
-            setWorktreeDirty({ dirty: Boolean(res.dirty), changedCount: res.changedCount });
+          if (probe.generation === generation) {
+            setWorktreeDirty((current) => noteAfterProbe(current, res));
           }
         } catch {}
       } while (probe.again);
@@ -2738,9 +2728,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   });
   const applySteps = planApplySteps({ needsInstall: applyNeedsInstall, buildByWatcher: applyBuildByWatcher });
   const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
-  // What the preview says about the contributor's own work, and how confidently
-  // — the preview carries the status of the base it was measured against (#308).
-  const applyOwnWorkNotice = applyPreview ? describeOwnWorkWarning(applyPreview) : null;
 
   // --- Initial setup, as one chain (#246) ---
   // The third chain, and the only one nobody starts: between the clone, the
@@ -4738,9 +4725,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <div style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere', maxHeight: 140, overflowY: 'auto' }}>
                 {applyPreview.paths.map((p) => <div key={p}>{p}</div>)}
               </div>
-              {applyOwnWorkNotice ? (
-                <div role={OWN_WORK_NOTICE_STYLES[applyOwnWorkNotice.level].role} style={OWN_WORK_NOTICE_STYLES[applyOwnWorkNotice.level].style}>
-                  {applyOwnWorkNotice.text}
+              {applyPreview.conflicts.length ? (
+                <div role="alert" style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
+                  You have your own edits to {applyPreview.conflicts.join(', ')}. The patch is applied on top of them: it succeeds if the changes do not overlap, and fails without touching anything if they do. Save a patch of your work first if you want a copy.
                 </div>
               ) : null}
               {applyPreview.unsupported.length ? (
