@@ -3189,7 +3189,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               attachments: patchAttachments
             }),
             prUrl: preview?.prUrl || null,
-            prState: preview?.prState || null
+            prState: preview?.prState || null,
+            // The preview's own collision list: the files this ticket has work
+            // in, measured from its base (#301). Without it an open pull request
+            // is always narrated as stale, so a failure caused by the
+            // contributor's own edits sends them to ask a stranger for a rebase
+            // that would not help (#303).
+            ownWorkPaths: preview?.conflicts || []
           }));
           finishApply();
           return;
