@@ -1,7 +1,7 @@
 {
   "name": "electron-setup-wordpress-core",
   "author": "WordPress.org",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-rc.1",
   "private": true,
   "license": "GPL-2.0-or-later",
   "description": "Electron app to setup WordPress develop structure and run npm install",
