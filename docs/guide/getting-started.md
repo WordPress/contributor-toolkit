@@ -12,11 +12,9 @@ No Git, no Node.js, no npm, no Docker needed. Everything is bundled inside the a
 
 ## Install the app
 
-1. Download the latest packaged build for your platform from the [Releases page](https://github.com/WordPress/contributor-toolkit/releases/latest). Pick the file that matches your OS:
-   - **macOS on Apple Silicon:** the `.dmg` file whose name contains `arm64`. Intel Macs are not currently supported.
-   - **Windows:** the `.exe` installer.
-   - **Linux:** the `.AppImage`; `.deb` and `.snap` packages may also be available.
-2. Open the app.
+<DownloadButton />
+
+Download the latest build for your platform with the button above, then open the app.
 
 ### If macOS blocks the app
 
