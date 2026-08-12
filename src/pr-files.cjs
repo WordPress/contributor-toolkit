@@ -71,16 +71,23 @@ function isProbablyBinary(buf) {
 }
 
 /**
- * The mode git recorded for one path in one commit, read by walking that
- * path's trees rather than the whole commit: a full walk of wordpress-develop
- * is tens of thousands of entries to answer a question about five files.
+ * The tree entry git recorded for one path in one commit — its blob oid and
+ * its mode — read by walking that path's trees rather than the whole commit: a
+ * full walk of wordpress-develop is tens of thousands of entries to answer a
+ * question about five files.
+ *
+ * Null for a path the commit does not have, which is the answer the carry
+ * (#305) reads an addition and a deletion from: the tree, not the bytes, is
+ * what says whether a file was there. `type` rides along so a caller can tell
+ * "not there" from "there, but it is a directory" — two answers a carry has to
+ * act on differently and only one of which is absence.
  *
  * @param {Object} deps     `{ git, fs, dir }`
  * @param {string} oid
  * @param {string} filepath
- * @return {Promise<string|null>}
+ * @return {Promise<{oid: string, mode: string, type: string}|null>}
  */
-async function modeInCommit(deps, oid, filepath) {
+async function entryInCommit(deps, oid, filepath) {
 	const { git, fs, dir } = deps;
 	const { commit } = await git.readCommit({ fs, dir, oid });
 	let treeOid = commit.tree;
@@ -89,10 +96,31 @@ async function modeInCommit(deps, oid, filepath) {
 		const { tree } = await git.readTree({ fs, dir, oid: treeOid });
 		const entry = tree.find((e) => e.path === segments[i]);
 		if (!entry) return null;
-		if (i === segments.length - 1) return entry.mode;
+		if (i === segments.length - 1) return { oid: entry.oid, mode: entry.mode, type: entry.type };
+		// A file where the path expects a directory: the commit does not have
+		// `a/b` when `a` is a blob. Answering null says so; descending would hand
+		// `readTree` a blob oid, and the throw that follows is indistinguishable
+		// from a damaged object store — which the carry (#305) has to treat as a
+		// refusal rather than as absence.
+		if (entry.type !== 'tree') return null;
 		treeOid = entry.oid;
 	}
 	return null;
+}
+
+/**
+ * The mode git recorded for one *file* in one commit. A directory where the
+ * caller asked about a file is not that file, and answering with a tree's mode
+ * would put `040000` on a pull request's blob entry.
+ *
+ * @param {Object} deps     `{ git, fs, dir }`
+ * @param {string} oid
+ * @param {string} filepath
+ * @return {Promise<string|null>}
+ */
+async function modeInCommit(deps, oid, filepath) {
+	const entry = await entryInCommit(deps, oid, filepath);
+	return entry && entry.type === 'blob' ? entry.mode : null;
 }
 
 /**
@@ -177,6 +205,7 @@ module.exports = {
 	GIT_MODE_EXECUTABLE,
 	isProbablyBinary,
 	blobSha,
+	entryInCommit,
 	modeInCommit,
 	fileModeForEntry,
 	buildPullRequestEntries

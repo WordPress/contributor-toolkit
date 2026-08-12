@@ -178,6 +178,11 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	hasUnsubmittedWork: (sitePath) => ipcRenderer.invoke('git:unsubmitted-work', sitePath)
 ,
+	// Whether this ticket is still on the trunk it was born from (#305). Read
+	// only: it moves nothing, and it is cheap unless trunk really has moved past
+	// the ticket's branch point.
+	carryStatus: (sitePath) => ipcRenderer.invoke('git:carry-status', sitePath)
+,
 	discardChanges: (sitePath) => ipcRenderer.invoke('git:discard-changes', sitePath)
 ,
 	discardToBase: (sitePath) => ipcRenderer.invoke('git:discard-to-base', sitePath)

@@ -578,6 +578,91 @@ test('git:unsubmitted-work counts what the patch would speak about (#239, #85)',
 	assert.ok(wide.files.includes('logo.png'), 'a binary change still counts — the patch names it');
 });
 
+// --- git:carry-status — is this ticket still on the trunk it was born on? ---
+//
+// Read-only by construction (#305): the mutating carry is its own change, and
+// what this channel must never do is move a ref or touch a file. Driven against
+// a real repository, because the answer is two commit objects and three tree
+// lookups — a stub would be mocking the thing under test.
+
+/**
+ * Moves `trunk` past the ticket's branch point the way the site update does,
+ * leaving the ticket branch checked out and untouched.
+ *
+ * The timestamp is explicit and in the future: the fixture's base commit is
+ * stamped "now", and a second commit in the same second is the tie the
+ * detection deliberately answers "not behind" to.
+ *
+ * @param {string}   dir
+ * @param {Function} mutate Called with `dir`; makes trunk's own changes.
+ * @return {Promise<string>} The new trunk oid.
+ */
+async function advanceTrunkPast(dir, mutate) {
+	const restore = await git.currentBranch({ fs, dir, fullname: false });
+	const later = Math.floor(Date.now() / 1000) + 3600;
+	const author = { name: 'test', email: 'test@example.com', timestamp: later, timezoneOffset: 0 };
+	await git.checkout({ fs, dir, ref: 'trunk', force: true });
+	await mutate(dir);
+	for (const [filepath, , workdir] of await git.statusMatrix({ fs, dir })) {
+		if (workdir === 0) await git.remove({ fs, dir, filepath });
+		else await git.add({ fs, dir, filepath });
+	}
+	const oid = await git.commit({ fs, dir, message: 'upstream', author, committer: author });
+	await git.checkout({ fs, dir, ref: restore, force: true });
+	return oid;
+}
+
+test('git:carry-status says a ticket is behind and what each file would mean (#305)', async (t) => {
+	const { dir, baseOid, workFile } = await parkedTicketRepo(t);
+	// Both halves of the classification: a file trunk also edits, and a file only
+	// the ticket has. The ticket's own addition lands after the upstream commit,
+	// or the fixture would hand it to trunk as well.
+	await advanceTrunkPast(dir, (d) => fs.writeFileSync(path.join(d, workFile), '<?php // login\n// upstream moved on\n'));
+	fs.writeFileSync(path.join(dir, 'settled.php'), '<?php // only the ticket has this\n');
+	const main = parkedTicketMain(dir, baseOid);
+
+	const res = await main.invoke('git:carry-status', dir);
+	assert.equal(res.ok, true);
+	assert.equal(res.state, 'behind');
+	assert.deepEqual(res.merge, [workFile], 'a file trunk also changed has to be replayed, not overwritten');
+	assert.deepEqual(res.wholesale, ['settled.php']);
+	assert.deepEqual(res.refused, []);
+
+	// The claim the whole feature rests on: asking changed nothing.
+	assert.equal(await git.currentBranch({ fs, dir, fullname: false }), 'ticket/62281');
+	assert.equal(fs.readFileSync(path.join(dir, workFile), 'utf8'), '<?php // login\n// the ticket work\n');
+});
+
+test('git:carry-status says nothing about a ticket on today\'s trunk (#305)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t);
+	const main = parkedTicketMain(dir, baseOid);
+
+	const res = await main.invoke('git:carry-status', dir);
+	assert.equal(res.state, 'current');
+	assert.deepEqual(res.wholesale, [], 'nothing is classified against a trunk that has not moved');
+});
+
+// An unrecorded base is today's trunk standing in for a branch point nobody
+// wrote down (#308). Compared against trunk it answers "current" about every
+// such ticket however far behind it is, so it is reported as the unknown it is.
+test('git:carry-status answers unknown for a base it never recorded (#305, #308)', async (t) => {
+	const { dir } = await parkedTicketRepo(t);
+	await advanceTrunkPast(dir, (d) => fs.writeFileSync(path.join(d, 'upstream.php'), '<?php // new\n'));
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({
+				sites: [dir],
+				siteMeta: { [dir]: { tracTicket: 62281, branches: { 'ticket/62281': { tracTicket: 62281 } } } }
+			}).stubs
+		}
+	});
+
+	const res = await main.invoke('git:carry-status', dir);
+	assert.equal(res.state, 'unknown');
+	assert.equal(res.baseStatus, 'unrecorded');
+});
+
 // What a discard leaves behind rides on its reply: on a ticket branch the
 // parked work survives the reset (destroying a ticket is what deleting its
 // branch is for), so answering "clean" would hide the note over work that is
@@ -3721,6 +3806,7 @@ const WIRED = new Set([
 	'url:open',
 	'git:worktree-dirty',
 	'git:unsubmitted-work',
+	'git:carry-status',
 	'git:discard-changes',
 	'git:discard-to-base',
 	'git:update-trunk',

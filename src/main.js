@@ -52,6 +52,8 @@ const {
 	switchToBranch,
 	deleteTicketBranch
 } = require('./ticket-branches');
+const { CARRY_STATE } = require('./renderer/carry-note.cjs');
+const { carryStatus } = require('./ticket-carry');
 const { createProgressThrottle, describeSwitchProgress } = require('./switch-progress.cjs');
 const { getStore } = require('./settings-store');
 
@@ -1223,6 +1225,82 @@ ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
         return { ok: false, error: String(e) };
     }
 });
+
+/**
+ * The ticket's changed paths in the shape the carry classifier reads them
+ * (#305): the path, whether the app could read it, whether a text diff could
+ * ever express it, and whether the ticket removed it.
+ *
+ * The same walk and the same base as the card's note and the patch modal
+ * (#239), filtered the same way, so all three speak about one set of files.
+ * None of the three flags is dropped. A file the app cannot read and a binary
+ * both sides changed are exactly the paths a carry must refuse over, and losing
+ * either here would turn a refusal into a silent deletion on the new trunk. And
+ * whether a file was removed is a question about the walk's status codes, never
+ * about its bytes (#85, #311) — without it a file both sides deleted is
+ * indistinguishable from one the ticket edited and upstream deleted, which would
+ * refuse the whole carry over two sides that agree.
+ *
+ * @param {string}  sitePath
+ * @param {?string} baseOid
+ * @return {Promise<Array<{path: string, unreadable: boolean, binary: boolean, deleted: boolean}>>}
+ */
+async function collectCarryCandidates(sitePath, baseOid) {
+    const { files } = await collectChangedFiles(sitePath, baseOid);
+    return files
+        .map((file) => ({ file, kind: classifyChangedFile(file).kind }))
+        .filter(({ kind }) => kind !== 'unchanged')
+        .map(({ file, kind }) => ({
+            path: file.path,
+            unreadable: kind === 'unreadable',
+            binary: kind === 'binary',
+            deleted: !file.inWorkdir
+        }));
+}
+
+/**
+ * Whether this ticket is still on the trunk it was born from, and what bringing
+ * it forward would mean file by file (#305).
+ *
+ * Strictly read-only — the mutating half is its own change. On trunk there is no
+ * ticket to be behind; on a base the app never recorded or cannot read there is
+ * no comparison to make, and `unknown` says so rather than guessing, for the
+ * same reason #308 gave.
+ */
+ipcMain.handle('git:carry-status', async (_e, sitePath) => withRegisteredSite(sitePath, async () => {
+    const base = await patchBase(sitePath);
+    // `unrecorded` hands back today's trunk as a stand-in for a branch point it
+    // never wrote down (#308). Comparing that against trunk answers "current"
+    // about every such ticket, however far behind it really is — so it is
+    // reported as the unknown it is instead.
+    // `readTrunkInfo` falls back to HEAD for a repository with no `trunk`
+    // branch, and HEAD on a ticket branch is the contributor's own WIP commit —
+    // newer than the base by construction, so the fallback would report every
+    // such ticket as behind and date the gap from their own work. The ref is
+    // read directly here and its absence is an `unknown`, which is the answer
+    // the app has for "there is nothing to compare against".
+    let trunkOid = null;
+    if (base.status === BASE_STATUS.RECORDED) {
+        try { trunkOid = await git.resolveRef({ fs, dir: sitePath, ref: 'refs/heads/trunk' }); } catch {}
+    }
+    if (base.status !== BASE_STATUS.RECORDED || !trunkOid) {
+        return {
+            ok: true,
+            state: base.status === BASE_STATUS.TRUNK ? CARRY_STATE.CURRENT : CARRY_STATE.UNKNOWN,
+            baseStatus: base.status,
+            wholesale: [],
+            merge: [],
+            settled: [],
+            refused: []
+        };
+    }
+    const status = await carryStatus(sitePath, {
+        baseOid: base.baseOid,
+        trunkOid,
+        loadFiles: () => collectCarryCandidates(sitePath, base.baseOid)
+    });
+    return { ok: true, baseStatus: base.status, ...status };
+}));
 
 // "Discard all changes" in the review-and-submit modal: throws away everything
 // the modal shows, which on a ticket branch is measured from the branch point

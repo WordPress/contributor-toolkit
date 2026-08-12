@@ -31,6 +31,7 @@ import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
 import { describeAppliedLayer, describePreviewNotice, absorbedExitFailure } from './applied-layer.cjs';
+import { describeCarryNote } from './carry-note.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
@@ -1233,6 +1234,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // The unsubmitted-changes note. Null until the first probe answers, so a
   // card never opens on a note that a clean tree then takes away.
   const [worktreeDirty, setWorktreeDirty] = useState(null);
+  // Whether this ticket is still on the trunk it was born from (#305). Null
+  // until the first probe answers, for the same reason the note above is: a
+  // sentence that appears and then withdraws itself reads as a glitch.
+  const [carry, setCarry] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState(null);
   const [handleInput, setHandleInput] = useState('');
@@ -1711,6 +1716,41 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } finally { probe.inFlight = false; }
   }, [sitePath]);
 
+  // The carry probe (#305). Its own call rather than a field on the note's
+  // answer: the two ask different questions of different things — one walks the
+  // worktree, this one reads two commit objects and only walks when trunk has
+  // actually moved past the ticket — and folding them would make every note
+  // refresh pay the wrong half.
+  //
+  // A failed probe leaves the last answer standing. Like the note, this is
+  // advisory: withdrawing it over a transient git error would read as the gap
+  // having closed on its own.
+  //
+  // Guarded exactly like the note's probe beside it, and for the same two
+  // reasons: on a ticket that *is* behind this walks the whole checkout, so
+  // repeated focus events would stack walks; and the answer is a sentence naming
+  // a date, so a probe still in flight for the outgoing ticket must not land on
+  // the incoming one. `generation` is what the branch change bumps to outrank it.
+  const carryProbeRef = useRef({ inFlight: false, generation: 0, again: false });
+  const refreshCarry = useCallback(async () => {
+    const probe = carryProbeRef.current;
+    if (probe.inFlight) {
+      probe.again = true;
+      return;
+    }
+    probe.inFlight = true;
+    try {
+      do {
+        probe.again = false;
+        const generation = probe.generation;
+        try {
+          const res = await window.api.carryStatus(sitePath);
+          if (res && res.ok && probe.generation === generation) setCarry(res);
+        } catch {}
+      } while (probe.again);
+    } finally { probe.inFlight = false; }
+  }, [sitePath]);
+
   // A branch change invalidates the note outright rather than staling it: the
   // count is measured from the ticket's branch point (#239), so the previous
   // ticket's answer is not an old version of this one's, it is about a
@@ -1722,7 +1762,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     dirtyProbeRef.current.generation++;
     setWorktreeDirty(null);
     refreshDirty();
-  }, [refreshDirty]);
+    // The carry answer is per ticket too — a different branch point measured
+    // against the same trunk — so the outgoing ticket's must neither stand while
+    // the incoming one's is worked out nor land on it afterwards.
+    carryProbeRef.current.generation++;
+    setCarry(null);
+    refreshCarry();
+  }, [refreshDirty, refreshCarry]);
 
   // Only the open card probes, and only while it is open: the probe walks the
   // whole checkout, which is too much to pay for every card on the shelf. The
@@ -1730,10 +1776,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // app is the moment the answer can have changed.
   useEffect(() => {
     if (!isActive) return undefined;
-    refreshDirty();
-    window.addEventListener('focus', refreshDirty);
-    return () => window.removeEventListener('focus', refreshDirty);
-  }, [isActive, refreshDirty]);
+    const probe = () => { refreshDirty(); refreshCarry(); };
+    probe();
+    window.addEventListener('focus', probe);
+    return () => window.removeEventListener('focus', probe);
+  }, [isActive, refreshDirty, refreshCarry]);
 
   // Linking and unlinking are the same write (#109): an empty ref clears the
   // association, so Unlink needs no second channel. Resuming a ticket that
@@ -2671,6 +2718,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // #12345 is news for the ticket card, one that belongs to nothing is news
   // for the buttons that would give it somewhere to go.
   const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket });
+  // The date is formatted here and the sentence is built there, the same split
+  // describeAppliedLayer's `when` uses: locale formatting is the component's,
+  // and keeping it out of the module is what lets the copy be asserted.
+  const carryNote = describeCarryNote({
+    state: carry ? carry.state : undefined,
+    since: carry && carry.baseDate ? new Date(carry.baseDate).toLocaleDateString() : ''
+  });
   const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged });
   const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
@@ -2684,6 +2738,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     resumeWatcher();
     loadStatus().catch(() => {});
     refreshDirty();
+    // The update is the one action that opens this gap: it moves trunk and
+    // leaves every ticket branch where it was (#305). Asking again here is what
+    // puts the note on the ticket the contributor is handed back, rather than
+    // the next time the window happens to regain focus.
+    refreshCarry();
   };
 
   // Steps 2 and 3 of the chain: npm install (only when the lockfile moved,
@@ -4532,6 +4591,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <div style={{ marginTop: 8, fontSize: 13, color: '#1d2327' }}>
                 {changesNoteBody}
                 <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>{changesNote.unlinkNote}</div>
+              </div>
+            ) : null}
+            {carryNote ? (
+              <div style={{ marginTop: 8, padding: '8px 10px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, fontSize: 12, color: '#1d2327' }}>
+                {carryNote.text}
               </div>
             ) : null}
 

@@ -37,9 +37,12 @@ function fakeGitWithModes(modes) {
 				const segment = rest.split('/')[0];
 				if (seen.has(segment)) continue;
 				seen.add(segment);
+				// `type` as isomorphic-git reports it: the caller tells a directory
+				// from a file by it, and a fake that omits it would let a tree pass
+				// for a blob here while the real thing does not.
 				tree.push(rest.includes('/')
-					? { path: segment, oid: `${prefix}${segment}`, mode: '040000' }
-					: { path: segment, oid: `blob-${p}`, mode: modes[p] });
+					? { path: segment, oid: `${prefix}${segment}`, mode: '040000', type: 'tree' }
+					: { path: segment, oid: `blob-${p}`, mode: modes[p], type: 'blob' });
 			}
 			return { tree };
 		}
@@ -102,6 +105,19 @@ test('an added file on Windows has no recorded mode and no bit: 100644', async (
 		{ path: 'new-file.php', inHead: false, inWorkdir: true }
 	);
 	assert.strictEqual(mode, GIT_MODE_FILE);
+});
+
+// A directory is not the file that was asked about. Answering with a tree's
+// `040000` would put a directory mode on a pull request's blob entry, and — for
+// the carry (#305) — would read "upstream has a directory here" as "upstream
+// does not have this path", which is the difference between a refusal and
+// writing a file over a tree.
+test('a path that is a directory in the commit has no file mode', async () => {
+	const mode = await fileModeForEntry(
+		deps({ platform: 'win32', git: fakeGitWithModes({ 'tools/build.sh': '100755' }) }),
+		{ path: 'tools', inHead: true, inWorkdir: false }
+	);
+	assert.strictEqual(mode, GIT_MODE_FILE, 'falls through to the default rather than reporting 040000');
 });
 
 // A deletion's mode lookup must never stat the path — the file is gone.
