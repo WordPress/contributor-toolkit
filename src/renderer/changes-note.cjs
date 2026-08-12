@@ -84,6 +84,20 @@ function discardOutcome(res) {
 }
 
 /**
+ * Apply-related feedback after attempting the destructive exit from a ticket.
+ * A failure preserves the layer and the error that explains why it remains;
+ * success clears both because the ticket is back at its base.
+ *
+ * @param {{ok?: boolean}} outcome The discard result.
+ * @param {*}              current The apply feedback currently on screen.
+ * @return {*}
+ */
+function applyFeedbackAfterDiscard(outcome, current) {
+	if (!outcome || !outcome.ok) return current;
+	return { appliedPatch: null, applyError: '', applyConflict: null, applyNotice: '' };
+}
+
+/**
  * What the note shows in the frame straight after a discard, before any probe
  * has walked the checkout again.
  *
@@ -161,4 +175,4 @@ function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges,
 	return null;
 }
 
-module.exports = { changesNoteParts, discardOutcome, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE };
+module.exports = { changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE };
