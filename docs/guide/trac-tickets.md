@@ -2,7 +2,7 @@
 
 Every WordPress core change starts life on a [Trac](https://core.trac.wordpress.org/) ticket. The **Trac ticket** panel on the site view links your site to the ticket you are working on, and then shows you the work that already exists on it — pull requests on GitHub and patch files attached on Trac — so you can test it before adding your own.
 
-![The Trac ticket panel, showing a linked ticket with its linked pull requests and Trac attachments](/screenshots/trac-ticket-panel.png)
+![The Trac ticket panel, showing a linked ticket with its summary, status, type, milestone and component read from Trac, and the pull request that cites it](/screenshots/trac-ticket-panel.png)
 
 ## Link a ticket
 

@@ -2,7 +2,7 @@
 
 After [creating a site](./creating-a-site), its view shows the **Initial setup checklist**. It runs itself: when the clone finishes, the install and the build start on their own and run to the end, so a site you walked away from is ready to work on when you come back. The buttons are there for when something fails, or when you stopped the chain yourself.
 
-![The Initial setup checklist showing four steps: download, install npm dependencies, run full build, and start dev server](/screenshots/setup-wizard.png)
+![The Initial setup checklist running itself: a banner reading "Setting this site up for you — step 2 of 3" with a Stop setup button, above the four steps — download completed, install in progress, build and start dev server locked](/screenshots/setup-wizard.png)
 
 ## The four steps
 

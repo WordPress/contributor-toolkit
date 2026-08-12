@@ -13,6 +13,20 @@
 //     wrong thing;
 //   - target (optional): a locator for an element screenshot instead of the
 //     whole window. Panels read better cropped; whole-window shots orient.
+//
+// Three shots that used to be fixture-tier are live-tier now, joining
+// dev-server-running, and moving them back would photograph a screen the 1.0
+// app never shows (#298). Each depends on state a seeded settings.json cannot
+// express:
+//   - dev-server-running: the site URL and the wp-admin link render only while
+//     a dev server is serving, and fixture sites are empty directories;
+//   - setup-wizard: the self-setup chain arms on the clone-finished edge, so a
+//     site that was already in the registry when the app started never runs it;
+//   - trac-ticket-panel, and site-view with it: a ticket's own facts come from
+//     a live visit to its Trac page and are held in memory, never written to
+//     the site's metadata.
+// The price is that these four need a maintainer and a real site; the fixture
+// tier still covers everything else.
 
 /**
  * Clicks a site in the sidebar and waits for its view to render.
@@ -58,24 +72,6 @@ const shots = [
 		}
 	},
 	{
-		slug: 'setup-wizard',
-		tier: 'fixture',
-		variant: 'seeded',
-		prepare: async (page) => {
-			await selectSite(page, 'wordpress-develop');
-			await page.getByText('Initial setup checklist').waitFor();
-		}
-	},
-	{
-		slug: 'site-view',
-		tier: 'fixture',
-		variant: 'seeded',
-		prepare: async (page) => {
-			await selectSite(page, 'my-first-patch');
-			await page.getByRole('button', { name: 'Submit changes' }).waitFor();
-		}
-	},
-	{
 		slug: 'site-menu',
 		tier: 'fixture',
 		variant: 'seeded',
@@ -92,16 +88,6 @@ const shots = [
 		prepare: async (page) => {
 			await selectSite(page, 'older-site');
 			await page.getByText(/days old/).first().waitFor();
-		}
-	},
-	{
-		slug: 'trac-ticket-panel',
-		tier: 'fixture',
-		variant: 'seeded',
-		target: (page) => card(page, 'Trac ticket'),
-		prepare: async (page) => {
-			await selectSite(page, 'my-first-patch');
-			await page.getByText('#60000').waitFor();
 		}
 	},
 	{
@@ -148,11 +134,37 @@ const shots = [
 
 	// ---- Live tier: real site, maintainer present. `instructions` is what the
 	// harness prints before pausing.
+	//
+	// The first four are in the order one site passes through them, so a single
+	// session — create the site, let it set itself up, run it, link a ticket —
+	// takes all four without ever going backwards. Every path in these images is
+	// published, so create the site somewhere with no username in it
+	// (/private/tmp/wpct-docs/my-first-patch is what the committed ones show),
+	// and name it to match the fixture-tier shots so the guide reads as one site.
+	{
+		slug: 'setup-wizard',
+		tier: 'live',
+		instructions:
+			'Create a site and leave it alone. Shoot while the "Setting this site up for you — step N of 3" banner is up, with a step still to go, so the checklist shows a done step, a running one and a locked one.'
+	},
 	{
 		slug: 'dev-server-running',
 		tier: 'live',
 		instructions:
-			'Select an initialized site and click "Start dev server". Wait until the site URL and "Log in with admin / password" are visible.'
+			'When the build has finished, click "Start dev server and finish the wizard". Wait until the site URL, the wp-admin link and "Log in with admin / password" are visible.'
+	},
+	{
+		slug: 'site-view',
+		tier: 'live',
+		instructions:
+			'Stop the dev server, then link an open ticket that a pull request cites (65856 in the committed shot) and click "Read details from Trac", clearing the human-check once. Shoot the whole window: Start dev server, Start build watch, Review & submit changes, and the ticket panel below them.'
+	},
+	{
+		slug: 'trac-ticket-panel',
+		tier: 'live',
+		target: (page) => card(page, 'Trac ticket'),
+		instructions:
+			'Same screen as site-view — the ticket facts read and the linked pull requests listed. This one is cropped to the Trac ticket card.'
 	},
 	{
 		slug: 'submit-changes-diff',

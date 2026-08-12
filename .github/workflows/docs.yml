@@ -5,7 +5,10 @@
 #
 # Screenshots are committed to the repo, not captured here. Capturing them needs the Electron
 # app running against a seeded site, which is minutes of flaky work on a runner; a maintainer
-# runs `npm run shots` locally when the UI changes instead (see scripts/screenshots/).
+# runs `npm run shots` locally when the UI changes instead (see scripts/screenshots/). Four of
+# them show states no seeded site can reach — a running dev server, a site setting itself up,
+# a ticket read from Trac — so they come from `npm run shots -- --tier=live` against a real
+# site, with a maintainer at the keyboard. shots.cjs says which ones and why.
 #
 # The site base path is derived from the repository name at run time rather than hardcoded,
 # because a project Pages site lives under /<repo-name>/ and this repository is being renamed
