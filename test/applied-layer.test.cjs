@@ -64,6 +64,23 @@ test('attributeConflicts: a clean tree says nothing at all (#306)', () => {
 	assert.deepStrictEqual(attributeConflicts().sentences, []);
 });
 
+test('describeApplyFailure: an applied-layer-only conflict keeps ownership uncertain (#306)', () => {
+	const notice = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [{ path: FOO, total: 1, regions: [{ index: 0, line: 7, status: 'moved' }] }]
+	}, {
+		prUrl: 'https://example.invalid/pr/456',
+		prState: 'open',
+		ownWorkPaths: [FOO],
+		appliedPatch: layer()
+	});
+
+	assert.match(notice.headline, /includes changes from PR #123/);
+	assert.match(notice.headline, /may also contain your own edits/);
+	assert.doesNotMatch(notice.headline, /Your own work is also in/);
+});
+
 test('listOf: reads as a sentence rather than a join (#306)', () => {
 	assert.strictEqual(listOf([]), '');
 	assert.strictEqual(listOf(['a']), 'a');

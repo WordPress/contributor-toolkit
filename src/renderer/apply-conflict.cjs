@@ -182,9 +182,10 @@ function namePaths(rows) {
  * @param {Array}    conflicts
  * @param {?string}  prState        'open' | 'merged' | 'closed' | null when unknown.
  * @param {string[]} [ownWorkPaths] Files this ticket has its own work in.
+ * @param {?Object}  [appliedPatch] Named layer whose files are part of that work.
  * @return {{headline: string, advice: string, prButton: ?string}}
  */
-function prFraming(conflicts, prState, ownWorkPaths = []) {
+function prFraming(conflicts, prState, ownWorkPaths = [], appliedPatch = null) {
 	const failed = conflicts.reduce((sum, c) => sum + c.regions.length, 0);
 	const total = conflicts.reduce((sum, c) => sum + c.total, 0);
 	const allApplied = conflicts.every((c) => c.regions.every((r) => r.status === 'already-applied'));
@@ -222,7 +223,9 @@ function prFraming(conflicts, prState, ownWorkPaths = []) {
 	}
 
 	const own = new Set(ownWorkPaths);
-	const mine = namePaths(conflicts.filter((c) => own.has(c.path)));
+	const layerFiles = new Set(appliedPatch && Array.isArray(appliedPatch.files) ? appliedPatch.files : []);
+	const layered = namePaths(conflicts.filter((c) => own.has(c.path) && layerFiles.has(c.path)));
+	const mine = namePaths(conflicts.filter((c) => own.has(c.path) && !layerFiles.has(c.path)));
 	const theirs = namePaths(conflicts.filter((c) => !own.has(c.path)));
 	const REBASE_IS_THEIRS = 'Bringing it up to date is its author\'s work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.';
 	// A ticket's changes are cheap to redo and expensive to untangle, so keeping
@@ -230,6 +233,23 @@ function prFraming(conflicts, prState, ownWorkPaths = []) {
 	// What must never happen is work going quietly; going on purpose, with the
 	// copy already saved, is a good outcome.
 	const YOUR_WORK_WAY_OUT = 'Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.';
+
+	// The ticket-base scan sees the named layer as ticket work too. It cannot
+	// prove whether the contributor edited those files afterwards, so name the
+	// provenance and preserve the same uncertainty as the preview (#306).
+	if (layered.count) {
+		const label = appliedPatch.label || 'the patch you applied';
+		const parts = [
+			`${layered.text} ${layered.count === 1 ? 'includes' : 'include'} changes from ${label} and may also contain your own edits.`
+		];
+		if (mine.count) parts.push(`Your own work is also in ${mine.text} and may be part of the failure.`);
+		if (theirs.count) parts.push(`Other failures are in ${theirs.text}.`);
+		return {
+			headline: `This pull request does not fit your checkout: ${scale} would need rework. ${parts.join(' ')}`,
+			advice: YOUR_WORK_WAY_OUT,
+			prButton: 'Open the pull request'
+		};
+	}
 
 	// File overlap cannot identify the failing region. Keep the pull request
 	// reachable, but make the rebase advice conditional on it also failing in a
@@ -312,10 +332,11 @@ function revertFraming(conflicts, label) {
  * @param {?string}  [options.prState]         Its state, when known.
  * @param {string[]} [options.ownWorkPaths]    Files this ticket has work in, from
  *                                             the preview's collision list (#303).
+ * @param {?Object}  [options.appliedPatch]    Named layer within that work (#306).
  * @param {?string}  [options.reverting]       Label of the layer being reverted.
  * @return {?Object}
  */
-function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, prUrl = null, prState = null, ownWorkPaths = [], reverting = null } = {}) {
+function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, prUrl = null, prState = null, ownWorkPaths = [], appliedPatch = null, reverting = null } = {}) {
 	if (!result || result.ok) return null;
 
 	const failures = Array.isArray(result.failures) ? result.failures : [];
@@ -362,7 +383,7 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 		// contributor's own work sitting on its lines (#306).
 		let framing;
 		if (reverting) framing = revertFraming(conflicts, reverting);
-		else if (fromPr) framing = prFraming(conflicts, prState, ownWorkPaths);
+		else if (fromPr) framing = prFraming(conflicts, prState, ownWorkPaths, appliedPatch);
 		else framing = { headline: headlineFor(conflicts), advice: '', prButton: null };
 		headline = framing.headline;
 		advice = framing.advice;
