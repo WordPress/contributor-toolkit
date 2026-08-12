@@ -1579,7 +1579,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                     // site is still stuck, and telling the contributor it is
                     // sorted would send them back to a button that still refuses.
                     try {
-                        await mergeSiteMeta(sitePath, { appliedPatch: null });
+                        await writeWorkMeta(sitePath, { appliedPatch: null });
                         recordCleared = true;
                     } catch (e) {
                         logError('git:apply-patch', `clearing stale applied-patch record failed: ${String(e && e.stack ? e.stack : e)}`);

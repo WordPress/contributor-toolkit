@@ -190,12 +190,24 @@ function prFraming(conflicts, prState, ownWorkPaths = [], appliedPatch = null) {
 	const total = conflicts.reduce((sum, c) => sum + c.total, 0);
 	const allApplied = conflicts.every((c) => c.regions.every((r) => r.status === 'already-applied'));
 	const closed = prState === 'closed' || prState === 'merged';
+	const ticketWork = new Set(ownWorkPaths);
+	const alreadyPresentInTicketWork = conflicts.some((c) => ticketWork.has(c.path));
 
 	// A pull request whose changes are all in trunk already needs no rebase and
 	// no message — there is nothing left for anyone to do with it. When it is
 	// also closed, that is core's own way of landing a change: committed via
 	// SVN, pull request closed.
 	if (allApplied && failed === total) {
+		// Two-way matching only proves that these lines are in the checkout. If
+		// the ticket also has work in the file, they may come from that work or
+		// its named layer; claiming trunk would erase the provenance (#306).
+		if (alreadyPresentInTicketWork) {
+			return {
+				headline: `All ${total} of this pull request's change${total === 1 ? '' : 's'} look like they are already in your checkout — there is nothing left to apply.`,
+				advice: '',
+				prButton: 'Open the pull request'
+			};
+		}
 		return {
 			headline: closed
 				? `All ${total} of this pull request's change${total === 1 ? '' : 's'} look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.`
