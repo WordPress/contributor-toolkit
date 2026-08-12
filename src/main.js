@@ -1134,9 +1134,10 @@ async function collectUnsubmittedFiles(sitePath) {
 
 // Two questions, deliberately two channels (#239). This one asks "are there
 // edits not written down yet" — the narrow reading the checkout guards need:
-// the trunk-update dirty dialog and the patch-apply collision scan protect
-// exactly the files a force checkout would overwrite, and parked work is not
-// among them. The card's note asks `git:unsubmitted-work` instead.
+// the trunk-update dirty dialog protects exactly the files a force checkout
+// would overwrite, and parked work is not among them. Everything that asks
+// what this ticket has done — the card's note, and the patch-apply collision
+// scan (#301) — asks `git:unsubmitted-work`'s question instead.
 ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
     try {
         const files = await collectDirtyFiles(sitePath);
@@ -1433,18 +1434,26 @@ const REVERTABLE_PATCH_LIMIT = 512 * 1024;
 // Reading a patch without touching the checkout, so the contributor sees which
 // files it would change — and which of their own edits it collides with —
 // before deciding.
+//
+// Measured from the ticket's base, not from HEAD (#301). Under the
+// ticket-as-branch model a ticket's work lives in its parked WIP commit, so a
+// ticket that has been left and resumed has a worktree matching HEAD exactly:
+// HEAD-relative, the warning goes silent on precisely the tree it exists to
+// protect, and speaks up about files edited back to what the base holds. This
+// is the same measurement the patch itself is taken with, so what the warning
+// calls "your own edits" is what the patch modal would show.
 ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
     try {
         const parsed = parsePatchFiles(patchText);
         if (!parsed.ok) return { ok: false, error: parsed.error };
         let dirtyPaths;
         try {
-            dirtyPaths = await collectDirtyFiles(sitePath);
+            dirtyPaths = await collectUnsubmittedFiles(sitePath);
         } catch (e) {
             // Failing open here would promise "no collisions" precisely when the
             // app could not look — surface the failure instead.
             logError('git:preview-patch', String(e && e.stack ? e.stack : e));
-            return { ok: false, error: 'Could not check your working tree for conflicts, so the preview was not shown.' };
+            return { ok: false, error: 'Could not check your work for conflicts, so the preview was not shown.' };
         }
         const plan = planApply({ files: parsed.files, dirtyPaths });
         return { ok: true, ...plan, files: parsed.files.map((f) => ({ kind: f.kind, path: f.path })) };
