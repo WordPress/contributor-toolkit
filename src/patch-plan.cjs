@@ -200,6 +200,13 @@ function supplyEmptyFileHeaders(text) {
 		while (tail > 0 && section[tail - 1] === '') tail--;
 		out.push(...section.slice(0, tail));
 		const filePath = mode && !opaque ? samePathFromGitDiffLine(lines[i]) : null;
+		// jsdiff can silently omit a mode-only section it cannot name when a
+		// normal section follows. Refuse the whole patch instead of reporting a
+		// partial success. Decoding Git's quoted C-style paths is deliberately
+		// outside the narrow 1.0 reader (#316).
+		if (mode && !opaque && !filePath) {
+			throw new Error('The empty file path is quoted or ambiguous.');
+		}
 		if (filePath) {
 			out.push(
 				mode === 'add' ? '--- /dev/null' : `--- a/${filePath}`,
