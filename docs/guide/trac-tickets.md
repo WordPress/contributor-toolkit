@@ -17,10 +17,24 @@ Linking a ticket gives it its own branch inside the site, so the work you do for
 
 If you have edited anything before linking, the app asks what should happen to those edits rather than deciding for you. The four choices are described under [Edits you made before picking a ticket](./ticket-branches#edits-you-made-before-picking-a-ticket).
 
-Once a ticket is linked, the panel shows its number with two actions:
+Once a ticket is linked, the panel shows its number with these actions:
 
 - **Open in Trac** — opens the ticket in your browser.
+- **Read details from Trac** — fills in what the ticket actually says, described below. It is only there until the details are loaded; once they are on screen it has nothing left to do and goes.
 - **Unlink** — removes the link and puts the site back on trunk. Nothing on Trac is affected, and nothing you did for the ticket is lost: the work stays attached to the ticket in this site, and the ticket moves to the **Your tickets on this site** card, ready to continue.
+
+## What the ticket says
+
+A ticket number on its own tells you nothing about the ticket. One closed `wontfix` three years ago reads exactly like one filed last week — and you find out on Trac, after the afternoon is spent.
+
+Click **Read details from Trac** and the panel fills in the ticket's own facts, under its number:
+
+- Its **summary**.
+- A **status pill** with the resolution folded in — `closed (wontfix)` rather than a bare `closed`, because "closed (fixed)" and "closed (wontfix)" are opposite instructions to a contributor.
+- Its **type**, its **milestone**, and how long ago it was **opened** (the exact date is in the tooltip).
+- Its **component** and **keywords**, as links. These use Trac's own query URLs, lifted from the page rather than rebuilt, and open in your browser like any other link.
+
+This reads the same embedded Trac window the attachment list uses, so it costs the same single human check — see [Trac attachments](#trac-attachments) below. Clearing that check once serves both.
 
 ## Unsubmitted work
 
@@ -30,7 +44,7 @@ The count is the ticket's whole work, including everything parked when you last 
 
 ## Linked pull requests
 
-The panel searches GitHub for pull requests on `WordPress/wordpress-develop` that cite the ticket number, and lists them newest first. Each row shows the PR number (click it to open the PR in your browser), its title, its state, and when it was last updated. Click **Refresh** to search again.
+The panel searches GitHub for pull requests on `WordPress/wordpress-develop` that cite the ticket number, and lists them newest first. Each row shows the PR number (click it to open the PR in your browser), its title, its state, and a date labelled with what it is: **last commit** when the newest commit's date could be resolved, **updated** only as a fallback when it could not. Click **Refresh** to search again.
 
 ![The Trac ticket panel with two linked pull requests, one carrying a red CLOSED pill and one a green OPEN pill](/screenshots/linked-pull-requests.png)
 
@@ -55,7 +69,9 @@ Two things can go wrong:
 
 ## Which patch is newest
 
-When a ticket has both pull requests and attachments, the panel marks the most recent one, and points out when the latest work is a file attachment rather than a pull request. Testing the newest patch first is usually what a ticket needs.
+When a ticket has both pull requests and attachments, the panel marks the most recent one with a **Latest** pill, and points out when the latest work is a file attachment rather than a pull request. Testing the newest patch first is usually what a ticket needs.
+
+"Most recent" means the newest **commit**, not the last time the pull request was touched. GitHub's "updated" timestamp is bumped just as hard by a comment, a label change or a bot sweep as by a push — and an upstream force-push of trunk can restamp thousands of open pull requests inside one window, which is enough to crown a patch whose newest code is eighteen months old over one that still applies.
 
 ## Next steps
 
