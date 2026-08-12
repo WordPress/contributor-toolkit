@@ -78,12 +78,22 @@ async function launchApp(env) {
 	return { app, page };
 }
 
+// Freeze CSS animations and transitions, and rewind them to their first frame,
+// so a shot is a function of the app's state and nothing else.
+//
+// Without this, three images changed on every run with no code change at all:
+// the "Checking GitHub…" spinner is a CSS animation, and each capture caught it
+// at a different angle. That is noise in any diff, and worse than noise in a
+// stack of branches — a rebase hits a binary conflict on a file where nothing
+// actually changed, and binary conflicts have no resolution but to pick a side.
+const SHOT_OPTIONS = { animations: 'disabled' };
+
 async function captureShot(page, shot) {
 	const file = path.join(outDir, `${shot.slug}.png`);
 	if (shot.target) {
-		await shot.target(page).screenshot({ path: file });
+		await shot.target(page).screenshot({ path: file, ...SHOT_OPTIONS });
 	} else {
-		await page.screenshot({ path: file });
+		await page.screenshot({ path: file, ...SHOT_OPTIONS });
 	}
 	console.log(`  ✓ ${shot.slug}.png`);
 }

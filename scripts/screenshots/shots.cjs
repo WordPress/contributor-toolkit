@@ -21,13 +21,34 @@
 //     maintainer owns the window.
 
 /**
- * Clicks a site in the sidebar and waits for its view to render.
+ * Clicks a site in the sidebar and waits for its view to settle.
+ *
+ * The wait is not cosmetic. Selecting a site with a linked ticket fires the
+ * linked-pull-request lookup, which is a network call, and the panel shows a
+ * spinner until it answers. Without waiting, whether a shot catches the spinner
+ * or the result is a coin flip — the same run has produced site-view.png
+ * mid-check and trac-ticket-panel.png already resolved, which is two different
+ * answers to the same question in one set of docs images.
+ *
+ * It also made three PNGs change on every run with no code change at all. In a
+ * stack of branches that is worse than noise: rebasing hits a binary conflict on
+ * a file nothing actually changed, and a binary conflict has no resolution
+ * except to pick a side and re-capture.
+ *
+ * Bounded and swallowed rather than awaited indefinitely: a site with no ticket
+ * never shows the spinner at all, and a harness that hangs because GitHub is
+ * slow is worse than one that photographs a spinner.
  *
  * @param {import('playwright-core').Page} page
  * @param {string}                         label
  */
 async function selectSite(page, label) {
 	await page.getByText(label, { exact: true }).first().click();
+	await page
+		.getByText('Checking GitHub…')
+		.first()
+		.waitFor({ state: 'hidden', timeout: 15000 })
+		.catch(() => {});
 }
 
 /**
