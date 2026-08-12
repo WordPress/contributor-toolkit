@@ -31,11 +31,6 @@ const os = require('node:os');
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const git = require('isomorphic-git');
-// The one module these tests read an answer *through* rather than around: what
-// the preview's base status means for the contributor is the module's to say,
-// and #308's point is that the two halves agree.
-const { describeOwnWorkWarning } = require('../src/renderer/ticket-base.cjs');
-
 const SRC_DIR = path.join(__dirname, '..', 'src');
 const MAIN_PATH = path.join(SRC_DIR, 'main.js');
 
@@ -1957,79 +1952,17 @@ async function movedOnTrunkRepo(t) {
 	return repo;
 }
 
-// A patch against the file only today's trunk has.
-const SIGNUP_DIFF = `diff --git a/src/wp-signup.php b/src/wp-signup.php
-index 384bf9e..dbfa038 100644
---- a/src/wp-signup.php
-+++ b/src/wp-signup.php
-@@ -1 +1,2 @@
- <?php // signup
-+// somebody else's change
-`;
-
-// The healthy path, pinned: a recorded base is exact and says so, which is what
-// keeps the warning above unhedged.
-test('git:preview-patch reports a recorded base as recorded (#308)', async (t) => {
-	const { dir, baseOid } = await parkedTicketRepo(t, { workFile: 'src/wp-login.php' });
-	const main = parkedTicketMain(dir, baseOid);
-
-	const preview = await main.invoke('git:preview-patch', dir, LOGIN_DIFF);
-	assert.equal(preview.ok, true);
-	assert.equal(preview.baseStatus, 'recorded');
-	assert.deepEqual(preview.conflicts, ['src/wp-login.php']);
-});
-
-// A site on trunk keeps its own answer: there is no ticket to be unsure about,
-// and the walk falls back to HEAD as it always has.
-test('git:preview-patch reports a site on trunk as on trunk (#308)', async (t) => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-base-trunk-'));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
-	fs.mkdirSync(path.join(dir, 'src'));
-	fs.writeFileSync(path.join(dir, 'src', 'wp-login.php'), '<?php // login\n');
-	await git.add({ fs, dir, filepath: 'src/wp-login.php' });
-	await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
-	const main = loadMain({
-		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } }).stubs }
-	});
-
-	const preview = await main.invoke('git:preview-patch', dir, LOGIN_DIFF);
-	assert.equal(preview.ok, true);
-	assert.equal(preview.baseStatus, 'trunk');
-	assert.deepEqual(preview.conflicts, []);
-});
-
-// No recorded base — a registry written by the pre-#108 migration for a branch
-// it did not create, a site adopted from disk. The measurement still happens,
-// because today's trunk is the only base available; what changes is that the
-// answer no longer arrives in the same voice as an exact one. `wp-signup.php`
-// is the proof it needs hedging: the contributor has never touched it.
-test('git:preview-patch still measures an unrecorded base, and says it is approximate (#308)', async (t) => {
-	const { dir } = await movedOnTrunkRepo(t);
-	const main = parkedTicketMain(dir, null);
-
-	const preview = await main.invoke('git:preview-patch', dir, SIGNUP_DIFF);
-
-	assert.equal(preview.ok, true, 'an unknown base still measures — there is nothing better available');
-	assert.equal(preview.baseStatus, 'unrecorded');
-	assert.deepEqual(preview.conflicts, ['src/wp-signup.php']);
-	// And that is exactly the announcement the contributor did not earn, which
-	// is why the panel hedges it rather than stating it.
-	const notice = describeOwnWorkWarning(preview);
-	assert.equal(notice.level, 'warning');
-	assert.ok(notice.text.startsWith('src/wp-signup.php may hold your own edits.'));
-	assert.ok(notice.text.includes('no record of the trunk it started from'));
-});
-
-// The contributor's real work is still found on an unrecorded base — hedging
-// the answer must not mean withholding it.
-test('git:preview-patch on an unrecorded base still names the contributor\'s own work (#308)', async (t) => {
+// A ticket branch with no recorded base belongs to a site or branch created
+// outside the app. For 1.0 that is a limitation, not a recovery workflow: do
+// not guess from today's trunk and present the result as the contributor's work.
+test('git:preview-patch refuses a ticket with no recorded base (#308)', async (t) => {
 	const { dir } = await movedOnTrunkRepo(t);
 	const main = parkedTicketMain(dir, null);
 
 	const preview = await main.invoke('git:preview-patch', dir, LOGIN_DIFF);
-	assert.equal(preview.ok, true);
-	assert.deepEqual(preview.conflicts, ['src/wp-login.php']);
+	assert.equal(preview.ok, false);
+	assert.match(preview.error, /could not check your work/i);
+	assert.equal(preview.conflicts, undefined);
 });
 
 // A repo whose `trunk` ref is gone: the base cannot be recorded and cannot be
@@ -2043,7 +1976,7 @@ async function unreadableBaseRepo(t) {
 	return repo;
 }
 
-test('git:preview-patch fails honestly when the base cannot be read (#308)', async (t) => {
+test('git:preview-patch also fails honestly when the repository cannot provide a base (#308)', async (t) => {
 	const { dir } = await unreadableBaseRepo(t);
 	const main = parkedTicketMain(dir, null);
 
@@ -2056,29 +1989,29 @@ test('git:preview-patch fails honestly when the base cannot be read (#308)', asy
 
 // The same failure on the question the card asks. Answering "nothing here"
 // would be the #301 silence again, reached through the failure path.
-test('git:unsubmitted-work fails rather than reporting a clean tree it could not measure (#308)', async (t) => {
-	const { dir } = await unreadableBaseRepo(t);
+test('git:unsubmitted-work fails rather than reporting a clean unrecorded ticket (#308)', async (t) => {
+	const { dir } = await movedOnTrunkRepo(t);
 	const main = parkedTicketMain(dir, null);
 
 	const res = await main.invoke('git:unsubmitted-work', dir);
 
 	assert.equal(res.ok, false);
-	assert.match(res.error, /which trunk to compare your work against/);
+	assert.match(res.error, /no recorded starting point/);
 });
 
 // And on the destructive one. The uncommitted-only reset is not a safe stand-in
 // for a discard to base: it looks like it worked, leaves the parked WIP commit
 // where it was, and the modal comes back listing the work it just promised to
 // throw away.
-test('git:discard-to-base refuses rather than half-discarding on an unreadable base (#308)', async (t) => {
-	const { dir, workFile } = await unreadableBaseRepo(t);
+test('git:discard-to-base refuses rather than half-discarding without a recorded base (#308)', async (t) => {
+	const { dir, workFile } = await movedOnTrunkRepo(t);
 	fs.writeFileSync(path.join(dir, 'loose.php'), '<?php // uncommitted\n');
 	const main = parkedTicketMain(dir, null);
 
 	const res = await main.invoke('git:discard-to-base', dir);
 
 	assert.equal(res.ok, false);
-	assert.match(res.error, /nothing was discarded/);
+	assert.match(res.error, /no recorded starting point/);
 	assert.equal(fs.existsSync(path.join(dir, 'loose.php')), true, 'nothing was discarded, so nothing was discarded');
 	assert.match(fs.readFileSync(path.join(dir, workFile), 'utf8'), /the ticket work/);
 });
@@ -2086,14 +2019,14 @@ test('git:discard-to-base refuses rather than half-discarding on an unreadable b
 // A patch cannot be taken against a base the app could not read: the fallback
 // is HEAD, and HEAD on a resumed ticket is the contributor's own parked work,
 // so the "patch" would come back empty and read as nothing to submit.
-test('git:get-patch refuses an unreadable base rather than diffing against HEAD (#308)', async (t) => {
-	const { dir } = await unreadableBaseRepo(t);
+test('git:get-patch refuses an unrecorded base rather than diffing against HEAD (#308)', async (t) => {
+	const { dir } = await movedOnTrunkRepo(t);
 	const main = parkedTicketMain(dir, null);
 
 	const res = await main.invoke('git:get-patch', dir);
 
 	assert.equal(res.ok, false);
-	assert.match(res.error, /which trunk to compare your work against/);
+	assert.match(res.error, /no recorded starting point/);
 	assert.equal(res.patch, undefined);
 });
 
@@ -3930,4 +3863,3 @@ test('every IPC channel is classified: wired, or explicitly not', () => {
 	const stale = CLASSIFIED.filter((channel) => !registered.includes(channel));
 	assert.deepEqual(stale, [], 'Classified channels that main.js no longer registers');
 });
-
