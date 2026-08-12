@@ -1759,6 +1759,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         return;
       }
       setTracTicket(res.ticket);
+      if (res.ticket) autoReadTicketRef.current = res.ticket;
       setTicketInput('');
       setPatchSavedTo('');
       if (metaPatchRef.current) metaPatchRef.current(sitePath, { tracTicket: res.ticket });
@@ -2988,6 +2989,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // the list. Placed after loadTicketPatches is defined: an effect that named it
   // earlier in the body would read the const before its declaration ran.
   const loadedTicketRef = useRef(null);
+  // Set only by saveTicket, on a link the contributor just performed. The
+  // per-ticket effect below consumes it to auto-read the ticket's details:
+  // there, after the generation bump, so the scrape's result is not dropped as
+  // stale. A ref and not state — it must not survive a remount, or selecting
+  // an already-linked site would open a Trac window nobody asked for (#292).
+  const autoReadTicketRef = useRef(null);
   useEffect(() => {
     if (!tracTicket) {
       setTicketPatches(null);
@@ -3010,6 +3017,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setTracAttachmentsLoading(false);
     loadedTicketRef.current = tracTicket;
     loadTicketPatches();
+    // Auto-read the ticket's own facts when this ticket was just linked by
+    // hand (#292). Only then: the contributor just acted on this ticket, so a
+    // human-check window appearing has context. On mount or re-activation the
+    // ref is empty and nothing opens — details stay on demand, the #109 rule.
+    if (autoReadTicketRef.current === tracTicket) {
+      autoReadTicketRef.current = null;
+      loadTracAttachments();
+    }
   }, [tracTicket, isActive, loadTicketPatches]);
 
   // A Trac scrape can run up to 90s. Bump a generation on every ticket change so
