@@ -30,8 +30,7 @@ import { pathBasename } from './path-basename.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
-import { baseIsApproximate, UNRECORDED_CLEAR_NOTE } from './ticket-base.cjs';
-import { describeAppliedLayer, attributeConflicts, absorbedExitFailure } from './applied-layer.cjs';
+import { describeAppliedLayer, describePreviewNotice, absorbedExitFailure } from './applied-layer.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
@@ -2739,10 +2738,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   });
   const applySteps = planApplySteps({ needsInstall: applyNeedsInstall, buildByWatcher: applyBuildByWatcher });
   const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
-  // What the preview says about the contributor's own work, and how confidently
-  // — the preview carries the status of the base it was measured against (#308).
-  const applyOwnWorkNotice = applyPreview ? describeOwnWorkWarning(applyPreview) : null;
-
   // The applied patch as a layer with a name (#306), not an undo blob. Both
   // answers come from the same record: whether it can still be lifted out —
   // measured in main on every status read, so it comes back on its own when the
@@ -2750,8 +2745,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const appliedLayer = describeAppliedLayer(appliedPatch, {
     when: appliedPatch?.appliedAt ? new Date(appliedPatch.appliedAt).toLocaleString() : ''
   });
-  const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
-  const previewBaseApproximate = Boolean(applyPreview) && baseIsApproximate(applyPreview.baseStatus);
+  // What the preview says about the contributor's own work: whose it is (#306),
+  // and how confidently, since the preview carries the status of the base it was
+  // measured against (#308).
+  const previewNotice = applyPreview
+    ? describePreviewNotice({ conflicts: applyPreview.conflicts, appliedPatch, baseStatus: applyPreview.baseStatus })
+    : null;
   // The absorbed exits reach the same two operations the changes note does, so
   // they go through the same guard: a discard is a force checkout, and running
   // it under a live dev server or a half-finished install rewrites the tree
@@ -4777,21 +4776,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <div style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere', maxHeight: 140, overflowY: 'auto' }}>
                 {applyPreview.paths.map((p) => <div key={p}>{p}</div>)}
               </div>
-              {/* Who the colliding work belongs to (#306) is the sentence, and
-                  how sure the app is of the base it was measured from (#308)
-                  rides with it: on an unrecorded base the list can name files
-                  the contributor never touched and miss ones they did, so an
-                  unhedged sentence would overstate what was checked. With no
-                  collisions the hedge is all that is left, said quietly —
-                  "nothing collided" is not a promise an approximate base can
-                  make. */}
-              {previewAttribution.sentences.length ? (
-                <div role="alert" style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-                  {previewAttribution.sentences.map((sentence) => <div key={sentence} style={{ marginTop: 2 }}>{sentence}</div>)}
-                  {previewBaseApproximate ? <div style={{ marginTop: 6 }}>{UNRECORDED_CLEAR_NOTE}</div> : null}
+              {previewNotice ? (
+                <div role={OWN_WORK_NOTICE_STYLES[previewNotice.level].role} style={OWN_WORK_NOTICE_STYLES[previewNotice.level].style}>
+                  {previewNotice.sentences.map((sentence) => <div key={sentence} style={{ marginTop: 2 }}>{sentence}</div>)}
                 </div>
-              ) : previewBaseApproximate ? (
-                <div style={{ marginTop: 10, fontSize: 12, color: '#6c6f72' }}>{UNRECORDED_CLEAR_NOTE}</div>
               ) : null}
               {applyPreview.unsupported.length ? (
                 <div style={{ marginTop: 10, fontSize: 12, color: '#6e5406' }}>

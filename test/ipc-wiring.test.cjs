@@ -34,8 +34,8 @@ const git = require('isomorphic-git');
 // The two modules these tests read an answer *through* rather than around: what
 // the preview's base status means for the contributor is the module's to say,
 // and #308's point is that the two halves agree.
-const { describeOwnWorkWarning } = require('../src/renderer/ticket-base.cjs');
-const { attributeConflicts } = require('../src/renderer/applied-layer.cjs');
+const { UNRECORDED_MEASUREMENT_NOTE } = require('../src/renderer/ticket-base.cjs');
+const { attributeConflicts, describePreviewNotice } = require('../src/renderer/applied-layer.cjs');
 
 const SRC_DIR = path.join(__dirname, '..', 'src');
 const MAIN_PATH = path.join(SRC_DIR, 'main.js');
@@ -1908,10 +1908,10 @@ test('git:preview-patch still measures an unrecorded base, and says it is approx
 	assert.deepEqual(preview.conflicts, ['src/wp-signup.php']);
 	// And that is exactly the announcement the contributor did not earn, which
 	// is why the panel hedges it rather than stating it.
-	const notice = describeOwnWorkWarning(preview);
+	const notice = describePreviewNotice(preview);
 	assert.equal(notice.level, 'warning');
-	assert.ok(notice.text.startsWith('src/wp-signup.php may hold your own edits.'));
-	assert.ok(notice.text.includes('no record of the trunk it started from'));
+	assert.ok(notice.sentences[0].startsWith('You have your own edits to src/wp-signup.php.'));
+	assert.ok(notice.sentences.includes(UNRECORDED_MEASUREMENT_NOTE));
 });
 
 // The contributor's real work is still found on an unrecorded base — hedging

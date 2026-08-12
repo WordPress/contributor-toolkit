@@ -7,8 +7,16 @@ const {
 	UNRECORDED_CLEAR_NOTE,
 	baseIsApproximate,
 	baseUnreadableMessage,
-	describeOwnWorkWarning
+	UNRECORDED_MEASUREMENT_NOTE
 } = require('../src/renderer/ticket-base.cjs');
+// The preview notice these sentences end up inside is composed there (#306/#308
+// name the same block), so its cases live beside the attribution they qualify.
+const { describePreviewNotice } = require('../src/renderer/applied-layer.cjs');
+
+const describeOwnWorkWarning = (preview) => {
+	const notice = describePreviewNotice(preview || {});
+	return notice ? { level: notice.level, text: notice.sentences.join(' ') } : null;
+};
 
 // The healthy path, and the one that must not move: a recorded base is exact,
 // so the warning reads exactly as it always has (issue #308).
@@ -20,7 +28,7 @@ test('describeOwnWorkWarning: a recorded base warns without hedging (issue #308)
 	assert.strictEqual(notice.level, 'warning');
 	assert.strictEqual(
 		notice.text,
-		'You have your own edits to src/wp-login.php. The patch is applied on top of them: it succeeds if the changes do not overlap, and fails without touching anything if they do. Save a patch of your work first if you want a copy.'
+		'You have your own edits to src/wp-login.php. Save a patch of your work first if you want a copy. The patch is applied on top of those changes: it succeeds if they do not overlap, and fails without touching anything if they do.'
 	);
 	assert.ok(!notice.text.includes('approximate'));
 	assert.ok(!notice.text.includes('may hold'));
@@ -44,8 +52,8 @@ test('describeOwnWorkWarning: an unrecorded base qualifies the warning (issue #3
 		baseStatus: BASE_STATUS.UNRECORDED
 	});
 	assert.strictEqual(notice.level, 'warning');
-	assert.ok(notice.text.startsWith('src/wp-login.php, src/wp-signup.php may hold your own edits.'));
-	assert.ok(notice.text.includes('no record of the trunk it started from'));
+	assert.ok(notice.text.startsWith('You have your own edits to src/wp-login.php and src/wp-signup.php.'));
+	assert.ok(notice.text.includes(UNRECORDED_MEASUREMENT_NOTE));
 	assert.ok(notice.text.includes('today\'s trunk'));
 	// The advice that follows is unchanged — the hedge qualifies the list, not
 	// what applying the patch does.

@@ -78,53 +78,21 @@ function baseUnreadableMessage(consequence) {
 	return `Could not work out which trunk to compare your work against, so ${consequence}.`;
 }
 
-// The warning as it has always read on a site with a recorded base. Kept whole
-// and unhedged: that path is exact, and softening it would teach contributors
-// to skim the one warning that is never wrong.
-function recordedWarning(conflicts) {
-	return `You have your own edits to ${conflicts.join(', ')}. The patch is applied on top of them: it succeeds if the changes do not overlap, and fails without touching anything if they do. Save a patch of your work first if you want a copy.`;
-}
+// What an approximate base does to the file list beside it. Said in full where
+// files are named, because the consequence is the actionable half: a list built
+// against today's trunk can include files trunk itself moved on, and miss ones
+// the contributor really did edit.
+const UNRECORDED_MEASUREMENT_NOTE = 'This ticket has no record of the trunk it started from, so your work was compared against today\'s trunk instead — that can name files you never touched, and miss ones you did.';
 
-// The same warning with its uncertainty said out loud. The hedge comes first
-// because it changes what the list means: these are files that differ from
-// today's trunk, which on a branch born before the last update includes files
-// trunk itself moved on, not the contributor.
-function unrecordedWarning(conflicts) {
-	return `${conflicts.join(', ')} may hold your own edits. This ticket has no record of the trunk it started from, so your work was compared against today's trunk instead — that can name files you never touched, and miss ones you did. The patch is applied on top of whatever is there: it succeeds if the changes do not overlap, and fails without touching anything if they do. Save a patch of your work first if you want a copy.`;
-}
-
-// Nothing collided, but on an approximate base "nothing collided" is not a
-// promise the app can make. Said quietly rather than as an alert: there is no
-// problem here yet, only a check that was less than exact.
+// The same fact when nothing collided, where there is no list to qualify and no
+// problem yet — only a check that was less than exact. Kept quiet for that
+// reason: an alert here would cry wolf.
 const UNRECORDED_CLEAR_NOTE = 'This ticket has no record of the trunk it started from, so the check for your own edits was made against today\'s trunk and is approximate.';
-
-/**
- * What the apply preview says about the contributor's own work, or null when
- * there is nothing to say.
- *
- * `level` picks the styling and whether it is announced: `warning` is the amber
- * block that has always been there, `note` is a quiet line that exists only to
- * stop an approximate silence from reading as a clean bill of health.
- *
- * @param {Object}   [root0]
- * @param {string[]} [root0.conflicts]  Files the patch touches that the ticket has work in.
- * @param {?string}  [root0.baseStatus] A `BASE_STATUS` value; anything else is treated as exact.
- * @return {?{level: 'warning'|'note', text: string}}
- */
-function describeOwnWorkWarning({ conflicts = [], baseStatus = BASE_STATUS.RECORDED } = {}) {
-	const files = Array.isArray(conflicts) ? conflicts.filter(Boolean) : [];
-	if (!baseIsApproximate(baseStatus)) {
-		return files.length ? { level: 'warning', text: recordedWarning(files) } : null;
-	}
-	return files.length
-		? { level: 'warning', text: unrecordedWarning(files) }
-		: { level: 'note', text: UNRECORDED_CLEAR_NOTE };
-}
 
 module.exports = {
 	BASE_STATUS,
 	UNRECORDED_CLEAR_NOTE,
+	UNRECORDED_MEASUREMENT_NOTE,
 	baseIsApproximate,
-	baseUnreadableMessage,
-	describeOwnWorkWarning
+	baseUnreadableMessage
 };

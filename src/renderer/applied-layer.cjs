@@ -26,6 +26,8 @@
 // directly, and neither needs a DOM.
 'use strict';
 
+const { baseIsApproximate, UNRECORDED_CLEAR_NOTE, UNRECORDED_MEASUREMENT_NOTE } = require('./ticket-base.cjs');
+
 // Saving a copy and then discarding is a recommendable way forward on this
 // project, not a defeat: a ticket's changes are one afternoon's work on a
 // checkout that gets thrown away, and redoing them is cheaper than untangling
@@ -200,4 +202,33 @@ function absorbedExitFailure({ patchSaveError = '', discardError = '' } = {}) {
 	return { message: '' };
 }
 
-module.exports = { attributeConflicts, describeAppliedLayer, absorbedExitFailure, listOf, DISPOSABLE_EXIT, SLOT_HELD };
+/**
+ * The whole block above Apply: whose work a new patch would land on (#306), and
+ * how sure the app is of the base that was measured from (#308).
+ *
+ * The two were separate blocks that replaced each other, which is a choice
+ * neither of them should win: the attribution owns the file list, and the base
+ * is what says how much that list can be trusted. On an unrecorded base it can
+ * name files the contributor never touched and miss ones they did, so the
+ * sentences carry the hedge rather than standing unqualified.
+ *
+ * With nothing colliding the hedge is all that is left, and it is said quietly:
+ * "nothing collided" is not a promise an approximate base can make, but it is
+ * not an alert either.
+ *
+ * @param {Object}   [root0]
+ * @param {string[]} [root0.conflicts]    Files the incoming patch touches that the ticket has work in.
+ * @param {?Object}  [root0.appliedPatch] The layer record, when one is applied.
+ * @param {?string}  [root0.baseStatus]   A `BASE_STATUS` value from the preview.
+ * @return {?{level: 'warning'|'note', sentences: string[]}}
+ */
+function describePreviewNotice({ conflicts = [], appliedPatch = null, baseStatus = null } = {}) {
+	const { sentences } = attributeConflicts({ conflicts, appliedPatch });
+	const approximate = baseIsApproximate(baseStatus);
+	if (sentences.length) {
+		return { level: 'warning', sentences: approximate ? sentences.concat(UNRECORDED_MEASUREMENT_NOTE) : sentences };
+	}
+	return approximate ? { level: 'note', sentences: [UNRECORDED_CLEAR_NOTE] } : null;
+}
+
+module.exports = { attributeConflicts, describeAppliedLayer, describePreviewNotice, absorbedExitFailure, listOf, DISPOSABLE_EXIT, SLOT_HELD };
