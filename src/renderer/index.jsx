@@ -2996,12 +2996,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // an already-linked site would open a Trac window nobody asked for (#292).
   const autoReadTicketRef = useRef(null);
   const tracScrapeRef = useRef(null);
+  // A Trac scrape can run up to 90s. Bump a generation on every ticket change so
+  // a scrape that resolves after the ticket has moved on is dropped, rather than
+  // shown under the wrong ticket or clearing a newer request's loading flag.
+  const scrapeGenRef = useRef(0);
   useEffect(() => {
+    // Bumped first, synchronously, before anything below can trigger a scrape
+    // (#299): loadTracAttachments reads this ref at call time, so the auto-read
+    // a few lines down must never run against last ticket's generation.
+    scrapeGenRef.current += 1;
     if (!tracTicket) {
       setTicketPatches(null);
       // Attachments are per-ticket and loaded on demand; a stale list from the
       // previous ticket must not linger, and a scrape dropped by the generation
-      // bump below must not leave a stuck spinner.
+      // bump above must not leave a stuck spinner.
       setTracAttachments(null);
       setTracAttachmentsLoading(false);
       loadedTicketRef.current = null;
@@ -3010,10 +3018,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     if (!isActive || loadedTicketRef.current === tracTicket) return;
     // A new ticket on the active site: drop any attachments the previous one
     // loaded (and clear its loading flag, so a scrape dropped by the generation
-    // bump cannot leave a stuck spinner with no button to recover), then fetch
-    // its PRs. Marked loaded before the fetch resolves, on purpose: a failed
-    // initial fetch is not retried on every re-activation (which could keep
-    // spending a rate-limited quota) — Refresh is the retry.
+    // bump above cannot leave a stuck spinner with no button to recover), then
+    // fetch its PRs. Marked loaded before the fetch resolves, on purpose: a
+    // failed initial fetch is not retried on every re-activation (which could
+    // keep spending a rate-limited quota) — Refresh is the retry.
     setTracAttachments(null);
     setTracAttachmentsLoading(false);
     loadedTicketRef.current = tracTicket;
@@ -3030,12 +3038,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       if (tracScrapeRef.current) tracScrapeRef.current();
     }
   }, [tracTicket, isActive, loadTicketPatches]);
-
-  // A Trac scrape can run up to 90s. Bump a generation on every ticket change so
-  // a scrape that resolves after the ticket has moved on is dropped, rather than
-  // shown under the wrong ticket or clearing a newer request's loading flag.
-  const scrapeGenRef = useRef(0);
-  useEffect(() => { scrapeGenRef.current += 1; }, [tracTicket]);
 
   // Fetches a PR's diff and drops into the same preview the file picker uses,
   // so applying a PR and applying a downloaded patch are one path from here on.
