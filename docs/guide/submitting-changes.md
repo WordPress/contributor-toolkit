@@ -15,6 +15,14 @@ Two buttons sit above the diff:
 
 If there are no changes to send, the screen says so. If the site's WordPress code is old, a warning says the patch may not apply on Trac and suggests updating to the latest trunk first — see [Staying up to date with trunk](trunk-updates).
 
+## Discarding it all
+
+Next to the heading is **Discard all changes**. It asks first — *Discard all local changes? This cannot be undone* — and then throws away exactly what the diff above it shows, which on a ticket means the whole of that ticket's work: your uncommitted edits *and* anything parked in a commit the last time you switched away from it.
+
+The ticket itself survives. Its branch stays, the link stays, and you carry on working on it from a clean base. Throwing the ticket's work away along with its branch is a different gesture — [Delete this ticket's work](ticket-branches#deleting-a-ticket-s-work), on the tickets card.
+
+The button is unavailable while an install, a build or a [trunk update](trunk-updates) is running, or while the dev server is up, since all of them are holding the files it would rewind.
+
 ## What a patch can and cannot carry
 
 The patch carries files you added, files you edited, and files you deleted. A deletion is written the way `git apply` and `patch` expect one, so a reviewer applying your patch really does lose the file.

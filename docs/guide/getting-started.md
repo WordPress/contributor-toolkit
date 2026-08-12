@@ -33,18 +33,21 @@ The app is signed and notarized by Automattic, so macOS should open it without i
   The app is code-signed. The recursive flag (`-r`) tries to strip attributes from files inside the sealed bundle, which macOS rejects with permission errors. Removing the attribute from the top-level bundle is sufficient.
   :::
 
-## Your first contribution, in ten steps
+## Your first contribution, in seven steps
 
 1. Click **Create WordPress Core site** and choose a destination folder for your site.
-2. Wait while the app downloads `wordpress-develop`.
-3. Click **Install npm dependencies**.
-4. Click **Run full build**.
-5. Click **Start dev server**.
-6. A browser window opens automatically. If not, open it by clicking the site URL.
-7. Make changes to the code — [open the site in your editor](./editors) straight from the app.
-8. Click **Review & submit changes** to see a diff of everything you changed.
-9. Pick where the patch goes: [a pull request](./submit-github-pr), [a Trac ticket](./submit-trac), or [a file for your mentor](./submit-mentor).
-10. That's it — you've contributed to WordPress core.
+2. Wait. The app downloads `wordpress-develop`, then installs the dependencies and runs the first build on its own — go and get a coffee. See [The setup wizard](./setup-wizard).
+3. Click **Start dev server**.
+4. A browser window opens automatically. If not, open it by clicking the site URL — or the **wp-admin** link beside it, to go straight to the dashboard.
+5. Make changes to the code — [open the site in your editor](./editors) straight from the app.
+6. Click **Review & submit changes** to see a diff of everything you changed.
+7. Pick where the patch goes: [a pull request](./submit-github-pr), [a Trac ticket](./submit-trac), or [a file for your mentor](./submit-mentor).
+
+That's it — you've contributed to WordPress core.
+
+::: tip You are never left guessing what to do next
+Whatever state a site is in, one block on the screen carries a **Start here** ring and scrolls itself into view — the step to run, the warning to act on, or the work currently in flight. It is announced to screen readers too. And when an action finishes — a patch saved, trunk updated, a pull request opened — a brief notice says so out loud rather than leaving you to check.
+:::
 
 ![A site ready for work: Start dev server, Review & submit changes, the Trac ticket panel and the patch panel](/screenshots/site-view.png)
 

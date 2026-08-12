@@ -1,12 +1,21 @@
 # Logs and debugging
 
-The **Logs** section of the site view has two tabs:
+The **Logs** section of the site view has three tabs:
 
 - **Server** — the dev server's own output: everything the Playground server prints while
   starting and running.
+- **Build watcher** — the [build watch](./running-the-site#the-build-watch)'s output. The tab title
+  carries its state: *Build watcher (watching)*, *(building)*, *(paused)*, *(stopped)*, or
+  *(exited 1)* when it ended on its own.
 - **debug.log** — WordPress's PHP log for this site, streamed live while the dev server runs.
 
 Output from `npm install` and `npm run` commands appears in the [Terminal](./terminal), not here.
+
+All three panes read in the terminal's own monospace font, so the columns of a PHP stack trace line
+up, and each line is coloured by what it is: a fatal, a warning, a deprecation, a notice, a stack
+trace frame, or the `Ready! WordPress is running on …` line you are actually waiting for. The
+`[11-Aug-2026 …]` timestamp at the head of a `debug.log` line is dimmed, so 26 identical characters
+per line recede instead of competing with the message.
 
 ![The debug.log tab showing PHP notices](/screenshots/debug-log.png)
 
