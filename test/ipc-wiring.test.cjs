@@ -31,6 +31,9 @@ const os = require('node:os');
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const git = require('isomorphic-git');
+// The applied-layer module turns the handler's measured status into the
+// attribution the renderer shows.
+const { attributeConflicts } = require('../src/renderer/applied-layer.cjs');
 const SRC_DIR = path.join(__dirname, '..', 'src');
 const MAIN_PATH = path.join(SRC_DIR, 'main.js');
 
@@ -3862,4 +3865,146 @@ test('every IPC channel is classified: wired, or explicitly not', () => {
 	// stale entry behind, claiming coverage nothing provides any more.
 	const stale = CLASSIFIED.filter((channel) => !registered.includes(channel));
 	assert.deepEqual(stale, [], 'Classified channels that main.js no longer registers');
+});
+// --- the applied patch as a layer, measured not remembered (#306) ---------
+//
+// `revertable` used to mean "we kept the text". It now means what the banner
+// asks: can this layer still be lifted out of *this* checkout, right now. That
+// is a fact about the tree, so these run against a real repo — a stub would
+// mock the very thing under test.
+
+// The parked ticket with LOGIN_DIFF applied on top of it, plus the record the
+// app writes when it applies one. `content` is what ends up in the file, so a
+// test can hand-edit over the patch's own line and ask again.
+async function ticketWithAppliedPatch(t, content) {
+	const { dir, baseOid, workFile } = await parkedTicketRepo(t, { workFile: 'src/wp-login.php' });
+	fs.writeFileSync(path.join(dir, workFile), content);
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: {
+			[dir]: {
+				tracTicket: 62281,
+				branches: {
+					'ticket/62281': {
+						tracTicket: 62281,
+						baseOid,
+						appliedPatch: {
+							label: 'PR #123',
+							appliedAt: '2026-08-12T10:00:00.000Z',
+							files: ['src/wp-login.php'],
+							text: LOGIN_DIFF
+						}
+					}
+				}
+			}
+		}
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	return { dir, main, settings, workFile };
+}
+
+const PATCH_APPLIED = '<?php // login\n// somebody else\'s change\n';
+const EDITED_OVER = '<?php // login\n// my own version of it\n';
+
+test('site:status: a freshly applied patch is reported as still removable (#306)', async (t) => {
+	const { dir, main } = await ticketWithAppliedPatch(t, PATCH_APPLIED);
+
+	const status = await main.invoke('site:status', dir);
+
+	assert.equal(status.appliedPatch.label, 'PR #123');
+	assert.equal(status.appliedPatch.kept, true);
+	assert.equal(status.appliedPatch.revertable, true);
+	assert.deepEqual(status.appliedPatch.absorbed, []);
+});
+
+test('site:status: editing the patch\'s own lines absorbs it, and Revert stands down (#306)', async (t) => {
+	const { dir, main } = await ticketWithAppliedPatch(t, EDITED_OVER);
+
+	const status = await main.invoke('site:status', dir);
+
+	assert.equal(status.appliedPatch.revertable, false);
+	// The text is still stored — this is absorption, not a patch too large to
+	// keep, and the two get different sentences.
+	assert.equal(status.appliedPatch.kept, true);
+	assert.deepEqual(status.appliedPatch.absorbed, [{ path: 'src/wp-login.php', editedOver: true, failed: 1, total: 1 }]);
+});
+
+// Not a one-way door, and nothing persisted says otherwise: the same site,
+// the same record, answers differently the moment the overlapping edit goes.
+test('site:status: undoing the overlapping edit brings Revert back on its own (#306)', async (t) => {
+	const { dir, main, workFile } = await ticketWithAppliedPatch(t, EDITED_OVER);
+
+	assert.equal((await main.invoke('site:status', dir)).appliedPatch.revertable, false);
+
+	fs.writeFileSync(path.join(dir, workFile), PATCH_APPLIED);
+
+	const back = await main.invoke('site:status', dir);
+	assert.equal(back.appliedPatch.revertable, true);
+	assert.deepEqual(back.appliedPatch.absorbed, []);
+});
+
+// The constraint the design rests on: the slot frees on revert or on discarding
+// to base, never by absorption. The record has to survive as provenance.
+test('site:status: absorption does not free the one-patch slot (#306)', async (t) => {
+	const { dir, main } = await ticketWithAppliedPatch(t, EDITED_OVER);
+
+	const status = await main.invoke('site:status', dir);
+	assert.notEqual(status.appliedPatch, null, 'the record is provenance, not just an undo blob');
+
+	// And the guard still refuses a second patch on its behalf.
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, dir, { patchText: LOGIN_DIFF, label: 'PR #456' });
+	const done = await applyDone(event, applyId);
+	assert.equal(done.ok, false);
+	assert.match(done.error, /PR #123 is already applied/);
+});
+
+// A patch a trunk update reset away is not absorbed: its record is stale, and
+// Revert has to stay on screen because pressing it is what clears it.
+test('site:status: a patch the tree no longer holds keeps its Revert (#306)', async (t) => {
+	const { dir, main } = await ticketWithAppliedPatch(t, '<?php // login\n// the ticket work\n');
+
+	const status = await main.invoke('site:status', dir);
+
+	assert.equal(status.appliedPatch.revertable, true);
+	assert.deepEqual(status.appliedPatch.absorbed, []);
+});
+
+// The measurement must not write. `site:status` runs wherever the app re-reads
+// a site, so a check with a side effect would be a checkout mutating itself.
+test('site:status: measuring removability does not touch the checkout (#306)', async (t) => {
+	const { dir, main, workFile } = await ticketWithAppliedPatch(t, EDITED_OVER);
+	const before = fs.readFileSync(path.join(dir, workFile), 'utf8');
+
+	await main.invoke('site:status', dir);
+
+	assert.equal(fs.readFileSync(path.join(dir, workFile), 'utf8'), before);
+});
+
+// The other half of #306: the pre-apply warning names the files, and the
+// renderer's attribution module decides which of them are the contributor's.
+// The two have to agree on the same paths, which is what this pins.
+test('git:preview-patch and the applied record agree on who owns a file (#306)', async (t) => {
+	const { dir, main } = await ticketWithAppliedPatch(t, PATCH_APPLIED);
+
+	const preview = await main.invoke('git:preview-patch', dir, LOGIN_DIFF);
+	const status = await main.invoke('site:status', dir);
+
+	assert.deepEqual(preview.conflicts, ['src/wp-login.php']);
+	const attributed = attributeConflicts({ conflicts: preview.conflicts, appliedPatch: status.appliedPatch });
+	assert.deepEqual(attributed.fromLayer, ['src/wp-login.php']);
+	assert.deepEqual(attributed.yours, []);
+});
+
+// And once the contributor has edited over it, the same file goes back to
+// naming their work — the answer that decides what they do next.
+test('git:preview-patch: a file edited over the patch is the contributor\'s again (#306)', async (t) => {
+	const { dir, main } = await ticketWithAppliedPatch(t, EDITED_OVER);
+
+	const preview = await main.invoke('git:preview-patch', dir, LOGIN_DIFF);
+	const status = await main.invoke('site:status', dir);
+
+	const attributed = attributeConflicts({ conflicts: preview.conflicts, appliedPatch: status.appliedPatch });
+	assert.deepEqual(attributed.yours, ['src/wp-login.php']);
+	assert.deepEqual(attributed.fromLayer, []);
 });

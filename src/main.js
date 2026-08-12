@@ -29,7 +29,7 @@ const { buildMenuTemplate } = require('./menu');
 const { killChildTree } = require('./kill-tree');
 const { normalizeEol } = require('./git-update.cjs');
 const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
-const { applyPatchToDir } = require('./patch-apply');
+const { applyPatchToDir, diagnoseRemoval } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
 const { fetchLinkedPrs, fetchPrDiff } = require('./github-prs');
 const { getClientId: getGithubClientId, requestDeviceCode, pollForToken, fetchViewer } = require('./github-auth.cjs');
@@ -1719,12 +1719,41 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 
 		// Summarised rather than passed through: the stored patch text is only
 		// needed by the main process to reverse it, and this is polled.
+		//
+		// `revertable` used to mean "we kept the text". It now means what the
+		// banner actually asks — can this layer still be lifted out, right now
+		// (#306) — which is a fact about the tree and has to be measured here,
+		// because the text does not cross IPC and the renderer cannot ask.
+		// The measurement is in-memory: it reads the patch's own files (one to a
+		// handful, on a call that already stats the checkout and reads a git
+		// object) and matches hunks against them. Nothing is written. It is
+		// bounded twice over — a patch bigger than REVERTABLE_PATCH_LIMIT has no
+		// stored text to check, and this handler is called on mount and after
+		// long operations, not on a timer. The costly shape is a large absorbed
+		// patch, which pays its per-hunk diagnosis on every one of those reads;
+		// if that is ever felt, a ceiling belongs in diagnoseRemoval, not here.
+		//
+		// Guarded, and it fails towards offering Revert: a check that could not
+		// run must not hide the exit. Pressing Revert then gives the real answer
+		// from the apply path, with its own explanation.
+		let absorbed = [];
+		if (work.appliedPatch && work.appliedPatch.text) {
+			try {
+				absorbed = diagnoseRemoval({ dir: sitePath, patchText: work.appliedPatch.text }).absorbed;
+			} catch (e) {
+				logError('site:status', `could not check whether ${describeRefused(work.appliedPatch.label)} still comes out of ${describeRefused(sitePath)}: ${String(e && e.stack ? e.stack : e)}`);
+			}
+		}
 		const appliedPatch = work.appliedPatch
 			? {
 				label: work.appliedPatch.label,
 				appliedAt: work.appliedPatch.appliedAt,
 				files: work.appliedPatch.files || [],
-				revertable: Boolean(work.appliedPatch.text)
+				// Whether a text was kept at all — the separate reason a patch
+				// cannot be reverted, and a different sentence from absorption.
+				kept: Boolean(work.appliedPatch.text),
+				absorbed,
+				revertable: Boolean(work.appliedPatch.text) && absorbed.length === 0
 			}
 			: null;
 
