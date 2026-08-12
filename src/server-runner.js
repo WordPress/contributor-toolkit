@@ -4,7 +4,7 @@ const { hideChildWindows } = require('./hide-child-windows');
 const { bindLoopbackOnly } = require('./bind-loopback');
 const { formatErrorChain } = require('./error-chain');
 const { WP_DEBUG_CONSTANTS } = require('./wp-debug-constants');
-const { planPlaygroundLaunch } = require('./playground-plan.cjs');
+const { planPlaygroundLaunch, planServeConstants } = require('./playground-plan.cjs');
 
 // Must run before the Playground CLI is required, so anything it spawns is
 // covered too.
@@ -37,6 +37,7 @@ async function main() {
 
 	try {
 		const launch = planPlaygroundLaunch(serveConfig);
+		const serveConstants = planServeConstants(serveConfig);
 		const { runCLI } = require('@wp-playground/cli');
 		console.log("Running CLI");
 		const result = await runCLI({
@@ -65,7 +66,10 @@ async function main() {
 					'WP_MAIL_SMTP_AUTH': String(process.env.WP_MAIL_SMTP_AUTH || 'false') === 'true',
 					'WP_MAIL_SMTP_SECURE': process.env.WP_MAIL_SMTP_SECURE || '', // '', 'ssl', or 'tls'
 					'WP_MAIL_SMTP_USER': process.env.WP_MAIL_SMTP_USER || '',
-					'WP_MAIL_SMTP_PASS': process.env.WP_MAIL_SMTP_PASS || ''
+					'WP_MAIL_SMTP_PASS': process.env.WP_MAIL_SMTP_PASS || '',
+					// Last, so a strategy that has to protect the host directory it
+					// mounted cannot be overridden by the shared sets above.
+					...serveConstants
 				}
 			}
 		});

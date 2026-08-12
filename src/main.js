@@ -2375,17 +2375,24 @@ function playgroundLogScope(sitePath) {
 ipcMain.handle('playground:start', async (event, sitePath) => {
 	// Ensure a per-site SMTP server is running alongside the dev server and get its port
 	const smtp = await ensureSmtpServerForSite(sitePath).catch(() => null);
+
+	// How this site is served depends on its project type (#251). Core's build/
+	// is a whole WordPress, served as the docroot; a Gutenberg checkout is a
+	// plugin, mounted into a stock WordPress Playground installs. The runner turns
+	// this into the Playground mount/install options.
+	//
+	// Read before the in-flight guard, never between it and the assignment below:
+	// every await in that window lets a second start slip past the guard and
+	// overwrite the entry, orphaning the first runner — unreachable to both
+	// playground:stop and the before-quit sweep, which only walk the map.
+	const serve = projectTypeForSite(await readSiteMeta(sitePath)).serve;
+
 	if (playgroundServers[sitePath]?.child) {
 		return { ok: true, url: playgroundServers[sitePath].url };
 	}
 	const buildDir = path.join(sitePath, 'build');
 	const runnerPath = path.join(__dirname, 'server-runner.js');
 
-	// How this site is served depends on its project type (#251). Core's build/
-	// is a whole WordPress, served as the docroot; a Gutenberg checkout is a
-	// plugin, mounted into a stock WordPress Playground installs. The runner turns
-	// this into the Playground mount/install options.
-	const serve = projectTypeForSite(await readSiteMeta(sitePath)).serve;
 	const serveConfig = serve.strategy === 'plugin-mount'
 		? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
 		: { strategy: 'docroot', docroot: buildDir };

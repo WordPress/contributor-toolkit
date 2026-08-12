@@ -53,4 +53,25 @@ function planPlaygroundLaunch(config) {
 	};
 }
 
-module.exports = { planPlaygroundLaunch, WORDPRESS_VFS_ROOT, PLUGINS_VFS_BASE };
+// The wp-config constants a strategy needs on top of the shared debug/SMTP set.
+//
+// Only 'plugin-mount' asks for any, and it asks for the two that make the
+// mounted directory read-only from inside WordPress. The mount is a read-write
+// NODEFS mount of the *source checkout* — not a regenerable build/ — so
+// Plugins → Delete on the mounted plugin, or the plugin file editor, writes
+// straight through to the contributor's working tree, uncommitted work and .git
+// included. Core's docroot strategy exposes only build/, which the app rebuilds,
+// so it keeps WordPress's defaults.
+//
+// The cost is real and deliberate: DISALLOW_FILE_MODS also blocks installing a
+// second plugin or theme into the preview. Losing an afternoon of uncommitted
+// work is worse than restarting a preview you can restart.
+function planServeConstants(config) {
+	const cfg = config || {};
+	if (cfg.strategy === 'plugin-mount') {
+		return { DISALLOW_FILE_MODS: true, DISALLOW_FILE_EDIT: true };
+	}
+	return {};
+}
+
+module.exports = { planPlaygroundLaunch, planServeConstants, WORDPRESS_VFS_ROOT, PLUGINS_VFS_BASE };

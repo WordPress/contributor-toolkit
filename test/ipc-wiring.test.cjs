@@ -1664,6 +1664,41 @@ test('playground:start serves a Gutenberg site as a mounted plugin', async (t) =
 	assert.equal(serveConfig.pluginSlug, 'gutenberg');
 });
 
+// Two starts for the same site must produce one server. The guard that enforces
+// this reads a map the handler only writes *after* it spawns, so it holds only
+// while nothing awaits in between — resolving the site's project type (#251) put
+// an await squarely in that window. The loser of the race would otherwise
+// overwrite the map entry and orphan a live PHP-WASM server: playground:stop and
+// the before-quit sweep both walk the map, so it would survive the app quitting,
+// still holding its port.
+test('two concurrent playground:start calls for one site spawn a single server', async (t) => {
+	const cp = stubbedSpawn();
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noSmtpServer(),
+			...settings.stubs,
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { buildChildEnv: () => ({ PATH: '/shims' }) }
+		}
+	});
+
+	const both = Promise.all([
+		main.invoke('playground:start', '/sites/wp'),
+		main.invoke('playground:start', '/sites/wp')
+	]);
+	for (let turn = 0; turn < 100 && cp.spawned.length === 0; turn++) {
+		await new Promise(setImmediate);
+	}
+	t.after(async () => {
+		for (const child of cp.children) child.emit('close', 0, null);
+		await both.catch(() => {});
+	});
+
+	assert.equal(cp.spawned.length, 1, 'the second start spawned a second server, orphaning the first');
+});
+
 test('playground-web:start spawns its runner through npm-runner too', async (t) => {
 	const env = { PATH: '/shims' };
 	const buildChildEnv = spy(() => env);

@@ -176,3 +176,68 @@ test('the SMTP constants survive alongside them', () => {
 	assert.strictEqual(constants.WP_MAIL_SMTP_HOST, '127.0.0.1');
 	assert.strictEqual(typeof constants.WP_MAIL_SMTP_PORT, 'number');
 });
+
+// The join between the plan and the CLI, which nothing pinned before: the two
+// strategies were each tested in isolation (planPlaygroundLaunch in
+// test/playground-plan.test.cjs, the handler's config in test/ipc-wiring.test.cjs)
+// while the spread that carries one into the other was unasserted. Drop
+// `...launch` from server-runner.js and every other test stays green, but Core
+// boots with no mount and Playground's default install mode — i.e. it serves a
+// freshly downloaded stock WordPress and the contributor's build/ is not in it.
+test('a docroot serve reaches the CLI as a pre-install mount, not a plain one', () => {
+	const { cliOptions } = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'docroot', docroot: '/tmp/site/build' })]);
+
+	assert.deepStrictEqual(
+		cliOptions['mount-before-install'],
+		[{ hostPath: '/tmp/site/build', vfsPath: '/wordpress' }],
+		'Core must mount build/ as /wordpress before install, or the download unpacks over it'
+	);
+	assert.deepStrictEqual(cliOptions.mount, [], 'Core mounts nothing after install');
+	assert.strictEqual(
+		cliOptions.wordpressInstallMode,
+		'install-from-existing-files-if-needed',
+		'without this Playground downloads a second WordPress over the build'
+	);
+});
+
+test('a plugin-mount serve reaches the CLI as a post-install mount plus an activate step', () => {
+	const { cliOptions } = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'plugin-mount', pluginDir: '/tmp/gutenberg', pluginSlug: 'gutenberg' })]);
+
+	assert.deepStrictEqual(
+		cliOptions.mount,
+		[{ hostPath: '/tmp/gutenberg', vfsPath: '/wordpress/wp-content/plugins/gutenberg' }],
+		'Gutenberg must be mounted under wp-content/plugins, after the stock WordPress install'
+	);
+	assert.deepStrictEqual(cliOptions['mount-before-install'], [], 'mounting the plugin before install would put it at the docroot');
+	assert.strictEqual(
+		cliOptions.wordpressInstallMode,
+		undefined,
+		'plugin-mount relies on Playground’s default install mode to download a WordPress'
+	);
+	assert.deepStrictEqual(
+		cliOptions['additional-blueprint-steps'],
+		[{ step: 'activatePlugin', pluginPath: '/wordpress/wp-content/plugins/gutenberg' }],
+		'a mounted but inactive plugin serves a stock WordPress with nothing of the contributor’s in it'
+	);
+});
+
+// The mount is read-write and points at the source checkout, not a regenerable
+// build/. Without these, Plugins → Delete on the mounted plugin unlinks the
+// contributor's working tree — uncommitted work and .git included.
+test('a plugin-mount serve makes the mounted checkout read-only from inside WordPress', () => {
+	const { cliOptions } = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'plugin-mount', pluginDir: '/tmp/gutenberg', pluginSlug: 'gutenberg' })]);
+	const constants = cliOptions.blueprint.constants;
+
+	assert.strictEqual(constants.DISALLOW_FILE_MODS, true, 'WordPress could delete or overwrite the mounted checkout');
+	assert.strictEqual(constants.DISALLOW_FILE_EDIT, true, 'the plugin file editor could edit the contributor’s real source files');
+});
+
+// Core keeps WordPress's defaults: its mount is build/, which the app rebuilds,
+// and a contributor testing a Core ticket may legitimately install a plugin.
+test('a docroot serve does not inherit those guards', () => {
+	const { cliOptions } = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'docroot', docroot: '/tmp/site/build' })]);
+	const constants = cliOptions.blueprint.constants;
+
+	assert.strictEqual(constants.DISALLOW_FILE_MODS, undefined);
+	assert.strictEqual(constants.DISALLOW_FILE_EDIT, undefined);
+});
