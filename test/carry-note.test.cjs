@@ -10,12 +10,15 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
 	CARRY_STATE,
+	CARRY_FAILURE,
 	REFUSAL,
 	WHY_NOT_STAY,
 	NOTHING_MOVES_YET,
 	refusalSentences,
 	describeCarryNote,
-	describeCarryOffer
+	describeCarryOffer,
+	describeCarryOutcome,
+	describeCarryInterrupted
 } = require('../src/renderer/carry-note.cjs');
 
 // --- the card's note -------------------------------------------------------
@@ -140,4 +143,86 @@ test('an applied layer is named, and the two faces read differently (issue #305,
 test('no offer is made for a ticket that is not behind (issue #305)', () => {
 	assert.equal(describeCarryOffer({ state: CARRY_STATE.CURRENT, wholesale: ['a.php'] }), null);
 	assert.equal(describeCarryOffer({ state: CARRY_STATE.UNKNOWN }), null);
+});
+
+// --- what it says afterwards ----------------------------------------------
+
+test('a finished carry says how much came across and nothing else (issue #305)', () => {
+	const out = describeCarryOutcome({ ok: true, wholesale: ['a.php', 'b.php'], merge: ['c.php'] });
+	assert.equal(out.tone, 'success');
+	assert.match(out.sentences.join(' '), /3 files came across/);
+	assert.equal(out.offerDiscard, false, 'a success must not recommend throwing the work away');
+});
+
+// The half-success: the carry worked, the layer did not come back. Both facts
+// have to be said, and the record is gone, so the panel must not go on offering
+// a revert for a patch that is no longer there.
+test('a layer that no longer applies is named, and the work is still reported as carried (#305, #306)', () => {
+	const out = describeCarryOutcome({
+		ok: true,
+		wholesale: ['a.php'],
+		patchKept: false,
+		patchLabel: 'Pull request #1234'
+	});
+	assert.equal(out.tone, 'success');
+	const text = out.sentences.join(' ');
+	assert.match(text, /Pull request #1234 does not apply to today's trunk/);
+	assert.match(text, /Your own work did/);
+	assert.match(text, /no longer counted as applied/);
+});
+
+// #309's first constraint, in copy: discarding is the recommended way out, and
+// the copy is what makes it safe. No reconciliation is offered, on purpose.
+test('a collision recommends saving a copy and discarding, and says why staying is worse (#305, #309)', () => {
+	const out = describeCarryOutcome({
+		ok: false,
+		code: CARRY_FAILURE.CONFLICT,
+		merge: ['src/class-wp-query.php']
+	});
+	assert.equal(out.tone, 'error');
+	assert.equal(out.offerCopy, true);
+	assert.equal(out.offerDiscard, true);
+	const text = out.sentences.join(' ');
+	assert.match(text, /Nothing moved/);
+	assert.ok(text.includes(WHY_NOT_STAY), 'the contributor has to be told why staying behind is worse');
+	assert.match(text, /Save a copy of your work/);
+	assert.deepEqual(out.blocked, ['Your change to src/class-wp-query.php no longer fits trunk\'s version of it.']);
+});
+
+// The replay is all-or-nothing across the whole patch, so one bad file stops
+// the good ones with it. Naming all of them as collisions is what makes the
+// message stop being worth reading.
+test('a collision names the file that collided, not everything on the replay route (issue #305)', () => {
+	const out = describeCarryOutcome({
+		ok: false,
+		code: CARRY_FAILURE.CONFLICT,
+		merge: ['a.php', 'b.php', 'c.php'],
+		conflictPaths: ['b.php']
+	});
+	assert.deepEqual(out.blocked, ['Your change to b.php no longer fits trunk\'s version of it.']);
+});
+
+test('a collision with no per-file diagnosis falls back to the replay set (issue #305)', () => {
+	const out = describeCarryOutcome({ ok: false, code: CARRY_FAILURE.CONFLICT, merge: ['a.php'], conflictPaths: [] });
+	assert.equal(out.blocked.length, 1, 'saying nothing would be worse than saying too much');
+});
+
+test('a refusal narrates its reasons rather than the files that were fine (#305)', () => {
+	const out = describeCarryOutcome({
+		ok: false,
+		code: CARRY_FAILURE.REFUSED,
+		wholesale: ['fine.php'],
+		refused: [{ path: 'gone.php', reason: REFUSAL.UPSTREAM_DELETED }]
+	});
+	assert.equal(out.blocked.length, 1);
+	assert.match(out.blocked[0], /Trunk has deleted gone\.php/);
+});
+
+test('an interrupted carry is named only when there is a record to act on (issue #305)', () => {
+	assert.equal(describeCarryInterrupted(null), null);
+	assert.equal(describeCarryInterrupted({}), null);
+	const block = describeCarryInterrupted({ ref: 'ticket/59234', oldOid: 'abc123' });
+	assert.match(block.message, /ticket\/59234/);
+	assert.match(block.message, /did not finish/);
+	assert.ok(block.actionLabel);
 });

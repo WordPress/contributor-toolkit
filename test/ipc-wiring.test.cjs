@@ -663,6 +663,101 @@ test('git:carry-status answers unknown for a base it never recorded (#305, #308)
 	assert.equal(res.baseStatus, 'unrecorded');
 });
 
+// --- git:carry-ticket and its recovery (#305) ------------------------------
+
+test('git:carry-ticket streams, moves the branch onto trunk, and records the new base (#305)', async (t) => {
+	const { dir, baseOid, workFile } = await parkedTicketRepo(t);
+	const trunkOid = await advanceTrunkPast(dir, (d) => fs.writeFileSync(path.join(d, 'upstream.php'), '<?php // new\n'));
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'ticket/62281': { tracTicket: 62281, baseOid } } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	const event = createIpcEvent();
+
+	const { carryId } = await main.invokeWith('git:carry-ticket', event, dir);
+	const done = await waitForDone(event, 'git:carry-ticket:done', 'carryId', carryId);
+
+	assert.equal(done.ok, true);
+	assert.ok(
+		event.sent.some((m) => m.channel === 'git:carry-ticket:log'),
+		'a multi-checkout operation has to stream, not accumulate'
+	);
+	// The branch really moved, and the store agrees with the repository.
+	const meta = settings.values.siteMeta[dir];
+	assert.equal(meta.branches['ticket/62281'].baseOid, trunkOid);
+	assert.equal(meta.carryInProgress, null, 'the marker is cleared once the new state exists');
+	const log = await git.log({ fs, dir, ref: 'ticket/62281' });
+	assert.equal(log[0].commit.parent[0], trunkOid);
+	// The contributor's work, on the new trunk.
+	assert.match(fs.readFileSync(path.join(dir, workFile), 'utf8'), /the ticket work/);
+	assert.equal(fs.existsSync(path.join(dir, 'upstream.php')), true);
+});
+
+// The marker's whole job: everything that reads a diff has to stop, because the
+// recorded base is not where the branch is any more.
+test('an unfinished carry blocks the note, the patch modal and the pull request (#305)', async (t) => {
+	const { dir, baseOid } = await parkedTicketRepo(t);
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({
+				sites: [dir],
+				siteMeta: {
+					[dir]: {
+						tracTicket: 62281,
+						branches: { 'ticket/62281': { tracTicket: 62281, baseOid } },
+						carryInProgress: { ref: 'ticket/62281', oldOid: baseOid }
+					}
+				}
+			}).stubs
+		}
+	});
+
+	for (const channel of ['git:unsubmitted-work', 'git:get-patch', 'git:save-patch', 'git:carry-status']) {
+		const res = await main.invoke(channel, dir);
+		assert.equal(res.ok, false, `${channel} must refuse while the site needs reconciling`);
+		assert.equal(res.code, 'carry-incomplete', channel);
+	}
+	const preview = await main.invoke('git:preview-patch', dir, LOGIN_DIFF);
+	assert.equal(preview.code, 'carry-incomplete');
+	const pr = await main.invoke('github:open-pr', dir, {});
+	assert.equal(pr.ok, false, 'a pull request built on a stale base would carry files nobody touched');
+});
+
+test('git:carry-reconcile puts the branch back where the marker says (#305)', async (t) => {
+	const { dir, baseOid, workFile } = await parkedTicketRepo(t);
+	const oldOid = await git.resolveRef({ fs, dir, ref: 'ticket/62281' });
+	const trunkOid = await advanceTrunkPast(dir, (d) => fs.writeFileSync(path.join(d, 'upstream.php'), '<?php // new\n'));
+	// The state a crash mid-carry leaves: the branch moved off the work, and
+	// only the marker knowing where it went.
+	await git.writeRef({ fs, dir, ref: 'refs/heads/ticket/62281', value: trunkOid, force: true });
+	await git.checkout({ fs, dir, ref: 'ticket/62281', force: true });
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: {
+			[dir]: {
+				branches: { 'ticket/62281': { tracTicket: 62281, baseOid: trunkOid } },
+				carryInProgress: { ref: 'ticket/62281', oldOid, baseOid, trunkOid }
+			}
+		}
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const res = await main.invokeWith('git:carry-reconcile', createIpcEvent(), dir);
+	assert.equal(res.ok, true);
+	assert.equal(res.reconciled, true);
+	assert.equal(await git.resolveRef({ fs, dir, ref: 'ticket/62281' }), oldOid);
+	assert.match(fs.readFileSync(path.join(dir, workFile), 'utf8'), /the ticket work/);
+
+	const meta = settings.values.siteMeta[dir];
+	assert.equal(meta.carryInProgress, null);
+	assert.equal(meta.branches['ticket/62281'].baseOid, baseOid, 'the base goes back too, not just the ref');
+	assert.equal(meta.tracTicket, 62281);
+	// And the site is usable again.
+	assert.equal((await main.invoke('git:unsubmitted-work', dir)).ok, true);
+});
+
 // What a discard leaves behind rides on its reply: on a ticket branch the
 // parked work survives the reset (destroying a ticket is what deleting its
 // branch is for), so answering "clean" would hide the note over work that is
@@ -849,6 +944,7 @@ test('git:get-patch normalizes both sides of the diff through git-update', async
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
+			...fakeSettingsStore({}).stubs,
 			'./git-update.cjs': { normalizeEol },
 			'./trunk-update': { ensureAutocrlf }
 		}
@@ -883,7 +979,9 @@ test('git:get-patch includes an untracked file without staging it (issues #108, 
 	fs.mkdirSync(path.join(dir, 'node_modules'));
 	fs.writeFileSync(path.join(dir, 'node_modules', 'junk.js'), 'noise\n');
 
-	const main = loadMain({ stubs: { ...silentLogging(), './trunk-update': { ensureAutocrlf: async () => {} } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({}).stubs, './trunk-update': { ensureAutocrlf: async () => {} } }
+	});
 	const before = await git.statusMatrix({ fs, dir });
 	const result = await main.invoke('git:get-patch', dir);
 
@@ -914,8 +1012,19 @@ async function patchRepo(t, files) {
 	return dir;
 }
 
+// The settings stub is not optional here even though none of these tests care
+// about the registry: every patch generator now asks whether the site needs
+// reconciling first (#305), and that reads electron-store — which without the
+// seam pulls the real `electron` in through the ESM loader, where the harness's
+// require hook cannot reach it.
 function patchMain() {
-	return loadMain({ stubs: { ...silentLogging(), './trunk-update': { ensureAutocrlf: async () => {} } } });
+	return loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({}).stubs,
+			'./trunk-update': { ensureAutocrlf: async () => {} }
+		}
+	});
 }
 
 // The patch is what a contributor hands over, so a change it does not mention
@@ -1090,7 +1199,9 @@ test('git:create-patch and git:save-patch generate the patch the same way', asyn
 		// keeps this test off the network, since the next step fetches
 		// wordpress-develop when the repository has no origin/trunk.
 		const ensureAutocrlf = spy(async () => { throw new Error('not a repository'); });
-		const main = loadMain({ stubs: { ...silentLogging(), './trunk-update': { ensureAutocrlf } } });
+		const main = loadMain({
+			stubs: { ...silentLogging(), ...fakeSettingsStore({}).stubs, './trunk-update': { ensureAutocrlf } }
+		});
 
 		await main.invoke(channel, dir);
 
@@ -1846,7 +1957,9 @@ test('sites:set-ticket refuses unregistered site paths before writing metadata',
 
 test('git:preview-patch reads the patch through patch-plan', async () => {
 	const parsePatchFiles = spy(() => ({ ok: false, error: 'unreadable' }));
-	const main = loadMain({ stubs: { ...silentLogging(), './patch-plan.cjs': { parsePatchFiles, planApply: () => ({}) } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({}).stubs, './patch-plan.cjs': { parsePatchFiles, planApply: () => ({}) } }
+	});
 
 	const result = await main.invoke('git:preview-patch', '/sites/wp', 'PATCH TEXT');
 
@@ -3807,6 +3920,8 @@ const WIRED = new Set([
 	'git:worktree-dirty',
 	'git:unsubmitted-work',
 	'git:carry-status',
+	'git:carry-ticket',
+	'git:carry-reconcile',
 	'git:discard-changes',
 	'git:discard-to-base',
 	'git:update-trunk',

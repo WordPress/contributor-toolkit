@@ -7,7 +7,6 @@ const fse = require('fs-extra');
 const nodeHttp = require('http');
 const git = require('isomorphic-git');
 const http = require('isomorphic-git/http/node');
-const JsDiff = require('diff');
 const { spawn } = require('child_process');
 const { SMTPServer } = require('smtp-server');
 const { simpleParser } = require('mailparser');
@@ -53,7 +52,8 @@ const {
 	deleteTicketBranch
 } = require('./ticket-branches');
 const { CARRY_STATE } = require('./renderer/carry-note.cjs');
-const { carryStatus } = require('./ticket-carry');
+const { unifiedSection } = require('./patch-text.cjs');
+const { carryStatus, trunkMovedPast, carryTicketForward, reconcileCarry } = require('./ticket-carry');
 const { createProgressThrottle, describeSwitchProgress } = require('./switch-progress.cjs');
 const { getStore } = require('./settings-store');
 
@@ -492,51 +492,13 @@ async function createMinimalPatchForDir(dir, baseOid = null) {
             binaries.push(file.path);
             continue;
         }
-        const gone = !file.inWorkdir;
         const { a, b } = kind;
-        // `/dev/null` names whichever side does not exist, and it is not
-        // decoration: classify() in patch-plan.cjs reads an add or a delete
-        // from the filename alone, never from "the hunk removes every line".
-        // Named `b/<path>`, a deletion comes back through this app's own
-        // reader as a modification, and the applier writes an empty file where
-        // the patch said remove.
-        //
-        // Which side exists is the walk's answer, not the buffers'.
-        const oldName = file.inHead ? `a/${file.path}` : '/dev/null';
-        const newName = gone ? '/dev/null' : `b/${file.path}`;
-        // No blank line between sections. jsdiff keeps consuming lines past a
-        // `\ No newline at end of file` marker, so a separator becomes a
-        // phantom empty context line and the section stops applying to any
-        // file that does not end in a newline — the file it just described.
-        // Each section already ends in one.
-        patch += withoutPhantomNoNewline(
-            JsDiff.createTwoFilesPatch(oldName, newName, a, b, '', '', { context: 3 }),
-            gone && a.endsWith('\n')
-        );
+        // Which side exists is the walk's answer, not the buffers'; the
+        // `/dev/null` naming that rests on it lives in patch-text.cjs, shared
+        // with the carry (#305) so the two cannot answer it differently.
+        patch += unifiedSection({ path: file.path, inOld: file.inHead, inNew: file.inWorkdir, a, b });
     }
     return skippedNotice(binaries, unreadable) + (patch || 'No changes.');
-}
-
-/**
- * Drops the `\ No newline at end of file` marker jsdiff adds to a deletion
- * whether or not it is true (#85).
- *
- * jsdiff decides the marker from the *new* side, and a deletion's new side is
- * the empty string — which it reads as "no trailing newline", so every deletion
- * comes out claiming the removed file lacked one. The marker attaches to the
- * preceding `-` line, so on a file that did end in a newline it asserts
- * something false about the old side and `git apply` refuses the patch — the
- * whole patch, since it is all-or-nothing, unrelated files included. `patch(1)`
- * tolerates it; the destination is a Trac ticket read by a committer running
- * `git apply`, so tolerance elsewhere is not enough.
- *
- * @param {string}  section One createTwoFilesPatch section.
- * @param {boolean} phantom True when the marker is jsdiff's invention.
- * @return {string} The section, marker removed only when it was not earned.
- */
-function withoutPhantomNoNewline(section, phantom) {
-    if (!phantom) return section;
-    return section.replace(/\n\\ No newline at end of file\n$/, '\n');
 }
 
 /**
@@ -588,8 +550,16 @@ async function collectPullRequestFiles(dir, baseOid = null) {
 // the "patch" would come back empty and look like there was nothing to submit.
 const NO_BASE_PATCH_ERROR = baseUnreadableMessage('no patch was created');
 
+// An unfinished carry or switch is the other reason not to measure (#305). It
+// is the same shape of refusal as an unreadable base and for a sharper reason:
+// the recorded branch point is not where the branch is, so every diff taken from
+// it would be confidently wrong rather than absent — a patch the contributor
+// hands over, or a pull request they open, carrying files they never touched.
+
 ipcMain.handle('git:get-patch', async (_e, sitePath) => {
     try {
+        const blocked = await reconcileBlock(sitePath);
+        if (blocked) return blocked;
         const base = await patchBase(sitePath);
         if (base.status === BASE_STATUS.UNREADABLE) return { ok: false, error: NO_BASE_PATCH_ERROR };
         const patch = await createMinimalPatchForDir(sitePath, base.baseOid);
@@ -605,6 +575,11 @@ ipcMain.handle('git:create-patch', async (_e, sitePath) => {
         win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml(text)));
     };
     try {
+        const blocked = await reconcileBlock(sitePath);
+        if (blocked) {
+            showPatchWindow(blocked.error);
+            return blocked;
+        }
         const base = await patchBase(sitePath);
         if (base.status === BASE_STATUS.UNREADABLE) {
             showPatchWindow(NO_BASE_PATCH_ERROR);
@@ -628,6 +603,8 @@ ipcMain.handle('git:create-patch', async (_e, sitePath) => {
 // gets attached to a ticket.
 ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
     try {
+        const blocked = await reconcileBlock(sitePath);
+        if (blocked) return blocked;
         const handoff = Boolean(options && options.handoff);
         const base = await patchBase(sitePath);
         if (base.status === BASE_STATUS.UNREADABLE) return { ok: false, error: NO_BASE_PATCH_ERROR };
@@ -794,6 +771,9 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
         return { ok: false, reason: 'no-ticket', error: 'Link a Trac ticket to this site first.', stage: 'auth' };
     }
     const { wporgHandle: handle = null, contributionEvent = null } = s.get('preferences') || {};
+
+    const blocked = await reconcileBlock(sitePath);
+    if (blocked) return { ...blocked, reason: 'error', stage: 'collect' };
 
     let collected;
     try {
@@ -962,6 +942,39 @@ async function midSwitchBlock(sitePath) {
         switchInProgress,
         error: `A previous switch from ${switchInProgress.from} to ${switchInProgress.to} did not finish. `
             + `Retry it before making other changes — your work on ${switchInProgress.from} is still committed on that branch.`
+    };
+}
+
+/**
+ * The one "this site needs reconciling before anything else" check (#305).
+ *
+ * Two markers, folded into one gate because they have the same consequence for
+ * every caller: the app's record of where the work is has stopped matching the
+ * repository, so anything that reads a diff would render a wrong one and
+ * anything that parks would commit over the good commit.
+ *
+ * The carry marker reaches further than the switch marker does, and has to. A
+ * half-finished switch leaves the recorded base still correct; a half-finished
+ * carry does not — between the ref moving and the store write, `baseOid` names a
+ * commit the branch is no longer on. Every surface measured from that base is
+ * then wrong in the quiet way: the patch modal shows a diff that is not the
+ * contributor's work, the card's note counts the wrong files, and a pull request
+ * opened from it would carry them.
+ *
+ * @param {string} sitePath
+ * @return {Promise<?Object>} A refusal to return as-is, or null.
+ */
+async function reconcileBlock(sitePath) {
+    const blocked = await midSwitchBlock(sitePath);
+    if (blocked) return blocked;
+    const { carryInProgress } = await readSiteMeta(sitePath);
+    if (!carryInProgress) return null;
+    return {
+        ok: false,
+        code: 'carry-incomplete',
+        carryInProgress: { ref: carryInProgress.ref || null },
+        error: `Bringing ${carryInProgress.ref || 'this ticket'} up to date did not finish, so this site is `
+            + 'between two states. Put it back before making other changes.'
     };
 }
 
@@ -1216,6 +1229,8 @@ ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
 // switch — which is exactly the work the note exists to speak about.
 ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
     try {
+        const blocked = await reconcileBlock(sitePath);
+        if (blocked) return blocked;
         // The reply keeps its shape: the card's note counts files and does not
         // yet say how exact the measurement is — qualifying it there is a
         // follow-up, not something to smuggle in on this channel.
@@ -1268,6 +1283,8 @@ async function collectCarryCandidates(sitePath, baseOid) {
  * same reason #308 gave.
  */
 ipcMain.handle('git:carry-status', async (_e, sitePath) => withRegisteredSite(sitePath, async () => {
+    const blocked = await reconcileBlock(sitePath);
+    if (blocked) return blocked;
     const base = await patchBase(sitePath);
     // `unrecorded` hands back today's trunk as a stand-in for a branch point it
     // never wrote down (#308). Comparing that against trunk answers "current"
@@ -1302,6 +1319,133 @@ ipcMain.handle('git:carry-status', async (_e, sitePath) => withRegisteredSite(si
     return { ok: true, baseStatus: base.status, ...status };
 }));
 
+/**
+ * Brings a ticket forward onto the trunk the site now has (#305).
+ *
+ * Long-running — two checkouts of a `wordpress-develop` worktree — so it streams
+ * like `git:update-trunk` does rather than resolving with accumulated output:
+ * `{ carryId }` comes back immediately and the work reports on the log and done
+ * channels. `updateSwitchLogger` is what turns the switch progress into lines,
+ * the same surface the trunk update writes to, so the two checkouts inside a
+ * carry do not need a second progress display to disagree with the first.
+ *
+ * Offered and confirmed, never automatic and never part of the site update: the
+ * renderer only reaches this when a contributor has read the offer and accepted
+ * it (#309).
+ */
+ipcMain.handle('git:carry-ticket', async (event, sitePath) => {
+    const carryId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const sender = event.sender;
+    const sendLog = (data) => {
+        try { sender.send('git:carry-ticket:log', { carryId, data }); } catch {}
+    };
+    const sendDone = (payload) => {
+        try { sender.send('git:carry-ticket:done', { carryId, ...payload }); } catch {}
+    };
+
+    (async () => {
+        try {
+            const s = await getStore();
+            if (!(s.get('sites') || []).includes(sitePath)) {
+                sendDone({ ok: false, error: 'Site is not registered' });
+                return;
+            }
+            const blocked = await reconcileBlock(sitePath);
+            if (blocked) { sendLog(`\n${blocked.error}\n`); sendDone(blocked); return; }
+
+            const { ref, meta } = await activeBranch(sitePath, { migrate: true });
+            if (ref === TRUNK || !meta || !meta.baseOid) {
+                sendDone({ ok: false, error: 'There is no ticket here with a recorded starting point to bring forward.' });
+                return;
+            }
+            const trunkOid = await git.resolveRef({ fs, dir: sitePath, ref: 'refs/heads/trunk' });
+            // Two full checkouts of a wordpress-develop worktree is not a thing
+            // to do for no reason. The UI only offers this when the ticket is
+            // behind; the handler checks rather than trusting it, because the
+            // renderer's answer can be seconds old and a carry that moves
+            // nothing still costs the contributor a minute of their session.
+            const moved = await trunkMovedPast(sitePath, { baseOid: meta.baseOid, trunkOid });
+            if (moved.state !== CARRY_STATE.BEHIND) {
+                sendDone({ ok: true, upToDate: true, branch: ref, state: moved.state });
+                return;
+            }
+
+            const log = updateSwitchLogger(sendLog);
+            let result;
+            try {
+                result = await carryTicketForward({
+                    dir: sitePath,
+                    ref,
+                    baseOid: meta.baseOid,
+                    trunkOid,
+                    appliedPatch: (await readWorkMeta(sitePath)).appliedPatch || null,
+                    onProgress: log.emit,
+                    onLog: sendLog,
+                    // The two store writes and the mid-switch marker, injected so
+                    // the module itself stays Electron-free and `node --test` can
+                    // drive it against a real repository.
+                    setMarker: (marker) => mergeSiteMeta(sitePath, { carryInProgress: marker }),
+                    setBase: ({ baseOid }) => mergeBranchMeta(sitePath, ref, { baseOid }),
+                    runSwitch: (run) => withSwitchMarker(sitePath, run)
+                });
+            } finally {
+                // The last line of the stage it died in is the one line worth
+                // having when it dies — same reason the trunk update flushes.
+                log.flush();
+            }
+
+            // A layer that did not go back on is no longer applied, and the
+            // record has to go with it or the panel offers a revert for a patch
+            // that is not in the checkout (#184's shape, #306's record).
+            if (result.ok && result.patchKept === false) {
+                await mergeBranchMeta(sitePath, ref, { appliedPatch: null });
+            }
+            sendDone({ branch: ref, ...result });
+        } catch (e) {
+            logError('git:carry-ticket', String(e && e.stack ? e.stack : e));
+            sendLog(`\nBringing the ticket up to date failed: ${String(e && e.message ? e.message : e)}\n`);
+            // Deliberately not clearing the carry marker: a throw from here is
+            // the case the marker exists for, and dropping it would leave the
+            // contributor's commit reachable through nothing at all.
+            sendDone({ ok: false, error: String(e && e.message ? e.message : e), stage: (e && e.stage) || null });
+        }
+    })();
+
+    return { carryId };
+});
+
+/**
+ * Puts a site back after a carry that did not finish (#305).
+ *
+ * The marker's `oldOid` is the only record of where the contributor's work was —
+ * parking reparents rather than stacking, so no reflog holds it — and this is
+ * what spends it. Clearing the marker only after the repair succeeds: a failed
+ * reconcile that dropped it would leave the site blocked on nothing and the
+ * commit findable by nothing.
+ */
+ipcMain.handle('git:carry-reconcile', async (event, sitePath) => withRegisteredSite(sitePath, async () => {
+    const { carryInProgress } = await readSiteMeta(sitePath);
+    if (!carryInProgress) return { ok: true, reconciled: false };
+
+    const progress = switchProgressReporter(event, sitePath);
+    try {
+        const result = await reconcileCarry({ dir: sitePath, marker: carryInProgress, onProgress: progress.emit });
+        // The base was only ever written after the new commit existed, so a
+        // marker still being here means it was never moved — but it is restored
+        // explicitly rather than assumed, because "probably unchanged" is not a
+        // thing to leave a diff base resting on.
+        await mergeBranchMeta(sitePath, carryInProgress.ref, { baseOid: carryInProgress.baseOid || null });
+        await mergeSiteMeta(sitePath, {
+            carryInProgress: null,
+            currentBranch: carryInProgress.ref,
+            tracTicket: ticketIdFromRef(carryInProgress.ref)
+        });
+        return { ok: true, reconciled: true, ...result };
+    } finally {
+        progress.flush();
+    }
+}));
+
 // "Discard all changes" in the review-and-submit modal: throws away everything
 // the modal shows, which on a ticket branch is measured from the branch point
 // (#108/#239) and so includes the parked WIP commit. Rewinds to `patchBase`
@@ -1316,6 +1460,15 @@ ipcMain.handle('git:carry-status', async (_e, sitePath) => withRegisteredSite(si
 // work it just promised to throw away.
 ipcMain.handle('git:discard-to-base', async (_e, sitePath) => {
     try {
+        // This rewinds the branch to `patchBase`, and an unfinished carry is
+        // exactly the state that says the recorded base is not where the branch
+        // is — discarding onto it would throw away work against the wrong
+        // target. (`git:discard-changes` is deliberately not gated: it resets to
+        // HEAD and consults no base, so it stays available.) The collision's
+        // "save a copy, then discard and bring it up to date" is unaffected — a
+        // failed carry clears the marker before it reports.
+        const blocked = await reconcileBlock(sitePath);
+        if (blocked) return blocked;
         const base = await patchBase(sitePath);
         if (base.status === BASE_STATUS.UNREADABLE) {
             return { ok: false, error: baseUnreadableMessage('nothing was discarded') };
@@ -1384,7 +1537,7 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
         try {
             // The update rewrites `trunk` and checks it out, so it has to run
             // from trunk (#108). Park the ticket first, and return to it after.
-            const blocked = await midSwitchBlock(sitePath);
+            const blocked = await reconcileBlock(sitePath);
             if (blocked) { sendLog(`\n${blocked.error}\n`); sendDone(blocked); return; }
 
             const active = await activeBranch(sitePath, { migrate: true });
@@ -1596,6 +1749,8 @@ const REVERTABLE_PATCH_LIMIT = 512 * 1024;
 // calls "your own edits" is what the patch modal would show.
 ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
     try {
+        const blocked = await reconcileBlock(sitePath);
+        if (blocked) return blocked;
         const parsed = parsePatchFiles(patchText);
         if (!parsed.ok) return { ok: false, error: parsed.error };
         let dirtyPaths;
@@ -1661,6 +1816,11 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             // gate sites:set-ticket applies before it touches metadata.
             if (!(s.get('sites') || []).includes(sitePath)) {
                 sendDone({ ok: false, error: 'Site is not registered' });
+                return;
+            }
+            const blocked = await reconcileBlock(sitePath);
+            if (blocked) {
+                sendDone(blocked);
                 return;
             }
             const stored = (await readWorkMeta(sitePath)).appliedPatch;
@@ -2073,7 +2233,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 	const parsed = parseTicketRef(raw);
 	if (!parsed.ok) return { ok: false, error: parsed.error };
 
-	const blocked = await midSwitchBlock(sitePath);
+	const blocked = await reconcileBlock(sitePath);
 	if (blocked) return blocked;
 	const branchRef = ticketBranchRef(parsed.id);
 	const { ref: current, meta } = await activeBranch(sitePath, { migrate: true });
@@ -2166,7 +2326,7 @@ ipcMain.handle('branches:list', async (_e, sitePath) => withRegisteredSite(siteP
 }));
 
 ipcMain.handle('branches:switch', async (event, sitePath, targetRef) => withRegisteredSite(sitePath, async () => {
-	const blocked = await midSwitchBlock(sitePath);
+	const blocked = await reconcileBlock(sitePath);
 	if (blocked) return blocked;
 	const { ref: current, meta } = await activeBranch(sitePath, { migrate: true });
 	const progress = switchProgressReporter(event, sitePath);

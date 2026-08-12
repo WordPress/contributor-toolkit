@@ -183,6 +183,29 @@ contextBridge.exposeInMainWorld('api', {
 	// the ticket's branch point.
 	carryStatus: (sitePath) => ipcRenderer.invoke('git:carry-status', sitePath)
 ,
+	// Bringing the ticket forward (#305). Two checkouts of a wordpress-develop
+	// worktree, so it streams like the trunk update rather than resolving with
+	// everything at the end.
+	carryTicketForward: async (sitePath, onLog, onDone) => {
+		const { carryId } = await ipcRenderer.invoke('git:carry-ticket', sitePath);
+		const logHandler = (_e, payload) => {
+			if (payload.carryId === carryId && onLog) onLog(payload);
+		};
+		const doneHandler = (_e, payload) => {
+			if (payload.carryId === carryId) {
+				ipcRenderer.removeListener('git:carry-ticket:log', logHandler);
+				ipcRenderer.removeListener('git:carry-ticket:done', doneHandler);
+				if (onDone) onDone(payload);
+			}
+		};
+		ipcRenderer.on('git:carry-ticket:log', logHandler);
+		ipcRenderer.on('git:carry-ticket:done', doneHandler);
+		return { carryId };
+	}
+,
+	// Putting the site back after a carry that did not finish.
+	reconcileCarry: (sitePath) => ipcRenderer.invoke('git:carry-reconcile', sitePath)
+,
 	discardChanges: (sitePath) => ipcRenderer.invoke('git:discard-changes', sitePath)
 ,
 	discardToBase: (sitePath) => ipcRenderer.invoke('git:discard-to-base', sitePath)

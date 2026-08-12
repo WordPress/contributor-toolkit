@@ -46,6 +46,14 @@ const CARRY_STATE = {
 	UNKNOWN: 'unknown'
 };
 
+/** Why a carry stopped. Same reason for living here as the two below. */
+const CARRY_FAILURE = {
+	/** A path the classifier will not carry. Nothing was touched. */
+	REFUSED: 'refused',
+	/** The ticket's change no longer applies to trunk's version of a file. */
+	CONFLICT: 'conflict'
+};
+
 /** Why one path cannot be carried. Same list, same reason for living here. */
 const REFUSAL = {
 	/** Upstream deleted the file this ticket has edits in. */
@@ -218,13 +226,108 @@ function describeCarryOffer({ state = CARRY_STATE.CURRENT, wholesale = [], merge
 	};
 }
 
+/**
+ * How a finished carry reads, in either outcome.
+ *
+ * The failure is the interesting one, and its shape is #309's first constraint
+ * rather than a fallback: **discarding is the recommended way out, not the last
+ * resort.** This app is for a contributor whose goal is one pull request in one
+ * day. A ticket's changes are an afternoon on a checkout they will throw away —
+ * cheap to redo and cheaper to throw away than to untangle — and a contributor
+ * stuck reconciling a branch is a contributor not contributing.
+ *
+ * So the refusal does three things and deliberately not a fourth. It names what
+ * no longer takes the ticket's change. It says why staying behind is the worse
+ * option, which is the half a "could not apply" error never says. And it offers
+ * saving a copy in one click, which is what makes discarding safe and therefore
+ * recommendable. What it does not do is offer to reconcile: there is no
+ * three-way merge UI here and there is not going to be one. Losing work silently
+ * is the only unacceptable outcome; losing it on purpose, with the copy already
+ * offered, is a good one.
+ *
+ * @param {Object}   [root0]
+ * @param {boolean}  [root0.ok]
+ * @param {string}   [root0.code]          A `CARRY_FAILURE` value when `ok` is false.
+ * @param {string[]} [root0.wholesale]
+ * @param {string[]} [root0.merge]
+ * @param {string[]} [root0.conflictPaths] The files that actually collided.
+ * @param {Array}    [root0.refused]
+ * @param {?boolean} [root0.patchKept]     Null when no layer was lifted out.
+ * @param {?string}  [root0.patchLabel]
+ * @return {{tone: string, headline: string, sentences: string[], blocked: string[], offerCopy: boolean, offerDiscard: boolean}}
+ */
+function describeCarryOutcome({ ok = false, code = '', wholesale = [], merge = [], conflictPaths = [], refused = [], patchKept = null, patchLabel = null } = {}) {
+	if (ok) {
+		const carried = wholesale.length + merge.length;
+		const sentences = [carried
+			? `${plural(carried)} came across, and this ticket is now measured against today's trunk.`
+			: 'This ticket is now measured against today\'s trunk.'];
+		// The one thing that can be less than a full success: the layer did not
+		// go back on. Said plainly, and with the record gone, so the panel does
+		// not offer a revert for something that is no longer there.
+		if (patchKept === false) {
+			sentences.push(`${patchLabel || 'The patch you had applied'} does not apply to today's trunk, so it did not come back. Your own work did. It is no longer counted as applied, so you can apply a rebased version of it.`);
+		}
+		return { tone: 'success', headline: 'This ticket is up to date', sentences, blocked: [], offerCopy: false, offerDiscard: false };
+	}
+
+	// The files that really collided, not every file that took the replay route:
+	// the replay is all-or-nothing across the whole patch, so one bad file stops
+	// four good ones, and naming all five as collisions is the kind of imprecision
+	// that makes the whole message untrustworthy. `merge` is the fallback for a
+	// failure that produced no per-file diagnosis at all.
+	const collided = conflictPaths.length ? conflictPaths : merge;
+	const blocked = code === CARRY_FAILURE.CONFLICT
+		? collided.map((path) => `Your change to ${path} no longer fits trunk's version of it.`)
+		: refusalSentences(refused);
+
+	return {
+		tone: 'error',
+		headline: 'This ticket could not be brought up to date',
+		sentences: [
+			'Nothing moved — your ticket is exactly as it was.',
+			WHY_NOT_STAY,
+			'Save a copy of your work, then discard this ticket back to its base and it starts again on today\'s trunk. On this project that is a normal way forward, not a lost afternoon.'
+		],
+		blocked,
+		offerCopy: true,
+		offerDiscard: true
+	};
+}
+
+/**
+ * What the app says when a carry was interrupted and the site needs putting
+ * back together.
+ *
+ * Its own copy rather than the mid-switch sentence, because the two are
+ * different situations with the same shape: a mid-switch failure left work
+ * committed on a branch that still points at it, and this left a branch that may
+ * not. Saying "your work is still committed on that branch" here would be a
+ * guess about the one thing the contributor needs to be true.
+ *
+ * @param {?Object} marker The stored `{ ref }`, when there is one.
+ * @return {?{message: string, actionLabel: string}}
+ */
+function describeCarryInterrupted(marker) {
+	if (!marker || !marker.ref) return null;
+	return {
+		message: `Bringing ${marker.ref} up to date did not finish, so this site is between two states. `
+			+ 'Put it back before doing anything else — your work is recorded and this restores it, '
+			+ 'along with the ticket exactly as it was before.',
+		actionLabel: 'Put this ticket back'
+	};
+}
+
 module.exports = {
 	CARRY_STATE,
+	CARRY_FAILURE,
 	REFUSAL,
 	WHY_NOT_STAY,
 	NOTHING_MOVES_YET,
 	refusalSentence,
 	refusalSentences,
 	describeCarryNote,
-	describeCarryOffer
+	describeCarryOffer,
+	describeCarryOutcome,
+	describeCarryInterrupted
 };

@@ -299,16 +299,38 @@ async function switchToBranch(dir, ref, { baseOid, author = WIP_AUTHOR, onProgre
 		({ parked } = await parkCurrentWork(dir, { baseOid, author, onProgress: report }));
 	}
 
-	// Tagged with the stage it died in, the same contract updateToLatestTrunk
-	// uses, because the two halves fail very differently.
-	//
-	// `git.checkout` writes HEAD only after every file operation has succeeded.
-	// A failure part-way — an EPERM on Windows from an editor or an antivirus
-	// holding a file is the realistic trigger — therefore leaves HEAD on the
-	// branch we are leaving, over a half-swapped worktree. Parking again in that
-	// state would commit the mixed tree over the good WIP commit and, because
-	// parking rewrites rather than appends, put the real work out of reach. The
-	// caller has to record that and refuse to park until it is reconciled.
+	// See forceCheckout for the failure contract this leans on.
+	await forceCheckout(dir, { ref, from, onProgress: report });
+	if (report) report({ stage: 'done', from });
+	return { switched: true, from, to: ref, parked };
+}
+
+/**
+ * The forced checkout every branch move here ends in, with the failure contract
+ * its callers depend on.
+ *
+ * Tagged with the stage it died in, the same contract updateToLatestTrunk uses,
+ * because the two halves fail very differently.
+ *
+ * `git.checkout` writes HEAD only after every file operation has succeeded. A
+ * failure part-way — an EPERM on Windows from an editor or an antivirus holding
+ * a file is the realistic trigger — therefore leaves HEAD on the branch we are
+ * leaving, over a half-swapped worktree. Parking again in that state would
+ * commit the mixed tree over the good WIP commit and, because parking rewrites
+ * rather than appends, put the real work out of reach. The caller has to record
+ * that and refuse to park until it is reconciled.
+ *
+ * Its own function because the carry (#305) needs the identical contract on a
+ * checkout that is not a `switchToBranch` — it moves onto a tree it has just
+ * written, which `switchToBranch`'s dirty-trunk guard would refuse.
+ *
+ * @param {string}   dir
+ * @param {Object}   root0
+ * @param {string}   root0.ref
+ * @param {?string}  [root0.from]       Branch being left, for the error and the progress.
+ * @param {Function} [root0.onProgress]
+ */
+async function forceCheckout(dir, { ref, from = null, onProgress = null }) {
 	try {
 		// No `nonBlocking`/`batchSize`: measured, the progress events already
 		// arrive spread across the whole checkout without them, and yielding to
@@ -319,7 +341,7 @@ async function switchToBranch(dir, ref, { baseOid, author = WIP_AUTHOR, onProgre
 			dir,
 			ref,
 			force: true,
-			...(report ? { onProgress: (p) => report(mapCheckoutPhase(p)) } : {})
+			...(onProgress ? { onProgress: (p) => onProgress(mapCheckoutPhase(p)) } : {})
 		});
 	} catch (e) {
 		if (e && typeof e === 'object') {
@@ -329,8 +351,6 @@ async function switchToBranch(dir, ref, { baseOid, author = WIP_AUTHOR, onProgre
 		}
 		throw e;
 	}
-	if (report) report({ stage: 'done', from });
-	return { switched: true, from, to: ref, parked };
 }
 
 /**
@@ -384,6 +404,7 @@ module.exports = {
 	countChangesAgainst,
 	parkCurrentWork,
 	startTicketBranch,
+	forceCheckout,
 	switchToBranch,
 	deleteTicketBranch
 };

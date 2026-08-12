@@ -31,7 +31,7 @@ import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
 import { describeAppliedLayer, describePreviewNotice, absorbedExitFailure } from './applied-layer.cjs';
-import { describeCarryNote } from './carry-note.cjs';
+import { describeCarryNote, describeCarryOffer, describeCarryOutcome, describeCarryInterrupted } from './carry-note.cjs';
 import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
@@ -1238,6 +1238,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // until the first probe answers, for the same reason the note above is: a
   // sentence that appears and then withdraws itself reads as a glitch.
   const [carry, setCarry] = useState(null);
+  // The offer is opened by the contributor, never by the probe: the app does not
+  // silently rebase anyone (#309), and a panel that appears on its own is one
+  // step from a panel that acts on its own.
+  const [carryOffered, setCarryOffered] = useState(false);
+  const [carryRunning, setCarryRunning] = useState(false);
+  const [carryOutcome, setCarryOutcome] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState(null);
   const [handleInput, setHandleInput] = useState('');
@@ -1745,7 +1751,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         const generation = probe.generation;
         try {
           const res = await window.api.carryStatus(sitePath);
-          if (res && res.ok && probe.generation === generation) setCarry(res);
+          // An interrupted carry comes back as a refusal rather than a status,
+          // and it is the one answer that must not be dropped: it is the only
+          // route to the button that puts the site back, and the marker behind
+          // it is the only record of where the contributor's work went.
+          const usable = res && (res.ok || res.code === 'carry-incomplete');
+          if (usable && probe.generation === generation) setCarry(res);
         } catch {}
       } while (probe.again);
     } finally { probe.inFlight = false; }
@@ -1758,17 +1769,28 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // count and the incoming ticket's number in the same sentence, over a
   // discard link — so the note is cleared while the new walk runs, and the
   // generation bump keeps the outgoing branch's answer from landing on it.
-  const reprobeAfterBranchChange = useCallback(() => {
+  // Re-measuring after the base itself moved. Everything the card says is
+  // measured from the branch point, so all of it is stale at once — but what the
+  // carry just *reported* is not, and clearing it here is what would swallow the
+  // whole failure panel: the report and the re-probe arrive in the same React
+  // batch, so the panel would be unmounted before it ever rendered.
+  const reprobeAfterCarry = useCallback(() => {
     dirtyProbeRef.current.generation++;
     setWorktreeDirty(null);
     refreshDirty();
-    // The carry answer is per ticket too — a different branch point measured
-    // against the same trunk — so the outgoing ticket's must neither stand while
-    // the incoming one's is worked out nor land on it afterwards.
     carryProbeRef.current.generation++;
     setCarry(null);
+    setCarryOffered(false);
     refreshCarry();
   }, [refreshDirty, refreshCarry]);
+
+  // A branch change is the same re-measurement plus one more thing: the outgoing
+  // ticket's outcome is not an old version of the incoming ticket's, it is about
+  // a different body of work, so it goes.
+  const reprobeAfterBranchChange = useCallback(() => {
+    reprobeAfterCarry();
+    setCarryOutcome(null);
+  }, [reprobeAfterCarry]);
 
   // Only the open card probes, and only while it is open: the probe walks the
   // whole checkout, which is too much to pay for every card on the shelf. The
@@ -2721,10 +2743,87 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // The date is formatted here and the sentence is built there, the same split
   // describeAppliedLayer's `when` uses: locale formatting is the component's,
   // and keeping it out of the module is what lets the copy be asserted.
-  const carryNote = describeCarryNote({
-    state: carry ? carry.state : undefined,
-    since: carry && carry.baseDate ? new Date(carry.baseDate).toLocaleDateString() : ''
-  });
+  const carrySince = carry && carry.baseDate ? new Date(carry.baseDate).toLocaleDateString() : '';
+  const carryNote = describeCarryNote({ state: carry ? carry.state : undefined, since: carrySince });
+  const carryOffer = carryOffered
+    ? describeCarryOffer({ ...(carry || {}), appliedPatch, since: carrySince })
+    : null;
+  // An interrupted carry outranks everything else the card would say: the
+  // recorded base is not where the branch is, so every other sentence on the
+  // card is measured from the wrong place until this is put back.
+  const carryInterrupted = carry && carry.code === 'carry-incomplete'
+    ? describeCarryInterrupted(carry.carryInProgress)
+    : null;
+
+  // Accepting the offer. Streams into the terminal the trunk update already
+  // writes to, so the two checkouts inside a carry report where a contributor
+  // is already looking for the progress of a long git operation.
+  const runCarry = async () => {
+    setCarryOffered(false);
+    setCarryOutcome(null);
+    setCarryRunning(true);
+    markTerminalRunning(true);
+    writeToTerminal(`\nBringing #${tracTicket} up to date…\n`);
+    try {
+      await window.api.carryTicketForward(
+        sitePath,
+        ({ data }) => writeToTerminal(data),
+        (payload) => {
+          setCarryRunning(false);
+          markTerminalRunning(false);
+          setCarryOutcome(payload);
+          if (payload.ok) {
+            confirm('This ticket is up to date');
+            // Its applied layer may not have come back, and the base has moved,
+            // so both the banner and the note are re-read rather than adjusted.
+            loadStatus().catch(() => {});
+          }
+          // Not reprobeAfterBranchChange: that clears the outcome, and the two
+          // land in one React batch — the panel just set would never render.
+          reprobeAfterCarry();
+        }
+      );
+    } catch (e) {
+      setCarryRunning(false);
+      markTerminalRunning(false);
+      setCarryOutcome({ ok: false, error: e && e.message ? e.message : String(e) });
+    }
+  };
+
+  // "Save a copy, then discard and update" — the recommended way out of a
+  // collision (#309), as one chosen outcome rather than three steps the
+  // contributor has to sequence. The discard only runs once the dialog has
+  // really produced a file, and the carry only runs once the discard has: a
+  // cancelled save cancels the whole thing and leaves the ticket untouched.
+  const saveCopyThenDiscardAndCarry = async () => {
+    const savedTo = await savePatchFile();
+    if (!savedTo) return;
+    const outcome = discardOutcome(await window.api.discardToBase(sitePath));
+    if (!outcome.ok) {
+      setCarryOutcome({ ok: false, error: outcome.message });
+      return;
+    }
+    applyDiscardToNote(outcome);
+    setAppliedPatch(null);
+    writeToTerminal(`\nSaved a copy to ${savedTo} and discarded this ticket back to its base.\n`);
+    await runCarry();
+  };
+
+  const reconcileCarry = async () => {
+    setCarryRunning(true);
+    try {
+      const res = await window.api.reconcileCarry(sitePath);
+      if (!res || !res.ok) {
+        setCarryOutcome({ ok: false, error: (res && res.error) || 'The site could not be put back.' });
+        return;
+      }
+      confirm('This ticket is back as it was');
+      reprobeAfterCarry();
+      loadStatus().catch(() => {});
+    } finally {
+      setCarryRunning(false);
+    }
+  };
   const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged });
   const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
@@ -4593,11 +4692,89 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>{changesNote.unlinkNote}</div>
               </div>
             ) : null}
-            {carryNote ? (
-              <div style={{ marginTop: 8, padding: '8px 10px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, fontSize: 12, color: '#1d2327' }}>
-                {carryNote.text}
+            {/* Bringing this ticket forward (#305). One block with three faces:
+                the quiet note, the offer once it is asked for, and whatever the
+                carry ended in. An interrupted carry replaces all three — nothing
+                else the card says can be trusted until the site is put back. */}
+            {carryInterrupted ? (
+              <div style={{ marginTop: 8, padding: '10px 12px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a2424' }}>
+                <div>{carryInterrupted.message}</div>
+                <Button variant="primary" isBusy={carryRunning} disabled={carryRunning} onClick={reconcileCarry} style={{ marginTop: 8, fontSize: 12 }}>
+                  {carryInterrupted.actionLabel}
+                </Button>
               </div>
-            ) : null}
+            ) : (
+              <>
+                {carryNote && !carryOffer && !carryOutcome ? (
+                  <div style={{ marginTop: 8, padding: '8px 10px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, fontSize: 12, color: '#1d2327' }}>
+                    <div>{carryNote.text}</div>
+                    <Button
+                      variant="link"
+                      isBusy={carryRunning}
+                      disabled={carryRunning || ticketActionsBlocked}
+                      onClick={() => setCarryOffered(true)}
+                      style={{ marginTop: 4, fontSize: 12 }}
+                    >{carryNote.actionLabel}</Button>
+                  </div>
+                ) : null}
+
+                {carryOffer ? (
+                  <div style={{ marginTop: 8, padding: '10px 12px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, fontSize: 12, color: '#1d2327' }}>
+                    <div style={{ fontWeight: 600 }}>{carryOffer.headline}</div>
+                    {carryOffer.sentences.map((s) => <div key={s} style={{ marginTop: 4 }}>{s}</div>)}
+                    {carryOffer.blocked.length ? (
+                      <ul style={{ margin: '4px 0 0 16px' }}>
+                        {carryOffer.blocked.map((s) => <li key={s}>{s}</li>)}
+                      </ul>
+                    ) : null}
+                    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                      {carryOffer.canCarry ? (
+                        <Button variant="primary" isBusy={carryRunning} disabled={carryRunning || ticketActionsBlocked} onClick={runCarry} style={{ fontSize: 12 }}>
+                          {carryOffer.confirmLabel}
+                        </Button>
+                      ) : (
+                        <Button variant="secondary" disabled={carryRunning || ticketActionsBlocked} onClick={saveCopyThenDiscardAndCarry} style={{ fontSize: 12 }}>
+                          Save a copy, then discard and bring it up to date
+                        </Button>
+                      )}
+                      <Button variant="link" disabled={carryRunning} onClick={() => setCarryOffered(false)} style={{ fontSize: 12 }}>
+                        {carryOffer.cancelLabel}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {carryOutcome ? (() => {
+                  const told = describeCarryOutcome(carryOutcome);
+                  const failed = told.tone === 'error';
+                  return (
+                    <div style={{ marginTop: 8, padding: '10px 12px', borderRadius: 6, fontSize: 12,
+                      background: failed ? '#fcf0f1' : '#edfaef',
+                      border: `1px solid ${failed ? '#d63638' : '#00a32a'}`,
+                      color: failed ? '#8a2424' : '#0d5320' }}>
+                      <div style={{ fontWeight: 600 }}>{told.headline}</div>
+                      {told.sentences.map((s) => <div key={s} style={{ marginTop: 4 }}>{s}</div>)}
+                      {carryOutcome.error && !told.blocked.length ? <div style={{ marginTop: 4 }}>{carryOutcome.error}</div> : null}
+                      {told.blocked.length ? (
+                        <ul style={{ margin: '4px 0 0 16px' }}>
+                          {told.blocked.map((s) => <li key={s}>{s}</li>)}
+                        </ul>
+                      ) : null}
+                      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                        {told.offerDiscard ? (
+                          <Button variant="secondary" disabled={carryRunning || ticketActionsBlocked} onClick={saveCopyThenDiscardAndCarry} style={{ fontSize: 12 }}>
+                            Save a copy, then discard and bring it up to date
+                          </Button>
+                        ) : null}
+                        <Button variant="link" disabled={carryRunning} onClick={() => setCarryOutcome(null)} style={{ fontSize: 12 }}>
+                          {failed ? 'Leave it as it is' : 'Dismiss'}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })() : null}
+              </>
+            )}
 
             <div ref={ticketPatchesRef} style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
