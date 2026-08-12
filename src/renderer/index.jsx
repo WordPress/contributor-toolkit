@@ -3032,10 +3032,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         setApplyError(preview?.error || 'Could not read that diff.');
         return;
       }
-      // `url` rides along so a conflict can offer the pull request itself: a
-      // patch that no longer applies because it is old is rebased by its author,
-      // not by the contributor who just tried to test it (#282).
-      setApplyPreview({ ...preview, label: `PR #${pr.number}`, text: diff.text, prUrl: pr.url });
+      // `url` and `state` ride along so a conflict can offer the pull request
+      // itself, framed by what it is: an open one is rebased by its author, a
+      // closed one is nobody's to update (#282). State is absent when the PR
+      // came from a pasted number rather than the linked list.
+      setApplyPreview({ ...preview, label: `PR #${pr.number}`, text: diff.text, prUrl: pr.url, prState: pr.state || null });
     } catch (e) {
       setApplyError(String(e));
     } finally {
@@ -3156,7 +3157,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               prs: ticketPatches?.items,
               attachments: patchAttachments
             }),
-            prUrl: preview?.prUrl || null
+            prUrl: preview?.prUrl || null,
+            prState: preview?.prState || null
           }));
           finishApply();
           return;
@@ -4755,9 +4757,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           }}
                         >Try another patch on this ticket</Button>
                       ) : null}
-                      {applyConflict.prUrl ? (
+                      {applyConflict.prUrl && applyConflict.prButton ? (
                         <Button variant="secondary" isSmall onClick={() => window.api.openExternal(applyConflict.prUrl)}>
-                          Ask its author for a rebase
+                          {applyConflict.prButton}
                         </Button>
                       ) : null}
                     </div>

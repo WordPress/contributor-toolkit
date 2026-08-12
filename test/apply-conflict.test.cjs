@@ -287,6 +287,54 @@ test('describeApplyFailure: a pull request failure names the stale side and the 
 	assert.deepEqual(result.items[0].regions, []);
 });
 
+// A closed pull request has no author coming back to it. Asking for a rebase
+// would send the contributor's one act into the void — and in wordpress-develop
+// "closed" is also what landing looks like, since core commits via SVN.
+test('describeApplyFailure: a closed pull request is not offered a rebase (issue #282)', () => {
+	const result = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [conflict(FOO, 3, [{ index: 0, line: 7, status: 'moved' }])]
+	}, { prUrl: PR_URL, prState: 'closed' });
+
+	assert.match(result.headline, /closed and was written against an older trunk/);
+	assert.doesNotMatch(result.advice, /rebase/);
+	assert.match(result.advice, /Redoing the change against today's code/);
+	// The PR is still worth opening — its discussion says why it ended — but
+	// the button says that, not "ask for a rebase".
+	assert.equal(result.prButton, 'See why it was closed');
+	assert.equal(result.prUrl, PR_URL);
+});
+
+test('describeApplyFailure: a closed PR already in trunk reads as landed, not dead (issue #226)', () => {
+	const result = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [conflict(FOO, 2, [
+			{ index: 0, line: 4, status: 'already-applied' },
+			{ index: 1, line: 9, status: 'already-applied' }
+		])]
+	}, { prUrl: PR_URL, prState: 'closed' });
+
+	// Core lands through SVN and closes the PR; the regions reading back as
+	// already-present is what that looks like from the checkout.
+	assert.match(result.headline, /likely committed to core/);
+	assert.equal(result.prButton, null);
+	assert.equal(result.prUrl, null, 'no button, no url — nothing to do with the PR');
+});
+
+test('describeApplyFailure: an unknown PR state keeps the open framing (issue #282)', () => {
+	const result = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [conflict(FOO, 3, [{ index: 0, line: 7, status: 'moved' }])]
+	}, { prUrl: PR_URL });
+
+	// A PR pasted by number carries no state; assuming open keeps the rebase
+	// path available rather than withholding it on missing data.
+	assert.equal(result.prButton, 'Ask its author for a rebase');
+});
+
 test('describeApplyFailure: a pull request already in trunk asks for nothing (issue #226)', () => {
 	const result = describeApplyFailure({
 		ok: false,

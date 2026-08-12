@@ -115,33 +115,60 @@ function otherPatchCount({ label, prs = [], attachments = [] } = {}) {
  * the situation named (the PR is behind trunk), the scale (files and places),
  * and the one act that is genuinely theirs: telling the author.
  *
+ * The pull request's state changes who that act is for. Asking a closed pull
+ * request's author for a rebase asks for work on something they walked away
+ * from — and in wordpress-develop "closed" is also what *landing* looks like,
+ * since core commits go through SVN and the pull request is closed, never
+ * merged. The regions tell those apart: a landed change reads back as already
+ * in the checkout, an abandoned one as moved.
+ *
  * "No longer fits today's trunk" rather than "has conflicts": the app matches
  * without the pull request's base, so its count can include a region a real
  * merge would settle — close enough to size the problem, not a claim GitHub
  * will show the identical number.
  *
- * @param {Array} conflicts
- * @return {{headline: string, advice: string}}
+ * @param {Array}   conflicts
+ * @param {?string} prState   'open' | 'merged' | 'closed' | null when unknown.
+ * @return {{headline: string, advice: string, prButton: ?string}}
  */
-function prFraming(conflicts) {
+function prFraming(conflicts, prState) {
 	const failed = conflicts.reduce((sum, c) => sum + c.regions.length, 0);
 	const total = conflicts.reduce((sum, c) => sum + c.total, 0);
 	const allApplied = conflicts.every((c) => c.regions.every((r) => r.status === 'already-applied'));
+	const closed = prState === 'closed' || prState === 'merged';
 
 	// A pull request whose changes are all in trunk already needs no rebase and
-	// no message — there is nothing left for anyone to do with it.
+	// no message — there is nothing left for anyone to do with it. When it is
+	// also closed, that is core's own way of landing a change: committed via
+	// SVN, pull request closed.
 	if (allApplied && failed === total) {
 		return {
-			headline: `All ${total} of this pull request's change${total === 1 ? '' : 's'} look like they are already in trunk — there is nothing left to apply.`,
-			advice: ''
+			headline: closed
+				? `All ${total} of this pull request's change${total === 1 ? '' : 's'} look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.`
+				: `All ${total} of this pull request's change${total === 1 ? '' : 's'} look like they are already in trunk — there is nothing left to apply.`,
+			advice: '',
+			prButton: null
 		};
 	}
 
 	const files = conflicts.length;
 	const scale = `${failed} of its ${total} change${total === 1 ? '' : 's'}, in ${files} file${files === 1 ? '' : 's'},`;
+
+	// A closed pull request has no author coming back to it: asking for a
+	// rebase would be a message into the void. The way forward is the ticket —
+	// another patch, or redoing the change, which is a contribution in itself.
+	if (closed) {
+		return {
+			headline: `This pull request is closed and was written against an older trunk — it no longer fits: ${scale} would need rework.`,
+			advice: 'Nobody is coming back to update a closed pull request — its discussion may say why it ended. Redoing the change against today\'s code is a contribution in itself.',
+			prButton: 'See why it was closed'
+		};
+	}
+
 	return {
 		headline: `This pull request was written against an older trunk and no longer fits it: ${scale} would need rework.`,
-		advice: 'Bringing it up to date is its author\'s work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.'
+		advice: 'Bringing it up to date is its author\'s work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.',
+		prButton: 'Ask its author for a rebase'
 	};
 }
 
@@ -167,9 +194,10 @@ function prFraming(conflicts) {
  * @param {Object}  [options]
  * @param {number}  [options.otherPatchCount] Other patches on this ticket.
  * @param {?string} [options.prUrl]           The failing patch's pull request.
+ * @param {?string} [options.prState]         Its state, when known.
  * @return {?Object}
  */
-function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, prUrl = null } = {}) {
+function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, prUrl = null, prState = null } = {}) {
 	if (!result || result.ok) return null;
 
 	const failures = Array.isArray(result.failures) ? result.failures : [];
@@ -206,10 +234,14 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 	// do not already say, so the headline stands down rather than padding.
 	let headline = '';
 	let advice = '';
+	let prButton = fromPr ? 'Open the pull request' : null;
 	if (conflicts.length) {
-		const framing = fromPr ? prFraming(conflicts) : { headline: headlineFor(conflicts), advice: '' };
+		const framing = fromPr
+			? prFraming(conflicts, prState)
+			: { headline: headlineFor(conflicts), advice: '', prButton: null };
 		headline = framing.headline;
 		advice = framing.advice;
+		prButton = framing.prButton;
 	}
 	return {
 		headline,
@@ -219,7 +251,8 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 		// withholds its picker: a way out that returns to the same dead end is
 		// worse than no button, because it costs a click to find that out.
 		offerOtherPatches: othersAvailable > 0,
-		prUrl: prUrl || null
+		prUrl: prUrl && prButton ? prUrl : null,
+		prButton
 	};
 }
 
