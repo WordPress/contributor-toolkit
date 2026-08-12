@@ -7,7 +7,7 @@ const os = require('os');
 const path = require('path');
 const git = require('isomorphic-git');
 const JsDiff = require('diff');
-const { applyPatchToDir, diagnoseRemoval, resolveInside, dominantEol, rollback, diagnoseHunks } = require('../src/patch-apply');
+const { applyPatchToDir, resolveInside, dominantEol, rollback, diagnoseHunks } = require('../src/patch-apply');
 const { parsePatchFiles } = require('../src/patch-plan.cjs');
 
 // A real on-disk repo, like trunk-update.integration.test.cjs: applyPatchToDir
@@ -828,84 +828,6 @@ test('diagnoseHunks: overlapping hunks that each pass alone yield null, not zero
 
 	// Sanity: the single hunk applies, so per-hunk diagnosis finds no failures.
 	assert.strictEqual(diagnoseHunks(body, file), null);
-});
-
-// --- diagnoseRemoval: can the applied layer still be taken out? (#306) ------
-//
-// The record the app keeps only ever said "a patch text was stored". These
-// exercise the question the banner actually asks, against a real checkout: is
-// the layer still separable from the contributor's own work, right now.
-
-test('diagnoseRemoval: a freshly applied patch still comes out cleanly (issue #306)', async (t) => {
-	const dir = await makeRepo(t, { [FOO]: FOO_BODY });
-	await applyPatchToDir({ dir, patchText: FOO_PATCH });
-
-	assert.deepStrictEqual(diagnoseRemoval({ dir, patchText: FOO_PATCH }), { absorbed: [], missing: false });
-});
-
-// The absorption case: the contributor has edited the very line the patch
-// brought, so there is no longer a patch and an edit — there is one body of
-// work, and no revert can separate them.
-test('diagnoseRemoval: editing the patch\'s own line absorbs it (issue #306)', async (t) => {
-	const dir = await makeRepo(t, { [FOO]: FOO_BODY });
-	await applyPatchToDir({ dir, patchText: FOO_PATCH });
-	fs.writeFileSync(path.join(dir, FOO), 'one\nMY OWN VERSION\nthree\n');
-
-	const answer = diagnoseRemoval({ dir, patchText: FOO_PATCH });
-	assert.strictEqual(answer.missing, false);
-	assert.deepStrictEqual(answer.absorbed.map((a) => a.path), [FOO]);
-	// The counts come from diagnoseHunks, so the banner can say how much of the
-	// patch has been written over rather than only that something has.
-	assert.deepStrictEqual(answer.absorbed[0], { path: FOO, editedOver: true, failed: 1, total: 1 });
-});
-
-// Not a one-way door, and this is the test that pins it: nothing persists an
-// "absorbed" flag, so putting the line back makes the layer removable again
-// with no further action from anyone.
-test('diagnoseRemoval: undoing the overlapping edit makes it removable again (issue #306)', async (t) => {
-	const dir = await makeRepo(t, { [FOO]: FOO_BODY });
-	await applyPatchToDir({ dir, patchText: FOO_PATCH });
-	const patched = fs.readFileSync(path.join(dir, FOO), 'utf8');
-
-	fs.writeFileSync(path.join(dir, FOO), 'one\nMY OWN VERSION\nthree\n');
-	assert.strictEqual(diagnoseRemoval({ dir, patchText: FOO_PATCH }).absorbed.length, 1);
-
-	fs.writeFileSync(path.join(dir, FOO), patched);
-	assert.deepStrictEqual(diagnoseRemoval({ dir, patchText: FOO_PATCH }), { absorbed: [], missing: false });
-});
-
-// Work on a file the patch never touched is not absorption. It is the ordinary
-// state of a ticket, and it must not take Revert away.
-test('diagnoseRemoval: edits to other files leave the layer removable (issue #306)', async (t) => {
-	const dir = await makeRepo(t, { [FOO]: FOO_BODY, [BAR]: BAR_BODY });
-	await applyPatchToDir({ dir, patchText: FOO_PATCH });
-	fs.writeFileSync(path.join(dir, BAR), 'my own work\n');
-
-	assert.deepStrictEqual(diagnoseRemoval({ dir, patchText: FOO_PATCH }), { absorbed: [], missing: false });
-});
-
-// A patch a trunk update or a discard reset away is not absorbed — its record
-// is merely stale. Reporting absorption there would hide Revert, which is the
-// one button that clears the record.
-test('diagnoseRemoval: a patch the tree no longer holds reads as missing, not absorbed (issue #306)', async (t) => {
-	const dir = await makeRepo(t, { [FOO]: FOO_BODY });
-	await applyPatchToDir({ dir, patchText: FOO_PATCH });
-	fs.writeFileSync(path.join(dir, FOO), FOO_BODY);
-
-	assert.deepStrictEqual(diagnoseRemoval({ dir, patchText: FOO_PATCH }), { absorbed: [], missing: true });
-});
-
-// Nothing here may write. The whole point of measuring instead of tracking is
-// that it can run on a status read.
-test('diagnoseRemoval: the checkout is not touched (issue #306)', async (t) => {
-	const dir = await makeRepo(t, { [FOO]: FOO_BODY, [BAR]: BAR_BODY });
-	await applyPatchToDir({ dir, patchText: FOO_PATCH });
-	fs.writeFileSync(path.join(dir, FOO), 'one\nMY OWN VERSION\nthree\n');
-	const before = snapshot(dir);
-
-	diagnoseRemoval({ dir, patchText: FOO_PATCH });
-
-	assert.deepStrictEqual(snapshot(dir), before);
 });
 
 // A revert that fails now carries the same per-region breakdown a forward apply

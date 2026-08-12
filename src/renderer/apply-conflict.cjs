@@ -372,7 +372,7 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 		headline,
 		advice,
 		items,
-		// The absorbed exit, for the panel to offer alongside the sentence. Only
+		// The safe exit, for the panel to offer alongside the sentence. Only
 		// a revert has one: every other failure left the checkout untouched, so
 		// there is nothing to save a copy of that is not already safe.
 		offerDiscardToBase: Boolean(reverting) && conflicts.length > 0,

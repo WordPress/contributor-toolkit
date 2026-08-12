@@ -3914,38 +3914,25 @@ test('site:status: a freshly applied patch is reported as still removable (#306)
 	assert.equal(status.appliedPatch.label, 'PR #123');
 	assert.equal(status.appliedPatch.kept, true);
 	assert.equal(status.appliedPatch.revertable, true);
-	assert.deepEqual(status.appliedPatch.absorbed, []);
+	assert.equal(status.appliedPatch.absorbed, undefined);
 });
 
-test('site:status: editing the patch\'s own lines absorbs it, and Revert stands down (#306)', async (t) => {
+test('site:status does not diagnose patch contents during a routine status read (#306)', async (t) => {
 	const { dir, main } = await ticketWithAppliedPatch(t, EDITED_OVER);
 
 	const status = await main.invoke('site:status', dir);
 
-	assert.equal(status.appliedPatch.revertable, false);
-	// The text is still stored — this is absorption, not a patch too large to
-	// keep, and the two get different sentences.
+	// Revert itself performs the expensive check and reports any overlap. A
+	// routine status probe only says whether the text needed for that attempt was
+	// kept; it must not synchronously read and diff the patch's files.
+	assert.equal(status.appliedPatch.revertable, true);
 	assert.equal(status.appliedPatch.kept, true);
-	assert.deepEqual(status.appliedPatch.absorbed, [{ path: 'src/wp-login.php', editedOver: true, failed: 1, total: 1 }]);
+	assert.equal(status.appliedPatch.absorbed, undefined);
 });
 
-// Not a one-way door, and nothing persisted says otherwise: the same site,
-// the same record, answers differently the moment the overlapping edit goes.
-test('site:status: undoing the overlapping edit brings Revert back on its own (#306)', async (t) => {
-	const { dir, main, workFile } = await ticketWithAppliedPatch(t, EDITED_OVER);
-
-	assert.equal((await main.invoke('site:status', dir)).appliedPatch.revertable, false);
-
-	fs.writeFileSync(path.join(dir, workFile), PATCH_APPLIED);
-
-	const back = await main.invoke('site:status', dir);
-	assert.equal(back.appliedPatch.revertable, true);
-	assert.deepEqual(back.appliedPatch.absorbed, []);
-});
-
-// The constraint the design rests on: the slot frees on revert or on discarding
-// to base, never by absorption. The record has to survive as provenance.
-test('site:status: absorption does not free the one-patch slot (#306)', async (t) => {
+// The slot frees on revert or on discarding to base, never because the stored
+// patch stops fitting. The record survives as provenance.
+test('site:status: an edited applied patch still holds the one-patch slot (#306)', async (t) => {
 	const { dir, main } = await ticketWithAppliedPatch(t, EDITED_OVER);
 
 	const status = await main.invoke('site:status', dir);
@@ -3959,7 +3946,7 @@ test('site:status: absorption does not free the one-patch slot (#306)', async (t
 	assert.match(done.error, /PR #123 is already applied/);
 });
 
-// A patch a trunk update reset away is not absorbed: its record is stale, and
+// A patch a trunk update reset away is no longer in the tree: its record is stale, and
 // Revert has to stay on screen because pressing it is what clears it.
 test('site:status: a patch the tree no longer holds keeps its Revert (#306)', async (t) => {
 	const { dir, main } = await ticketWithAppliedPatch(t, '<?php // login\n// the ticket work\n');
@@ -3967,12 +3954,11 @@ test('site:status: a patch the tree no longer holds keeps its Revert (#306)', as
 	const status = await main.invoke('site:status', dir);
 
 	assert.equal(status.appliedPatch.revertable, true);
-	assert.deepEqual(status.appliedPatch.absorbed, []);
+	assert.equal(status.appliedPatch.absorbed, undefined);
 });
 
-// The measurement must not write. `site:status` runs wherever the app re-reads
-// a site, so a check with a side effect would be a checkout mutating itself.
-test('site:status: measuring removability does not touch the checkout (#306)', async (t) => {
+// A status read must not write while it reports the stored layer.
+test('site:status does not touch the checkout (#306)', async (t) => {
 	const { dir, main, workFile } = await ticketWithAppliedPatch(t, EDITED_OVER);
 	const before = fs.readFileSync(path.join(dir, workFile), 'utf8');
 
@@ -3996,15 +3982,16 @@ test('git:preview-patch and the applied record agree on who owns a file (#306)',
 	assert.deepEqual(attributed.yours, []);
 });
 
-// And once the contributor has edited over it, the same file goes back to
-// naming their work — the answer that decides what they do next.
-test('git:preview-patch: a file edited over the patch is the contributor\'s again (#306)', async (t) => {
+// A status read deliberately does not inspect every line in the file. The copy
+// therefore keeps the layer's provenance without excluding contributor edits.
+test('git:preview-patch: a layer file may also contain contributor edits (#306)', async (t) => {
 	const { dir, main } = await ticketWithAppliedPatch(t, EDITED_OVER);
 
 	const preview = await main.invoke('git:preview-patch', dir, LOGIN_DIFF);
 	const status = await main.invoke('site:status', dir);
 
 	const attributed = attributeConflicts({ conflicts: preview.conflicts, appliedPatch: status.appliedPatch });
-	assert.deepEqual(attributed.yours, ['src/wp-login.php']);
-	assert.deepEqual(attributed.fromLayer, []);
+	assert.deepEqual(attributed.yours, []);
+	assert.deepEqual(attributed.fromLayer, ['src/wp-login.php']);
+	assert.ok(attributed.sentences.some((sentence) => /may also contain your own edits/.test(sentence)));
 });
