@@ -168,6 +168,26 @@ function parsePatchFiles(text) {
 		const file = parsed[i];
 
 		if (!file.hunks || file.hunks.length === 0) {
+			// An empty file added or deleted has no line on either side, so its
+			// section is headers alone (#311). `/dev/null` still says which of
+			// the two it was — the same rule classify() applies to a hunked
+			// section — and it comes off the parsed filenames, so it does not
+			// depend on `sections` lining up with `parsed` (it does not, in a
+			// patch that mixes git-style and bare sections).
+			if (file.oldFileName === '/dev/null' || file.newFileName === '/dev/null') {
+				const empty = stripPathPrefix(file.oldFileName || '', file.newFileName || '');
+				const emptyKind = classify(file, empty.oldPath, empty.newPath);
+				const emptyTarget = emptyKind === 'delete' ? empty.oldPath : empty.newPath;
+				files.push({
+					kind: emptyKind,
+					oldPath: mapToSrcLayout(empty.oldPath),
+					newPath: mapToSrcLayout(empty.newPath),
+					path: mapToSrcLayout(emptyTarget),
+					hunks: [],
+					patch: file
+				});
+				continue;
+			}
 			// jsdiff kept nothing, so the raw section is the only evidence of
 			// what this was.
 			const section = sections[i];
