@@ -41,6 +41,7 @@ import { prDateLabel } from './pr-date-label.cjs';
 import { ticketUrl, attachUrl } from './trac-ticket.cjs';
 import { adminUrl, adminerUrl } from './site-urls.cjs';
 import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
+import { ticketTrunkNotice } from './ticket-trunk-notice.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { highlightLog } from './log-highlight.cjs';
@@ -1268,6 +1269,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [waitingForWatch, setWaitingForWatch] = useState(false);
   // Trac ticket association (#109)
   const [tracTicket, setTracTicket] = useState(null);
+  const [ticketBehindTrunk, setTicketBehindTrunk] = useState(false);
   const [ticketInput, setTicketInput] = useState('');
   const [ticketError, setTicketError] = useState('');
   const [ticketSaving, setTicketSaving] = useState(false);
@@ -1619,6 +1621,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setTrunkDate(s?.trunkDate || null);
       setUpdateIncomplete(Boolean(s?.updateIncomplete));
       setTracTicket(s?.tracTicket || null);
+      setTicketBehindTrunk(Boolean(s?.ticketBehindTrunk));
       setAppliedPatch(s?.appliedPatch || null);
       if (metaPatchRef.current) {
         // A null trunkDate here means the git read failed (e.g. clone still
@@ -1759,6 +1762,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         }
         return;
       }
+      // The status belongs to the branch we just left. Clear it in the same
+      // render that names the new ticket; loadStatus will restore the new
+      // branch's answer below (#305).
+      setTicketBehindTrunk(false);
       setTracTicket(res.ticket);
       if (res.ticket) autoReadTicketRef.current = res.ticket;
       setTicketInput('');
@@ -2662,6 +2669,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // #12345 is news for the ticket card, one that belongs to nothing is news
   // for the buttons that would give it somewhere to go.
   const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket });
+  const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk });
   const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged });
   const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
@@ -4465,6 +4473,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               ) : null}
               <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketActionsBlocked}>Unlink</Button>
             </div>
+
+            {staleTicketNotice ? (
+              <div role="status" style={{ marginTop: 10, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
+                <div style={{ fontWeight: 600 }}>{staleTicketNotice.title}</div>
+                <div style={{ marginTop: 4 }}>{staleTicketNotice.body}</div>
+              </div>
+            ) : null}
 
             {tracInfo ? (
               <div style={{ marginTop: 10 }}>
