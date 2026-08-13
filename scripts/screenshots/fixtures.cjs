@@ -49,10 +49,12 @@ function buildFixture(variant) {
 	const wizardSite = path.join(FIXTURE_ROOT, 'wordpress-develop');
 	const readySite = path.join(FIXTURE_ROOT, 'my-first-patch');
 	const staleSite = path.join(FIXTURE_ROOT, 'older-site');
+	const incompleteSite = path.join(FIXTURE_ROOT, 'needs-rebuild');
 
-	for (const site of [wizardSite, readySite, staleSite]) {
+	for (const site of [wizardSite, readySite, staleSite, incompleteSite]) {
 		fs.mkdirSync(path.join(site, 'wp-content'), { recursive: true });
 	}
+	fs.mkdirSync(path.join(readySite, 'build', 'wp-includes', 'js', 'dist'), { recursive: true });
 	fs.writeFileSync(path.join(readySite, 'wp-content', 'debug.log'), DEBUG_LOG_LINES);
 
 	// Dates are fixed, not computed from "now": the amber staleness dot needs
@@ -60,7 +62,7 @@ function buildFixture(variant) {
 	// enough not to be flagged. Retaking the screenshots years from now flips
 	// the fresh sites amber too — bump these dates when that happens.
 	writeSettings(userDataDir, {
-		sites: [wizardSite, readySite, staleSite],
+		sites: [wizardSite, readySite, staleSite, incompleteSite],
 		siteMeta: {
 			[wizardSite]: {
 				initialized: true,
@@ -82,15 +84,37 @@ function buildFixture(variant) {
 				label: 'older-site',
 				trunkDate: '2026-06-01T09:00:00.000Z',
 				skipInitWizard: true
+			},
+			[incompleteSite]: {
+				initialized: true,
+				createdAt: '2026-08-09T10:00:00.000Z',
+				label: 'needs-rebuild',
+				trunkDate: '2026-08-09T09:00:00.000Z',
+				skipInitWizard: true,
+				updateIncomplete: true
 			}
 		},
+		[`siteMail:${readySite}`]: [
+			{
+				id: 'docs-welcome',
+				subject: 'Welcome to WordPress Contributor Day',
+				from: 'WordPress <wordpress@example.test>',
+				to: 'contributor@example.test',
+				date: '2026-08-10T09:30:00.000Z',
+				sentAt: '2026-08-10T09:30:00.000Z',
+				text: 'Your local WordPress site can send mail safely.',
+				html: '<p>Your local WordPress site can send mail safely.</p>',
+				headers: {},
+				raw: 'Subject: Welcome to WordPress Contributor Day\n\nYour local WordPress site can send mail safely.'
+			}
+		],
 		preferences: {
 			wporgHandle: 'contributor',
 			contributionEvent: 'WordCamp Example 2026'
 		}
 	});
 
-	return { userDataDir, sites: { wizardSite, readySite, staleSite } };
+	return { userDataDir, sites: { wizardSite, readySite, staleSite, incompleteSite } };
 }
 
 function writeSettings(userDataDir, settings) {

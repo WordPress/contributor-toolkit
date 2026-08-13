@@ -60,6 +60,8 @@ The app flags sites that have fallen behind with a coloured dot next to the site
 
 If the fetch succeeds but install or build fails, the site view shows a red banner: **Update incomplete** — the code is new but the built assets are old, and the site may not run correctly until install and build succeed. Click **Retry install & build** to run only the missing steps; the fetch is not repeated. The sidebar dot stays red until this succeeds.
 
+![The Update incomplete notice with its Retry install and build button](/screenshots/update-incomplete.png)
+
 ## Staleness is judged locally
 
 Staleness is judged locally, from the date of the commit your site is sitting on, and never by asking GitHub what the tip of trunk is. That keeps the app working offline and stops it from making a network request every time it launches. Two consequences worth knowing:
