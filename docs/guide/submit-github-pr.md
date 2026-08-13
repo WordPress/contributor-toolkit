@@ -12,6 +12,8 @@ Click **Sign in with GitHub**. The app signs you in through your browser, using 
 2. Enter the code there — **Copy the code** puts it on your clipboard — and confirm the authorization on GitHub.
 3. The app waits until GitHub reports the sign-in went through.
 
+![The Open a pull request card showing a GitHub device code, Copy the code, the waiting state, and Cancel](/screenshots/github-sign-in.png)
+
 You never type a password into the app, and no credential is written to disk: the authorization is held in memory and forgotten when you quit. Click **Cancel** to abandon the sign-in, or **Not now** to decline it — the patch file is still yours to save, and the other two destinations are unchanged.
 
 Once signed in, the card says which account you are on and where the fork and branch will go: **your-username/wordpress-develop**. **Sign out** discards the authorization.

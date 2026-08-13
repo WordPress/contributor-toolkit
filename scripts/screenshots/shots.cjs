@@ -169,24 +169,28 @@ const shots = [
 	{
 		slug: 'submit-changes-diff',
 		tier: 'live',
+		target: (page) => page.locator('.patch-diff'),
 		instructions:
-			'On a site with edited files, click "Submit changes" and wait for the diff to finish generating.'
+			'On a site with edited files, click "Review & submit changes" and wait for the diff to finish generating.'
 	},
 	{
 		slug: 'submit-destinations',
 		tier: 'live',
+		target: (page) => page.locator('.patch-destinations'),
 		instructions:
-			'In the "Submit changes" modal, continue past the diff until the three destination cards (pull request / Trac / mentor) are visible.'
+			'In the "Review & submit changes" modal, wait until the three destination cards (pull request / Trac / mentor) are visible.'
 	},
 	{
 		slug: 'github-sign-in',
 		tier: 'live',
+		target: (page) => page.getByText('Open a pull request', { exact: true }).locator('../..'),
 		instructions:
-			'Choose "Open a pull request" while signed out, so the GitHub sign-in screen is visible. Stop before entering the device code.'
+			'In the "Open a pull request" destination, click "Sign in with GitHub" while signed out. Capture the card while it shows the device code; do not authorize it.'
 	},
 	{
 		slug: 'trunk-update-progress',
 		tier: 'live',
+		target: (page) => page.getByText('Updating to latest trunk', { exact: true }).locator('../..'),
 		instructions:
 			'Start "Update to latest trunk" on a site and wait until the step list is mid-run.'
 	}
