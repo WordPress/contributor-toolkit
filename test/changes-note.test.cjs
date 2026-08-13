@@ -3,14 +3,16 @@
 // DOM; index.jsx only interleaves the parts with its two link buttons.
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
 	changesNoteParts,
 	discardOutcome,
 	noteAfterDiscard,
 	noteAfterProbe,
-	modalDiscardDisabled,
 	discardBlocked,
+	discardDisabledReason,
 	DISCARD_CONFIRM_MESSAGE
 } = require('../src/renderer/changes-note.cjs');
 
@@ -162,16 +164,6 @@ test('noteAfterProbe clears an old count when the base cannot be measured (#308)
 		{ dirty: true, changedCount: 2 }
 	);
 });
-
-test('modalDiscardDisabled frees the link only for a loaded diff with changes', () => {
-	assert.equal(modalDiscardDisabled({ patchLoading: false, patchHasChanges: true, discarding: false }), false);
-	assert.equal(modalDiscardDisabled({ patchLoading: true, patchHasChanges: true, discarding: false }), true);
-	assert.equal(modalDiscardDisabled({ patchLoading: false, patchHasChanges: false, discarding: false }), true);
-	assert.equal(modalDiscardDisabled({ patchLoading: false, patchHasChanges: true, discarding: true }), true);
-	assert.equal(modalDiscardDisabled({}), true);
-	assert.equal(modalDiscardDisabled(), true);
-});
-
 test('discardBlocked holds the discard while anything is rewriting the tree', () => {
 	// The same states that block starting a trunk update: a force checkout
 	// under a running install, build or dev server corrupts both.
@@ -180,4 +172,29 @@ test('discardBlocked holds the discard while anything is rewriting the tree', ()
 	for (const flag of ['isUpdating', 'installing', 'building', 'devServerActive', 'discarding']) {
 		assert.equal(discardBlocked({ [flag]: true }), true, flag);
 	}
+});
+
+test('discardDisabledReason explains every state that makes discard unavailable', () => {
+	assert.equal(discardDisabledReason({ patchLoading: true, patchHasChanges: true }), 'Wait for your changes to finish loading.');
+	assert.equal(discardDisabledReason({ patchLoadFailed: true, patchHasChanges: false }), 'Changes could not be loaded.');
+	assert.equal(discardDisabledReason({ patchHasChanges: false }), 'There are no changes to discard.');
+	assert.equal(discardDisabledReason({ patchHasChanges: true, discarding: true }), 'Changes are already being discarded.');
+	assert.equal(discardDisabledReason({ patchHasChanges: true, isUpdating: true }), 'Wait for the trunk update to finish before discarding changes.');
+	assert.equal(discardDisabledReason({ patchHasChanges: true, installing: true }), 'Wait for the installation to finish before discarding changes.');
+	assert.equal(discardDisabledReason({ patchHasChanges: true, building: true }), 'Wait for the build to finish before discarding changes.');
+	assert.equal(discardDisabledReason({ patchHasChanges: true, devServerActive: true }), 'Stop the dev server before discarding changes.');
+	assert.equal(discardDisabledReason({ patchHasChanges: true }), null);
+});
+
+test('discardDisabledReason reports the operation in progress before secondary blockers', () => {
+	assert.equal(
+		discardDisabledReason({ patchLoading: true, patchHasChanges: false, discarding: true, devServerActive: true }),
+		'Changes are already being discarded.'
+	);
+});
+
+test('both visible discard links use the shared explanatory control', () => {
+	const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'index.jsx'), 'utf8');
+	const uses = source.match(/<DiscardChangesLink\b/g) || [];
+	assert.equal(uses.length, 2, 'the ticket note and review modal must share the tooltip-enabled discard link');
 });

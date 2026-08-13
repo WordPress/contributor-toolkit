@@ -123,18 +123,6 @@ function noteAfterProbe(_current, result) {
 }
 
 /**
- * Whether the modal's discard link is inert: while the diff is loading there
- * is nothing to confirm against, with no changes there is nothing to lose,
- * and mid-discard a second click would race the first.
- *
- * @param {{patchLoading?: boolean, patchHasChanges?: boolean, discarding?: boolean}} state
- * @return {boolean}
- */
-function modalDiscardDisabled({ patchLoading, patchHasChanges, discarding } = {}) {
-	return Boolean(patchLoading || discarding || !patchHasChanges);
-}
-
-/**
  * Whether a discard may run at all right now. The same states that block
  * starting a trunk update block a discard, and for the same reason: both
  * rewrite the tree under whatever npm is doing to it, and a force checkout
@@ -149,4 +137,28 @@ function discardBlocked({ isUpdating, installing, building, devServerActive, dis
 	return Boolean(isUpdating || installing || building || devServerActive || discarding);
 }
 
-module.exports = { changesNoteParts, discardOutcome, noteAfterDiscard, noteAfterProbe, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE };
+/**
+ * The explanation shown when the modal's discard action is unavailable.
+ *
+ * One operation can leave several guards true while state settles. Report the
+ * action already underway first, then the transient patch state, and finally
+ * the process the contributor can stop or wait for.
+ *
+ * @param {{patchLoading?: boolean, patchLoadFailed?: boolean, patchHasChanges?: boolean,
+ *          isUpdating?: boolean, installing?: boolean, building?: boolean,
+ *          devServerActive?: boolean, discarding?: boolean}} state
+ * @return {string|null}
+ */
+function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges, isUpdating, installing, building, devServerActive, discarding } = {}) {
+	if (discarding) return 'Changes are already being discarded.';
+	if (patchLoading) return 'Wait for your changes to finish loading.';
+	if (patchLoadFailed) return 'Changes could not be loaded.';
+	if (!patchHasChanges) return 'There are no changes to discard.';
+	if (isUpdating) return 'Wait for the trunk update to finish before discarding changes.';
+	if (installing) return 'Wait for the installation to finish before discarding changes.';
+	if (building) return 'Wait for the build to finish before discarding changes.';
+	if (devServerActive) return 'Stop the dev server before discarding changes.';
+	return null;
+}
+
+module.exports = { changesNoteParts, discardOutcome, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE };

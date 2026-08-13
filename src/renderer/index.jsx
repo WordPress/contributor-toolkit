@@ -15,7 +15,8 @@ import {
   SnackbarList,
   TextControl,
   TextareaControl,
-  Spinner
+  Spinner,
+  Tooltip
 } from '@wordpress/components';
 import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, edit, download, comment } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
@@ -46,7 +47,7 @@ import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { highlightLog } from './log-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
-import { changesNoteParts, discardOutcome, noteAfterDiscard, noteAfterProbe, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
+import { changesNoteParts, discardOutcome, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { initialConfirmations, confirmationReducer, prConfirmationMessage } from './confirmations.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
@@ -69,6 +70,28 @@ const COPY_BUTTON_LABELS = {
   copied: 'Copied',
   failed: 'Could not copy'
 };
+
+// One discard action, wherever it is offered. Keeping the disabled rendering
+// here means the ticket note cannot lose the explanation while the review
+// modal keeps it (or vice versa).
+function DiscardChangesLink({ label, onClick, reason, style }) {
+  if (!reason) {
+    return <Button variant="link" isDestructive onClick={onClick} style={style}>{label}</Button>;
+  }
+  return (
+    <Tooltip text={reason} placement="bottom">
+      <Button
+        variant="link"
+        isDestructive
+        onClick={onClick}
+        disabled
+        accessibleWhenDisabled
+        description={reason}
+        style={style}
+      >{label}</Button>
+    </Tooltip>
+  );
+}
 // What the app is doing while a pull request is being opened (#167). Each step
 // is named because they take visibly different amounts of time — forking is the
 // slow one, and an unlabelled spinner there reads as a hang.
@@ -1212,6 +1235,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [patchText, setPatchText] = useState('');
   const [patchLoading, setPatchLoading] = useState(false);
+  const [patchLoadFailed, setPatchLoadFailed] = useState(false);
   // What the last save did, reported in the modal rather than in an alert:
   // the destination panel is where the contributor is looking, and the path
   // matters — it is the file they are about to upload or hand over (#166).
@@ -3369,11 +3393,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // after a discard is the "nothing to send" banner.
   const loadPatchText = async () => {
     setPatchLoading(true);
+    setPatchLoadFailed(false);
     try {
       const res = await window.api.getPatch(sitePath);
       if (res && res.ok) setPatchText((res.patch && res.patch.trim().length) ? res.patch : 'No changes.');
-      else setPatchText(res && res.error ? `Error: ${res.error}` : 'Failed to generate patch');
+      else {
+        setPatchLoadFailed(true);
+        setPatchText(res && res.error ? `Error: ${res.error}` : 'Failed to generate patch');
+      }
     } catch (e) {
+      setPatchLoadFailed(true);
       setPatchText(`Error: ${e && e.message ? e.message : String(e)}`);
     } finally {
       setPatchLoading(false);
@@ -3383,6 +3412,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const openPatchModal = async ()=>{
     setIsPatchOpen(true);
     setPatchText('');
+    setPatchLoadFailed(false);
     // Last time's outcome belongs to last time's patch.
     setPatchSaved(null);
     setPatchSaveError('');
@@ -3441,7 +3471,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       {changesNote.lead}
       <Button variant="link" onClick={openPatchModal} disabled={isUpdating}>{changesNote.patchLabel}</Button>
       {changesNote.middle}
-      <Button variant="link" isDestructive onClick={discardAllChanges} disabled={discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding })}>{changesNote.discardLabel}</Button>
+      <DiscardChangesLink
+        label={changesNote.discardLabel}
+        onClick={discardAllChanges}
+        reason={discardDisabledReason({
+          patchHasChanges: true,
+          isUpdating,
+          installing,
+          building,
+          devServerActive: isDevProcessActive,
+          discarding
+        })}
+      />
       {changesNote.end}
       {discardError ? <div style={{ color: '#d63638', fontSize: 12, marginTop: 4 }}>{discardError}</div> : null}
     </>
@@ -3480,6 +3521,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const patchHasChanges = Boolean(patchText)
     && hasDiffLines(patchText)
     && !patchText.startsWith('Error');
+  const modalDiscardReason = discardDisabledReason({
+    patchLoading,
+    patchLoadFailed,
+    patchHasChanges,
+    isUpdating,
+    installing,
+    building,
+    devServerActive: isDevProcessActive,
+    discarding
+  });
 
   // Saving the file, for every destination that needs one (#166). `handoff`
   // asks the main process for the provenance header and the name that carries
@@ -5212,13 +5263,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                       {tracTicket ? `Your changes for ticket #${tracTicket}` : 'Your changes'}
                       <span style={{ fontWeight:400 }}>
                         {'('}
-                        <Button
-                          variant="link"
-                          isDestructive
+                        <DiscardChangesLink
+                          label="Discard all changes"
                           onClick={discardAllChanges}
-                          disabled={modalDiscardDisabled({ patchLoading, patchHasChanges, discarding }) || discardBlocked({ isUpdating, installing, building, devServerActive: isDevProcessActive, discarding })}
+                          reason={modalDiscardReason}
                           style={{ fontSize: 12 }}
-                        >Discard all changes</Button>
+                        />
                         {')'}
                       </span>
                     </div>
