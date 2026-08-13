@@ -911,9 +911,9 @@ async function migrateSiteToBranches(sitePath) {
         const existing = await listTicketBranches(sitePath);
         // A branch that already exists was not created by this app, so its fork
         // point is not on record and cannot be recovered on a depth-1 clone.
-        // Left null deliberately: patchBaseOid has one documented fallback for
-        // exactly this, and guessing here would put a second, wrong one in the
-        // codebase. (`trunkOid` is the *current* tip, not the fork point.)
+        // Left null deliberately: patch operations refuse this branch instead
+        // of guessing from today's trunk, which is not necessarily its fork
+        // point (#308).
         const baseOid = existing.includes(ref)
             ? null
             : (await startTicketBranch(sitePath, m.tracTicket)).baseOid;
@@ -1105,30 +1105,22 @@ async function mergeBranchMeta(sitePath, ref, patch) {
 
 /**
  * The diff base for whatever is checked out: a ticket branch's recorded branch
- * point, or null on trunk — where the patch generator falls back to HEAD, which
- * is what it has always diffed against.
+ * point, or null on trunk — where the patch generator falls back to HEAD.
+ *
+ * A ticket branch without a recorded base refuses rather than guessing from
+ * today's trunk (#308). That state belongs to sites or branches created outside
+ * the app; 1.0 does not attempt to adopt or repair it.
  *
  * @param {string} sitePath
+ * @return {Promise<?string>}
  */
 async function patchBaseOid(sitePath) {
-    try {
-        // What is checked out decides this, so ask the worktree before the
-        // registry: a site on trunk — every site before #108, and every site
-        // whose owner never linked a ticket — answers without a store read at
-        // all, and takes exactly the path it always took.
-        let ref = null;
-        try { ref = await currentBranchName(sitePath); } catch {}
-        if (!ref || ref === TRUNK) return null;
+    const ref = await currentBranchName(sitePath);
+    if (!ref || ref === TRUNK) return null;
 
-        const recorded = ((await readSiteMeta(sitePath)).branches || {})[ref];
-        if (recorded && recorded.baseOid) return recorded.baseOid;
-        // A ticket branch with no recorded base (registry edited by hand, or a
-        // branch the user made themselves). The live trunk ref is the closest
-        // honest answer available.
-        return await git.resolveRef({ fs, dir: sitePath, ref: 'refs/heads/trunk' });
-    } catch {
-        return null;
-    }
+    const recorded = ((await readSiteMeta(sitePath)).branches || {})[ref];
+    if (recorded && recorded.baseOid) return recorded.baseOid;
+    throw new Error('This ticket has no recorded starting point, so the app cannot safely compare or discard its work.');
 }
 
 /**
@@ -1163,15 +1155,17 @@ async function baseProvenance(dir, baseOid, meta) {
  * The files standing between where this ticket started and where it is now —
  * the note's measurement (#239). Same base and same walk as the patch, filtered
  * to the rows the patch would actually speak about, so the note and the modal
- * are two renderings of one answer. On trunk `patchBaseOid` answers null and
- * the walk falls back to HEAD, which is what the note has always read there.
+ * are two renderings of one answer. On trunk `patchBaseOid` answers null and the
+ * walk falls back to HEAD, which is what the note has always read there.
  *
+ * Throws when the base could not be read (#308) rather than measuring against
+ * HEAD: on a resumed ticket HEAD is the contributor's own parked work, so the
+ * fallback answers "nothing here" about the very tree this exists to speak for.
  * @param {string} sitePath
  * @return {Promise<Array<string>>} Paths, gitignored ones excluded.
  */
 async function collectUnsubmittedFiles(sitePath) {
-    const baseOid = await patchBaseOid(sitePath);
-    const { files } = await collectChangedFiles(sitePath, baseOid);
+    const { files } = await collectChangedFiles(sitePath, await patchBaseOid(sitePath));
     return files
         .filter((file) => classifyChangedFile(file).kind !== 'unchanged')
         .map((file) => file.path);
@@ -1212,8 +1206,13 @@ ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
 // (#108/#239) and so includes the parked WIP commit. Rewinds to `patchBaseOid`
 // — the same base the diff was taken against — so the modal ends on "No
 // changes". The branch survives and the ticket stays linked; only its work is
-// gone. On trunk (or a branch with no recorded base) there is nothing past
-// HEAD to rewind, so it falls back to the uncommitted-only reset.
+// gone. On trunk there is nothing past HEAD to rewind, so it falls back to the
+// uncommitted-only reset.
+//
+// A base the app could not read refuses outright (#308). The uncommitted-only
+// reset is not a safe stand-in for it: it looks like a discard, leaves the
+// parked WIP commit untouched, and the modal would come back still listing the
+// work it just promised to throw away.
 ipcMain.handle('git:discard-to-base', async (_e, sitePath) => {
     try {
         const baseOid = await patchBaseOid(sitePath);
@@ -1496,7 +1495,8 @@ ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
             dirtyPaths = await collectUnsubmittedFiles(sitePath);
         } catch (e) {
             // Failing open here would promise "no collisions" precisely when the
-            // app could not look — surface the failure instead.
+            // app could not look — surface the failure instead. An unreadable
+            // base arrives here as a throw for exactly that reason (#308).
             logError('git:preview-patch', String(e && e.stack ? e.stack : e));
             return { ok: false, error: 'Could not check your work for conflicts, so the preview was not shown.' };
         }

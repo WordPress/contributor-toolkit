@@ -8,6 +8,7 @@ const {
 	changesNoteParts,
 	discardOutcome,
 	noteAfterDiscard,
+	noteAfterProbe,
 	modalDiscardDisabled,
 	discardBlocked,
 	DISCARD_CONFIRM_MESSAGE
@@ -148,6 +149,17 @@ test('noteAfterDiscard falls back to clean when the reply carries no recount (#2
 	assert.deepEqual(
 		noteAfterDiscard({ ok: true, dirty: true, changedCount: undefined }),
 		{ dirty: true, changedCount: 0 }
+	);
+});
+
+test('noteAfterProbe clears an old count when the base cannot be measured (#308)', () => {
+	assert.deepEqual(
+		noteAfterProbe({ dirty: true, changedCount: 4 }, { ok: false, error: 'Unknown ticket base' }),
+		null
+	);
+	assert.deepEqual(
+		noteAfterProbe(null, { ok: true, dirty: true, changedCount: 2 }),
+		{ dirty: true, changedCount: 2 }
 	);
 });
 

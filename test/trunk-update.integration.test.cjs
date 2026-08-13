@@ -99,8 +99,7 @@ test('discardToBase: a base that is not an ancestor of HEAD does not rewind the 
 	await git.add({ fs, dir, filepath: 'text.txt' });
 	const wip = await git.commit({ fs, dir, message: 'WIP', author: AUTHOR, parent: [trunkStart] });
 	// Trunk advances to a commit that is a sibling of the ticket HEAD, not an
-	// ancestor — the shape patchBaseOid's fallback would hand a branch with no
-	// recorded base once trunk has moved on.
+	// ancestor — the shape this guard must refuse.
 	await git.checkout({ fs, dir, ref: 'trunk' });
 	fs.writeFileSync(path.join(dir, 'other.txt'), 'unrelated trunk work\n');
 	await git.add({ fs, dir, filepath: 'other.txt' });

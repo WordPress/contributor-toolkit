@@ -44,7 +44,7 @@ import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { highlightLog } from './log-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
-import { changesNoteParts, discardOutcome, noteAfterDiscard, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
+import { changesNoteParts, discardOutcome, noteAfterDiscard, noteAfterProbe, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { initialConfirmations, confirmationReducer, prConfirmationMessage } from './confirmations.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
@@ -1656,9 +1656,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // checkout guards (startTrunkUpdate) keep asking the narrow question:
   // parked work survives a force checkout, uncommitted edits do not.
   //
-  // A failed probe keeps the last answer rather than reporting: the note is
-  // advisory, and losing it over a transient git error would read as "your
-  // changes are gone".
+  // A failed probe clears the last answer. Once the app knows it could not
+  // measure this ticket, keeping an earlier count would present stale data as
+  // current (#308).
   //
   // The ref guards two races the probe's cost makes real — it walks the whole
   // checkout, so it can still be in flight when the next focus fires or when
@@ -1693,8 +1693,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         const generation = probe.generation;
         try {
           const res = await window.api.hasUnsubmittedWork(sitePath);
-          if (res && res.ok && probe.generation === generation) {
-            setWorktreeDirty({ dirty: Boolean(res.dirty), changedCount: res.changedCount });
+          if (probe.generation === generation) {
+            setWorktreeDirty((current) => noteAfterProbe(current, res));
           }
         } catch {}
       } while (probe.again);
