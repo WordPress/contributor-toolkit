@@ -29,6 +29,8 @@ The update always shows the same three steps in a progress card, with a "step N 
 2. **Install dependencies** — runs only if `package-lock.json` changed between the old and new trunk; otherwise the step is shown as "Dependencies unchanged — skipping npm install". When it does run, most packages are already cached, so it downloads the difference, not the whole tree.
 3. **Rebuild** — rebuild the `build/` directory so it matches the new source.
 
+![The Updating to latest trunk card at step 1 of 3, fetching and resetting to trunk before install and rebuild](/screenshots/trunk-update-progress.png)
+
 When the chain finishes, a green summary reads **Up to date with trunk as of today.**, along with whether dependencies changed, how long the rebuild took, and the path of any saved patch. Updating typically takes a few minutes.
 
 ## Updating while you are on a ticket
