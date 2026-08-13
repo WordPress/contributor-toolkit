@@ -18,11 +18,21 @@ function item(number, overrides = {}) {
 	};
 }
 
-test('bodyCitesTicket: the full ticket URL counts, a bare number does not (issue #11)', () => {
+test('bodyCitesTicket: the full ticket URL counts, an unlabelled bare number does not (issue #11)', () => {
 	assert.strictEqual(bodyCitesTicket('see https://core.trac.wordpress.org/ticket/62281 for context', 62281), true);
 	assert.strictEqual(bodyCitesTicket('this is about #62281 somewhere', 62281), false);
 	assert.strictEqual(bodyCitesTicket('', 62281), false);
 	assert.strictEqual(bodyCitesTicket(null, 62281), false);
+});
+
+// Older wordpress-develop pull request templates asked for a ticket number,
+// not its full URL. PR #3139 still follows that format and must not disappear
+// from ticket #56320 merely because today's template is stricter.
+test('bodyCitesTicket: a labelled bare ticket number counts (issue #327)', () => {
+	assert.strictEqual(bodyCitesTicket('Updated mediaelement.js\nTrac ticket: 56320', 56320), true);
+	assert.strictEqual(bodyCitesTicket('Trac ticket: #56320', 56320), true);
+	assert.strictEqual(bodyCitesTicket('unrelated work mentions 56320 in passing', 56320), false);
+	assert.strictEqual(bodyCitesTicket('Trac ticket: 563200', 56320), false);
 });
 
 // The precision bug the URL check exists to prevent: GitHub's tokeniser can

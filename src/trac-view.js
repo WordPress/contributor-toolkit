@@ -32,6 +32,25 @@ const USER_AGENT = 'WordPress-Contributor-Toolkit (+https://github.com/WordPress
 const READY_TIMEOUT_MS = 90000;
 const POLL_MS = 800;
 
+/**
+ * Whether a promise resolves before an absolute deadline. Rejections remain
+ * rejections so the caller can report navigation failures separately from a
+ * page that simply never finishes loading.
+ *
+ * @param {Promise} promise
+ * @param {number}  deadline Unix time in milliseconds.
+ * @return {Promise<boolean>}
+ */
+function resolvesBy(promise, deadline) {
+	let timer;
+	return Promise.race([
+		Promise.resolve(promise).then(() => true),
+		new Promise((resolve) => {
+			timer = setTimeout(() => resolve(false), Math.max(0, deadline - Date.now()));
+		})
+	]).finally(() => clearTimeout(timer));
+}
+
 function ticketUrl(id) {
 	return `https://${TRAC_HOST}/ticket/${id}`;
 }
@@ -61,11 +80,14 @@ function pinToTrac(wc) {
  * challenge needs the user), scrapes the attachment list, and closes.
  *
  * @param {number|string} ticketId
+ * @param {Object}        [deps]
+ * @param {number}        [deps.readyTimeoutMs] Override for tests.
  * @return {Promise<{status: string, items: Array, error?: string}>}
  */
-async function openAndScrape(ticketId) {
+async function openAndScrape(ticketId, deps = {}) {
 	const id = String(ticketId).replace(/[^0-9]/g, '');
 	if (!id) return { status: 'error', items: [], error: 'No ticket number' };
+	const readyTimeoutMs = Number.isFinite(deps.readyTimeoutMs) ? Math.max(0, deps.readyTimeoutMs) : READY_TIMEOUT_MS;
 
 	const tracSession = session.fromPartition(TRAC_PARTITION);
 	const win = new BrowserWindow({
@@ -91,12 +113,17 @@ async function openAndScrape(ticketId) {
 	};
 
 	try {
-		await win.loadURL(ticketUrl(id));
+		// The deadline covers navigation as well as the challenge poll. Electron's
+		// loadURL promise resolves only after the page finishes loading, so putting
+		// the deadline after this await left a stalled navigation spinning forever
+		// (#327).
+		const deadline = Date.now() + readyTimeoutMs;
+		const loaded = await resolvesBy(win.loadURL(ticketUrl(id)), deadline);
+		if (!loaded) return { status: 'challenge-timeout', items: [] };
 
 		// Poll until the real ticket page is present. The challenge page has no
 		// #ticket; when the hashcash (or the user) clears it, Trac reloads to
 		// the real page and #ticket appears.
-		const deadline = Date.now() + READY_TIMEOUT_MS;
 		let ready = false;
 		while (Date.now() < deadline) {
 			if (win.isDestroyed()) return { status: 'closed', items: [] };

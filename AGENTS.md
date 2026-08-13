@@ -127,6 +127,10 @@ see [`CONTRIBUTING.md`](CONTRIBUTING.md). It points back here; it does not resta
 See `package.json` scripts. To run a single test file (not exposed as a script):
 `node --test test/azure-sign.test.cjs`.
 
+When writing manual test instructions, inspect the current renderer flow first and distinguish
+actions that happen automatically after linking a ticket from controls used only to retry or
+refresh them. Do not tell a tester to click a control when the app already starts that operation.
+
 ## Architecture notes (non-obvious)
 
 - **Child processes run on Electron's own Node, not the system Node.** `npm install`,
