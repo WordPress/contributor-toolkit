@@ -58,11 +58,11 @@ While the watch is running, applying a patch or updating trunk uses it rather th
 
 Its output goes to its own **Build watcher** log tab, not to the terminal, and it no longer holds the terminal's "running" lock — so the terminal and one-shot actions stay available while it runs.
 
-## Open Adminer
+## DB inspect (Adminer)
 
-While the server is running, an **Open Adminer** button appears next to **Stop dev server**. It opens Adminer, a database browser, against the site's SQLite database — useful for inspecting what a code change wrote. See [Database](./database) for details.
+While the server is running, a **DB inspect (Adminer)** link joins the site URL and **wp-admin** on the same row. It opens Adminer, a database browser, against the site's SQLite database — useful for inspecting what a code change wrote. See [Database](./database) for details.
 
-The button disappears when the server stops, because there is no database to connect to.
+The link disappears when the server stops, because there is no database to connect to.
 
 ## Where the output goes
 

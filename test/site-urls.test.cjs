@@ -8,6 +8,8 @@ const { siteUrl, adminUrl, adminerUrl } = require('../src/renderer/site-urls.cjs
 
 const INDEX_JSX = path.join(__dirname, '..', 'src', 'renderer', 'index.jsx');
 
+const ADMINER_LINK = '>DB inspect (Adminer)</a>';
+
 // The shape server-runner.js actually produces: `http://127.0.0.1:${port}/`.
 const RUNNING = 'http://127.0.0.1:8881/';
 
@@ -112,8 +114,44 @@ assert.strictEqual(
 	);
 
 	assert.strictEqual(
-		source.split('adminerUrl(').length - 1,
+		source.split('href={adminerUrl(').length - 1,
 		1,
-		'expected exactly one adminerUrl( call: the Open Adminer button'
+		'expected the Adminer link to take its href from adminerUrl'
+	);
+	assert.strictEqual(
+		source.split('e.preventDefault(); window.api.openExternal(adminerUrl(').length - 1,
+		1,
+		'expected the Adminer link to prevent in-app navigation and open adminerUrl externally'
+	);
+});
+
+// Adminer became an anchor here, so it needs the same preventDefault the other
+// two links have — as a Button it could not navigate the window at all.
+test('the running site reads as one row of destinations (issue #249)', () => {
+	const source = fs.readFileSync(INDEX_JSX, 'utf8');
+
+	assert.strictEqual(
+		source.split('Open Adminer').length - 1,
+		0,
+		'Open Adminer is still a button in the action row'
+	);
+
+	assert.strictEqual(
+		source.split(ADMINER_LINK).length - 1,
+		1,
+		'expected exactly one DB inspect (Adminer) link beside the site URL'
+	);
+
+	// Placement is the whole point of #249, and the assertions above pin only the
+	// widget: an anchor rendered back inside the action-button row passes all of
+	// them. Anchoring it between the site page's wp-admin link and the
+	// credentials line puts it in the row it was moved into. lastIndexOf,
+	// because the wizard step has a wp-admin link of its own, earlier.
+	const wpAdmin = source.lastIndexOf('>wp-admin</a>');
+	const adminer = source.indexOf(ADMINER_LINK);
+	const credentials = source.indexOf('Log in with <code>admin</code>');
+	assert.ok(
+		wpAdmin < adminer && adminer < credentials,
+		'expected the Adminer link on the links row, after wp-admin and above the credentials line'
 	);
 });

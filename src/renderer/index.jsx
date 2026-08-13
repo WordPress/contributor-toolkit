@@ -4383,15 +4383,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               style={{ padding: '10px 16px', borderRadius: 10 }}
             >Review & submit changes</Button>
             </span>
-            {running && serverUrl ? (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  window.api.openExternal(adminerUrl(serverUrl));
-                }}
-                style={{ padding: '10px 16px', borderRadius: 10 }}
-              >Open Adminer</Button>
-            ) : null}
           </div>
           {changesNote && changesNote.placement === 'buttons' ? (
             <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2 }}>
@@ -4406,6 +4397,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
                     <span aria-hidden="true" style={{ color: '#8c8f94' }}>·</span>
                     <a href={adminUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminUrl(serverUrl)); }}>wp-admin</a>
+                    {running ? (
+                      <>
+                        <span aria-hidden="true" style={{ color: '#8c8f94' }}>·</span>
+                        <a href={adminerUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminerUrl(serverUrl)); }}>DB inspect (Adminer)</a>
+                      </>
+                    ) : null}
                   </div>
                   <span style={{ fontSize: 12, color: '#3c434a' }}>Log in with <code>admin</code> / <code>password</code>.</span>
                 </>
