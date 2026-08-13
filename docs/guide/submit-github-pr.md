@@ -33,9 +33,3 @@ Two things a first-timer has no way to know, stated on the card before the butto
 - Nothing is merged on GitHub. A committer applies the change themselves, and the ticket is where they decide to.
 
 The card links to [the core handbook page on pull requests](https://make.wordpress.org/core/handbook/contribute/git/github-pull-requests-for-code-review/).
-
-## Test mode
-
-Developers of the app itself can point this flow at a sandbox repository, or make it a dry run that pushes a branch without opening a pull request. When either switch is set, a **Test mode** banner appears on the card saying exactly what will happen, and the dry-run button reads **Push branch (dry run)** instead of **Open pull request**. In a normal build you will never see this banner.
-
-If a build has no GitHub application configured, the card says so — it cannot open a pull request, but the other destinations still work.
