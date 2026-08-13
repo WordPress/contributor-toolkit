@@ -53,6 +53,10 @@ Run the review in `.github/instructions/code-review.instructions.md` against the
 consciously defer every finding. Summarise the outcome in the pull request description — counts,
 what was fixed, what was left as a follow-up and why.
 
+Before reporting a GitHub workflow complete, verify every requested final state on GitHub — for
+example, distinguish a merged pull request from one that is merely closed, and confirm that an
+issue was closed by the intended pull request rather than only by a comment.
+
 Nothing enforces this. There is no automated review on pull requests, by design: it would mean
 storing an AI provider credential as a secret in a public repository. This pass is what stands in
 its place, so skipping it means a human reviewer is the first reader of the diff.
