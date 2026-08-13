@@ -879,3 +879,20 @@ test('diagnoseHunks: overlapping hunks that each pass alone yield null, not zero
 	// Sanity: the single hunk applies, so per-hunk diagnosis finds no failures.
 	assert.strictEqual(diagnoseHunks(body, file), null);
 });
+
+// A revert that fails now carries the same per-region breakdown a forward apply
+// does, because that is what the panel narrates the absorption from.
+test('applyPatchToDir: a failing reverse reports which regions were edited over (issue #306)', async (t) => {
+	const dir = await makeRepo(t, { [FOO]: FOO_BODY });
+	await applyPatchToDir({ dir, patchText: FOO_PATCH });
+	fs.writeFileSync(path.join(dir, FOO), 'one\nMY OWN VERSION\nthree\n');
+
+	const res = await applyPatchToDir({ dir, patchText: FOO_PATCH, reverse: true });
+
+	assert.strictEqual(res.ok, false);
+	assert.strictEqual(res.notApplied, undefined);
+	assert.strictEqual(res.conflicts.length, 1);
+	assert.strictEqual(res.conflicts[0].path, FOO);
+	assert.strictEqual(res.conflicts[0].total, 1);
+	assert.strictEqual(res.conflicts[0].regions.length, 1);
+});

@@ -31,6 +31,9 @@ const os = require('node:os');
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const git = require('isomorphic-git');
+// The applied-layer module turns the handler's measured status into the
+// attribution the renderer shows.
+const { attributeConflicts } = require('../src/renderer/applied-layer.cjs');
 const SRC_DIR = path.join(__dirname, '..', 'src');
 const MAIN_PATH = path.join(SRC_DIR, 'main.js');
 
@@ -2153,6 +2156,35 @@ test('git:apply-patch clears the record when the revert finds no patch to undo',
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
 });
 
+test('git:apply-patch clears a stale revert record from the active ticket branch (#306)', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: false, notApplied: true, error: 'That patch is not in this checkout any more.', applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 62281,
+				currentBranch: 'ticket/62281',
+				branches: { 'ticket/62281': { baseOid: 'base', appliedPatch: { label: 'L', text: 'STORED' } } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./patch-apply': { applyPatchToDir },
+			'./ticket-branches': { currentBranchName: async () => 'ticket/62281' }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', { reverse: true });
+	const done = await applyDone(event, applyId);
+
+	assert.equal(done.recordCleared, true);
+	assert.equal(settings.values.siteMeta['/sites/wp'].branches['ticket/62281'].appliedPatch, null);
+});
+
 // The mirror of the above: a real failure must leave the record alone, or the
 // patch stays in the tree with nothing offering to undo it.
 test('git:apply-patch keeps the record when a revert fails for any other reason', async () => {
@@ -3862,4 +3894,133 @@ test('every IPC channel is classified: wired, or explicitly not', () => {
 	// stale entry behind, claiming coverage nothing provides any more.
 	const stale = CLASSIFIED.filter((channel) => !registered.includes(channel));
 	assert.deepEqual(stale, [], 'Classified channels that main.js no longer registers');
+});
+// --- the applied patch as a layer, measured not remembered (#306) ---------
+//
+// `revertable` used to mean "we kept the text". It now means what the banner
+// asks: can this layer still be lifted out of *this* checkout, right now. That
+// is a fact about the tree, so these run against a real repo — a stub would
+// mock the very thing under test.
+
+// The parked ticket with LOGIN_DIFF applied on top of it, plus the record the
+// app writes when it applies one. `content` is what ends up in the file, so a
+// test can hand-edit over the patch's own line and ask again.
+async function ticketWithAppliedPatch(t, content) {
+	const { dir, baseOid, workFile } = await parkedTicketRepo(t, { workFile: 'src/wp-login.php' });
+	fs.writeFileSync(path.join(dir, workFile), content);
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: {
+			[dir]: {
+				tracTicket: 62281,
+				branches: {
+					'ticket/62281': {
+						tracTicket: 62281,
+						baseOid,
+						appliedPatch: {
+							label: 'PR #123',
+							appliedAt: '2026-08-12T10:00:00.000Z',
+							files: ['src/wp-login.php'],
+							text: LOGIN_DIFF
+						}
+					}
+				}
+			}
+		}
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	return { dir, main, settings, workFile };
+}
+
+const PATCH_APPLIED = '<?php // login\n// somebody else\'s change\n';
+const EDITED_OVER = '<?php // login\n// my own version of it\n';
+
+test('site:status: a freshly applied patch is reported as still removable (#306)', async (t) => {
+	const { dir, main } = await ticketWithAppliedPatch(t, PATCH_APPLIED);
+
+	const status = await main.invoke('site:status', dir);
+
+	assert.equal(status.appliedPatch.label, 'PR #123');
+	assert.equal(status.appliedPatch.kept, true);
+	assert.equal(status.appliedPatch.revertable, true);
+	assert.equal(status.appliedPatch.absorbed, undefined);
+});
+
+test('site:status does not diagnose patch contents during a routine status read (#306)', async (t) => {
+	const { dir, main } = await ticketWithAppliedPatch(t, EDITED_OVER);
+
+	const status = await main.invoke('site:status', dir);
+
+	// Revert itself performs the expensive check and reports any overlap. A
+	// routine status probe only says whether the text needed for that attempt was
+	// kept; it must not synchronously read and diff the patch's files.
+	assert.equal(status.appliedPatch.revertable, true);
+	assert.equal(status.appliedPatch.kept, true);
+	assert.equal(status.appliedPatch.absorbed, undefined);
+});
+
+// The slot frees on revert or on discarding to base, never because the stored
+// patch stops fitting. The record survives as provenance.
+test('site:status: an edited applied patch still holds the one-patch slot (#306)', async (t) => {
+	const { dir, main } = await ticketWithAppliedPatch(t, EDITED_OVER);
+
+	const status = await main.invoke('site:status', dir);
+	assert.notEqual(status.appliedPatch, null, 'the record is provenance, not just an undo blob');
+
+	// And the guard still refuses a second patch on its behalf.
+	const event = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', event, dir, { patchText: LOGIN_DIFF, label: 'PR #456' });
+	const done = await applyDone(event, applyId);
+	assert.equal(done.ok, false);
+	assert.match(done.error, /PR #123 is already applied/);
+});
+
+// A patch a trunk update reset away is no longer in the tree: its record is stale, and
+// Revert has to stay on screen because pressing it is what clears it.
+test('site:status: a patch the tree no longer holds keeps its Revert (#306)', async (t) => {
+	const { dir, main } = await ticketWithAppliedPatch(t, '<?php // login\n// the ticket work\n');
+
+	const status = await main.invoke('site:status', dir);
+
+	assert.equal(status.appliedPatch.revertable, true);
+	assert.equal(status.appliedPatch.absorbed, undefined);
+});
+
+// A status read must not write while it reports the stored layer.
+test('site:status does not touch the checkout (#306)', async (t) => {
+	const { dir, main, workFile } = await ticketWithAppliedPatch(t, EDITED_OVER);
+	const before = fs.readFileSync(path.join(dir, workFile), 'utf8');
+
+	await main.invoke('site:status', dir);
+
+	assert.equal(fs.readFileSync(path.join(dir, workFile), 'utf8'), before);
+});
+
+// The other half of #306: the pre-apply warning names the files, and the
+// renderer's attribution module decides which of them are the contributor's.
+// The two have to agree on the same paths, which is what this pins.
+test('git:preview-patch and the applied record agree on who owns a file (#306)', async (t) => {
+	const { dir, main } = await ticketWithAppliedPatch(t, PATCH_APPLIED);
+
+	const preview = await main.invoke('git:preview-patch', dir, LOGIN_DIFF);
+	const status = await main.invoke('site:status', dir);
+
+	assert.deepEqual(preview.conflicts, ['src/wp-login.php']);
+	const attributed = attributeConflicts({ conflicts: preview.conflicts, appliedPatch: status.appliedPatch });
+	assert.deepEqual(attributed.fromLayer, ['src/wp-login.php']);
+	assert.deepEqual(attributed.yours, []);
+});
+
+// A status read deliberately does not inspect every line in the file. The copy
+// therefore keeps the layer's provenance without excluding contributor edits.
+test('git:preview-patch: a layer file may also contain contributor edits (#306)', async (t) => {
+	const { dir, main } = await ticketWithAppliedPatch(t, EDITED_OVER);
+
+	const preview = await main.invoke('git:preview-patch', dir, LOGIN_DIFF);
+	const status = await main.invoke('site:status', dir);
+
+	const attributed = attributeConflicts({ conflicts: preview.conflicts, appliedPatch: status.appliedPatch });
+	assert.deepEqual(attributed.yours, []);
+	assert.deepEqual(attributed.fromLayer, ['src/wp-login.php']);
+	assert.ok(attributed.sentences.some((sentence) => /may also contain your own edits/.test(sentence)));
 });

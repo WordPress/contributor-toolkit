@@ -1579,7 +1579,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                     // site is still stuck, and telling the contributor it is
                     // sorted would send them back to a button that still refuses.
                     try {
-                        await mergeSiteMeta(sitePath, { appliedPatch: null });
+                        await writeWorkMeta(sitePath, { appliedPatch: null });
                         recordCleared = true;
                     } catch (e) {
                         logError('git:apply-patch', `clearing stale applied-patch record failed: ${String(e && e.stack ? e.stack : e)}`);
@@ -1719,11 +1719,19 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 
 		// Summarised rather than passed through: the stored patch text is only
 		// needed by the main process to reverse it, and this is polled.
+		//
+		// A routine status read does not open and diff the patch's files. Revert
+		// performs that check when the contributor asks for it, and its existing
+		// failure payload explains overlapping edits without freezing every
+		// status refresh in the main process (#306).
 		const appliedPatch = work.appliedPatch
 			? {
 				label: work.appliedPatch.label,
 				appliedAt: work.appliedPatch.appliedAt,
 				files: work.appliedPatch.files || [],
+				// Whether a text was kept at all — the separate reason a patch
+				// cannot be reverted, and a different sentence from absorption.
+				kept: Boolean(work.appliedPatch.text),
 				revertable: Boolean(work.appliedPatch.text)
 			}
 			: null;

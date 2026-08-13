@@ -458,10 +458,12 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 			skipped.push(file.path);
 			continue;
 		}
-		// No diagnosis on a reverse: the panel discards it — the patch being
-		// reverted came through this app, and the ticket's other patches are no
-		// answer to a revert that failed.
-		const resolved = resolveFile(dir, file, { diagnose: !reverse });
+		// Diagnosed on a reverse too (#306). The ticket's other patches are still
+		// no answer to a revert that failed, but the *reason* it failed is: a
+		// revert only fails because the contributor's own edits are on the
+		// patch's lines, and naming how many of them, and where, is the whole
+		// difference between an explanation and a generic error.
+		const resolved = resolveFile(dir, file);
 		if (resolved.error) {
 			failures.push(resolved.error);
 			if (resolved.conflict) conflicts.push(resolved.conflict);
