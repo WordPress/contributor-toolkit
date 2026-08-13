@@ -1287,6 +1287,35 @@ test('git:save-patch with handoff writes the header above the diff, and it still
 	assert.deepEqual(parsed.files.map((f) => f.path), ['text.txt']);
 });
 
+// An applied pull request is a named layer, not the current contributor's
+// work. The app cannot split later edits out of that layer reliably, so it may
+// save the combined checkout as an unattributed backup but must not prepare it
+// for submission under a new owner (#328).
+test('git:save-patch refuses submission destinations while a patch is applied, but still saves a copy (#328)', async (t) => {
+	const dir = await fixtureRepo(t);
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, appliedPatch: { label: 'PR #6717', text: 'STORED' } } },
+		preferences: { wporgHandle: 'janedoe' }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const handoff = await main.invoke('git:save-patch', dir, { handoff: true });
+	const trac = await main.invoke('git:save-patch', dir, { destination: 'trac' });
+
+	assert.deepEqual(handoff, {
+		ok: false,
+		reason: 'applied-patch',
+		error: 'PR #6717 is applied. Revert it before submitting this checkout as your own work.'
+	});
+	assert.deepEqual(trac, handoff);
+	assert.deepEqual(main.calls.showSaveDialog, [], 'a refused submission must not create a file');
+
+	const copy = await main.invoke('git:save-patch', dir);
+	assert.equal(copy.canceled, true);
+	assert.equal(main.calls.showSaveDialog.length, 1, 'an unattributed backup remains available');
+});
+
 // --- provenance:* -> src/wporg-handle.cjs + src/patch-provenance.cjs (#166) ---
 
 // The handle becomes a filename and a line in a file other people read, so it
@@ -3770,6 +3799,38 @@ test('github:open-pr refuses before it reaches GitHub when nothing is signed in,
 	await settle();
 
 	assert.equal((await main.invoke('github:open-pr', dir, {})).reason, 'no-ticket');
+	assert.deepEqual(openPullRequest.calls, []);
+});
+
+test('github:open-pr refuses another author\'s applied patch before it reaches GitHub (#328)', async (t) => {
+	const dir = await fixtureRepo(t);
+	const auth = fakeGithubAuth({ login: 'janedoe' });
+	const openPullRequest = spy(async () => ({ ok: true }));
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, appliedPatch: { label: 'PR #6717', text: 'STORED' } } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./github-auth.cjs': auth,
+			'./github-pr.cjs': { openPullRequest, buildPullRequestBody: () => '' }
+		}
+	});
+
+	await main.invokeWith('github:sign-in', createIpcEvent());
+	await settle();
+	await settle();
+
+	const result = await main.invoke('github:open-pr', dir, {});
+
+	assert.deepEqual(result, {
+		ok: false,
+		reason: 'applied-patch',
+		error: 'PR #6717 is applied. Revert it before submitting this checkout as your own work.',
+		stage: 'ownership'
+	});
 	assert.deepEqual(openPullRequest.calls, []);
 });
 

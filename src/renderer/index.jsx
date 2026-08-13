@@ -2769,6 +2769,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const appliedLayer = describeAppliedLayer(appliedPatch, {
     when: appliedPatch?.appliedAt ? new Date(appliedPatch.appliedAt).toLocaleString() : ''
   });
+  const appliedPatchLabel = appliedPatch?.label || 'The patch you applied';
   const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
   // The layer exits reach the same two operations the changes note does, so
   // they go through the same guard: a discard is a force checkout, and running
@@ -3538,9 +3539,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
   // Saving the file, for every destination that needs one (#166). `handoff`
   // asks the main process for the provenance header and the name that carries
-  // the handle; without it this is the plain diff the Save button has always
-  // produced. Returns the path so a caller can say what it did next — the Trac
-  // route saves and then opens the attach page.
+  // the handle; `destination: 'trac'` keeps the diff plain but lets main enforce
+  // the same applied-layer guard as the UI. With no options this is the backup
+  // the Save button has always produced. Returns the path so a caller can say
+  // what it did next — the Trac route saves and then opens the attach page.
   const savePatchFile = async (options) => {
     setPatchSaved(null);
     setPatchSaveError('');
@@ -3570,7 +3572,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // The page is opened only after a file exists, so the browser never lands on
   // an attach form with nothing to attach.
   const saveForTrac = async () => {
-    const filePath = await savePatchFile();
+    const filePath = await savePatchFile({ destination: 'trac' });
     if (filePath && tracTicket) window.api.openExternal(attachUrl(tracTicket));
   };
 
@@ -3684,6 +3686,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // deep and unreadable at the point where the wording matters most, so the
   // states get early returns and the card body gets one call.
   const renderPullRequestBody = () => {
+    if (appliedPatch) {
+      return (
+        <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
+          Revert {appliedPatchLabel} before opening a pull request from this checkout.
+        </div>
+      );
+    }
+
     if (prResult) {
       return (
         <>
@@ -5353,6 +5363,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>The pull request is the one the app sends for you. The other two save a file for you to send.</div>
                   </div>
 
+                  {appliedPatch ? (
+                    <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
+                      <strong>{appliedPatchLabel} is part of this checkout.</strong>{' '}
+                      The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.
+                    </div>
+                  ) : null}
+
                   {/*
                     Alone in its own group, because it is the one destination
                     that acts for the contributor: it signs them in, forks, and
@@ -5409,7 +5426,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                       after="No automated checks. Often followed by a request to open a pull request."
                     >
                       {tracTicket ? (
-                        <Button variant="primary" onClick={saveForTrac} style={{ justifyContent:'center' }}>
+                        <Button variant="primary" onClick={saveForTrac} disabled={Boolean(appliedPatch)} style={{ justifyContent:'center' }}>
                           Save, then open #{tracTicket}
                         </Button>
                       ) : (
@@ -5447,7 +5464,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     >
                       {wporg?.handle && !editingHandle ? (
                         <>
-                          <Button variant="primary" onClick={saveForHandoff} style={{ justifyContent:'center' }}>
+                          <Button variant="primary" onClick={saveForHandoff} disabled={Boolean(appliedPatch)} style={{ justifyContent:'center' }}>
                             Save patch as {wporg.handle}
                           </Button>
                           {/*

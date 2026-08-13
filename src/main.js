@@ -651,12 +651,17 @@ ipcMain.handle('git:create-patch', async (_e, sitePath) => {
 // `{ handoff: true }` is the only difference: the file gets the header from
 // patch-provenance.cjs and a name that says whose work it is, so someone else
 // can push it and the props still land on the person who wrote it. Every other
-// caller — the Trac destination, the save-before-update prompt — passes nothing
-// and gets the bare diff under the name it has always had, because that is what
-// gets attached to a ticket.
+// Trac names its destination so the ownership guard can distinguish a file for
+// submission from an ordinary backup. Both it and the save-before-update path
+// still get the bare diff under the name it has always had.
 ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
     try {
         const handoff = Boolean(options && options.handoff);
+        const submission = handoff || (options && options.destination === 'trac');
+        if (submission) {
+            const refusal = await appliedPatchSubmissionRefusal(sitePath);
+            if (refusal) return refusal;
+        }
         const baseOid = await patchBaseOid(sitePath);
         const patch = await createMinimalPatchForDir(sitePath, baseOid);
 
@@ -820,6 +825,8 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
     if (!ticketId) {
         return { ok: false, reason: 'no-ticket', error: 'Link a Trac ticket to this site first.', stage: 'auth' };
     }
+    const ownershipRefusal = await appliedPatchSubmissionRefusal(sitePath);
+    if (ownershipRefusal) return { ...ownershipRefusal, stage: 'ownership' };
     const { wporgHandle: handle = null, contributionEvent = null } = s.get('preferences') || {};
 
     let collected;
@@ -1088,6 +1095,32 @@ function switchProgressReporter(event, sitePath) {
 async function readWorkMeta(sitePath) {
     const { ref, meta, site } = await activeBranch(sitePath);
     return ref === TRUNK || !meta ? site : meta;
+}
+
+/**
+ * Refuse to publish a checkout that still contains a named patch layer (#328).
+ *
+ * The diff against the ticket's base contains both that layer and any edits
+ * made after it. There is no honest single owner for that combined diff, and
+ * the app cannot separate the two safely. An ordinary, unattributed Save is
+ * deliberately not routed through this guard: it remains available as the
+ * backup contributors are told to make before reverting or discarding work.
+ *
+ * @param {string} sitePath
+ * @return {Promise<?{ok: false, reason: string, error: string}>}
+ */
+async function appliedPatchSubmissionRefusal(sitePath) {
+    const appliedPatch = (await readWorkMeta(sitePath)).appliedPatch;
+    if (!appliedPatch) return null;
+
+    const label = typeof appliedPatch.label === 'string' && appliedPatch.label.trim()
+        ? appliedPatch.label.trim()
+        : 'The patch you applied';
+    return {
+        ok: false,
+        reason: 'applied-patch',
+        error: `${label} is applied. Revert it before submitting this checkout as your own work.`
+    };
 }
 
 async function writeWorkMeta(sitePath, patch) {
