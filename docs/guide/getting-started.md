@@ -10,6 +10,12 @@ You install it, choose a directory for `wordpress-develop`, click a button, and 
 
 No Git, no Node.js, no npm, no Docker needed. Everything is bundled inside the application as JavaScript/WASM, powered by [WordPress Playground](https://wordpress.github.io/wordpress-playground/).
 
+::: tip Prepare at home before Contributor Day
+Creating your first site downloads the full `wordpress-develop` repository, installs its dependencies, and runs the first build. That means downloading a lot of files, so we recommend having at least one site fully set up a day or a few days before the event.
+
+On Contributor Day, open that site and run [**Update to latest trunk**](./trunk-updates). The app fetches the changes made since your initial setup and only reinstalls dependencies if they changed. Most packages will already be cached, which uses far less of the venue's shared bandwidth than starting from scratch.
+:::
+
 ## Install the app
 
 <DownloadButton />
