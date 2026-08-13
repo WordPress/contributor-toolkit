@@ -433,6 +433,44 @@ test('site:status reports the trunk snapshot trunk-update read, not its own gues
 	assert.equal(settings.values.siteMeta['/sites/wp'].trunkOid, 'abc123');
 });
 
+test('site:status does not seed excludes in an unregistered repository (issue #19)', async (t) => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-unregistered-exclude-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	const excludePath = path.join(dir, '.git', 'info', 'exclude');
+	fs.writeFileSync(excludePath, 'existing-rule/\n');
+	const settings = fakeSettingsStore({ sites: [], siteMeta: {} });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { readTrunkInfo: async () => { throw new Error('not registered'); } }
+		}
+	});
+
+	await main.invoke('site:status', dir);
+
+	assert.equal(fs.readFileSync(excludePath, 'utf8'), 'existing-rule/\n');
+});
+
+test('git:get-patch does not seed excludes in an unregistered repository (issue #19)', async (t) => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-unregistered-patch-exclude-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	fs.writeFileSync(path.join(dir, 'README.md'), 'base\n');
+	await git.add({ fs, dir, filepath: 'README.md' });
+	await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
+	fs.appendFileSync(path.join(dir, 'README.md'), 'edit\n');
+	const excludePath = path.join(dir, '.git', 'info', 'exclude');
+	fs.writeFileSync(excludePath, 'existing-rule/\n');
+	const main = patchMain();
+
+	const result = await main.invoke('git:get-patch', dir);
+
+	assert.equal(result.ok, true);
+	assert.equal(fs.readFileSync(excludePath, 'utf8'), 'existing-rule/\n');
+});
+
 // --- git:* -> src/trunk-update.js ----------------------------------------
 
 test('git:worktree-dirty reports what trunk-update found, not its own guess', async () => {
@@ -807,6 +845,61 @@ test('git:get-patch includes an untracked file without staging it (issues #108, 
 		await git.statusMatrix({ fs, dir }),
 		before,
 		'generating a patch must not stage anything into the contributor\'s index (#85)'
+	);
+});
+
+test('git:get-patch excludes local coding-agent directories from a managed site (issue #19)', async (t) => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-agent-exclude-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	fs.writeFileSync(path.join(dir, 'README.md'), 'managed wordpress-develop site\n');
+	await git.add({ fs, dir, filepath: 'README.md' });
+	await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
+	fs.writeFileSync(path.join(dir, '.git', 'info', 'exclude'), 'build/\n');
+
+	const agentArtifacts = [
+		'.claude/settings.local.json',
+		'.cursor/rules/local.mdc',
+		'.windsurf/rules/local.md',
+		'.gemini/settings.json',
+		'.cline/rules/local.md',
+		'.clinerules/local.md'
+	];
+	for (const filepath of agentArtifacts) {
+		fs.mkdirSync(path.dirname(path.join(dir, filepath)), { recursive: true });
+		fs.writeFileSync(path.join(dir, filepath), 'local agent configuration\n');
+	}
+	fs.appendFileSync(path.join(dir, 'README.md'), 'real contributor edit\n');
+
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } }).stubs,
+			'./trunk-update': { ensureAutocrlf: async () => {} }
+		}
+	});
+	await main.invoke('site:status', dir);
+	const seededExclude = fs.readFileSync(path.join(dir, '.git', 'info', 'exclude'), 'utf8');
+	for (const directory of ['.claude', '.cursor', '.windsurf', '.gemini', '.cline', '.clinerules']) {
+		assert.match(seededExclude, new RegExp(`^/${directory.replace('.', '\\.')}/$`, 'm'));
+	}
+
+	const result = await main.invoke('git:get-patch', dir);
+
+	assert.equal(result.ok, true);
+	assert.match(result.patch, /README\.md/, 'the contributor\'s WordPress change stays visible');
+	for (const filepath of agentArtifacts) {
+		assert.doesNotMatch(result.patch, new RegExp(filepath.split('/')[0].replace('.', '\\.')));
+	}
+	const exclude = fs.readFileSync(path.join(dir, '.git', 'info', 'exclude'), 'utf8');
+	assert.match(exclude, /^build\/$/m, 'existing per-site excludes survive');
+
+	await main.invoke('git:get-patch', dir);
+	const afterSecondPatch = fs.readFileSync(path.join(dir, '.git', 'info', 'exclude'), 'utf8');
+	assert.equal(
+		afterSecondPatch.split('# WordPress Contributor Toolkit local excludes').length - 1,
+		1,
+		'the managed block is added only once'
 	);
 });
 
