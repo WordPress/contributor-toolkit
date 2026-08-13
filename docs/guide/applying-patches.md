@@ -17,7 +17,7 @@ There are three ways to get a patch into the panel:
 Nothing is changed yet. The panel first shows what the patch would do:
 
 - The list of files it changes.
-- A warning if you have your own edits to any of those files. The patch is applied on top of them: it succeeds if the changes do not overlap, and fails without touching anything if they do. Save a patch of your work first if you want a copy — see [Submitting your changes](submitting-changes).
+- A warning if this ticket already has work in any of those files, measured from the trunk snapshot the ticket started on. The warning names your own edits and changes from an applied patch separately; a file from an applied patch may contain your edits too. The new patch is applied on top of that work: it succeeds if the changes do not overlap, and fails without touching anything if they do. Save a patch of your work first if you want a copy — see [Submitting your changes](submitting-changes).
 - Which files are binary and will be skipped.
 - Whether it changes `package-lock.json`, in which case dependencies will be installed before the rebuild.
 
@@ -46,7 +46,11 @@ Every region carries an **anchor line taken from your own file** to search for. 
 
 ### For a pull request
 
-The regions belong to whoever updates the pull request, and that is its author, not you. So the notice names the situation and its scale — *this pull request was written against an older trunk and no longer fits it: 4 of its 20 changes, in 3 files, would need rework* — without the line-level detail, and points at the one act that is genuinely yours: telling the author. Leaving a comment asking for a rebase is a real contribution.
+The panel first separates two situations that need different next steps.
+
+If the failures are only in files this ticket has not changed, the pull request was written against an older trunk. The notice names the situation and its scale — *this pull request was written against an older trunk and no longer fits it: 4 of its 20 changes, in 3 files, would need rework* — without the line-level detail. Bringing it up to date is its author's work, so the useful contribution is to leave a comment asking for a rebase or for trunk to be merged in.
+
+If your ticket already has work in a failing file, the app does not blame the pull request's author. A file-level overlap cannot prove which exact lines caused the failure, so the notice says your work *may* be involved. Save a patch of your work, try the pull request on a clean ticket, and ask its author to update it only if it still fails there. When the file includes changes from a patch you already applied, the notice names that patch too rather than calling all of the file your own writing.
 
 A **closed** pull request is read differently, because on `wordpress-develop` "closed" is also what landing looks like — core commits go through SVN and the pull request is closed, never merged. If all its changes read back as already in trunk, the panel says it was likely committed to core and there is nothing left to apply. Otherwise it says nobody is coming back to update it, and offers **See why it was closed**.
 
@@ -56,15 +60,19 @@ When the ticket has other patches on it — another pull request, another attach
 
 ## Applied patches belong to a ticket
 
-What is applied is recorded against the ticket you are on, not against the site. Switch to another ticket and the green "applied" box goes with the first one; switch back and it is there again, describing the patch you actually applied on that ticket. See [Working on several tickets](ticket-branches).
+What is applied is recorded as a named layer on the ticket you are on, separate from your own edits. Switch to another ticket and the green "applied" box goes with the first one; switch back and it is there again, naming the patch, how many files it changed, and when it was applied. The preview and failure notices continue to distinguish that layer from your writing.
+
+A ticket holds one applied patch or pull request at a time. Revert it, or discard the ticket back to its base, before applying another. See [Working on several tickets](ticket-branches).
 
 ## Reverting an applied patch
 
-While a patch is applied, the panel shows it in a green box with a **Revert this patch** button. Reverting removes the patch's changes and rebuilds, again leaving your own edits alone.
+While the saved patch can still be removed cleanly, the panel shows it in a green box with a **Revert this patch** button. Reverting removes the patch's changes and rebuilds, again leaving your own edits alone.
 
-Very large patches cannot be undone automatically. The panel says so; use **Update to latest trunk** to reset the checkout instead — see [Staying up to date with trunk](trunk-updates).
+If you edit lines the patch brought in, it can no longer be lifted back out without also disturbing your work. A failed Revert changes the explanation accordingly: the patch is part of your changes now. Undo your edits on the named regions to make **Revert this patch** work again, or **Save a copy of your work** and **Discard this ticket to its base**.
 
-That escape hatch only resets a site sitting on trunk. On a ticket, an update parks your branch before it resets trunk and checks the branch back out afterwards — applied patch and all — so it leaves you where you were. On a ticket, the way to be rid of both the patch and the work under it is [deleting that ticket's work](ticket-branches).
+For very large patches, the app does not keep the copy it would need for an undo, so they never offer Revert. The amber box says so and offers the same copy-and-discard route. Until the ticket is reverted or discarded, the patch still occupies its one applied-patch slot.
+
+**Update to latest trunk** is not an escape hatch for a patch on a ticket. It parks the ticket branch, updates trunk, and checks the same branch back out afterwards — applied patch and all — so it leaves you where you were. See [Staying up to date with trunk](trunk-updates).
 
 ## Your own changes
 
