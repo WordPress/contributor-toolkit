@@ -71,6 +71,55 @@ const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./pa
 const { describeRefused } = require('./safe-log');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
 
+const LOCAL_EXCLUDES_MARKER = '# WordPress Contributor Toolkit local excludes';
+const LOCAL_EXCLUDES = [
+	'/.claude/',
+	'/.codex/',
+	'/.agents/',
+	'/.cursor/',
+	'/.windsurf/',
+	'/.gemini/',
+	'/.cline/',
+	'/.clinerules/'
+];
+
+/**
+ * Seeds per-site ignores for machine-local files that must never become part
+ * of a contribution. This lives in `.git/info/exclude`, not the repository's
+ * `.gitignore`: the checkout stays unchanged and isomorphic-git reads these
+ * rules when it builds a status matrix (issue #19).
+ *
+ * The marker is the ownership boundary. Once present, the contributor may
+ * edit or remove the rules below it and the app will not restore them.
+ * Existing rules above or below the block are never rewritten.
+ *
+ * @param {string} dir Repository working directory.
+ * @return {Promise<boolean>} Whether the default block was appended.
+ */
+async function ensureLocalExcludes(dir) {
+	const gitDir = path.join(dir, '.git');
+	try {
+		if (!(await fs.promises.stat(gitDir)).isDirectory()) return false;
+	} catch {
+		return false;
+	}
+
+	const infoDir = path.join(gitDir, 'info');
+	const excludePath = path.join(infoDir, 'exclude');
+	let existing = '';
+	try {
+		existing = await fs.promises.readFile(excludePath, 'utf8');
+	} catch (error) {
+		if (!error || error.code !== 'ENOENT') throw error;
+	}
+	if (existing.split(/\r?\n/).includes(LOCAL_EXCLUDES_MARKER)) return false;
+
+	await fs.promises.mkdir(infoDir, { recursive: true });
+	const separator = existing && !existing.endsWith('\n') ? '\n' : '';
+	await fs.promises.appendFile(excludePath, `${separator}${LOCAL_EXCLUDES_MARKER}\n${LOCAL_EXCLUDES.join('\n')}\n`);
+	return true;
+}
+
 // Screenshot harness only (scripts/screenshots/): point userData at a throwaway
 // directory so a seeded settings.json is read instead of the contributor's real
 // site registry. Must run before `ready` — electron-store resolves its file path
@@ -1727,6 +1776,7 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		const hasBuilt = fs.existsSync(distDir);
 
 		const s = await getStore();
+		if ((s.get('sites') || []).includes(sitePath)) await ensureLocalExcludes(sitePath);
 		const meta = s.get('siteMeta') || {};
 		const m = meta[sitePath] || {};
 
@@ -1791,6 +1841,7 @@ ipcMain.handle('sites:add', async (_e, sitePath) => {
 	// A pre-existing dir was likely cloned by native git — exactly the case
 	// where CRLF checkouts break status/patch generation (see ensureAutocrlf).
 	await ensureAutocrlf(sitePath);
+	await ensureLocalExcludes(sitePath);
 	const s = await getStore();
 	const sites = s.get('sites');
 	if (!sites.includes(sitePath)) {
@@ -1851,6 +1902,7 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 			}
 		});
 		await ensureAutocrlf(siteDir);
+		await ensureLocalExcludes(siteDir);
 
 		const s = await getStore();
 		const sites = s.get('sites');
