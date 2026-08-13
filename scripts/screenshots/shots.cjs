@@ -125,10 +125,21 @@ const shots = [
 		slug: 'mail-panel',
 		tier: 'fixture',
 		variant: 'seeded',
-		target: (page) => card(page, 'Mail'),
+		target: (page) => page.getByText('Welcome to WordPress Contributor Day').locator('../..'),
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
-			await page.getByText('No emails yet.').filter({ visible: true }).waitFor();
+			await page.getByRole('button', { name: 'Start dev server' }).click();
+			await page.getByText('Welcome to WordPress Contributor Day').filter({ visible: true }).waitFor();
+		}
+	},
+	{
+		slug: 'update-incomplete',
+		tier: 'fixture',
+		variant: 'seeded',
+		target: (page) => page.getByText('Update incomplete', { exact: true }).locator('../..'),
+		prepare: async (page) => {
+			await selectSite(page, 'needs-rebuild');
+			await page.getByRole('button', { name: 'Retry install & build' }).waitFor();
 		}
 	},
 
@@ -193,6 +204,13 @@ const shots = [
 		target: (page) => page.getByText('Updating to latest trunk', { exact: true }).locator('../..'),
 		instructions:
 			'Start "Update to latest trunk" on a site and wait until the step list is mid-run.'
+	},
+	{
+		slug: 'apply-patch-conflict',
+		tier: 'live',
+		target: (page) => card(page, 'Apply a patch or PR'),
+		instructions:
+			'On an isolated site, preview a patch or pull request that does not fit the checkout, click "Apply and rebuild", and wait until the panel confirms that the checkout was not changed.'
 	}
 ];
 

@@ -33,6 +33,8 @@ If the [build watch](running-the-site#the-build-watch) is running and the patch 
 
 The apply is all-or-nothing. If anything fails, nothing is written to your checkout — but the panel now tells you *how much* failed, because one region of twenty missing and all twenty missing are opposite decisions for you.
 
+![A pull request that does not fit this checkout, with the affected file named and confirmation that the checkout was not changed](/screenshots/apply-patch-conflict.png)
+
 The headline is a count, not an adjective: *4 of this patch's 20 changes across 3 files no longer fit — the other 16 do.* When every change is already in your checkout — which is what a patch that has since been committed to core looks like — it says that instead, rather than reporting the patch as dead.
 
 ### For a patch file or a Trac attachment

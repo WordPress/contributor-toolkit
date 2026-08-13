@@ -42,7 +42,7 @@ const outDir = path.join(repoRoot, 'docs', 'public', 'screenshots');
 // scale-factor switch a retina display doubles the pixel size of half the
 // screenshots and the docs pages render them inconsistently.
 const WINDOW = { width: 1200, height: 800 };
-const ELECTRON_SWITCHES = ['--force-device-scale-factor=1'];
+const ELECTRON_SWITCHES = ['--force-device-scale-factor=1', '--lang=en-GB'];
 
 function parseArgs(argv) {
 	const args = { tier: 'fixture', only: null, userData: null };
@@ -84,7 +84,9 @@ async function launchApp(env) {
 		// the same trick scripts/run-tests-electron.cjs uses.
 		executablePath: require('electron'),
 		args: [...ELECTRON_SWITCHES, repoRoot],
-		env: { ...process.env, ...env }
+		// Dates rendered by the app must not rewrite screenshots according to the
+		// maintainer's locale or timezone.
+		env: { ...process.env, TZ: 'UTC', ...env }
 	});
 	const page = await app.firstWindow();
 	await app.evaluate(({ BrowserWindow }, bounds) => {

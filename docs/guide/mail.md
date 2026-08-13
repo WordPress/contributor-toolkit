@@ -6,7 +6,7 @@ each site gets its own built-in SMTP catcher, listening only on `127.0.0.1`. Wor
 `wp_mail()` is pointed at it, so every email the site sends lands in the **Mail** panel instead
 of leaving your machine.
 
-![The Mail panel with a captured email](/screenshots/mail-panel.png)
+![A captured email with its time, sender, and subject](/screenshots/mail-panel.png)
 
 ## How it works
 

@@ -15,6 +15,8 @@ the site may not run correctly until install and build succeed. Click **Retry in
 in the notice. If it fails again, the reason is in the [Terminal](./terminal) output — a network
 drop during `npm install` is the most common cause.
 
+![The Update incomplete notice with its Retry install and build button](/screenshots/update-incomplete.png)
+
 ## "A previous switch … did not finish"
 
 A ticket switch whose file swap died part-way leaves the checkout half of one ticket and half of
