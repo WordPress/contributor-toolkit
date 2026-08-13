@@ -131,6 +131,10 @@ When writing manual test instructions, inspect the current renderer flow first a
 actions that happen automatically after linking a ticket from controls used only to retry or
 refresh them. Do not tell a tester to click a control when the app already starts that operation.
 
+When asked to add an existing pull request to an existing stack, preserve its commits and change
+its base to the head branch of the current top PR. Do not move commits into an earlier PR unless
+the user explicitly asks to rewrite the stack.
+
 ## Architecture notes (non-obvious)
 
 - **Child processes run on Electron's own Node, not the system Node.** `npm install`,
