@@ -55,9 +55,13 @@ function parsePrRef(input) {
 }
 
 /**
- * True when a PR body cites this exact ticket. The negative lookahead stops
- * `/ticket/6582` from matching inside `/ticket/65820`, and the host is required
- * so a bare "#65822" in prose does not count.
+ * True when a PR body cites this exact ticket. Current pull request templates
+ * use the full Trac URL; older ones used a labelled bare number (#327), so that
+ * explicitly labelled form counts too. An unlabelled number still does not:
+ * GitHub search can surface it from unrelated prose or comments.
+ *
+ * The negative lookaheads stop either accepted form from matching a longer
+ * ticket number that merely starts with the requested digits.
  *
  * @param {string}        body
  * @param {number|string} ticketId
@@ -68,7 +72,8 @@ function bodyCitesTicket(body, ticketId) {
 	const id = String(ticketId).replace(/[^0-9]/g, '');
 	if (!id) return false;
 	const re = new RegExp(`${TICKET_HOST.replace(/\./g, '\\.')}/ticket/${id}(?![0-9])`);
-	return re.test(body);
+	const labelledNumber = new RegExp(`(?:^|[\\r\\n])[ \\t]*Trac[ \\t]+ticket[ \\t]*:[ \\t]*#?${id}(?![0-9])`, 'i');
+	return re.test(body) || labelledNumber.test(body);
 }
 
 /**
