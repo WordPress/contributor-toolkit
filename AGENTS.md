@@ -30,6 +30,11 @@ convention), add a wrapper there or skip it entirely and follow the instructions
 where all the content lives. The wrapper only adds two things: run the judgement pass in a fresh
 context, and report without touching GitHub.
 
+In Codex, `/review` is the built-in user-facing review command. Whenever `/review` runs, read and
+follow [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md)
+in full as the review standard. `self-review` is the local skill name, not a Codex command; do not
+tell users to invoke `self-review`.
+
 There is deliberately no per-tool copy of the *standard*. A wrapper is a few lines that defer to it;
 duplicating the standard itself is the thing to avoid — if you find yourself doing that, fix the
 pointer, not the number of copies.
