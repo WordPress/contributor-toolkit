@@ -47,7 +47,7 @@ import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { highlightLog } from './log-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
-import { changesNoteParts, discardOutcome, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
+import { changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { initialConfirmations, confirmationReducer, prConfirmationMessage } from './confirmations.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
@@ -3456,7 +3456,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         return;
       }
       applyDiscardToNote(outcome);
-      setAppliedPatch(null);
+      const feedback = applyFeedbackAfterDiscard(outcome);
+      setAppliedPatch(feedback.appliedPatch);
+      setApplyError(feedback.applyError);
+      setApplyConflict(feedback.applyConflict);
+      setApplyNotice(feedback.applyNotice);
       writeToTerminal('\nDiscarded local changes.\n');
       confirm('All changes discarded.');
       if (isPatchOpen) await loadPatchText();
