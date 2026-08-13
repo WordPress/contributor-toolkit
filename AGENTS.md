@@ -53,10 +53,6 @@ Run the review in `.github/instructions/code-review.instructions.md` against the
 consciously defer every finding. Summarise the outcome in the pull request description — counts,
 what was fixed, what was left as a follow-up and why.
 
-When a user explicitly asks to close an issue as solved by a pull request, preserve that requested
-classification and close it as completed. Do not silently reinterpret it as “not planned” based on
-whether the pull request was merged; raise that concern before changing the requested outcome.
-
 Nothing enforces this. There is no automated review on pull requests, by design: it would mean
 storing an AI provider credential as a secret in a public repository. This pass is what stands in
 its place, so skipping it means a human reviewer is the first reader of the diff.
