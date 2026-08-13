@@ -859,6 +859,8 @@ test('git:get-patch excludes local coding-agent directories from a managed site 
 
 	const agentArtifacts = [
 		'.claude/settings.local.json',
+		'.codex/config.toml',
+		'.agents/skills/local/SKILL.md',
 		'.cursor/rules/local.mdc',
 		'.windsurf/rules/local.md',
 		'.gemini/settings.json',
@@ -880,7 +882,7 @@ test('git:get-patch excludes local coding-agent directories from a managed site 
 	});
 	await main.invoke('site:status', dir);
 	const seededExclude = fs.readFileSync(path.join(dir, '.git', 'info', 'exclude'), 'utf8');
-	for (const directory of ['.claude', '.cursor', '.windsurf', '.gemini', '.cline', '.clinerules']) {
+	for (const directory of ['.claude', '.codex', '.agents', '.cursor', '.windsurf', '.gemini', '.cline', '.clinerules']) {
 		assert.match(seededExclude, new RegExp(`^/${directory.replace('.', '\\.')}/$`, 'm'));
 	}
 

@@ -74,6 +74,8 @@ const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } 
 const LOCAL_EXCLUDES_MARKER = '# WordPress Contributor Toolkit local excludes';
 const LOCAL_EXCLUDES = [
 	'/.claude/',
+	'/.codex/',
+	'/.agents/',
 	'/.cursor/',
 	'/.windsurf/',
 	'/.gemini/',
