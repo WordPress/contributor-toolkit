@@ -106,6 +106,33 @@ function otherPatchCount({ label, prs = [], attachments = [] } = {}) {
 		+ attachments.filter((att) => att.filename !== failedLabel).length;
 }
 
+// How many paths a sentence will name before it starts counting instead. The
+// panel already lists every failing file underneath, so the headline's job is
+// the attribution, not the inventory — and a pull request failing in a dozen
+// files would otherwise open the notice with a paragraph of paths. Same reason
+// `REGION_DETAIL_LIMIT` exists in patch-apply.js.
+const PATH_NAME_LIMIT = 3;
+
+/**
+ * The files on one side of the failure, named for a sentence.
+ *
+ * Deduplicated because a concatenated patch can fail the same file twice — the
+ * same reason `describeApplyFailure` consumes conflicts one by one instead of
+ * keying them by path.
+ *
+ * @param {Array} rows Conflicts.
+ * @return {{count: number, text: string}}
+ */
+function namePaths(rows) {
+	const paths = [...new Set(rows.map((c) => c.path))];
+	if (paths.length <= PATH_NAME_LIMIT) return { count: paths.length, text: paths.join(', ') };
+	const rest = paths.length - PATH_NAME_LIMIT;
+	return {
+		count: paths.length,
+		text: `${paths.slice(0, PATH_NAME_LIMIT).join(', ')} and ${rest} more file${rest === 1 ? '' : 's'}`
+	};
+}
+
 /**
  * The pull-request framing: whose problem this is, and how big.
  *
@@ -127,11 +154,25 @@ function otherPatchCount({ label, prs = [], attachments = [] } = {}) {
  * merge would settle — close enough to size the problem, not a claim GitHub
  * will show the identical number.
  *
- * @param {Array}   conflicts
- * @param {?string} prState   'open' | 'merged' | 'closed' | null when unknown.
+ * That same missing base is why `ownWorkPaths` is here (#303). Matching two-way
+ * cannot prove which side a single failed region belongs to, so the framing used
+ * to answer from the pull request's state alone: open meant stale, always. On a
+ * ticket someone has come back to, the ordinary reason a change will not fit is
+ * the contributor's own work sitting in the same file — and sending them to ask
+ * a stranger for a rebase that would not help is worse than saying nothing.
+ *
+ * The app cannot prove the region, but it knows the file: `ownWorkPaths` is the
+ * preview's own collision list, the files this ticket has work in measured from
+ * its base (#301). That is evidence the contributor's work may be involved, not
+ * proof it caused the failed region. The safe route is to try the pull request
+ * on a clean ticket before asking its author to update it.
+ *
+ * @param {Array}    conflicts
+ * @param {?string}  prState        'open' | 'merged' | 'closed' | null when unknown.
+ * @param {string[]} [ownWorkPaths] Files this ticket has its own work in.
  * @return {{headline: string, advice: string, prButton: ?string}}
  */
-function prFraming(conflicts, prState) {
+function prFraming(conflicts, prState, ownWorkPaths = []) {
 	const failed = conflicts.reduce((sum, c) => sum + c.regions.length, 0);
 	const total = conflicts.reduce((sum, c) => sum + c.total, 0);
 	const allApplied = conflicts.every((c) => c.regions.every((r) => r.status === 'already-applied'));
@@ -151,7 +192,10 @@ function prFraming(conflicts, prState) {
 		};
 	}
 
-	const files = conflicts.length;
+	// Distinct files, not conflict rows: a concatenated patch can fail the same
+	// file twice, and the sentences below go on to name the files, so counting
+	// the rows would have the count disagreeing with the list beside it.
+	const files = new Set(conflicts.map((c) => c.path)).size;
 	const scale = `${failed} of its ${total} change${total === 1 ? '' : 's'}, in ${files} file${files === 1 ? '' : 's'},`;
 
 	// A closed pull request has no author coming back to it: asking for a
@@ -165,9 +209,38 @@ function prFraming(conflicts, prState) {
 		};
 	}
 
+	const own = new Set(ownWorkPaths);
+	const mine = namePaths(conflicts.filter((c) => own.has(c.path)));
+	const theirs = namePaths(conflicts.filter((c) => !own.has(c.path)));
+	const REBASE_IS_THEIRS = 'Bringing it up to date is its author\'s work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.';
+	// A ticket's changes are cheap to redo and expensive to untangle, so keeping
+	// a copy and starting clean is a recommended way forward here, not a defeat.
+	// What must never happen is work going quietly; going on purpose, with the
+	// copy already saved, is a good outcome.
+	const YOUR_WORK_WAY_OUT = 'Save a patch of your work first to keep a copy, then try this pull request on a clean ticket. If it still does not fit there, open the pull request and let its author know it may need updating.';
+
+	// File overlap cannot identify the failing region. Keep the pull request
+	// reachable, but make the rebase advice conditional on it also failing in a
+	// clean ticket.
+	if (!theirs.count) {
+		return {
+			headline: `This pull request does not fit your checkout: ${scale} would need rework. Your own work is also in ${mine.text}, so it may be part of why the pull request does not fit.`,
+			advice: YOUR_WORK_WAY_OUT,
+			prButton: 'Open the pull request'
+		};
+	}
+
+	if (mine.count) {
+		return {
+			headline: `This pull request does not fit your checkout: ${scale} would need rework. Your own work is also in ${mine.text} and may be part of the failure. Other failures are in ${theirs.text}.`,
+			advice: YOUR_WORK_WAY_OUT,
+			prButton: 'Open the pull request'
+		};
+	}
+
 	return {
 		headline: `This pull request was written against an older trunk and no longer fits it: ${scale} would need rework.`,
-		advice: 'Bringing it up to date is its author\'s work — a rebase, or merging trunk in. Leaving a comment on the pull request to let them know is a real contribution in itself.',
+		advice: REBASE_IS_THEIRS,
 		prButton: 'Ask its author for a rebase'
 	};
 }
@@ -190,14 +263,16 @@ function prFraming(conflicts, prState) {
  * folder, a file to add that already exists) as well as the conflict that could
  * not be broken down.
  *
- * @param {Object}  result                    The apply payload from main.
- * @param {Object}  [options]
- * @param {number}  [options.otherPatchCount] Other patches on this ticket.
- * @param {?string} [options.prUrl]           The failing patch's pull request.
- * @param {?string} [options.prState]         Its state, when known.
+ * @param {Object}   result                    The apply payload from main.
+ * @param {Object}   [options]
+ * @param {number}   [options.otherPatchCount] Other patches on this ticket.
+ * @param {?string}  [options.prUrl]           The failing patch's pull request.
+ * @param {?string}  [options.prState]         Its state, when known.
+ * @param {string[]} [options.ownWorkPaths]    Files this ticket has work in, from
+ *                                             the preview's collision list (#303).
  * @return {?Object}
  */
-function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, prUrl = null, prState = null } = {}) {
+function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, prUrl = null, prState = null, ownWorkPaths = [] } = {}) {
 	if (!result || result.ok) return null;
 
 	const failures = Array.isArray(result.failures) ? result.failures : [];
@@ -237,7 +312,7 @@ function describeApplyFailure(result, { otherPatchCount: othersAvailable = 0, pr
 	let prButton = fromPr ? 'Open the pull request' : null;
 	if (conflicts.length) {
 		const framing = fromPr
-			? prFraming(conflicts, prState)
+			? prFraming(conflicts, prState, ownWorkPaths)
 			: { headline: headlineFor(conflicts), advice: '', prButton: null };
 		headline = framing.headline;
 		advice = framing.advice;

@@ -350,6 +350,175 @@ test('describeApplyFailure: a pull request already in trunk asks for nothing (is
 	assert.equal(result.advice, '');
 });
 
+// --- whose work is actually in the way (#303) ----------------------------
+//
+// The framing above answers from the pull request's state alone, so an open one
+// is always "stale, ask for a rebase". On a resumed ticket the usual reason a
+// change will not fit is the contributor's own work in the same file, and that
+// button asks a stranger for work that would not help. The app cannot prove
+// which side a single region belongs to — it matches without the PR's base — but
+// it knows which files this ticket has work in. That is enough to recommend a
+// clean-ticket check, not enough to name which side caused a failed region.
+
+test('describeApplyFailure: a failure in the contributor\'s own file is not blamed on the author (issue #303)', () => {
+	const result = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [conflict(FOO, 4, [{ index: 0, line: 7, status: 'moved' }])]
+	}, { prUrl: PR_URL, prState: 'open', ownWorkPaths: [FOO] });
+
+	// The overlap is named without turning file-level evidence into a verdict.
+	assert.match(result.headline, /Your own work is also in/);
+	assert.match(result.headline, /may be part of why/);
+	assert.doesNotMatch(result.headline, /older trunk/);
+	// The pull request is still reachable — reading it is how the contributor
+	// decides what to do after the clean-ticket check. The ask is conditional.
+	assert.equal(result.prButton, 'Open the pull request');
+	assert.equal(result.prUrl, PR_URL);
+	// What actually moves it forward: a copy, then a clean ticket.
+	assert.match(result.advice, /Save a patch of your work/);
+	assert.match(result.advice, /try this pull request on a clean ticket/);
+	assert.match(result.advice, /If it still does not fit/);
+	// The scale still says how much missed — that decision is unchanged.
+	assert.match(result.headline, /1 of its 4 changes, in 1 file/);
+});
+
+// File overlap is evidence that the contributor's work may matter, not proof
+// that it caused the failed region. They may have edited one function while an
+// old pull request fails against another function in the same file.
+test('describeApplyFailure: same-file overlap preserves uncertainty about the failing region (issue #303)', () => {
+	const result = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [conflict(FOO, 4, [{ index: 2, line: 240, status: 'moved' }])]
+	}, { prUrl: PR_URL, prState: 'open', ownWorkPaths: [FOO] });
+
+	assert.match(result.headline, /may be part of why/);
+	assert.match(result.advice, /If it still does not fit/);
+	assert.doesNotMatch(result.advice, /not a pull request that has gone stale/);
+	assert.equal(result.prButton, 'Open the pull request');
+});
+
+test('describeApplyFailure: a failure in files the ticket never touched keeps the stale framing (issue #303)', () => {
+	const result = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [conflict(FOO, 4, [{ index: 0, line: 7, status: 'moved' }])]
+	}, { prUrl: PR_URL, prState: 'open', ownWorkPaths: [BAR] });
+
+	assert.match(result.headline, /written against an older trunk/);
+	assert.doesNotMatch(result.headline, /Your own work/);
+	assert.match(result.advice, /author's work/);
+	assert.equal(result.prButton, 'Ask its author for a rebase');
+});
+
+test('describeApplyFailure: a failure in both kinds of file says both (issue #303)', () => {
+	const result = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`, `${BAR} has moved on`],
+		conflicts: [
+			conflict(FOO, 3, [{ index: 0, line: 7, status: 'moved' }]),
+			conflict(BAR, 2, [{ index: 0, line: 11, status: 'moved' }])
+		]
+	}, { prUrl: PR_URL, prState: 'open', ownWorkPaths: [FOO] });
+
+	// The overlap and the other failure are both named without assigning either
+	// failed region to a side the app cannot prove.
+	assert.match(result.headline, new RegExp(`Your own work is also in ${FOO}`));
+	assert.match(result.headline, new RegExp(`Other failures are in ${BAR}`));
+	assert.match(result.advice, /Save a patch of your work/);
+	assert.equal(result.prButton, 'Open the pull request');
+	assert.equal(result.prUrl, PR_URL);
+});
+
+// The headline names files, so the two things that break a list break it here:
+// a patch that fails the same file twice, and a patch that fails more files than
+// a sentence can carry. The panel prints every failing file underneath anyway,
+// so past a few the headline counts instead of listing.
+test('describeApplyFailure: the named files are deduplicated and capped (issue #303)', () => {
+	const twice = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`, `${FOO} has moved on`],
+		conflicts: [
+			conflict(FOO, 2, [{ index: 0, line: 7, status: 'moved' }]),
+			conflict(FOO, 2, [{ index: 0, line: 40, status: 'moved' }])
+		]
+	}, { prUrl: PR_URL, prState: 'open', ownWorkPaths: [FOO] });
+
+	// A concatenated patch failing the same file twice must not name it twice —
+	// nor count it twice in the same sentence that goes on to list it.
+	assert.match(twice.headline, new RegExp(`in ${FOO}, so it may be part`));
+	assert.match(twice.headline, /in 1 file,/);
+
+	const many = ['a', 'b', 'c', 'd', 'e'].map((n) => `src/wp-includes/${n}.php`);
+	const wide = describeApplyFailure({
+		ok: false,
+		failures: many.map((p) => `${p} has moved on`),
+		conflicts: many.map((p) => conflict(p, 1, [{ index: 0, line: 1, status: 'moved' }]))
+	}, { prUrl: PR_URL, prState: 'open', ownWorkPaths: many });
+
+	assert.match(wide.headline, /a\.php, src\/wp-includes\/b\.php, src\/wp-includes\/c\.php and 2 more files/);
+	assert.doesNotMatch(wide.headline, /e\.php/);
+});
+
+// Both sides can hold several files, and the sentence has to read as English
+// either way — which is why neither list is followed by a verb agreeing with it.
+test('describeApplyFailure: the mixed framing reads with several files on each side (issue #303)', () => {
+	const BAZ = 'src/wp-includes/baz.php';
+	const result = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`, `${BAR} has moved on`, `${BAZ} has moved on`],
+		conflicts: [
+			conflict(FOO, 1, [{ index: 0, line: 7, status: 'moved' }]),
+			conflict(BAR, 1, [{ index: 0, line: 11, status: 'moved' }]),
+			conflict(BAZ, 1, [{ index: 0, line: 13, status: 'moved' }])
+		]
+	}, { prUrl: PR_URL, prState: 'open', ownWorkPaths: [FOO] });
+
+	assert.match(result.headline, new RegExp(`Other failures are in ${BAR}, ${BAZ}\\.$`));
+	assert.equal(result.prButton, 'Open the pull request');
+});
+
+test('describeApplyFailure: own work does not change the closed or landed framing (issue #303)', () => {
+	const closed = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [conflict(FOO, 3, [{ index: 0, line: 7, status: 'moved' }])]
+	}, { prUrl: PR_URL, prState: 'closed', ownWorkPaths: [FOO] });
+
+	// Nobody is coming back to a closed pull request whatever is in the way, and
+	// its discussion is still the thing worth reading.
+	assert.match(closed.headline, /closed and was written against an older trunk/);
+	assert.equal(closed.prButton, 'See why it was closed');
+
+	const landed = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [conflict(FOO, 2, [
+			{ index: 0, line: 4, status: 'already-applied' },
+			{ index: 1, line: 9, status: 'already-applied' }
+		])]
+	}, { prUrl: PR_URL, prState: 'closed', ownWorkPaths: [FOO] });
+
+	assert.match(landed.headline, /likely committed to core/);
+	assert.equal(landed.prButton, null);
+});
+
+// A patch from disk or a Trac attachment has no author to misblame, so the
+// own-work list changes nothing there — the full per-region breakdown is still
+// the only way out, and it stays.
+test('describeApplyFailure: a loose patch is unaffected by the own-work list (issue #303)', () => {
+	const result = describeApplyFailure({
+		ok: false,
+		failures: [`${FOO} has moved on`],
+		conflicts: [conflict(FOO, 3, [{ index: 0, line: 7, status: 'moved', lines: ['-x', '+y'] }])]
+	}, { ownWorkPaths: [FOO] });
+
+	assert.match(result.headline, /1 of this patch's 3 changes/);
+	assert.equal(result.advice, '');
+	assert.equal(result.items[0].regions.length, 1);
+});
+
 test('describeApplyFailure: a loose patch keeps the full breakdown — there is no author to send to (issue #282)', () => {
 	const result = describeApplyFailure({
 		ok: false,
