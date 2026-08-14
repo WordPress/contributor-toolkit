@@ -25,7 +25,7 @@ const { httpGet } = require('./github-prs');
 
 const TRAC_HOST = 'core.trac.wordpress.org';
 const TRAC_PARTITION = 'persist:trac';
-const USER_AGENT = 'WordPress-Contributor-Toolkit (+https://github.com/WordPress/experimental-wp-dev-env)';
+const USER_AGENT = 'WordPress-Contributor-Toolkit (+https://github.com/WordPress/contributor-toolkit)';
 // How long to wait for the ticket page to appear. The hashcash runs
 // automatically in a few seconds; the extra headroom covers the escalated
 // "I am human" checkbox, which needs a human click.
