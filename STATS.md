@@ -6,13 +6,13 @@ there is no npm install count, no Docker pull count, no telemetry in the app.
 GitHub reports a running total per release asset and keeps **no history**: the API returns the
 number as it stands today and nothing about how it got there. So a
 [weekly workflow](.github/workflows/download-stats.yml) records that total and commits it to
-[`metrics`](https://github.com/WordPress/experimental-wp-dev-env/tree/metrics), an orphan branch
+[`metrics`](https://github.com/WordPress/contributor-toolkit/tree/metrics), an orphan branch
 that shares no history with `trunk` and holds nothing but the data files.
 
 ### Reading the data
 
 In the browser:
-[downloads.csv](https://github.com/WordPress/experimental-wp-dev-env/blob/metrics/downloads.csv).
+[downloads.csv](https://github.com/WordPress/contributor-toolkit/blob/metrics/downloads.csv).
 
 Locally, without switching branches:
 
