@@ -4,7 +4,9 @@
 [![Latest release](https://img.shields.io/github/v/release/WordPress/contributor-toolkit)](https://github.com/WordPress/contributor-toolkit/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/WordPress/contributor-toolkit/total)](https://github.com/WordPress/contributor-toolkit/releases)
 
-The [WordPress Contributor Toolkit](https://make.wordpress.org/core/2026/04/16/wordpress-core-dev-environment-toolkit-a-faster-path-to-your-first-core-contribution/) is a desktop Electron application (macOS on Apple Silicon, Windows, and Linux) that sets up a full WordPress core development environment with zero prerequisites — no Git, Node.js, npm or Docker on the host.
+The [WordPress Contributor Toolkit](https://make.wordpress.org/core/2026/04/16/wordpress-core-dev-environment-toolkit-a-faster-path-to-your-first-core-contribution/) is a desktop Electron application (macOS on Apple Silicon, Windows, and Linux) that takes a contributor from nothing to a working WordPress core development environment, lets them try the work that already exists on a Trac ticket, and lets them send their own change back — as a pull request, a Trac attachment, or a patch for a mentor. No Git, Node.js, npm or Docker on the host, and no push credential written to disk.
+
+![A site ready for work: Start dev server, Start build watch, Review & submit changes, the Trac ticket panel and the patch panel](https://wordpress.github.io/contributor-toolkit/screenshots/site-view.png)
 
 ### Why
 
@@ -12,7 +14,21 @@ One of the most common complaints from Contributor Day facilitators is this: par
 
 Before writing a single line of code, a first-time WordPress core contributor typically needs to install Git, Node.js, npm, Docker, configure everything correctly, and troubleshoot whatever breaks along the way. At in-person events, this alone can take hours — sometimes the full day.
 
-The **WordPress Core Dev Environment Toolkit** aims to eliminate this friction entirely.
+Setup is the first wall, not the only one. A newcomer with a running environment still has to find whether somebody already wrote a patch for the ticket, get that patch into their checkout, understand why it does not apply when it does not, and work out how to send a change back to a project that reviews on Trac but takes pull requests on GitHub. Each of those steps has its own tooling and its own way to fail quietly.
+
+The toolkit aims to remove that whole path, not just its first step.
+
+## What you can do with it
+
+Each of these has a page in the user guide.
+
+- **[Create a WordPress core development site](https://wordpress.github.io/contributor-toolkit/guide/creating-a-site)** with nothing installed on the host. The clone, the dependency install and the first build run as [one continuous chain](https://wordpress.github.io/contributor-toolkit/guide/setup-wizard) rather than four clicks.
+- **[Link a Trac ticket](https://wordpress.github.io/contributor-toolkit/guide/trac-tickets)** and read its facts in the app — summary, status and resolution, type, milestone, component, keywords, age.
+- **[Try the work that already exists on it](https://wordpress.github.io/contributor-toolkit/guide/applying-patches)**: the pull requests that reference the ticket and the patches attached to it, previewed and applied into the checkout, with a rebuild when one is needed. When a patch will not apply, the app says which regions failed and why, and leaves the checkout untouched.
+- **[Hold work for several tickets in one site](https://wordpress.github.io/contributor-toolkit/guide/ticket-branches)**. Each ticket gets its own branch inside the site, so moving between them is a file swap of seconds instead of another clone and another install.
+- **[Run the site](https://wordpress.github.io/contributor-toolkit/guide/running-the-site)** and debug it: a [debug log tab](https://wordpress.github.io/contributor-toolkit/guide/logs-and-debugging) with fatals surfaced instead of hidden behind the recovery screen, [the database](https://wordpress.github.io/contributor-toolkit/guide/database), [captured mail](https://wordpress.github.io/contributor-toolkit/guide/mail), and [a terminal](https://wordpress.github.io/contributor-toolkit/guide/terminal) using the Node.js runtime the app bundles.
+- **[Send the change back](https://wordpress.github.io/contributor-toolkit/guide/submitting-changes)** — [a GitHub pull request](https://wordpress.github.io/contributor-toolkit/guide/submit-github-pr) opened through device sign-in with no credential on disk, [a patch attached to Trac](https://wordpress.github.io/contributor-toolkit/guide/submit-trac), or [a patch handed to a mentor](https://wordpress.github.io/contributor-toolkit/guide/submit-mentor) that keeps your name on the work.
+- **[Keep the site current with trunk](https://wordpress.github.io/contributor-toolkit/guide/trunk-updates)** without recreating it, fetching only what changed.
 
 ## Documentation
 
@@ -20,18 +36,6 @@ The **WordPress Core Dev Environment Toolkit** aims to eliminate this friction e
 the app, creating a site, working on a Trac ticket, applying patches and PRs, and submitting your
 changes as a pull request, a Trac attachment, or a patch for a mentor. What follows here is only
 what a contributor to *this repository* needs.
-
-Here’s the full setup flow — from a fresh install to a running WordPress development environment:
-
-[![](./docs/setup-start.png)](https://www.youtube.com/watch?v=e00PAh8WNOI)
-
-[_Watch Video_](https://www.youtube.com/watch?v=e00PAh8WNOI)
-
-Once your environment is running, generating a patch to submit to Trac takes just a few clicks:
-
-[![](./docs/create-patch.png)](https://youtu.be/yodwdm7Z9vo?si=2Wk7Wuc6lTuaSeSf)
-
-[_Watch Video_](https://youtu.be/yodwdm7Z9vo?si=2Wk7Wuc6lTuaSeSf)
 
 ## Getting started
 

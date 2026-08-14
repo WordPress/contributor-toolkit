@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "private": true,
   "license": "GPL-2.0-or-later",
-  "description": "Electron app to setup WordPress develop structure and run npm install",
+  "description": "Desktop app that sets up a WordPress core development environment with no prerequisites, applies the work already on a Trac ticket, and submits a contribution back",
   "homepage": "https://wordpress.github.io/contributor-toolkit/",
   "repository": {
     "type": "git",
