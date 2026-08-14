@@ -11,9 +11,9 @@
 # site, with a maintainer at the keyboard. shots.cjs says which ones and why.
 #
 # The site base path is derived from the repository name at run time rather than hardcoded,
-# because a project Pages site lives under /<repo-name>/ and this repository is being renamed
-# (experimental-wp-dev-env → contributor-toolkit). Deriving it means the rename cannot break
-# every asset URL.
+# because a project Pages site lives under /<repo-name>/ and this repository has already been
+# renamed once (experimental-wp-dev-env → contributor-toolkit). Deriving it means another rename
+# cannot break every asset URL.
 #
 # Pull requests get a build-only job: a broken link or bad markdown fails before merge, and
 # the deploy job (which holds the OIDC token) never runs on PR code.
