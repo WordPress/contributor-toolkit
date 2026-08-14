@@ -5,7 +5,7 @@
   "private": true,
   "license": "GPL-2.0-or-later",
   "description": "Electron app to setup WordPress develop structure and run npm install",
-  "homepage": "https://github.com/WordPress/experimental-wp-dev-env",
+  "homepage": "https://wordpress.github.io/contributor-toolkit/",
   "main": "src/main.js",
   "scripts": {
     "start": "npm run build:once && concurrently -k \"npm:build:watch\" \"electron .\"",
