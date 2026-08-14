@@ -6,6 +6,13 @@
   "license": "GPL-2.0-or-later",
   "description": "Electron app to setup WordPress develop structure and run npm install",
   "homepage": "https://wordpress.github.io/contributor-toolkit/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WordPress/contributor-toolkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/WordPress/contributor-toolkit/issues"
+  },
   "main": "src/main.js",
   "scripts": {
     "start": "npm run build:once && concurrently -k \"npm:build:watch\" \"electron .\"",
