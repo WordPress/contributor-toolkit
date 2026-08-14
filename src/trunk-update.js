@@ -22,24 +22,77 @@ const {
 } = require('./git-update.cjs');
 
 /**
- * A site checked out by native git on Windows (default core.autocrlf=true,
- * set globally — which isomorphic-git never reads) has CRLF on disk while
- * wordpress-develop's blobs are LF-only. Without this, statusMatrix hashes
- * the raw CRLF bytes and reports every text file as modified (~5k phantom
- * changes; isomorphic-git#1275). Writing core.autocrlf into the site's LOCAL
- * config makes isomorphic-git strip CRLF before hashing workdir files. LF
- * checkouts are unaffected. Called before every status/patch/update git op
- * so pre-existing sites are covered, not just new clones.
+ * Give isomorphic-git a Windows-only, in-memory view of core.autocrlf=true
+ * when the repository has no explicit local value. Native Git may have
+ * checked the worktree out as CRLF because of the contributor's global config,
+ * which isomorphic-git does not read; without this view, statusMatrix reports
+ * roughly 5,000 phantom modifications (isomorphic-git#1275).
  *
- * @param {string} dir
+ * The wrapper intercepts only reads of Git's config file. It never writes the
+ * repository, and explicit local values (true, false, or input) pass through
+ * unchanged. Non-Windows platforms use the original filesystem untouched.
+ *
+ * @param {string}    dir
+ * @param {Object}    [options]
+ * @param {string}    [options.platform]
+ * @param {typeof fs} [options.fileSystem]
+ * @param {Function}  [options.onError]
+ * @return {typeof fs}
  */
-async function ensureAutocrlf(dir) {
-	try {
-		const current = await git.getConfig({ fs, dir, path: 'core.autocrlf' });
-		if (current !== 'true') {
-			await git.setConfig({ fs, dir, path: 'core.autocrlf', value: 'true' });
+function createCrlfCompatibleFs(dir, {
+	platform = process.platform,
+	fileSystem = fs,
+	onError = (error) => process.emitWarning(
+		`Could not provide CRLF compatibility for ${dir}: ${String(error && error.message ? error.message : error)}`,
+		{ code: 'WCT_CRLF_CONFIG' }
+	)
+} = {}) {
+	if (platform !== 'win32') return fileSystem;
+
+	const dotGitPath = path.resolve(dir, '.git');
+	let configPath = path.join(dotGitPath, 'config');
+	const promises = Object.create(fileSystem.promises);
+	Object.defineProperty(promises, 'readFile', {
+		enumerable: true,
+		value: async (filepath, options) => {
+			let content;
+			try {
+				content = await fileSystem.promises.readFile(filepath, options);
+			} catch (error) {
+				if (path.resolve(String(filepath)) === configPath) onError(error);
+				throw error;
+			}
+			const resolvedPath = path.resolve(String(filepath));
+			if (resolvedPath === dotGitPath) {
+				const gitdir = String(content).match(/^gitdir:\s*(.+)\s*$/im);
+				if (gitdir) configPath = path.resolve(dir, gitdir[1].trim(), 'config');
+				return content;
+			}
+			if (resolvedPath !== configPath) return content;
+
+			const text = Buffer.isBuffer(content) ? content.toString('utf8') : String(content);
+			let inCore = false;
+			const hasAutocrlf = text.split(/\r?\n/).some((line) => {
+				const section = line.match(/^\s*\[([^\]]+)\]\s*(?:[#;].*)?$/);
+				if (section) {
+					inCore = section[1].trim().toLowerCase() === 'core';
+					return false;
+				}
+				return inCore && /^\s*autocrlf\s*=/.test(line.toLowerCase());
+			});
+			if (hasAutocrlf) return content;
+
+			const compatible = `${text.replace(/\s*$/, '')}\n[core]\n\tautocrlf = true\n`;
+			return Buffer.isBuffer(content) ? Buffer.from(compatible, 'utf8') : compatible;
 		}
-	} catch {}
+	});
+	const compatibleFs = Object.create(fileSystem);
+	Object.defineProperty(compatibleFs, 'promises', { enumerable: true, value: promises });
+	return compatibleFs;
+}
+
+async function ensureAutocrlf(dir, options) {
+	return createCrlfCompatibleFs(dir, options);
 }
 
 /**
@@ -97,8 +150,8 @@ async function isCrlfOnlyChange(dir, headOid, filepath) {
  * @param {string} dir
  */
 async function collectDirtyFiles(dir) {
-	await ensureAutocrlf(dir);
-	const matrix = await git.statusMatrix({ fs, dir });
+	const gitFs = await ensureAutocrlf(dir);
+	const matrix = await git.statusMatrix({ fs: gitFs, dir });
 	let headOid = null;
 	try { headOid = await git.resolveRef({ fs, dir, ref: 'HEAD' }); } catch {}
 	const files = [];
@@ -123,18 +176,18 @@ async function collectDirtyFiles(dir) {
  * @param {string} dir
  */
 async function discardChanges(dir) {
-	await ensureAutocrlf(dir);
-	const matrix = await git.statusMatrix({ fs, dir });
+	const gitFs = await ensureAutocrlf(dir);
+	const matrix = await git.statusMatrix({ fs: gitFs, dir });
 	for (const [filepath, head, workdir] of matrix) {
 		if (head === 0) {
-			try { await git.remove({ fs, dir, filepath }); } catch {}
+			try { await git.remove({ fs: gitFs, dir, filepath }); } catch {}
 			if (workdir !== 0) {
 				try { await fs.promises.unlink(path.join(dir, filepath)); } catch {}
 			}
 		}
 	}
-	const ref = (await git.currentBranch({ fs, dir, fullname: false })) || 'trunk';
-	await git.checkout({ fs, dir, ref, force: true });
+	const ref = (await git.currentBranch({ fs: gitFs, dir, fullname: false })) || 'trunk';
+	await git.checkout({ fs: gitFs, dir, ref, force: true });
 }
 
 /**
@@ -157,32 +210,32 @@ async function discardChanges(dir) {
  * @param {string} baseOid The commit the modal diffed against — the branch point.
  */
 async function discardToBase(dir, baseOid) {
-	await ensureAutocrlf(dir);
-	const matrix = await git.statusMatrix({ fs, dir });
+	const gitFs = await ensureAutocrlf(dir);
+	const matrix = await git.statusMatrix({ fs: gitFs, dir });
 	for (const [filepath, head, workdir] of matrix) {
 		if (head === 0) {
-			try { await git.remove({ fs, dir, filepath }); } catch {}
+			try { await git.remove({ fs: gitFs, dir, filepath }); } catch {}
 			if (workdir !== 0) {
 				try { await fs.promises.unlink(path.join(dir, filepath)); } catch {}
 			}
 		}
 	}
-	const ref = (await git.currentBranch({ fs, dir, fullname: false })) || 'trunk';
+	const ref = (await git.currentBranch({ fs: gitFs, dir, fullname: false })) || 'trunk';
 	// Only rewind the ref when baseOid really is this branch's own history — its
 	// point off trunk. A caller can hand over a commit that is not an ancestor of
 	// HEAD; moving the ref onto it would
 	// orphan the branch's commits and re-point it at unrelated work. When it is
 	// not an ancestor, leave the ref alone and just reset the worktree to HEAD —
 	// the uncommitted-only discard, which never throws away committed work.
-	const head = await git.resolveRef({ fs, dir, ref: 'HEAD' });
+	const head = await git.resolveRef({ fs: gitFs, dir, ref: 'HEAD' });
 	let rewind = false;
 	if (baseOid !== head) {
-		try { rewind = await git.isDescendent({ fs, dir, oid: head, ancestor: baseOid }); } catch { rewind = false; }
+		try { rewind = await git.isDescendent({ fs: gitFs, dir, oid: head, ancestor: baseOid }); } catch { rewind = false; }
 	}
 	if (rewind) {
-		await git.writeRef({ fs, dir, ref: `refs/heads/${ref}`, value: baseOid, force: true });
+		await git.writeRef({ fs: gitFs, dir, ref: `refs/heads/${ref}`, value: baseOid, force: true });
 	}
-	await git.checkout({ fs, dir, ref, force: true });
+	await git.checkout({ fs: gitFs, dir, ref, force: true });
 }
 
 /**
@@ -207,14 +260,14 @@ async function discardToBase(dir, baseOid) {
  * @param {Function} [root0.onLog]
  */
 async function updateToLatestTrunk({ dir, url, onLog = () => {} }) {
-	await ensureAutocrlf(dir);
+	const gitFs = await ensureAutocrlf(dir);
 	let stage = 'fetch';
 	let worktreeReset = false;
 	try {
-		const oldOid = await git.resolveRef({ fs, dir, ref: 'HEAD' });
+		const oldOid = await git.resolveRef({ fs: gitFs, dir, ref: 'HEAD' });
 		onLog('Fetching latest trunk…\n');
 		const fetchResult = await git.fetch({
-			fs, http, dir, url,
+			fs: gitFs, http, dir, url,
 			ref: 'trunk',
 			singleBranch: true,
 			depth: 1,
@@ -222,7 +275,7 @@ async function updateToLatestTrunk({ dir, url, onLog = () => {} }) {
 			onProgress: (evt) => onLog(`${evt.phase || 'fetch'} ${evt.loaded || 0}/${evt.total || 0}\r`)
 		});
 		let newOid = fetchResult && fetchResult.fetchHead;
-		if (!newOid) newOid = await git.resolveRef({ fs, dir, ref: 'refs/remotes/origin/trunk' });
+		if (!newOid) newOid = await git.resolveRef({ fs: gitFs, dir, ref: 'refs/remotes/origin/trunk' });
 
 		if (newOid === oldOid) {
 			const { trunkDate } = await readTrunkInfo(dir);
@@ -241,19 +294,19 @@ async function updateToLatestTrunk({ dir, url, onLog = () => {} }) {
 		// checkout({force}) deletes workdir files that are in the index but
 		// absent from the target tree, so drop those index entries first
 		// (index-only — the workdir files survive).
-		const matrix = await git.statusMatrix({ fs, dir });
+		const matrix = await git.statusMatrix({ fs: gitFs, dir });
 		for (const filepath of staleStagedPaths(matrix)) {
-			try { await git.remove({ fs, dir, filepath }); } catch {}
+			try { await git.remove({ fs: gitFs, dir, filepath }); } catch {}
 		}
 		onLog(`\nResetting to latest trunk (${newOid.slice(0, 7)})…\n`);
-		await git.writeRef({ fs, dir, ref: 'refs/heads/trunk', value: newOid, force: true });
+		await git.writeRef({ fs: gitFs, dir, ref: 'refs/heads/trunk', value: newOid, force: true });
 		// Everything above this line can fail with the working tree untouched —
 		// statusMatrix walks a 5k-file checkout and writeRef only moves a ref.
 		// From here on, files are being overwritten, so anything the tree used to
 		// hold (an applied patch) has to be assumed gone even if the call throws.
 		worktreeReset = true;
 		await git.checkout({
-			fs, dir, ref: 'trunk', force: true,
+			fs: gitFs, dir, ref: 'trunk', force: true,
 			onProgress: (evt) => onLog(`${evt.phase || 'checkout'} ${evt.loaded || 0}/${evt.total || 0}\r`)
 		});
 
@@ -271,6 +324,7 @@ async function updateToLatestTrunk({ dir, url, onLog = () => {} }) {
 
 module.exports = {
 	ensureAutocrlf,
+	createCrlfCompatibleFs,
 	readTrunkInfo,
 	collectDirtyFiles,
 	discardChanges,

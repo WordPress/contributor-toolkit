@@ -431,7 +431,7 @@ function buildPatchHtml(content) {
 // Returns the base commit alongside the files because the pull request needs it
 // as the commit's parent, and it is the same oid the diff was taken against.
 async function collectChangedFiles(dir, baseOid = null) {
-    await ensureAutocrlf(dir);
+    const gitFs = await ensureAutocrlf(dir) || fs;
     // The diff base is the branch point of whatever ticket is being worked on
     // (#108) — the trunk snapshot this branch was created from, passed in by the
     // caller from the site's registry entry.
@@ -455,9 +455,9 @@ async function collectChangedFiles(dir, baseOid = null) {
         // No branch point on record: a site still on trunk, or one adopted from
         // disk. HEAD is the trunk snapshot there, which is what this always used
         // to diff against.
-        try { base = await git.resolveRef({ fs, dir, ref: 'HEAD' }); } catch {}
+        try { base = await git.resolveRef({ fs: gitFs, dir, ref: 'HEAD' }); } catch {}
         if (!base) {
-            try { base = await git.resolveRef({ fs, dir, ref: 'refs/heads/trunk' }); } catch {}
+            try { base = await git.resolveRef({ fs: gitFs, dir, ref: 'refs/heads/trunk' }); } catch {}
         }
     }
 
@@ -468,13 +468,13 @@ async function collectChangedFiles(dir, baseOid = null) {
     // and never unstaged it (#85) — with the branch point as the base it earns
     // nothing, so it is gone. (`staleStagedPaths` in trunk-update.js stays: it
     // still has to clean up residue left in indexes by earlier versions.)
-    const matrix = await git.statusMatrix({ fs, dir, ref: base });
+    const matrix = await git.statusMatrix({ fs: gitFs, dir, ref: base });
     const changed = matrix.filter(([, head, workdir]) => head !== workdir);
     const files = [];
     for (const [filepath, head, workdir] of changed) {
         const abs = path.join(dir, filepath);
         const workBuf = workdir ? await fs.promises.readFile(abs).catch(() => null) : null;
-        const baseBlob = head && base ? await git.readBlob({ fs, dir, oid: base, filepath }).catch(() => null) : null;
+        const baseBlob = head && base ? await git.readBlob({ fs: gitFs, dir, oid: base, filepath }).catch(() => null) : null;
         files.push({
             path: filepath,
             // The status codes, not the buffers, are what say whether a file is

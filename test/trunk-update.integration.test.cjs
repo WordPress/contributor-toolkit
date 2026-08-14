@@ -13,7 +13,13 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const git = require('isomorphic-git');
-const { collectDirtyFiles, discardChanges, discardToBase, readTrunkInfo } = require('../src/trunk-update.js');
+const {
+	collectDirtyFiles,
+	createCrlfCompatibleFs,
+	discardChanges,
+	discardToBase,
+	readTrunkInfo
+} = require('../src/trunk-update.js');
 
 const AUTHOR = { name: 'test', email: 'test@example.com' };
 
@@ -40,6 +46,99 @@ test('collectDirtyFiles: CRLF-smudged files, UTF-8 or not, are not dirty (issue 
 	fs.writeFileSync(path.join(dir, 'text.txt'), 'line1\r\nline2\r\n');
 	fs.writeFileSync(path.join(dir, 'big5.txt'), Buffer.from([0xa4, 0xa4, 0x0d, 0x0a, 0xa4, 0xe5, 0x0d, 0x0a]));
 	assert.deepStrictEqual(await collectDirtyFiles(dir), []);
+});
+
+for (const platform of ['darwin', 'linux']) {
+	test(`CRLF compatibility: ${platform} leaves an unset local core.autocrlf untouched (issue #341)`, async (t) => {
+		const dir = await makeRepo(t);
+		const compatibleFs = createCrlfCompatibleFs(dir, { platform });
+
+		assert.strictEqual(await git.getConfig({ fs: compatibleFs, dir, path: 'core.autocrlf' }), undefined);
+		assert.strictEqual(await git.getConfig({ fs, dir, path: 'core.autocrlf' }), undefined);
+	});
+}
+
+for (const value of [undefined, 'true', 'false', 'input']) {
+	test(`CRLF compatibility: Windows preserves local core.autocrlf=${value ?? 'unset'} (issue #341)`, async (t) => {
+		const dir = await makeRepo(t);
+		if (value !== undefined) {
+			await git.setConfig({ fs, dir, path: 'core.autocrlf', value });
+		}
+
+		const compatibleFs = createCrlfCompatibleFs(dir, { platform: 'win32' });
+		const visibleValue = await git.getConfig({ fs: compatibleFs, dir, path: 'core.autocrlf' });
+
+		assert.strictEqual(visibleValue, value ?? 'true');
+		assert.strictEqual(await git.getConfig({ fs, dir, path: 'core.autocrlf' }), value);
+	});
+}
+
+test('CRLF compatibility: Windows normalizes a CRLF checkout without persisting config (issue #341)', async (t) => {
+	const dir = await makeRepo(t);
+	fs.writeFileSync(path.join(dir, 'text.txt'), 'line1\r\nline2\r\n');
+	const compatibleFs = createCrlfCompatibleFs(dir, { platform: 'win32' });
+
+	const matrix = await git.statusMatrix({ fs: compatibleFs, dir });
+
+	assert.deepStrictEqual(matrix.find(([filepath]) => filepath === 'text.txt'), ['text.txt', 1, 1, 1]);
+	assert.strictEqual(await git.getConfig({ fs, dir, path: 'core.autocrlf' }), undefined);
+});
+
+test('CRLF compatibility: a worktree file named config is not altered in memory (issue #341)', async (t) => {
+	const dir = await makeRepo(t);
+	fs.writeFileSync(path.join(dir, 'config'), 'ordinary worktree content\n');
+	const compatibleFs = createCrlfCompatibleFs(dir, { platform: 'win32' });
+
+	assert.strictEqual(
+		await compatibleFs.promises.readFile(path.join(dir, 'config'), 'utf8'),
+		'ordinary worktree content\n'
+	);
+});
+
+test('CRLF compatibility: a gitdir file receives the same non-persistent view (issue #341)', async (t) => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'autocrlf-gitdir-test-'));
+	t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+	const dir = path.join(root, 'worktree');
+	const gitdir = path.join(root, 'actual-git');
+	fs.mkdirSync(dir);
+	fs.mkdirSync(gitdir);
+	fs.writeFileSync(path.join(dir, '.git'), 'gitdir: ../actual-git\n');
+	fs.writeFileSync(path.join(gitdir, 'config'), '[core]\n\trepositoryformatversion = 0\n');
+	const compatibleFs = createCrlfCompatibleFs(dir, { platform: 'win32' });
+
+	await compatibleFs.promises.readFile(path.join(dir, '.git'), 'utf8');
+	const visibleConfig = await compatibleFs.promises.readFile(path.join(gitdir, 'config'), 'utf8');
+
+	assert.match(visibleConfig, /autocrlf = true/);
+	assert.doesNotMatch(fs.readFileSync(path.join(gitdir, 'config'), 'utf8'), /autocrlf/);
+});
+
+test('CRLF compatibility: config read failures are logged and remain failures (issue #341)', async (t) => {
+	const dir = await makeRepo(t);
+	const errors = [];
+	const failingFs = Object.create(fs);
+	const promises = Object.create(fs.promises);
+	promises.readFile = async (filepath, options) => {
+		if (path.resolve(filepath) === path.resolve(dir, '.git', 'config')) {
+			const error = new Error('config is unreadable');
+			error.code = 'EACCES';
+			throw error;
+		}
+		return fs.promises.readFile(filepath, options);
+	};
+	Object.defineProperty(failingFs, 'promises', { enumerable: true, value: promises });
+	const compatibleFs = createCrlfCompatibleFs(dir, {
+		platform: 'win32',
+		fileSystem: failingFs,
+		onError: (error) => errors.push(error)
+	});
+
+	await assert.rejects(
+		compatibleFs.promises.readFile(path.join(dir, '.git', 'config'), 'utf8'),
+		{ code: 'EACCES' }
+	);
+	assert.strictEqual(errors.length, 1);
+	assert.match(errors[0].message, /config is unreadable/);
 });
 
 test('collectDirtyFiles: real edits and untracked files are detected (issue #94)', async (t) => {
