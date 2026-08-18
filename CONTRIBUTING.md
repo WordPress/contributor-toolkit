@@ -39,6 +39,41 @@ system Node, and the two versions are set independently and have drifted before 
 both is how a drift gets caught before it ships. The matrix uses `fail-fast: false`, so a Windows
 failure never hides the macOS result — you always see both.
 
+### End-to-end tests — [`.github/workflows/e2e.yml`](.github/workflows/e2e.yml)
+
+Two suites, both launching a real app on macOS and Windows for every pull request that is not a
+draft. They answer different questions, so they are separate jobs and separate commands.
+
+- `npm run test:e2e` — **the journeys**. Drives the app built from the source tree through the flows
+  a contributor performs by hand: linking a ticket, applying and reverting a patch, moving between
+  ticket branches. Each test gets its own throwaway application-data directory and its own Git
+  fixture, so nothing it does can reach the sites you actually work on — and the harness refuses to
+  start at all if it ever finds the app using a different profile. Nothing here touches the network.
+  Seconds to run.
+- `npm run test:e2e:packaged` — **the packaged smoke test**. Launches an unsigned
+  `electron-builder --dir` build and asks only whether packaging worked: it boots, the whole preload
+  bridge is exposed, and the modules that exist only if packaging succeeded do resolve. Build it
+  first, or the test will tell you to:
+
+  ```
+  npm run build:once && CSC_IDENTITY_AUTO_DISCOVERY=false npm run pack:dir
+  ```
+
+  That environment variable is mandatory on macOS — electron-builder signs during `--dir` without
+  it — and harmless everywhere else.
+
+Neither downloads a browser. The only thing they launch is the Electron already in the tree, so
+there is no `playwright install` step anywhere.
+
+When one fails, the run keeps the trace, and the journeys additionally attach the screen and the
+state the app had persisted at the moment it failed — the interesting half of a failure in this app
+is usually on disk rather than on screen. Locally, `npx playwright show-trace test-results/<the
+failing test>/trace.zip` replays it.
+
+`npm test` does not pick these up and never will: the unit runner only collects `test/`, and these
+live in `e2e/`. Keeping them out of `npm test` is deliberate — they need a built renderer and cost
+seconds each, and the unit suite has to stay something you run without thinking about it.
+
 ## The review standard, and who reads it
 
 There is **one** source of truth for how a change is reviewed:

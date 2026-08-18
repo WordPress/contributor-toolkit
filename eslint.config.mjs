@@ -100,6 +100,21 @@ export default [
 	},
 
 	{
+		// End-to-end suite. Playwright's fixture API is `async ({ deps }, use) => {}`
+		// — the test framework calls `use()` to hand the fixture to the test and
+		// resumes afterwards for teardown. The React hooks rule sees a bare `use(...)`
+		// and reads it as React's `use` hook called outside a component. There is no
+		// React in this directory at all; the app under test is a separate process.
+		files: [ 'e2e/**/*.{js,cjs,mjs}' ],
+		languageOptions: {
+			globals: { ...globals.node },
+		},
+		rules: {
+			'react-hooks/rules-of-hooks': 'off',
+		},
+	},
+
+	{
 		// Files whose stdout *is* their interface, so `no-console` is simply wrong
 		// there. The runners are spawned as child processes (process.execPath +
 		// ELECTRON_RUN_AS_NODE=1) and main.js reads their stdout/stderr back and
