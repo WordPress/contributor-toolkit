@@ -11,8 +11,8 @@ expected to do before opening a PR.
 
 ## Checks that run on every pull request
 
-Two GitHub Actions workflows run on every PR, and also on push to `trunk` so the default branch
-carries a status a branch-protection rule can require. Neither needs secrets, and neither is
+Three GitHub Actions workflows run on every PR, and also on push to `trunk` so the default branch
+carries a status a branch-protection rule can require. None needs a secret, and none is
 credential-gated — everything here is safe to run on a public repository.
 
 ### Lint — [`.github/workflows/lint.yml`](.github/workflows/lint.yml)
@@ -26,53 +26,21 @@ executes the PR's code** (this repo's `postinstall` would otherwise pull the Ele
 the linter does not need). If ESLint flags something mechanical, `npm run lint:fix` handles it;
 check what it rewrote before committing, since it too is repo-wide.
 
-### Unit tests — [`.github/workflows/unit-tests.yml`](.github/workflows/unit-tests.yml)
+### Tests — [`unit-tests.yml`](.github/workflows/unit-tests.yml) and [`e2e.yml`](.github/workflows/e2e.yml)
 
-The unit suite runs on the **two platforms the app ships to — macOS and Windows** — and on each
-platform it runs **twice**:
+Everything runs on the **two platforms the app ships to, macOS and Windows**:
 
-- `npm test` — on the system Node pinned in `.nvmrc`.
-- `npm run test:electron` — on the Node that Electron bundles.
+- **The fast suite** (`npm test`) — and on each platform it runs **twice**, once on the system Node
+  pinned in `.nvmrc` and once on the Node that Electron bundles. That second pass is not redundant:
+  child processes in this app run on Electron's own Node, and the two versions are set independently
+  and have drifted before (#37/#46).
+- **The end-to-end suites** (`npm run test:e2e`, and the packaged one) — on every pull request that
+  is not a draft, as two jobs, because one takes seconds and the other packages the app first.
 
-That second pass is not redundant. Child processes in this app run on Electron's own Node, not the
-system Node, and the two versions are set independently and have drifted before (#37/#46). Running
-both is how a drift gets caught before it ships. The matrix uses `fail-fast: false`, so a Windows
-failure never hides the macOS result — you always see both.
+Every matrix uses `fail-fast: false`, so a Windows failure never hides the macOS result.
 
-### End-to-end tests — [`.github/workflows/e2e.yml`](.github/workflows/e2e.yml)
-
-Two suites, both launching a real app on macOS and Windows for every pull request that is not a
-draft. They answer different questions, so they are separate jobs and separate commands.
-
-- `npm run test:e2e` — **the journeys**. Drives the app built from the source tree through the flows
-  a contributor performs by hand: linking a ticket, applying and reverting a patch, moving between
-  ticket branches. Each test gets its own throwaway application-data directory and its own Git
-  fixture, so nothing it does can reach the sites you actually work on — and the harness refuses to
-  start at all if it ever finds the app using a different profile. Nothing here touches the network.
-  Seconds to run.
-- `npm run test:e2e:packaged` — **the packaged smoke test**. Launches an unsigned
-  `electron-builder --dir` build and asks only whether packaging worked: it boots, the whole preload
-  bridge is exposed, and the modules that exist only if packaging succeeded do resolve. Build it
-  first, or the test will tell you to:
-
-  ```
-  npm run build:once && CSC_IDENTITY_AUTO_DISCOVERY=false npm run pack:dir
-  ```
-
-  That environment variable is mandatory on macOS — electron-builder signs during `--dir` without
-  it — and harmless everywhere else.
-
-Neither downloads a browser. The only thing they launch is the Electron already in the tree, so
-there is no `playwright install` step anywhere.
-
-When one fails, the run keeps the trace, and the journeys additionally attach the screen and the
-state the app had persisted at the moment it failed — the interesting half of a failure in this app
-is usually on disk rather than on screen. Locally, `npx playwright show-trace test-results/<the
-failing test>/trace.zip` replays it.
-
-`npm test` does not pick these up and never will: the unit runner only collects `test/`, and these
-live in `e2e/`. Keeping them out of `npm test` is deliberate — they need a built renderer and cost
-seconds each, and the unit suite has to stay something you run without thinking about it.
+**[TESTING.md](TESTING.md) is the full picture** — what to run locally, the five layers the suite is
+made of, where a new test belongs, and how to read a failure. Read it before adding a test.
 
 ## The review standard, and who reads it
 
