@@ -5,7 +5,7 @@
  * The failures it exists to catch — asar layout, native module rebuilds, bundled
  * CLI resolution — do not reproduce under `npm start`.
  *
- * Build it first (see docs/testing.md):
+ * Build it first (see TESTING.md):
  *   npm run build:once && CSC_IDENTITY_AUTO_DISCOVERY=false npm run pack:dir
  *
  * It writes no state, so it deliberately does not use the session helper the
@@ -127,7 +127,7 @@ const REQUIRED_MODULES = [ '@wp-playground/cli', 'fs-ext-extra-prebuilt' ];
  */
 function findPackagedBinary() {
 	if ( ! fs.existsSync( DIST ) ) {
-		throw new Error( `No ${ DIST } directory. Run \`npm run pack:dir\` first — see docs/testing.md.` );
+		throw new Error( `No ${ DIST } directory. Run \`npm run pack:dir\` first — see TESTING.md.` );
 	}
 
 	if ( process.platform === 'darwin' ) {
@@ -146,7 +146,7 @@ function findPackagedBinary() {
 	if ( process.platform === 'win32' ) {
 		const unpacked = path.join( DIST, 'win-unpacked' );
 		if ( ! fs.existsSync( unpacked ) ) {
-			throw new Error( `No ${ unpacked }. Run \`npm run pack:dir\` first — see docs/testing.md.` );
+			throw new Error( `No ${ unpacked }. Run \`npm run pack:dir\` first — see TESTING.md.` );
 		}
 		const exe = fs.readdirSync( unpacked ).find( ( f ) => f.endsWith( '.exe' ) );
 		if ( ! exe ) throw new Error( `No .exe in ${ unpacked }.` );
