@@ -30,10 +30,31 @@ const AUTHOR = { name: 'e2e', email: 'e2e@example.test' };
 const SUBSTRATE = path.join( 'node_modules', 'react', 'index.js' );
 const SUBSTRATE_CONTENT = 'expensive to reinstall\n';
 
+/**
+ * Where WordPress's own source lives in a `wordpress-develop` checkout.
+ *
+ * Not cosmetic. Patches from Trac are often written against the layout core had
+ * before everything moved under `src/`, so the app rewrites a path like
+ * `wp-login.php` to `src/wp-login.php` on the way in (see `src/patch-plan.cjs`).
+ * A fixture with its files at the root would have every patch land somewhere the
+ * test never looks, and the test would fail for a reason that is not a bug.
+ */
+const LOGIN = path.join( 'src', 'wp-login.php' );
+const DOOMED = path.join( 'src', 'doomed.php' );
+
 const TRUNK_FILES = {
 	'.gitignore': 'node_modules/\nbuild/\n',
-	'wp-login.php': '<?php // trunk\n',
-	'doomed.php': '<?php // to be deleted\n',
+	'src/wp-login.php': '<?php // trunk\n',
+	'src/doomed.php': '<?php // to be deleted\n',
+	// Applying a patch ends by rebuilding the site, the way it does in a real
+	// checkout. Without a `build` script the chain fails after the patch is
+	// already on disk, and a journey would be asserting on a half-finished
+	// flow. It does nothing; what matters is that it exits 0 quickly.
+	'package.json': JSON.stringify(
+		{ name: 'e2e-fixture-site', version: '1.0.0', private: true, scripts: { build: 'node -e ""' } },
+		null,
+		2
+	) + '\n',
 };
 
 /**
@@ -52,6 +73,7 @@ async function makeSite( session, { label = 'e2e-site' } = {} ) {
 	const dir = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-site-' ) ) );
 
 	await git.init( { fs, dir, defaultBranch: TRUNK } );
+	fs.mkdirSync( path.join( dir, 'src' ), { recursive: true } );
 	for ( const [ file, content ] of Object.entries( TRUNK_FILES ) ) {
 		fs.writeFileSync( path.join( dir, file ), content );
 	}
@@ -135,8 +157,36 @@ const branches = ( dir ) => git.listBranches( { fs, dir } );
  */
 const currentBranch = ( dir ) => git.currentBranch( { fs, dir, fullname: false } );
 
+/**
+ * Writes a unified diff to a file the app's dialog can be pointed at.
+ *
+ * Hand-written rather than produced by a Git library: what the app parses is a
+ * patch file as it arrives from Trac or a pull request, and generating one with
+ * the same code the app reads back would prove less than it looks.
+ *
+ * @param {Object}                                          session The session that will clean the file up.
+ * @param {string}                                          name    File name, e.g. 'ticket-60001.patch'.
+ * @param {Array<{file: string, from: string, to: string}>} hunks   One whole-line replacement per
+ *                                                                  file: the line to find, and what
+ *                                                                  replaces it.
+ * @return {string} The path written.
+ */
+function makePatchFile( session, name, hunks ) {
+	const dir = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-patch-' ) ) );
+	const body = hunks
+		.map(
+			( { file, from, to } ) =>
+				`--- a/${ file }\n+++ b/${ file }\n@@ -1 +1 @@\n-${ from }\n+${ to }\n`
+		)
+		.join( '' );
+	const file = path.join( dir, name );
+	fs.writeFileSync( file, body );
+	return file;
+}
+
 module.exports = {
 	makeSite,
+	makePatchFile,
 	settingsFor,
 	read,
 	write,
@@ -146,4 +196,6 @@ module.exports = {
 	TRUNK,
 	SUBSTRATE,
 	SUBSTRATE_CONTENT,
+	LOGIN,
+	DOOMED,
 };
