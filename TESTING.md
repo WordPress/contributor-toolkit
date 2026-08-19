@@ -22,7 +22,8 @@ npm run test:e2e:packaged   # the built artifact — needs a build first, see be
 ```
 
 To run one file: `node --test test/azure-sign.test.cjs`. To run one journey:
-`npx playwright test --project=journeys -g "switching back"`, and add `--headed` to watch it happen.
+`npx playwright test --project=journeys -g "switching back"`. A journey opens and closes the app as
+it goes; there is no headless mode and nothing to turn off.
 
 ## The five layers
 
@@ -124,19 +125,80 @@ npm run test:e2e:packaged
 without it — and harmless everywhere else. The test tells you if you forgot the build.
 
 Neither end-to-end command downloads a browser. The only thing they launch is the Electron already in
-the tree, so there is no `playwright install` step anywhere.
+the tree, which is why CI has no `playwright install` step. The one exception is the Inspector, and
+it is opt-in — see above.
+
+## Auditing an end-to-end test
+
+A test that asserts nothing passes. For a suite whose entire content is tests, that is the risk that
+matters, and neither a green run nor a recording of one will tell you: both look identical whether
+the assertion is load-bearing or decorative.
+
+**The way to audit a journey is to break what it claims and confirm it goes red.** One assertion at
+a time. Worked example — "switching back to a ticket restores its work byte for byte" says the
+contributor's edit comes back, so make that false and see whether the test notices:
+
+```
+# in e2e/journeys/ticket-branches.spec.js, find the line asserting the edit came
+# back — it ends `.toBe( MY_EDIT );` — and swap MY_EDIT for any other string:
+#     .toBe( 'anything else' );
+
+npx playwright test --project=journeys -g "switching back"   # must FAIL, on that line
+git checkout e2e/journeys/ticket-branches.spec.js            # put it back
+```
+
+If it stays green, the assertion is not reaching what it says it is, and the test is decoration.
+Every invariant in these journeys was checked this way before its pull request was opened; each is
+worth rechecking after a change to the code beneath it.
+
+Two mistakes to avoid when doing this. Break **one** assertion per run, or a failure tells you
+nothing about which. And run the **single** test by name — the same expression often appears in more
+than one journey, and a mutation applied to the first occurrence while running a different test
+reports a green that means nothing.
+
+**The second half of an audit is reading the test.** Roughly half of each journey happens on disk
+with no interface: the test edits a file, deletes another, and then reads the working tree back.
+None of that is on screen, and none of it can be watched. The twenty lines of the test are the
+description of what it does; there is no substitute for them.
+
+<details>
+<summary>Watching one run, and when that helps</summary>
+
+Recording a run answers one narrow question — **is this driving the app, or passing through a shell
+that happens to satisfy its assertions?** — and helps with a CI failure on a platform you cannot
+reach. It does not tell you what a test does, for the reason above.
+
+```
+E2E_VIDEO=/tmp/e2e-video npm run test:e2e
+open /tmp/e2e-video/switching-back-to-a-ticket-restores-its-work-byte-for-byte.webm
+```
+
+One `.webm` per test, named after it; a test that closes and reopens the app records both launches
+as `-1` and `-2`. They run about a second and a half at 25 frames per second, so step through them
+rather than pressing play.
+
+`PWDEBUG=1` pauses before each action instead, and lets you advance the run yourself. It opens the
+Playwright Inspector, which is a browser window, so it needs `npx playwright install chromium` once
+— the only browser this repository ever wants, and nothing else here uses it. Without it the run
+pauses with no window to drive it from, which reads as a hang. The Inspector knows Playwright's
+actions and not the filesystem steps between them, so it has the same blind spot as the recording.
+
+</details>
 
 ## Reading a failure
 
-Every end-to-end failure keeps a Playwright trace. Replay it with:
+Every end-to-end failure keeps a Playwright trace:
 
 ```
 npx playwright show-trace test-results/<the failing test>/trace.zip
 ```
 
-A failing journey also attaches the screen and the state the app had persisted at that moment,
-because the interesting half of a failure in this app is usually on disk rather than on screen. In
-CI both come back as a workflow artifact.
+For an Electron test that trace is an action log rather than a replay: each step, its timing and the
+line of source it came from.
+
+A failing journey also attaches the screen at the moment it failed and the state the app had
+persisted, because the interesting half of a failure in this app is usually on disk rather than on
+screen. In CI both come back as a workflow artifact.
 
 ## What CI runs
 
