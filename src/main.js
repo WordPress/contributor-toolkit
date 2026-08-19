@@ -61,7 +61,7 @@ const { getStore } = require('./settings-store');
 const externalUrlDeps = {
 	openExternal: (target) => shell.openExternal(target),
 	onRefused: (description) => logEvent('url', `refused to open ${description} — only ${ALLOWED_URL_SCHEMES.join(', ')} are allowed`),
-	onFailed: (url, error) => logEvent('url', `could not open ${describeRefusedUrl(url)}: ${String(error && error.message ? error.message : error)}`)
+	onFailed: (url, error) => logEvent('url', `could not open ${describeRefusedUrl(url)}: ${error && error.message}`)
 };
 
 // One name for the send-only progress channel (#173), shared with preload.js

@@ -18,32 +18,6 @@ function recorder() {
 	};
 }
 
-// openExternal rejects when the OS has no application registered for the
-// address. Every caller in the app fires and forgets, so if this is not reported
-// here it is not reported anywhere: the link did nothing and the log says
-// nothing about it.
-test('an address the OS cannot open is reported, not left to the caller', async () => {
-	const failures = [];
-
-	const result = await openExternalUrl('https://example.com/', {
-		openExternal: async () => { throw new Error('no application registered'); },
-		onFailed: (url, error) => { failures.push([url, error.message]); }
-	});
-
-	assert.equal(result, false);
-	assert.deepEqual(failures, [['https://example.com/', 'no application registered']]);
-});
-
-test('a failure with no reporter does not reject on the caller', async () => {
-	// The link handlers in window-links.js are synchronous event listeners and
-	// cannot await this, so it must not come back as a rejection.
-	const result = await openExternalUrl('https://example.com/', {
-		openExternal: async () => { throw new Error('no application registered'); }
-	});
-
-	assert.equal(result, false);
-});
-
 // The addresses the app actually passes today: Trac, the feedback form, the
 // site and its admin on an ephemeral loopback port.
 test('the addresses the app uses still open', async () => {

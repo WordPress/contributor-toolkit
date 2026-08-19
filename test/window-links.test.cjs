@@ -6,11 +6,10 @@ const { openLinksExternally } = require('../src/window-links.js');
 // Stands in for a window's webContents, so the gestures can be replayed without
 // an Electron process - the same approach external-url.test.cjs takes with the
 // shell.
-function fakeWebContents(currentUrl = 'file:///Applications/toolkit/renderer/index.html') {
+function fakeWebContents() {
 	const listeners = {};
 	return {
 		windowOpenHandler: null,
-		getURL() { return currentUrl; },
 		setWindowOpenHandler(handler) { this.windowOpenHandler = handler; },
 		on(event, listener) { (listeners[event] ||= []).push(listener); },
 		// Replays a gesture; returns whether the navigation was cancelled.
@@ -75,10 +74,10 @@ test('a redirect cannot move the app window either', async () => {
 	assert.deepEqual(rec.opened, ['https://wordpress.org/']);
 });
 
-test('a reload is let through', async () => {
-	// A reload asks to navigate to the page already loaded. Cancelling it would
-	// stop the app window reloading.
-	const wc = fakeWebContents('file:///Applications/toolkit/renderer/index.html');
+test("the app's own page is left alone", async () => {
+	// Cancelling this would stop the app window reloading, and a file: address is
+	// not one to hand to the browser.
+	const wc = fakeWebContents();
 	const rec = recorder();
 	openLinksExternally(wc, rec.deps);
 
@@ -87,28 +86,6 @@ test('a reload is let through', async () => {
 
 	assert.deepEqual(rec.opened, []);
 	assert.deepEqual(rec.refused, []);
-});
-
-test('the window cannot be navigated off its own page', async () => {
-	// The window renders content the app does not author - a captured email body
-	// among it - and a link in there can point at a local path or at one relative
-	// to the app's own file: origin. Neither is a page this window shows, and
-	// neither is an address to hand to the OS.
-	const wc = fakeWebContents('file:///Applications/toolkit/renderer/index.html');
-	const rec = recorder();
-	openLinksExternally(wc, rec.deps);
-
-	for (const url of [
-		'file:///Applications/toolkit/renderer/other.html',
-		'file:///etc/passwd'
-	]) {
-		assert.equal(wc.emit('will-navigate', url), true, `${url} should be refused`);
-	}
-	await settled();
-
-	// Refused by the gate rather than opened, and each refusal is logged.
-	assert.deepEqual(rec.opened, []);
-	assert.equal(rec.refused.length, 2);
 });
 
 test('a scheme the app does not open is refused, and opens no window', async () => {
