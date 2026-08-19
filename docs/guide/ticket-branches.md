@@ -85,15 +85,11 @@ This counts the ticket's whole work — including everything parked when you las
 
 Under it is the reassurance that matters here: unlinking the ticket does not touch those changes. They stay attached to the ticket in this site, ready for when you link it again.
 
-Returning to a ticket does not make it clean or measure it from wherever trunk happens to be now.
-The same count and the same files return because the ticket is still measured from the trunk
-snapshot where its branch started. That baseline also drives the warning before applying another
-patch: work committed when you switched away is still named as work on this ticket.
+Returning to a ticket does not make it clean or measure it from wherever trunk happens to be now. The same count and the same files return because the ticket is still measured from the trunk snapshot where its branch started. That baseline also drives the warning before applying another patch: work committed when you switched away is still named as work on this ticket.
 
 ## When trunk has moved since the ticket started
 
-Updating the site moves its copy of trunk, but deliberately does not move existing ticket branches.
-When the app can see that the linked ticket started on an older trunk, the **Trac ticket** card says:
+Updating the site moves its copy of trunk, but deliberately does not move existing ticket branches. When the app can see that the linked ticket started on an older trunk, the **Trac ticket** card says:
 
 > **Trunk has moved since this ticket started.** Newer patches may not apply cleanly.
 
@@ -101,13 +97,11 @@ Nothing moves automatically. To start the ticket again from current trunk:
 
 1. Use **Review & submit changes** to save a patch of the ticket's work.
 2. Click **Unlink** so the ticket appears under **Your tickets on this site**.
-3. Click **Delete this ticket's work** on its row. This deletes the branch, not the patch you saved
-   outside the site.
+3. Click **Delete this ticket's work** on its row. This deletes the branch, not the patch you saved outside the site.
 4. Link the same ticket again. Its new branch starts from current trunk.
 5. Apply the saved patch and check that the work still fits.
 
-The app stays silent when it cannot identify a ticket's original base; it does not substitute the
-current trunk and pretend the ticket is current.
+The app stays silent when it cannot identify a ticket's original base; it does not substitute the current trunk and pretend the ticket is current.
 
 ## What a patch contains
 

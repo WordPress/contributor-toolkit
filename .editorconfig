@@ -26,3 +26,5 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+# Prose is not wrapped here — one paragraph is one line. See AGENTS.md.
+max_line_length = off
