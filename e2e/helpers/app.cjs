@@ -201,6 +201,34 @@ class Session {
 		}, filePaths );
 	}
 
+	/**
+	 * Answers yes to every `window.confirm` the app raises, for the life of this
+	 * window. Returns the number of prompts answered so far, so a test can assert
+	 * that a destructive action did ask before doing anything.
+	 *
+	 * Replaces `window.confirm` in the page rather than handling Playwright's
+	 * `dialog` event. Electron implements the JavaScript dialogs natively and
+	 * blocks the renderer on them, so the `dialog` event a browser would emit
+	 * does not arrive — a test relying on it clicks "Delete this ticket's work",
+	 * watches nothing happen, and fails on an assertion that had nothing to do
+	 * with the bug. (Confirmed the hard way; the listener is kept alongside for
+	 * anything that does surface as a real dialog.)
+	 *
+	 * @return {Promise<() => Promise<number>>} Reads back how many confirmations
+	 *                                          have been answered.
+	 */
+	async acceptConfirms() {
+		this.page.on( 'dialog', ( dialog ) => dialog.accept() );
+		await this.page.evaluate( () => {
+			window.__e2eConfirmCount = 0;
+			window.confirm = () => {
+				window.__e2eConfirmCount += 1;
+				return true;
+			};
+		} );
+		return () => this.page.evaluate( () => window.__e2eConfirmCount );
+	}
+
 	async close() {
 		if ( ! this.app ) return;
 		const app = this.app;
