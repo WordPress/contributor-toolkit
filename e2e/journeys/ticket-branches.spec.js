@@ -35,6 +35,8 @@ const {
 	TRUNK,
 	SUBSTRATE,
 	SUBSTRATE_CONTENT,
+	LOGIN,
+	DOOMED,
 } = require( '../helpers/git-site.cjs' );
 
 const MY_EDIT = '<?php // my fix for 60001\n';
@@ -120,14 +122,14 @@ test( 'unlinking parks a ticket, and the next one starts from trunk', async ( { 
 	const { page } = await session.start( site.settings );
 
 	await linkTicket( page, '60001' );
-	write( site.dir, 'wp-login.php', MY_EDIT );
+	write( site.dir, LOGIN, MY_EDIT );
 
 	await linkTicket( page, '60002' );
 
 	// INVARIANT — the second ticket starts from trunk. Seeing the first ticket's
 	// edit here would mean two tickets' work ending up in one patch, which is
 	// the failure a contributor discovers only when a reviewer asks about it.
-	expect( read( site.dir, 'wp-login.php' ) ).toBe( '<?php // trunk\n' );
+	expect( read( site.dir, LOGIN ) ).toBe( '<?php // trunk\n' );
 	expect( await currentBranch( site.dir ) ).toBe( 'ticket/60002' );
 	expect( await branches( site.dir ) ).toEqual(
 		expect.arrayContaining( [ TRUNK, 'ticket/60001', 'ticket/60002' ] )
@@ -146,13 +148,13 @@ test( 'switching back to a ticket restores its work byte for byte', async ( { se
 	const { page } = await session.start( site.settings );
 
 	await linkTicket( page, '60001' );
-	write( site.dir, 'wp-login.php', MY_EDIT );
+	write( site.dir, LOGIN, MY_EDIT );
 	// A deletion too: an edit that comes back while a deletion does not is a
 	// partially restored tree, which is worse than an obvious failure.
-	remove( site.dir, 'doomed.php' );
+	remove( site.dir, DOOMED );
 
 	await linkTicket( page, '60002' );
-	expect( exists( site.dir, 'doomed.php' ) ).toBe( true );
+	expect( exists( site.dir, DOOMED ) ).toBe( true );
 
 	// Back to the first ticket, through the row the panel offers for it.
 	await page.getByRole( 'button', { name: 'switch', exact: true } ).click();
@@ -161,8 +163,8 @@ test( 'switching back to a ticket restores its work byte for byte', async ( { se
 		.toBe( 'ticket/60001' );
 
 	// INVARIANT — both halves of the work return: the edit and the deletion.
-	expect( read( site.dir, 'wp-login.php' ) ).toBe( MY_EDIT );
-	expect( exists( site.dir, 'doomed.php' ) ).toBe( false );
+	expect( read( site.dir, LOGIN ) ).toBe( MY_EDIT );
+	expect( exists( site.dir, DOOMED ) ).toBe( false );
 	expect( read( site.dir, SUBSTRATE ) ).toBe( SUBSTRATE_CONTENT );
 } );
 
@@ -172,7 +174,7 @@ test( "deleting a ticket's work removes only that ticket", async ( { session } )
 	const confirmsAnswered = await session.acceptConfirms();
 
 	await linkTicket( page, '60001' );
-	write( site.dir, 'wp-login.php', MY_EDIT );
+	write( site.dir, LOGIN, MY_EDIT );
 	await linkTicket( page, '60002' );
 
 	// Unlink first: the list of a site's tickets deliberately leaves out the one
