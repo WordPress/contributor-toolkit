@@ -1,8 +1,6 @@
 ## WordPress Contributor Toolkit (Electron)
 
-[![Unit tests](https://github.com/WordPress/contributor-toolkit/actions/workflows/unit-tests.yml/badge.svg?branch=trunk)](https://github.com/WordPress/contributor-toolkit/actions/workflows/unit-tests.yml)
-[![Latest release](https://img.shields.io/github/v/release/WordPress/contributor-toolkit)](https://github.com/WordPress/contributor-toolkit/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/WordPress/contributor-toolkit/total)](https://github.com/WordPress/contributor-toolkit/releases)
+[![Unit tests](https://github.com/WordPress/contributor-toolkit/actions/workflows/unit-tests.yml/badge.svg?branch=trunk)](https://github.com/WordPress/contributor-toolkit/actions/workflows/unit-tests.yml) [![Latest release](https://img.shields.io/github/v/release/WordPress/contributor-toolkit)](https://github.com/WordPress/contributor-toolkit/releases/latest) [![Downloads](https://img.shields.io/github/downloads/WordPress/contributor-toolkit/total)](https://github.com/WordPress/contributor-toolkit/releases)
 
 The [WordPress Contributor Toolkit](https://make.wordpress.org/core/2026/04/16/wordpress-core-dev-environment-toolkit-a-faster-path-to-your-first-core-contribution/) is a desktop Electron application (macOS on Apple Silicon, Windows, and Linux) that takes a contributor from nothing to a working WordPress core development environment, lets them try the work that already exists on a Trac ticket, and lets them send their own change back — as a pull request, a Trac attachment, or a patch for a mentor. No Git, Node.js, npm or Docker on the host, and no push credential written to disk.
 
@@ -32,20 +30,13 @@ Each of these has a page in the user guide.
 
 ## Documentation
 
-**The user guide lives at <https://wordpress.github.io/contributor-toolkit/>** — installing
-the app, creating a site, working on a Trac ticket, applying patches and PRs, and submitting your
-changes as a pull request, a Trac attachment, or a patch for a mentor. What follows here is only
-what a contributor to *this repository* needs.
+**The user guide lives at <https://wordpress.github.io/contributor-toolkit/>** — installing the app, creating a site, working on a Trac ticket, applying patches and PRs, and submitting your changes as a pull request, a Trac attachment, or a patch for a mentor. What follows here is only what a contributor to *this repository* needs.
 
 ## Getting started
 
 ### Just using the app
 
-Download the latest packaged build from the
-[Releases page](https://github.com/WordPress/contributor-toolkit/releases/latest) and follow
-[Getting started](https://wordpress.github.io/contributor-toolkit/guide/getting-started) in
-the user guide — it covers picking the right file per platform, the macOS Gatekeeper notes, and
-the first-contribution walkthrough.
+Download the latest packaged build from the [Releases page](https://github.com/WordPress/contributor-toolkit/releases/latest) and follow [Getting started](https://wordpress.github.io/contributor-toolkit/guide/getting-started) in the user guide — it covers picking the right file per platform, the macOS Gatekeeper notes, and the first-contribution walkthrough.
 
 ### Build from source
 
@@ -76,9 +67,7 @@ Electron Builder picks these up via `build` configuration in `package.json`.
 
 ## Technical notes
 
-How the app works from a user's point of view — the toolchain it bundles, keeping a site up to
-date with trunk, what SQLite does and doesn't cover — is documented in the
-[user guide](https://wordpress.github.io/contributor-toolkit/), not here.
+How the app works from a user's point of view — the toolchain it bundles, keeping a site up to date with trunk, what SQLite does and doesn't cover — is documented in the [user guide](https://wordpress.github.io/contributor-toolkit/), not here.
 
 ### Why Electron?
 
@@ -95,17 +84,11 @@ date with trunk, what SQLite does and doesn't cover — is documented in the
 
 ### Download stats
 
-Release downloads are the only usage signal this project has, and GitHub keeps no history of
-them, so a weekly workflow records the counts to a `metrics` branch. See [STATS.md](STATS.md) for
-how to read them and what they do and don't measure.
+Release downloads are the only usage signal this project has, and GitHub keeps no history of them, so a weekly workflow records the counts to a `metrics` branch. See [STATS.md](STATS.md) for how to read them and what they do and don't measure.
 
 ### Contributing
 
-Much of the work here happens with the support of AI coding agents, and the quality bar is held by
-a set of guardrails rather than by trusting the agent. See [CONTRIBUTING.md](CONTRIBUTING.md) for
-what runs on every pull request (repo-wide lint, unit tests on macOS and Windows) and the single
-review standard to run yourself before opening one — as the `/self-review` skill in Claude Code, or
-by following the standard directly on any other agent.
+Much of the work here happens with the support of AI coding agents, and the quality bar is held by a set of guardrails rather than by trusting the agent. See [CONTRIBUTING.md](CONTRIBUTING.md) for what runs on every pull request (repo-wide lint, unit tests on macOS and Windows) and the single review standard to run yourself before opening one — as the `/self-review` skill in Claude Code, or by following the standard directly on any other agent.
 
 ### License
 
