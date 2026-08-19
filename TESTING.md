@@ -6,8 +6,8 @@ test belongs. [CONTRIBUTING.md](CONTRIBUTING.md) points here rather than repeati
 ## What to run
 
 ```
-npm test                    # the fast suite — 1,027 tests, under three seconds
-npm run test:e2e            # the app, driven — 8 tests, seconds
+npm test                    # the fast suite — layers 1–3, under three seconds
+npm run test:e2e            # the app, driven — layer 4, seconds
 npm run lint                # ESLint over the whole repo
 ```
 
@@ -34,29 +34,28 @@ They are listed cheapest first, and that ordering is the rule: **write a test at
 that can still see the failure.** What each layer is blind to is the part worth reading — it is what
 sends a test one layer up, or down.
 
-**1. Unit** — 63 files in `test/`. Starts nothing; calls plain functions. Pure logic: parsing a
-ticket reference, deriving a status, building a command line. Blind to anything touching disk, a
-process or a window.
+**1. Unit** — `test/`. Starts nothing; calls plain functions. Pure logic: parsing a ticket
+reference, deriving a status, building a command line. Blind to anything touching disk, a process
+or a window.
 
-**2. Integration** — 6 files, 89 tests, named `*.integration.test.cjs`. Runs the real modules
-against real Git repositories in a temporary directory. Proves Git does what the code assumes when
-it switches a branch, applies a patch or updates trunk. Blind to everything above the module
-boundary.
+**2. Integration** — the files named `*.integration.test.cjs`. Runs the real modules against real
+Git repositories in a temporary directory. Proves Git does what the code assumes when it switches a
+branch, applies a patch or updates trunk. Blind to everything above the module boundary.
 
-**3. IPC wiring** — one file, `test/ipc-wiring.test.cjs`, 151 tests. Loads the real `src/main.js`
-with `electron` replaced by a double, and exercises the ~58 handlers: what each returns, what it
-rejects, what error it gives. Blind to the window, and its store is a stand-in rather than the real
-one.
+**3. IPC wiring** — one file, `test/ipc-wiring.test.cjs`. Loads the real `src/main.js` with
+`electron` replaced by a double, and exercises every handler: what each returns, what it rejects,
+what error it gives. Blind to the window, and its store is a stand-in rather than the real one.
 
-**4. Journeys** — `e2e/journeys/`, 8 tests. Starts the whole app, built from the source tree, and
-drives it. Asks the only question the other three cannot: can a contributor do their work without
-losing it. Blind to anything about packaging.
+**4. Journeys** — `e2e/journeys/`. Starts the whole app, built from the source tree, and drives
+it. Asks the only question the other three cannot: can a contributor do their work without losing
+it. Blind to anything about packaging.
 
-**5. Packaged smoke** — `e2e/packaged/`, 4 tests. Starts the built artifact — the `.app` or `.exe`
+**5. Packaged smoke** — `e2e/packaged/`. Starts the built artifact — the `.app` or `.exe`
 a user downloads — and asks whether it is whole. Blind to behaviour: it never gets as far as a flow.
 
-Layers 1–3 are `npm test`. Layers 4 and 5 are the two `test:e2e` commands. That proportion, a
-thousand cheap tests to a dozen expensive ones, is the shape to keep.
+Layers 1–3 are `npm test`. Layers 4 and 5 are the two `test:e2e` commands. That proportion — a
+great many cheap tests to a handful of expensive ones, orders of magnitude apart in what each
+costs — is the shape to keep.
 
 ## Where to put a new test
 
@@ -230,6 +229,10 @@ Every matrix uses `fail-fast: false`, so a Windows failure never hides the macOS
   bug; a red characterisation is a prompt to read it and update it deliberately.
 - A bugfix's test must fail on the old code. A test written after the fix pins whatever the current
   behaviour is, rather than the correction.
+- No test counts in this document. A number here is wrong the moment somebody adds a test, and
+  nothing makes it go red — this file already carried a stale one. Say what a layer covers and
+  roughly what it costs; `npm test` prints the total, and it is the only place that can be trusted
+  to.
 
 The full review standard, including what counts as a test-shaped finding, is in
 [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md).
