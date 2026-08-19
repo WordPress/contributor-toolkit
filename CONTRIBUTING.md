@@ -12,7 +12,7 @@ expected to do before opening a PR.
 ## Checks that run on every pull request
 
 Three GitHub Actions workflows run on every PR, and also on push to `trunk` so the default branch
-carries a status a branch-protection rule can require. Neither needs secrets, and neither is
+carries a status a branch-protection rule can require. None needs a secret, and none is
 credential-gated — everything here is safe to run on a public repository.
 
 ### Lint — [`.github/workflows/lint.yml`](.github/workflows/lint.yml)
@@ -26,139 +26,21 @@ executes the PR's code** (this repo's `postinstall` would otherwise pull the Ele
 the linter does not need). If ESLint flags something mechanical, `npm run lint:fix` handles it;
 check what it rewrote before committing, since it too is repo-wide.
 
-### Unit tests — [`.github/workflows/unit-tests.yml`](.github/workflows/unit-tests.yml)
+### Tests — [`unit-tests.yml`](.github/workflows/unit-tests.yml) and [`e2e.yml`](.github/workflows/e2e.yml)
 
-The unit suite runs on the **two platforms the app ships to — macOS and Windows** — and on each
-platform it runs **twice**:
+Everything runs on the **two platforms the app ships to, macOS and Windows**:
 
-- `npm test` — on the system Node pinned in `.nvmrc`.
-- `npm run test:electron` — on the Node that Electron bundles.
+- **The fast suite** (`npm test`) — and on each platform it runs **twice**, once on the system Node
+  pinned in `.nvmrc` and once on the Node that Electron bundles. That second pass is not redundant:
+  child processes in this app run on Electron's own Node, and the two versions are set independently
+  and have drifted before (#37/#46).
+- **The end-to-end suites** (`npm run test:e2e`, and the packaged one) — on every pull request that
+  is not a draft, as two jobs, because one takes seconds and the other packages the app first.
 
-That second pass is not redundant. Child processes in this app run on Electron's own Node, not the
-system Node, and the two versions are set independently and have drifted before (#37/#46). Running
-both is how a drift gets caught before it ships. The matrix uses `fail-fast: false`, so a Windows
-failure never hides the macOS result — you always see both.
+Every matrix uses `fail-fast: false`, so a Windows failure never hides the macOS result.
 
-### End-to-end tests — [`.github/workflows/e2e.yml`](.github/workflows/e2e.yml)
-
-Two suites, both launching a real app on macOS and Windows for every pull request that is not a
-draft. They answer different questions, so they are separate jobs and separate commands.
-
-- `npm run test:e2e` — **the journeys**. Drives the app built from the source tree through the flows
-  a contributor performs by hand: linking a ticket, applying and reverting a patch, moving between
-  ticket branches. Each test gets its own throwaway application-data directory and its own Git
-  fixture, so nothing it does can reach the sites you actually work on — and the harness refuses to
-  start at all if it ever finds the app using a different profile. Nothing here touches the network.
-  Seconds to run.
-- `npm run test:e2e:packaged` — **the packaged smoke test**. Launches an unsigned
-  `electron-builder --dir` build and asks only whether packaging worked: it boots, the whole preload
-  bridge is exposed, and the modules that exist only if packaging succeeded do resolve. Build it
-  first, or the test will tell you to:
-
-  ```
-  npm run build:once && CSC_IDENTITY_AUTO_DISCOVERY=false npm run pack:dir
-  ```
-
-  That environment variable is mandatory on macOS — electron-builder signs during `--dir` without
-  it — and harmless everywhere else.
-
-Neither downloads a browser. The only thing they launch is the Electron already in the tree, so
-there is no `playwright install` step anywhere.
-
-When one fails, the run keeps the trace, and the journeys additionally attach the screen and the
-state the app had persisted at the moment it failed — the interesting half of a failure in this app
-is usually on disk rather than on screen. Locally, `npx playwright show-trace test-results/<the
-failing test>/trace.zip` replays it.
-
-`npm test` does not pick these up and never will: the unit runner only collects `test/`, and these
-live in `e2e/`. Keeping them out of `npm test` is deliberate — they need a built renderer and cost
-seconds each, and the unit suite has to stay something you run without thinking about it.
-
-## The test suite: five layers, and where a new test belongs
-
-The sections above say what CI runs. This one says what the suite *is*, because "add a test" is not
-a single instruction here — there are five places a test can go, and putting one in the wrong place
-is how a suite gets slow without getting better.
-
-They are listed cheapest first. That ordering is also the rule: **write a test at the highest layer
-that can still see the failure.** What each layer cannot see is the part worth reading — it is what
-sends a test one layer down, or up.
-
-**1. Unit** — 63 files. Starts nothing; calls plain functions. Pure logic: parsing a ticket
-reference, deriving a status, building a command line. Blind to anything touching disk, a process
-or a window.
-
-**2. Integration** — 6 files, 89 tests. Runs the real modules against real Git repositories in a
-temporary directory. Proves Git does what the code assumes when it switches a branch, applies a
-patch or updates trunk. Blind to everything above the module boundary.
-
-**3. IPC wiring** — one file, 151 tests. Loads the real `src/main.js` with `electron` replaced by
-a double, and exercises the ~58 handlers: what each returns, what it rejects, what error it gives.
-Blind to the window, and its store is a stand-in rather than the real one.
-
-**4. Journeys** — 8 tests. Starts the whole app, built from the source tree, and drives it. Asks
-the only question the other three cannot: can a contributor do their work without losing it. Blind
-to anything about packaging.
-
-**5. Packaged smoke** — 4 tests. Starts the built artifact, the `.app` or `.exe` a user downloads,
-and asks whether it is whole. Blind to behaviour: it never gets as far as a flow.
-
-Layers 1–3 are `npm test`: 1,027 tests in under three seconds, and nothing leaves the machine — the
-one suite that needs a Git remote serves it from a loopback server it starts itself. Layers 4 and 5
-are the two `test:e2e` commands. That proportion, a thousand cheap tests to a dozen expensive ones,
-is the shape to keep.
-
-### Why layers 4 and 5 are separate, and why both exist
-
-They test **the same source code in two different containers**, and each container has failures the
-other cannot have.
-
-Layer 4 runs the code the way `npm start` does: `src/main.js` on disk, `node_modules` beside it.
-Layer 5 runs the artifact `electron-builder` produces, where all of `src/` and every production
-dependency is compressed into a single `app.asar`, and native modules are pulled back out beside it
-because the operating system cannot load a binary from inside an archive. A path that resolves from
-a directory may not resolve from inside that archive; a native binary can be selected for the wrong
-runtime while `npm ci` and the packaging both exit 0 and the app still starts. Those failures do not
-exist in the source tree, because there is nothing packaged to get wrong.
-
-So layer 5 asks only whether the container is intact — it boots, the whole preload bridge is there,
-the modules that only resolve if packaging worked do resolve — and **writes no state at all**.
-
-That last part is not minimalism, it is a constraint. The app only honours a redirected
-application-data directory in development builds (`!app.isPackaged` in `src/main.js`); the packaged
-app always writes to the real site registry of whoever runs it. So a test that drives a *flow* —
-linking tickets, creating branches, applying patches — cannot run against the artifact without
-writing to somebody's actual sites. Layer 4 exists in the shape it does for that reason as much as
-for speed.
-
-**The gap this leaves**, stated plainly: a flow that behaves differently *because* of packaging
-would be caught by neither layer. Layer 5 covers it only indirectly — if the container is intact,
-the code inside it is the same code. Closing it properly would mean letting the packaged app accept
-a redirected data directory under a test-only condition, which is a seam in shipped software and is
-not worth opening until a failure of that shape actually escapes.
-
-### Where to put a new test
-
-- **A pure function, a derived string, a decision with branches** → layer 1. If it lives inside
-  `src/renderer/index.jsx` today, move it to a `src/renderer/*.cjs` module first: that component
-  mounts at module scope and nothing in the suite can load it, so a decision made there is
-  untestable by construction.
-- **Anything that asks Git a question** → layer 2, against a real repository. There is a local Git
-  server fixture in `test/trunk-update-fetch.integration.test.cjs` for the cases that need a remote,
-  because `isomorphic-git` has no `file://` transport.
-- **A new IPC handler** → layer 3, plus the `contextBridge` entry, which layer 5 checks is actually
-  exposed.
-- **A flow that spans the interface, the main process, Git and the store at once** → layer 4. Keep
-  this layer small on purpose: every test costs an app launch, and any assertion that does not need
-  a window belongs one layer down.
-- **Something that can only break during packaging** → layer 5.
-
-The failures worth layer 4 are the ones that fall *between* the other layers, where every piece
-works and the whole does not. One example, found while writing the first journeys: the integration
-tests prove branch switching restores work correctly, and the wiring tests prove the delete handler
-returns the checkout to trunk when the deleted branch was the current one — but the interface leaves
-the currently linked ticket out of the list it offers delete controls for, so that branch of the
-handler cannot be reached by a contributor at all. Three layers passing, one path dead.
+**[TESTING.md](TESTING.md) is the full picture** — what to run locally, the five layers the suite is
+made of, where a new test belongs, and how to read a failure. Read it before adding a test.
 
 ## The review standard, and who reads it
 
