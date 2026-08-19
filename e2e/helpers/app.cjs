@@ -65,6 +65,13 @@ function samePath( a, b ) {
 const EMPTY_SETTINGS = Object.freeze( { sites: [], siteMeta: {}, preferences: {} } );
 
 /**
+ * Where to record each journey, so a person can watch what the test did:
+ * `E2E_VIDEO=/tmp/e2e-video npm run test:e2e`. Unset, nothing is recorded and
+ * the launch is exactly what it would otherwise be.
+ */
+const VIDEO_DIR = process.env.E2E_VIDEO || '';
+
+/**
  * A session of the app under test: one throwaway profile, one app at a time.
  *
  * Split into `new Session()` and `start()` on purpose. A spec usually has to build
@@ -79,6 +86,7 @@ class Session {
 		this.app = null;
 		this.page = null;
 		this.scratch = [];
+		this.videos = [];
 	}
 
 	/**
@@ -132,6 +140,11 @@ class Session {
 			// harness use.
 			executablePath: require( 'electron' ),
 			args: [ ...ELECTRON_SWITCHES, REPO_ROOT ],
+			// Watching a run is only ever a question of recording it. `_electron.launch`
+			// takes `recordVideo` but not `slowMo`, and Playwright drops launch options it
+			// does not recognise without a word — so a `slowMo` added here would leave the
+			// tests passing at full speed and look like it had worked.
+			...( VIDEO_DIR ? { recordVideo: { dir: VIDEO_DIR } } : {} ),
 			env: {
 				...process.env,
 				TZ: 'UTC',
@@ -142,6 +155,10 @@ class Session {
 			},
 		} );
 		this.page = await this.app.firstWindow();
+		if ( VIDEO_DIR ) {
+			const video = this.page.video();
+			if ( video ) this.videos.push( video );
+		}
 
 		// Belt and braces over the env var above. If the redirect hook ever stops
 		// firing — it is guarded by `!app.isPackaged` — every journey would start
@@ -245,6 +262,50 @@ class Session {
 		if ( proc && proc.exitCode === null ) proc.kill();
 	}
 
+	/**
+	 * Saves each recording under a name that says which test it came from, and
+	 * clears away everything else the recorder left behind.
+	 *
+	 * Playwright names a recording after the page that produced it — an opaque
+	 * hash — and writes one for every window the run opened, most of which are
+	 * empty or a fraction of a second long. A directory of twenty files called
+	 * `page@24b3324…webm`, three of which are worth opening, is not something to
+	 * hand a contributor and call a feature.
+	 *
+	 * Call after `close()`: the recording is only finished once the app is gone.
+	 *
+	 * @param {string} name Slug for the test, used as the file name.
+	 * @return {Promise<string[]>} The paths written.
+	 */
+	async saveVideos( name ) {
+		if ( ! VIDEO_DIR || ! this.videos.length ) return [];
+
+		const written = [];
+		for ( const [ i, video ] of this.videos.entries() ) {
+			// One per launch: a journey that closes and reopens the app to prove
+			// something persisted has two, and both are worth keeping.
+			const suffix = this.videos.length > 1 ? `-${ i + 1 }` : '';
+			const file = path.join( VIDEO_DIR, `${ name }${ suffix }.webm` );
+			try {
+				await video.saveAs( file );
+				written.push( file );
+			} catch {
+				// A window that closed before a single frame was captured has
+				// nothing to save. Not worth failing a passing test over.
+			}
+		}
+		this.videos = [];
+
+		// Whatever the recorder wrote under its own names is now duplicated under
+		// the names above, or was empty to begin with.
+		for ( const left of fs.readdirSync( VIDEO_DIR ) ) {
+			if ( left.startsWith( 'page@' ) && left.endsWith( '.webm' ) ) {
+				fs.rmSync( path.join( VIDEO_DIR, left ), { force: true } );
+			}
+		}
+		return written;
+	}
+
 	dispose() {
 		for ( const dir of this.scratch.splice( 0 ) ) {
 			fs.rmSync( dir, { recursive: true, force: true } );
@@ -275,6 +336,7 @@ const test = base.extend( {
 		}
 
 		await session.close();
+		await session.saveVideos( testInfo.title.replace( /[^a-z0-9]+/gi, '-' ).toLowerCase() );
 		session.dispose();
 	},
 } );
