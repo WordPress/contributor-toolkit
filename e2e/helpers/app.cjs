@@ -308,9 +308,34 @@ class Session {
 
 	dispose() {
 		for ( const dir of this.scratch.splice( 0 ) ) {
-			fs.rmSync( dir, { recursive: true, force: true } );
+			discard( dir );
 		}
-		fs.rmSync( this.userDataDir, { recursive: true, force: true } );
+		discard( this.userDataDir );
+	}
+}
+
+/**
+ * Removes a directory the app was using, without ever failing a passing test.
+ *
+ * `force: true` covers a directory that is already gone; it does nothing for one
+ * that is still being written to, which is what a just-closed app does to its
+ * profile — the process is gone, its last flush is not. That surfaces as
+ * `ENOTEMPTY` from `rmSync`, in teardown, on a test that passed. It appeared on
+ * a macOS CI runner and never once locally, which is the worst way to find out.
+ *
+ * `maxRetries` is the documented answer: Node retries `ENOTEMPTY`, `EBUSY` and
+ * `EPERM` on a backoff. The `catch` behind it is deliberate all the same. These
+ * live under the system temp directory, the operating system reaps them, and a
+ * suite that goes red because it could not tidy up is reporting on itself rather
+ * than on the app.
+ *
+ * @param {string} dir
+ */
+function discard( dir ) {
+	try {
+		fs.rmSync( dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 } );
+	} catch {
+		// Left for the operating system.
 	}
 }
 
