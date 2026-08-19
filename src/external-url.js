@@ -65,7 +65,7 @@ function describeRefusedUrl(url) {
 // The `url:open` handler's body, kept out of main.js so both sides of the guard
 // can be tested without an Electron process: `openExternal` is the real
 // `shell.openExternal` in the app and a recording stub in the tests.
-async function openExternalUrl(url, { openExternal, onRefused } = {}) {
+async function openExternalUrl(url, { openExternal, onRefused, onFailed } = {}) {
 	const target = normalizeExternalUrl(url);
 
 	if (target === null) {
@@ -73,7 +73,16 @@ async function openExternalUrl(url, { openExternal, onRefused } = {}) {
 		return false;
 	}
 
-	await openExternal(target);
+	// `openExternal` rejects when the OS has no application registered for the
+	// address. Every caller in the app fires this and forgets it, so a rejection
+	// left to propagate is a link that did nothing with nothing in the log.
+	try {
+		await openExternal(target);
+	} catch (error) {
+		if (typeof onFailed === 'function') onFailed(target, error);
+		return false;
+	}
+
 	return true;
 }
 
