@@ -112,7 +112,19 @@ function probeInMain( { app }, cloneUrl ) {
 		steps.push( { id: 'fetch', ok: fetched.status === 0, detail: fetched.stderr || 'ok' } );
 	}
 
-	nodeFs.rmSync( target, { recursive: true, force: true } );
+	// Deleting what Git wrote is its own question on Windows: Git marks loose
+	// objects read-only, and `rm -rf` with `force` does not clear that attribute.
+	// The app deletes site folders today (`sites:delete`), against repositories
+	// isomorphic-git made — which do not have the attribute set. So this is a
+	// finding, not teardown noise, and it must not mask the steps above.
+	let removal = 'ok';
+	try {
+		nodeFs.rmSync( target, { recursive: true, force: true } );
+	} catch ( error ) {
+		removal = String( error && error.message );
+	}
+	steps.push( { id: 'remove', ok: removal === 'ok', detail: removal } );
+
 	return { appPath: app.getAppPath(), steps };
 }
 
