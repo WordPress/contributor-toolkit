@@ -76,7 +76,7 @@ Line breaks still mean something everywhere else, and none of this touches them:
 
 ## Commands
 
-See `package.json` scripts. To run a single test file (not exposed as a script): `node --test test/azure-sign.test.cjs`.
+See `package.json` scripts. To run a single test file (not exposed as a script): `node --test tests/unit/azure-sign.test.cjs`.
 
 **[TESTING.md](TESTING.md) is the canonical description of the suite** — the five layers it is made of, which one a new test belongs in, what each layer is blind to, and how to read a failure. Read it before adding or moving a test; do not restate it elsewhere.
 

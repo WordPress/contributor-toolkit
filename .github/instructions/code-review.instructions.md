@@ -123,7 +123,7 @@ macOS and Windows are the primary targets; Linux artifacts are published too. CI
 
 ## 5. Tests
 
-**A new feature or bugfix without a test is a finding.** Not a suggestion in a footer — a finding, with the same severity-and-scope labelling as everything else. The suite is `node --test` over `test/*.test.cjs`; new tests follow the patterns already there.
+**A new feature or bugfix without a test is a finding.** Not a suggestion in a footer — a finding, with the same severity-and-scope labelling as everything else. The suite is `node --test` over `tests/unit/*.test.cjs`; new tests follow the patterns already there.
 
 **A bugfix's test must reproduce the bug**: fail on the old code, pass on the new. A test written after the fix that never saw the bug proves far less — it pins the current behaviour, whatever that is, rather than the correction. When reviewing a bugfix, check whether the test would actually have caught it.
 
@@ -133,7 +133,7 @@ macOS and Windows are the primary targets; Linux artifacts are published too. CI
 - Asserting implementation details — exact log strings, call order of internals — instead of observable behaviour. These break on harmless refactors and survive real bugs.
 - Passing on only one of the two Node runtimes. CI runs the suite on `.nvmrc`'s Node *and* on Electron's bundled Node because the two are set independently and have drifted; a test (or the code under it) that assumes the newer of the two is broken on the other.
 
-**Platform-conditional code needs both branches tested — from one machine.** The house pattern is dependency injection, not skipping: `test/win-spawn-patch.test.cjs` exercises the Windows paths from macOS by injecting `platform`, lookup and env rather than reading `process.platform`. A new platform split tested with `it.skip` on the other OS is a coverage hole CI will never close, since the suite runs on both platforms but each skips the other's branch.
+**Platform-conditional code needs both branches tested — from one machine.** The house pattern is dependency injection, not skipping: `tests/unit/win-spawn-patch.test.cjs` exercises the Windows paths from macOS by injecting `platform`, lookup and env rather than reading `process.platform`. A new platform split tested with `it.skip` on the other OS is a coverage hole CI will never close, since the suite runs on both platforms but each skips the other's branch.
 
 **Renderer logic is tested through its module, so check it has one.** A PR that puts a branch inside `src/renderer/index.jsx` has written code the suite cannot reach — see the invariant in §1. The finding is the missing module, not the missing test.
 

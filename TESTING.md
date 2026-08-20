@@ -19,7 +19,7 @@ npm run test:electron       # the fast suite again, on the Node that Electron bu
 npm run test:e2e:packaged   # the built artifact — needs a build first, see below
 ```
 
-To run one file: `node --test test/azure-sign.test.cjs`. To run one journey: `npx playwright test --project=journeys -g "switching back"`. A journey opens and closes the app as it goes; there is no headless mode and nothing to turn off. To advance a journey a step at a time instead of letting it run, see [Stepping through a journey by hand](#stepping-through-a-journey-by-hand).
+To run one file: `node --test tests/unit/azure-sign.test.cjs`. To run one journey: `npx playwright test --project=journeys -g "switching back"`. A journey opens and closes the app as it goes; there is no headless mode and nothing to turn off. To advance a journey a step at a time instead of letting it run, see [Stepping through a journey by hand](#stepping-through-a-journey-by-hand).
 
 ## The five layers
 
@@ -27,22 +27,22 @@ To run one file: `node --test test/azure-sign.test.cjs`. To run one journey: `np
 
 They are listed cheapest first, and that ordering is the rule: **write a test at the highest layer that can still see the failure.** What each layer is blind to is the part worth reading — it is what sends a test one layer up, or down.
 
-**1. Unit** — `test/`. Starts nothing; calls plain functions. Pure logic: parsing a ticket reference, deriving a status, building a command line. Blind to anything touching disk, a process or a window.
+**1. Unit** — `tests/unit/`. Starts nothing; calls plain functions. Pure logic: parsing a ticket reference, deriving a status, building a command line. Blind to anything touching disk, a process or a window.
 
 **2. Integration** — the files named `*.integration.test.cjs`. Runs the real modules against real Git repositories in a temporary directory. Proves Git does what the code assumes when it switches a branch, applies a patch or updates trunk. Blind to everything above the module boundary.
 
-**3. IPC wiring** — one file, `test/ipc-wiring.test.cjs`. Loads the real `src/main.js` with `electron` replaced by a double, and exercises every handler: what each returns, what it rejects, what error it gives. Blind to the window, and its store is a stand-in rather than the real one.
+**3. IPC wiring** — one file, `tests/unit/ipc-wiring.test.cjs`. Loads the real `src/main.js` with `electron` replaced by a double, and exercises every handler: what each returns, what it rejects, what error it gives. Blind to the window, and its store is a stand-in rather than the real one.
 
-**4. Journeys** — `e2e/journeys/`. Starts the whole app, built from the source tree, and drives it. Asks the only question the other three cannot: can a contributor do their work without losing it. Blind to anything about packaging.
+**4. Journeys** — `tests/e2e/journeys/`. Starts the whole app, built from the source tree, and drives it. Asks the only question the other three cannot: can a contributor do their work without losing it. Blind to anything about packaging.
 
-**5. Packaged smoke** — `e2e/packaged/`. Starts the built artifact — the `.app` or `.exe` a user downloads — and asks whether it is whole. Blind to behaviour: it never gets as far as a flow.
+**5. Packaged smoke** — `tests/e2e/packaged/`. Starts the built artifact — the `.app` or `.exe` a user downloads — and asks whether it is whole. Blind to behaviour: it never gets as far as a flow.
 
 Layers 1–3 are `npm test`. Layers 4 and 5 are the two `test:e2e` commands. That proportion — a great many cheap tests to a handful of expensive ones, orders of magnitude apart in what each costs — is the shape to keep.
 
 ## Where to put a new test
 
 - **A pure function, a derived string, a decision with branches** → layer 1. If it lives inside `src/renderer/index.jsx` today, move it to a `src/renderer/*.cjs` module first: that component mounts at module scope and nothing in the suite can load it, so a decision made there is untestable by construction.
-- **Anything that asks Git a question** → layer 2, against a real repository. There is a local Git server fixture in `test/trunk-update-fetch.integration.test.cjs` for cases that need a remote, because `isomorphic-git` has no `file://` transport.
+- **Anything that asks Git a question** → layer 2, against a real repository. There is a local Git server fixture in `tests/unit/trunk-update-fetch.integration.test.cjs` for cases that need a remote, because `isomorphic-git` has no `file://` transport.
 - **A new IPC handler** → layer 3, plus the `contextBridge` entry in `src/preload.js`, which layer 5 checks is actually exposed.
 - **A flow that spans the interface, the main process, Git and the store at once** → layer 4.
 - **Something that can only break during packaging** → layer 5.
@@ -85,12 +85,12 @@ A test that asserts nothing passes. For a suite whose entire content is tests, t
 **The way to audit a journey is to break what it claims and confirm it goes red.** One assertion at a time. Worked example — "switching back to a ticket restores its work byte for byte" says the contributor's edit comes back, so make that false and see whether the test notices:
 
 ```
-# in e2e/journeys/ticket-branches.spec.js, find the line asserting the edit came
+# in tests/e2e/journeys/ticket-branches.spec.js, find the line asserting the edit came
 # back — it ends `.toBe( MY_EDIT );` — and swap MY_EDIT for any other string:
 #     .toBe( 'anything else' );
 
 npx playwright test --project=journeys -g "switching back"   # must FAIL, on that line
-git checkout e2e/journeys/ticket-branches.spec.js            # put it back
+git checkout tests/e2e/journeys/ticket-branches.spec.js      # put it back
 ```
 
 If it stays green, the assertion is not reaching what it says it is, and the test is decoration. Every invariant in these journeys was checked this way before its pull request was opened; each is worth rechecking after a change to the code beneath it.
@@ -170,7 +170,7 @@ Every matrix uses `fail-fast: false`, so a Windows failure never hides the macOS
 
 ## Conventions
 
-- `npm test` collects `test/` only, and never picks up `e2e/`. That is deliberate: end-to-end tests need a built renderer and cost seconds each, and the fast suite has to stay something you run without thinking.
+- **`npm test` is separated from the end-to-end suite by filename, not by directory.** `node --test` is run with no path at all, so it walks the whole repository and collects by name: `*.test.cjs` and four other shapes Node treats as test files — `*-test.cjs`, `*_test.cjs`, `test-*.cjs`, `test.cjs`. The journeys are `*.spec.js`, which matches none of them. Now that both suites live under `tests/`, that naming is the only thing keeping them apart, and a file under `tests/e2e/` named any of the five would silently join the fast suite and cost it an app launch. **End-to-end files are `.spec.js`.** The separation is worth defending: the fast suite has to stay something you run without thinking.
 - End-to-end selectors read the text and roles already on screen. No `data-testid` — the visible copy is the contract, and renaming a button is a change worth noticing.
 - Journeys mark each assertion as an **invariant** (must hold under any model of how work is stored) or a **characterisation** (true because of how the app stores things today). A red invariant is a bug; a red characterisation is a prompt to read it and update it deliberately.
 - A bugfix's test must fail on the old code. A test written after the fix pins whatever the current behaviour is, rather than the correction.
