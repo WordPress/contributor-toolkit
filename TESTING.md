@@ -19,7 +19,7 @@ npm run test:electron       # the fast suite again, on the Node that Electron bu
 npm run test:e2e:packaged   # the built artifact — needs a build first, see below
 ```
 
-To run one file: `node --test test/azure-sign.test.cjs`. To run one journey: `npx playwright test --project=journeys -g "switching back"`. A journey opens and closes the app as it goes; there is no headless mode and nothing to turn off.
+To run one file: `node --test test/azure-sign.test.cjs`. To run one journey: `npx playwright test --project=journeys -g "switching back"`. A journey opens and closes the app as it goes; there is no headless mode and nothing to turn off. To advance a journey a step at a time instead of letting it run, see [Stepping through a journey by hand](#stepping-through-a-journey-by-hand).
 
 ## The five layers
 
@@ -111,9 +111,38 @@ open /tmp/e2e-video/switching-back-to-a-ticket-restores-its-work-byte-for-byte.w
 
 One `.webm` per test, named after it; a test that closes and reopens the app records both launches as `-1` and `-2`. They run about a second and a half at 25 frames per second, so step through them rather than pressing play.
 
-`PWDEBUG=1` pauses before each action instead, and lets you advance the run yourself. It opens the Playwright Inspector, which is a browser window, so it needs `npx playwright install chromium` once — the only browser this repository ever wants, and nothing else here uses it. Without it the run pauses with no window to drive it from, which reads as a hang. The Inspector knows Playwright's actions and not the filesystem steps between them, so it has the same blind spot as the recording.
+To drive a run yourself rather than watch a recording of one, see [Stepping through a journey by hand](#stepping-through-a-journey-by-hand), below.
 
 </details>
+
+## Stepping through a journey by hand
+
+To advance a journey one action at a time, driving each step yourself:
+
+```
+npx playwright test --project=journeys -g "switching back" --debug
+```
+
+That opens the Playwright Inspector and pauses before the first action. `--debug` is a shorthand for `--headed --timeout=0 --workers=1 --max-failures=1` with `PWDEBUG=1` set, and **`--headed` is the load-bearing part here**: without it the Inspector never attaches to an Electron test and the run finishes at full speed, unpaused. `PWDEBUG=1` on its own — the incantation the Playwright documentation gives, and the one this file used to give — does nothing at all to a journey. Checked against Playwright 1.62.1 by running it both ways.
+
+To stop somewhere other than the first action, put a pause in the spec at the point you care about and run headed:
+
+```
+# in the spec:
+await page.pause();
+
+npx playwright test --project=journeys -g "switching back" --headed --timeout=0
+```
+
+Everything before the pause runs at full speed. `--headed` is required for the same reason as above, and `--timeout=0` because `playwright.config.js` sets a 60 second `timeout` that would otherwise end the session while you are reading it.
+
+Three things worth knowing before you do either:
+
+- **Name a single test.** With no `-g` you are hand-stepping every journey in the project, one after another.
+- **The Inspector is a browser window**, so it needs `npx playwright install chromium` once — the only browser this repository ever wants, and nothing else here uses it. Without it the run pauses with nothing to drive it from, which reads as a hang.
+- **The app window is real and yours to poke**, which cuts both ways: a click you make is a click the remaining assertions did not expect. Once you have driven it by hand, end the run rather than reading anything into what it does next.
+
+The Inspector has the same blind spot as a recording, and it is the one from the audit above: it knows Playwright's actions and nothing about the filesystem steps between them. A journey that edits a file, deletes another and reads the working tree back steps straight past all of it. Read the spec alongside.
 
 ## Reading a failure
 
