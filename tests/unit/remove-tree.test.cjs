@@ -22,9 +22,9 @@ test('shouldClearAttributes: anything else would fail the same way twice', () =>
 
 /**
  * A tree shaped like the case #381 is about: a checkout whose `.git/objects`
- * a real Git protected. On Windows the read-only file is what blocks the
- * unlink; on POSIX it is the directory without its write bit. Both are staged
- * so the same test is the red one on either CI runner.
+ * a real Git protected. Both protections are staged — the read-only file that
+ * matters on Windows and the write-bit-less directory that matters on POSIX —
+ * so the module is exercised end to end on either CI runner.
  *
  * @param {Object} t The node:test context, for cleanup.
  * @return {string} The root of the staged tree.
@@ -50,10 +50,15 @@ function makeProtectedTree(t) {
 test('removeTree: deletes a tree a real Git protected', async (t) => {
 	const root = makeProtectedTree(t);
 
-	// The staging is real: the cheap removal this module wraps must fail on
-	// this tree, or the test proves nothing. (Windows refuses the read-only
-	// file; POSIX refuses to unlink inside the 0o555 directory.)
-	await assert.rejects(fs.promises.rm(root, { recursive: true, force: true }));
+	// The staging is real on POSIX: plain rm refuses to unlink inside the
+	// 0o555 directory, so this test is red without the attribute pass. Not on
+	// Windows — Node's rm chmods a read-only entry and retries by itself (CI
+	// proved it: this guard held a rejection that never came) — so there the
+	// tree only exercises the module end to end, and the failure this module
+	// answers on Windows is the held handle the retry budget covers.
+	if (process.platform !== 'win32') {
+		await assert.rejects(fs.promises.rm(root, { recursive: true, force: true }));
+	}
 
 	await removeTree(root);
 	assert.equal(fs.existsSync(root), false);

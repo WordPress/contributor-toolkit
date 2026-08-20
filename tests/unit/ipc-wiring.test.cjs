@@ -420,9 +420,10 @@ test('sites:delete removes a registered directory and refuses an unregistered on
 });
 
 // The tree a real Git leaves behind: a read-only loose object inside a
-// directory without its write bit. Plain removal fails on it — read-only file
-// on Windows, unwritable directory on POSIX — which is exactly the state that
-// used to strand a site's folder on disk while the registry forgot it (#381).
+// directory without its write bit. On POSIX plain removal fails on it — the
+// state that used to strand a site's folder on disk while the registry forgot
+// it (#381); on Windows Node's own rm clears the read-only entry, so this
+// runs the handler end to end rather than proving the old code wrong.
 test('sites:delete clears the read-only attributes a real Git leaves behind (#381)', async (t) => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-delete-ro-'));
 	t.after(() => {

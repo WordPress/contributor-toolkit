@@ -1,17 +1,20 @@
 // Removes a directory tree, including the parts Git protects.
 //
-// A real Git marks its loose object files read-only, and Windows refuses to
-// unlink a read-only file. `fs.rm` with `force: true` never clears the
-// attribute — `force` only forgives a path that is already gone — and its
-// `maxRetries` cannot help either, because a retry does not change the file.
-// fs-extra 11 is a bare `fs.rm(recursive, force)`, so it inherits the same
-// blind spot. On POSIX the analogue is a directory without the write bit,
-// which blocks unlinking its entries the same way.
+// A real Git marks its loose object files read-only, and what that does to a
+// removal differs by platform — with a different hole in each default. On
+// Windows, Node's own `fs.rm` chmods an entry it failed to delete and tries
+// again (inherited from rimraf when core absorbed it), so the read-only file
+// itself is survivable there; what has no answer is an entry something still
+// holds open, because `fse.remove` passes no retry budget at all. On POSIX
+// nothing clears a directory whose write bit is missing, so the same
+// protected checkout fails with EACCES and no recovery of any kind. The #364
+// spike hit EPERM on every packaged Windows run; the CI suite proves the
+// POSIX half.
 //
-// Today the app gets away with plain removal because isomorphic-git does not
-// set the attribute. Any real Git writing into a checkout plants it — a mentor
-// making a commit with their own tools does — and from then on `sites:delete`
-// leaves the tree behind on Windows (#381).
+// Today the app mostly gets away with plain removal because isomorphic-git
+// sets no attribute. Any real Git writing into a checkout changes that — a
+// mentor making a commit with their own tools does — and `sites:delete`
+// swallowed whatever went wrong besides (#381).
 //
 // The shape: try the cheap removal first, and only when it fails with a
 // permission error walk whatever survived, restore the write bit, and remove
