@@ -93,7 +93,7 @@ export default [
 	},
 
 	{
-		files: [ 'test/**/*.{js,cjs,mjs}' ],
+		files: [ 'tests/unit/**/*.{js,cjs,mjs}' ],
 		languageOptions: {
 			globals: { ...globals.node },
 		},
@@ -105,7 +105,7 @@ export default [
 		// resumes afterwards for teardown. The React hooks rule sees a bare `use(...)`
 		// and reads it as React's `use` hook called outside a component. There is no
 		// React in this directory at all; the app under test is a separate process.
-		files: [ 'e2e/**/*.{js,cjs,mjs}' ],
+		files: [ 'tests/e2e/**/*.{js,cjs,mjs}' ],
 		languageOptions: {
 			globals: { ...globals.node },
 		},

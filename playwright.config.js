@@ -15,7 +15,7 @@ const { defineConfig } = require('@playwright/test');
 // to be quick enough to run in a loop, and the packaging failures — asar layout,
 // native module rebuilds, bundled CLI resolution — do not reproduce from source.
 module.exports = defineConfig({
-	testDir: 'e2e',
+	testDir: 'tests/e2e',
 	// Launching Electron is not safe to parallelise: workers would race over the
 	// same packaged binary and, in the journeys, over the same fixture roots.
 	workers: 1,
@@ -32,11 +32,11 @@ module.exports = defineConfig({
 	projects: [
 		{
 			name: 'journeys',
-			testDir: 'e2e/journeys',
+			testDir: 'tests/e2e/journeys',
 		},
 		{
 			name: 'packaged',
-			testDir: 'e2e/packaged',
+			testDir: 'tests/e2e/packaged',
 			// Cold-starting a packaged app on a Windows runner is slow enough to
 			// trip the default on its own, before any assertion runs.
 			timeout: 120_000,

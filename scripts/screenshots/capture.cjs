@@ -24,8 +24,8 @@
 // is the Electron already in devDependencies. If #70 lands `@playwright/test`,
 // this can require the driver from there instead and the direct dependency goes.
 //
-// It lives under scripts/ rather than e2e/ because it is a CLI, not a test:
-// e2e/ is the Playwright `testDir`, and nothing here is run by `npm run test:e2e`.
+// It lives under scripts/ rather than tests/e2e/ because it is a CLI, not a test:
+// tests/e2e/ is the Playwright `testDir`, and nothing here is run by `npm run test:e2e`.
 
 const fs = require('fs');
 const os = require('os');
