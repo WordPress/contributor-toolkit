@@ -404,7 +404,7 @@ test('sites:delete removes a registered directory and refuses an unregistered on
 	// A path the app never registered: neither the directory nor the store may
 	// be touched, and the refusal is logged rather than dropped so a caller that
 	// trips the guard is visible in the file contributors attach to bug reports.
-	assert.equal(await main.invoke('sites:delete', unregistered), false);
+	assert.deepEqual(await main.invoke('sites:delete', unregistered), { ok: false, refused: true });
 	assert.equal(fs.existsSync(unregistered), true);
 	assert.deepEqual(settings.values.sites, [registered]);
 	assert.deepEqual(Object.keys(settings.values.siteMeta).sort(), [registered, unregistered].sort());
@@ -413,10 +413,80 @@ test('sites:delete removes a registered directory and refuses an unregistered on
 	assert.match(logEvent.calls[0][1], /refused to delete .*unregistered/);
 
 	// And the other branch, so the guard cannot be passed by refusing everything.
-	assert.equal(await main.invoke('sites:delete', registered), true);
+	assert.deepEqual(await main.invoke('sites:delete', registered), { ok: true });
 	assert.equal(fs.existsSync(registered), false);
 	assert.deepEqual(settings.values.sites, []);
 	assert.deepEqual(Object.keys(settings.values.siteMeta), [unregistered]);
+});
+
+// The tree a real Git leaves behind: a read-only loose object inside a
+// directory without its write bit. Plain removal fails on it — read-only file
+// on Windows, unwritable directory on POSIX — which is exactly the state that
+// used to strand a site's folder on disk while the registry forgot it (#381).
+test('sites:delete clears the read-only attributes a real Git leaves behind (#381)', async (t) => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-delete-ro-'));
+	t.after(() => {
+		try { fs.chmodSync(path.join(root, 'registered', '.git', 'objects', 'ab'), 0o777); } catch {}
+		fs.rmSync(root, { recursive: true, force: true });
+	});
+	const registered = path.join(root, 'registered');
+	const loose = path.join(registered, '.git', 'objects', 'ab');
+	fs.mkdirSync(loose, { recursive: true });
+	fs.writeFileSync(path.join(loose, 'cdef0123'), 'blob');
+	fs.chmodSync(path.join(loose, 'cdef0123'), 0o444);
+	fs.chmodSync(loose, 0o555);
+
+	const settings = fakeSettingsStore({ sites: [registered], siteMeta: { [registered]: {} } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.deepEqual(await main.invoke('sites:delete', registered), { ok: true });
+	assert.equal(fs.existsSync(registered), false, 'the protected tree must actually be gone');
+	assert.deepEqual(settings.values.sites, []);
+});
+
+// When the disk genuinely refuses, the handler must say so instead of
+// pretending: the registry half has already happened (deliberately — a locked
+// folder must not leave a site stuck undeletable), so the renderer gets
+// `{ ok: false, error }` naming the surviving path, and the log gets the
+// stack. The stage differs by platform because the ways a removal can still
+// fail differ: Windows refuses while a handle is open, POSIX refuses inside a
+// directory whose parent it cannot write.
+test('sites:delete reports a folder it could not remove instead of pretending (#381)', async (t) => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-delete-fail-'));
+	const registered = path.join(root, 'held');
+	fs.mkdirSync(registered, { recursive: true });
+	fs.writeFileSync(path.join(registered, 'pinned.txt'), 'x');
+
+	let release = () => {};
+	if (process.platform === 'win32') {
+		const fd = fs.openSync(path.join(registered, 'pinned.txt'), 'r');
+		release = () => fs.closeSync(fd);
+	} else {
+		fs.chmodSync(root, 0o555);
+		release = () => fs.chmodSync(root, 0o777);
+	}
+	t.after(() => {
+		release();
+		fs.rmSync(root, { recursive: true, force: true });
+	});
+
+	const logError = spy();
+	const settings = fakeSettingsStore({ sites: [registered], siteMeta: { [registered]: {} } });
+	const main = loadMain({
+		stubs: { './logging': { ...silentLogging()['./logging'], logError }, ...settings.stubs }
+	});
+
+	const result = await main.invoke('sites:delete', registered);
+	assert.equal(result.ok, false);
+	assert.equal(result.refused, undefined, 'a disk failure is not a guard refusal');
+	assert.match(result.error, /could not be deleted/);
+	assert.ok(result.error.includes(registered), 'the message names the surviving path');
+	assert.equal(fs.existsSync(registered), true, 'the folder really did survive');
+	// The forget half happened first, on purpose; the contract is honesty, not rollback.
+	assert.deepEqual(settings.values.sites, []);
+	assert.equal(logError.calls.length, 1);
+	assert.equal(logError.calls[0][0], 'sites');
+	assert.match(logError.calls[0][1], /still on disk/);
 });
 
 // --- site:status -> src/trunk-update.js ----------------------------------
@@ -3541,7 +3611,7 @@ test('deleting a site is refused while its clone is running, and the directory s
 		})
 	});
 
-	assert.equal(inside.deleted, false);
+	assert.deepEqual(inside.deleted, { ok: false, refused: true });
 	assert.equal(inside.stillThere, true);
 	assert.equal(fs.existsSync(path.join(root, 'demo')), true, 'the finished clone is still on disk');
 });

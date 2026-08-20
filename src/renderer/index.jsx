@@ -680,10 +680,18 @@ function App() {
   }, [setSiteMeta]);
 
   const onDelete = useCallback(async (sitePath) => {
-    await window.api.deleteSite(sitePath);
+    const result = await window.api.deleteSite(sitePath);
     await refresh();
     removeSetupLog(sitePath);
-  }, [refresh, removeSetupLog]);
+    // A deletion that half-happened must not look like one that worked: the
+    // registry entry is gone either way, but the folder can survive — a file
+    // held open, or the read-only attribute a real Git leaves on its object
+    // files (#381). The error tone stays until dismissed, and the message
+    // names the path so the contributor knows what is still on disk.
+    if (result && result.ok === false && result.error) {
+      confirm(result.error, { tone: 'error' });
+    }
+  }, [refresh, removeSetupLog, confirm]);
 
   const onRename = useCallback(async (sitePath, newLabel) => {
     try {

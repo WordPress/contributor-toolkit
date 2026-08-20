@@ -1,6 +1,6 @@
 // The gate in front of the recursive directory removal in `sites:delete`.
 //
-// `sites:delete` is handed a path and calls `fse.remove` on it — the least
+// `sites:delete` is handed a path and removes the tree at it — the least
 // recoverable action reachable from the window. The renderer is the only caller
 // and every call site passes a path the app itself registered, so nothing today
 // misuses it. But the renderer also displays content the app does not author:
@@ -67,7 +67,7 @@ function describeRefusedSite(sitePath) {
 
 // The `sites:delete` handler's body, kept out of main.js so both sides of the
 // guard can be tested without an Electron process. `forget` drops the path from
-// the store, `remove` is the real `fse.remove` in the app, and both are recording
+// the store, `remove` is the real tree removal in the app, and both are recording
 // stubs in the tests. A path that is not registered performs neither: no store
 // mutation and no removal, just a logged refusal.
 async function deleteRegisteredSite(sitePath, { sites, pending, forget, remove, onRefused } = {}) {
@@ -113,7 +113,7 @@ async function revealRegisteredSite(sitePath, { sites, pending, reveal, onRefuse
 }
 
 // The `wp-debug:clear` handler's body. Emptying a file is nowhere near as
-// severe as `fse.remove`, but the shape is the same one this module exists for:
+// severe as a tree removal, but the shape is the same one this module exists for:
 // the renderer names a path and the app then writes to a location derived from
 // it. A path outside the registry would have the app truncating a file in a
 // directory it never created.
