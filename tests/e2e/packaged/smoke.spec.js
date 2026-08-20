@@ -202,6 +202,19 @@ test( 'the preload bridge exposes every expected key', async () => {
 	expect( exposed ).toEqual( EXPECTED_API_KEYS );
 } );
 
+test( 'the packaged app excludes build-only signing material', async () => {
+	const signingFiles = await electronApp.evaluate( ( { app } ) => {
+		const nodeRequire = process.mainModule.require;
+		const appFs = nodeRequire( 'node:fs' );
+		const appPath = nodeRequire( 'node:path' );
+		const signingDirectory = appPath.join( app.getAppPath(), '.codesigning' );
+
+		return appFs.existsSync( signingDirectory ) ? appFs.readdirSync( signingDirectory ) : [];
+	} );
+
+	expect( signingFiles ).toEqual( [] );
+} );
+
 for ( const moduleName of REQUIRED_MODULES ) {
 	test( `the packaged app can resolve ${ moduleName }`, async () => {
 		const resolved = await electronApp.evaluate( ( { app }, name ) => {
