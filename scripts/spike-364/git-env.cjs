@@ -2,56 +2,58 @@
 /**
  * Spike #364 — resolving the bundled Git, in development and packaged.
  *
- * Throwaway. Nothing here is meant to land: it exists so the probes can find
- * the binary the same way `src/main.js` would have to, and so the environment
- * question is answered explicitly rather than inherited from the host.
+ * Throwaway. It delegates to dugite rather than joining paths by hand, which is
+ * a finding rather than a convenience: the layout differs per platform in three
+ * places at once. On Windows the binary is `git/cmd/git.exe` and not
+ * `git/bin/git`, the exec path is under `git/mingw64/libexec/git-core`, and
+ * `PATH` has to carry `mingw64/bin` and `mingw64/usr/bin` or the helpers Git
+ * shells out to are not found. A first pass at this spike hand-rolled the macOS
+ * layout, and every Windows check failed on that alone.
  */
 
 const fs = require( 'node:fs' );
 const path = require( 'node:path' );
+const dugite = require( 'dugite' );
 
 /**
- * dugite lands in node_modules, so in a packaged app its tree is inside
- * app.asar and cannot be executed from there. `asarUnpack` puts it in
- * app.asar.unpacked; this is the resolution that goes with it.
+ * dugite already rewrites `app.asar` to `app.asar.unpacked`, which is the
+ * resolution that goes with the `asarUnpack` rule this spike adds. Nothing here
+ * has to know about packaging.
  */
 function resolveGitRoot() {
-	const fromDugite = path.join( require.resolve( 'dugite' ), '..', '..', '..', 'git' );
-	const unpacked = fromDugite.replace( `app.asar${ path.sep }`, `app.asar.unpacked${ path.sep }` );
-	if ( fs.existsSync( path.join( unpacked, 'bin' ) ) ) return unpacked;
-	return fromDugite;
+	return dugite.resolveGitDir();
 }
 
-function gitBinary( root = resolveGitRoot() ) {
-	return path.join( root, 'bin', process.platform === 'win32' ? 'git.exe' : 'git' );
+function gitBinary() {
+	return dugite.setupEnvironment( {} ).gitLocation;
 }
 
 /**
  * Everything the bundled Git must be told, and nothing it should inherit.
  *
- * `--exec-path` resolves to `//libexec/git-core` when GIT_EXEC_PATH is unset,
- * so it is not optional. The rest is the second invariant of #350 read
- * forwards: a Git that picks up the host's global or system config is a Git
- * whose behaviour the app cannot predict.
+ * `setupEnvironment` covers the layout: GIT_EXEC_PATH (without which
+ * `--exec-path` reads `//libexec/git-core`), the Windows PATH prefix, the
+ * template dir, and dugite's own system gitconfig on macOS and Linux.
+ *
+ * The rest is #350's second invariant read forwards: a Git that picks up the
+ * host's global config, or asks a human for credentials, is a Git whose
+ * behaviour the app cannot predict. Every fetch this app makes is anonymous
+ * over public HTTPS, so there is nothing to authenticate and nothing to prompt
+ * for.
  */
-function gitEnv( root = resolveGitRoot(), extra = {} ) {
-	const env = {
-		...process.env,
-		GIT_EXEC_PATH: path.join( root, 'libexec', 'git-core' ),
-		GIT_TEMPLATE_DIR: path.join( root, 'share', 'git-core', 'templates' ),
+function gitEnv( extra = {} ) {
+	const { env } = dugite.setupEnvironment( {
+		// dugite's own system gitconfig `include`s the host's /etc/gitconfig, so
+		// without this the app would inherit whatever a mentor's machine sets.
 		GIT_CONFIG_NOSYSTEM: '1',
 		GIT_TERMINAL_PROMPT: '0',
 		GIT_ASKPASS: '',
-		// No interactive credential helper, ever: every fetch the app makes is
-		// anonymous over public HTTPS.
 		GIT_CONFIG_COUNT: '1',
 		GIT_CONFIG_KEY_0: 'credential.helper',
 		GIT_CONFIG_VALUE_0: '',
 		...extra,
-	};
-	const caBundle = path.join( root, 'etc', 'ssl', 'cert.pem' );
-	if ( fs.existsSync( caBundle ) ) env.GIT_SSL_CAINFO = caBundle;
+	} );
 	return env;
 }
 
-module.exports = { resolveGitRoot, gitBinary, gitEnv };
+module.exports = { resolveGitRoot, gitBinary, gitEnv, dugite, fs, path };

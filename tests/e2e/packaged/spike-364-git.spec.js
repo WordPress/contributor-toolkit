@@ -45,26 +45,50 @@ function probeInMain( { app }, cloneUrl ) {
 	const req = createRequire( nodePath.join( app.getAppPath(), 'package.json' ) );
 	const steps = [];
 
-	const fromDugite = nodePath.join( req.resolve( 'dugite' ), '..', '..', '..', 'git' );
-	const unpacked = fromDugite.replace( `app.asar${ nodePath.sep }`, `app.asar.unpacked${ nodePath.sep }` );
-	const root = nodeFs.existsSync( nodePath.join( unpacked, 'bin' ) ) ? unpacked : fromDugite;
-	steps.push( { id: 'resolve', ok: root.includes( 'app.asar.unpacked' ), detail: root } );
-
-	const bin = nodePath.join( root, 'bin', process.platform === 'win32' ? 'git.exe' : 'git' );
-	const env = {
-		...process.env,
-		GIT_EXEC_PATH: nodePath.join( root, 'libexec', 'git-core' ),
-		GIT_TEMPLATE_DIR: nodePath.join( root, 'share', 'git-core', 'templates' ),
+	// dugite resolves its own layout, including the app.asar -> app.asar.unpacked
+	// rewrite and the Windows `cmd/git.exe` + `mingw64` exec path. Joining those
+	// by hand is what a first pass did, and it failed on Windows for that reason
+	// alone rather than for anything to do with packaging.
+	const dugite = req( 'dugite' );
+	const { env, gitLocation } = dugite.setupEnvironment( {
 		GIT_CONFIG_NOSYSTEM: '1',
 		GIT_TERMINAL_PROMPT: '0',
-	};
+	} );
+
+	steps.push( {
+		id: 'resolve',
+		ok: gitLocation.includes( 'app.asar.unpacked' ) && nodeFs.existsSync( gitLocation ),
+		detail: `${ gitLocation } (exists: ${ nodeFs.existsSync( gitLocation ) })`,
+	} );
+
 	const run = ( args, cwd ) => {
-		const r = spawnSync( bin, args, { cwd, env, shell: false, windowsHide: true, encoding: 'utf8' } );
-		return { status: r.status, stdout: ( r.stdout || '' ).trim(), stderr: ( r.stderr || '' ).trim() };
+		const r = spawnSync( gitLocation, args, { cwd, env, shell: false, windowsHide: true, encoding: 'utf8' } );
+		return {
+			status: r.status,
+			stdout: ( r.stdout || '' ).trim(),
+			stderr: ( r.stderr || '' ).trim(),
+			error: r.error ? String( r.error.message ) : null,
+		};
 	};
 
 	const version = run( [ '--version' ], nodeOs.tmpdir() );
-	steps.push( { id: 'spawn', ok: version.status === 0, detail: version.stdout || version.stderr } );
+	steps.push( {
+		id: 'spawn',
+		ok: version.status === 0,
+		detail: version.stdout || version.stderr || version.error || '(no output)',
+	} );
+
+	// Every helper Git shells out to has to be present and, on Windows, findable
+	// through the PATH dugite prepends. A trimmed tree that dropped something
+	// load-bearing shows here rather than in the middle of a contributor's clone.
+	const helpers = run( [ '--exec-path' ], nodeOs.tmpdir() );
+	steps.push( {
+		id: 'exec-path',
+		ok: helpers.status === 0 && nodeFs.existsSync( helpers.stdout ),
+		detail: `${ helpers.stdout } (${ nodeFs.existsSync( helpers.stdout ) ? nodeFs.readdirSync( helpers.stdout ).length + ' entries' : 'missing' })`,
+	} );
+
+	if ( version.status !== 0 ) return { appPath: app.getAppPath(), steps };
 
 	// The clone the app performs, shape for shape. Nothing here points Git at a
 	// certificate bundle — if it needs one, this is where that shows.
@@ -75,7 +99,7 @@ function probeInMain( { app }, cloneUrl ) {
 	steps.push( {
 		id: 'clone',
 		ok: cloned.status === 0,
-		detail: `${ seconds }s — ${ ( cloned.stderr || cloned.stdout || 'ok' ).split( '\n' ).pop() }`,
+		detail: `${ seconds }s — ${ ( cloned.stderr || cloned.stdout || cloned.error || 'ok' ).split( '\n' ).pop() }`,
 	} );
 
 	if ( cloned.status === 0 ) {

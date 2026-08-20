@@ -49,7 +49,10 @@
       "!node_modules/dugite/git/libexec/git-core/git-credential-manager",
       "!node_modules/dugite/git/libexec/git-core/git-lfs",
       "!node_modules/dugite/git/libexec/git-core/createdump",
-      "!node_modules/dugite/git/libexec/git-core/{cs,de,es,fr,it,ja,ko,pl,pt-BR,ru,tr,zh-Hans,zh-Hant}{,/**/*}"
+      "!node_modules/dugite/git/libexec/git-core/{cs,de,es,fr,it,ja,ko,pl,pt-BR,ru,tr,zh-Hans,zh-Hant}{,/**/*}",
+      "!node_modules/dugite/git/{mingw64,clangarm64}/libexec/git-core/git-credential-manager*",
+      "!node_modules/dugite/git/{mingw64,clangarm64}/libexec/git-core/git-lfs.exe",
+      "!node_modules/dugite/git/{mingw64,clangarm64}/bin/git-lfs.exe"
     ],
     "asarUnpack": [
       "node_modules/dugite/git/**"

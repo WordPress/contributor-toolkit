@@ -23,8 +23,8 @@ const { resolveGitRoot, gitBinary, gitEnv } = require( './git-env.cjs' );
 const { applyPatchToDir } = require( '../../src/patch-apply.js' );
 
 const ROOT = resolveGitRoot();
-const BIN = gitBinary( ROOT );
-const ENV = gitEnv( ROOT );
+const BIN = gitBinary();
+const ENV = gitEnv();
 
 const REPO = 'WordPress/wordpress-develop';
 

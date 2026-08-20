@@ -23,8 +23,8 @@ const { resolveGitRoot, gitBinary, gitEnv } = require( '../../scripts/spike-364/
 const ticketBranches = require( '../../src/ticket-branches.js' );
 
 const ROOT = resolveGitRoot();
-const BIN = gitBinary( ROOT );
-const ENV = gitEnv( ROOT );
+const BIN = gitBinary();
+const ENV = gitEnv();
 const AUTHOR = { name: 'Spike', email: 'spike@example.com' };
 
 function run( args, cwd ) {
