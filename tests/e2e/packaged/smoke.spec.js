@@ -215,6 +215,31 @@ test( 'the packaged app excludes build-only signing material', async () => {
 	expect( signingFiles ).toEqual( [] );
 } );
 
+test( 'the packaged payload has no .codesigning directory outside app.asar', () => {
+	// The sibling test above reads through Electron's asar-aware fs, so it sees
+	// inside app.asar — and only there. This walk runs on plain Node fs, which is
+	// not asar-aware, so it checks the rest of the payload for the same directory:
+	// the unpacked asar directory, extra resources or files, and framework helpers.
+	const binary = findPackagedBinary();
+	const packagedRoot = process.platform === 'darwin'
+		? path.join( binary, '..', '..', '..' ) // Contents/MacOS/<binary> -> the .app bundle
+		: path.dirname( binary ); // win-unpacked/<exe> -> win-unpacked
+
+	const offenders = [];
+	const walk = ( dir ) => {
+		for ( const entry of fs.readdirSync( dir, { withFileTypes: true } ) ) {
+			if ( entry.name === '.codesigning' ) {
+				offenders.push( path.join( dir, entry.name ) );
+			} else if ( entry.isDirectory() ) {
+				walk( path.join( dir, entry.name ) );
+			}
+		}
+	};
+	walk( packagedRoot );
+
+	expect( offenders ).toEqual( [] );
+} );
+
 for ( const moduleName of REQUIRED_MODULES ) {
 	test( `the packaged app can resolve ${ moduleName }`, async () => {
 		const resolved = await electronApp.evaluate( ( { app }, name ) => {
