@@ -40,39 +40,53 @@ function shouldClearAttributes(error) {
 }
 
 /**
- * Restores the owner write bit on everything under `dir`, directories first so
- * the walk can enter them. Owner-only on purpose: `0o700`/`0o600` clears the
- * read-only attribute on Windows and unblocks POSIX unlinking just as well as
- * wider modes, without leaving a world-writable tree behind if the removal
- * still fails. Errors on individual entries are ignored: a path that cannot be
- * chmodded will fail the removal that follows, which is the honest place for
- * the failure to surface.
+ * Adds the owner write bit to `target` and, if it is a directory, to
+ * everything under it — the directory first, so the walk can enter it.
+ * Additive on purpose: this runs when a removal has already failed once, and
+ * it may fail again, so whatever survives has to keep the mode it came with.
+ * Assigning a fixed mode instead would strip an executable's exec bit and
+ * every group and other permission from a tree the caller is about to be told
+ * still exists. Errors on individual entries are ignored: a path that cannot
+ * be chmodded will fail the removal that follows, which is the honest place
+ * for the failure to surface.
  *
- * @param {string} dir
+ * @param {string} target
  * @param {Object} fs
  */
-async function makeWritable(dir, fs) {
-	// The chmod and the readdir fail independently: a directory whose mode
-	// cannot be changed may still be readable, and its children deserve the
-	// pass either way.
-	try { await fs.promises.chmod(dir, 0o700); } catch {}
-	let entries;
+async function makeWritable(target, fs) {
+	// One lstat answers all three questions: link or not, directory or not,
+	// and what mode to add to. `lstat`, not `stat`, so a link is recognised
+	// rather than resolved.
+	let stats;
 	try {
-		entries = await fs.promises.readdir(dir, { withFileTypes: true });
+		stats = await fs.promises.lstat(target);
 	} catch {
 		return;
 	}
-	for (const entry of entries) {
-		// chmod follows symlinks — there is no portable lchmod — so touching one
-		// would change its target's mode, possibly outside this tree. `rm` does
-		// not follow them when deleting, so they need no help anyway.
-		if (entry.isSymbolicLink()) continue;
-		const child = path.join(dir, entry.name);
-		if (entry.isDirectory()) {
-			await makeWritable(child, fs);
-		} else {
-			try { await fs.promises.chmod(child, 0o600); } catch {}
-		}
+	// chmod follows symlinks — there is no portable lchmod — so touching one
+	// would change its target's mode, possibly outside this tree. `rm` does not
+	// follow them when deleting, so they need no help anyway. The check sits at
+	// the top of the recursion, which is also the root: a registered site path
+	// can itself be a link, and the first `rm` can fail without unlinking it.
+	if (stats.isSymbolicLink()) return;
+	const isDirectory = stats.isDirectory();
+	// A directory needs owner rwx for the walk to enter it and for the removal
+	// to unlink inside it; a file only needs to stop being read-only.
+	// eslint-disable-next-line no-bitwise -- adding a permission to a POSIX mode is what `|` is for; the same idiom as pr-files.cjs.
+	const restored = stats.mode | (isDirectory ? 0o700 : 0o200);
+	// The chmod and the readdir fail independently: a directory whose mode
+	// cannot be changed may still be readable, and its children deserve the
+	// pass either way.
+	try { await fs.promises.chmod(target, restored); } catch {}
+	if (!isDirectory) return;
+	let entries;
+	try {
+		entries = await fs.promises.readdir(target);
+	} catch {
+		return;
+	}
+	for (const name of entries) {
+		await makeWritable(path.join(target, name), fs);
 	}
 }
 

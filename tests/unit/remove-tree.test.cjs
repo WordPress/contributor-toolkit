@@ -107,6 +107,78 @@ test('removeTree: the attribute pass does not follow a symlink out of the tree',
 	assert.equal(fs.statSync(script).mode & 0o777, 0o755, 'the symlink target must keep its mode');
 });
 
+/**
+ * An `fs` whose `rm` always refuses with EPERM, over the real `chmod`,
+ * `readdir` and `lstat`. The attribute pass then runs for real against a real
+ * tree while nothing is ever deleted — which is exactly the state a caller is
+ * told about when a removal half-fails, and the only state in which the modes
+ * the pass leaves behind are observable.
+ *
+ * @return {Object} The injectable fs.
+ */
+function refusingFs() {
+	return {
+		promises: {
+			rm: async () => { throw Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' }); },
+			chmod: fs.promises.chmod.bind(fs.promises),
+			readdir: fs.promises.readdir.bind(fs.promises),
+			lstat: fs.promises.lstat.bind(fs.promises)
+		}
+	};
+}
+
+// eslint-disable-next-line no-bitwise -- masking is how a POSIX mode is read; the same idiom as pr-files.cjs.
+const modeOf = (p) => fs.statSync(p).mode & 0o777;
+
+test('removeTree: the attribute pass adds the write bit without replacing the mode', { skip: process.platform === 'win32' && 'POSIX modes are not what Windows stores' }, async (t) => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'remove-tree-modes-'));
+	const locked = path.join(root, 'objects');
+	fs.mkdirSync(locked);
+	const script = path.join(locked, 'bin.sh');
+	const loose = path.join(locked, 'cdef0123');
+	fs.writeFileSync(script, '#!/bin/sh\n');
+	fs.writeFileSync(loose, 'blob');
+	fs.chmodSync(script, 0o755);
+	fs.chmodSync(loose, 0o444);
+	fs.chmodSync(locked, 0o555);
+	t.after(() => {
+		try { fs.chmodSync(locked, 0o777); } catch {}
+		try { fs.rmSync(root, { recursive: true, force: true }); } catch {}
+	});
+
+	// The removal never succeeds, so the tree survives the pass — the half
+	// deletion this module reports rather than hides.
+	await assert.rejects(removeTree(root, { fs: refusingFs() }));
+
+	assert.equal(modeOf(script), 0o755, 'an executable survivor must keep its exec bit');
+	assert.equal(modeOf(loose), 0o644, 'the read-only file gains owner write and keeps the rest');
+	assert.equal(modeOf(locked), 0o755, 'the directory gains owner rwx and keeps the rest');
+});
+
+test('removeTree: the attribute pass does not follow a symlink given as the root', { skip: process.platform === 'win32' && 'symlink creation needs privileges on Windows' }, async (t) => {
+	const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'remove-tree-root-target-'));
+	const inside = path.join(outside, 'private.txt');
+	fs.writeFileSync(inside, 'not yours');
+	fs.chmodSync(inside, 0o444);
+	fs.chmodSync(outside, 0o555);
+	const home = fs.mkdtempSync(path.join(os.tmpdir(), 'remove-tree-root-link-'));
+	t.after(() => {
+		try { fs.chmodSync(outside, 0o777); } catch {}
+		try { fs.rmSync(outside, { recursive: true, force: true }); } catch {}
+		try { fs.rmSync(home, { recursive: true, force: true }); } catch {}
+	});
+
+	// A registered site path that is itself a link. The removal refuses, so the
+	// attribute pass runs on the root — and the root is the one entry no
+	// per-child check ever sees.
+	const link = path.join(home, 'site');
+	fs.symlinkSync(outside, link);
+	await assert.rejects(removeTree(link, { fs: refusingFs() }));
+
+	assert.equal(modeOf(outside), 0o555, 'the link target must keep its mode');
+	assert.equal(modeOf(inside), 0o444, 'and so must everything inside it');
+});
+
 test('removeTree: a missing directory is not an error', async () => {
 	await removeTree(path.join(os.tmpdir(), 'remove-tree-never-existed-xyz'));
 });
@@ -117,7 +189,8 @@ test('removeTree: a failure that survives the attribute pass propagates', async 
 		promises: {
 			rm: async () => { throw stubborn; },
 			chmod: async () => {},
-			readdir: async () => []
+			readdir: async () => [],
+			lstat: async () => ({ isSymbolicLink: () => false, isDirectory: () => true, mode: 0o700 })
 		}
 	};
 	await assert.rejects(
@@ -133,7 +206,8 @@ test('removeTree: a non-permission failure is not retried', async () => {
 		promises: {
 			rm: async () => { attempts += 1; throw io; },
 			chmod: async () => { throw new Error('the attribute pass must not run'); },
-			readdir: async () => { throw new Error('the attribute pass must not run'); }
+			readdir: async () => { throw new Error('the attribute pass must not run'); },
+			lstat: async () => { throw new Error('the attribute pass must not run'); }
 		}
 	};
 	await assert.rejects(

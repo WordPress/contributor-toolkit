@@ -1961,8 +1961,10 @@ ipcMain.handle('sites:delete', async (_e, sitePath) => {
 			delete meta[sitePath];
 			s.set('siteMeta', meta);
 		},
-		// removeTree clears the read-only attribute a real Git leaves on its
-		// object files, which plain removal cannot delete on Windows (#381).
+		// removeTree handles what plain removal leaves unanswered on the
+		// protected object files a real Git writes: on POSIX, a directory whose
+		// write bit is missing, which nothing else clears; on Windows, an entry
+		// something still holds open, which only a retry budget survives (#381).
 		// A failure is recorded rather than swallowed: `forget` has already
 		// run — deliberately, so a locked directory cannot leave a site stuck
 		// undeletable — which means the one honest thing left to do when the
