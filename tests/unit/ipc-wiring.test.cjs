@@ -378,10 +378,10 @@ test('sites:delete asks site-registry whether the path may be removed', async ()
 	assert.equal(typeof options.onRefused, 'function');
 });
 
-// The end of the wire, with the real module and the real `fse.remove` in place,
+// The end of the wire, with the real module and the real removeTree in place,
 // on real directories: this is the assertion #145 is about. It fails if the
 // handler stops consulting site-registry, however it stops — deleted call,
-// renamed export, or a bare `fse.remove(sitePath)` added beside it.
+// renamed export, or a bare `removeTree(sitePath)` added beside it.
 test('sites:delete removes a registered directory and refuses an unregistered one', async (t) => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-delete-'));
 	t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -404,7 +404,7 @@ test('sites:delete removes a registered directory and refuses an unregistered on
 	// A path the app never registered: neither the directory nor the store may
 	// be touched, and the refusal is logged rather than dropped so a caller that
 	// trips the guard is visible in the file contributors attach to bug reports.
-	assert.equal(await main.invoke('sites:delete', unregistered), false);
+	assert.deepEqual(await main.invoke('sites:delete', unregistered), { ok: false, refused: true });
 	assert.equal(fs.existsSync(unregistered), true);
 	assert.deepEqual(settings.values.sites, [registered]);
 	assert.deepEqual(Object.keys(settings.values.siteMeta).sort(), [registered, unregistered].sort());
@@ -413,10 +413,75 @@ test('sites:delete removes a registered directory and refuses an unregistered on
 	assert.match(logEvent.calls[0][1], /refused to delete .*unregistered/);
 
 	// And the other branch, so the guard cannot be passed by refusing everything.
-	assert.equal(await main.invoke('sites:delete', registered), true);
+	assert.deepEqual(await main.invoke('sites:delete', registered), { ok: true });
 	assert.equal(fs.existsSync(registered), false);
 	assert.deepEqual(settings.values.sites, []);
 	assert.deepEqual(Object.keys(settings.values.siteMeta), [unregistered]);
+});
+
+// The tree a real Git leaves behind: a read-only loose object inside a
+// directory without its write bit. On POSIX plain removal fails on it — the
+// state that used to strand a site's folder on disk while the registry forgot
+// it (#381); on Windows Node's own rm clears the read-only entry, so this
+// runs the handler end to end rather than proving the old code wrong.
+test('sites:delete clears the read-only attributes a real Git leaves behind (#381)', async (t) => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-delete-ro-'));
+	t.after(() => {
+		try { fs.chmodSync(path.join(root, 'registered', '.git', 'objects', 'ab'), 0o777); } catch {}
+		fs.rmSync(root, { recursive: true, force: true });
+	});
+	const registered = path.join(root, 'registered');
+	const loose = path.join(registered, '.git', 'objects', 'ab');
+	fs.mkdirSync(loose, { recursive: true });
+	fs.writeFileSync(path.join(loose, 'cdef0123'), 'blob');
+	fs.chmodSync(path.join(loose, 'cdef0123'), 0o444);
+	fs.chmodSync(loose, 0o555);
+
+	const settings = fakeSettingsStore({ sites: [registered], siteMeta: { [registered]: {} } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.deepEqual(await main.invoke('sites:delete', registered), { ok: true });
+	assert.equal(fs.existsSync(registered), false, 'the protected tree must actually be gone');
+	assert.deepEqual(settings.values.sites, []);
+});
+
+// When the disk genuinely refuses, the handler must say so instead of
+// pretending: the registry half has already happened (deliberately — a locked
+// folder must not leave a site stuck undeletable), so the renderer gets a
+// machine-readable failure naming the surviving path, and the log gets the
+// stack. The refusal is staged by stubbing remove-tree rather than by locking
+// a real directory: the real ways a removal fails differ by platform (an open
+// handle on Windows does not even refuse the unlink — libuv opens with
+// FILE_SHARE_DELETE), and the real propagation is remove-tree.test.cjs's job.
+// This test pins the wire.
+test('sites:delete reports a folder it could not remove instead of pretending (#381)', async (t) => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-delete-fail-'));
+	t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+	const registered = path.join(root, 'held');
+	fs.mkdirSync(registered, { recursive: true });
+
+	const logError = spy();
+	const settings = fakeSettingsStore({ sites: [registered], siteMeta: { [registered]: {} } });
+	const main = loadMain({
+		stubs: {
+			'./logging': { ...silentLogging()['./logging'], logError },
+			'./remove-tree': {
+				removeTree: async () => {
+					throw Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' });
+				}
+			},
+			...settings.stubs
+		}
+	});
+
+	const result = await main.invoke('sites:delete', registered);
+	assert.deepEqual(result, { ok: false, reason: 'remove-failed', path: registered, code: 'EPERM' });
+	assert.equal(fs.existsSync(registered), true, 'the folder really did survive');
+	// The forget half happened first, on purpose; the contract is honesty, not rollback.
+	assert.deepEqual(settings.values.sites, []);
+	assert.equal(logError.calls.length, 1);
+	assert.equal(logError.calls[0][0], 'sites');
+	assert.match(logError.calls[0][1], /still on disk/);
 });
 
 // --- site:status -> src/trunk-update.js ----------------------------------
@@ -3541,7 +3606,7 @@ test('deleting a site is refused while its clone is running, and the directory s
 		})
 	});
 
-	assert.equal(inside.deleted, false);
+	assert.deepEqual(inside.deleted, { ok: false, refused: true });
 	assert.equal(inside.stillThere, true);
 	assert.equal(fs.existsSync(path.join(root, 'demo')), true, 'the finished clone is still on disk');
 });

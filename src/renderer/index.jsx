@@ -48,7 +48,7 @@ import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { highlightLog } from './log-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
 import { changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
-import { initialConfirmations, confirmationReducer, prConfirmationMessage } from './confirmations.cjs';
+import { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage } from './confirmations.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // One face for everything that is process output: the terminal below and every
@@ -680,10 +680,17 @@ function App() {
   }, [setSiteMeta]);
 
   const onDelete = useCallback(async (sitePath) => {
-    await window.api.deleteSite(sitePath);
+    const result = await window.api.deleteSite(sitePath);
     await refresh();
     removeSetupLog(sitePath);
-  }, [refresh, removeSetupLog]);
+    // A deletion that half-happened must not look like one that worked (#381).
+    // The sentence and the decision to show it live in confirmations.cjs,
+    // where the suite can reach them; the error tone stays until dismissed.
+    const failure = deleteFailureMessage(result);
+    if (failure) {
+      confirm(failure, { tone: 'error' });
+    }
+  }, [refresh, removeSetupLog, confirm]);
 
   const onRename = useCallback(async (sitePath, newLabel) => {
     try {
