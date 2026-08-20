@@ -23,7 +23,19 @@ To run one file: `node --test tests/unit/azure-sign.test.cjs`. To run one journe
 
 ## The five layers
 
-"Add a test" is not a single instruction here. There are five places a test can go, and putting one in the wrong place is how a suite gets slow without getting better.
+"Add a test" is not a single instruction here. There are five places a test can go, and putting one in the wrong place is how a suite gets slow without getting better. All five are under `tests/`:
+
+```
+tests/
+  unit/            layers 1-3 — npm test — under three seconds
+    fixtures/      package.json trees the integration tests copy; not tests themselves
+  e2e/
+    journeys/      layer 4 — npm run test:e2e
+    packaged/      layer 5 — npm run test:e2e:packaged, and it needs a build first
+    helpers/       the app session fixture and the Git site builder; not tests either
+```
+
+Two directories, because the split that matters is what a test costs to run, not what it covers: everything in `unit/` is a function call, and everything in `e2e/` launches the app. The layers below subdivide that, and the file name says which — a layer-2 test is `*.integration.test.cjs`, and anything under `e2e/` is `*.spec.js`.
 
 They are listed cheapest first, and that ordering is the rule: **write a test at the highest layer that can still see the failure.** What each layer is blind to is the part worth reading — it is what sends a test one layer up, or down.
 
