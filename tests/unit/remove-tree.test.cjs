@@ -77,6 +77,31 @@ test('removeTree: a tree with nothing wrong costs one rm call', async (t) => {
 	assert.equal(fs.existsSync(root), false);
 });
 
+test('removeTree: the attribute pass does not follow a symlink out of the tree', { skip: process.platform === 'win32' && 'symlink creation needs privileges on Windows' }, async (t) => {
+	const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'remove-tree-outside-'));
+	t.after(() => { try { fs.rmSync(outside, { recursive: true, force: true }); } catch {} });
+	const script = path.join(outside, 'bin.sh');
+	fs.writeFileSync(script, '#!/bin/sh\n');
+	fs.chmodSync(script, 0o755);
+
+	// A protected tree, so the attribute pass actually runs — and a symlink
+	// pointing at the executable outside, placed *inside* the unwritable
+	// directory so the first (failing) rm cannot unlink it before the walk
+	// runs. chmod follows symlinks, so a walk that touches the link would
+	// strip the target's exec bit (a populated node_modules/.bin is exactly
+	// this shape).
+	const root = makeProtectedTree(t);
+	const locked = path.join(root, 'objects', 'ab');
+	fs.chmodSync(locked, 0o755);
+	fs.symlinkSync(script, path.join(locked, 'linked-bin'));
+	fs.chmodSync(locked, 0o555);
+
+	await removeTree(root);
+	assert.equal(fs.existsSync(root), false);
+	// eslint-disable-next-line no-bitwise -- masking is how a POSIX mode is read; the same idiom as pr-files.cjs.
+	assert.equal(fs.statSync(script).mode & 0o777, 0o755, 'the symlink target must keep its mode');
+});
+
 test('removeTree: a missing directory is not an error', async () => {
 	await removeTree(path.join(os.tmpdir(), 'remove-tree-never-existed-xyz'));
 });

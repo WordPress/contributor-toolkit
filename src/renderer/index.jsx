@@ -48,7 +48,7 @@ import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { highlightLog } from './log-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
 import { changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
-import { initialConfirmations, confirmationReducer, prConfirmationMessage } from './confirmations.cjs';
+import { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage } from './confirmations.cjs';
 
 const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // One face for everything that is process output: the terminal below and every
@@ -683,13 +683,12 @@ function App() {
     const result = await window.api.deleteSite(sitePath);
     await refresh();
     removeSetupLog(sitePath);
-    // A deletion that half-happened must not look like one that worked: the
-    // registry entry is gone either way, but the folder can survive — a file
-    // held open, or the read-only attribute a real Git leaves on its object
-    // files (#381). The error tone stays until dismissed, and the message
-    // names the path so the contributor knows what is still on disk.
-    if (result && result.ok === false && result.error) {
-      confirm(result.error, { tone: 'error' });
+    // A deletion that half-happened must not look like one that worked (#381).
+    // The sentence and the decision to show it live in confirmations.cjs,
+    // where the suite can reach them; the error tone stays until dismissed.
+    const failure = deleteFailureMessage(result);
+    if (failure) {
+      confirm(failure, { tone: 'error' });
     }
   }, [refresh, removeSetupLog, confirm]);
 

@@ -1979,11 +1979,9 @@ ipcMain.handle('sites:delete', async (_e, sitePath) => {
 	});
 	if (!allowed) return { ok: false, refused: true };
 	if (removalError) {
-		return {
-			ok: false,
-			error: `The site was removed from the list, but its folder could not be deleted and is still at ${sitePath}`,
-			code: removalError.code
-		};
+		// Machine-readable on purpose: the sentence the contributor reads is
+		// composed in the renderer (confirmations.cjs), where it is testable.
+		return { ok: false, reason: 'remove-failed', path: sitePath, code: removalError.code };
 	}
 	return { ok: true };
 });

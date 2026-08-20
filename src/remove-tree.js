@@ -37,28 +37,38 @@ function shouldClearAttributes(error) {
 }
 
 /**
- * Restores the write bit on everything under `dir`, directories first so the
- * walk can enter them. Errors on individual entries are ignored: a path that
- * cannot be chmodded will fail the removal that follows, which is the honest
- * place for the failure to surface.
+ * Restores the owner write bit on everything under `dir`, directories first so
+ * the walk can enter them. Owner-only on purpose: `0o700`/`0o600` clears the
+ * read-only attribute on Windows and unblocks POSIX unlinking just as well as
+ * wider modes, without leaving a world-writable tree behind if the removal
+ * still fails. Errors on individual entries are ignored: a path that cannot be
+ * chmodded will fail the removal that follows, which is the honest place for
+ * the failure to surface.
  *
  * @param {string} dir
  * @param {Object} fs
  */
 async function makeWritable(dir, fs) {
+	// The chmod and the readdir fail independently: a directory whose mode
+	// cannot be changed may still be readable, and its children deserve the
+	// pass either way.
+	try { await fs.promises.chmod(dir, 0o700); } catch {}
 	let entries;
 	try {
-		await fs.promises.chmod(dir, 0o777);
 		entries = await fs.promises.readdir(dir, { withFileTypes: true });
 	} catch {
 		return;
 	}
 	for (const entry of entries) {
+		// chmod follows symlinks — there is no portable lchmod — so touching one
+		// would change its target's mode, possibly outside this tree. `rm` does
+		// not follow them when deleting, so they need no help anyway.
+		if (entry.isSymbolicLink()) continue;
 		const child = path.join(dir, entry.name);
 		if (entry.isDirectory()) {
 			await makeWritable(child, fs);
 		} else {
-			try { await fs.promises.chmod(child, 0o666); } catch {}
+			try { await fs.promises.chmod(child, 0o600); } catch {}
 		}
 	}
 }
@@ -74,7 +84,12 @@ async function makeWritable(dir, fs) {
  * @param {Object} [deps.fs]
  */
 async function removeTree(dir, { fs = fsDefault } = {}) {
-	const options = { recursive: true, force: true, maxRetries: 3, retryDelay: 100 };
+	// maxRetries 10 is inherited from the e2e teardown this replaces: an
+	// ENOTEMPTY that only ever appeared on a macOS CI runner — a just-closed
+	// app's last flush — needed that budget, and ENOTEMPTY is not a permission
+	// code, so the attribute pass below does nothing for it. Retries are still
+	// its only mitigation.
+	const options = { recursive: true, force: true, maxRetries: 10, retryDelay: 100 };
 	try {
 		await fs.promises.rm(dir, options);
 	} catch (error) {

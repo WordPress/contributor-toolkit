@@ -378,10 +378,10 @@ test('sites:delete asks site-registry whether the path may be removed', async ()
 	assert.equal(typeof options.onRefused, 'function');
 });
 
-// The end of the wire, with the real module and the real `fse.remove` in place,
+// The end of the wire, with the real module and the real removeTree in place,
 // on real directories: this is the assertion #145 is about. It fails if the
 // handler stops consulting site-registry, however it stops — deleted call,
-// renamed export, or a bare `fse.remove(sitePath)` added beside it.
+// renamed export, or a bare `removeTree(sitePath)` added beside it.
 test('sites:delete removes a registered directory and refuses an unregistered one', async (t) => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-delete-'));
 	t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -446,41 +446,35 @@ test('sites:delete clears the read-only attributes a real Git leaves behind (#38
 
 // When the disk genuinely refuses, the handler must say so instead of
 // pretending: the registry half has already happened (deliberately — a locked
-// folder must not leave a site stuck undeletable), so the renderer gets
-// `{ ok: false, error }` naming the surviving path, and the log gets the
-// stack. The stage differs by platform because the ways a removal can still
-// fail differ: Windows refuses while a handle is open, POSIX refuses inside a
-// directory whose parent it cannot write.
+// folder must not leave a site stuck undeletable), so the renderer gets a
+// machine-readable failure naming the surviving path, and the log gets the
+// stack. The refusal is staged by stubbing remove-tree rather than by locking
+// a real directory: the real ways a removal fails differ by platform (an open
+// handle on Windows does not even refuse the unlink — libuv opens with
+// FILE_SHARE_DELETE), and the real propagation is remove-tree.test.cjs's job.
+// This test pins the wire.
 test('sites:delete reports a folder it could not remove instead of pretending (#381)', async (t) => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-delete-fail-'));
+	t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 	const registered = path.join(root, 'held');
 	fs.mkdirSync(registered, { recursive: true });
-	fs.writeFileSync(path.join(registered, 'pinned.txt'), 'x');
-
-	let release = () => {};
-	if (process.platform === 'win32') {
-		const fd = fs.openSync(path.join(registered, 'pinned.txt'), 'r');
-		release = () => fs.closeSync(fd);
-	} else {
-		fs.chmodSync(root, 0o555);
-		release = () => fs.chmodSync(root, 0o777);
-	}
-	t.after(() => {
-		release();
-		fs.rmSync(root, { recursive: true, force: true });
-	});
 
 	const logError = spy();
 	const settings = fakeSettingsStore({ sites: [registered], siteMeta: { [registered]: {} } });
 	const main = loadMain({
-		stubs: { './logging': { ...silentLogging()['./logging'], logError }, ...settings.stubs }
+		stubs: {
+			'./logging': { ...silentLogging()['./logging'], logError },
+			'./remove-tree': {
+				removeTree: async () => {
+					throw Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' });
+				}
+			},
+			...settings.stubs
+		}
 	});
 
 	const result = await main.invoke('sites:delete', registered);
-	assert.equal(result.ok, false);
-	assert.equal(result.refused, undefined, 'a disk failure is not a guard refusal');
-	assert.match(result.error, /could not be deleted/);
-	assert.ok(result.error.includes(registered), 'the message names the surviving path');
+	assert.deepEqual(result, { ok: false, reason: 'remove-failed', path: registered, code: 'EPERM' });
 	assert.equal(fs.existsSync(registered), true, 'the folder really did survive');
 	// The forget half happened first, on purpose; the contract is honesty, not rollback.
 	assert.deepEqual(settings.values.sites, []);
