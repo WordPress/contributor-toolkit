@@ -105,7 +105,10 @@ jobs:
       # Buildkite creates this directory during signed macOS builds. A canary makes the
       # packaged test prove that build-only signing material stays out of every payload.
       - name: Stage a build-only signing canary
-        run: node -e "const fs = require('node:fs'); fs.mkdirSync('.codesigning', { recursive:true }); fs.writeFileSync('.codesigning/apple_api_key', 'must not ship');"
+        shell: bash
+        run: |
+          mkdir -p .codesigning
+          printf 'must not ship' > .codesigning/apple_api_key
 
       - name: Package (unsigned, --dir)
         # Mandatory on macOS: electron-builder signs during `--dir` otherwise.
