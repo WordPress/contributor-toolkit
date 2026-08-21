@@ -78,7 +78,11 @@ Line breaks still mean something everywhere else, and none of this touches them:
 
 `npm ci` at the repository root, on the Node pinned in [`.nvmrc`](.nvmrc).
 
-Do not add `--ignore-scripts`. `postinstall` is where a usable tree comes from: `electron-builder install-app-deps` fetches the Electron binary and rebuilds the native file-locking module against its ABI, and `npm run build:once` generates `src/renderer/index.js` and `index.css`, which are not committed. Skip it and there is no renderer to load and no Electron to load it. The lint workflow installs that way deliberately, so that it never executes the pull request's code — it is the exception, not the pattern to copy.
+Do not add `--ignore-scripts`. The root `postinstall` is what makes the tree usable: `electron-builder install-app-deps` rebuilds the native file-locking module against Electron's ABI, and `npm run build:once` generates `src/renderer/index.js` and `index.css`, which are not committed. Skip it and there is no renderer to load. The lint workflow installs that way deliberately, so that it never executes the pull request's code — it is the exception, not the pattern to copy.
+
+The Electron binary is not part of that. `electron` ships no install script of its own; `require('electron')` downloads it into `node_modules/electron/dist/` the first time something asks for it. So a finished `npm ci` still has that download in front of the first `npm start`, `npm run test:electron` or end-to-end run.
+
+The `allowScripts` map in `package.json` is npm's install-script approval list, and a fresh install warns about the few packages it does not cover. That warning is expected; approving more is a change to make deliberately, not a step in getting set up.
 
 The user guide under `docs/` is a separate npm package with its own lockfile. A root `npm ci` does not reach it, and `npm run docs:*` fails with `vitepress: not found` until `npm ci --prefix docs` has been run once; [CONTRIBUTING.md](CONTRIBUTING.md) covers the rest of that workflow.
 
