@@ -31,9 +31,22 @@ esac
 test ! -e "$PROJECT_ROOT/.codesigning"
 
 test -f "$APPLE_API_KEY"
-test "$(cat "$APPLE_API_KEY")" = "$APP_STORE_CONNECT_API_KEY_KEY"
+test "$(cat "$APPLE_API_KEY")" = "$WPCT_MACOS_SIGNING_PRIVATE_KEY_V2"
+test "$APPLE_API_KEY_ID" = "$WPCT_MACOS_SIGNING_KEY_ID_V2"
+test "$APPLE_API_ISSUER" = "$WPCT_MACOS_SIGNING_ISSUER_ID_V2"
 test "$(stat -f '%Lp' "$APPLE_API_KEY")" = "600"
 printf '%s\n' "$APPLE_API_KEY"
+`;
+
+const LEGACY_ENV_HARNESS = String.raw`
+install_gems() { :; }
+bundle() {
+	echo "Fastlane ran with legacy credentials" >&2
+	return 0
+}
+source "$SETUP_SCRIPT"
+status=$?
+exit "$status"
 `;
 
 const FAILED_MKTEMP_HARNESS = String.raw`
@@ -71,13 +84,38 @@ exit 1
 function signingEnv(overrides = {}) {
 	return {
 		...process.env,
-		APP_STORE_CONNECT_API_KEY_KEY: DUMMY_KEY,
-		APP_STORE_CONNECT_API_KEY_KEY_ID: 'dummy-key-id',
-		APP_STORE_CONNECT_API_KEY_ISSUER_ID: 'dummy-issuer-id',
+		WPCT_MACOS_SIGNING_PRIVATE_KEY_V2: DUMMY_KEY,
+		WPCT_MACOS_SIGNING_KEY_ID_V2: 'dummy-key-id',
+		WPCT_MACOS_SIGNING_ISSUER_ID_V2: 'dummy-issuer-id',
 		SETUP_SCRIPT,
 		...overrides,
 	};
 }
+
+function legacySigningEnv() {
+	const env = {
+		...process.env,
+		APP_STORE_CONNECT_API_KEY_KEY: DUMMY_KEY,
+		APP_STORE_CONNECT_API_KEY_KEY_ID: 'legacy-key-id',
+		APP_STORE_CONNECT_API_KEY_ISSUER_ID: 'legacy-issuer-id',
+		SETUP_SCRIPT,
+	};
+	delete env.WPCT_MACOS_SIGNING_PRIVATE_KEY_V2;
+	delete env.WPCT_MACOS_SIGNING_KEY_ID_V2;
+	delete env.WPCT_MACOS_SIGNING_ISSUER_ID_V2;
+	return env;
+}
+
+test('legacy macOS signing variables cannot activate the rotated credentials', { skip: process.platform !== 'darwin' }, () => {
+	const result = spawnSync('/bin/bash', ['-c', LEGACY_ENV_HARNESS], {
+		encoding: 'utf8',
+		env: legacySigningEnv(),
+	});
+
+	assert.equal(result.status, 1, `legacy signing credentials unexpectedly worked:\n${result.stdout}${result.stderr}`);
+	assert.match(result.stderr, /WPCT_MACOS_SIGNING_KEY_ID_V2 is required/);
+	assert.doesNotMatch(result.stderr, /Fastlane ran with legacy credentials/);
+});
 
 test('macOS signing keeps its temporary notarization key outside the project and removes it on exit', { skip: process.platform !== 'darwin' }, (t) => {
 	const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wpct-signing-project-'));
