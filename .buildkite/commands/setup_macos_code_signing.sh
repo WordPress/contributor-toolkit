@@ -12,7 +12,7 @@ for required_var in \
 	WPCT_MACOS_SIGNING_ISSUER_ID_V2 \
 	WPCT_MACOS_SIGNING_PRIVATE_KEY_V2; do
 	if [ -z "${!required_var:-}" ]; then
-		echo "$required_var is required. This branch predates the secure macOS signing credentials; merge the latest trunk." >&2
+		echo "$required_var is required. Configure the V2 macOS signing credentials in Buildkite." >&2
 		return 1
 	fi
 done
