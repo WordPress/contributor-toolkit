@@ -32,7 +32,8 @@
       "buildResources": "build"
     },
     "files": [
-      "!vendor{,/**/*}"
+      "!vendor{,/**/*}",
+      "!.codesigning{,/**/*}"
     ],
     "icon": "build/icon.png",
     "linux": {
