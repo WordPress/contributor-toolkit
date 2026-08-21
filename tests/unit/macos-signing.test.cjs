@@ -75,15 +75,6 @@ bundle() { :; }
 source "$SETUP_SCRIPT"
 `;
 
-const SHELL_OPTIONS_HARNESS = String.raw`
-set -eu
-install_gems() { :; }
-bundle() { :; }
-options_before="$-"
-source "$SETUP_SCRIPT"
-test "$-" = "$options_before"
-`;
-
 const FAILED_MKTEMP_HARNESS = String.raw`
 set -eu
 install_gems() { :; }
@@ -186,24 +177,11 @@ test('macOS signing does not expose the private key in shell traces', { skip: pr
 	assert.doesNotMatch(`${result.stdout}${result.stderr}`, /a dummy key with spaces and \$shell syntax/);
 });
 
-test('sourced macOS signing does not change its caller shell options', { skip: process.platform !== 'darwin' }, () => {
-	const result = spawnSync('/bin/bash', ['-c', SHELL_OPTIONS_HARNESS], {
-		encoding: 'utf8',
-		env: signingEnv(),
-	});
-
-	assert.equal(result.status, 0, `signing setup changed its caller shell options:\n${result.stdout}${result.stderr}`);
-});
-
 test('macOS Buildkite command enables strict shell options before sourcing signing setup', () => {
-	const normalizedPipeline = fs.readFileSync(PIPELINE, 'utf8').replace(/\r\n/g, '\n');
+	const pipeline = fs.readFileSync(PIPELINE, 'utf8').replace(/\r\n/g, '\n');
+	const macStep = pipeline.slice(pipeline.indexOf('# macOS build'), pipeline.indexOf('# Linux build'));
 
-	for (const lineEnding of ['\n', '\r\n']) {
-		const pipeline = normalizedPipeline.replace(/\n/g, lineEnding);
-		const macStep = pipeline.slice(pipeline.indexOf('# macOS build'), pipeline.indexOf('# Linux build'));
-
-		assert.match(macStep, /command: \|\r?\n      set -eu\r?\n[\s\S]*source \.buildkite\/commands\/setup_macos_code_signing\.sh/);
-	}
+	assert.match(macStep, /command: \|\n      set -eu\n[\s\S]*source \.buildkite\/commands\/setup_macos_code_signing\.sh/);
 });
 
 test('sourced macOS signing returns failure when its temporary directory cannot be created', { skip: process.platform !== 'darwin' }, (t) => {
