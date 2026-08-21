@@ -16,6 +16,11 @@ docs/.vitepress/cache
 src/renderer/index.js
 src/renderer/index.css
 
+# Playwright output. Traces, screenshots and the HTML report are written per run and
+# uploaded as CI artifacts on failure; none of it is worth committing.
+playwright-report
+test-results
+
 # Files with potential secrets
 .env
 .codesigning/

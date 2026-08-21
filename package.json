@@ -22,8 +22,11 @@
     "dist:win": "npm run build:once && electron-builder --win --publish never",
     "dist:win:arm64": "npm run build:once && electron-builder --win --arm64 --publish never",
     "dist": "npm run build:once && electron-builder --publish never",
+    "pack:dir": "electron-builder --dir --publish never",
     "test": "node --test",
     "test:electron": "node scripts/run-tests-electron.cjs",
+    "test:e2e": "playwright test --project=journeys",
+    "test:e2e:packaged": "playwright test --project=packaged",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "shots": "npm run build:once && node scripts/screenshots/capture.cjs",
@@ -39,7 +42,8 @@
       "buildResources": "build"
     },
     "files": [
-      "!vendor{,/**/*}"
+      "!vendor{,/**/*}",
+      "!.codesigning{,/**/*}"
     ],
     "icon": "build/icon.png",
     "linux": {
@@ -94,6 +98,7 @@
     "xterm": "^5.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@wordpress/eslint-plugin": "^25.7.0",
     "concurrently": "^8.2.2",
     "electron": "^43.2.0",

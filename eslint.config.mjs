@@ -93,9 +93,24 @@ export default [
 	},
 
 	{
-		files: [ 'test/**/*.{js,cjs,mjs}' ],
+		files: [ 'tests/unit/**/*.{js,cjs,mjs}' ],
 		languageOptions: {
 			globals: { ...globals.node },
+		},
+	},
+
+	{
+		// End-to-end suite. Playwright's fixture API is `async ({ deps }, use) => {}`
+		// — the test framework calls `use()` to hand the fixture to the test and
+		// resumes afterwards for teardown. The React hooks rule sees a bare `use(...)`
+		// and reads it as React's `use` hook called outside a component. There is no
+		// React in this directory at all; the app under test is a separate process.
+		files: [ 'tests/e2e/**/*.{js,cjs,mjs}' ],
+		languageOptions: {
+			globals: { ...globals.node },
+		},
+		rules: {
+			'react-hooks/rules-of-hooks': 'off',
 		},
 	},
 

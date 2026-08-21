@@ -1,0 +1,132 @@
+# Launches the app on the two platforms it ships to.
+#
+# Two jobs, because there are two different apps under test and they cost very
+# different amounts:
+#
+#   journeys  drives the source tree through the flows a contributor performs by
+#             hand. No packaging, so it is quick, and it is the one that fails when
+#             a change loses somebody's work.
+#   packaged  builds an unsigned artifact and asks whether packaging worked at all.
+#             Several minutes per platform, and it catches failures — asar layout,
+#             native module rebuilds, bundled CLI resolution — that cannot happen
+#             from source.
+#
+# Neither needs a secret: nothing here is signed. Buildkite still owns the signed
+# builds (.buildkite/pipeline.yml).
+#
+# No `playwright install` step in either job. These tests launch Electron; no
+# browser is ever downloaded.
+
+name: E2E
+
+on:
+  pull_request:
+    # `ready_for_review` is not in the default set. Without it, a PR opened as a draft
+    # and later marked ready never runs this workflow at all — the draft guard below
+    # would skip the only run it ever gets.
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [trunk]
+
+permissions:
+  contents: read
+
+# A new push supersedes the previous run on the same ref.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  journeys:
+    name: Journeys (${{ matrix.os }})
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # The journeys read the renderer the app actually loads, so it has to exist.
+      # `postinstall` builds it too; this is here so a change to that never leaves
+      # the suite asserting against a stale bundle.
+      - name: Build the renderer bundle
+        run: npm run build:once
+
+      - name: Run the journeys
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-journeys-${{ matrix.os }}
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+
+  packaged:
+    name: Packaged smoke (${{ matrix.os }})
+    # Packaging takes several minutes per platform; don't spend it on drafts.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # `postinstall` runs `electron-builder install-app-deps`, which is what
+      # rebuilds the native file-locking module against Electron's ABI.
+      - run: npm ci
+
+      - name: Build the renderer bundle
+        run: npm run build:once
+
+      # Buildkite creates this directory during signed macOS builds. A canary makes the
+      # packaged test prove that build-only signing material stays out of every payload.
+      - name: Stage a build-only signing canary
+        shell: bash
+        run: |
+          mkdir -p .codesigning
+          printf 'must not ship' > .codesigning/apple_api_key
+
+      - name: Package (unsigned, --dir)
+        # Mandatory on macOS: electron-builder signs during `--dir` otherwise.
+        # Harmless elsewhere. Windows signing already no-ops without the Azure
+        # env vars (scripts/azure-sign.cjs).
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run pack:dir
+
+      - name: Run the packaged smoke test
+        run: npm run test:e2e:packaged
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-packaged-${{ matrix.os }}
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

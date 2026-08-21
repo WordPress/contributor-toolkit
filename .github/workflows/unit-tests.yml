@@ -40,7 +40,7 @@ jobs:
           cache: npm
 
       # `npm ci` and not `--ignore-scripts`: the postinstall downloads the Electron binary the
-      # second pass runs on, and test/npm-install.integration.test.cjs needs node_modules/npm.
+      # second pass runs on, and tests/unit/npm-install.integration.test.cjs needs node_modules/npm.
       - name: Install dependencies
         run: npm ci
 
