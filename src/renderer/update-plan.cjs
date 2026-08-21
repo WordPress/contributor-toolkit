@@ -5,6 +5,12 @@
  * a site's trunk snapshot is, which steps an update runs, and how the chain
  * ends.
  *
+ * It has since become the home of every multi-step chain the renderer runs —
+ * updating (#94), applying a patch (#11) and initial setup (#246) — because all
+ * three share `updateStepStatuses` and the same outcome vocabulary. Keeping the
+ * three plans beside the machinery they share is what stops a fourth chain
+ * growing its own.
+ *
  * Kept as a pure, dependency-free module so it can be unit tested without a
  * DOM: the renderer bundle imports it, `node --test` requires it directly
  * (same convention as setup-steps.cjs and dev-server-command.cjs).
@@ -73,20 +79,73 @@ const STATE_TO_STEP = { fetching: 'fetch', installing: 'install', building: 'bui
 // would drag the `diff` package in for two constants.
 const APPLY_STATE_TO_STEP = { applying: 'apply', installing: 'install', building: 'build' };
 
+const BUILD_BY_WATCHER_MESSAGE = 'The build watch will recompile the change';
+
 /**
  * The chain applying a patch runs. Like the update chain, the install step is
- * named even when skipped so "apply" always means the same thing.
+ * named even when skipped so "apply" always means the same thing. When the
+ * running build watch will recompile the change (a src-only patch, #262), the
+ * build step is skipped too — with a message saying who is doing it instead.
  *
  * @param {Object}  root0
  * @param {boolean} [root0.needsInstall]
+ * @param {boolean} [root0.buildByWatcher]
  * @return {Array}
  */
-function planApplySteps({ needsInstall } = {}) {
+function planApplySteps({ needsInstall, buildByWatcher } = {}) {
 	return [
 		{ key: 'apply', label: 'Apply the patch', skipped: false },
 		{ key: 'install', label: 'Install dependencies', skipped: !needsInstall, skipMessage: SKIP_INSTALL_MESSAGE },
-		{ key: 'build', label: 'Rebuild', skipped: false }
+		{ key: 'build', label: 'Rebuild', skipped: Boolean(buildByWatcher), skipMessage: BUILD_BY_WATCHER_MESSAGE }
 	];
+}
+
+// Initial setup (#246) is the third chain, and the one the contributor does not
+// start: it runs on its own the moment the clone finishes, so a newcomer who
+// walks away comes back to a built environment instead of a checklist waiting
+// on two clicks with no decision between them.
+const SETUP_STATE_TO_STEP = { cloning: 'download', installing: 'install', building: 'build' };
+
+/**
+ * The chain initial setup runs. Nothing is ever skipped here: a fresh clone has
+ * no node_modules and no build, so both always run — the `skipped` field is kept
+ * only so the three plans share one shape.
+ *
+ * Starting the dev server is deliberately not part of it. It is the step that
+ * marks the initialization wizard finished and hands the contributor to a
+ * WordPress setup wizard in a browser, so running it unattended would end the
+ * checklist on their behalf and leave a server listening that nobody asked for.
+ *
+ * @return {Array}
+ */
+function planSetupSteps() {
+	return [
+		{ key: 'download', label: 'Download WordPress', skipped: false },
+		{ key: 'install', label: 'Install dependencies', skipped: false },
+		{ key: 'build', label: 'Run full build', skipped: false }
+	];
+}
+
+/**
+ * How applying a patch (or updating trunk) should treat a running build watch
+ * (#247, #262). A watch that is running already recompiles src/ on save, so a
+ * patch that only touches src/ needs no build of its own and no interruption —
+ * apply it and let the watch pick it up. Anything that has to install
+ * dependencies or run a full build needs the build directory and node_modules
+ * to itself, so the watch is paused for the duration and resumed after.
+ *
+ * @param {Object}  root0
+ * @param {boolean} [root0.needsInstall]  the patch/update changes the lockfile
+ * @param {boolean} [root0.watcherActive] a build watch is currently running
+ * @return {{ pauseWatcher: boolean, runBuild: boolean }}
+ */
+function planWatchImpact({ needsInstall, watcherActive } = {}) {
+	// A full build runs unless a live watch can do the recompile instead.
+	const runBuild = Boolean(needsInstall) || !watcherActive;
+	// Pause only when we run a build/install ourselves and a watch is live to
+	// collide with it; a src-only patch with a watch never pauses.
+	const pauseWatcher = Boolean(watcherActive) && runBuild;
+	return { pauseWatcher, runBuild };
 }
 
 /**
@@ -95,7 +154,8 @@ function planApplySteps({ needsInstall } = {}) {
  * current, later ones pending; skipped steps stay 'skipped' once passed.
  *
  * The state→step map is a parameter so a different chain can reuse this: the
- * applying chain (#11) has the same three-stage shape with its own state names.
+ * applying chain (#11) has the same three-stage shape with its own state names,
+ * and the setup chain (#246) uses it for its progress counter.
  *
  * @param {Array}  steps
  * @param {string} updateState
@@ -140,14 +200,44 @@ function updateOutcome({ fetchOk, upToDate, moved, installNeeded, installCode, b
 	return 'done';
 }
 
+/**
+ * How the setup chain ended, and the only thing that decides what the
+ * contributor is told. `stopped` is separated from `failed-install` /
+ * `failed-build` on purpose: a chain the contributor stopped is not a problem to
+ * report, and telling someone their install "failed" when they pressed Stop is
+ * how a tool loses their trust.
+ *
+ * A stop and a failure are otherwise indistinguishable from the exit code — a
+ * killed npm exits non-zero, and on Windows without even a signal — so the
+ * caller passes `stopped` from the fact that it asked for the kill, not from
+ * what the process did.
+ *
+ * @param {Object}  root0
+ * @param {boolean} [root0.stopped]     The contributor pressed Stop.
+ * @param {number}  [root0.installCode] Exit code of npm install, if it ran.
+ * @param {number}  [root0.buildCode]   Exit code of npm run build, if it ran.
+ * @return {string}
+ */
+function setupOutcome({ stopped, installCode, buildCode } = {}) {
+	if (stopped) return 'stopped';
+	if (installCode !== 0) return 'failed-install';
+	if (buildCode !== 0) return 'failed-build';
+	return 'done';
+}
+
 module.exports = {
 	STALE_THRESHOLD_DAYS,
 	SKIP_INSTALL_MESSAGE,
+	BUILD_BY_WATCHER_MESSAGE,
 	STATE_TO_STEP,
 	APPLY_STATE_TO_STEP,
+	SETUP_STATE_TO_STEP,
 	planApplySteps,
+	planWatchImpact,
+	planSetupSteps,
 	trunkAgeInfo,
 	planUpdateSteps,
 	updateStepStatuses,
+	setupOutcome,
 	updateOutcome
 };

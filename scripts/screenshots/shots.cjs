@@ -19,6 +19,20 @@
 //     the case, and its comment explains why. Partial is fine: `{ width: 1600 }`
 //     keeps the default height. The live tier ignores it, because there the
 //     maintainer owns the window.
+//
+// Three shots that used to be fixture-tier are live-tier now, joining
+// dev-server-running, and moving them back would photograph a screen the 1.0
+// app never shows (#298). Each depends on state a seeded settings.json cannot
+// express:
+//   - dev-server-running: the site URL and the wp-admin link render only while
+//     a dev server is serving, and fixture sites are empty directories;
+//   - setup-wizard: the self-setup chain arms on the clone-finished edge, so a
+//     site that was already in the registry when the app started never runs it;
+//   - trac-ticket-panel, and site-view with it: a ticket's own facts come from
+//     a live visit to its Trac page and are held in memory, never written to
+//     the site's metadata.
+// The price is that these four need a maintainer and a real site; the fixture
+// tier still covers everything else.
 
 /**
  * Clicks a site in the sidebar and waits for its view to settle.
@@ -85,24 +99,6 @@ const shots = [
 		}
 	},
 	{
-		slug: 'setup-wizard',
-		tier: 'fixture',
-		variant: 'seeded',
-		prepare: async (page) => {
-			await selectSite(page, 'wordpress-develop');
-			await page.getByText('Initial setup checklist').waitFor();
-		}
-	},
-	{
-		slug: 'site-view',
-		tier: 'fixture',
-		variant: 'seeded',
-		prepare: async (page) => {
-			await selectSite(page, 'my-first-patch');
-			await page.getByRole('button', { name: 'Submit changes' }).waitFor();
-		}
-	},
-	{
 		// The content column's width cap, which no other shot can show: at the
 		// default 1200px window the content area is 855px — the width every
 		// cropped panel shot here comes out at — which is narrower than the
@@ -143,16 +139,6 @@ const shots = [
 		}
 	},
 	{
-		slug: 'trac-ticket-panel',
-		tier: 'fixture',
-		variant: 'seeded',
-		target: (page) => card(page, 'Trac ticket'),
-		prepare: async (page) => {
-			await selectSite(page, 'my-first-patch');
-			await page.getByText('#60000').waitFor();
-		}
-	},
-	{
 		slug: 'apply-patch-panel',
 		tier: 'fixture',
 		variant: 'seeded',
@@ -187,44 +173,92 @@ const shots = [
 		slug: 'mail-panel',
 		tier: 'fixture',
 		variant: 'seeded',
-		target: (page) => card(page, 'Mail'),
+		target: (page) => page.getByText('Welcome to WordPress Contributor Day').locator('../..'),
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
-			await page.getByText('No emails yet.').filter({ visible: true }).waitFor();
+			await page.getByRole('button', { name: 'Start dev server' }).click();
+			await page.getByText('Welcome to WordPress Contributor Day').filter({ visible: true }).waitFor();
+		}
+	},
+	{
+		slug: 'update-incomplete',
+		tier: 'fixture',
+		variant: 'seeded',
+		target: (page) => page.getByText('Update incomplete', { exact: true }).locator('../..'),
+		prepare: async (page) => {
+			await selectSite(page, 'needs-rebuild');
+			await page.getByRole('button', { name: 'Retry install & build' }).waitFor();
 		}
 	},
 
 	// ---- Live tier: real site, maintainer present. `instructions` is what the
 	// harness prints before pausing.
+	//
+	// The first four are in the order one site passes through them, so a single
+	// session — create the site, let it set itself up, run it, link a ticket —
+	// takes all four without ever going backwards. Every path in these images is
+	// published, so create the site somewhere with no username in it
+	// (/private/tmp/wpct-docs/my-first-patch is what the committed ones show),
+	// and name it to match the fixture-tier shots so the guide reads as one site.
+	{
+		slug: 'setup-wizard',
+		tier: 'live',
+		instructions:
+			'Create a site and leave it alone. Shoot while the "Setting this site up for you — step N of 3" banner is up, with a step still to go, so the checklist shows a done step, a running one and a locked one.'
+	},
 	{
 		slug: 'dev-server-running',
 		tier: 'live',
 		instructions:
-			'Select an initialized site and click "Start dev server". Wait until the site URL and "Log in with admin / password" are visible.'
+			'When the build has finished, click "Start dev server and finish the wizard". Wait until the site URL, the wp-admin link and "Log in with admin / password" are visible.'
+	},
+	{
+		slug: 'site-view',
+		tier: 'live',
+		instructions:
+			'Stop the dev server, then link an open ticket that a pull request cites (65856 in the committed shot) and click "Read details from Trac", clearing the human-check once. Shoot the whole window: Start dev server, Start build watch, Review & submit changes, and the ticket panel below them.'
+	},
+	{
+		slug: 'trac-ticket-panel',
+		tier: 'live',
+		target: (page) => card(page, 'Trac ticket'),
+		instructions:
+			'Same screen as site-view — the ticket facts read and the linked pull requests listed. This one is cropped to the Trac ticket card.'
 	},
 	{
 		slug: 'submit-changes-diff',
 		tier: 'live',
+		target: (page) => page.locator('.patch-diff'),
 		instructions:
-			'On a site with edited files, click "Submit changes" and wait for the diff to finish generating.'
+			'On a site with edited files, click "Review & submit changes" and wait for the diff to finish generating.'
 	},
 	{
 		slug: 'submit-destinations',
 		tier: 'live',
+		target: (page) => page.locator('.patch-destinations'),
 		instructions:
-			'In the "Submit changes" modal, continue past the diff until the three destination cards (pull request / Trac / mentor) are visible.'
+			'In the "Review & submit changes" modal, wait until the three destination cards (pull request / Trac / mentor) are visible.'
 	},
 	{
 		slug: 'github-sign-in',
 		tier: 'live',
+		target: (page) => page.getByText('Open a pull request', { exact: true }).locator('../..'),
 		instructions:
-			'Choose "Open a pull request" while signed out, so the GitHub sign-in screen is visible. Stop before entering the device code.'
+			'In the "Open a pull request" destination, click "Sign in with GitHub" while signed out. Capture the card while it shows the device code; do not authorize it.'
 	},
 	{
 		slug: 'trunk-update-progress',
 		tier: 'live',
+		target: (page) => page.getByText('Updating to latest trunk', { exact: true }).locator('../..'),
 		instructions:
 			'Start "Update to latest trunk" on a site and wait until the step list is mid-run.'
+	},
+	{
+		slug: 'apply-patch-conflict',
+		tier: 'live',
+		target: (page) => card(page, 'Apply a patch or PR'),
+		instructions:
+			'On an isolated site, preview a patch or pull request that does not fit the checkout, click "Apply and rebuild", and wait until the panel confirms that the checkout was not changed.'
 	}
 ];
 

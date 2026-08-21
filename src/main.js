@@ -28,7 +28,7 @@ const {
 const { buildMenuTemplate } = require('./menu');
 const { killChildTree } = require('./kill-tree');
 const { normalizeEol } = require('./git-update.cjs');
-const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, updateToLatestTrunk } = require('./trunk-update');
+const { ensureAutocrlf, readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
 const { applyPatchToDir } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
 const { fetchLinkedPrs, fetchPrDiff } = require('./github-prs');
@@ -38,6 +38,7 @@ const { buildPullRequestEntries } = require('./pr-files.cjs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
+const { removeTree } = require('./remove-tree');
 const { createSetupTracker } = require('./setup-tracker');
 const { planInitialRead, planTailRead } = require('./log-tail');
 const {
@@ -70,6 +71,55 @@ const { parseHandle } = require('./wporg-handle.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
+
+const LOCAL_EXCLUDES_MARKER = '# WordPress Contributor Toolkit local excludes';
+const LOCAL_EXCLUDES = [
+	'/.claude/',
+	'/.codex/',
+	'/.agents/',
+	'/.cursor/',
+	'/.windsurf/',
+	'/.gemini/',
+	'/.cline/',
+	'/.clinerules/'
+];
+
+/**
+ * Seeds per-site ignores for machine-local files that must never become part
+ * of a contribution. This lives in `.git/info/exclude`, not the repository's
+ * `.gitignore`: the checkout stays unchanged and isomorphic-git reads these
+ * rules when it builds a status matrix (issue #19).
+ *
+ * The marker is the ownership boundary. Once present, the contributor may
+ * edit or remove the rules below it and the app will not restore them.
+ * Existing rules above or below the block are never rewritten.
+ *
+ * @param {string} dir Repository working directory.
+ * @return {Promise<boolean>} Whether the default block was appended.
+ */
+async function ensureLocalExcludes(dir) {
+	const gitDir = path.join(dir, '.git');
+	try {
+		if (!(await fs.promises.stat(gitDir)).isDirectory()) return false;
+	} catch {
+		return false;
+	}
+
+	const infoDir = path.join(gitDir, 'info');
+	const excludePath = path.join(infoDir, 'exclude');
+	let existing = '';
+	try {
+		existing = await fs.promises.readFile(excludePath, 'utf8');
+	} catch (error) {
+		if (!error || error.code !== 'ENOENT') throw error;
+	}
+	if (existing.split(/\r?\n/).includes(LOCAL_EXCLUDES_MARKER)) return false;
+
+	await fs.promises.mkdir(infoDir, { recursive: true });
+	const separator = existing && !existing.endsWith('\n') ? '\n' : '';
+	await fs.promises.appendFile(excludePath, `${separator}${LOCAL_EXCLUDES_MARKER}\n${LOCAL_EXCLUDES.join('\n')}\n`);
+	return true;
+}
 
 // Screenshot harness only (scripts/screenshots/): point userData at a throwaway
 // directory so a seeded settings.json is read instead of the contributor's real
@@ -203,6 +253,12 @@ const runningScripts = {};
 const cancelledChildren = new WeakSet();
 /** @type {Record<string, string>} */
 const runIdByDirectory = {};
+// The same directory index for installs. The renderer knows a script's runId
+// (`npm:run-script` returns it before the first log line) but never an
+// installId — `runNpmInstall` keeps that correlation id to itself in the
+// preload — so a directory is all a Stop control can offer for an install.
+/** @type {Record<string, string>} */
+const installIdByDirectory = {};
 /** @type {Record<string, { child: import('child_process').ChildProcess, url?: string }>} */
 const playgroundServers = {};
 // The sites being created right now — liveness, not truth, which is why it is
@@ -376,7 +432,7 @@ function buildPatchHtml(content) {
 // Returns the base commit alongside the files because the pull request needs it
 // as the commit's parent, and it is the same oid the diff was taken against.
 async function collectChangedFiles(dir, baseOid = null) {
-    await ensureAutocrlf(dir);
+    const gitFs = await ensureAutocrlf(dir) || fs;
     // The diff base is the branch point of whatever ticket is being worked on
     // (#108) — the trunk snapshot this branch was created from, passed in by the
     // caller from the site's registry entry.
@@ -400,9 +456,9 @@ async function collectChangedFiles(dir, baseOid = null) {
         // No branch point on record: a site still on trunk, or one adopted from
         // disk. HEAD is the trunk snapshot there, which is what this always used
         // to diff against.
-        try { base = await git.resolveRef({ fs, dir, ref: 'HEAD' }); } catch {}
+        try { base = await git.resolveRef({ fs: gitFs, dir, ref: 'HEAD' }); } catch {}
         if (!base) {
-            try { base = await git.resolveRef({ fs, dir, ref: 'refs/heads/trunk' }); } catch {}
+            try { base = await git.resolveRef({ fs: gitFs, dir, ref: 'refs/heads/trunk' }); } catch {}
         }
     }
 
@@ -413,13 +469,13 @@ async function collectChangedFiles(dir, baseOid = null) {
     // and never unstaged it (#85) — with the branch point as the base it earns
     // nothing, so it is gone. (`staleStagedPaths` in trunk-update.js stays: it
     // still has to clean up residue left in indexes by earlier versions.)
-    const matrix = await git.statusMatrix({ fs, dir, ref: base });
+    const matrix = await git.statusMatrix({ fs: gitFs, dir, ref: base });
     const changed = matrix.filter(([, head, workdir]) => head !== workdir);
     const files = [];
     for (const [filepath, head, workdir] of changed) {
         const abs = path.join(dir, filepath);
         const workBuf = workdir ? await fs.promises.readFile(abs).catch(() => null) : null;
-        const baseBlob = head && base ? await git.readBlob({ fs, dir, oid: base, filepath }).catch(() => null) : null;
+        const baseBlob = head && base ? await git.readBlob({ fs: gitFs, dir, oid: base, filepath }).catch(() => null) : null;
         files.push({
             path: filepath,
             // The status codes, not the buffers, are what say whether a file is
@@ -452,7 +508,13 @@ async function collectChangedFiles(dir, baseOid = null) {
 //   too is named above the diff, and counts.
 // - 'unchanged': both sides equal once line endings are normalized — the
 //   churn of a CRLF checkout (native git on Windows), which must reach
-//   neither a Trac patch nor the note's count.
+//   neither a Trac patch nor the note's count. Only a file that exists on
+//   both sides can be unchanged: whether one was added or deleted is a
+//   question about which side it is on, and the status codes are what answer
+//   it (#85), not the text. An empty file added, and an empty file deleted,
+//   both render '' on both sides and used to come out 'unchanged' — dropped
+//   from the patch and uncounted by the note, with nothing on screen to say
+//   so (#311).
 // - 'text': a real difference, normalized on both sides for the same reason.
 function classifyChangedFile(file) {
     const gone = !file.inWorkdir;
@@ -463,7 +525,7 @@ function classifyChangedFile(file) {
     }
     const a = file.base ? normalizeEol(file.base.toString('utf8')) : '';
     const b = file.work ? normalizeEol(file.work.toString('utf8')) : '';
-    if (a === b) return { kind: 'unchanged' };
+    if (file.inHead === file.inWorkdir && a === b) return { kind: 'unchanged' };
     return { kind: 'text', a, b };
 }
 
@@ -495,6 +557,15 @@ async function createMinimalPatchForDir(dir, baseOid = null) {
         // Which side exists is the walk's answer, not the buffers'.
         const oldName = file.inHead ? `a/${file.path}` : '/dev/null';
         const newName = gone ? '/dev/null' : `b/${file.path}`;
+        // An empty file added, or an empty file deleted: there is no line on
+        // either side, so jsdiff emits a section with no hunk at all — which
+        // `git apply` rejects as "no valid patches in input", taking the whole
+        // patch and every unrelated file in it. Git's own extended header is
+        // how an empty file is carried, so that is what this emits (#311).
+        if (a === b) {
+            patch += emptyFileSection(file.path, oldName, newName, gone);
+            continue;
+        }
         // No blank line between sections. jsdiff keeps consuming lines past a
         // `\ No newline at end of file` marker, so a separator becomes a
         // phantom empty context line and the section stops applying to any
@@ -506,6 +577,36 @@ async function createMinimalPatchForDir(dir, baseOid = null) {
         );
     }
     return skippedNotice(binaries, unreadable) + (patch || 'No changes.');
+}
+
+/**
+ * The section for an empty file that was added or deleted (#311).
+ *
+ * A unified diff describes a file by its lines, and an empty file has none —
+ * so what says this happened at all is the header. `git apply` reads an
+ * addition or a deletion with no hunk only from the `diff --git` line plus
+ * `new file mode` / `deleted file mode`; without them it refuses the input as
+ * garbage. The `---`/`+++` pair is kept alongside because `/dev/null` is what
+ * this app's own reader classifies from (#85), and it is what makes the
+ * section look like every other one in the patch.
+ *
+ * The mode is the plain-file default, which is what this generator carries for
+ * every file: it does not record modes, so an executable bit is not preserved
+ * here any more than it is on a non-empty addition.
+ *
+ * @param {string}  filepath Repo-relative path.
+ * @param {string}  oldName  Old side as the patch names it.
+ * @param {string}  newName  New side as the patch names it.
+ * @param {boolean} gone     True when the file is the one being deleted.
+ * @return {string} One patch section, ending in a newline.
+ */
+function emptyFileSection(filepath, oldName, newName, gone) {
+    const mode = gone ? 'deleted file mode 100644' : 'new file mode 100644';
+    return `${'='.repeat(67)}\n`
+        + `diff --git a/${filepath} b/${filepath}\n`
+        + `${mode}\n`
+        + `--- ${oldName}\n`
+        + `+++ ${newName}\n`;
 }
 
 /**
@@ -600,12 +701,17 @@ ipcMain.handle('git:create-patch', async (_e, sitePath) => {
 // `{ handoff: true }` is the only difference: the file gets the header from
 // patch-provenance.cjs and a name that says whose work it is, so someone else
 // can push it and the props still land on the person who wrote it. Every other
-// caller — the Trac destination, the save-before-update prompt — passes nothing
-// and gets the bare diff under the name it has always had, because that is what
-// gets attached to a ticket.
+// Trac names its destination so the ownership guard can distinguish a file for
+// submission from an ordinary backup. Both it and the save-before-update path
+// still get the bare diff under the name it has always had.
 ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
     try {
         const handoff = Boolean(options && options.handoff);
+        const submission = handoff || (options && options.destination === 'trac');
+        if (submission) {
+            const refusal = await appliedPatchSubmissionRefusal(sitePath);
+            if (refusal) return refusal;
+        }
         const baseOid = await patchBaseOid(sitePath);
         const patch = await createMinimalPatchForDir(sitePath, baseOid);
 
@@ -769,6 +875,8 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
     if (!ticketId) {
         return { ok: false, reason: 'no-ticket', error: 'Link a Trac ticket to this site first.', stage: 'auth' };
     }
+    const ownershipRefusal = await appliedPatchSubmissionRefusal(sitePath);
+    if (ownershipRefusal) return { ...ownershipRefusal, stage: 'ownership' };
     const { wporgHandle: handle = null, contributionEvent = null } = s.get('preferences') || {};
 
     let collected;
@@ -860,9 +968,9 @@ async function migrateSiteToBranches(sitePath) {
         const existing = await listTicketBranches(sitePath);
         // A branch that already exists was not created by this app, so its fork
         // point is not on record and cannot be recovered on a depth-1 clone.
-        // Left null deliberately: patchBaseOid has one documented fallback for
-        // exactly this, and guessing here would put a second, wrong one in the
-        // codebase. (`trunkOid` is the *current* tip, not the fork point.)
+        // Left null deliberately: patch operations refuse this branch instead
+        // of guessing from today's trunk, which is not necessarily its fork
+        // point (#308).
         const baseOid = existing.includes(ref)
             ? null
             : (await startTicketBranch(sitePath, m.tracTicket)).baseOid;
@@ -1039,6 +1147,32 @@ async function readWorkMeta(sitePath) {
     return ref === TRUNK || !meta ? site : meta;
 }
 
+/**
+ * Refuse to publish a checkout that still contains a named patch layer (#328).
+ *
+ * The diff against the ticket's base contains both that layer and any edits
+ * made after it. There is no honest single owner for that combined diff, and
+ * the app cannot separate the two safely. An ordinary, unattributed Save is
+ * deliberately not routed through this guard: it remains available as the
+ * backup contributors are told to make before reverting or discarding work.
+ *
+ * @param {string} sitePath
+ * @return {Promise<?{ok: false, reason: string, error: string}>}
+ */
+async function appliedPatchSubmissionRefusal(sitePath) {
+    const appliedPatch = (await readWorkMeta(sitePath)).appliedPatch;
+    if (!appliedPatch) return null;
+
+    const label = typeof appliedPatch.label === 'string' && appliedPatch.label.trim()
+        ? appliedPatch.label.trim()
+        : 'The patch you applied';
+    return {
+        ok: false,
+        reason: 'applied-patch',
+        error: `${label} is applied. Revert it before submitting this checkout as your own work.`
+    };
+}
+
 async function writeWorkMeta(sitePath, patch) {
     const { ref, meta } = await activeBranch(sitePath);
     if (ref === TRUNK || !meta) return mergeSiteMeta(sitePath, patch);
@@ -1054,30 +1188,22 @@ async function mergeBranchMeta(sitePath, ref, patch) {
 
 /**
  * The diff base for whatever is checked out: a ticket branch's recorded branch
- * point, or null on trunk — where the patch generator falls back to HEAD, which
- * is what it has always diffed against.
+ * point, or null on trunk — where the patch generator falls back to HEAD.
+ *
+ * A ticket branch without a recorded base refuses rather than guessing from
+ * today's trunk (#308). That state belongs to sites or branches created outside
+ * the app; 1.0 does not attempt to adopt or repair it.
  *
  * @param {string} sitePath
+ * @return {Promise<?string>}
  */
 async function patchBaseOid(sitePath) {
-    try {
-        // What is checked out decides this, so ask the worktree before the
-        // registry: a site on trunk — every site before #108, and every site
-        // whose owner never linked a ticket — answers without a store read at
-        // all, and takes exactly the path it always took.
-        let ref = null;
-        try { ref = await currentBranchName(sitePath); } catch {}
-        if (!ref || ref === TRUNK) return null;
+    const ref = await currentBranchName(sitePath);
+    if (!ref || ref === TRUNK) return null;
 
-        const recorded = ((await readSiteMeta(sitePath)).branches || {})[ref];
-        if (recorded && recorded.baseOid) return recorded.baseOid;
-        // A ticket branch with no recorded base (registry edited by hand, or a
-        // branch the user made themselves). The live trunk ref is the closest
-        // honest answer available.
-        return await git.resolveRef({ fs, dir: sitePath, ref: 'refs/heads/trunk' });
-    } catch {
-        return null;
-    }
+    const recorded = ((await readSiteMeta(sitePath)).branches || {})[ref];
+    if (recorded && recorded.baseOid) return recorded.baseOid;
+    throw new Error('This ticket has no recorded starting point, so the app cannot safely compare or discard its work.');
 }
 
 /**
@@ -1112,15 +1238,17 @@ async function baseProvenance(dir, baseOid, meta) {
  * The files standing between where this ticket started and where it is now —
  * the note's measurement (#239). Same base and same walk as the patch, filtered
  * to the rows the patch would actually speak about, so the note and the modal
- * are two renderings of one answer. On trunk `patchBaseOid` answers null and
- * the walk falls back to HEAD, which is what the note has always read there.
+ * are two renderings of one answer. On trunk `patchBaseOid` answers null and the
+ * walk falls back to HEAD, which is what the note has always read there.
  *
+ * Throws when the base could not be read (#308) rather than measuring against
+ * HEAD: on a resumed ticket HEAD is the contributor's own parked work, so the
+ * fallback answers "nothing here" about the very tree this exists to speak for.
  * @param {string} sitePath
  * @return {Promise<Array<string>>} Paths, gitignored ones excluded.
  */
 async function collectUnsubmittedFiles(sitePath) {
-    const baseOid = await patchBaseOid(sitePath);
-    const { files } = await collectChangedFiles(sitePath, baseOid);
+    const { files } = await collectChangedFiles(sitePath, await patchBaseOid(sitePath));
     return files
         .filter((file) => classifyChangedFile(file).kind !== 'unchanged')
         .map((file) => file.path);
@@ -1128,9 +1256,10 @@ async function collectUnsubmittedFiles(sitePath) {
 
 // Two questions, deliberately two channels (#239). This one asks "are there
 // edits not written down yet" — the narrow reading the checkout guards need:
-// the trunk-update dirty dialog and the patch-apply collision scan protect
-// exactly the files a force checkout would overwrite, and parked work is not
-// among them. The card's note asks `git:unsubmitted-work` instead.
+// the trunk-update dirty dialog protects exactly the files a force checkout
+// would overwrite, and parked work is not among them. Everything that asks
+// what this ticket has done — the card's note, and the patch-apply collision
+// scan (#301) — asks `git:unsubmitted-work`'s question instead.
 ipcMain.handle('git:worktree-dirty', async (_e, sitePath) => {
     try {
         const files = await collectDirtyFiles(sitePath);
@@ -1150,6 +1279,37 @@ ipcMain.handle('git:unsubmitted-work', async (_e, sitePath) => {
     try {
         const files = await collectUnsubmittedFiles(sitePath);
         return { ok: true, dirty: files.length > 0, changedCount: files.length, files };
+    } catch (e) {
+        return { ok: false, error: String(e) };
+    }
+});
+
+// "Discard all changes" in the review-and-submit modal: throws away everything
+// the modal shows, which on a ticket branch is measured from the branch point
+// (#108/#239) and so includes the parked WIP commit. Rewinds to `patchBaseOid`
+// — the same base the diff was taken against — so the modal ends on "No
+// changes". The branch survives and the ticket stays linked; only its work is
+// gone. On trunk there is nothing past HEAD to rewind, so it falls back to the
+// uncommitted-only reset.
+//
+// A base the app could not read refuses outright (#308). The uncommitted-only
+// reset is not a safe stand-in for it: it looks like a discard, leaves the
+// parked WIP commit untouched, and the modal would come back still listing the
+// work it just promised to throw away.
+ipcMain.handle('git:discard-to-base', async (_e, sitePath) => {
+    try {
+        const baseOid = await patchBaseOid(sitePath);
+        if (baseOid) {
+            await discardToBase(sitePath, baseOid);
+        } else {
+            await discardChanges(sitePath);
+        }
+        await writeWorkMeta(sitePath, { appliedPatch: null });
+        let files = null;
+        try { files = await collectUnsubmittedFiles(sitePath); } catch {}
+        return files
+            ? { ok: true, dirty: files.length > 0, changedCount: files.length }
+            : { ok: true };
     } catch (e) {
         return { ok: false, error: String(e) };
     }
@@ -1322,20 +1482,36 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
         const ticketId = meta.tracTicket;
         if (!ticketId) return { ok: true, ticket: null, prs: { status: 'no-ticket', items: [] } };
 
-        const result = await fetchLinkedPrs(ticketId);
+        // The cached list is passed back in, not just fallen back to: its commit
+        // dates are still valid for any pull request GitHub reports with the
+        // same `updatedAt`, so a Refresh does not re-spend the ranking, and a
+        // Refresh on a spent quota cannot replace a ranking the contributor
+        // could already read with an unranked one (#281).
+        const cachedBefore = s.get(patchCacheKey(ticketId)) || null;
+        const result = await fetchLinkedPrs(ticketId, { known: cachedBefore ? cachedBefore.items : null });
         if (result.status === 'ok') {
-            s.set(patchCacheKey(ticketId), { checkedAt: new Date().toISOString(), items: result.items });
-            return { ok: true, ticket: ticketId, prs: { status: 'ok', items: result.items } };
+            // `rankComplete` is cached with the items and handed back with them:
+            // a list whose commit-date ranking was cut short must not come back
+            // from the cache looking complete, or the "Latest" pill returns
+            // without the evidence for it (#281).
+            s.set(patchCacheKey(ticketId), { checkedAt: new Date().toISOString(), items: result.items, rankComplete: result.rankComplete });
+            return { ok: true, ticket: ticketId, prs: { status: 'ok', items: result.items, rankComplete: result.rankComplete } };
         }
 
         // Could not read GitHub. Fall back to whatever was last seen for this
         // ticket, labelled with when — a stale-but-shown list beats a short one
         // presented as complete.
-        const cached = s.get(patchCacheKey(ticketId)) || null;
+        const cached = cachedBefore;
         return {
             ok: true,
             ticket: ticketId,
-            prs: { status: result.status, items: cached ? cached.items : [], cachedAt: cached ? cached.checkedAt : null, error: result.error }
+            prs: {
+                status: result.status,
+                items: cached ? cached.items : [],
+                rankComplete: cached ? cached.rankComplete === true : false,
+                cachedAt: cached ? cached.checkedAt : null,
+                error: result.error
+            }
         };
     } catch (e) {
         return { ok: false, error: String(e) };
@@ -1385,18 +1561,27 @@ const REVERTABLE_PATCH_LIMIT = 512 * 1024;
 // Reading a patch without touching the checkout, so the contributor sees which
 // files it would change — and which of their own edits it collides with —
 // before deciding.
+//
+// Measured from the ticket's base, not from HEAD (#301). Under the
+// ticket-as-branch model a ticket's work lives in its parked WIP commit, so a
+// ticket that has been left and resumed has a worktree matching HEAD exactly:
+// HEAD-relative, the warning goes silent on precisely the tree it exists to
+// protect, and speaks up about files edited back to what the base holds. This
+// is the same measurement the patch itself is taken with, so what the warning
+// calls "your own edits" is what the patch modal would show.
 ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
     try {
         const parsed = parsePatchFiles(patchText);
         if (!parsed.ok) return { ok: false, error: parsed.error };
         let dirtyPaths;
         try {
-            dirtyPaths = await collectDirtyFiles(sitePath);
+            dirtyPaths = await collectUnsubmittedFiles(sitePath);
         } catch (e) {
             // Failing open here would promise "no collisions" precisely when the
-            // app could not look — surface the failure instead.
+            // app could not look — surface the failure instead. An unreadable
+            // base arrives here as a throw for exactly that reason (#308).
             logError('git:preview-patch', String(e && e.stack ? e.stack : e));
-            return { ok: false, error: 'Could not check your working tree for conflicts, so the preview was not shown.' };
+            return { ok: false, error: 'Could not check your work for conflicts, so the preview was not shown.' };
         }
         const plan = planApply({ files: parsed.files, dirtyPaths });
         return { ok: true, ...plan, files: parsed.files.map((f) => ({ kind: f.kind, path: f.path })) };
@@ -1477,7 +1662,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                     // site is still stuck, and telling the contributor it is
                     // sorted would send them back to a button that still refuses.
                     try {
-                        await mergeSiteMeta(sitePath, { appliedPatch: null });
+                        await writeWorkMeta(sitePath, { appliedPatch: null });
                         recordCleared = true;
                     } catch (e) {
                         logError('git:apply-patch', `clearing stale applied-patch record failed: ${String(e && e.stack ? e.stack : e)}`);
@@ -1592,6 +1777,7 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		const hasBuilt = fs.existsSync(distDir);
 
 		const s = await getStore();
+		if ((s.get('sites') || []).includes(sitePath)) await ensureLocalExcludes(sitePath);
 		const meta = s.get('siteMeta') || {};
 		const m = meta[sitePath] || {};
 
@@ -1614,21 +1800,33 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		// would carry the other one's "patch applied · Revert" banner over, and
 		// Revert would reverse its hunks against this ticket's tree.
 		const work = await readWorkMeta(sitePath);
+		// A recorded branch point and the current trunk tip are enough to warn
+		// that the context changed (#305). Missing metadata stays false: 1.0
+		// refuses to guess, and deliberately offers no checkout rewrite.
+		const ticketBehindTrunk = Boolean(m.tracTicket && work.baseOid && trunkOid && work.baseOid !== trunkOid);
 
 		// Summarised rather than passed through: the stored patch text is only
 		// needed by the main process to reverse it, and this is polled.
+		//
+		// A routine status read does not open and diff the patch's files. Revert
+		// performs that check when the contributor asks for it, and its existing
+		// failure payload explains overlapping edits without freezing every
+		// status refresh in the main process (#306).
 		const appliedPatch = work.appliedPatch
 			? {
 				label: work.appliedPatch.label,
 				appliedAt: work.appliedPatch.appliedAt,
 				files: work.appliedPatch.files || [],
+				// Whether a text was kept at all — the separate reason a patch
+				// cannot be reverted, and a different sentence from absorption.
+				kept: Boolean(work.appliedPatch.text),
 				revertable: Boolean(work.appliedPatch.text)
 			}
 			: null;
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, appliedPatch };
+		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch };
 	} catch {
-		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, appliedPatch: null };
+		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, ticketBehindTrunk: false, appliedPatch: null };
 	}
 });
 
@@ -1644,6 +1842,7 @@ ipcMain.handle('sites:add', async (_e, sitePath) => {
 	// A pre-existing dir was likely cloned by native git — exactly the case
 	// where CRLF checkouts break status/patch generation (see ensureAutocrlf).
 	await ensureAutocrlf(sitePath);
+	await ensureLocalExcludes(sitePath);
 	const s = await getStore();
 	const sites = s.get('sites');
 	if (!sites.includes(sitePath)) {
@@ -1704,6 +1903,7 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 			}
 		});
 		await ensureAutocrlf(siteDir);
+		await ensureLocalExcludes(siteDir);
 
 		const s = await getStore();
 		const sites = s.get('sites');
@@ -1746,7 +1946,11 @@ ipcMain.handle('sites:mark-initialized', async (_e, sitePath) => {
 // the guard shows up in the log file instead of just doing nothing.
 ipcMain.handle('sites:delete', async (_e, sitePath) => {
 	const s = await getStore();
-	return deleteRegisteredSite(sitePath, {
+	// Filled in by `remove` when the deletion itself fails. Kept outside the
+	// guard call because deleteRegisteredSite's boolean only answers "was this
+	// allowed", and the renderer needs the other half of the story too (#381).
+	let removalError = null;
+	const allowed = await deleteRegisteredSite(sitePath, {
 		sites: s.get('sites'),
 		// A site whose clone is still running is refused outright, registered or
 		// not: `remove` would be deleting a tree isomorphic-git is writing into.
@@ -1757,11 +1961,31 @@ ipcMain.handle('sites:delete', async (_e, sitePath) => {
 			delete meta[sitePath];
 			s.set('siteMeta', meta);
 		},
-		// Best-effort, as before: a site whose registry entry is gone should not be
-		// stuck undeletable because its directory is missing or locked.
-		remove: async (p) => { try { await fse.remove(p); } catch {} },
+		// removeTree handles what plain removal leaves unanswered on the
+		// protected object files a real Git writes: on POSIX, a directory whose
+		// write bit is missing, which nothing else clears; on Windows, an entry
+		// something still holds open, which only a retry budget survives (#381).
+		// A failure is recorded rather than swallowed: `forget` has already
+		// run — deliberately, so a locked directory cannot leave a site stuck
+		// undeletable — which means the one honest thing left to do when the
+		// disk half fails is to say so, in the log and to the caller.
+		remove: async (p) => {
+			try {
+				await removeTree(p);
+			} catch (e) {
+				removalError = e;
+				logError('sites', `deleted ${sitePath} from the registry, but its folder could not be removed and is still on disk: ${String(e && e.stack ? e.stack : e)}`);
+			}
+		},
 		onRefused: (description) => logEvent('sites', `refused to delete ${description} — not a registered site, or still being created`)
 	});
+	if (!allowed) return { ok: false, refused: true };
+	if (removalError) {
+		// Machine-readable on purpose: the sentence the contributor reads is
+		// composed in the renderer (confirmations.cjs), where it is testable.
+		return { ok: false, reason: 'remove-failed', path: sitePath, code: removalError.code };
+	}
+	return { ok: true };
 });
 
 ipcMain.handle('sites:set-label', async (_e, sitePath, label) => {
@@ -2261,6 +2485,7 @@ ipcMain.handle('npm:install', async (event, directoryPath) => {
 		retryOnEngineMismatch: true,
 		register: (child) => {
 			runningInstalls[installId] = child;
+			installIdByDirectory[directoryPath] = installId;
 		},
 		onLog: (type, data) => {
 			event.sender.send('npm:install:log', { installId, type, data });
@@ -2280,6 +2505,12 @@ ipcMain.handle('npm:install', async (event, directoryPath) => {
 			} catch {}
 			event.sender.send('npm:install:done', { installId, code });
 			delete runningInstalls[installId];
+			// Guarded on identity: a second install for the same directory has
+			// already claimed the slot, and clearing it blind would leave that
+			// one unkillable.
+			if (installIdByDirectory[directoryPath] === installId) {
+				delete installIdByDirectory[directoryPath];
+			}
 		}
 	});
 
@@ -2328,12 +2559,23 @@ ipcMain.handle('npm:kill', async (_event, { runId, directoryPath }) => {
 		const id = runIdByDirectory[directoryPath];
 		child = runningScripts[id];
 	}
+	// An install is the other thing a directory can be busy with, and until this
+	// fallback existed it was unstoppable: Stop resolved nothing, returned "No
+	// running script", and the install ran to completion regardless. Checked
+	// after the scripts because a runId can only ever mean a script, and the two
+	// never run for the same directory at once.
+	if (!child && directoryPath && installIdByDirectory[directoryPath]) {
+		child = runningInstalls[installIdByDirectory[directoryPath]];
+	}
 	if (!child) return { ok: false, error: 'No running script' };
 	try {
+		// Also what stops `runNpmWithEngineRetry` respawning an install that a
+		// cancel pushed into a non-zero exit — it reads this set to tell a real
+		// engine mismatch from a stop.
 		cancelledChildren.add(child);
 		// A script is a tree — runner -> npm -> shell -> grunt — and child.kill()
 		// signals only the first link, so stopping a build left the rest of it
-		// running (#83, #146).
+		// running (#83, #146). An install is the same shape: runner -> npm.
 		killChildTree(child);
 		// Last resort for a child that ignores SIGTERM. Only the direct child: by
 		// this point the tree has had its chance, and the runner dying takes the

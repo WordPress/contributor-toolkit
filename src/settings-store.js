@@ -1,7 +1,7 @@
 // The one `electron-store` instance the app has, behind a seam tests can reach.
 //
 // `electron-store` is ESM-only, so main.js loaded it with a dynamic `import()`.
-// That import is invisible to `Module._load`, which is what test/ipc-wiring.test.cjs
+// That import is invisible to `Module._load`, which is what tests/unit/ipc-wiring.test.cjs
 // uses to stand in for a module — so every handler that read the store was
 // unreachable from that suite, and the delete handler's registry gate could be cut
 // without failing anything (#145). Keeping the import in a module of its own means

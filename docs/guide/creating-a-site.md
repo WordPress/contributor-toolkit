@@ -25,11 +25,9 @@ The app clones the `wordpress-develop` repository from GitHub. Git is bundled wi
 
 While the clone runs, the site view shows a **Setting up new site…** card with the current phase and a terminal panel streaming progress output. The clone downloads the full repository, so expect it to take several minutes depending on your connection.
 
-The clone is the first step of the [initial setup checklist](./setup-wizard); the remaining steps (installing dependencies, building, starting the dev server) stay locked until it finishes, then you drive them yourself.
+The clone is the first step of the [initial setup checklist](./setup-wizard); the remaining steps stay locked until it finishes. Then the app carries on by itself — installing the dependencies and running the first build without waiting for you — so the only step left to click is starting the dev server.
 
-If setup fails, the half-created site is removed from the list — the row simply disappears. The
-reason goes to the application log rather than to a dialog, so **Help → Open App Log** is where
-to look when a site never finishes.
+If setup fails, the half-created site is removed from the list — the row simply disappears. The reason goes to the application log rather than to a dialog, so **Help → Open App Log** is where to look when a site never finishes.
 
 ## Where sites live on disk
 

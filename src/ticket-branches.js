@@ -106,11 +106,12 @@ async function listTicketBranches(dir) {
  * @param {Function} [onProgress] told how far the staging has got (#173)
  */
 async function stageWorktree(dir, matrix = null, onProgress = null) {
+	const gitFs = await ensureAutocrlf(dir);
 	// The caller has usually just scanned the worktree to decide whether there
 	// was anything to park. On wordpress-develop that scan hashes thousands of
 	// files on the main process's event loop, so it is passed in and reused
 	// rather than repeated.
-	if (!matrix) matrix = await git.statusMatrix({ fs, dir });
+	if (!matrix) matrix = await git.statusMatrix({ fs: gitFs, dir });
 	// The one stage of a park with a real total, and it comes free: the rows
 	// worth staging are known before any of them is written.
 	const pending = matrix.filter(([, head, workdir, stage]) => !(head === workdir && workdir === stage));
@@ -118,9 +119,9 @@ async function stageWorktree(dir, matrix = null, onProgress = null) {
 	for (const [filepath, , workdir] of pending) {
 		if (workdir === 0) {
 			// Gone from disk: drop it from the index, and from the next commit.
-			try { await git.remove({ fs, dir, filepath }); staged += 1; } catch {}
+			try { await git.remove({ fs: gitFs, dir, filepath }); staged += 1; } catch {}
 		} else {
-			try { await git.add({ fs, dir, filepath }); staged += 1; } catch {}
+			try { await git.add({ fs: gitFs, dir, filepath }); staged += 1; } catch {}
 		}
 		if (onProgress) onProgress({ stage: 'stage', loaded: staged, total: pending.length });
 	}
@@ -166,7 +167,8 @@ async function countChangesAgainst(dir, ref = 'HEAD') {
  * @param {string} [ref]
  */
 async function scanWorktree(dir, ref = 'HEAD') {
-	const matrix = await git.statusMatrix({ fs, dir, ref });
+	const gitFs = await ensureAutocrlf(dir);
+	const matrix = await git.statusMatrix({ fs: gitFs, dir, ref });
 	return { matrix, changed: matrix.some(([, head, workdir]) => head !== workdir) };
 }
 
@@ -186,7 +188,6 @@ async function scanWorktree(dir, ref = 'HEAD') {
  * @param {Function} [root0.onProgress] told which stage of the park is running (#173)
  */
 async function parkCurrentWork(dir, { baseOid, author = WIP_AUTHOR, onProgress = null } = {}) {
-	await ensureAutocrlf(dir);
 	const branch = await currentBranchName(dir);
 	if (!branch || branch === TRUNK) {
 		const error = new Error('Refusing to commit on trunk — it is the diff base for every ticket');
@@ -230,7 +231,6 @@ async function parkCurrentWork(dir, { baseOid, author = WIP_AUTHOR, onProgress =
  * @param {number|string} ticketId
  */
 async function startTicketBranch(dir, ticketId) {
-	await ensureAutocrlf(dir);
 	const ref = ticketBranchRef(ticketId);
 	const existing = await git.listBranches({ fs, dir });
 	if (existing.includes(ref)) {
@@ -269,7 +269,6 @@ async function startTicketBranch(dir, ticketId) {
  * @param {Function} [root0.onProgress] told which stage is running (#173)
  */
 async function switchToBranch(dir, ref, { baseOid, author = WIP_AUTHOR, onProgress = null } = {}) {
-	await ensureAutocrlf(dir);
 	const from = await currentBranchName(dir);
 	if (from === ref) return { switched: false, from, to: ref, parked: false };
 

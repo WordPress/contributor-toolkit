@@ -12,6 +12,8 @@ Click **Sign in with GitHub**. The app signs you in through your browser, using 
 2. Enter the code there — **Copy the code** puts it on your clipboard — and confirm the authorization on GitHub.
 3. The app waits until GitHub reports the sign-in went through.
 
+![The Open a pull request card showing a GitHub device code, Copy the code, the waiting state, and Cancel](/screenshots/github-sign-in.png)
+
 You never type a password into the app, and no credential is written to disk: the authorization is held in memory and forgotten when you quit. Click **Cancel** to abandon the sign-in, or **Not now** to decline it — the patch file is still yours to save, and the other two destinations are unchanged.
 
 Once signed in, the card says which account you are on and where the fork and branch will go: **your-username/wordpress-develop**. **Sign out** discards the authorization.
@@ -31,9 +33,3 @@ Two things a first-timer has no way to know, stated on the card before the butto
 - Nothing is merged on GitHub. A committer applies the change themselves, and the ticket is where they decide to.
 
 The card links to [the core handbook page on pull requests](https://make.wordpress.org/core/handbook/contribute/git/github-pull-requests-for-code-review/).
-
-## Test mode
-
-Developers of the app itself can point this flow at a sandbox repository, or make it a dry run that pushes a branch without opening a pull request. When either switch is set, a **Test mode** banner appears on the card saying exactly what will happen, and the dry-run button reads **Push branch (dry run)** instead of **Open pull request**. In a normal build you will never see this banner.
-
-If a build has no GitHub application configured, the card says so — it cannot open a pull request, but the other destinations still work.

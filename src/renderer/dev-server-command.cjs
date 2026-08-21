@@ -59,4 +59,30 @@ function formatElapsed(seconds) {
 	return `${minutes}m ${String(rest).padStart(2, '0')}s`;
 }
 
-module.exports = { planDevServerStart, formatElapsed };
+/**
+ * The title for the build-watcher log tab, from its lifecycle state. The tab is
+ * always present, so its title is where the watcher's state is shown: a
+ * contributor can tell at a glance whether `src/` edits are being compiled,
+ * paused for another operation, or stopped — without opening the tab.
+ *
+ * `exitCode` is only meaningful when `state` is 'exited'.
+ *
+ * @param {'idle'|'watching'|'building'|'paused'|'exited'} state
+ * @param {number|null}                                    [exitCode]
+ * @return {string}
+ */
+function watchTabLabel(state, exitCode) {
+	switch (state) {
+		case 'watching': return 'Build watcher (watching)';
+		case 'building': return 'Build watcher (building)';
+		case 'paused': return 'Build watcher (paused)';
+		case 'exited': {
+			const code = Number.isFinite(exitCode) ? exitCode : null;
+			return code === null ? 'Build watcher (stopped)' : `Build watcher (exited ${code})`;
+		}
+		case 'idle':
+		default: return 'Build watcher';
+	}
+}
+
+module.exports = { planDevServerStart, formatElapsed, watchTabLabel };

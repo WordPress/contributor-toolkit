@@ -84,6 +84,20 @@ function discardOutcome(res) {
 }
 
 /**
+ * Apply-related feedback after attempting the destructive exit from a ticket.
+ * A failure preserves the layer and the error that explains why it remains;
+ * success clears both because the ticket is back at its base.
+ *
+ * @param {{ok?: boolean}} outcome The discard result.
+ * @param {*}              current The apply feedback currently on screen.
+ * @return {*}
+ */
+function applyFeedbackAfterDiscard(outcome, current) {
+	if (!outcome || !outcome.ok) return current;
+	return { appliedPatch: null, applyError: '', applyConflict: null, applyNotice: '' };
+}
+
+/**
  * What the note shows in the frame straight after a discard, before any probe
  * has walked the checkout again.
  *
@@ -107,15 +121,19 @@ function noteAfterDiscard(outcome) {
 }
 
 /**
- * Whether the modal's discard link is inert: while the diff is loading there
- * is nothing to confirm against, with no changes there is nothing to lose,
- * and mid-discard a second click would race the first.
+ * What a completed probe may leave on the card.
  *
- * @param {{patchLoading?: boolean, patchHasChanges?: boolean, discarding?: boolean}} state
- * @return {boolean}
+ * A failed measurement clears the previous answer. Keeping an old count would
+ * present it as current even when the app has just learned that it cannot read
+ * the ticket's base (#308).
+ *
+ * @param {*} _current The note shown while the probe was running.
+ * @param {*} result   A `git:unsubmitted-work` reply.
+ * @return {{dirty: boolean, changedCount: *}|null}
  */
-function modalDiscardDisabled({ patchLoading, patchHasChanges, discarding } = {}) {
-	return Boolean(patchLoading || discarding || !patchHasChanges);
+function noteAfterProbe(_current, result) {
+	if (!result || !result.ok) return null;
+	return { dirty: Boolean(result.dirty), changedCount: result.changedCount };
 }
 
 /**
@@ -133,4 +151,28 @@ function discardBlocked({ isUpdating, installing, building, devServerActive, dis
 	return Boolean(isUpdating || installing || building || devServerActive || discarding);
 }
 
-module.exports = { changesNoteParts, discardOutcome, noteAfterDiscard, modalDiscardDisabled, discardBlocked, DISCARD_CONFIRM_MESSAGE };
+/**
+ * The explanation shown when the modal's discard action is unavailable.
+ *
+ * One operation can leave several guards true while state settles. Report the
+ * action already underway first, then the transient patch state, and finally
+ * the process the contributor can stop or wait for.
+ *
+ * @param {{patchLoading?: boolean, patchLoadFailed?: boolean, patchHasChanges?: boolean,
+ *          isUpdating?: boolean, installing?: boolean, building?: boolean,
+ *          devServerActive?: boolean, discarding?: boolean}} state
+ * @return {string|null}
+ */
+function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges, isUpdating, installing, building, devServerActive, discarding } = {}) {
+	if (discarding) return 'Changes are already being discarded.';
+	if (patchLoading) return 'Wait for your changes to finish loading.';
+	if (patchLoadFailed) return 'Changes could not be loaded.';
+	if (!patchHasChanges) return 'There are no changes to discard.';
+	if (isUpdating) return 'Wait for the trunk update to finish before discarding changes.';
+	if (installing) return 'Wait for the installation to finish before discarding changes.';
+	if (building) return 'Wait for the build to finish before discarding changes.';
+	if (devServerActive) return 'Stop the dev server before discarding changes.';
+	return null;
+}
+
+module.exports = { changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE };

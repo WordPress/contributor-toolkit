@@ -28,7 +28,7 @@
 
 // GitHub rejects API requests with no User-Agent; an identifying one is also
 // the honest thing to send.
-const USER_AGENT = 'WordPress-Contributor-Toolkit (+https://github.com/WordPress/experimental-wp-dev-env)';
+const USER_AGENT = 'WordPress-Contributor-Toolkit (+https://github.com/WordPress/contributor-toolkit)';
 const REQUEST_TIMEOUT_MS = 15000;
 
 /**

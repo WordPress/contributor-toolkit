@@ -37,8 +37,12 @@ export default defineConfig( {
 	themeConfig: {
 		nav: [
 			{ text: 'Guide', link: '/guide/getting-started' },
+			// "Releases", not "Download": the platform-aware Download button is
+			// on the landing page and in the guide, and two links called
+			// "Download" that behave differently is the confusion this avoids.
+			// This one goes to the list of every asset and past version.
 			{
-				text: 'Download',
+				text: 'Releases',
 				link: 'https://github.com/WordPress/contributor-toolkit/releases/latest',
 			},
 		],

@@ -125,6 +125,101 @@ function scanSections(raw) {
 }
 
 /**
+ * The one path named by a `diff --git a/<path> b/<path>` line whose two sides
+ * are the same file — the only shape an added or deleted file can have.
+ *
+ * The line has no delimiter, so a path containing a space makes it ambiguous in
+ * general (`git apply` itself refuses such a line without `---`/`+++` to cross-
+ * check). But when both sides are the same path — and for an add or a delete
+ * they always are — the split is fixed by the line's length, so even
+ * `a/new file.php b/new file.php` reads back exactly. Git quotes a path only
+ * for characters beyond plain spaces; the quoted form carries C-style escapes,
+ * so it is left unparsed rather than guessed at.
+ *
+ * @param {string} line A `diff --git ` line.
+ * @return {string|null} The repo-relative path, or null when it cannot be read
+ *                       with certainty.
+ */
+function samePathFromGitDiffLine(line) {
+	const rest = line.slice('diff --git '.length);
+	if (!rest.startsWith('a/')) return null;
+	const length = (rest.length - 5) / 2;
+	if (!Number.isInteger(length) || length < 1) return null;
+	const filePath = rest.slice(2, 2 + length);
+	if (rest.slice(2 + length, 5 + length) !== ' b/' || rest.slice(5 + length) !== filePath) return null;
+	return filePath;
+}
+
+/**
+ * Rewrites the sections real git emits for an empty file added or deleted into
+ * the shape the rest of this parser already reads (#311).
+ *
+ * An empty file has no line to diff, so git writes its section as headers
+ * alone and — unlike this app's own generator — omits the `---`/`+++` pair
+ * entirely; the file's fate is carried by `new file mode` / `deleted file
+ * mode`. jsdiff cannot see those: such a section comes back as `{hunks: []}`
+ * with no filenames when it is last in the patch, and is silently swallowed
+ * when another section follows it. Either way one empty file used to take the
+ * whole patch down (or vanish from it) — every unrelated file included.
+ *
+ * Supplying the pair git left out, before jsdiff parses, is the whole fix: the
+ * section then parses like the app's own empty-file sections, and everything
+ * downstream — classification, layout mapping, `planApply`, the applier and
+ * its guards — treats both origins identically because they are identical.
+ *
+ * Deliberately narrow: a section is only rewritten when it carries a
+ * new/deleted file mode line, has no `---`/`+++`/hunk of its own, is not
+ * binary and not a rename, and its `diff --git` line names one unambiguous
+ * path. Anything else is left byte-for-byte alone.
+ *
+ * @param {string} text EOL-normalised patch text.
+ * @return {string}
+ */
+function supplyEmptyFileHeaders(text) {
+	const lines = text.split('\n');
+	const out = [];
+	let i = 0;
+	while (i < lines.length) {
+		out.push(lines[i]);
+		if (!lines[i].startsWith('diff --git ')) { i++; continue; }
+		let mode = '';
+		let opaque = false;
+		let end = i + 1;
+		while (end < lines.length && !lines[end].startsWith('diff --git ') && !lines[end].startsWith('Index: ')) {
+			const line = lines[end];
+			if (/^new file mode /.test(line)) mode = 'add';
+			else if (/^deleted file mode /.test(line)) mode = 'delete';
+			else if (/^(--- |\+\+\+ |@@ |GIT binary patch|rename (?:from|to) )/.test(line) || /^Binary files .* differ$/.test(line)) opaque = true;
+			end++;
+		}
+		const section = lines.slice(i + 1, end);
+		// The injected pair goes at the section's end, where git itself puts
+		// it — but ahead of any trailing blank line, which jsdiff would read
+		// as a phantom context line.
+		let tail = section.length;
+		while (tail > 0 && section[tail - 1] === '') tail--;
+		out.push(...section.slice(0, tail));
+		const filePath = mode && !opaque ? samePathFromGitDiffLine(lines[i]) : null;
+		// jsdiff can silently omit a mode-only section it cannot name when a
+		// normal section follows. Refuse the whole patch instead of reporting a
+		// partial success. Decoding Git's quoted C-style paths is deliberately
+		// outside the narrow 1.0 reader (#316).
+		if (mode && !opaque && !filePath) {
+			throw new Error('The empty file path is quoted or ambiguous.');
+		}
+		if (filePath) {
+			out.push(
+				mode === 'add' ? '--- /dev/null' : `--- a/${filePath}`,
+				mode === 'add' ? `+++ b/${filePath}` : '+++ /dev/null'
+			);
+		}
+		out.push(...section.slice(tail));
+		i = end;
+	}
+	return out.join('\n');
+}
+
+/**
  * @param {Object} file    A jsdiff parsePatch entry.
  * @param {string} oldPath
  * @param {string} newPath
@@ -148,11 +243,17 @@ function parsePatchFiles(text) {
 	const raw = typeof text === 'string' ? text : '';
 	if (!raw.trim()) return { ok: false, error: 'The patch is empty.' };
 
+	// Normalise line endings on the way in so hunk context matches what the
+	// applier reads off disk, which is normalised the same way.
+	const normalized = normalizeEol(raw);
+
 	let parsed;
 	try {
-		// Normalise line endings on the way in so hunk context matches what the
-		// applier reads off disk, which is normalised the same way.
-		parsed = JsDiff.parsePatch(normalizeEol(raw));
+		// Real git carries an empty file added or deleted as headers alone,
+		// with no `---`/`+++` pair for jsdiff to read (#311) — supplying it
+		// here is what lets the rest of this function see those sections at
+		// all, instead of one of them rejecting the whole patch.
+		parsed = JsDiff.parsePatch(supplyEmptyFileHeaders(normalized));
 	} catch (e) {
 		return { ok: false, error: `Could not read the patch: ${String(e && e.message ? e.message : e)}` };
 	}
@@ -161,13 +262,33 @@ function parsePatchFiles(text) {
 		return { ok: false, error: 'No file changes found in the patch.' };
 	}
 
-	const sections = scanSections(normalizeEol(raw));
+	const sections = scanSections(normalized);
 	const files = [];
 
 	for (let i = 0; i < parsed.length; i++) {
 		const file = parsed[i];
 
 		if (!file.hunks || file.hunks.length === 0) {
+			// An empty file added or deleted has no line on either side, so its
+			// section is headers alone (#311). `/dev/null` still says which of
+			// the two it was — the same rule classify() applies to a hunked
+			// section — and it comes off the parsed filenames, so it does not
+			// depend on `sections` lining up with `parsed` (it does not, in a
+			// patch that mixes git-style and bare sections).
+			if (file.oldFileName === '/dev/null' || file.newFileName === '/dev/null') {
+				const empty = stripPathPrefix(file.oldFileName || '', file.newFileName || '');
+				const emptyKind = classify(file, empty.oldPath, empty.newPath);
+				const emptyTarget = emptyKind === 'delete' ? empty.oldPath : empty.newPath;
+				files.push({
+					kind: emptyKind,
+					oldPath: mapToSrcLayout(empty.oldPath),
+					newPath: mapToSrcLayout(empty.newPath),
+					path: mapToSrcLayout(emptyTarget),
+					hunks: [],
+					patch: file
+				});
+				continue;
+			}
 			// jsdiff kept nothing, so the raw section is the only evidence of
 			// what this was.
 			const section = sections[i];

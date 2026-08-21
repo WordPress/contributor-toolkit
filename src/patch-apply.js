@@ -113,15 +113,175 @@ function reverseFile(file) {
 	};
 }
 
+// How many failing regions carry their own lines, and how many lines each of
+// those carries. Everything else is still counted and located — only the
+// content is dropped. The whole diagnosis crosses IPC and then has to fit in a
+// notice, and a patch that misses in forty places would otherwise send forty
+// blocks of diff to a panel nobody can read.
+const REGION_DETAIL_LIMIT = 3;
+const REGION_LINE_LIMIT = 10;
+
+/**
+ * The `-`/`+` lines of one hunk — what that region was trying to change.
+ * Context lines are dropped: they are what the region was looking for, not what
+ * it wanted to do, and they are the bulk of the text.
+ *
+ * @param {Object} hunk
+ * @return {{lines: Array<string>, more: number}}
+ */
+function changedLines(hunk) {
+	const changed = (hunk.lines || []).filter((line) => line[0] === '+' || line[0] === '-');
+	return {
+		lines: changed.slice(0, REGION_LINE_LIMIT),
+		more: Math.max(0, changed.length - REGION_LINE_LIMIT)
+	};
+}
+
+/**
+ * A line the contributor can search for to find this region in *their* file.
+ *
+ * The hunk's line numbers cannot serve: they are coordinates in the file as it
+ * was when the patch was written, and on an old patch they miss by dozens —
+ * precision that sends someone to the wrong place. A line of content survives
+ * the drift, so the notice offers text for the editor's search instead.
+ *
+ * Which line to prefer depends on why the region failed — a region whose
+ * surroundings moved usually still has the very line it wants to change, one
+ * already applied has the *result* — but "usually" is not a promise, so every
+ * candidate is checked against the file itself and the first one actually
+ * present wins. Only when nothing from the hunk survives in the file does the
+ * preference order alone decide, as the least-bad thing to show.
+ *
+ * @param {Object}  hunk
+ * @param {boolean} alreadyApplied
+ * @param {string}  text           Current file contents, EOL-normalised.
+ * @return {string} A trimmed line, or '' when the hunk offers nothing usable.
+ */
+function anchorLine(hunk, alreadyApplied, text) {
+	const lines = hunk.lines || [];
+	const candidates = (marker) => lines
+		.filter((line) => line[0] === marker && line.slice(1).trim())
+		.map((line) => line.slice(1).trim().slice(0, 120));
+	const preferred = alreadyApplied ? ['+', '-', ' '] : ['-', ' ', '+'];
+	for (const marker of preferred) {
+		// Longest present candidate, not first: the first line of a hunk is
+		// often a bare brace, and "near `}`" locates nothing.
+		const present = candidates(marker).filter((line) => text.includes(line));
+		if (present.length) return present.reduce((a, b) => (b.length > a.length ? b : a));
+	}
+	for (const marker of preferred) {
+		const [firstLine] = candidates(marker);
+		if (firstLine) return firstLine;
+	}
+	return '';
+}
+
+/**
+ * Which regions of a patch no longer fit a file, and why.
+ *
+ * `JsDiff.applyPatch` answers for a whole file at once, so a patch that misses
+ * in one place out of twenty is indistinguishable from one that misses
+ * everywhere — and those are opposite decisions for the contributor (#282).
+ * Asking the same question once per hunk is all it takes to tell them apart.
+ *
+ * The reverse answers *why*: a region whose inverse fits is one whose change is
+ * already in the file, so the patch is redundant there rather than stale (#226).
+ * That is the same reasoning `patchIsAbsent` uses below, asked per region.
+ *
+ * **Evidence, not proof.** `applyPatch` searches by offset for somewhere the
+ * context fits, so a region whose surroundings repeat can match in the wrong
+ * place. That is acceptable for choosing what to say and is never acceptable
+ * for deciding what to write — nothing here reaches a write. Each hunk is also
+ * matched against the file as it is now, not as earlier hunks would have left
+ * it, which is the only question that can be asked when nothing is applied.
+ *
+ * @param {string} text Current file contents, EOL-normalised.
+ * @param {Object} file Parsed patch file.
+ * @return {?{total: number, regions: Array<Object>}} null when nothing to add.
+ */
+function diagnoseHunks(text, file) {
+	const hunks = file.hunks || [];
+	if (!hunks.length) return null;
+
+	const regions = [];
+	hunks.forEach((hunk, index) => {
+		const single = { ...file.patch, hunks: [hunk] };
+		if (JsDiff.applyPatch(text, single) !== false) return;
+		const alreadyApplied = JsDiff.applyPatch(text, JsDiff.reversePatch(single)) !== false;
+		const region = {
+			index,
+			// The patch's own coordinates, kept for logs and tests — the notice
+			// leads with `anchor`, because on an old patch these numbers point at
+			// where the code *used* to be, not where the contributor will find it.
+			line: hunk.oldStart,
+			status: alreadyApplied ? 'already-applied' : 'moved',
+			anchor: anchorLine(hunk, alreadyApplied, text)
+		};
+		// Only the first few regions carry their lines; the rest are still named
+		// and located, which is what the counts are built from.
+		if (regions.length < REGION_DETAIL_LIMIT) {
+			const { lines, more } = changedLines(hunk);
+			region.lines = lines;
+			if (more) region.more = more;
+		}
+		regions.push(region);
+	});
+
+	// A file can fail as a whole while every region passes alone: applied one at
+	// a time they are matched against the unshifted file, and two that overlap
+	// once applied do not. There is nothing useful to say about that, so the
+	// caller keeps its original sentence rather than claiming zero conflicts.
+	if (!regions.length) return null;
+	return { total: hunks.length, regions };
+}
+
+/**
+ * The one sentence for a file the patch no longer fits.
+ *
+ * Kept in a single place because three branches of `resolveFile` produce it and
+ * the tests match on its wording.
+ *
+ * @param {string}  label     Path to name.
+ * @param {?Object} diagnosis From `diagnoseHunks`, or null.
+ * @return {string}
+ */
+function conflictSentence(label, diagnosis) {
+	if (!diagnosis) {
+		return `${label} has moved on since the patch was written, so it no longer applies`;
+	}
+	const failed = diagnosis.regions.length;
+	const { total } = diagnosis;
+	if (failed === total) {
+		return `${label} has moved on since the patch was written, so none of its ${total} change${total === 1 ? '' : 's'} still fits`;
+	}
+	return `${label} has moved on since the patch was written: ${failed} of its ${total} changes no longer fit, and the other ${total - failed} do`;
+}
+
 /**
  * Works out what one file's new content should be, without touching disk.
  * Also captures what is there now, so a failed write can be rolled back.
  *
- * @param {string} dir
- * @param {Object} file
+ * `diagnose` is off for `patchIsAbsent`, which only ever reads `.error` — every
+ * file it asks about is expected to resolve, and diagnosing the ones that do not
+ * would be work whose answer is discarded.
+ *
+ * @param {string}  dir
+ * @param {Object}  file
+ * @param {Object}  [options]
+ * @param {boolean} [options.diagnose]
  * @return {Object}
  */
-function resolveFile(dir, file) {
+function resolveFile(dir, file, { diagnose = true } = {}) {
+	// The three "no longer applies" branches below share this: the sentence, and
+	// the per-region detail behind it when there is any.
+	const conflict = (label, text) => {
+		const diagnosis = diagnose ? diagnoseHunks(text, file) : null;
+		const error = conflictSentence(label, diagnosis);
+		// The sentence rides along inside the conflict as well, so the panel can
+		// line each detail up with its entry in `failures` without re-deriving it.
+		return diagnosis ? { error, conflict: { path: label, error, ...diagnosis } } : { error };
+	};
+
 	const target = resolveInside(dir, file.path);
 	if (!target) return { error: `${file.path} points outside the site folder` };
 
@@ -131,9 +291,17 @@ function resolveFile(dir, file) {
 		// Validate the file still matches what the patch expects to remove, so an
 		// edit made after the preview fails all-or-nothing rather than being
 		// silently deleted with the contributor's changes in it.
-		if (file.hunks && file.hunks.length
-			&& JsDiff.applyPatch(normalizeEol(previous.toString('utf8')), file.patch) === false) {
-			return { error: `${file.path} has moved on since the patch was written, so it no longer applies` };
+		if (file.hunks && file.hunks.length) {
+			const text = normalizeEol(previous.toString('utf8'));
+			if (JsDiff.applyPatch(text, file.patch) === false) return conflict(file.path, text);
+		} else if (previous.length) {
+			// A deletion with no hunk is the removal of an *empty* file (#311) —
+			// there was nothing to describe, which is also the whole claim it
+			// makes about the old side. A file that has content since is not the
+			// file the patch described, and removing it would discard work no
+			// hunk ever mentioned. `git apply` refuses this outright ("removal
+			// patch leaves file contents"); so does this.
+			return conflict(file.path, normalizeEol(previous.toString('utf8')));
 		}
 		return { op: 'delete', abs: target, path: file.path, previous };
 	}
@@ -158,10 +326,9 @@ function resolveFile(dir, file) {
 		let content = originalBuf;
 		if (file.hunks.length) {
 			const original = originalBuf.toString('utf8');
-			const applied = JsDiff.applyPatch(normalizeEol(original), file.patch);
-			if (applied === false) {
-				return { error: `${file.oldPath} has moved on since the patch was written, so it no longer applies` };
-			}
+			const text = normalizeEol(original);
+			const applied = JsDiff.applyPatch(text, file.patch);
+			if (applied === false) return conflict(file.oldPath, text);
 			content = applied.replace(/\n/g, dominantEol(original) === '\r\n' ? '\r\n' : '\n');
 		}
 		return {
@@ -176,10 +343,9 @@ function resolveFile(dir, file) {
 	// checkout does not make every context line miss — but the file is written
 	// back with the endings it already had.
 	const raw = fs.readFileSync(target, 'utf8');
-	const applied = JsDiff.applyPatch(normalizeEol(raw), file.patch);
-	if (applied === false) {
-		return { error: `${file.path} has moved on since the patch was written, so it no longer applies` };
-	}
+	const normalized = normalizeEol(raw);
+	const applied = JsDiff.applyPatch(normalized, file.patch);
+	if (applied === false) return conflict(file.path, normalized);
 	const content = dominantEol(raw) === '\r\n' ? applied.replace(/\n/g, '\r\n') : applied;
 	return { op: 'write', abs: target, path: file.path, content, previous: Buffer.from(raw, 'utf8') };
 }
@@ -216,7 +382,7 @@ function resolveFile(dir, file) {
 function patchIsAbsent(dir, files) {
 	const text = files.filter((f) => f.kind !== 'binary');
 	if (!text.length) return false;
-	return text.every((f) => !resolveFile(dir, f).error);
+	return text.every((f) => !resolveFile(dir, f, { diagnose: false }).error);
 }
 
 /**
@@ -285,15 +451,22 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 	const actions = [];
 	const skipped = [];
 	const failures = [];
+	const conflicts = [];
 
 	for (const file of files) {
 		if (file.kind === 'binary') {
 			skipped.push(file.path);
 			continue;
 		}
+		// Diagnosed on a reverse too (#306). The ticket's other patches are still
+		// no answer to a revert that failed, but the *reason* it failed is: a
+		// revert only fails because the contributor's own edits are on the
+		// patch's lines, and naming how many of them, and where, is the whole
+		// difference between an explanation and a generic error.
 		const resolved = resolveFile(dir, file);
 		if (resolved.error) {
 			failures.push(resolved.error);
+			if (resolved.conflict) conflicts.push(resolved.conflict);
 			continue;
 		}
 		actions.push(resolved);
@@ -316,7 +489,11 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 			return { ok: false, notApplied: true, error, applied: [], skipped };
 		}
 		onLog(`\nThe patch was not applied — the checkout is unchanged.\n${failures.map((f) => `  • ${f}\n`).join('')}`);
-		return { ok: false, error: failures[0], failures, applied: [], skipped };
+		// `failures` carries every file, not just the first: the panel used to show
+		// `error` alone and send the rest to the terminal, where a contributor has
+		// no reason to be looking (#282). `conflicts` is the same failures with
+		// their regions, for the ones that have any.
+		return { ok: false, error: failures[0], failures, conflicts, applied: [], skipped };
 	}
 
 	if (!actions.length && !skipped.length) {
@@ -369,4 +546,4 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 	return { ok: true, applied, skipped };
 }
 
-module.exports = { applyPatchToDir, resolveInside, reverseFile, dominantEol, rollback };
+module.exports = { applyPatchToDir, resolveInside, reverseFile, dominantEol, rollback, diagnoseHunks };

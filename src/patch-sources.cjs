@@ -55,9 +55,13 @@ function parsePrRef(input) {
 }
 
 /**
- * True when a PR body cites this exact ticket. The negative lookahead stops
- * `/ticket/6582` from matching inside `/ticket/65820`, and the host is required
- * so a bare "#65822" in prose does not count.
+ * True when a PR body cites this exact ticket. Current pull request templates
+ * use the full Trac URL; older ones used a labelled bare number (#327), so that
+ * explicitly labelled form counts too. An unlabelled number still does not:
+ * GitHub search can surface it from unrelated prose or comments.
+ *
+ * The negative lookaheads stop either accepted form from matching a longer
+ * ticket number that merely starts with the requested digits.
  *
  * @param {string}        body
  * @param {number|string} ticketId
@@ -68,7 +72,8 @@ function bodyCitesTicket(body, ticketId) {
 	const id = String(ticketId).replace(/[^0-9]/g, '');
 	if (!id) return false;
 	const re = new RegExp(`${TICKET_HOST.replace(/\./g, '\\.')}/ticket/${id}(?![0-9])`);
-	return re.test(body);
+	const labelledNumber = new RegExp(`(?:^|[\\r\\n])[ \\t]*Trac[ \\t]+ticket[ \\t]*:[ \\t]*#?${id}(?![0-9])`, 'i');
+	return re.test(body) || labelledNumber.test(body);
 }
 
 /**
@@ -85,8 +90,14 @@ function prState(item) {
 
 /**
  * Reduces a GitHub `search/issues` response to the PRs that cite the ticket.
- * Returns newest-first — for a moving target like a PR the freshest is the one
- * a contributor most likely wants.
+ *
+ * Returns sorted by `updatedAt` descending. That is deliberately *not* the
+ * order shown to a contributor: `updatedAt` moves on a comment, a label or an
+ * upstream force-push, so as a claim about freshness it is worthless (#281).
+ * What it is worth is a bound — it never sits earlier than the last commit —
+ * so this ordering is the one the commit-date walk in github-prs.js needs to
+ * decide how few lookups it can get away with. The display order comes from
+ * orderByCommitDate below, once those lookups have happened.
  *
  * @param {Object}        searchJson
  * @param {number|string} ticketId
@@ -121,6 +132,42 @@ function parseLinkedPrs(searchJson, ticketId) {
 }
 
 /**
+ * The order a contributor reads: newest code first (issue #281).
+ *
+ * Pull requests whose commit date was resolved come first, freshest first. The
+ * rest follow in `updatedAt` order, which is not a claim about them — it is
+ * simply better than an arbitrary shuffle.
+ *
+ * Worth being exact about what the tail does and does not mean, because the
+ * walk that produced it stops on a bound: an unresolved row is known to be
+ * older than the *newest* resolved one, which is what the "Latest" pill needs,
+ * but not older than every resolved row above it. So a 2020 commit can sit
+ * above an unresolved row whose real commit is last month. The pill is still
+ * correct; the ordering below the top is a best effort, and the row's own date
+ * — blank where it is unknown — is what a contributor should read rather than
+ * the position.
+ *
+ * @param {Array} prs
+ * @return {Array}
+ */
+function orderByCommitDate(prs) {
+	const list = Array.isArray(prs) ? prs.slice() : [];
+	const ms = (pr) => {
+		const parsed = pr && typeof pr.commitDate === 'string' && pr.commitDate ? Date.parse(pr.commitDate) : NaN;
+		return Number.isFinite(parsed) ? parsed : null;
+	};
+	list.sort((a, b) => {
+		const x = ms(a);
+		const y = ms(b);
+		if (x !== null && y !== null) return y - x;
+		if (x !== null) return -1;
+		if (y !== null) return 1;
+		return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+	});
+	return list;
+}
+
+/**
  * Classifies a non-2xx GitHub response so the UI can tell "nothing on this
  * ticket" apart from "we could not read it". A rate-limited answer is not an
  * empty ticket: on a shared Contributor-Day IP the unauthenticated 60/hour is
@@ -145,6 +192,7 @@ module.exports = {
 	TICKET_HOST,
 	bodyCitesTicket,
 	parseLinkedPrs,
+	orderByCommitDate,
 	classifyHttpFailure,
 	parsePrRef
 };

@@ -12,20 +12,19 @@ The header of each site shows which snapshot it currently holds — for example 
 
 This option is always there — on every site, at any time, no matter how old or new the snapshot is and whether or not the app has flagged it as stale. If nothing has moved, you simply get "Already up to date." in the terminal.
 
-Stop the dev server first. The **Update to latest trunk** button in the staleness notice is
-disabled while the server, an install, or a build is running — but the ☰ menu entry is not, and
-clicking it in that state simply does nothing, with no message to say why.
+You no longer have to stop the dev server first. The update pauses the [build watch](./running-the-site#the-build-watch) for the rebuild and resumes it afterwards, and the PHP server keeps serving throughout.
+
+What it will not run alongside is another install or build. The **Update to latest trunk** button in the staleness notice is disabled while one is running — but the ☰ menu entry is not, and clicking it in that state simply does nothing, with no message to say why.
 
 ## What an update runs
 
 The update always shows the same three steps in a progress card, with a "step N of 3" counter:
 
-1. **Fetch and reset to trunk** — pull the newest commits and reset the checkout to them. If you
-   have uncommitted changes the app stops and asks first, offering **Save them as a patch first
-   (as a local file)** or **Discard them** — the second loses the work and cannot be undone. When
-   you choose to save, the summary afterwards tells you where the patch went.
+1. **Fetch and reset to trunk** — pull the newest commits and reset the checkout to them. If you have uncommitted changes the app stops and asks first, offering **Save them as a patch first (as a local file)** or **Discard them** — the second loses the work and cannot be undone. When you choose to save, the summary afterwards tells you where the patch went.
 2. **Install dependencies** — runs only if `package-lock.json` changed between the old and new trunk; otherwise the step is shown as "Dependencies unchanged — skipping npm install". When it does run, most packages are already cached, so it downloads the difference, not the whole tree.
 3. **Rebuild** — rebuild the `build/` directory so it matches the new source.
+
+![The Updating to latest trunk card at step 1 of 3, fetching and resetting to trunk before install and rebuild](/screenshots/trunk-update-progress.png)
 
 When the chain finishes, a green summary reads **Up to date with trunk as of today.**, along with whether dependencies changed, how long the rebuild took, and the path of any saved patch. Updating typically takes a few minutes.
 
@@ -35,7 +34,9 @@ An update moves trunk, and your ticket's work is not on trunk — so the app ste
 
 The dialog in step 1 only ever concerns edits that are loose in the working tree. Work already parked on a ticket branch is never what it is offering to save or discard.
 
-What an update does not move is the snapshot your ticket branch was created on. That is deliberate — it is what keeps your patch free of the upstream changes the update just brought in — but it means an old ticket's patch does not get any newer by updating the site. See [Working on several tickets](./ticket-branches#what-a-patch-contains).
+What an update does not move is the snapshot your ticket branch was created on. That is deliberate — it is what keeps your patch free of the upstream changes the update just brought in — but it means an old ticket's patch does not get any newer by updating the site. The same is true for every other ticket stored on the site: updating trunk does not rebase any of them.
+
+After the update, the **Trac ticket** card may say **Trunk has moved since this ticket started**. That is not an incomplete update: trunk is current and the ticket is still safely on its original base. To move the work forward, save its patch, unlink it, delete its branch, link the ticket again, and apply the saved patch. The app never changes a ticket's base without that explicit sequence. See [When trunk has moved since the ticket started](./ticket-branches#when-trunk-has-moved-since-the-ticket-started).
 
 ## Staleness dots and notices
 
@@ -49,6 +50,8 @@ The app flags sites that have fallen behind with a coloured dot next to the site
 ## When an update does not finish
 
 If the fetch succeeds but install or build fails, the site view shows a red banner: **Update incomplete** — the code is new but the built assets are old, and the site may not run correctly until install and build succeed. Click **Retry install & build** to run only the missing steps; the fetch is not repeated. The sidebar dot stays red until this succeeds.
+
+![The Update incomplete notice with its Retry install and build button](/screenshots/update-incomplete.png)
 
 ## Staleness is judged locally
 
