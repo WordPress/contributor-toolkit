@@ -37,6 +37,8 @@ steps:
       IMAGE_ID: $IMAGE_ID
     plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
     command: |
+      set -eu
+
       echo "~~~ Setup code signing"
       source .buildkite/commands/setup_macos_code_signing.sh
 
