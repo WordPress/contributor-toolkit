@@ -17,6 +17,10 @@ for required_var in \
 	fi
 done
 
+# Materialize the Buildkite credential once, then expose the APPLE_API_* interface used by both consumers:
+# Fastlane reads it explicitly in Fastfile, and electron-builder inherits it during the later `npm run dist`.
+# APPLE_API_KEY must contain a filepath, not the private-key contents.
+# See https://www.electron.build/mac#notarize
 MACOS_NOTARIZATION_TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/wordpress-contributor-toolkit-signing.XXXXXX")" || return 1
 export APPLE_API_KEY="$MACOS_NOTARIZATION_TEMP_DIR/apple_api_key"
 export APPLE_API_KEY_ID="$WPCT_MACOS_SIGNING_KEY_ID_V2"
