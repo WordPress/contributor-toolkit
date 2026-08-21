@@ -43,6 +43,7 @@
     },
     "files": [
       "!vendor{,/**/*}",
+      "!.codesigning{,/**/*}",
       "!node_modules/dugite/git/libexec/git-core/*.dll",
       "!node_modules/dugite/git/libexec/git-core/*.dylib",
       "!node_modules/dugite/git/libexec/git-core/*.json",

@@ -19,7 +19,8 @@
  *     the contributor does not have to act on.
  *   - `error` speaks assertively and stays until dismissed, so it is not gone
  *     before it has been read. Supported here so successes and errors can share
- *     one mechanism (#253); this pass only emits successes.
+ *     one mechanism (#253). The first error emitter is the site deletion
+ *     that half-happened (#381).
  */
 
 // At most this many confirmations are kept on screen at once. A burst — a
@@ -89,4 +90,22 @@ function prConfirmationMessage(res = {}) {
 	return `Opened pull request #${res.number}`;
 }
 
-module.exports = { initialConfirmations, confirmationReducer, prConfirmationMessage, MAX_NOTICES };
+/**
+ * The notice for a site deletion, or null when there is nothing to say (#381).
+ *
+ * Only the half-failure speaks: the registry entry is gone either way — that
+ * ordering is main's recorded decision — but the folder can survive, a file
+ * held open or the read-only attribute a real Git leaves on its object files.
+ * The message names the path because that folder is what the contributor now
+ * has to deal with by hand, and carries the error code because "could not be
+ * deleted" without one is the kind of report a mentor cannot act on.
+ *
+ * @param {{ ok?: boolean, reason?: string, path?: string, code?: string }} res The main process's result.
+ */
+function deleteFailureMessage(res = {}) {
+	if (res.ok !== false || res.reason !== 'remove-failed') return null;
+	const code = res.code ? ` (${res.code})` : '';
+	return `The site was removed from the list, but its folder could not be deleted${code} and is still at ${res.path}`;
+}
+
+module.exports = { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage, MAX_NOTICES };

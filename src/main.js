@@ -38,6 +38,7 @@ const { buildPullRequestEntries } = require('./pr-files.cjs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
+const { removeTree } = require('./remove-tree');
 const { createSetupTracker } = require('./setup-tracker');
 const { planInitialRead, planTailRead } = require('./log-tail');
 const {
@@ -1945,7 +1946,11 @@ ipcMain.handle('sites:mark-initialized', async (_e, sitePath) => {
 // the guard shows up in the log file instead of just doing nothing.
 ipcMain.handle('sites:delete', async (_e, sitePath) => {
 	const s = await getStore();
-	return deleteRegisteredSite(sitePath, {
+	// Filled in by `remove` when the deletion itself fails. Kept outside the
+	// guard call because deleteRegisteredSite's boolean only answers "was this
+	// allowed", and the renderer needs the other half of the story too (#381).
+	let removalError = null;
+	const allowed = await deleteRegisteredSite(sitePath, {
 		sites: s.get('sites'),
 		// A site whose clone is still running is refused outright, registered or
 		// not: `remove` would be deleting a tree isomorphic-git is writing into.
@@ -1956,11 +1961,31 @@ ipcMain.handle('sites:delete', async (_e, sitePath) => {
 			delete meta[sitePath];
 			s.set('siteMeta', meta);
 		},
-		// Best-effort, as before: a site whose registry entry is gone should not be
-		// stuck undeletable because its directory is missing or locked.
-		remove: async (p) => { try { await fse.remove(p); } catch {} },
+		// removeTree handles what plain removal leaves unanswered on the
+		// protected object files a real Git writes: on POSIX, a directory whose
+		// write bit is missing, which nothing else clears; on Windows, an entry
+		// something still holds open, which only a retry budget survives (#381).
+		// A failure is recorded rather than swallowed: `forget` has already
+		// run — deliberately, so a locked directory cannot leave a site stuck
+		// undeletable — which means the one honest thing left to do when the
+		// disk half fails is to say so, in the log and to the caller.
+		remove: async (p) => {
+			try {
+				await removeTree(p);
+			} catch (e) {
+				removalError = e;
+				logError('sites', `deleted ${sitePath} from the registry, but its folder could not be removed and is still on disk: ${String(e && e.stack ? e.stack : e)}`);
+			}
+		},
 		onRefused: (description) => logEvent('sites', `refused to delete ${description} — not a registered site, or still being created`)
 	});
+	if (!allowed) return { ok: false, refused: true };
+	if (removalError) {
+		// Machine-readable on purpose: the sentence the contributor reads is
+		// composed in the renderer (confirmations.cjs), where it is testable.
+		return { ok: false, reason: 'remove-failed', path: sitePath, code: removalError.code };
+	}
+	return { ok: true };
 });
 
 ipcMain.handle('sites:set-label', async (_e, sitePath, label) => {

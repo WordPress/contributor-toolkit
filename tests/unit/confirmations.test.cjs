@@ -7,6 +7,7 @@ const {
 	initialConfirmations,
 	confirmationReducer,
 	prConfirmationMessage,
+	deleteFailureMessage,
 	MAX_NOTICES
 } = require('../../src/renderer/confirmations.cjs');
 
@@ -101,4 +102,25 @@ test('a dry run says no pull request was opened rather than "#undefined" (issue 
 		prConfirmationMessage({ ok: true, dryRun: true, branch: 'fix/thing' }),
 		'Dry run — branch created, no pull request opened'
 	);
+});
+
+test('a deletion that half-failed names the surviving path and the code (issue #381)', () => {
+	assert.strictEqual(
+		deleteFailureMessage({ ok: false, reason: 'remove-failed', path: '/sites/demo', code: 'EPERM' }),
+		'The site was removed from the list, but its folder could not be deleted (EPERM) and is still at /sites/demo'
+	);
+});
+
+test('a deletion failure without a code still reads as a sentence (issue #381)', () => {
+	assert.strictEqual(
+		deleteFailureMessage({ ok: false, reason: 'remove-failed', path: '/sites/demo' }),
+		'The site was removed from the list, but its folder could not be deleted and is still at /sites/demo'
+	);
+});
+
+test('a clean deletion, a refusal, and a malformed result all stay silent (issue #381)', () => {
+	assert.strictEqual(deleteFailureMessage({ ok: true }), null);
+	assert.strictEqual(deleteFailureMessage({ ok: false, refused: true }), null);
+	assert.strictEqual(deleteFailureMessage({}), null);
+	assert.strictEqual(deleteFailureMessage(), null);
 });
