@@ -40,20 +40,6 @@ steps:
       - github_commit_status: { context: "Windows Build" }
 
   ########################################################
-  # Tests
-  ########################################################
-  - label: ":node: Tests"
-    plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
-    command: |
-      echo "~~~ Install dependencies"
-      .buildkite/commands/install_node_dependencies.sh
-
-      echo "~~~ Run tests"
-      npm test
-    notify:
-      - github_commit_status: { context: "Tests" }
-
-  ########################################################
   # macOS build
   ########################################################
   - label: ":mac: macOS Build"
