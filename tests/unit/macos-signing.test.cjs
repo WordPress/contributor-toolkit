@@ -196,10 +196,14 @@ test('sourced macOS signing does not change its caller shell options', { skip: p
 });
 
 test('macOS Buildkite command enables strict shell options before sourcing signing setup', () => {
-	const pipeline = fs.readFileSync(PIPELINE, 'utf8');
-	const macStep = pipeline.slice(pipeline.indexOf('# macOS build'), pipeline.indexOf('# Linux build'));
+	const normalizedPipeline = fs.readFileSync(PIPELINE, 'utf8').replace(/\r\n/g, '\n');
 
-	assert.match(macStep, /command: \|\n      set -eu\n[\s\S]*source \.buildkite\/commands\/setup_macos_code_signing\.sh/);
+	for (const lineEnding of ['\n', '\r\n']) {
+		const pipeline = normalizedPipeline.replace(/\n/g, lineEnding);
+		const macStep = pipeline.slice(pipeline.indexOf('# macOS build'), pipeline.indexOf('# Linux build'));
+
+		assert.match(macStep, /command: \|\r?\n      set -eu\r?\n[\s\S]*source \.buildkite\/commands\/setup_macos_code_signing\.sh/);
+	}
 });
 
 test('sourced macOS signing returns failure when its temporary directory cannot be created', { skip: process.platform !== 'darwin' }, (t) => {
