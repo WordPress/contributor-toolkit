@@ -1,0 +1,70 @@
+name: Bug report
+description: Report a bug in the WordPress Contributor Toolkit
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+        If you're having trouble installing or launching the app, please use the "Installation issue" template instead.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A brief description of the bug, including what you expected to happen and what actually happened.
+      placeholder: |
+        When I try to '...' I expect '...' to happen, but '...' happens instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Step-by-step reproduction instructions
+      description: The exact steps needed to reproduce the bug.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Scroll down to '...'
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots, screen recording, or logs
+      description: |
+        If possible, attach a screenshot or screen recording that demonstrates the bug.
+        Tip: click this area to highlight it, then drag files in to attach them.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Shown in the app's About screen or in the downloaded filename.
+      placeholder: "e.g. v1.0.0"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: existing
+    attributes:
+      label: Please confirm that you have searched existing issues in the repo.
+      description: You can do this by searching https://github.com/WordPress/contributor-toolkit/issues
+      options:
+        - label: "Yes"
+          required: true

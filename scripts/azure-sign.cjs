@@ -48,6 +48,7 @@ function buildSigntoolArgs(file, env) {
   const args = [
     'sign',
     '/v',
+    // /Debug surfaces Azure auth/quota/network diagnostics on failure instead of a generic SignTool error
     ...(debugEnabled(env) ? ['/debug'] : []),
     '/fd', fileDigest,
     '/tr', timestampServer,

@@ -1,0 +1,98 @@
+# AGENTS.md
+
+Instructions for AI coding agents working in this repository. Tool-neutral and canonical — `CLAUDE.md` points here rather than repeating it.
+
+## Where things are, whatever agent you use
+
+Two files, and neither is specific to one tool despite what their paths suggest:
+
+**The review standard** — [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md). The five dimensions, this project's invariants, the procedure to run them, and the reporting format. Read it directly if your agent has not already.
+
+It sits under `.github/instructions/` because Copilot code review reads that directory natively and follows no links out of it. Anywhere better-named would have meant maintaining a condensed second copy for Copilot, which would drift. Every other agent reaches it from here.
+
+**The review as a skill** — a thin `SKILL.md` wrapper over the file above, in two locations because no single skills directory is read by every agent:
+
+- [`.claude/skills/self-review/`](.claude/skills/self-review/) — Claude Code and Copilot. In Claude Code it is `/self-review`.
+- [`.agents/skills/self-review/`](.agents/skills/self-review/) — the Agent Skills open-standard path that Command Code and others scan.
+
+Both are pointers to the one instructions file, not copies of the standard. If your agent looks somewhere else again (`.github/skills/`, `.cursor/skills/`, `.codex/skills/`, or its own convention), add a wrapper there or skip it entirely and follow the instructions file — that is where all the content lives. The wrapper only adds two things: run the judgement pass in a fresh context, and report without touching GitHub.
+
+In Codex, `/review` is the built-in user-facing review command. Whenever `/review` runs, read and follow [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md) in full as the review standard. `self-review` is the local skill name, not a Codex command; do not tell users to invoke `self-review`.
+
+There is deliberately no per-tool copy of the *standard*. A wrapper is a few lines that defer to it; duplicating the standard itself is the thing to avoid — if you find yourself doing that, fix the pointer, not the number of copies.
+
+## What this is
+
+An Electron desktop app ("WordPress Contributor Toolkit") that sets up a full WordPress core (`wordpress-develop`) dev environment with zero prerequisites — no Git, Node, npm, or Docker required on the host. Everything is bundled and run as JS/WASM inside the Electron process. Built to fix a Contributor Day problem: newcomers burning the whole session on local setup instead of contributing. Still labeled "experimental."
+
+## Before opening a pull request
+
+Run the review in `.github/instructions/code-review.instructions.md` against the branch, and fix or consciously defer every finding. Summarise the outcome in the pull request description — counts, what was fixed, what was left as a follow-up and why.
+
+Before reporting a GitHub workflow complete, verify every requested final state on GitHub — for example, distinguish a merged pull request from one that is merely closed, and confirm that an issue was closed by the intended pull request rather than only by a comment.
+
+Nothing enforces this. There is no automated review on pull requests, by design: it would mean storing an AI provider credential as a secret in a public repository. This pass is what stands in its place, so skipping it means a human reviewer is the first reader of the diff.
+
+That file carries the procedure as well as the standard. Follow it rather than improvising a review.
+
+### The pull request description follows the template
+
+[`.github/pull_request_template.md`](.github/pull_request_template.md) is the shape, and GitHub loads it into every new pull request automatically — including ones opened with `gh pr create`, as long as you do not pass a `--body` that replaces it. Fill it in rather than writing your own structure.
+
+The rule it is built around: **a reviewer understands the change in five minutes.** So what stays visible is Why, What changes, How to test this, Risks, Related — and everything else goes in a `<details>` block, collapsed by default. Depth is not the enemy of a readable PR; depth *in the way* is. Do not delete detail to hit the five minutes, move it.
+
+**One template, not one per kind of change.** GitHub shows no picker when a pull request is opened — selecting among several requires appending `?template=name.md` to the URL, which nobody remembers, so the default loads anyway. The template is written to serve a fix, a feature and a process change equally, and calls out the three places where they genuinely differ: a fix names its root cause and the test that fails without it, a feature names what it deliberately leaves out and shows its surface, and either way the testing steps follow the path a contributor actually takes.
+
+That includes the review outcome AGENTS.md requires below: it lives in a collapsed block, with the headline count surfaced in **Risks and limitations** when it changes how the PR should be read.
+
+Titles are `[Action] [what] [where or why]` — "Fix the patch panel's empty diff after a trunk update", not "Fix bug".
+
+If the diff is over ~800 lines, the first question is whether it should be two pull requests. A stacked pair reviews faster than one that nobody wants to start.
+
+### Every pull request says how to test it by hand
+
+A **How to test this** section is required, not optional, and a green test suite does not replace it. This app's failures live where the unit tests cannot go: a real clone of `wordpress-develop`, a `node_modules` that takes minutes to install, an OS file dialog, a Windows path with a space in it. The suite proves the logic; only a person driving the app proves the feature.
+
+Write it for someone who did not write the change and does not know where the button is. That means:
+
+- **A starting state.** "A site with a linked ticket and an uncommitted edit", not "a site". Say how to reach it if it is not the state the app opens in.
+- **Numbered steps naming what to click**, in the words on screen.
+- **The expected result after each step that has one**, stated so it can come out false. "The patch contains only `wp-login.php`" — not "the patch looks right".
+- **What must NOT have happened.** Most of this project's regressions are silent: work quietly discarded, `node_modules` quietly rebuilt, a patch quietly missing a file. Name the thing that would be easy not to notice.
+- **The platforms it needs.** Default to "any" and say so; call out macOS or Windows explicitly when the change touches paths, spawning, line endings, or signing. Buildkite builds signed artifacts for every branch with an open PR, so a reviewer can test on a real machine without building — check the build matches the current head commit, since force-pushing invalidates earlier ones.
+- **What cannot be tested by hand, and why.** An honest "the mid-switch recovery needs a checkout to fail part-way, which I could not stage" is worth more than silence.
+
+If a change genuinely has no user-visible surface — a refactor, a CI fix — say that, and give the command that demonstrates it instead. The section is never simply absent.
+
+For the human-facing version of all this — the CI checks each PR runs and the guardrails in prose — see [`CONTRIBUTING.md`](CONTRIBUTING.md). It points back here; it does not restate the standard.
+
+## Markdown in this repository
+
+**Do not hard-wrap prose. One paragraph is one line, however long.** Markdown imposes no line limit — a wrapped paragraph and a single long line render identically — so the wrapping is a convention, and this repository's convention is not to. Every `.md` here follows it: `README.md`, `docs/`, this file, `TESTING.md`, `CONTRIBUTING.md`, the review instructions and the templates.
+
+The reasons are editing, not rendering. A long line reflows to whatever width the reader's editor or screen has, it pastes into an issue or a chat without arriving pre-chopped, and a one-word edit does not reshuffle the six lines beneath it into a diff that claims they changed. The cost is a diff that marks the whole paragraph as changed; `git diff --word-diff`, and GitHub's own intra-line highlighting, both narrow that back down to the words.
+
+Line breaks still mean something everywhere else, and none of this touches them: list items, table rows, headings, fenced code, VitePress `:::` containers, YAML frontmatter and the body of an HTML comment all keep the shape they have.
+
+## Commands
+
+See `package.json` scripts. To run a single test file (not exposed as a script): `node --test tests/unit/azure-sign.test.cjs`.
+
+**[TESTING.md](TESTING.md) is the canonical description of the suite** — the five layers it is made of, which one a new test belongs in, what each layer is blind to, and how to read a failure. Read it before adding or moving a test; do not restate it elsewhere.
+
+When writing manual test instructions, inspect the current renderer flow first and distinguish actions that happen automatically after linking a ticket from controls used only to retry or refresh them. Do not tell a tester to click a control when the app already starts that operation.
+
+When asked to add an existing pull request to an existing stack, preserve its commits and change its base to the head branch of the current top PR. Do not move commits into an earlier PR unless the user explicitly asks to rewrite the stack.
+
+## Architecture notes (non-obvious)
+
+- **Child processes run on Electron's own Node, not the system Node.** `npm install`, `npm run <script>`, and the Playground server are spawned via `process.execPath` + `ELECTRON_RUN_AS_NODE=1` — this is the mechanism behind "zero prerequisites." On Windows this requires shimming `node`/`npm`/`npx` into `PATH` so child `npm` processes can find a `node` binary at all.
+- **Git has no system dependency** — all Git ops go through `isomorphic-git`, not a shelled-out `git` binary. Patch/diff generation is done by hand in `main.js`, not `git diff`: one status scan against the branch point each ticket recorded (#108), nothing staged, and `/dev/null` naming whichever side of an addition or a deletion does not exist — the app reads its own patches back when a mentor applies one, and that filename is the only thing its parser reads an add or a delete from (#85).
+- **`electron-store` is the only persistence layer** — no separate DB. It holds the site registry and per-site metadata; treat it as the single source of truth for "known sites."
+- Long-running child-process output (installs, scripts, server) is streamed to the renderer via correlated IDs (`installId`/`runId`), not returned synchronously — expect async event handlers, not return values, when tracing that flow.
+
+## Signing & CI
+
+- **Buildkite builds signed Windows, Linux and macOS artifacts for every branch that has an open PR.** So a branch is testable on a real machine without building locally — and for a stacked PR, the artifact from the topmost branch exercises the whole stack. Force-pushing a branch invalidates earlier artifacts: check the build corresponds to the current head commit before testing.
+- Windows signing (Azure Trusted Signing via `scripts/azure-sign.cjs`) is skipped automatically when its required env vars aren't set — this is intentional for local dev, not a bug.
+- macOS signing/notarization uses fastlane + match against Automattic's Developer ID; `verify_code_signing` lane must pass before shipping.

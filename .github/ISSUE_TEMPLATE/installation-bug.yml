@@ -40,7 +40,7 @@ body:
     attributes:
       label: Where did you download the app from?
       description: Please provide the exact URL or describe where you got it (e.g. GitHub Releases page, a blog post link, etc.).
-      placeholder: "e.g. https://github.com/WordPress/experimental-wp-dev-env/releases/tag/v1.0.0"
+      placeholder: "e.g. https://github.com/WordPress/contributor-toolkit/releases/tag/v1.0.0"
     validations:
       required: true
 

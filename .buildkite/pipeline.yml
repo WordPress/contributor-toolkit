@@ -29,9 +29,6 @@ steps:
       echo "~~~ Install dependencies"
       Invoke-NativeCommand bash .buildkite/commands/install_node_dependencies.sh
 
-      echo "~~~ Build renderer"
-      Invoke-NativeCommand npm run build:once
-
       echo "~~~ Build Windows artifact"
       Invoke-NativeCommand npm run dist:win
 
@@ -71,11 +68,11 @@ steps:
       echo "~~~ Install dependencies"
       .buildkite/commands/install_node_dependencies.sh
 
-      echo "~~~ Build renderer"
-      npm run build:once
-
       echo "~~~ Build macOS artifact"
       npm run dist
+
+      echo "~~~ Verify macOS code signing"
+      bundle exec fastlane verify_code_signing
     artifact_paths:
       - dist/*.dmg
       - dist/*.zip
@@ -87,16 +84,24 @@ steps:
   ########################################################
   - label: ":linux: Linux Build"
     agents: { queue: default }
-    plugins: [$CI_TOOLKIT, $NVM_PLUGIN]
     command: |
-      echo "~~~ Install dependencies"
-      .buildkite/commands/install_node_dependencies.sh
+      set -eu
 
-      echo "~~~ Build renderer"
-      npm run build:once
+      echo "~~~ Verify build environment"
+      cat /etc/os-release
+      node --version
+      gcc --version
+      g++ --version
+
+      echo "~~~ Install Node dependencies"
+      npm ci --no-audit --no-progress --maxsockets 1
 
       echo "~~~ Build Linux artifact"
       npm run dist
+    plugins:
+      - $DOCKER_PLUGIN:
+          image: "$NODE_DOCKER_IMAGE"
+          always-pull: true
     artifact_paths:
       - dist/*.AppImage
       - dist/*.deb

@@ -1,0 +1,103 @@
+# Builds the user documentation site (docs/, VitePress) and deploys it to GitHub Pages.
+#
+# The docs are their own npm package under docs/ so this job never runs the root package's
+# postinstall (electron-builder + esbuild) — building a static site needs none of that.
+#
+# Screenshots are committed to the repo, not captured here. Capturing them needs the Electron
+# app running against a seeded site, which is minutes of flaky work on a runner; a maintainer
+# runs `npm run shots` locally when the UI changes instead (see scripts/screenshots/). Four of
+# them show states no seeded site can reach — a running dev server, a site setting itself up,
+# a ticket read from Trac — so they come from `npm run shots -- --tier=live` against a real
+# site, with a maintainer at the keyboard. shots.cjs says which ones and why.
+#
+# The site base path is derived from the repository name at run time rather than hardcoded,
+# because a project Pages site lives under /<repo-name>/ and this repository has already been
+# renamed once (experimental-wp-dev-env → contributor-toolkit). Deriving it means another rename
+# cannot break every asset URL.
+#
+# Pull requests get a build-only job: a broken link or bad markdown fails before merge, and
+# the deploy job (which holds the OIDC token) never runs on PR code.
+#
+# One-time setup: Settings → Pages → Source must be set to "GitHub Actions".
+
+name: Docs
+
+on:
+  push:
+    branches: [trunk]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Two pushes racing would build in an arbitrary order, so the older build is cancelled and the
+# newest commit wins. The deploy job has its own group, and that one does not cancel: killing an
+# in-flight `deploy-pages` mid-publish is how a site ends up half-updated. Same reasoning as the
+# `cancel-in-progress: false` in download-stats.yml.
+concurrency:
+  group: docs-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build site
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to commits, not tags, following download-stats.yml: the deploy job below holds
+      # an OIDC token that can publish to the site, and a SHA cannot be repointed.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # This job runs the pull request's own code — `npm ci` with lifecycle scripts
+          # enabled (esbuild needs its postinstall) and a VitePress build that evaluates
+          # docs/.vitepress/config.mjs. Leaving the job's GITHUB_TOKEN in .git/config while
+          # PR-authored code executes is the one thing worth spending a line on here.
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          # From .nvmrc, like lint.yml and unit-tests.yml. A hardcoded version here would
+          # mean `npm run docs:build` runs on a different Node locally than in CI, which is
+          # the drift issues #37 and #46 were about.
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Install docs dependencies
+        run: npm ci --prefix docs
+
+      - name: Build site
+        env:
+          DOCS_BASE: /${{ github.event.repository.name }}/
+        run: npm run build --prefix docs
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    name: deploy to Pages
+    # Deploy only what has landed on trunk. Testing the event name is not enough: a
+    # workflow_dispatch can name any ref, so an unmerged branch would publish to the live
+    # site. Testing the ref itself is what actually enforces "trunk only".
+    if: github.ref == 'refs/heads/trunk'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: docs-deploy
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

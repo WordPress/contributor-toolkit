@@ -1,0 +1,53 @@
+# ESLint over the whole repo.
+#
+# This used to lint only the files a PR touched, because the linter arrived on top of a
+# backlog of pre-existing findings and running it repo-wide would have failed every PR for
+# code the author never wrote. That backlog is now clear (#117), so the check covers
+# everything and can be made a required one.
+#
+# Kept in git history rather than in a flag: the changed-files job is the right shape again
+# if a future rule ever lands with a backlog behind it. `git log -- .github/workflows/lint.yml`
+# has it.
+#
+# Runs on push as well as pull_request so trunk carries a status of its own — a branch
+# protection rule has nothing to require otherwise.
+#
+# Nothing here needs secrets, and it deliberately never executes the PR's code:
+# `npm ci --ignore-scripts` skips lifecycle scripts (this repo's postinstall pulls the
+# Electron binary, which linting does not need).
+
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches: [ trunk ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eslint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Keeps the job's GITHUB_TOKEN out of .git/config. The stakes are low — nothing
+          # here reads the tree back out to an attacker-facing channel — but leaving a
+          # token on disk that a later change could expose is not worth the one line saved.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: ESLint
+        run: npx eslint . --max-warnings=0

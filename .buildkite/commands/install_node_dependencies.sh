@@ -25,6 +25,14 @@ echo "npm cache set to $(npm get cache)"
 echo "--- :npm: Restore npm cache if present"
 restore_cache "$CACHEKEY"
 
+# The cache we just restored may carry npm's own debug logs, written by whichever build first
+# populated this cache key — on a different machine, on a different day. They are worthless here,
+# and worse than worthless: they sit inside the project directory, where a log that disappears
+# part-way through a build has been enough to abort packaging.
+#
+# Clear them right after the restore, so no build inherits another build's logs.
+rm -rf "$LOCAL_NPM_CACHE/_logs"
+
 echo "--- :npm: Install Node dependencies"
 
 MAX_SOCKETS=15 # Default value from npm
@@ -53,4 +61,7 @@ echo "--- :npm: Save cache if necessary"
 #
 # Example: https://buildkite.com/automattic/gutenberg-mobile/builds/8857#018e37eb-7afc-4280-b736-cba76f02f1a3/524
 rm -rf "$LOCAL_NPM_CACHE/_cacache/tmp"
+# Same for the logs `npm ci` just wrote: this build's diagnostics are already in this build's output,
+# and archiving them would hand them to every later build that shares this cache key.
+rm -rf "$LOCAL_NPM_CACHE/_logs"
 save_cache "$LOCAL_NPM_CACHE" "$CACHEKEY"

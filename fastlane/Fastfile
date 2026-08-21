@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
+require 'tmpdir'
+require 'shellwords'
+
 UI.user_error!('Please run fastlane via `bundle exec`') unless FastlaneCore::Helper.bundler?
 
 ############
-# Constants 
+# Constants
 ############
 APPLE_BUNDLE_IDENTIFIER = 'org.wordpress.contributor.toolkit'
 APP_BASENAME = 'WordPress Contributor Toolkit'
@@ -40,6 +43,32 @@ lane :setup_code_signing do |readonly: true|
   destination_path = File.join(PROJECT_ROOT_FOLDER, '.codesigning', "#{APPLE_BUNDLE_IDENTIFIER}.provisionprofile")
   FileUtils.mkdir_p(File.dirname(destination_path))
   FileUtils.cp(installed_profile_path, destination_path)
+end
+
+# Verify that the built `.app` bundles are signed with our Developer ID and
+# accepted by Gatekeeper, so an unsigned or wrongly-signed build fails the CI
+# job instead of shipping.
+lane :verify_code_signing do
+  expected_authority = "Developer ID Application: Automattic, Inc. (#{APPLE_TEAM_ID})"
+
+  apps = Dir[File.join(BUILDS_FOLDER, 'mac*', '*.app')]
+  UI.user_error!("No `.app` bundle found under #{BUILDS_FOLDER}/mac*/ to verify") if apps.empty?
+
+  apps.each do |app|
+    UI.message("Verifying code signature: #{app}")
+
+    # The signature is intact and satisfies its own designated requirement.
+    sh('codesign', '--verify', '--deep', '--strict', '--verbose=2', app)
+
+    # Gatekeeper accepts it — passes only when Developer ID signed *and* notarized+stapled.
+    sh('spctl', '--assess', '--type', 'execute', '--verbose=2', app)
+
+    # Signed by our identity specifically, not merely some other valid certificate.
+    details = `codesign --display --verbose=2 #{app.shellescape} 2>&1`
+    UI.user_error!("#{app} is not signed by '#{expected_authority}':\n#{details}") unless details.include?("Authority=#{expected_authority}")
+  end
+
+  UI.success("Verified code signing for #{apps.length} app bundle(s)")
 end
 
 ############
