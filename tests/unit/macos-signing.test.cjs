@@ -143,7 +143,8 @@ for (const missingVariable of [
 		});
 
 		assert.notEqual(result.status, 0, `legacy signing credentials unexpectedly worked:\n${result.stdout}${result.stderr}`);
-		assert.match(result.stderr, new RegExp(`${missingVariable} is required\\. Configure the macOS signing credentials in Buildkite\\.`));
+		assert.match(result.stderr, new RegExp(missingVariable));
+		assert.match(result.stderr, /is required\. Configure the macOS signing credentials in Buildkite\./);
 		assert.doesNotMatch(result.stderr, /Fastlane ran with legacy credentials/);
 	});
 }

@@ -4,8 +4,8 @@ echo "~~~ :apple: Configure macOS code signing"
 
 # The Buildkite command enables `set -eu` before sourcing this script. Validate the non-secret values
 # while exporting them, but keep the private key out of commands that xtrace would log.
-export APPLE_API_KEY_ID="${WPCT_MACOS_SIGNING_KEY_ID:?WPCT_MACOS_SIGNING_KEY_ID is required. Configure the macOS signing credentials in Buildkite.}"
-export APPLE_API_ISSUER="${WPCT_MACOS_SIGNING_ISSUER_ID:?WPCT_MACOS_SIGNING_ISSUER_ID is required. Configure the macOS signing credentials in Buildkite.}"
+export APPLE_API_KEY_ID="${WPCT_MACOS_SIGNING_KEY_ID:?is required. Configure the macOS signing credentials in Buildkite.}"
+export APPLE_API_ISSUER="${WPCT_MACOS_SIGNING_ISSUER_ID:?is required. Configure the macOS signing credentials in Buildkite.}"
 if ! printenv WPCT_MACOS_SIGNING_PRIVATE_KEY | grep -q .; then
 	echo "WPCT_MACOS_SIGNING_PRIVATE_KEY is required. Configure the macOS signing credentials in Buildkite." >&2
 	return 1
