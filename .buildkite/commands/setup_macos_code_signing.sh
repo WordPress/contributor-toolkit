@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-echo "~~~ :apple: Configure macOS code signing"
+echo "~~~ :apple: Validate macOS signing credentials"
 
 # The Buildkite command enables `set -eu` before sourcing this script. Validate the non-secret values
 # while exporting them, but keep the private key out of commands that xtrace would log.
@@ -13,6 +13,8 @@ fi
 
 echo "--- :ruby: Install gems"
 install_gems
+
+echo "--- :key: Configure macOS code signing"
 
 # Materialize the Buildkite credential once, then expose the APPLE_API_* interface used by both consumers:
 # Fastlane reads it explicitly in Fastfile, and electron-builder inherits it during the later `npm run dist`.
@@ -33,7 +35,6 @@ trap cleanup_macos_notarization_key EXIT
 	return 1
 }
 
-echo "--- :key: Set up signing"
 bundle exec fastlane setup_code_signing
 
 echo "Signing config is ready for electron-builder."

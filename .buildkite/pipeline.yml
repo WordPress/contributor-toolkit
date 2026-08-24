@@ -39,7 +39,6 @@ steps:
     command: |
       set -eu
 
-      echo "~~~ Setup code signing"
       source .buildkite/commands/setup_macos_code_signing.sh
 
       echo "~~~ Install dependencies"
