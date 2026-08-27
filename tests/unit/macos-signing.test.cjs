@@ -6,6 +6,7 @@ const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 
 const SETUP_SCRIPT = path.join(__dirname, '..', '..', '.buildkite', 'commands', 'setup_macos_code_signing.sh');
+const PIPELINE = path.join(__dirname, '..', '..', '.buildkite', 'pipeline.yml');
 const DUMMY_KEY = '-----BEGIN PRIVATE KEY-----\na dummy key with spaces and $shell syntax\n-----END PRIVATE KEY-----';
 
 // The real Buildkite command sources this script, so exercise it in the same shape. Fastlane is
@@ -42,32 +43,40 @@ printf '%s\n' "$APPLE_API_KEY"
 `;
 
 const LEGACY_ENV_HARNESS = String.raw`
+set -eu
 install_gems() { :; }
 bundle() {
 	echo "Fastlane ran with legacy credentials" >&2
 	return 0
 }
 source "$SETUP_SCRIPT"
-status=$?
-exit "$status"
 `;
 
 const FAILED_FASTLANE_HARNESS = String.raw`
+set -eu
 install_gems() { :; }
 bundle() { return 7; }
 source "$SETUP_SCRIPT"
-status=$?
-exit "$status"
+`;
+
+const FAILED_GEM_INSTALL_HARNESS = String.raw`
+set -eu
+install_gems() { return 6; }
+bundle() {
+	echo "Fastlane ran after gem installation failed" >&2
+}
+source "$SETUP_SCRIPT"
 `;
 
 const TRACE_HARNESS = String.raw`
-set -x
+set -eux
 install_gems() { :; }
 bundle() { :; }
 source "$SETUP_SCRIPT"
 `;
 
 const FAILED_MKTEMP_HARNESS = String.raw`
+set -eu
 install_gems() { :; }
 bundle() { :; }
 mktemp() {
@@ -75,11 +84,10 @@ mktemp() {
 	return 1
 }
 source "$SETUP_SCRIPT"
-status=$?
-exit "$status"
 `;
 
 const FAILED_KEY_WRITE_HARNESS = String.raw`
+set -eu
 install_gems() { :; }
 bundle() { :; }
 printenv() {
@@ -89,12 +97,10 @@ printenv() {
 	command printenv "$@"
 }
 source "$SETUP_SCRIPT"
-status=$?
-exit "$status"
 `;
 
 const TERM_HARNESS = String.raw`
-set -e
+set -eu
 install_gems() { :; }
 bundle() { :; }
 source "$SETUP_SCRIPT"
@@ -136,8 +142,9 @@ for (const missingVariable of [
 			env: signingEnvMissing(missingVariable),
 		});
 
-		assert.equal(result.status, 1, `legacy signing credentials unexpectedly worked:\n${result.stdout}${result.stderr}`);
-		assert.match(result.stderr, new RegExp(`${missingVariable} is required\\. Configure the macOS signing credentials in Buildkite\\.`));
+		assert.notEqual(result.status, 0, `legacy signing credentials unexpectedly worked:\n${result.stdout}${result.stderr}`);
+		assert.match(result.stderr, new RegExp(missingVariable));
+		assert.match(result.stderr, /is required\. Configure the macOS signing credentials in Buildkite\./);
 		assert.doesNotMatch(result.stderr, /Fastlane ran with legacy credentials/);
 	});
 }
@@ -171,6 +178,13 @@ test('macOS signing does not expose the private key in shell traces', { skip: pr
 	assert.doesNotMatch(`${result.stdout}${result.stderr}`, /a dummy key with spaces and \$shell syntax/);
 });
 
+test('macOS Buildkite command enables strict shell options before sourcing signing setup', () => {
+	const pipeline = fs.readFileSync(PIPELINE, 'utf8').replace(/\r\n/g, '\n');
+	const macStep = pipeline.slice(pipeline.indexOf('# macOS build'), pipeline.indexOf('# Linux build'));
+
+	assert.match(macStep, /command: \|\n      set -eu\n[\s\S]*source \.buildkite\/commands\/setup_macos_code_signing\.sh/);
+});
+
 test('sourced macOS signing returns failure when its temporary directory cannot be created', { skip: process.platform !== 'darwin' }, (t) => {
 	const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wpct-signing-mktemp-'));
 	const fallbackDirectory = path.join(projectRoot, 'mktemp-fallback');
@@ -202,6 +216,20 @@ test('sourced macOS signing returns failure and cleans up when writing the key f
 
 	assert.equal(result.status, 1, `signing setup did not return the key-write failure:\n${result.stdout}${result.stderr}`);
 	assert.deepEqual(fs.readdirSync(temporaryRoot), [], 'temporary signing material survived the failed shell');
+});
+
+test('sourced macOS signing preserves a gem installation failure', { skip: process.platform !== 'darwin' }, (t) => {
+	const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wpct-signing-gem-install-failure-'));
+	t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
+
+	const result = spawnSync('/bin/bash', ['-c', FAILED_GEM_INSTALL_HARNESS], {
+		encoding: 'utf8',
+		env: signingEnv({ TMPDIR: temporaryRoot }),
+	});
+
+	assert.equal(result.status, 6, `signing setup swallowed the gem installation failure:\n${result.stdout}${result.stderr}`);
+	assert.doesNotMatch(result.stderr, /Fastlane ran after gem installation failed/);
+	assert.deepEqual(fs.readdirSync(temporaryRoot), [], 'signing material was created after gem installation failed');
 });
 
 test('sourced macOS signing preserves a Fastlane failure and cleans up', { skip: process.platform !== 'darwin' }, (t) => {
