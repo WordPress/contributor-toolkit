@@ -8,7 +8,7 @@ Two files, and neither is specific to one tool despite what their paths suggest:
 
 **The review standard** — [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md). The five dimensions, this project's invariants, the procedure to run them, and the reporting format. Read it directly if your agent has not already.
 
-It sits under `.github/instructions/` because Copilot code review reads that directory natively and follows no links out of it. Anywhere better-named would have meant maintaining a condensed second copy for Copilot, which would drift. Every other agent reaches it from here.
+It sits under `.github/instructions/` because Copilot code review reads that directory natively and follows no links out of it. Anywhere better-named would have meant maintaining a condensed second copy for Copilot, which would drift. CodeRabbit is pointed at the same file by `.coderabbit.yaml`. Every other agent reaches it from here.
 
 **The review as a skill** — a thin `SKILL.md` wrapper over the file above, in two locations because no single skills directory is read by every agent:
 
@@ -31,7 +31,7 @@ Run the review in `.github/instructions/code-review.instructions.md` against the
 
 Before reporting a GitHub workflow complete, verify every requested final state on GitHub — for example, distinguish a merged pull request from one that is merely closed, and confirm that an issue was closed by the intended pull request rather than only by a comment.
 
-Nothing enforces this. There is no automated review on pull requests, by design: it would mean storing an AI provider credential as a secret in a public repository. This pass is what stands in its place, so skipping it means a human reviewer is the first reader of the diff.
+CodeRabbit reviews every non-draft pull request to `trunk` against the same file, configured in `.coderabbit.yaml`. It comments only and never approves. That does not replace the author's pass: a finding fixed before the PR costs one message, the same finding on the PR costs a review cycle, and a human reviewer should not be the first reader of a diff the author never checked.
 
 That file carries the procedure as well as the standard. Follow it rather than improvising a review.
 

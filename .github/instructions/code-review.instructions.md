@@ -6,11 +6,11 @@ applyTo: "**"
 
 What an automated reviewer should look for in this repo, and how to run that review. Written to be read by any agent, not one in particular — this is the single source of truth for the review standard, and it is deliberately the only copy of it.
 
-`AGENTS.md` and `.claude/skills/self-review/SKILL.md` point here rather than restate it. Copilot needs no pointer: it reads `.github/instructions/*.instructions.md` natively, selecting them by matching the `applyTo` glob above against the files in a pull request, so `**` means every PR gets this. That is the whole reason the file lives at this path and not somewhere better-named — a pointer would not have reached it, and a second condensed copy would have drifted.
+`AGENTS.md` and `.claude/skills/self-review/SKILL.md` point here rather than restate it. Copilot needs no pointer: it reads `.github/instructions/*.instructions.md` natively, selecting them by matching the `applyTo` glob above against the files in a pull request, so `**` means every PR gets this. That is the whole reason the file lives at this path and not somewhere better-named — a pointer would not have reached it, and a second condensed copy would have drifted. CodeRabbit reaches it through `.coderabbit.yaml`, which loads this file as a code guideline for every non-draft pull request to `trunk`.
 
-The procedure below assumes an agent that can run commands. Copilot cannot; it should skip to **Scope** and treat the rest as the standard to review against.
+The procedure below assumes an agent that can run commands. Copilot and CodeRabbit cannot; they should skip to **Scope** and treat the rest as the standard to review against.
 
-Nothing runs this automatically. It is the author's pass, before a human reads the diff — which is the point: a finding fixed now costs one message, the same finding on the PR costs a review cycle. The producer is responsible for handing over a reviewable change, not the reviewer for reconstructing the context.
+CodeRabbit runs this on every non-draft pull request to `trunk`. It is still the author's pass first, before a human or a bot reads the diff — which is the point: a finding fixed now costs one message, the same finding on the PR costs a review cycle. The producer is responsible for handing over a reviewable change, not the reviewer for reconstructing the context.
 
 ## Running the review
 
@@ -37,7 +37,7 @@ If ESLint fails, `npm run lint:fix` handles the mechanical part. Check what it r
 
 **3. Review the five dimensions below.** Read the surrounding files, not just the diff — a diff rarely shows that a helper already handles the case, and the reporting bar requires verifying a finding before asserting it.
 
-Where the tool allows it, run this pass with fresh context — a subagent given the diff and this file, rather than the session that wrote the code. Nothing runs this review independently any more, so a reviewer that already believes the change is correct is the main way it stops working.
+Where the tool allows it, run this pass with fresh context — a subagent given the diff and this file, rather than the session that wrote the code. CodeRabbit will run it again on the pull request, but a reviewer that already believes the change is correct is still the main way this pass stops working.
 
 **4. Report, then offer.** Format below. Ask before changing anything: the author decides what is a real finding, which is the whole reason this happens before the PR rather than after.
 

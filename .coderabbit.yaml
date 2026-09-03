@@ -1,0 +1,85 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit reviews every pull request against the review standard in
+# .github/instructions/code-review.instructions.md. That file is the only copy of the standard;
+# this one only points at it and turns off the output the standard says not to produce.
+
+language: en-US
+
+reviews:
+  # Judgement over style. The standard delegates the mechanical layer to ESLint.
+  profile: chill
+  # The standard: comment only, never approve or request changes. The human decides.
+  request_changes_workflow: false
+
+  # The pull request template already carries Why and What. The walkthrough itself cannot be turned off, so it is collapsed and everything optional inside it is off.
+  high_level_summary: false
+  collapse_walkthrough: true
+  changed_files_summary: false
+  sequence_diagrams: false
+  estimate_code_review_effort: false
+  suggested_reviewers: false
+  suggested_labels: false
+  poem: false
+  in_progress_fortune: false
+  review_status: true
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - trunk
+
+  # Tests are a reviewer finding; the author writes them. Generated tests are the "green while proving nothing" shape the standard warns about.
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+
+  # The description check reads .github/pull_request_template.md, which AGENTS.md already requires authors to follow.
+  pre_merge_checks:
+    description:
+      mode: warning
+    title:
+      mode: off
+    docstrings:
+      mode: off
+    issue_assessment:
+      mode: off
+
+  path_filters:
+    - "!package-lock.json"
+    - "!dist/**"
+    - "!node_modules/**"
+
+  path_instructions:
+    - path: "**"
+      instructions: |
+        The review standard is .github/instructions/code-review.instructions.md, loaded as a code guideline. Apply it from its "Scope" section onward; the "Running the review" section assumes a shell and does not apply here.
+        Review the five dimensions in its priority order: architecture, security, performance, cross-platform, tests. Do not report style or formatting; ESLint covers that in CI.
+        Begin every finding with its dimension, severity (🔴 high, 🟡 medium, 🔵 low) and scope ([fix here] or [follow-up]) as the standard defines them. Use [follow-up] for anything the pull request did not introduce.
+        Verify a finding against the surrounding files before asserting it. When there is nothing to report, say so in one line and stop.
+
+  tools:
+    # ESLint runs repo-wide in .github/workflows/lint.yml; repeating it here buries the findings that matter.
+    eslint:
+      enabled: false
+    # This repository deliberately does not hard-wrap Markdown. Every long line would be a false positive.
+    markdownlint:
+      enabled: false
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    # Not in CodeRabbit's default pattern list, so it has to be named. The content is injected at review time; nothing is copied.
+    filePatterns:
+      - ".github/instructions/code-review.instructions.md"
+  # Learnings live in CodeRabbit's dashboard, outside the repository. Keep them to this repository so they cannot drift into an org-wide second standard.
+  learnings:
+    scope: local
+  web_search:
+    enabled: false

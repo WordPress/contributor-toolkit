@@ -31,11 +31,11 @@ There is **one** source of truth for how a change is reviewed: **[`.github/instr
 
 Two things consume that one file:
 
-### Copilot code review — assign it to a PR
+### AI review on pull requests
 
-Copilot code review reads `.github/instructions/*.instructions.md` **natively**, selecting files by their `applyTo` glob (this one is `**`, so it applies to every PR). That is the entire reason the standard lives at this path and not somewhere better-named — Copilot follows no links, so a pointer would not have reached it.
+**CodeRabbit** reviews every non-draft pull request to `trunk` automatically. It is a GitHub App installed on the WordPress organisation, so it needs no secret in this repository. [`.coderabbit.yaml`](.coderabbit.yaml) points it at the same review standard the author runs, [`code-review.instructions.md`](.github/instructions/code-review.instructions.md), asks for that file's labelling on every finding, and keeps it to comments: it never approves or requests changes. Talk to it with `@coderabbitai` in a PR comment; `@coderabbitai help` lists the commands. Its "Learnings" live in CodeRabbit's dashboard, not in the repository, so anything worth keeping from there goes into the instructions file.
 
-Copilot is **assigned manually** as a reviewer on a pull request; it is **not** an automatic bot that fires on every PR. That is by design: an always-on AI review would mean storing an AI provider credential as a secret in a public repository, which this project will not do. What exists is the *capability* — assign Copilot and it reviews against the same standard the author already ran.
+**Copilot code review** reads `.github/instructions/*.instructions.md` **natively**, selecting files by their `applyTo` glob (this one is `**`, so it applies to every PR). That is the entire reason the standard lives at this path and not somewhere better-named — Copilot follows no links, so a pointer would not have reached it. Copilot is **assigned manually** as a reviewer when a second reader is wanted; it is not automatic.
 
 ### The author's own pass — before you open the PR
 
@@ -62,7 +62,7 @@ In an agent-assisted change your agent runs steps 1–3 — it invokes the revie
 2. **Fix or consciously defer** every finding — a deferral is a decision, not an omission.
 3. **Summarise the outcome in the PR description**: what the checks reported, what you fixed, and what you left as a follow-up and why.
 4. **Write a "How to test this" section** — a starting state, numbered steps naming what to click, the expected result of each, and what must *not* have happened. Required on every PR, including ones with green tests: this app fails in places the suite cannot reach, and a reviewer should never have to guess how to drive the change. The shape is spelled out in [AGENTS.md](AGENTS.md#every-pull-request-says-how-to-test-it-by-hand).
-5. Optionally **assign Copilot** as a second reader against the same standard.
+5. Open the PR. CodeRabbit reviews it against the same standard; optionally **assign Copilot** as a further reader.
 
 GitHub fills every new pull request with [the template](.github/pull_request_template.md); steps 3 and 4 have their place in it already. It is built so a reviewer gets the change in five minutes — Why, What changes, How to test this, Risks, Related stay visible and everything deeper goes in a collapsed `<details>` block. Move detail out of the way rather than dropping it. The same template covers a fix, a feature and a process change; it flags the few places where the three want different things.
 
