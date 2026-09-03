@@ -12,7 +12,7 @@ reviews:
   # The standard: comment only, never approve or request changes. The human decides.
   request_changes_workflow: false
 
-  # The pull request template already carries Why and What. Do not restate them.
+  # The pull request template already carries Why and What. The walkthrough itself cannot be turned off, so it is collapsed and everything optional inside it is off.
   high_level_summary: false
   collapse_walkthrough: true
   changed_files_summary: false
