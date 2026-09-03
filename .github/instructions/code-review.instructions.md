@@ -6,11 +6,11 @@ applyTo: "**"
 
 What an automated reviewer should look for in this repo, and how to run that review. Written to be read by any agent, not one in particular — this is the single source of truth for the review standard, and it is deliberately the only copy of it.
 
-`AGENTS.md` and `.claude/skills/self-review/SKILL.md` point here rather than restate it. Copilot needs no pointer: it reads `.github/instructions/*.instructions.md` natively, selecting them by matching the `applyTo` glob above against the files in a pull request, so `**` means every PR gets this. That is the whole reason the file lives at this path and not somewhere better-named — a pointer would not have reached it, and a second condensed copy would have drifted. CodeRabbit reaches it through `.coderabbit.yaml`, which loads this file as a code guideline for every pull request.
+`AGENTS.md` and `.claude/skills/self-review/SKILL.md` point here rather than restate it. Copilot needs no pointer: it reads `.github/instructions/*.instructions.md` natively, selecting them by matching the `applyTo` glob above against the files in a pull request, so `**` means every PR gets this. That is the whole reason the file lives at this path and not somewhere better-named — a pointer would not have reached it, and a second condensed copy would have drifted. CodeRabbit reaches it through `.coderabbit.yaml`, which loads this file as a code guideline for every non-draft pull request to `trunk`.
 
 The procedure below assumes an agent that can run commands. Copilot and CodeRabbit cannot; they should skip to **Scope** and treat the rest as the standard to review against.
 
-CodeRabbit runs this on every pull request. It is still the author's pass first, before a human or a bot reads the diff — which is the point: a finding fixed now costs one message, the same finding on the PR costs a review cycle. The producer is responsible for handing over a reviewable change, not the reviewer for reconstructing the context.
+CodeRabbit runs this on every non-draft pull request to `trunk`. It is still the author's pass first, before a human or a bot reads the diff — which is the point: a finding fixed now costs one message, the same finding on the PR costs a review cycle. The producer is responsible for handing over a reviewable change, not the reviewer for reconstructing the context.
 
 ## Running the review
 
