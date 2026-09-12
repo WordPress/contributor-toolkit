@@ -73,6 +73,27 @@ function ticketIdFromRef(ref) {
 }
 
 /**
+ * Branch name for a pull request checked out to be tried (#458): `pr/7701`.
+ * Its own namespace, so `ticketIdFromRef` and `listTicketBranches` never see
+ * one as a ticket, and a mentor reading `git branch` knows what it is.
+ *
+ * @param {number|string} number
+ */
+function prBranchRef(number) {
+	return `pr/${number}`;
+}
+
+/**
+ * The pull request number a branch name encodes, or null for anything else.
+ *
+ * @param {string} ref
+ */
+function prNumberFromRef(ref) {
+	const match = /^pr\/(\d+)$/.exec(String(ref || ''));
+	return match ? Number(match[1]) : null;
+}
+
+/**
  * The checked-out branch name, or null in a detached HEAD — which the app never
  * creates, but a user poking at the site with their own git client can.
  *
@@ -534,6 +555,8 @@ module.exports = {
 	WIP_AUTHOR,
 	ticketBranchRef,
 	ticketIdFromRef,
+	prBranchRef,
+	prNumberFromRef,
 	currentBranchName,
 	listTicketBranches,
 	stageWorktree,

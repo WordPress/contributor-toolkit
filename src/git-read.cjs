@@ -486,6 +486,45 @@ async function isAncestor(dir, ancestor, descendant, { run = runGit } = {}) {
 }
 
 /**
+ * The best common ancestor of two commits, or null when they share none:
+ * `merge-base` answers with exit 1 and prints nothing in that case. The base
+ * a pull request's file list is measured from (#458): what its author
+ * changed is the diff from where their branch left trunk, not from trunk's
+ * tip, which moved on without them.
+ *
+ * @param {string}   dir
+ * @param {string}   a
+ * @param {string}   b
+ * @param {Object}   [options]
+ * @param {Function} [options.run]
+ * @return {Promise<?string>}
+ */
+async function mergeBase(dir, a, b, { run = runGit } = {}) {
+	const { status, stdout } = await run(['merge-base', a, b], { cwd: dir, okCodes: [0, 1] });
+	return status === 0 ? stdout.toString('utf8').trim() : null;
+}
+
+/**
+ * The paths that differ between two commits, as the same status rows
+ * `changesAgainst` returns: `[path, headPresence, worktreePresence, 0]`, with
+ * `0` on either side for an addition or a deletion. Two trees, no worktree
+ * and no index, so nothing untracked can be in it. No lazy fetch: comparing
+ * trees needs no blob, and on a partial clone a fetch here would mean the
+ * command asked a question the tree could not answer.
+ *
+ * @param {string}   dir
+ * @param {string}   from
+ * @param {string}   to
+ * @param {Object}   [options]
+ * @param {Function} [options.run]
+ * @return {Promise<Array[]>}
+ */
+async function changedPathsBetween(dir, from, to, { run = runGit } = {}) {
+	const { stdout } = await run(['diff', '--name-status', '-z', '--no-renames', from, to, '--'], { cwd: dir, extraEnv: { GIT_NO_LAZY_FETCH: '1' } });
+	return parseNameStatusZ(stdout);
+}
+
+/**
  * A three-way merge of `theirs` onto `ours` from `base`, as a tree object
  * (#385): what replaying a ticket's single WIP commit onto a moved trunk
  * needs. `merge-tree --write-tree` writes objects and nothing else, no ref,
@@ -672,6 +711,8 @@ module.exports = {
 	mergeInProgress,
 	resolveRef,
 	isAncestor,
+	mergeBase,
+	changedPathsBetween,
 	mergeTree,
 	remoteUrl,
 	readCommitInfo,

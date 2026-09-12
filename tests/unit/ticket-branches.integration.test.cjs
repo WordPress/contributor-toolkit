@@ -22,6 +22,8 @@ const {
 	WIP_MESSAGE,
 	ticketBranchRef,
 	ticketIdFromRef,
+	prBranchRef,
+	prNumberFromRef,
 	currentBranchName,
 	listTicketBranches,
 	hasChangesAgainst,
@@ -76,6 +78,16 @@ test('ticketBranchRef/ticketIdFromRef round-trip, and trunk is not a ticket (iss
 	assert.equal(ticketIdFromRef(TRUNK), null);
 	assert.equal(ticketIdFromRef('ticket/not-a-number'), null);
 	assert.equal(ticketIdFromRef(undefined), null);
+});
+
+test('prBranchRef/prNumberFromRef round-trip, and neither namespace reads the other (#458)', () => {
+	assert.equal(prBranchRef(7701), 'pr/7701');
+	assert.equal(prNumberFromRef('pr/7701'), 7701);
+	assert.equal(prNumberFromRef(TRUNK), null);
+	assert.equal(prNumberFromRef('pr/not-a-number'), null);
+	assert.equal(prNumberFromRef(undefined), null);
+	assert.equal(ticketIdFromRef(prBranchRef(7701)), null);
+	assert.equal(prNumberFromRef(ticketBranchRef(59234)), null);
 });
 
 test('starting a ticket carries uncommitted work onto the new branch (issue #108)', async (t) => {
