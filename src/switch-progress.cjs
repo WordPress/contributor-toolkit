@@ -181,9 +181,11 @@ function describeSwitchProgress({ stage, loaded, total, from, to } = {}) {
 			return 'Checking which files change…';
 		case 'apply':
 			return `Swapping files${entering()}… ${withCount(loaded, total)}`;
-		case 'done':
-			if (prOf(to)) return `Ready to try PR #${prOf(to)}`;
-			return ticketOf(to) ? `Ready to work on #${ticketOf(to)}` : 'Ready';
+		case 'done': {
+			if (prOf(to)) return `Ready to try ${nameOf(to)}`;
+			const ticket = nameOf(to);
+			return ticket ? `Ready to work on ${ticket}` : 'Ready';
+		}
 		default:
 			// A stage this version does not know — a newer Git, or a caller
 			// ahead of this module. Saying something true and vague beats

@@ -35,7 +35,7 @@
 const { resolveRef, listBranches, mergeBase, changedPathsBetween, blobOid } = require('./git-read.cjs');
 const { fetchBranch, createBranchAt, updateBranch, deleteBranch } = require('./git-write.cjs');
 const { lockfileChangedFromBlobOids } = require('./git-update.cjs');
-const { TRUNK, prBranchRef, currentBranchName, switchToBranch } = require('./ticket-branches.js');
+const { TRUNK, prBranchRef, prNumberFromRef, currentBranchName, switchToBranch } = require('./ticket-branches.js');
 
 /** The remote a site's pull requests are fetched from: its own `origin` (#359). */
 const REMOTE = 'origin';
@@ -56,6 +56,30 @@ function validNumber(number) {
 		throw error;
 	}
 	return n;
+}
+
+/**
+ * A commit id as the store or the renderer hands it back, or a thrown `code:
+ * 'bad-oid'`. It goes to `branch` and `update-ref`, which accept any
+ * revision expression as a start point (`HEAD@{1}`, a branch name), and a
+ * branch put somewhere the app did not fetch is a branch the app cannot
+ * reason about. Forty hex digits or nothing; null is allowed where the
+ * caller says the value may be absent.
+ *
+ * @param {*}       oid
+ * @param {Object}  [root0]
+ * @param {boolean} [root0.optional]
+ * @return {?string}
+ */
+function validOid(oid, { optional = false } = {}) {
+	if (oid === null || oid === undefined) {
+		if (optional) return null;
+	} else if (/^[0-9a-f]{40}$/.test(String(oid))) {
+		return String(oid);
+	}
+	const error = new Error(`Not a commit id: ${String(oid)}`);
+	error.code = 'bad-oid';
+	throw error;
 }
 
 /**
@@ -132,10 +156,7 @@ async function describePullRequestHead(dir, headOid, { currentHead = null, trunk
 	};
 	const files = rows.map(([filepath, before, after]) => ({ path: filepath, kind: kindOf(before, after) }));
 	const from = currentHead || await resolveRef(dir, 'HEAD');
-	const needsInstall = lockfileChangedFromBlobOids(
-		await lockfileBlobOid(dir, from),
-		await lockfileBlobOid(dir, headOid)
-	);
+	const needsInstall = lockfileChangedFromBlobOids(...await Promise.all([lockfileBlobOid(dir, from), lockfileBlobOid(dir, headOid)]));
 	return { files, needsInstall, base };
 }
 
@@ -155,6 +176,8 @@ async function describePullRequestHead(dir, headOid, { currentHead = null, trunk
  */
 async function pullRequestBranchState(dir, number, { headOid = null, recordedHeadOid = null } = {}) {
 	const ref = prBranchRef(validNumber(number));
+	validOid(headOid, { optional: true });
+	validOid(recordedHeadOid, { optional: true });
 	const tip = await resolveRef(dir, `refs/heads/${ref}`);
 	const exists = tip !== null;
 	const hasEdits = exists && Boolean(recordedHeadOid) && tip !== recordedHeadOid;
@@ -188,7 +211,14 @@ async function pullRequestBranchState(dir, number, { headOid = null, recordedHea
  * The switch itself is `switchToBranch`, so leaving a dirty trunk is refused
  * with `dirty-trunk`, leaving a ticket parks it onto `fromBaseOid`, and a
  * checkout that dies part-way is tagged `stage: 'checkout'` for the caller's
- * switch marker, all exactly as a ticket switch.
+ * switch marker, all exactly as a ticket switch. Every error thrown after
+ * the ref was written carries `ref`, `headOid`, `created` and `moved`, the
+ * way `rebaseOntoTrunk` carries `movedTo`: the branch is at `headOid` now
+ * whatever the worktree looks like, and the caller has to record that head
+ * or its next call will read the branch as one the app did not make. A
+ * switch refused before its checkout moved a file deletes a branch this
+ * call created, so "nothing was changed" includes the ref; a checkout that
+ * died part-way keeps it, because the caller's marker retries exactly it.
  *
  * @param {string}   dir
  * @param {number}   number
@@ -201,6 +231,8 @@ async function pullRequestBranchState(dir, number, { headOid = null, recordedHea
  * @return {Promise<{ref: string, from: ?string, to: string, parked: boolean, created: boolean, moved: boolean}>}
  */
 async function checkoutPullRequest(dir, number, { headOid, recordedHeadOid = null, fromBaseOid = null, onProgress = null, onChild = null }) {
+	validOid(headOid);
+	validOid(fromBaseOid, { optional: true });
 	const state = await pullRequestBranchState(dir, number, { headOid, recordedHeadOid });
 	const { ref } = state;
 
@@ -241,12 +273,25 @@ async function checkoutPullRequest(dir, number, { headOid, recordedHeadOid = nul
 			...(onChild ? { onChild } : {})
 		});
 	} catch (e) {
-		// A switch refused before its checkout moved a file (a dirty trunk,
-		// a park that failed) leaves nothing to keep a branch for: "nothing
-		// was changed" has to include the ref this call just made. A
-		// checkout that died part-way keeps it, because the caller's switch
-		// marker retries exactly that ref.
-		if (created && !(e && e.stage === 'checkout')) await deleteBranch(dir, ref);
+		const refused = !(e && e.stage === 'checkout');
+		let rolledBack = false;
+		if (created && refused) {
+			// Its own try: a delete that fails must not replace the refusal
+			// it is cleaning up after, which is the sentence the contributor
+			// needs ("your edits are still there").
+			try {
+				await deleteBranch(dir, ref);
+				rolledBack = true;
+			} catch (cleanup) {
+				if (e && typeof e === 'object') e.cleanupError = cleanup;
+			}
+		}
+		if (e && typeof e === 'object') {
+			e.ref = ref;
+			e.headOid = headOid;
+			e.created = created && !rolledBack;
+			e.moved = moved;
+		}
 		throw e;
 	}
 	return { ref, from, to: ref, parked: result.parked, created, moved };
@@ -263,6 +308,10 @@ async function checkoutPullRequest(dir, number, { headOid, recordedHeadOid = nul
  * back to trunk, and the result says where it went. Refuses with
  * `code: 'not-on-pr'` when the checkout is not on a pull request branch:
  * parking a ticket onto a pull request's head would be the wrong parent.
+ * Refuses with `code: 'no-pr-head'` when `headOid` is missing, rather than
+ * letting the park fall back to trunk as it does for a ticket: a WIP commit
+ * on `pr/N` parented on trunk folds the author's commits into the
+ * contributor's edits, which is the state this module exists to end.
  *
  * @param {string}   dir
  * @param {Object}   root0
@@ -274,11 +323,17 @@ async function checkoutPullRequest(dir, number, { headOid, recordedHeadOid = nul
  */
 async function leavePullRequest(dir, { returnTo, headOid, onProgress = null, onChild = null }) {
 	const from = await currentBranchName(dir);
-	if (!from || !/^pr\/\d+$/.test(from)) {
+	if (prNumberFromRef(from) === null) {
 		const error = new Error(`Not on a pull request branch: ${from || 'detached HEAD'}`);
 		error.code = 'not-on-pr';
 		throw error;
 	}
+	if (headOid === null || headOid === undefined) {
+		const error = new Error(`No recorded head for ${from}; refusing to park its edits onto trunk`);
+		error.code = 'no-pr-head';
+		throw error;
+	}
+	validOid(headOid);
 	const branches = await listBranches(dir);
 	const fellBack = !returnTo || !branches.includes(returnTo);
 	const to = fellBack ? TRUNK : returnTo;

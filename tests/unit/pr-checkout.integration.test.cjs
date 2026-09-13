@@ -45,9 +45,11 @@ function writeFiles(dir, files) {
 // shape GitHub serves. `from` is the commit it branches from, trunk's tip
 // by default, so a "written against an older trunk" pull request is one
 // made before trunk moved.
-function addPullRequest(origin, number, files, { from = TRUNK, message = `PR #${number}` } = {}) {
+function addPullRequest(origin, number, files, { from = TRUNK, message = `PR #${number}`, remove = [] } = {}) {
 	const before = currentBranch(origin);
 	gitOk(['checkout', '-q', '-b', `scratch-${number}`, from], origin);
+	if (remove.length) gitOk(['rm', '-q', '--', ...remove], origin);
+	// `rm` has staged the removals; `commitFiles` adds only what was written.
 	const oid = commitFiles(origin, writeFiles(origin, files), message);
 	gitOk(['update-ref', `refs/pull/${number}/head`, oid], origin);
 	gitOk(['checkout', '-q', before], origin);
@@ -132,6 +134,23 @@ test('describePullRequestHead: the files are the pull request\'s own diff from w
 	assert.equal((await describePullRequestHead(dir, prOid, { currentHead: baseOid })).needsInstall, false, 'currentHead is honoured over HEAD');
 });
 
+test('describePullRequestHead: a pull request that moves the lockfile needs an install, decided from the tree without fetching the blob (#458)', async (t) => {
+	const { origin, dir } = await makeSiteAndOrigin(t);
+	const prOid = addPullRequest(origin, 8, { [LOCKFILE]: '{"lockfileVersion":3}\n' });
+	const deleting = addPullRequest(origin, 11, {}, { remove: [README] });
+	await fetchPullRequestHead(dir, 8);
+	await fetchPullRequestHead(dir, 11);
+	const lockfileBlob = gitOk(['rev-parse', `${prOid}:${LOCKFILE}`], origin);
+	assert.ok(missingObjects(dir, prOid).some((line) => line === `?${lockfileBlob}`), 'the new lockfile blob is on the origin only');
+
+	const described = await describePullRequestHead(dir, prOid);
+	assert.equal(described.needsInstall, true);
+	assert.deepEqual(described.files, [{ path: LOCKFILE, kind: 'modified' }]);
+	assert.ok(missingObjects(dir, prOid).some((line) => line === `?${lockfileBlob}`), 'and still is: a read decided it, not a download');
+
+	assert.deepEqual((await describePullRequestHead(dir, deleting)).files, [{ path: README, kind: 'deleted' }]);
+});
+
 test('describePullRequestHead: a head with no history in common with trunk lists nothing and says so (#458)', async (t) => {
 	const { origin, dir } = await makeSiteAndOrigin(t);
 	gitOk(['checkout', '-q', '--orphan', 'elsewhere'], origin);
@@ -210,6 +229,50 @@ test('checkoutPullRequest: the branch that is already checked out is refused, no
 	assert.equal(read(dir, README), 'a tweak on the pull request\n');
 });
 
+test('checkoutPullRequest: a checkout that dies part-way keeps the branch and says where it put it, so the caller can record the head (#458)', async (t) => {
+	const { origin, dir } = await makeSiteAndOrigin(t);
+	addPullRequest(origin, 7, { [LOGIN]: '<?php // pr 7\n' });
+	const { oid: headOid } = await fetchPullRequestHead(dir, 7);
+	fs.writeFileSync(path.join(dir, '.git', 'index.lock'), '');
+
+	await assert.rejects(checkoutPullRequest(dir, 7, { headOid }), (e) => {
+		assert.equal(e.name, 'GitError');
+		assert.equal(e.stage, 'checkout');
+		assert.equal(e.from, TRUNK);
+		assert.equal(e.to, 'pr/7');
+		assert.equal(e.ref, 'pr/7');
+		assert.equal(e.headOid, headOid);
+		assert.equal(e.created, true);
+		assert.equal(e.moved, false);
+		return true;
+	});
+	assert.equal(resolveRef(dir, 'pr/7'), headOid, 'the branch stays for the marker\'s retry');
+	assert.equal(currentBranch(dir), TRUNK);
+
+	// With the head recorded from the error, the retry is an ordinary checkout.
+	fs.rmSync(path.join(dir, '.git', 'index.lock'));
+	const result = await checkoutPullRequest(dir, 7, { headOid, recordedHeadOid: headOid });
+	assert.equal(result.created, false);
+	assert.equal(currentBranch(dir), 'pr/7');
+});
+
+test('checkoutPullRequest and leavePullRequest: a commit id that is not one never reaches Git (#458)', async (t) => {
+	const { origin, dir } = await makeSiteAndOrigin(t);
+	addPullRequest(origin, 7, { [LOGIN]: '<?php // pr 7\n' });
+	const { oid: headOid } = await fetchPullRequestHead(dir, 7);
+
+	for (const bad of ['HEAD@{1}', TRUNK, headOid.slice(0, 39), '', headOid.toUpperCase()]) {
+		await assert.rejects(checkoutPullRequest(dir, 7, { headOid: bad }), (e) => e.code === 'bad-oid', bad);
+		await assert.rejects(checkoutPullRequest(dir, 7, { headOid, recordedHeadOid: bad }), (e) => e.code === 'bad-oid', bad);
+	}
+	await assert.rejects(checkoutPullRequest(dir, 7, { headOid: undefined }), (e) => e.code === 'bad-oid');
+	assert.deepEqual(listBranches(dir), [TRUNK]);
+
+	await checkoutPullRequest(dir, 7, { headOid });
+	await assert.rejects(leavePullRequest(dir, { returnTo: TRUNK, headOid: TRUNK }), (e) => e.code === 'bad-oid');
+	assert.equal(currentBranch(dir), 'pr/7');
+});
+
 test('checkoutPullRequest: a pr/ branch the app did not make is refused rather than adopted (#458)', async (t) => {
 	const { origin, dir } = await makeSiteAndOrigin(t);
 	addPullRequest(origin, 7, { [LOGIN]: '<?php // pr 7\n' });
@@ -271,6 +334,15 @@ test('leavePullRequest: a return branch that is gone falls back to trunk, and a 
 	await assert.rejects(leavePullRequest(dir, { returnTo: TRUNK, headOid }), (error) => error.code === 'not-on-pr');
 
 	await checkoutPullRequest(dir, 7, { headOid });
+	// Without the head there is no right parent for the park, and trunk is
+	// the wrong one: refused, with the edit still on disk.
+	writeFiles(dir, { [README]: 'tweak\n' });
+	for (const missing of [undefined, null]) {
+		await assert.rejects(leavePullRequest(dir, { returnTo: TRUNK, headOid: missing }), (error) => error.code === 'no-pr-head');
+	}
+	assert.equal(currentBranch(dir), 'pr/7');
+	assert.equal(read(dir, README), 'tweak\n');
+	writeFiles(dir, { [README]: 'trunk\n' });
 	const result = await leavePullRequest(dir, { returnTo: 'ticket/60001', headOid });
 	assert.deepEqual(result, { from: 'pr/7', to: TRUNK, parked: false, fellBack: true });
 	assert.equal(currentBranch(dir), TRUNK);

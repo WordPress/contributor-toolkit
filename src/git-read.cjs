@@ -666,7 +666,11 @@ async function readBlobs(dir, oid, filepaths) {
 }
 
 /**
- * The blob id of one path at one commit, or null when absent.
+ * The object id a tree records for one path at one commit, or null when the
+ * path is not there. Read from the tree entry with `ls-tree`, never from the
+ * object itself: on a partial clone the blob is usually on the origin, and
+ * `cat-file` would fetch it just to report its id (#458). A read that
+ * decides whether an install is needed must not cost a download.
  *
  * @param {string} dir
  * @param {string} oid
@@ -674,14 +678,25 @@ async function readBlobs(dir, oid, filepaths) {
  * @return {Promise<?string>}
  */
 async function blobOid(dir, oid, filepath) {
-	const request = `${oid}:${filepath}`;
-	const { stdout } = await runGit(['cat-file', '--batch-check', '-z'], { cwd: dir, input: `${request}\0` });
-	return parseCatFileBatchCheck(stdout, [request]).get(request);
+	const entry = await treeEntry(dir, oid, filepath);
+	return entry ? entry.oid : null;
+}
+
+/**
+ * One `ls-tree` on the path rather than a walk of the whole commit.
+ *
+ * @param {string} dir
+ * @param {string} oid
+ * @param {string} filepath
+ * @return {Promise<?{mode: string, type: string, oid: string, path: string}>}
+ */
+async function treeEntry(dir, oid, filepath) {
+	const { stdout } = await runGit(['ls-tree', '-z', oid, '--', filepath], { cwd: dir });
+	return parseLsTreeZ(stdout);
 }
 
 /**
  * The mode a tree records for one path, or null when the path is not there.
- * One `ls-tree` on the path rather than a walk of the whole commit.
  *
  * @param {string} dir
  * @param {string} oid
@@ -689,8 +704,7 @@ async function blobOid(dir, oid, filepath) {
  * @return {Promise<?string>}
  */
 async function treeEntryMode(dir, oid, filepath) {
-	const { stdout } = await runGit(['ls-tree', '-z', oid, '--', filepath], { cwd: dir });
-	const entry = parseLsTreeZ(stdout);
+	const entry = await treeEntry(dir, oid, filepath);
 	return entry ? entry.mode : null;
 }
 
