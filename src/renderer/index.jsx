@@ -2724,7 +2724,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   ) : null;
   // One gate for every ticket action, and the sentence that goes with it
   // (#409): a control this disables says why, through ReasonedButton.
-  const ticketActionsReason = ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building });
+  const ticketActionsReason = ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, applyState });
   const ticketActionsBlocked = Boolean(ticketActionsReason);
 
   // The one question both paths now ask (#234). Picking a ticket while trunk
@@ -3371,29 +3371,30 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   };
   useLayoutEffect(() => {
     retryPrSwitchRef.current = runPrSwitch;
+    ticketSwitchLifecycleRef.current = {
+      begin: async () => {
+        if (terminalStateRef.current.running) {
+          setTicketError('A command is already running. Stop it before switching tickets.');
+          return false;
+        }
+        markTerminalRunning(true);
+        terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+        await pauseWatcher();
+        return true;
+      },
+      complete: (res) => {
+        if (!res.prTransition) return false;
+        setApplyKind('pr');
+        setApplyNeedsInstall(Boolean(res.needsInstall));
+        setApplyBuildByWatcher(false);
+        clearApplyError();
+        runApplyInstallAndBuild(Boolean(res.needsInstall), 'Restored', { runBuild: true, noun: 'saved work' });
+        return true;
+      },
+      finish: () => finishApply()
+    };
+
   });
-  ticketSwitchLifecycleRef.current = {
-    begin: async () => {
-      if (terminalStateRef.current.running) {
-        setTicketError('A command is already running. Stop it before switching tickets.');
-        return false;
-      }
-      markTerminalRunning(true);
-      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-      await pauseWatcher();
-      return true;
-    },
-    complete: (res) => {
-      if (!res.prTransition) return false;
-      setApplyKind('pr');
-      setApplyNeedsInstall(Boolean(res.needsInstall));
-      setApplyBuildByWatcher(false);
-      clearApplyError();
-      runApplyInstallAndBuild(Boolean(res.needsInstall), 'Restored', { runBuild: true, noun: 'saved work' });
-      return true;
-    },
-    finish: () => finishApply()
-  };
 
   const runApply = async ({ reverse = false } = {}) => {
     const state = terminalStateRef.current;

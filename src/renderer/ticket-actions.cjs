@@ -19,13 +19,14 @@
  * on its own.
  *
  * @param {{ticketSaving?: boolean, deletingBranch?: string|null, updateState?: string,
- *          installing?: boolean, building?: boolean}} state
+ *          installing?: boolean, building?: boolean, applyState?: string}} state
  * @return {string|null} Null when nothing blocks the action.
  */
-function ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState = 'idle', installing, building } = {}) {
+function ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState = 'idle', installing, building, applyState = 'idle' } = {}) {
 	if (ticketSaving) return 'Wait for the current ticket change to finish.';
 	if (deletingBranch) return "Wait for the ticket's work to finish deleting.";
 	if (updateState !== 'idle') return 'Wait for the trunk update to finish.';
+	if (applyState !== 'idle') return 'Wait for the PR or patch operation to finish.';
 	if (installing) return 'Wait for the installation to finish.';
 	if (building) return 'Wait for the build to finish.';
 	return null;
