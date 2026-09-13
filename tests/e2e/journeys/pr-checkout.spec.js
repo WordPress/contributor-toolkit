@@ -6,7 +6,7 @@
  * must stay with its local PR branch when the contributor goes back.
  */
 
-const { gitOk } = require( '../../unit/helpers/git.cjs' );
+const { gitOk, commitFiles } = require( '../../unit/helpers/git.cjs' );
 const { test, expect } = require( '../helpers/app.cjs' );
 const {
 	makeSite,
@@ -202,8 +202,7 @@ test( 'a failed review reports an error instead of claiming there are no changes
 test( 'switching tickets does not take over a running terminal command', async ( { session } ) => {
 	const site = await makeSite( session );
 	write( site.dir, 'package.json', JSON.stringify( { name: 'e2e-fixture-site', version: '1.0.0', scripts: { test: "node -e \"require('fs').writeFileSync('build/terminal-started', 'ready'); setTimeout(() => {}, 60000)\"" } } ) );
-	gitOk( [ 'add', 'package.json' ], site.dir );
-	gitOk( [ 'commit', '-m', 'terminal script fixture' ], site.dir );
+	commitFiles( site.dir, [ 'package.json' ], 'terminal script fixture' );
 	const { page } = await session.start( site.settings );
 	await linkTicket( page );
 	await expect( page.getByRole( 'button', { name: 'Unlink', exact: true } ) ).toBeEnabled();

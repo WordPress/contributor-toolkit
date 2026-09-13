@@ -6189,7 +6189,7 @@ test('old PRs do not count generated Gutenberg files, including a previously par
 	await main.invoke('site:status', dir);
 	assert.equal((await main.invoke('git:unsubmitted-work', dir)).changedCount, 0);
 	gitOk(['add', '-f', 'gutenberg/generated.js'], dir);
-	gitOk(['commit', '-m', 'old parked generated files'], dir);
+	commitFiles(dir, [], 'old parked generated files');
 	fs.appendFileSync(path.join(dir, 'README.md'), 'my edit\n');
 	assert.equal((await main.invoke('git:unsubmitted-work', dir)).changedCount, 1);
 	const result = await main.invoke('git:get-patch', dir);
