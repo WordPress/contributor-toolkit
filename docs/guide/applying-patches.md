@@ -10,13 +10,13 @@ There are three ways to bring work into the panel:
 
 - Paste a pull request URL or number into the field and click **Apply PR**.
 - Click **or choose a .diff / .patch file…** and pick a file from disk.
-- Click **Apply…** next to a pull request or attachment in the [Trac ticket panel](trac-tickets).
+- Click **Apply…** next to a pull request or **Apply…** next to an attachment in the [Trac ticket panel](trac-tickets).
 
 ## Preview a pull request
 
 When you choose a pull request, the preview lists the files changed by its commits and says whether changing checkout requires `npm install`. Nothing has changed yet.
 
-Click **Check out and rebuild** to continue. The app parks the work on your current ticket, creates or reuses `pr/NNNN`, and checks out the PR's commits exactly as its author wrote them. In a terminal, `git status` now reports `On branch pr/NNNN` and a clean working tree until you make edits of your own.
+Click **Apply and rebuild** to continue. The app parks the work on your current ticket, creates or reuses `pr/NNNN`, and checks out the PR's commits exactly as its author wrote them. In a terminal, `git status` now reports `On branch pr/NNNN` and a clean working tree until you make edits of your own.
 
 This avoids trying to make an old PR's diff fit today's trunk. It also keeps authorship and commit history visible. A closed PR can still be checked out for investigation; its state does not change what Git has stored.
 
@@ -68,15 +68,15 @@ A branch holds one applied patch file at a time. Revert it, or discard the branc
 
 ## Pull requests have their own checkout
 
-A checked-out PR is a separate `pr/NNNN` branch. The green box names the PR, says where you will return, and offers **Back to ticket #NNNNN** or **Back to trunk**. Your ticket work is parked while you try the PR and returns when you go back.
+A checked-out PR is a separate `pr/NNNN` branch. A green box at the top of the Trac ticket card says **PR #NNNN is applied** and explains that your ticket changes are saved while you test it. **Revert this PR** restores the work you had before the test.
 
 Edits you make while trying the PR belong to its local branch. Going back parks them in a local commit, just as switching tickets parks ticket work. Returning to that PR restores the edits on top of the author's recorded head. The app refuses to replace that local copy automatically if the PR has moved on GitHub, because doing so could lose your work.
 
-The app does not offer to submit changes while a PR checkout is active. Go back to the ticket or trunk first so the PR author's work cannot be submitted as yours. You can still save an unattributed patch as a backup.
+The app does not offer another PR or patch file while a PR checkout is active. Revert it before applying another source, so a first contribution never becomes an unexplained stack of other people's work. Submission is also blocked so the PR author's work cannot be submitted as yours; you can still save an unattributed patch as a backup.
 
 ## Leaving a PR or reverting an applied patch
 
-For a PR, use the **Back to…** button. This is a branch switch rather than a reverse patch, so editing the same lines as the PR does not prevent you from leaving. Your edits stay on `pr/NNNN` and your previous branch returns.
+For a PR, use **Revert this PR**. This is a branch switch rather than a reverse patch, so editing the same lines as the PR does not prevent you from leaving. Your edits stay on `pr/NNNN` and the work you had before the test returns.
 
 While the saved patch can still be removed cleanly, the panel shows it in a green box with a **Revert this patch** button. Reverting removes the patch's changes and rebuilds, again leaving your own edits alone.
 

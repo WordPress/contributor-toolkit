@@ -48,7 +48,7 @@ function changesNoteParts({ dirty, changedCount, tracTicket, pullRequest } = {})
 			patchLabel: 'review them',
 			middle: ' or ',
 			discardLabel: 'discard your changes',
-			end: `. They stay with this pull request's local copy when you go back to ${returnsToTicket ? 'your ticket' : 'your previous branch'}.`
+			end: `. They stay with this pull request's local copy when you revert this PR.`
 		};
 	}
 	if (tracTicket) {
@@ -187,4 +187,18 @@ function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges,
 	return null;
 }
 
-module.exports = { changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE };
+// The review always names the base used to measure the displayed changes.
+function patchReviewContext({ pullRequest, tracTicket } = {}) {
+	if (pullRequest) return {
+		heading: `Your changes on top of PR #${pullRequest.number}`,
+		description: 'Edits to this local copy, compared with the original PR commits.',
+		empty: `There are no changes on top of PR #${pullRequest.number}.`
+	};
+	return {
+		heading: tracTicket ? `Your changes for ticket #${tracTicket}` : 'Your changes',
+		description: 'Everything this site has that its copy of trunk does not.',
+		empty: 'There is nothing to send yet — this site has no changes against its copy of trunk.'
+	};
+}
+
+module.exports = { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE };

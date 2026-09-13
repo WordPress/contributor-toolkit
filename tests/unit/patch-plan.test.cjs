@@ -351,8 +351,8 @@ test('planApplySteps: the install step is named even when skipped (issue #11)', 
 });
 
 test('planApplySteps: a PR is checked out while files still use the patch wording (#458)', () => {
-	assert.strictEqual(planApplySteps({ kind: 'pr' })[0].label, 'Check out the pull request');
-	assert.strictEqual(planApplySteps({ kind: 'leave-pr' })[0].label, 'Return to your previous branch');
+	assert.strictEqual(planApplySteps({ kind: 'pr' })[0].label, 'Apply the pull request');
+	assert.strictEqual(planApplySteps({ kind: 'leave-pr' })[0].label, 'Revert the pull request');
 	assert.strictEqual(planApplySteps({ kind: 'patch' })[0].label, 'Apply the patch');
 });
 

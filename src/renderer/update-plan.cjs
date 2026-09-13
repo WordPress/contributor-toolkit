@@ -94,7 +94,7 @@ const BUILD_BY_WATCHER_MESSAGE = 'The build watch will recompile the change';
  * @return {Array}
  */
 function planApplySteps({ needsInstall, buildByWatcher, kind = 'patch' } = {}) {
-	const firstLabels = { pr: 'Check out the pull request', 'leave-pr': 'Return to your previous branch' };
+	const firstLabels = { pr: 'Apply the pull request', 'leave-pr': 'Revert the pull request' };
 	return [
 		{ key: 'apply', label: firstLabels[kind] || 'Apply the patch', skipped: false },
 		{ key: 'install', label: 'Install dependencies', skipped: !needsInstall, skipMessage: SKIP_INSTALL_MESSAGE },

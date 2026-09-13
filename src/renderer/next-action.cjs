@@ -100,7 +100,7 @@ function deriveNextAction(state = {}) {
 	}
 
 	if (state.pullRequest && Number.isInteger(state.pullRequest.number)) {
-		return { id: 'pr-checkout', reason: `You are trying PR #${state.pullRequest.number}; go back when you have finished.` };
+		return { id: 'pr-checkout', reason: `PR #${state.pullRequest.number} is applied; revert it before applying another change.` };
 	}
 
 	if (Boolean(state.hasChanges)) {

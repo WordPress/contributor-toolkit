@@ -4,7 +4,7 @@
 
 You need a GitHub account, and the site must have a [linked Trac ticket](trac-tickets) — a core pull request has to cite one. The app cannot create the GitHub account for you, and it cannot post to Trac on your behalf.
 
-You also need to be on your ticket branch. If you are trying somebody else's PR, use **Back to ticket #NNNNN** first; the app will not include that author's commits in a new pull request under your name.
+You also need to be on your ticket branch. If you are trying somebody else's PR, use **Revert this PR** first; the app will not include that author's commits in a new pull request under your name.
 
 ## Sign in with GitHub
 

@@ -6175,3 +6175,73 @@ test('returning to an unchanged PR with parked lockfile edits measures the copy 
 	} });
 	assert.equal((await runPr(f.main, 'checkout', 7)).done.needsInstall, true);
 });
+
+test('old PRs do not count generated Gutenberg files, including a previously parked copy', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-old-pr-generated-');
+	fs.writeFileSync(path.join(dir, 'README.md'), 'base\n');
+	commitFiles(dir, ['README.md'], 'base');
+	const baseOid = revParse(dir, 'HEAD');
+	gitOk(['checkout', '-b', 'pr/7'], dir);
+	fs.mkdirSync(path.join(dir, 'gutenberg'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'gutenberg', 'generated.js'), 'generated\n');
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { branches: { 'pr/7': { baseOid, headOid: baseOid, pullRequest: 7 } } } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	await main.invoke('site:status', dir);
+	assert.equal((await main.invoke('git:unsubmitted-work', dir)).changedCount, 0);
+	gitOk(['add', '-f', 'gutenberg/generated.js'], dir);
+	gitOk(['commit', '-m', 'old parked generated files'], dir);
+	fs.appendFileSync(path.join(dir, 'README.md'), 'my edit\n');
+	assert.equal((await main.invoke('git:unsubmitted-work', dir)).changedCount, 1);
+	const result = await main.invoke('git:get-patch', dir);
+	assert.equal(result.ok, true);
+	assert.match(result.patch, /my edit/);
+	assert.doesNotMatch(result.patch, /gutenberg/);
+});
+
+test('the patch panel can render a large added text file without overflowing the stack', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-large-patch-');
+	fs.writeFileSync(path.join(dir, 'README.md'), 'base\n');
+	commitFiles(dir, ['README.md'], 'base');
+	fs.writeFileSync(path.join(dir, 'large.txt'), 'line\n'.repeat(150000));
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	const result = await main.invoke('git:get-patch', dir);
+	assert.equal(result.ok, true, result.error);
+	assert.match(result.patch, /\+line/);
+});
+
+for (const changed of [false, true]) {
+	test(`resuming an applied PR reports rebuild and install=${changed} from its lockfile`, async () => {
+		const oid = 'c'.repeat(40);
+		const switchToBranch = spy(async () => ({ parked: true }));
+		const f = prWiring({
+			meta: { branches: {
+				'ticket/59234': { baseOid: oid, activePr: 'pr/7' },
+				'pr/7': { headOid: oid, baseOid: oid, returnTo: 'ticket/59234' }
+			} },
+			reads: { blobOid: async (_dir, ref) => changed && ref === 'pr/7' ? 'd'.repeat(40) : oid },
+			tickets: { switchToBranch }
+		});
+		const result = await f.main.invoke('sites:set-ticket', '/sites/wp', '59234');
+		assert.equal(result.ok, true);
+		assert.equal(result.branch, 'pr/7');
+		assert.equal(result.prTransition, true);
+		assert.equal(result.needsInstall, changed);
+		assert.equal(switchToBranch.calls[0][1], 'pr/7');
+	});
+}
+
+test('linking a new ticket from a PR measures trunk before the new branch exists', async () => {
+	const oid = 'c'.repeat(40);
+	const f = prWiring({ head: 'pr/7',
+		reads: {
+			resolveRef: async (_dir, ref) => ref === 'ticket/60003' ? null : oid,
+			blobOid: async (_dir, ref) => { if (ref === 'ticket/60003') throw new Error('missing branch'); return oid; }
+		},
+		tickets: { switchToBranch: async () => ({ parked: true }), startTicketBranch: async () => ({ baseOid: oid }) }
+	});
+	const result = await f.main.invoke('sites:set-ticket', '/sites/wp', '60003');
+	assert.equal(result.ok, true, result.error);
+	assert.equal(result.branch, 'ticket/60003');
+	assert.equal(result.prTransition, true);
+});
