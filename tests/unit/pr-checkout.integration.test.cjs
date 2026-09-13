@@ -120,7 +120,9 @@ test('describePullRequestHead: the files are the pull request\'s own diff from w
 	assert.equal(before.base, baseOid);
 	assert.deepEqual(before.files, [
 		{ path: 'src/new.php', kind: 'added' },
-		{ path: LOGIN, kind: 'modified' }
+		// Git pathnames always use `/`, including on Windows. `LOGIN` uses the
+		// host separator because the same constant also writes the fixture.
+		{ path: LOGIN.split(path.sep).join('/'), kind: 'modified' }
 	], 'trunk\'s later lockfile change and deletion are not blamed on the pull request');
 	assert.equal(before.needsInstall, false, 'the site is on the same lockfile the pull request has');
 
