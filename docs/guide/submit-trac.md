@@ -2,6 +2,8 @@
 
 **Attach to Trac** is the traditional way to contribute a WordPress core change: a `.diff` file attached to the ticket. It needs a WordPress.org account — which you need anyway, for props and to comment on the ticket.
 
+This destination is unavailable while a pull request is checked out. Go back to your ticket first so the saved patch contains your ticket work rather than the PR author's commits.
+
 ## What the app does, and what you do
 
 The app does not post to Trac on your behalf — that would mean it holding a WordPress.org session, which it deliberately never does. Instead, the destination on the [Review & submit changes](submitting-changes) screen splits the work:

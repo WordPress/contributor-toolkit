@@ -6015,6 +6015,28 @@ test('a moved PR updates its recorded base but preserves the original return tic
 	assert.equal(m.returnTo, 'ticket/59234');
 });
 
+test('a moved PR with local edits returns to its saved copy instead of replacing it (#458)', async () => {
+	const movedHead = 'c'.repeat(40);
+	const localTip = 'd'.repeat(40);
+	const originalHead = 'a'.repeat(40);
+	const switchToBranch = spy(async (_dir, ref) => ({ from: 'ticket/59234', to: ref, parked: true }));
+	const f = prWiring({
+		reads: { resolveRef: async (_dir, ref) => ref === 'pr/7' ? localTip : originalHead },
+		pr: {
+			fetchPullRequestHead: async () => ({ oid: movedHead }),
+			pullRequestBranchState: async () => ({ exists: true, moved: true, hasEdits: true, tip: localTip })
+		},
+		tickets: { switchToBranch }
+	});
+
+	const { done } = await runPr(f.main, 'checkout', 7);
+	assert.equal(done.ok, true);
+	assert.equal(done.localCopy, true);
+	assert.equal(switchToBranch.calls[0][1], 'pr/7');
+	assert.equal(f.checkoutPullRequest.calls.length, 0);
+	assert.equal(f.settings.values.siteMeta['/sites/wp'].branches['pr/7'].headOid, f.oid, 'the recorded author head stays at v1');
+});
+
 for (const present of [true, false]) {
 	test(`git:leave-pr restores ${present ? 'the ticket' : 'trunk when the ticket was deleted'}`, async () => {
 		const f = prWiring({ head: 'pr/7', reads: { listBranches: async () => present ? ['trunk', 'ticket/59234', 'pr/7'] : ['trunk', 'pr/7'], blobOid: async (_dir, ref) => ref === 'HEAD' ? 'a'.repeat(40) : 'b'.repeat(40) } });

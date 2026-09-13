@@ -50,7 +50,7 @@ The panel searches GitHub for pull requests on `WordPress/wordpress-develop` tha
 
 The state is a coloured pill, in GitHub's own three colours: green **OPEN**, purple **MERGED**, red **CLOSED**. Red here is a label and not a warning — a closed pull request is an outcome, not a failure. Merged is rare on `wordpress-develop`, where a pull request is opened for review and the change usually lands as a commit instead.
 
-Each pull request has an **Apply…** button, which fetches its diff and shows you a preview before anything is changed — see [Applying patches and PRs](applying-patches).
+Each pull request has an **Apply…** button, which fetches its commits from the site's origin and shows you a file preview before checking out its own `pr/NNNN` branch — see [Applying patches and PRs](applying-patches).
 
 The search uses GitHub's unauthenticated API, which allows 60 requests per hour from your machine. If the limit is spent or you are offline, the panel says so and falls back to the last list it saw, noting when that was. A pull request that changed state since then keeps its old pill until the next successful lookup.
 
@@ -60,7 +60,7 @@ On many tickets — good first bugs especially — the existing work is a `.diff
 
 Trac answers non-browser clients with a proof-of-work interstitial, so the app cannot simply download the list. Instead it opens the ticket in a real browser window, where the check runs — usually automatically within a few seconds, staying hidden. If Trac escalates to an "I am human" checkbox, the window appears so you can click it once. The window then closes on its own; the attachment list is read from the page and shown in the panel.
 
-Each attachment row shows the filename (click it to open the file in your browser), the author, the date, and the size. Rows for patch files have an **Apply…** button that works the same way as for pull requests.
+Each attachment row shows the filename (click it to open the file in your browser), the author, the date, and the size. Rows for patch files have an **Apply…** button that previews the file and applies it as a removable layer on the current ticket branch.
 
 Two things can go wrong:
 

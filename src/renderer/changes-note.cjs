@@ -30,15 +30,27 @@ const DISCARD_CONFIRM_MESSAGE = 'Discard all local changes? This cannot be undon
  * also carries a reassurance the buttons never need: Unlink sits right
  * above, and the changes must not look like they hang on it.
  *
- * @param {{dirty?: boolean, changedCount?: number, tracTicket?: *}} state
+ * @param {{dirty?: boolean, changedCount?: number, tracTicket?: *, pullRequest?: Object}} state
  * @return {{placement: 'buttons'|'ticket', lead: string, patchLabel: string,
  *          middle: string, discardLabel: string, end: string,
  *          unlinkNote?: string}|null}
  */
-function changesNoteParts({ dirty, changedCount, tracTicket } = {}) {
+function changesNoteParts({ dirty, changedCount, tracTicket, pullRequest } = {}) {
 	if (!dirty) return null;
 	const count = Number.isInteger(changedCount) && changedCount > 0 ? changedCount : null;
 	const noun = count === 1 ? 'change' : 'changes';
+	if (pullRequest && Number.isInteger(pullRequest.number)) {
+		const hasReturnDestination = typeof pullRequest.returnTo === 'string' && pullRequest.returnTo.length > 0;
+		const returnsToTicket = hasReturnDestination ? pullRequest.returnTo.startsWith('ticket/') : Boolean(tracTicket);
+		return {
+			placement: returnsToTicket ? 'ticket' : 'buttons',
+			lead: `You have ${count === null ? '' : `${count} `}${noun} on top of PR #${pullRequest.number}. You can `,
+			patchLabel: 'review them',
+			middle: ' or ',
+			discardLabel: 'discard your changes',
+			end: `. They stay with this pull request's local copy when you go back to ${returnsToTicket ? 'your ticket' : 'your previous branch'}.`
+		};
+	}
 	if (tracTicket) {
 		return {
 			placement: 'ticket',
