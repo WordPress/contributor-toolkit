@@ -101,6 +101,26 @@ const shots = [
 		}
 	},
 	{
+		slug: 'deep-link-prompt',
+		tier: 'fixture',
+		variant: 'seeded',
+		target: (page) => page.getByRole('status').filter({ hasText: 'came from a link' }),
+		// The one shot that cannot be reached by driving the UI (#464): the
+		// ticket arrives from the operating system, so the picture is taken by
+		// making the main process receive the address it would receive from a
+		// browser. `app.emit` rather than a real activation, because a launch
+		// from source does not own the scheme on macOS or Linux — see
+		// protocolRegistration in src/deep-link.cjs.
+		prepare: async (page, app) => {
+			await selectSite(page, 'my-first-patch');
+			await card(page, 'Trac ticket').waitFor();
+			await app.evaluate(({ app: electronApp }, url) => {
+				electronApp.emit('open-url', { preventDefault() {} }, url);
+			}, 'wpct://ticket/62281');
+			await page.getByText('came from a link').waitFor();
+		}
+	},
+	{
 		slug: 'terminal',
 		tier: 'fixture',
 		variant: 'seeded',

@@ -13,6 +13,16 @@ The ticket is stored with the site, so it survives restarts. You can change or r
 
 If you do not have a ticket yet, click **Not sure yet? Browse good first bugs on Trac** to open Trac's curated ticket lists in your browser.
 
+## Open a ticket from your browser
+
+The app answers links of the form `wpct://ticket/62281`. Opening one brings the app forward with that ticket ready, and asks whether to link it to the site you have open. Nothing happens to your site until you answer: linking parks whatever the site is working on and checks out the ticket's branch, so a link fills the number in and leaves the decision to you.
+
+![The question a link raises above the Trac ticket panel: Link ticket #62281 to my-first-patch?, with Link ticket and Not now](/screenshots/deep-link-prompt.png)
+
+If you have no site yet, the app says the ticket is waiting and points you at creating one. With several sites, the question is asked for the site you have open; to work the ticket in a different one, choose it in the sidebar first and open the link again.
+
+The scheme is registered the first time you run an installed build, so a link works from anywhere your browser or terminal can open one. Nothing on the web uses it yet: this is the address for anything that wants to hand a ticket to the app, including tools you or your team write.
+
 Linking a ticket gives it its own branch inside the site, so the work you do for it is kept apart from every other ticket on that site. A site can hold as many tickets as you like — see [Working on several tickets](./ticket-branches).
 
 If you have edited anything before linking, the app asks what should happen to those edits rather than deciding for you. The four choices are described under [Edits you made before picking a ticket](./ticket-branches#edits-you-made-before-picking-a-ticket).

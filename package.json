@@ -38,6 +38,14 @@
     "appId": "org.wordpress.contributor.toolkit",
     "productName": "WordPress Contributor Toolkit",
     "artifactName": "wordpress-contributor-toolkit-${version}-${os}-${arch}.${ext}",
+    "protocols": [
+      {
+        "name": "WordPress Contributor Toolkit ticket link",
+        "schemes": [
+          "wpct"
+        ]
+      }
+    ],
     "directories": {
       "buildResources": "build"
     },
