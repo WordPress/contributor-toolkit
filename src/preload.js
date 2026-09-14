@@ -1,6 +1,43 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Subscribe before invoking: a validation refusal can arrive before the reply
+// carrying its id. Keep those early events until the id is known, then apply
+// the same correlation as later events. Never expose the Electron event.
+async function runPullRequest(channel, idKey, args, onLog, onDone) {
+	let id;
+	let pending = [];
+	const cleanup = () => {
+		ipcRenderer.removeListener(`${channel}:log`, logHandler);
+		ipcRenderer.removeListener(`${channel}:done`, doneHandler);
+	};
+	const deliver = (done, payload) => {
+		if (id === undefined) { pending.push([done, payload]); return; }
+		if (payload[idKey] !== id) return;
+		if (done) {
+			cleanup();
+			if (onDone) onDone(payload);
+		} else if (onLog) onLog(payload);
+	};
+	const logHandler = (_e, payload) => deliver(false, payload);
+	const doneHandler = (_e, payload) => deliver(true, payload);
+	ipcRenderer.on(`${channel}:log`, logHandler);
+	ipcRenderer.on(`${channel}:done`, doneHandler);
+	try {
+		const reply = await ipcRenderer.invoke(channel, ...args);
+		id = reply[idKey];
+		for (const [done, payload] of pending) deliver(done, payload);
+		pending = [];
+		return reply;
+	} catch (e) {
+		cleanup();
+		throw e;
+	}
+}
+
 contextBridge.exposeInMainWorld('api', {
+	previewPullRequest: (sitePath, number) => ipcRenderer.invoke('git:preview-pr', sitePath, number),
+	checkoutPullRequest: (sitePath, number, onLog, onDone) => runPullRequest('git:checkout-pr', 'checkoutId', [sitePath, number], onLog, onDone),
+	leavePullRequest: (sitePath, onLog, onDone) => runPullRequest('git:leave-pr', 'leaveId', [sitePath], onLog, onDone),
 	// Only so the window can name things the way the platform does — "Show in
 	// Finder" against "Show in Explorer". Nothing branches on it in the main
 	// process, where `process.platform` is read directly.
@@ -343,4 +380,3 @@ contextBridge.exposeInMainWorld('api', {
 		return () => ipcRenderer.removeListener('smtp:started', h);
 	}
 });
-
