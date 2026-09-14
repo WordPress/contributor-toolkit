@@ -1918,19 +1918,29 @@ ipcMain.handle('git:checkout-pr', (event, sitePath, value) => streamPrOperation(
     try {
         if (!resume) ({ oid: headOid } = await fetchPrHead(sitePath, number, sendLog));
         if (!headOid) return { ok: false, number, code: 'no-pr-head' };
+        const branchState = !resume && recorded.headOid
+            ? await pullRequestBranchState(sitePath, number, { headOid, recordedHeadOid: recorded.headOid })
+            : null;
+        // When GitHub moved but this site has work on the earlier head, the
+        // safe meaning of "return" is the local copy. Replacing it is refused
+        // by the lower layer; switching to its existing tip makes the UI's
+        // keep-or-discard choices reachable without terminal Git (#458).
+        const localCopy = Boolean(branchState?.moved && branchState.hasEdits);
         // An unchanged PR may carry a parked WIP with its own lockfile. The
         // switch restores that tip, not just the author's fetched head.
         let destination = headOid;
         if (resume) destination = ref;
+        else if (localCopy) destination = branchState.tip;
         else if (recorded.headOid === headOid) destination = await resolveRef(sitePath, ref) || headOid;
         const needsInstall = await prNeedsInstall(sitePath, destination);
-        sendLog("Downloading the pull request's files and switching to its branch…\n");
-        const result = await withSwitchMarker(sitePath, () => resume
-            ? resumeSwitch(sitePath, ref, { onProgress, onChild })
-            : checkoutPullRequest(sitePath, number, { headOid, recordedHeadOid: recorded.headOid, fromBaseOid: active.meta?.baseOid, onProgress, onChild }));
-        await recordPrHead(sitePath, ref, number, headOid, returnTo);
+        sendLog(localCopy ? 'Returning to your saved copy of the pull request…\n' : "Downloading the pull request's files and switching to its branch…\n");
+        let switchOperation = () => checkoutPullRequest(sitePath, number, { headOid, recordedHeadOid: recorded.headOid, fromBaseOid: active.meta?.baseOid, onProgress, onChild });
+        if (resume) switchOperation = () => resumeSwitch(sitePath, ref, { onProgress, onChild });
+        else if (localCopy) switchOperation = () => switchToBranch(sitePath, ref, { baseOid: active.meta?.baseOid, onProgress, onChild });
+        const result = await withSwitchMarker(sitePath, switchOperation);
+        await recordPrHead(sitePath, ref, number, localCopy ? recorded.headOid : headOid, returnTo);
         await mergeSiteMeta(sitePath, { currentBranch: ref });
-        return { ok: true, number, from: resume?.from || active.ref, returnTo, parked: Boolean(result.parked), moved: Boolean(result.moved), needsInstall };
+        return { ok: true, number, from: resume?.from || active.ref, returnTo, parked: Boolean(result.parked), moved: Boolean(result.moved), localCopy, needsInstall };
     } catch (e) {
         // The ref can exist even when its checkout did not finish. Recording
         // it now is what makes the next attempt ours rather than a foreign PR.

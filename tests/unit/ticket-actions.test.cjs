@@ -74,3 +74,12 @@ test('dirtyTrunkQuestion says "continue on #N" and drops the carry when the tick
 	// The default is the safe reading: no carry offered unless main said so.
 	assert.equal(dirtyTrunkQuestion({}).carry, null);
 });
+
+test('dirtyTrunkQuestion names a PR checkout without inventing ticket work (#458)', () => {
+	const question = dirtyTrunkQuestion({ files: 2, pullRequest: 7 });
+	assert.match(question.question, /PR #7 is a separate checkout/);
+	assert.doesNotMatch(question.question, /This ticket/);
+	assert.equal(question.save, 'Save them as a patch, then check out PR #7…');
+	assert.equal(question.discard, 'Discard them and check out PR #7');
+	assert.equal(question.carry, null);
+});

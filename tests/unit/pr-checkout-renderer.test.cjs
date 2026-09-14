@@ -2,7 +2,18 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { describePrCheckout, prSubmissionRefusal, prCheckoutRefusal } = require('../../src/renderer/pr-checkout.cjs');
+const fs = require('node:fs');
+const path = require('node:path');
+const { describePrCheckout, describePrPreview, prSubmissionRefusal, prCheckoutRefusal } = require('../../src/renderer/pr-checkout.cjs');
+
+test('the dirty-trunk PR retry publishes only the callback from a committed render (#458)', () => {
+	const source = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'renderer', 'index.jsx'), 'utf8');
+	const assignment = 'retryPrSwitchRef.current = runPrSwitch;';
+	assert.equal(source.split(assignment).length - 1, 1, 'expected one retry callback assignment');
+	const committedEffect = [...source.matchAll(/useLayoutEffect\(\(\) => \{([\s\S]*?)\n  \}\);/g)]
+		.find((match) => match[1].includes(assignment));
+	assert.ok(committedEffect, 'retry callback assignment must run in a layout effect, after React commits the render');
+});
 
 test('PR checkout names the return ticket and explains where edits stay', () => {
 	const result = describePrCheckout({ number: 7, returnTo: 'ticket/62010', hasEdits: true });
@@ -20,7 +31,12 @@ test('a PR tried from trunk names trunk and has no edits notice', () => {
 });
 
 test('submission refusal explains ownership and how to get back to your work', () => {
-	assert.match(prSubmissionRefusal(7), /PR #7.*author's commits.*Go back to your ticket/);
+	assert.match(prSubmissionRefusal(7, 'ticket/62010'), /PR #7.*author's commits.*Go back to your ticket/);
+});
+
+test('submission refusal does not invent a ticket when the PR came from trunk', () => {
+	assert.match(prSubmissionRefusal(7, 'trunk'), /Go back to trunk/);
+	assert.doesNotMatch(prSubmissionRefusal(7, 'trunk'), /your ticket/);
 });
 
 for (const [code, sentence] of [
@@ -39,4 +55,23 @@ for (const [code, sentence] of [
 test('guard and Git errors keep their diagnostic sentence', () => {
 	assert.equal(prCheckoutRefusal({ code: 'merge-in-progress', error: 'Finish the merge.' }), 'Finish the merge.');
 	assert.match(prCheckoutRefusal({}), /Check the log/);
+});
+
+test('PR preview names its files and the install the checkout needs', () => {
+	const result = describePrPreview({ number: 7, files: [{ path: 'a.php' }, { path: 'b.php' }], needsInstall: true });
+	assert.equal(result.headline, 'PR #7 changes 2 files.');
+	assert.match(result.installNote, /package-lock\.json.*installed/);
+});
+
+test('PR preview distinguishes a saved copy, a moved head and edits on the old head', () => {
+	assert.match(describePrPreview({ number: 7, exists: true }).headline, /already on this site.*local copy/);
+	assert.match(describePrPreview({ number: 7, exists: true, moved: true }).headline, /moved on GitHub.*will be updated/);
+	const edited = describePrPreview({ number: 7, exists: true, moved: true, hasEdits: true });
+	assert.match(edited.headline, /moved on GitHub.*edits on top/);
+	assert.equal(edited.actionLabel, 'Return to saved copy');
+});
+
+test('a closed PR is still available for investigation', () => {
+	assert.match(describePrPreview({ number: 7, state: 'closed' }).closedNote, /closed.*still check out/);
+	assert.equal(describePrPreview({ number: 7, state: 'open' }).closedNote, '');
 });

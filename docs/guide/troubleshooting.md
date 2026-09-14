@@ -18,16 +18,15 @@ The refusal covers switching too, so the way out is **Unlink** on the **Trac tic
 
 The usual cause is a file held open by an editor or an antivirus scanner during the swap. Closing whatever had the checkout open before retrying makes a repeat less likely.
 
-## A patch or pull request will not apply
+## A patch file will not apply
 
 An apply is all-or-nothing: if any part fails, the checkout is unchanged. The panel names how many changes failed and which files they are in.
 
-For a pull request, check whether the notice names work already on your ticket:
+For a patch file or Trac attachment, expand the failing files in the panel: each region gives a line from your checkout to search for and says whether the surrounding code changed or the change appears to be present already. See [Applying patches and PRs](./applying-patches#when-a-patch-will-not-apply).
 
-- If it does, save a patch of your work and try the pull request on a clean ticket. The app knows that both sets of work touch the file, but it cannot prove which exact lines caused the failure. Ask the pull request's author for an update only if it still fails on the clean ticket.
-- If it does not, the pull request was written against an older trunk. Open it and let its author know that it needs a rebase or trunk merged in.
+## "I cannot submit: PR #NNNN is checked out"
 
-For a patch file or Trac attachment, there is no author the app can send you to. Expand the failing files in the panel: each region gives a line from your checkout to search for and says whether the surrounding code changed or the change appears to be present already. See [Applying patches and PRs](./applying-patches#when-a-patch-will-not-apply).
+The app blocks submission from a PR checkout so the PR author's commits cannot be presented as your own work. Use **Back to ticket #NNNNN** or **Back to trunk** in the **Apply a patch or PR** panel. Your edits on the PR are parked on its local `pr/NNNN` branch and return if you check it out again.
 
 ## Work seems to have vanished after changing tickets or updating trunk
 

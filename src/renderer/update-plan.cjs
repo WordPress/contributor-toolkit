@@ -90,11 +90,13 @@ const BUILD_BY_WATCHER_MESSAGE = 'The build watch will recompile the change';
  * @param {Object}  root0
  * @param {boolean} [root0.needsInstall]
  * @param {boolean} [root0.buildByWatcher]
+ * @param {string}  [root0.kind]           `pr` when the first step checks out a PR.
  * @return {Array}
  */
-function planApplySteps({ needsInstall, buildByWatcher } = {}) {
+function planApplySteps({ needsInstall, buildByWatcher, kind = 'patch' } = {}) {
+	const firstLabels = { pr: 'Check out the pull request', 'leave-pr': 'Return to your previous branch' };
 	return [
-		{ key: 'apply', label: 'Apply the patch', skipped: false },
+		{ key: 'apply', label: firstLabels[kind] || 'Apply the patch', skipped: false },
 		{ key: 'install', label: 'Install dependencies', skipped: !needsInstall, skipMessage: SKIP_INSTALL_MESSAGE },
 		{ key: 'build', label: 'Rebuild', skipped: Boolean(buildByWatcher), skipMessage: BUILD_BY_WATCHER_MESSAGE }
 	];

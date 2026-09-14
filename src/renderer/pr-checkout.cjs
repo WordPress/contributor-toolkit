@@ -14,8 +14,12 @@ function describePrCheckout({ number, returnTo, hasEdits = false }) {
 	};
 }
 
-function prSubmissionRefusal(number) {
-	return `PR #${number} is checked out. Its author's commits are this checkout's history, so it cannot be submitted as your work. Go back to your ticket first.`;
+function prSubmissionRefusal(number, returnTo = '') {
+	const ticket = /^ticket\/\d+$/.test(returnTo);
+	let target = 'your previous branch';
+	if (ticket) target = 'your ticket';
+	else if (returnTo === 'trunk') target = 'trunk';
+	return `PR #${number} is checked out. Its author's commits are this checkout's history, so it cannot be submitted as your work. Go back to ${target} first.`;
 }
 
 function prCheckoutRefusal({ code, number, error }) {
@@ -30,4 +34,18 @@ function prCheckoutRefusal({ code, number, error }) {
 	}
 }
 
-module.exports = { describePrCheckout, prSubmissionRefusal, prCheckoutRefusal };
+function describePrPreview({ number, files = [], needsInstall = false, exists = false, moved = false, hasEdits = false, state = null }) {
+	const count = files.length;
+	let headline = `PR #${number} changes ${count} file${count === 1 ? '' : 's'}.`;
+	if (exists && hasEdits && moved) headline = `PR #${number} has moved on GitHub, but your copy has edits on top.`;
+	else if (exists && moved) headline = `PR #${number} has moved on GitHub; your local copy will be updated.`;
+	else if (exists) headline = `PR #${number} is already on this site; you will switch to your local copy.`;
+	return {
+		headline,
+		actionLabel: exists && moved && hasEdits ? 'Return to saved copy' : 'Check out and rebuild',
+		closedNote: state === 'closed' ? 'This pull request is closed. You can still check out its last head to investigate it.' : '',
+		installNote: needsInstall ? 'It changes package-lock.json, so dependencies will be installed before the rebuild.' : ''
+	};
+}
+
+module.exports = { describePrCheckout, describePrPreview, prSubmissionRefusal, prCheckoutRefusal };
