@@ -489,3 +489,39 @@ test('CHARACTERISATION: the forced checkout every app write runs erases a merge 
 	assert.equal(fs.readFileSync(path.join(dir, 'src', 'wp-login.php'), 'utf8'), '<?php // ours\n', 'and the markers, and the mentor\'s side');
 	assert.equal(await read.mergeInProgress(dir, { platform: 'darwin' }), null);
 });
+
+test('mergeBase and changedPathsBetween: a branch\'s own diff from where it left trunk, and null for unrelated histories (#458)', async (t) => {
+	const dir = makeRepo(t);
+	const identity = ['-c', 'user.name=T', '-c', 'user.email=t@example.com'];
+	const base = git(['rev-parse', 'HEAD'], dir).stdout;
+
+	// A branch that adds, changes and deletes, then trunk moves on without it.
+	assert.equal(git(['checkout', '-q', '-b', 'topic'], dir).status, 0);
+	fs.writeFileSync(path.join(dir, 'src', 'wp-login.php'), '<?php // topic\n');
+	fs.writeFileSync(path.join(dir, 'src', 'new.php'), '<?php // new\n');
+	fs.rmSync(path.join(dir, 'with space.txt'));
+	assert.equal(git(['add', '-A'], dir).status, 0);
+	assert.equal(git([...identity, 'commit', '-q', '-m', 'topic'], dir).status, 0);
+	const topic = git(['rev-parse', 'HEAD'], dir).stdout;
+	assert.equal(git(['checkout', '-q', 'trunk'], dir).status, 0);
+	fs.writeFileSync(path.join(dir, 'package-lock.json'), '{"name":"y"}\n');
+	assert.equal(git([...identity, 'commit', '-q', '-am', 'trunk moves'], dir).status, 0);
+
+	assert.equal(await read.mergeBase(dir, 'trunk', topic), base);
+	const rows = await read.changedPathsBetween(dir, base, topic);
+	assert.deepEqual(rows.map(([p]) => p).sort(), ['src/new.php', 'src/wp-login.php', 'with space.txt']);
+	assert.deepEqual(rows.find(([p]) => p === 'src/new.php').slice(1), [0, 2, 0], 'an addition has nothing on the before side');
+	assert.deepEqual(rows.find(([p]) => p === 'with space.txt').slice(1), [1, 0, 0], 'a deletion has nothing on the after side');
+	assert.deepEqual(rows.find(([p]) => p === 'src/wp-login.php').slice(1), [1, 2, 0]);
+	// Measured from the merge base, trunk's later lockfile change is not in it.
+	assert.ok(!rows.some(([p]) => p === 'package-lock.json'));
+
+	// A root with no history in common.
+	assert.equal(git(['checkout', '-q', '--orphan', 'elsewhere'], dir).status, 0);
+	assert.equal(git(['rm', '-rfq', '.'], dir).status, 0);
+	fs.writeFileSync(path.join(dir, 'alone.txt'), 'alone\n');
+	assert.equal(git(['add', 'alone.txt'], dir).status, 0);
+	assert.equal(git([...identity, 'commit', '-q', '-m', 'alone'], dir).status, 0);
+	assert.equal(await read.mergeBase(dir, 'trunk', 'elsewhere'), null);
+	await assert.rejects(read.mergeBase(dir, 'trunk', 'nope'), (error) => error.code === 128, 'an unknown ref is a fatal, not a "no"');
+});

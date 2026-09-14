@@ -194,3 +194,19 @@ test('describeSwitchProgress: the move onto trunk names the ticket whose work mo
 	assert.match(line, /trunk/);
 	assert.doesNotMatch(line, /ticket\//);
 });
+
+test('describeSwitchProgress: a pull request branch is named as a pull request, never as a ref (#458)', () => {
+	const entering = describeSwitchProgress({ stage: 'apply', loaded: 25, total: 100, from: 'ticket/59234', to: 'pr/7701' });
+	assert.match(entering, /PR #7701/);
+	assert.match(entering, /25%/);
+	assert.doesNotMatch(entering, /pr\//);
+
+	assert.strictEqual(describeSwitchProgress({ stage: 'done', to: 'pr/7701' }), 'Ready to try PR #7701');
+
+	const leaving = describeSwitchProgress({ stage: 'scan', from: 'pr/7701', to: 'ticket/59234' });
+	assert.match(leaving, /edits on PR #7701/);
+	assert.doesNotMatch(leaving, /pr\//);
+	// Leaving a ticket still says "work": the two are different things to
+	// the contributor, and the sentence is what tells them which is being saved.
+	assert.match(describeSwitchProgress({ stage: 'scan', from: 'ticket/59234', to: 'pr/7701' }), /work on #59234/);
+});

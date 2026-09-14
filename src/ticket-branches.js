@@ -73,6 +73,32 @@ function ticketIdFromRef(ref) {
 }
 
 /**
+ * Branch name for a pull request checked out to be tried (#458): `pr/7701`.
+ * Its own namespace, so `ticketIdFromRef` reads null for one and a mentor
+ * reading `git branch` knows what it is. `listTicketBranches` still lists
+ * it, as it lists any branch that is not trunk, and the generic switch
+ * parks it like any other: what makes that park right is that the pull
+ * request's recorded head is the branch's `baseOid`, so the WIP commit's
+ * parent is the author's commit and not trunk. Whoever records a `pr/`
+ * branch records that head as its base.
+ *
+ * @param {number|string} number
+ */
+function prBranchRef(number) {
+	return `pr/${number}`;
+}
+
+/**
+ * The pull request number a branch name encodes, or null for anything else.
+ *
+ * @param {string} ref
+ */
+function prNumberFromRef(ref) {
+	const match = /^pr\/(\d+)$/.exec(String(ref || ''));
+	return match ? Number(match[1]) : null;
+}
+
+/**
  * The checked-out branch name, or null in a detached HEAD — which the app never
  * creates, but a user poking at the site with their own git client can.
  *
@@ -534,6 +560,8 @@ module.exports = {
 	WIP_AUTHOR,
 	ticketBranchRef,
 	ticketIdFromRef,
+	prBranchRef,
+	prNumberFromRef,
 	currentBranchName,
 	listTicketBranches,
 	stageWorktree,
