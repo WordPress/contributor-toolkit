@@ -128,7 +128,7 @@ async function makeSite( session, { label = 'e2e-site', legacy = false, origin =
  *
  * @param {string}                 origin    The directory `makeSite` returned as `origin`.
  * @param {Object<string, string>} files     Path → content, relative to the repository.
- * @param {string}                 [message]
+ * @param {string}                 [message] Commit message.
  * @return {string} The commit id trunk now points at in the origin.
  */
 function advanceOrigin( origin, files, message = 'trunk moves on' ) {
@@ -137,6 +137,32 @@ function advanceOrigin( origin, files, message = 'trunk moves on' ) {
 		fs.writeFileSync( path.join( origin, file ), content );
 	}
 	return commitFiles( origin, Object.keys( files ), message, { author: AUTHOR } );
+}
+
+/**
+ * Adds a pull request ref to the local origin without leaving a branch behind.
+ * GitHub exposes the same shape as `refs/pull/<number>/head`; the app fetches
+ * that ref directly and never needs the contributor's source branch.
+ *
+ * @param {string}                 origin    The directory `makeSite` returned as `origin`.
+ * @param {number}                 number    Pull request number.
+ * @param {Object<string, string>} files     Path → content, relative to the repository.
+ * @param {string}                 [message]
+ * @return {string} The pull request head commit.
+ */
+function addPullRequestToOrigin( origin, number, files, message = `PR #${ number }` ) {
+	const before = headBranch( origin );
+	const scratch = `e2e-pr-${ number }`;
+	run( [ 'checkout', '-q', '-b', scratch, TRUNK ], origin );
+	for ( const [ file, content ] of Object.entries( files ) ) {
+		fs.mkdirSync( path.dirname( path.join( origin, file ) ), { recursive: true } );
+		fs.writeFileSync( path.join( origin, file ), content );
+	}
+	const oid = commitFiles( origin, Object.keys( files ), message, { author: AUTHOR } );
+	run( [ 'update-ref', `refs/pull/${ number }/head`, oid ], origin );
+	run( [ 'checkout', '-q', before ], origin );
+	run( [ 'branch', '-D', scratch ], origin );
+	return oid;
 }
 
 /**
@@ -235,6 +261,7 @@ function makePatchFile( session, name, hunks ) {
 module.exports = {
 	makeSite,
 	advanceOrigin,
+	addPullRequestToOrigin,
 	makePatchFile,
 	settingsFor,
 	read,

@@ -138,6 +138,21 @@ test('a running server with pending changes points at reviewing them', () => {
 	assert.strictEqual(next.id, 'review-changes');
 });
 
+test('a checked-out PR points to its return control before offering submission', () => {
+	const next = deriveNextAction({
+		skipInit: true,
+		running: true,
+		hasChanges: true,
+		ticketLinked: true,
+		pullRequest: { number: 7701 }
+	});
+
+	assert.deepStrictEqual(next, {
+		id: 'pr-checkout',
+		reason: 'PR #7701 is applied; revert it before applying another change.'
+	});
+});
+
 test('a running, clean site with no ticket points at linking one', () => {
 	const next = deriveNextAction({
 		skipInit: true,

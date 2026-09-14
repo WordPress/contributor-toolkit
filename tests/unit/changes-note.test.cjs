@@ -33,6 +33,30 @@ test('changesNoteParts places a ticketed note in the ticket card and names the t
 	assert.equal(parts.lead, 'You have 3 unsubmitted changes for ticket #12345. You can ');
 });
 
+test('changesNoteParts attributes work on a PR checkout to the PR, not the linked ticket', () => {
+	const parts = changesNoteParts({ dirty: true, changedCount: 2, tracTicket: '12345', pullRequest: { number: 7701 } });
+	assert.equal(parts.placement, 'ticket');
+	assert.match(parts.lead, /2 changes on top of PR #7701/);
+	assert.doesNotMatch(parts.lead, /12345/);
+	assert.match(parts.end, /stay with this pull request's local copy/);
+	assert.match(parts.end, /when you revert this PR/);
+	assert.equal(parts.unlinkNote, undefined);
+});
+
+test('changesNoteParts keeps work on a PR reached from trunk visible by the site controls', () => {
+	const parts = changesNoteParts({ dirty: true, changedCount: 1, pullRequest: { number: 7701, returnTo: 'trunk' } });
+	assert.equal(parts.placement, 'buttons');
+	assert.match(parts.end, /when you revert this PR/);
+	assert.doesNotMatch(parts.end, /ticket/);
+});
+
+test('changesNoteParts follows a PR return redirected to trunk even while the old ticket is linked', () => {
+	const parts = changesNoteParts({ dirty: true, changedCount: 1, tracTicket: '12345', pullRequest: { number: 7701, returnTo: 'trunk' } });
+	assert.equal(parts.placement, 'buttons');
+	assert.match(parts.end, /when you revert this PR/);
+	assert.doesNotMatch(parts.end, /your ticket/);
+});
+
 test('changesNoteParts names the modal in the ticket card and the patch by the buttons', () => {
 	// The ticket sentence already says where the changes go, so its link
 	// borrows the modal's own name; by the buttons the link says what it
@@ -189,4 +213,14 @@ test('discardDisabledReason reports the operation in progress before secondary b
 		discardDisabledReason({ patchLoading: true, patchHasChanges: false, discarding: true, devServerActive: true }),
 		'Changes are already being discarded.'
 	);
+});
+
+ test('review context names the PR base instead of trunk or the ticket', () => {
+	const { patchReviewContext } = require('../../src/renderer/changes-note.cjs');
+	const pr = patchReviewContext({ pullRequest: { number: 7 }, tracTicket: 123 });
+	assert.match(pr.heading, /PR #7/);
+	assert.match(pr.description, /original PR commits/);
+	assert.doesNotMatch(pr.empty, /trunk/);
+	assert.match(patchReviewContext({ tracTicket: 123 }).heading, /ticket #123/);
+	assert.equal(patchReviewContext().heading, 'Your changes');
 });

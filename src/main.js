@@ -26,7 +26,7 @@ const {
 } = require('./logging');
 const { buildMenuTemplate } = require('./menu');
 const { killChildTree, killChildTreeAndWait } = require('./kill-tree');
-const { normalizeEol } = require('./git-update.cjs');
+const { lockfileChangedFromBlobOids, normalizeEol } = require('./git-update.cjs');
 const { readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
 const { applyPatchToDir } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
@@ -34,7 +34,7 @@ const { fetchLinkedPrs, fetchPrDiff } = require('./github-prs');
 const { getClientId: getGithubClientId, requestDeviceCode, pollForToken, fetchViewer } = require('./github-auth.cjs');
 const { openPullRequest, buildPullRequestBody, testMode: githubTestMode } = require('./github-pr.cjs');
 const { buildPullRequestEntries } = require('./pr-files.cjs');
-const { resolveRef, changesAgainst, readBlobs, readCommitInfo, treeEntryMode, isLegacySite, mergeInProgress, remoteUrl } = require('./git-read.cjs');
+const { resolveRef, changesAgainst, readBlobs, readCommitInfo, treeEntryMode, blobOid, listBranches, isLegacySite, mergeInProgress, remoteUrl } = require('./git-read.cjs');
 const { cloneSite } = require('./git-clone.cjs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
@@ -46,6 +46,8 @@ const {
 	TRUNK,
 	ticketBranchRef,
 	ticketIdFromRef,
+	prBranchRef,
+	prNumberFromRef,
 	currentBranchName,
 	listTicketBranches,
 	countChangesAgainst,
@@ -55,6 +57,8 @@ const {
 	rebaseOntoTrunk,
 	deleteTicketBranch
 } = require('./ticket-branches');
+const { fetchPullRequestHead, describePullRequestHead, pullRequestBranchState, checkoutPullRequest, leavePullRequest } = require('./pr-checkout');
+const { prSubmissionRefusal, prCheckoutRefusal } = require('./renderer/pr-checkout.cjs');
 const { createProgressThrottle, describeSwitchProgress } = require('./switch-progress.cjs');
 const { getStore } = require('./settings-store');
 
@@ -122,6 +126,15 @@ async function ensureLocalExcludes(dir) {
 		existing = await fs.promises.readFile(excludePath, 'utf8');
 	} catch (error) {
 		if (!error || error.code !== 'ENOENT') throw error;
+	}
+	// Older PRs predate WordPress's /gutenberg ignore. Keep this generated
+	// download out of WIP commits even when their .gitignore is checked out.
+	const generatedMarker = '# WordPress Contributor Toolkit generated Gutenberg';
+	if (!existing.split(/\r?\n/).includes(generatedMarker)) {
+		await fs.promises.mkdir(infoDir, { recursive: true });
+		const block = `${existing && !existing.endsWith('\n') ? '\n' : ''}${generatedMarker}\n/gutenberg/\n`;
+		await fs.promises.appendFile(excludePath, block);
+		existing += block;
 	}
 	if (existing.split(/\r?\n/).includes(LOCAL_EXCLUDES_MARKER)) return false;
 
@@ -686,7 +699,10 @@ async function collectChangedFiles(dir, baseOid = null) {
     // nothing, so it is gone. (`staleStagedPaths` in trunk-update.js stays: it
     // still has to clean up residue left in indexes by earlier versions.)
     const matrix = await changesAgainst(dir, base);
-    const changed = matrix.filter(([, head, workdir]) => head !== workdir);
+    // A pre-fix WIP may already contain generated Gutenberg files. Exclude
+    // only additions absent from the contribution's base; tracked source in
+    // that base still participates in the diff.
+    const changed = matrix.filter(([filepath, head, workdir]) => head !== workdir && !(head === 0 && filepath.startsWith('gutenberg/')));
     // Every base blob in one spawn, rather than one process per changed file.
     // A failed batch reads as every base unreadable, which classifyChangedFile
     // names above the diff rather than diffing: wider than the per-file catch
@@ -1504,7 +1520,10 @@ async function readWorkMeta(sitePath) {
  * @return {Promise<?{ok: false, reason: string, error: string}>}
  */
 async function appliedPatchSubmissionRefusal(sitePath) {
-    const appliedPatch = (await readWorkMeta(sitePath)).appliedPatch;
+    const { ref, meta, site } = await activeBranch(sitePath);
+    const number = prNumberFromRef(ref);
+    if (number !== null) return { ok: false, reason: 'pr-checkout', error: prSubmissionRefusal(number) };
+    const appliedPatch = (ref === TRUNK || !meta ? site : meta).appliedPatch;
     if (!appliedPatch) return null;
 
     const label = typeof appliedPatch.label === 'string' && appliedPatch.label.trim()
@@ -1879,7 +1898,7 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             // correct against the trunk it was written on. Bringing it forward
             // onto the new trunk is `branches:rebase`, offered by the ticket
             // card's notice — the app never silently rebases anyone.
-            if (ticketBefore !== null) {
+            if (branchBefore !== TRUNK) {
                 sendLog(`\nReturning to your work on ${branchBefore}…\n`);
                 const returnLog = updateSwitchLogger(sendLog);
                 try {
@@ -1887,7 +1906,7 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
                 } finally {
                     returnLog.flush();
                 }
-                await mergeSiteMeta(sitePath, { currentBranch: branchBefore, tracTicket: ticketBefore });
+                await mergeSiteMeta(sitePath, { currentBranch: branchBefore, ...(ticketBefore !== null ? { tracTicket: ticketBefore } : {}) });
             }
             sendDone({ ok: true, ...result, branch: branchBefore });
         } catch (e) {
@@ -1927,18 +1946,175 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             // comes out empty under a panel that still says #59234.
             try {
                 const { ref: nowOn } = await activeBranch(sitePath);
-                if (nowOn === TRUNK && ticketBefore !== null) {
+                if (nowOn === TRUNK && branchBefore !== TRUNK) {
                     await mergeSiteMeta(sitePath, { currentBranch: TRUNK, tracTicket: null });
-                    sendLog(`Your work on #${ticketBefore} is safe — it is committed on ${branchBefore}. `
-                        + 'Link that ticket again to return to it.\n');
+                    sendLog(ticketBefore !== null
+                        ? `Your work on #${ticketBefore} is safe — it is committed on ${branchBefore}. Link that ticket again to return to it.\n`
+                        : `Your work is safe — it is committed on ${branchBefore}. Apply that pull request again to return to it.\n`);
                 }
             } catch {}
-            sendDone({ ok: false, upToDate: false, error: String(e), stage, parkedOn: ticketBefore === null ? null : branchBefore });
+            sendDone({ ok: false, upToDate: false, error: String(e), stage, parkedOn: branchBefore === TRUNK ? null : branchBefore });
         }
     })();
 
     return { updateId };
 });
+
+// PRs retain their author's history. Only these handlers add the store record;
+// the Git module owns the fetch and switch, including partial-checkout errors.
+function pullRequestNumber(value) {
+    if (!['number', 'string'].includes(typeof value) || !/^\d+$/.test(String(value)) || !Number.isSafeInteger(Number(value)) || Number(value) <= 0) {
+        throw Object.assign(new Error('Enter a positive whole pull request number.'), { code: 'bad-pr-number' });
+    }
+    return Number(value);
+}
+
+async function fetchPrHead(sitePath, number, onStderr = null) {
+    try {
+        return await fetchPullRequestHead(sitePath, number, { onStderr, onChild: trackGitChild(sitePath) });
+    } catch (e) {
+        throw Object.assign(new Error(`Could not fetch pull request #${number}: ${e.message}. Check the connection and try again; your checkout was not changed.`), { code: 'fetch-failed' });
+    }
+}
+
+async function prNeedsInstall(sitePath, target) {
+    const [before, after] = await Promise.all([
+        blobOid(sitePath, 'HEAD', 'package-lock.json'),
+        blobOid(sitePath, target, 'package-lock.json')
+    ]);
+    return lockfileChangedFromBlobOids(before, after);
+}
+
+async function recordPrHead(sitePath, ref, number, headOid, returnTo) {
+    await changeSiteMeta(sitePath, (m) => {
+        const branches = { ...(m.branches || {}) };
+        const previous = branches[ref] || {};
+        branches[ref] = {
+            ...previous, pullRequest: number, headOid, baseOid: headOid,
+            returnTo: previous.returnTo || returnTo, lastUsedAt: new Date().toISOString()
+        };
+        return { ...m, branches };
+    });
+}
+
+ipcMain.handle('git:preview-pr', async (_event, sitePath, value) => withRegisteredSite(sitePath, async () => {
+    const blocked = await legacySiteBlock(sitePath) || await midSwitchBlock(sitePath) || await noOriginBlock(sitePath);
+    if (blocked) return blocked;
+    const number = pullRequestNumber(value);
+    const { oid: headOid } = await fetchPrHead(sitePath, number);
+    const active = await activeBranch(sitePath);
+    const recorded = (active.site.branches || {})[prBranchRef(number)] || {};
+    const description = await describePullRequestHead(sitePath, headOid);
+    const state = await pullRequestBranchState(sitePath, number, { headOid, recordedHeadOid: recorded.headOid });
+    return { ok: true, number, headOid, ...description, ...state, returnTo: recorded.returnTo || active.ref };
+}));
+
+// The same invoke/log/done contract as update-trunk. All refusals, including an
+// unregistered site, finish the stream; a contributor must never wait forever.
+function streamPrOperation(event, sitePath, channel, idKey, run) {
+    const id = crypto.randomUUID();
+    const sendLog = (data) => {
+        try { event.sender.send(`${channel}:log`, { [idKey]: id, data }); } catch {}
+    };
+    const progress = updateSwitchLogger(sendLog);
+    (async () => {
+        let result;
+        try {
+            result = await withRegisteredSite(sitePath, () => run({ sendLog, onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
+        } catch (e) {
+            logError(channel, String(e && e.stack || e));
+            result = { ok: false, code: e.code, error: String(e.message || e) };
+        } finally {
+            progress.flush();
+        }
+        if (!result.ok) {
+            result.error = prCheckoutRefusal(result);
+            sendLog(`\n${result.error}\n`);
+        }
+        try { event.sender.send(`${channel}:done`, { [idKey]: id, ...result }); } catch {}
+    })();
+    return { [idKey]: id };
+}
+
+ipcMain.handle('git:checkout-pr', (event, sitePath, value) => streamPrOperation(event, sitePath, 'git:checkout-pr', 'checkoutId', async ({ sendLog, onProgress, onChild }) => {
+    const number = pullRequestNumber(value);
+    const ref = prBranchRef(number);
+    const blocked = await legacySiteBlock(sitePath) || await midSwitchBlock(sitePath, { retryTo: ref }) || await noOriginBlock(sitePath) || await mergeInProgressBlock(sitePath);
+    if (blocked) return { ...blocked, number };
+    const active = await activeBranch(sitePath, { migrate: true });
+    const recorded = (active.site.branches || {})[ref] || {};
+    // A retry finishes the exact ref that was interrupted; fetching and moving
+    // it first would replace the destination the marker promised to restore.
+    const resume = active.site.switchInProgress;
+    const returnTo = recorded.returnTo || (prNumberFromRef(active.ref) !== null ? active.meta?.returnTo || TRUNK : active.ref);
+    let headOid = recorded.headOid;
+    try {
+        if (!resume) ({ oid: headOid } = await fetchPrHead(sitePath, number, sendLog));
+        if (!headOid) return { ok: false, number, code: 'no-pr-head' };
+        const branchState = !resume && recorded.headOid
+            ? await pullRequestBranchState(sitePath, number, { headOid, recordedHeadOid: recorded.headOid })
+            : null;
+        // When GitHub moved but this site has work on the earlier head, the
+        // safe meaning of "return" is the local copy. Replacing it is refused
+        // by the lower layer; switching to its existing tip makes the UI's
+        // keep-or-discard choices reachable without terminal Git (#458).
+        const localCopy = Boolean(branchState?.moved && branchState.hasEdits);
+        // An unchanged PR may carry a parked WIP with its own lockfile. The
+        // switch restores that tip, not just the author's fetched head.
+        let destination = headOid;
+        if (resume) destination = ref;
+        else if (localCopy) destination = branchState.tip;
+        else if (recorded.headOid === headOid) destination = await resolveRef(sitePath, ref) || headOid;
+        const needsInstall = await prNeedsInstall(sitePath, destination);
+        sendLog(localCopy ? 'Returning to your saved copy of the pull request…\n' : "Downloading the pull request's files and switching to its branch…\n");
+        let switchOperation = () => checkoutPullRequest(sitePath, number, { headOid, recordedHeadOid: recorded.headOid, fromBaseOid: active.meta?.baseOid, onProgress, onChild });
+        if (resume) switchOperation = () => resumeSwitch(sitePath, ref, { onProgress, onChild });
+        else if (localCopy) switchOperation = () => switchToBranch(sitePath, ref, { baseOid: active.meta?.baseOid, onProgress, onChild });
+        const result = await withSwitchMarker(sitePath, switchOperation);
+        await recordPrHead(sitePath, ref, number, localCopy ? recorded.headOid : headOid, returnTo);
+        await mergeSiteMeta(sitePath, { currentBranch: ref });
+        return { ok: true, number, from: resume?.from || active.ref, returnTo, parked: Boolean(result.parked), moved: Boolean(result.moved), localCopy, needsInstall };
+    } catch (e) {
+        // The ref can exist even when its checkout did not finish. Recording
+        // it now is what makes the next attempt ours rather than a foreign PR.
+        if (e.created || e.moved) await recordPrHead(sitePath, ref, number, e.headOid, returnTo);
+        logError('git:checkout-pr', String(e.stack || e));
+        if (e.cleanupError) sendLog(`Could not remove the unused branch: ${e.cleanupError.message}\n`);
+        return { ok: false, number, code: e.code, error: e.message, ...(e.code === 'dirty-trunk' ? { files: await countChangesAgainst(sitePath) } : {}) };
+    }
+}));
+
+ipcMain.handle('git:leave-pr', (event, sitePath) => streamPrOperation(event, sitePath, 'git:leave-pr', 'leaveId', async ({ sendLog, onProgress, onChild }) => {
+    const legacy = await legacySiteBlock(sitePath);
+    if (legacy) return legacy;
+    const active = await activeBranch(sitePath);
+    const resume = active.site.switchInProgress;
+    const from = resume?.from || active.ref;
+    const number = prNumberFromRef(from);
+    if (number === null) return { ok: false, code: 'not-on-pr' };
+    const recorded = (active.site.branches || {})[from] || {};
+    const branches = await listBranches(sitePath);
+    const returnTo = branches.includes(recorded.returnTo) ? recorded.returnTo : TRUNK;
+    const blocked = await midSwitchBlock(sitePath, { retryTo: returnTo }) || await mergeInProgressBlock(sitePath);
+    if (blocked) return blocked;
+    if (!recorded.headOid) return { ok: false, code: 'no-pr-head' };
+    const needsInstall = await prNeedsInstall(sitePath, returnTo);
+    sendLog('Restoring the files of your previous branch…\n');
+    const result = await withSwitchMarker(sitePath, () => resume
+        ? resumeSwitch(sitePath, returnTo, { onProgress, onChild })
+        : leavePullRequest(sitePath, { returnTo, headOid: recorded.headOid, onProgress, onChild }));
+    const to = result.to || returnTo;
+    await changeSiteMeta(sitePath, (m) => {
+        const updatedBranches = { ...(m.branches || {}) };
+        for (const [ref, work] of Object.entries(updatedBranches)) {
+            if (work.activePr === from) updatedBranches[ref] = { ...work, activePr: null };
+        }
+        return { ...m, branches: updatedBranches };
+    });
+    await mergeSiteMeta(sitePath, { currentBranch: to, tracTicket: ticketIdFromRef(to) });
+    if (to !== TRUNK) await mergeBranchMeta(sitePath, to, { lastUsedAt: new Date().toISOString() });
+    return { ok: true, number, from, returnTo: to, parked: Boolean(result.parked), needsInstall };
+}));
 
 // --- Discovering the patches on a ticket (#109/#11) --- linked PRs come from
 // GitHub; the network code is in src/github-prs.js, these handlers add the
@@ -2296,7 +2472,13 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		// being worked on, not to the site (#108) — otherwise switching tickets
 		// would carry the other one's "patch applied · Revert" banner over, and
 		// Revert would reverse its hunks against this ticket's tree.
-		const work = await readWorkMeta(sitePath);
+		const active = await activeBranch(sitePath);
+		const work = active.ref === TRUNK || !active.meta ? active.site : active.meta;
+		const prNumber = prNumberFromRef(active.ref);
+		const pullRequest = prNumber === null ? null : {
+			number: prNumber, returnTo: work.returnTo || TRUNK, headOid: work.headOid || null,
+			hasEdits: Boolean(work.headOid && (await resolveRef(sitePath, active.ref)) !== work.headOid)
+		};
 		// A site the old engine made (#385): the card says so and the write
 		// handlers refuse. A detector that fails answers false, the same as a
 		// trunk read that fails answers null above: the status stays usable.
@@ -2309,7 +2491,7 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		// A recorded branch point and the current trunk tip are enough to warn
 		// that the context changed (#305). Missing metadata stays false: 1.0
 		// refuses to guess, and deliberately offers no checkout rewrite.
-		const ticketBehindTrunk = Boolean(m.tracTicket && work.baseOid && trunkOid && work.baseOid !== trunkOid);
+		const ticketBehindTrunk = Boolean(!pullRequest && m.tracTicket && work.baseOid && trunkOid && work.baseOid !== trunkOid);
 
 		// Summarised rather than passed through: the stored patch text is only
 		// needed by the main process to reverse it, and this is polled.
@@ -2330,9 +2512,9 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 			}
 			: null;
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch, legacy, mergeInProgress: merging };
+		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch, pullRequest, legacy, mergeInProgress: merging };
 	} catch {
-		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, ticketBehindTrunk: false, appliedPatch: null, legacy: false, mergeInProgress: null };
+		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, ticketBehindTrunk: false, appliedPatch: null, pullRequest: null, legacy: false, mergeInProgress: null };
 	}
 });
 
@@ -2547,6 +2729,28 @@ async function withRegisteredSite(sitePath, run) {
 // The site-level `tracTicket` is kept in step with the active branch so the
 // handlers that read it (`git:list-ticket-patches`, `trac:list-attachments`,
 // `site:status`) need no change.
+// Leaving a ticket parks its current PR without reverting its application.
+// Persist before switching so an interrupted checkout can still be resumed.
+async function rememberTicketPr(sitePath) {
+    const active = await activeBranch(sitePath);
+    if (active.site.switchInProgress || !active.site.tracTicket || prNumberFromRef(active.ref) === null) return;
+    await mergeBranchMeta(sitePath, ticketBranchRef(active.site.tracTicket), { activePr: active.ref });
+}
+
+async function ticketPrImpact(sitePath, from, to) {
+    if (from === to || (prNumberFromRef(from) === null && prNumberFromRef(to) === null)) return {};
+    const destination = await resolveRef(sitePath, to) ? to : TRUNK;
+    return { prTransition: true, needsInstall: await prNeedsInstall(sitePath, destination) };
+}
+
+async function ticketCheckoutRef(sitePath, ticketRef) {
+    if (ticketIdFromRef(ticketRef) === null) return ticketRef;
+    const site = await readSiteMeta(sitePath);
+    const ref = site.branches?.[ticketRef]?.activePr;
+    if (!ref || prNumberFromRef(ref) === null || !site.branches?.[ref]?.headOid) return ticketRef;
+    return await resolveRef(sitePath, ref) ? ref : ticketRef;
+}
+
 ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => withRegisteredSite(sitePath, async () => {
 	// Empty means unlink — the panel's Unlink button and a cleared field both
 	// land here, and neither is an error. The branch and its work stay; going
@@ -2557,6 +2761,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 	// whose retry is the forced checkout that would erase it.
 	const refused = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
 	if (refused) return refused;
+	await rememberTicketPr(sitePath);
 	if (!raw) {
 		const { ref: current, meta, site } = await activeBranch(sitePath, { migrate: true });
 		// Under a mid-switch marker the tree may be half another branch's and
@@ -2565,6 +2770,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 		// the mixture over that commit. Also the one exit when HEAD is on trunk
 		// already, which a switch that failed leaving trunk leaves behind.
 		const resume = Boolean(site.switchInProgress);
+		const impact = await ticketPrImpact(sitePath, current, TRUNK);
 		if (current !== TRUNK || resume) {
 			const progress = switchProgressReporter(event, sitePath);
 			try {
@@ -2578,31 +2784,34 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 			}
 		}
 		await mergeSiteMeta(sitePath, { tracTicket: null, currentBranch: TRUNK });
-		return { ok: true, ticket: null, branch: TRUNK };
+		return { ok: true, ticket: null, branch: TRUNK, ...impact };
 	}
 
 	const parsed = parseTicketRef(raw);
 	if (!parsed.ok) return { ok: false, error: parsed.error };
 
 	const branchRef = ticketBranchRef(parsed.id);
-	const blocked = await midSwitchBlock(sitePath, { retryTo: branchRef });
+	const checkoutRef = await ticketCheckoutRef(sitePath, branchRef);
+	const blocked = await midSwitchBlock(sitePath, { retryTo: checkoutRef });
 	if (blocked) return blocked;
 	const { ref: current, meta, site } = await activeBranch(sitePath, { migrate: true });
+	const impact = await ticketPrImpact(sitePath, site.switchInProgress?.from || current, checkoutRef);
+	if (checkoutRef !== branchRef) await mergeBranchMeta(sitePath, checkoutRef, { returnTo: branchRef });
 	if (site.switchInProgress) {
 		// The retry: finish the checkout the failed switch started, no park.
 		const progress = switchProgressReporter(event, sitePath);
 		try {
-			await withSwitchMarker(sitePath, () => resumeSwitch(sitePath, branchRef, { onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
+			await withSwitchMarker(sitePath, () => resumeSwitch(sitePath, checkoutRef, { onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
 		} finally {
 			progress.flush();
 		}
 		await mergeBranchMeta(sitePath, branchRef, { lastUsedAt: new Date().toISOString() });
-		await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: branchRef });
-		return { ok: true, ticket: parsed.id, branch: branchRef };
+		await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: checkoutRef });
+		return { ok: true, ticket: parsed.id, branch: checkoutRef, ...impact };
 	}
-	if (current === branchRef) {
-		await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: branchRef });
-		return { ok: true, ticket: parsed.id, branch: branchRef };
+	if (current === checkoutRef) {
+		await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: checkoutRef });
+		return { ok: true, ticket: parsed.id, branch: checkoutRef, ...impact };
 	}
 
 	const known = await listTicketBranches(sitePath);
@@ -2611,7 +2820,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 	if (known.includes(branchRef)) {
 		const progress = switchProgressReporter(event, sitePath);
 		try {
-			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
+			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, checkoutRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
 		} finally {
 			progress.flush();
 		}
@@ -2672,9 +2881,9 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 		...(baseOid === undefined ? {} : { baseOid }),
 		lastUsedAt: new Date().toISOString()
 	});
-	await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: branchRef });
+	await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: checkoutRef });
 	if (carriedFrom === TRUNK) reportCarriedWork(event, sitePath, parsed.id);
-	return { ok: true, ticket: parsed.id, branch: branchRef };
+	return { ok: true, ticket: parsed.id, branch: checkoutRef, ...impact };
 }));
 
 // The tickets open in a site, for the "Working on:" switcher. Reads the branches
@@ -2683,7 +2892,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 ipcMain.handle('branches:list', async (_e, sitePath) => withRegisteredSite(sitePath, async () => {
 	const { ref: current, site } = await activeBranch(sitePath);
 	const stored = site.branches || {};
-	const branches = (await listTicketBranches(sitePath)).map((branchRef) => ({
+	const branches = (await listTicketBranches(sitePath)).filter((ref) => ticketIdFromRef(ref) !== null).map((branchRef) => ({
 		ref: branchRef,
 		ticketId: ticketIdFromRef(branchRef),
 		baseOid: (stored[branchRef] || {}).baseOid || null,
@@ -2694,9 +2903,14 @@ ipcMain.handle('branches:list', async (_e, sitePath) => withRegisteredSite(siteP
 }));
 
 ipcMain.handle('branches:switch', async (event, sitePath, targetRef) => withRegisteredSite(sitePath, async () => {
+	const ticketRef = targetRef;
+	targetRef = await ticketCheckoutRef(sitePath, ticketRef);
 	const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath) || await midSwitchBlock(sitePath, { retryTo: targetRef });
 	if (blocked) return blocked;
+	await rememberTicketPr(sitePath);
+	if (targetRef !== ticketRef) await mergeBranchMeta(sitePath, targetRef, { returnTo: ticketRef });
 	const { ref: current, meta, site } = await activeBranch(sitePath, { migrate: true });
+	const impact = await ticketPrImpact(sitePath, site.switchInProgress?.from || current, targetRef);
 	const progress = switchProgressReporter(event, sitePath);
 	let result;
 	try {
@@ -2706,12 +2920,12 @@ ipcMain.handle('branches:switch', async (event, sitePath, targetRef) => withRegi
 	} finally {
 		progress.flush();
 	}
-	const ticketId = ticketIdFromRef(targetRef);
+	const ticketId = ticketIdFromRef(ticketRef);
 	if (targetRef !== TRUNK) {
 		await mergeBranchMeta(sitePath, targetRef, { lastUsedAt: new Date().toISOString() });
 	}
 	await mergeSiteMeta(sitePath, { currentBranch: targetRef, tracTicket: ticketId });
-	return { ok: true, from: current, to: targetRef, parked: result.parked, ticket: ticketId };
+	return { ok: true, from: current, to: targetRef, parked: result.parked, ticket: ticketId, ...impact };
 }));
 
 // "Update this ticket to the current trunk" (#385): the ticket's single WIP
@@ -2728,6 +2942,7 @@ ipcMain.handle('branches:rebase', async (event, sitePath) => withRegisteredSite(
 	if (ref === TRUNK) {
 		return { ok: false, code: 'on-trunk', error: 'Link a ticket first: trunk is what tickets are measured against, not a ticket.' };
 	}
+	if (ticketIdFromRef(ref) === null) return { ok: false, code: 'not-a-ticket-branch', error: 'Only a ticket branch can be moved onto the current trunk.' };
 	if (!meta || !meta.baseOid) {
 		return { ok: false, code: 'no-base', error: 'This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.' };
 	}
@@ -2786,6 +3001,9 @@ ipcMain.handle('branches:delete', async (_e, sitePath, targetRef) => withRegiste
 	await changeSiteMeta(sitePath, (m) => {
 		const branches = { ...(m.branches || {}) };
 		delete branches[targetRef];
+		for (const [ref, branch] of Object.entries(branches)) {
+			if (branch.returnTo === targetRef) branches[ref] = { ...branch, returnTo: TRUNK };
+		}
 		return { ...m, branches, ...(wasActive ? { currentBranch: TRUNK, tracTicket: null } : {}) };
 	});
 	// `movedToTrunk` says the checkout itself changed, which `current` alone

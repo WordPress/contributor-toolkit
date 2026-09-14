@@ -27,6 +27,13 @@ test('ticketActionDisabledReason reports the action underway before a process it
 	assert.match(ticketActionDisabledReason({ updateState: 'building', building: true }), /trunk update/);
 });
 
+test('ticket actions wait through applying, reverting and their rebuild before another switch', () => {
+	for (const applyState of ['applying', 'installing', 'building']) {
+		assert.match(ticketActionDisabledReason({ applyState }), /PR or patch operation to finish/, applyState);
+	}
+	assert.equal(ticketActionDisabledReason({ applyState: 'idle' }), null);
+});
+
 // The move onto trunk rewrites the checked-out tree, so it is gated like a
 // discard on top of the shared gate. Both extra guards name the button.
 test('rebaseDisabledReason adds the tree-rewrite guards after the shared gate (#409)', () => {
@@ -73,4 +80,13 @@ test('dirtyTrunkQuestion says "continue on #N" and drops the carry when the tick
 	assert.equal(dirtyTrunkQuestion({ canCarry: false }).discard, 'Discard them and continue on the ticket');
 	// The default is the safe reading: no carry offered unless main said so.
 	assert.equal(dirtyTrunkQuestion({}).carry, null);
+});
+
+test('dirtyTrunkQuestion names a PR checkout without inventing ticket work (#458)', () => {
+	const question = dirtyTrunkQuestion({ files: 2, pullRequest: 7 });
+	assert.match(question.question, /PR #7 is a separate checkout/);
+	assert.doesNotMatch(question.question, /This ticket/);
+	assert.equal(question.save, 'Save them as a patch, then check out PR #7…');
+	assert.equal(question.discard, 'Discard them and check out PR #7');
+	assert.equal(question.carry, null);
 });

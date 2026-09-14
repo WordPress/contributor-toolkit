@@ -350,6 +350,12 @@ test('planApplySteps: the install step is named even when skipped (issue #11)', 
 	assert.strictEqual(planApplySteps({ needsInstall: true })[1].skipped, false);
 });
 
+test('planApplySteps: a PR is checked out while files still use the patch wording (#458)', () => {
+	assert.strictEqual(planApplySteps({ kind: 'pr' })[0].label, 'Apply the pull request');
+	assert.strictEqual(planApplySteps({ kind: 'leave-pr' })[0].label, 'Revert the pull request');
+	assert.strictEqual(planApplySteps({ kind: 'patch' })[0].label, 'Apply the patch');
+});
+
 // The apply chain reuses the update chain's renderer helper by passing its own
 // state map; this is what proves the third parameter actually drives it.
 test('planApplySteps: updateStepStatuses drives the apply chain too (issue #11)', () => {

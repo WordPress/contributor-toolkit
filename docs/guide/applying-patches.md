@@ -1,20 +1,28 @@
 # Applying patches and PRs
 
-The **Apply a patch or PR** panel applies a pull request or a `.diff`/`.patch` file to your site's checkout and rebuilds, so you can test someone else's work before adding your own. Your own changes are left alone.
+The **Apply a patch or PR** panel lets you test someone else's work before adding your own. Pull requests and patch files take different paths: a PR becomes its own checkout with the author's commits, while a `.diff`/`.patch` file is applied on top of the branch you are already using. Your own changes are kept with their branch.
 
 ![The Apply a patch or PR panel, with a field for a pull request URL and a link to choose a patch file](/screenshots/apply-patch-panel.png)
 
 ## Choose what to apply
 
-There are three ways to get a patch into the panel:
+There are three ways to bring work into the panel:
 
 - Paste a pull request URL or number into the field and click **Apply PR**.
 - Click **or choose a .diff / .patch file…** and pick a file from disk.
-- Click **Apply…** next to a pull request or attachment in the [Trac ticket panel](trac-tickets).
+- Click **Apply…** next to a pull request or **Apply…** next to an attachment in the [Trac ticket panel](trac-tickets).
 
-## The preview
+## Preview a pull request
 
-Nothing is changed yet. The panel first shows what the patch would do:
+When you choose a pull request, the preview lists the files changed by its commits and says whether changing checkout requires `npm install`. Nothing has changed yet.
+
+Click **Apply and rebuild** to continue. The app parks the work on your current ticket, creates or reuses `pr/NNNN`, and checks out the PR's commits exactly as its author wrote them. In a terminal, `git status` now reports `On branch pr/NNNN` and a clean working tree until you make edits of your own.
+
+This avoids trying to make an old PR's diff fit today's trunk. It also keeps authorship and commit history visible. A closed PR can still be checked out for investigation; its state does not change what Git has stored.
+
+## Preview a patch file
+
+When you choose a `.diff`/`.patch` file or a Trac attachment, nothing is changed yet. The panel first shows what the patch would do:
 
 - The list of files it changes.
 - A warning if this ticket already has work in any of those files, measured from the trunk snapshot the ticket started on. The warning names your own edits and changes from an applied patch separately; a file from an applied patch may contain your edits too. The new patch is applied on top of that work: it succeeds if the changes do not overlap, and fails without touching anything if they do. Save a patch of your work first if you want a copy — see [Submitting your changes](submitting-changes).
@@ -48,27 +56,27 @@ You get the full breakdown, because you are the only one who can rescue it. Each
 
 Every region carries an **anchor line taken from your own file** to search for. A hunk's line numbers are coordinates in the file as its author had it, so on an old patch they miss by exactly the drift that made it fail; a line you can search for does not. The first few regions of each file also show the lines the patch wanted to add and remove — enough to recognise the change without turning the panel into the diff itself.
 
-### For a pull request
-
-The panel first separates two situations that need different next steps.
-
-If the failures are only in files this ticket has not changed, the pull request was written against an older trunk. The notice names the situation and its scale — *this pull request was written against an older trunk and no longer fits it: 4 of its 20 changes, in 3 files, would need rework* — without the line-level detail. Bringing it up to date is its author's work, so the useful contribution is to leave a comment asking for a rebase or for trunk to be merged in.
-
-If your ticket already has work in a failing file, the app does not blame the pull request's author. A file-level overlap cannot prove which exact lines caused the failure, so the notice says your work *may* be involved. Save a patch of your work, try the pull request on a clean ticket, and ask its author to update it only if it still fails there. When the file includes changes from a patch you already applied, the notice names that patch too rather than calling all of the file your own writing.
-
-A **closed** pull request is read differently, because on `wordpress-develop` "closed" is also what landing looks like — core commits go through SVN and the pull request is closed, never merged. If all its changes read back as already in trunk, the panel says it was likely committed to core and there is nothing left to apply. Otherwise it says nobody is coming back to update it, and offers **See why it was closed**.
-
 ### The way out
 
 When the ticket has other patches on it — another pull request, another attachment — the panel offers them. It only does so when there is genuinely one to try: a way out that lands you back at the same dead end costs a click to discover.
 
-## Applied patches belong to a ticket
+## Patch files belong to the current branch
 
-What is applied is recorded as a named layer on the ticket you are on, separate from your own edits. Switch to another ticket and the green "applied" box goes with the first one; switch back and it is there again, naming the patch, how many files it changed, and when it was applied. The preview and failure notices continue to distinguish that layer from your writing.
+An applied `.diff`/`.patch` file is recorded as a named layer on the branch you are on, separate from your own edits. Switch away and the green "applied" box goes with that branch; switch back and it is there again, naming the patch, how many files it changed, and when it was applied. The preview and failure notices continue to distinguish that layer from your writing.
 
-A ticket holds one applied patch or pull request at a time. Revert it, or discard the ticket back to its base, before applying another. See [Working on several tickets](ticket-branches).
+A branch holds one applied patch file at a time. Revert it, or discard the branch back to its base, before applying another. See [Working on several tickets](ticket-branches).
 
-## Reverting an applied patch
+## Pull requests have their own checkout
+
+A checked-out PR is a separate `pr/NNNN` branch. A green box at the top of the Trac ticket card says **PR #NNNN is applied** and explains that your ticket changes are saved while you test it. **Revert this PR** restores the work you had before the test.
+
+Edits you make while trying the PR belong to its local branch. Going back parks them in a local commit, just as switching tickets parks ticket work. Returning to that PR restores the edits on top of the author's recorded head. The app refuses to replace that local copy automatically if the PR has moved on GitHub, because doing so could lose your work.
+
+The app does not offer another PR or patch file while a PR checkout is active. Revert it before applying another source, so a first contribution never becomes an unexplained stack of other people's work. Submission is also blocked so the PR author's work cannot be submitted as yours; you can still save an unattributed patch as a backup.
+
+## Leaving a PR or reverting an applied patch
+
+For a PR, use **Revert this PR**. This is a branch switch rather than a reverse patch, so editing the same lines as the PR does not prevent you from leaving. Your edits stay on `pr/NNNN` and the work you had before the test returns.
 
 While the saved patch can still be removed cleanly, the panel shows it in a green box with a **Revert this patch** button. Reverting removes the patch's changes and rebuilds, again leaving your own edits alone.
 
@@ -78,7 +86,7 @@ For very large patches, the app does not keep the copy it would need for an undo
 
 Applying and reverting are also refused while a merge started outside the app is waiting in the checkout, since either would write over its half-resolved files. The site card says so and names the way out; see [If a merge is in progress](ticket-branches#if-a-merge-is-in-progress).
 
-**Update to latest trunk** is not an escape hatch for a patch on a ticket. It parks the ticket branch, updates trunk, and checks the same branch back out afterwards — applied patch and all — so it leaves you where you were. See [Staying up to date with trunk](trunk-updates).
+**Update to latest trunk** parks the current branch, updates trunk, and checks the same branch back out afterwards. On a PR checkout it returns to the same PR and its local edits; on a ticket it returns to that ticket, applied patch and all. Updating is not a way to leave either one. See [Staying up to date with trunk](trunk-updates).
 
 ## Your own changes
 

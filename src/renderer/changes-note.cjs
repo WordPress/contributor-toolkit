@@ -30,15 +30,27 @@ const DISCARD_CONFIRM_MESSAGE = 'Discard all local changes? This cannot be undon
  * also carries a reassurance the buttons never need: Unlink sits right
  * above, and the changes must not look like they hang on it.
  *
- * @param {{dirty?: boolean, changedCount?: number, tracTicket?: *}} state
+ * @param {{dirty?: boolean, changedCount?: number, tracTicket?: *, pullRequest?: Object}} state
  * @return {{placement: 'buttons'|'ticket', lead: string, patchLabel: string,
  *          middle: string, discardLabel: string, end: string,
  *          unlinkNote?: string}|null}
  */
-function changesNoteParts({ dirty, changedCount, tracTicket } = {}) {
+function changesNoteParts({ dirty, changedCount, tracTicket, pullRequest } = {}) {
 	if (!dirty) return null;
 	const count = Number.isInteger(changedCount) && changedCount > 0 ? changedCount : null;
 	const noun = count === 1 ? 'change' : 'changes';
+	if (pullRequest && Number.isInteger(pullRequest.number)) {
+		const hasReturnDestination = typeof pullRequest.returnTo === 'string' && pullRequest.returnTo.length > 0;
+		const returnsToTicket = hasReturnDestination ? pullRequest.returnTo.startsWith('ticket/') : Boolean(tracTicket);
+		return {
+			placement: returnsToTicket ? 'ticket' : 'buttons',
+			lead: `You have ${count === null ? '' : `${count} `}${noun} on top of PR #${pullRequest.number}. You can `,
+			patchLabel: 'review them',
+			middle: ' or ',
+			discardLabel: 'discard your changes',
+			end: `. They stay with this pull request's local copy when you revert this PR.`
+		};
+	}
 	if (tracTicket) {
 		return {
 			placement: 'ticket',
@@ -175,4 +187,18 @@ function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges,
 	return null;
 }
 
-module.exports = { changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE };
+// The review always names the base used to measure the displayed changes.
+function patchReviewContext({ pullRequest, tracTicket } = {}) {
+	if (pullRequest) return {
+		heading: `Your changes on top of PR #${pullRequest.number}`,
+		description: 'Edits to this local copy, compared with the original PR commits.',
+		empty: `There are no changes on top of PR #${pullRequest.number}.`
+	};
+	return {
+		heading: tracTicket ? `Your changes for ticket #${tracTicket}` : 'Your changes',
+		description: 'Everything this site has that its copy of trunk does not.',
+		empty: 'There is nothing to send yet — this site has no changes against its copy of trunk.'
+	};
+}
+
+module.exports = { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE };

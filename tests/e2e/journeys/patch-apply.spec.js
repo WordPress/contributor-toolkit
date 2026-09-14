@@ -2,8 +2,8 @@
  * Applying and reverting a patch, driven through the app (#361).
  *
  * The other half of a contributor's day: someone else's work arrives as a patch
- * file or a pull request, and it has to go onto the checkout and come off again
- * without taking anything of theirs with it. #350 changes what "applied" means —
+ * file, and it has to go onto the checkout and come off again without taking
+ * anything of theirs with it. #350 changes what "applied" means —
  * today it is a layer the app holds, afterwards it is a commit — so what is
  * pinned here is the part that must survive either model.
  *

@@ -117,6 +117,31 @@ function ticketOf(ref) {
 }
 
 /**
+ * A pull request number from a branch ref (#458), or null for anything else.
+ *
+ * @param {?string} ref
+ */
+function prOf(ref) {
+	const match = /^pr\/(\d+)$/.exec(String(ref || ''));
+	return match ? match[1] : null;
+}
+
+/**
+ * What a branch is called on screen: a ticket by its number, a pull request
+ * by its number, and nothing for trunk or a branch the app did not make.
+ *
+ * @param {?string} ref
+ * @return {?string} `#59234`, `PR #7701`, or null.
+ */
+function nameOf(ref) {
+	const ticket = ticketOf(ref);
+	if (ticket) return `#${ticket}`;
+	const pr = prOf(ref);
+	if (pr) return `PR #${pr}`;
+	return null;
+}
+
+/**
  * What the panel says for one progress event.
  *
  * The parking sentences name the ticket being left, which is the point of the
@@ -134,12 +159,13 @@ function ticketOf(ref) {
  */
 function describeSwitchProgress({ stage, loaded, total, from, to } = {}) {
 	const saving = () => {
-		const leaving = ticketOf(from);
-		return leaving ? `your work on #${leaving}` : 'your work';
+		const leaving = nameOf(from);
+		if (!leaving) return 'your work';
+		return prOf(from) ? `your edits on ${leaving}` : `your work on ${leaving}`;
 	};
 	const entering = () => {
-		const id = ticketOf(to);
-		return id ? ` for #${id}` : '';
+		const name = nameOf(to);
+		return name ? ` for ${name}` : '';
 	};
 
 	switch (stage) {
@@ -155,8 +181,11 @@ function describeSwitchProgress({ stage, loaded, total, from, to } = {}) {
 			return 'Checking which files change…';
 		case 'apply':
 			return `Swapping files${entering()}… ${withCount(loaded, total)}`;
-		case 'done':
-			return ticketOf(to) ? `Ready to work on #${ticketOf(to)}` : 'Ready';
+		case 'done': {
+			if (prOf(to)) return `Ready to try ${nameOf(to)}`;
+			const ticket = nameOf(to);
+			return ticket ? `Ready to work on ${ticket}` : 'Ready';
+		}
 		default:
 			// A stage this version does not know — a newer Git, or a caller
 			// ahead of this module. Saying something true and vague beats

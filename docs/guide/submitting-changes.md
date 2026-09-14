@@ -10,6 +10,8 @@ The left side of the screen is the diff, titled **Your changes**. This is exactl
 
 What it contains is the work on the ticket you are on, and only that: everything the ticket's branch has gained since it was created, including whatever was parked the last time you switched away from it. Another ticket's work is never in it, and neither is a change that arrived from a [trunk update](trunk-updates). On a site with no ticket linked, it is simply everything the checkout has that its copy of trunk does not.
 
+If a pull request is checked out, this screen can save an unattributed backup but cannot send the combined work. Use **Revert this PR** first. Edits you made while trying the PR stay on its local branch; finishing the test prevents the PR author's commits from being submitted as yours.
+
 Two buttons sit above the diff:
 
 - **Save** — saves the diff as a patch file wherever you choose.

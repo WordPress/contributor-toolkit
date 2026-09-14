@@ -19,13 +19,14 @@
  * on its own.
  *
  * @param {{ticketSaving?: boolean, deletingBranch?: string|null, updateState?: string,
- *          installing?: boolean, building?: boolean}} state
+ *          installing?: boolean, building?: boolean, applyState?: string}} state
  * @return {string|null} Null when nothing blocks the action.
  */
-function ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState = 'idle', installing, building } = {}) {
+function ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState = 'idle', installing, building, applyState = 'idle' } = {}) {
 	if (ticketSaving) return 'Wait for the current ticket change to finish.';
 	if (deletingBranch) return "Wait for the ticket's work to finish deleting.";
 	if (updateState !== 'idle') return 'Wait for the trunk update to finish.';
+	if (applyState !== 'idle') return 'Wait for the PR or patch operation to finish.';
 	if (installing) return 'Wait for the installation to finish.';
 	if (building) return 'Wait for the build to finish.';
 	return null;
@@ -62,16 +63,26 @@ function rebaseDisabledReason(state = {}) {
  * starts clean there and the answers say "continue on #N" instead.
  *
  * @param {Object}             root0
- * @param {number}             [root0.files]    How many files are dirty, 0 when unknown.
- * @param {boolean}            [root0.canCarry] Whether the edits can ride into the ticket.
- * @param {string|number|null} [root0.ticket]   Ticket being picked, for the labels.
+ * @param {number}             [root0.files]       How many files are dirty, 0 when unknown.
+ * @param {boolean}            [root0.canCarry]    Whether the edits can ride into the ticket.
+ * @param {string|number|null} [root0.ticket]      Ticket being picked, for the labels.
+ * @param {number|null}        [root0.pullRequest] PR being checked out instead of a ticket.
  * @return {{question: string, carry: string|null, save: string, discard: string, cancel: string}}
  */
-function dirtyTrunkQuestion({ files = 0, canCarry = false, ticket = null } = {}) {
+function dirtyTrunkQuestion({ files = 0, canCarry = false, ticket = null, pullRequest = null } = {}) {
 	const count = files
 		? `You have ${files === 1 ? '1 uncommitted change' : `${files} uncommitted changes`} on this site, not on any ticket yet.`
 		: 'You have uncommitted changes on this site, not on any ticket yet.';
 	const name = ticket ? `#${ticket}` : 'the ticket';
+	if (Number.isInteger(pullRequest)) {
+		return {
+			question: `${count} What should happen to them? PR #${pullRequest} is a separate checkout, so these edits cannot come along into it.`,
+			carry: null,
+			save: `Save them as a patch, then check out PR #${pullRequest}…`,
+			discard: `Discard them and check out PR #${pullRequest}`,
+			cancel: 'Cancel'
+		};
+	}
 	if (canCarry) {
 		return {
 			question: `${count} What should happen to them?`,

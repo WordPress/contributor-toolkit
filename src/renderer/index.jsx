@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Button,
@@ -46,11 +46,12 @@ import { ticketTrunkNotice, rebaseRefusal } from './ticket-trunk-notice.cjs';
 import { legacySiteNotice } from './legacy-site.cjs';
 import { deepLinkNotice } from './deep-link-notice.cjs';
 import { mergeInProgressNotice } from './merge-in-progress.cjs';
+import { describePrCheckout, describePrPreview, prCheckoutRefusal, prSubmissionRefusal } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { highlightLog } from './log-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
-import { changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
+import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage } from './confirmations.cjs';
 
@@ -1434,6 +1435,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Applying someone else's patch (#11)
   const [applyState, setApplyState] = useState('idle'); // idle | applying | installing | building
   const [applyPreview, setApplyPreview] = useState(null);
+  const [applyKind, setApplyKind] = useState('patch');
   // Held separately from applyPreview: the preview is cleared the moment the
   // chain starts, and the step list still has to know whether install runs.
   const [applyNeedsInstall, setApplyNeedsInstall] = useState(false);
@@ -1455,11 +1457,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // fails — three rows above, in the case that prompted this — so the way out
   // is a scroll, not a fetch.
   const ticketPatchesRef = useRef(null);
+  // A dirty-trunk question is rendered before the PR switch function is
+  // declared below. Its continuation uses this current-render ref so clearing
+  // the trunk can retry the PR operation instead of routing `pr/N` through the
+  // ticket parser (#458).
+  const retryPrSwitchRef = useRef(null);
+  const ticketSwitchLifecycleRef = useRef(null);
   // Not every unhappy ending is a failure: a revert can find that the patch is
   // already gone, which resolves the situation rather than blocking it. Red
   // would read as "you broke something" when nothing is left to do.
   const [applyNotice, setApplyNotice] = useState('');
   const [appliedPatch, setAppliedPatch] = useState(null);
+  const [pullRequest, setPullRequest] = useState(null);
   const [prUrlInput, setPrUrlInput] = useState('');
   const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
   const [dirtySaving, setDirtySaving] = useState(false);
@@ -1752,6 +1761,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setLegacy(Boolean(s?.legacy));
       setMergeInProgress(s?.mergeInProgress || null);
       setAppliedPatch(s?.appliedPatch || null);
+      setPullRequest(s?.pullRequest || null);
       if (metaPatchRef.current) {
         // A null trunkDate here means the git read failed (e.g. clone still
         // running) — keep whatever the sidebar already shows in that case.
@@ -1872,7 +1882,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setPatchSavedNotice('');
     // The previous switch's last sentence must not be this one's first frame.
     if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
+    let rebuilding = false;
+    let ownsTerminal = false;
     try {
+      ownsTerminal = await ticketSwitchLifecycleRef.current.begin();
+      if (!ownsTerminal) return;
       const res = await window.api.setSiteTicket(sitePath, ref, options);
       if (!res?.ok) {
         // `dirty-trunk` is a question, not a failure (#234): main refuses it
@@ -1914,9 +1928,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       await Promise.all([loadBranches(), loadStatus()]);
       // The tree under the note is a different branch's now (#239).
       reprobeAfterBranchChange();
+      rebuilding = ticketSwitchLifecycleRef.current.complete(res);
     } catch (e) {
       setTicketError(String(e));
     } finally {
+      if (ownsTerminal && !rebuilding) ticketSwitchLifecycleRef.current.finish();
       setTicketSaving(false);
     }
   }, [sitePath, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
@@ -1989,7 +2005,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   }, [sitePath, tracTicket, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
 
-  const discardTrunkWorkAndSwitch = useCallback(async (ref) => {
+  const discardTrunkWorkAndSwitch = useCallback(async (target) => {
     setTicketSaving(true);
     setTicketError('');
     // The refused attempt left its last frame behind — without this, the
@@ -2014,9 +2030,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } finally {
       setTicketSaving(false);
     }
-    // Outside the guard above: saveTicket owns the busy flag itself, and the
-    // discard has already succeeded — a failure here is about the switch.
-    await saveTicket(ref);
+    // Outside the guard above: the destination operation owns its own busy
+    // state, and the discard has already succeeded — a failure here is about
+    // that checkout. PR refs never go through the ticket parser.
+    if (target.kind === 'pr') await retryPrSwitchRef.current?.();
+    else await saveTicket(target.ref);
   }, [sitePath, saveTicket, onClearSwitchNotices]);
 
   // "Save them as a patch, then start clean" — one chosen outcome, not two
@@ -2027,7 +2045,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // while the dialog is up because it is not window-modal — without it the
   // panel underneath keeps taking clicks, and a discard chosen there would
   // run again when the dialog finally answers.
-  const saveTrunkWorkThenStartClean = useCallback(async (ref) => {
+  const saveTrunkWorkThenStartClean = useCallback(async (target) => {
     setTicketError('');
     let savedTo = '';
     setTicketSaving(true);
@@ -2046,7 +2064,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } finally {
       setTicketSaving(false);
     }
-    await discardTrunkWorkAndSwitch(ref);
+    await discardTrunkWorkAndSwitch(target);
     // After the panel is gone, the only on-screen record of where the work
     // went. The switch clears `patchSavedTo` with the rest of the panel
     // state, so the sentence that survives is its own notice — same shape as
@@ -2792,7 +2810,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   ) : null;
   // One gate for every ticket action, and the sentence that goes with it
   // (#409): a control this disables says why, through ReasonedButton.
-  const ticketActionsReason = ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building });
+  const ticketActionsReason = ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, applyState });
   const ticketActionsBlocked = Boolean(ticketActionsReason);
 
   // The one question both paths now ask (#234). Picking a ticket while trunk
@@ -2804,7 +2822,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // loose edits cannot ride into it. Rendered as a variable because two
   // views hold a "Link ticket" field, and a refusal with no panel under it
   // would be a dead end in the second one.
-  const dirtyQuestion = blockedByTrunkWork ? dirtyTrunkQuestion(blockedByTrunkWork) : null;
+  const dirtyQuestion = blockedByTrunkWork ? dirtyTrunkQuestion({
+    ...blockedByTrunkWork,
+    pullRequest: blockedByTrunkWork.kind === 'pr' ? blockedByTrunkWork.number : null
+  }) : null;
   const blockedPanel = blockedByTrunkWork ? (
     <div style={{ marginTop: 8, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
       <div>{dirtyQuestion.question}</div>
@@ -2823,14 +2844,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             style={{ fontSize: 12 }}
           >{dirtyQuestion.carry}</ReasonedButton>
         ) : null}
-        <ReasonedButton variant="link" reason={ticketActionsReason} onClick={() => saveTrunkWorkThenStartClean(blockedByTrunkWork.ref)} style={{ fontSize: 12 }}>
+        <ReasonedButton variant="link" reason={ticketActionsReason} onClick={() => saveTrunkWorkThenStartClean(blockedByTrunkWork)} style={{ fontSize: 12 }}>
           {dirtyQuestion.save}
         </ReasonedButton>
         <ReasonedButton
           variant="link"
           isDestructive
           reason={ticketActionsReason}
-          onClick={() => confirmAnd('Discard the uncommitted edits on trunk? This cannot be undone.', () => discardTrunkWorkAndSwitch(blockedByTrunkWork.ref))}
+          onClick={() => confirmAnd('Discard the uncommitted edits on trunk? This cannot be undone.', () => discardTrunkWorkAndSwitch(blockedByTrunkWork))}
           style={{ fontSize: 12 }}
         >{dirtyQuestion.discard}</ReasonedButton>
         {/* The way out that touches nothing — three consequential actions
@@ -2893,7 +2914,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Where the note goes moves with the ticket: a change that belongs to
   // #12345 is news for the ticket card, one that belongs to nothing is news
   // for the buttons that would give it somewhere to go.
-  const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket });
+  const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket, pullRequest });
   const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk });
   const legacyNotice = legacySiteNotice({ legacy });
   const mergeNotice = mergeInProgressNotice({ mergeInProgress });
@@ -2962,7 +2983,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const terminalBusy = computeTerminalBusy({
     terminalRunning, installing, building, starting, running, isUpdating, isApplying
   });
-  const applySteps = planApplySteps({ needsInstall: applyNeedsInstall, buildByWatcher: applyBuildByWatcher });
+  const applySteps = planApplySteps({ needsInstall: applyNeedsInstall, buildByWatcher: applyBuildByWatcher, kind: applyKind });
   const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
 
   // The applied patch as a layer with a name (#306), not an undo blob. Both
@@ -2973,7 +2994,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     when: appliedPatch?.appliedAt ? new Date(appliedPatch.appliedAt).toLocaleString() : ''
   });
   const appliedPatchLabel = appliedPatch?.label || 'The patch you applied';
+  const prOwnershipRefusal = pullRequest ? prSubmissionRefusal(pullRequest.number) : '';
   const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
+  const prCheckout = pullRequest ? describePrCheckout(pullRequest) : null;
+  const prPreview = applyPreview?.kind === 'pr' ? describePrPreview({
+    number: applyPreview.number,
+    files: applyPreview.files,
+    needsInstall: applyPreview.needsInstall,
+    exists: applyPreview.exists,
+    moved: applyPreview.moved,
+    hasEdits: applyPreview.hasEdits,
+    state: applyPreview.prState
+  }) : null;
   // The layer exits reach the same two operations the changes note does, so
   // they go through the same guard: a discard is a force checkout, and running
   // it under a live dev server or a half-finished install rewrites the tree
@@ -3151,7 +3183,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     refreshDirty();
   };
 
-  const runApplyInstallAndBuild = (needsInstall, verb, { runBuild = true } = {}) => {
+  const runApplyInstallAndBuild = (needsInstall, verb, { runBuild = true, noun = 'patch' } = {}) => {
     const runBuildStep = () => {
       setApplyState('building');
       writeToTerminal('\nRunning npm run build…\n');
@@ -3162,28 +3194,28 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           // site is rebuilt around it, so "open the site to try it out" is true
           // (#253). A failed build leaves stale assets and its own banner, so it
           // gets no success confirmation.
-          if (code === 0) confirm(`${verb} the patch`);
+          if (code === 0) confirm(`${verb} the ${noun}`);
           finishApply(code === 0
             ? `\n${verb} — open the site to try it out.\n`
-            : `\nThe patch is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.\n`);
+            : `\nThe ${noun} is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.\n`);
         }
       });
     };
     if (!runBuild) {
       // A running build watch recompiles the src/ change on its own, so there is
       // no install and no build of our own to run — just hand off to it (#262).
-      confirm(`${verb} the patch`);
+      confirm(`${verb} the ${noun}`);
       finishApply(`\n${verb} — the build watch is recompiling it. Open the site to try it out.\n`);
       return;
     }
     if (needsInstall) {
       setApplyState('installing');
-      writeToTerminal('\nThe patch changes package-lock.json — running npm install…\n');
+      writeToTerminal(`\nThe ${noun} changes package-lock.json — running npm install…\n`);
       runInstall({
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
           if (code !== 0) {
-            finishApply('\nnpm install failed, so the build was skipped. The patch is applied but dependencies are stale.\n');
+            finishApply(`\nnpm install failed, so the build was skipped. The ${noun} is ${verb.toLowerCase()} but dependencies are stale.\n`);
             return;
           }
           runBuildStep();
@@ -3294,30 +3326,24 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     }
   }, [tracTicket, isActive, loadTicketPatches]);
 
-  // Fetches a PR's diff and drops into the same preview the file picker uses,
-  // so applying a PR and applying a downloaded patch are one path from here on.
+  // Fetches the PR head through the site's origin and previews its own file
+  // list. No diff text crosses the renderer boundary: checkout retains the
+  // author's commits, while files and Trac attachments keep the patch path.
   const previewPr = async (pr) => {
     clearApplyError();
     setApplyNotice('');
     setFetchingPr(pr.number);
     try {
-      const diff = await window.api.fetchPrDiff(pr.number);
-      if (!diff || !diff.ok) {
-        setApplyError(diff?.status === 'rate-limited'
-          ? 'GitHub is rate-limiting this connection right now. Open the PR and download its .diff, then use “Choose a patch file”.'
-          : `Could not fetch the diff for PR #${pr.number}: ${diff?.error || 'unknown error'}`);
-        return;
-      }
-      const preview = await window.api.previewPatch(sitePath, diff.text);
+      const preview = await window.api.previewPullRequest(sitePath, pr.number);
       if (!preview || !preview.ok) {
-        setApplyError(preview?.error || 'Could not read that diff.');
+        setApplyError(prCheckoutRefusal({ ...preview, number: pr.number }));
         return;
       }
-      // `url` and `state` ride along so a conflict can offer the pull request
-      // itself, framed by what it is: an open one is rebased by its author, a
-      // closed one is nobody's to update (#282). State is absent when the PR
-      // came from a pasted number rather than the linked list.
-      setApplyPreview({ ...preview, label: `PR #${pr.number}`, text: diff.text, prUrl: pr.url, prState: pr.state || null });
+      setApplyPreview({
+        kind: 'pr', ...preview, label: `PR #${pr.number}`,
+        paths: preview.files.map((file) => file.path),
+        prUrl: pr.url, prState: pr.state || null
+      });
     } catch (e) {
       setApplyError(String(e));
     } finally {
@@ -3382,6 +3408,80 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     previewPr({ number: parsed.number, url: `https://github.com/WordPress/wordpress-develop/pull/${parsed.number}` });
   };
 
+  const runPrSwitch = async ({ leaving = false } = {}) => {
+    const preview = applyPreview;
+    const number = leaving ? pullRequest?.number : preview?.number;
+    if (!number) return;
+    const state = terminalStateRef.current;
+    if (state.running) {
+      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      return;
+    }
+    const watcherActive = watchStateRef.current === 'watching';
+    clearApplyError();
+    setApplyNotice('');
+    setApplyKind(leaving ? 'leave-pr' : 'pr');
+    setApplyNeedsInstall(Boolean(preview?.needsInstall));
+    setApplyBuildByWatcher(false);
+    setApplyState('applying');
+    markTerminalRunning(true);
+    if (watcherActive) await pauseWatcher();
+    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+    const run = leaving
+      ? window.api.leavePullRequest(sitePath, ({ data }) => writeToTerminal(data), complete)
+      : window.api.checkoutPullRequest(sitePath, number, ({ data }) => writeToTerminal(data), complete);
+
+    function complete(res) {
+      if (!res?.ok) {
+        if (!leaving && res?.code === 'dirty-trunk') {
+          setBlockedByTrunkWork({ kind: 'pr', number, ref: `pr/${number}`, canCarry: false, files: Number.isInteger(res.files) ? res.files : null, ticket: null });
+        } else {
+          setApplyError(prCheckoutRefusal({ ...res, number }));
+        }
+        finishApply();
+        return;
+      }
+      setApplyPreview(null);
+      setApplyNeedsInstall(Boolean(res.needsInstall));
+      runApplyInstallAndBuild(
+        Boolean(res.needsInstall),
+        leaving ? 'Restored' : 'Checked out',
+        { runBuild: true, noun: leaving ? 'previous branch' : 'pull request' }
+      );
+    }
+
+    run.catch((e) => {
+      setApplyError(String(e));
+      finishApply();
+    });
+  };
+  useLayoutEffect(() => {
+    retryPrSwitchRef.current = runPrSwitch;
+    ticketSwitchLifecycleRef.current = {
+      begin: async () => {
+        if (terminalStateRef.current.running) {
+          setTicketError('A command is already running. Stop it before switching tickets.');
+          return false;
+        }
+        markTerminalRunning(true);
+        terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+        await pauseWatcher();
+        return true;
+      },
+      complete: (res) => {
+        if (!res.prTransition) return false;
+        setApplyKind('pr');
+        setApplyNeedsInstall(Boolean(res.needsInstall));
+        setApplyBuildByWatcher(false);
+        clearApplyError();
+        runApplyInstallAndBuild(Boolean(res.needsInstall), 'Restored', { runBuild: true, noun: 'saved work' });
+        return true;
+      },
+      finish: () => finishApply()
+    };
+
+  });
+
   const runApply = async ({ reverse = false } = {}) => {
     const state = terminalStateRef.current;
     if (state.running) {
@@ -3389,6 +3489,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       return;
     }
     const preview = applyPreview;
+    if (!reverse && preview?.kind === 'pr') {
+      await runPrSwitch();
+      return;
+    }
     const needsInstall = reverse
       ? Boolean(appliedPatch?.files?.includes('package-lock.json'))
       : Boolean(preview.needsInstall);
@@ -3399,6 +3503,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     clearApplyError();
     setApplyNotice('');
     setApplyNeedsInstall(needsInstall);
+    setApplyKind('patch');
     setApplyBuildByWatcher(!impact.runBuild);
     setApplyState('applying');
     markTerminalRunning(true);
@@ -3726,6 +3831,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // put in the same box prefixed with 'Error'. The sentinel can arrive under
   // `#` lines naming binaries that could not be carried (#85), so the test is
   // "is there a diff under the commentary" rather than a string comparison.
+  const reviewContext = patchReviewContext({ pullRequest, tracTicket });
   const patchHasChanges = Boolean(patchText)
     && hasDiffLines(patchText)
     && !patchText.startsWith('Error');
@@ -3889,6 +3995,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // deep and unreadable at the point where the wording matters most, so the
   // states get early returns and the card body gets one call.
   const renderPullRequestBody = () => {
+    if (pullRequest) {
+      return <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>{prOwnershipRefusal}</div>;
+    }
     if (appliedPatch) {
       return (
         <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
@@ -4115,6 +4224,25 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     );
   };
 
+  const renderOwnershipWarning = () => {
+    if (pullRequest) {
+      return (
+        <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
+          {prOwnershipRefusal} You can still use <strong>Save</strong> to keep an unattributed copy of your edits.
+        </div>
+      );
+    }
+    if (appliedPatch) {
+      return (
+        <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
+          <strong>{appliedPatchLabel} is part of this checkout.</strong>{' '}
+          The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.
+        </div>
+      );
+    }
+    return null;
+  };
+
   const copyDeviceCode = async () => {
     if (!githubDeviceCode?.userCode) return;
     try {
@@ -4316,6 +4444,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     isUpdating,
     stale: age.stale,
     running,
+    pullRequest,
     hasChanges: Boolean(worktreeDirty && worktreeDirty.dirty),
     ticketLinked: Boolean(tracTicket)
   });
@@ -4759,7 +4888,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ) : null}
       {skipInit ? (
       <div {...cueProps('link-ticket')} style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Trac ticket</div>
+        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{tracTicket ? `Working on ticket #${tracTicket}` : 'Trac ticket'}</div>
+        {prCheckout && !isApplying ? (
+          <div {...cueProps('pr-checkout')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #94d3ae', background: '#f4fbf4', borderRadius: 8 }}>
+            <div style={{ fontSize: 15, color: '#0f5132' }}><strong>{prCheckout.title}</strong></div>
+            <div style={{ marginTop: 6, fontSize: 13, color: '#3c434a' }}>{prCheckout.body} {prCheckout.edits}</div>
+            <div style={{ marginTop: 6, fontSize: 12 }}>Revert this PR before applying another PR or patch file.</div>
+            <Button variant="secondary" onClick={() => runPrSwitch({ leaving: true })} disabled={isUpdating || installing || building} style={{ marginTop: 10 }}>
+              {prCheckout.backLabel}
+            </Button>
+          </div>
+        ) : null}
         {tracTicket ? (
           <>
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -4894,6 +5033,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                             {' '}{pr.title}
                           </span>
                           {latestPill(latestPatch?.kind === 'pr' && latestPatch.key === pr.number)}
+                          {pullRequest?.number === pr.number ? <span style={{ ...pillStyle, background: '#f4fbf4', color: '#0f5132', marginLeft: 8 }}>Applied</span> : null}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, fontSize: 11, color: '#6c6f72' }}>
                           {prStatePill(pr.state)}
@@ -4903,13 +5043,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           })()}
                         </div>
                       </div>
-                      <Button
-                        variant="secondary"
-                        isBusy={fetchingPr === pr.number}
-                        disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingPr !== null}
-                        onClick={() => previewPr(pr)}
-                        style={{ flex: '0 0 auto' }}
-                      >Apply…</Button>
+                      {pullRequest ? null : (
+                        <Button
+                          variant="secondary"
+                          isBusy={fetchingPr === pr.number}
+                          disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingPr !== null}
+                          onClick={() => previewPr(pr)}
+                          style={{ flex: '0 0 auto' }}
+                        >Apply…</Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -4976,6 +5118,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           {[att.author && `by ${att.author}`, att.dateText, att.sizeText].filter(Boolean).join(' · ')}
                         </div>
                       </div>
+                      {!pullRequest ? (
                       <Button
                         variant="secondary"
                         isBusy={fetchingAttachment === att.url}
@@ -4983,6 +5126,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         onClick={() => previewAttachment(att)}
                         style={{ flex: '0 0 auto' }}
                       >Apply…</Button>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -5039,12 +5183,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           {renderBranchRows(Boolean(tracTicket))}
         </div>
       ) : null}
-      {skipInit ? (
+      {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
           <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Apply a patch or PR</div>
-          {!applyPreview && !isApplying ? (
+          {!pullRequest && !applyPreview && !isApplying ? (
             <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-              Apply a pull request or a <code>.diff</code>/<code>.patch</code> file to this checkout and rebuild, so you can test the work before adding your own. Your own changes are left alone.
+              Pull requests are checked out with their author&apos;s commits. A <code>.diff</code>/<code>.patch</code> file is applied to the current branch as a removable layer.
             </div>
           ) : null}
 
@@ -5053,6 +5197,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <div style={{ fontSize: 13, color: appliedLayer.canRevert ? '#0f5132' : '#6e5406' }}>
                 <strong>{appliedLayer.label}</strong> {appliedLayer.summary}
               </div>
+              <div style={{ marginTop: 8, fontSize: 12 }}>This patch is applied to your current work. Removing it may require undoing overlapping edits.</div>
               {appliedLayer.explanation ? (
                 <div style={{ marginTop: 8, fontSize: 12, color: '#6e5406' }}>{appliedLayer.explanation}</div>
               ) : null}
@@ -5086,27 +5231,30 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           {applyPreview && !isApplying ? (
             <div {...cueProps('apply-preview')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
               <div style={{ fontSize: 13, color: '#1d2327' }}>
-                <strong>{applyPreview.label}</strong> changes {applyPreview.paths.length} file{applyPreview.paths.length === 1 ? '' : 's'}:
+                {prPreview ? <strong>{prPreview.headline}</strong> : <><strong>{applyPreview.label}</strong> changes {applyPreview.paths.length} file{applyPreview.paths.length === 1 ? '' : 's'}:</>}
               </div>
+              {applyPreview.kind === 'pr' && applyPreview.prState ? <div style={{ marginTop: 6 }}>{prStatePill(applyPreview.prState)}</div> : null}
+              {prPreview?.closedNote ? <div style={{ marginTop: 8, fontSize: 12, color: '#6e5406' }}>{prPreview.closedNote}</div> : null}
               <div style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere', maxHeight: 140, overflowY: 'auto' }}>
                 {applyPreview.paths.map((p) => <div key={p}>{p}</div>)}
               </div>
               {/* Who the colliding work belongs to (#306) is the sentence. */}
-              {previewAttribution.sentences.length ? (
+              {applyPreview.kind !== 'pr' && previewAttribution.sentences.length ? (
                 <div role="alert" style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
                   {previewAttribution.sentences.map((sentence) => <div key={sentence} style={{ marginTop: 2 }}>{sentence}</div>)}
                 </div>
               ) : null}
-              {applyPreview.unsupported.length ? (
+              {applyPreview.kind !== 'pr' && applyPreview.unsupported.length ? (
                 <div style={{ marginTop: 10, fontSize: 12, color: '#6e5406' }}>
                   {applyPreview.unsupported.join(', ')} {applyPreview.unsupported.length === 1 ? 'is a binary file and will be skipped' : 'are binary files and will be skipped'}.
                 </div>
               ) : null}
-              {applyPreview.needsInstall ? (
-                <div style={{ marginTop: 10, fontSize: 12, color: '#3c434a' }}>It changes <code>package-lock.json</code>, so dependencies will be installed before the rebuild.</div>
-              ) : null}
+              {prPreview?.installNote ? <div style={{ marginTop: 10, fontSize: 12, color: '#3c434a' }}>{prPreview.installNote}</div> : null}
+              {applyPreview.kind !== 'pr' && applyPreview.needsInstall ? <div style={{ marginTop: 10, fontSize: 12, color: '#3c434a' }}>It changes <code>package-lock.json</code>, so dependencies will be installed before the rebuild.</div> : null}
               <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>Apply and rebuild</Button>
+                <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>
+                  {prPreview ? prPreview.actionLabel : 'Apply and rebuild'}
+                </Button>
                 <Button variant="tertiary" onClick={() => { setApplyPreview(null); clearApplyError(); setApplyNotice(''); }}>Cancel</Button>
               </div>
             </div>
@@ -5136,7 +5284,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     whether the patch is worth rescuing. Without a breakdown the
                     original sentence is still the whole story. */}
                 <span style={{ flex: '1 1 auto' }}>
-                  {applyConflict?.headline || (/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`)} The checkout was not changed.
+                  {applyConflict?.headline || (/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`)}{applyKind === 'patch' ? ' The checkout was not changed.' : ''}
                 </span>
                 <Button
                   variant="tertiary"
@@ -5253,7 +5401,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             </div>
           ) : null}
 
-          {!applyPreview && !isApplying ? (
+          {!pullRequest && !applyPreview && !isApplying ? (
             <div style={{ marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 280, flex: '1 1 280px' }}>
@@ -5488,9 +5636,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
               </div>
             )}
-            {!patchLoading && !patchHasChanges && (
+            {!patchLoading && patchLoadFailed ? (
+              <div role="alert" style={{ padding: '12px 16px', color: '#8a2424', background: '#fcf0f1', borderRadius: 6 }}>
+                Could not load your changes. Close this panel and try again. The error is shown below.
+              </div>
+            ) : null}
+            {!patchLoading && !patchLoadFailed && !patchHasChanges && (
               <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
-                There is nothing to send yet — this site has no changes against its copy of trunk.
+                {reviewContext.empty}
               </div>
             )}
 {/*
@@ -5521,7 +5674,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
                   <div>
                     <div style={{ fontWeight:600, fontSize:14, color:'#1d2327', display:'flex', alignItems:'baseline', gap:4, flexWrap:'wrap' }}>
-                      {tracTicket ? `Your changes for ticket #${tracTicket}` : 'Your changes'}
+                      {reviewContext.heading}
                       <span style={{ fontWeight:400 }}>
                         {'('}
                         <DiscardChangesLink
@@ -5533,7 +5686,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         {')'}
                       </span>
                     </div>
-                    <div style={{ fontSize:12, color:'#6c6f72' }}>Everything this site has that its copy of trunk does not.</div>
+                    <div style={{ fontSize:12, color:'#6c6f72' }}>{reviewContext.description}</div>
                     {discardError ? <div style={{ color:'#d63638', fontSize:12, marginTop:4 }}>{discardError}</div> : null}
                   </div>
                   {/*
@@ -5543,12 +5696,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     pane is a column.
                   */}
                   <div style={{ display:'flex', gap:8 }}>
-                    <Button variant="secondary" icon={download} onClick={savePatch} disabled={patchLoading}>Save</Button>
+                    <Button variant="secondary" icon={download} onClick={savePatch} disabled={patchLoading || patchLoadFailed}>Save</Button>
                     <Button
                       variant="secondary"
                       icon={patchCopied === 'copied' ? checkIcon : copyIcon}
                       onClick={copyPatch}
-                      disabled={patchLoading}
+                      disabled={patchLoading || patchLoadFailed}
                       // The label carries the outcome rather than a tooltip or
                       // a toast: it is the thing that was just pressed, so it
                       // is where the eye already is, and a screen reader
@@ -5610,12 +5763,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>The pull request is the one the app sends for you. The other two save a file for you to send.</div>
                   </div>
 
-                  {appliedPatch ? (
-                    <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
-                      <strong>{appliedPatchLabel} is part of this checkout.</strong>{' '}
-                      The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.
-                    </div>
-                  ) : null}
+                  {renderOwnershipWarning()}
 
                   {/*
                     Alone in its own group, because it is the one destination
@@ -5673,7 +5821,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                       after="No automated checks. Often followed by a request to open a pull request."
                     >
                       {tracTicket ? (
-                        <Button variant="primary" onClick={saveForTrac} disabled={Boolean(appliedPatch)} style={{ justifyContent:'center' }}>
+                        <Button variant="primary" onClick={saveForTrac} disabled={Boolean(appliedPatch || pullRequest)} style={{ justifyContent:'center' }}>
                           Save, then open #{tracTicket}
                         </Button>
                       ) : (
@@ -5712,7 +5860,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     >
                       {wporg?.handle && !editingHandle ? (
                         <>
-                          <Button variant="primary" onClick={saveForHandoff} disabled={Boolean(appliedPatch)} style={{ justifyContent:'center' }}>
+                          <Button variant="primary" onClick={saveForHandoff} disabled={Boolean(appliedPatch || pullRequest)} style={{ justifyContent:'center' }}>
                             Save patch as {wporg.handle}
                           </Button>
                           {/*

@@ -35,6 +35,7 @@
  * @param {boolean} state.isUpdating       A trunk update is running now.
  * @param {boolean} state.stale            The trunk snapshot is old (#94).
  * @param {boolean} state.running          The dev server is up.
+ * @param {?Object} state.pullRequest      The PR currently checked out.
  * @param {boolean} state.hasChanges       The working tree has uncommitted edits.
  * @param {boolean} state.ticketLinked     A Trac ticket is linked.
  * @return {?{id: string, reason: string}} The block to point at, or null.
@@ -96,6 +97,10 @@ function deriveNextAction(state = {}) {
 
 	if (!Boolean(state.running)) {
 		return { id: 'start-dev', reason: 'Start the dev server to work on the site.' };
+	}
+
+	if (state.pullRequest && Number.isInteger(state.pullRequest.number)) {
+		return { id: 'pr-checkout', reason: `PR #${state.pullRequest.number} is applied; revert it before applying another change.` };
 	}
 
 	if (Boolean(state.hasChanges)) {

@@ -5529,6 +5529,9 @@ test('a second instance with an address delivers it, without one it only shows t
 
 // Channels whose wiring is asserted above.
 const WIRED = new Set([
+	'git:preview-pr',
+	'git:checkout-pr',
+	'git:leave-pr',
 	'url:open',
 	'git:worktree-dirty',
 	'git:unsubmitted-work',
@@ -5955,4 +5958,428 @@ test('a discard on a real checkout mid-merge leaves MERGE_HEAD, the unmerged ent
 	assert.equal(fs.existsSync(path.join(dir, '.git', 'MERGE_HEAD')), true, 'the merge is still open');
 	assert.equal(statusScan(dir), before, 'index and worktree untouched');
 	assert.match(fs.readFileSync(path.join(dir, workFile), 'utf8'), /^<<<<<<< /m, 'the markers, the interface for resolving it, are still there');
+});
+
+test('git:update-trunk returns to a checked-out PR and keeps its linked ticket (#458)', async () => {
+	// The branch name follows the checkouts. A constant would hide the park from
+	// every read the handler makes between it and the return — which is how the
+	// site-level write of #419 went unseen here for as long as it did.
+	let head = 'pr/7';
+	const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true, parked: true }; });
+	const currentBranchName = spy(async () => head);
+	const updateToLatestTrunk = spy(async () => ({
+		upToDate: false, oldOid: 'old', newOid: 'new', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z'
+	}));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 59234,
+				currentBranch: 'pr/7',
+				branches: { 'pr/7': { tracTicket: 59234, baseOid: 'abc' } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await new Promise((resolve) => setImmediate(resolve));
+
+	assert.equal(switchToBranch.calls.length, 2, 'parked onto trunk, then returned');
+	assert.equal(switchToBranch.calls[0][1], 'trunk');
+	assert.equal(switchToBranch.calls[0][2].baseOid, 'abc', 'parked onto its own branch point');
+	assert.equal(switchToBranch.calls[1][1], 'pr/7', 'the contributor ends up back on their ticket');
+
+	const meta = settings.values.siteMeta['/sites/wp'];
+	assert.equal(meta.currentBranch, 'pr/7');
+	assert.equal(meta.tracTicket, 59234, 'the panel and the worktree must agree on the ticket');
+	assert.equal(meta.trunkOid, 'new');
+	// The incomplete flag describes the ticket's tree, not the site's.
+	assert.equal(meta.branches['pr/7'].updateIncomplete, true);
+	// Site level holds no fresh `true` any more: what is there is the explicit
+	// clear of the copy earlier versions wrote (#419).
+	assert.equal(meta.updateIncomplete, false, 'the live flag is the branch\'s, and this is the cleared copy');
+});
+
+// PR checkout is layer 2's job; here the observable contract is the stream,
+// the guards and the store. A live head follows each successful fake switch.
+function prWiring({ head = 'ticket/59234', meta = {}, reads = {}, pr = {}, tickets = {} } = {}) {
+	const oid = 'a'.repeat(40);
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {
+		currentBranch: head, tracTicket: 59234,
+		branches: { 'ticket/59234': { baseOid: 'b'.repeat(40) }, 'pr/7': { headOid: oid, baseOid: oid, returnTo: 'ticket/59234' } }, ...meta
+	} } });
+	const fetchPullRequestHead = spy(async () => ({ oid }));
+	const checkoutPullRequest = spy(async (_dir, number) => { const from = head; head = `pr/${number}`; return { from, to: head, parked: true }; });
+	const leavePullRequest = spy(async (_dir, { returnTo }) => { const from = head; head = returnTo; return { from, to: head, parked: true }; });
+	const resumeSwitch = spy(async (_dir, to) => { head = to; return { to, parked: false }; });
+	const state = { exists: true, moved: false, hasEdits: false };
+	const main = loadMain({ stubs: {
+		...silentLogging(), ...settings.stubs,
+		'./git-read.cjs': { isLegacySite: async () => false, mergeInProgress: async () => null, remoteUrl: async () => 'file:///origin', blobOid: async () => oid, resolveRef: async () => oid, listBranches: async () => ['trunk', 'ticket/59234', 'pr/7'], ...reads },
+		'./ticket-branches': { currentBranchName: async () => head, listTicketBranches: async () => ['ticket/59234', 'pr/7'], countChangesAgainst: async () => 3, resumeSwitch, ...tickets },
+		'./pr-checkout': { fetchPullRequestHead, checkoutPullRequest, leavePullRequest, describePullRequestHead: async () => ({ files: [{ path: 'src/wp-login.php', kind: 'modified' }], needsInstall: false, base: oid }), pullRequestBranchState: async () => state, ...pr }
+	} });
+	return { main, settings, oid, state, fetchPullRequestHead, checkoutPullRequest, leavePullRequest, resumeSwitch };
+}
+
+async function runPr(main, action, ...args) {
+	const event = createIpcEvent();
+	const idKey = action === 'checkout' ? 'checkoutId' : 'leaveId';
+	const reply = await main.invokeWith(`git:${action}-pr`, event, '/sites/wp', ...args);
+	const done = await waitForDone(event, `git:${action}-pr:done`, idKey, reply[idKey]);
+	return { done, event };
+}
+
+test('git:preview-pr fetches by number and describes the fetched head without recording a checkout', async () => {
+	const f = prWiring();
+	const before = structuredClone(f.settings.values);
+	const result = await f.main.invoke('git:preview-pr', '/sites/wp', '7');
+	assert.equal(result.ok, true);
+	assert.equal(result.number, 7);
+	assert.equal(result.headOid, f.oid);
+	assert.equal(result.files[0].path, 'src/wp-login.php');
+	assert.equal(result.returnTo, 'ticket/59234');
+	assert.equal(f.fetchPullRequestHead.calls[0][1], 7);
+	assert.equal(typeof f.fetchPullRequestHead.calls[0][2].onChild, 'function');
+	assert.deepEqual(f.settings.values, before);
+	assert.equal(f.checkoutPullRequest.calls.length, 0);
+});
+
+for (const head of ['ticket/59234', 'trunk']) {
+	test(`git:checkout-pr from ${head} records the PR base and preserves ticket context`, async () => {
+		const f = prWiring({ head, meta: { branches: { 'ticket/59234': { baseOid: 'b'.repeat(40) } } } });
+		const { done } = await runPr(f.main, 'checkout', 7);
+		assert.equal(done.ok, true);
+		assert.equal(done.returnTo, head);
+		const m = f.settings.values.siteMeta['/sites/wp'];
+		assert.equal(m.currentBranch, 'pr/7');
+		assert.equal(m.tracTicket, 59234);
+		assert.equal(m.branches['pr/7'].headOid, f.oid);
+		assert.equal(m.branches['pr/7'].baseOid, f.oid);
+		assert.equal(m.branches['pr/7'].returnTo, head);
+		assert.equal(f.checkoutPullRequest.calls[0][2].fromBaseOid, head === 'trunk' ? undefined : 'b'.repeat(40));
+		assert.equal(typeof f.checkoutPullRequest.calls[0][2].onChild, 'function');
+	});
+}
+
+for (const [code, reads] of [
+	['legacy-site', { isLegacySite: async () => true }],
+	['no-origin', { remoteUrl: async () => null }],
+	['merge-in-progress', { mergeInProgress: async () => ({ kind: 'merge', paths: ['src/a.php'] }) }],
+	['merge-check-failed', { mergeInProgress: async () => { throw new Error('read failed'); } }]
+]) {
+	for (const action of ['preview', 'checkout', 'leave']) {
+		if (action === 'preview' && code.startsWith('merge-') || action === 'leave' && code === 'no-origin') continue;
+		test(`git:${action}-pr refuses ${code} before a fetch or switch`, async () => {
+			const f = prWiring({ head: 'pr/7', reads });
+			const before = structuredClone(f.settings.values);
+			const result = action === 'preview' ? await f.main.invoke('git:preview-pr', '/sites/wp', 7) : (await runPr(f.main, action, 7)).done;
+			assert.equal(result.code, code);
+			assert.equal(result.ok, false);
+			assert.equal(f.fetchPullRequestHead.calls.length, 0);
+			assert.equal(f.checkoutPullRequest.calls.length, 0);
+			assert.equal(f.leavePullRequest.calls.length, 0);
+			assert.deepEqual(f.settings.values, before);
+		});
+	}
+}
+
+for (const value of [0, -1, 1.5, '7; echo', true, {}, Number.MAX_SAFE_INTEGER + 1]) {
+	test(`git:checkout-pr validates IPC number ${JSON.stringify(value)}`, async () => {
+		const f = prWiring();
+		const { done } = await runPr(f.main, 'checkout', value);
+		assert.equal(done.code, 'bad-pr-number');
+		assert.equal(f.fetchPullRequestHead.calls.length, 0);
+	});
+}
+
+for (const code of ['dirty-trunk', 'pr-has-edits', 'pr-branch-exists', 'already-checked-out', 'no-such-branch']) {
+	test(`git:checkout-pr streams ${code} and leaves the registry alone`, async () => {
+		const f = prWiring({ pr: { checkoutPullRequest: async () => { throw Object.assign(new Error('refused'), { code, files: 3 }); } } });
+		const before = structuredClone(f.settings.values);
+		const { done, event } = await runPr(f.main, 'checkout', 7);
+		assert.equal(done.ok, false);
+		assert.equal(done.code, code);
+		assert.equal(done.number, 7);
+		if (code === 'dirty-trunk') assert.equal(done.files, 3);
+		assert.ok(event.sent.some((m) => m.channel === 'git:checkout-pr:log' && m.payload.data.includes(done.error)));
+		assert.deepEqual(f.settings.values, before);
+	});
+}
+
+test('PR fetch failure reaches the stream without writing checkout metadata', async () => {
+	const f = prWiring({ pr: { fetchPullRequestHead: async () => { throw new Error('offline'); } } });
+	const before = structuredClone(f.settings.values);
+	const { done } = await runPr(f.main, 'checkout', 7);
+	assert.equal(done.code, 'fetch-failed');
+	assert.match(done.error, /offline/);
+	assert.deepEqual(f.settings.values, before);
+});
+
+test('a partial PR checkout records the head and retries the original destination without another fetch or park', async () => {
+	const oid = 'c'.repeat(40);
+	const f = prWiring({ meta: { branches: { 'ticket/59234': { baseOid: 'b'.repeat(40) } } }, pr: {
+		checkoutPullRequest: async () => { throw Object.assign(new Error('locked'), { stage: 'checkout', from: 'ticket/59234', to: 'pr/7', created: true, headOid: oid }); }
+	} });
+	const first = (await runPr(f.main, 'checkout', 7)).done;
+	assert.equal(first.ok, false);
+	const m = f.settings.values.siteMeta['/sites/wp'];
+	assert.deepEqual(m.switchInProgress, { from: 'ticket/59234', to: 'pr/7' });
+	assert.equal(m.branches['pr/7'].headOid, oid);
+	const second = (await runPr(f.main, 'checkout', 7)).done;
+	assert.equal(second.ok, true);
+	assert.equal(f.fetchPullRequestHead.calls.length, 1);
+	assert.equal(f.resumeSwitch.calls.length, 1);
+	assert.equal(f.settings.values.siteMeta['/sites/wp'].switchInProgress, null);
+	assert.equal(f.settings.values.siteMeta['/sites/wp'].branches['pr/7'].headOid, oid);
+});
+
+test('a moved PR updates its recorded base but preserves the original return ticket', async () => {
+	const oid = 'c'.repeat(40);
+	const f = prWiring({ head: 'trunk', pr: { fetchPullRequestHead: async () => ({ oid }), checkoutPullRequest: async () => ({ moved: true, parked: false }) } });
+	const { done } = await runPr(f.main, 'checkout', 7);
+	assert.equal(done.moved, true);
+	const m = f.settings.values.siteMeta['/sites/wp'].branches['pr/7'];
+	assert.equal(m.baseOid, oid);
+	assert.equal(m.returnTo, 'ticket/59234');
+});
+
+test('a moved PR with local edits returns to its saved copy instead of replacing it (#458)', async () => {
+	const movedHead = 'c'.repeat(40);
+	const localTip = 'd'.repeat(40);
+	const originalHead = 'a'.repeat(40);
+	const switchToBranch = spy(async (_dir, ref) => ({ from: 'ticket/59234', to: ref, parked: true }));
+	const f = prWiring({
+		reads: { resolveRef: async (_dir, ref) => ref === 'pr/7' ? localTip : originalHead },
+		pr: {
+			fetchPullRequestHead: async () => ({ oid: movedHead }),
+			pullRequestBranchState: async () => ({ exists: true, moved: true, hasEdits: true, tip: localTip })
+		},
+		tickets: { switchToBranch }
+	});
+
+	const { done } = await runPr(f.main, 'checkout', 7);
+	assert.equal(done.ok, true);
+	assert.equal(done.localCopy, true);
+	assert.equal(switchToBranch.calls[0][1], 'pr/7');
+	assert.equal(f.checkoutPullRequest.calls.length, 0);
+	assert.equal(f.settings.values.siteMeta['/sites/wp'].branches['pr/7'].headOid, f.oid, 'the recorded author head stays at v1');
+});
+
+for (const present of [true, false]) {
+	test(`git:leave-pr restores ${present ? 'the ticket' : 'trunk when the ticket was deleted'}`, async () => {
+		const f = prWiring({ head: 'pr/7', reads: { listBranches: async () => present ? ['trunk', 'ticket/59234', 'pr/7'] : ['trunk', 'pr/7'], blobOid: async (_dir, ref) => ref === 'HEAD' ? 'a'.repeat(40) : 'b'.repeat(40) } });
+		const { done } = await runPr(f.main, 'leave');
+		assert.equal(done.ok, true);
+		assert.equal(done.needsInstall, true);
+		assert.equal(done.returnTo, present ? 'ticket/59234' : 'trunk');
+		assert.equal(f.leavePullRequest.calls[0][1].headOid, f.oid);
+		const m = f.settings.values.siteMeta['/sites/wp'];
+		assert.equal(m.currentBranch, done.returnTo);
+		assert.equal(m.tracTicket, present ? 59234 : null);
+	});
+}
+
+test('git:leave-pr refuses when no PR is checked out', async () => {
+	const f = prWiring();
+	assert.equal((await runPr(f.main, 'leave')).done.code, 'not-on-pr');
+	assert.equal(f.leavePullRequest.calls.length, 0);
+});
+
+test('git:leave-pr retries an interrupted return without parking partial files', async () => {
+	const f = prWiring({ head: 'pr/7', meta: { switchInProgress: { from: 'pr/7', to: 'ticket/59234' } } });
+	assert.equal((await runPr(f.main, 'leave')).done.ok, true);
+	assert.equal(f.resumeSwitch.calls.length, 1);
+	assert.equal(f.leavePullRequest.calls.length, 0);
+	assert.equal(f.settings.values.siteMeta['/sites/wp'].switchInProgress, null);
+});
+
+test('an unrelated interrupted switch blocks PR checkout and leave', async () => {
+	const f = prWiring({ head: 'pr/7', meta: { switchInProgress: { from: 'pr/7', to: 'ticket/9' } } });
+	assert.equal((await runPr(f.main, 'checkout', 7)).done.code, 'switch-incomplete');
+	assert.equal((await runPr(f.main, 'leave')).done.code, 'switch-incomplete');
+	assert.equal(f.resumeSwitch.calls.length, 0);
+});
+
+test('PR handlers refuse unregistered paths, including on the done stream', async () => {
+	const f = prWiring();
+	f.settings.values.sites = [];
+	assert.equal((await f.main.invoke('git:preview-pr', '/sites/wp', 7)).ok, false);
+	for (const action of ['checkout', 'leave']) assert.match((await runPr(f.main, action, 7)).done.error, /not registered/);
+	assert.equal(f.fetchPullRequestHead.calls.length, 0);
+});
+
+test('branches:list excludes PR refs and branches:rebase refuses them', async () => {
+	const rebaseOntoTrunk = spy();
+	const f = prWiring({ head: 'pr/7', tickets: { rebaseOntoTrunk } });
+	const list = await f.main.invoke('branches:list', '/sites/wp');
+	assert.deepEqual(list.branches.map((b) => b.ref), ['ticket/59234']);
+	assert.equal((await f.main.invoke('branches:rebase', '/sites/wp')).code, 'not-a-ticket-branch');
+	assert.equal(rebaseOntoTrunk.calls.length, 0);
+});
+
+test('deleting a return ticket redirects PRs to trunk without changing their head', async () => {
+	const f = prWiring({ head: 'pr/7', tickets: { deleteTicketBranch: async () => {} } });
+	assert.equal((await f.main.invoke('branches:delete', '/sites/wp', 'ticket/59234')).ok, true);
+	const m = f.settings.values.siteMeta['/sites/wp'];
+	assert.equal(m.branches['pr/7'].returnTo, 'trunk');
+	assert.equal(m.branches['pr/7'].headOid, f.oid);
+	assert.equal(m.currentBranch, 'pr/7');
+});
+
+test('site:status identifies a checked-out PR and suppresses the ticket rebase notice', async () => {
+	const f = prWiring({ head: 'pr/7', meta: { trunkOid: 'b'.repeat(40) } });
+	// An unregistered read skips .git/info/exclude on this fake path.
+	f.settings.values.sites = [];
+	const result = await f.main.invoke('site:status', '/sites/wp');
+	assert.equal(result.pullRequest.number, 7);
+	assert.equal(result.pullRequest.returnTo, 'ticket/59234');
+	assert.equal(result.ticketBehindTrunk, false);
+});
+
+test('git:save-patch refuses submission destinations on a PR checkout, but still saves a copy (#458)', async (t) => {
+	const dir = await fixtureRepo(t);
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'pr/7': { headOid: revParse(dir, 'HEAD'), baseOid: revParse(dir, 'HEAD') } } } },
+		preferences: { wporgHandle: 'janedoe' }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { currentBranchName: async () => 'pr/7' } } });
+
+	const handoff = await main.invoke('git:save-patch', dir, { handoff: true });
+	const trac = await main.invoke('git:save-patch', dir, { destination: 'trac' });
+
+	assert.deepEqual(handoff, {
+		ok: false,
+		reason: 'pr-checkout',
+		error: require('../../src/renderer/pr-checkout.cjs').prSubmissionRefusal(7)
+	});
+	assert.deepEqual(trac, handoff);
+	assert.deepEqual(main.calls.showSaveDialog, [], 'a refused submission must not create a file');
+
+	const copy = await main.invoke('git:save-patch', dir);
+	assert.equal(copy.canceled, true);
+	assert.equal(main.calls.showSaveDialog.length, 1, 'an unattributed backup remains available');
+});
+
+test('github:open-pr refuses a PR checkout before it reaches GitHub (#458)', async (t) => {
+	const dir = await fixtureRepo(t);
+	const auth = fakeGithubAuth({ login: 'janedoe' });
+	const openPullRequest = spy(async () => ({ ok: true }));
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'pr/7': { headOid: 'a'.repeat(40) } } } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./github-auth.cjs': auth,
+			'./ticket-branches': { currentBranchName: async () => 'pr/7' },
+			'./github-pr.cjs': { openPullRequest, buildPullRequestBody: () => '' }
+		}
+	});
+
+	await main.invokeWith('github:sign-in', createIpcEvent());
+	await settle();
+	await settle();
+
+	const result = await main.invoke('github:open-pr', dir, {});
+
+	assert.deepEqual(result, {
+		ok: false,
+		reason: 'pr-checkout',
+		error: require('../../src/renderer/pr-checkout.cjs').prSubmissionRefusal(7),
+		stage: 'ownership'
+	});
+	assert.deepEqual(openPullRequest.calls, []);
+});
+
+test('returning to an unchanged PR with parked lockfile edits measures the copy actually checked out', async () => {
+	const oid = 'a'.repeat(40);
+	const wip = 'c'.repeat(40);
+	const f = prWiring({ reads: {
+		resolveRef: async (_dir, ref) => ref === 'pr/7' ? wip : oid,
+		blobOid: async (_dir, ref) => ref === wip ? 'changed-lockfile' : 'original-lockfile'
+	} });
+	assert.equal((await runPr(f.main, 'checkout', 7)).done.needsInstall, true);
+});
+
+test('old PRs do not count generated Gutenberg files, including a previously parked copy', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-old-pr-generated-');
+	fs.writeFileSync(path.join(dir, 'README.md'), 'base\n');
+	commitFiles(dir, ['README.md'], 'base');
+	const baseOid = revParse(dir, 'HEAD');
+	gitOk(['checkout', '-b', 'pr/7'], dir);
+	fs.mkdirSync(path.join(dir, 'gutenberg'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'gutenberg', 'generated.js'), 'generated\n');
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { branches: { 'pr/7': { baseOid, headOid: baseOid, pullRequest: 7 } } } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	await main.invoke('site:status', dir);
+	assert.equal((await main.invoke('git:unsubmitted-work', dir)).changedCount, 0);
+	gitOk(['add', '-f', 'gutenberg/generated.js'], dir);
+	commitFiles(dir, [], 'old parked generated files');
+	fs.appendFileSync(path.join(dir, 'README.md'), 'my edit\n');
+	assert.equal((await main.invoke('git:unsubmitted-work', dir)).changedCount, 1);
+	const result = await main.invoke('git:get-patch', dir);
+	assert.equal(result.ok, true);
+	assert.match(result.patch, /my edit/);
+	assert.doesNotMatch(result.patch, /gutenberg/);
+});
+
+test('the patch panel can render a large added text file without overflowing the stack', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-large-patch-');
+	fs.writeFileSync(path.join(dir, 'README.md'), 'base\n');
+	commitFiles(dir, ['README.md'], 'base');
+	fs.writeFileSync(path.join(dir, 'large.txt'), 'line\n'.repeat(150000));
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	const result = await main.invoke('git:get-patch', dir);
+	assert.equal(result.ok, true, result.error);
+	assert.match(result.patch, /\+line/);
+});
+
+for (const changed of [false, true]) {
+	test(`resuming an applied PR reports rebuild and install=${changed} from its lockfile`, async () => {
+		const oid = 'c'.repeat(40);
+		const switchToBranch = spy(async () => ({ parked: true }));
+		const f = prWiring({
+			meta: { branches: {
+				'ticket/59234': { baseOid: oid, activePr: 'pr/7' },
+				'pr/7': { headOid: oid, baseOid: oid, returnTo: 'ticket/59234' }
+			} },
+			reads: { blobOid: async (_dir, ref) => changed && ref === 'pr/7' ? 'd'.repeat(40) : oid },
+			tickets: { switchToBranch }
+		});
+		const result = await f.main.invoke('sites:set-ticket', '/sites/wp', '59234');
+		assert.equal(result.ok, true);
+		assert.equal(result.branch, 'pr/7');
+		assert.equal(result.prTransition, true);
+		assert.equal(result.needsInstall, changed);
+		assert.equal(switchToBranch.calls[0][1], 'pr/7');
+	});
+}
+
+test('linking a new ticket from a PR measures trunk before the new branch exists', async () => {
+	const oid = 'c'.repeat(40);
+	const f = prWiring({ head: 'pr/7',
+		reads: {
+			resolveRef: async (_dir, ref) => ref === 'ticket/60003' ? null : oid,
+			blobOid: async (_dir, ref) => { if (ref === 'ticket/60003') throw new Error('missing branch'); return oid; }
+		},
+		tickets: { switchToBranch: async () => ({ parked: true }), startTicketBranch: async () => ({ baseOid: oid }) }
+	});
+	const result = await f.main.invoke('sites:set-ticket', '/sites/wp', '60003');
+	assert.equal(result.ok, true, result.error);
+	assert.equal(result.branch, 'ticket/60003');
+	assert.equal(result.prTransition, true);
 });
