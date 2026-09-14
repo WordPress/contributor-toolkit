@@ -103,6 +103,18 @@ contextBridge.exposeInMainWorld('api', {
 		return () => ipcRenderer.removeListener('ticket:carried-work', h);
 	}
 ,
+	// A ticket handed to the app by a `wpct://` link (#464). Subscribe first,
+	// then call `deepLinkReady` — main holds a ticket that arrived during
+	// startup until that call, because a send to a page still loading is
+	// dropped silently.
+	subscribeDeepLinkTicket: (handler) => {
+		const h = (_e, payload) => handler && handler(payload);
+		ipcRenderer.on('deep-link:ticket', h);
+		return () => ipcRenderer.removeListener('deep-link:ticket', h);
+	}
+,
+	deepLinkReady: () => ipcRenderer.invoke('deep-link:ready')
+,
 	subscribeSetupProgress: (handler) => {
 		const h = (_e, payload) => handler && handler(payload);
 		ipcRenderer.on('download:progress', h);

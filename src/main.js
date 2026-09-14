@@ -69,6 +69,10 @@ const SWITCH_PROGRESS_CHANNEL = 'switch:progress';
 // step of an operation, and describing it as progress would have the panel say
 // "Saving your work…" about trunk — which is the one thing this refuses to do.
 const CARRIED_WORK_CHANNEL = 'ticket:carried-work';
+
+// The ticket a `wpct://` link carried (#464). Send-only, like the two above,
+// and named here for the same reason: preload.js subscribes by string.
+const DEEP_LINK_CHANNEL = 'deep-link:ticket';
 const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
 const { LEGACY_SITE_ERROR } = require('./renderer/legacy-site.cjs');
 const { mergeInProgressError, mergeCheckFailedError } = require('./renderer/merge-in-progress.cjs');
@@ -76,6 +80,7 @@ const { parseHandle } = require('./wporg-handle.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
+const { DEEP_LINK_SCHEME, handleDeepLink, pickDeepLinkArg, createDeepLinkQueue } = require('./deep-link.cjs');
 
 const LOCAL_EXCLUDES_MARKER = '# WordPress Contributor Toolkit local excludes';
 const LOCAL_EXCLUDES = [
@@ -483,8 +488,16 @@ async function stopSmtpServerForSite(sitePath) {
     delete smtpServers[sitePath];
 }
 
+// The window the app is *for*, as opposed to the short-lived patch and Trac
+// windows. A deep link has to reach this one and no other, and `getAllWindows()`
+// cannot tell them apart.
+let mainWindow = null;
+
 function createWindow() {
-    const mainWindow = new BrowserWindow({
+	// A new page has not subscribed yet, so anything queued waits for its
+	// `deep-link:ready` rather than being sent into a page that is still loading.
+	deepLinkQueue.reset();
+    mainWindow = new BrowserWindow({
 		width: 1000,
 		height: 700,
         icon: process.platform === 'linux' ? path.join(__dirname, '..', 'build', 'icon.png') : undefined,
@@ -496,6 +509,102 @@ function createWindow() {
 	});
 
 	mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+}
+
+// --- wpct:// deep links (#464) -------------------------------------------
+//
+// The ticket an address carried waits in `deepLinkQueue` (src/deep-link.cjs)
+// until the renderer says it has subscribed, over `deep-link:ready`. See that
+// module for why the wait exists and what it deliberately does not survive.
+const deepLinkQueue = createDeepLinkQueue();
+
+function flushDeepLink() {
+	// On macOS the window can be closed while the app lives on. The ticket keeps
+	// waiting for the one `showWindowForDeepLink` opens rather than being sent
+	// into a destroyed webContents and lost.
+	if (!mainWindow || mainWindow.isDestroyed?.()) return;
+	const ticket = deepLinkQueue.take();
+	if (ticket === null) return;
+	logEvent('deep-link', `delivering ticket ${ticket}`);
+	try { mainWindow.webContents.send(DEEP_LINK_CHANNEL, { ticket }); } catch {}
+}
+
+// Brings the app forward for a ticket that has already been accepted.
+//
+// The window may not exist: on macOS closing it does not quit the app, and
+// `activate` — which is what usually brings one back — only fires for a dock or
+// Finder activation, and its own guard counts the patch and Trac windows as
+// windows. So this opens one rather than leaving a link to do nothing at all,
+// which would be the silent failure that reads as "the link is broken".
+//
+// Before `whenReady` there is nothing to open and nothing to log into: macOS
+// can deliver `open-url` that early, and the ready path creates the window and
+// flushes the queue a moment later.
+function showWindowForDeepLink() {
+	if (!app.isReady()) return;
+	if (!mainWindow || mainWindow.isDestroyed?.()) {
+		createWindow();
+		return;
+	}
+	try {
+		if (mainWindow.isMinimized?.()) mainWindow.restore();
+		mainWindow.show();
+		mainWindow.focus();
+	} catch {}
+}
+
+// The one entry point for every source of a `wpct://` address.
+//
+// Nothing happens until the address parses. Any page the contributor visits can
+// navigate to this scheme, so focusing first would hand every page a way to
+// pull the app in front of whatever they are doing, without ever passing the
+// parser. A refusal is logged and nothing else: the contributor did not type
+// this and has nothing to correct.
+function receiveDeepLink(url) {
+	return handleDeepLink(url, {
+		onTicket: (ticket) => {
+			deepLinkQueue.hold(ticket);
+			showWindowForDeepLink();
+			flushDeepLink();
+		},
+		onRefused: (message) => logEvent('deep-link', `refused ${message}`)
+	});
+}
+
+// The renderer is listening. Its own mount calls this, so it is also the moment
+// a ticket that arrived during startup can finally be delivered.
+ipcMain.handle('deep-link:ready', () => {
+	deepLinkQueue.markReady();
+	flushDeepLink();
+	return true;
+});
+
+// Without the lock, a link clicked while the app is running starts a second copy
+// — which on Windows and Linux is the only way the address arrives at all, and
+// on every platform would mean two processes writing one electron-store.
+//
+// The lock is keyed on the user-data directory, so the e2e journeys, each on
+// its own throwaway profile, are not each other's second instance.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+	app.quit();
+} else {
+	// Windows and Linux, app already running: the address is in the second
+	// process's argv, next to Electron's own switches.
+	app.on('second-instance', (_event, argv) => {
+		const url = pickDeepLinkArg(argv);
+		// No address is someone launching the app again, which is a request for
+		// the window they already have rather than anything to parse.
+		if (url) receiveDeepLink(url);
+		else showWindowForDeepLink();
+	});
+
+	// macOS, every time: `open-url` can fire before `whenReady`, which is the
+	// whole reason the delivery above is queued rather than sent.
+	app.on('open-url', (event, url) => {
+		event.preventDefault();
+		receiveDeepLink(url);
+	});
 }
 function buildPatchHtml(content) {
     return `<!doctype html><html><head><meta charset="utf-8"/><title>Patch</title>
@@ -2073,6 +2182,33 @@ ipcMain.handle('sites:mark-update-complete', async (_e, sitePath) => {
 });
 
 app.whenReady().then(() => {
+	// The second copy this one refused (see the lock above) is on its way out;
+	// it must not build a window or take the store with it on the way.
+	if (!gotSingleInstanceLock) return;
+
+	// Claims `wpct://` for this app.
+	//
+	// Two halves, and Windows has only this one. `build.protocols` in
+	// package.json is read by electron-builder for the macOS bundle
+	// (CFBundleURLTypes) and the Linux desktop entry (x-scheme-handler/wpct),
+	// but not by the NSIS target — so on Windows the registration is this call,
+	// writing HKCU\Software\Classes on first run, which needs no elevation.
+	//
+	// Unpackaged, only Windows can be claimed at all, and only there does the
+	// three-argument form mean anything: `path` and `args` are Windows-only, and
+	// on macOS a scheme has to be in the bundle's Info.plist, which cannot be
+	// written at runtime — from source the bundle is Electron's own. So a
+	// `wpct://` link cannot be tested from `npm start` on macOS or Linux; that
+	// pass needs an installed build. The app path comes from `getAppPath()`
+	// rather than `process.argv[1]`, which is the script only when no switch was
+	// passed — `electron --inspect .` would otherwise register a handler
+	// pointing at a file called `--inspect`, and report success.
+	if (app.isPackaged) {
+		app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME);
+	} else if (process.platform === 'win32') {
+		app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME, process.execPath, [app.getAppPath()]);
+	}
+
 	// Before createWindow(): initLogging preloads the IPC bridge that carries
 	// renderer output into the log file, which only applies to windows created
 	// afterwards.
@@ -2083,6 +2219,12 @@ app.whenReady().then(() => {
 	})));
 
 	createWindow();
+
+	// Windows and Linux, cold start: the address that launched the app is in
+	// this process's own argv. macOS does not use argv for this — it sends
+	// `open-url`, which may already have fired and left a ticket queued.
+	const launchUrl = pickDeepLinkArg(process.argv);
+	if (launchUrl) receiveDeepLink(launchUrl);
 
 	app.on('activate', function () {
 		if (BrowserWindow.getAllWindows().length === 0) createWindow();

@@ -44,6 +44,7 @@ import { adminUrl, adminerUrl } from './site-urls.cjs';
 import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
 import { ticketTrunkNotice, rebaseRefusal } from './ticket-trunk-notice.cjs';
 import { legacySiteNotice } from './legacy-site.cjs';
+import { deepLinkNotice } from './deep-link-notice.cjs';
 import { mergeInProgressNotice } from './merge-in-progress.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
@@ -524,6 +525,27 @@ function App() {
     return () => { if (unsub) unsub(); };
   }, []);
 
+  // A ticket handed to the app by a `wpct://` link (#464). Held here rather
+  // than in SiteRow for the reason the switch progress gives: every row stays
+  // mounted, so subscribing per row would open one listener per site for an
+  // event that concerns exactly one of them.
+  //
+  // `at` is what makes the same ticket arriving twice two events. Without it
+  // the second link is the same state value, the effect below never re-runs,
+  // and a banner the contributor dismissed never comes back.
+  const [deepLink, setDeepLink] = useState(null);
+  useEffect(() => {
+    const unsub = window.api.subscribeDeepLinkTicket((p) => {
+      if (!p || !p.ticket) return;
+      setDeepLink({ ticket: p.ticket, at: Date.now() });
+    });
+    // Only after the subscription above exists: main holds a ticket that
+    // arrived while this page was still loading until it hears this.
+    Promise.resolve(window.api.deepLinkReady()).catch(() => {});
+    return () => { if (unsub) unsub(); };
+  }, []);
+  const clearDeepLink = useCallback(() => setDeepLink(null), []);
+
   // Refused while one is already running. Everything about this flow is
   // single-file and always has been — one pending card, one terminal, one
   // `clearPendingSites()` that clears them all — and `setupRowPathRef` is one
@@ -962,6 +984,25 @@ function App() {
                 </Card>
               )}
 
+              {/* A ticket arrived from a link with nowhere to put it: no site
+                  open, or no sites at all. The site in front of the contributor
+                  gets its own confirmation inside the ticket panel, where the
+                  ticket would go — this is only the other two states. */}
+              {(() => {
+                if (!deepLink || activeSite) return null;
+                const notice = deepLinkNotice({ ticket: deepLink.ticket, siteCount: sortedSites.length });
+                if (!notice) return null;
+                return (
+                  <div role="status" style={{ marginBottom: 24, padding: '12px 14px', background: '#f0f6fc', border: '1px solid #72aee6', borderRadius: 8, color: '#1d2327' }}>
+                    <div style={{ fontWeight: 600 }}>{notice.title}</div>
+                    <div style={{ marginTop: 4, fontSize: 13 }}>{notice.body}</div>
+                    <div style={{ marginTop: 8 }}>
+                      <Button variant="link" onClick={clearDeepLink} style={{ fontSize: 12 }}>Dismiss</Button>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {sortedSites.length > 0 ? (
                 sortedSites.map((s) => (
                   <div
@@ -987,6 +1028,8 @@ function App() {
                       switchProgress={switchProgressBySite[s] || null}
                       onClearSwitchNotices={clearSwitchNotices}
                       carriedWork={carriedWorkBySite[s] || null}
+                      deepLink={activeSite === s ? deepLink : null}
+                      onDeepLinkDone={clearDeepLink}
                       isActive={activeSite === s}
                     />
                   </div>
@@ -1240,7 +1283,7 @@ function TerminalCommandLink({ command, onPrefill, disabled }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1878,6 +1921,45 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   }, [sitePath, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
   const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
   const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
+
+  // A ticket arrived from a link and this is the site in front of the
+  // contributor (#464). The answer goes through `saveTicket` like any other
+  // link, so every guard the panel already has — a running install, a
+  // mid-switch site, a merge started in a terminal, the dirty-trunk question —
+  // applies unchanged.
+  //
+  // Read straight off the prop, never copied into state here. Every row stays
+  // mounted behind `display: none`, so a row that kept its own copy would go on
+  // showing the question after another row answered it, and would raise it
+  // again the moment the contributor came back. The App's one value is the one
+  // truth, and answering clears it for everybody.
+  //
+  // The ticket field is deliberately left alone. It is free text the
+  // contributor may be halfway through, the question already says which ticket
+  // it means, and its button links that ticket directly — so writing over what
+  // they typed would buy nothing.
+  const deepLinkTicket = (deepLink && deepLink.ticket) ? deepLink.ticket : null;
+  const deepLinkPrompt = deepLinkNotice({
+    ticket: deepLinkTicket,
+    siteLabel: displayName,
+    currentTicket: tracTicket
+  });
+  // A ticket with nothing to ask about is one this site is on already. Cleared
+  // rather than merely hidden, so the question does not resurface on the next
+  // site the contributor opens.
+  const deepLinkSettled = deepLinkTicket !== null && !deepLinkPrompt;
+  useEffect(() => {
+    if (deepLinkSettled && onDeepLinkDone) onDeepLinkDone();
+  }, [deepLinkSettled, onDeepLinkDone]);
+
+  const dismissDeepLink = useCallback(() => {
+    if (onDeepLinkDone) onDeepLinkDone();
+  }, [onDeepLinkDone]);
+
+  const acceptDeepLink = useCallback(() => {
+    if (deepLinkTicket !== null) saveTicket(String(deepLinkTicket));
+    if (onDeepLinkDone) onDeepLinkDone();
+  }, [deepLinkTicket, onDeepLinkDone, saveTicket]);
 
   // The notice's own button (#385): the ticket's work replayed onto the
   // current trunk in main. Same busy flag and progress line as a switch,
@@ -4647,6 +4729,25 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               )}
             </div>
           ) : null}
+        </div>
+      ) : null}
+      {/* Above the ticket panel rather than inside it, and outside the wizard
+          gate: a link can arrive whether or not this site already has a ticket,
+          and a site still in the setup wizard shows no ticket panel at all —
+          which is exactly when a ticket that vanished silently would be worst. */}
+      {deepLinkPrompt ? (
+        <div role="status" style={{ padding: '12px 14px', background: '#f0f6fc', border: '1px solid #72aee6', borderRadius: 8, color: '#1d2327' }}>
+          <div style={{ fontWeight: 600 }}>{deepLinkPrompt.title}</div>
+          <div style={{ marginTop: 4, fontSize: 13 }}>{deepLinkPrompt.body}</div>
+          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <ReasonedButton
+              variant="primary"
+              onClick={acceptDeepLink}
+              isBusy={ticketSaving}
+              reason={skipInit ? ticketActionsReason : 'Finish setting this site up first.'}
+            >{deepLinkPrompt.confirmLabel}</ReasonedButton>
+            <Button variant="link" onClick={dismissDeepLink}>Not now</Button>
+          </div>
         </div>
       ) : null}
       {skipInit ? (

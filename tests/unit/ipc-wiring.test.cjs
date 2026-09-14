@@ -122,6 +122,10 @@ function createElectronStub() {
 		on() {}
 		once() {}
 		show() {}
+		focus() {}
+		restore() {}
+		isMinimized() { return false; }
+		isDestroyed() { return false; }
 		close() {}
 		static getAllWindows() { return windows; }
 	}
@@ -142,7 +146,16 @@ function createElectronStub() {
 			getName: () => 'wordpress-contributor-toolkit',
 			setName() {},
 			getVersion: () => '0.0.0-test',
-			isPackaged: false
+			isPackaged: false,
+			// The `wpct://` registration (#464). The lock runs at module scope, so
+			// a missing stub would stop main.js loading at all rather than fail a
+			// handler — which is why it is here and not in a test's setup. The
+			// registration itself sits inside whenReady, which never settles
+			// here, so nothing calls it; it exists so a future change that moves
+			// it earlier does not fail as a missing function.
+			requestSingleInstanceLock: () => true,
+			setAsDefaultProtocolClient: () => true,
+			isReady: () => false
 		},
 		BrowserWindow: BrowserWindowStub,
 		Menu: {
@@ -5388,6 +5401,74 @@ test('the harness never loads the real electron package', () => {
 	assert.deepEqual(loaded, [], 'the real electron package was required; the stub did not cover this path');
 });
 
+// --- wpct:// links -> src/deep-link.cjs ----------------------------------
+//
+// Not an IPC channel but the same gap: the address arrives on an app lifecycle
+// event, and an event handler that stops asking deep-link.cjs would leave the
+// module's own suite green while the app answers whatever a web page sends it.
+
+test('open-url asks deep-link whether the address is a ticket (#464)', async () => {
+	const handleDeepLink = spy(() => false);
+	const main = loadMain({ stubs: { ...silentLogging(), './deep-link.cjs': { handleDeepLink } } });
+	const event = { preventDefault: spy() };
+
+	await main.emitAppEvent('open-url', event, 'wpct://ticket/62281');
+
+	assert.equal(handleDeepLink.calls.length, 1, 'the macOS intake no longer reaches the parser');
+	assert.equal(handleDeepLink.calls[0][0], 'wpct://ticket/62281');
+	// Without this the OS keeps its default handling of the address as well.
+	assert.equal(event.preventDefault.calls.length, 1);
+});
+
+test('second-instance reads the address out of argv and asks the same module (#464)', async () => {
+	const handleDeepLink = spy(() => false);
+	const main = loadMain({ stubs: { ...silentLogging(), './deep-link.cjs': { handleDeepLink } } });
+
+	// Windows and Linux: the address is one argument among the second process's
+	// own. pickDeepLinkArg is the real one — only the parser is stubbed.
+	await main.emitAppEvent('second-instance', {}, ['C:\\app.exe', '--no-sandbox', 'wpct://ticket/62281']);
+
+	assert.equal(handleDeepLink.calls.length, 1);
+	assert.equal(handleDeepLink.calls[0][0], 'wpct://ticket/62281');
+});
+
+test('a second instance with no address still only focuses the window (#464)', async () => {
+	const handleDeepLink = spy(() => false);
+	const main = loadMain({ stubs: { ...silentLogging(), './deep-link.cjs': { handleDeepLink } } });
+
+	await main.emitAppEvent('second-instance', {}, ['C:\\app.exe', '--no-sandbox']);
+
+	assert.equal(handleDeepLink.calls.length, 0, 'nothing to parse is not something to parse');
+});
+
+test('an accepted ticket reaches the queue, and deep-link:ready asks it for one (#464)', async () => {
+	// What the queue does with the ticket is its own suite's job
+	// (tests/unit/deep-link.test.cjs); this is the connection. The delivery that
+	// follows needs a window the harness cannot create — whenReady never settles
+	// here — so the send itself is covered by the manual pass, not by this.
+	const held = [];
+	const takes = [];
+	const queue = {
+		hold: (ticket) => { held.push(ticket); },
+		markReady: () => {},
+		reset: () => {},
+		take: () => { takes.push(true); return null; },
+		waiting: () => null
+	};
+	const handleDeepLink = spy((_url, { onTicket }) => { onTicket(62281); return true; });
+	const main = loadMain({
+		stubs: { ...silentLogging(), './deep-link.cjs': { handleDeepLink, createDeepLinkQueue: () => queue } }
+	});
+
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281');
+	assert.deepEqual(held, [62281], 'the ticket no longer reaches the queue');
+
+	assert.equal(await main.invoke('deep-link:ready'), true);
+	// No window exists here, so the flush stops before asking the queue. That it
+	// stops there rather than throwing is the assertion.
+	assert.deepEqual(takes, []);
+});
+
 // --- coverage guard ------------------------------------------------------
 
 // Channels whose wiring is asserted above.
@@ -5439,6 +5520,7 @@ const WIRED = new Set([
 // branches on them. A channel here is a claim that there is no module call to
 // delete.
 const NO_DELEGATION = new Map([
+	['deep-link:ready', 'flushes a ticket main queued for the renderer; the parse it depends on is wired above, on open-url and second-instance'],
 	['sites:mark-update-complete', 'electron-store write'],
 	['sites:get', 'electron-store read'],
 	['sites:getAll', 'electron-store read'],
