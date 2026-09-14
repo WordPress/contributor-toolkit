@@ -116,7 +116,10 @@ async function runFixtureTier(selected) {
 				// Fresh renderer per shot: open menus and modals from the
 				// previous shot cannot leak into this one.
 				await page.reload();
-				await shot.prepare(page);
+				// `app` as well as `page`: a shot of something the main process
+				// pushes to the renderer — a `wpct://` link (#464) — cannot be
+				// reached by driving the UI. Existing shots ignore it.
+				await shot.prepare(page, app);
 				// Let @wordpress/components' open/close animations settle.
 				await page.waitForTimeout(300);
 				await captureShot(page, shot);
