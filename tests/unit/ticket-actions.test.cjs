@@ -27,6 +27,13 @@ test('ticketActionDisabledReason reports the action underway before a process it
 	assert.match(ticketActionDisabledReason({ updateState: 'building', building: true }), /trunk update/);
 });
 
+test('ticket actions wait through applying, reverting and their rebuild before another switch', () => {
+	for (const applyState of ['applying', 'installing', 'building']) {
+		assert.match(ticketActionDisabledReason({ applyState }), /PR or patch operation to finish/, applyState);
+	}
+	assert.equal(ticketActionDisabledReason({ applyState: 'idle' }), null);
+});
+
 // The move onto trunk rewrites the checked-out tree, so it is gated like a
 // discard on top of the shared gate. Both extra guards name the button.
 test('rebaseDisabledReason adds the tree-rewrite guards after the shared gate (#409)', () => {

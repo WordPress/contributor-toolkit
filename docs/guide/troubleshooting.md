@@ -26,7 +26,7 @@ For a patch file or Trac attachment, expand the failing files in the panel: each
 
 ## "I cannot submit: PR #NNNN is checked out"
 
-The app blocks submission from a PR checkout so the PR author's commits cannot be presented as your own work. Use **Back to ticket #NNNNN** or **Back to trunk** in the **Apply a patch or PR** panel. Your edits on the PR are parked on its local `pr/NNNN` branch and return if you check it out again.
+The app blocks submission from a PR checkout so the PR author's commits cannot be presented as your own work. Use **Revert this PR** in the highlighted context at the top of the Trac ticket card. Your edits on the PR are parked on its local `pr/NNNN` branch and return if you check it out again.
 
 ## Work seems to have vanished after changing tickets or updating trunk
 

@@ -124,3 +124,5 @@ That last point has a consequence worth knowing. A ticket branch keeps the snaps
 - [Working on a Trac ticket](./trac-tickets)
 - [Submitting your changes](./submitting-changes)
 - [Staying up to date with trunk](./trunk-updates)
+
+If a PR is applied when you unlink a ticket or switch to another one, returning to that ticket restores the same local PR copy, including your edits. This also survives restarting the app. Use **Revert this PR** to return to your ticket work and stop reopening that PR automatically.

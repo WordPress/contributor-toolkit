@@ -149,7 +149,7 @@ test('a checked-out PR points to its return control before offering submission',
 
 	assert.deepStrictEqual(next, {
 		id: 'pr-checkout',
-		reason: 'You are trying PR #7701; go back when you have finished.'
+		reason: 'PR #7701 is applied; revert it before applying another change.'
 	});
 });
 

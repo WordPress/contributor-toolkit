@@ -122,6 +122,15 @@ async function ensureLocalExcludes(dir) {
 	} catch (error) {
 		if (!error || error.code !== 'ENOENT') throw error;
 	}
+	// Older PRs predate WordPress's /gutenberg ignore. Keep this generated
+	// download out of WIP commits even when their .gitignore is checked out.
+	const generatedMarker = '# WordPress Contributor Toolkit generated Gutenberg';
+	if (!existing.split(/\r?\n/).includes(generatedMarker)) {
+		await fs.promises.mkdir(infoDir, { recursive: true });
+		const block = `${existing && !existing.endsWith('\n') ? '\n' : ''}${generatedMarker}\n/gutenberg/\n`;
+		await fs.promises.appendFile(excludePath, block);
+		existing += block;
+	}
 	if (existing.split(/\r?\n/).includes(LOCAL_EXCLUDES_MARKER)) return false;
 
 	await fs.promises.mkdir(infoDir, { recursive: true });
@@ -569,7 +578,10 @@ async function collectChangedFiles(dir, baseOid = null) {
     // nothing, so it is gone. (`staleStagedPaths` in trunk-update.js stays: it
     // still has to clean up residue left in indexes by earlier versions.)
     const matrix = await changesAgainst(dir, base);
-    const changed = matrix.filter(([, head, workdir]) => head !== workdir);
+    // A pre-fix WIP may already contain generated Gutenberg files. Exclude
+    // only additions absent from the contribution's base; tracked source in
+    // that base still participates in the diff.
+    const changed = matrix.filter(([filepath, head, workdir]) => head !== workdir && !(head === 0 && filepath.startsWith('gutenberg/')));
     // Every base blob in one spawn, rather than one process per changed file.
     // A failed batch reads as every base unreadable, which classifyChangedFile
     // names above the diff rather than diffing: wider than the per-file catch
@@ -1971,6 +1983,13 @@ ipcMain.handle('git:leave-pr', (event, sitePath) => streamPrOperation(event, sit
         ? resumeSwitch(sitePath, returnTo, { onProgress, onChild })
         : leavePullRequest(sitePath, { returnTo, headOid: recorded.headOid, onProgress, onChild }));
     const to = result.to || returnTo;
+    await changeSiteMeta(sitePath, (m) => {
+        const updatedBranches = { ...(m.branches || {}) };
+        for (const [ref, work] of Object.entries(updatedBranches)) {
+            if (work.activePr === from) updatedBranches[ref] = { ...work, activePr: null };
+        }
+        return { ...m, branches: updatedBranches };
+    });
     await mergeSiteMeta(sitePath, { currentBranch: to, tracTicket: ticketIdFromRef(to) });
     if (to !== TRUNK) await mergeBranchMeta(sitePath, to, { lastUsedAt: new Date().toISOString() });
     return { ok: true, number, from, returnTo: to, parked: Boolean(result.parked), needsInstall };
@@ -2566,6 +2585,28 @@ async function withRegisteredSite(sitePath, run) {
 // The site-level `tracTicket` is kept in step with the active branch so the
 // handlers that read it (`git:list-ticket-patches`, `trac:list-attachments`,
 // `site:status`) need no change.
+// Leaving a ticket parks its current PR without reverting its application.
+// Persist before switching so an interrupted checkout can still be resumed.
+async function rememberTicketPr(sitePath) {
+    const active = await activeBranch(sitePath);
+    if (active.site.switchInProgress || !active.site.tracTicket || prNumberFromRef(active.ref) === null) return;
+    await mergeBranchMeta(sitePath, ticketBranchRef(active.site.tracTicket), { activePr: active.ref });
+}
+
+async function ticketPrImpact(sitePath, from, to) {
+    if (from === to || (prNumberFromRef(from) === null && prNumberFromRef(to) === null)) return {};
+    const destination = await resolveRef(sitePath, to) ? to : TRUNK;
+    return { prTransition: true, needsInstall: await prNeedsInstall(sitePath, destination) };
+}
+
+async function ticketCheckoutRef(sitePath, ticketRef) {
+    if (ticketIdFromRef(ticketRef) === null) return ticketRef;
+    const site = await readSiteMeta(sitePath);
+    const ref = site.branches?.[ticketRef]?.activePr;
+    if (!ref || prNumberFromRef(ref) === null || !site.branches?.[ref]?.headOid) return ticketRef;
+    return await resolveRef(sitePath, ref) ? ref : ticketRef;
+}
+
 ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => withRegisteredSite(sitePath, async () => {
 	// Empty means unlink — the panel's Unlink button and a cleared field both
 	// land here, and neither is an error. The branch and its work stay; going
@@ -2576,6 +2617,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 	// whose retry is the forced checkout that would erase it.
 	const refused = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
 	if (refused) return refused;
+	await rememberTicketPr(sitePath);
 	if (!raw) {
 		const { ref: current, meta, site } = await activeBranch(sitePath, { migrate: true });
 		// Under a mid-switch marker the tree may be half another branch's and
@@ -2584,6 +2626,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 		// the mixture over that commit. Also the one exit when HEAD is on trunk
 		// already, which a switch that failed leaving trunk leaves behind.
 		const resume = Boolean(site.switchInProgress);
+		const impact = await ticketPrImpact(sitePath, current, TRUNK);
 		if (current !== TRUNK || resume) {
 			const progress = switchProgressReporter(event, sitePath);
 			try {
@@ -2597,31 +2640,34 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 			}
 		}
 		await mergeSiteMeta(sitePath, { tracTicket: null, currentBranch: TRUNK });
-		return { ok: true, ticket: null, branch: TRUNK };
+		return { ok: true, ticket: null, branch: TRUNK, ...impact };
 	}
 
 	const parsed = parseTicketRef(raw);
 	if (!parsed.ok) return { ok: false, error: parsed.error };
 
 	const branchRef = ticketBranchRef(parsed.id);
-	const blocked = await midSwitchBlock(sitePath, { retryTo: branchRef });
+	const checkoutRef = await ticketCheckoutRef(sitePath, branchRef);
+	const blocked = await midSwitchBlock(sitePath, { retryTo: checkoutRef });
 	if (blocked) return blocked;
 	const { ref: current, meta, site } = await activeBranch(sitePath, { migrate: true });
+	const impact = await ticketPrImpact(sitePath, site.switchInProgress?.from || current, checkoutRef);
+	if (checkoutRef !== branchRef) await mergeBranchMeta(sitePath, checkoutRef, { returnTo: branchRef });
 	if (site.switchInProgress) {
 		// The retry: finish the checkout the failed switch started, no park.
 		const progress = switchProgressReporter(event, sitePath);
 		try {
-			await withSwitchMarker(sitePath, () => resumeSwitch(sitePath, branchRef, { onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
+			await withSwitchMarker(sitePath, () => resumeSwitch(sitePath, checkoutRef, { onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
 		} finally {
 			progress.flush();
 		}
 		await mergeBranchMeta(sitePath, branchRef, { lastUsedAt: new Date().toISOString() });
-		await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: branchRef });
-		return { ok: true, ticket: parsed.id, branch: branchRef };
+		await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: checkoutRef });
+		return { ok: true, ticket: parsed.id, branch: checkoutRef, ...impact };
 	}
-	if (current === branchRef) {
-		await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: branchRef });
-		return { ok: true, ticket: parsed.id, branch: branchRef };
+	if (current === checkoutRef) {
+		await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: checkoutRef });
+		return { ok: true, ticket: parsed.id, branch: checkoutRef, ...impact };
 	}
 
 	const known = await listTicketBranches(sitePath);
@@ -2630,7 +2676,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 	if (known.includes(branchRef)) {
 		const progress = switchProgressReporter(event, sitePath);
 		try {
-			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
+			await withSwitchMarker(sitePath, () => switchToBranch(sitePath, checkoutRef, { baseOid: meta && meta.baseOid, onProgress: progress.emit, onChild: trackGitChild(sitePath) }));
 		} finally {
 			progress.flush();
 		}
@@ -2691,9 +2737,9 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 		...(baseOid === undefined ? {} : { baseOid }),
 		lastUsedAt: new Date().toISOString()
 	});
-	await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: branchRef });
+	await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: checkoutRef });
 	if (carriedFrom === TRUNK) reportCarriedWork(event, sitePath, parsed.id);
-	return { ok: true, ticket: parsed.id, branch: branchRef };
+	return { ok: true, ticket: parsed.id, branch: checkoutRef, ...impact };
 }));
 
 // The tickets open in a site, for the "Working on:" switcher. Reads the branches
@@ -2713,9 +2759,14 @@ ipcMain.handle('branches:list', async (_e, sitePath) => withRegisteredSite(siteP
 }));
 
 ipcMain.handle('branches:switch', async (event, sitePath, targetRef) => withRegisteredSite(sitePath, async () => {
+	const ticketRef = targetRef;
+	targetRef = await ticketCheckoutRef(sitePath, ticketRef);
 	const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath) || await midSwitchBlock(sitePath, { retryTo: targetRef });
 	if (blocked) return blocked;
+	await rememberTicketPr(sitePath);
+	if (targetRef !== ticketRef) await mergeBranchMeta(sitePath, targetRef, { returnTo: ticketRef });
 	const { ref: current, meta, site } = await activeBranch(sitePath, { migrate: true });
+	const impact = await ticketPrImpact(sitePath, site.switchInProgress?.from || current, targetRef);
 	const progress = switchProgressReporter(event, sitePath);
 	let result;
 	try {
@@ -2725,12 +2776,12 @@ ipcMain.handle('branches:switch', async (event, sitePath, targetRef) => withRegi
 	} finally {
 		progress.flush();
 	}
-	const ticketId = ticketIdFromRef(targetRef);
+	const ticketId = ticketIdFromRef(ticketRef);
 	if (targetRef !== TRUNK) {
 		await mergeBranchMeta(sitePath, targetRef, { lastUsedAt: new Date().toISOString() });
 	}
 	await mergeSiteMeta(sitePath, { currentBranch: targetRef, tracTicket: ticketId });
-	return { ok: true, from: current, to: targetRef, parked: result.parked, ticket: ticketId };
+	return { ok: true, from: current, to: targetRef, parked: result.parked, ticket: ticketId, ...impact };
 }));
 
 // "Update this ticket to the current trunk" (#385): the ticket's single WIP

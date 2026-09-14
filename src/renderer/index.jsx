@@ -50,7 +50,7 @@ import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { highlightLog } from './log-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
-import { changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
+import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage } from './confirmations.cjs';
 
@@ -1418,6 +1418,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // the trunk can retry the PR operation instead of routing `pr/N` through the
   // ticket parser (#458).
   const retryPrSwitchRef = useRef(null);
+  const ticketSwitchLifecycleRef = useRef(null);
   // Not every unhappy ending is a failure: a revert can find that the patch is
   // already gone, which resolves the situation rather than blocking it. Red
   // would read as "you broke something" when nothing is left to do.
@@ -1837,7 +1838,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setPatchSavedNotice('');
     // The previous switch's last sentence must not be this one's first frame.
     if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
+    let rebuilding = false;
+    let ownsTerminal = false;
     try {
+      ownsTerminal = await ticketSwitchLifecycleRef.current.begin();
+      if (!ownsTerminal) return;
       const res = await window.api.setSiteTicket(sitePath, ref, options);
       if (!res?.ok) {
         // `dirty-trunk` is a question, not a failure (#234): main refuses it
@@ -1879,9 +1884,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       await Promise.all([loadBranches(), loadStatus()]);
       // The tree under the note is a different branch's now (#239).
       reprobeAfterBranchChange();
+      rebuilding = ticketSwitchLifecycleRef.current.complete(res);
     } catch (e) {
       setTicketError(String(e));
     } finally {
+      if (ownsTerminal && !rebuilding) ticketSwitchLifecycleRef.current.finish();
       setTicketSaving(false);
     }
   }, [sitePath, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
@@ -2717,7 +2724,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   ) : null;
   // One gate for every ticket action, and the sentence that goes with it
   // (#409): a control this disables says why, through ReasonedButton.
-  const ticketActionsReason = ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building });
+  const ticketActionsReason = ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, applyState });
   const ticketActionsBlocked = Boolean(ticketActionsReason);
 
   // The one question both paths now ask (#234). Picking a ticket while trunk
@@ -2901,7 +2908,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     when: appliedPatch?.appliedAt ? new Date(appliedPatch.appliedAt).toLocaleString() : ''
   });
   const appliedPatchLabel = appliedPatch?.label || 'The patch you applied';
-  const prOwnershipRefusal = pullRequest ? prSubmissionRefusal(pullRequest.number, pullRequest.returnTo) : '';
+  const prOwnershipRefusal = pullRequest ? prSubmissionRefusal(pullRequest.number) : '';
   const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
   const prCheckout = pullRequest ? describePrCheckout(pullRequest) : null;
   const prPreview = applyPreview?.kind === 'pr' ? describePrPreview({
@@ -3364,6 +3371,29 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   };
   useLayoutEffect(() => {
     retryPrSwitchRef.current = runPrSwitch;
+    ticketSwitchLifecycleRef.current = {
+      begin: async () => {
+        if (terminalStateRef.current.running) {
+          setTicketError('A command is already running. Stop it before switching tickets.');
+          return false;
+        }
+        markTerminalRunning(true);
+        terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+        await pauseWatcher();
+        return true;
+      },
+      complete: (res) => {
+        if (!res.prTransition) return false;
+        setApplyKind('pr');
+        setApplyNeedsInstall(Boolean(res.needsInstall));
+        setApplyBuildByWatcher(false);
+        clearApplyError();
+        runApplyInstallAndBuild(Boolean(res.needsInstall), 'Restored', { runBuild: true, noun: 'saved work' });
+        return true;
+      },
+      finish: () => finishApply()
+    };
+
   });
 
   const runApply = async ({ reverse = false } = {}) => {
@@ -3715,6 +3745,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // put in the same box prefixed with 'Error'. The sentinel can arrive under
   // `#` lines naming binaries that could not be carried (#85), so the test is
   // "is there a diff under the commentary" rather than a string comparison.
+  const reviewContext = patchReviewContext({ pullRequest, tracTicket });
   const patchHasChanges = Boolean(patchText)
     && hasDiffLines(patchText)
     && !patchText.startsWith('Error');
@@ -4749,7 +4780,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ) : null}
       {skipInit ? (
       <div {...cueProps('link-ticket')} style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Trac ticket</div>
+        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{tracTicket ? `Working on ticket #${tracTicket}` : 'Trac ticket'}</div>
+        {prCheckout && !isApplying ? (
+          <div {...cueProps('pr-checkout')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #94d3ae', background: '#f4fbf4', borderRadius: 8 }}>
+            <div style={{ fontSize: 15, color: '#0f5132' }}><strong>{prCheckout.title}</strong></div>
+            <div style={{ marginTop: 6, fontSize: 13, color: '#3c434a' }}>{prCheckout.body} {prCheckout.edits}</div>
+            <div style={{ marginTop: 6, fontSize: 12 }}>Revert this PR before applying another PR or patch file.</div>
+            <Button variant="secondary" onClick={() => runPrSwitch({ leaving: true })} disabled={isUpdating || installing || building} style={{ marginTop: 10 }}>
+              {prCheckout.backLabel}
+            </Button>
+          </div>
+        ) : null}
         {tracTicket ? (
           <>
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -4884,7 +4925,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                             {' '}{pr.title}
                           </span>
                           {latestPill(latestPatch?.kind === 'pr' && latestPatch.key === pr.number)}
-                          {pullRequest?.number === pr.number ? <span style={{ ...pillStyle, background: '#f4fbf4', color: '#0f5132', marginLeft: 8 }}>Checked out</span> : null}
+                          {pullRequest?.number === pr.number ? <span style={{ ...pillStyle, background: '#f4fbf4', color: '#0f5132', marginLeft: 8 }}>Applied</span> : null}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, fontSize: 11, color: '#6c6f72' }}>
                           {prStatePill(pr.state)}
@@ -4894,13 +4935,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           })()}
                         </div>
                       </div>
-                      <Button
-                        variant="secondary"
-                        isBusy={fetchingPr === pr.number}
-                        disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingPr !== null || Boolean(pullRequest && pullRequest.number !== pr.number)}
-                        onClick={() => pullRequest?.number === pr.number ? runPrSwitch({ leaving: true }) : previewPr(pr)}
-                        style={{ flex: '0 0 auto' }}
-                      >{pullRequest?.number === pr.number ? describePrCheckout(pullRequest).backLabel : 'Apply…'}</Button>
+                      {pullRequest ? null : (
+                        <Button
+                          variant="secondary"
+                          isBusy={fetchingPr === pr.number}
+                          disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingPr !== null}
+                          onClick={() => previewPr(pr)}
+                          style={{ flex: '0 0 auto' }}
+                        >Apply…</Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -4967,6 +5010,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           {[att.author && `by ${att.author}`, att.dateText, att.sizeText].filter(Boolean).join(' · ')}
                         </div>
                       </div>
+                      {!pullRequest ? (
                       <Button
                         variant="secondary"
                         isBusy={fetchingAttachment === att.url}
@@ -4974,6 +5018,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         onClick={() => previewAttachment(att)}
                         style={{ flex: '0 0 auto' }}
                       >Apply…</Button>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -5030,23 +5075,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           {renderBranchRows(Boolean(tracTicket))}
         </div>
       ) : null}
-      {skipInit ? (
+      {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
           <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Apply a patch or PR</div>
-          {!applyPreview && !isApplying ? (
+          {!pullRequest && !applyPreview && !isApplying ? (
             <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
               Pull requests are checked out with their author&apos;s commits. A <code>.diff</code>/<code>.patch</code> file is applied to the current branch as a removable layer.
-            </div>
-          ) : null}
-
-          {prCheckout && !isApplying ? (
-            <div {...cueProps('pr-checkout')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #94d3ae', background: '#f4fbf4', borderRadius: 8 }}>
-              <div style={{ fontSize: 13, color: '#0f5132' }}><strong>{prCheckout.title}</strong></div>
-              <div style={{ marginTop: 6, fontSize: 12, color: '#3c434a' }}>{prCheckout.body}</div>
-              {prCheckout.edits ? <div style={{ marginTop: 6, fontSize: 12, color: '#3c434a' }}>{prCheckout.edits}</div> : null}
-              <Button variant="secondary" onClick={() => runPrSwitch({ leaving: true })} disabled={isUpdating || installing || building} style={{ marginTop: 10 }}>
-                {prCheckout.backLabel}
-              </Button>
             </div>
           ) : null}
 
@@ -5055,6 +5089,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <div style={{ fontSize: 13, color: appliedLayer.canRevert ? '#0f5132' : '#6e5406' }}>
                 <strong>{appliedLayer.label}</strong> {appliedLayer.summary}
               </div>
+              <div style={{ marginTop: 8, fontSize: 12 }}>This patch is applied to your current work. Removing it may require undoing overlapping edits.</div>
               {appliedLayer.explanation ? (
                 <div style={{ marginTop: 8, fontSize: 12, color: '#6e5406' }}>{appliedLayer.explanation}</div>
               ) : null}
@@ -5258,7 +5293,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             </div>
           ) : null}
 
-          {!applyPreview && !isApplying ? (
+          {!pullRequest && !applyPreview && !isApplying ? (
             <div style={{ marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 280, flex: '1 1 280px' }}>
@@ -5266,7 +5301,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     value={prUrlInput}
                     onChange={(value) => { setPrUrlInput(value); clearApplyError(); setApplyNotice(''); }}
                     onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); previewPrFromInput(); } }}
-                    disabled={Boolean(pullRequest) || isUpdating || installing || building}
+                    disabled={isUpdating || installing || building}
                     placeholder="Paste a pull request URL or number"
                     aria-label="Pull request URL or number"
                   />
@@ -5274,7 +5309,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <Button
                   variant="secondary"
                   onClick={previewPrFromInput}
-                  disabled={Boolean(pullRequest) || isUpdating || installing || building || !prUrlInput.trim()}
+                  disabled={isUpdating || installing || building || !prUrlInput.trim()}
                   style={{ padding: '10px 16px', borderRadius: 10 }}
                 >Apply PR</Button>
               </div>
@@ -5493,9 +5528,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
               </div>
             )}
-            {!patchLoading && !patchHasChanges && (
+            {!patchLoading && patchLoadFailed ? (
+              <div role="alert" style={{ padding: '12px 16px', color: '#8a2424', background: '#fcf0f1', borderRadius: 6 }}>
+                Could not load your changes. Close this panel and try again. The error is shown below.
+              </div>
+            ) : null}
+            {!patchLoading && !patchLoadFailed && !patchHasChanges && (
               <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
-                There is nothing to send yet — this site has no changes against its copy of trunk.
+                {reviewContext.empty}
               </div>
             )}
 {/*
@@ -5526,7 +5566,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
                   <div>
                     <div style={{ fontWeight:600, fontSize:14, color:'#1d2327', display:'flex', alignItems:'baseline', gap:4, flexWrap:'wrap' }}>
-                      {tracTicket ? `Your changes for ticket #${tracTicket}` : 'Your changes'}
+                      {reviewContext.heading}
                       <span style={{ fontWeight:400 }}>
                         {'('}
                         <DiscardChangesLink
@@ -5538,7 +5578,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         {')'}
                       </span>
                     </div>
-                    <div style={{ fontSize:12, color:'#6c6f72' }}>Everything this site has that its copy of trunk does not.</div>
+                    <div style={{ fontSize:12, color:'#6c6f72' }}>{reviewContext.description}</div>
                     {discardError ? <div style={{ color:'#d63638', fontSize:12, marginTop:4 }}>{discardError}</div> : null}
                   </div>
                   {/*
@@ -5548,12 +5588,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     pane is a column.
                   */}
                   <div style={{ display:'flex', gap:8 }}>
-                    <Button variant="secondary" icon={download} onClick={savePatch} disabled={patchLoading}>Save</Button>
+                    <Button variant="secondary" icon={download} onClick={savePatch} disabled={patchLoading || patchLoadFailed}>Save</Button>
                     <Button
                       variant="secondary"
                       icon={patchCopied === 'copied' ? checkIcon : copyIcon}
                       onClick={copyPatch}
-                      disabled={patchLoading}
+                      disabled={patchLoading || patchLoadFailed}
                       // The label carries the outcome rather than a tooltip or
                       // a toast: it is the thing that was just pressed, so it
                       // is where the eye already is, and a screen reader
