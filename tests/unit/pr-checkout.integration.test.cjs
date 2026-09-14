@@ -136,6 +136,28 @@ test('describePullRequestHead: the files are the pull request\'s own diff from w
 	assert.equal((await describePullRequestHead(dir, prOid, { currentHead: baseOid })).needsInstall, false, 'currentHead is honoured over HEAD');
 });
 
+test('describePullRequestHead: commit ids are validated before Git reads them (#458)', async (t) => {
+	const { origin, dir } = await makeSiteAndOrigin(t);
+	const prOid = addPullRequest(origin, 7, { [LOGIN]: '<?php // pr 7\n' });
+	await fetchPullRequestHead(dir, 7);
+
+	for (const bad of ['HEAD@{1}', TRUNK, prOid.slice(0, 39), '', prOid.toUpperCase()]) {
+		await assert.rejects(describePullRequestHead(dir, bad), (error) => error.code === 'bad-oid', `headOid: ${bad}`);
+		await assert.rejects(describePullRequestHead(dir, prOid, { currentHead: bad }), (error) => error.code === 'bad-oid', `currentHead: ${bad}`);
+	}
+});
+
+test('describePullRequestHead: a lockfile read failure is not reported as a missing lockfile (#458)', async (t) => {
+	const { origin, dir } = await makeSiteAndOrigin(t);
+	const prOid = addPullRequest(origin, 7, { [LOGIN]: '<?php // pr 7\n' });
+	await fetchPullRequestHead(dir, 7);
+
+	await assert.rejects(
+		describePullRequestHead(dir, prOid, { currentHead: 'f'.repeat(40) }),
+		(error) => error.name === 'GitError'
+	);
+});
+
 test('describePullRequestHead: a pull request that moves the lockfile needs an install, decided from the tree without fetching the blob (#458)', async (t) => {
 	const { origin, dir } = await makeSiteAndOrigin(t);
 	const prOid = addPullRequest(origin, 8, { [LOCKFILE]: '{"lockfileVersion":3}\n' });

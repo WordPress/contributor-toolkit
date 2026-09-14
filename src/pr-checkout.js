@@ -112,11 +112,7 @@ async function fetchPullRequestHead(dir, number, { onStderr = null, onProgress =
  * @param {string} oid
  */
 async function lockfileBlobOid(dir, oid) {
-	try {
-		return await blobOid(dir, oid, 'package-lock.json');
-	} catch {
-		return null;
-	}
+	return blobOid(dir, oid, 'package-lock.json');
 }
 
 /**
@@ -147,6 +143,8 @@ async function lockfileBlobOid(dir, oid) {
  * @return {Promise<{files: Array<{path: string, kind: string}>, needsInstall: boolean, base: ?string}>}
  */
 async function describePullRequestHead(dir, headOid, { currentHead = null, trunkRef = TRUNK } = {}) {
+	headOid = validOid(headOid);
+	currentHead = validOid(currentHead, { optional: true });
 	const base = await mergeBase(dir, trunkRef, headOid);
 	const rows = base ? await changedPathsBetween(dir, base, headOid) : [];
 	const kindOf = (before, after) => {
