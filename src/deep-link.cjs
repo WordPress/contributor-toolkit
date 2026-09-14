@@ -76,7 +76,7 @@ function refusalReason(url) {
 	// Userinfo is the shape used to make an address read as one host while
 	// resolving to another, so it is named as a host problem rather than as a
 	// malformed ticket.
-	if (parsed.username || parsed.password) return REFUSAL_REASONS.UNKNOWN_HOST;
+	if (parsed.username || parsed.password || parsed.port) return REFUSAL_REASONS.UNKNOWN_HOST;
 	if (parsed.hostname.toLowerCase() !== TICKET_HOST) return REFUSAL_REASONS.UNKNOWN_HOST;
 	return REFUSAL_REASONS.NOT_A_TICKET;
 }
@@ -211,8 +211,46 @@ function createDeepLinkQueue() {
 	};
 }
 
+/**
+ * How this app claims `wpct://` with the OS, or null when it cannot.
+ *
+ * The decision, not the call, so the three branches are testable: nothing in
+ * `app.whenReady()` runs in the unit suite, and a registration that silently
+ * points at the wrong file is exactly the failure that reports success.
+ *
+ * Packaged, the scheme name is the whole call. `build.protocols` in
+ * package.json has already put it in the macOS bundle and the Linux desktop
+ * entry; the NSIS target does not read that key, so on Windows this call, which
+ * writes HKCU\Software\Classes and needs no elevation, is the registration.
+ *
+ * Unpackaged, only Windows can be claimed at all. `path` and `args` are a
+ * Windows-only form of this API, and on macOS a scheme has to be in the
+ * bundle's Info.plist, which cannot be written at runtime — from source the
+ * bundle is Electron's own. So a `wpct://` link cannot be tested from `npm
+ * start` on macOS or Linux; that pass needs an installed build.
+ *
+ * The app path is passed in from `app.getAppPath()` rather than read from
+ * `process.argv[1]`, which is the script only when no switch preceded it:
+ * `electron --inspect .` would otherwise register a handler pointing at a file
+ * called `--inspect`, and report success.
+ *
+ * @param {Object}  [root0]
+ * @param {boolean} [root0.isPackaged]
+ * @param {string}  [root0.platform]   `process.platform`.
+ * @param {string}  [root0.execPath]   `process.execPath`.
+ * @param {string}  [root0.appPath]    What `app.getAppPath()` answered.
+ * @return {{scheme: string, execPath?: string, args?: string[]}|null} Null when there is nothing to claim.
+ */
+function protocolRegistration({ isPackaged = false, platform = '', execPath = '', appPath = '' } = {}) {
+	if (isPackaged) return { scheme: DEEP_LINK_SCHEME };
+	if (platform !== 'win32') return null;
+	if (!execPath || !appPath) return null;
+	return { scheme: DEEP_LINK_SCHEME, execPath, args: [appPath] };
+}
+
 module.exports = {
 	DEEP_LINK_SCHEME,
+	protocolRegistration,
 	REFUSAL_REASONS,
 	parseDeepLink,
 	pickDeepLinkArg,

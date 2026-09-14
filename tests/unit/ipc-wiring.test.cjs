@@ -110,6 +110,7 @@ function createElectronStub() {
 			const self = this;
 			this.webContents = {
 				send: (channel, payload) => { self.sent.push({ channel, payload }); },
+				isDestroyed: () => false,
 				on() {},
 				once() {},
 				setWindowOpenHandler() {},
@@ -151,11 +152,15 @@ function createElectronStub() {
 			// a missing stub would stop main.js loading at all rather than fail a
 			// handler — which is why it is here and not in a test's setup. The
 			// registration itself sits inside whenReady, which never settles
-			// here, so nothing calls it; it exists so a future change that moves
-			// it earlier does not fail as a missing function.
+			// here; what decides it is `protocolRegistration` in deep-link.cjs,
+			// covered by that module's own suite.
 			requestSingleInstanceLock: () => true,
 			setAsDefaultProtocolClient: () => true,
-			isReady: () => false
+			// True, not false: `showWindowForDeepLink` refuses to open a window
+			// before the app is ready, and with this false the whole main-process
+			// half of the deep-link flow returned on its first line in every test
+			// here — delivery included.
+			isReady: () => true
 		},
 		BrowserWindow: BrowserWindowStub,
 		Menu: {
@@ -5441,34 +5446,83 @@ test('a second instance with no address still only focuses the window (#464)', a
 	assert.equal(handleDeepLink.calls.length, 0, 'nothing to parse is not something to parse');
 });
 
-test('an accepted ticket reaches the queue, and deep-link:ready asks it for one (#464)', async () => {
-	// What the queue does with the ticket is its own suite's job
-	// (tests/unit/deep-link.test.cjs); this is the connection. The delivery that
-	// follows needs a window the harness cannot create — whenReady never settles
-	// here — so the send itself is covered by the manual pass, not by this.
-	const held = [];
-	const readied = [];
-	const delivered = [];
-	const queue = {
-		hold: (ticket) => { held.push(ticket); },
-		markReady: () => { readied.push(true); },
-		reset: () => {},
-		deliver: () => { delivered.push(true); return null; },
-		waiting: () => null
-	};
-	const handleDeepLink = spy((_url, { onTicket }) => { onTicket(62281); return true; });
-	const main = loadMain({
-		stubs: { ...silentLogging(), './deep-link.cjs': { handleDeepLink, createDeepLinkQueue: () => queue } }
-	});
+test('a ticket with no window open opens one, and reaches its page only once that page subscribes (#464)', async () => {
+	// The cold-start path end to end, through the real parser and the real
+	// queue. Nothing is stubbed but the logging: what this asserts is that a
+	// link with no window creates one (only child windows exist is the same
+	// case), that nothing is sent into a page that has not subscribed, and that
+	// `deep-link:ready` is what releases it.
+	const main = loadMain({ stubs: silentLogging() });
 
 	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281');
-	assert.deepEqual(held, [62281], 'the ticket no longer reaches the queue');
+
+	assert.equal(main.windows.length, 1, 'a link with no window open must open one');
+	assert.deepEqual(main.windows[0].sent, [], 'and must not send into a page that has not subscribed');
 
 	assert.equal(await main.invoke('deep-link:ready'), true);
-	assert.deepEqual(readied, [true], 'the ready handler no longer tells the queue it can deliver');
-	// No window exists here, so the flush stops before asking the queue for the
-	// ticket. That it stops there rather than throwing is the assertion.
-	assert.deepEqual(delivered, []);
+	assert.deepEqual(main.windows[0].sent, [{ channel: 'deep-link:ticket', payload: { ticket: 62281 } }]);
+});
+
+test('a refused address opens no window and sends nothing (#464)', async () => {
+	// The other half of "nothing happens until the address parses": any page can
+	// navigate to this scheme, so an address that is not a ticket must not even
+	// bring the app forward.
+	const main = loadMain({ stubs: silentLogging() });
+
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://evil/1');
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281/../9');
+
+	assert.equal(main.windows.length, 0);
+	assert.equal(await main.invoke('deep-link:ready'), true);
+	assert.equal(main.windows.length, 0, 'and nothing was queued to open one later');
+});
+
+test('a send that does not land keeps the ticket for the next page (#464)', async () => {
+	// The queue forgets a ticket only once the send returns. Asserted here and
+	// not only in the queue's own suite, because what makes it matter is this
+	// wiring: main catches the throw, and the ticket has to survive it.
+	const main = loadMain({ stubs: silentLogging() });
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281');
+
+	const win = main.windows[0];
+	win.webContents.send = () => { throw new Error('window is gone'); };
+	assert.equal(await main.invoke('deep-link:ready'), true, 'a failed send must not throw out of the handler');
+
+	const sent = [];
+	win.webContents.send = (channel, payload) => { sent.push({ channel, payload }); };
+	await main.invoke('deep-link:ready');
+	assert.deepEqual(sent, [{ channel: 'deep-link:ticket', payload: { ticket: 62281 } }], 'the ticket must survive a send that did not land');
+});
+
+test('a destroyed window is not sent a ticket, and does not consume one (#464)', async () => {
+	const main = loadMain({ stubs: silentLogging() });
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281');
+
+	const first = main.windows[0];
+	first.isDestroyed = () => true;
+	await main.invoke('deep-link:ready');
+	assert.deepEqual(first.sent, []);
+
+	// macOS: the app lives on without a window, and the next link reopens one.
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281');
+	assert.equal(main.windows.length, 2, 'a destroyed window must not count as a window');
+	await main.invoke('deep-link:ready');
+	assert.deepEqual(main.windows[1].sent, [{ channel: 'deep-link:ticket', payload: { ticket: 62281 } }]);
+});
+
+test('a second instance with an address delivers it, without one it only shows the window (#464)', async () => {
+	// Windows and Linux: the address is one argument among the second process's
+	// own, and a launch with no address is a request for the window that exists.
+	const main = loadMain({ stubs: silentLogging() });
+
+	await main.emitAppEvent('second-instance', {}, ['C:\\app.exe', '--no-sandbox', 'wpct://ticket/49215']);
+	assert.equal(main.windows.length, 1);
+	await main.invoke('deep-link:ready');
+	assert.deepEqual(main.windows[0].sent, [{ channel: 'deep-link:ticket', payload: { ticket: 49215 } }]);
+
+	await main.emitAppEvent('second-instance', {}, ['C:\\app.exe']);
+	assert.equal(main.windows.length, 1, 'no address is not a reason for another window');
+	assert.deepEqual(main.windows[0].sent.length, 1, 'and nothing more to deliver');
 });
 
 // --- coverage guard ------------------------------------------------------

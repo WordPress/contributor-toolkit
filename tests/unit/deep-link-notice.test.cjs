@@ -26,18 +26,14 @@ test('a site is open: the question names the ticket and the site', () => {
 	assert.ok(notice.confirmLabel, 'this is the one state with an action');
 });
 
-test('sites exist but none is open: the ticket waits, and says how to place it', () => {
-	const notice = deepLinkNotice({ ticket: 62281, siteCount: 3 });
-	assert.equal(notice.state, 'no-active-site');
-	assert.ok(notice.title.includes('62281'));
-	assert.equal(notice.confirmLabel, null, 'there is no site to link it to yet');
-});
-
-test('no sites at all: the ticket waits on a site being created', () => {
-	const notice = deepLinkNotice({ ticket: 62281, siteCount: 0 });
+test('no site to put it in: the ticket waits on one being created', () => {
+	// There is deliberately no "sites exist but none is open" state. The window
+	// always has one selected when there is one to select, so a sentence for
+	// that case would be wording no contributor can reach.
+	const notice = deepLinkNotice({ ticket: 62281 });
 	assert.equal(notice.state, 'no-sites');
 	assert.ok(notice.title.includes('62281'));
-	assert.equal(notice.confirmLabel, null);
+	assert.equal(notice.confirmLabel, null, 'there is no site to link it to yet');
 });
 
 test('a link for the ticket the site is already on is not a question', () => {
@@ -62,8 +58,8 @@ test('a link for the ticket the site is already on is not a question', () => {
 test('an unnamed active site is not an active site', () => {
 	// The confirmation is consent to a checkout in a particular site. A sentence
 	// that cannot name it is not a question worth asking, so it falls back to
-	// the state that names none.
-	const notice = deepLinkNotice({ ticket: 62281, siteLabel: '', siteCount: 2 });
-	assert.equal(notice.state, 'no-active-site');
+	// the state that offers nothing.
+	const notice = deepLinkNotice({ ticket: 62281, siteLabel: '' });
+	assert.equal(notice.state, 'no-sites');
 	assert.equal(notice.confirmLabel, null);
 });

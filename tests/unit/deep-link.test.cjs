@@ -8,7 +8,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { parseDeepLink, pickDeepLinkArg, handleDeepLink, createDeepLinkQueue, REFUSAL_REASONS, DEEP_LINK_SCHEME } = require('../../src/deep-link.cjs');
+const { parseDeepLink, pickDeepLinkArg, handleDeepLink, createDeepLinkQueue, protocolRegistration, REFUSAL_REASONS, DEEP_LINK_SCHEME } = require('../../src/deep-link.cjs');
 
 test('the scheme is the one the build config registers', () => {
 	// package.json's build.protocols and this constant are the two halves of one
@@ -60,6 +60,39 @@ test('only this scheme, and only this host', () => {
 	// The address that reads as one host and resolves as another.
 	assert.equal(parseDeepLink('wpct://ticket@evil/62281').reason, REFUSAL_REASONS.UNKNOWN_HOST);
 	assert.equal(parseDeepLink('wpct://user:pw@ticket/62281').reason, REFUSAL_REASONS.UNKNOWN_HOST);
+	// A port is part of the authority, so it is named as a host problem rather
+	// than as a malformed ticket. Log wording, but the log is how a refusal is
+	// ever noticed.
+	assert.equal(parseDeepLink('wpct://ticket:80/62281').reason, REFUSAL_REASONS.UNKNOWN_HOST);
+});
+
+test('how the scheme is claimed with the OS, per platform', () => {
+	// Packaged: the scheme name is the whole call. On macOS and Linux the
+	// installer has already registered it; on Windows this is the registration.
+	assert.deepEqual(
+		protocolRegistration({ isPackaged: true, platform: 'darwin', execPath: '/e', appPath: '/a' }),
+		{ scheme: DEEP_LINK_SCHEME }
+	);
+	assert.deepEqual(
+		protocolRegistration({ isPackaged: true, platform: 'win32', execPath: '/e', appPath: '/a' }),
+		{ scheme: DEEP_LINK_SCHEME }
+	);
+
+	// From source, only Windows can be claimed at all: `path` and `args` are a
+	// Windows-only form, and macOS needs the scheme in a bundle's Info.plist,
+	// which cannot be written at runtime.
+	assert.deepEqual(
+		protocolRegistration({ isPackaged: false, platform: 'win32', execPath: 'C:\\electron.exe', appPath: 'C:\\repo' }),
+		{ scheme: DEEP_LINK_SCHEME, execPath: 'C:\\electron.exe', args: ['C:\\repo'] }
+	);
+	assert.equal(protocolRegistration({ isPackaged: false, platform: 'darwin', execPath: '/e', appPath: '/a' }), null);
+	assert.equal(protocolRegistration({ isPackaged: false, platform: 'linux', execPath: '/e', appPath: '/a' }), null);
+
+	// The app path is the one thing this must not guess. It comes from
+	// `app.getAppPath()`; an empty one is no registration rather than a handler
+	// pointing at nothing that reports success.
+	assert.equal(protocolRegistration({ isPackaged: false, platform: 'win32', execPath: 'C:\\electron.exe', appPath: '' }), null);
+	assert.equal(protocolRegistration(), null);
 });
 
 test('the id goes through the app\'s own definition of a ticket', () => {

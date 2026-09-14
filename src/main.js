@@ -80,7 +80,7 @@ const { parseHandle } = require('./wporg-handle.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
-const { DEEP_LINK_SCHEME, handleDeepLink, pickDeepLinkArg, createDeepLinkQueue } = require('./deep-link.cjs');
+const { handleDeepLink, pickDeepLinkArg, createDeepLinkQueue, protocolRegistration } = require('./deep-link.cjs');
 
 const LOCAL_EXCLUDES_MARKER = '# WordPress Contributor Toolkit local excludes';
 const LOCAL_EXCLUDES = [
@@ -507,6 +507,11 @@ function createWindow() {
 			nodeIntegration: false
 		}
 	});
+
+	// A reload is a new page with no subscription, exactly like a new window, so
+	// a ticket waiting when one starts keeps waiting for the page that follows
+	// rather than being flushed into one that is still loading.
+	mainWindow.webContents.on('did-start-loading', () => deepLinkQueue.reset());
 
 	mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 }
@@ -2193,27 +2198,17 @@ app.whenReady().then(() => {
 	// it must not build a window or take the store with it on the way.
 	if (!gotSingleInstanceLock) return;
 
-	// Claims `wpct://` for this app.
-	//
-	// Two halves, and Windows has only this one. `build.protocols` in
-	// package.json is read by electron-builder for the macOS bundle
-	// (CFBundleURLTypes) and the Linux desktop entry (x-scheme-handler/wpct),
-	// but not by the NSIS target — so on Windows the registration is this call,
-	// writing HKCU\Software\Classes on first run, which needs no elevation.
-	//
-	// Unpackaged, only Windows can be claimed at all, and only there does the
-	// three-argument form mean anything: `path` and `args` are Windows-only, and
-	// on macOS a scheme has to be in the bundle's Info.plist, which cannot be
-	// written at runtime — from source the bundle is Electron's own. So a
-	// `wpct://` link cannot be tested from `npm start` on macOS or Linux; that
-	// pass needs an installed build. The app path comes from `getAppPath()`
-	// rather than `process.argv[1]`, which is the script only when no switch was
-	// passed — `electron --inspect .` would otherwise register a handler
-	// pointing at a file called `--inspect`, and report success.
-	if (app.isPackaged) {
-		app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME);
-	} else if (process.platform === 'win32') {
-		app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME, process.execPath, [app.getAppPath()]);
+	// Claims `wpct://` with the OS. Which form of the call, or none at all, is
+	// `protocolRegistration` in deep-link.cjs, where the three branches are
+	// testable — nothing in here runs in the unit suite.
+	const registration = protocolRegistration({
+		isPackaged: app.isPackaged,
+		platform: process.platform,
+		execPath: process.execPath,
+		appPath: app.getAppPath()
+	});
+	if (registration) {
+		app.setAsDefaultProtocolClient(registration.scheme, registration.execPath, registration.args);
 	}
 
 	// Before createWindow(): initLogging preloads the IPC bridge that carries

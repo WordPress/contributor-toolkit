@@ -984,13 +984,14 @@ function App() {
                 </Card>
               )}
 
-              {/* A ticket arrived from a link with nowhere to put it: no site
-                  open, or no sites at all. The site in front of the contributor
-                  gets its own confirmation inside the ticket panel, where the
-                  ticket would go — this is only the other two states. */}
+              {/* A ticket arrived from a link and there is no site to put it
+                  in. The site in front of the contributor gets its own
+                  confirmation inside the ticket panel, where the ticket would
+                  go; `activeSite` is null only when there are no sites at all,
+                  so this is the one other case. */}
               {(() => {
                 if (!deepLink || activeSite) return null;
-                const notice = deepLinkNotice({ ticket: deepLink.ticket, siteCount: sortedSites.length });
+                const notice = deepLinkNotice({ ticket: deepLink.ticket });
                 if (!notice) return null;
                 return (
                   <div role="status" style={{ marginBottom: 24, padding: '12px 14px', background: '#f0f6fc', border: '1px solid #72aee6', borderRadius: 8, color: '#1d2327' }}>
@@ -4743,10 +4744,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           <div style={{ fontWeight: 600 }}>{deepLinkPrompt.title}</div>
           <div style={{ marginTop: 4, fontSize: 13 }}>{deepLinkPrompt.body}</div>
           <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {/* No `isBusy`: answering clears the App's deep-link value, so this
+                button is gone in the same tick it is pressed. What the link
+                started is then reported where every other ticket link reports
+                it — the panel's own progress line and `ticketError`. */}
             <ReasonedButton
               variant="primary"
               onClick={acceptDeepLink}
-              isBusy={ticketSaving}
               reason={skipInit ? ticketActionsReason : 'Finish setting this site up first.'}
             >{deepLinkPrompt.confirmLabel}</ReasonedButton>
             <Button variant="link" onClick={dismissDeepLink}>Not now</Button>

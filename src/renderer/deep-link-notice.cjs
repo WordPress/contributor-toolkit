@@ -1,11 +1,16 @@
 // What the app says when a ticket arrives from a `wpct://` link (#464).
 //
 // The link carries a ticket and nothing else, so where it can land depends on
-// what the window already has open: the site in front of the contributor, a
-// list of sites with none chosen, or no sites at all. Three states, one
-// sentence each, kept here rather than inline in index.jsx for the reason
+// what the window already has open: the site in front of the contributor, or no
+// site at all. Kept here rather than inline in index.jsx for the reason
 // legacy-site.cjs and open-failure.cjs give: the renderer bundle imports it and
 // `node --test` requires it, so the wording is testable without a window.
+//
+// There is deliberately no "sites exist but none is open" state. The window
+// always has one selected when there is one to select — `activeSite` falls back
+// to the first site and nothing deselects it — so a sentence for that case
+// would be wording no contributor can reach, and a paragraph in the guide
+// promising behaviour the app does not have.
 //
 // Every state asks, none of them acts. Linking a ticket parks the current
 // branch and checks out another, which is the app's most far-reaching ordinary
@@ -32,11 +37,10 @@
  * @param {Object}             [root0]
  * @param {number}             [root0.ticket]        The ticket the link carried.
  * @param {string}             [root0.siteLabel]     The active site's name, if one is open.
- * @param {number}             [root0.siteCount]     How many sites are registered.
  * @param {number|string|null} [root0.currentTicket] The ticket the active site is already on.
  * @return {{state: string, title: string|null, body: string|null, confirmLabel: string|null}|null} Null only when no link has arrived.
  */
-function deepLinkNotice({ ticket = null, siteLabel = '', siteCount = 0, currentTicket = null } = {}) {
+function deepLinkNotice({ ticket = null, siteLabel = '', currentTicket = null } = {}) {
 	if (!ticket) return null;
 
 	if (currentTicket !== null && String(ticket) === String(currentTicket)) {
@@ -49,15 +53,6 @@ function deepLinkNotice({ ticket = null, siteLabel = '', siteCount = 0, currentT
 			title: `Link ticket #${ticket} to ${siteLabel}?`,
 			body: 'The ticket number came from a link. Linking it parks whatever the site is on now and checks out this ticket’s branch, so the app asks first.',
 			confirmLabel: 'Link ticket'
-		};
-	}
-
-	if (siteCount > 0) {
-		return {
-			state: 'no-active-site',
-			title: `Ticket #${ticket} is ready to link.`,
-			body: 'Choose a site in the sidebar and the app will offer it there.',
-			confirmLabel: null
 		};
 	}
 
