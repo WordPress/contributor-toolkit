@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Button,
@@ -3362,7 +3362,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       finishApply();
     });
   };
-  retryPrSwitchRef.current = runPrSwitch;
+  useLayoutEffect(() => {
+    retryPrSwitchRef.current = runPrSwitch;
+  });
 
   const runApply = async ({ reverse = false } = {}) => {
     const state = terminalStateRef.current;

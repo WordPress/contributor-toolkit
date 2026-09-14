@@ -2,7 +2,18 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { describePrCheckout, describePrPreview, prSubmissionRefusal, prCheckoutRefusal } = require('../../src/renderer/pr-checkout.cjs');
+
+test('the dirty-trunk PR retry publishes only the callback from a committed render (#458)', () => {
+	const source = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'renderer', 'index.jsx'), 'utf8');
+	const assignment = 'retryPrSwitchRef.current = runPrSwitch;';
+	assert.equal(source.split(assignment).length - 1, 1, 'expected one retry callback assignment');
+	const committedEffect = [...source.matchAll(/useLayoutEffect\(\(\) => \{([\s\S]*?)\n  \}\);/g)]
+		.find((match) => match[1].includes(assignment));
+	assert.ok(committedEffect, 'retry callback assignment must run in a layout effect, after React commits the render');
+});
 
 test('PR checkout names the return ticket and explains where edits stay', () => {
 	const result = describePrCheckout({ number: 7, returnTo: 'ticket/62010', hasEdits: true });
