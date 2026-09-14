@@ -1939,15 +1939,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // it means, and its button links that ticket directly — so writing over what
   // they typed would buy nothing.
   const deepLinkTicket = (deepLink && deepLink.ticket) ? deepLink.ticket : null;
-  const deepLinkPrompt = deepLinkNotice({
+  // Which of the states the link is in is the module's decision, not this
+  // file's; here it is only rendered and dispatched.
+  const deepLinkState = deepLinkNotice({
     ticket: deepLinkTicket,
     siteLabel: displayName,
     currentTicket: tracTicket
   });
-  // A ticket with nothing to ask about is one this site is on already. Cleared
-  // rather than merely hidden, so the question does not resurface on the next
-  // site the contributor opens.
-  const deepLinkSettled = deepLinkTicket !== null && !deepLinkPrompt;
+  const deepLinkPrompt = deepLinkState && deepLinkState.state === 'confirm' ? deepLinkState : null;
+  // `settled` is a link for the ticket this site is on already. Cleared rather
+  // than merely hidden, so the question does not resurface on the next site the
+  // contributor opens.
+  const deepLinkSettled = Boolean(deepLinkState && deepLinkState.state === 'settled');
   useEffect(() => {
     if (deepLinkSettled && onDeepLinkDone) onDeepLinkDone();
   }, [deepLinkSettled, onDeepLinkDone]);

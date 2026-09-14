@@ -521,12 +521,19 @@ const deepLinkQueue = createDeepLinkQueue();
 function flushDeepLink() {
 	// On macOS the window can be closed while the app lives on. The ticket keeps
 	// waiting for the one `showWindowForDeepLink` opens rather than being sent
-	// into a destroyed webContents and lost.
+	// into a destroyed webContents and lost. Both objects are checked: a window
+	// can outlive its webContents.
 	if (!mainWindow || mainWindow.isDestroyed?.()) return;
-	const ticket = deepLinkQueue.take();
-	if (ticket === null) return;
-	logEvent('deep-link', `delivering ticket ${ticket}`);
-	try { mainWindow.webContents.send(DEEP_LINK_CHANNEL, { ticket }); } catch {}
+	const contents = mainWindow.webContents;
+	if (!contents || contents.isDestroyed?.()) return;
+	try {
+		// The queue forgets the ticket only once the send returns, so a window
+		// that goes away between the check above and the send keeps it.
+		const ticket = deepLinkQueue.deliver((id) => contents.send(DEEP_LINK_CHANNEL, { ticket: id }));
+		if (ticket !== null) logEvent('deep-link', `delivering ticket ${ticket}`);
+	} catch (e) {
+		logError('deep-link', `delivery failed, ticket kept: ${String(e && e.message ? e.message : e)}`);
+	}
 }
 
 // Brings the app forward for a ticket that has already been accepted.

@@ -41,19 +41,55 @@ const REFUSAL_REASONS = {
 	NOT_A_TICKET: 'not-a-ticket'
 };
 
+// The whole grammar, matched against the address exactly as it arrived.
+//
+// Anchored and literal on purpose. Reading the parts off `new URL()` instead
+// means the accepted address and the address that was checked are two different
+// strings: the URL parser resolves `..` before anything here sees the path, so
+// `wpct://ticket/62281/../9` becomes ticket 9, and it strips tabs and newlines
+// from the middle of a scheme, so `wp<TAB>ct://ticket/1` validates as this one.
+// Neither is dangerous — a ticket id is all that ever comes out — but each is
+// an address the app answers and does not document, and the point of a boundary
+// is that it is exactly as wide as it says.
+//
+// Case-insensitive because an OS may hand the scheme or the host back in any
+// case. A trailing slash because an address bar tends to add one.
+const DEEP_LINK_PATTERN = new RegExp(`^${DEEP_LINK_SCHEME}://${TICKET_HOST}/(\\d+)/?$`, 'i');
+
+/**
+ * Why an address that is not a ticket link is not one — for the log line, never
+ * for a contributor. Best-effort and after the fact: the accept decision is
+ * `DEEP_LINK_PATTERN` above and nothing else, so this only has to name which
+ * way the address missed.
+ *
+ * @param {string} url
+ * @return {string} One of REFUSAL_REASONS.
+ */
+function refusalReason(url) {
+	let parsed;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return REFUSAL_REASONS.UNPARSEABLE;
+	}
+	if (parsed.protocol !== `${DEEP_LINK_SCHEME}:`) return REFUSAL_REASONS.WRONG_SCHEME;
+	// Userinfo is the shape used to make an address read as one host while
+	// resolving to another, so it is named as a host problem rather than as a
+	// malformed ticket.
+	if (parsed.username || parsed.password) return REFUSAL_REASONS.UNKNOWN_HOST;
+	if (parsed.hostname.toLowerCase() !== TICKET_HOST) return REFUSAL_REASONS.UNKNOWN_HOST;
+	return REFUSAL_REASONS.NOT_A_TICKET;
+}
+
 /**
  * Reads a ticket id out of a `wpct://` address, or says why it will not.
  *
- * Accepts `wpct://ticket/62281` and `wpct://ticket?id=62281`, with or without a
- * trailing slash. The host is read off the parsed URL rather than the raw
- * string so casing (`WPCT://TICKET/1`) is normalized before the comparison
- * instead of being a way around it, and an address Node cannot parse is refused
- * rather than guessed at.
+ * The one accepted form is `wpct://ticket/62281`, with or without a trailing
+ * slash. There is deliberately no `?id=` form: nothing produces one, and a
+ * second spelling is a second thing to be sure about.
  *
- * Note what a `/`-separated path buys an attacker here: nothing. The id is
- * matched as digits and nothing else, so `wpct://ticket/../../etc/passwd` fails
- * the pattern rather than being resolved as a path — this value never reaches
- * the filesystem, a shell, or `openExternal` in any case.
+ * The id is checked against the app's own `parseTicketRef` rather than a second
+ * definition of what a ticket is — which is also where the upper bound lives.
  *
  * @param {string} url
  * @return {{ok: true, ticket: number}|{ok: false, reason: string}}
@@ -63,41 +99,10 @@ function parseDeepLink(url) {
 		return { ok: false, reason: REFUSAL_REASONS.NOT_A_STRING };
 	}
 
-	let parsed;
-	try {
-		parsed = new URL(url);
-	} catch {
-		return { ok: false, reason: REFUSAL_REASONS.UNPARSEABLE };
-	}
+	const match = DEEP_LINK_PATTERN.exec(url);
+	if (!match) return { ok: false, reason: refusalReason(url) };
 
-	if (parsed.protocol !== `${DEEP_LINK_SCHEME}:`) {
-		return { ok: false, reason: REFUSAL_REASONS.WRONG_SCHEME };
-	}
-
-	// `wpct://ticket/1` parses with `ticket` as the host; `wpct:ticket/1`, which
-	// an OS or a page could also produce, parses with an empty host and the
-	// whole thing in the pathname. Only the first form is answered: one shape
-	// to reason about is worth more than one more way to be reached.
-	if (parsed.hostname.toLowerCase() !== TICKET_HOST) {
-		return { ok: false, reason: REFUSAL_REASONS.UNKNOWN_HOST };
-	}
-
-	// A password or a username in the authority is not a ticket link. It is the
-	// shape used to make an address read as one host while resolving to
-	// another, and this app has no use for it.
-	if (parsed.username || parsed.password) {
-		return { ok: false, reason: REFUSAL_REASONS.UNKNOWN_HOST };
-	}
-
-	const fromPath = /^\/?(\d+)\/?$/.exec(parsed.pathname);
-	const raw = fromPath ? fromPath[1] : parsed.searchParams.get('id');
-	if (typeof raw !== 'string' || !/^\d+$/.test(raw)) {
-		return { ok: false, reason: REFUSAL_REASONS.NOT_A_TICKET };
-	}
-
-	// The app's one definition of a valid ticket, which is also where the upper
-	// bound on the id lives.
-	const ref = parseTicketRef(raw);
+	const ref = parseTicketRef(match[1]);
 	if (!ref.ok) return { ok: false, reason: REFUSAL_REASONS.NOT_A_TICKET };
 
 	return { ok: true, ticket: ref.id };
@@ -162,13 +167,17 @@ function handleDeepLink(url, { onTicket, onRefused } = {}) {
  * One slot, not a queue of many: two links clicked before the app is up are one
  * contributor changing their mind, and the last one is the answer.
  *
- * `take()` clears the ticket, so it is delivered once. A page reloaded *after*
- * that and before the contributor answers has lost it — the app offers no
- * reload, so that costs a ticket only under devtools, and holding it until an
- * answer would mean a second channel for "answered" to keep the two sides in
- * step.
+ * `deliver` clears the ticket only once the send has actually returned, so a
+ * window that closes mid-flight leaves the ticket where it was rather than
+ * consuming it into a failed send. Taking first and sending after is the same
+ * class of bug as the loading-page one above, in a narrower window.
  *
- * @return {{hold: (ticket: number) => void, markReady: () => void, reset: () => void, take: () => number|null, waiting: () => number|null}}
+ * What it deliberately does not survive is a page reloaded *after* a successful
+ * delivery and before the contributor answers. The app offers no reload, so
+ * that costs a ticket only under devtools, and holding it until an answer would
+ * mean a second channel for "answered" to keep the two sides in step.
+ *
+ * @return {{hold: (ticket: number) => void, markReady: () => void, reset: () => void, deliver: (send: (ticket: number) => void) => number|null, waiting: () => number|null}}
  */
 function createDeepLinkQueue() {
 	let pending = null;
@@ -181,9 +190,20 @@ function createDeepLinkQueue() {
 		// A new page is loading: whatever is waiting keeps waiting, but there is
 		// nobody to send it to until that page subscribes in its turn.
 		reset() { ready = false; },
-		take() {
+		/**
+		 * Hands the waiting ticket to `send`, and forgets it only if that
+		 * returns. A `send` that throws leaves the ticket here, for the next
+		 * window or the next `markReady`, and the throw goes to the caller to
+		 * log — losing a ticket quietly is the one outcome this whole module
+		 * exists to prevent.
+		 *
+		 * @param {(ticket: number) => void} send
+		 * @return {number|null} The ticket delivered, or null if there was none.
+		 */
+		deliver(send) {
 			if (!ready || pending === null) return null;
 			const ticket = pending;
+			send(ticket);
 			pending = null;
 			return ticket;
 		},

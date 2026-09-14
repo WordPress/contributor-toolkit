@@ -5447,12 +5447,13 @@ test('an accepted ticket reaches the queue, and deep-link:ready asks it for one 
 	// follows needs a window the harness cannot create — whenReady never settles
 	// here — so the send itself is covered by the manual pass, not by this.
 	const held = [];
-	const takes = [];
+	const readied = [];
+	const delivered = [];
 	const queue = {
 		hold: (ticket) => { held.push(ticket); },
-		markReady: () => {},
+		markReady: () => { readied.push(true); },
 		reset: () => {},
-		take: () => { takes.push(true); return null; },
+		deliver: () => { delivered.push(true); return null; },
 		waiting: () => null
 	};
 	const handleDeepLink = spy((_url, { onTicket }) => { onTicket(62281); return true; });
@@ -5464,9 +5465,10 @@ test('an accepted ticket reaches the queue, and deep-link:ready asks it for one 
 	assert.deepEqual(held, [62281], 'the ticket no longer reaches the queue');
 
 	assert.equal(await main.invoke('deep-link:ready'), true);
-	// No window exists here, so the flush stops before asking the queue. That it
-	// stops there rather than throwing is the assertion.
-	assert.deepEqual(takes, []);
+	assert.deepEqual(readied, [true], 'the ready handler no longer tells the queue it can deliver');
+	// No window exists here, so the flush stops before asking the queue for the
+	// ticket. That it stops there rather than throwing is the assertion.
+	assert.deepEqual(delivered, []);
 });
 
 // --- coverage guard ------------------------------------------------------

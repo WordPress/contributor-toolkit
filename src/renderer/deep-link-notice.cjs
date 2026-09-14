@@ -23,19 +23,25 @@
  *
  * `currentTicket` is the ticket the active site is on. A link for that same
  * ticket is not a question — the contributor is already looking at it — so it
- * yields no notice at all, and the caller can read "a ticket, but nothing to
- * ask" as the moment to clear it.
+ * comes back as the `settled` state: nothing to render, and the ticket is done
+ * with. That is a state and not a `null` because the caller has to tell it from
+ * "no link has arrived", which is the only thing `null` means here. Reading a
+ * missing notice as an instruction to discard the ticket is exactly the kind of
+ * decision this module exists to keep out of index.jsx.
  *
  * @param {Object}             [root0]
  * @param {number}             [root0.ticket]        The ticket the link carried.
  * @param {string}             [root0.siteLabel]     The active site's name, if one is open.
  * @param {number}             [root0.siteCount]     How many sites are registered.
  * @param {number|string|null} [root0.currentTicket] The ticket the active site is already on.
- * @return {{state: string, title: string, body: string, confirmLabel: string|null}|null}
+ * @return {{state: string, title: string|null, body: string|null, confirmLabel: string|null}|null} Null only when no link has arrived.
  */
 function deepLinkNotice({ ticket = null, siteLabel = '', siteCount = 0, currentTicket = null } = {}) {
 	if (!ticket) return null;
-	if (currentTicket !== null && String(ticket) === String(currentTicket)) return null;
+
+	if (currentTicket !== null && String(ticket) === String(currentTicket)) {
+		return { state: 'settled', title: null, body: null, confirmLabel: null };
+	}
 
 	if (siteLabel) {
 		return {

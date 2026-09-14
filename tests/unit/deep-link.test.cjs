@@ -22,20 +22,33 @@ test('the forms a link can take', () => {
 	assert.deepEqual(parseDeepLink('wpct://ticket/62281'), { ok: true, ticket: 62281 });
 	// A trailing slash is what a browser's address bar tends to produce.
 	assert.deepEqual(parseDeepLink('wpct://ticket/62281/'), { ok: true, ticket: 62281 });
-	assert.deepEqual(parseDeepLink('wpct://ticket?id=62281'), { ok: true, ticket: 62281 });
 	// The scheme and the host arrive however the OS spells them.
 	assert.deepEqual(parseDeepLink('WPCT://TICKET/62281'), { ok: true, ticket: 62281 });
 });
 
-test('a path is matched, never resolved', () => {
-	// The shape that would matter if this value ever reached a filesystem. It
-	// does not, and it also does not parse: the id is digits or nothing.
+test('the address is judged as it arrived, not as a URL parser rewrites it', () => {
+	// Each of these is a shape `new URL()` would hand on as something else, and
+	// the reason the accept decision is a literal match on the raw string. None
+	// of them is dangerous — a ticket id is all that ever comes out — but each
+	// would be an address the app answers and does not document.
 	assert.equal(parseDeepLink('wpct://ticket/../../etc/passwd').reason, REFUSAL_REASONS.NOT_A_TICKET);
-	// The URL parser resolves `..` before this module sees the path, so what
-	// arrives here is already `/9`. Recorded rather than refused: whatever route
-	// the address took, the only thing that survives the digits check is a
-	// ticket id, and a ticket id is all the app does with it.
-	assert.deepEqual(parseDeepLink('wpct://ticket/62281/../9'), { ok: true, ticket: 9 });
+	// `..` is resolved before a path read off the parser would see it: this one
+	// would otherwise arrive as ticket 9.
+	assert.equal(parseDeepLink('wpct://ticket/62281/../9').reason, REFUSAL_REASONS.NOT_A_TICKET);
+	// A control character in the middle of the scheme is stripped by the parser,
+	// so this would otherwise validate as `wpct:`.
+	assert.equal(parseDeepLink('wp\tct://ticket/62281').reason, REFUSAL_REASONS.NOT_A_TICKET);
+	assert.equal(parseDeepLink('wpct://ticket/62281#/9').reason, REFUSAL_REASONS.NOT_A_TICKET);
+	assert.equal(parseDeepLink(' wpct://ticket/62281').reason, REFUSAL_REASONS.NOT_A_TICKET);
+});
+
+test('there is one spelling, and `?id=` is not it', () => {
+	// Nothing produces the query form, and a second spelling is a second thing
+	// to be sure about. It also used to be a way in: with a path that is not a
+	// ticket, the query was read anyway.
+	assert.equal(parseDeepLink('wpct://ticket?id=62281').reason, REFUSAL_REASONS.NOT_A_TICKET);
+	assert.equal(parseDeepLink('wpct://ticket/not-a-ticket?id=9').reason, REFUSAL_REASONS.NOT_A_TICKET);
+	assert.equal(parseDeepLink('wpct://ticket/62281?id=9').reason, REFUSAL_REASONS.NOT_A_TICKET);
 });
 
 test('only this scheme, and only this host', () => {
@@ -54,7 +67,7 @@ test('the id goes through the app\'s own definition of a ticket', () => {
 	assert.equal(parseDeepLink('wpct://ticket/99999999999').reason, REFUSAL_REASONS.NOT_A_TICKET);
 	assert.equal(parseDeepLink('wpct://ticket/1e3').reason, REFUSAL_REASONS.NOT_A_TICKET);
 	assert.equal(parseDeepLink('wpct://ticket/').reason, REFUSAL_REASONS.NOT_A_TICKET);
-	assert.equal(parseDeepLink('wpct://ticket?id=abc').reason, REFUSAL_REASONS.NOT_A_TICKET);
+	assert.equal(parseDeepLink('wpct://ticket/-1').reason, REFUSAL_REASONS.NOT_A_TICKET);
 });
 
 test('input that is not an address at all', () => {
@@ -116,56 +129,90 @@ test('handleDeepLink needs no onRefused', () => {
 
 test('a ticket that arrives before the renderer is kept, not handed out', () => {
 	const queue = createDeepLinkQueue();
+	const sent = [];
+	const send = (ticket) => { sent.push(ticket); };
 	queue.hold(62281);
 
-	assert.equal(queue.take(), null, 'nobody is listening yet');
+	assert.equal(queue.deliver(send), null, 'nobody is listening yet');
+	assert.deepEqual(sent, [], 'and nothing may be sent into a page that has not subscribed');
 	assert.equal(queue.waiting(), 62281, 'and the ticket must still be there');
 
 	queue.markReady();
-	assert.equal(queue.take(), 62281);
+	assert.equal(queue.deliver(send), 62281);
+	assert.deepEqual(sent, [62281]);
 });
 
 test('a ticket is handed out once', () => {
 	const queue = createDeepLinkQueue();
+	const sent = [];
+	const send = (ticket) => { sent.push(ticket); };
 	queue.markReady();
 	queue.hold(62281);
 
-	assert.equal(queue.take(), 62281);
-	assert.equal(queue.take(), null, 'a second flush must not deliver it again');
+	assert.equal(queue.deliver(send), 62281);
+	assert.equal(queue.deliver(send), null, 'a second flush must not deliver it again');
+	assert.deepEqual(sent, [62281]);
 	assert.equal(queue.waiting(), null);
+});
+
+test('a send that fails keeps the ticket', () => {
+	// The window can go between the check that it exists and the send. Clearing
+	// first and sending after would consume the ticket into that failure, which
+	// is the same silent loss as sending into a loading page, in a narrower
+	// window.
+	const queue = createDeepLinkQueue();
+	queue.markReady();
+	queue.hold(62281);
+
+	assert.throws(() => queue.deliver(() => { throw new Error('window is gone'); }), /window is gone/);
+	assert.equal(queue.waiting(), 62281, 'the ticket must survive a send that did not land');
+
+	const sent = [];
+	assert.equal(queue.deliver((ticket) => { sent.push(ticket); }), 62281, 'and the next window gets it');
+	assert.deepEqual(sent, [62281]);
 });
 
 test('nothing waiting is not something to deliver', () => {
 	const queue = createDeepLinkQueue();
-	assert.equal(queue.take(), null);
+	const sent = [];
+	const send = (ticket) => { sent.push(ticket); };
+	assert.equal(queue.deliver(send), null);
 	queue.markReady();
-	assert.equal(queue.take(), null);
+	assert.equal(queue.deliver(send), null);
+	assert.deepEqual(sent, []);
 });
 
 test('two links before the app is up are one answer, the last', () => {
 	// A contributor changing their mind, not two tickets to open.
 	const queue = createDeepLinkQueue();
+	const sent = [];
+	const send = (ticket) => { sent.push(ticket); };
 	queue.hold(62281);
 	queue.hold(49215);
 	queue.markReady();
 
-	assert.equal(queue.take(), 49215);
-	assert.equal(queue.take(), null);
+	assert.equal(queue.deliver(send), 49215);
+	assert.equal(queue.deliver(send), null);
+	assert.deepEqual(sent, [49215]);
 });
 
 test('a new window waits for its own page to subscribe', () => {
 	// macOS: the window is closed, the app lives on, a link reopens it. The
 	// ticket held across that must not be sent into the page while it loads.
 	const queue = createDeepLinkQueue();
+	const sent = [];
+	const send = (ticket) => { sent.push(ticket); };
 	queue.markReady();
 	queue.hold(62281);
 	queue.reset();
 
-	assert.equal(queue.take(), null, 'the new page has not subscribed yet');
+	assert.equal(queue.deliver(send), null, 'the new page has not subscribed yet');
+	assert.deepEqual(sent, []);
 	assert.equal(queue.waiting(), 62281);
 
 	queue.markReady();
-	assert.equal(queue.take(), 62281);
+	assert.equal(queue.deliver(send), 62281);
+	assert.deepEqual(sent, [62281]);
 });
 
 /**
