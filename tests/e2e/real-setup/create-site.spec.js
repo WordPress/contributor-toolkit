@@ -4,7 +4,35 @@ const path = require( 'node:path' );
 const { finished } = require( 'node:stream/promises' );
 const { test, expect } = require( '../helpers/app.cjs' );
 
-test( 'a new site downloads, installs, builds and serves WordPress', async ( { session, request }, testInfo ) => {
+const { execFileSync } = require( 'node:child_process' );
+
+// One real setup per contribution target (#251). The steps are the same; what
+// differs is the choice in the dialog, what the status reports, and what the
+// served WordPress must show: Core serves its own build/, Gutenberg is a plugin
+// inside a stock WordPress.
+const TARGETS = [
+	{ choice: 'WordPress Core (Trac tickets)', projectType: 'core', servedAsPlugin: false },
+	{ choice: 'Gutenberg (GitHub issues)', projectType: 'gutenberg', servedAsPlugin: true },
+];
+
+// Whether any process of the Gutenberg watcher tree (tsc --watch, wp-build
+// --watch, the esbuild service) is still alive under the site. POSIX only:
+// the tree is killed through the process group there (kill-tree.js), which is
+// the mechanism this checks; Windows uses taskkill /T and has no cheap
+// equivalent probe from here.
+function watcherProcessesAlive( sitePath ) {
+	if ( process.platform === 'win32' ) return null;
+	try {
+		const out = execFileSync( 'pgrep', [ '-f', sitePath ], { encoding: 'utf8' } );
+		return out.trim().split( '\n' ).filter( Boolean ).length;
+	} catch {
+		// pgrep exits 1 when nothing matches.
+		return 0;
+	}
+}
+
+for ( const target of TARGETS ) {
+test( `a new ${ target.projectType } site downloads, installs, builds and serves WordPress`, async ( { session, request }, testInfo ) => {
 	test.skip( process.env.TOOLKIT_REAL_SETUP !== '1', 'Set TOOLKIT_REAL_SETUP=1 to allow a real network install.' );
 	const parent = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-real-setup-' ) ) );
 	const sitePath = path.join( parent, 'real-setup' );
@@ -20,9 +48,22 @@ test( 'a new site downloads, installs, builds and serves WordPress', async ( { s
 	try {
 		await test.step( 'Create a site in an isolated temporary directory', async () => {
 			await session.answerFileDialog( [ parent ] );
-			await page.getByRole( 'button', { name: 'Create WordPress Core site', exact: true } ).click();
-			const modal = page.getByRole( 'dialog', { name: 'Create WordPress Core site' } );
-			await modal.getByLabel( 'Site name', { exact: true } ).fill( 'real-setup' );
+			await page.getByRole( 'button', { name: 'Create a site', exact: true } ).click();
+			const modal = page.getByRole( 'dialog', { name: 'Create a site' } );
+			const choice = modal.getByRole( 'radio', { name: target.choice, exact: true } );
+			await choice.click();
+			await expect( choice ).toBeChecked();
+			// Filled after the choice, and read back until it is right. In the
+			// first seconds of a freshly started app the value Playwright filled
+			// came back with letters added or dropped ("real-setupes",
+			// "real-setu"), and the site then landed in a folder this test was
+			// not watching. Not reproduced by hand or in a warmed-up app; a
+			// refill is what a person would do on seeing it.
+			const name = modal.getByLabel( 'Site name', { exact: true } );
+			await expect( async () => {
+				await name.fill( 'real-setup' );
+				await expect( name ).toHaveValue( 'real-setup', { timeout: 2_000 } );
+			} ).toPass( { timeout: 30_000 } );
 			await modal.getByLabel( 'Site location', { exact: true } ).press( 'Enter' );
 			await modal.getByRole( 'button', { name: 'Create site', exact: true } ).click();
 		} );
@@ -36,6 +77,7 @@ test( 'a new site downloads, installs, builds and serves WordPress', async ( { s
 			const status = await page.evaluate( ( dir ) => window.api.getSiteStatus( dir ), sitePath );
 			expect( status.hasNodeModules ).toBe( true );
 			expect( status.hasBuilt ).toBe( true );
+			expect( status.projectType ).toBe( target.projectType );
 			await testInfo.attach( 'site-status.json', {
 				body: JSON.stringify( status, null, 2 ), contentType: 'application/json',
 			} );
@@ -57,8 +99,36 @@ test( 'a new site downloads, installs, builds and serves WordPress', async ( { s
 				expect( html ).toContain( 'id="loginform"' );
 				expect( html ).toContain( 'name="log"' );
 			} ).toPass( { timeout: 60_000, intervals: [ 2_000, 5_000 ] } );
+			if ( target.servedAsPlugin ) {
+				// INVARIANT: the served WordPress runs the checkout as its active
+				// Gutenberg plugin, and cannot delete it. Read off the Plugins
+				// screen after logging in with the credentials every site uses;
+				// the request context keeps the cookies.
+				const login = await request.post( new URL( '/wp-login.php', adminUrl ).href, {
+					form: { log: 'admin', pwd: 'password', 'wp-submit': 'Log In', testcookie: '1', redirect_to: new URL( '/wp-admin/plugins.php', adminUrl ).href },
+					timeout: 15_000,
+				} );
+				expect( login.status() ).toBe( 200 );
+				const plugins = await login.text();
+				const row = /data-slug="gutenberg"[\s\S]*?<\/tr>/.exec( plugins );
+				expect( row, 'the Plugins screen lists the mounted checkout' ).not.toBeNull();
+				expect( row[ 0 ] ).toContain( 'Deactivate' );
+				expect( plugins ).not.toMatch( />Delete</ );
+			}
 			await page.getByRole( 'button', { name: 'Stop build watch', exact: true } ).click();
 			await page.getByRole( 'button', { name: 'Stop dev server', exact: true } ).click();
+			await expect( page.getByRole( 'button', { name: 'Start dev server', exact: true } ) ).toBeVisible( { timeout: 60_000 } );
+		} );
+
+		await test.step( 'Stopping the watch ends its whole process tree', async () => {
+			// INVARIANT: no watcher process survives Stop. Gutenberg's `npm run
+			// dev` is a tree (tsc, wp-build, an esbuild service) that outlives a
+			// signal to npm alone; kill-tree.js signals the group.
+			const alive = watcherProcessesAlive( sitePath );
+			if ( alive === null ) return;
+			await expect( async () => {
+				expect( watcherProcessesAlive( sitePath ) ).toBe( 0 );
+			} ).toPass( { timeout: 20_000, intervals: [ 1_000 ] } );
 		} );
 	} finally {
 		// The session fixture captures failure evidence, quits (killing child
@@ -70,3 +140,4 @@ test( 'a new site downloads, installs, builds and serves WordPress', async ( { s
 		await testInfo.attach( 'app.log', { path: logPath, contentType: 'text/plain' } );
 	}
 } );
+}

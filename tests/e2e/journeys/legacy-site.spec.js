@@ -33,9 +33,9 @@ test( 'a site the old engine made is read, refused on every write, and can still
 	// INVARIANT — the way out is one click away: the banner opens the create
 	// modal the sidebar button opens.
 	await page.getByRole( 'button', { name: 'Create site', exact: true } ).click();
-	await expect( page.getByRole( 'dialog', { name: 'Create WordPress Core site' } ) ).toBeVisible();
+	await expect( page.getByRole( 'dialog', { name: 'Create a site' } ) ).toBeVisible();
 	await page.keyboard.press( 'Escape' );
-	await expect( page.getByRole( 'dialog', { name: 'Create WordPress Core site' } ) ).toHaveCount( 0 );
+	await expect( page.getByRole( 'dialog', { name: 'Create a site' } ) ).toHaveCount( 0 );
 
 	// INVARIANT — deleting is not behind the refusal.
 	await page.getByRole( 'button', { name: 'More', exact: true } ).click();

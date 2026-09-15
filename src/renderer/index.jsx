@@ -12,6 +12,7 @@ import {
   MenuGroup,
   MenuItem,
   Modal,
+  RadioControl,
   SnackbarList,
   TextControl,
   TextareaControl,
@@ -28,7 +29,7 @@ import { computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
-import { getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
+import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
@@ -153,6 +154,10 @@ const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
 const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
 const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
+// What the create-site dialog offers under "Contribute to", read off the
+// registry so the copy and the order live in one place. Core is first, and
+// the default.
+const CREATE_SITE_TYPE_OPTIONS = Object.values(PROJECT_TYPES).map((t) => ({ label: t.wizardLabel, value: t.id }));
 // Why the ticket's PR list could not be read, worded for the contributor.
 const TICKET_PATCH_STATUS_MESSAGE = {
   'rate-limited': 'GitHub is rate-limiting this connection.',
@@ -371,6 +376,7 @@ function App() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createSiteName, setCreateSiteName] = useState('');
   const [createSiteDir, setCreateSiteDir] = useState('');
+  const [createSiteType, setCreateSiteType] = useState(DEFAULT_PROJECT_TYPE);
   const [createSiteError, setCreateSiteError] = useState('');
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
@@ -558,6 +564,7 @@ function App() {
     if (createSubmitting) return;
     setCreateSiteName('');
     setCreateSiteDir('');
+    setCreateSiteType(DEFAULT_PROJECT_TYPE);
     setCreateSiteError('');
     setCreateModalOpen(true);
   }, [createSubmitting]);
@@ -615,6 +622,8 @@ function App() {
     setCreateModalOpen(false);
     setCreateSiteName('');
     setCreateSiteDir('');
+    const chosenType = createSiteType;
+    setCreateSiteType(DEFAULT_PROJECT_TYPE);
 
     try {
       setCreateSubmitting(true);
@@ -622,7 +631,7 @@ function App() {
       setTerminalMsgs('');
       addPendingSite(targetDir);
       appendSetupLog(targetDir, 'Starting site setup…\n');
-      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
+      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed, projectType: chosenType });
       if (createdPath) {
         finalSitePath = createdPath;
         // Ordinarily already done, by the `cloning` status this handler's own
@@ -656,7 +665,7 @@ function App() {
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, createSiteType, moveSetupLog, refresh]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
@@ -927,10 +936,10 @@ function App() {
             onClick={chooseAndSetup}
             disabled={createSubmitting}
             style={{ width: '100%', justifyContent: 'center' }}
-            aria-label="Create WordPress Core site"
+            aria-label="Create a site"
             label={createSubmitting ? 'Finish creating the current site first' : undefined}
           >
-            {!sidebarCollapsed ? 'Create WordPress Core site' : null}
+            {!sidebarCollapsed ? 'Create a site' : null}
           </Button>
         </div>
       </div>
@@ -1051,7 +1060,7 @@ function App() {
       {createModalOpen ? (
         <Modal
           className="create-site-modal"
-          title="Create WordPress Core site"
+          title="Create a site"
           onRequestClose={closeCreateModal}
           shouldCloseOnClickOutside={!createSubmitting}
         >
@@ -1070,6 +1079,14 @@ function App() {
               placeholder="My WordPress site"
               // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: this is the first field of a just-opened modal.
               autoFocus
+            />
+            <RadioControl
+              label="Contribute to"
+              help="What this site is a checkout of: which repository it clones, how it builds and runs, and where its pull requests go. It cannot be changed later."
+              selected={createSiteType}
+              options={CREATE_SITE_TYPE_OPTIONS}
+              onChange={(value) => setCreateSiteType(value)}
+              disabled={createSubmitting}
             />
             <label htmlFor={CREATE_SITE_LOCATION_INPUT_ID} style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#1d2327' }}>Site location</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
