@@ -3470,10 +3470,12 @@ ipcMain.handle('npm:kill', async (_event, { runId, directoryPath }) => {
 		// signals only the first link, so stopping a build left the rest of it
 		// running (#83, #146). An install is the same shape: runner -> npm.
 		killChildTree(child);
-		// Last resort for a child that ignores SIGTERM. Only the direct child: by
-		// this point the tree has had its chance, and the runner dying takes the
-		// pipes with it.
-		setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, 3000);
+		// Last resort for a tree that ignores SIGTERM: the same group signal,
+		// forced. It used to reach only the direct child, and the runner dying
+		// took the pipes with it but not a descendant that had chosen to sit
+		// through the first signal (Gutenberg's native `tsc --build`, #251).
+		// A tree that already closed is skipped by killChildTree itself.
+		setTimeout(() => { killChildTree(child, { signal: 'SIGKILL' }); }, 3000);
 		return { ok: true };
 	} catch (e) {
 		return { ok: false, error: String(e) };

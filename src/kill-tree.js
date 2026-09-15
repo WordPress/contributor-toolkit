@@ -15,6 +15,13 @@
 //   have been spawned with `detached: true`, which makes it a group leader its
 //   descendants stay inside; falls back to signalling the child alone when the
 //   group signal fails (e.g. the child was not detached).
+//
+// The signal is SIGTERM by default and SIGKILL on request, for the caller that
+// gave the tree its chance and found part of it still there: Gutenberg's
+// `npm run dev` runs the native TypeScript binary, which sits through a
+// SIGTERM while it is mid-build, and a SIGKILL that reached only the direct
+// child (the runner) left `tsc --build` running after Stop (#251). Windows
+// needs no second step, `taskkill /F` forces from the start.
 
 'use strict';
 
@@ -22,16 +29,17 @@
  * Pure decision: how to kill the tree rooted at `pid` on `platform`.
  * Returns null for a pid that cannot identify a live process.
  *
- * @param {string} platform
- * @param {number} pid
+ * @param {string}              platform
+ * @param {number}              pid
+ * @param {'SIGTERM'|'SIGKILL'} [signal] POSIX only; Windows always forces.
  * @return {?Object}
  */
-function killTreePlan(platform, pid) {
+function killTreePlan(platform, pid, signal = 'SIGTERM') {
 	if (!Number.isInteger(pid) || pid <= 0) return null;
 	if (platform === 'win32') {
 		return { type: 'command', command: 'taskkill', args: ['/pid', String(pid), '/T', '/F'] };
 	}
-	return { type: 'signal', signal: 'SIGTERM', target: -pid, fallback: pid };
+	return { type: 'signal', signal, target: -pid, fallback: pid };
 }
 
 /**
@@ -43,19 +51,21 @@ function killTreePlan(platform, pid) {
  * @param {Object}   [deps]           Injection points, so the tests can assert
  *                                    the plan without spawning anything.
  * @param {string}   [deps.platform]
+ * @param {string}   [deps.signal]    'SIGTERM' (default) or 'SIGKILL'.
  * @param {Function} [deps.spawnSync]
  * @param {Function} [deps.kill]
  * @return {boolean}
  */
 function killChildTree(child, {
 	platform = process.platform,
+	signal = 'SIGTERM',
 	spawnSync = require('child_process').spawnSync,
 	kill = process.kill
 } = {}) {
 	if (!child || !child.pid) return false;
 	// exitCode/signalCode are set once the child has exited; nothing to do then.
 	if (child.exitCode !== null || child.signalCode) return false;
-	const plan = killTreePlan(platform, child.pid);
+	const plan = killTreePlan(platform, child.pid, signal);
 	if (!plan) return false;
 	if (plan.type === 'command') {
 		try { spawnSync(plan.command, plan.args, { windowsHide: true }); } catch {}
