@@ -2,43 +2,42 @@
 
 /**
  * Decides what starting the dev server has to run, from whether the site
- * already has a completed build.
+ * already has a completed build and which target it is a checkout of.
  *
- * Kept as a pure, dependency-free module so it can be unit tested without a
- * DOM: the renderer bundle imports it, `node --test` requires it directly
- * (same convention as setup-steps.cjs).
+ * Kept as a pure module so it can be unit tested without a DOM: the renderer
+ * bundle imports it, `node --test` requires it directly (same convention as
+ * setup-steps.cjs). Its one dependency is the project-type registry, which
+ * is pure too.
  *
- * Why the watcher is `grunt -- _watch` and not `npm run watch`:
- * wordpress-develop's Gruntfile renames the real watch task to `_watch` and
- * registers a `watch` wrapper that runs the entire production `build` task
- * first when invoked without arguments. On a site that has already completed
- * the wizard's full build that rebuild has nothing to do, yet it is where
- * tens of minutes go on every dev-server start (30+ on a Windows VM).
- * Invoking `_watch` through the `grunt` passthrough script starts the same
- * watchers immediately. Sites without a completed build still need one, so
- * they get `npm run build` — whose exit code is a real completion signal —
- * before the watcher starts.
- *
- * The `'--'` in the watcher args is load-bearing: script-runner.js
- * deliberately does not insert a separator, and without one npm consumes
- * `_watch` as its own argument and runs bare `grunt` — the default task,
- * i.e. a full build with no watcher.
+ * The watcher command is the target's (#251): Core's is `grunt -- _watch`,
+ * Gutenberg's is `npm run dev`. The registry holds each with the reasoning
+ * beside it; what this module decides is only whether a build has to run
+ * first. Sites without a completed build need one, so they get `npm run
+ * build`, whose exit code is a real completion signal, before the watcher
+ * starts.
  */
 
-const WATCH_SCRIPT = 'grunt';
-const WATCH_ARGS = ['--', '_watch'];
-const WATCH_COMMAND_LABEL = 'npm run grunt -- _watch';
+const { getProjectType } = require('../project-type.cjs');
 
-function planDevServerStart(flags = {}) {
+/**
+ * `build` is the registry's `build` entry for the site's type. It defaults to
+ * Core's, so a caller that does not know the type gets what every site got
+ * before.
+ *
+ * @param {{hasBuilt?: boolean}}                                     [flags]
+ * @param {{watch: {script: string, args: string[], label: string}}} [build]
+ * @return {{needsBuild: boolean, watch: {script: string, args: string[], label: string}}}
+ */
+function planDevServerStart(flags = {}, build = getProjectType().build) {
 	const hasBuilt = Boolean(flags.hasBuilt);
 	return {
 		// True when `npm run build` must run (and exit 0) before the watcher
 		// and the server may start.
 		needsBuild: !hasBuilt,
 		watch: {
-			script: WATCH_SCRIPT,
-			args: WATCH_ARGS.slice(),
-			label: WATCH_COMMAND_LABEL
+			script: build.watch.script,
+			args: build.watch.args.slice(),
+			label: build.watch.label
 		}
 	};
 }
