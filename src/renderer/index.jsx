@@ -2014,7 +2014,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // ticket twice is two events), and it is null while another site is in
   // front, which must not un-hide what the contributor hid here.
   const [deepLinkNoteHidden, setDeepLinkNoteHidden] = useState(false);
-  useEffect(() => { if (deepLink) setDeepLinkNoteHidden(false); }, [deepLink]);
+  // The stamp, not the object: the prop goes object → null → the same object
+  // when another site is looked at and this one comes back, and that is not
+  // a new arrival.
+  const deepLinkAt = deepLink ? deepLink.at : null;
+  useEffect(() => { if (deepLinkAt) setDeepLinkNoteHidden(false); }, [deepLinkAt]);
   const deepLinkNote = deepLinkNoteHidden ? null : deepLinkNoteState;
   // `settled` is a link for the ticket this site is on already. Cleared rather
   // than merely hidden, so the question does not resurface on the next site the
@@ -5849,7 +5853,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                   <DestinationGroup>
                     <Destination
                       title="Open a pull request"
-                      cost="A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk."
+                      cost={project.cards.prCost}
                       after={project.cards.prAfter}
                     >
                       {/*
