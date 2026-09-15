@@ -2028,7 +2028,9 @@ test('npm:install refuses to start when the compat preload cannot be installed (
 
 test('npm:kill ends the script tree rather than signalling the runner alone', async (t) => {
 	const cp = stubbedSpawn();
-	const killChildTree = spy();
+	// Answers true like the real one: the escalation is armed only when the
+	// polite signal was actually attempted.
+	const killChildTree = spy(() => true);
 	const killTreeByPid = spy();
 	const main = loadMain({
 		stubs: {
@@ -2089,7 +2091,7 @@ test('npm:kill stands the escalation down once the tree has closed', async (t) =
 		stubs: {
 			...silentLogging(),
 			'child_process': { spawn: cp.spawn },
-			'./kill-tree': { killChildTree: spy(), killTreeByPid }
+			'./kill-tree': { killChildTree: spy(() => true), killTreeByPid }
 		}
 	});
 	const { runId } = await main.invoke('npm:run-script', '/sites/wp', 'build');
