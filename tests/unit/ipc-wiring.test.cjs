@@ -2365,13 +2365,17 @@ test('sites:set-ticket refuses unregistered site paths before writing metadata',
 
 // --- apply handlers (#11) ------------------------------------------------
 
-test('git:preview-patch reads the patch through patch-plan', async () => {
+test('git:preview-patch reads the patch through patch-plan, in the site\'s layout', async () => {
 	const parsePatchFiles = spy(() => ({ ok: false, error: 'unreadable' }));
-	const main = loadMain({ stubs: { ...silentLogging(), './patch-plan.cjs': { parsePatchFiles, planApply: () => ({}) } } });
+	const settings = fakeSettingsStore({ sites: ['/sites/wp', '/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-plan.cjs': { parsePatchFiles, planApply: () => ({}) } } });
 
 	const result = await main.invoke('git:preview-patch', '/sites/wp', 'PATCH TEXT');
+	await main.invoke('git:preview-patch', '/sites/gb', 'PATCH TEXT');
 
-	assert.deepEqual(parsePatchFiles.calls, [['PATCH TEXT']]);
+	// The layout is the registry's for the site (#251): a record with no type
+	// reads as Core, so the preview steers paths under src/ as it always did.
+	assert.deepEqual(parsePatchFiles.calls, [['PATCH TEXT', { layout: 'src-layout' }], ['PATCH TEXT', { layout: 'repo-relative' }]]);
 	assert.deepEqual(result, { ok: false, error: 'unreadable' });
 });
 
@@ -2573,6 +2577,25 @@ test('git:apply-patch refuses an unregistered site path before touching patch-ap
 
 	assert.deepEqual(await applyDone(event, applyId), { applyId, ok: false, error: 'Site is not registered' });
 	assert.deepEqual(applyPatchToDir.calls, []);
+});
+
+// The site's patch layout rides with every apply and undo (#251): a Gutenberg
+// site's diffs are applied where they name the file, a Core site's are steered
+// under src/ as they always were.
+test('git:apply-patch hands patch-apply the site\'s layout, on the apply and on the undo', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['packages/a.js'], skipped: [] }));
+	const settings = fakeSettingsStore({ sites: ['/sites/gb', '/sites/wp'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' }, '/sites/wp': {} } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const gb = createIpcEvent();
+	const { applyId: gbId } = await main.invokeWith('git:apply-patch', gb, '/sites/gb', { patchText: 'PATCH', label: 'PR 1' });
+	await applyDone(gb, gbId);
+	const wp = createIpcEvent();
+	const { applyId: wpId } = await main.invokeWith('git:apply-patch', wp, '/sites/wp', { patchText: 'PATCH', label: 'PR 2' });
+	await applyDone(wp, wpId);
+
+	assert.equal(applyPatchToDir.calls[0][0].layout, 'repo-relative');
+	assert.equal(applyPatchToDir.calls[1][0].layout, 'src-layout');
 });
 
 test('git:apply-patch delegates a forward apply to patch-apply and records it', async () => {

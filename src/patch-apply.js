@@ -449,15 +449,16 @@ function rollback(dir, snapshot) {
  * @param {boolean}  [root0.reverse]
  * @param {Function} [root0.onLog]
  * @param {string}   [root0.platform] For the Windows worktree view; injection point for tests.
+ * @param {string}   [root0.layout]   The site's patch layout (#251); wordpress-develop's when absent.
  * @return {Promise<Object>}
  */
-async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => {}, platform = process.platform }) {
-	const parsed = parsePatchFiles(patchText);
+async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => {}, platform = process.platform, layout = undefined }) {
+	const parsed = parsePatchFiles(patchText, { layout });
 	if (!parsed.ok) return { ok: false, error: parsed.error };
 
 	let text;
 	try {
-		text = rewritePatchPaths(normalizeEol(patchText));
+		text = rewritePatchPaths(normalizeEol(patchText), { layout });
 	} catch (e) {
 		return { ok: false, error: `Could not read the patch: ${String(e && e.message ? e.message : e)}` };
 	}

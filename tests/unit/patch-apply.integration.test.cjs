@@ -1369,3 +1369,24 @@ test('rollback: does not remove unrelated contents of a replacement directory (#
 	assert.notStrictEqual(rollback(dir, taken).length, 0);
 	assert.strictEqual(fs.readFileSync(path.join(link, 'nested/unrelated'), 'utf8'), 'keep\n');
 });
+
+// A checkout that keeps its files where the diff names them (#251): the Core
+// rewrite would send `wp-admin/…` under src/, and the apply would then refuse a
+// file that is right there.
+test('applyPatchToDir: a repo-relative layout applies to the path as named, and reverts (#251)', async (t) => {
+	const ROOTED = 'wp-admin/admin.php';
+	const dir = makeRepo(t, { [ROOTED]: FOO_BODY });
+	const patch = FOO_PATCH.split(FOO).join(ROOTED);
+
+	const core = await applyPatchToDir({ dir, patchText: patch });
+	assert.strictEqual(core.ok, false, 'read the Core way, the file is looked for under src/ and is not there');
+
+	const res = await applyPatchToDir({ dir, patchText: patch, layout: 'repo-relative' });
+	assert.strictEqual(res.ok, true, res.error);
+	assert.deepStrictEqual(res.applied, [ROOTED]);
+	assert.strictEqual(fs.readFileSync(path.join(dir, ROOTED), 'utf8'), 'one\nTWO\nthree\n');
+
+	const back = await applyPatchToDir({ dir, patchText: patch, reverse: true, layout: 'repo-relative' });
+	assert.strictEqual(back.ok, true, back.error);
+	assert.strictEqual(fs.readFileSync(path.join(dir, ROOTED), 'utf8'), FOO_BODY);
+});
