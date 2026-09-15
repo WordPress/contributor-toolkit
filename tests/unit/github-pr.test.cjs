@@ -21,6 +21,7 @@ const {
 	classifyFailure,
 	MAX_NOTES_LENGTH,
 	testMode,
+	baseBranchFor,
 	ensureFork,
 	resolveBase,
 	staleTouchedPaths,
@@ -121,6 +122,38 @@ test('buildPullRequestBody bounds the notes it was given', () => {
 test('branchNameFor suffixes rather than reusing a taken name', () => {
 	assert.strictEqual(branchNameFor(62281), 'trac-62281');
 	assert.strictEqual(branchNameFor('#62281', 1), 'trac-62281-2');
+});
+
+// The project type's prefix and body line (#251): a Gutenberg branch is
+// `fix/issue-N` and its body closes the issue with GitHub's own keyword. Core's
+// output is byte-for-byte what it was, since no existing caller passes a project.
+test('branchNameFor and buildPullRequestBody follow the project when given one', () => {
+	assert.strictEqual(branchNameFor(71234, 0, 'fix/issue-'), 'fix/issue-71234');
+	assert.strictEqual(branchNameFor(71234, 2, 'fix/issue-'), 'fix/issue-71234-3');
+
+	const gutenberg = { bodyLine: (id) => `Fixes #${id}`, workItemUrl: 'https://github.com/WordPress/gutenberg/issues/71234' };
+	const body = buildPullRequestBody({ ticketId: 71234, handle: 'janedoe', notes: 'Notes.', project: gutenberg });
+	assert.deepStrictEqual(body.split('\n'), [
+		'Notes.',
+		'',
+		'Fixes #71234',
+		'',
+		'Written by @janedoe on WordPress.org.',
+		'',
+		'Opened from the WordPress Contributor Toolkit.'
+	]);
+	assert.strictEqual(body.includes('Trac'), false);
+
+	// The Core line is passed the work item's URL, which is what it cites.
+	const core = { bodyLine: (id, url) => `Trac ticket: ${url}`, workItemUrl: 'https://core.trac.wordpress.org/ticket/62281' };
+	assert.strictEqual(
+		buildPullRequestBody({ ticketId: 62281, project: core }),
+		buildPullRequestBody({ ticketId: 62281 })
+	);
+
+	assert.strictEqual(baseBranchFor(), 'trunk');
+	assert.strictEqual(baseBranchFor({ owner: 'WordPress', repo: 'gutenberg', base: 'trunk' }), 'trunk');
+	assert.strictEqual(baseBranchFor({ base: 'main' }), 'main');
 });
 
 // classifyHttpFailure reads a 401 with a spent quota as rate-limiting, which is
@@ -635,6 +668,110 @@ test('WP_DEV_ENV_GITHUB_UPSTREAM points the whole flow at a sandbox', async (t) 
 	assert.strictEqual(api.calls.some((c) => c.url.includes('wordpress-develop')), false);
 });
 
+// A Gutenberg site's project type (#251) points every step at the site's own
+// repository: the fork is `<login>/gutenberg`, the branch is `fix/issue-N`,
+// the pull request lands on WordPress/gutenberg. Nothing touches
+// wordpress-develop, which is the failure a missed call site would produce.
+const GUTENBERG = { upstream: { owner: 'WordPress', repo: 'gutenberg', base: 'trunk' }, pr: { branchPrefix: 'fix/issue-' } };
+
+function gutenbergRoutes() {
+	return {
+		'GET repos/janedoe/gutenberg': { status: 200, json: { fork: true, parent: { full_name: 'WordPress/gutenberg' } } },
+		'GET repos/janedoe/gutenberg/git/ref/heads/trunk': { status: 200, json: { object: { sha: 'abc123' } } },
+		'POST repos/janedoe/gutenberg/merge-upstream': { status: 200 },
+		'GET repos/janedoe/gutenberg/git/commits/abc123': { status: 200, json: { tree: { sha: 'basetree' } } },
+		'POST repos/janedoe/gutenberg/git/blobs': { status: 201, json: { sha: 'blob1' } },
+		'POST repos/janedoe/gutenberg/git/trees': { status: 201, json: { sha: 'tree1' } },
+		'POST repos/janedoe/gutenberg/git/commits': { status: 201, json: { sha: 'commit1' } },
+		'POST repos/janedoe/gutenberg/git/refs': { status: 201 },
+		'POST repos/WordPress/gutenberg/pulls': { status: 201, json: { html_url: 'https://github.com/WordPress/gutenberg/pull/9', number: 9 } }
+	};
+}
+
+test('openPullRequest targets the project’s repository, branch prefix and base (#251)', async () => {
+	const api = router(gutenbergRoutes());
+
+	const res = await openPullRequest({
+		token: TOKEN, login: LOGIN, ticketId: 71234, baseSha: 'abc123',
+		files: [{ path: 'packages/a/index.js', kind: 'modify', content: Buffer.from('x'), mode: '100644' }],
+		title: 't', body: 'b', project: GUTENBERG
+	}, api);
+
+	assert.strictEqual(res.ok, true, res.error);
+	assert.strictEqual(res.url, 'https://github.com/WordPress/gutenberg/pull/9');
+	assert.strictEqual(res.branch, 'fix/issue-71234');
+	assert.strictEqual(api.calls.some((c) => c.url.includes('wordpress-develop')), false);
+	const pull = api.calls.find((c) => c.url.endsWith('/pulls'));
+	assert.strictEqual(pull.payload.base, 'trunk');
+	assert.strictEqual(pull.payload.head, 'janedoe:fix/issue-71234');
+	const ref = api.calls.find((c) => c.url.endsWith('/git/refs'));
+	assert.strictEqual(ref.payload.ref, 'refs/heads/fix/issue-71234');
+});
+
+test('a dry run on a Gutenberg site links the branch on the gutenberg fork', async (t) => {
+	process.env.WP_DEV_ENV_GITHUB_DRY_RUN = '1';
+	t.after(() => { delete process.env.WP_DEV_ENV_GITHUB_DRY_RUN; });
+
+	const api = router(gutenbergRoutes());
+	const res = await openPullRequest({
+		token: TOKEN, login: LOGIN, ticketId: 71234, baseSha: 'abc123',
+		files: [{ path: 'a.js', kind: 'modify', content: Buffer.from('x'), mode: '100644' }],
+		title: 't', body: 'b', project: GUTENBERG
+	}, api);
+
+	assert.strictEqual(res.dryRun, true);
+	assert.strictEqual(res.url, 'https://github.com/janedoe/gutenberg/tree/fix/issue-71234');
+});
+
+// The fork check and the fork request name the project's repository too: a
+// contributor who owns an unrelated `gutenberg` is told about that one.
+test('ensureFork forks and checks the project’s repository', async () => {
+	const api = router({
+		'GET repos/janedoe/gutenberg': (n) => (n === 1 ? { status: 404 } : { status: 200, json: { fork: true, parent: { full_name: 'WordPress/gutenberg' } } }),
+		'POST repos/WordPress/gutenberg/forks': { status: 202 },
+		'GET repos/janedoe/gutenberg/git/ref/heads/trunk': { status: 200, json: { object: { sha: 'abc' } } }
+	});
+	const res = await ensureFork({ token: TOKEN, login: LOGIN }, { ...api, project: GUTENBERG.upstream });
+	assert.deepStrictEqual(res, { ok: true, created: true });
+
+	const notAFork = router({ 'GET repos/janedoe/gutenberg': { status: 200, json: { fork: false } } });
+	const refused = await ensureFork({ token: TOKEN, login: LOGIN }, { ...notAFork, project: GUTENBERG.upstream });
+	assert.strictEqual(refused.ok, false);
+	assert.match(refused.error, /named gutenberg that is not a fork of WordPress\/gutenberg/);
+});
+
+// The sandbox override exists to keep a real run off a real upstream, so it
+// has to beat the project too, or a Gutenberg dry run would land on
+// WordPress/gutenberg while the badge said "sandbox".
+test('WP_DEV_ENV_GITHUB_UPSTREAM beats the project’s upstream', async (t) => {
+	process.env.WP_DEV_ENV_GITHUB_UPSTREAM = 'sandbox-org/pr-sandbox';
+	t.after(() => { delete process.env.WP_DEV_ENV_GITHUB_UPSTREAM; });
+
+	const api = router({
+		'GET repos/janedoe/pr-sandbox': { status: 200, json: { fork: true, parent: { full_name: 'sandbox-org/pr-sandbox' } } },
+		'GET repos/janedoe/pr-sandbox/git/ref/heads/trunk': { status: 200, json: { object: { sha: 'abc123' } } },
+		'POST merge-upstream': { status: 200 },
+		'GET git/commits/abc123': { status: 200, json: { tree: { sha: 'basetree' } } },
+		'POST git/blobs': { status: 201, json: { sha: 'blob1' } },
+		'POST git/trees': { status: 201, json: { sha: 'tree1' } },
+		'POST git/commits': { status: 201, json: { sha: 'commit1' } },
+		'POST git/refs': { status: 201 },
+		'POST repos/sandbox-org/pr-sandbox/pulls': { status: 201, json: { html_url: 'https://github.com/sandbox-org/pr-sandbox/pull/1', number: 1 } }
+	});
+
+	const res = await openPullRequest({
+		token: TOKEN, login: LOGIN, ticketId: 71234, baseSha: 'abc123',
+		files: [{ path: 'a.js', kind: 'modify', content: Buffer.from('x'), mode: '100644' }],
+		title: 't', body: 'b', project: GUTENBERG
+	}, api);
+
+	assert.strictEqual(res.ok, true, res.error);
+	// The branch prefix is still the project's: the sandbox stands in for the
+	// repository, not for the site.
+	assert.strictEqual(res.branch, 'fix/issue-71234');
+	assert.strictEqual(api.calls.some((c) => c.url.includes('/gutenberg')), false);
+});
+
 // The card reads this to say which mode it is in. Null in a shipped build is
 // the load-bearing case: it is what keeps the badge off a real contributor's
 // screen.
@@ -657,6 +794,11 @@ test('testMode is null unless a switch is set, and names the mode when one is', 
 	// it changes nothing, so the badge would be a lie.
 	process.env.WP_DEV_ENV_GITHUB_UPSTREAM = 'WordPress/wordpress-develop';
 	assert.strictEqual(testMode(), null);
+
+	// A project is not a test mode either (#251): a Gutenberg site targeting
+	// its own upstream is the normal case, and must not wear the badge.
+	delete process.env.WP_DEV_ENV_GITHUB_UPSTREAM;
+	assert.strictEqual(testMode({ owner: 'WordPress', repo: 'gutenberg' }), null);
 });
 
 test('WP_DEV_ENV_GITHUB_DRY_RUN stops after the branch, before the pull request', async (t) => {
