@@ -74,10 +74,9 @@ const PROJECT_TYPES = {
 		},
 
 		// What the site page's cards say where the two targets differ. The
-		// work-item card is the Trac one on Core; `workItemPlaceholder` is the
-		// line a target shows in its place while its own work item is not wired.
+		// work-item card itself reads its words from work-item.cjs and from the
+		// `workItem` block below.
 		cards: {
-			workItemPlaceholder: null,
 			// What the pull-request destination says when there is nothing to open
 			// one for: no ticket linked here, no flow at all on the other target yet.
 			prBlockedNote: 'No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.',
@@ -126,7 +125,7 @@ const PROJECT_TYPES = {
 		label: 'Gutenberg',
 		tag: 'Gutenberg',
 		wizardLabel: 'Gutenberg',
-		description: 'The block editor, built and run as a plugin in a stock WordPress. Issues and pull requests come in a later version.',
+		description: 'The block editor, built and run as a plugin in a stock WordPress: GitHub issues, and pull requests by checkout.',
 
 		clone: { url: GUTENBERG_GIT_URL, ref: 'trunk' },
 		defaultFolderName: 'gutenberg-trunk',
@@ -150,7 +149,6 @@ const PROJECT_TYPES = {
 		},
 
 		cards: {
-			workItemPlaceholder: 'Working on a Gutenberg issue from here, with its own branch and a pull request that fixes it, comes in a later version. For now this site is for building, running and trying pull requests by checkout.',
 			prBlockedNote: 'Opening a pull request from this site is not supported yet — save the patch file instead.',
 			prCost: 'Not available yet. The patch file below is the way to send this work.',
 			prAfter: 'Automated checks run on it.',

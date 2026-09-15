@@ -51,3 +51,16 @@ test('ticketTrunkNotice stays silent without a ticket or a known move (#305)', (
 		{ ticketId: 123 }
 	]) assert.equal(ticketTrunkNotice(state), null);
 });
+
+// On a Gutenberg site the same notice and the same refusals speak of an
+// issue (#251); nothing about the move itself changes.
+test('ticketTrunkNotice and rebaseRefusal take the site\'s noun', () => {
+	const notice = ticketTrunkNotice({ ticketId: 71234, behind: true, noun: 'issue' });
+	assert.equal(notice.title, 'Trunk has moved since this issue started.');
+	assert.equal(notice.action, 'Update this issue to the current trunk');
+	assert.doesNotMatch(notice.body, /ticket/);
+	const refusal = rebaseRefusal({ code: 'no-base', ticketId: 71234, noun: 'issue' });
+	assert.match(refusal, /unlink the issue/);
+	assert.doesNotMatch(refusal, /ticket/);
+	assert.equal(rebaseRefusal({ code: 'other', noun: 'issue' }), 'Could not move the issue onto the current trunk.');
+});

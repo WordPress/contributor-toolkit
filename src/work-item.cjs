@@ -33,7 +33,7 @@ const { parseIssueRef, issueUrl } = require('./renderer/github-issue.cjs');
  *
  * @param {string} provider   'trac' (default) or 'github-issue'.
  * @param {string} [repoPath] `owner/repo`, for the GitHub provider.
- * @return {{kind: string, noun: string, refPlaceholder: string, defaultPrTitle: Function, parseRef: Function, urlFor: Function, attachUrlFor: (Function|null)}}
+ * @return {{kind: string, noun: string, refPlaceholder: string, openLabel: string, defaultPrTitle: Function, parseRef: Function, urlFor: Function, attachUrlFor: (Function|null)}}
  */
 function workItemProvider(provider, repoPath) {
 	if (provider === 'github-issue') {
@@ -41,6 +41,8 @@ function workItemProvider(provider, repoPath) {
 			kind: 'github-issue',
 			noun: 'issue',
 			refPlaceholder: 'Issue number or URL, e.g. 71234',
+			// The card's link to the work item itself, worded for where it is.
+			openLabel: 'Open on GitHub',
 			// The title a pull request gets when the contributor leaves the field
 			// empty. Lives here because both the handler that sends it and the
 			// hint that promises it need the same string; when they were written
@@ -60,6 +62,7 @@ function workItemProvider(provider, repoPath) {
 		kind: 'trac',
 		noun: 'ticket',
 		refPlaceholder: 'Ticket number or URL, e.g. 62281',
+		openLabel: 'Open in Trac',
 		defaultPrTitle: (id) => `Ticket #${id}`,
 		parseRef: parseTicketRef,
 		urlFor: ticketUrl,

@@ -37,12 +37,15 @@ const WORK_ITEM_BRANCH = /^(?:ticket|issue)\//;
  * also carries a reassurance the buttons never need: Unlink sits right
  * above, and the changes must not look like they hang on it.
  *
- * @param {{dirty?: boolean, changedCount?: number, tracTicket?: *, pullRequest?: Object}} state
+ * `workItemNoun` is what the site calls its work item (#251), `ticket` unless
+ * told otherwise; every sentence that names it reads the noun from there.
+ *
+ * @param {{dirty?: boolean, changedCount?: number, tracTicket?: *, pullRequest?: Object, workItemNoun?: string}} state
  * @return {{placement: 'buttons'|'ticket', lead: string, patchLabel: string,
  *          middle: string, discardLabel: string, end: string,
  *          unlinkNote?: string}|null}
  */
-function changesNoteParts({ dirty, changedCount, tracTicket, pullRequest } = {}) {
+function changesNoteParts({ dirty, changedCount, tracTicket, pullRequest, workItemNoun = 'ticket' } = {}) {
 	if (!dirty) return null;
 	const count = Number.isInteger(changedCount) && changedCount > 0 ? changedCount : null;
 	const noun = count === 1 ? 'change' : 'changes';
@@ -61,17 +64,17 @@ function changesNoteParts({ dirty, changedCount, tracTicket, pullRequest } = {})
 	if (tracTicket) {
 		return {
 			placement: 'ticket',
-			lead: `You have ${count === null ? '' : `${count} `}unsubmitted ${noun} for ticket #${tracTicket}. You can `,
+			lead: `You have ${count === null ? '' : `${count} `}unsubmitted ${noun} for ${workItemNoun} #${tracTicket}. You can `,
 			patchLabel: 'review and submit',
 			middle: ' or ',
 			discardLabel: 'discard your changes',
 			end: '.',
-			unlinkNote: 'Unlinking this ticket doesn\'t affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.'
+			unlinkNote: `Unlinking this ${workItemNoun} doesn\'t affect your local changes for this ${workItemNoun} — they remain attached to it in this site, ready for when you link it again.`
 		};
 	}
 	return {
 		placement: 'buttons',
-		lead: `You have ${count === null ? '' : `${count} `}${noun} not assigned to any ticket. You can `,
+		lead: `You have ${count === null ? '' : `${count} `}${noun} not assigned to any ${workItemNoun}. You can `,
 		patchLabel: 'create and save a patch',
 		middle: ' or ',
 		discardLabel: 'discard your changes',

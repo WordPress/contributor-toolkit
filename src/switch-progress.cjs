@@ -112,7 +112,9 @@ function mapCheckoutPhase(event = {}) {
  * @param {?string} ref
  */
 function ticketOf(ref) {
-	const match = /^ticket\/(\d+)$/.exec(String(ref || ''));
+	// Both work-item namespaces (#251, ticket-branches.js): a Gutenberg site's
+	// `issue/71234` is `#71234` on screen the way `ticket/59234` is `#59234`.
+	const match = /^(?:ticket|issue)\/(\d+)$/.exec(String(ref || ''));
 	return match ? match[1] : null;
 }
 
