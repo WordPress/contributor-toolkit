@@ -23,10 +23,13 @@
  * anything (#281). See resolveCommitDates for how few it settles for.
  */
 
-const { parseLinkedPrs, orderByCommitDate, classifyHttpFailure } = require('./patch-sources.cjs');
+const { PR_REPO_PATH, parseLinkedPrs, orderByCommitDate, classifyHttpFailure, citesWorkItemFor } = require('./patch-sources.cjs');
 const { httpGet } = require('./github-http.cjs');
 
-const REPO = 'WordPress/wordpress-develop';
+// The repository every request goes to when the caller names none: a Core
+// site's. A Gutenberg site (#251) passes its own through `deps.repo`, and the
+// kind of work item its pull requests cite through `deps.provider`.
+const REPO = PR_REPO_PATH;
 
 /**
  * How many requests the commit-date walk may spend on one ticket.
@@ -70,10 +73,11 @@ const CLOCK_SKEW_TOLERANCE_MS = 10 * 60 * 1000;
  * @param {number}   number
  * @param {Function} get    httpGet, injected so the loop is testable.
  * @param {Object}   spent  Mutable `{count}` — every request made is counted.
+ * @param {string}   [repo] `owner/repo` the pull request is on.
  * @return {Promise<{ok: true, date: string|null}|{ok: false, status: string}>}
  */
-async function fetchPrCommitDate(number, get, spent) {
-	const base = `https://api.github.com/repos/${REPO}/pulls/${number}/commits?per_page=100`;
+async function fetchPrCommitDate(number, get, spent, repo = REPO) {
+	const base = `https://api.github.com/repos/${repo}/pulls/${number}/commits?per_page=100`;
 
 	const page = async (url) => {
 		spent.count += 1;
@@ -165,12 +169,13 @@ function lastPageNumber(link) {
  * unranked list, and the request that failed would have destroyed the evidence
  * rather than merely failed to add to it.
  *
- * @param {Array}    prs   Sorted by `updatedAt` descending; mutated in place.
+ * @param {Array}    prs    Sorted by `updatedAt` descending; mutated in place.
  * @param {Function} get
- * @param {Map}      known PR number → `{updatedAt, commitDate}` last seen.
+ * @param {Map}      known  PR number → `{updatedAt, commitDate}` last seen.
+ * @param {string}   [repo] `owner/repo` the pull requests are on.
  * @return {Promise<boolean>} Whether the ranking is complete.
  */
-async function resolveCommitDates(prs, get, known) {
+async function resolveCommitDates(prs, get, known, repo = REPO) {
 	const spent = { count: 0 };
 	let bestMs = -Infinity;
 	let complete = true;
@@ -213,7 +218,7 @@ async function resolveCommitDates(prs, get, known) {
 		if (Number.isFinite(boundMs) && bestMs >= boundMs) break;
 		if (spent.count >= MAX_COMMIT_LOOKUPS) { complete = false; break; }
 
-		const res = await fetchPrCommitDate(pr.number, get, spent);
+		const res = await fetchPrCommitDate(pr.number, get, spent, repo);
 		// A spent rate limit or a dead network will not fix itself on the next
 		// row, and each attempt costs a request the contributor may need for the
 		// diff they are about to apply.
@@ -235,14 +240,21 @@ async function resolveCommitDates(prs, get, known) {
  * which is what stops a Refresh from re-spending the walk — and, on a spent
  * quota, from replacing a ranking the contributor could already read.
  *
+ * `deps.repo` and `deps.provider` are the site's (#251): the repository whose
+ * pull requests are searched, and the kind of work item they are checked for
+ * citing. Absent, a Core site's, so every existing caller is unchanged.
+ *
  * @param {number|string} ticketId
  * @param {Object}        [deps]
  * @param {Function}      [deps.httpGet]
  * @param {Array}         [deps.known]
+ * @param {string}        [deps.repo]     `owner/repo`
+ * @param {string}        [deps.provider] 'trac' or 'github-issue'
  * @return {Promise<{status: 'ok'|'rate-limited'|'error'|'offline', items: Array, rankComplete?: boolean, error?: string}>}
  */
 async function fetchLinkedPrs(ticketId, deps = {}) {
 	const get = deps.httpGet || httpGet;
+	const repo = deps.repo || REPO;
 	const known = new Map();
 	for (const pr of Array.isArray(deps.known) ? deps.known : []) {
 		if (pr && typeof pr.number === 'number') known.set(pr.number, { updatedAt: pr.updatedAt, commitDate: pr.commitDate });
@@ -254,7 +266,7 @@ async function fetchLinkedPrs(ticketId, deps = {}) {
 	// paginating would multiply requests against the shared unauthenticated quota
 	// this whole feature is careful with, so instead a result that does not fit in
 	// one page is treated as incomplete below.
-	const query = encodeURIComponent(`repo:${REPO} is:pr ${id}`);
+	const query = encodeURIComponent(`repo:${repo} is:pr ${id}`);
 	const url = `https://api.github.com/search/issues?q=${query}&per_page=100`;
 
 	let res;
@@ -281,11 +293,11 @@ async function fetchLinkedPrs(ticketId, deps = {}) {
 		return { status: 'error', items: [], error: 'Too many results to list reliably' };
 	}
 
-	const items = parseLinkedPrs(json, id);
+	const items = parseLinkedPrs(json, id, { cites: citesWorkItemFor(deps.provider, repo), repoPath: repo });
 	// The list arrives ordered by `updatedAt`, which is the bound the walk needs
 	// and not an ordering worth showing (#281). Rank it by real commit dates,
 	// then reorder for display.
-	const rankComplete = await resolveCommitDates(items, get, known);
+	const rankComplete = await resolveCommitDates(items, get, known, repo);
 	return { status: 'ok', items: orderByCommitDate(items), rankComplete };
 }
 
@@ -293,15 +305,18 @@ async function fetchLinkedPrs(ticketId, deps = {}) {
  * The unified diff for one pull request.
  *
  * @param {number} number
+ * @param {Object} [deps]
+ * @param {string} [deps.repo] `owner/repo`; a Core site's when absent.
  * @return {Promise<{ok: true, text: string}|{ok: false, status: string, error: string}>}
  */
-async function fetchPrDiff(number) {
+async function fetchPrDiff(number, deps = {}) {
 	const n = String(number).replace(/[^0-9]/g, '');
 	if (!n) return { ok: false, status: 'error', error: 'No pull request number' };
+	const repo = deps.repo || REPO;
 
 	let res;
 	try {
-		res = await httpGet(`https://api.github.com/repos/${REPO}/pulls/${n}`, { Accept: 'application/vnd.github.v3.diff' });
+		res = await httpGet(`https://api.github.com/repos/${repo}/pulls/${n}`, { Accept: 'application/vnd.github.v3.diff' });
 	} catch (e) {
 		return { ok: false, status: 'offline', error: String(e && e.message ? e.message : e) };
 	}

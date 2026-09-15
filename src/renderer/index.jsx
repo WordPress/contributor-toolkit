@@ -3456,7 +3456,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Apply a PR straight from a pasted URL or number, without needing it to be
   // linked to the ticket — same fetch → preview flow as the linked-PR list.
   const previewPrFromInput = () => {
-    const parsed = parsePrRef(prUrlInput);
+    // Guarded against this site's own repository: a wordpress-develop pull
+    // request pasted into a Gutenberg site is refused by name, not fetched
+    // from a repository that has no such ref.
+    const parsed = parsePrRef(prUrlInput, { repoPath: `${project.upstream.owner}/${project.upstream.repo}` });
     // clearApplyError first, not setApplyError alone: a parse error arriving on
     // top of a conflict breakdown would otherwise leave the stale regions on
     // screen hiding it, since the banner leads with the breakdown's headline.

@@ -2874,7 +2874,7 @@ test('git:list-ticket-patches fetches the linked PRs for the stored ticket', asy
 
 	const result = await main.invoke('git:list-ticket-patches', '/sites/wp');
 
-	assert.deepEqual(fetchLinkedPrs.calls, [[62281, { known: null }]], 'nothing cached yet, so no dates to reuse');
+	assert.deepEqual(fetchLinkedPrs.calls, [[62281, { known: null, repo: 'WordPress/wordpress-develop', provider: 'trac' }]], 'nothing cached yet, so no dates to reuse');
 	assert.equal(result.ok, true);
 	assert.equal(result.ticket, 62281);
 	assert.equal(result.prs.status, 'ok');
@@ -2895,7 +2895,7 @@ test('git:list-ticket-patches hands the cached list back so commit dates are not
 	await main.invoke('git:list-ticket-patches', '/sites/wp'); // populates the cache
 	const result = await main.invoke('git:list-ticket-patches', '/sites/wp');
 
-	assert.deepEqual(fetchLinkedPrs.calls[1], [62281, { known: cachedItems }]);
+	assert.deepEqual(fetchLinkedPrs.calls[1], [62281, { known: cachedItems, repo: 'WordPress/wordpress-develop', provider: 'trac' }]);
 	assert.equal(result.prs.rankComplete, true, 'the completeness of the ranking survives the cache');
 });
 
@@ -2913,6 +2913,29 @@ test('git:list-ticket-patches falls back to the cached list when GitHub cannot b
 	assert.equal(result.prs.status, 'rate-limited');
 	assert.deepEqual(result.prs.items, [{ number: 7 }], 'the last-known-good list is shown, not empty');
 	assert.ok(result.prs.cachedAt, 'stamped with when it was last seen');
+});
+
+// A Gutenberg site's pull requests live in its own repository and cite an
+// issue, not a Trac ticket (#251); both facts ride to github-prs with the call.
+// The cache is keyed with the repository too: issue 62281 and ticket 62281
+// are different work items, and a Core site's bare key is left as it was so
+// nothing already cached is thrown away.
+test('git:list-ticket-patches on a Gutenberg site names its repository and provider, and caches apart from Core', async () => {
+	const fetchLinkedPrs = spy(async () => ({ status: 'ok', items: [{ number: 9 }], rankComplete: true }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp', '/sites/gb'],
+		siteMeta: { '/sites/wp': { tracTicket: 62281 }, '/sites/gb': { projectType: 'gutenberg', tracTicket: 62281 } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { fetchLinkedPrs } } });
+
+	await main.invoke('git:list-ticket-patches', '/sites/wp');
+	const result = await main.invoke('git:list-ticket-patches', '/sites/gb');
+
+	assert.deepEqual(fetchLinkedPrs.calls[0], [62281, { known: null, repo: 'WordPress/wordpress-develop', provider: 'trac' }]);
+	assert.deepEqual(fetchLinkedPrs.calls[1], [62281, { known: null, repo: 'WordPress/gutenberg', provider: 'github-issue' }], 'the Core list for the same number is not handed back as known');
+	assert.equal(result.ok, true);
+	assert.ok(settings.values['ticketPatches:62281'], 'the Core key is the one it always was');
+	assert.ok(settings.values['ticketPatches:WordPress/gutenberg:62281'], 'the Gutenberg key carries the repository');
 });
 
 test('git:list-ticket-patches returns no-ticket without calling github-prs when none is linked', async () => {

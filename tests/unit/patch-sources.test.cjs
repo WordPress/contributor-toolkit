@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { bodyCitesTicket, parseLinkedPrs, orderByCommitDate, classifyHttpFailure } = require('../../src/patch-sources.cjs');
+const { bodyCitesTicket, bodyCitesIssue, citesWorkItemFor, parseLinkedPrs, orderByCommitDate, classifyHttpFailure } = require('../../src/patch-sources.cjs');
 
 // Shaped like a real search/issues item, trimmed to the fields the parser reads.
 function item(number, overrides = {}) {
@@ -176,4 +176,61 @@ test('parsePrRef: non-PR and empty input are rejected with a reason (issue #11)'
 	assert.strictEqual(parsePrRef('https://github.com/WordPress/wordpress-develop/issues/4496').ok, false);
 	assert.strictEqual(parsePrRef('https://example.com/pull/1').ok, false);
 	assert.strictEqual(parsePrRef('not a url').ok, false);
+});
+
+// --- a GitHub issue as the work item (#251) ------------------------------
+
+const GB = 'WordPress/gutenberg';
+
+// The forms GitHub itself reads as "this pull request is for that issue", so
+// the list here agrees with the issue page's own "linked pull requests".
+test('bodyCitesIssue: a closing keyword before #N, owner/repo#N or the issue URL counts (#251)', () => {
+	for (const body of [
+		'Fixes #71234',
+		'fixes: #71234',
+		'Closes #71234\n\nWhat?',
+		'Resolves WordPress/gutenberg#71234',
+		'Fixed https://github.com/WordPress/gutenberg/issues/71234',
+		'See https://github.com/WordPress/gutenberg/issues/71234#issuecomment-1 for context'
+	]) {
+		assert.strictEqual(bodyCitesIssue(body, 71234, GB), true, body);
+	}
+});
+
+test('bodyCitesIssue: a bare #N, a longer number, another repository or a prefixed keyword does not (#251)', () => {
+	assert.strictEqual(bodyCitesIssue('Related to #71234', 71234, GB), false, 'no keyword: the search surfaced it from prose');
+	assert.strictEqual(bodyCitesIssue('Fixes #712345', 71234, GB), false, 'a longer number that starts with the digits');
+	assert.strictEqual(bodyCitesIssue('Fixes WordPress/wordpress-develop#71234', 71234, GB), false, 'another repository');
+	assert.strictEqual(bodyCitesIssue('https://github.com/WordPress/wordpress-develop/issues/71234', 71234, GB), false);
+	assert.strictEqual(bodyCitesIssue('prefix #71234', 71234, GB), false, '"fix" inside a word is not the keyword');
+	assert.strictEqual(bodyCitesIssue(null, 71234, GB), false);
+	assert.strictEqual(bodyCitesIssue('Fixes #71234', '', GB), false);
+});
+
+test('citesWorkItemFor: Trac by default, the issue form for a GitHub site (#251)', () => {
+	assert.strictEqual(citesWorkItemFor(), bodyCitesTicket);
+	assert.strictEqual(citesWorkItemFor('trac'), bodyCitesTicket);
+	const issue = citesWorkItemFor('github-issue', GB);
+	assert.strictEqual(issue('Fixes #71234', 71234), true);
+	assert.strictEqual(issue('Trac ticket: https://core.trac.wordpress.org/ticket/71234', 71234), false, 'a Trac citation is not a GitHub one');
+});
+
+test('parseLinkedPrs: verifies with the verification it is handed, and names the right repository (#251)', () => {
+	const gbItem = (number, body) => item(number, { body, html_url: undefined });
+	const prs = parseLinkedPrs({ items: [
+		gbItem(1, 'Fixes #71234'),
+		gbItem(2, 'Trac ticket: https://core.trac.wordpress.org/ticket/71234'),
+		gbItem(3, 'mentions 71234 in passing')
+	] }, 71234, { cites: citesWorkItemFor('github-issue', GB), repoPath: GB });
+	assert.deepStrictEqual(prs.map((pr) => pr.number), [1]);
+	assert.strictEqual(prs[0].url, 'https://github.com/WordPress/gutenberg/pull/1');
+});
+
+test('parsePrRef: guards against the repository it is given, and names it in the refusal (#251)', () => {
+	assert.strictEqual(parsePrRef('https://github.com/WordPress/gutenberg/pull/4496', { repoPath: GB }).number, 4496);
+	assert.strictEqual(parsePrRef('github.com/wordpress/GUTENBERG/pull/4496/files', { repoPath: GB }).number, 4496, 'case does not matter on GitHub');
+	const res = parsePrRef('https://github.com/WordPress/wordpress-develop/pull/4496', { repoPath: GB });
+	assert.strictEqual(res.ok, false);
+	assert.match(res.error, /WordPress\/gutenberg/);
+	assert.strictEqual(parsePrRef('4496', { repoPath: GB }).number, 4496, 'a bare number needs no repository');
 });

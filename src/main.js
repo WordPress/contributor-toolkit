@@ -2205,7 +2205,15 @@ ipcMain.handle('git:leave-pr', (event, sitePath) => streamPrOperation(event, sit
 // GitHub; the network code is in src/github-prs.js, these handlers add the
 // cache and IPC. A last-known-good copy per ticket, in electron-store, is what
 // lets a rate-limited or offline lookup still show the work that exists.
-const patchCacheKey = (ticketId) => `ticketPatches:${ticketId}`;
+//
+// The cache is keyed per work item, and a work item is a number *in a
+// repository* (#251): Trac ticket 62281 and Gutenberg issue 62281 are
+// different things with different pull requests. Core keeps the bare key it
+// always had, so nothing already cached is thrown away; any other target's
+// key carries its repository.
+const patchCacheKey = (ticketId, project) => (project.workItem.provider === 'trac'
+    ? `ticketPatches:${ticketId}`
+    : `ticketPatches:${project.upstream.owner}/${project.upstream.repo}:${ticketId}`);
 
 ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
     try {
@@ -2213,20 +2221,22 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
         const meta = (s.get('siteMeta') || {})[sitePath] || {};
         const ticketId = meta.tracTicket;
         if (!ticketId) return { ok: true, ticket: null, prs: { status: 'no-ticket', items: [] } };
+        const project = projectTypeForSite(meta);
+        const repo = `${project.upstream.owner}/${project.upstream.repo}`;
 
         // The cached list is passed back in, not just fallen back to: its commit
         // dates are still valid for any pull request GitHub reports with the
         // same `updatedAt`, so a Refresh does not re-spend the ranking, and a
         // Refresh on a spent quota cannot replace a ranking the contributor
         // could already read with an unranked one (#281).
-        const cachedBefore = s.get(patchCacheKey(ticketId)) || null;
-        const result = await fetchLinkedPrs(ticketId, { known: cachedBefore ? cachedBefore.items : null });
+        const cachedBefore = s.get(patchCacheKey(ticketId, project)) || null;
+        const result = await fetchLinkedPrs(ticketId, { known: cachedBefore ? cachedBefore.items : null, repo, provider: project.workItem.provider });
         if (result.status === 'ok') {
             // `rankComplete` is cached with the items and handed back with them:
             // a list whose commit-date ranking was cut short must not come back
             // from the cache looking complete, or the "Latest" pill returns
             // without the evidence for it (#281).
-            s.set(patchCacheKey(ticketId), { checkedAt: new Date().toISOString(), items: result.items, rankComplete: result.rankComplete });
+            s.set(patchCacheKey(ticketId, project), { checkedAt: new Date().toISOString(), items: result.items, rankComplete: result.rankComplete });
             return { ok: true, ticket: ticketId, prs: { status: 'ok', items: result.items, rankComplete: result.rankComplete } };
         }
 
@@ -2250,6 +2260,10 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
     }
 });
 
+// Core-only, and unreached: nothing in the renderer has invoked this since
+// pull requests became checkouts (#458); it stays for the API surface the
+// packaged smoke test pins. The module underneath takes a `repo`, so wiring
+// a site through here is one line if a caller ever returns.
 ipcMain.handle('git:fetch-pr-diff', async (_e, number) => {
     try {
         return await fetchPrDiff(number);
