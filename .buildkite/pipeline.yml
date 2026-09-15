@@ -80,7 +80,5 @@ steps:
           always-pull: true
     artifact_paths:
       - dist/*.AppImage
-      - dist/*.deb
-      - dist/*.snap
     notify:
       - github_commit_status: { context: "Linux Build" }
