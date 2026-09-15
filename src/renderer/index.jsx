@@ -2009,10 +2009,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // consumed, so a Core site opened next still gets the question.
   const deepLinkNoteState = deepLinkState && deepLinkState.state === 'unsupported' ? deepLinkState : null;
   // Hidden here, on this site only: the ticket stays with the app, so a Core
-  // site opened next still gets the question. Reset when another ticket
-  // arrives.
+  // site opened next still gets the question. Reset when a link arrives, and
+  // only then: the prop is the event (App stamps each arrival, so the same
+  // ticket twice is two events), and it is null while another site is in
+  // front, which must not un-hide what the contributor hid here.
   const [deepLinkNoteHidden, setDeepLinkNoteHidden] = useState(false);
-  useEffect(() => { setDeepLinkNoteHidden(false); }, [deepLinkTicket]);
+  useEffect(() => { if (deepLink) setDeepLinkNoteHidden(false); }, [deepLink]);
   const deepLinkNote = deepLinkNoteHidden ? null : deepLinkNoteState;
   // `settled` is a link for the ticket this site is on already. Cleared rather
   // than merely hidden, so the question does not resurface on the next site the
@@ -4047,6 +4049,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // deep and unreadable at the point where the wording matters most, so the
   // states get early returns and the card body gets one call.
   const renderPullRequestBody = () => {
+    // A target with no pull-request flow yet says so before anything about
+    // signing in: an authorization invited on the promise of an action the
+    // app then refuses is the cliff #167 is about.
+    if (!showTracCards) {
+      return <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>{project.cards.prBlockedNote}</div>;
+    }
     if (pullRequest) {
       return <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>{prOwnershipRefusal}</div>;
     }
@@ -4268,7 +4276,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           Signing in lets the app fork {project.upstream.repo} to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.
         </div>
         <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.6 }}>
-          It cannot create the GitHub account for you{showTracCards ? ', and it cannot post to Trac on your behalf' : ''}.
+          {project.cards.signInCannot}
         </div>
         <Button variant="primary" onClick={startGithubSignIn} style={{ justifyContent:'center' }}>Sign in with GitHub</Button>
         <Button variant="link" onClick={()=>{ setGithubDeclined(true); setGithubError(''); }} style={{ fontSize:12 }}>Not now</Button>
@@ -5842,7 +5850,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                     <Destination
                       title="Open a pull request"
                       cost="A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk."
-                      after="Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen."
+                      after={project.cards.prAfter}
                     >
                       {/*
                         Absent from every shipped build. When a test switch is
