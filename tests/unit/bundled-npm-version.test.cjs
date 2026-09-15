@@ -57,7 +57,7 @@ test('the npm that resolved into node_modules is inside the range package.json d
 	const installed = parseVersion(bundledNpmVersion);
 	assert.ok(
 		installed[0] === bound[0] && compareVersions(installed, bound) >= 0,
-		`node_modules holds npm ${bundledNpmVersion}, outside package.json's ${dependencies.npm}; `
-			+ 'package.json and package-lock.json have drifted apart'
+		`node_modules holds npm ${bundledNpmVersion}, outside the ${dependencies.npm} package.json declares; `
+			+ 'the installed npm is not the one the app would ship'
 	);
 });
