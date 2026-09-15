@@ -9,7 +9,7 @@
  */
 
 const { test, expect } = require( '../helpers/app.cjs' );
-const { makeSite } = require( '../helpers/git-site.cjs' );
+const { makeSite, branches } = require( '../helpers/git-site.cjs' );
 
 test( 'a Gutenberg site is tagged, shows no Trac-shaped cards, and turns a ticket link away', async ( { session } ) => {
 	const site = await makeSite( session );
@@ -32,4 +32,10 @@ test( 'a Gutenberg site is tagged, shows no Trac-shaped cards, and turns a ticke
 	}, 'wpct://ticket/62281' );
 	await expect( page.getByText( 'Ticket #62281 cannot be linked to' ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.getByRole( 'button', { name: 'Link ticket', exact: true } ) ).toHaveCount( 0 );
+	expect( branches( site.dir ) ).not.toContain( 'ticket/62281' );
+
+	// CHARACTERISATION — hiding the note is this site's business; the ticket
+	// is not consumed by it.
+	await page.getByRole( 'button', { name: 'Hide', exact: true } ).click();
+	await expect( page.getByText( 'Ticket #62281 cannot be linked to' ) ).toHaveCount( 0 );
 } );

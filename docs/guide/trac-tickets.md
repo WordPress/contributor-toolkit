@@ -1,7 +1,7 @@
 # Working on a Trac ticket
 
 ::: info WordPress Core sites
-The Trac ticket card is on WordPress Core sites. A Gutenberg site has no Trac ticket to link; working on a GitHub issue from the app comes in a later version, and until then a `wpct://ticket` link opened while a Gutenberg site is in front waits for a Core site.
+The Trac ticket card is on WordPress Core sites. A Gutenberg site has no Trac ticket to link; working on a GitHub issue from the app comes in a later version, and until then a `wpct://ticket` link opened while a Gutenberg site is in front says so and waits for a Core site to be opened.
 :::
 
 Every WordPress core change starts life on a [Trac](https://core.trac.wordpress.org/) ticket. The **Trac ticket** panel on the site view links your site to the ticket you are working on, and then shows you the work that already exists on it — pull requests on GitHub and patch files attached on Trac — so you can test it before adding your own.

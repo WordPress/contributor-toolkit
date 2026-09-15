@@ -69,7 +69,6 @@ test('every project type carries the full shape consumers depend on', () => {
 		assert.equal(cfg.id, id, `${id}: id must match its key`);
 		assert.equal(typeof cfg.label, 'string');
 		assert.equal(typeof cfg.wizardLabel, 'string');
-		assert.equal(typeof cfg.workItemNoun, 'string');
 
 		assert.equal(typeof cfg.clone.url, 'string');
 		assert.match(cfg.clone.url, /^https:\/\/github\.com\/.+\.git$/);
@@ -89,6 +88,7 @@ test('every project type carries the full shape consumers depend on', () => {
 			assert.equal(typeof cfg.setup[key], 'string', `${id}: setup.${key}`);
 		}
 		assert.equal(typeof cfg.cards.applyHeading, 'string', `${id}: cards.applyHeading`);
+		assert.equal(typeof cfg.cards.prBlockedNote, 'string', `${id}: cards.prBlockedNote`);
 		assert.equal(typeof cfg.cards.applyDescription, 'string', `${id}: cards.applyDescription`);
 		assert.equal(typeof cfg.cards.patchFiles, 'boolean', `${id}: cards.patchFiles`);
 		// A target whose work item is not a Trac ticket says what stands in for

@@ -2007,7 +2007,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const deepLinkPrompt = deepLinkState && deepLinkState.state === 'confirm' ? deepLinkState : null;
   // A ticket that cannot land on this site (#251): said, dismissable, never
   // consumed, so a Core site opened next still gets the question.
-  const deepLinkNote = deepLinkState && deepLinkState.state === 'unsupported' ? deepLinkState : null;
+  const deepLinkNoteState = deepLinkState && deepLinkState.state === 'unsupported' ? deepLinkState : null;
+  // Hidden here, on this site only: the ticket stays with the app, so a Core
+  // site opened next still gets the question. Reset when another ticket
+  // arrives.
+  const [deepLinkNoteHidden, setDeepLinkNoteHidden] = useState(false);
+  useEffect(() => { setDeepLinkNoteHidden(false); }, [deepLinkTicket]);
+  const deepLinkNote = deepLinkNoteHidden ? null : deepLinkNoteState;
   // `settled` is a link for the ticket this site is on already. Cleared rather
   // than merely hidden, so the question does not resurface on the next site the
   // contributor opens.
@@ -4215,7 +4221,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             </>
           ) : (
             <div style={{ fontSize:12, color:'#6c6f72' }}>
-              {showTracCards ? 'No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.' : PR_FAILURE_MESSAGES['unsupported-project']}
+              {project.cards.prBlockedNote}
             </div>
           )}
           {prStage ? (
@@ -4230,9 +4236,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               Signed in as {githubAccount.login} — the fork and branch go to{' '}
               <Button
                 variant="link"
-                onClick={()=>window.api.openExternal(`https://github.com/${githubAccount.login}/wordpress-develop`)}
+                onClick={()=>window.api.openExternal(`https://github.com/${githubAccount.login}/${project.upstream.repo}`)}
                 style={{ fontSize:12 }}
-              >{githubAccount.login}/wordpress-develop</Button>.{' '}
+              >{githubAccount.login}/{project.upstream.repo}</Button>.{' '}
               <Button variant="link" onClick={signOutOfGithub} style={{ fontSize:12 }}>Sign out</Button>
             </div>
           )}
@@ -4244,7 +4250,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       return (
         <>
           <div style={{ fontSize:12, color:'#6c6f72' }}>
-            Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other two destinations are unchanged.
+            Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.
           </div>
           <Button variant="link" onClick={()=>setGithubDeclined(false)} style={{ fontSize:12 }}>Show this again</Button>
         </>
@@ -4259,10 +4265,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           cliff is sprung rather than named.
         */}
         <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.6 }}>
-          Signing in lets the app fork wordpress-develop to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.
+          Signing in lets the app fork {project.upstream.repo} to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.
         </div>
         <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.6 }}>
-          It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.
+          It cannot create the GitHub account for you{showTracCards ? ', and it cannot post to Trac on your behalf' : ''}.
         </div>
         <Button variant="primary" onClick={startGithubSignIn} style={{ justifyContent:'center' }}>Sign in with GitHub</Button>
         <Button variant="link" onClick={()=>{ setGithubDeclined(true); setGithubError(''); }} style={{ fontSize:12 }}>Not now</Button>
@@ -4919,7 +4925,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         <div role="status" style={{ padding: '14px 16px', border: '1px solid #dba617', background: '#fcf9e8', borderRadius: 8 }}>
           <div style={{ fontWeight: 600, fontSize: 15, color: '#1d2327' }}>{deepLinkNote.title}</div>
           <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{deepLinkNote.body}</div>
-          <div style={{ marginTop: 10 }}><Button variant="link" onClick={dismissDeepLink}>Not now</Button></div>
+          <div style={{ marginTop: 10 }}><Button variant="link" onClick={() => setDeepLinkNoteHidden(true)}>Hide</Button></div>
         </div>
       ) : null}
       {deepLinkPrompt ? (
@@ -5820,7 +5826,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                 <div className="patch-destinations">
                   <div>
                   <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Where this patch goes</div>
-                  <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>The pull request is the one the app sends for you. The other two save a file for you to send.</div>
+                  <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>The pull request is the one the app sends for you. The others save a file for you to send.</div>
                   </div>
 
                   {renderOwnershipWarning()}

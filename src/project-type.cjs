@@ -31,9 +31,6 @@ const PROJECT_TYPES = {
 		// what a later version will.
 		wizardLabel: 'WordPress Core',
 		description: 'The wordpress-develop repository: Trac tickets, patches and pull requests.',
-		// The noun this target uses for a unit of work, for UI copy: a Core site
-		// links a "ticket", a Gutenberg site links an "issue".
-		workItemNoun: 'ticket',
 
 		// git-clone.cjs decides the clone's shape (partial, single branch); the
 		// registry only says where from and which branch.
@@ -77,6 +74,9 @@ const PROJECT_TYPES = {
 		// line a target shows in its place while its own work item is not wired.
 		cards: {
 			workItemPlaceholder: null,
+			// What the pull-request destination says when there is nothing to open
+			// one for: no ticket linked here, no flow at all on the other target yet.
+			prBlockedNote: 'No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.',
 			applyHeading: 'Apply a patch or PR',
 			applyDescription: 'Pull requests are checked out with their author\u2019s commits. A .diff/.patch file is applied to the current branch as a removable layer.',
 			// Patch files are how work arrives from Trac; a target whose work
@@ -112,7 +112,6 @@ const PROJECT_TYPES = {
 		label: 'Gutenberg',
 		wizardLabel: 'Gutenberg',
 		description: 'The block editor, built and run as a plugin in a stock WordPress. Issues and pull requests come in a later version.',
-		workItemNoun: 'issue',
 
 		clone: { url: GUTENBERG_GIT_URL, ref: 'trunk' },
 		defaultFolderName: 'gutenberg-trunk',
@@ -137,6 +136,7 @@ const PROJECT_TYPES = {
 
 		cards: {
 			workItemPlaceholder: 'Working on a Gutenberg issue from here, with its own branch and a pull request that fixes it, comes in a later version. For now this site is for building, running and trying pull requests by checkout.',
+			prBlockedNote: 'Opening a pull request from this site is not supported yet — save the patch file instead.',
 			applyHeading: 'Check out a pull request',
 			applyDescription: 'Pull requests are checked out with their author\u2019s commits.',
 			patchFiles: false
