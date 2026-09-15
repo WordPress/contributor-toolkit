@@ -88,8 +88,18 @@ test('every project type carries the full shape consumers depend on', () => {
 			assert.equal(typeof cfg.setup[key], 'string', `${id}: setup.${key}`);
 		}
 		assert.equal(typeof cfg.cards.applyHeading, 'string', `${id}: cards.applyHeading`);
-		for (const key of ['prBlockedNote', 'prAfter', 'signInCannot']) {
+		for (const key of ['prBlockedNote', 'prCost', 'prAfter']) {
 			assert.equal(typeof cfg.cards[key], 'string', `${id}: cards.${key}`);
+		}
+		// Only the Trac target reaches the sign-in pitch; the other refuses the
+		// pull request before it and carries no sentence for it.
+		assert.equal(typeof cfg.cards.signInCannot === 'string', cfg.workItem.provider === 'trac', `${id}: cards.signInCannot`);
+		// What the renderer cannot be tested for (index.jsx): a target whose
+		// work item is not a Trac ticket says nothing about Trac in its cards.
+		if (cfg.workItem.provider !== 'trac') {
+			for (const [key, value] of Object.entries(cfg.cards)) {
+				if (typeof value === 'string') assert.doesNotMatch(value, /trac|ticket/i, `${id}: cards.${key} speaks of Trac`);
+			}
 		}
 		assert.equal(typeof cfg.cards.applyDescription, 'string', `${id}: cards.applyDescription`);
 		assert.equal(typeof cfg.cards.patchFiles, 'boolean', `${id}: cards.patchFiles`);

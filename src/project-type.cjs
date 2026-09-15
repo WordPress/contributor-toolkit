@@ -78,7 +78,11 @@ const PROJECT_TYPES = {
 			// one for: no ticket linked here, no flow at all on the other target yet.
 			prBlockedNote: 'No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.',
 			// The rest of the pull-request destination's words that name Trac.
+			prCost: 'A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.',
 			prAfter: 'Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.',
+			// Shown to a signed-out contributor. Only the Trac target reaches the
+			// sign-in pitch at all: the other target refuses the pull request
+			// before it, so it carries no sentence here.
 			signInCannot: 'It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.',
 			applyHeading: 'Apply a patch or PR',
 			applyDescription: 'Pull requests are checked out with their author\u2019s commits. A .diff/.patch file is applied to the current branch as a removable layer.',
@@ -140,8 +144,9 @@ const PROJECT_TYPES = {
 		cards: {
 			workItemPlaceholder: 'Working on a Gutenberg issue from here, with its own branch and a pull request that fixes it, comes in a later version. For now this site is for building, running and trying pull requests by checkout.',
 			prBlockedNote: 'Opening a pull request from this site is not supported yet — save the patch file instead.',
+			prCost: 'Not available yet. The patch file below is the way to send this work.',
 			prAfter: 'Automated checks run on it.',
-			signInCannot: 'It cannot create the GitHub account for you.',
+			signInCannot: null,
 			applyHeading: 'Check out a pull request',
 			applyDescription: 'Pull requests are checked out with their author\u2019s commits.',
 			patchFiles: false
