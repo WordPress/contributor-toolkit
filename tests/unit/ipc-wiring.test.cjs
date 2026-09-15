@@ -2056,9 +2056,15 @@ test('npm:kill ends the script tree rather than signalling the runner alone', as
 	// pid rather than through the ChildProcess: a descendant that sat through
 	// SIGTERM (Gutenberg's native tsc, #251) is past the first link too, and
 	// the runner has usually died of the first signal by then, which a check
-	// on the ChildProcess would read as nothing left to do.
+	// on the ChildProcess would read as nothing left to do. Not on Windows,
+	// where the first step is already a forced `taskkill /T` of the tree and
+	// a second one three seconds on could land on a reissued pid.
 	t.mock.timers.tick(3000);
-	assert.deepEqual(killTreeByPid.calls, [[cp.children[0].pid, 'SIGKILL']]);
+	assert.deepEqual(
+		killTreeByPid.calls,
+		process.platform === 'win32' ? [] : [[cp.children[0].pid, 'SIGKILL']],
+		'POSIX escalates the whole tree by pid; Windows already forced it and must not escalate'
+	);
 	assert.deepEqual(cp.children[0].kill.calls, [], 'the escalation must not stop at the runner');
 });
 
