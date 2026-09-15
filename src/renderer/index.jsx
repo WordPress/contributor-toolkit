@@ -3062,7 +3062,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const appliedPatchLabel = appliedPatch?.label || 'The patch you applied';
   const prOwnershipRefusal = pullRequest ? prSubmissionRefusal(pullRequest.number) : '';
   const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
-  const prCheckout = pullRequest ? describePrCheckout(pullRequest) : null;
+  const prCheckout = pullRequest ? describePrCheckout({ ...pullRequest, noun: workItem.noun }) : null;
   const prPreview = applyPreview?.kind === 'pr' ? describePrPreview({
     number: applyPreview.number,
     files: applyPreview.files,

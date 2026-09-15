@@ -72,7 +72,7 @@ A branch holds one applied patch file at a time. Revert it, or discard the branc
 
 ## Pull requests have their own checkout
 
-A checked-out PR is a separate `pr/NNNN` branch. A green box at the top of the Trac ticket card says **PR #NNNN is applied** and explains that your ticket changes are saved while you test it. **Revert this PR** restores the work you had before the test.
+A checked-out PR is a separate `pr/NNNN` branch. A green box at the top of the Trac ticket card (the GitHub issue card on a Gutenberg site) says **PR #NNNN is applied** and explains that your ticket or issue changes are saved while you test it. **Revert this PR** restores the work you had before the test.
 
 Edits you make while trying the PR belong to its local branch. Going back parks them in a local commit, just as switching tickets parks ticket work. Returning to that PR restores the edits on top of the author's recorded head. The app refuses to replace that local copy automatically if the PR has moved on GitHub, because doing so could lose your work.
 
