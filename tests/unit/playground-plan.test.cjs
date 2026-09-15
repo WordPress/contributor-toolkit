@@ -19,8 +19,9 @@ test('docroot strategy mounts the build dir as WordPress and skips the download'
 	const plan = planPlaygroundLaunch({ strategy: 'docroot', docroot: '/sites/wp/build' });
 
 	assert.deepEqual(plan['mount-before-install'], [{ hostPath: '/sites/wp/build', vfsPath: '/wordpress' }]);
-	assert.deepEqual(plan.mount, []);
-	assert.deepEqual(plan['additional-blueprint-steps'], []);
+	// Not even empty ones: Core's options are what the runner always sent.
+	assert.equal('mount' in plan, false);
+	assert.equal('additional-blueprint-steps' in plan, false);
 	// The mounted build/ already is WordPress; a fresh download would unpack a
 	// second one over the mount.
 	assert.equal(plan.wordpressInstallMode, 'install-from-existing-files-if-needed');
@@ -63,4 +64,10 @@ test('the project-type registry selects the strategy per target', () => {
 	assert.equal(getProjectType('core').serve.strategy, 'docroot');
 	assert.equal(getProjectType('gutenberg').serve.strategy, 'plugin-mount');
 	assert.equal(getProjectType('gutenberg').serve.pluginSlug, 'gutenberg');
+});
+
+test('a plugin-mount slug that is not a plain name is refused before it becomes a path', () => {
+	for (const bad of ['../gutenberg', 'a/b', 'a\\b', 'a b']) {
+		assert.throws(() => planPlaygroundLaunch({ strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: bad }), /plain slug/, `expected a refusal for ${JSON.stringify(bad)}`);
+	}
 });
