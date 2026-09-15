@@ -11,18 +11,19 @@
  * @param {Object}             root0
  * @param {string|number|null} root0.ticketId Ticket currently linked.
  * @param {boolean}            root0.behind   Whether its base differs from trunk.
+ * @param {string}             [root0.noun]   What the site calls its work item (#251): `ticket` or `issue`.
  * @return {{title: string, body: string, action: string}|null}
  */
-function ticketTrunkNotice({ ticketId = null, behind = false } = {}) {
+function ticketTrunkNotice({ ticketId = null, behind = false, noun = 'ticket' } = {}) {
 	if (!ticketId || !behind) return null;
 	return {
-		title: 'Trunk has moved since this ticket started.',
-		body: 'Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ticket again.',
-		action: 'Update this ticket to the current trunk'
+		title: `Trunk has moved since this ${noun} started.`,
+		body: `Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ${noun} again.`,
+		action: `Update this ${noun} to the current trunk`
 	};
 }
 
-const MANUAL_PATH = (ticketId) => `Save a copy of your work, unlink the ticket, delete its work from the site, then link #${ticketId} again and apply the copy.`;
+const MANUAL_PATH = (ticketId, noun = 'ticket') => `Save a copy of your work, unlink the ${noun}, delete its work from the site, then link #${ticketId} again and apply the copy.`;
 
 // One clause per kind of conflict Git reports, in the contributor's terms
 // (#351). `content` is the classic clash; the other two are what a mentor
@@ -48,14 +49,15 @@ const OTHER_CLAUSE = (paths) => `Trunk and your work disagree in: ${paths.join('
  * @param {Object}             [root0.kinds]     Path → kind of conflict, for `rebase-conflict`; a path with no kind reads generically.
  * @param {string}             [root0.error]     Main's sentence, used for codes this module has no words for.
  * @param {string|number|null} [root0.ticketId]
+ * @param {string}             [root0.noun]      `ticket` or `issue` (#251).
  * @return {string}
  */
-function rebaseRefusal({ code = '', conflicts = [], kinds = {}, error = '', ticketId = null } = {}) {
-	const ticket = ticketId || 'the ticket';
+function rebaseRefusal({ code = '', conflicts = [], kinds = {}, error = '', ticketId = null, noun = 'ticket' } = {}) {
+	const ticket = ticketId || `the ${noun}`;
 	if (code === 'rebase-conflict') {
 		// No paths means Git reported the conflict in a shape the parser did
 		// not read: the one case where the app knows least, so it claims least.
-		if (!conflicts.length) return `Trunk and your work disagree. Nothing was moved. ${MANUAL_PATH(ticket)}`;
+		if (!conflicts.length) return `Trunk and your work disagree. Nothing was moved. ${MANUAL_PATH(ticket, noun)}`;
 		const grouped = new Map();
 		for (const p of conflicts) {
 			// Own property only: a kind that names something inherited
@@ -69,12 +71,12 @@ function rebaseRefusal({ code = '', conflicts = [], kinds = {}, error = '', tick
 		const clauses = [...Object.keys(KIND_CLAUSES), 'other']
 			.filter((kind) => grouped.has(kind))
 			.map((kind) => (KIND_CLAUSES[kind] || OTHER_CLAUSE)(grouped.get(kind)));
-		return `${clauses.join('. ')}. Nothing was moved. ${MANUAL_PATH(ticket)}`;
+		return `${clauses.join('. ')}. Nothing was moved. ${MANUAL_PATH(ticket, noun)}`;
 	}
 	if (code === 'no-base') {
-		return `The app does not know which trunk #${ticket} started from, so it cannot move the work safely. ${MANUAL_PATH(ticket)}`;
+		return `The app does not know which trunk #${ticket} started from, so it cannot move the work safely. ${MANUAL_PATH(ticket, noun)}`;
 	}
-	return error || 'Could not move the ticket onto the current trunk.';
+	return error || `Could not move the ${noun} onto the current trunk.`;
 }
 
 module.exports = { ticketTrunkNotice, rebaseRefusal };

@@ -236,3 +236,14 @@ test('discardDisabledReason reports the operation in progress before secondary b
 	assert.match(patchReviewContext({ tracTicket: 123 }).heading, /ticket #123/);
 	assert.equal(patchReviewContext().heading, 'Your changes');
 });
+
+// The note says what the site calls its work item (#251).
+test('changesNoteParts speaks of an issue when told the site\'s noun', () => {
+	const linked = changesNoteParts({ dirty: true, changedCount: 2, tracTicket: '71234', workItemNoun: 'issue' });
+	assert.equal(linked.placement, 'ticket');
+	assert.match(linked.lead, /for issue #71234/);
+	assert.match(linked.unlinkNote, /Unlinking this issue/);
+	assert.doesNotMatch(linked.lead + linked.unlinkNote, /ticket/);
+	const loose = changesNoteParts({ dirty: true, changedCount: 1, tracTicket: null, workItemNoun: 'issue' });
+	assert.match(loose.lead, /not assigned to any issue/);
+});

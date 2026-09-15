@@ -41,7 +41,8 @@ import { parsePrRef } from '../patch-sources.cjs';
 import { prStateBadge } from './pr-state.cjs';
 import { statusBadge } from '../trac-ticket-info.cjs';
 import { prDateLabel } from './pr-date-label.cjs';
-import { ticketUrl, attachUrl, parseTicketRef } from './trac-ticket.cjs';
+import { attachUrl } from './trac-ticket.cjs';
+import { workItemProvider } from '../work-item.cjs';
 import { adminUrl, adminerUrl } from './site-urls.cjs';
 import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
 import { ticketTrunkNotice, rebaseRefusal } from './ticket-trunk-notice.cjs';
@@ -165,7 +166,6 @@ const TICKET_PATCH_STATUS_MESSAGE = {
   offline: 'Could not reach GitHub.',
   error: 'Could not read the pull requests from GitHub.'
 };
-const TRAC_TICKET_LISTS_URL = 'https://core.trac.wordpress.org/tickets/good-first-bugs';
 const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
 
 function formatEmailDate(email) {
@@ -1415,11 +1415,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Which target this site is a checkout of (#251): the site record's field,
   // carried by the placeholder from the moment the dialog closes, and Core
   // for any site made before the field existed. `build` is what the watcher
-  // and the terminal's script list read; the Trac-shaped cards (ticket,
-  // patch files, attach) show only where the work item is a Trac ticket.
+  // and the terminal's script list read. The work-item card shows on every
+  // site and takes its words from the provider; what is Trac's alone (the
+  // attachments, "Attach to Trac", the patch-file picker, the pull-request
+  // flow until PR 5) shows only where the work item is a Trac ticket.
   const project = getProjectType(projectType);
   const projectBuild = project.build;
   const showTracCards = project.workItem.provider === 'trac';
+  // Memoised on the registry entry, which is a stable object, so the
+  // callbacks that parse a reference do not change identity every render.
+  const workItem = useMemo(
+    () => workItemProvider(project.workItem.provider, `${project.upstream.owner}/${project.upstream.repo}`),
+    [project]
+  );
   // Read through a ref by the terminal's command handlers rather than closed
   // over: the xterm instance is created by an effect that depends on
   // `printHelp`, so a new array identity here would otherwise dispose and
@@ -1940,7 +1948,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         // ref the switch was asked for, rather than saying "the ticket" to
         // someone who typed a number (#409).
         if (res?.code === 'dirty-trunk') {
-          const parsedRef = parseTicketRef(String(ref));
+          const parsedRef = workItem.parseRef(String(ref));
           setBlockedByTrunkWork({
             ref: String(ref),
             canCarry: Boolean(res.canCarry),
@@ -1975,7 +1983,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       if (ownsTerminal && !rebuilding) ticketSwitchLifecycleRef.current.finish();
       setTicketSaving(false);
     }
-  }, [sitePath, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
+  }, [sitePath, workItem, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
   const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
   const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
 
@@ -2836,7 +2844,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // operations as well as on each other — the same trio every destructive
   // control in the ticket panel guards on.
   const branchRows = ticketBranchRows({ branches: ticketBranches.branches, current: ticketBranches.current, tracTicket, now: Date.now() });
-  const ticketsCard = ticketListCard({ rowCount: branchRows.length, linked: Boolean(tracTicket) });
+  const ticketsCard = ticketListCard({ rowCount: branchRows.length, linked: Boolean(tracTicket), noun: workItem.noun });
   // What the switch is doing, while it does it (#173). Gated on the busy flag
   // rather than merely cleared by it: the last sends can land after the invoke
   // has already answered, which would flash a sentence under an idle panel.
@@ -2960,7 +2968,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             reason={ticketActionsReason}
             onClick={() => confirmAnd(`Delete all work on #${row.ticketId} on this site? This cannot be undone.`, () => deleteTicketWork(row.ref))}
             style={{ fontSize: 12, flex: '0 0 auto' }}
-          >Delete this ticket&apos;s work</ReasonedButton>
+          >Delete this {workItem.noun}&apos;s work</ReasonedButton>
         </div>
       ))}
     </div>
@@ -2972,8 +2980,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Where the note goes moves with the ticket: a change that belongs to
   // #12345 is news for the ticket card, one that belongs to nothing is news
   // for the buttons that would give it somewhere to go.
-  const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket, pullRequest });
-  const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk });
+  const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket, pullRequest, workItemNoun: workItem.noun });
+  const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk, noun: workItem.noun });
   const legacyNotice = legacySiteNotice({ legacy });
   const mergeNotice = mergeInProgressNotice({ mergeInProgress });
   const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged });
@@ -4115,7 +4123,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                 {prLinkCopied ? 'Link copied' : 'Copy the link'}
               </Button>
               {tracTicket ? (
-                <Button variant="primary" onClick={()=>window.api.openExternal(ticketUrl(tracTicket))} style={{ justifyContent:'center' }}>
+                <Button variant="primary" onClick={()=>window.api.openExternal(workItem.urlFor(tracTicket))} style={{ justifyContent:'center' }}>
                   Open #{tracTicket} to comment
                 </Button>
               ) : null}
@@ -4513,7 +4521,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     running,
     pullRequest,
     hasChanges: Boolean(worktreeDirty && worktreeDirty.dirty),
-    ticketLinked: Boolean(tracTicket)
+    ticketLinked: Boolean(tracTicket),
+    workItemLabel: project.workItem.label
   });
   const nextActionId = nextAction ? nextAction.id : null;
   useNextActionCue(nextActionId, isActive, nextActionSectionRef);
@@ -4961,15 +4970,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           </div>
         </div>
       ) : null}
-      {skipInit && project.cards.workItemPlaceholder ? (
-        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{project.workItem.label}</div>
-          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{project.cards.workItemPlaceholder}</div>
-        </div>
-      ) : null}
-      {skipInit && showTracCards ? (
+      {skipInit ? (
       <div {...cueProps('link-ticket')} style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{tracTicket ? `Working on ticket #${tracTicket}` : 'Trac ticket'}</div>
+        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{tracTicket ? `Working on ${workItem.noun} #${tracTicket}` : project.workItem.label}</div>
         {prCheckout && !isApplying ? (
           <div {...cueProps('pr-checkout')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #94d3ae', background: '#f4fbf4', borderRadius: 8 }}>
             <div style={{ fontSize: 15, color: '#0f5132' }}><strong>{prCheckout.title}</strong></div>
@@ -4990,8 +4993,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: 999, fontSize: 18, fontWeight: 600, letterSpacing: '0.01em', background: '#f0f0f1', color: '#1d2327' }}>
                 #{tracTicket}
               </span>
-              <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
-              {!tracInfo ? (
+              <Button variant="link" onClick={() => window.api.openExternal(workItem.urlFor(tracTicket))}>{workItem.openLabel}</Button>
+              {showTracCards && !tracInfo ? (
                 <Button variant="link" onClick={loadTracAttachments} disabled={tracAttachmentsLoading}>
                   {tracAttachmentsLoading ? 'Reading ticket…' : 'Read details from Trac'}
                 </Button>
@@ -5083,7 +5086,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                 </Button>
               </div>
               <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>
-                See the work that already exists on this ticket before adding your own.
+                See the work that already exists on this {workItem.noun} before adding your own.
               </div>
 
               {ticketPatchesLoading && !ticketPatches ? (
@@ -5091,7 +5094,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               ) : null}
 
               {ticketPatches && ticketPatches.status === 'ok' && ticketPatches.items.length === 0 ? (
-                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>No pull requests cite this ticket yet.</div>
+                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>No pull requests cite this {workItem.noun} yet.</div>
               ) : null}
 
               {ticketPatches && ticketPatches.status !== 'ok' && ticketPatches.status !== 'no-ticket' ? (
@@ -5145,6 +5148,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               </div>
             ) : null}
 
+            {/* Trac's alone: a GitHub issue carries no attachments, its work
+                arrives as the pull requests listed above. */}
+            {showTracCards ? (
             <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Trac attachments</div>
@@ -5213,11 +5219,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                 </div>
               ) : null}
             </div>
+            ) : null}
           </>
         ) : (
           <>
             <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-              Tell the app which ticket you are working on. It is stored with the site, so it survives restarts, and you can change or remove it at any time.
+              Tell the app which {workItem.noun} you are working on. It is stored with the site, so it survives restarts, and you can change or remove it at any time.
             </div>
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 260 }}>
@@ -5226,8 +5233,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                   onChange={(value) => { setTicketInput(value); setTicketError(''); }}
                   onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
                   disabled={ticketActionsBlocked}
-                  placeholder="Ticket number or URL, e.g. 62281"
-                  aria-label="Trac ticket number or URL"
+                  placeholder={workItem.refPlaceholder}
+                  aria-label={`${project.workItem.label} number or URL`}
                 />
               </div>
               <ReasonedButton
@@ -5237,7 +5244,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                 reason={ticketActionsReason}
                 disabled={!ticketInput.trim()}
                 style={{ padding: '10px 16px', borderRadius: 10 }}
-              >Link ticket</ReasonedButton>
+              >Link {workItem.noun}</ReasonedButton>
             </div>
             {/* Expectation-setting, not the warning itself: since #234 the
                 app asks before moving or discarding anything, so this only
@@ -5251,14 +5258,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         {tracTicket ? null : ticketFeedback}
         {tracTicket ? null : (
           <div style={{ marginTop: 8 }}>
-            <Button variant="link" onClick={() => window.api.openExternal(TRAC_TICKET_LISTS_URL)} style={{ fontSize: 12 }}>
-              Not sure yet? Browse good first bugs on Trac
+            <Button variant="link" onClick={() => window.api.openExternal(project.workItem.browseUrl)} style={{ fontSize: 12 }}>
+              Not sure yet? {project.workItem.browseLabel}
             </Button>
           </div>
         )}
       </div>
       ) : null}
-      {skipInit && showTracCards && ticketsCard ? (
+      {skipInit && ticketsCard ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
           <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{ticketsCard.heading}</div>
           {renderBranchRows(Boolean(tracTicket))}
