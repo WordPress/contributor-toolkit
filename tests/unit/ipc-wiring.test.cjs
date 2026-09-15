@@ -2028,12 +2028,15 @@ test('npm:install refuses to start when the compat preload cannot be installed (
 
 test('npm:kill ends the script tree rather than signalling the runner alone', async (t) => {
 	const cp = stubbedSpawn();
-	const killChildTree = spy();
+	// Answers true like the real one: the escalation is armed only when the
+	// polite signal was actually attempted.
+	const killChildTree = spy(() => true);
+	const killTreeByPid = spy();
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
 			'child_process': { spawn: cp.spawn },
-			'./kill-tree': { killChildTree }
+			'./kill-tree': { killChildTree, killTreeByPid }
 		}
 	});
 
@@ -2048,6 +2051,63 @@ test('npm:kill ends the script tree rather than signalling the runner alone', as
 	// grunt), and child.kill() leaves everything past the first link running (#83).
 	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
 	assert.deepEqual(cp.children[0].kill.calls, []);
+
+	// The last resort, three seconds on, is the same tree signal forced, by
+	// pid rather than through the ChildProcess: a descendant that sat through
+	// SIGTERM (Gutenberg's native tsc, #251) is past the first link too, and
+	// the runner has usually died of the first signal by then, which a check
+	// on the ChildProcess would read as nothing left to do. Not on Windows,
+	// where the first step is already a forced `taskkill /T` of the tree and
+	// a second one three seconds on could land on a reissued pid.
+	t.mock.timers.tick(3000);
+	assert.deepEqual(
+		killTreeByPid.calls,
+		process.platform === 'win32' ? [] : [[cp.children[0].pid, 'SIGKILL']],
+		'POSIX escalates the whole tree by pid; Windows already forced it and must not escalate'
+	);
+	assert.deepEqual(cp.children[0].kill.calls, [], 'the escalation must not stop at the runner');
+});
+
+test('npm:kill arms no escalation for a child that had already closed', async (t) => {
+	const cp = stubbedSpawn();
+	const killTreeByPid = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			// The real killChildTree: it answers false for a closed child, which
+			// is the whole decision here.
+			'./kill-tree': { killTreeByPid }
+		}
+	});
+	const { runId } = await main.invoke('npm:run-script', '/sites/wp', 'build');
+	// The run finished, but Stop lands before the registry forgot it.
+	cp.children[0].exitCode = 0;
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	await main.invoke('npm:kill', { runId });
+	t.mock.timers.tick(3000);
+	// Its pid may belong to someone else by now; forcing it would be the bug.
+	assert.deepEqual(killTreeByPid.calls, []);
+});
+
+test('npm:kill stands the escalation down once the tree has closed', async (t) => {
+	const cp = stubbedSpawn();
+	const killTreeByPid = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTree: spy(() => true), killTreeByPid }
+		}
+	});
+	const { runId } = await main.invoke('npm:run-script', '/sites/wp', 'build');
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	await main.invoke('npm:kill', { runId });
+	// `close` means the pipes are shut, so nothing in the tree is left to force;
+	// forcing a pid the OS may have handed to someone else would be the bug.
+	cp.children[0].emit('close', null, 'SIGTERM');
+	t.mock.timers.tick(3000);
+	assert.deepEqual(killTreeByPid.calls, []);
 });
 
 // The install is the other thing a directory can be busy with, and it was the

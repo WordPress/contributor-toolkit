@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 
-const { killTreePlan, killChildTree, killChildTreeAndWait } = require('../../src/kill-tree.js');
+const { killTreePlan, killChildTree, killTreeByPid, killChildTreeAndWait } = require('../../src/kill-tree.js');
 
 test('killTreePlan on win32 builds a taskkill for the whole tree', () => {
 	const plan = killTreePlan('win32', 1234);
@@ -19,6 +19,25 @@ test('killTreePlan on POSIX targets the process group, with the bare pid as fall
 	assert.equal(plan.signal, 'SIGTERM');
 	assert.equal(plan.target, -1234);
 	assert.equal(plan.fallback, 1234);
+});
+
+test('killTreePlan on POSIX can force the same group with SIGKILL, and win32 forces regardless', () => {
+	const forced = killTreePlan('darwin', 1234, 'SIGKILL');
+	assert.equal(forced.signal, 'SIGKILL');
+	assert.equal(forced.target, -1234, 'the escalation must reach the whole group, not the direct child');
+	assert.equal(forced.fallback, 1234);
+	// taskkill /F is already a forced end of the tree; a signal name changes nothing there.
+	assert.deepEqual(killTreePlan('win32', 1234, 'SIGKILL'), killTreePlan('win32', 1234));
+});
+
+test('killTreeByPid forces the group even though the ChildProcess that led it has exited', () => {
+	const calls = [];
+	// What the escalation sees three seconds after Stop: the runner is gone,
+	// killChildTree would answer false, and the descendants are still there.
+	assert.equal(killChildTree({ pid: 42, exitCode: null, signalCode: 'SIGTERM' }, { platform: 'darwin', kill: () => { throw new Error('must not be called'); } }), false);
+	assert.equal(killTreeByPid(42, 'SIGKILL', { platform: 'darwin', kill: (target, signal) => { calls.push([target, signal]); } }), true);
+	assert.deepEqual(calls, [[-42, 'SIGKILL']]);
+	assert.equal(killTreeByPid(0, 'SIGKILL', { platform: 'darwin', kill: () => { throw new Error('must not be called'); } }), false, 'a pid that names no live process is refused, forced or not');
 });
 
 test('killTreePlan refuses pids that cannot name a live process', () => {

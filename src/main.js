@@ -25,7 +25,7 @@ const {
 	logError
 } = require('./logging');
 const { buildMenuTemplate } = require('./menu');
-const { killChildTree, killChildTreeAndWait } = require('./kill-tree');
+const { killChildTree, killTreeByPid, killChildTreeAndWait } = require('./kill-tree');
 const { lockfileChangedFromBlobOids, normalizeEol } = require('./git-update.cjs');
 const { readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
 const { applyPatchToDir } = require('./patch-apply');
@@ -3469,11 +3469,24 @@ ipcMain.handle('npm:kill', async (_event, { runId, directoryPath }) => {
 		// A script is a tree — runner -> npm -> shell -> grunt — and child.kill()
 		// signals only the first link, so stopping a build left the rest of it
 		// running (#83, #146). An install is the same shape: runner -> npm.
-		killChildTree(child);
-		// Last resort for a child that ignores SIGTERM. Only the direct child: by
-		// this point the tree has had its chance, and the runner dying takes the
-		// pipes with it.
-		setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, 3000);
+		const attempted = killChildTree(child);
+		// Last resort for a tree that ignores SIGTERM: the same group signal,
+		// forced, by pid. It used to be a kill of the direct child, and the
+		// runner dying took the pipes with it but not a descendant that had
+		// chosen to sit through the first signal (Gutenberg's native `tsc
+		// --build`, #251); and by the time the timer fires the runner has
+		// usually died of the first signal, so a check on the ChildProcess
+		// would say "nothing to do" about a tree that is still there. `close`
+		// is what says the tree is gone (the pipes are), and stands this down.
+		// Armed only when the polite signal was actually sent: a child that had
+		// already closed when Stop landed has no tree left, and its pid may be
+		// someone else's three seconds on. Not on Windows either, where the
+		// first step is already a forced `taskkill` of the tree.
+		if (attempted && process.platform !== 'win32') {
+			const pid = child.pid;
+			const escalation = setTimeout(() => { killTreeByPid(pid, 'SIGKILL'); }, 3000);
+			child.once('close', () => clearTimeout(escalation));
+		}
 		return { ok: true };
 	} catch (e) {
 		return { ok: false, error: String(e) };
