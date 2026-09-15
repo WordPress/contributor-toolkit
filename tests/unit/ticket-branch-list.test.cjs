@@ -133,10 +133,10 @@ test('card: no rows means no card, not an empty one', () => {
 
 // The card's position is the whole point of #240, and no test renders the
 // DOM, so the layout is pinned at the source: the rows render once, from a
-// card of their own that sits between the Trac ticket card and the patch one.
-// Reading order is a behaviour here — which ticket am I on, which of my
-// tickets do I want, bring in work from elsewhere.
-test('card: the list renders once, in its own card between the ticket card and the patch card (issue #240)', () => {
+// card of their own, last of the three. Reading order is a behaviour here —
+// which ticket am I on, what work can I bring into it, and only then the
+// other tickets parked on this site.
+test('card: the list renders once, in its own card below the ticket card and the patch card (issue #240)', () => {
 	const source = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'renderer', 'index.jsx'), 'utf8');
 
 	// The headings come from ticketListCard, so the card cannot say one thing
@@ -151,12 +151,13 @@ test('card: the list renders once, in its own card between the ticket card and t
 	// name so that a comment naming the helper is not a red suite.
 	assert.strictEqual(source.split('renderBranchRows(').length - 1, 1, 'expected exactly one renderBranchRows( call: the single card that renders the list');
 
-	// Between the two cards it used to sit inside of and above.
+	// Below both: the ticket in hand, then the work you can apply to it, then
+	// the other tickets this site is holding.
 	const ticketCard = source.indexOf('Working on ticket #');
 	const listCard = source.indexOf('{ticketsCard.heading}');
 	const patchCard = source.indexOf('>Apply a patch or PR<');
 	assert.ok(ticketCard !== -1 && listCard !== -1 && patchCard !== -1, 'one of the three card headings is missing from index.jsx');
-	assert.ok(ticketCard < listCard && listCard < patchCard, 'the tickets card is not between the Trac ticket card and the patch card');
+	assert.ok(ticketCard < patchCard && patchCard < listCard, 'the tickets card is not below the Trac ticket card and the patch card');
 });
 
 // --- relativeTimeLabel ------------------------------------------------------

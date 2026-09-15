@@ -2766,8 +2766,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
 
   // The tickets with work on this site (#108), in a card of their own (#240)
-  // between the Trac ticket card and the patch one — which ticket am I on,
-  // which of my tickets do I want, bring in work from elsewhere. The sentence
+  // below the Trac ticket card and the patch one — which ticket am I on, what
+  // work can I bring into it, which of my other tickets do I want. The sentence
   // differs with the state — with no ticket linked the rows offer to continue,
   // with one linked they point out the other open tickets — but the rows, the
   // ordering and the delete action are the same list, and it lives in the one
@@ -5177,12 +5177,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         )}
       </div>
       ) : null}
-      {skipInit && ticketsCard ? (
-        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{ticketsCard.heading}</div>
-          {renderBranchRows(Boolean(tracTicket))}
-        </div>
-      ) : null}
       {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
           <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Apply a patch or PR</div>
@@ -5428,6 +5422,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               </div>
             </div>
           ) : null}
+        </div>
+      ) : null}
+      {skipInit && ticketsCard ? (
+        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{ticketsCard.heading}</div>
+          {renderBranchRows(Boolean(tracTicket))}
         </div>
       ) : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

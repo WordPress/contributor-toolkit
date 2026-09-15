@@ -6,7 +6,7 @@ A site is the expensive part: a clone of `wordpress-develop`, an `npm install`, 
 
 Each ticket keeps its own work. What you edited for one ticket is not in the tree while you are on another, and the patch you submit for a ticket contains only that ticket's changes.
 
-![A site with two tickets: the Trac ticket card for the one in hand, and an Other tickets on this site card under it](/screenshots/site-with-tickets.png)
+![A site with two tickets: the Trac ticket card for the one in hand, and an Other tickets on this site card lower down the page](/screenshots/site-with-tickets.png)
 
 ## Starting a second ticket
 
@@ -21,7 +21,7 @@ The `build/` directory belongs to the site too, which has a consequence. A switc
 
 ## Your tickets on this site
 
-The site's tickets get their own card, between the **Trac ticket** card and **Apply a patch or PR**. Like those two, it appears once the [setup checklist](./setup-wizard) is finished or skipped, and only when the site has work on a ticket other than the one you are on — a site with nothing else to offer does not get an empty card.
+The site's tickets get their own card, below the **Trac ticket** card and **Apply a patch or PR**. Like those two, it appears once the [setup checklist](./setup-wizard) is finished or skipped, and only when the site has work on a ticket other than the one you are on — a site with nothing else to offer does not get an empty card.
 
 With a ticket linked, the card is headed **Other tickets on this site**, and each row offers to **switch**:
 
