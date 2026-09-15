@@ -28,6 +28,7 @@ import { computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
+import { getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
@@ -55,7 +56,6 @@ import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfte
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage } from './confirmations.cjs';
 
-const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // One face for everything that is process output: the terminal below and every
 // log pane above it. Shared rather than repeated because the panes had drifted
 // into the app's sans-serif, which does not line up a stack trace and does not
@@ -1311,7 +1311,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [debugLogPath, setDebugLogPath] = useState('');
   const [activeLogTab, setActiveLogTab] = useState('runtime');
   const activeLogTabRef = useRef('runtime');
-  // The build watcher (grunt _watch) runs decoupled from the PHP server (issue
+  // The build watcher (the target's, see project-type.cjs) runs decoupled from the PHP server (issue
   // #247): its own output tab, its own lifecycle. `watchState` drives the tab
   // title; `watchExitCode` is only read when the state is 'exited'.
   const [watchLogs, setWatchLogs] = useState('');
@@ -1387,6 +1387,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // the app knows there is no build on disk, just not that the last attempt lost.
   const [buildFailed, setBuildFailed] = useState(false);
   const [hasBuilt, setHasBuilt] = useState(false);
+  // Which target this site is a checkout of (#251), reported by site:status
+  // and Core for any site made before the field existed. Its `build` entry
+  // is what the watcher and the terminal's script list read.
+  const [projectType, setProjectType] = useState(DEFAULT_PROJECT_TYPE);
+  const projectBuild = getProjectType(projectType).build;
+  const allowedScripts = projectBuild.allowedScripts;
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
@@ -1753,6 +1759,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setHasNodeModules(Boolean(s?.hasNodeModules));
       setInstallFailed(Boolean(s?.installFailed));
       setHasBuilt(Boolean(s?.hasBuilt));
+      setProjectType(s?.projectType || DEFAULT_PROJECT_TYPE);
       setSkipInit(Boolean(s?.skipInitWizard));
       setTrunkDate(s?.trunkDate || null);
       setUpdateIncomplete(Boolean(s?.updateIncomplete));
@@ -2322,9 +2329,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     writeToTerminal('Available commands:\n');
     writeToTerminal('  help                        Show this help text\n');
     writeToTerminal('  npm install                 Run npm install in the site directory\n');
-    writeToTerminal('  npm run <script>            Run one of: ' + TERMINAL_ALLOWED_SCRIPTS.join(', ') + '\n');
+    writeToTerminal('  npm run <script>            Run one of: ' + allowedScripts.join(', ') + '\n');
     writeToTerminal('\nThe setup checklist runs npm install and npm run build once. Run them here\nwhenever you change files or add a dependency afterwards.\n');
-  }, [writeToTerminal]);
+  }, [allowedScripts, writeToTerminal]);
 
   const executeTerminalCommand = useCallback((rawCommand) => {
     const command = rawCommand.trim();
@@ -2371,8 +2378,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         showPrompt(false);
         return;
       }
-      if (!TERMINAL_ALLOWED_SCRIPTS.includes(script)) {
-        writeToTerminal(`Unsupported script "${script}". Allowed scripts: ${TERMINAL_ALLOWED_SCRIPTS.join(', ')}\n`);
+      if (!allowedScripts.includes(script)) {
+        writeToTerminal(`Unsupported script "${script}". Allowed scripts: ${allowedScripts.join(', ')}\n`);
         showPrompt(false);
         return;
       }
@@ -2393,7 +2400,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
     writeToTerminal(`Unsupported command: ${command}\nTry "help" for the list of supported commands.\n`);
     showPrompt(false);
-  }, [addCommandToHistory, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
+  }, [addCommandToHistory, allowedScripts, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
 
   const handleTerminalData = useCallback((data) => {
     const term = terminalRef.current;
@@ -2607,10 +2614,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     try { const { port, emails: fetchedEmails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(fetchedEmails||[]); } catch {}
   }, [appendDebug, appendRuntime, ensureStick, killCurrent, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
 
-  // The watcher process itself (grunt _watch), streaming into its own tab. No
-  // terminal lock, no server coupling — that independence is the point of #247.
+  // The watcher process itself (the target's; grunt _watch on Core), streaming
+  // into its own tab. No terminal lock, no server coupling — that independence
+  // is the point of #247.
   const startWatchProcess = useCallback(() => {
-    const plan = planDevServerStart({ hasBuilt: true });
+    const plan = planDevServerStart({ hasBuilt: true }, projectBuild);
     markWatchState('watching');
     watchWasActiveRef.current = true;
     appendWatch(`Running ${plan.watch.label}…\n`);
@@ -2632,7 +2640,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         }
       }
     });
-  }, [appendWatch, markWatchState, runScript]);
+  }, [appendWatch, markWatchState, projectBuild, runScript]);
 
   // Start the build watch, building first if the site has no completed build
   // (the _watch task deliberately skips that full build). `onReady` fires once

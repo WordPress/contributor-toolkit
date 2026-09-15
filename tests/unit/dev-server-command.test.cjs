@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 
 const { planDevServerStart, formatElapsed, watchTabLabel } = require('../../src/renderer/dev-server-command.cjs');
+const { getProjectType } = require('../../src/project-type.cjs');
 
 test('a built site skips the build and goes straight to the watcher (issue #72)', () => {
 	const plan = planDevServerStart({ hasBuilt: true });
@@ -30,6 +31,23 @@ test("the watcher args carry npm's `--` separator explicitly", () => {
 
 	assert.strictEqual(plan.watch.args[0], '--');
 	assert.ok(plan.watch.args.indexOf('_watch') > plan.watch.args.indexOf('--'), '`_watch` must come after the separator');
+});
+
+// The watcher is the target's (#251). A Gutenberg site runs its own
+// incremental watcher and must not inherit Core's `--` passthrough: `npm run
+// dev -- _watch` would hand Gutenberg's build script an argument it does not
+// know.
+test("a Gutenberg site's watcher is npm run dev, with no passthrough separator", () => {
+	const plan = planDevServerStart({ hasBuilt: true }, getProjectType('gutenberg').build);
+
+	assert.strictEqual(plan.watch.script, 'dev');
+	assert.deepStrictEqual(plan.watch.args, []);
+	assert.strictEqual(plan.watch.label, 'npm run dev');
+	assert.strictEqual(plan.needsBuild, false);
+});
+
+test('a caller that passes no build config gets Core, the same plan every site got before', () => {
+	assert.deepStrictEqual(planDevServerStart({ hasBuilt: true }), planDevServerStart({ hasBuilt: true }, getProjectType('core').build));
 });
 
 test('missing flags behave as unbuilt, never as built', () => {

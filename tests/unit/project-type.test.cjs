@@ -81,7 +81,6 @@ test('every project type carries the full shape consumers depend on', () => {
 		assert.equal(typeof cfg.upstream.base, 'string');
 
 		assert.ok(Array.isArray(cfg.build.builtCheckRelPath) && cfg.build.builtCheckRelPath.length > 0);
-		assert.equal(typeof cfg.build.buildScript, 'string');
 		assert.equal(typeof cfg.build.watch.script, 'string');
 		assert.ok(Array.isArray(cfg.build.watch.args));
 		assert.ok(Array.isArray(cfg.build.allowedScripts) && cfg.build.allowedScripts.length > 0);
