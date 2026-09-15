@@ -12,9 +12,9 @@ Type `help` to see the list at any time:
 | --- | --- |
 | `help` | Lists the supported commands. |
 | `npm install` | Runs `npm install` in the site directory. `npm i` and `install` work too. |
-| `npm run <script>` | Runs one of the allowed scripts: `build`, `build:dev`, `dev`, `test`, `watch`, `grunt`. |
+| `npm run <script>` | Runs one of the allowed scripts. On a WordPress Core site: `build`, `build:dev`, `dev`, `test`, `watch`, `grunt`. On a Gutenberg site: `build`, `dev`, `test:unit`, `lint`, `lint:js`. |
 
-Any other script name is refused with a message listing the allowed scripts. Only one command runs at a time; if one is already running, the terminal tells you to stop it first.
+Any other script name is refused with a message listing the allowed scripts. Gutenberg's bare `test` is deliberately not on the list: it runs the PHP and end-to-end suites, which need Docker. Only one command runs at a time; if one is already running, the terminal tells you to stop it first.
 
 Press **Ctrl+C** to stop the running command. The Up and Down arrow keys move through your command history.
 
@@ -31,4 +31,6 @@ Once the site has been built, these two hints appear directly under the terminal
 It looks like the way to rebuild continuously, and it is a trap. `wordpress-develop`'s Gruntfile renames the real watch task to `_watch` and leaves a `watch` wrapper that runs a **full production build first** — tens of minutes with nothing to show for it, and 30+ on a Windows VM.
 
 You do not need it anyway: [starting the dev server](./running-the-site) already starts the real watcher for you, as `grunt -- _watch`.
+
+On a Gutenberg site the watcher is `npm run dev`, which has no such trap; it builds everything once (about twenty seconds) and then recompiles what you save.
 :::

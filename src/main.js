@@ -1110,6 +1110,14 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
     // the one this site is linked to.
     const s = await getStore();
     const meta = (s.get('siteMeta') || {})[sitePath] || {};
+    // The flow below forks and targets wordpress-develop, and cites a Trac
+    // ticket. Until it reads the site's type (#251), a site of another type
+    // is refused here rather than handed a pull request against the wrong
+    // repository; the patch file the card offers underneath still works.
+    const project = projectTypeForSite(meta);
+    if (project.id !== 'core') {
+        return { ok: false, reason: 'unsupported-project', error: `Opening a pull request from a ${project.label} site is not supported yet.`, stage: 'auth' };
+    }
     const ticketId = meta.tracTicket;
     if (!ticketId) {
         return { ok: false, reason: 'no-ticket', error: 'Link a Trac ticket to this site first.', stage: 'auth' };
@@ -2568,10 +2576,7 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 
 	// The target decides what is cloned and what the site is called by default
 	// (#251). Normalised at this write boundary: an unknown id is stored as
-	// Core, not as whatever the renderer sent. Until the create-site dialog
-	// offers the choice, nothing sends a type and every site is Core; a
-	// Gutenberg site made over IPC today clones correctly and is then built,
-	// served and diffed as if it were wordpress-develop.
+	// Core, not as whatever the renderer sent.
 	const projectType = normalizeProjectType(options.projectType);
 	const project = getProjectType(projectType);
 	const requestedName = typeof options.siteName === 'string' ? options.siteName.trim() : '';
