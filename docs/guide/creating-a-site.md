@@ -12,10 +12,10 @@ When the app starts with no sites, the main area shows a short prompt to create 
 
 Click **Create a site** at the bottom of the sidebar. A dialog opens with three fields.
 
-![The Create a site dialog, with a Site name text field, a Contribute to choice between WordPress Core and Gutenberg, and a Site location folder picker](/screenshots/create-site-modal.png)
+![The Create a site dialog, with a Site name text field, a Contribute to choice between WordPress Core and Gutenberg with a line under each, and a Site location folder picker](/screenshots/create-site-modal.png)
 
-- **Site name** — the label shown in the sidebar. It also determines the folder name: spaces and characters that are not valid in file names become hyphens, so a site named `My WordPress site` lives in a folder called `My-WordPress-site`. Leave it empty and the folder is named after the project: `wordpress-develop-trunk` or `gutenberg-trunk`.
-- **Contribute to** — which project this site is a checkout of. **WordPress Core** clones `wordpress-develop` and works from [Trac tickets](./trac-tickets); **Gutenberg** clones the block editor's repository. The choice decides what the site clones, how it builds and runs, and where its changes go, and it cannot be changed afterwards: create another site for the other project.
+- **Site name** — the label shown in the sidebar. It also determines the folder name: spaces and characters that are not valid in file names become hyphens, so a site named `My WordPress site` lives in a folder called `My-WordPress-site`.
+- **Contribute to** — which project this site is a checkout of. **WordPress Core** clones `wordpress-develop` and works from [Trac tickets](./trac-tickets), patches and pull requests; **Gutenberg** clones the block editor's repository, builds it and runs it as a plugin in a stock WordPress. Linking a GitHub issue and opening a pull request from a Gutenberg site come in a later version: for now it is for building, running and trying pull requests by checkout. The choice decides what the site clones and how it builds and runs, and it cannot be changed afterwards: create another site for the other project.
 - **Site location** — the parent folder where the site will be created. The app adds a new directory inside it for the project; it does not clone into the folder you pick directly.
 
 Click **Create site** (or press Enter) to start. **Cancel** or Escape closes the dialog without creating anything.

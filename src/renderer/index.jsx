@@ -125,6 +125,7 @@ const PR_FAILURE_MESSAGES = {
   'rate-limited': 'GitHub is rate-limiting this connection. It usually clears within the hour.',
   offline: 'No connection to GitHub.',
   'no-ticket': 'Link a Trac ticket to this site first — a pull request has to cite one.',
+  'unsupported-project': 'Opening a pull request from this site is not supported yet — save the patch file instead.',
   empty: 'There are no changes to open a pull request with.'
 };
 // Per-status wording for the update chain card (#94), following the issue's
@@ -157,7 +158,7 @@ const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
 // What the create-site dialog offers under "Contribute to", read off the
 // registry so the copy and the order live in one place. Core is first, and
 // the default.
-const CREATE_SITE_TYPE_OPTIONS = Object.values(PROJECT_TYPES).map((t) => ({ label: t.wizardLabel, value: t.id }));
+const CREATE_SITE_TYPE_OPTIONS = Object.values(PROJECT_TYPES).map((t) => ({ label: t.wizardLabel, value: t.id, description: t.description }));
 // Why the ticket's PR list could not be read, worded for the contributor.
 const TICKET_PATCH_STATUS_MESSAGE = {
   'rate-limited': 'GitHub is rate-limiting this connection.',
@@ -1082,7 +1083,7 @@ function App() {
             />
             <RadioControl
               label="Contribute to"
-              help="What this site is a checkout of: which repository it clones, how it builds and runs, and where its pull requests go. It cannot be changed later."
+              help="What this site is a checkout of: which repository it clones, and how it builds and runs. It cannot be changed later."
               selected={createSiteType}
               options={CREATE_SITE_TYPE_OPTIONS}
               onChange={(value) => setCreateSiteType(value)}
@@ -4387,7 +4388,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       description: isPending
         // The clone is also the trigger for everything after it (#246), so the
         // step says what happens next rather than implying a click is coming.
-        ? 'Cloning the WordPress develop repository… install and build start on their own when it finishes.'
+        ? 'Cloning the repository… install and build start on their own when it finishes.'
         : 'Clone the WordPress develop repository.',
       ...stepState.download,
       running: isPending
