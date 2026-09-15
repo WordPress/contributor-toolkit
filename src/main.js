@@ -284,11 +284,10 @@ function spawnRunner(runnerPath, args, { cwd, extraEnv = {} }) {
 }
 
 function findAvailableDirName(rootDir, baseName) {
-	const sanitizedBase = baseName || 'wordpress-develop-trunk';
-	let candidate = sanitizedBase;
+	let candidate = baseName;
 	let counter = 2;
 	while (fs.existsSync(path.join(rootDir, candidate))) {
-		candidate = `${sanitizedBase}-${counter++}`;
+		candidate = `${baseName}-${counter++}`;
 	}
 	return candidate;
 }
@@ -2569,7 +2568,10 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 
 	// The target decides what is cloned and what the site is called by default
 	// (#251). Normalised at this write boundary: an unknown id is stored as
-	// Core, not as whatever the renderer sent.
+	// Core, not as whatever the renderer sent. Until the create-site dialog
+	// offers the choice, nothing sends a type and every site is Core; a
+	// Gutenberg site made over IPC today clones correctly and is then built,
+	// served and diffed as if it were wordpress-develop.
 	const projectType = normalizeProjectType(options.projectType);
 	const project = getProjectType(projectType);
 	const requestedName = typeof options.siteName === 'string' ? options.siteName.trim() : '';
