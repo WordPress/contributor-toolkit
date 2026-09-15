@@ -4978,7 +4978,7 @@ test('dir:show refuses a path the registry does not hold, and logs it', async ()
 // Runs `wordpress:setup` with a stubbed clone, and calls `duringClone` at the
 // moment the real clone would be running: the directory exists, nothing is in
 // the store yet. `clone` can be made to fail instead.
-async function runSetup({ duringClone, cloneFails = false, existing = [], extraStubs = {}, senderDestroyed = false } = {}) {
+async function runSetup({ duringClone, cloneFails = false, existing = [], extraStubs = {}, senderDestroyed = false, options = { siteName: 'demo', siteLabel: 'Demo' } } = {}) {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-setup-'));
 	for (const name of existing) fs.mkdirSync(path.join(root, name));
 
@@ -4986,7 +4986,9 @@ async function runSetup({ duringClone, cloneFails = false, existing = [], extraS
 	const seen = [];
 	let inside;
 
-	const clone = async ({ dir, onProgress }) => {
+	const cloneCalls = [];
+	const clone = async ({ dir, url, branch, onProgress }) => {
+		cloneCalls.push({ dir, url, branch });
 		// The real clone reports progress from a stderr listener, and writes
 		// into the directory before it can fail: both are what the handler
 		// around it has to survive.
@@ -5013,12 +5015,70 @@ async function runSetup({ duringClone, cloneFails = false, existing = [], extraS
 		event.sender.isDestroyed = () => true;
 		event.sender.send = () => { throw new Error('Object has been destroyed'); };
 	}
-	const settled = await main.invokeWith('wordpress:setup', event, root, { siteName: 'demo', siteLabel: 'Demo' })
+	const settled = await main.invokeWith('wordpress:setup', event, root, options)
 		.then((siteDir) => ({ siteDir }), (error) => ({ error }));
 
 	for (const { channel, payload } of event.sent) if (channel === 'download:status') seen.push(payload);
-	return { root, main, settings, inside, statuses: seen, ...settled };
+	return { root, main, settings, inside, statuses: seen, cloneCalls, ...settled };
 }
+
+// --- the project type -> src/project-type.cjs (#251) ----------------------
+//
+// The registry's own suite proves what each type says; these prove the two
+// handlers ask it. A site's type is chosen once, at creation, and read on
+// every status: a handler that stopped consulting the registry would clone
+// wordpress-develop for a Gutenberg site, or read a Gutenberg build as
+// unbuilt forever, while the registry's tests stayed green.
+
+test('wordpress:setup clones the chosen type\'s repository, names the folder after it, and records the type', async () => {
+	const { settings, siteDir, cloneCalls } = await runSetup({ options: { projectType: 'gutenberg', siteName: '', siteLabel: '' } });
+
+	assert.equal(cloneCalls.length, 1);
+	assert.equal(cloneCalls[0].url, 'https://github.com/WordPress/gutenberg.git');
+	assert.equal(cloneCalls[0].branch, 'trunk');
+	assert.equal(path.basename(siteDir), 'gutenberg-trunk', 'the default folder name is the type\'s, not Core\'s');
+	assert.equal(settings.values.siteMeta[siteDir].projectType, 'gutenberg');
+});
+
+test('wordpress:setup stores an unknown type as core and clones wordpress-develop', async () => {
+	const { settings, siteDir, cloneCalls } = await runSetup({ options: { projectType: 'plugin', siteName: '', siteLabel: '' } });
+
+	assert.equal(cloneCalls[0].url, 'https://github.com/WordPress/wordpress-develop.git');
+	assert.equal(path.basename(siteDir), 'wordpress-develop-trunk');
+	// The normalised id, not the renderer's string: a read of this record
+	// through the registry would answer Core either way, but what is stored
+	// should not be a value the registry never defined.
+	assert.equal(settings.values.siteMeta[siteDir].projectType, 'core');
+});
+
+test('wordpress:setup without a type behaves exactly as before: wordpress-develop, recorded as core', async () => {
+	const { settings, siteDir, cloneCalls } = await runSetup();
+
+	assert.equal(cloneCalls[0].url, 'https://github.com/WordPress/wordpress-develop.git');
+	assert.equal(settings.values.siteMeta[siteDir].projectType, 'core');
+});
+
+test('site:status reads the built marker of the site\'s type, and reports the type', async (t) => {
+	const dir = tempDir(t, 'ipc-wiring-project-type-status-');
+	// A completed Gutenberg build: the block-library script under build/scripts.
+	fs.mkdirSync(path.join(dir, 'build', 'scripts', 'block-library'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'build', 'scripts', 'block-library', 'index.min.js'), '');
+	const settings = fakeSettingsStore({ sites: [], siteMeta: { [dir]: { projectType: 'gutenberg' } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { readTrunkInfo: async () => { throw new Error('no trunk'); } } }
+	});
+
+	const status = await main.invoke('site:status', dir);
+	assert.equal(status.projectType, 'gutenberg');
+	assert.equal(status.hasBuilt, true, 'a Gutenberg build is read through its own marker');
+
+	// The same tree read as a Core site is not built: Core's marker is
+	// build/wp-includes/js/dist, which a Gutenberg build never writes.
+	settings.values.siteMeta[dir] = {};
+	const asCore = await main.invoke('site:status', dir);
+	assert.equal(asCore.projectType, 'core', 'a record without the field is Core');
+	assert.equal(asCore.hasBuilt, false);
+});
 
 // Registering a finished clone is the widest instance of the #172 shape: it
 // held the whole site map, not one record, across a Git spawn on the new
