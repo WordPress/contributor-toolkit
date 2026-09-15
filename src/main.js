@@ -3462,12 +3462,23 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	if (playgroundServers[sitePath]?.child) {
 		return { ok: true, url: playgroundServers[sitePath].url };
 	}
+	// How the site is served is the target's (#251). Core's build/ is a whole
+	// WordPress, mounted as the docroot; a Gutenberg checkout is a plugin,
+	// mounted into the stock WordPress Playground installs. The runner turns
+	// the config into Playground options (playground-plan.cjs); the store is
+	// read here, once, and the map below keys on sitePath as before, so
+	// playground:stop and the quit sweep are untouched.
+	const serve = projectTypeForSite(await readSiteMeta(sitePath)).serve;
 	const buildDir = path.join(sitePath, 'build');
+	const serveConfig = serve.strategy === 'plugin-mount'
+		? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
+		: { strategy: 'docroot', docroot: buildDir };
+	const serveCwd = serve.strategy === 'plugin-mount' ? sitePath : buildDir;
 	const runnerPath = path.join(__dirname, 'server-runner.js');
 	const logScope = playgroundLogScope(sitePath);
-	logEvent(logScope, `starting server for ${buildDir} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
-	const child = spawnRunner(runnerPath, [buildDir], {
-		cwd: buildDir,
+	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
+	const child = spawnRunner(runnerPath, [JSON.stringify(serveConfig)], {
+		cwd: serveCwd,
 		extraEnv: {
 			// Provide SMTP settings to the server runner so it can configure WP constants
 			WP_MAIL_SMTP_HOST: '127.0.0.1',

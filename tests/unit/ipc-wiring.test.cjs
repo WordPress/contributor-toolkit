@@ -2221,6 +2221,8 @@ test('playground:start spawns the server runner with the environment npm-runner 
 		stubs: {
 			...silentLogging(),
 			...noSmtpServer(),
+			// The handler reads the site's type off the store now (#251).
+			...fakeSettingsStore().stubs,
 			'child_process': { spawn: cp.spawn },
 			'./npm-runner': { buildChildEnv }
 		}
@@ -2238,6 +2240,33 @@ test('playground:start spawns the server runner with the environment npm-runner 
 	assert.equal(buildChildEnv.calls[0][0].extraEnv.WP_MAIL_SMTP_HOST, '127.0.0.1');
 	assert.equal(buildChildEnv.calls[0][0].extraEnv.WP_MAIL_SMTP_PORT, '25');
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'playground:start');
+	// The runner is told what to serve as one JSON argument: a Core site's
+	// build/ as the docroot, run from that directory as before (#251).
+	const serve = JSON.parse(cp.spawned[0].args[1]);
+	assert.deepEqual(serve, { strategy: 'docroot', docroot: path.join('/sites/wp', 'build') });
+	assert.equal(cp.spawned[0].options.cwd, path.join('/sites/wp', 'build'));
+});
+
+test('playground:start serves a Gutenberg site as a plugin mounted from the checkout itself', async (t) => {
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noSmtpServer(),
+			...settings.stubs,
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { buildChildEnv: () => ({}) }
+		}
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground:start', '/sites/gb'));
+
+	assert.equal(path.basename(cp.spawned[0].args[0]), 'server-runner.js');
+	const serve = JSON.parse(cp.spawned[0].args[1]);
+	assert.deepEqual(serve, { strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: 'gutenberg' });
+	// There is no build/ docroot to run from: the checkout is the plugin.
+	assert.equal(cp.spawned[0].options.cwd, '/sites/gb');
 });
 
 test('playground-web:start spawns its runner through npm-runner too', async (t) => {
@@ -2269,6 +2298,7 @@ test('playground:stop ends the server tree rather than signalling the child', as
 		stubs: {
 			...silentLogging(),
 			...noSmtpServer(),
+			...fakeSettingsStore().stubs,
 			'child_process': { spawn: cp.spawn },
 			'./kill-tree': { killChildTree }
 		}
