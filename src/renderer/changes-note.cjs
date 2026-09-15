@@ -16,6 +16,13 @@
 // the same action reads the same everywhere it can be triggered.
 const DISCARD_CONFIRM_MESSAGE = 'Discard all local changes? This cannot be undone.';
 
+// The branch namespaces a work item gets (#251): `ticket/` on a Core site,
+// `issue/` on a Gutenberg one. Spelled out here rather than imported because
+// ticket-branches.js, which owns the list, reaches for Git and cannot be
+// bundled into the renderer; the test walks its WORK_ITEM_BRANCH_PREFIXES
+// against this so the two cannot drift apart unnoticed.
+const WORK_ITEM_BRANCH = /^(?:ticket|issue)\//;
+
 /**
  * The changes note, split into parts the component interleaves with its two
  * link buttons, or null when there is nothing to say.
@@ -41,7 +48,7 @@ function changesNoteParts({ dirty, changedCount, tracTicket, pullRequest } = {})
 	const noun = count === 1 ? 'change' : 'changes';
 	if (pullRequest && Number.isInteger(pullRequest.number)) {
 		const hasReturnDestination = typeof pullRequest.returnTo === 'string' && pullRequest.returnTo.length > 0;
-		const returnsToTicket = hasReturnDestination ? pullRequest.returnTo.startsWith('ticket/') : Boolean(tracTicket);
+		const returnsToTicket = hasReturnDestination ? WORK_ITEM_BRANCH.test(pullRequest.returnTo) : Boolean(tracTicket);
 		return {
 			placement: returnsToTicket ? 'ticket' : 'buttons',
 			lead: `You have ${count === null ? '' : `${count} `}${noun} on top of PR #${pullRequest.number}. You can `,

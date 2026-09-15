@@ -104,6 +104,9 @@ const PROJECT_TYPES = {
 
 		workItem: {
 			provider: 'trac',
+			// The local branch a work item gets its own namespace under. Core's
+			// is `ticket/`, unchanged since #108, so no existing site moves.
+			branchPrefix: 'ticket/',
 			// What the panel calls it, and where a newcomer goes to find one.
 			label: 'Trac ticket',
 			browseUrl: 'https://core.trac.wordpress.org/tickets/good-first-bugs',
@@ -176,6 +179,10 @@ const PROJECT_TYPES = {
 
 		workItem: {
 			provider: 'github-issue',
+			// `issue/`, not `ticket/`: a contributor reading `git branch` in
+			// their own client sees the noun the upstream uses, and a site
+			// cannot end up with two namespaces meaning the same thing.
+			branchPrefix: 'issue/',
 			label: 'GitHub issue',
 			browseUrl: 'https://github.com/WordPress/gutenberg/issues?q=is%3Aissue+is%3Aopen+label%3A%22Good+First+Issue%22',
 			browseLabel: 'Browse good first issues on GitHub'

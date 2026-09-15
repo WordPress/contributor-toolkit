@@ -16,6 +16,7 @@ const {
 	isProjectTypeId,
 	normalizeProjectType
 } = require('../../src/project-type.cjs');
+const { WORK_ITEM_BRANCH_PREFIXES } = require('../../src/ticket-branches.js');
 
 test('the default project type is core', () => {
 	assert.equal(DEFAULT_PROJECT_TYPE, 'core');
@@ -112,6 +113,10 @@ test('every project type carries the full shape consumers depend on', () => {
 		assert.ok(['docroot', 'plugin-mount'].includes(cfg.serve.strategy));
 		assert.ok(['src-layout', 'repo-relative'].includes(cfg.patch.layout));
 		assert.ok(['trac', 'github-issue'].includes(cfg.workItem.provider));
+		// The namespace a site writes its work-item branches under has to be
+		// one every read in ticket-branches.js accepts, or `branches:list` and
+		// the delete guard would not see the branches the site itself made.
+		assert.ok(WORK_ITEM_BRANCH_PREFIXES.includes(cfg.workItem.branchPrefix), `${id}: workItem.branchPrefix ${cfg.workItem.branchPrefix} is not a namespace ticket-branches.js reads`);
 
 		assert.equal(typeof cfg.pr.branchPrefix, 'string');
 		assert.equal(typeof cfg.pr.bodyLine, 'function');
