@@ -24,8 +24,9 @@
 // second step goes by pid, through killTreeByPid, because by then the runner
 // itself has usually died of the first signal and a ChildProcess that has
 // exited says nothing about the tree behind it; `close` is the event that
-// does, and the caller uses it to stand the escalation down. Windows needs
-// no second step, `taskkill /F` forces from the start.
+// does, and the caller uses it to stand the escalation down. Windows takes
+// no second step: `taskkill /F` forces from the start, and killTreeByPid is
+// only ever called for a POSIX group.
 
 'use strict';
 
@@ -74,12 +75,12 @@ function killChildTree(child, deps = {}) {
  * there, which `close` not having fired tells it. Never throws; returns true
  * when a kill was attempted.
  *
- * @param {number}   pid
- * @param {string}   [signal]         'SIGTERM' or 'SIGKILL'; Windows forces regardless.
- * @param {Object}   [deps]
- * @param {string}   [deps.platform]
- * @param {Function} [deps.spawnSync]
- * @param {Function} [deps.kill]
+ * @param {number}              pid
+ * @param {'SIGTERM'|'SIGKILL'} [signal]         Windows forces regardless.
+ * @param {Object}              [deps]
+ * @param {string}              [deps.platform]
+ * @param {Function}            [deps.spawnSync]
+ * @param {Function}            [deps.kill]
  * @return {boolean}
  */
 function killTreeByPid(pid, signal = 'SIGTERM', {

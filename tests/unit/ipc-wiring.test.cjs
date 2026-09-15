@@ -2060,6 +2060,28 @@ test('npm:kill ends the script tree rather than signalling the runner alone', as
 	assert.deepEqual(cp.children[0].kill.calls, [], 'the escalation must not stop at the runner');
 });
 
+test('npm:kill arms no escalation for a child that had already closed', async (t) => {
+	const cp = stubbedSpawn();
+	const killTreeByPid = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			// The real killChildTree: it answers false for a closed child, which
+			// is the whole decision here.
+			'./kill-tree': { killTreeByPid }
+		}
+	});
+	const { runId } = await main.invoke('npm:run-script', '/sites/wp', 'build');
+	// The run finished, but Stop lands before the registry forgot it.
+	cp.children[0].exitCode = 0;
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	await main.invoke('npm:kill', { runId });
+	t.mock.timers.tick(3000);
+	// Its pid may belong to someone else by now; forcing it would be the bug.
+	assert.deepEqual(killTreeByPid.calls, []);
+});
+
 test('npm:kill stands the escalation down once the tree has closed', async (t) => {
 	const cp = stubbedSpawn();
 	const killTreeByPid = spy();
