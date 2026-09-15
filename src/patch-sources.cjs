@@ -87,12 +87,14 @@ function bodyCitesTicket(body, ticketId) {
 
 /**
  * True when a PR body cites this exact GitHub issue, the way GitHub itself
- * links the two (#251): a closing keyword in front of `#N` or `owner/repo#N`
- * ("Fixes #71234", "Closes: WordPress/gutenberg#71234"), or the issue's full
- * URL. Those are the forms that make the pull request show under "linked pull
- * requests" on the issue, so the list here agrees with what GitHub shows. A
- * bare `#N` elsewhere in the body does not count, for the same reason an
- * unlabelled Trac number does not: the search surfaced it from prose.
+ * links the two (#251): a closing keyword in front of `#N`, `owner/repo#N` or
+ * the issue's full URL ("Fixes #71234", "Closes: WordPress/gutenberg#71234",
+ * "Resolves https://github.com/WordPress/gutenberg/issues/71234"). Those are
+ * the forms that make the pull request show under "linked pull requests" on
+ * the issue, so the list here agrees with what GitHub shows. A bare `#N` or a
+ * bare URL elsewhere in the body does not count, for the same reason an
+ * unlabelled Trac number does not: the search surfaced it from prose, and
+ * GitHub does not link on a mention either.
  *
  * @param {string}        body
  * @param {number|string} issueId
@@ -104,12 +106,12 @@ function bodyCitesIssue(body, issueId, repoPath = PR_REPO_PATH) {
 	const id = String(issueId).replace(/[^0-9]/g, '');
 	if (!id) return false;
 	const repo = String(repoPath).replace(/[.\\/]/g, '\\$&');
-	const url = new RegExp(`github\\.com/${repo}/issues/${id}(?![0-9])`, 'i');
 	// GitHub's closing keywords, each in its three forms, then an optional
-	// colon, then the reference. `(?<![0-9])` is not needed on the left: the
-	// keyword is what precedes the digits.
-	const closing = new RegExp(`\\b(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\\s*:?\\s*(?:${repo})?#${id}(?![0-9])`, 'i');
-	return url.test(body) || closing.test(body);
+	// colon, then the reference in any of its three shapes. `(?<![0-9])` is
+	// not needed on the left: the keyword is what precedes the digits.
+	const reference = `(?:(?:${repo})?#${id}|https?://github\\.com/${repo}/issues/${id})(?![0-9])`;
+	const closing = new RegExp(`\\b(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\\s*:?\\s*${reference}`, 'i');
+	return closing.test(body);
 }
 
 /**

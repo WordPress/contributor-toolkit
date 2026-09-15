@@ -64,3 +64,11 @@ test('ticketTrunkNotice and rebaseRefusal take the site\'s noun', () => {
 	assert.doesNotMatch(refusal, /ticket/);
 	assert.equal(rebaseRefusal({ code: 'other', noun: 'issue' }), 'Could not move the issue onto the current trunk.');
 });
+
+// Main's on-trunk and not-a-ticket-branch sentences name a ticket whatever
+// the site; the card words them with its own noun (#251).
+test('rebaseRefusal words on-trunk and not-a-ticket-branch itself, with the noun', () => {
+	assert.equal(rebaseRefusal({ code: 'on-trunk', error: 'main says ticket' }), 'Link a ticket first: trunk is what tickets are measured against.');
+	assert.equal(rebaseRefusal({ code: 'on-trunk', error: 'main says ticket', noun: 'issue' }), 'Link an issue first: trunk is what issues are measured against.');
+	assert.equal(rebaseRefusal({ code: 'not-a-ticket-branch', noun: 'issue' }), 'Only an issue branch can be moved onto the current trunk.');
+});

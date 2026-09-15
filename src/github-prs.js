@@ -304,19 +304,19 @@ async function fetchLinkedPrs(ticketId, deps = {}) {
 /**
  * The unified diff for one pull request.
  *
+ * Core-only, like its one handler: nothing has invoked it since pull requests
+ * became checkouts (#458), so it takes no repository until a caller needs one.
+ *
  * @param {number} number
- * @param {Object} [deps]
- * @param {string} [deps.repo] `owner/repo`; a Core site's when absent.
  * @return {Promise<{ok: true, text: string}|{ok: false, status: string, error: string}>}
  */
-async function fetchPrDiff(number, deps = {}) {
+async function fetchPrDiff(number) {
 	const n = String(number).replace(/[^0-9]/g, '');
 	if (!n) return { ok: false, status: 'error', error: 'No pull request number' };
-	const repo = deps.repo || REPO;
 
 	let res;
 	try {
-		res = await httpGet(`https://api.github.com/repos/${repo}/pulls/${n}`, { Accept: 'application/vnd.github.v3.diff' });
+		res = await httpGet(`https://api.github.com/repos/${REPO}/pulls/${n}`, { Accept: 'application/vnd.github.v3.diff' });
 	} catch (e) {
 		return { ok: false, status: 'offline', error: String(e && e.message ? e.message : e) };
 	}

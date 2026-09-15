@@ -76,6 +76,10 @@ function rebaseRefusal({ code = '', conflicts = [], kinds = {}, error = '', tick
 	if (code === 'no-base') {
 		return `The app does not know which trunk #${ticket} started from, so it cannot move the work safely. ${MANUAL_PATH(ticket, noun)}`;
 	}
+	// Main's sentences for these two name a ticket whatever the site; the
+	// card words them itself so a Gutenberg site reads its own noun (#251).
+	if (code === 'on-trunk') return `Link ${noun === 'issue' ? 'an' : 'a'} ${noun} first: trunk is what ${noun}s are measured against.`;
+	if (code === 'not-a-ticket-branch') return `Only ${noun === 'issue' ? 'an' : 'a'} ${noun} branch can be moved onto the current trunk.`;
 	return error || `Could not move the ${noun} onto the current trunk.`;
 }
 
