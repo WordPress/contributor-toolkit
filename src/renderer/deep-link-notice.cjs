@@ -50,8 +50,9 @@ function deepLinkNotice({ ticket = null, siteLabel = '', currentTicket = null, p
 
 	// A Trac ticket has no place on a site whose work item is not a Trac
 	// ticket (#251): linking it would park the site on a ticket branch that
-	// no card on that page names. The ticket is kept, not consumed, so the
-	// question is asked on a Core site when one is opened.
+	// no card on that page names. There is nothing to confirm, so the caller
+	// shows this without an action that consumes the ticket: hiding the note
+	// is that site's business, and a Core site opened next still asks.
 	if (siteLabel && provider !== 'trac') {
 		return {
 			state: 'unsupported',
