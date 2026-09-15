@@ -153,15 +153,13 @@ function setupStepLabel(status, isRunning) {
  * same flags as `computeSetupStepState` so the words and the button state can
  * never disagree.
  *
- * @param {Object} flags The flags computeSetupStepState takes.
+ * `setup` is the registry's `setup` entry for the site's type (#251): what
+ * the build step says before and after it ran. It defaults to Core's, so a
+ * caller that does not know the type reads what every site read before.
+ *
+ * @param {Object} [flags] The flags computeSetupStepState takes.
+ * @param {Object} [setup]
  * @return {{installLabel: string, installDescription: string, buildLabel: string, buildDescription: string}}
- */
-/**
- * @param {Object} [flags]
- * @param {Object} [setup] The registry's `setup` entry for the site's type
- *                         (#251): what the build step says before and after
- *                         it ran. Defaults to Core's, so a caller that does
- *                         not know the type reads what every site read before.
  */
 function setupStepCopy(flags = {}, setup = getProjectType().setup) {
 	const state = computeSetupStepState(flags);

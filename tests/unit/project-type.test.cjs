@@ -88,6 +88,13 @@ test('every project type carries the full shape consumers depend on', () => {
 		for (const key of ['cloneLabel', 'cloneDescription', 'buildDescription', 'builtDescription', 'serverDescription']) {
 			assert.equal(typeof cfg.setup[key], 'string', `${id}: setup.${key}`);
 		}
+		assert.equal(typeof cfg.cards.applyHeading, 'string', `${id}: cards.applyHeading`);
+		assert.equal(typeof cfg.cards.applyDescription, 'string', `${id}: cards.applyDescription`);
+		assert.equal(typeof cfg.cards.patchFiles, 'boolean', `${id}: cards.patchFiles`);
+		// A target whose work item is not a Trac ticket says what stands in for
+		// the ticket card; the Trac target has the card itself.
+		assert.equal(cfg.cards.workItemPlaceholder === null, cfg.workItem.provider === 'trac', `${id}: cards.workItemPlaceholder`);
+		assert.equal(cfg.cards.patchFiles, cfg.workItem.provider === 'trac', `${id}: patch files go with Trac`);
 		assert.ok(['docroot', 'plugin-mount'].includes(cfg.serve.strategy));
 		assert.ok(['src-layout', 'repo-relative'].includes(cfg.patch.layout));
 		assert.ok(['trac', 'github-issue'].includes(cfg.workItem.provider));

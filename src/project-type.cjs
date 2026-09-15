@@ -72,6 +72,18 @@ const PROJECT_TYPES = {
 			serverDescription: 'Launch the development server once to complete the WordPress setup wizard.'
 		},
 
+		// What the site page's cards say where the two targets differ. The
+		// work-item card is the Trac one on Core; `workItemPlaceholder` is the
+		// line a target shows in its place while its own work item is not wired.
+		cards: {
+			workItemPlaceholder: null,
+			applyHeading: 'Apply a patch or PR',
+			applyDescription: 'Pull requests are checked out with their author\u2019s commits. A .diff/.patch file is applied to the current branch as a removable layer.',
+			// Patch files are how work arrives from Trac; a target whose work
+			// arrives as pull requests has no use for the file picker.
+			patchFiles: true
+		},
+
 		// 'docroot', the built checkout IS the WordPress install Playground serves.
 		serve: { strategy: 'docroot' },
 
@@ -121,6 +133,13 @@ const PROJECT_TYPES = {
 			// Gutenberg's bare `test` runs PHP and e2e suites that need Docker;
 			// the unit suite and the linters are what a checkout without it can run.
 			allowedScripts: ['build', 'dev', 'test:unit', 'lint', 'lint:js']
+		},
+
+		cards: {
+			workItemPlaceholder: 'Working on a Gutenberg issue from here, with its own branch and a pull request that fixes it, comes in a later version. For now this site is for building, running and trying pull requests by checkout.',
+			applyHeading: 'Check out a pull request',
+			applyDescription: 'Pull requests are checked out with their author\u2019s commits.',
+			patchFiles: false
 		},
 
 		setup: {

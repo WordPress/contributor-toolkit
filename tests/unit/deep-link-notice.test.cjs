@@ -63,3 +63,18 @@ test('an unnamed active site is not an active site', () => {
 	assert.equal(notice.state, 'no-sites');
 	assert.equal(notice.confirmLabel, null);
 });
+
+// A ticket link on a site whose work item is not a Trac ticket (#251) is
+// neither a question nor a settlement: nothing to confirm, and the ticket is
+// kept for a Core site.
+test('a site of another target refuses the ticket without consuming it', () => {
+	const notice = deepLinkNotice({ ticket: 62281, siteLabel: 'My block editor', provider: 'github-issue' });
+	assert.equal(notice.state, 'unsupported');
+	assert.match(notice.title, /62281/);
+	assert.match(notice.title, /My block editor/);
+	assert.equal(notice.confirmLabel, null);
+	// The default provider is Trac, so every existing caller asks as before.
+	assert.equal(deepLinkNotice({ ticket: 62281, siteLabel: 'My site' }).state, 'confirm');
+	// With no site open the answer is the same as for Core: wait for one.
+	assert.equal(deepLinkNotice({ ticket: 62281, provider: 'github-issue' }).state, 'no-sites');
+});
