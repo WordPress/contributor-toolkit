@@ -38,13 +38,27 @@
  * @param {number}             [root0.ticket]        The ticket the link carried.
  * @param {string}             [root0.siteLabel]     The active site's name, if one is open.
  * @param {number|string|null} [root0.currentTicket] The ticket the active site is already on.
+ * @param {string}             [root0.provider]      The active site's work-item provider (#251): 'trac' (default) or 'github-issue'.
  * @return {{state: string, title: string|null, body: string|null, confirmLabel: string|null}|null} Null only when no link has arrived.
  */
-function deepLinkNotice({ ticket = null, siteLabel = '', currentTicket = null } = {}) {
+function deepLinkNotice({ ticket = null, siteLabel = '', currentTicket = null, provider = 'trac' } = {}) {
 	if (!ticket) return null;
 
 	if (currentTicket !== null && String(ticket) === String(currentTicket)) {
 		return { state: 'settled', title: null, body: null, confirmLabel: null };
+	}
+
+	// A Trac ticket has no place on a site whose work item is not a Trac
+	// ticket (#251): linking it would park the site on a ticket branch that
+	// no card on that page names. The ticket is kept, not consumed, so the
+	// question is asked on a Core site when one is opened.
+	if (siteLabel && provider !== 'trac') {
+		return {
+			state: 'unsupported',
+			title: `Ticket #${ticket} cannot be linked to ${siteLabel}.`,
+			body: 'A Trac ticket belongs on a WordPress Core site. Open one and the app will offer the ticket there.',
+			confirmLabel: null
+		};
 	}
 
 	if (siteLabel) {

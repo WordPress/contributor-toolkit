@@ -2000,10 +2000,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // file's; here it is only rendered and dispatched.
   const deepLinkState = deepLinkNotice({
     ticket: deepLinkTicket,
+    provider: project.workItem.provider,
     siteLabel: displayName,
     currentTicket: tracTicket
   });
   const deepLinkPrompt = deepLinkState && deepLinkState.state === 'confirm' ? deepLinkState : null;
+  // A ticket that cannot land on this site (#251): said, dismissable, never
+  // consumed, so a Core site opened next still gets the question.
+  const deepLinkNote = deepLinkState && deepLinkState.state === 'unsupported' ? deepLinkState : null;
   // `settled` is a link for the ticket this site is on already. Cleared rather
   // than merely hidden, so the question does not resurface on the next site the
   // contributor opens.
@@ -3447,7 +3451,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // screen hiding it, since the banner leads with the breakdown's headline.
     if (!parsed.ok) { clearApplyError(); setApplyError(parsed.error); setApplyNotice(''); return; }
     setPrUrlInput('');
-    previewPr({ number: parsed.number, url: `https://github.com/WordPress/wordpress-develop/pull/${parsed.number}` });
+    previewPr({ number: parsed.number, url: `https://github.com/${project.upstream.owner}/${project.upstream.repo}/pull/${parsed.number}` });
   };
 
   const runPrSwitch = async ({ leaving = false } = {}) => {
@@ -4211,7 +4215,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             </>
           ) : (
             <div style={{ fontSize:12, color:'#6c6f72' }}>
-              No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.
+              {showTracCards ? 'No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.' : PR_FAILURE_MESSAGES['unsupported-project']}
             </div>
           )}
           {prStage ? (
@@ -4911,6 +4915,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           gate: a link can arrive whether or not this site already has a ticket,
           and a site still in the setup wizard shows no ticket panel at all —
           which is exactly when a ticket that vanished silently would be worst. */}
+      {deepLinkNote ? (
+        <div role="status" style={{ padding: '14px 16px', border: '1px solid #dba617', background: '#fcf9e8', borderRadius: 8 }}>
+          <div style={{ fontWeight: 600, fontSize: 15, color: '#1d2327' }}>{deepLinkNote.title}</div>
+          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{deepLinkNote.body}</div>
+          <div style={{ marginTop: 10 }}><Button variant="link" onClick={dismissDeepLink}>Not now</Button></div>
+        </div>
+      ) : null}
       {deepLinkPrompt ? (
         <div role="status" style={{ padding: '12px 14px', background: '#f0f6fc', border: '1px solid #72aee6', borderRadius: 8, color: '#1d2327' }}>
           <div style={{ fontWeight: 600 }}>{deepLinkPrompt.title}</div>
@@ -4929,10 +4940,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           </div>
         </div>
       ) : null}
-      {skipInit && !showTracCards ? (
+      {skipInit && project.cards.workItemPlaceholder ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>GitHub issue</div>
-          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>Working on a {project.label} issue from here, with its own branch and a pull request that fixes it, comes in a later version. For now this site is for building, running and trying pull requests by checkout.</div>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{project.workItem.label}</div>
+          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{project.cards.workItemPlaceholder}</div>
         </div>
       ) : null}
       {skipInit && showTracCards ? (
@@ -5234,11 +5245,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       ) : null}
       {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{showTracCards ? 'Apply a patch or PR' : 'Check out a pull request'}</div>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{project.cards.applyHeading}</div>
           {!pullRequest && !applyPreview && !isApplying ? (
-            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-              Pull requests are checked out with their author&apos;s commits.{showTracCards ? <> A <code>.diff</code>/<code>.patch</code> file is applied to the current branch as a removable layer.</> : null}
-            </div>
+            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{project.cards.applyDescription}</div>
           ) : null}
 
           {appliedLayer && !isApplying ? (
@@ -5470,7 +5479,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                   style={{ padding: '10px 16px', borderRadius: 10 }}
                 >Apply PR</Button>
               </div>
-              {showTracCards ? (
+              {project.cards.patchFiles ? (
                 <div style={{ marginTop: 10 }}>
                   <Button variant="link" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ fontSize: 13 }}>
                     or choose a .diff / .patch file…
@@ -5865,8 +5874,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                     </Destination>
                   </DestinationGroup>
 
-{showTracCards ? (
                   <DestinationGroup>
+                    {showTracCards ? (
                     <Destination
                       title="Attach to Trac"
                       cost="A WordPress.org account — needed anyway, for props and to comment."
@@ -5904,6 +5913,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                         </>
                       )}
                     </Destination>
+                    ) : null}
 
                     <Destination
                       title="Hand it to a mentor"
@@ -5972,7 +5982,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                       )}
                     </Destination>
                   </DestinationGroup>
-                  ) : null}
                   </div>
               )}
             </div>

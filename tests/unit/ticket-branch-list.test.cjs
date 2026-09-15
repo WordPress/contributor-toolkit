@@ -154,9 +154,9 @@ test('card: the list renders once, in its own card between the ticket card and t
 	// Between the two cards it used to sit inside of and above.
 	const ticketCard = source.indexOf('Working on ticket #');
 	const listCard = source.indexOf('{ticketsCard.heading}');
-	// The heading is an expression now, one wording per target (#251); the
-	// Core wording is still the anchor.
-	const patchCard = source.indexOf("'Apply a patch or PR'");
+	// The heading comes from the registry now, one wording per target (#251);
+	// the read of it is the anchor.
+	const patchCard = source.indexOf('{project.cards.applyHeading}');
 	assert.ok(ticketCard !== -1 && listCard !== -1 && patchCard !== -1, 'one of the three card headings is missing from index.jsx');
 	assert.ok(ticketCard < listCard && listCard < patchCard, 'the tickets card is not between the Trac ticket card and the patch card');
 });

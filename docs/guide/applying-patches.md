@@ -1,5 +1,9 @@
 # Applying patches and PRs
 
+::: info WordPress Core sites
+Patch files come from Trac, so the `.diff` / `.patch` picker is on WordPress Core sites only. A Gutenberg site takes pull requests by checkout, from `WordPress/gutenberg`.
+:::
+
 The **Apply a patch or PR** panel lets you test someone else's work before adding your own. Pull requests and patch files take different paths: a PR becomes its own checkout with the author's commits, while a `.diff`/`.patch` file is applied on top of the branch you are already using. Your own changes are kept with their branch.
 
 ![The Apply a patch or PR panel, with a field for a pull request URL and a link to choose a patch file](/screenshots/apply-patch-panel.png)
