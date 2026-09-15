@@ -164,3 +164,13 @@ test('a status with nothing usable in it moves nothing', () => {
 		assert.equal(rowPathAfterStatus(GUESS, status), null, JSON.stringify(status));
 	}
 });
+
+// The type chosen in the dialog rides in the placeholder (#251): the store
+// only learns it when the clone finishes, and the row is on screen from the
+// first second.
+test('the placeholder carries the chosen project type, and none when none was chosen', () => {
+	const withType = beginSetup({ sites: [], siteMeta: {} }, { path: GUESS, label: 'Demo', createdAt: 'now', projectType: 'gutenberg' });
+	assert.equal(withType.siteMeta[GUESS].projectType, 'gutenberg');
+	const without = beginSetup({ sites: [], siteMeta: {} }, { path: GUESS, label: 'Demo', createdAt: 'now' });
+	assert.equal('projectType' in without.siteMeta[GUESS], false);
+});

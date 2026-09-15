@@ -617,7 +617,8 @@ function App() {
     applySetup((state) => beginSetup(state, {
       path: targetDir,
       label: nameTrimmed,
-      createdAt: placeholderCreatedAt
+      createdAt: placeholderCreatedAt,
+      projectType: createSiteType
     }));
     setActiveSite(targetDir);
     setCreateModalOpen(false);
@@ -863,6 +864,10 @@ function App() {
           {sortedSites.map((sitePath) => {
             const meta = siteMeta?.[sitePath] || {};
             const siteName = (meta.label && meta.label.trim()) || pathBasename(sitePath);
+            // A site that is not a Core one says so on its row (#251); Core
+            // rows stay as they were.
+            const rowProject = getProjectType(meta.projectType);
+            const projectTag = rowProject.id === DEFAULT_PROJECT_TYPE ? null : rowProject.label;
             const isActive = activeSite === sitePath;
             const isDeleting = deletingSites.includes(sitePath);
             let siteButtonMinHeight = 40;
@@ -916,6 +921,7 @@ function App() {
                   <div style={{ width: '100%', minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3 }}>
                       <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{siteName}{staleDot}</span>
+                      {projectTag ? <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '1px 6px', borderRadius: 999, background: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.85)' }}>{projectTag}</span> : null}
                       {isDeleting ? <span style={{ fontSize: 11, lineHeight: 1.3, color: 'rgba(255,255,255,0.72)' }}>Deleting site…</span> : null}
                     </div>
                     {isDeleting ? <Spinner style={{ width: 16, height: 16, margin: 0, flexShrink: 0 }} /> : null}
@@ -1027,6 +1033,7 @@ function App() {
                       initialized={Boolean(siteMeta?.[s]?.initialized)}
                       createdAt={siteMeta?.[s]?.createdAt}
                       label={siteMeta?.[s]?.label}
+                      projectType={siteMeta?.[s]?.projectType}
                       onInitialized={onInitialized}
                       onSiteMetaPatch={onSiteMetaPatch}
                       onDelete={onDelete}
@@ -1303,7 +1310,7 @@ function TerminalCommandLink({ command, onPrefill, disabled }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1405,11 +1412,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // the app knows there is no build on disk, just not that the last attempt lost.
   const [buildFailed, setBuildFailed] = useState(false);
   const [hasBuilt, setHasBuilt] = useState(false);
-  // Which target this site is a checkout of (#251), reported by site:status
-  // and Core for any site made before the field existed. Its `build` entry
-  // is what the watcher and the terminal's script list read.
-  const [projectType, setProjectType] = useState(DEFAULT_PROJECT_TYPE);
-  const projectBuild = getProjectType(projectType).build;
+  // Which target this site is a checkout of (#251): the site record's field,
+  // carried by the placeholder from the moment the dialog closes, and Core
+  // for any site made before the field existed. `build` is what the watcher
+  // and the terminal's script list read; the Trac-shaped cards (ticket,
+  // patch files, attach) show only where the work item is a Trac ticket.
+  const project = getProjectType(projectType);
+  const projectBuild = project.build;
+  const showTracCards = project.workItem.provider === 'trac';
   // Read through a ref by the terminal's command handlers rather than closed
   // over: the xterm instance is created by an effect that depends on
   // `printHelp`, so a new array identity here would otherwise dispose and
@@ -1783,7 +1793,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setHasNodeModules(Boolean(s?.hasNodeModules));
       setInstallFailed(Boolean(s?.installFailed));
       setHasBuilt(Boolean(s?.hasBuilt));
-      setProjectType(s?.projectType);
       setSkipInit(Boolean(s?.skipInitWizard));
       setTrunkDate(s?.trunkDate || null);
       setUpdateIncomplete(Boolean(s?.updateIncomplete));
@@ -4379,17 +4388,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     isUpdating
   };
   const stepState = computeSetupStepState(setupFlags);
-  const { installLabel, installDescription, buildLabel, buildDescription } = setupStepCopy(setupFlags);
+  const { installLabel, installDescription, buildLabel, buildDescription } = setupStepCopy(setupFlags, project.setup);
 
   const baseSteps = [
     {
       key: 'download',
-      label: 'Download WordPress development version',
+      label: project.setup.cloneLabel,
       description: isPending
         // The clone is also the trigger for everything after it (#246), so the
         // step says what happens next rather than implying a click is coming.
         ? 'Cloning the repository… install and build start on their own when it finishes.'
-        : 'Clone the WordPress develop repository.',
+        : project.setup.cloneDescription,
       ...stepState.download,
       running: isPending
     },
@@ -4426,7 +4435,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     {
       key: 'dev',
       label: 'Start dev server & finish wizard',
-      description: 'Launch the development server once to complete the WordPress setup wizard.',
+      description: project.setup.serverDescription,
       ...stepState.dev,
       running: starting,
       action: (
@@ -4522,6 +4531,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', ...statusStyles }}>
               {initialized ? 'Initialized' : 'Uninitialized'}
             </span>
+            {project.id !== DEFAULT_PROJECT_TYPE ? <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '2px 8px', borderRadius: 999, background: '#f0f0f1', color: '#1d2327' }}>{project.label}</span> : null}
             {createdLabel ? <span>Created {createdLabel}</span> : null}
             {age.known ? (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -4919,7 +4929,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           </div>
         </div>
       ) : null}
-      {skipInit ? (
+      {skipInit && !showTracCards ? (
+        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>GitHub issue</div>
+          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>Working on a {project.label} issue from here, with its own branch and a pull request that fixes it, comes in a later version. For now this site is for building, running and trying pull requests by checkout.</div>
+        </div>
+      ) : null}
+      {skipInit && showTracCards ? (
       <div {...cueProps('link-ticket')} style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
         <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{tracTicket ? `Working on ticket #${tracTicket}` : 'Trac ticket'}</div>
         {prCheckout && !isApplying ? (
@@ -5212,10 +5228,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ) : null}
       {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Apply a patch or PR</div>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{showTracCards ? 'Apply a patch or PR' : 'Check out a pull request'}</div>
           {!pullRequest && !applyPreview && !isApplying ? (
             <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-              Pull requests are checked out with their author&apos;s commits. A <code>.diff</code>/<code>.patch</code> file is applied to the current branch as a removable layer.
+              Pull requests are checked out with their author&apos;s commits.{showTracCards ? <> A <code>.diff</code>/<code>.patch</code> file is applied to the current branch as a removable layer.</> : null}
             </div>
           ) : null}
 
@@ -5448,16 +5464,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   style={{ padding: '10px 16px', borderRadius: 10 }}
                 >Apply PR</Button>
               </div>
-              <div style={{ marginTop: 10 }}>
-                <Button variant="link" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ fontSize: 13 }}>
-                  or choose a .diff / .patch file…
-                </Button>
-              </div>
+              {showTracCards ? (
+                <div style={{ marginTop: 10 }}>
+                  <Button variant="link" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ fontSize: 13 }}>
+                    or choose a .diff / .patch file…
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
       ) : null}
-      {skipInit && ticketsCard ? (
+      {skipInit && showTracCards && ticketsCard ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
           <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{ticketsCard.heading}</div>
           {renderBranchRows(Boolean(tracTicket))}
@@ -5847,6 +5865,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     </Destination>
                   </DestinationGroup>
 
+{showTracCards ? (
                   <DestinationGroup>
                     <Destination
                       title="Attach to Trac"
@@ -5953,6 +5972,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                       )}
                     </Destination>
                   </DestinationGroup>
+                  ) : null}
                   </div>
               )}
             </div>
