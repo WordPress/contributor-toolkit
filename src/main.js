@@ -77,7 +77,11 @@ const CARRIED_WORK_CHANNEL = 'ticket:carried-work';
 // The ticket a `wpct://` link carried (#464). Send-only, like the two above,
 // and named here for the same reason: preload.js subscribes by string.
 const DEEP_LINK_CHANNEL = 'deep-link:ticket';
-const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
+// Which work item a site is on, read through the provider its project type
+// names (#251): a Trac ticket on Core, a GitHub issue on Gutenberg. The
+// Trac parser is reached through it rather than directly, so no handler
+// here has to know which kind it is holding.
+const { workItemProvider } = require('./work-item.cjs');
 const { LEGACY_SITE_ERROR } = require('./renderer/legacy-site.cjs');
 const { mergeInProgressError, mergeCheckFailedError } = require('./renderer/merge-in-progress.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
@@ -1208,6 +1212,32 @@ async function readSiteMeta(sitePath) {
 }
 
 /**
+ * The work-item provider a site's meta selects (#251), with the repository its
+ * issues live in already bound. Every handler that parses what a contributor
+ * typed, or names the work item on screen, goes through this rather than
+ * reaching for the Trac parser: a record that predates project types resolves
+ * to Core, so the Trac path is unchanged.
+ *
+ * @param {Object} meta the site's stored meta
+ */
+function workItemFor(meta) {
+    const type = projectTypeForSite(meta);
+    const { owner, repo } = type.upstream;
+    return workItemProvider(type.workItem.provider, `${owner}/${repo}`);
+}
+
+/**
+ * The namespace this site's work-item branches are created under — `ticket/` on
+ * Core, `issue/` on Gutenberg. Reads accept both (ticket-branches.js), so this
+ * is only ever needed where a ref is being built.
+ *
+ * @param {Object} meta the site's stored meta
+ */
+function branchPrefixFor(meta) {
+    return projectTypeForSite(meta).workItem.branchPrefix;
+}
+
+/**
  * Moves a pre-#108 site onto the branch shape without anyone losing a worktree.
  *
  * A site with a linked ticket gets that ticket's branch created at the current
@@ -1231,7 +1261,8 @@ async function migrateSiteToBranches(sitePath) {
     }
 
     try {
-        const ref = ticketBranchRef(m.tracTicket);
+        const prefix = branchPrefixFor(m);
+        const ref = ticketBranchRef(m.tracTicket, prefix);
         const existing = await listTicketBranches(sitePath);
         // A branch that already exists was not created by this app, so its fork
         // point is not on record and cannot be recovered on a depth-1 clone.
@@ -1240,7 +1271,7 @@ async function migrateSiteToBranches(sitePath) {
         // point (#308).
         const baseOid = existing.includes(ref)
             ? null
-            : (await startTicketBranch(sitePath, m.tracTicket)).baseOid;
+            : (await startTicketBranch(sitePath, m.tracTicket, { prefix })).baseOid;
         const migrated = {
             branches: {
                 [ref]: {
@@ -2737,8 +2768,12 @@ async function withRegisteredSite(sitePath, run) {
 	}
 }
 
-// Which Trac ticket a site is being used to work on (#109), which under #108 is
-// also which branch is checked out. Linking a ticket the site has seen before
+// Which work item a site is being used to work on (#109): a Trac ticket on a
+// Core site, a GitHub issue on a Gutenberg one (#251), which under #108 is
+// also which branch is checked out. The stored key stays `tracTicket` for
+// both: renaming it touches every read on the card, the switcher and the
+// patch handlers for no behavior, and a third provider is what would make
+// the name wrong enough to pay that. Linking a ticket the site has seen before
 // switches back to its branch — files and context as they were left; a new one
 // starts a branch at the current trunk tip. Loose edits on trunk are no longer
 // carried along unasked (#234): the handler refuses with `dirty-trunk` on both
@@ -2753,7 +2788,7 @@ async function withRegisteredSite(sitePath, run) {
 async function rememberTicketPr(sitePath) {
     const active = await activeBranch(sitePath);
     if (active.site.switchInProgress || !active.site.tracTicket || prNumberFromRef(active.ref) === null) return;
-    await mergeBranchMeta(sitePath, ticketBranchRef(active.site.tracTicket), { activePr: active.ref });
+    await mergeBranchMeta(sitePath, ticketBranchRef(active.site.tracTicket, branchPrefixFor(active.site)), { activePr: active.ref });
 }
 
 async function ticketPrImpact(sitePath, from, to) {
@@ -2806,10 +2841,15 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 		return { ok: true, ticket: null, branch: TRUNK, ...impact };
 	}
 
-	const parsed = parseTicketRef(raw);
+	// Parsed by the site's own provider, so a Gutenberg site reads `71234` and a
+	// pasted issue URL, refuses a pull-request URL by name, and refuses an issue
+	// from another repository — none of which the Trac parser could tell apart.
+	const typeMeta = await readSiteMeta(sitePath);
+	const parsed = workItemFor(typeMeta).parseRef(raw);
 	if (!parsed.ok) return { ok: false, error: parsed.error };
 
-	const branchRef = ticketBranchRef(parsed.id);
+	const prefix = branchPrefixFor(typeMeta);
+	const branchRef = ticketBranchRef(parsed.id, prefix);
 	const checkoutRef = await ticketCheckoutRef(sitePath, branchRef);
 	const blocked = await midSwitchBlock(sitePath, { retryTo: checkoutRef });
 	if (blocked) return blocked;
@@ -2871,7 +2911,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 			// that there is nothing to carry.
 			const files = await countChangesAgainst(sitePath);
 			if (files > 0) {
-				logEvent('branches', `asked before carrying ${files} loose file(s) on trunk into ticket/${parsed.id} in ${describeRefused(sitePath)}`);
+				logEvent('branches', `asked before carrying ${files} loose file(s) on trunk into ${branchRef} in ${describeRefused(sitePath)}`);
 				// Same code the refused switch to an existing branch returns,
 				// so the renderer asks the one question either way. `canCarry`
 				// is what only this path can offer: an existing branch has its
@@ -2886,7 +2926,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 				};
 			}
 		}
-		({ baseOid } = await startTicketBranch(sitePath, parsed.id));
+		({ baseOid } = await startTicketBranch(sitePath, parsed.id, { prefix }));
 	}
 
 	await mergeBranchMeta(sitePath, branchRef, {

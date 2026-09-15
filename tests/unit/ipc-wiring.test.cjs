@@ -4429,11 +4429,58 @@ test('sites:set-ticket starts a branch for a ticket the site has not seen', asyn
 
 	const result = await main.invoke('sites:set-ticket', '/sites/wp', '62281');
 
-	assert.deepEqual(startTicketBranch.calls, [['/sites/wp', 62281]]);
+	assert.deepEqual(startTicketBranch.calls, [['/sites/wp', 62281, { prefix: 'ticket/' }]]);
 	assert.equal(result.branch, 'ticket/62281');
 	const meta = settings.values.siteMeta['/sites/wp'];
 	assert.equal(meta.tracTicket, 62281);
 	assert.equal(meta.branches['ticket/62281'].baseOid, 'abc', 'the branch point is recorded — it is the diff base');
+});
+
+// On a Gutenberg site the same handler reads a GitHub issue (#251): the site's
+// provider parses what was typed, and the branch is made under `issue/`, the
+// namespace the registry names for the type. Core sites are untouched by this,
+// which the test above is the proof of.
+test('sites:set-ticket on a Gutenberg site parses an issue and starts an issue/ branch', async () => {
+	const startTicketBranch = spy(async () => ({ ref: 'issue/71234', baseOid: 'abc', ticketId: 71234 }));
+	const listTicketBranches = spy(async () => []);
+	const currentBranchName = spy(async () => 'trunk');
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./ticket-branches': { startTicketBranch, listTicketBranches, currentBranchName, countChangesAgainst: async () => 0 }
+		}
+	});
+
+	const result = await main.invoke('sites:set-ticket', '/sites/gb', 'https://github.com/WordPress/gutenberg/issues/71234#issuecomment-1');
+
+	assert.equal(result.ok, true);
+	assert.deepEqual(startTicketBranch.calls, [['/sites/gb', 71234, { prefix: 'issue/' }]]);
+	assert.equal(result.branch, 'issue/71234');
+	const meta = settings.values.siteMeta['/sites/gb'];
+	assert.equal(meta.tracTicket, 71234, 'the stored key stays tracTicket; every read of the card is keyed on it');
+	assert.equal(meta.branches['issue/71234'].baseOid, 'abc');
+});
+
+test('sites:set-ticket on a Gutenberg site refuses what is not one of its issues, before any git work', async () => {
+	const startTicketBranch = spy(async () => ({}));
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { startTicketBranch, listTicketBranches: async () => [], currentBranchName: async () => 'trunk' } }
+	});
+
+	const pr = await main.invoke('sites:set-ticket', '/sites/gb', 'https://github.com/WordPress/gutenberg/pull/4496');
+	const trac = await main.invoke('sites:set-ticket', '/sites/gb', 'https://core.trac.wordpress.org/ticket/62281');
+	const elsewhere = await main.invoke('sites:set-ticket', '/sites/gb', 'https://github.com/WordPress/wordpress-develop/issues/1');
+
+	assert.equal(pr.ok, false);
+	assert.match(pr.error, /pull request/i, 'the obvious mistake is named');
+	assert.equal(trac.ok, false);
+	assert.equal(elsewhere.ok, false);
+	assert.match(elsewhere.error, /WordPress\/gutenberg/);
+	assert.deepEqual(startTicketBranch.calls, []);
+	assert.equal(settings.values.siteMeta['/sites/gb'].tracTicket, undefined);
 });
 
 // Linking a ticket this site has never seen used to carry whatever was loose
