@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 
-const { killTreePlan, killChildTree, killChildTreeAndWait } = require('../../src/kill-tree.js');
+const { killTreePlan, killChildTree, killTreeByPid, killChildTreeAndWait } = require('../../src/kill-tree.js');
 
 test('killTreePlan on win32 builds a taskkill for the whole tree', () => {
 	const plan = killTreePlan('win32', 1234);
@@ -30,14 +30,14 @@ test('killTreePlan on POSIX can force the same group with SIGKILL, and win32 for
 	assert.deepEqual(killTreePlan('win32', 1234, 'SIGKILL'), killTreePlan('win32', 1234));
 });
 
-test('killChildTree passes the requested signal to the group', () => {
+test('killTreeByPid forces the group even though the ChildProcess that led it has exited', () => {
 	const calls = [];
-	killChildTree({ pid: 42, exitCode: null, signalCode: null }, {
-		platform: 'darwin',
-		signal: 'SIGKILL',
-		kill: (target, signal) => { calls.push([target, signal]); }
-	});
+	// What the escalation sees three seconds after Stop: the runner is gone,
+	// killChildTree would answer false, and the descendants are still there.
+	assert.equal(killChildTree({ pid: 42, exitCode: null, signalCode: 'SIGTERM' }, { platform: 'darwin', kill: () => { throw new Error('must not be called'); } }), false);
+	assert.equal(killTreeByPid(42, 'SIGKILL', { platform: 'darwin', kill: (target, signal) => { calls.push([target, signal]); } }), true);
 	assert.deepEqual(calls, [[-42, 'SIGKILL']]);
+	assert.equal(killTreeByPid(0, 'SIGKILL', { platform: 'darwin', kill: () => { throw new Error('must not be called'); } }), false, 'a pid that names no live process is refused, forced or not');
 });
 
 test('killTreePlan refuses pids that cannot name a live process', () => {

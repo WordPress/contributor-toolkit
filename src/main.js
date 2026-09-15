@@ -25,7 +25,7 @@ const {
 	logError
 } = require('./logging');
 const { buildMenuTemplate } = require('./menu');
-const { killChildTree, killChildTreeAndWait } = require('./kill-tree');
+const { killChildTree, killTreeByPid, killChildTreeAndWait } = require('./kill-tree');
 const { lockfileChangedFromBlobOids, normalizeEol } = require('./git-update.cjs');
 const { readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
 const { applyPatchToDir } = require('./patch-apply');
@@ -3471,11 +3471,16 @@ ipcMain.handle('npm:kill', async (_event, { runId, directoryPath }) => {
 		// running (#83, #146). An install is the same shape: runner -> npm.
 		killChildTree(child);
 		// Last resort for a tree that ignores SIGTERM: the same group signal,
-		// forced. It used to reach only the direct child, and the runner dying
-		// took the pipes with it but not a descendant that had chosen to sit
-		// through the first signal (Gutenberg's native `tsc --build`, #251).
-		// A tree that already closed is skipped by killChildTree itself.
-		setTimeout(() => { killChildTree(child, { signal: 'SIGKILL' }); }, 3000);
+		// forced, by pid. It used to be a kill of the direct child, and the
+		// runner dying took the pipes with it but not a descendant that had
+		// chosen to sit through the first signal (Gutenberg's native `tsc
+		// --build`, #251); and by the time the timer fires the runner has
+		// usually died of the first signal, so a check on the ChildProcess
+		// would say "nothing to do" about a tree that is still there. `close`
+		// is what says the tree is gone (the pipes are), and stands this down.
+		const pid = child.pid;
+		const escalation = setTimeout(() => { killTreeByPid(pid, 'SIGKILL'); }, 3000);
+		child.once('close', () => clearTimeout(escalation));
 		return { ok: true };
 	} catch (e) {
 		return { ok: false, error: String(e) };

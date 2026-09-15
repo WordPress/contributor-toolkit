@@ -20,8 +20,12 @@
 // gave the tree its chance and found part of it still there: Gutenberg's
 // `npm run dev` runs the native TypeScript binary, which sits through a
 // SIGTERM while it is mid-build, and a SIGKILL that reached only the direct
-// child (the runner) left `tsc --build` running after Stop (#251). Windows
-// needs no second step, `taskkill /F` forces from the start.
+// child (the runner) left `tsc --build` running after Stop (#251). That
+// second step goes by pid, through killTreeByPid, because by then the runner
+// itself has usually died of the first signal and a ChildProcess that has
+// exited says nothing about the tree behind it; `close` is the event that
+// does, and the caller uses it to stand the escalation down. Windows needs
+// no second step, `taskkill /F` forces from the start.
 
 'use strict';
 
@@ -51,21 +55,39 @@ function killTreePlan(platform, pid, signal = 'SIGTERM') {
  * @param {Object}   [deps]           Injection points, so the tests can assert
  *                                    the plan without spawning anything.
  * @param {string}   [deps.platform]
- * @param {string}   [deps.signal]    'SIGTERM' (default) or 'SIGKILL'.
  * @param {Function} [deps.spawnSync]
  * @param {Function} [deps.kill]
  * @return {boolean}
  */
-function killChildTree(child, {
-	platform = process.platform,
-	signal = 'SIGTERM',
-	spawnSync = require('child_process').spawnSync,
-	kill = process.kill
-} = {}) {
+function killChildTree(child, deps = {}) {
 	if (!child || !child.pid) return false;
 	// exitCode/signalCode are set once the child has exited; nothing to do then.
 	if (child.exitCode !== null || child.signalCode) return false;
-	const plan = killTreePlan(platform, child.pid, signal);
+	return killTreeByPid(child.pid, 'SIGTERM', deps);
+}
+
+/**
+ * Applies killTreePlan to a pid, with no ChildProcess to consult. For the
+ * escalation: the runner that led the group has usually exited by then, so
+ * `exitCode`/`signalCode` would say "nothing to do" while its descendants
+ * are still running. The caller is responsible for knowing the tree is still
+ * there, which `close` not having fired tells it. Never throws; returns true
+ * when a kill was attempted.
+ *
+ * @param {number}   pid
+ * @param {string}   [signal]         'SIGTERM' or 'SIGKILL'; Windows forces regardless.
+ * @param {Object}   [deps]
+ * @param {string}   [deps.platform]
+ * @param {Function} [deps.spawnSync]
+ * @param {Function} [deps.kill]
+ * @return {boolean}
+ */
+function killTreeByPid(pid, signal = 'SIGTERM', {
+	platform = process.platform,
+	spawnSync = require('child_process').spawnSync,
+	kill = process.kill
+} = {}) {
+	const plan = killTreePlan(platform, pid, signal);
 	if (!plan) return false;
 	if (plan.type === 'command') {
 		try { spawnSync(plan.command, plan.args, { windowsHide: true }); } catch {}
@@ -123,4 +145,4 @@ function killChildTreeAndWait(child, { timeoutMs = 5000, ...killDeps } = {}) {
 	});
 }
 
-module.exports = { killTreePlan, killChildTree, killChildTreeAndWait };
+module.exports = { killTreePlan, killChildTree, killTreeByPid, killChildTreeAndWait };

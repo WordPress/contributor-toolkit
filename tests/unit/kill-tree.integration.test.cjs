@@ -11,7 +11,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 
-const { killChildTree } = require('../../src/kill-tree.js');
+const { killChildTree, killTreeByPid } = require('../../src/kill-tree.js');
 
 const posixOnly = process.platform === 'win32' ? { skip: 'process groups are POSIX' } : {};
 
@@ -35,21 +35,36 @@ function until(check, ms) {
 	});
 }
 
-test('a forced group signal ends a descendant that ignored SIGTERM', posixOnly, async (t) => {
+test('a forced group signal by pid ends a descendant that ignored SIGTERM, after the runner itself has died', { ...posixOnly, timeout: 60000 }, async (t) => {
 	// runner -> sh -> node, the way the app's scripts are runner -> npm -> ... .
-	const child = spawn('sh', ['-c', `"${process.execPath}" -e '${STUBBORN}'`], { detached: true, stdio: ['ignore', 'pipe', 'ignore'] });
+	// `& wait` forces the fork: `sh -c` with a single command exec()s it, and
+	// the shell would *be* the node process. Arguments go in positionally so
+	// nothing here is quoted through the shell.
+	const child = spawn('sh', ['-c', '"$0" -e "$1" & wait', process.execPath, STUBBORN], {
+		detached: true,
+		stdio: ['ignore', 'pipe', 'ignore'],
+		env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
+	});
 	t.after(() => { try { process.kill(-child.pid, 'SIGKILL'); } catch {} });
 	let out = '';
-	const grandchildPid = await new Promise((resolve) => {
+	const grandchildPid = await new Promise((resolve, reject) => {
+		child.on('error', reject);
+		child.on('exit', (code, signal) => reject(new Error(`the shell exited before its child reported a pid (${code}, ${signal})`)));
 		child.stdout.on('data', (d) => { out += d; const m = /^(\d+)/m.exec(out); if (m) resolve(Number(m[1])); });
 	});
+	assert.notEqual(grandchildPid, child.pid, 'the premise is a descendant, not the direct child');
 	assert.ok(alive(grandchildPid));
 
-	// The polite signal reaches the group and the grandchild sits through it.
+	// The polite signal reaches the group: the shell dies of it, the grandchild
+	// sits through it. Exactly the state the escalation timer fires into.
 	assert.equal(killChildTree(child), true);
+	assert.equal(await until(() => child.exitCode !== null || child.signalCode, 5000), true, 'the shell, like the runner, dies of SIGTERM');
 	assert.equal(await until(() => !alive(grandchildPid), 1500), false, 'the grandchild ignores SIGTERM, which is the premise');
 
+	// What a ChildProcess-based escalation would do now: nothing.
+	assert.equal(killChildTree(child), false, 'the exited runner reads as nothing to do, which is why the escalation goes by pid');
+
 	// The escalation the handler arms three seconds later.
-	assert.equal(killChildTree(child, { signal: 'SIGKILL' }), true);
+	assert.equal(killTreeByPid(child.pid, 'SIGKILL'), true);
 	assert.equal(await until(() => !alive(grandchildPid), 5000), true, 'the forced group signal must end the grandchild');
 });

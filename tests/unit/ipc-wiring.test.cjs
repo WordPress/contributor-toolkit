@@ -2029,11 +2029,12 @@ test('npm:install refuses to start when the compat preload cannot be installed (
 test('npm:kill ends the script tree rather than signalling the runner alone', async (t) => {
 	const cp = stubbedSpawn();
 	const killChildTree = spy();
+	const killTreeByPid = spy();
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
 			'child_process': { spawn: cp.spawn },
-			'./kill-tree': { killChildTree }
+			'./kill-tree': { killChildTree, killTreeByPid }
 		}
 	});
 
@@ -2049,12 +2050,34 @@ test('npm:kill ends the script tree rather than signalling the runner alone', as
 	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
 	assert.deepEqual(cp.children[0].kill.calls, []);
 
-	// The last resort, three seconds on, is the same tree signal forced, not a
-	// kill of the direct child: a descendant that sat through SIGTERM
-	// (Gutenberg's native tsc, #251) is past the first link too.
+	// The last resort, three seconds on, is the same tree signal forced, by
+	// pid rather than through the ChildProcess: a descendant that sat through
+	// SIGTERM (Gutenberg's native tsc, #251) is past the first link too, and
+	// the runner has usually died of the first signal by then, which a check
+	// on the ChildProcess would read as nothing left to do.
 	t.mock.timers.tick(3000);
-	assert.deepEqual(killChildTree.calls[1], [cp.children[0], { signal: 'SIGKILL' }]);
+	assert.deepEqual(killTreeByPid.calls, [[cp.children[0].pid, 'SIGKILL']]);
 	assert.deepEqual(cp.children[0].kill.calls, [], 'the escalation must not stop at the runner');
+});
+
+test('npm:kill stands the escalation down once the tree has closed', async (t) => {
+	const cp = stubbedSpawn();
+	const killTreeByPid = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTree: spy(), killTreeByPid }
+		}
+	});
+	const { runId } = await main.invoke('npm:run-script', '/sites/wp', 'build');
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	await main.invoke('npm:kill', { runId });
+	// `close` means the pipes are shut, so nothing in the tree is left to force;
+	// forcing a pid the OS may have handed to someone else would be the bug.
+	cp.children[0].emit('close', null, 'SIGTERM');
+	t.mock.timers.tick(3000);
+	assert.deepEqual(killTreeByPid.calls, []);
 });
 
 // The install is the other thing a directory can be busy with, and it was the
