@@ -1,5 +1,7 @@
 'use strict';
 
+const { getProjectType } = require('../project-type.cjs');
+
 /**
  * Derives the done/ready/disabled state of every step in the site setup
  * checklist.
@@ -154,7 +156,14 @@ function setupStepLabel(status, isRunning) {
  * @param {Object} flags The flags computeSetupStepState takes.
  * @return {{installLabel: string, installDescription: string, buildLabel: string, buildDescription: string}}
  */
-function setupStepCopy(flags = {}) {
+/**
+ * @param {Object} [flags]
+ * @param {Object} [setup] The registry's `setup` entry for the site's type
+ *                         (#251): what the build step says before and after
+ *                         it ran. Defaults to Core's, so a caller that does
+ *                         not know the type reads what every site read before.
+ */
+function setupStepCopy(flags = {}, setup = getProjectType().setup) {
 	const state = computeSetupStepState(flags);
 	const installFailed = Boolean(flags.installFailed);
 	const hasBuilt = Boolean(flags.hasBuilt);
@@ -178,9 +187,9 @@ function setupStepCopy(flags = {}) {
 	if (hasBuilt) buildLabel = 'Build complete';
 	else if (state.build.failed) buildLabel = 'Retry the build';
 
-	let buildDescription = 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.';
+	let buildDescription = setup.buildDescription;
 	if (hasBuilt) {
-		buildDescription = 'Built. Edited files in src/ since? Run npm run build in the Terminal below so the site picks them up — updates and applied patches rebuild on their own.';
+		buildDescription = setup.builtDescription;
 	} else if (state.build.failed) {
 		buildDescription = 'The build did not finish. Its output is in the Terminal below — retry when you have read it.';
 	}

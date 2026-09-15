@@ -10,6 +10,7 @@ const {
 	setupAutoStartDecision,
 	setupStepLabel
 } = require('../../src/renderer/setup-steps.cjs');
+const { getProjectType } = require('../../src/project-type.cjs');
 
 // The four checklist rows, in order, as the renderer builds them — so the ladder
 // tests below read as the screen the contributor is looking at.
@@ -328,4 +329,19 @@ test('a status read that failed refuses rather than assuming the site is fresh',
 		setupAutoStartDecision({ wasPending: true, isPending: false, status: null }),
 		'skip'
 	);
+});
+
+// The build step's words are the target's (#251); a caller that passes none
+// reads Core's, which is what every site read before.
+test('the build step describes the target it builds', () => {
+	const core = setupStepCopy({ hasNodeModules: true });
+	assert.strictEqual(core.buildDescription, 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.');
+	assert.deepStrictEqual(setupStepCopy({ hasNodeModules: true }, getProjectType('core').setup), core);
+
+	const gutenberg = setupStepCopy({ hasNodeModules: true }, getProjectType('gutenberg').setup);
+	assert.match(gutenberg.buildDescription, /Gutenberg packages/);
+	assert.doesNotMatch(gutenberg.buildDescription, /WordPress Core/);
+	const built = setupStepCopy({ hasNodeModules: true, hasBuilt: true }, getProjectType('gutenberg').setup);
+	assert.match(built.buildDescription, /^Built\./);
+	assert.doesNotMatch(built.buildDescription, /src\//);
 });

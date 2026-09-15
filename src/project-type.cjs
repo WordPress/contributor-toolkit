@@ -63,6 +63,15 @@ const PROJECT_TYPES = {
 			allowedScripts: ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt']
 		},
 
+		// What the setup checklist says about the steps that differ per target.
+		setup: {
+			cloneLabel: 'Download WordPress development version',
+			cloneDescription: 'Clone the WordPress develop repository.',
+			buildDescription: 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
+			builtDescription: 'Built. Edited files in src/ since? Run npm run build in the Terminal below so the site picks them up — updates and applied patches rebuild on their own.',
+			serverDescription: 'Launch the development server once to complete the WordPress setup wizard.'
+		},
+
 		// 'docroot', the built checkout IS the WordPress install Playground serves.
 		serve: { strategy: 'docroot' },
 
@@ -112,6 +121,14 @@ const PROJECT_TYPES = {
 			// Gutenberg's bare `test` runs PHP and e2e suites that need Docker;
 			// the unit suite and the linters are what a checkout without it can run.
 			allowedScripts: ['build', 'dev', 'test:unit', 'lint', 'lint:js']
+		},
+
+		setup: {
+			cloneLabel: 'Download Gutenberg',
+			cloneDescription: 'Clone the Gutenberg repository.',
+			buildDescription: 'Compile the Gutenberg packages. Later updates rebuild automatically.',
+			builtDescription: 'Built. Edited a package since? Run npm run build in the Terminal below so the site picks it up; updates rebuild on their own.',
+			serverDescription: 'Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.'
 		},
 
 		// 'plugin-mount', Gutenberg is a plugin, so Playground boots a stock

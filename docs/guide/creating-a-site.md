@@ -36,7 +36,7 @@ Each site is an ordinary folder on your disk: the parent folder you chose in **S
 
 ## The site list
 
-Every site appears in the sidebar, newest first. Click a site to switch to it; the button for the active site is highlighted. The chevron at the top collapses the sidebar to a narrow strip showing only each site's initial.
+Every site appears in the sidebar, newest first. Click a site to switch to it; the button for the active site is highlighted. A Gutenberg site carries a **Gutenberg** tag on its row and next to its status, so the two kinds are told apart at a glance; the checklist, the terminal and the cards on its page follow suit (no Trac ticket, no patch files: a Gutenberg site takes pull requests by checkout). The chevron at the top collapses the sidebar to a narrow strip showing only each site's initial.
 
 A colored dot next to a site name warns that it has fallen behind trunk:
 

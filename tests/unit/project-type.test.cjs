@@ -85,6 +85,9 @@ test('every project type carries the full shape consumers depend on', () => {
 		assert.ok(Array.isArray(cfg.build.watch.args));
 		assert.ok(Array.isArray(cfg.build.allowedScripts) && cfg.build.allowedScripts.length > 0);
 
+		for (const key of ['cloneLabel', 'cloneDescription', 'buildDescription', 'builtDescription', 'serverDescription']) {
+			assert.equal(typeof cfg.setup[key], 'string', `${id}: setup.${key}`);
+		}
 		assert.ok(['docroot', 'plugin-mount'].includes(cfg.serve.strategy));
 		assert.ok(['src-layout', 'repo-relative'].includes(cfg.patch.layout));
 		assert.ok(['trac', 'github-issue'].includes(cfg.workItem.provider));
