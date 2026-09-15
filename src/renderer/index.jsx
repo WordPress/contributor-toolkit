@@ -1392,7 +1392,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // is what the watcher and the terminal's script list read.
   const [projectType, setProjectType] = useState(DEFAULT_PROJECT_TYPE);
   const projectBuild = getProjectType(projectType).build;
-  const allowedScripts = projectBuild.allowedScripts;
+  // Read through a ref by the terminal's command handlers rather than closed
+  // over: the xterm instance is created by an effect that depends on
+  // `printHelp`, so a new array identity here would otherwise dispose and
+  // recreate the terminal, scrollback and all, the first time a status
+  // reports a type. Same indirection as terminalInputHandlerRef.
+  const allowedScriptsRef = useRef(projectBuild.allowedScripts);
+  allowedScriptsRef.current = projectBuild.allowedScripts;
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
@@ -1759,7 +1765,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setHasNodeModules(Boolean(s?.hasNodeModules));
       setInstallFailed(Boolean(s?.installFailed));
       setHasBuilt(Boolean(s?.hasBuilt));
-      setProjectType(s?.projectType || DEFAULT_PROJECT_TYPE);
+      setProjectType(s?.projectType);
       setSkipInit(Boolean(s?.skipInitWizard));
       setTrunkDate(s?.trunkDate || null);
       setUpdateIncomplete(Boolean(s?.updateIncomplete));
@@ -2329,9 +2335,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     writeToTerminal('Available commands:\n');
     writeToTerminal('  help                        Show this help text\n');
     writeToTerminal('  npm install                 Run npm install in the site directory\n');
-    writeToTerminal('  npm run <script>            Run one of: ' + allowedScripts.join(', ') + '\n');
+    writeToTerminal('  npm run <script>            Run one of: ' + allowedScriptsRef.current.join(', ') + '\n');
     writeToTerminal('\nThe setup checklist runs npm install and npm run build once. Run them here\nwhenever you change files or add a dependency afterwards.\n');
-  }, [allowedScripts, writeToTerminal]);
+  }, [writeToTerminal]);
 
   const executeTerminalCommand = useCallback((rawCommand) => {
     const command = rawCommand.trim();
@@ -2378,6 +2384,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         showPrompt(false);
         return;
       }
+      const allowedScripts = allowedScriptsRef.current;
       if (!allowedScripts.includes(script)) {
         writeToTerminal(`Unsupported script "${script}". Allowed scripts: ${allowedScripts.join(', ')}\n`);
         showPrompt(false);
@@ -2400,7 +2407,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
     writeToTerminal(`Unsupported command: ${command}\nTry "help" for the list of supported commands.\n`);
     showPrompt(false);
-  }, [addCommandToHistory, allowedScripts, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
+  }, [addCommandToHistory, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
 
   const handleTerminalData = useCallback((data) => {
     const term = terminalRef.current;
