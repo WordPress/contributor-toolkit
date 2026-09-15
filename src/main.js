@@ -166,7 +166,10 @@ if (!app.isPackaged && process.env.TOOLKIT_USER_DATA_DIR) {
 	}
 }
 
-const WORDPRESS_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
+// Which upstream a site is a checkout of (#251). The registry is the one place
+// the per-target facts live; `projectTypeForSite` answers Core for any record
+// that predates the field.
+const { getProjectType, normalizeProjectType, projectTypeForSite } = require('./project-type.cjs');
 
 // Provide a PATH shim so npm's spawned scripts can find a 'node' binary that maps to Electron's Node
 let nodeShimDir = null;
@@ -281,11 +284,10 @@ function spawnRunner(runnerPath, args, { cwd, extraEnv = {} }) {
 }
 
 function findAvailableDirName(rootDir, baseName) {
-	const sanitizedBase = baseName || 'wordpress-develop-trunk';
-	let candidate = sanitizedBase;
+	let candidate = baseName;
 	let counter = 2;
 	while (fs.existsSync(path.join(rootDir, candidate))) {
-		candidate = `${sanitizedBase}-${counter++}`;
+		candidate = `${baseName}-${counter++}`;
 	}
 	return candidate;
 }
@@ -2446,13 +2448,15 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		const nmDir = path.join(sitePath, 'node_modules');
 		const hasNodeModules = fs.existsSync(nmDir) && (() => { try { return fs.readdirSync(nmDir).length > 0; } catch { return false; } })();
 
-		const distDir = path.join(sitePath, 'build', 'wp-includes', 'js', 'dist');
-		const hasBuilt = fs.existsSync(distDir);
-
 		const s = await getStore();
 		if ((s.get('sites') || []).includes(sitePath)) await ensureLocalExcludes(sitePath);
 		const meta = s.get('siteMeta') || {};
 		const m = meta[sitePath] || {};
+
+		// "Is it built" is answered per target (#251): Core's marker is the dist
+		// directory its build writes, Gutenberg's a script under build/scripts.
+		const project = projectTypeForSite(m);
+		const hasBuilt = fs.existsSync(path.join(sitePath, ...project.build.builtCheckRelPath));
 
 		// Trunk snapshot age (#94). Read from HEAD each time (one object
 		// read) and written through to siteMeta, so the sidebar can render
@@ -2512,9 +2516,9 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 			}
 			: null;
 
-		return { hasNodeModules, hasBuilt, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch, pullRequest, legacy, mergeInProgress: merging };
+		return { hasNodeModules, hasBuilt, projectType: project.id, skipInitWizard: Boolean(m.skipInitWizard), initialized: Boolean(m.initialized), installFailed: Boolean(m.installFailed), trunkOid, trunkDate, updateIncomplete: Boolean(work.updateIncomplete), tracTicket: m.tracTicket || null, ticketBehindTrunk, appliedPatch, pullRequest, legacy, mergeInProgress: merging };
 	} catch {
-		return { hasNodeModules: false, hasBuilt: false, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, ticketBehindTrunk: false, appliedPatch: null, pullRequest: null, legacy: false, mergeInProgress: null };
+		return { hasNodeModules: false, hasBuilt: false, projectType: getProjectType().id, skipInitWizard: false, initialized: false, installFailed: false, trunkOid: null, trunkDate: null, updateIncomplete: false, tracTicket: null, ticketBehindTrunk: false, appliedPatch: null, pullRequest: null, legacy: false, mergeInProgress: null };
 	}
 });
 
@@ -2562,8 +2566,16 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 
 	await fse.ensureDir(destDir);
 
+	// The target decides what is cloned and what the site is called by default
+	// (#251). Normalised at this write boundary: an unknown id is stored as
+	// Core, not as whatever the renderer sent. Until the create-site dialog
+	// offers the choice, nothing sends a type and every site is Core; a
+	// Gutenberg site made over IPC today clones correctly and is then built,
+	// served and diffed as if it were wordpress-develop.
+	const projectType = normalizeProjectType(options.projectType);
+	const project = getProjectType(projectType);
 	const requestedName = typeof options.siteName === 'string' ? options.siteName.trim() : '';
-	const sanitizedName = requestedName.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').replace(/^-+|-+$/g, '') || 'wordpress-develop-trunk';
+	const sanitizedName = requestedName.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').replace(/^-+|-+$/g, '') || project.defaultFolderName;
 	const uniqueName = findAvailableDirName(destDir, sanitizedName);
 	const siteDir = path.join(destDir, uniqueName);
 	await fse.ensureDir(siteDir);
@@ -2590,7 +2602,8 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 		notify('download:status', { phase: 'cloning', target: siteDir });
 		try {
 			await cloneSite({
-				url: WORDPRESS_GIT_URL,
+				url: project.clone.url,
+				branch: project.clone.ref,
 				dir: siteDir,
 				onChild: trackGitChild(siteDir),
 				onProgress: (evt) => {
@@ -2626,6 +2639,7 @@ ipcMain.handle('wordpress:setup', async (event, destDir, options = {}) => {
 			await changeSiteMeta(siteDir, (m) => ({
 				...m,
 				initialized: false,
+				projectType,
 				createdAt: m.createdAt || new Date().toISOString(),
 				label: m.label || siteLabel,
 				...(trunkInfo ? { trunkOid: trunkInfo.trunkOid, trunkDate: trunkInfo.trunkDate } : {})
