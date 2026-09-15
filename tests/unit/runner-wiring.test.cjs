@@ -37,9 +37,8 @@ const SERVER_RUNNER = path.join(SRC_DIR, 'server-runner.js');
 const WEB_RUNNER = path.join(SRC_DIR, 'playground-web-runner.js');
 
 // The bare specifiers the runners load. `@wp-playground/cli` is the one whose
-// load has to come last; the rest are stubbed only to keep the real packages —
-// none of which need to run, and two of which are not even installed here — off
-// the test.
+// load has to come last; the rest are stubbed only to keep the real packages,
+// none of which need to run here, off the test.
 const PLAYGROUND_CLI = '@wp-playground/cli';
 const PHP_WASM = '@php-wasm/universal';
 
@@ -135,8 +134,15 @@ function assertPatchesPrecedeCli(events, runner) {
 	);
 }
 
+// What main.js hands server-runner for a Core site: its build/ as the docroot.
+// The runner resolves host paths, so the expected values below are resolved
+// the same way; on Windows `/tmp/x` resolves to a drive-rooted path.
+const CORE_DOCROOT = '/tmp/does-not-need-to-exist';
+const CORE_SERVE = JSON.stringify({ strategy: 'docroot', docroot: CORE_DOCROOT });
+const GUTENBERG_CHECKOUT = '/tmp/gutenberg-checkout';
+
 test('server-runner patches loopback and hides child windows before loading the Playground CLI', () => {
-	const { events } = loadRunner(SERVER_RUNNER, ['/tmp/does-not-need-to-exist']);
+	const { events } = loadRunner(SERVER_RUNNER, [CORE_SERVE]);
 	assertPatchesPrecedeCli(events, 'server-runner');
 	assert.equal(realPackageLoaded(), false, 'server-runner loaded a real electron/Playground package instead of the stub');
 });
@@ -156,7 +162,7 @@ test('playground-web-runner patches loopback and hides child windows before load
 // for a file WordPress was never told to write, and the module exporting the
 // right constants would not have caught that on its own.
 test('server-runner passes the WordPress debug constants to Playground', () => {
-	const { cliOptions } = loadRunner(SERVER_RUNNER, ['/tmp/does-not-need-to-exist']);
+	const { cliOptions } = loadRunner(SERVER_RUNNER, [CORE_SERVE]);
 
 	assert.ok(cliOptions, 'runCLI was never called');
 	const constants = cliOptions.blueprint && cliOptions.blueprint.constants;
@@ -171,9 +177,56 @@ test('server-runner passes the WordPress debug constants to Playground', () => {
 // the mail ones out: this is how a site's outgoing mail reaches the app's SMTP
 // catcher, and losing it is silent — mail simply stops arriving.
 test('the SMTP constants survive alongside them', () => {
-	const { cliOptions } = loadRunner(SERVER_RUNNER, ['/tmp/does-not-need-to-exist']);
+	const { cliOptions } = loadRunner(SERVER_RUNNER, [CORE_SERVE]);
 	const constants = cliOptions.blueprint.constants;
 
 	assert.strictEqual(constants.WP_MAIL_SMTP_HOST, '127.0.0.1');
 	assert.strictEqual(typeof constants.WP_MAIL_SMTP_PORT, 'number');
+});
+
+// --- the serve strategy -> src/playground-plan.cjs (#251) -----------------
+//
+// playground-plan.test.cjs proves what each strategy plans. These prove the
+// runner hands the plan to runCLI: the Core options it always sent, byte for
+// byte, and the plugin mount with its guard constants for Gutenberg.
+
+test('a docroot config reaches runCLI as the options a Core site always got', () => {
+	const { cliOptions } = loadRunner(SERVER_RUNNER, [CORE_SERVE]);
+
+	assert.deepEqual(cliOptions['mount-before-install'], [{ hostPath: path.resolve(CORE_DOCROOT), vfsPath: '/wordpress' }]);
+	assert.equal('mount' in cliOptions, false, 'the Core options carry no plugin mount, not even an empty one');
+	assert.equal('additional-blueprint-steps' in cliOptions, false);
+	assert.equal(cliOptions.wordpressInstallMode, 'install-from-existing-files-if-needed');
+	assert.equal(cliOptions.blueprint.constants.DISALLOW_FILE_MODS, undefined, 'a Core docroot keeps WordPress\'s file defaults');
+});
+
+test('a plugin-mount config mounts the checkout as a plugin into a stock install, and locks file modifications', () => {
+	const { cliOptions } = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'plugin-mount', pluginDir: GUTENBERG_CHECKOUT, pluginSlug: 'gutenberg' })]);
+
+	assert.deepEqual(cliOptions.mount, [{ hostPath: path.resolve(GUTENBERG_CHECKOUT), vfsPath: '/wordpress/wp-content/plugins/gutenberg' }]);
+	assert.deepEqual(cliOptions['mount-before-install'], []);
+	assert.deepEqual(cliOptions['additional-blueprint-steps'], [{ step: 'activatePlugin', pluginPath: '/wordpress/wp-content/plugins/gutenberg' }]);
+	assert.equal(cliOptions.wordpressInstallMode, undefined, 'the default install downloads the stock WordPress the plugin runs in');
+	// The mount is the contributor's working tree, .git included; without these
+	// Plugins > Delete in the served site removes it.
+	assert.equal(cliOptions.blueprint.constants.DISALLOW_FILE_MODS, true);
+	assert.equal(cliOptions.blueprint.constants.DISALLOW_FILE_EDIT, true);
+	// And they are added to the shared constants, not in place of them.
+	assert.equal(cliOptions.blueprint.constants.WP_MAIL_SMTP_HOST, '127.0.0.1');
+});
+
+test('server-runner exits before loading the CLI when the serve config is not JSON', () => {
+	// process.exit is what the runner calls; record it instead, and rely on the
+	// runner returning right after (it does, for exactly this reason).
+	const originalExit = process.exit;
+	const exits = [];
+	process.exit = (code) => { exits.push(code); };
+	let events = [];
+	try {
+		({ events } = loadRunner(SERVER_RUNNER, ['not json']));
+	} finally {
+		process.exit = originalExit;
+	}
+	assert.deepEqual(exits, [1]);
+	assert.ok(!events.includes('load:@wp-playground/cli'), 'the CLI must not load for a config the runner could not read');
 });
