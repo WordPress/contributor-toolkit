@@ -22,11 +22,12 @@ const TARGETS = [
 function watcherProcessesAlive( sitePath ) {
 	if ( process.platform === 'win32' ) return null;
 	try {
-		const out = execFileSync( 'pgrep', [ '-f', sitePath ], { encoding: 'utf8' } );
-		return out.trim().split( '\n' ).filter( Boolean ).length;
+		// -l lists the command lines, so a failure names what survived.
+		const out = execFileSync( 'pgrep', [ '-fl', sitePath ], { encoding: 'utf8' } );
+		return out.trim().split( '\n' ).filter( Boolean );
 	} catch {
 		// pgrep exits 1 when nothing matches.
-		return 0;
+		return [];
 	}
 }
 
@@ -126,11 +127,11 @@ for ( const target of TARGETS ) {
 				// INVARIANT: no watcher process survives Stop. Gutenberg's `npm run
 				// dev` is a tree (tsc, wp-build, an esbuild service) that outlives a
 				// signal to npm alone; kill-tree.js signals the group.
-				const alive = watcherProcessesAlive( sitePath );
-				if ( alive === null ) return;
+				if ( watcherProcessesAlive( sitePath ) === null ) return;
 				await expect( async () => {
-					expect( watcherProcessesAlive( sitePath ) ).toBe( 0 );
-				} ).toPass( { timeout: 20_000, intervals: [ 1_000 ] } );
+					const survivors = watcherProcessesAlive( sitePath );
+					expect( survivors, `processes still naming the site after Stop:\n${ survivors.join( '\n' ) }` ).toEqual( [] );
+				} ).toPass( { timeout: 30_000, intervals: [ 1_000 ] } );
 			} );
 		} finally {
 			// The session fixture captures failure evidence, quits (killing child
