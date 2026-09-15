@@ -82,9 +82,7 @@
     "linux": {
       "maintainer": "WordPress.org",
       "target": [
-        "AppImage",
-        "snap",
-        "deb"
+        "AppImage"
       ]
     },
     "win": {
