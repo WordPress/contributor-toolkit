@@ -111,12 +111,13 @@ function ticketBranchRows({ branches, current, tracTicket, now }) {
  * @param {Object}  input
  * @param {number}  input.rowCount How many rows ticketBranchRows produced.
  * @param {boolean} input.linked   Whether a ticket is linked to the site.
+ * @param {string}  [input.noun]   What the site calls its work item (#251): `ticket` unless told `issue`.
  * @return {?{heading: string}} What the card says, or null for no card.
  */
-function ticketListCard({ rowCount, linked }) {
+function ticketListCard({ rowCount, linked, noun = 'ticket' }) {
 	if (!rowCount) return null;
 	return {
-		heading: linked ? 'Other tickets on this site' : 'Your tickets on this site'
+		heading: linked ? `Other ${noun}s on this site` : `Your ${noun}s on this site`
 	};
 }
 

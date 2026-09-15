@@ -37,7 +37,8 @@
  * @param {boolean} state.running          The dev server is up.
  * @param {?Object} state.pullRequest      The PR currently checked out.
  * @param {boolean} state.hasChanges       The working tree has uncommitted edits.
- * @param {boolean} state.ticketLinked     A Trac ticket is linked.
+ * @param {boolean} state.ticketLinked     A work item (Trac ticket, GitHub issue) is linked.
+ * @param {string}  [state.workItemLabel]  What the site calls it (#251); `Trac ticket` when absent.
  * @return {?{id: string, reason: string}} The block to point at, or null.
  */
 function deriveNextAction(state = {}) {
@@ -111,7 +112,7 @@ function deriveNextAction(state = {}) {
 	}
 
 	if (!Boolean(state.ticketLinked)) {
-		return { id: 'link-ticket', reason: 'Link a Trac ticket to give your work a home.' };
+		return { id: 'link-ticket', reason: `Link a ${state.workItemLabel || 'Trac ticket'} to give your work a home.` };
 	}
 
 	return null;

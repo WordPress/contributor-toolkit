@@ -77,7 +77,11 @@ const CARRIED_WORK_CHANNEL = 'ticket:carried-work';
 // The ticket a `wpct://` link carried (#464). Send-only, like the two above,
 // and named here for the same reason: preload.js subscribes by string.
 const DEEP_LINK_CHANNEL = 'deep-link:ticket';
-const { parseTicketRef } = require('./renderer/trac-ticket.cjs');
+// Which work item a site is on, read through the provider its project type
+// names (#251): a Trac ticket on Core, a GitHub issue on Gutenberg. The
+// Trac parser is reached through it rather than directly, so no handler
+// here has to know which kind it is holding.
+const { workItemProvider } = require('./work-item.cjs');
 const { LEGACY_SITE_ERROR } = require('./renderer/legacy-site.cjs');
 const { mergeInProgressError, mergeCheckFailedError } = require('./renderer/merge-in-progress.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
@@ -1208,6 +1212,32 @@ async function readSiteMeta(sitePath) {
 }
 
 /**
+ * The work-item provider a site's meta selects (#251), with the repository its
+ * issues live in already bound. Every handler that parses what a contributor
+ * typed, or names the work item on screen, goes through this rather than
+ * reaching for the Trac parser: a record that predates project types resolves
+ * to Core, so the Trac path is unchanged.
+ *
+ * @param {Object} meta the site's stored meta
+ */
+function workItemFor(meta) {
+    const type = projectTypeForSite(meta);
+    const { owner, repo } = type.upstream;
+    return workItemProvider(type.workItem.provider, `${owner}/${repo}`);
+}
+
+/**
+ * The namespace this site's work-item branches are created under — `ticket/` on
+ * Core, `issue/` on Gutenberg. Reads accept both (ticket-branches.js), so this
+ * is only ever needed where a ref is being built.
+ *
+ * @param {Object} meta the site's stored meta
+ */
+function branchPrefixFor(meta) {
+    return projectTypeForSite(meta).workItem.branchPrefix;
+}
+
+/**
  * Moves a pre-#108 site onto the branch shape without anyone losing a worktree.
  *
  * A site with a linked ticket gets that ticket's branch created at the current
@@ -1231,7 +1261,8 @@ async function migrateSiteToBranches(sitePath) {
     }
 
     try {
-        const ref = ticketBranchRef(m.tracTicket);
+        const prefix = branchPrefixFor(m);
+        const ref = ticketBranchRef(m.tracTicket, prefix);
         const existing = await listTicketBranches(sitePath);
         // A branch that already exists was not created by this app, so its fork
         // point is not on record and cannot be recovered on a depth-1 clone.
@@ -1240,7 +1271,7 @@ async function migrateSiteToBranches(sitePath) {
         // point (#308).
         const baseOid = existing.includes(ref)
             ? null
-            : (await startTicketBranch(sitePath, m.tracTicket)).baseOid;
+            : (await startTicketBranch(sitePath, m.tracTicket, { prefix })).baseOid;
         const migrated = {
             branches: {
                 [ref]: {
@@ -2130,7 +2161,15 @@ ipcMain.handle('git:leave-pr', (event, sitePath) => streamPrOperation(event, sit
 // GitHub; the network code is in src/github-prs.js, these handlers add the
 // cache and IPC. A last-known-good copy per ticket, in electron-store, is what
 // lets a rate-limited or offline lookup still show the work that exists.
-const patchCacheKey = (ticketId) => `ticketPatches:${ticketId}`;
+//
+// The cache is keyed per work item, and a work item is a number *in a
+// repository* (#251): Trac ticket 62281 and Gutenberg issue 62281 are
+// different things with different pull requests. Core keeps the bare key it
+// always had, so nothing already cached is thrown away; any other target's
+// key carries its repository.
+const patchCacheKey = (ticketId, project) => (project.workItem.provider === 'trac'
+    ? `ticketPatches:${ticketId}`
+    : `ticketPatches:${project.upstream.owner}/${project.upstream.repo}:${ticketId}`);
 
 ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
     try {
@@ -2138,20 +2177,22 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
         const meta = (s.get('siteMeta') || {})[sitePath] || {};
         const ticketId = meta.tracTicket;
         if (!ticketId) return { ok: true, ticket: null, prs: { status: 'no-ticket', items: [] } };
+        const project = projectTypeForSite(meta);
+        const repo = `${project.upstream.owner}/${project.upstream.repo}`;
 
         // The cached list is passed back in, not just fallen back to: its commit
         // dates are still valid for any pull request GitHub reports with the
         // same `updatedAt`, so a Refresh does not re-spend the ranking, and a
         // Refresh on a spent quota cannot replace a ranking the contributor
         // could already read with an unranked one (#281).
-        const cachedBefore = s.get(patchCacheKey(ticketId)) || null;
-        const result = await fetchLinkedPrs(ticketId, { known: cachedBefore ? cachedBefore.items : null });
+        const cachedBefore = s.get(patchCacheKey(ticketId, project)) || null;
+        const result = await fetchLinkedPrs(ticketId, { known: cachedBefore ? cachedBefore.items : null, repo, provider: project.workItem.provider });
         if (result.status === 'ok') {
             // `rankComplete` is cached with the items and handed back with them:
             // a list whose commit-date ranking was cut short must not come back
             // from the cache looking complete, or the "Latest" pill returns
             // without the evidence for it (#281).
-            s.set(patchCacheKey(ticketId), { checkedAt: new Date().toISOString(), items: result.items, rankComplete: result.rankComplete });
+            s.set(patchCacheKey(ticketId, project), { checkedAt: new Date().toISOString(), items: result.items, rankComplete: result.rankComplete });
             return { ok: true, ticket: ticketId, prs: { status: 'ok', items: result.items, rankComplete: result.rankComplete } };
         }
 
@@ -2175,6 +2216,9 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
     }
 });
 
+// Core-only, and unreached: nothing in the renderer has invoked this since
+// pull requests became checkouts (#458); it stays for the API surface the
+// packaged smoke test pins. Removing both is a follow-up.
 ipcMain.handle('git:fetch-pr-diff', async (_e, number) => {
     try {
         return await fetchPrDiff(number);
@@ -2228,7 +2272,12 @@ const REVERTABLE_PATCH_LIMIT = 512 * 1024;
 // calls "your own edits" is what the patch modal would show.
 ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
     try {
-        const parsed = parsePatchFiles(patchText);
+        // Paths are read the way this site's repository lays them out (#251):
+        // steered under src/ on Core, left where the diff names them on
+        // Gutenberg. The preview and the apply below read the same layout, so
+        // what is shown is what is written.
+        const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
+        const parsed = parsePatchFiles(patchText, { layout });
         if (!parsed.ok) return { ok: false, error: parsed.error };
         let dirtyPaths;
         try {
@@ -2294,6 +2343,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
             if (blocked) { sendLog(`\n${blocked.error}\n`); sendDone(blocked); return; }
             const stored = (await readWorkMeta(sitePath)).appliedPatch;
+            const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
             if (reverse) {
                 if (!stored || !stored.text) {
                     sendDone({ ok: false, error: 'There is no stored patch to revert.' });
@@ -2309,7 +2359,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             }
             sendLog(`\n${reverse ? 'Reverting' : 'Applying'} ${label}…\n`);
 
-            const result = await applyPatchToDir({ dir: sitePath, patchText, reverse, onLog: sendLog });
+            const result = await applyPatchToDir({ dir: sitePath, patchText, reverse, onLog: sendLog, layout });
             if (!result.ok) {
                 // Nothing to revert means the record is describing a patch the
                 // checkout no longer has. Keeping it would leave the site stuck:
@@ -2353,7 +2403,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                     // rather than leave a patch the app cannot revert. If the undo
                     // also fails, say so plainly instead of reporting a clean fail.
                     logError('git:apply-patch', `persist failed, undoing apply: ${String(persistErr && persistErr.stack ? persistErr.stack : persistErr)}`);
-                    const undo = await applyPatchToDir({ dir: sitePath, patchText, reverse: true, onLog: sendLog });
+                    const undo = await applyPatchToDir({ dir: sitePath, patchText, reverse: true, onLog: sendLog, layout });
                     const why = String(persistErr && persistErr.message ? persistErr.message : persistErr);
                     if (undo.ok) {
                         sendDone({ ok: false, error: `The patch applied but its revert record could not be saved, so it was undone. ${why}` });
@@ -2737,8 +2787,12 @@ async function withRegisteredSite(sitePath, run) {
 	}
 }
 
-// Which Trac ticket a site is being used to work on (#109), which under #108 is
-// also which branch is checked out. Linking a ticket the site has seen before
+// Which work item a site is being used to work on (#109): a Trac ticket on a
+// Core site, a GitHub issue on a Gutenberg one (#251), which under #108 is
+// also which branch is checked out. The stored key stays `tracTicket` for
+// both: renaming it touches every read on the card, the switcher and the
+// patch handlers for no behavior, and a third provider is what would make
+// the name wrong enough to pay that. Linking a ticket the site has seen before
 // switches back to its branch — files and context as they were left; a new one
 // starts a branch at the current trunk tip. Loose edits on trunk are no longer
 // carried along unasked (#234): the handler refuses with `dirty-trunk` on both
@@ -2753,7 +2807,7 @@ async function withRegisteredSite(sitePath, run) {
 async function rememberTicketPr(sitePath) {
     const active = await activeBranch(sitePath);
     if (active.site.switchInProgress || !active.site.tracTicket || prNumberFromRef(active.ref) === null) return;
-    await mergeBranchMeta(sitePath, ticketBranchRef(active.site.tracTicket), { activePr: active.ref });
+    await mergeBranchMeta(sitePath, ticketBranchRef(active.site.tracTicket, branchPrefixFor(active.site)), { activePr: active.ref });
 }
 
 async function ticketPrImpact(sitePath, from, to) {
@@ -2806,10 +2860,15 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 		return { ok: true, ticket: null, branch: TRUNK, ...impact };
 	}
 
-	const parsed = parseTicketRef(raw);
+	// Parsed by the site's own provider, so a Gutenberg site reads `71234` and a
+	// pasted issue URL, refuses a pull-request URL by name, and refuses an issue
+	// from another repository — none of which the Trac parser could tell apart.
+	const typeMeta = await readSiteMeta(sitePath);
+	const parsed = workItemFor(typeMeta).parseRef(raw);
 	if (!parsed.ok) return { ok: false, error: parsed.error };
 
-	const branchRef = ticketBranchRef(parsed.id);
+	const prefix = branchPrefixFor(typeMeta);
+	const branchRef = ticketBranchRef(parsed.id, prefix);
 	const checkoutRef = await ticketCheckoutRef(sitePath, branchRef);
 	const blocked = await midSwitchBlock(sitePath, { retryTo: checkoutRef });
 	if (blocked) return blocked;
@@ -2871,7 +2930,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 			// that there is nothing to carry.
 			const files = await countChangesAgainst(sitePath);
 			if (files > 0) {
-				logEvent('branches', `asked before carrying ${files} loose file(s) on trunk into ticket/${parsed.id} in ${describeRefused(sitePath)}`);
+				logEvent('branches', `asked before carrying ${files} loose file(s) on trunk into ${branchRef} in ${describeRefused(sitePath)}`);
 				// Same code the refused switch to an existing branch returns,
 				// so the renderer asks the one question either way. `canCarry`
 				// is what only this path can offer: an existing branch has its
@@ -2886,7 +2945,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 				};
 			}
 		}
-		({ baseOid } = await startTicketBranch(sitePath, parsed.id));
+		({ baseOid } = await startTicketBranch(sitePath, parsed.id, { prefix }));
 	}
 
 	await mergeBranchMeta(sitePath, branchRef, {

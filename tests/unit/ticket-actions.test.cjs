@@ -90,3 +90,17 @@ test('dirtyTrunkQuestion names a PR checkout without inventing ticket work (#458
 	assert.equal(question.discard, 'Discard them and check out PR #7');
 	assert.equal(question.carry, null);
 });
+
+// A Gutenberg site's gate, question and refusals speak of an issue (#251);
+// the branches themselves are unchanged.
+test('the three sentences take the site\'s noun', () => {
+	assert.equal(ticketActionDisabledReason({ ticketSaving: true, noun: 'issue' }), 'Wait for the current issue change to finish.');
+	assert.equal(ticketActionDisabledReason({ deletingBranch: 'issue/1', noun: 'issue' }), "Wait for the issue's work to finish deleting.");
+	assert.equal(rebaseDisabledReason({ devServerActive: true, noun: 'issue' }), 'Stop the dev server before updating the issue.');
+	assert.equal(rebaseDisabledReason({ discarding: true, noun: 'issue' }), 'Wait for the discard to finish before updating the issue.');
+	const q = dirtyTrunkQuestion({ files: 2, canCarry: false, ticket: 71234, noun: 'issue' });
+	assert.match(q.question, /not on any issue yet/);
+	assert.match(q.question, /This issue already has its own work/);
+	assert.doesNotMatch(JSON.stringify(q), /ticket/);
+	assert.equal(dirtyTrunkQuestion({ canCarry: true, noun: 'issue' }).carry, 'Take these edits into the issue');
+});

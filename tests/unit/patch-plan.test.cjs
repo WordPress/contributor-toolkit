@@ -8,7 +8,8 @@ const {
 	parsePatchFiles,
 	splitPatchSections,
 	rewritePatchPaths,
-	planApply
+	planApply,
+	layoutMapper
 } = require('../../src/patch-plan.cjs');
 const { updateStepStatuses, SKIP_INSTALL_MESSAGE, BUILD_BY_WATCHER_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP } = require('../../src/renderer/update-plan.cjs');
 
@@ -522,4 +523,33 @@ test('splitPatchSections: records actual destinations for forward and reverse wr
 		const [section] = splitPatchSections(text);
 		assert.deepStrictEqual([section.from, section.to], [from, to], text);
 	}
+});
+
+// --- a repository whose diffs already name the file where it lives (#251) ---
+
+// The Core rules exist for Trac patches from before the src/ move. A
+// Gutenberg diff names `packages/…` and `lib/…` already, and a root `index.php`
+// or `wp-*` path there must not be steered under a src/ the repository does
+// not have.
+test('parsePatchFiles: a repo-relative layout leaves every path where the diff names it (#251)', () => {
+	const res = parsePatchFiles(OLD_LAYOUT_DIFF, { layout: 'repo-relative' });
+	assert.strictEqual(res.ok, true);
+	assert.strictEqual(res.files[0].path, 'wp-admin/admin.php');
+	assert.strictEqual(parsePatchFiles(OLD_LAYOUT_DIFF).files[0].path, 'src/wp-admin/admin.php', 'the default is still Core\'s');
+	assert.strictEqual(parsePatchFiles(OLD_LAYOUT_DIFF, { layout: 'src-layout' }).files[0].path, 'src/wp-admin/admin.php');
+});
+
+test('rewritePatchPaths: a repo-relative layout still normalises the headers, without moving the file (#251)', () => {
+	const rewritten = rewritePatchPaths(OLD_LAYOUT_DIFF, { layout: 'repo-relative' });
+	assert.match(rewritten, /^--- a\/wp-admin\/admin\.php\n\+\+\+ b\/wp-admin\/admin\.php$/m, 'the a/ b/ form Git reads, on the path as named');
+	assert.match(rewritten, /^Index: wp-admin\/admin\.php$/m);
+	// The two readers agree, the way they do for Core.
+	assert.strictEqual(parsePatchFiles(rewritten, { layout: 'repo-relative' }).files[0].path, 'wp-admin/admin.php');
+});
+
+test('layoutMapper: a layout the registry does not define throws rather than guessing (#251)', () => {
+	assert.strictEqual(layoutMapper()('wp-login.php'), 'src/wp-login.php');
+	assert.strictEqual(layoutMapper('repo-relative')('wp-login.php'), 'wp-login.php');
+	assert.throws(() => layoutMapper('flat'), /Unknown patch layout: flat/);
+	assert.throws(() => parsePatchFiles(OLD_LAYOUT_DIFF, { layout: 'flat' }), /Unknown patch layout/);
 });

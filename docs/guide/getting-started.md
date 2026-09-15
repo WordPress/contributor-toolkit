@@ -39,7 +39,7 @@ The app is signed and notarized by Automattic, so macOS should open it without i
 
 ## Your first contribution, in seven steps
 
-1. Click **Create a site**, choose a destination folder for your site, and pick what to contribute to: **WordPress Core** (the default) or **Gutenberg**. The seven steps below are the Core path; a Gutenberg site stops at step 4 for now, since its issues and pull requests come in a later version.
+1. Click **Create a site**, choose a destination folder for your site, and pick what to contribute to: **WordPress Core** (the default) or **Gutenberg**. The seven steps below are the Core path; on a Gutenberg site the ticket is a [GitHub issue](./gutenberg-issues), and opening a pull request from it comes in a later version.
 2. Wait. The app downloads the repository, then installs the dependencies and runs the first build on its own — go and get a coffee. See [The setup wizard](./setup-wizard).
 3. Click **Start dev server**.
 4. A browser window opens automatically. If not, open it by clicking the site URL — or the **wp-admin** link beside it, to go straight to the dashboard.

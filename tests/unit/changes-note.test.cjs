@@ -13,6 +13,7 @@ const {
 	discardDisabledReason,
 	DISCARD_CONFIRM_MESSAGE
 } = require('../../src/renderer/changes-note.cjs');
+const { WORK_ITEM_BRANCH_PREFIXES } = require('../../src/ticket-branches.js');
 
 test('changesNoteParts says nothing about a clean tree', () => {
 	assert.equal(changesNoteParts({ dirty: false, changedCount: 0, tracTicket: null }), null);
@@ -41,6 +42,17 @@ test('changesNoteParts attributes work on a PR checkout to the PR, not the linke
 	assert.match(parts.end, /stay with this pull request's local copy/);
 	assert.match(parts.end, /when you revert this PR/);
 	assert.equal(parts.unlinkNote, undefined);
+});
+
+// The note's regex cannot import the list (ticket-branches.js reaches for
+// Git), so this walks the list against it: a namespace the app writes that the
+// note did not know would leave a Gutenberg site's changes by the buttons
+// instead of in its work-item card.
+test('changesNoteParts places a PR that returns to any work-item namespace in the card (#251)', () => {
+	for (const prefix of WORK_ITEM_BRANCH_PREFIXES) {
+		const parts = changesNoteParts({ dirty: true, changedCount: 1, tracTicket: '71234', pullRequest: { number: 7701, returnTo: `${prefix}71234` } });
+		assert.equal(parts.placement, 'ticket', `${prefix}: a PR returning there belongs to the card`);
+	}
 });
 
 test('changesNoteParts keeps work on a PR reached from trunk visible by the site controls', () => {
@@ -223,4 +235,20 @@ test('discardDisabledReason reports the operation in progress before secondary b
 	assert.doesNotMatch(pr.empty, /trunk/);
 	assert.match(patchReviewContext({ tracTicket: 123 }).heading, /ticket #123/);
 	assert.equal(patchReviewContext().heading, 'Your changes');
+});
+
+// The note says what the site calls its work item (#251).
+test('changesNoteParts speaks of an issue when told the site\'s noun', () => {
+	const linked = changesNoteParts({ dirty: true, changedCount: 2, tracTicket: '71234', workItemNoun: 'issue' });
+	assert.equal(linked.placement, 'ticket');
+	assert.match(linked.lead, /for issue #71234/);
+	assert.match(linked.unlinkNote, /Unlinking this issue/);
+	assert.doesNotMatch(linked.lead + linked.unlinkNote, /ticket/);
+	const loose = changesNoteParts({ dirty: true, changedCount: 1, tracTicket: null, workItemNoun: 'issue' });
+	assert.match(loose.lead, /not assigned to any issue/);
+});
+
+test('patchReviewContext names the work item by the site\'s noun (#251)', () => {
+	const { patchReviewContext } = require('../../src/renderer/changes-note.cjs');
+	assert.equal(patchReviewContext({ tracTicket: 71234, workItemNoun: 'issue' }).heading, 'Your changes for issue #71234');
 });
