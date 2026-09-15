@@ -26,10 +26,11 @@ const PROJECT_TYPES = {
 	core: {
 		id: 'core',
 		label: 'WordPress Core',
-		// The option label shown in the create-site wizard picker.
-		wizardLabel: 'WordPress Core (Trac tickets)',
-		// One-line description shown next to the choice in the create-site wizard.
-		description: 'Contribute to WordPress Core using Trac tickets.',
+		// The option label shown in the create-site wizard picker, and the
+		// line under it. They say what the app does with the site today, not
+		// what a later version will.
+		wizardLabel: 'WordPress Core',
+		description: 'The wordpress-develop repository: Trac tickets, patches and pull requests.',
 		// The noun this target uses for a unit of work, for UI copy: a Core site
 		// links a "ticket", a Gutenberg site links an "issue".
 		workItemNoun: 'ticket',
@@ -88,8 +89,8 @@ const PROJECT_TYPES = {
 	gutenberg: {
 		id: 'gutenberg',
 		label: 'Gutenberg',
-		wizardLabel: 'Gutenberg (GitHub issues)',
-		description: 'Contribute to the block editor (Gutenberg) using GitHub issues.',
+		wizardLabel: 'Gutenberg',
+		description: 'The block editor, built and run as a plugin in a stock WordPress. Issues and pull requests come in a later version.',
 		workItemNoun: 'issue',
 
 		clone: { url: GUTENBERG_GIT_URL, ref: 'trunk' },

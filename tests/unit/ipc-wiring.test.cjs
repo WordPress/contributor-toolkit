@@ -5411,6 +5411,32 @@ test('github:open-pr refuses before it reaches GitHub when nothing is signed in,
 	assert.deepEqual(openPullRequest.calls, []);
 });
 
+// Until the pull-request flow reads the site's type (#251), it forks and
+// targets wordpress-develop for every site; a site of another type is
+// refused before anything reaches GitHub.
+test('github:open-pr refuses a site that is not a WordPress Core one before it reaches GitHub', async (t) => {
+	const dir = await fixtureRepo(t);
+	const openPullRequest = spy(async () => ({ ok: true }));
+	const auth = fakeGithubAuth();
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { projectType: 'gutenberg', tracTicket: 62281 } } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./github-auth.cjs': auth,
+			'./github-pr.cjs': { openPullRequest, buildPullRequestBody: () => '' }
+		}
+	});
+	await main.invokeWith('github:sign-in', createIpcEvent());
+	await settle();
+	await settle();
+
+	const result = await main.invoke('github:open-pr', dir, {});
+	assert.equal(result.reason, 'unsupported-project');
+	assert.match(result.error, /Gutenberg site/);
+	assert.deepEqual(openPullRequest.calls, []);
+});
+
 test('github:open-pr refuses another author\'s applied patch before it reaches GitHub (#328)', async (t) => {
 	const dir = await fixtureRepo(t);
 	const auth = fakeGithubAuth({ login: 'janedoe' });

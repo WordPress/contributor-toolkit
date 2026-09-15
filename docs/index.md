@@ -4,7 +4,7 @@ layout: home
 hero:
   name: WordPress Contributor Toolkit
   text: Contribute to WordPress core with zero prerequisites
-  tagline: A desktop app that clones wordpress-develop, builds it, runs it, and turns your changes into a patch or pull request — no Git, Node, npm, or Docker required.
+  tagline: A desktop app that clones wordpress-develop or Gutenberg, builds it, runs it, and turns your changes into a patch or pull request — no Git, Node, npm, or Docker required.
   actions:
     # Secondary on purpose: the brand-coloured action on this page is the
     # Download button injected after this list (see .vitepress/theme/Layout.vue).
@@ -14,7 +14,7 @@ hero:
 
 features:
   - title: A full core environment in one click
-    details: The app clones wordpress-develop, installs dependencies, builds, and starts a dev server — the whole toolchain ships inside the app as JavaScript and WASM.
+    details: The app clones wordpress-develop or Gutenberg, installs dependencies, builds, and starts a dev server — the whole toolchain ships inside the app as JavaScript and WASM.
   - title: Made for Contributor Days
     details: Create your first site at home a day or two before the event. On Contributor Day, update it to download the recent changes instead of the full repository and all its dependencies.
     link: /guide/trunk-updates

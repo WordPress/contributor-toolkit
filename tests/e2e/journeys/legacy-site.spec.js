@@ -33,7 +33,11 @@ test( 'a site the old engine made is read, refused on every write, and can still
 	// INVARIANT — the way out is one click away: the banner opens the create
 	// modal the sidebar button opens.
 	await page.getByRole( 'button', { name: 'Create site', exact: true } ).click();
-	await expect( page.getByRole( 'dialog', { name: 'Create a site' } ) ).toBeVisible();
+	const createDialog = page.getByRole( 'dialog', { name: 'Create a site' } );
+	await expect( createDialog ).toBeVisible();
+	// INVARIANT — the dialog offers both targets and defaults to Core (#251).
+	await expect( createDialog.getByRole( 'radio', { name: 'WordPress Core', exact: true } ) ).toBeChecked();
+	await expect( createDialog.getByRole( 'radio', { name: 'Gutenberg', exact: true } ) ).not.toBeChecked();
 	await page.keyboard.press( 'Escape' );
 	await expect( page.getByRole( 'dialog', { name: 'Create a site' } ) ).toHaveCount( 0 );
 
