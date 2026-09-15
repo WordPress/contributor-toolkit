@@ -126,23 +126,23 @@ const PROJECT_TYPES = {
 	}
 };
 
+// True only for an id the registry actually defines. Own properties only: the
+// registry is a plain object, so `'__proto__'`, `'constructor'` or `'toString'`
+// would otherwise resolve to something truthy that is not a project type.
+function isProjectTypeId(id) {
+	return Object.prototype.hasOwnProperty.call(PROJECT_TYPES, id);
+}
+
 // Resolve a stored id to its config, defaulting to Core for anything unknown or
 // missing. This is the single seam every caller uses, never index
 // PROJECT_TYPES directly with untrusted input.
 function getProjectType(id) {
-	return PROJECT_TYPES[id] || PROJECT_TYPES[DEFAULT_PROJECT_TYPE];
+	return isProjectTypeId(id) ? PROJECT_TYPES[id] : PROJECT_TYPES[DEFAULT_PROJECT_TYPE];
 }
 
 // Convenience for the common case: resolve straight from a site's stored meta.
 function projectTypeForSite(meta) {
 	return getProjectType(meta && meta.projectType);
-}
-
-// True only for an id the registry actually defines, for validating input
-// before persisting it (an unknown id is coerced to Core on read, but we store
-// the normalized id, not the raw input).
-function isProjectTypeId(id) {
-	return Object.prototype.hasOwnProperty.call(PROJECT_TYPES, id);
 }
 
 // Normalize arbitrary input to a stored id: a known id passes through, anything

@@ -31,7 +31,9 @@ test('getProjectType returns the named type when it is known', () => {
 // to Core rather than throwing or returning undefined. A site made before the
 // field existed (undefined), a typo, a hostile value, all Core.
 test('getProjectType falls back to core for unknown or missing ids', () => {
-	for (const bad of [undefined, null, '', 'GUTENBERG', 'core ', 'plugin', 42, {}]) {
+	// The last three are inherited keys of a plain object: without an
+	// own-property check they resolve to Object.prototype and to functions.
+	for (const bad of [undefined, null, '', 'GUTENBERG', 'core ', 'plugin', 42, {}, '__proto__', 'constructor', 'toString']) {
 		assert.equal(getProjectType(bad).id, 'core', `expected core for ${JSON.stringify(bad)}`);
 	}
 });
