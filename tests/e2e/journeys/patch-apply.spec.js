@@ -232,3 +232,49 @@ new file mode 100644
 	const meta = session.readSettings().siteMeta[ site.dir ];
 	expect( meta.branches[ 'ticket/60001' ].appliedPatch ).toBeFalsy();
 } );
+
+test( 'work carried into a ticket takes the applied-patch record with it (#236)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+
+	// Applied on trunk, before any ticket is known — the order that produced
+	// the bug. The edits are loose on the site, and so is the record.
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
+	] );
+	await applyPatchFile( session, patch );
+	await expect( page.getByRole( 'button', { name: 'Revert this patch', exact: true } ) ).toBeVisible( {
+		timeout: 60_000,
+	} );
+
+	// Linking a ticket now asks what happens to the loose work (#234). Taking
+	// it along is the path under test.
+	await page.getByLabel( 'Trac ticket number or URL' ).first().fill( '60001' );
+	await page.getByRole( 'button', { name: 'Link ticket', exact: true } ).first().click();
+	await page.getByRole( 'button', { name: 'Take these edits into #60001', exact: true } ).click();
+	await expect( page.getByText( '#60001', { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — the files came along.
+	expect( read( site.dir, LOGIN ) ).toBe( `${ PATCHED_LOGIN }\n` );
+
+	// INVARIANT — and so did the claim about them. Split, this is the bug: the
+	// changes on the ticket, the record on trunk.
+	const carried = session.readSettings().siteMeta[ site.dir ];
+	expect( carried.branches[ 'ticket/60001' ].appliedPatch.label ).toBe( 'ticket-60001.patch' );
+	expect( carried.appliedPatch ).toBeFalsy();
+
+	// INVARIANT — and the offer to undo is still on screen, against the branch
+	// that now holds both halves.
+	await expect( page.getByRole( 'button', { name: 'Revert this patch', exact: true } ) ).toBeVisible( {
+		timeout: 60_000,
+	} );
+
+	// The moment the report was about: back on trunk, over a tree that holds
+	// none of it, the app used to name the patch, count its files and offer to
+	// revert it.
+	await page.getByRole( 'button', { name: 'Unlink', exact: true } ).click();
+	await expect( page.getByRole( 'button', { name: 'Revert this patch', exact: true } ) ).toHaveCount( 0, {
+		timeout: 30_000,
+	} );
+	expect( gitOk( [ 'status', '--porcelain' ], site.dir ).trim() ).toBe( '' );
+} );

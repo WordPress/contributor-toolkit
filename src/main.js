@@ -1573,6 +1573,49 @@ async function changeWorkMetaOn(sitePath, ref, change) {
     });
 }
 
+/**
+ * Moves the applied-patch record onto the branch a carry just took the files
+ * to (#236).
+ *
+ * A carry is `branch` plus `checkout`: HEAD moves and the worktree is left
+ * alone, so the edits ride along. The record describing them did not, and the
+ * two ended in different places — the changes on the ticket, the claim about
+ * them on trunk. Returning to trunk then met a panel naming a patch, counting
+ * its files and offering to revert it over a clean tree, and the revert failed
+ * blaming a trunk update that never happened.
+ *
+ * One `changeSiteMeta`, because the clear and the write have to be indivisible:
+ * split in two, a concurrent write leaves the record in both places or in
+ * neither, and neither is the worse of the two — it takes the patch text with
+ * it, which is what Revert reverses with.
+ *
+ * Called after the branch's own meta is written, so the entry exists with its
+ * branch point rather than being created here holding this one field (#172).
+ *
+ * @param {string} sitePath
+ * @param {string} ref      The branch the work was carried onto.
+ */
+async function carryAppliedPatch(sitePath, ref) {
+    await changeSiteMeta(sitePath, (m) => {
+        const carried = m.appliedPatch;
+        if (!carried) return m;
+        const branches = { ...(m.branches || {}) };
+        // No entry means nowhere per-branch for it to live, and the reader
+        // would look at the site for it anyway (workMetaScope). Leaving it on
+        // trunk is wrong but visible; moving it somewhere unread is not.
+        if (!branches[ref]) return m;
+        // A patch applied while this link was still running belongs to the
+        // branch and is newer. Overwriting it with trunk's would drop the text
+        // Revert reverses with, leaving a patch on disk the app cannot undo —
+        // the same loss this function exists to prevent, in the other
+        // direction. Trunk's record is left where it is, visibly wrong, rather
+        // than taking a newer one down with it.
+        if (branches[ref].appliedPatch) return m;
+        branches[ref] = { ...branches[ref], appliedPatch: carried };
+        return { ...m, appliedPatch: null, branches };
+    });
+}
+
 async function writeWorkMeta(sitePath, patch) {
     const { ref } = await activeBranch(sitePath);
     return writeWorkMetaOn(sitePath, ref, patch);
@@ -2882,7 +2925,12 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 		lastUsedAt: new Date().toISOString()
 	});
 	await mergeSiteMeta(sitePath, { tracTicket: parsed.id, currentBranch: checkoutRef });
-	if (carriedFrom === TRUNK) reportCarriedWork(event, sitePath, parsed.id);
+	if (carriedFrom === TRUNK) {
+		// The record travels with the files (#236), before the notice that
+		// says they arrived.
+		await carryAppliedPatch(sitePath, branchRef);
+		reportCarriedWork(event, sitePath, parsed.id);
+	}
 	return { ok: true, ticket: parsed.id, branch: checkoutRef, ...impact };
 }));
 

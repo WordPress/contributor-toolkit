@@ -4484,6 +4484,79 @@ test('sites:set-ticket says how much loose work the chosen carry took into a new
 	assert.match(fs.readFileSync(path.join(dir, 'wp-login.php'), 'utf8'), /before the ticket was known/);
 });
 
+// The record belongs with the work (#236). A carry moves the files onto the
+// branch; leaving the applied-patch record behind on trunk is what made the
+// panel greet a returning contributor with a patch it named, counted and
+// offered to revert, over a tree that no longer held any of it — and the
+// revert then blamed a trunk update that never happened.
+test('the carry takes the applied-patch record onto the ticket with the files (issue #236)', async (t) => {
+	const dir = dirtyTrunkFixture(t, 'ipc-wiring-carry-patch-');
+	const applied = {
+		label: '62281.diff',
+		appliedAt: '2026-09-15T08:22:44.741Z',
+		files: ['wp-login.php'],
+		text: 'diff --git a/wp-login.php b/wp-login.php\n'
+	};
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { appliedPatch: applied } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const event = createIpcEvent();
+	assert.equal((await main.invokeWith('sites:set-ticket', event, dir, '62281', { carryTrunkWork: true })).ok, true);
+	// The count runs after the handler answers, on a Git child of its own.
+	// Waiting for its notice is what says that child is done — on Windows an
+	// unfinished one holds the fixture directory open and the teardown cannot
+	// delete it.
+	assert.ok(await carriedWork(event), 'the carry finished and said so');
+
+	const meta = settings.values.siteMeta[dir];
+	assert.deepEqual(
+		meta.branches['ticket/62281'].appliedPatch,
+		applied,
+		'the whole record travels, the patch text included — it is what Revert reverses with'
+	);
+	assert.ok(!meta.appliedPatch, 'and trunk stops claiming a patch whose files it no longer holds');
+});
+
+// The window between creating the branch and moving the record: a patch
+// applied in it is recorded against the branch and is the newer of the two.
+// Overwriting it would drop the text Revert reverses with, leaving a patch on
+// disk the app cannot undo — the loss the carry exists to prevent, arriving
+// from the other side.
+test('the carry does not overwrite a patch recorded against the branch while it ran (issue #236)', async (t) => {
+	const dir = dirtyTrunkFixture(t, 'ipc-wiring-carry-patch-race-');
+	const fromTrunk = { label: 'older.diff', appliedAt: '2026-09-15T08:00:00.000Z', files: ['wp-login.php'], text: 'older\n' };
+	const onBranch = { label: 'newer.diff', appliedAt: '2026-09-15T08:30:00.000Z', files: ['wp-login.php'], text: 'newer\n' };
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { appliedPatch: fromTrunk, branches: { 'ticket/62281': { appliedPatch: onBranch } } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const event = createIpcEvent();
+	assert.equal((await main.invokeWith('sites:set-ticket', event, dir, '62281', { carryTrunkWork: true })).ok, true);
+	assert.ok(await carriedWork(event), 'the carry finished and said so — see the note in the test above');
+
+	const meta = settings.values.siteMeta[dir];
+	assert.deepEqual(meta.branches['ticket/62281'].appliedPatch, onBranch, 'the newer record survives');
+	assert.deepEqual(meta.appliedPatch, fromTrunk, 'and the older one is left where it is rather than taken down with it');
+});
+
+// The other half of the same rule: a carry the contributor declined moves
+// nothing, so a patch applied on trunk stays trunk's. Without this the fix
+// above could satisfy its test by clearing the record unconditionally.
+test('declining the carry leaves the applied-patch record on trunk (issue #236)', async (t) => {
+	const dir = dirtyTrunkFixture(t, 'ipc-wiring-carry-patch-declined-');
+	const applied = { label: '62281.diff', appliedAt: '2026-09-15T08:22:44.741Z', files: ['wp-login.php'], text: 'diff\n' };
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { appliedPatch: applied } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const event = createIpcEvent();
+	const result = await main.invokeWith('sites:set-ticket', event, dir, '62281');
+
+	assert.equal(result.code, 'dirty-trunk', 'the gesture asks rather than moving anything');
+	assert.deepEqual(settings.values.siteMeta[dir].appliedPatch, applied, 'nothing moved, so the record did not either');
+});
+
 test('nothing loose means nothing is claimed (issue #108)', async (t) => {
 	const dir = adoptedRepo(t, 'ipc-wiring-carry-clean-');
 	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // trunk\n');
