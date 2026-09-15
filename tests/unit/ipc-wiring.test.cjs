@@ -4502,6 +4502,11 @@ test('the carry takes the applied-patch record onto the ticket with the files (i
 
 	const event = createIpcEvent();
 	assert.equal((await main.invokeWith('sites:set-ticket', event, dir, '62281', { carryTrunkWork: true })).ok, true);
+	// The count runs after the handler answers, on a Git child of its own.
+	// Waiting for its notice is what says that child is done — on Windows an
+	// unfinished one holds the fixture directory open and the teardown cannot
+	// delete it.
+	assert.ok(await carriedWork(event), 'the carry finished and said so');
 
 	const meta = settings.values.siteMeta[dir];
 	assert.deepEqual(
@@ -4529,6 +4534,7 @@ test('the carry does not overwrite a patch recorded against the branch while it 
 
 	const event = createIpcEvent();
 	assert.equal((await main.invokeWith('sites:set-ticket', event, dir, '62281', { carryTrunkWork: true })).ok, true);
+	assert.ok(await carriedWork(event), 'the carry finished and said so — see the note in the test above');
 
 	const meta = settings.values.siteMeta[dir];
 	assert.deepEqual(meta.branches['ticket/62281'].appliedPatch, onBranch, 'the newer record survives');
