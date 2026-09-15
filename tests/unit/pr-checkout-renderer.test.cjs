@@ -85,3 +85,13 @@ test('the active PR is one site-level context instead of duplicated Apply-panel 
 	assert.match(rendererSource, />Apply PR<\/Button>/);
 	assert.doesNotMatch(rendererSource, /Apply a patch file on top of PR #/);
 });
+
+// A Gutenberg site returns to an issue/ branch (#251): the box must say the
+// work is kept, not that reverting goes to trunk, and call it an issue.
+test('a PR checked out from an issue branch says the issue work returns on revert', () => {
+	const result = describePrCheckout({ number: 7, returnTo: 'issue/71234', noun: 'issue' });
+	assert.equal(result.body, 'Your issue changes are saved separately and return when you revert this PR.');
+	assert.doesNotMatch(result.body, /trunk/);
+	// The namespace alone is not enough to change the noun; a site says it.
+	assert.match(describePrCheckout({ number: 7, returnTo: 'issue/71234' }).body, /Your ticket changes/);
+});

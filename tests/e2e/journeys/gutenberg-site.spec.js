@@ -10,11 +10,15 @@
  */
 
 const { test, expect } = require( '../helpers/app.cjs' );
-const { makeSite, branches } = require( '../helpers/git-site.cjs' );
+const { makeSite, branches, addPullRequestToOrigin, currentBranch, read, LOGIN } = require( '../helpers/git-site.cjs' );
+
+const PR = 7;
+const PR_CONTENT = '<?php // pull request 7\n';
 
 test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and turns a ticket link away', async ( { session } ) => {
-	const site = await makeSite( session );
+	const site = await makeSite( session, { origin: true } );
 	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
+	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );
 	const { app, page } = await session.start( site.settings );
 
 	// INVARIANT — the row and the header say which kind of site this is.
@@ -49,6 +53,29 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	await expect( page.getByText( 'Attach to Trac', { exact: true } ) ).toHaveCount( 0 );
 	expect( branches( site.dir ) ).toContain( 'issue/71234' );
 	expect( branches( site.dir ) ).not.toContain( 'ticket/71234' );
+
+	// INVARIANT — a pull request is checked out from the site's own
+	// repository: a wordpress-develop URL is refused by name, a
+	// WordPress/gutenberg one is fetched. While it is applied the card says so
+	// and offers the way back, and the way back is the issue's branch.
+	const prField = page.getByLabel( 'Pull request URL or number' );
+	await prField.fill( `https://github.com/WordPress/wordpress-develop/pull/${ PR }` );
+	await page.getByRole( 'button', { name: 'Apply PR', exact: true } ).last().click();
+	await expect( page.getByRole( 'alert' ).filter( { hasText: 'Only WordPress/gutenberg pull requests' } ) ).toBeVisible();
+	await prField.fill( `https://github.com/WordPress/gutenberg/pull/${ PR }` );
+	await page.getByRole( 'button', { name: 'Apply PR', exact: true } ).last().click();
+	await expect( page.getByText( `PR #${ PR } changes 1 file.`, { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await page.getByRole( 'button', { name: 'Apply and rebuild', exact: true } ).click();
+	await expect.poll( () => currentBranch( site.dir ), { timeout: 60_000 } ).toBe( `pr/${ PR }` );
+	await expect( page.getByText( `PR #${ PR } is applied.`, { exact: true } ) ).toBeVisible( { timeout: 60_000 } );
+	await expect( page.getByText( 'Your issue changes are saved separately and return when you revert this PR.' ) ).toBeVisible();
+	expect( read( site.dir, LOGIN ) ).toBe( PR_CONTENT );
+
+	await page.getByRole( 'button', { name: 'Revert this PR', exact: true } ).click();
+	await expect.poll( () => currentBranch( site.dir ), { timeout: 60_000 } ).toBe( 'issue/71234' );
+	await expect( page.getByText( 'Working on issue #71234', { exact: true } ) ).toBeVisible();
+	await expect( page.getByText( `PR #${ PR } is applied.`, { exact: true } ) ).toHaveCount( 0 );
+	expect( read( site.dir, LOGIN ) ).toBe( '<?php // trunk\n' );
 
 	// INVARIANT — a ticket from a link is refused by name, with nothing to
 	// confirm, and no ticket branch appears.
