@@ -68,6 +68,25 @@ function stripPathPrefix(oldName, newName) {
 }
 
 /**
+ * The path rewrite a site's patches go through (#251). `src-layout` is
+ * wordpress-develop's, where a Trac patch from before the src/ move still
+ * names `wp-admin/…` and has to be steered under src/. `repo-relative` is a
+ * checkout whose diffs already name the file where it lives (Gutenberg's
+ * `packages/…`, `lib/…`): nothing is rewritten, because the Core rules would
+ * move a root `index.php` or a `wp-*` path somewhere the repository does not
+ * have. An unknown layout throws rather than guessing: the registry test pins
+ * the two values, and a typo there must not quietly rewrite a whole patch.
+ *
+ * @param {string} [layout] 'src-layout' (the default) or 'repo-relative'.
+ * @return {function(string): string}
+ */
+function layoutMapper(layout = 'src-layout') {
+	if (layout === 'src-layout') return mapToSrcLayout;
+	if (layout === 'repo-relative') return (filePath) => filePath;
+	throw new Error(`Unknown patch layout: ${layout}`);
+}
+
+/**
  * Rewrites a path written against the pre-src/ layout to where that file lives
  * today. A patch attached to a ticket years ago still names `wp-admin/…`.
  *
@@ -191,10 +210,13 @@ const PATH_LINES = [
  * outside the narrow reader (#316), and a path Git would read differently
  * from the preview is worse than a refusal.
  *
- * @param {string} text EOL-normalised patch text.
+ * @param {string} text             EOL-normalised patch text.
+ * @param {Object} [options]
+ * @param {string} [options.layout] the site's, see `layoutMapper`.
  * @return {string}
  */
-function rewritePatchPaths(text) {
+function rewritePatchPaths(text, { layout } = {}) {
+	const map = layoutMapper(layout);
 	const lines = text.split('\n');
 	const out = [];
 	const rewrite = (raw, letter) => {
@@ -204,7 +226,7 @@ function rewritePatchPaths(text) {
 		if (stripped === '/dev/null') return stripped;
 		if (stripped.startsWith('"')) throw new Error('The empty file path is quoted or ambiguous.');
 		const { newPath } = stripPathPrefix(`a/${stripped.replace(/^[ab]\//, '')}`, `b/${stripped.replace(/^[ab]\//, '')}`);
-		const mapped = mapToSrcLayout(newPath);
+		const mapped = map(newPath);
 		return letter ? `${letter}/${mapped}` : mapped;
 	};
 	for (let i = 0; i < lines.length; i++) {
@@ -224,13 +246,13 @@ function rewritePatchPaths(text) {
 				const seam = rest.indexOf(' b/');
 				if (rest.startsWith('a/') && seam > 2) sides = [rest.slice(2, seam), rest.slice(seam + 3)];
 			}
-			if (sides) out.push(`diff --git a/${mapToSrcLayout(sides[0].replace(/^trunk\//, ''))} b/${mapToSrcLayout(sides[1].replace(/^trunk\//, ''))}`);
+			if (sides) out.push(`diff --git a/${map(sides[0].replace(/^trunk\//, ''))} b/${map(sides[1].replace(/^trunk\//, ''))}`);
 			else out.push(line);
 			continue;
 		}
 		const svn = /^Index: (.+)$/.exec(line);
 		if (svn) {
-			out.push(`Index: ${mapToSrcLayout(svn[1].trim().replace(/^trunk\//, ''))}`);
+			out.push(`Index: ${map(svn[1].trim().replace(/^trunk\//, ''))}`);
 			continue;
 		}
 		let done = false;
@@ -363,9 +385,11 @@ function classify(file, oldPath, newPath) {
  * repo-relative form for today's layout.
  *
  * @param {string} text
+ * @param {Object} [options]
+ * @param {string} [options.layout] the site's, see `layoutMapper`; wordpress-develop's when absent.
  * @return {{ok: true, files: Array}|{ok: false, error: string}}
  */
-function parsePatchFiles(text) {
+function parsePatchFiles(text, { layout } = {}) {
 	const raw = typeof text === 'string' ? text : '';
 	if (!raw.trim()) return { ok: false, error: 'The patch is empty.' };
 
@@ -380,10 +404,11 @@ function parsePatchFiles(text) {
 	const sections = splitPatchSections(normalized);
 	if (!sections.length) return { ok: false, error: 'No file changes found in the patch.' };
 
+	const map = layoutMapper(layout);
 	const files = [];
 	for (const section of sections) {
 		if (section.isBinary) {
-			const binaryPath = mapToSrcLayout(stripPathPrefix(section.path, section.path).newPath);
+			const binaryPath = map(stripPathPrefix(section.path, section.path).newPath);
 			files.push({ kind: 'binary', oldPath: binaryPath, newPath: binaryPath, path: binaryPath, hunks: [], patch: { hunks: [] }, hasBinaryData: section.hasBinaryData });
 			continue;
 		}
@@ -410,9 +435,9 @@ function parsePatchFiles(text) {
 				const emptyTarget = emptyKind === 'delete' ? empty.oldPath : empty.newPath;
 				files.push({
 					kind: emptyKind,
-					oldPath: mapToSrcLayout(empty.oldPath),
-					newPath: mapToSrcLayout(empty.newPath),
-					path: mapToSrcLayout(emptyTarget),
+					oldPath: map(empty.oldPath),
+					newPath: map(empty.newPath),
+					path: map(emptyTarget),
 					hunks: [],
 					patch: file
 				});
@@ -421,8 +446,8 @@ function parsePatchFiles(text) {
 			// jsdiff kept nothing, so the section's own headers are the only
 			// evidence of what this was: a pure rename names two files.
 			if (section.from && section.path && section.from !== section.path) {
-				const oldPath = mapToSrcLayout(section.from);
-				const newPath = mapToSrcLayout(section.path);
+				const oldPath = map(section.from);
+				const newPath = map(section.path);
 				files.push({ kind: 'rename', oldPath, newPath, path: newPath, hunks: [], patch: file });
 				continue;
 			}
@@ -436,9 +461,9 @@ function parsePatchFiles(text) {
 		const target = kind === 'delete' ? oldPath : newPath;
 		files.push({
 			kind,
-			oldPath: mapToSrcLayout(oldPath),
-			newPath: mapToSrcLayout(newPath),
-			path: mapToSrcLayout(target),
+			oldPath: map(oldPath),
+			newPath: map(newPath),
+			path: map(target),
 			hunks: file.hunks,
 			patch: file
 		});
@@ -488,6 +513,7 @@ module.exports = {
 	SRC_FILES,
 	stripPathPrefix,
 	mapToSrcLayout,
+	layoutMapper,
 	parsePatchFiles,
 	splitPatchSections,
 	rewritePatchPaths,

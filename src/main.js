@@ -2317,7 +2317,12 @@ const REVERTABLE_PATCH_LIMIT = 512 * 1024;
 // calls "your own edits" is what the patch modal would show.
 ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
     try {
-        const parsed = parsePatchFiles(patchText);
+        // Paths are read the way this site's repository lays them out (#251):
+        // steered under src/ on Core, left where the diff names them on
+        // Gutenberg. The preview and the apply below read the same layout, so
+        // what is shown is what is written.
+        const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
+        const parsed = parsePatchFiles(patchText, { layout });
         if (!parsed.ok) return { ok: false, error: parsed.error };
         let dirtyPaths;
         try {
@@ -2383,6 +2388,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             const blocked = await legacySiteBlock(sitePath) || await mergeInProgressBlock(sitePath);
             if (blocked) { sendLog(`\n${blocked.error}\n`); sendDone(blocked); return; }
             const stored = (await readWorkMeta(sitePath)).appliedPatch;
+            const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
             if (reverse) {
                 if (!stored || !stored.text) {
                     sendDone({ ok: false, error: 'There is no stored patch to revert.' });
@@ -2398,7 +2404,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             }
             sendLog(`\n${reverse ? 'Reverting' : 'Applying'} ${label}…\n`);
 
-            const result = await applyPatchToDir({ dir: sitePath, patchText, reverse, onLog: sendLog });
+            const result = await applyPatchToDir({ dir: sitePath, patchText, reverse, onLog: sendLog, layout });
             if (!result.ok) {
                 // Nothing to revert means the record is describing a patch the
                 // checkout no longer has. Keeping it would leave the site stuck:
@@ -2442,7 +2448,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                     // rather than leave a patch the app cannot revert. If the undo
                     // also fails, say so plainly instead of reporting a clean fail.
                     logError('git:apply-patch', `persist failed, undoing apply: ${String(persistErr && persistErr.stack ? persistErr.stack : persistErr)}`);
-                    const undo = await applyPatchToDir({ dir: sitePath, patchText, reverse: true, onLog: sendLog });
+                    const undo = await applyPatchToDir({ dir: sitePath, patchText, reverse: true, onLog: sendLog, layout });
                     const why = String(persistErr && persistErr.message ? persistErr.message : persistErr);
                     if (undo.ok) {
                         sendDone({ ok: false, error: `The patch applied but its revert record could not be saved, so it was undone. ${why}` });
