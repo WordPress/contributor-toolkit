@@ -37,9 +37,8 @@ const SERVER_RUNNER = path.join(SRC_DIR, 'server-runner.js');
 const WEB_RUNNER = path.join(SRC_DIR, 'playground-web-runner.js');
 
 // The bare specifiers the runners load. `@wp-playground/cli` is the one whose
-// load has to come last; the rest are stubbed only to keep the real packages —
-// none of which need to run, and two of which are not even installed here — off
-// the test.
+// load has to come last; the rest are stubbed only to keep the real packages,
+// none of which need to run here, off the test.
 const PLAYGROUND_CLI = '@wp-playground/cli';
 const PHP_WASM = '@php-wasm/universal';
 
@@ -136,7 +135,11 @@ function assertPatchesPrecedeCli(events, runner) {
 }
 
 // What main.js hands server-runner for a Core site: its build/ as the docroot.
-const CORE_SERVE = JSON.stringify({ strategy: 'docroot', docroot: '/tmp/does-not-need-to-exist' });
+// The runner resolves host paths, so the expected values below are resolved
+// the same way; on Windows `/tmp/x` resolves to a drive-rooted path.
+const CORE_DOCROOT = '/tmp/does-not-need-to-exist';
+const CORE_SERVE = JSON.stringify({ strategy: 'docroot', docroot: CORE_DOCROOT });
+const GUTENBERG_CHECKOUT = '/tmp/gutenberg-checkout';
 
 test('server-runner patches loopback and hides child windows before loading the Playground CLI', () => {
 	const { events } = loadRunner(SERVER_RUNNER, [CORE_SERVE]);
@@ -190,17 +193,17 @@ test('the SMTP constants survive alongside them', () => {
 test('a docroot config reaches runCLI as the options a Core site always got', () => {
 	const { cliOptions } = loadRunner(SERVER_RUNNER, [CORE_SERVE]);
 
-	assert.deepEqual(cliOptions['mount-before-install'], [{ hostPath: '/tmp/does-not-need-to-exist', vfsPath: '/wordpress' }]);
-	assert.deepEqual(cliOptions.mount, []);
-	assert.deepEqual(cliOptions['additional-blueprint-steps'], []);
+	assert.deepEqual(cliOptions['mount-before-install'], [{ hostPath: path.resolve(CORE_DOCROOT), vfsPath: '/wordpress' }]);
+	assert.equal('mount' in cliOptions, false, 'the Core options carry no plugin mount, not even an empty one');
+	assert.equal('additional-blueprint-steps' in cliOptions, false);
 	assert.equal(cliOptions.wordpressInstallMode, 'install-from-existing-files-if-needed');
 	assert.equal(cliOptions.blueprint.constants.DISALLOW_FILE_MODS, undefined, 'a Core docroot keeps WordPress\'s file defaults');
 });
 
 test('a plugin-mount config mounts the checkout as a plugin into a stock install, and locks file modifications', () => {
-	const { cliOptions } = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'plugin-mount', pluginDir: '/tmp/gutenberg-checkout', pluginSlug: 'gutenberg' })]);
+	const { cliOptions } = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'plugin-mount', pluginDir: GUTENBERG_CHECKOUT, pluginSlug: 'gutenberg' })]);
 
-	assert.deepEqual(cliOptions.mount, [{ hostPath: '/tmp/gutenberg-checkout', vfsPath: '/wordpress/wp-content/plugins/gutenberg' }]);
+	assert.deepEqual(cliOptions.mount, [{ hostPath: path.resolve(GUTENBERG_CHECKOUT), vfsPath: '/wordpress/wp-content/plugins/gutenberg' }]);
 	assert.deepEqual(cliOptions['mount-before-install'], []);
 	assert.deepEqual(cliOptions['additional-blueprint-steps'], [{ step: 'activatePlugin', pluginPath: '/wordpress/wp-content/plugins/gutenberg' }]);
 	assert.equal(cliOptions.wordpressInstallMode, undefined, 'the default install downloads the stock WordPress the plugin runs in');

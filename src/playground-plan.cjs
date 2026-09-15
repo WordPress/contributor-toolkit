@@ -33,22 +33,32 @@ function planPlaygroundLaunch(config) {
 	if (cfg.strategy === 'plugin-mount') {
 		if (!cfg.pluginDir) throw new Error('plugin-mount serve needs a pluginDir');
 		const slug = cfg.pluginSlug || 'plugin';
+		// The slug becomes a path segment under the plugins directory; one
+		// carrying a separator or `..` would mount the checkout somewhere else
+		// in the served WordPress. The registry is the only source today, but
+		// this is the seam every strategy goes through.
+		if (!/^[a-z0-9-]+$/i.test(slug)) throw new Error(`plugin-mount serve needs a plain slug, got ${JSON.stringify(slug)}`);
 		const vfsPath = `${PLUGINS_VFS_BASE}/${slug}`;
 		return {
 			// No wordpressInstallMode: Playground's default downloads and installs
-			// a stock WordPress for the plugin to live in.
+			// a stock WordPress for the plugin to live in. The first serve needs
+			// the network for that release zip; Playground caches it under
+			// ~/.wordpress-playground afterwards, so later serves work offline,
+			// unlike Core's docroot, which never downloads at all.
 			mount: [{ hostPath: cfg.pluginDir, vfsPath }],
 			'mount-before-install': [],
 			'additional-blueprint-steps': [{ step: 'activatePlugin', pluginPath: vfsPath }]
 		};
 	}
 
-	// 'docroot' (default): the build dir is the whole WordPress install.
+	// 'docroot' (default): the build dir is the whole WordPress install. Exactly
+	// the options the runner sent before strategies existed, no empty arrays
+	// added: the CLI normalises a missing `mount` and a missing steps list to
+	// the same thing, but the Core path is asserted byte for byte and stays
+	// literally unchanged.
 	if (!cfg.docroot) throw new Error('docroot serve needs a docroot');
 	return {
-		mount: [],
 		'mount-before-install': [{ hostPath: cfg.docroot, vfsPath: WORDPRESS_VFS_ROOT }],
-		'additional-blueprint-steps': [],
 		wordpressInstallMode: 'install-from-existing-files-if-needed'
 	};
 }

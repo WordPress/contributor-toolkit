@@ -3530,11 +3530,12 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	// read here, once, and the map below keys on sitePath as before, so
 	// playground:stop and the quit sweep are untouched.
 	const serve = projectTypeForSite(await readSiteMeta(sitePath)).serve;
+	const isPluginMount = serve.strategy === 'plugin-mount';
 	const buildDir = path.join(sitePath, 'build');
-	const serveConfig = serve.strategy === 'plugin-mount'
+	const serveConfig = isPluginMount
 		? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
 		: { strategy: 'docroot', docroot: buildDir };
-	const serveCwd = serve.strategy === 'plugin-mount' ? sitePath : buildDir;
+	const serveCwd = isPluginMount ? sitePath : buildDir;
 	const runnerPath = path.join(__dirname, 'server-runner.js');
 	const logScope = playgroundLogScope(sitePath);
 	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
