@@ -2048,6 +2048,13 @@ test('npm:kill ends the script tree rather than signalling the runner alone', as
 	// grunt), and child.kill() leaves everything past the first link running (#83).
 	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
 	assert.deepEqual(cp.children[0].kill.calls, []);
+
+	// The last resort, three seconds on, is the same tree signal forced, not a
+	// kill of the direct child: a descendant that sat through SIGTERM
+	// (Gutenberg's native tsc, #251) is past the first link too.
+	t.mock.timers.tick(3000);
+	assert.deepEqual(killChildTree.calls[1], [cp.children[0], { signal: 'SIGKILL' }]);
+	assert.deepEqual(cp.children[0].kill.calls, [], 'the escalation must not stop at the runner');
 });
 
 // The install is the other thing a directory can be busy with, and it was the

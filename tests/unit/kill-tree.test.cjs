@@ -21,6 +21,25 @@ test('killTreePlan on POSIX targets the process group, with the bare pid as fall
 	assert.equal(plan.fallback, 1234);
 });
 
+test('killTreePlan on POSIX can force the same group with SIGKILL, and win32 forces regardless', () => {
+	const forced = killTreePlan('darwin', 1234, 'SIGKILL');
+	assert.equal(forced.signal, 'SIGKILL');
+	assert.equal(forced.target, -1234, 'the escalation must reach the whole group, not the direct child');
+	assert.equal(forced.fallback, 1234);
+	// taskkill /F is already a forced end of the tree; a signal name changes nothing there.
+	assert.deepEqual(killTreePlan('win32', 1234, 'SIGKILL'), killTreePlan('win32', 1234));
+});
+
+test('killChildTree passes the requested signal to the group', () => {
+	const calls = [];
+	killChildTree({ pid: 42, exitCode: null, signalCode: null }, {
+		platform: 'darwin',
+		signal: 'SIGKILL',
+		kill: (target, signal) => { calls.push([target, signal]); }
+	});
+	assert.deepEqual(calls, [[-42, 'SIGKILL']]);
+});
+
 test('killTreePlan refuses pids that cannot name a live process', () => {
 	// pid 0 would signal the caller's own group and -1 every process the user
 	// owns — a bug here is catastrophic, so these must return null, not a plan.
