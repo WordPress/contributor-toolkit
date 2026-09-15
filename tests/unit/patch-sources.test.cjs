@@ -191,7 +191,7 @@ test('bodyCitesIssue: a closing keyword before #N, owner/repo#N or the issue URL
 		'Closes #71234\n\nWhat?',
 		'Resolves WordPress/gutenberg#71234',
 		'Fixed https://github.com/WordPress/gutenberg/issues/71234',
-		'See https://github.com/WordPress/gutenberg/issues/71234#issuecomment-1 for context'
+		'closes: https://github.com/WordPress/gutenberg/issues/71234#issuecomment-1'
 	]) {
 		assert.strictEqual(bodyCitesIssue(body, 71234, GB), true, body);
 	}
@@ -199,6 +199,7 @@ test('bodyCitesIssue: a closing keyword before #N, owner/repo#N or the issue URL
 
 test('bodyCitesIssue: a bare #N, a longer number, another repository or a prefixed keyword does not (#251)', () => {
 	assert.strictEqual(bodyCitesIssue('Related to #71234', 71234, GB), false, 'no keyword: the search surfaced it from prose');
+	assert.strictEqual(bodyCitesIssue('See https://github.com/WordPress/gutenberg/issues/71234 for context', 71234, GB), false, 'a bare URL is a mention; GitHub does not link on it either');
 	assert.strictEqual(bodyCitesIssue('Fixes #712345', 71234, GB), false, 'a longer number that starts with the digits');
 	assert.strictEqual(bodyCitesIssue('Fixes WordPress/wordpress-develop#71234', 71234, GB), false, 'another repository');
 	assert.strictEqual(bodyCitesIssue('https://github.com/WordPress/wordpress-develop/issues/71234', 71234, GB), false);

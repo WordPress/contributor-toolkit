@@ -28,7 +28,7 @@ There is no **Read details** action here: an issue's title, labels and state are
 
 ## Linked pull requests
 
-The card searches GitHub for pull requests on `WordPress/gutenberg` that are *for* this issue, the way GitHub itself links the two: a closing keyword in front of the number (`Fixes #71234`, `Closes WordPress/gutenberg#71234`) or the issue's URL in the pull request's description. A bare number mentioned in passing does not count. The list is the same one the issue page shows under *linked pull requests*.
+The card searches GitHub for pull requests on `WordPress/gutenberg` that are *for* this issue, the way GitHub itself links the two: a closing keyword in front of the number or the issue's URL in the pull request's description (`Fixes #71234`, `Closes WordPress/gutenberg#71234`, `Resolves https://github.com/WordPress/gutenberg/issues/71234`). A number or a URL mentioned in passing does not count, on GitHub or here. The list is the same one the issue page shows under *linked pull requests*.
 
 Each row shows the pull request number (click it to open it in your browser), its title, its state and a date labelled with what it is, exactly as on a Core site; see [Linked pull requests](./trac-tickets#linked-pull-requests) for the pills, the **Latest** mark and the rate limit. Merged is common here, unlike on `wordpress-develop`: a Gutenberg pull request lands by being merged.
 

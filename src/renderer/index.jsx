@@ -41,7 +41,6 @@ import { parsePrRef } from '../patch-sources.cjs';
 import { prStateBadge } from './pr-state.cjs';
 import { statusBadge } from '../trac-ticket-info.cjs';
 import { prDateLabel } from './pr-date-label.cjs';
-import { attachUrl } from './trac-ticket.cjs';
 import { workItemProvider } from '../work-item.cjs';
 import { adminUrl, adminerUrl } from './site-urls.cjs';
 import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
@@ -2056,7 +2055,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     try {
       const res = await window.api.rebaseBranch(sitePath);
       if (!res?.ok) {
-        setTicketError(rebaseRefusal({ ...res, ticketId: tracTicket }));
+        setTicketError(rebaseRefusal({ ...res, ticketId: tracTicket, noun: workItem.noun }));
         return;
       }
       setTicketBehindTrunk(false);
@@ -2067,7 +2066,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     } finally {
       setTicketSaving(false);
     }
-  }, [sitePath, tracTicket, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
+  }, [sitePath, tracTicket, workItem, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
 
   const discardTrunkWorkAndSwitch = useCallback(async (target) => {
     setTicketSaving(true);
@@ -2876,7 +2875,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   ) : null;
   // One gate for every ticket action, and the sentence that goes with it
   // (#409): a control this disables says why, through ReasonedButton.
-  const ticketActionsReason = ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, applyState });
+  const ticketActionsReason = ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun });
   const ticketActionsBlocked = Boolean(ticketActionsReason);
 
   // The one question both paths now ask (#234). Picking a ticket while trunk
@@ -2890,7 +2889,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // would be a dead end in the second one.
   const dirtyQuestion = blockedByTrunkWork ? dirtyTrunkQuestion({
     ...blockedByTrunkWork,
-    pullRequest: blockedByTrunkWork.kind === 'pr' ? blockedByTrunkWork.number : null
+    pullRequest: blockedByTrunkWork.kind === 'pr' ? blockedByTrunkWork.number : null,
+    noun: workItem.noun
   }) : null;
   const blockedPanel = blockedByTrunkWork ? (
     <div style={{ marginTop: 8, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
@@ -3900,7 +3900,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // put in the same box prefixed with 'Error'. The sentinel can arrive under
   // `#` lines naming binaries that could not be carried (#85), so the test is
   // "is there a diff under the commentary" rather than a string comparison.
-  const reviewContext = patchReviewContext({ pullRequest, tracTicket });
+  const reviewContext = patchReviewContext({ pullRequest, tracTicket, workItemNoun: workItem.noun });
   const patchHasChanges = Boolean(patchText)
     && hasDiffLines(patchText)
     && !patchText.startsWith('Error');
@@ -3951,7 +3951,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // an attach form with nothing to attach.
   const saveForTrac = async () => {
     const filePath = await savePatchFile({ destination: 'trac' });
-    if (filePath && tracTicket) window.api.openExternal(attachUrl(tracTicket));
+    // Trac's alone; the destination only renders where the provider has one.
+    if (filePath && tracTicket && workItem.attachUrlFor) window.api.openExternal(workItem.attachUrlFor(tracTicket));
   };
 
   const saveForHandoff = async () => {
@@ -5013,7 +5014,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                   <ReasonedButton
                     variant="secondary"
                     isBusy={ticketSaving}
-                    reason={rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, devServerActive: isDevProcessActive, discarding })}
+                    reason={rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, devServerActive: isDevProcessActive, discarding, noun: workItem.noun })}
                     onClick={rebaseTicket}
                   >{staleTicketNotice.action}</ReasonedButton>
                 </div>
@@ -5234,7 +5235,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                   onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
                   disabled={ticketActionsBlocked}
                   placeholder={workItem.refPlaceholder}
-                  aria-label={`${project.workItem.label} number or URL`}
+                  aria-label={workItem.refLabel}
                 />
               </div>
               <ReasonedButton

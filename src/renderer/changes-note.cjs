@@ -197,15 +197,16 @@ function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges,
 	return null;
 }
 
-// The review always names the base used to measure the displayed changes.
-function patchReviewContext({ pullRequest, tracTicket } = {}) {
+// The review always names the base used to measure the displayed changes;
+// `workItemNoun` as in changesNoteParts.
+function patchReviewContext({ pullRequest, tracTicket, workItemNoun = 'ticket' } = {}) {
 	if (pullRequest) return {
 		heading: `Your changes on top of PR #${pullRequest.number}`,
 		description: 'Edits to this local copy, compared with the original PR commits.',
 		empty: `There are no changes on top of PR #${pullRequest.number}.`
 	};
 	return {
-		heading: tracTicket ? `Your changes for ticket #${tracTicket}` : 'Your changes',
+		heading: tracTicket ? `Your changes for ${workItemNoun} #${tracTicket}` : 'Your changes',
 		description: 'Everything this site has that its copy of trunk does not.',
 		empty: 'There is nothing to send yet — this site has no changes against its copy of trunk.'
 	};

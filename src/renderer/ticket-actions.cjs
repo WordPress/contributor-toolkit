@@ -18,13 +18,16 @@
  * stop, so a state with several guards true reports the one that will clear
  * on its own.
  *
+ * `noun` is what the site calls its work item (#251), `ticket` unless told
+ * otherwise; the two sibling functions below take it the same way.
+ *
  * @param {{ticketSaving?: boolean, deletingBranch?: string|null, updateState?: string,
- *          installing?: boolean, building?: boolean, applyState?: string}} state
+ *          installing?: boolean, building?: boolean, applyState?: string, noun?: string}} state
  * @return {string|null} Null when nothing blocks the action.
  */
-function ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState = 'idle', installing, building, applyState = 'idle' } = {}) {
-	if (ticketSaving) return 'Wait for the current ticket change to finish.';
-	if (deletingBranch) return "Wait for the ticket's work to finish deleting.";
+function ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState = 'idle', installing, building, applyState = 'idle', noun = 'ticket' } = {}) {
+	if (ticketSaving) return `Wait for the current ${noun} change to finish.`;
+	if (deletingBranch) return `Wait for the ${noun}'s work to finish deleting.`;
 	if (updateState !== 'idle') return 'Wait for the trunk update to finish.';
 	if (applyState !== 'idle') return 'Wait for the PR or patch operation to finish.';
 	if (installing) return 'Wait for the installation to finish.';
@@ -39,19 +42,20 @@ function ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState 
  *
  * @param {{ticketSaving?: boolean, deletingBranch?: string|null, updateState?: string,
  *          installing?: boolean, building?: boolean, devServerActive?: boolean,
- *          discarding?: boolean}} state
+ *          discarding?: boolean, noun?: string}} state
  * @return {string|null}
  */
 function rebaseDisabledReason(state = {}) {
+	const noun = state.noun || 'ticket';
 	// `discarding` leads, as it does in `discardDisabledReason`: a discard is
 	// already rewriting the tree, and reporting an install the contributor
 	// could wait out would name the wrong thing. The rest of the shared gate
 	// follows, then the dev server, which is the one the contributor has to
 	// act on rather than wait for.
-	if (state.discarding) return 'Wait for the discard to finish before updating the ticket.';
+	if (state.discarding) return `Wait for the discard to finish before updating the ${noun}.`;
 	const shared = ticketActionDisabledReason(state);
 	if (shared) return shared;
-	if (state.devServerActive) return 'Stop the dev server before updating the ticket.';
+	if (state.devServerActive) return `Stop the dev server before updating the ${noun}.`;
 	return null;
 }
 
@@ -67,13 +71,14 @@ function rebaseDisabledReason(state = {}) {
  * @param {boolean}            [root0.canCarry]    Whether the edits can ride into the ticket.
  * @param {string|number|null} [root0.ticket]      Ticket being picked, for the labels.
  * @param {number|null}        [root0.pullRequest] PR being checked out instead of a ticket.
+ * @param {string}             [root0.noun]        What the site calls its work item (#251).
  * @return {{question: string, carry: string|null, save: string, discard: string, cancel: string}}
  */
-function dirtyTrunkQuestion({ files = 0, canCarry = false, ticket = null, pullRequest = null } = {}) {
+function dirtyTrunkQuestion({ files = 0, canCarry = false, ticket = null, pullRequest = null, noun = 'ticket' } = {}) {
 	const count = files
-		? `You have ${files === 1 ? '1 uncommitted change' : `${files} uncommitted changes`} on this site, not on any ticket yet.`
-		: 'You have uncommitted changes on this site, not on any ticket yet.';
-	const name = ticket ? `#${ticket}` : 'the ticket';
+		? `You have ${files === 1 ? '1 uncommitted change' : `${files} uncommitted changes`} on this site, not on any ${noun} yet.`
+		: `You have uncommitted changes on this site, not on any ${noun} yet.`;
+	const name = ticket ? `#${ticket}` : `the ${noun}`;
 	if (Number.isInteger(pullRequest)) {
 		return {
 			question: `${count} What should happen to them? PR #${pullRequest} is a separate checkout, so these edits cannot come along into it.`,
@@ -93,7 +98,7 @@ function dirtyTrunkQuestion({ files = 0, canCarry = false, ticket = null, pullRe
 		};
 	}
 	return {
-		question: `${count} What should happen to them? This ticket already has its own work here, so these edits cannot come along into it.`,
+		question: `${count} What should happen to them? This ${noun} already has its own work here, so these edits cannot come along into it.`,
 		carry: null,
 		save: `Save them as a patch, then continue on ${name}…`,
 		discard: `Discard them and continue on ${name}`,

@@ -2218,8 +2218,7 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
 
 // Core-only, and unreached: nothing in the renderer has invoked this since
 // pull requests became checkouts (#458); it stays for the API surface the
-// packaged smoke test pins. The module underneath takes a `repo`, so wiring
-// a site through here is one line if a caller ever returns.
+// packaged smoke test pins. Removing both is a follow-up.
 ipcMain.handle('git:fetch-pr-diff', async (_e, number) => {
     try {
         return await fetchPrDiff(number);

@@ -247,3 +247,8 @@ test('changesNoteParts speaks of an issue when told the site\'s noun', () => {
 	const loose = changesNoteParts({ dirty: true, changedCount: 1, tracTicket: null, workItemNoun: 'issue' });
 	assert.match(loose.lead, /not assigned to any issue/);
 });
+
+test('patchReviewContext names the work item by the site\'s noun (#251)', () => {
+	const { patchReviewContext } = require('../../src/renderer/changes-note.cjs');
+	assert.equal(patchReviewContext({ tracTicket: 71234, workItemNoun: 'issue' }).heading, 'Your changes for issue #71234');
+});
