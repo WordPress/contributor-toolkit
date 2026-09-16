@@ -70,7 +70,7 @@ test( 'a Gutenberg site opens its pull request against WordPress/gutenberg, word
 	// INVARIANT — the slow step names the repository being forked, and the
 	// progress event moves this site's spinner.
 	await page.getByRole( 'button', { name: 'Open pull request', exact: true } ).click();
-	await expect( page.getByText( 'Creating your fork of gutenberg…', { exact: true } ) ).toBeVisible();
+	await expect( page.getByText( 'Creating your fork of WordPress/gutenberg…', { exact: true } ) ).toBeVisible();
 	await expect( page.getByText( 'Opening the pull request…', { exact: true } ) ).toBeVisible( { timeout: 10_000 } );
 
 	// INVARIANT — the result links the pull request, the confirmation names
@@ -108,7 +108,7 @@ test( 'a Core site opens its pull request against wordpress-develop, worded for 
 	await expect( page.getByText( 'How pull requests work in core', { exact: true } ) ).toBeVisible();
 
 	await page.getByRole( 'button', { name: 'Open pull request', exact: true } ).click();
-	await expect( page.getByText( 'Creating your fork of wordpress-develop…', { exact: true } ) ).toBeVisible();
+	await expect( page.getByText( 'Creating your fork of WordPress/wordpress-develop…', { exact: true } ) ).toBeVisible();
 
 	await expect( page.getByRole( 'button', { name: 'pull request #9', exact: true } ) ).toBeVisible( { timeout: 10_000 } );
 	await expect( page.getByTestId( 'snackbar' ).filter( { hasText: 'Opened pull request #9 on WordPress/wordpress-develop' } ) ).toBeVisible();

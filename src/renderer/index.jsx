@@ -4238,8 +4238,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               {project.cards.prBlockedNote}
             </div>
           )}
+          {/*
+            The repository the stage label names is the effective target: the
+            sandbox when the override is set, else the site's own. The same
+            answer the test-mode badge above gives, so the two never disagree.
+          */}
           {prStage ? (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>{prStageLabel(prStage, project.upstream.repo)}</div>
+            <div style={{ fontSize:12, color:'#6c6f72' }}>{prStageLabel(prStage, githubAccount?.testMode?.target || `${project.upstream.owner}/${project.upstream.repo}`)}</div>
           ) : (
             <div style={{ fontSize:12, color:'#6c6f72' }}>
               {/*
