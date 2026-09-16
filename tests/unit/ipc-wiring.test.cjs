@@ -2888,6 +2888,29 @@ test('git:fetch-pr-diff asks github-prs for the diff', async () => {
 	assert.deepEqual(result, { ok: true, text: 'DIFF' });
 });
 
+// The Trac window opens for a Trac ticket only (#251). A Gutenberg site stores
+// its issue in the same field, and its number is also a Core ticket's number:
+// scraping it would show that ticket's facts and attachments under the issue.
+test('trac:list-attachments opens the Trac window for a Trac site, and refuses a Gutenberg one by name', async (t) => {
+	const dir = await fixtureRepo(t);
+	const openAndScrape = spy(async () => ({ status: 'ok', items: [], ticket: { summary: 'A Core ticket' } }));
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { projectType: 'gutenberg', tracTicket: 49661 } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+
+	const refused = await main.invoke('trac:list-attachments', dir);
+	assert.equal(refused.ok, true);
+	assert.equal(refused.status, 'not-trac');
+	assert.deepEqual(refused.items, []);
+	assert.deepEqual(openAndScrape.calls, []);
+
+	const core = await fixtureRepo(t);
+	const coreSettings = fakeSettingsStore({ sites: [core], siteMeta: { [core]: { tracTicket: 49661 } } });
+	const coreMain = loadMain({ stubs: { ...silentLogging(), ...coreSettings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+	const read = await coreMain.invoke('trac:list-attachments', core);
+	assert.equal(read.status, 'ok');
+	assert.deepEqual(openAndScrape.calls, [[49661]]);
+});
+
 // git:list-ticket-patches reads the stored ticket, then delegates to github-prs
 // and caches the result — reachable through the same fakeSettingsStore seam.
 test('git:list-ticket-patches fetches the linked PRs for the stored ticket', async () => {
@@ -5944,6 +5967,7 @@ const WIRED = new Set([
 	'git:fetch-pr-diff',
 	'git:list-ticket-patches',
 	'trac:fetch-attachment',
+	'trac:list-attachments',
 	'editor:list',
 	'editor:open',
 	'dir:show',
@@ -5994,9 +6018,7 @@ const NO_DELEGATION = new Map([
 
 // Channels that do delegate, but whose call sits behind something this harness
 // cannot stand in for yet. Each one is a known hole, not an oversight.
-const NOT_REACHABLE = new Map([
-	['trac:list-attachments', 'reads electron-store for the ticket before it can open the Trac window']
-]);
+const NOT_REACHABLE = new Map([]);
 
 const CLASSIFIED = [...WIRED, ...NO_DELEGATION.keys(), ...NOT_REACHABLE.keys()];
 

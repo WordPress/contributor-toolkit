@@ -3208,14 +3208,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     attachments: tracAttachments?.items,
     prRankComplete: ticketPatches?.rankComplete
   });
-  const latestIsAttachment = latestPatch?.kind === 'attachment';
+  // Attachments are Trac's; a GitHub issue never has one, whatever a stale
+  // scrape says (#251).
+  const latestIsAttachment = showTracCards && latestPatch?.kind === 'attachment';
   // The panel lists only what can be applied — screenshots and other non-patch
   // attachments are noise here. The parser still returns them (pickLatest and
   // tests rely on the full list); the filtering is purely what's shown.
   const patchAttachments = (tracAttachments?.items || []).filter((a) => a.applyable);
   // The ticket's own facts (#292), riding the same scrape as the attachments:
   // one Trac visit, one challenge, both answers.
-  const tracInfo = tracAttachments?.ticket || null;
+  const tracInfo = showTracCards ? (tracAttachments?.ticket || null) : null;
   const tracInfoBadge = statusBadge(tracInfo);
   const tracAttachmentsRead = tracAttachments
     && (tracAttachments.status === 'ok' || tracAttachments.status === 'no-attachments');
@@ -3382,14 +3384,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // hand (#292). Only then: the contributor just acted on this ticket, so a
     // human-check window appearing has context. On mount or re-activation the
     // ref is empty and nothing opens — details stay on demand, the #109 rule.
-    if (autoReadTicketRef.current === tracTicket) {
+    // And only for a Trac ticket (#251): a GitHub issue has nothing on Trac,
+    // and the Core ticket that shares its number is not it.
+    if (showTracCards && autoReadTicketRef.current === tracTicket) {
       autoReadTicketRef.current = null;
       // Through the ref, not the function: loadTracAttachments is declared
       // below this effect and recreated per render — the same shape as
       // metaPatchRef above.
       if (tracScrapeRef.current) tracScrapeRef.current();
     }
-  }, [tracTicket, isActive, loadTicketPatches]);
+  }, [tracTicket, isActive, loadTicketPatches, showTracCards]);
 
   // Fetches the PR head through the site's origin and previews its own file
   // list. No diff text crosses the renderer boundary: checkout retains the

@@ -20,6 +20,16 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
 	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );
 	const { app, page } = await session.start( site.settings );
+	// Trac stands in for itself: if anything on this site asks for the ticket
+	// with the issue's number, the stub answers with a Core ticket's facts and
+	// records the call, so the check below can fail by name.
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'trac:list-attachments' );
+		ipcMain.handle( 'trac:list-attachments', () => {
+			global.__tracScrapes = ( global.__tracScrapes || 0 ) + 1;
+			return { ok: true, status: 'ok', items: [], ticket: { summary: 'A CORE TICKET WITH THE SAME NUMBER', keywords: [] } };
+		} );
+	} );
 
 	// INVARIANT — the row and the header say which kind of site this is.
 	await expect( page.getByText( 'Gutenberg', { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
@@ -53,6 +63,14 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	await expect( page.getByText( 'Attach to Trac', { exact: true } ) ).toHaveCount( 0 );
 	expect( branches( site.dir ) ).toContain( 'issue/71234' );
 	expect( branches( site.dir ) ).not.toContain( 'ticket/71234' );
+
+	// INVARIANT — linking an issue by hand does not read the Core ticket that
+	// shares its number: no Trac window, and nothing of that ticket on the
+	// card (#251). On a Core site the same link would open Trac (#292).
+	await expect( page.getByText( 'No pull requests cite this issue yet.' ) ).toBeVisible( { timeout: 30_000 } );
+	expect( await app.evaluate( () => global.__tracScrapes || 0 ) ).toBe( 0 );
+	await expect( page.getByText( 'A CORE TICKET WITH THE SAME NUMBER' ) ).toHaveCount( 0 );
+	await expect( page.getByText( /file attachment, not a pull request/ ) ).toHaveCount( 0 );
 
 	// INVARIANT — a pull request is checked out from the site's own
 	// repository: a wordpress-develop URL is refused by name, a

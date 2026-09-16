@@ -2277,7 +2277,14 @@ ipcMain.handle('git:fetch-pr-diff', async (_e, number) => {
 ipcMain.handle('trac:list-attachments', async (_e, sitePath) => {
     try {
         const s = await getStore();
-        const ticketId = ((s.get('siteMeta') || {})[sitePath] || {}).tracTicket;
+        const meta = (s.get('siteMeta') || {})[sitePath] || {};
+        // Trac's alone (#251): a Gutenberg site stores its issue in the same
+        // field, and the issue's number is also some Core ticket's number.
+        // Opening that ticket here would show its facts and attachments under
+        // the issue, so the window never opens for a site whose work item is
+        // not a Trac ticket.
+        if (projectTypeForSite(meta).workItem.provider !== 'trac') return { ok: true, status: 'not-trac', items: [] };
+        const ticketId = meta.tracTicket;
         if (!ticketId) return { ok: true, status: 'no-ticket', items: [] };
         const result = await openAndScrape(ticketId);
         return { ok: true, ...result };
