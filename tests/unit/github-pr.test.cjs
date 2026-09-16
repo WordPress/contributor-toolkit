@@ -30,6 +30,7 @@ const {
 	createPullRequest,
 	openPullRequest
 } = require('../../src/github-pr.cjs');
+const { citesWorkItemFor } = require('../../src/patch-sources.cjs');
 
 const TOKEN = 'gho_test';
 const LOGIN = 'janedoe';
@@ -143,6 +144,11 @@ test('branchNameFor and buildPullRequestBody follow the project when given one',
 		'Opened from the WordPress Contributor Toolkit.'
 	]);
 	assert.strictEqual(body.includes('Trac'), false);
+	// The round trip the feature rests on: the line this writes is the one the
+	// linked-PR list reads back, so a pull request opened here shows under
+	// its issue afterwards.
+	assert.strictEqual(citesWorkItemFor('github-issue', 'WordPress/gutenberg')(body, 71234), true);
+	assert.strictEqual(citesWorkItemFor('github-issue', 'WordPress/gutenberg')(body, 71235), false);
 
 	// The Core line is passed the work item's URL, which is what it cites.
 	const core = { bodyLine: (id, url) => `Trac ticket: ${url}`, workItemUrl: 'https://core.trac.wordpress.org/ticket/62281' };

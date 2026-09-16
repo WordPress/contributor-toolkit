@@ -83,14 +83,16 @@ function confirmationReducer(state = initialConfirmations, action = {}) {
  * the rest of the confirmation logic, because it is a user-read string chosen by
  * a branch — the kind that must not live untested in index.jsx.
  *
- * @param {{ ok?: boolean, dryRun?: boolean, number?: number }} res        The main process's result.
- * @param {string}                                              [repoPath] `owner/repo` the pull request was opened on.
+ * @param {{ ok?: boolean, dryRun?: boolean, number?: number, url?: string }} res The main process's result.
  */
-function prConfirmationMessage(res = {}, repoPath = '') {
+function prConfirmationMessage(res = {}) {
 	if (res.dryRun) return 'Dry run — branch created, no pull request opened';
 	// Named because two repositories are possible now (#251): a number alone
-	// does not say whether it landed on wordpress-develop or gutenberg.
-	return `Opened pull request #${res.number}${repoPath ? ` on ${repoPath}` : ''}`;
+	// does not say whether it landed on wordpress-develop or gutenberg. Read
+	// from the pull request's own URL, not from the site's type: with the
+	// sandbox override set the two differ, and the URL is where it went.
+	const match = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/\d+/.exec(String(res.url || ''));
+	return `Opened pull request #${res.number}${match ? ` on ${match[1]}` : ''}`;
 }
 
 /**

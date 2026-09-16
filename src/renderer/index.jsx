@@ -56,6 +56,7 @@ import { carryTestMode } from './github-account.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage } from './confirmations.cjs';
+import { prStageLabel } from './pr-stage.cjs';
 
 // One face for everything that is process output: the terminal below and every
 // log pane above it. Shared rather than repeated because the panes had drifted
@@ -109,29 +110,16 @@ function ReasonedButton({ reason, disabled, children, ...props }) {
 function DiscardChangesLink({ label, onClick, reason, style }) {
   return <ReasonedButton variant="link" isDestructive onClick={onClick} reason={reason} style={style}>{label}</ReasonedButton>;
 }
-// What the app is doing while a pull request is being opened (#167). Each step
-// is named because they take visibly different amounts of time — forking is the
-// slow one, and an unlabelled spinner there reads as a hang.
-const PR_STAGE_LABELS = {
-  forking: 'Creating your fork of wordpress-develop…',
-  syncing: 'Bringing your fork up to date…',
-  committing: 'Uploading your changes…',
-  opening: 'Opening the pull request…'
-};
 // Why it failed, in a sentence that says what to do about it. Every one of
 // these still leaves the patch file, which is what the card offers underneath.
+// The no-ticket refusal is not here: the main process words it for the site's
+// work item (#251), and the fallback below shows that sentence as sent.
 const PR_FAILURE_MESSAGES = {
   unauthorized: 'That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.',
   'rate-limited': 'GitHub is rate-limiting this connection. It usually clears within the hour.',
   offline: 'No connection to GitHub.',
   empty: 'There are no changes to open a pull request with.'
 };
-// The one failure that names the work item takes its label from the site's
-// project (#251): a Gutenberg site asks for a GitHub issue, not a Trac ticket.
-function prFailureMessage(prError, workItemLabel) {
-  if (prError.reason === 'no-ticket') return `Link a ${workItemLabel} to this site first. A pull request has to cite one.`;
-  return PR_FAILURE_MESSAGES[prError.reason] || prError.error;
-}
 // Per-status wording for the update chain card (#94), following the issue's
 // mockups: the skipped install step is named, never hidden, and the build
 // step points at the Terminal instead of opening a second log surface.
@@ -4044,7 +4032,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         setPrResult(res);
         // The result panel below carries the link; this announces the outcome
         // for a contributor who looked away during the slow fork step (#253).
-        confirm(prConfirmationMessage(res, `${project.upstream.owner}/${project.upstream.repo}`));
+        confirm(prConfirmationMessage(res));
       } else {
         setPrError(res || { reason: 'error', error: 'The pull request could not be opened.' });
         // A revoked authorization is forgotten in the main process, so the card
@@ -4251,7 +4239,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             </div>
           )}
           {prStage ? (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>{PR_STAGE_LABELS[prStage] || 'Working…'}</div>
+            <div style={{ fontSize:12, color:'#6c6f72' }}>{prStageLabel(prStage, project.upstream.repo)}</div>
           ) : (
             <div style={{ fontSize:12, color:'#6c6f72' }}>
               {/*
@@ -5892,7 +5880,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                       {prError ? (
                         <>
                           <div role="alert" style={{ color:'#d63638', fontSize:12 }}>
-                            {prFailureMessage(prError, project.workItem.label)}
+                            {PR_FAILURE_MESSAGES[prError.reason] || prError.error}
                           </div>
                           {/*
                             Every failure lands here, and every failure has the

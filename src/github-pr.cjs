@@ -268,9 +268,9 @@ async function ensureFork({ token, login }, deps = {}) {
 
 	// A repository under the fork's name is only usable if it actually is a
 	// fork of upstream. A contributor who happens to own an unrelated
-	// repository called wordpress-develop or gutenberg must be told at step one — the
-	// alternative is writing a branch and a commit into their project and
-	// failing at the very end with an opaque 422.
+	// repository called wordpress-develop or gutenberg must be told at step
+	// one. The alternative is writing a branch and a commit into their project
+	// and failing at the very end with an opaque 422.
 	const isOurFork = (json) => Boolean(json && json.fork)
 		&& [json.parent, json.source].some((repo) => repo && repo.full_name === `${up.owner}/${up.repo}`);
 	const notAFork = () => ({
@@ -374,7 +374,7 @@ async function resolveBase({ token, login, baseSha }, deps = {}) {
 
 		const ref = await get(`${repo}/git/ref/heads/${base}`, { token });
 		if (ref.status !== 200 || !ref.json || !ref.json.object || !ref.json.object.sha) {
-			return failure(ref, 'Could not read your fork’s trunk');
+			return failure(ref, `Could not read your fork’s ${base}`);
 		}
 		const tip = String(ref.json.object.sha);
 		return { ok: true, sha: tip, exact: tip === baseSha };

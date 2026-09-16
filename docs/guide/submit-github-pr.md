@@ -6,7 +6,7 @@ Which repository follows the site's project: `wordpress-develop` on a WordPress 
 
 You need a GitHub account, and the site must have a linked work item: a [Trac ticket](trac-tickets) on a Core site, a [GitHub issue](gutenberg-issues) on a Gutenberg site. A pull request has to cite one. The app cannot create the GitHub account for you, and on a Core site it cannot post to Trac on your behalf.
 
-You also need to be on your ticket branch. If you are trying somebody else's PR, use **Revert this PR** first; the app will not include that author's commits in a new pull request under your name.
+You also need to be on your ticket or issue branch. If you are trying somebody else's PR, use **Revert this PR** first; the app will not include that author's commits in a new pull request under your name.
 
 ## Sign in with GitHub
 
