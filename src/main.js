@@ -30,7 +30,7 @@ const { lockfileChangedFromBlobOids, normalizeEol } = require('./git-update.cjs'
 const { readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
 const { applyPatchToDir } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
-const { fetchLinkedPrs, fetchPrDiff } = require('./github-prs');
+const { fetchLinkedPrs } = require('./github-prs');
 const { getClientId: getGithubClientId, requestDeviceCode, pollForToken, fetchViewer } = require('./github-auth.cjs');
 const { openPullRequest, buildPullRequestBody, testMode: githubTestMode } = require('./github-pr.cjs');
 const { buildPullRequestEntries } = require('./pr-files.cjs');
@@ -2263,17 +2263,6 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
         };
     } catch (e) {
         return { ok: false, error: String(e) };
-    }
-});
-
-// Core-only, and unreached: nothing in the renderer has invoked this since
-// pull requests became checkouts (#458); it stays for the API surface the
-// packaged smoke test pins. Removing both is a follow-up.
-ipcMain.handle('git:fetch-pr-diff', async (_e, number) => {
-    try {
-        return await fetchPrDiff(number);
-    } catch (e) {
-        return { ok: false, status: 'error', error: String(e) };
     }
 });
 

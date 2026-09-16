@@ -243,8 +243,6 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	listTicketPatches: (sitePath) => ipcRenderer.invoke('git:list-ticket-patches', sitePath)
 ,
-	fetchPrDiff: (number) => ipcRenderer.invoke('git:fetch-pr-diff', number)
-,
 	listTracAttachments: (sitePath) => ipcRenderer.invoke('trac:list-attachments', sitePath)
 ,
 	fetchTracAttachment: (url) => ipcRenderer.invoke('trac:fetch-attachment', url)

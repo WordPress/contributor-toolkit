@@ -2892,15 +2892,6 @@ test('git:apply-patch reports applied-but-untracked when the undo also fails', a
 
 // --- linked-PR discovery (#109 / #11) ------------------------------------
 
-test('git:fetch-pr-diff asks github-prs for the diff', async () => {
-	const fetchPrDiff = spy(async () => ({ ok: true, text: 'DIFF' }));
-	const main = loadMain({ stubs: { ...silentLogging(), './github-prs': { fetchPrDiff, fetchLinkedPrs: async () => ({}) } } });
-
-	const result = await main.invoke('git:fetch-pr-diff', 7319);
-
-	assert.deepEqual(fetchPrDiff.calls, [[7319]]);
-	assert.deepEqual(result, { ok: true, text: 'DIFF' });
-});
 
 // The Trac window opens for a Trac ticket only (#251). A Gutenberg site stores
 // its issue in the same field, and its number is also a Core ticket's number:
@@ -6024,7 +6015,6 @@ const WIRED = new Set([
 	'branches:delete',
 	'git:preview-patch',
 	'git:apply-patch',
-	'git:fetch-pr-diff',
 	'git:list-ticket-patches',
 	'trac:fetch-attachment',
 	'trac:list-attachments',

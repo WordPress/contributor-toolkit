@@ -301,29 +301,4 @@ async function fetchLinkedPrs(ticketId, deps = {}) {
 	return { status: 'ok', items: orderByCommitDate(items), rankComplete };
 }
 
-/**
- * The unified diff for one pull request.
- *
- * Core-only, like its one handler: nothing has invoked it since pull requests
- * became checkouts (#458), so it takes no repository until a caller needs one.
- *
- * @param {number} number
- * @return {Promise<{ok: true, text: string}|{ok: false, status: string, error: string}>}
- */
-async function fetchPrDiff(number) {
-	const n = String(number).replace(/[^0-9]/g, '');
-	if (!n) return { ok: false, status: 'error', error: 'No pull request number' };
-
-	let res;
-	try {
-		res = await httpGet(`https://api.github.com/repos/${REPO}/pulls/${n}`, { Accept: 'application/vnd.github.v3.diff' });
-	} catch (e) {
-		return { ok: false, status: 'offline', error: String(e && e.message ? e.message : e) };
-	}
-	if (res.status !== 200) {
-		return { ok: false, status: classifyHttpFailure(res.status, res.headers), error: `GitHub returned ${res.status}` };
-	}
-	return { ok: true, text: res.body };
-}
-
-module.exports = { MAX_COMMIT_LOOKUPS, fetchLinkedPrs, fetchPrDiff, httpGet };
+module.exports = { MAX_COMMIT_LOOKUPS, fetchLinkedPrs, httpGet };

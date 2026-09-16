@@ -49,7 +49,6 @@ const EXPECTED_API_KEYS = [
 	'deleteSite',
 	'discardChanges',
 	'discardToBase',
-	'fetchPrDiff',
 	'fetchTracAttachment',
 	'getEmails',
 	'getGithubAccount',
