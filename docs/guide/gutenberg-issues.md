@@ -1,7 +1,7 @@
 # Working on a GitHub issue
 
 ::: info Gutenberg sites
-This is the Gutenberg counterpart of [Working on a Trac ticket](./trac-tickets). A Gutenberg site's work item is an issue on [`WordPress/gutenberg`](https://github.com/WordPress/gutenberg/issues), and the **GitHub issue** card is where a Core site has its Trac ticket card. Opening a pull request from a Gutenberg site comes in a later version; until then the [patch file](./submitting-changes) is the way to send the work.
+This is the Gutenberg counterpart of [Working on a Trac ticket](./trac-tickets). A Gutenberg site's work item is an issue on [`WordPress/gutenberg`](https://github.com/WordPress/gutenberg/issues), and the **GitHub issue** card is where a Core site has its Trac ticket card. When the work is done, [Open a pull request](./submit-github-pr) sends it to `WordPress/gutenberg` from the same screen a Core site uses.
 :::
 
 Every Gutenberg change starts on a GitHub issue. The **GitHub issue** card links your site to the one you are working on, and then lists the pull requests that already fix it, so you can try them before adding your own.
@@ -38,7 +38,6 @@ Each pull request has an **Apply…** button, which fetches its commits and chec
 
 - **Trac attachments** and **Attach to Trac**: GitHub issues carry no patch files. Work arrives as pull requests, which the list above shows.
 - **The `.diff` / `.patch` picker**: same reason. A patch you save from a Gutenberg site is repo-relative (`packages/…`, `lib/…`) and applies to any Gutenberg checkout with `git apply`.
-- **Open a pull request**: comes in a later version. The card says so and offers the patch file.
 
 ## Open an issue from your browser
 
@@ -48,4 +47,5 @@ The `wpct://ticket/N` link is for Trac tickets and is turned away on a Gutenberg
 
 - [Work on more than one issue in the same site](./ticket-branches)
 - [Check out a pull request on your site](./applying-patches)
+- [Open a pull request to WordPress/gutenberg](./submit-github-pr)
 - [Submit your own changes](./submitting-changes)
