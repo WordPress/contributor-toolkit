@@ -2697,6 +2697,14 @@ test('git:apply-patch hands patch-apply the site\'s layout, on the apply and on 
 
 	assert.equal(applyPatchToDir.calls[0][0].layout, 'repo-relative');
 	assert.equal(applyPatchToDir.calls[1][0].layout, 'src-layout');
+
+	// The undo takes the same layout: a revert steered under a different
+	// layout than the apply would look for files where they never went.
+	const undo = createIpcEvent();
+	const { applyId: undoId } = await main.invokeWith('git:apply-patch', undo, '/sites/gb', { reverse: true });
+	await applyDone(undo, undoId);
+	assert.equal(applyPatchToDir.calls[2][0].reverse, true);
+	assert.equal(applyPatchToDir.calls[2][0].layout, 'repo-relative');
 });
 
 test('git:apply-patch delegates a forward apply to patch-apply and records it', async () => {
