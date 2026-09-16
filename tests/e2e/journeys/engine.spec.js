@@ -76,7 +76,7 @@ test( 'the app launches from source and lists the site it was seeded with', asyn
 	// #root is in the static HTML, so its presence proves nothing — its children do.
 	await expect( page.locator( '#root > *' ) ).not.toHaveCount( 0 );
 
-	// `exact`, because the sidebar heading "WordPress Core" is a substring of
+	// `exact`, because the sidebar heading "Contributor Toolkit" is a substring of
 	// several button labels further down the page.
 	await expect( sidebarEntry( page, 'engine-check' ) ).toBeVisible();
 	await expect( page.getByText( 'No sites yet.', { exact: true } ) ).toHaveCount( 0 );

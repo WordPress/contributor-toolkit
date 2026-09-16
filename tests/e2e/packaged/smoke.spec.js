@@ -204,9 +204,9 @@ test( 'the packaged app boots and paints its first window', async () => {
 
 	// #root is in the static HTML, so its presence proves nothing — its children do.
 	await expect( firstWindow.locator( '#root > *' ) ).not.toHaveCount( 0 );
-	// `exact` matters: "WordPress Core" is also a substring of button labels and
+	// `exact` matters: "Contributor Toolkit" is also a substring of button labels and
 	// step descriptions further down the page.
-	await expect( firstWindow.getByText( 'WordPress Core', { exact: true } ) ).toBeVisible();
+	await expect( firstWindow.getByText( 'Contributor Toolkit', { exact: true } ) ).toBeVisible();
 } );
 
 test( 'the preload bridge exposes every expected key', async () => {

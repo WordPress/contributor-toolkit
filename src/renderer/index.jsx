@@ -787,7 +787,7 @@ function App() {
       <div style={{ width: sidebarCollapsed ? 56 : 280, background: '#1f1f1f', color: '#f7f7f7', display: 'flex', flexDirection: 'column', transition: 'width 0.2s ease', borderRight: '1px solid #2b2b2b' }}>
         <div style={{ padding: sidebarCollapsed ? '12px 8px' : '16px', borderBottom: '1px solid #2b2b2b' }}>
           <Flex align="center" justify="space-between">
-            {!sidebarCollapsed ? (<div style={{ fontWeight: 600 }}>WordPress Core</div>) : null}
+            {!sidebarCollapsed ? (<div style={{ fontWeight: 600 }}>Contributor Toolkit</div>) : null}
             <Button
               icon={sidebarCollapsed ? chevronRight : chevronLeft}
               onClick={() => setSidebarCollapsed((v) => !v)}
