@@ -26,6 +26,10 @@ const PROJECT_TYPES = {
 	core: {
 		id: 'core',
 		label: 'WordPress Core',
+		// The pill on a site's sidebar row and header. Short, because the row
+		// is narrow and the CSS upper-cases it; every site wears one, so a
+		// list of mixed sites reads at a glance.
+		tag: 'Core',
 		// The option label shown in the create-site wizard picker, and the
 		// line under it. They say what the app does with the site today, not
 		// what a later version will.
@@ -117,6 +121,7 @@ const PROJECT_TYPES = {
 	gutenberg: {
 		id: 'gutenberg',
 		label: 'Gutenberg',
+		tag: 'Gutenberg',
 		wizardLabel: 'Gutenberg',
 		description: 'The block editor, built and run as a plugin in a stock WordPress. Issues and pull requests come in a later version.',
 

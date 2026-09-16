@@ -864,10 +864,9 @@ function App() {
           {sortedSites.map((sitePath) => {
             const meta = siteMeta?.[sitePath] || {};
             const siteName = (meta.label && meta.label.trim()) || pathBasename(sitePath);
-            // A site that is not a Core one says so on its row (#251); Core
-            // rows stay as they were.
-            const rowProject = getProjectType(meta.projectType);
-            const projectTag = rowProject.id === DEFAULT_PROJECT_TYPE ? null : rowProject.label;
+            // Every row says which project its site is (#251), so a list
+            // of mixed sites reads at a glance.
+            const projectTag = getProjectType(meta.projectType).tag;
             const isActive = activeSite === sitePath;
             const isDeleting = deletingSites.includes(sitePath);
             let siteButtonMinHeight = 40;
@@ -921,7 +920,7 @@ function App() {
                   <div style={{ width: '100%', minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3 }}>
                       <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{siteName}{staleDot}</span>
-                      {projectTag ? <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '1px 6px', borderRadius: 999, background: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.85)' }}>{projectTag}</span> : null}
+                      <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '1px 6px', borderRadius: 999, background: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.85)' }}>{projectTag}</span>
                       {isDeleting ? <span style={{ fontSize: 11, lineHeight: 1.3, color: 'rgba(255,255,255,0.72)' }}>Deleting site…</span> : null}
                     </div>
                     {isDeleting ? <Spinner style={{ width: 16, height: 16, margin: 0, flexShrink: 0 }} /> : null}
@@ -4553,7 +4552,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', ...statusStyles }}>
               {initialized ? 'Initialized' : 'Uninitialized'}
             </span>
-            {project.id !== DEFAULT_PROJECT_TYPE ? <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '2px 8px', borderRadius: 999, background: '#f0f0f1', color: '#1d2327' }}>{project.label}</span> : null}
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '2px 8px', borderRadius: 999, background: '#f0f0f1', color: '#1d2327' }}>{project.tag}</span>
             {createdLabel ? <span>Created {createdLabel}</span> : null}
             {age.known ? (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>

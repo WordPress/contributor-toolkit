@@ -68,6 +68,8 @@ test('every project type carries the full shape consumers depend on', () => {
 	for (const [id, cfg] of Object.entries(PROJECT_TYPES)) {
 		assert.equal(cfg.id, id, `${id}: id must match its key`);
 		assert.equal(typeof cfg.label, 'string');
+		// Every site wears its type on its row, so every type has a short tag.
+		assert.match(cfg.tag, /^[A-Za-z]{1,12}$/, `${id}: tag`);
 		assert.equal(typeof cfg.wizardLabel, 'string');
 
 		assert.equal(typeof cfg.clone.url, 'string');
