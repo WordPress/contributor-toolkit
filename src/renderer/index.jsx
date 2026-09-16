@@ -124,10 +124,14 @@ const PR_FAILURE_MESSAGES = {
   unauthorized: 'That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.',
   'rate-limited': 'GitHub is rate-limiting this connection. It usually clears within the hour.',
   offline: 'No connection to GitHub.',
-  'no-ticket': 'Link a Trac ticket to this site first — a pull request has to cite one.',
-  'unsupported-project': 'Opening a pull request from this site is not supported yet — save the patch file instead.',
   empty: 'There are no changes to open a pull request with.'
 };
+// The one failure that names the work item takes its label from the site's
+// project (#251): a Gutenberg site asks for a GitHub issue, not a Trac ticket.
+function prFailureMessage(prError, workItemLabel) {
+  if (prError.reason === 'no-ticket') return `Link a ${workItemLabel} to this site first. A pull request has to cite one.`;
+  return PR_FAILURE_MESSAGES[prError.reason] || prError.error;
+}
 // Per-status wording for the update chain card (#94), following the issue's
 // mockups: the skipped install step is named, never hidden, and the build
 // step points at the Terminal instead of opening a second log surface.
@@ -1419,6 +1423,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // flow until PR 5) shows only where the work item is a Trac ticket.
   const project = getProjectType(projectType);
   const projectBuild = project.build;
+  // Trac's alone: the attachments, "Attach to Trac", "Read details from Trac".
+  // The pull-request destination is on every site since #251.
   const showTracCards = project.workItem.provider === 'trac';
   // Memoised on the registry entry, which is a stable object, so the
   // callbacks that parse a reference do not change identity every render.
@@ -4038,7 +4044,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         setPrResult(res);
         // The result panel below carries the link; this announces the outcome
         // for a contributor who looked away during the slow fork step (#253).
-        confirm(prConfirmationMessage(res));
+        confirm(prConfirmationMessage(res, `${project.upstream.owner}/${project.upstream.repo}`));
       } else {
         setPrError(res || { reason: 'error', error: 'The pull request could not be opened.' });
         // A revoked authorization is forgotten in the main process, so the card
@@ -4068,12 +4074,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // deep and unreadable at the point where the wording matters most, so the
   // states get early returns and the card body gets one call.
   const renderPullRequestBody = () => {
-    // A target with no pull-request flow yet says so before anything about
-    // signing in: an authorization invited on the promise of an action the
-    // app then refuses is the cliff #167 is about.
-    if (!showTracCards) {
-      return <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>{project.cards.prBlockedNote}</div>;
-    }
     if (pullRequest) {
       return <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>{prOwnershipRefusal}</div>;
     }
@@ -4115,13 +4115,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             </div>
           ) : null}
           {/*
-            The Trac loop-back is for a pull request that exists — a dry run
-            has no link worth posting on a ticket.
+            The loop-back to the work item is for a pull request that exists —
+            a dry run has no link worth posting. What the line says is the
+            project's: on Trac the link is what gets the pull request seen, on
+            GitHub the Fixes line has already done that (#251).
           */}
           {!prResult.dryRun && (
             <>
               <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-                Triage and props live on the ticket, so the link belongs there too.
+                {project.cards.prLoopBack}
               </div>
               <Button variant="secondary" onClick={copyPrLink} icon={prLinkCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
                 {prLinkCopied ? 'Link copied' : 'Copy the link'}
@@ -4195,7 +4197,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               />
               {!prTitle.trim() ? (
                 <div style={{ fontSize:12, color:'#6c6f72', marginTop:-4 }}>
-                  Left empty, it will be titled <strong>Ticket #{tracTicket}</strong>.
+                  Left empty, it will be titled <strong>{workItem.defaultPrTitle(tracTicket)}</strong>.
                 </div>
               ) : null}
               {/*
@@ -4211,26 +4213,23 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                 rows={4}
                 label="Notes for reviewers (optional)"
                 placeholder={'What the change does, and why.\nHow to see it working — the steps you used.\nAnything you are unsure about.'}
-                help="Goes at the top of the description. The ticket link and your WordPress.org username are added underneath."
+                help={project.cards.prNotesHelp}
               />
               {/*
-                Two facts from the core handbook that a first-timer has no way
-                to know and that change what they do next: nobody is watching
-                GitHub, and nothing is merged there. Both make the Trac step
-                this flow ends on the point rather than the postscript, so they
-                are stated before the button, not after the pull request
-                exists.
+                What a first-timer has no way to know about pull requests on
+                this project, stated before the button rather than after the
+                pull request exists. The facts are the registry's (#251): Core's
+                two are false on Gutenberg, where the pull request is the venue.
               */}
               <details style={{ fontSize:12, color:'#6c6f72' }}>
-                <summary style={{ cursor:'pointer', color:'#3858e9' }}>How pull requests work in core</summary>
+                <summary style={{ cursor:'pointer', color:'#3858e9' }}>{project.cards.prHow.summary}</summary>
                 <div style={{ padding:'8px 0 0', lineHeight:1.6, display:'flex', flexDirection:'column', gap:6 }}>
-                  <div>Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.</div>
-                  <div>Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.</div>
+                  {project.cards.prHow.lines.map((line) => <div key={line}>{line}</div>)}
                   <Button
                     variant="link"
-                    onClick={()=>window.api.openExternal('https://make.wordpress.org/core/handbook/contribute/git/github-pull-requests-for-code-review/')}
+                    onClick={()=>window.api.openExternal(project.cards.prHow.linkUrl)}
                     style={{ fontSize:12 }}
-                  >The handbook page on pull requests</Button>
+                  >{project.cards.prHow.linkLabel}</Button>
                 </div>
               </details>
               {/*
@@ -5884,7 +5883,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                           <span>
                             {githubAccount.testMode.dryRun
                               ? 'Dry run — a branch is pushed to your fork, no pull request is opened.'
-                              : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to wordpress-develop.</>}
+                              : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to {project.upstream.owner}/{project.upstream.repo}.</>}
                           </span>
                         </div>
                       ) : null}
@@ -5893,7 +5892,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                       {prError ? (
                         <>
                           <div role="alert" style={{ color:'#d63638', fontSize:12 }}>
-                            {PR_FAILURE_MESSAGES[prError.reason] || prError.error}
+                            {prFailureMessage(prError, project.workItem.label)}
                           </div>
                           {/*
                             Every failure lands here, and every failure has the

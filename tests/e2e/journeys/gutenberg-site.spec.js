@@ -10,7 +10,7 @@
  */
 
 const { test, expect } = require( '../helpers/app.cjs' );
-const { makeSite, branches, addPullRequestToOrigin, currentBranch, read, LOGIN } = require( '../helpers/git-site.cjs' );
+const { makeSite, branches, addPullRequestToOrigin, currentBranch, read, write, LOGIN } = require( '../helpers/git-site.cjs' );
 
 const PR = 7;
 const PR_CONTENT = '<?php // pull request 7\n';
@@ -94,6 +94,20 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	await expect( page.getByText( 'Working on issue #71234', { exact: true } ) ).toBeVisible();
 	await expect( page.getByText( `PR #${ PR } is applied.`, { exact: true } ) ).toHaveCount( 0 );
 	expect( read( site.dir, LOGIN ) ).toBe( '<?php // trunk\n' );
+
+	// INVARIANT — the pull-request destination is offered on a Gutenberg site
+	// (#251), worded for GitHub: it costs a GitHub account, and nothing on the
+	// pane says the flow is missing. Sending is not exercised here; that needs
+	// a live GitHub and a sandbox upstream.
+	write( site.dir, LOGIN, '<?php // my change\n' );
+	await page.getByRole( 'button', { name: 'Review & submit changes', exact: true } ).click();
+	await expect( page.getByText( 'Where this patch goes', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( page.getByText( 'Open a pull request', { exact: true } ) ).toBeVisible();
+	await expect( page.getByText( /A GitHub account\. The fork is made for you/ ) ).toBeVisible();
+	await expect( page.getByText( /not supported yet|Not available yet/ ) ).toHaveCount( 0 );
+	await expect( page.getByText( 'Attach to Trac', { exact: true } ) ).toHaveCount( 0 );
+	await page.keyboard.press( 'Escape' );
+	await expect( page.getByText( 'Where this patch goes', { exact: true } ) ).toHaveCount( 0 );
 
 	// INVARIANT — a ticket from a link is refused by name, with nothing to
 	// confirm, and no ticket branch appears.

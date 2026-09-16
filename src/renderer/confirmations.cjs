@@ -83,11 +83,14 @@ function confirmationReducer(state = initialConfirmations, action = {}) {
  * the rest of the confirmation logic, because it is a user-read string chosen by
  * a branch — the kind that must not live untested in index.jsx.
  *
- * @param {{ dryRun?: boolean, number?: number }} res The main process's result.
+ * @param {{ ok?: boolean, dryRun?: boolean, number?: number }} res        The main process's result.
+ * @param {string}                                              [repoPath] `owner/repo` the pull request was opened on.
  */
-function prConfirmationMessage(res = {}) {
+function prConfirmationMessage(res = {}, repoPath = '') {
 	if (res.dryRun) return 'Dry run — branch created, no pull request opened';
-	return `Opened pull request #${res.number}`;
+	// Named because two repositories are possible now (#251): a number alone
+	// does not say whether it landed on wordpress-develop or gutenberg.
+	return `Opened pull request #${res.number}${repoPath ? ` on ${repoPath}` : ''}`;
 }
 
 /**

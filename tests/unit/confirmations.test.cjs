@@ -90,10 +90,14 @@ test('removing an id that matches nothing returns the same state object', () => 
 	assert.strictEqual(after, state, 'no needless re-render for a no-op removal');
 });
 
-test('an opened pull request is confirmed by its number (issue #253)', () => {
+test('an opened pull request is confirmed by its number, and by its repository when told one (issue #253, #251)', () => {
 	assert.strictEqual(
 		prConfirmationMessage({ ok: true, number: 42 }),
 		'Opened pull request #42'
+	);
+	assert.strictEqual(
+		prConfirmationMessage({ ok: true, number: 42 }, 'WordPress/gutenberg'),
+		'Opened pull request #42 on WordPress/gutenberg'
 	);
 });
 

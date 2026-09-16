@@ -77,16 +77,32 @@ const PROJECT_TYPES = {
 		// work-item card itself reads its words from work-item.cjs and from the
 		// `workItem` block below.
 		cards: {
-			// What the pull-request destination says when there is nothing to open
-			// one for: no ticket linked here, no flow at all on the other target yet.
+			// What the pull-request destination says when there is no work item
+			// linked to cite.
 			prBlockedNote: 'No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.',
-			// The rest of the pull-request destination's words that name Trac.
+			// The rest of the pull-request destination's words that differ per
+			// target: what it costs, what happens after, what the app cannot do
+			// for a signed-out contributor, the help under the notes field, the
+			// line that sends them back to the work item once the pull request
+			// exists, and the fold that says how pull requests work here.
 			prCost: 'A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.',
 			prAfter: 'Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.',
-			// Shown to a signed-out contributor. Only the Trac target reaches the
-			// sign-in pitch at all: the other target refuses the pull request
-			// before it, so it carries no sentence here.
 			signInCannot: 'It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.',
+			prNotesHelp: 'Goes at the top of the description. The ticket link and your WordPress.org username are added underneath.',
+			prLoopBack: 'Triage and props live on the ticket, so the link belongs there too.',
+			// Two facts from the core handbook that a first-timer has no way to
+			// know and that change what they do next: nobody is watching GitHub,
+			// and nothing is merged there. Both make the Trac step this flow
+			// ends on the point rather than the postscript.
+			prHow: {
+				summary: 'How pull requests work in core',
+				lines: [
+					'Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.',
+					'Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.'
+				],
+				linkLabel: 'The handbook page on pull requests',
+				linkUrl: 'https://make.wordpress.org/core/handbook/contribute/git/github-pull-requests-for-code-review/'
+			},
 			applyHeading: 'Apply a patch or PR',
 			applyDescription: 'Pull requests are checked out with their author\u2019s commits. A .diff/.patch file is applied to the current branch as a removable layer.',
 			// Patch files are how work arrives from Trac; a target whose work
@@ -149,10 +165,24 @@ const PROJECT_TYPES = {
 		},
 
 		cards: {
-			prBlockedNote: 'Opening a pull request from this site is not supported yet — save the patch file instead.',
-			prCost: 'Not available yet. The patch file below is the way to send this work.',
-			prAfter: 'Automated checks run on it.',
-			signInCannot: null,
+			prBlockedNote: 'No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.',
+			prCost: 'A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.',
+			prAfter: 'Automated checks run on it, and it is reviewed and merged right there: on Gutenberg the pull request is the venue.',
+			signInCannot: 'It cannot create the GitHub account for you.',
+			prNotesHelp: 'Goes at the top of the description. The Fixes line that links the issue and your WordPress.org username are added underneath.',
+			prLoopBack: 'The Fixes line already lists it on the issue. A comment there still tells the people watching it.',
+			// The two facts above are false here, and the audience least able
+			// to spot the app describing a different project is exactly this
+			// one, so the fold says what is true of Gutenberg instead.
+			prHow: {
+				summary: 'How pull requests work in Gutenberg',
+				lines: [
+					'The pull request is where the change is reviewed and, once approved, merged. Nothing has to be posted anywhere else for it to be seen.',
+					'Reviewers ask for testing steps. Put them in the notes: what to open, what to click, what should happen.'
+				],
+				linkLabel: 'The Gutenberg contributing guide',
+				linkUrl: 'https://github.com/WordPress/gutenberg/blob/trunk/CONTRIBUTING.md'
+			},
 			applyHeading: 'Check out a pull request',
 			applyDescription: 'Pull requests are checked out with their author\u2019s commits.',
 			patchFiles: false
