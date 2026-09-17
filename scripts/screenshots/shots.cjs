@@ -156,8 +156,9 @@ const shots = [
 		target: (page) => card(page, 'Logs'),
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
+			await page.getByRole('button', { name: 'Start dev server' }).click();
 			await page.getByRole('tab', { name: /debug\.log/ }).filter({ visible: true }).click();
-			await page.getByText('PHP Notice', { exact: false }).filter({ visible: true }).first().waitFor();
+			await page.getByText('Undefined variable $post', { exact: false }).filter({ visible: true }).first().waitFor();
 		}
 	},
 	{
