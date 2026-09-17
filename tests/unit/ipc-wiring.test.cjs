@@ -1643,7 +1643,7 @@ test('git:save-patch without options is the bare diff under the name it always h
 // the header being *above* the diff is the whole of its usefulness: the same
 // lines appended after it would land inside the last hunk's context and stop
 // the patch applying anywhere.
-test('git:save-patch with handoff writes the header above the diff, and it still parses', async (t) => {
+for (const projectType of ['core', 'gutenberg']) test(`git:save-patch handoff names the ${projectType} work item and remains a valid patch`, async (t) => {
 	const dir = await fixtureRepo(t);
 	const target = path.join(dir, '..', `handoff-${process.pid}.diff`);
 	t.after(() => fs.rmSync(target, { force: true }));
@@ -1652,7 +1652,7 @@ test('git:save-patch with handoff writes the header above the diff, and it still
 		stubs: {
 			...silentLogging(),
 			...fakeSettingsStore({
-				siteMeta: { [dir]: { tracTicket: 62281 } },
+				siteMeta: { [dir]: { tracTicket: 62281, projectType } },
 				preferences: { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Europe 2026' }
 			}).stubs
 		}
@@ -1666,6 +1666,12 @@ test('git:save-patch with handoff writes the header above the diff, and it still
 	assert.ok(written.startsWith('# WordPress Contributor Toolkit patch\n'), written.slice(0, 200));
 	assert.ok(written.includes('# Contributor: janedoe (wordpress.org)'));
 	assert.ok(written.includes('# Event: WordCamp Europe 2026'));
+	if (projectType === 'gutenberg') {
+		assert.ok(written.includes('# Issue: https://github.com/WordPress/gutenberg/issues/62281'));
+		assert.doesNotMatch(written, /core\.trac\.wordpress\.org|# Ticket:/);
+	} else {
+		assert.ok(written.includes('# Ticket: https://core.trac.wordpress.org/ticket/62281'));
+	}
 	assert.ok(written.indexOf('# Generated:') < written.indexOf('---'), 'the header has to precede the diff');
 
 	// The app reads its own patches back when someone applies one, so a mentor's

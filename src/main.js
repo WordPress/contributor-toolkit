@@ -973,6 +973,7 @@ ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
                 handle,
                 event,
                 ticketId: meta.tracTicket,
+                workItem: workItemFor(meta),
                 // The base the patch was actually diffed against, which on a
                 // ticket branch is the trunk it was born at — not the site's
                 // current trunk, which "Update to latest trunk" may have moved

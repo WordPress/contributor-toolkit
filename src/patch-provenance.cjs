@@ -127,12 +127,13 @@ function ticketNumber(ticketId) {
  * @param {string}        [details.handle]      WordPress.org handle, already validated.
  * @param {string}        [details.event]       Where it was written — a WordCamp, a meetup.
  * @param {number|string} [details.ticketId]
+ * @param {Object}        [details.workItem]    The site's provider; existing callers default to Trac.
  * @param {string}        [details.trunkOid]
  * @param {string}        [details.trunkDate]   ISO timestamp of the base commit.
  * @param {string}        [details.generatedAt] ISO timestamp for "now".
  * @return {string}
  */
-function buildProvenanceHeader({ handle, event, ticketId, trunkOid, trunkDate, generatedAt } = {}) {
+function buildProvenanceHeader({ handle, event, ticketId, workItem = { noun: 'ticket', urlFor: ticketUrl }, trunkOid, trunkDate, generatedAt } = {}) {
 	const lines = [];
 
 	const contributor = field(handle);
@@ -146,7 +147,7 @@ function buildProvenanceHeader({ handle, event, ticketId, trunkOid, trunkDate, g
 	if (where) lines.push(`# Event: ${where}`);
 
 	const ticket = ticketNumber(ticketId);
-	if (ticket) lines.push(`# Ticket: ${ticketUrl(ticket)}`);
+	if (ticket) lines.push(`# ${workItem.noun === 'issue' ? 'Issue' : 'Ticket'}: ${workItem.urlFor(ticket)}`);
 
 	const oid = field(trunkOid);
 	const based = day(trunkDate);
