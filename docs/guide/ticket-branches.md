@@ -97,17 +97,19 @@ Returning to a work item does not make it clean or measure it from wherever trun
 
 ## When trunk has moved since the work item started
 
-Updating the site moves its copy of trunk, but deliberately does not move existing work-item branches. When the app can see that the linked item started on an older trunk, its card says — using *ticket* or *issue* for the project:
+Updating the site moves its copy of trunk, but deliberately does not move existing work-item branches. When the app can see that the linked item started on an older trunk, a Core site's card says:
 
 > **Trunk has moved since this ticket started.** Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ticket again.
 
 Nothing moves on its own. The notice carries **Update this ticket to the current trunk** or **Update this issue to the current trunk**, which replays the item's work onto the trunk the site now has: the same lines you changed, on top of the new code, in one step. Edits you have not parked yet come along. It is all or nothing: if trunk and your work disagree, the app refuses, names the files and the reason, and moves nothing. These are the same conflicts Git itself would report for that merge. The button waits while an update, an install, a build or the dev server is running, for the same reason the discard link does.
 
-When the move is refused, or when you would rather see the work land on fresh code yourself, the manual path is still there:
+On a Gutenberg site, if the move is refused, **keep the issue's branch**. Save a backup through **Review & submit changes**, and ask a mentor to help move your work onto current trunk. The app cannot resolve the conflict or import that backup. Do not delete the issue's work to start again: the saved file is a backup for the mentor, not a recovery step the app can complete.
+
+On a Core site, the manual patch path is still available:
 
 1. Use **Review & submit changes** to save a patch of the work item's changes.
 2. Click **Unlink** so the item appears in the site's saved-work card.
-3. Click **Delete this ticket's work** or **Delete this issue's work** on its row. This deletes the branch, not the patch you saved outside the site.
+3. Click **Delete this ticket's work** on its row. This deletes the branch, not the patch you saved outside the site.
 4. Link the same work item again. Its new branch starts from current trunk.
 5. Apply the saved patch and check that the work still fits.
 
@@ -117,7 +119,7 @@ The app stays silent when it cannot identify a work item's original base; it doe
 
 A patch is everything on the current work item's branch since the point it was created — only that item's work, never another's, and never a change that arrived from a trunk update.
 
-That last point has a consequence worth knowing. A work-item branch keeps the snapshot of trunk it was born on, even after you [update the site to the latest trunk](./trunk-updates). The patch stays correct against that snapshot, which keeps it free of upstream changes you did not write — but a branch you started weeks ago may no longer apply to today's trunk. Use the card's **Update this … to the current trunk** action when you need a fresh base, or the copy-and-restart path above; the app does not replay the branch onto it silently.
+That last point has a consequence worth knowing. A work-item branch keeps the snapshot of trunk it was born on, even after you [update the site to the latest trunk](./trunk-updates). The patch stays correct against that snapshot, which keeps it free of upstream changes you did not write — but a branch you started weeks ago may no longer apply to today's trunk. Use the card's **Update this … to the current trunk** action when you need a fresh base, then follow the guidance for your project above if it cannot proceed; the app does not replay the branch onto it silently.
 
 ## Next steps
 
