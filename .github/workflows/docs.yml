@@ -120,6 +120,9 @@ jobs:
           WILL_DEPLOY: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/trunk' }}
         run: |
           set -euo pipefail
+          # The backticks below are Markdown for the job summary, not command substitution,
+          # which is why every literal is single-quoted and every value arrives through printf.
+          # shellcheck disable=SC2016
           {
             printf '### Built `%s`\n\n' "$REF"
             printf 'Commit: `%s`\n\n' "$( git rev-parse HEAD )"
