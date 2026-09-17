@@ -495,6 +495,22 @@ test('sites:delete removes Gutenberg runtime data only for a registered Gutenber
 	assert.equal(fs.existsSync(site), false);
 });
 
+test('sites:delete keeps a Gutenberg checkout and registry entry when runtime removal fails', async (t) => {
+	const site = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-runtime-failure-'));
+	t.after(() => fs.rmSync(site, { recursive: true, force: true }));
+	const settings = fakeSettingsStore({ sites: [site], siteMeta: { [site]: { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: {
+		...silentLogging(), ...settings.stubs,
+		'./playground-storage.cjs': { removePersistentPlaygroundSite: async () => {
+			throw Object.assign(new Error('locked database'), { code: 'EBUSY' });
+		} }
+	} });
+	assert.deepEqual(await main.invoke('sites:delete', site), { ok: false, reason: 'remove-failed', path: site, code: 'EBUSY' });
+	assert.ok(fs.existsSync(site));
+	assert.deepEqual(settings.values.sites, [site]);
+	assert.equal(settings.values.siteMeta[site].projectType, 'gutenberg');
+});
+
 // A build watch and dev server keep their working directory open. On Windows
 // that makes the site's root undeletable until both process trees have fully
 // closed, so sending a kill and immediately calling removeTree is still a race.
