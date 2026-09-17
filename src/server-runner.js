@@ -49,6 +49,9 @@ async function main() {
 	}
 
 	try {
+		// `start` keys persistent storage by cwd. Use the same canonical path
+		// as deletion, including Windows casing and macOS /var symlinks.
+		if (serveConfig.strategy === 'plugin-mount') process.chdir(fs.realpathSync(process.cwd()));
 		const launch = planPlaygroundLaunch(serveConfig);
 		const serveConstants = planServeConstants(serveConfig);
 		const { runCLI } = require('@wp-playground/cli');
@@ -180,5 +183,4 @@ async function main() {
 }
 
 main();
-
 

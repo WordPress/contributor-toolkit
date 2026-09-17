@@ -5,16 +5,17 @@ const { createHash } = require( 'node:crypto' );
 const { test, expect } = require( '@playwright/test' );
 const { planPlaygroundLaunch, planServeConstants } = require( '../../../src/playground-plan.cjs' );
 const { removeTree } = require( '../../../src/remove-tree.js' );
+const { removePersistentPlaygroundSite } = require( '../../../src/playground-storage.cjs' );
 
 // A real WordPress is necessary: a mocked CLI cannot prove that the selected
 // command retains SQLite and uploads. This stays in the opt-in network lane.
-test( 'a gutenberg site keeps posts and uploads after stopping and restarting Playground', async () => {
+test( 'a gutenberg site keeps posts and uploads across restarts, but not deletion', async () => {
 	test.skip( process.env.TOOLKIT_REAL_SETUP !== '1', 'Set TOOLKIT_REAL_SETUP=1 to allow a real network install.' );
 	const previousDir = process.cwd();
 	const checkout = await fs.mkdtemp( path.join( os.tmpdir(), 'wpct-persistence-' ) );
 	// The CLI keys its persistent installation by cwd. This key belongs only
 	// to our new fixture, so cleanup cannot reach an existing contributor site.
-	process.chdir( checkout );
+	process.chdir( await fs.realpath( checkout ) );
 	const key = createHash( 'sha256' ).update( process.cwd() ).digest( 'hex' );
 	const storedSite = path.join( os.homedir(), '.wordpress-playground', 'sites', key );
 	let server;
@@ -43,7 +44,7 @@ test( 'a gutenberg site keeps posts and uploads after stopping and restarting Pl
 		await server[ Symbol.asyncDispose ]();
 		server = null;
 		server = await launch();
-		const restored = await server.playground.run( { code: `<?php
+		const readSaved = () => server.playground.run( { code: `<?php
 			require '/wordpress/wp-load.php';
 			$saved = json_decode( '${ JSON.stringify( saved ) }', true );
 			echo json_encode( array(
@@ -51,7 +52,17 @@ test( 'a gutenberg site keeps posts and uploads after stopping and restarting Pl
 				'upload' => file_exists( $saved['upload'] ) ? file_get_contents( $saved['upload'] ) : null
 			) );
 		` } );
+		const restored = await readSaved();
 		expect( JSON.parse( restored.text ) ).toEqual( { title: 'Persistent editor fixture', upload: 'persistent upload' } );
+		await server[ Symbol.asyncDispose ]();
+		server = null;
+		await removePersistentPlaygroundSite( checkout );
+		// Creating a new site at the same location must start with a fresh
+		// installation, rather than resurrecting the deleted site's content.
+		server = await launch();
+		const fresh = JSON.parse( ( await readSaved() ).text );
+		expect( fresh.title ).not.toBe( 'Persistent editor fixture' );
+		expect( fresh.upload ).toBeNull();
 	} finally {
 		try {
 			if ( server ) await server[ Symbol.asyncDispose ]();
