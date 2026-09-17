@@ -47,6 +47,7 @@ function planPlaygroundLaunch(config) {
 			// choose download vs reuse; keep our explicit plugin mount and slug.
 			command: 'start',
 			autoMount: false,
+			skipBrowser: true,
 			mount: [{ hostPath: cfg.pluginDir, vfsPath }],
 			'mount-before-install': [],
 			'additional-blueprint-steps': [{ step: 'activatePlugin', pluginPath: vfsPath }]
