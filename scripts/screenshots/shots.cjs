@@ -132,7 +132,7 @@ const shots = [
 		// protocolRegistration in src/deep-link.cjs.
 		prepare: async (page, app) => {
 			await selectSite(page, 'my-first-patch');
-			await card(page, 'Trac ticket').waitFor();
+			await card(page, 'Working on ticket #60000').waitFor();
 			await app.evaluate(({ app: electronApp }, url) => {
 				electronApp.emit('open-url', { preventDefault() {} }, url);
 			}, 'wpct://ticket/62281');
