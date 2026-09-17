@@ -470,6 +470,31 @@ test('sites:delete removes a registered directory and refuses an unregistered on
 	assert.deepEqual(Object.keys(settings.values.siteMeta), [unregistered]);
 });
 
+test('sites:delete removes Gutenberg runtime data only for a registered Gutenberg site', async (t) => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-runtime-'));
+	t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+	const site = path.join(root, 'gutenberg');
+	const core = path.join(root, 'core');
+	const runtime = path.join(root, 'runtime');
+	for (const dir of [site, core, runtime]) fs.mkdirSync(dir);
+	fs.writeFileSync(path.join(runtime, 'saved-content'), 'old site');
+	const settings = fakeSettingsStore({ sites: [site, core], siteMeta: { [site]: { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: {
+		...silentLogging(), ...settings.stubs,
+		'./playground-storage.cjs': { removePersistentPlaygroundSite: async (dir) => {
+			assert.equal(dir, site);
+			assert.ok(fs.existsSync(site), 'resolve the runtime before removing its checkout');
+			await fs.promises.rm(runtime, { recursive: true });
+		} }
+	} });
+	assert.deepEqual(await main.invoke('sites:delete', runtime), { ok: false, refused: true });
+	assert.deepEqual(await main.invoke('sites:delete', core), { ok: true });
+	assert.ok(fs.existsSync(runtime));
+	assert.deepEqual(await main.invoke('sites:delete', site), { ok: true });
+	assert.equal(fs.existsSync(runtime), false, 'deleted sites must not return with old posts');
+	assert.equal(fs.existsSync(site), false);
+});
+
 // A build watch and dev server keep their working directory open. On Windows
 // that makes the site's root undeletable until both process trees have fully
 // closed, so sending a kill and immediately calling removeTree is still a race.

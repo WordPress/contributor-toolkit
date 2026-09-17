@@ -40,6 +40,7 @@ const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
 const { removeTree } = require('./remove-tree');
+const { removePersistentPlaygroundSite } = require('./playground-storage.cjs');
 const { createSetupTracker } = require('./setup-tracker');
 const { planInitialRead, planTailRead } = require('./log-tail');
 const {
@@ -2724,6 +2725,9 @@ ipcMain.handle('sites:delete', async (_e, sitePath) => {
 			// failures; only after it succeeds does site-registry forget the site.
 			remove: async (p) => {
 				await stopSiteChildren(p);
+				if (projectTypeForSite((s.get('siteMeta') || {})[p]).serve.strategy === 'plugin-mount') {
+					await removePersistentPlaygroundSite(p);
+				}
 				await removeTree(p);
 			},
 			onRefused: (description) => logEvent('sites', `refused to delete ${description}: not a registered site, or still being created`)
