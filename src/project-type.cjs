@@ -26,13 +26,15 @@ const PROJECT_TYPES = {
 	core: {
 		id: 'core',
 		label: 'WordPress Core',
-		// The option label shown in the create-site wizard picker.
-		wizardLabel: 'WordPress Core (Trac tickets)',
-		// One-line description shown next to the choice in the create-site wizard.
-		description: 'Contribute to WordPress Core using Trac tickets.',
-		// The noun this target uses for a unit of work, for UI copy: a Core site
-		// links a "ticket", a Gutenberg site links an "issue".
-		workItemNoun: 'ticket',
+		// The pill on a site's sidebar row and header. Short, because the row
+		// is narrow and the CSS upper-cases it; every site wears one, so a
+		// list of mixed sites reads at a glance.
+		tag: 'Core',
+		// The option label shown in the create-site wizard picker, and the
+		// line under it. They say what the app does with the site today, not
+		// what a later version will.
+		wizardLabel: 'WordPress Core',
+		description: 'The wordpress-develop repository: Trac tickets, patches and pull requests.',
 
 		// git-clone.cjs decides the clone's shape (partial, single branch); the
 		// registry only says where from and which branch.
@@ -62,6 +64,37 @@ const PROJECT_TYPES = {
 			allowedScripts: ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt']
 		},
 
+		// What the setup checklist says about the steps that differ per target.
+		setup: {
+			cloneLabel: 'Download WordPress development version',
+			cloneDescription: 'Clone the WordPress develop repository.',
+			buildDescription: 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
+			builtDescription: 'Built. Edited files in src/ since? Run npm run build in the Terminal below so the site picks them up — updates and applied patches rebuild on their own.',
+			serverDescription: 'Launch the development server once to complete the WordPress setup wizard.'
+		},
+
+		// What the site page's cards say where the two targets differ. The
+		// work-item card is the Trac one on Core; `workItemPlaceholder` is the
+		// line a target shows in its place while its own work item is not wired.
+		cards: {
+			workItemPlaceholder: null,
+			// What the pull-request destination says when there is nothing to open
+			// one for: no ticket linked here, no flow at all on the other target yet.
+			prBlockedNote: 'No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.',
+			// The rest of the pull-request destination's words that name Trac.
+			prCost: 'A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk.',
+			prAfter: 'Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen.',
+			// Shown to a signed-out contributor. Only the Trac target reaches the
+			// sign-in pitch at all: the other target refuses the pull request
+			// before it, so it carries no sentence here.
+			signInCannot: 'It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.',
+			applyHeading: 'Apply a patch or PR',
+			applyDescription: 'Pull requests are checked out with their author\u2019s commits. A .diff/.patch file is applied to the current branch as a removable layer.',
+			// Patch files are how work arrives from Trac; a target whose work
+			// arrives as pull requests has no use for the file picker.
+			patchFiles: true
+		},
+
 		// 'docroot', the built checkout IS the WordPress install Playground serves.
 		serve: { strategy: 'docroot' },
 
@@ -88,9 +121,9 @@ const PROJECT_TYPES = {
 	gutenberg: {
 		id: 'gutenberg',
 		label: 'Gutenberg',
-		wizardLabel: 'Gutenberg (GitHub issues)',
-		description: 'Contribute to the block editor (Gutenberg) using GitHub issues.',
-		workItemNoun: 'issue',
+		tag: 'Gutenberg',
+		wizardLabel: 'Gutenberg',
+		description: 'The block editor, built and run as a plugin in a stock WordPress. Issues and pull requests come in a later version.',
 
 		clone: { url: GUTENBERG_GIT_URL, ref: 'trunk' },
 		defaultFolderName: 'gutenberg-trunk',
@@ -111,6 +144,25 @@ const PROJECT_TYPES = {
 			// Gutenberg's bare `test` runs PHP and e2e suites that need Docker;
 			// the unit suite and the linters are what a checkout without it can run.
 			allowedScripts: ['build', 'dev', 'test:unit', 'lint', 'lint:js']
+		},
+
+		cards: {
+			workItemPlaceholder: 'Working on a Gutenberg issue from here, with its own branch and a pull request that fixes it, comes in a later version. For now this site is for building, running and trying pull requests by checkout.',
+			prBlockedNote: 'Opening a pull request from this site is not supported yet — save the patch file instead.',
+			prCost: 'Not available yet. The patch file below is the way to send this work.',
+			prAfter: 'Automated checks run on it.',
+			signInCannot: null,
+			applyHeading: 'Check out a pull request',
+			applyDescription: 'Pull requests are checked out with their author\u2019s commits.',
+			patchFiles: false
+		},
+
+		setup: {
+			cloneLabel: 'Download Gutenberg',
+			cloneDescription: 'Clone the Gutenberg repository.',
+			buildDescription: 'Compile the Gutenberg packages. Later updates rebuild automatically.',
+			builtDescription: 'Built. Edited a package since? Run npm run build in the Terminal below so the site picks it up; updates rebuild on their own.',
+			serverDescription: 'Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.'
 		},
 
 		// 'plugin-mount', Gutenberg is a plugin, so Playground boots a stock

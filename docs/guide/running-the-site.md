@@ -1,6 +1,6 @@
 # Running the site
 
-Once the [setup wizard](./setup-wizard) is complete, the site view shows a **Start dev server** button. This starts a local WordPress that serves the code in your site's `build/` directory, so you can see your changes running.
+Once the [setup wizard](./setup-wizard) is complete, the site view shows a **Start dev server** button. This starts a local WordPress that runs your site's code, so you can see your changes running: for a WordPress Core site, the WordPress built into its `build/` directory; for a Gutenberg site, a stock WordPress with your checkout as its Gutenberg plugin.
 
 ![The site view with Start dev server, Start build watch and Review & submit changes](/screenshots/site-view.png)
 
@@ -31,14 +31,15 @@ The **wp-admin** link next to the site URL opens the dashboard directly. It appe
 
 The dev server is not a stub — it is WordPress Playground running your checkout:
 
-- The app spawns the [Playground CLI](https://wordpress.github.io/wordpress-playground/) (`@wp-playground/cli`) in server mode, with your site's `build/` directory mounted as the WordPress root. PHP runs as WebAssembly inside the bundled Node.js runtime, so no PHP install is needed.
+- The app spawns the [Playground CLI](https://wordpress.github.io/wordpress-playground/) (`@wp-playground/cli`) in server mode. For a WordPress Core site, your `build/` directory is mounted as the WordPress root. For a Gutenberg site, Playground installs the latest WordPress release (downloaded once, then cached) and mounts your checkout at `wp-content/plugins/gutenberg`, activated. PHP runs as WebAssembly inside the bundled Node.js runtime, so no PHP install is needed.
+- On a Gutenberg site the served WordPress cannot install, update or delete plugins and themes, and has no file editor. The mounted plugin *is* your working tree, uncommitted work and `.git` included, and **Plugins → Delete** would remove it; the app tells WordPress not to modify files instead. To try another plugin alongside Gutenberg, use a WordPress Core site.
 - The database is **SQLite**, stored inside the Playground instance. This covers most core contribution work; if a ticket specifically needs MySQL behaviour, this environment cannot reproduce it.
 - The server binds to the loopback interface only. It is reachable from your machine, not from the rest of your network.
 - Outgoing mail is captured locally instead of being sent — see [Mail](./mail).
 
 ## The build watch
 
-The build watcher compiles what you edit under `src/` into `build/`, which is what the server actually serves. It has its own **Start build watch** button next to the dev-server button, and its own status dot:
+The build watcher compiles what you edit into what the server actually serves: `src/` into `build/` on a WordPress Core site, the packages into their `build/` directories on a Gutenberg site, where the watcher is Gutenberg's own `npm run dev` and rebuilds everything once before it starts watching. It has its own **Start build watch** button next to the dev-server button, and its own status dot:
 
 | Dot | State |
 | --- | --- |

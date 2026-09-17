@@ -12,6 +12,7 @@ import {
   MenuGroup,
   MenuItem,
   Modal,
+  RadioControl,
   SnackbarList,
   TextControl,
   TextareaControl,
@@ -28,7 +29,7 @@ import { computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
-import { getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
+import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
@@ -124,6 +125,7 @@ const PR_FAILURE_MESSAGES = {
   'rate-limited': 'GitHub is rate-limiting this connection. It usually clears within the hour.',
   offline: 'No connection to GitHub.',
   'no-ticket': 'Link a Trac ticket to this site first — a pull request has to cite one.',
+  'unsupported-project': 'Opening a pull request from this site is not supported yet — save the patch file instead.',
   empty: 'There are no changes to open a pull request with.'
 };
 // Per-status wording for the update chain card (#94), following the issue's
@@ -153,6 +155,10 @@ const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
 const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
 const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
+// What the create-site dialog offers under "Contribute to", read off the
+// registry so the copy and the order live in one place. Core is first, and
+// the default.
+const CREATE_SITE_TYPE_OPTIONS = Object.values(PROJECT_TYPES).map((t) => ({ label: t.wizardLabel, value: t.id, description: t.description }));
 // Why the ticket's PR list could not be read, worded for the contributor.
 const TICKET_PATCH_STATUS_MESSAGE = {
   'rate-limited': 'GitHub is rate-limiting this connection.',
@@ -371,6 +377,7 @@ function App() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createSiteName, setCreateSiteName] = useState('');
   const [createSiteDir, setCreateSiteDir] = useState('');
+  const [createSiteType, setCreateSiteType] = useState(DEFAULT_PROJECT_TYPE);
   const [createSiteError, setCreateSiteError] = useState('');
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
@@ -558,6 +565,7 @@ function App() {
     if (createSubmitting) return;
     setCreateSiteName('');
     setCreateSiteDir('');
+    setCreateSiteType(DEFAULT_PROJECT_TYPE);
     setCreateSiteError('');
     setCreateModalOpen(true);
   }, [createSubmitting]);
@@ -609,12 +617,15 @@ function App() {
     applySetup((state) => beginSetup(state, {
       path: targetDir,
       label: nameTrimmed,
-      createdAt: placeholderCreatedAt
+      createdAt: placeholderCreatedAt,
+      projectType: createSiteType
     }));
     setActiveSite(targetDir);
     setCreateModalOpen(false);
     setCreateSiteName('');
     setCreateSiteDir('');
+    const chosenType = createSiteType;
+    setCreateSiteType(DEFAULT_PROJECT_TYPE);
 
     try {
       setCreateSubmitting(true);
@@ -622,7 +633,7 @@ function App() {
       setTerminalMsgs('');
       addPendingSite(targetDir);
       appendSetupLog(targetDir, 'Starting site setup…\n');
-      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
+      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed, projectType: chosenType });
       if (createdPath) {
         finalSitePath = createdPath;
         // Ordinarily already done, by the `cloning` status this handler's own
@@ -656,7 +667,7 @@ function App() {
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, createSiteType, moveSetupLog, refresh]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
@@ -853,6 +864,9 @@ function App() {
           {sortedSites.map((sitePath) => {
             const meta = siteMeta?.[sitePath] || {};
             const siteName = (meta.label && meta.label.trim()) || pathBasename(sitePath);
+            // Every row says which project its site is (#251), so a list
+            // of mixed sites reads at a glance.
+            const projectTag = getProjectType(meta.projectType).tag;
             const isActive = activeSite === sitePath;
             const isDeleting = deletingSites.includes(sitePath);
             let siteButtonMinHeight = 40;
@@ -906,6 +920,7 @@ function App() {
                   <div style={{ width: '100%', minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3 }}>
                       <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{siteName}{staleDot}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '1px 6px', borderRadius: 999, background: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.85)' }}>{projectTag}</span>
                       {isDeleting ? <span style={{ fontSize: 11, lineHeight: 1.3, color: 'rgba(255,255,255,0.72)' }}>Deleting site…</span> : null}
                     </div>
                     {isDeleting ? <Spinner style={{ width: 16, height: 16, margin: 0, flexShrink: 0 }} /> : null}
@@ -927,10 +942,10 @@ function App() {
             onClick={chooseAndSetup}
             disabled={createSubmitting}
             style={{ width: '100%', justifyContent: 'center' }}
-            aria-label="Create WordPress Core site"
+            aria-label="Create a site"
             label={createSubmitting ? 'Finish creating the current site first' : undefined}
           >
-            {!sidebarCollapsed ? 'Create WordPress Core site' : null}
+            {!sidebarCollapsed ? 'Create a site' : null}
           </Button>
         </div>
       </div>
@@ -1017,6 +1032,7 @@ function App() {
                       initialized={Boolean(siteMeta?.[s]?.initialized)}
                       createdAt={siteMeta?.[s]?.createdAt}
                       label={siteMeta?.[s]?.label}
+                      projectType={siteMeta?.[s]?.projectType}
                       onInitialized={onInitialized}
                       onSiteMetaPatch={onSiteMetaPatch}
                       onDelete={onDelete}
@@ -1051,7 +1067,7 @@ function App() {
       {createModalOpen ? (
         <Modal
           className="create-site-modal"
-          title="Create WordPress Core site"
+          title="Create a site"
           onRequestClose={closeCreateModal}
           shouldCloseOnClickOutside={!createSubmitting}
         >
@@ -1070,6 +1086,14 @@ function App() {
               placeholder="My WordPress site"
               // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: this is the first field of a just-opened modal.
               autoFocus
+            />
+            <RadioControl
+              label="Contribute to"
+              help="What this site is a checkout of: which repository it clones, and how it builds and runs. It cannot be changed later."
+              selected={createSiteType}
+              options={CREATE_SITE_TYPE_OPTIONS}
+              onChange={(value) => setCreateSiteType(value)}
+              disabled={createSubmitting}
             />
             <label htmlFor={CREATE_SITE_LOCATION_INPUT_ID} style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#1d2327' }}>Site location</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -1285,7 +1309,7 @@ function TerminalCommandLink({ command, onPrefill, disabled }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1387,11 +1411,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // the app knows there is no build on disk, just not that the last attempt lost.
   const [buildFailed, setBuildFailed] = useState(false);
   const [hasBuilt, setHasBuilt] = useState(false);
-  // Which target this site is a checkout of (#251), reported by site:status
-  // and Core for any site made before the field existed. Its `build` entry
-  // is what the watcher and the terminal's script list read.
-  const [projectType, setProjectType] = useState(DEFAULT_PROJECT_TYPE);
-  const projectBuild = getProjectType(projectType).build;
+  // Which target this site is a checkout of (#251): the site record's field,
+  // carried by the placeholder from the moment the dialog closes, and Core
+  // for any site made before the field existed. `build` is what the watcher
+  // and the terminal's script list read; the Trac-shaped cards (ticket,
+  // patch files, attach) show only where the work item is a Trac ticket.
+  const project = getProjectType(projectType);
+  const projectBuild = project.build;
+  const showTracCards = project.workItem.provider === 'trac';
   // Read through a ref by the terminal's command handlers rather than closed
   // over: the xterm instance is created by an effect that depends on
   // `printHelp`, so a new array identity here would otherwise dispose and
@@ -1765,7 +1792,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setHasNodeModules(Boolean(s?.hasNodeModules));
       setInstallFailed(Boolean(s?.installFailed));
       setHasBuilt(Boolean(s?.hasBuilt));
-      setProjectType(s?.projectType);
       setSkipInit(Boolean(s?.skipInitWizard));
       setTrunkDate(s?.trunkDate || null);
       setUpdateIncomplete(Boolean(s?.updateIncomplete));
@@ -1973,10 +1999,26 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // file's; here it is only rendered and dispatched.
   const deepLinkState = deepLinkNotice({
     ticket: deepLinkTicket,
+    provider: project.workItem.provider,
     siteLabel: displayName,
     currentTicket: tracTicket
   });
   const deepLinkPrompt = deepLinkState && deepLinkState.state === 'confirm' ? deepLinkState : null;
+  // A ticket that cannot land on this site (#251): said, dismissable, never
+  // consumed, so a Core site opened next still gets the question.
+  const deepLinkNoteState = deepLinkState && deepLinkState.state === 'unsupported' ? deepLinkState : null;
+  // Hidden here, on this site only: the ticket stays with the app, so a Core
+  // site opened next still gets the question. Reset when a link arrives, and
+  // only then: the prop is the event (App stamps each arrival, so the same
+  // ticket twice is two events), and it is null while another site is in
+  // front, which must not un-hide what the contributor hid here.
+  const [deepLinkNoteHidden, setDeepLinkNoteHidden] = useState(false);
+  // The stamp, not the object: the prop goes object → null → the same object
+  // when another site is looked at and this one comes back, and that is not
+  // a new arrival.
+  const deepLinkAt = deepLink ? deepLink.at : null;
+  useEffect(() => { if (deepLinkAt) setDeepLinkNoteHidden(false); }, [deepLinkAt]);
+  const deepLinkNote = deepLinkNoteHidden ? null : deepLinkNoteState;
   // `settled` is a link for the ticket this site is on already. Cleared rather
   // than merely hidden, so the question does not resurface on the next site the
   // contributor opens.
@@ -3420,7 +3462,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     // screen hiding it, since the banner leads with the breakdown's headline.
     if (!parsed.ok) { clearApplyError(); setApplyError(parsed.error); setApplyNotice(''); return; }
     setPrUrlInput('');
-    previewPr({ number: parsed.number, url: `https://github.com/WordPress/wordpress-develop/pull/${parsed.number}` });
+    previewPr({ number: parsed.number, url: `https://github.com/${project.upstream.owner}/${project.upstream.repo}/pull/${parsed.number}` });
   };
 
   const runPrSwitch = async ({ leaving = false } = {}) => {
@@ -4010,6 +4052,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // deep and unreadable at the point where the wording matters most, so the
   // states get early returns and the card body gets one call.
   const renderPullRequestBody = () => {
+    // A target with no pull-request flow yet says so before anything about
+    // signing in: an authorization invited on the promise of an action the
+    // app then refuses is the cliff #167 is about.
+    if (!showTracCards) {
+      return <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>{project.cards.prBlockedNote}</div>;
+    }
     if (pullRequest) {
       return <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>{prOwnershipRefusal}</div>;
     }
@@ -4184,7 +4232,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             </>
           ) : (
             <div style={{ fontSize:12, color:'#6c6f72' }}>
-              No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.
+              {project.cards.prBlockedNote}
             </div>
           )}
           {prStage ? (
@@ -4199,9 +4247,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               Signed in as {githubAccount.login} — the fork and branch go to{' '}
               <Button
                 variant="link"
-                onClick={()=>window.api.openExternal(`https://github.com/${githubAccount.login}/wordpress-develop`)}
+                onClick={()=>window.api.openExternal(`https://github.com/${githubAccount.login}/${project.upstream.repo}`)}
                 style={{ fontSize:12 }}
-              >{githubAccount.login}/wordpress-develop</Button>.{' '}
+              >{githubAccount.login}/{project.upstream.repo}</Button>.{' '}
               <Button variant="link" onClick={signOutOfGithub} style={{ fontSize:12 }}>Sign out</Button>
             </div>
           )}
@@ -4213,7 +4261,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       return (
         <>
           <div style={{ fontSize:12, color:'#6c6f72' }}>
-            Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other two destinations are unchanged.
+            Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.
           </div>
           <Button variant="link" onClick={()=>setGithubDeclined(false)} style={{ fontSize:12 }}>Show this again</Button>
         </>
@@ -4228,10 +4276,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           cliff is sprung rather than named.
         */}
         <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.6 }}>
-          Signing in lets the app fork wordpress-develop to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.
+          Signing in lets the app fork {project.upstream.repo} to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.
         </div>
         <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.6 }}>
-          It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.
+          {project.cards.signInCannot}
         </div>
         <Button variant="primary" onClick={startGithubSignIn} style={{ justifyContent:'center' }}>Sign in with GitHub</Button>
         <Button variant="link" onClick={()=>{ setGithubDeclined(true); setGithubError(''); }} style={{ fontSize:12 }}>Not now</Button>
@@ -4361,17 +4409,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     isUpdating
   };
   const stepState = computeSetupStepState(setupFlags);
-  const { installLabel, installDescription, buildLabel, buildDescription } = setupStepCopy(setupFlags);
+  const { installLabel, installDescription, buildLabel, buildDescription } = setupStepCopy(setupFlags, project.setup);
 
   const baseSteps = [
     {
       key: 'download',
-      label: 'Download WordPress development version',
+      label: project.setup.cloneLabel,
       description: isPending
         // The clone is also the trigger for everything after it (#246), so the
         // step says what happens next rather than implying a click is coming.
-        ? 'Cloning the WordPress develop repository… install and build start on their own when it finishes.'
-        : 'Clone the WordPress develop repository.',
+        ? 'Cloning the repository… install and build start on their own when it finishes.'
+        : project.setup.cloneDescription,
       ...stepState.download,
       running: isPending
     },
@@ -4408,7 +4456,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     {
       key: 'dev',
       label: 'Start dev server & finish wizard',
-      description: 'Launch the development server once to complete the WordPress setup wizard.',
+      description: project.setup.serverDescription,
       ...stepState.dev,
       running: starting,
       action: (
@@ -4504,6 +4552,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', ...statusStyles }}>
               {initialized ? 'Initialized' : 'Uninitialized'}
             </span>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '2px 8px', borderRadius: 999, background: '#f0f0f1', color: '#1d2327' }}>{project.tag}</span>
             {createdLabel ? <span>Created {createdLabel}</span> : null}
             {age.known ? (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -4883,6 +4932,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           gate: a link can arrive whether or not this site already has a ticket,
           and a site still in the setup wizard shows no ticket panel at all —
           which is exactly when a ticket that vanished silently would be worst. */}
+      {deepLinkNote ? (
+        <div role="status" style={{ padding: '14px 16px', border: '1px solid #dba617', background: '#fcf9e8', borderRadius: 8 }}>
+          <div style={{ fontWeight: 600, fontSize: 15, color: '#1d2327' }}>{deepLinkNote.title}</div>
+          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{deepLinkNote.body}</div>
+          <div style={{ marginTop: 10 }}><Button variant="link" onClick={() => setDeepLinkNoteHidden(true)}>Hide</Button></div>
+        </div>
+      ) : null}
       {deepLinkPrompt ? (
         <div role="status" style={{ padding: '12px 14px', background: '#f0f6fc', border: '1px solid #72aee6', borderRadius: 8, color: '#1d2327' }}>
           <div style={{ fontWeight: 600 }}>{deepLinkPrompt.title}</div>
@@ -4901,7 +4957,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           </div>
         </div>
       ) : null}
-      {skipInit ? (
+      {skipInit && project.cards.workItemPlaceholder ? (
+        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{project.workItem.label}</div>
+          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{project.cards.workItemPlaceholder}</div>
+        </div>
+      ) : null}
+      {skipInit && showTracCards ? (
       <div {...cueProps('link-ticket')} style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
         <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{tracTicket ? `Working on ticket #${tracTicket}` : 'Trac ticket'}</div>
         {prCheckout && !isApplying ? (
@@ -5194,11 +5256,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       ) : null}
       {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Apply a patch or PR</div>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{project.cards.applyHeading}</div>
           {!pullRequest && !applyPreview && !isApplying ? (
-            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-              Pull requests are checked out with their author&apos;s commits. A <code>.diff</code>/<code>.patch</code> file is applied to the current branch as a removable layer.
-            </div>
+            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{project.cards.applyDescription}</div>
           ) : null}
 
           {appliedLayer && !isApplying ? (
@@ -5430,16 +5490,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   style={{ padding: '10px 16px', borderRadius: 10 }}
                 >Apply PR</Button>
               </div>
-              <div style={{ marginTop: 10 }}>
-                <Button variant="link" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ fontSize: 13 }}>
-                  or choose a .diff / .patch file…
-                </Button>
-              </div>
+              {project.cards.patchFiles ? (
+                <div style={{ marginTop: 10 }}>
+                  <Button variant="link" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ fontSize: 13 }}>
+                    or choose a .diff / .patch file…
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
       ) : null}
-      {skipInit && ticketsCard ? (
+      {skipInit && showTracCards && ticketsCard ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
           <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{ticketsCard.heading}</div>
           {renderBranchRows(Boolean(tracTicket))}
@@ -5775,7 +5837,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div className="patch-destinations">
                   <div>
                   <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Where this patch goes</div>
-                  <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>The pull request is the one the app sends for you. The other two save a file for you to send.</div>
+                  <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>The pull request is the one the app sends for you. The others save a file for you to send.</div>
                   </div>
 
                   {renderOwnershipWarning()}
@@ -5790,8 +5852,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   <DestinationGroup>
                     <Destination
                       title="Open a pull request"
-                      cost="A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk."
-                      after="Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen."
+                      cost={project.cards.prCost}
+                      after={project.cards.prAfter}
                     >
                       {/*
                         Absent from every shipped build. When a test switch is
@@ -5830,6 +5892,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   </DestinationGroup>
 
                   <DestinationGroup>
+                    {showTracCards ? (
                     <Destination
                       title="Attach to Trac"
                       cost="A WordPress.org account — needed anyway, for props and to comment."
@@ -5867,6 +5930,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         </>
                       )}
                     </Destination>
+                    ) : null}
 
                     <Destination
                       title="Hand it to a mentor"

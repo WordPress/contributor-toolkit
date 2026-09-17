@@ -1,6 +1,6 @@
 # Keeping a site up to date with trunk
 
-A site is a clone of `wordpress-develop` frozen at the moment it was created, so it starts drifting behind trunk immediately. You never have to create a new site to get newer code.
+A site is a clone of its project's repository frozen at the moment it was created, so it starts drifting behind trunk immediately. You never have to create a new site to get newer code.
 
 The header of each site shows which snapshot it currently holds — for example `trunk as of 5 Aug 2026`.
 
@@ -12,7 +12,7 @@ The header of each site shows which snapshot it currently holds — for example 
 
 This option is always there — on every site, at any time, no matter how old or new the snapshot is and whether or not the app has flagged it as stale. If nothing has moved, you simply get "Already up to date." in the terminal.
 
-The update fetches from the site's own `origin` remote. A site the app created points at `WordPress/wordpress-develop`; a site you added from an existing checkout of a fork keeps fetching from that fork. A checkout with no `origin` remote cannot be updated; the terminal says so and how to add one.
+The update fetches from the site's own `origin` remote. A site the app created points at `WordPress/wordpress-develop` or `WordPress/gutenberg`; a site you added from an existing checkout of a fork keeps fetching from that fork. A checkout with no `origin` remote cannot be updated; the terminal says so and how to add one.
 
 You no longer have to stop the dev server first. The update pauses the [build watch](./running-the-site#the-build-watch) for the rebuild and resumes it afterwards, and the PHP server keeps serving throughout.
 

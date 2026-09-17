@@ -23,7 +23,9 @@ const { test, expect } = require( '../helpers/app.cjs' );
 // The site's name is on screen twice — the sidebar entry and the heading of the
 // open site — so neither can be reached by text alone. Roles tell them apart, and
 // say which half of the app the assertion is about.
-const sidebarEntry = ( page, label ) => page.getByRole( 'button', { name: label, exact: true } );
+// The row's accessible name is the site's label followed by its project tag
+// (#251), so the label is matched as the whole name minus that one word.
+const sidebarEntry = ( page, label ) => page.getByRole( 'button', { name: new RegExp( `^${ label.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' ) } (Core|Gutenberg)$` ) } );
 const openSiteHeading = ( page, label ) => page.getByRole( 'heading', { name: label, exact: true } );
 
 const scratch = [];
@@ -79,6 +81,8 @@ test( 'the app launches from source and lists the site it was seeded with', asyn
 	// `exact`, because the sidebar heading "Contributor Toolkit" is a substring of
 	// several button labels further down the page.
 	await expect( sidebarEntry( page, 'engine-check' ) ).toBeVisible();
+	// The row wears its project (#251): a Core site says Core, not nothing.
+	await expect( sidebarEntry( page, 'engine-check' ) ).toHaveAccessibleName( 'engine-check Core' );
 	await expect( page.getByText( 'No sites yet.', { exact: true } ) ).toHaveCount( 0 );
 } );
 

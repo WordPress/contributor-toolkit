@@ -18,13 +18,16 @@ permissions:
 
 jobs:
   real-setup:
-    name: Real setup (${{ matrix.os }})
+    name: Real setup (${{ matrix.os }}, ${{ matrix.target }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.platform == 'both' && '["macos-latest","windows-latest"]' || inputs.platform == 'macos-latest' && '["macos-latest"]' || '["windows-latest"]') }}
+        # One job per contribution target (#251): a Core setup alone takes half
+        # an hour on the Windows runner, and two in one job hit the limit.
+        target: [core, gutenberg]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -40,8 +43,8 @@ jobs:
       - name: Build the renderer bundle
         run: npm run build:once
 
-      - name: Create and serve a real WordPress site
-        run: npx --no-install playwright test --config tests/e2e/real-setup.config.js
+      - name: Create and serve a real ${{ matrix.target }} site
+        run: npx --no-install playwright test --config tests/e2e/real-setup.config.js -g "${{ matrix.target }} site"
         env:
           TOOLKIT_REAL_SETUP: '1'
 
@@ -49,7 +52,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: playwright-real-setup-${{ matrix.os }}
+          name: playwright-real-setup-${{ matrix.os }}-${{ matrix.target }}
           path: |
             playwright-report/real-setup
             test-results/real-setup

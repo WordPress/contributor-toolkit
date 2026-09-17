@@ -8,7 +8,7 @@ After [creating a site](./creating-a-site), its view shows the **Initial setup c
 
 ### 1. Download WordPress development version
 
-The clone of `wordpress-develop` that started when you created the site. It runs on its own; while it is in progress the checklist reads "Cloning the WordPress develop repository… the next step unlocks when it finishes." and every later step stays locked.
+The clone of the project's repository that started when you created the site. It runs on its own; while it is in progress the checklist reads "Cloning the repository… the next step unlocks when it finishes." and every later step stays locked.
 
 ### 2. Install npm dependencies
 

@@ -68,8 +68,9 @@ test('every project type carries the full shape consumers depend on', () => {
 	for (const [id, cfg] of Object.entries(PROJECT_TYPES)) {
 		assert.equal(cfg.id, id, `${id}: id must match its key`);
 		assert.equal(typeof cfg.label, 'string');
+		// Every site wears its type on its row, so every type has a short tag.
+		assert.match(cfg.tag, /^[A-Za-z]{1,12}$/, `${id}: tag`);
 		assert.equal(typeof cfg.wizardLabel, 'string');
-		assert.equal(typeof cfg.workItemNoun, 'string');
 
 		assert.equal(typeof cfg.clone.url, 'string');
 		assert.match(cfg.clone.url, /^https:\/\/github\.com\/.+\.git$/);
@@ -85,6 +86,29 @@ test('every project type carries the full shape consumers depend on', () => {
 		assert.ok(Array.isArray(cfg.build.watch.args));
 		assert.ok(Array.isArray(cfg.build.allowedScripts) && cfg.build.allowedScripts.length > 0);
 
+		for (const key of ['cloneLabel', 'cloneDescription', 'buildDescription', 'builtDescription', 'serverDescription']) {
+			assert.equal(typeof cfg.setup[key], 'string', `${id}: setup.${key}`);
+		}
+		assert.equal(typeof cfg.cards.applyHeading, 'string', `${id}: cards.applyHeading`);
+		for (const key of ['prBlockedNote', 'prCost', 'prAfter']) {
+			assert.equal(typeof cfg.cards[key], 'string', `${id}: cards.${key}`);
+		}
+		// Only the Trac target reaches the sign-in pitch; the other refuses the
+		// pull request before it and carries no sentence for it.
+		assert.equal(typeof cfg.cards.signInCannot === 'string', cfg.workItem.provider === 'trac', `${id}: cards.signInCannot`);
+		// What the renderer cannot be tested for (index.jsx): a target whose
+		// work item is not a Trac ticket says nothing about Trac in its cards.
+		if (cfg.workItem.provider !== 'trac') {
+			for (const [key, value] of Object.entries(cfg.cards)) {
+				if (typeof value === 'string') assert.doesNotMatch(value, /trac|ticket/i, `${id}: cards.${key} speaks of Trac`);
+			}
+		}
+		assert.equal(typeof cfg.cards.applyDescription, 'string', `${id}: cards.applyDescription`);
+		assert.equal(typeof cfg.cards.patchFiles, 'boolean', `${id}: cards.patchFiles`);
+		// A target whose work item is not a Trac ticket says what stands in for
+		// the ticket card; the Trac target has the card itself.
+		assert.equal(cfg.cards.workItemPlaceholder === null, cfg.workItem.provider === 'trac', `${id}: cards.workItemPlaceholder`);
+		assert.equal(cfg.cards.patchFiles, cfg.workItem.provider === 'trac', `${id}: patch files go with Trac`);
 		assert.ok(['docroot', 'plugin-mount'].includes(cfg.serve.strategy));
 		assert.ok(['src-layout', 'repo-relative'].includes(cfg.patch.layout));
 		assert.ok(['trac', 'github-issue'].includes(cfg.workItem.provider));

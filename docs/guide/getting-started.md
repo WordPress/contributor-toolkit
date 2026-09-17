@@ -1,17 +1,17 @@
 # Getting started
 
-The WordPress Contributor Toolkit is a desktop application for macOS (Apple Silicon), Windows, and Linux that sets up a full WordPress core development environment with zero prerequisites.
+The WordPress Contributor Toolkit is a desktop application for macOS (Apple Silicon), Windows, and Linux that sets up a full WordPress core or Gutenberg development environment with zero prerequisites.
 
-You install it, choose a directory for `wordpress-develop`, click a button, and you have:
+You install it, choose a directory and a project, click a button, and you have:
 
-- A cloned `wordpress-develop` repository
+- A cloned `wordpress-develop` or `gutenberg` repository
 - A running WordPress dev server
 - The ability to make code changes and turn them into a patch or pull request
 
 No Git, no Node.js, no npm, no Docker needed. Everything is bundled inside the application as JavaScript/WASM, powered by [WordPress Playground](https://wordpress.github.io/wordpress-playground/).
 
 ::: tip Prepare at home before Contributor Day
-Creating your first site downloads the full `wordpress-develop` repository, installs its dependencies, and runs the first build. That means downloading a lot of files, so we recommend having at least one site fully set up a day or a few days before the event.
+Creating your first site downloads the full repository, installs its dependencies, and runs the first build. That means downloading a lot of files, so we recommend having at least one site fully set up a day or a few days before the event.
 
 On Contributor Day, open that site and run [**Update to latest trunk**](./trunk-updates). The app fetches the changes made since your initial setup and only reinstalls dependencies if they changed. Most packages will already be cached, which uses far less of the venue's shared bandwidth than starting from scratch.
 :::
@@ -39,8 +39,8 @@ The app is signed and notarized by Automattic, so macOS should open it without i
 
 ## Your first contribution, in seven steps
 
-1. Click **Create WordPress Core site** and choose a destination folder for your site.
-2. Wait. The app downloads `wordpress-develop`, then installs the dependencies and runs the first build on its own — go and get a coffee. See [The setup wizard](./setup-wizard).
+1. Click **Create a site**, choose a destination folder for your site, and pick what to contribute to: **WordPress Core** (the default) or **Gutenberg**. The seven steps below are the Core path; a Gutenberg site stops at step 4 for now, since its issues and pull requests come in a later version.
+2. Wait. The app downloads the repository, then installs the dependencies and runs the first build on its own — go and get a coffee. See [The setup wizard](./setup-wizard).
 3. Click **Start dev server**.
 4. A browser window opens automatically. If not, open it by clicking the site URL — or the **wp-admin** link beside it, to go straight to the dashboard.
 5. Make changes to the code — [open the site in your editor](./editors) straight from the app.
