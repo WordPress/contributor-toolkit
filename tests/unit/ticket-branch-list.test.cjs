@@ -151,9 +151,10 @@ test('card: the list renders once, in its own card below the ticket card and the
 	// name so that a comment naming the helper is not a red suite.
 	assert.strictEqual(source.split('renderBranchRows(').length - 1, 1, 'expected exactly one renderBranchRows( call: the single card that renders the list');
 
-	// Below both: the ticket in hand, then the work you can apply to it, then
-	// the other tickets this site is holding.
-	const ticketCard = source.indexOf('Working on ticket #');
+	// Below both: the work item in hand, then the work you can apply to it,
+	// then the other work items this site is holding. The heading takes the
+	// site's noun (#251); the template is the anchor.
+	const ticketCard = source.indexOf('Working on ${workItem.noun} #');
 	const listCard = source.indexOf('{ticketsCard.heading}');
 	// The heading comes from the registry now, one wording per target (#251);
 	// the read of it is the anchor.
@@ -196,4 +197,11 @@ test('time: no record and unparseable records produce no label, not a wrong one'
 	assert.strictEqual(relativeTimeLabel(null, NOW), null);
 	assert.strictEqual(relativeTimeLabel(undefined, NOW), null);
 	assert.strictEqual(relativeTimeLabel('not-a-date', NOW), null);
+});
+
+// The card's heading says what the site calls its work item (#251).
+test('ticketListCard: the heading takes the site\'s noun, ticket unless told otherwise', () => {
+	assert.equal(ticketListCard({ rowCount: 1, linked: false }).heading, 'Your tickets on this site');
+	assert.equal(ticketListCard({ rowCount: 1, linked: true, noun: 'issue' }).heading, 'Other issues on this site');
+	assert.equal(ticketListCard({ rowCount: 0, linked: true, noun: 'issue' }), null);
 });

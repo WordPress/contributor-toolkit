@@ -16,6 +16,13 @@
 // the same action reads the same everywhere it can be triggered.
 const DISCARD_CONFIRM_MESSAGE = 'Discard all local changes? This cannot be undone.';
 
+// The branch namespaces a work item gets (#251): `ticket/` on a Core site,
+// `issue/` on a Gutenberg one. Spelled out here rather than imported because
+// ticket-branches.js, which owns the list, reaches for Git and cannot be
+// bundled into the renderer; the test walks its WORK_ITEM_BRANCH_PREFIXES
+// against this so the two cannot drift apart unnoticed.
+const WORK_ITEM_BRANCH = /^(?:ticket|issue)\//;
+
 /**
  * The changes note, split into parts the component interleaves with its two
  * link buttons, or null when there is nothing to say.
@@ -30,18 +37,21 @@ const DISCARD_CONFIRM_MESSAGE = 'Discard all local changes? This cannot be undon
  * also carries a reassurance the buttons never need: Unlink sits right
  * above, and the changes must not look like they hang on it.
  *
- * @param {{dirty?: boolean, changedCount?: number, tracTicket?: *, pullRequest?: Object}} state
+ * `workItemNoun` is what the site calls its work item (#251), `ticket` unless
+ * told otherwise; every sentence that names it reads the noun from there.
+ *
+ * @param {{dirty?: boolean, changedCount?: number, tracTicket?: *, pullRequest?: Object, workItemNoun?: string}} state
  * @return {{placement: 'buttons'|'ticket', lead: string, patchLabel: string,
  *          middle: string, discardLabel: string, end: string,
  *          unlinkNote?: string}|null}
  */
-function changesNoteParts({ dirty, changedCount, tracTicket, pullRequest } = {}) {
+function changesNoteParts({ dirty, changedCount, tracTicket, pullRequest, workItemNoun = 'ticket' } = {}) {
 	if (!dirty) return null;
 	const count = Number.isInteger(changedCount) && changedCount > 0 ? changedCount : null;
 	const noun = count === 1 ? 'change' : 'changes';
 	if (pullRequest && Number.isInteger(pullRequest.number)) {
 		const hasReturnDestination = typeof pullRequest.returnTo === 'string' && pullRequest.returnTo.length > 0;
-		const returnsToTicket = hasReturnDestination ? pullRequest.returnTo.startsWith('ticket/') : Boolean(tracTicket);
+		const returnsToTicket = hasReturnDestination ? WORK_ITEM_BRANCH.test(pullRequest.returnTo) : Boolean(tracTicket);
 		return {
 			placement: returnsToTicket ? 'ticket' : 'buttons',
 			lead: `You have ${count === null ? '' : `${count} `}${noun} on top of PR #${pullRequest.number}. You can `,
@@ -54,17 +64,17 @@ function changesNoteParts({ dirty, changedCount, tracTicket, pullRequest } = {})
 	if (tracTicket) {
 		return {
 			placement: 'ticket',
-			lead: `You have ${count === null ? '' : `${count} `}unsubmitted ${noun} for ticket #${tracTicket}. You can `,
+			lead: `You have ${count === null ? '' : `${count} `}unsubmitted ${noun} for ${workItemNoun} #${tracTicket}. You can `,
 			patchLabel: 'review and submit',
 			middle: ' or ',
 			discardLabel: 'discard your changes',
 			end: '.',
-			unlinkNote: 'Unlinking this ticket doesn\'t affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.'
+			unlinkNote: `Unlinking this ${workItemNoun} doesn\'t affect your local changes for this ${workItemNoun} — they remain attached to it in this site, ready for when you link it again.`
 		};
 	}
 	return {
 		placement: 'buttons',
-		lead: `You have ${count === null ? '' : `${count} `}${noun} not assigned to any ticket. You can `,
+		lead: `You have ${count === null ? '' : `${count} `}${noun} not assigned to any ${workItemNoun}. You can `,
 		patchLabel: 'create and save a patch',
 		middle: ' or ',
 		discardLabel: 'discard your changes',
@@ -187,15 +197,16 @@ function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges,
 	return null;
 }
 
-// The review always names the base used to measure the displayed changes.
-function patchReviewContext({ pullRequest, tracTicket } = {}) {
+// The review always names the base used to measure the displayed changes;
+// `workItemNoun` as in changesNoteParts.
+function patchReviewContext({ pullRequest, tracTicket, workItemNoun = 'ticket' } = {}) {
 	if (pullRequest) return {
 		heading: `Your changes on top of PR #${pullRequest.number}`,
 		description: 'Edits to this local copy, compared with the original PR commits.',
 		empty: `There are no changes on top of PR #${pullRequest.number}.`
 	};
 	return {
-		heading: tracTicket ? `Your changes for ticket #${tracTicket}` : 'Your changes',
+		heading: tracTicket ? `Your changes for ${workItemNoun} #${tracTicket}` : 'Your changes',
 		description: 'Everything this site has that its copy of trunk does not.',
 		empty: 'There is nothing to send yet — this site has no changes against its copy of trunk.'
 	};

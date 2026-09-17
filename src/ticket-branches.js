@@ -52,23 +52,39 @@ const WIP_MESSAGE = 'Work in progress (WordPress Contributor Toolkit)';
 const WIP_AUTHOR = { name: 'WordPress Contributor Toolkit', email: 'noreply@localhost' };
 
 /**
- * Branch name for a ticket. Trac ids are numeric, so this cannot collide with
- * `trunk` and needs no escaping.
+ * The namespaces a work-item branch can live under (#251). Core keeps
+ * `ticket/`, unchanged since #108, so no existing site moves; a Gutenberg site
+ * gets `issue/`, the noun its upstream uses. Which one a site writes comes from
+ * its project type (`workItem.branchPrefix`); every *read* here accepts both,
+ * because a site's branches are read by ref name alone — `branches:list` and
+ * the delete guard have no site type to hand — and two sites of different types
+ * never share a directory anyway.
+ */
+const WORK_ITEM_BRANCH_PREFIXES = ['ticket/', 'issue/'];
+const DEFAULT_BRANCH_PREFIX = WORK_ITEM_BRANCH_PREFIXES[0];
+const WORK_ITEM_REF = /^(?:ticket|issue)\/(\d+)$/;
+
+/**
+ * Branch name for a work item. Both Trac ticket ids and GitHub issue numbers
+ * are numeric, so this cannot collide with `trunk` and needs no escaping.
  *
  * @param {number|string} ticketId
+ * @param {string}        [prefix] the site's namespace; Core's when absent, so
+ *                                 a caller with no site meta to hand behaves
+ *                                 exactly as it did before project types.
  */
-function ticketBranchRef(ticketId) {
-	return `ticket/${ticketId}`;
+function ticketBranchRef(ticketId, prefix = DEFAULT_BRANCH_PREFIX) {
+	return `${prefix}${ticketId}`;
 }
 
 /**
- * The ticket id a branch name encodes, or null for anything else (`trunk`, or a
- * branch a user made by hand in their own git client).
+ * The work-item id a branch name encodes, or null for anything else (`trunk`, a
+ * `pr/` checkout, or a branch a user made by hand in their own git client).
  *
  * @param {string} ref
  */
 function ticketIdFromRef(ref) {
-	const match = /^ticket\/(\d+)$/.exec(String(ref || ''));
+	const match = WORK_ITEM_REF.exec(String(ref || ''));
 	return match ? Number(match[1]) : null;
 }
 
@@ -279,12 +295,17 @@ async function parkCurrentWork(dir, { baseOid, author = WIP_AUTHOR, onProgress =
  *
  * @param {string}        dir
  * @param {number|string} ticketId
+ * @param {Object}        [root0]
+ * @param {string}        [root0.prefix] the site's branch namespace (#251)
  */
-async function startTicketBranch(dir, ticketId) {
-	const ref = ticketBranchRef(ticketId);
+async function startTicketBranch(dir, ticketId, { prefix = DEFAULT_BRANCH_PREFIX } = {}) {
+	const ref = ticketBranchRef(ticketId, prefix);
 	const existing = await listBranches(dir);
 	if (existing.includes(ref)) {
-		const error = new Error(`Already working on ticket #${ticketId} in this site`);
+		// The noun follows the namespace, so a Gutenberg site is not told it is
+		// already working on a "ticket" it has never heard of.
+		const noun = prefix === 'issue/' ? 'issue' : 'ticket';
+		const error = new Error(`Already working on ${noun} #${ticketId} in this site`);
 		error.code = 'branch-exists';
 		throw error;
 	}
@@ -556,6 +577,7 @@ async function deleteTicketBranch(dir, ref, { onChild = null } = {}) {
 
 module.exports = {
 	TRUNK,
+	WORK_ITEM_BRANCH_PREFIXES,
 	WIP_MESSAGE,
 	WIP_AUTHOR,
 	ticketBranchRef,

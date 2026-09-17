@@ -51,3 +51,40 @@ test('ticketTrunkNotice stays silent without a ticket or a known move (#305)', (
 		{ ticketId: 123 }
 	]) assert.equal(ticketTrunkNotice(state), null);
 });
+
+// On a Gutenberg site the same notice and the same refusals speak of an
+// issue (#251); nothing about the move itself changes.
+test('ticketTrunkNotice and rebaseRefusal take the site\'s noun', () => {
+	const notice = ticketTrunkNotice({ ticketId: 71234, behind: true, noun: 'issue' });
+	assert.equal(notice.title, 'Trunk has moved since this issue started.');
+	assert.equal(notice.action, 'Update this issue to the current trunk');
+	assert.doesNotMatch(notice.body, /ticket/);
+	const refusal = rebaseRefusal({ code: 'no-base', ticketId: 71234, noun: 'issue' });
+	assert.match(refusal, /Keep this issue's branch/);
+	assert.doesNotMatch(refusal, /ticket/);
+	assert.equal(rebaseRefusal({ code: 'other', noun: 'issue' }), 'Could not move the issue onto the current trunk.');
+});
+
+test('Gutenberg recovery preserves the branch instead of requiring an unavailable patch import', () => {
+	const notice = ticketTrunkNotice({ ticketId: 71234, behind: true, noun: 'issue' });
+	assert.doesNotMatch(notice.body, /start the issue again/);
+	for (const failure of [
+		{ code: 'no-base' },
+		{ code: 'rebase-conflict' },
+		{ code: 'rebase-conflict', conflicts: ['packages/editor/index.js'], kinds: { 'packages/editor/index.js': 'content' } }
+	]) {
+		const message = rebaseRefusal({ ...failure, ticketId: 71234, noun: 'issue' });
+		assert.match(message, /Keep this issue's branch/);
+		assert.match(message, /save a copy/i);
+		assert.match(message, /mentor/);
+		assert.doesNotMatch(message, /unlink|delete its work|apply the copy|link #71234 again/);
+	}
+});
+
+// Main's on-trunk and not-a-ticket-branch sentences name a ticket whatever
+// the site; the card words them with its own noun (#251).
+test('rebaseRefusal words on-trunk and not-a-ticket-branch itself, with the noun', () => {
+	assert.equal(rebaseRefusal({ code: 'on-trunk', error: 'main says ticket' }), 'Link a ticket first: trunk is what tickets are measured against.');
+	assert.equal(rebaseRefusal({ code: 'on-trunk', error: 'main says ticket', noun: 'issue' }), 'Link an issue first: trunk is what issues are measured against.');
+	assert.equal(rebaseRefusal({ code: 'not-a-ticket-branch', noun: 'issue' }), 'Only an issue branch can be moved onto the current trunk.');
+});

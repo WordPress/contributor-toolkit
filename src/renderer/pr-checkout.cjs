@@ -1,12 +1,16 @@
 'use strict';
 
 // Shared by the IPC refusals and the Apply panel; no Electron or Git imports.
-function describePrCheckout({ number, returnTo, hasEdits = false }) {
-	const ticket = /^ticket\/(\d+)$/.exec(returnTo || '');
+//
+// `returnTo` is a work-item branch under either namespace (#251,
+// ticket-branches.js): `ticket/N` on a Core site, `issue/N` on a Gutenberg
+// one. `noun` is what that site calls it, `ticket` unless told otherwise.
+function describePrCheckout({ number, returnTo, hasEdits = false, noun = 'ticket' }) {
+	const workItem = /^(?:ticket|issue)\/(\d+)$/.exec(returnTo || '');
 	return {
 		title: `PR #${number} is applied.`,
-		body: ticket
-			? 'Your ticket changes are saved separately and return when you revert this PR.'
+		body: workItem
+			? `Your ${noun} changes are saved separately and return when you revert this PR.`
 			: 'Reverting this PR returns to trunk.',
 		edits: hasEdits
 			? 'Your edits here stay with your local copy of the PR.'

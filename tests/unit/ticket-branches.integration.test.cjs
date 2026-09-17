@@ -20,6 +20,7 @@ const {
 	TRUNK,
 	WIP_AUTHOR,
 	WIP_MESSAGE,
+	WORK_ITEM_BRANCH_PREFIXES,
 	ticketBranchRef,
 	ticketIdFromRef,
 	prBranchRef,
@@ -78,6 +79,31 @@ test('ticketBranchRef/ticketIdFromRef round-trip, and trunk is not a ticket (iss
 	assert.equal(ticketIdFromRef(TRUNK), null);
 	assert.equal(ticketIdFromRef('ticket/not-a-number'), null);
 	assert.equal(ticketIdFromRef(undefined), null);
+});
+
+// A Gutenberg site names its branches after the noun its upstream uses (#251).
+// Core's `ticket/` is untouched, and every read takes both, since a branch is
+// read by its name alone.
+test('a work item can live under issue/ as well as ticket/, and reads accept both (#251)', () => {
+	assert.deepEqual(WORK_ITEM_BRANCH_PREFIXES, ['ticket/', 'issue/']);
+	assert.equal(ticketBranchRef(71234, 'issue/'), 'issue/71234');
+	assert.equal(ticketIdFromRef('issue/71234'), 71234);
+	assert.equal(ticketIdFromRef('issue/not-a-number'), null);
+	assert.equal(prNumberFromRef('issue/71234'), null);
+});
+
+test('starting an issue branch creates it under issue/, and refuses a second by the right noun (#251)', async (t) => {
+	const { dir, baseOid } = await makeSite(t);
+	const started = await startTicketBranch(dir, 71234, { prefix: 'issue/' });
+	assert.equal(started.ref, 'issue/71234');
+	assert.equal(started.ticketId, 71234);
+	assert.equal(started.baseOid, baseOid);
+	assert.equal(await currentBranchName(dir), 'issue/71234');
+	await assert.rejects(() => startTicketBranch(dir, 71234, { prefix: 'issue/' }), (e) => e.code === 'branch-exists' && /issue #71234/.test(e.message));
+	// The delete guard reads the namespace too, or an issue branch could
+	// never be removed from the app.
+	await switchToBranch(dir, TRUNK, { baseOid });
+	assert.deepEqual(await deleteTicketBranch(dir, 'issue/71234'), { deleted: true, ref: 'issue/71234' });
 });
 
 test('prBranchRef/prNumberFromRef round-trip, and neither namespace reads the other (#458)', () => {

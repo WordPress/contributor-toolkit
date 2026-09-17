@@ -1643,7 +1643,7 @@ test('git:save-patch without options is the bare diff under the name it always h
 // the header being *above* the diff is the whole of its usefulness: the same
 // lines appended after it would land inside the last hunk's context and stop
 // the patch applying anywhere.
-test('git:save-patch with handoff writes the header above the diff, and it still parses', async (t) => {
+for (const projectType of ['core', 'gutenberg']) test(`git:save-patch handoff names the ${projectType} work item and remains a valid patch`, async (t) => {
 	const dir = await fixtureRepo(t);
 	const target = path.join(dir, '..', `handoff-${process.pid}.diff`);
 	t.after(() => fs.rmSync(target, { force: true }));
@@ -1652,7 +1652,7 @@ test('git:save-patch with handoff writes the header above the diff, and it still
 		stubs: {
 			...silentLogging(),
 			...fakeSettingsStore({
-				siteMeta: { [dir]: { tracTicket: 62281 } },
+				siteMeta: { [dir]: { tracTicket: 62281, projectType } },
 				preferences: { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Europe 2026' }
 			}).stubs
 		}
@@ -1666,6 +1666,12 @@ test('git:save-patch with handoff writes the header above the diff, and it still
 	assert.ok(written.startsWith('# WordPress Contributor Toolkit patch\n'), written.slice(0, 200));
 	assert.ok(written.includes('# Contributor: janedoe (wordpress.org)'));
 	assert.ok(written.includes('# Event: WordCamp Europe 2026'));
+	if (projectType === 'gutenberg') {
+		assert.ok(written.includes('# Issue: https://github.com/WordPress/gutenberg/issues/62281'));
+		assert.doesNotMatch(written, /core\.trac\.wordpress\.org|# Ticket:/);
+	} else {
+		assert.ok(written.includes('# Ticket: https://core.trac.wordpress.org/ticket/62281'));
+	}
 	assert.ok(written.indexOf('# Generated:') < written.indexOf('---'), 'the header has to precede the diff');
 
 	// The app reads its own patches back when someone applies one, so a mentor's
@@ -2466,13 +2472,17 @@ test('sites:set-ticket refuses unregistered site paths before writing metadata',
 
 // --- apply handlers (#11) ------------------------------------------------
 
-test('git:preview-patch reads the patch through patch-plan', async () => {
+test('git:preview-patch reads the patch through patch-plan, in the site\'s layout', async () => {
 	const parsePatchFiles = spy(() => ({ ok: false, error: 'unreadable' }));
-	const main = loadMain({ stubs: { ...silentLogging(), './patch-plan.cjs': { parsePatchFiles, planApply: () => ({}) } } });
+	const settings = fakeSettingsStore({ sites: ['/sites/wp', '/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-plan.cjs': { parsePatchFiles, planApply: () => ({}) } } });
 
 	const result = await main.invoke('git:preview-patch', '/sites/wp', 'PATCH TEXT');
+	await main.invoke('git:preview-patch', '/sites/gb', 'PATCH TEXT');
 
-	assert.deepEqual(parsePatchFiles.calls, [['PATCH TEXT']]);
+	// The layout is the registry's for the site (#251): a record with no type
+	// reads as Core, so the preview steers paths under src/ as it always did.
+	assert.deepEqual(parsePatchFiles.calls, [['PATCH TEXT', { layout: 'src-layout' }], ['PATCH TEXT', { layout: 'repo-relative' }]]);
 	assert.deepEqual(result, { ok: false, error: 'unreadable' });
 });
 
@@ -2676,6 +2686,33 @@ test('git:apply-patch refuses an unregistered site path before touching patch-ap
 	assert.deepEqual(applyPatchToDir.calls, []);
 });
 
+// The site's patch layout rides with every apply and undo (#251): a Gutenberg
+// site's diffs are applied where they name the file, a Core site's are steered
+// under src/ as they always were.
+test('git:apply-patch hands patch-apply the site\'s layout, on the apply and on the undo', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['packages/a.js'], skipped: [] }));
+	const settings = fakeSettingsStore({ sites: ['/sites/gb', '/sites/wp'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' }, '/sites/wp': {} } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const gb = createIpcEvent();
+	const { applyId: gbId } = await main.invokeWith('git:apply-patch', gb, '/sites/gb', { patchText: 'PATCH', label: 'PR 1' });
+	await applyDone(gb, gbId);
+	const wp = createIpcEvent();
+	const { applyId: wpId } = await main.invokeWith('git:apply-patch', wp, '/sites/wp', { patchText: 'PATCH', label: 'PR 2' });
+	await applyDone(wp, wpId);
+
+	assert.equal(applyPatchToDir.calls[0][0].layout, 'repo-relative');
+	assert.equal(applyPatchToDir.calls[1][0].layout, 'src-layout');
+
+	// The undo takes the same layout: a revert steered under a different
+	// layout than the apply would look for files where they never went.
+	const undo = createIpcEvent();
+	const { applyId: undoId } = await main.invokeWith('git:apply-patch', undo, '/sites/gb', { reverse: true });
+	await applyDone(undo, undoId);
+	assert.equal(applyPatchToDir.calls[2][0].reverse, true);
+	assert.equal(applyPatchToDir.calls[2][0].layout, 'repo-relative');
+});
+
 test('git:apply-patch delegates a forward apply to patch-apply and records it', async () => {
 	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['src/a.php'], skipped: [] }));
 	const settings = fakeSettingsStore({ sites: ['/sites/wp'] });
@@ -2865,6 +2902,29 @@ test('git:fetch-pr-diff asks github-prs for the diff', async () => {
 	assert.deepEqual(result, { ok: true, text: 'DIFF' });
 });
 
+// The Trac window opens for a Trac ticket only (#251). A Gutenberg site stores
+// its issue in the same field, and its number is also a Core ticket's number:
+// scraping it would show that ticket's facts and attachments under the issue.
+test('trac:list-attachments opens the Trac window for a Trac site, and refuses a Gutenberg one by name', async (t) => {
+	const dir = await fixtureRepo(t);
+	const openAndScrape = spy(async () => ({ status: 'ok', items: [], ticket: { summary: 'A Core ticket' } }));
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { projectType: 'gutenberg', tracTicket: 49661 } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+
+	const refused = await main.invoke('trac:list-attachments', dir);
+	assert.equal(refused.ok, true);
+	assert.equal(refused.status, 'not-trac');
+	assert.deepEqual(refused.items, []);
+	assert.deepEqual(openAndScrape.calls, []);
+
+	const core = await fixtureRepo(t);
+	const coreSettings = fakeSettingsStore({ sites: [core], siteMeta: { [core]: { tracTicket: 49661 } } });
+	const coreMain = loadMain({ stubs: { ...silentLogging(), ...coreSettings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+	const read = await coreMain.invoke('trac:list-attachments', core);
+	assert.equal(read.status, 'ok');
+	assert.deepEqual(openAndScrape.calls, [[49661]]);
+});
+
 // git:list-ticket-patches reads the stored ticket, then delegates to github-prs
 // and caches the result — reachable through the same fakeSettingsStore seam.
 test('git:list-ticket-patches fetches the linked PRs for the stored ticket', async () => {
@@ -2874,7 +2934,7 @@ test('git:list-ticket-patches fetches the linked PRs for the stored ticket', asy
 
 	const result = await main.invoke('git:list-ticket-patches', '/sites/wp');
 
-	assert.deepEqual(fetchLinkedPrs.calls, [[62281, { known: null }]], 'nothing cached yet, so no dates to reuse');
+	assert.deepEqual(fetchLinkedPrs.calls, [[62281, { known: null, repo: 'WordPress/wordpress-develop', provider: 'trac' }]], 'nothing cached yet, so no dates to reuse');
 	assert.equal(result.ok, true);
 	assert.equal(result.ticket, 62281);
 	assert.equal(result.prs.status, 'ok');
@@ -2895,7 +2955,7 @@ test('git:list-ticket-patches hands the cached list back so commit dates are not
 	await main.invoke('git:list-ticket-patches', '/sites/wp'); // populates the cache
 	const result = await main.invoke('git:list-ticket-patches', '/sites/wp');
 
-	assert.deepEqual(fetchLinkedPrs.calls[1], [62281, { known: cachedItems }]);
+	assert.deepEqual(fetchLinkedPrs.calls[1], [62281, { known: cachedItems, repo: 'WordPress/wordpress-develop', provider: 'trac' }]);
 	assert.equal(result.prs.rankComplete, true, 'the completeness of the ranking survives the cache');
 });
 
@@ -2913,6 +2973,29 @@ test('git:list-ticket-patches falls back to the cached list when GitHub cannot b
 	assert.equal(result.prs.status, 'rate-limited');
 	assert.deepEqual(result.prs.items, [{ number: 7 }], 'the last-known-good list is shown, not empty');
 	assert.ok(result.prs.cachedAt, 'stamped with when it was last seen');
+});
+
+// A Gutenberg site's pull requests live in its own repository and cite an
+// issue, not a Trac ticket (#251); both facts ride to github-prs with the call.
+// The cache is keyed with the repository too: issue 62281 and ticket 62281
+// are different work items, and a Core site's bare key is left as it was so
+// nothing already cached is thrown away.
+test('git:list-ticket-patches on a Gutenberg site names its repository and provider, and caches apart from Core', async () => {
+	const fetchLinkedPrs = spy(async () => ({ status: 'ok', items: [{ number: 9 }], rankComplete: true }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp', '/sites/gb'],
+		siteMeta: { '/sites/wp': { tracTicket: 62281 }, '/sites/gb': { projectType: 'gutenberg', tracTicket: 62281 } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { fetchLinkedPrs } } });
+
+	await main.invoke('git:list-ticket-patches', '/sites/wp');
+	const result = await main.invoke('git:list-ticket-patches', '/sites/gb');
+
+	assert.deepEqual(fetchLinkedPrs.calls[0], [62281, { known: null, repo: 'WordPress/wordpress-develop', provider: 'trac' }]);
+	assert.deepEqual(fetchLinkedPrs.calls[1], [62281, { known: null, repo: 'WordPress/gutenberg', provider: 'github-issue' }], 'the Core list for the same number is not handed back as known');
+	assert.equal(result.ok, true);
+	assert.ok(settings.values['ticketPatches:62281'], 'the Core key is the one it always was');
+	assert.ok(settings.values['ticketPatches:WordPress/gutenberg:62281'], 'the Gutenberg key carries the repository');
 });
 
 test('git:list-ticket-patches returns no-ticket without calling github-prs when none is linked', async () => {
@@ -4530,11 +4613,58 @@ test('sites:set-ticket starts a branch for a ticket the site has not seen', asyn
 
 	const result = await main.invoke('sites:set-ticket', '/sites/wp', '62281');
 
-	assert.deepEqual(startTicketBranch.calls, [['/sites/wp', 62281]]);
+	assert.deepEqual(startTicketBranch.calls, [['/sites/wp', 62281, { prefix: 'ticket/' }]]);
 	assert.equal(result.branch, 'ticket/62281');
 	const meta = settings.values.siteMeta['/sites/wp'];
 	assert.equal(meta.tracTicket, 62281);
 	assert.equal(meta.branches['ticket/62281'].baseOid, 'abc', 'the branch point is recorded — it is the diff base');
+});
+
+// On a Gutenberg site the same handler reads a GitHub issue (#251): the site's
+// provider parses what was typed, and the branch is made under `issue/`, the
+// namespace the registry names for the type. Core sites are untouched by this,
+// which the test above is the proof of.
+test('sites:set-ticket on a Gutenberg site parses an issue and starts an issue/ branch', async () => {
+	const startTicketBranch = spy(async () => ({ ref: 'issue/71234', baseOid: 'abc', ticketId: 71234 }));
+	const listTicketBranches = spy(async () => []);
+	const currentBranchName = spy(async () => 'trunk');
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./ticket-branches': { startTicketBranch, listTicketBranches, currentBranchName, countChangesAgainst: async () => 0 }
+		}
+	});
+
+	const result = await main.invoke('sites:set-ticket', '/sites/gb', 'https://github.com/WordPress/gutenberg/issues/71234#issuecomment-1');
+
+	assert.equal(result.ok, true);
+	assert.deepEqual(startTicketBranch.calls, [['/sites/gb', 71234, { prefix: 'issue/' }]]);
+	assert.equal(result.branch, 'issue/71234');
+	const meta = settings.values.siteMeta['/sites/gb'];
+	assert.equal(meta.tracTicket, 71234, 'the stored key stays tracTicket; every read of the card is keyed on it');
+	assert.equal(meta.branches['issue/71234'].baseOid, 'abc');
+});
+
+test('sites:set-ticket on a Gutenberg site refuses what is not one of its issues, before any git work', async () => {
+	const startTicketBranch = spy(async () => ({}));
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { startTicketBranch, listTicketBranches: async () => [], currentBranchName: async () => 'trunk' } }
+	});
+
+	const pr = await main.invoke('sites:set-ticket', '/sites/gb', 'https://github.com/WordPress/gutenberg/pull/4496');
+	const trac = await main.invoke('sites:set-ticket', '/sites/gb', 'https://core.trac.wordpress.org/ticket/62281');
+	const elsewhere = await main.invoke('sites:set-ticket', '/sites/gb', 'https://github.com/WordPress/wordpress-develop/issues/1');
+
+	assert.equal(pr.ok, false);
+	assert.match(pr.error, /pull request/i, 'the obvious mistake is named');
+	assert.equal(trac.ok, false);
+	assert.equal(elsewhere.ok, false);
+	assert.match(elsewhere.error, /WordPress\/gutenberg/);
+	assert.deepEqual(startTicketBranch.calls, []);
+	assert.equal(settings.values.siteMeta['/sites/gb'].tracTicket, undefined);
 });
 
 // Linking a ticket this site has never seen used to carry whatever was loose
@@ -5851,6 +5981,7 @@ const WIRED = new Set([
 	'git:fetch-pr-diff',
 	'git:list-ticket-patches',
 	'trac:fetch-attachment',
+	'trac:list-attachments',
 	'editor:list',
 	'editor:open',
 	'dir:show',
@@ -5901,9 +6032,7 @@ const NO_DELEGATION = new Map([
 
 // Channels that do delegate, but whose call sits behind something this harness
 // cannot stand in for yet. Each one is a known hole, not an oversight.
-const NOT_REACHABLE = new Map([
-	['trac:list-attachments', 'reads electron-store for the ticket before it can open the Trac window']
-]);
+const NOT_REACHABLE = new Map([]);
 
 const CLASSIFIED = [...WIRED, ...NO_DELEGATION.keys(), ...NOT_REACHABLE.keys()];
 

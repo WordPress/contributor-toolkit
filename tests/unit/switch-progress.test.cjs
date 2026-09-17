@@ -210,3 +210,14 @@ test('describeSwitchProgress: a pull request branch is named as a pull request, 
 	// the contributor, and the sentence is what tells them which is being saved.
 	assert.match(describeSwitchProgress({ stage: 'scan', from: 'ticket/59234', to: 'pr/7701' }), /work on #59234/);
 });
+
+// A Gutenberg site's branch is `issue/N` (#251); on screen it is `#N`, the way
+// `ticket/N` is, or the switch sentences would name a ref nobody typed.
+test('describeSwitchProgress names an issue/ branch by its number, like a ticket/ one (#251)', () => {
+	const leaving = describeSwitchProgress({ stage: 'scan', from: 'issue/71234', to: 'issue/71300' });
+	assert.match(leaving, /#71234/);
+	assert.doesNotMatch(leaving, /issue\//);
+	const entering = describeSwitchProgress({ stage: 'apply', from: 'trunk', to: 'issue/71300' });
+	assert.match(entering, /for #71300/);
+	assert.strictEqual(describeSwitchProgress({ stage: 'done', from: 'trunk', to: 'issue/71300' }), describeSwitchProgress({ stage: 'done', from: 'trunk', to: 'ticket/71300' }));
+});
