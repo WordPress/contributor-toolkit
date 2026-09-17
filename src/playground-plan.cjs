@@ -40,11 +40,13 @@ function planPlaygroundLaunch(config) {
 		if (!/^[a-z0-9-]+$/i.test(slug)) throw new Error(`plugin-mount serve needs a plain slug, got ${JSON.stringify(slug)}`);
 		const vfsPath = `${PLUGINS_VFS_BASE}/${slug}`;
 		return {
-			// No wordpressInstallMode: Playground's default downloads and installs
-			// a stock WordPress for the plugin to live in. The first serve needs
-			// the network for that release zip; Playground caches it under
-			// ~/.wordpress-playground afterwards, so later serves work offline,
-			// unlike Core's docroot, which never downloads at all.
+			// `start` keeps WordPress (including SQLite and uploads) in Playground's
+			// per-directory site storage. The runner's cwd is this checkout, so
+			// each site gets its own installation and Stop/Start reuses it. The
+			// `server` command would discard that state at every stop. Let the CLI
+			// choose download vs reuse; keep our explicit plugin mount and slug.
+			command: 'start',
+			autoMount: false,
 			mount: [{ hostPath: cfg.pluginDir, vfsPath }],
 			'mount-before-install': [],
 			'additional-blueprint-steps': [{ step: 'activatePlugin', pluginPath: vfsPath }]

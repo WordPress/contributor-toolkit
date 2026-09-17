@@ -202,6 +202,8 @@ test('a docroot config reaches runCLI as the options a Core site always got', ()
 
 test('a plugin-mount config mounts the checkout as a plugin into a stock install, and locks file modifications', () => {
 	const { cliOptions } = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'plugin-mount', pluginDir: GUTENBERG_CHECKOUT, pluginSlug: 'gutenberg' })]);
+	assert.equal(cliOptions.command, 'start', 'the persistent command must override the runner default');
+	assert.equal(cliOptions.autoMount, false);
 
 	assert.deepEqual(cliOptions.mount, [{ hostPath: path.resolve(GUTENBERG_CHECKOUT), vfsPath: '/wordpress/wp-content/plugins/gutenberg' }]);
 	assert.deepEqual(cliOptions['mount-before-install'], []);

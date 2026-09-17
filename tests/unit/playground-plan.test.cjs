@@ -31,6 +31,8 @@ test('plugin-mount strategy mounts the checkout as an active plugin in a stock W
 	const plan = planPlaygroundLaunch({ strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: 'gutenberg' });
 
 	assert.deepEqual(plan.mount, [{ hostPath: '/sites/gb', vfsPath: '/wordpress/wp-content/plugins/gutenberg' }]);
+	assert.equal(plan.command, 'start', 'WordPress state must survive a server restart');
+	assert.equal(plan.autoMount, false, 'the explicit plugin mount must not be auto-detected a second time');
 	assert.deepEqual(plan['mount-before-install'], []);
 	assert.deepEqual(plan['additional-blueprint-steps'], [
 		{ step: 'activatePlugin', pluginPath: '/wordpress/wp-content/plugins/gutenberg' }
