@@ -76,6 +76,10 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 	write( site.dir, LOGIN, PR_EDIT );
 	await page.getByRole( 'button', { name: 'Revert this PR', exact: true } ).click();
 
+	// HEAD moves before the handler saves metadata. Wait for the UI to finish
+	// restoring and rebuilding the previous branch before inspecting that state.
+	await expect( page.getByLabel( 'Pull request URL or number' ) ).toBeVisible( { timeout: 60_000 } );
+	await expect( page.getByLabel( 'Pull request URL or number' ) ).toBeEnabled();
 	await expect
 		.poll( () => currentBranch( site.dir ), { timeout: 60_000 } )
 		.toBe( `ticket/${ TICKET }` );
