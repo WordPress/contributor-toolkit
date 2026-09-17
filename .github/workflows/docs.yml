@@ -3,6 +3,18 @@
 # The docs are their own npm package under docs/ so this job never runs the root package's
 # postinstall (electron-builder + esbuild) — building a static site needs none of that.
 #
+# The site tracks the latest *release*, not trunk. Trunk documents features that nobody has a
+# build of yet. Merging a feature and its docs together is the rule here (a change and the docs
+# it makes true ship in one PR), so between releases trunk's guide describes UI the downloaded
+# app does not have. Publishing on every trunk push told users about it; this is what #486 and
+# the Gutenberg stack did to the live guide. So the deploy runs only on `workflow_dispatch`,
+# takes the ref to publish as an input, and a release advances the site by hand:
+#
+#     gh workflow run docs.yml --ref trunk -f ref=v1.1.0
+#
+# Pushes to trunk and pull requests still build, they just never deploy: a dead link or bad
+# markdown fails the moment it is proposed and again once it lands, rather than at release time.
+#
 # Screenshots are committed to the repo, not captured here. Capturing them needs the Electron
 # app running against a seeded site, which is minutes of flaky work on a runner; a maintainer
 # runs `npm run shots` locally when the UI changes instead (see scripts/screenshots/). Four of
@@ -14,9 +26,6 @@
 # because a project Pages site lives under /<repo-name>/ and this repository has already been
 # renamed once (experimental-wp-dev-env → contributor-toolkit). Deriving it means another rename
 # cannot break every asset URL.
-#
-# Pull requests get a build-only job: a broken link or bad markdown fails before merge, and
-# the deploy job (which holds the OIDC token) never runs on PR code.
 #
 # One-time setup: Settings → Pages → Source must be set to "GitHub Actions".
 
@@ -33,16 +42,27 @@ on:
       - 'docs/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
+    inputs:
+      ref:
+        # Required, with no default: a default would name one release tag and be wrong from the
+        # next release onwards, and this input is typed a couple of times a year. Naming the tag
+        # every time also makes the run record say what went live.
+        description: 'Git ref to publish. The release tag, e.g. v1.1.0'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 # Two pushes racing would build in an arbitrary order, so the older build is cancelled and the
-# newest commit wins. The deploy job has its own group, and that one does not cancel: killing an
-# in-flight `deploy-pages` mid-publish is how a site ends up half-updated. Same reasoning as the
-# `cancel-in-progress: false` in download-stats.yml.
+# newest commit wins. A dispatch gets a group of its own, keyed on the run: workflow-level
+# concurrency cancels the whole run, jobs included, so without this a docs merge landing during
+# a release publish would cancel that publish mid-flight — and the job-level `docs-deploy` group
+# below does not help, since it only stops a second deploy job from cancelling this one. Killing
+# an in-flight `deploy-pages` mid-publish is how a site ends up half-updated. Same reasoning as
+# the `cancel-in-progress: false` in download-stats.yml.
 concurrency:
-  group: docs-build-${{ github.ref }}
+  group: docs-build-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -54,6 +74,11 @@ jobs:
       # an OIDC token that can publish to the site, and a SHA cannot be repointed.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          # The ref to publish on a dispatch; the triggering commit otherwise. `inputs` is
+          # empty outside `workflow_dispatch`, so push and pull_request builds are unchanged:
+          # `github.sha` is what checkout defaults to on its own, and pinning the commit rather
+          # than the branch means a merge landing mid-run cannot swap out what is being built.
+          ref: ${{ inputs.ref || github.sha }}
           # This job runs the pull request's own code — `npm ci` with lifecycle scripts
           # enabled (esbuild needs its postinstall) and a VitePress build that evaluates
           # docs/.vitepress/config.mjs. Leaving the job's GITHUB_TOKEN in .git/config while
@@ -77,16 +102,53 @@ jobs:
           DOCS_BASE: /${{ github.event.repository.name }}/
         run: npm run build --prefix docs
 
+      # What is about to go live, on the run's own page. A dispatch is driven by a ref typed
+      # into a box, and "which commit did we publish?" should not have to be reconstructed from
+      # that box weeks later.
+      #
+      # The ref reaches the shell through `env`, not through `${{ }}` inside `run:`, the way
+      # download-stats.yml passes its values. An expression is substituted into the script's
+      # source before bash parses it, so a ref name carrying `$( )` or a quote would be code
+      # rather than text. Only someone who can already dispatch this workflow could type it,
+      # but that is the same argument as `shell: false` elsewhere in this repo.
+      - name: Record what was built
+        env:
+          REF: ${{ inputs.ref || github.sha }}
+          # A dispatch that is not on trunk builds and then skips the deploy job, which shows up
+          # as an all-green run that published nothing. Naming the release tag in `--ref` instead
+          # of in `-f ref=` is the easy way to get there, so the summary says it outright.
+          WILL_DEPLOY: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/trunk' }}
+        run: |
+          set -euo pipefail
+          {
+            printf '### Built `%s`\n\n' "$REF"
+            printf 'Commit: `%s`\n\n' "$( git rev-parse HEAD )"
+            if [ "$GITHUB_EVENT_NAME" = 'workflow_dispatch' ] && [ "$WILL_DEPLOY" != 'true' ]; then
+              printf '%s\n' '⚠️ **Not published.** A dispatch only deploys when it is run on `trunk`.' \
+                'Re-run it as `gh workflow run docs.yml --ref trunk -f ref=<tag>`: `--ref` says which' \
+                'copy of this workflow runs, `-f ref=` says which tag goes live.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: docs/.vitepress/dist
 
   deploy:
     name: deploy to Pages
-    # Deploy only what has landed on trunk. Testing the event name is not enough: a
-    # workflow_dispatch can name any ref, so an unmerged branch would publish to the live
-    # site. Testing the ref itself is what actually enforces "trunk only".
-    if: github.ref == 'refs/heads/trunk'
+    # Deploy only on an explicit dispatch, and only when this workflow file is the one on trunk.
+    # The ref test does not constrain *what* gets published any more; `inputs.ref` decides that,
+    # and publishing an arbitrary ref is the point. It constrains which copy of this file may
+    # hold the OIDC token: the reviewed, merged one. Dispatching from a branch would otherwise
+    # let an unmerged edit of this workflow publish to the live site.
+    #
+    # What it deliberately stops covering is the provenance of the published bytes. The old rule
+    # meant the live site could only be code that had landed on trunk; `inputs.ref` can now name
+    # an unmerged branch, or a pull request's merge ref, and that build goes live. That is the
+    # point of the input, and the build job it runs in holds no token worth stealing
+    # (`contents: read`, `persist-credentials: false`, and deploy checks nothing out), but
+    # "what is on the site was reviewed" is now the dispatcher's habit rather than a branch rule.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/trunk'
     needs: build
     runs-on: ubuntu-latest
     permissions:
