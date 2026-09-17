@@ -40,6 +40,7 @@ const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
 const { removeTree } = require('./remove-tree');
+const { removePersistentPlaygroundSite } = require('./playground-storage.cjs');
 const { createSetupTracker } = require('./setup-tracker');
 const { planInitialRead, planTailRead } = require('./log-tail');
 const {
@@ -2724,6 +2725,9 @@ ipcMain.handle('sites:delete', async (_e, sitePath) => {
 			// failures; only after it succeeds does site-registry forget the site.
 			remove: async (p) => {
 				await stopSiteChildren(p);
+				if (projectTypeForSite((s.get('siteMeta') || {})[p]).serve.strategy === 'plugin-mount') {
+					await removePersistentPlaygroundSite(p);
+				}
 				await removeTree(p);
 			},
 			onRefused: (description) => logEvent('sites', `refused to delete ${description}: not a registered site, or still being created`)
@@ -3523,12 +3527,24 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	if (playgroundServers[sitePath]?.child) {
 		return { ok: true, url: playgroundServers[sitePath].url };
 	}
+	// How the site is served is the target's (#251). Core's build/ is a whole
+	// WordPress, mounted as the docroot; a Gutenberg checkout is a plugin,
+	// mounted into the stock WordPress Playground installs. The runner turns
+	// the config into Playground options (playground-plan.cjs); the store is
+	// read here, once, and the map below keys on sitePath as before, so
+	// playground:stop and the quit sweep are untouched.
+	const serve = projectTypeForSite(await readSiteMeta(sitePath)).serve;
+	const isPluginMount = serve.strategy === 'plugin-mount';
 	const buildDir = path.join(sitePath, 'build');
+	const serveConfig = isPluginMount
+		? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
+		: { strategy: 'docroot', docroot: buildDir };
+	const serveCwd = isPluginMount ? sitePath : buildDir;
 	const runnerPath = path.join(__dirname, 'server-runner.js');
 	const logScope = playgroundLogScope(sitePath);
-	logEvent(logScope, `starting server for ${buildDir} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
-	const child = spawnRunner(runnerPath, [buildDir], {
-		cwd: buildDir,
+	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
+	const child = spawnRunner(runnerPath, [JSON.stringify(serveConfig)], {
+		cwd: serveCwd,
 		extraEnv: {
 			// Provide SMTP settings to the server runner so it can configure WP constants
 			WP_MAIL_SMTP_HOST: '127.0.0.1',

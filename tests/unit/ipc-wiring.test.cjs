@@ -470,6 +470,47 @@ test('sites:delete removes a registered directory and refuses an unregistered on
 	assert.deepEqual(Object.keys(settings.values.siteMeta), [unregistered]);
 });
 
+test('sites:delete removes Gutenberg runtime data only for a registered Gutenberg site', async (t) => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-runtime-'));
+	t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+	const site = path.join(root, 'gutenberg');
+	const core = path.join(root, 'core');
+	const runtime = path.join(root, 'runtime');
+	for (const dir of [site, core, runtime]) fs.mkdirSync(dir);
+	fs.writeFileSync(path.join(runtime, 'saved-content'), 'old site');
+	const settings = fakeSettingsStore({ sites: [site, core], siteMeta: { [site]: { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: {
+		...silentLogging(), ...settings.stubs,
+		'./playground-storage.cjs': { removePersistentPlaygroundSite: async (dir) => {
+			assert.equal(dir, site);
+			assert.ok(fs.existsSync(site), 'resolve the runtime before removing its checkout');
+			await fs.promises.rm(runtime, { recursive: true });
+		} }
+	} });
+	assert.deepEqual(await main.invoke('sites:delete', runtime), { ok: false, refused: true });
+	assert.deepEqual(await main.invoke('sites:delete', core), { ok: true });
+	assert.ok(fs.existsSync(runtime));
+	assert.deepEqual(await main.invoke('sites:delete', site), { ok: true });
+	assert.equal(fs.existsSync(runtime), false, 'deleted sites must not return with old posts');
+	assert.equal(fs.existsSync(site), false);
+});
+
+test('sites:delete keeps a Gutenberg checkout and registry entry when runtime removal fails', async (t) => {
+	const site = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-runtime-failure-'));
+	t.after(() => fs.rmSync(site, { recursive: true, force: true }));
+	const settings = fakeSettingsStore({ sites: [site], siteMeta: { [site]: { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: {
+		...silentLogging(), ...settings.stubs,
+		'./playground-storage.cjs': { removePersistentPlaygroundSite: async () => {
+			throw Object.assign(new Error('locked database'), { code: 'EBUSY' });
+		} }
+	} });
+	assert.deepEqual(await main.invoke('sites:delete', site), { ok: false, reason: 'remove-failed', path: site, code: 'EBUSY' });
+	assert.ok(fs.existsSync(site));
+	assert.deepEqual(settings.values.sites, [site]);
+	assert.equal(settings.values.siteMeta[site].projectType, 'gutenberg');
+});
+
 // A build watch and dev server keep their working directory open. On Windows
 // that makes the site's root undeletable until both process trees have fully
 // closed, so sending a kill and immediately calling removeTree is still a race.
@@ -2281,6 +2322,8 @@ test('playground:start spawns the server runner with the environment npm-runner 
 		stubs: {
 			...silentLogging(),
 			...noSmtpServer(),
+			// The handler reads the site's type off the store now (#251).
+			...fakeSettingsStore().stubs,
 			'child_process': { spawn: cp.spawn },
 			'./npm-runner': { buildChildEnv }
 		}
@@ -2298,6 +2341,33 @@ test('playground:start spawns the server runner with the environment npm-runner 
 	assert.equal(buildChildEnv.calls[0][0].extraEnv.WP_MAIL_SMTP_HOST, '127.0.0.1');
 	assert.equal(buildChildEnv.calls[0][0].extraEnv.WP_MAIL_SMTP_PORT, '25');
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'playground:start');
+	// The runner is told what to serve as one JSON argument: a Core site's
+	// build/ as the docroot, run from that directory as before (#251).
+	const serve = JSON.parse(cp.spawned[0].args[1]);
+	assert.deepEqual(serve, { strategy: 'docroot', docroot: path.join('/sites/wp', 'build') });
+	assert.equal(cp.spawned[0].options.cwd, path.join('/sites/wp', 'build'));
+});
+
+test('playground:start serves a Gutenberg site as a plugin mounted from the checkout itself', async (t) => {
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noSmtpServer(),
+			...settings.stubs,
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { buildChildEnv: () => ({}) }
+		}
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground:start', '/sites/gb'));
+
+	assert.equal(path.basename(cp.spawned[0].args[0]), 'server-runner.js');
+	const serve = JSON.parse(cp.spawned[0].args[1]);
+	assert.deepEqual(serve, { strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: 'gutenberg' });
+	// There is no build/ docroot to run from: the checkout is the plugin.
+	assert.equal(cp.spawned[0].options.cwd, '/sites/gb');
 });
 
 test('playground-web:start spawns its runner through npm-runner too', async (t) => {
@@ -2329,6 +2399,7 @@ test('playground:stop ends the server tree rather than signalling the child', as
 		stubs: {
 			...silentLogging(),
 			...noSmtpServer(),
+			...fakeSettingsStore().stubs,
 			'child_process': { spawn: cp.spawn },
 			'./kill-tree': { killChildTree }
 		}
