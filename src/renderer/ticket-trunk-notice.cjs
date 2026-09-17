@@ -18,12 +18,18 @@ function ticketTrunkNotice({ ticketId = null, behind = false, noun = 'ticket' } 
 	if (!ticketId || !behind) return null;
 	return {
 		title: `Trunk has moved since this ${noun} started.`,
-		body: `Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ${noun} again.`,
+		body: noun === 'issue'
+			? 'Move your work onto the current trunk here. If the changes conflict, your branch stays intact so you can get help resolving them.'
+			: `Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ${noun} again.`,
 		action: `Update this ${noun} to the current trunk`
 	};
 }
 
-const MANUAL_PATH = (ticketId, noun = 'ticket') => `Save a copy of your work, unlink the ${noun}, delete its work from the site, then link #${ticketId} again and apply the copy.`;
+// Gutenberg has no patch importer. Keep the branch until a mentor can resolve
+// the conflict; deleting it would leave only a copy the app cannot restore.
+const MANUAL_PATH = (ticketId, noun = 'ticket') => noun === 'issue'
+	? "Keep this issue's branch and save a copy through Review & submit changes. Ask a mentor to help move the work onto the current trunk; this app cannot resolve the conflict or import the saved copy."
+	: `Save a copy of your work, unlink the ${noun}, delete its work from the site, then link #${ticketId} again and apply the copy.`;
 
 // One clause per kind of conflict Git reports, in the contributor's terms
 // (#351). `content` is the classic clash; the other two are what a mentor

@@ -60,9 +60,25 @@ test('ticketTrunkNotice and rebaseRefusal take the site\'s noun', () => {
 	assert.equal(notice.action, 'Update this issue to the current trunk');
 	assert.doesNotMatch(notice.body, /ticket/);
 	const refusal = rebaseRefusal({ code: 'no-base', ticketId: 71234, noun: 'issue' });
-	assert.match(refusal, /unlink the issue/);
+	assert.match(refusal, /Keep this issue's branch/);
 	assert.doesNotMatch(refusal, /ticket/);
 	assert.equal(rebaseRefusal({ code: 'other', noun: 'issue' }), 'Could not move the issue onto the current trunk.');
+});
+
+test('Gutenberg recovery preserves the branch instead of requiring an unavailable patch import', () => {
+	const notice = ticketTrunkNotice({ ticketId: 71234, behind: true, noun: 'issue' });
+	assert.doesNotMatch(notice.body, /start the issue again/);
+	for (const failure of [
+		{ code: 'no-base' },
+		{ code: 'rebase-conflict' },
+		{ code: 'rebase-conflict', conflicts: ['packages/editor/index.js'], kinds: { 'packages/editor/index.js': 'content' } }
+	]) {
+		const message = rebaseRefusal({ ...failure, ticketId: 71234, noun: 'issue' });
+		assert.match(message, /Keep this issue's branch/);
+		assert.match(message, /save a copy/i);
+		assert.match(message, /mentor/);
+		assert.doesNotMatch(message, /unlink|delete its work|apply the copy|link #71234 again/);
+	}
 });
 
 // Main's on-trunk and not-a-ticket-branch sentences name a ticket whatever
