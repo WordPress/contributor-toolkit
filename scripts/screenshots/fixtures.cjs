@@ -33,8 +33,8 @@ const DEBUG_LOG_LINES = [
 /**
  * Creates the fixture site directories and a seeded userData dir.
  *
- * @param {string} variant 'seeded' for a populated Core site list, 'gutenberg'
- *                         for a ready Gutenberg site, or 'empty' for a first-launch app.
+ * @param {string} variant 'seeded' or 'debug' for a populated Core site list,
+ *                         'gutenberg' for a ready Gutenberg site, or 'empty' for a first-launch app.
  * @return {{userDataDir: string, sites: Object<string,string>}} Paths the
  *         harness needs: where the app's state lives and where each fake site is.
  */
