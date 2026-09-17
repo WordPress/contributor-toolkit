@@ -6,7 +6,7 @@
 //   - tier 'fixture': captured fully automatically against seeded state;
 //     tier 'live': needs a real, initialized site and a maintainer at the
 //     keyboard (the harness pauses and says what to set up);
-//   - variant: which fixture the shot needs ('seeded' or 'empty');
+//   - variant: which fixture the shot needs ('seeded', 'gutenberg' or 'empty');
 //   - prepare(page): drives the UI to the state worth photographing. Selectors
 //     go by the words on screen, same as the repo's hand-testing convention —
 //     if a label changes, the shot fails loudly instead of photographing the
@@ -69,6 +69,25 @@ const shots = [
 		prepare: async (page) => {
 			await page.getByRole('button', { name: 'Create a site' }).click();
 			await page.getByRole('dialog').getByText('Site name').waitFor();
+		}
+	},
+	{
+		slug: 'gutenberg-site-view',
+		tier: 'fixture',
+		variant: 'gutenberg',
+		prepare: async (page) => {
+			await selectSite(page, 'my-gutenberg-fix');
+			await card(page, 'GitHub issue').waitFor();
+		}
+	},
+	{
+		slug: 'gutenberg-pull-request-panel',
+		tier: 'fixture',
+		variant: 'gutenberg',
+		target: (page) => card(page, 'Check out a pull request'),
+		prepare: async (page) => {
+			await selectSite(page, 'my-gutenberg-fix');
+			await card(page, 'Check out a pull request').waitFor();
 		}
 	},
 	{
