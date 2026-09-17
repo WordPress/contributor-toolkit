@@ -37,17 +37,18 @@ The app is signed and notarized by Automattic, so macOS should open it without i
   The app is code-signed. The recursive flag (`-r`) tries to strip attributes from files inside the sealed bundle, which macOS rejects with permission errors. Removing the attribute from the top-level bundle is sufficient.
   :::
 
-## Your first contribution, in seven steps
+## Your first contribution
 
-1. Click **Create a site**, choose a destination folder for your site, and pick what to contribute to: **WordPress Core** (the default) or **Gutenberg**. The seven steps below are the Core path; on a Gutenberg site the ticket is a [GitHub issue](./gutenberg-issues) and the pull request goes to `WordPress/gutenberg`.
+1. Click **Create a site**, choose a destination folder, and pick what to contribute to: **WordPress Core** (the default) or **Gutenberg**.
 2. Wait. The app downloads the repository, then installs the dependencies and runs the first build on its own — go and get a coffee. See [The setup wizard](./setup-wizard).
 3. Click **Start dev server**.
 4. A browser window opens automatically. If not, open it by clicking the site URL — or the **wp-admin** link beside it, to go straight to the dashboard.
-5. Make changes to the code — [open the site in your editor](./editors) straight from the app.
-6. Click **Review & submit changes** to see a diff of everything you changed.
-7. Pick where the patch goes: [a pull request](./submit-github-pr), [a Trac ticket](./submit-trac), or [a file for your mentor](./submit-mentor).
+5. Give the work a home: link a [Trac ticket](./trac-tickets) on a Core site or a [GitHub issue](./gutenberg-issues) on a Gutenberg site.
+6. Make changes to the code — [open the site in your editor](./editors) straight from the app.
+7. Click **Review & submit changes** to see a diff of everything you changed.
+8. Choose how to send it. Every site can [open a pull request](./submit-github-pr) or [save a patch for a mentor](./submit-mentor); a Core site can also [attach the patch to Trac](./submit-trac).
 
-That's it — you've contributed to WordPress core.
+That's it — you've contributed to WordPress.
 
 ::: tip You are not left guessing what to do next
 When a site has something pending — a setup step to run, a warning to act on, work in flight — that one block is ringed in amber and scrolls itself into view, and is announced to screen readers as *Next step: …*. A site that is set up, running and clean has nothing pending, so nothing is ringed. And when an action finishes — a patch saved, trunk updated, a pull request opened — a brief notice says so out loud rather than leaving you to check.
@@ -57,8 +58,8 @@ When a site has something pending — a setup step to run, a warning to act on, 
 
 The rest of this guide walks through each of these screens in detail, starting with [creating a site](./creating-a-site).
 
-::: tip A second ticket does not need a second site
-Every ticket you link gets its own branch inside the site and keeps its own work, so moving between two of them takes seconds instead of another clone and another install. See [Working on several tickets](./ticket-branches).
+::: tip A second work item does not need a second site
+Every ticket or issue you link gets its own branch inside the site and keeps its own work, so moving between two of them takes seconds instead of another clone and another install. See [Working on several work items](./ticket-branches).
 :::
 
 ::: tip You never need a new site to get newer code
@@ -67,7 +68,7 @@ Every ticket you link gets its own branch inside the site and keeps its own work
 
 ## How it works under the hood
 
-- Git operations run on a Git binary bundled inside the app (never one installed on your machine): cloning, switching tickets, updating trunk, applying patches. Reading a patch and generating one are done by the app itself.
+- Git operations run on a Git binary bundled inside the app (never one installed on your machine): cloning, switching work items, updating trunk, applying patches and checking out pull requests. Reading a patch and generating one are done by the app itself.
 - Node scripts and npm commands run on the Node.js runtime bundled with the Electron app. A small shim directory is injected into the `PATH` so subprocesses find `node`, `npm`, and `npx` without a system install.
 - The WordPress server runs on `@wp-playground/cli` from [WordPress Playground](https://wordpress.github.io/wordpress-playground/), backed by SQLite.
 - Patches are generated with the `diff` npm package.

@@ -2,7 +2,7 @@
 
 A site is your own copy of the project you contribute to, cloned into a folder you choose: `wordpress-develop`, the WordPress core development repository, or `gutenberg`, the block editor's. You can create as many sites as you like — each one is an independent checkout with its own working tree.
 
-You do not need one, though, for every ticket you work on. A site holds as many tickets as you like, each on its own branch, and moving between them costs seconds rather than another clone and another build — see [Working on several tickets](./ticket-branches). Create a second site when you want a genuinely separate environment: a different snapshot of trunk, or somewhere to test a patch without disturbing the site you are working in.
+You do not need one, though, for every work item. A site holds as many Core tickets or Gutenberg issues as you like, each on its own branch, and moving between them costs seconds rather than another clone and another build — see [Working on several work items](./ticket-branches). Create a second site when you want a genuinely separate environment: a different snapshot of trunk, or somewhere to test somebody else's work without disturbing the site you are working in.
 
 When the app starts with no sites, the main area shows a short prompt to create your first one.
 
@@ -36,7 +36,7 @@ Each site is an ordinary folder on your disk: the parent folder you chose in **S
 
 ## The site list
 
-Every site appears in the sidebar, newest first. Click a site to switch to it; the button for the active site is highlighted. Every site carries its project as a tag on its row and next to its status, **Core** or **Gutenberg**, so the two kinds are told apart at a glance; on a Gutenberg site the checklist, the terminal and the cards on its page follow suit (no Trac ticket, no patch files: a Gutenberg site takes pull requests by checkout). The chevron at the top collapses the sidebar to a narrow strip showing only each site's initial.
+Every site appears in the sidebar, newest first. Click a site to switch to it; the button for the active site is highlighted. Every site carries its project as a tag on its row and next to its status, **Core** or **Gutenberg**, so the two kinds are told apart at a glance; on a Gutenberg site the checklist, the terminal and the cards on its page follow suit (a GitHub issue instead of a Trac ticket, and pull-request checkout instead of Trac attachments or a local patch-file picker). The chevron at the top collapses the sidebar to a narrow strip showing only each site's initial.
 
 A colored dot next to a site name warns that it has fallen behind trunk:
 

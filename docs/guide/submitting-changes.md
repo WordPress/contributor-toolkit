@@ -8,7 +8,7 @@ The left side of the screen is the diff, titled **Your changes**. This is exactl
 
 ![The Your changes pane showing a new PHP file as a highlighted diff, with Save and Copy controls above it](/screenshots/submit-changes-diff.png)
 
-What it contains is the work on the ticket you are on, and only that: everything the ticket's branch has gained since it was created, including whatever was parked the last time you switched away from it. Another ticket's work is never in it, and neither is a change that arrived from a [trunk update](trunk-updates). On a site with no ticket linked, it is simply everything the checkout has that its copy of trunk does not.
+What it contains is the work on the ticket or issue you are on, and only that: everything its branch has gained since it was created, including whatever was parked the last time you switched away from it. Another work item's changes are never in it, and neither is a change that arrived from a [trunk update](trunk-updates). On a site with no work item linked, it is simply everything the checkout has that its copy of trunk does not.
 
 If a pull request is checked out, this screen can save an unattributed backup but cannot send the combined work. Use **Revert this PR** first. Edits you made while trying the PR stay on its local branch; finishing the test prevents the PR author's commits from being submitted as yours.
 
@@ -17,13 +17,13 @@ Two buttons sit above the diff:
 - **Save** — saves the diff as a patch file wherever you choose.
 - **Copy** — copies the whole diff to the clipboard.
 
-If there are no changes to send, the screen says so. If the site's WordPress code is old, a warning says the patch may not apply on Trac and suggests updating to the latest trunk first — see [Staying up to date with trunk](trunk-updates).
+If there are no changes to send, the screen says so. If the checkout is old, a warning suggests updating to the latest trunk first so the change is reviewed against current code — see [Staying up to date with trunk](trunk-updates).
 
 ## Discarding it all
 
-Next to the heading is **Discard all changes**. It asks first — *Discard all local changes? This cannot be undone* — and then throws away exactly what the diff above it shows, which on a ticket means the whole of that ticket's work: your uncommitted edits *and* anything parked in a commit the last time you switched away from it.
+Next to the heading is **Discard all changes**. It asks first — *Discard all local changes? This cannot be undone* — and then throws away exactly what the diff above it shows, which on a linked ticket or issue means the whole of that work: your uncommitted edits *and* anything parked in a commit the last time you switched away from it.
 
-The ticket itself survives. Its branch stays, the link stays, and you carry on working on it from a clean base. Throwing the ticket's work away along with its branch is a different gesture — [Delete this ticket's work](ticket-branches#deleting-a-ticket-s-work), on the tickets card.
+The work item itself survives. Its branch stays, the link stays, and you carry on working on it from a clean base. Throwing that work away along with its branch is a different gesture — **Delete this ticket's work** or **Delete this issue's work**, on the work-items card. See [Deleting a work item's changes](ticket-branches#deleting-a-work-item-s-changes).
 
 The button is unavailable while an install, a build or a [trunk update](trunk-updates) is running, or while the dev server is up, since all of them are holding the files it would rewind.
 
@@ -42,21 +42,23 @@ Tools that apply patches skip those lines, so the patch still applies; the point
 
 The one gap left: adding or deleting an empty file is still not represented in the patch.
 
-## Where this patch goes
+## Where your changes go
 
-The right side lists three destinations. The pull request is the one the app sends for you; the other two save a file for you to send. Each card states what it costs to use and what happens afterwards, so you can choose with the trade-offs in front of you.
+The right side lists the destinations available for this project. The pull request is the one the app sends for you; the other destinations save a file for you to send. Each card states what it costs to use and what happens afterwards, so you can choose with the trade-offs in front of you.
 
-![The Where this patch goes pane showing Open a pull request, Attach to Trac, and Hand it to a mentor](/screenshots/submit-destinations.png)
+![The destinations on a WordPress Core site: Open a pull request, Attach to Trac, and Hand it to a mentor](/screenshots/submit-destinations.png)
 
 - **Open a pull request** — needs a GitHub account. The app forks the site's repository (`wordpress-develop` or `gutenberg`) to your account, pushes your change to a branch, and opens the pull request. Automated checks run on it. [Opening a pull request](submit-github-pr)
-- **Attach to Trac** — needs a WordPress.org account, which you need anyway for props and to comment. The app saves the patch file and opens the ticket's attach page; you upload it yourself. No automated checks run. [Attaching a patch to Trac](submit-trac)
+- **Attach to Trac** — Core sites only. It needs a WordPress.org account, which you need anyway for props and to comment. The app saves the patch file and opens the ticket's attach page; you upload it yourself. No automated checks run. [Attaching a patch to Trac](submit-trac)
 - **Hand it to a mentor** — needs no accounts at all. The app saves a patch file carrying your WordPress.org username and the event you are at; someone else pushes it, and the props still land on you. [Handing a patch to a mentor](submit-mentor)
+
+A Gutenberg site has no **Attach to Trac** card. Its issue and review both live on GitHub, so its two destinations are **Open a pull request** and **Hand it to a mentor**.
 
 ## Your WordPress.org username and event
 
 The mentor destination asks for your WordPress.org username and, optionally, the event you are contributing from (for example a WordCamp contributor day). Both are asked once and remembered for every site — they are facts about you, not about one checkout.
 
-The username and event are embedded in the patch file itself, as comment lines at the top, along with the ticket, the trunk revision the patch is based on, and the date. A filename survives until someone renames the download; the header survives with the file. This is what lets a mentor upload your patch with your name on the work.
+The username and event are embedded in the patch file itself, as comment lines at the top, along with the linked work item, the trunk revision the patch is based on, and the date. A filename survives until someone renames the download; the header survives with the file. This is what lets a mentor upload your patch with your name on the work.
 
 The event is shown on every save — **The patch will say it was written at …** — so a remembered event from last year cannot keep stamping patches unnoticed. Click **Change these** to update either value, or clear them.
 

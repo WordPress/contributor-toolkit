@@ -8,9 +8,13 @@ The **Logs** section of the site view has three tabs:
 
 Output from `npm install` and `npm run` commands appears in the [Terminal](./terminal), not here.
 
+::: warning Gutenberg limitation
+The `debug.log` tail currently follows the `build/wp-content/debug.log` file in a Core checkout. A Gutenberg site runs as a plugin inside a stock WordPress held by Playground, so its PHP log is not yet exposed at that path and this tab does not receive its entries. PHP errors still appear in the browser because `WP_DEBUG_DISPLAY` is enabled. The **Server** and **Build watcher** tabs continue to work normally.
+:::
+
 All three panes read in the terminal's own monospace font, so the columns of a PHP stack trace line up, and each line is coloured by what it is: a fatal, a warning, a deprecation, a notice, a stack trace frame, or the `Ready! WordPress is running on …` line you are actually waiting for. The `[11-Aug-2026 …]` timestamp at the head of a `debug.log` line is dimmed, so 26 identical characters per line recede instead of competing with the message.
 
-![The debug.log tab showing PHP notices](/screenshots/debug-log.png)
+![The debug.log tab on a Core site showing PHP notices](/screenshots/debug-log.png)
 
 ## The debug.log tab
 
@@ -31,9 +35,9 @@ While you are reading another tab, the **debug.log** tab shows an unread count, 
 
 Under the pane:
 
-- The full path to the log file (inside the site's `build/wp-content/` directory) is shown and can be selected and copied — useful for tailing it in a real terminal or attaching it to a ticket.
+- On a Core site, the full path to the log file (inside the site's `build/wp-content/` directory) is shown and can be selected and copied — useful for tailing it in a real terminal or sharing it with a reviewer.
 - **Show in folder** reveals the file in your file manager.
-- **Copy** puts the panel's contents on the clipboard, ready to paste into a Trac ticket or a pull request comment.
+- **Copy** puts the panel's contents on the clipboard, ready to paste into a Trac ticket, GitHub issue or pull request comment.
 - **Clear** empties both the panel and the file on disk. If the file cannot be cleared, the panel says so — otherwise the same lines would replay the next time the server starts.
 
 ## The app's own log

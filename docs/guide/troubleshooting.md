@@ -12,9 +12,9 @@ If a [trunk update](./trunk-updates) fetches new code but the install or build s
 
 ## "A previous switch … did not finish"
 
-A ticket switch whose file swap died part-way leaves the checkout half of one ticket and half of the other, so the app refuses further ticket actions rather than committing the mixture: **A previous switch from … to … did not finish. Retry it before making other changes.**
+A work-item switch whose file swap died part-way leaves the checkout half of one ticket or issue and half of the other, so the app refuses further switching actions rather than committing the mixture: **A previous switch from … to … did not finish. Retry it before making other changes.**
 
-The refusal covers switching too, so the way out is **Unlink** on the **Trac ticket** panel — the one action it still allows. That puts the site back on trunk, and you can link the ticket you wanted from there. Nothing is lost: the work on the ticket you were leaving was committed to its branch before any file moved. See [Working on several tickets](./ticket-branches).
+The refusal covers switching too, so the way out is **Unlink** on the **Trac ticket** or **GitHub issue** panel — the one action it still allows. That puts the site back on trunk, and you can link the work item you wanted from there. Nothing is lost: the changes on the item you were leaving were committed to its branch before any file moved. See [Working on several work items](./ticket-branches).
 
 The usual cause is a file held open by an editor or an antivirus scanner during the swap. Closing whatever had the checkout open before retrying makes a repeat less likely.
 
@@ -26,13 +26,13 @@ For a patch file or Trac attachment, expand the failing files in the panel: each
 
 ## "I cannot submit: PR #NNNN is checked out"
 
-The app blocks submission from a PR checkout so the PR author's commits cannot be presented as your own work. Use **Revert this PR** in the highlighted context at the top of the Trac ticket card. Your edits on the PR are parked on its local `pr/NNNN` branch and return if you check it out again.
+The app blocks submission from a PR checkout so the PR author's commits cannot be presented as your own work. Use **Revert this PR** in the highlighted context at the top of the Trac ticket or GitHub issue card. Your edits on the PR are parked on its local `pr/NNNN` branch and return if you check it out again.
 
-## Work seems to have vanished after changing tickets or updating trunk
+## Work seems to have vanished after changing work items or updating trunk
 
-Ticket work belongs to its ticket branch, not to the whole site. If the files look clean after you click **Unlink** or switch tickets, return to the original ticket under **Your tickets on this site**. Its edits and its applied patch return with it.
+Linked work belongs to its ticket or issue branch, not to the whole site. If the files look clean after you click **Unlink** or switch items, return to the original one under **Your tickets on this site** or **Your issues on this site**. Its edits and applied work return with it.
 
-A trunk update also leaves ticket branches on the trunk snapshot where they started. When you run one while a ticket is linked, the app parks the ticket, updates trunk, and checks the same ticket back out. If its work is missing after the update rather than merely hidden on another ticket, stop editing and report a problem with the app; an update must not discard it. See [Keeping a site up to date with trunk](./trunk-updates#updating-while-you-are-on-a-ticket).
+A trunk update also leaves work-item branches on the trunk snapshot where they started. When you run one while a ticket or issue is linked, the app parks that branch, updates trunk, and checks the same branch back out. If its work is missing after the update rather than merely hidden on another item, stop editing and report a problem with the app; an update must not discard it. See [Updating while you are on a work item](./trunk-updates#updating-while-you-are-on-a-work-item).
 
 ## The dev server won't start
 

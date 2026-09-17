@@ -9,7 +9,7 @@
 //     redacts logs; nothing redacts a screenshot, so the fixture path is the
 //     mitigation.
 //
-// The fake sites are empty directories (plus a canned debug.log): the renderer
+// The fake sites are empty directories (plus a canned debug.log or build marker): the renderer
 // tolerates a site whose git metadata cannot be read — it shows the site with
 // no snapshot date rather than crashing — so no real clone is needed.
 
@@ -33,8 +33,8 @@ const DEBUG_LOG_LINES = [
 /**
  * Creates the fixture site directories and a seeded userData dir.
  *
- * @param {string} variant 'seeded' for a populated site list, 'empty' for a
- *                         first-launch app with no sites.
+ * @param {string} variant 'seeded' or 'debug' for a populated Core site list,
+ *                         'gutenberg' for a ready Gutenberg site, or 'empty' for a first-launch app.
  * @return {{userDataDir: string, sites: Object<string,string>}} Paths the
  *         harness needs: where the app's state lives and where each fake site is.
  */
@@ -46,16 +46,39 @@ function buildFixture(variant) {
 		return { userDataDir, sites: {} };
 	}
 
+	if (variant === 'gutenberg') {
+		const gutenbergSite = path.join(FIXTURE_ROOT, 'my-gutenberg-fix');
+		const buildMarker = path.join(gutenbergSite, 'build', 'scripts', 'block-library', 'index.min.js');
+		fs.mkdirSync(path.dirname(buildMarker), { recursive: true });
+		fs.writeFileSync(buildMarker, '');
+		writeSettings(userDataDir, {
+			sites: [gutenbergSite],
+			siteMeta: {
+				[gutenbergSite]: {
+					initialized: true,
+					createdAt: '2026-09-16T10:00:00.000Z',
+					label: 'my-gutenberg-fix',
+					projectType: 'gutenberg',
+					skipInitWizard: true,
+					trunkDate: '2026-09-16T09:00:00.000Z'
+				}
+			},
+			preferences: {}
+		});
+		return { userDataDir, sites: { gutenbergSite } };
+	}
+
 	const wizardSite = path.join(FIXTURE_ROOT, 'wordpress-develop');
 	const readySite = path.join(FIXTURE_ROOT, 'my-first-patch');
 	const staleSite = path.join(FIXTURE_ROOT, 'older-site');
 	const incompleteSite = path.join(FIXTURE_ROOT, 'needs-rebuild');
 
 	for (const site of [wizardSite, readySite, staleSite, incompleteSite]) {
-		fs.mkdirSync(path.join(site, 'wp-content'), { recursive: true });
+		fs.mkdirSync(site, { recursive: true });
 	}
 	fs.mkdirSync(path.join(readySite, 'build', 'wp-includes', 'js', 'dist'), { recursive: true });
-	fs.writeFileSync(path.join(readySite, 'wp-content', 'debug.log'), DEBUG_LOG_LINES);
+	fs.mkdirSync(path.join(readySite, 'build', 'wp-content'), { recursive: true });
+	fs.writeFileSync(path.join(readySite, 'build', 'wp-content', 'debug.log'), DEBUG_LOG_LINES);
 
 	// Dates are fixed, not computed from "now": the amber staleness dot needs
 	// staleSite to be more than 14 days behind, and the other two to be fresh
@@ -66,15 +89,15 @@ function buildFixture(variant) {
 		siteMeta: {
 			[wizardSite]: {
 				initialized: true,
-				createdAt: '2026-08-09T10:00:00.000Z',
+				createdAt: '2026-09-16T10:00:00.000Z',
 				label: 'wordpress-develop',
-				trunkDate: '2026-08-09T09:00:00.000Z'
+				trunkDate: '2026-09-16T09:00:00.000Z'
 			},
 			[readySite]: {
 				initialized: true,
-				createdAt: '2026-08-01T10:00:00.000Z',
+				createdAt: '2026-09-16T10:00:00.000Z',
 				label: 'my-first-patch',
-				trunkDate: '2026-08-08T09:00:00.000Z',
+				trunkDate: '2026-09-16T09:00:00.000Z',
 				skipInitWizard: true,
 				tracTicket: '60000'
 			},
@@ -87,9 +110,9 @@ function buildFixture(variant) {
 			},
 			[incompleteSite]: {
 				initialized: true,
-				createdAt: '2026-08-09T10:00:00.000Z',
+				createdAt: '2026-09-16T10:00:00.000Z',
 				label: 'needs-rebuild',
-				trunkDate: '2026-08-09T09:00:00.000Z',
+				trunkDate: '2026-09-16T09:00:00.000Z',
 				skipInitWizard: true,
 				updateIncomplete: true
 			}

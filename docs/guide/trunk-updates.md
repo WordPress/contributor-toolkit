@@ -30,21 +30,21 @@ The update always shows the same three steps in a progress card, with a "step N 
 
 When the chain finishes, a green summary reads **Up to date with trunk as of today.**, along with whether dependencies changed, how long the rebuild took, and the path of any saved patch. Updating typically takes a few minutes.
 
-## Updating while you are on a ticket
+## Updating while you are on a work item
 
-An update moves trunk, and your ticket's work is not on trunk — so the app steps around it. The terminal says *Parking your work on ticket/59234 before updating…*, the three steps run against trunk, and then *Returning to your work on ticket/59234…* puts you back where you were, with the ticket still linked and its changes still in the tree.
+An update moves trunk, and your linked work is not on trunk — so the app steps around it. On a Core site the terminal says *Parking your work on ticket/59234 before updating…*; on Gutenberg the branch is `issue/59234`. The three steps run against trunk, then the app returns to the same branch with its ticket or issue still linked and its changes still in the tree.
 
-The dialog in step 1 only ever concerns edits that are loose in the working tree. Work already parked on a ticket branch is never what it is offering to save or discard.
+The dialog in step 1 only ever concerns edits that are loose in the working tree. Work already parked on a ticket or issue branch is never what it is offering to save or discard.
 
-What an update does not move is the snapshot your ticket branch was created on. That is deliberate — it is what keeps your patch free of the upstream changes the update just brought in — but it means an old ticket's patch does not get any newer by updating the site. The same is true for every other ticket stored on the site: updating trunk does not rebase any of them.
+What an update does not move is the snapshot your work-item branch was created on. That is deliberate — it is what keeps your patch free of the upstream changes the update just brought in — but it means an old branch does not get any newer by updating the site. The same is true for every other ticket or issue stored on the site: updating trunk does not rebase any of them.
 
-After the update, the **Trac ticket** card may say **Trunk has moved since this ticket started**. That is not an incomplete update: trunk is current and the ticket is still safely on its original base. To move the work forward, click **Update this ticket to the current trunk** in that notice, or save its patch, unlink it, delete its branch, link the ticket again, and apply the saved patch. The app never changes a ticket's base without one of those explicit actions. See [When trunk has moved since the ticket started](./ticket-branches#when-trunk-has-moved-since-the-ticket-started).
+After the update, the work-item card may say **Trunk has moved since this ticket started** or **…since this issue started**. That is not an incomplete update: trunk is current and the linked branch is still safely on its original base. To move the work forward, use the update action in that notice, or save a patch, unlink the item, delete its branch, link it again and apply the saved patch. The app never changes a work item's base without one of those explicit actions. See [When trunk has moved since the work item started](./ticket-branches#when-trunk-has-moved-since-the-work-item-started).
 
 ## Staleness dots and notices
 
 The app flags sites that have fallen behind with a coloured dot next to the site name in the sidebar:
 
-- **Amber** — the snapshot is more than 14 days old. The site view also shows a notice — "This site's WordPress code is N days old" — warning that patches you create now may not apply on Trac, with an **Update to latest trunk** button.
+- **Amber** — the snapshot is more than 14 days old. The site view also shows a notice recommending an update before you prepare changes against old code, with an **Update to latest trunk** button.
 - **Red** — a previous update moved the code but never finished installing or rebuilding, so the built assets no longer match the source. Run the update again.
 
 ![The stale-site notice with its Update to latest trunk button](/screenshots/stale-site-notice.png)

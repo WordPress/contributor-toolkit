@@ -1,30 +1,35 @@
 # Applying patches and PRs
 
-::: info WordPress Core sites
-Patch files come from Trac, so the `.diff` / `.patch` picker and the Trac attachments are on WordPress Core sites only. A Gutenberg site takes pull requests by checkout, from `WordPress/gutenberg`: the ones that fix its [linked issue](./gutenberg-issues) are listed on the issue card, and any other can be pasted by URL or number. The checkout works the same on both.
+::: info The available sources follow the project
+On a WordPress Core site, the panel accepts pull requests, local `.diff` / `.patch` files and attachments from Trac. A Gutenberg site takes pull requests from `WordPress/gutenberg`: the ones that fix its [linked issue](./gutenberg-issues) are listed on the issue card, and any other can be pasted by URL or number. Gutenberg has no patch-file picker or Trac attachments.
 :::
 
 The **Apply a patch or PR** panel lets you test someone else's work before adding your own. Pull requests and patch files take different paths: a PR becomes its own checkout with the author's commits, while a `.diff`/`.patch` file is applied on top of the branch you are already using. Your own changes are kept with their branch.
 
-![The Apply a patch or PR panel, with a field for a pull request URL and a link to choose a patch file](/screenshots/apply-patch-panel.png)
+![The Apply a patch or PR panel on a Core site, with a field for a pull request URL and a link to choose a patch file](/screenshots/apply-patch-panel.png)
+
+On a Gutenberg site, the corresponding card is focused on pull requests:
+
+![The Check out a pull request panel on a Gutenberg site](/screenshots/gutenberg-pull-request-panel.png)
 
 ## Choose what to apply
 
-There are three ways to bring work into the panel:
+Every site can bring in a pull request in either of these ways:
 
 - Paste a pull request URL or number into the field and click **Apply PR**.
-- Click **or choose a .diff / .patch file…** and pick a file from disk.
-- Click **Apply…** next to a pull request or **Apply…** next to an attachment in the [Trac ticket panel](trac-tickets).
+- Click **Apply…** next to a pull request linked from the site's [Trac ticket](trac-tickets) or [GitHub issue](gutenberg-issues).
+
+On a Core site there are two additional patch-file routes: click **or choose a .diff / .patch file…** to pick one from disk, or click **Apply…** next to an attachment in the Trac ticket panel.
 
 ## Preview a pull request
 
 When you choose a pull request, the preview lists the files changed by its commits and says whether changing checkout requires `npm install`. Nothing has changed yet.
 
-Click **Apply and rebuild** to continue. The app parks the work on your current ticket, creates or reuses `pr/NNNN`, and checks out the PR's commits exactly as its author wrote them. In a terminal, `git status` now reports `On branch pr/NNNN` and a clean working tree until you make edits of your own.
+Click **Apply and rebuild** to continue. The app parks the work on your current ticket or issue, creates or reuses `pr/NNNN`, and checks out the PR's commits exactly as its author wrote them. In a terminal, `git status` now reports `On branch pr/NNNN` and a clean working tree until you make edits of your own.
 
 This avoids trying to make an old PR's diff fit today's trunk. It also keeps authorship and commit history visible. A closed PR can still be checked out for investigation; its state does not change what Git has stored.
 
-## Preview a patch file
+## Preview a patch file on a Core site
 
 When you choose a `.diff`/`.patch` file or a Trac attachment, nothing is changed yet. The panel first shows what the patch would do:
 
@@ -49,7 +54,7 @@ The apply is all-or-nothing. If anything fails, nothing is written to your check
 
 ![A pull request that does not fit this checkout, with the affected file named and confirmation that the checkout was not changed](/screenshots/apply-patch-conflict.png)
 
-The headline is a count, not an adjective: *4 of this patch's 20 changes across 3 files no longer fit — the other 16 do.* When every change is already in your checkout — which is what a patch that has since been committed to core looks like — it says that instead, rather than reporting the patch as dead.
+The headline is a count, not an adjective: *4 of this patch's 20 changes across 3 files no longer fit — the other 16 do.* When every change is already in your checkout — which is what a patch that has since landed upstream looks like — it says that instead, rather than reporting the patch as dead.
 
 ### For a patch file or a Trac attachment
 
@@ -62,7 +67,7 @@ Every region carries an **anchor line taken from your own file** to search for. 
 
 ### The way out
 
-When the ticket has other patches on it — another pull request, another attachment — the panel offers them. It only does so when there is genuinely one to try: a way out that lands you back at the same dead end costs a click to discover.
+When the work item has other proposed changes on it — another pull request or, on Core, another attachment — the panel offers them. It only does so when there is genuinely one to try: a way out that lands you back at the same dead end costs a click to discover.
 
 ## Patch files belong to the current branch
 
@@ -98,5 +103,6 @@ Applying and reverting patches never discards your own edits. The only risk is o
 
 ## Next steps
 
-- [Link the ticket you are testing](trac-tickets)
+- [Link the Core ticket you are testing](trac-tickets)
+- [Link the Gutenberg issue you are testing](gutenberg-issues)
 - [Submit your own changes](submitting-changes)
