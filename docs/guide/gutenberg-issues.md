@@ -6,6 +6,8 @@ This is the Gutenberg counterpart of [Working on a Trac ticket](./trac-tickets).
 
 Every Gutenberg change starts on a GitHub issue. The **GitHub issue** card links your site to the one you are working on, and then lists the pull requests that already fix it, so you can try them before adding your own.
 
+![A Gutenberg site ready for work, with its project tag, GitHub issue card and pull-request checkout card](/screenshots/gutenberg-site-view.png)
+
 ## Link an issue
 
 1. Type the issue number or paste its URL (for example `71234` or `https://github.com/WordPress/gutenberg/issues/71234`) into the field. A comment anchor or a query on the pasted URL is fine.
