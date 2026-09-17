@@ -70,7 +70,13 @@ Nothing enforces steps 1–4. Skipping them means a human reviewer is the first 
 
 ## The documentation site
 
-The user guide under `docs/` is a VitePress site, deployed to GitHub Pages by `.github/workflows/docs.yml` on every push to trunk that touches it.
+The user guide under `docs/` is a VitePress site, built by [`docs.yml`](.github/workflows/docs.yml) whenever it changes, on the pull request and again on the push to trunk, and deployed to GitHub Pages only when someone runs that workflow by hand. The live site therefore tracks the latest **release**, not trunk: your docs land with your change, and reach users when the version that contains the feature ships. Advancing it is one command, run from trunk as part of cutting a release:
+
+```bash
+gh workflow run docs.yml --ref trunk -f ref=v1.2.0
+```
+
+The `ref` input is what gets published, so it is the release tag, not a branch. The dispatch itself has to be on trunk: a run started on any other ref builds but will not deploy.
 
 It is a **separate npm package** with its own lockfile, so a root `npm ci` does not install it and the commands below fail with `vitepress: not found` until you run this once:
 
