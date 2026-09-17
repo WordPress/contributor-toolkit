@@ -48,7 +48,7 @@ The right side lists three destinations. The pull request is the one the app sen
 
 ![The Where this patch goes pane showing Open a pull request, Attach to Trac, and Hand it to a mentor](/screenshots/submit-destinations.png)
 
-- **Open a pull request** — needs a GitHub account. The app forks `wordpress-develop` to your account, pushes your change to a branch, and opens the pull request. Automated checks run on it. [Opening a pull request](submit-github-pr)
+- **Open a pull request** — needs a GitHub account. The app forks the site's repository (`wordpress-develop` or `gutenberg`) to your account, pushes your change to a branch, and opens the pull request. Automated checks run on it. [Opening a pull request](submit-github-pr)
 - **Attach to Trac** — needs a WordPress.org account, which you need anyway for props and to comment. The app saves the patch file and opens the ticket's attach page; you upload it yourself. No automated checks run. [Attaching a patch to Trac](submit-trac)
 - **Hand it to a mentor** — needs no accounts at all. The app saves a patch file carrying your WordPress.org username and the event you are at; someone else pushes it, and the props still land on you. [Handing a patch to a mentor](submit-mentor)
 

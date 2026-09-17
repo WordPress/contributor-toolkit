@@ -30,7 +30,7 @@ const { lockfileChangedFromBlobOids, normalizeEol } = require('./git-update.cjs'
 const { readTrunkInfo, collectDirtyFiles, discardChanges, discardToBase, updateToLatestTrunk } = require('./trunk-update');
 const { applyPatchToDir } = require('./patch-apply');
 const { parsePatchFiles, planApply } = require('./patch-plan.cjs');
-const { fetchLinkedPrs, fetchPrDiff } = require('./github-prs');
+const { fetchLinkedPrs } = require('./github-prs');
 const { getClientId: getGithubClientId, requestDeviceCode, pollForToken, fetchViewer } = require('./github-auth.cjs');
 const { openPullRequest, buildPullRequestBody, testMode: githubTestMode } = require('./github-pr.cjs');
 const { buildPullRequestEntries } = require('./pr-files.cjs');
@@ -1116,17 +1116,14 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
     // the one this site is linked to.
     const s = await getStore();
     const meta = (s.get('siteMeta') || {})[sitePath] || {};
-    // The flow below forks and targets wordpress-develop, and cites a Trac
-    // ticket. Until it reads the site's type (#251), a site of another type
-    // is refused here rather than handed a pull request against the wrong
-    // repository; the patch file the card offers underneath still works.
+    // What the work item is called, and which repository the fork, the branch
+    // and the pull request go to, both follow the site's project type (#251):
+    // wordpress-develop and a Trac ticket for Core, WordPress/gutenberg and a
+    // GitHub issue for Gutenberg. A record with no type is Core.
     const project = projectTypeForSite(meta);
-    if (project.id !== 'core') {
-        return { ok: false, reason: 'unsupported-project', error: `Opening a pull request from a ${project.label} site is not supported yet.`, stage: 'auth' };
-    }
     const ticketId = meta.tracTicket;
     if (!ticketId) {
-        return { ok: false, reason: 'no-ticket', error: 'Link a Trac ticket to this site first.', stage: 'auth' };
+        return { ok: false, reason: 'no-ticket', error: `Link a ${project.workItem.label} to this site first. A pull request has to cite one.`, stage: 'auth' };
     }
     const ownershipRefusal = await appliedPatchSubmissionRefusal(sitePath);
     if (ownershipRefusal) return { ...ownershipRefusal, stage: 'ownership' };
@@ -1139,9 +1136,10 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
         return { ok: false, reason: 'error', error: String(e), stage: 'collect' };
     }
 
+    const workItem = workItemFor(meta);
     const title = typeof options.title === 'string' && options.title.trim()
         ? options.title.trim()
-        : `Ticket #${ticketId}`;
+        : workItem.defaultPrTitle(ticketId);
 
     const result = await openPullRequest({
         token: githubToken,
@@ -1150,7 +1148,14 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
         baseSha: collected.baseOid,
         files: collected.files,
         title,
-        body: buildPullRequestBody({ ticketId, handle, event: contributionEvent, notes: options.notes }),
+        project,
+        body: buildPullRequestBody({
+            ticketId,
+            handle,
+            event: contributionEvent,
+            notes: options.notes,
+            project: { bodyLine: project.pr.bodyLine, workItemUrl: workItem.urlFor(ticketId) }
+        }),
         onProgress: (stage) => {
             if (!event.sender.isDestroyed()) event.sender.send('github:pr:progress', { sitePath, stage });
         }
@@ -2258,17 +2263,6 @@ ipcMain.handle('git:list-ticket-patches', async (_e, sitePath) => {
         };
     } catch (e) {
         return { ok: false, error: String(e) };
-    }
-});
-
-// Core-only, and unreached: nothing in the renderer has invoked this since
-// pull requests became checkouts (#458); it stays for the API surface the
-// packaged smoke test pins. Removing both is a follow-up.
-ipcMain.handle('git:fetch-pr-diff', async (_e, number) => {
-    try {
-        return await fetchPrDiff(number);
-    } catch (e) {
-        return { ok: false, status: 'error', error: String(e) };
     }
 });
 

@@ -33,7 +33,7 @@ const { parseIssueRef, issueUrl } = require('./renderer/github-issue.cjs');
  *
  * @param {string} provider   'trac' (default) or 'github-issue'.
  * @param {string} [repoPath] `owner/repo`, for the GitHub provider.
- * @return {{kind: string, noun: string, refPlaceholder: string, refLabel: string, openLabel: string, parseRef: Function, urlFor: Function, attachUrlFor: (Function|null)}}
+ * @return {{kind: string, noun: string, refPlaceholder: string, refLabel: string, openLabel: string, defaultPrTitle: Function, parseRef: Function, urlFor: Function, attachUrlFor: (Function|null)}}
  */
 function workItemProvider(provider, repoPath) {
 	if (provider === 'github-issue') {
@@ -45,6 +45,12 @@ function workItemProvider(provider, repoPath) {
 			refLabel: 'GitHub issue number or URL',
 			// The card's link to the work item itself, worded for where it is.
 			openLabel: 'Open on GitHub',
+			// The pull request's title when the contributor leaves the field
+			// empty. It lives on the provider because the handler that sends it
+			// and the hint that promises it need the same string: written apart,
+			// the hint said "Ticket #" on a Gutenberg site while the handler sent
+			// "Issue #".
+			defaultPrTitle: (id) => `Issue #${id}`,
 			parseRef: (input) => parseIssueRef(input, { repoPath }),
 			urlFor: (id) => issueUrl(id, repoPath),
 			// GitHub issues carry no patch attachments — work arrives as a pull
@@ -60,6 +66,7 @@ function workItemProvider(provider, repoPath) {
 		refPlaceholder: 'Ticket number or URL, e.g. 62281',
 		refLabel: 'Trac ticket number or URL',
 		openLabel: 'Open in Trac',
+		defaultPrTitle: (id) => `Ticket #${id}`,
 		parseRef: parseTicketRef,
 		urlFor: ticketUrl,
 		attachUrlFor: attachUrl

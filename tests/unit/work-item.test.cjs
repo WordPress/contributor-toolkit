@@ -39,6 +39,7 @@ test('the GitHub provider parses issues against the site’s own repository', ()
 	assert.strictEqual(wi.urlFor(71234), 'https://github.com/WordPress/gutenberg/issues/71234');
 	assert.strictEqual(wi.refLabel, 'GitHub issue number or URL');
 	assert.strictEqual(wi.openLabel, 'Open on GitHub');
+	assert.strictEqual(wi.defaultPrTitle(71234), 'Issue #71234');
 	// A Trac URL is not a GitHub issue, and must not quietly parse as one.
 	assert.strictEqual(wi.parseRef('https://core.trac.wordpress.org/ticket/62281').ok, false);
 });
@@ -46,6 +47,13 @@ test('the GitHub provider parses issues against the site’s own repository', ()
 // Null rather than a no-op: a caller has to decide what to show instead of
 // rendering an "attach a patch" affordance that leads nowhere. GitHub issues
 // carry no patch attachments — that work arrives as a pull request.
+// The fallback title the handler sends and the hint the card shows are one
+// string per provider, so neither can drift from the other.
+test('each provider titles an untitled pull request after its own noun', () => {
+	assert.strictEqual(workItemProvider('trac').defaultPrTitle(62281), 'Ticket #62281');
+	assert.strictEqual(workItemProvider('github-issue', 'WordPress/gutenberg').defaultPrTitle(71234), 'Issue #71234');
+});
+
 test('the GitHub provider has no attachment destination', () => {
 	assert.strictEqual(workItemProvider('github-issue', 'WordPress/gutenberg').attachUrlFor, null);
 });

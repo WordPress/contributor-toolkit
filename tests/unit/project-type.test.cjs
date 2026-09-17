@@ -91,18 +91,21 @@ test('every project type carries the full shape consumers depend on', () => {
 			assert.equal(typeof cfg.setup[key], 'string', `${id}: setup.${key}`);
 		}
 		assert.equal(typeof cfg.cards.applyHeading, 'string', `${id}: cards.applyHeading`);
-		for (const key of ['prBlockedNote', 'prCost', 'prAfter']) {
+		// Every target opens pull requests (#251), so every target carries the
+		// whole destination's copy.
+		for (const key of ['prBlockedNote', 'prCost', 'prAfter', 'signInCannot', 'prNotesHelp', 'prLoopBack']) {
 			assert.equal(typeof cfg.cards[key], 'string', `${id}: cards.${key}`);
 		}
-		// Only the Trac target reaches the sign-in pitch; the other refuses the
-		// pull request before it and carries no sentence for it.
-		assert.equal(typeof cfg.cards.signInCannot === 'string', cfg.workItem.provider === 'trac', `${id}: cards.signInCannot`);
+		assert.equal(typeof cfg.cards.prHow.summary, 'string', `${id}: cards.prHow.summary`);
+		assert.ok(Array.isArray(cfg.cards.prHow.lines) && cfg.cards.prHow.lines.length > 0, `${id}: cards.prHow.lines`);
+		assert.equal(typeof cfg.cards.prHow.linkLabel, 'string', `${id}: cards.prHow.linkLabel`);
+		assert.match(cfg.cards.prHow.linkUrl, /^https:\/\//, `${id}: cards.prHow.linkUrl`);
 		// What the renderer cannot be tested for (index.jsx): a target whose
 		// work item is not a Trac ticket says nothing about Trac in its cards.
 		if (cfg.workItem.provider !== 'trac') {
-			for (const [key, value] of Object.entries(cfg.cards)) {
-				if (typeof value === 'string') assert.doesNotMatch(value, /trac|ticket/i, `${id}: cards.${key} speaks of Trac`);
-			}
+			const strings = Object.values(cfg.cards).filter((v) => typeof v === 'string')
+				.concat(cfg.cards.prHow.summary, cfg.cards.prHow.lines, cfg.cards.prHow.linkLabel);
+			for (const value of strings) assert.doesNotMatch(value, /trac|ticket/i, `${id}: "${value}" speaks of Trac`);
 		}
 		assert.equal(typeof cfg.cards.applyDescription, 'string', `${id}: cards.applyDescription`);
 		assert.equal(typeof cfg.cards.patchFiles, 'boolean', `${id}: cards.patchFiles`);

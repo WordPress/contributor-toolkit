@@ -90,10 +90,20 @@ test('removing an id that matches nothing returns the same state object', () => 
 	assert.strictEqual(after, state, 'no needless re-render for a no-op removal');
 });
 
-test('an opened pull request is confirmed by its number (issue #253)', () => {
+test('an opened pull request is confirmed by its number, and by the repository its URL names (issue #253, #251)', () => {
 	assert.strictEqual(
 		prConfirmationMessage({ ok: true, number: 42 }),
 		'Opened pull request #42'
+	);
+	assert.strictEqual(
+		prConfirmationMessage({ ok: true, number: 42, url: 'https://github.com/WordPress/gutenberg/pull/42' }),
+		'Opened pull request #42 on WordPress/gutenberg'
+	);
+	// Where it actually went, not where the site's type says it goes: a
+	// sandbox run lands elsewhere and the toast has to say so.
+	assert.strictEqual(
+		prConfirmationMessage({ ok: true, number: 1, url: 'https://github.com/sandbox-org/pr-sandbox/pull/1' }),
+		'Opened pull request #1 on sandbox-org/pr-sandbox'
 	);
 });
 

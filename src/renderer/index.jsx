@@ -56,6 +56,7 @@ import { carryTestMode } from './github-account.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage } from './confirmations.cjs';
+import { prStageLabel } from './pr-stage.cjs';
 
 // One face for everything that is process output: the terminal below and every
 // log pane above it. Shared rather than repeated because the panes had drifted
@@ -109,23 +110,14 @@ function ReasonedButton({ reason, disabled, children, ...props }) {
 function DiscardChangesLink({ label, onClick, reason, style }) {
   return <ReasonedButton variant="link" isDestructive onClick={onClick} reason={reason} style={style}>{label}</ReasonedButton>;
 }
-// What the app is doing while a pull request is being opened (#167). Each step
-// is named because they take visibly different amounts of time — forking is the
-// slow one, and an unlabelled spinner there reads as a hang.
-const PR_STAGE_LABELS = {
-  forking: 'Creating your fork of wordpress-develop…',
-  syncing: 'Bringing your fork up to date…',
-  committing: 'Uploading your changes…',
-  opening: 'Opening the pull request…'
-};
 // Why it failed, in a sentence that says what to do about it. Every one of
 // these still leaves the patch file, which is what the card offers underneath.
+// The no-ticket refusal is not here: the main process words it for the site's
+// work item (#251), and the fallback below shows that sentence as sent.
 const PR_FAILURE_MESSAGES = {
   unauthorized: 'That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.',
   'rate-limited': 'GitHub is rate-limiting this connection. It usually clears within the hour.',
   offline: 'No connection to GitHub.',
-  'no-ticket': 'Link a Trac ticket to this site first — a pull request has to cite one.',
-  'unsupported-project': 'Opening a pull request from this site is not supported yet — save the patch file instead.',
   empty: 'There are no changes to open a pull request with.'
 };
 // Per-status wording for the update chain card (#94), following the issue's
@@ -1419,6 +1411,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // flow until PR 5) shows only where the work item is a Trac ticket.
   const project = getProjectType(projectType);
   const projectBuild = project.build;
+  // Trac's alone: the attachments, "Attach to Trac", "Read details from Trac".
+  // The pull-request destination is on every site since #251.
   const showTracCards = project.workItem.provider === 'trac';
   // Memoised on the registry entry, which is a stable object, so the
   // callbacks that parse a reference do not change identity every render.
@@ -4068,12 +4062,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // deep and unreadable at the point where the wording matters most, so the
   // states get early returns and the card body gets one call.
   const renderPullRequestBody = () => {
-    // A target with no pull-request flow yet says so before anything about
-    // signing in: an authorization invited on the promise of an action the
-    // app then refuses is the cliff #167 is about.
-    if (!showTracCards) {
-      return <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>{project.cards.prBlockedNote}</div>;
-    }
     if (pullRequest) {
       return <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>{prOwnershipRefusal}</div>;
     }
@@ -4115,13 +4103,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             </div>
           ) : null}
           {/*
-            The Trac loop-back is for a pull request that exists — a dry run
-            has no link worth posting on a ticket.
+            The loop-back to the work item is for a pull request that exists —
+            a dry run has no link worth posting. What the line says is the
+            project's: on Trac the link is what gets the pull request seen, on
+            GitHub the Fixes line has already done that (#251).
           */}
           {!prResult.dryRun && (
             <>
               <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-                Triage and props live on the ticket, so the link belongs there too.
+                {project.cards.prLoopBack}
               </div>
               <Button variant="secondary" onClick={copyPrLink} icon={prLinkCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
                 {prLinkCopied ? 'Link copied' : 'Copy the link'}
@@ -4195,7 +4185,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               />
               {!prTitle.trim() ? (
                 <div style={{ fontSize:12, color:'#6c6f72', marginTop:-4 }}>
-                  Left empty, it will be titled <strong>Ticket #{tracTicket}</strong>.
+                  Left empty, it will be titled <strong>{workItem.defaultPrTitle(tracTicket)}</strong>.
                 </div>
               ) : null}
               {/*
@@ -4211,26 +4201,23 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                 rows={4}
                 label="Notes for reviewers (optional)"
                 placeholder={'What the change does, and why.\nHow to see it working — the steps you used.\nAnything you are unsure about.'}
-                help="Goes at the top of the description. The ticket link and your WordPress.org username are added underneath."
+                help={project.cards.prNotesHelp}
               />
               {/*
-                Two facts from the core handbook that a first-timer has no way
-                to know and that change what they do next: nobody is watching
-                GitHub, and nothing is merged there. Both make the Trac step
-                this flow ends on the point rather than the postscript, so they
-                are stated before the button, not after the pull request
-                exists.
+                What a first-timer has no way to know about pull requests on
+                this project, stated before the button rather than after the
+                pull request exists. The facts are the registry's (#251): Core's
+                two are false on Gutenberg, where the pull request is the venue.
               */}
               <details style={{ fontSize:12, color:'#6c6f72' }}>
-                <summary style={{ cursor:'pointer', color:'#3858e9' }}>How pull requests work in core</summary>
+                <summary style={{ cursor:'pointer', color:'#3858e9' }}>{project.cards.prHow.summary}</summary>
                 <div style={{ padding:'8px 0 0', lineHeight:1.6, display:'flex', flexDirection:'column', gap:6 }}>
-                  <div>Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.</div>
-                  <div>Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.</div>
+                  {project.cards.prHow.lines.map((line) => <div key={line}>{line}</div>)}
                   <Button
                     variant="link"
-                    onClick={()=>window.api.openExternal('https://make.wordpress.org/core/handbook/contribute/git/github-pull-requests-for-code-review/')}
+                    onClick={()=>window.api.openExternal(project.cards.prHow.linkUrl)}
                     style={{ fontSize:12 }}
-                  >The handbook page on pull requests</Button>
+                  >{project.cards.prHow.linkLabel}</Button>
                 </div>
               </details>
               {/*
@@ -4251,8 +4238,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               {project.cards.prBlockedNote}
             </div>
           )}
+          {/*
+            The repository the stage label names is the effective target: the
+            sandbox when the override is set, else the site's own. The same
+            answer the test-mode badge above gives, so the two never disagree.
+          */}
           {prStage ? (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>{PR_STAGE_LABELS[prStage] || 'Working…'}</div>
+            <div style={{ fontSize:12, color:'#6c6f72' }}>{prStageLabel(prStage, githubAccount?.testMode?.target || `${project.upstream.owner}/${project.upstream.repo}`)}</div>
           ) : (
             <div style={{ fontSize:12, color:'#6c6f72' }}>
               {/*
@@ -5884,7 +5876,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                           <span>
                             {githubAccount.testMode.dryRun
                               ? 'Dry run — a branch is pushed to your fork, no pull request is opened.'
-                              : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to wordpress-develop.</>}
+                              : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to {project.upstream.owner}/{project.upstream.repo}.</>}
                           </span>
                         </div>
                       ) : null}

@@ -2892,15 +2892,6 @@ test('git:apply-patch reports applied-but-untracked when the undo also fails', a
 
 // --- linked-PR discovery (#109 / #11) ------------------------------------
 
-test('git:fetch-pr-diff asks github-prs for the diff', async () => {
-	const fetchPrDiff = spy(async () => ({ ok: true, text: 'DIFF' }));
-	const main = loadMain({ stubs: { ...silentLogging(), './github-prs': { fetchPrDiff, fetchLinkedPrs: async () => ({}) } } });
-
-	const result = await main.invoke('git:fetch-pr-diff', 7319);
-
-	assert.deepEqual(fetchPrDiff.calls, [[7319]]);
-	assert.deepEqual(result, { ok: true, text: 'DIFF' });
-});
 
 // The Trac window opens for a Trac ticket only (#251). A Gutenberg site stores
 // its issue in the same field, and its number is also a Core ticket's number:
@@ -5685,10 +5676,56 @@ test('github:open-pr asks github-pr to open one, for the ticket this site is lin
 	// The notes are the caller's to supply — unlike the ticket, the handle and
 	// the event, which are read from stored state so the renderer cannot claim
 	// a different contributor or a different ticket than this site's.
-	assert.deepEqual(buildPullRequestBody.calls, [[{ ticketId: 62281, handle: 'janedoe', event: 'WordCamp Europe 2026', notes: 'What it does, and how to see it.' }]]);
+	assert.equal(buildPullRequestBody.calls.length, 1);
+	const [bodyArgs] = buildPullRequestBody.calls[0];
+	assert.deepEqual({ ...bodyArgs, project: undefined }, { ticketId: 62281, handle: 'janedoe', event: 'WordCamp Europe 2026', notes: 'What it does, and how to see it.', project: undefined });
+	// The body line and the work item's URL come from the site's type (#251):
+	// Core's is the Trac convention, unchanged.
+	assert.equal(bodyArgs.project.bodyLine(62281, 'https://core.trac.wordpress.org/ticket/62281'), 'Trac ticket: https://core.trac.wordpress.org/ticket/62281');
+	assert.equal(bodyArgs.project.workItemUrl, 'https://core.trac.wordpress.org/ticket/62281');
+	// So does the repository the flow targets and the branch it pushes.
+	assert.equal(args.project.id, 'core');
+	assert.deepEqual(args.project.upstream, { owner: 'WordPress', repo: 'wordpress-develop', base: 'trunk' });
+	assert.equal(args.project.pr.branchPrefix, 'trac-');
 	// The changed file the fixture leaves in the working tree, in the shape the
 	// tree API takes rather than as a diff.
 	assert.deepEqual(args.files.map((f) => [f.path, f.kind]), [['text.txt', 'modify']]);
+});
+
+// A Gutenberg site (#251) reaches the same flow with its own repository, branch
+// prefix, body line and fallback title. The refusal that stood here until the
+// flow read the site's type is gone with it.
+test('github:open-pr opens a Gutenberg site\'s pull request against WordPress/gutenberg, citing the issue (#251)', async (t) => {
+	const dir = await fixtureRepo(t);
+	const auth = fakeGithubAuth({ login: 'janedoe' });
+	const openPullRequest = spy(async () => ({ ok: true, url: 'https://github.com/WordPress/gutenberg/pull/9', number: 9, branch: 'fix/issue-71234', exactBase: true }));
+	const buildPullRequestBody = spy(() => 'BODY');
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { projectType: 'gutenberg', tracTicket: 71234 } } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./github-auth.cjs': auth,
+			'./github-pr.cjs': { openPullRequest, buildPullRequestBody }
+		}
+	});
+	await main.invokeWith('github:sign-in', createIpcEvent());
+	await settle();
+	await settle();
+
+	const result = await main.invoke('github:open-pr', dir, {});
+
+	assert.equal(result.ok, true);
+	const [args] = openPullRequest.calls[0];
+	assert.equal(args.ticketId, 71234);
+	// An empty title falls back to the work item's own noun, the same string
+	// the card's hint promises.
+	assert.equal(args.title, 'Issue #71234');
+	assert.deepEqual(args.project.upstream, { owner: 'WordPress', repo: 'gutenberg', base: 'trunk' });
+	assert.equal(args.project.pr.branchPrefix, 'fix/issue-');
+	const [bodyArgs] = buildPullRequestBody.calls[0];
+	assert.equal(bodyArgs.project.bodyLine(71234, bodyArgs.project.workItemUrl), 'Fixes #71234');
+	assert.equal(bodyArgs.project.workItemUrl, 'https://github.com/WordPress/gutenberg/issues/71234');
 });
 
 test('github:open-pr refuses before it reaches GitHub when nothing is signed in, or no ticket is linked', async (t) => {
@@ -5711,18 +5748,18 @@ test('github:open-pr refuses before it reaches GitHub when nothing is signed in,
 	await settle();
 	await settle();
 
-	assert.equal((await main.invoke('github:open-pr', dir, {})).reason, 'no-ticket');
+	const refused = await main.invoke('github:open-pr', dir, {});
+	assert.equal(refused.reason, 'no-ticket');
+	assert.match(refused.error, /Trac ticket/);
 	assert.deepEqual(openPullRequest.calls, []);
 });
 
-// Until the pull-request flow reads the site's type (#251), it forks and
-// targets wordpress-develop for every site; a site of another type is
-// refused before anything reaches GitHub.
-test('github:open-pr refuses a site that is not a WordPress Core one before it reaches GitHub', async (t) => {
+// The refusal names the work item the site actually takes (#251).
+test('github:open-pr names a GitHub issue when a Gutenberg site has none linked', async (t) => {
 	const dir = await fixtureRepo(t);
 	const openPullRequest = spy(async () => ({ ok: true }));
 	const auth = fakeGithubAuth();
-	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { projectType: 'gutenberg', tracTicket: 62281 } } });
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { projectType: 'gutenberg' } } });
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
@@ -5736,8 +5773,8 @@ test('github:open-pr refuses a site that is not a WordPress Core one before it r
 	await settle();
 
 	const result = await main.invoke('github:open-pr', dir, {});
-	assert.equal(result.reason, 'unsupported-project');
-	assert.match(result.error, /Gutenberg site/);
+	assert.equal(result.reason, 'no-ticket');
+	assert.match(result.error, /GitHub issue/);
 	assert.deepEqual(openPullRequest.calls, []);
 });
 
@@ -5978,7 +6015,6 @@ const WIRED = new Set([
 	'branches:delete',
 	'git:preview-patch',
 	'git:apply-patch',
-	'git:fetch-pr-diff',
 	'git:list-ticket-patches',
 	'trac:fetch-attachment',
 	'trac:list-attachments',
