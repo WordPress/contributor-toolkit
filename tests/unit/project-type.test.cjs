@@ -126,6 +126,13 @@ test('every project type carries the full shape consumers depend on', () => {
 // Where a site reads its own build from. Core's marker is the one site:status
 // always checked; Gutenberg's follows its current build layout (see the
 // registry comment for when it moved).
+// A watcher that rebuilds build/ on start says when it is done; one that does
+// not has no pattern, and a server behind it starts at once (#488).
+test('only a watcher that rebuilds on start carries a ready pattern', () => {
+	assert.equal(getProjectType('core').build.watch.readyPattern, undefined);
+	assert.equal(getProjectType('gutenberg').build.watch.readyPattern, 'Watching for changes');
+});
+
 test('the built marker names a file the build actually writes', () => {
 	assert.deepEqual(getProjectType('core').build.builtCheckRelPath, ['build', 'wp-includes', 'js', 'dist']);
 	assert.deepEqual(getProjectType('gutenberg').build.builtCheckRelPath, ['build', 'scripts', 'block-library', 'index.min.js']);

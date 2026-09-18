@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { planDevServerStart, formatElapsed, watchTabLabel } = require('../../src/renderer/dev-server-command.cjs');
+const { planDevServerStart, createWatchReadyDetector, formatElapsed, watchTabLabel } = require('../../src/renderer/dev-server-command.cjs');
 const { getProjectType } = require('../../src/project-type.cjs');
 
 test('a built site skips the build and goes straight to the watcher (issue #72)', () => {
@@ -44,6 +44,60 @@ test("a Gutenberg site's watcher is npm run dev, with no passthrough separator",
 	assert.deepStrictEqual(plan.watch.args, []);
 	assert.strictEqual(plan.watch.label, 'npm run dev');
 	assert.strictEqual(plan.needsBuild, false);
+});
+
+// Gutenberg's `npm run dev` removes build/ and rebuilds it before it watches,
+// writing the PHP registries lib/ calls into last (#488). The plan carries the
+// line that says that build is done, so the server start can wait for it.
+test("a Gutenberg site's watcher is not ready until it prints that it is watching", () => {
+	const plan = planDevServerStart({ hasBuilt: true }, getProjectType('gutenberg').build);
+
+	assert.strictEqual(plan.watch.readyPattern, 'Watching for changes');
+});
+
+// Core's grunt _watch touches nothing on start; a server behind it is safe at
+// once, and a pattern there would make it wait for a line grunt never prints.
+test("Core's watcher has no ready pattern, so the server starts with it", () => {
+	const plan = planDevServerStart({ hasBuilt: true }, getProjectType('core').build);
+
+	assert.strictEqual(plan.watch.readyPattern, null);
+	assert.strictEqual(createWatchReadyDetector(plan.watch.readyPattern).immediate, true);
+});
+
+test('with no pattern the detector is ready before any output', () => {
+	const detector = createWatchReadyDetector(null);
+
+	assert.strictEqual(detector.immediate, true);
+	assert.strictEqual(detector.ready, true);
+	assert.strictEqual(detector.feed('anything'), false, 'an immediate detector never fires from output');
+});
+
+test('with a pattern the detector waits for it and fires once', () => {
+	const detector = createWatchReadyDetector('Watching for changes');
+
+	assert.strictEqual(detector.immediate, false);
+	assert.strictEqual(detector.ready, false);
+	assert.strictEqual(detector.feed('🔨 Starting development build...\n'), false);
+	assert.strictEqual(detector.feed('✅ Initial build completed! (19s)\n'), false, 'the orchestrator\'s own line comes before wp-build is watching');
+	assert.strictEqual(detector.feed('\n👀 Watching for changes...\n'), true);
+	assert.strictEqual(detector.ready, true);
+	assert.strictEqual(detector.feed('👀 Watching for changes...\n'), false, 'wp-build prints the line after every rebuild; the server must start once');
+});
+
+// The pipe delivers whatever it has; the line can arrive in two pieces.
+test('the detector sees a pattern split across two chunks', () => {
+	const detector = createWatchReadyDetector('Watching for changes');
+
+	assert.strictEqual(detector.feed('👀 Watching for'), false);
+	assert.strictEqual(detector.feed(' changes...\n'), true);
+});
+
+test('the detector does not grow with output it has ruled out', () => {
+	const detector = createWatchReadyDetector('Watching for changes');
+	for (let i = 0; i < 10000; i++) detector.feed('a line of build output that is not the one\n');
+
+	assert.strictEqual(detector.ready, false);
+	assert.strictEqual(detector.feed('Watching for changes'), true);
 });
 
 test('a caller that passes no build config gets Core, the same plan every site got before', () => {

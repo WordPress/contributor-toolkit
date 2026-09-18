@@ -37,9 +37,51 @@ function planDevServerStart(flags = {}, build = getProjectType().build) {
 		watch: {
 			script: build.watch.script,
 			args: build.watch.args.slice(),
-			label: build.watch.label
+			label: build.watch.label,
+			// The line the watcher prints once it is safe to serve, or null when
+			// it is safe from the start. See createWatchReadyDetector.
+			readyPattern: typeof build.watch.readyPattern === 'string' && build.watch.readyPattern ? build.watch.readyPattern : null
 		}
 	};
+}
+
+/**
+ * Tells, from the watcher's output, when the server may start.
+ *
+ * A watcher that rebuilds `build/` from scratch before it watches (Gutenberg's
+ * `npm run dev`, #488) is not ready when its process is: it is ready when it
+ * prints the registry's `readyPattern`. One with no pattern (Core's `grunt --
+ * _watch`) is ready as soon as it starts, and `immediate` says so.
+ *
+ * `feed` takes the output as it streams, in whatever chunks the pipe delivers,
+ * and returns true once the pattern has been seen. The pattern may straddle two
+ * chunks, so the detector keeps the tail of the last one; and it fires once
+ * only, because wp-build prints the same line after every rebuild and the
+ * server must not be started twice.
+ *
+ * @param {string|null} [readyPattern]
+ * @return {{immediate: boolean, ready: boolean, feed: (chunk: string) => boolean}}
+ */
+function createWatchReadyDetector(readyPattern) {
+	const pattern = typeof readyPattern === 'string' && readyPattern ? readyPattern : null;
+	const detector = {
+		immediate: pattern === null,
+		ready: pattern === null,
+		feed(chunk) {
+			if (detector.ready) return false;
+			tail += String(chunk === null || chunk === undefined ? '' : chunk);
+			if (tail.includes(pattern)) {
+				detector.ready = true;
+				tail = '';
+				return true;
+			}
+			// Keep only what a pattern split across chunks could still need.
+			if (tail.length > pattern.length) tail = tail.slice(tail.length - (pattern.length - 1));
+			return false;
+		}
+	};
+	let tail = '';
+	return detector;
 }
 
 /**
@@ -84,4 +126,4 @@ function watchTabLabel(state, exitCode) {
 	}
 }
 
-module.exports = { planDevServerStart, formatElapsed, watchTabLabel };
+module.exports = { planDevServerStart, createWatchReadyDetector, formatElapsed, watchTabLabel };

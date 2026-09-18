@@ -158,7 +158,17 @@ const PROJECT_TYPES = {
 			// `npm run dev` is Gutenberg's own incremental watcher: a full build
 			// first (about 20 s on trunk, 2026-09-15), then it watches. No `--`
 			// passthrough, that is Core's Grunt arrangement.
-			watch: { script: 'dev', args: [], label: 'npm run dev' },
+			//
+			// That first build starts by removing build/ (tools/build-scripts/dev.mjs
+			// runs clean.mjs --packages) and writes the PHP registries lib/ calls
+			// into (build/build.php, build/styles.php) last. A server started
+			// before it finishes serves a plugin with no build/ or half of one:
+			// the "requires files to be built" notice, or a fatal on
+			// gutenberg_override_style() (#488). `readyPattern` is the line
+			// wp-build --watch prints once that build is done, and the server
+			// start waits for it. Core has no pattern: grunt _watch touches
+			// nothing on start, so the server may start at once.
+			watch: { script: 'dev', args: [], label: 'npm run dev', readyPattern: 'Watching for changes' },
 			// Gutenberg's bare `test` runs PHP and e2e suites that need Docker;
 			// the unit suite and the linters are what a checkout without it can run.
 			allowedScripts: ['build', 'dev', 'test:unit', 'lint', 'lint:js']
