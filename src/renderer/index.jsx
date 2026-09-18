@@ -28,7 +28,7 @@ import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from './watch-waiters.cjs';
-import { createWatchActivity, compilingMessage } from './watch-activity.cjs';
+import { createWatchActivity, compilingMessage, watchBusyMessage } from './watch-activity.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
@@ -3343,6 +3343,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // Resume the watch if this apply paused it. Safe on every exit path
     // (success, failure, cancel) and a no-op if nothing was paused (#262).
     resumeWatcher();
+    // A resumed watch that rebuilds from scratch (Gutenberg's npm run dev)
+    // leaves the site unusable until it is watching again, and the banner
+    // above is already up (#492). The banner says so; so does the terminal.
+    if (watchStateRef.current === 'building') writeToTerminal(`${watchBusyMessage('building', false)}\n`);
     loadStatus().catch(() => {});
     refreshDirty();
   };
@@ -3370,7 +3374,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       // no install and no build of our own to run — just hand off to it (#262).
       confirm(`${verb} the ${noun}`);
       handOffToWatch();
-      finishApply(`\n${verb} — the build watch is compiling it now. Wait for the Build watcher tab to go quiet before trying the site.\n`);
+      finishApply(`\n${verb} — ${compilingMessage()}\n`);
       return;
     }
     if (needsInstall) {
@@ -5078,8 +5082,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             <div style={{ fontSize: 15, color: '#0f5132' }}><strong>{prCheckout.title}</strong></div>
             <div style={{ marginTop: 6, fontSize: 13, color: '#3c434a' }}>{prCheckout.body} {prCheckout.edits}</div>
             <div style={{ marginTop: 6, fontSize: 12 }}>Revert this PR before applying another PR or patch file.</div>
-            {watchCompiling ? (
-              <div style={{ marginTop: 8, fontSize: 13, color: '#6e5406' }}>{compilingMessage()}</div>
+            {watchBusyMessage(watchState, watchCompiling) ? (
+              <div style={{ marginTop: 8, fontSize: 13, color: '#6e5406' }}>{watchBusyMessage(watchState, watchCompiling)}</div>
             ) : null}
             <Button variant="secondary" onClick={() => runPrSwitch({ leaving: true })} disabled={isUpdating || installing || building} style={{ marginTop: 10 }}>
               {prCheckout.backLabel}
@@ -5381,8 +5385,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                 <strong>{appliedLayer.label}</strong> {appliedLayer.summary}
               </div>
               <div style={{ marginTop: 8, fontSize: 12 }}>This patch is applied to your current work. Removing it may require undoing overlapping edits.</div>
-              {watchCompiling ? (
-                <div style={{ marginTop: 8, fontSize: 13, color: '#6e5406' }}>{compilingMessage()}</div>
+              {watchBusyMessage(watchState, watchCompiling) ? (
+                <div style={{ marginTop: 8, fontSize: 13, color: '#6e5406' }}>{watchBusyMessage(watchState, watchCompiling)}</div>
               ) : null}
               {appliedLayer.explanation ? (
                 <div style={{ marginTop: 8, fontSize: 12, color: '#6e5406' }}>{appliedLayer.explanation}</div>

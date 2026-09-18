@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { createWatchActivity, compilingMessage } = require('../../src/renderer/watch-activity.cjs');
+const { createWatchActivity, compilingMessage, watchBusyMessage } = require('../../src/renderer/watch-activity.cjs');
 
 // A change handed to the watch is compiling until the watch has been quiet
 // for quietMs (#492). The clock is injected: t is milliseconds.
@@ -88,4 +88,59 @@ test('the default quiet window is three seconds', () => {
 test('the banner line tells the contributor what to wait for', () => {
 	assert.match(compilingMessage(), /Build watcher tab/);
 	assert.match(compilingMessage(), /before trying the site/);
+});
+
+// The watch's first line can come after the quiet window has closed (chokidar
+// waits for writes to settle; a big checkout takes a while to write). Within
+// the grace period that line reopens the window; after it, it is some other
+// rebuild's and is ignored.
+test('output within the grace period reopens a window the quiet rule closed', () => {
+	const activity = createWatchActivity({ quietMs: 3000, graceMs: 15000 });
+	activity.handOff(1000);
+
+	assert.strictEqual(activity.isCompiling(5000), false, 'quiet for 3 s: closed');
+	activity.output(6000);
+	assert.strictEqual(activity.isCompiling(8999), true, 'the late first line reopened it');
+	assert.strictEqual(activity.isCompiling(9000), false);
+});
+
+test('output after the grace period does not reopen a closed window', () => {
+	const activity = createWatchActivity({ quietMs: 3000, graceMs: 15000 });
+	activity.handOff(1000);
+	activity.output(20000);
+
+	assert.strictEqual(activity.isCompiling(20001), false);
+});
+
+// A window still open past the grace period keeps extending on output: a
+// long rebuild is not cut short at 15 s.
+test('output past the grace period still extends an open window', () => {
+	const activity = createWatchActivity({ quietMs: 3000, graceMs: 15000 });
+	activity.handOff(1000);
+	for (let t = 3000; t <= 30000; t += 2000) activity.output(t);
+
+	assert.strictEqual(activity.isCompiling(30001), true);
+	assert.strictEqual(activity.settlesAt(), 32000, "last line at 29 s");
+});
+
+// A pull-request checkout pauses the watch and resumes it after its own
+// build; on Gutenberg the resumed watch rebuilds build/ from scratch and the
+// site is unusable until it is watching again (#489). The banner is already
+// up, so it is the banner that has to say so.
+test('the banner says rebuilding while the watch is building, whatever the hand-off', () => {
+	assert.match(watchBusyMessage('building', false), /rebuilding after this change/);
+	assert.match(watchBusyMessage('building', true), /rebuilding after this change/);
+	assert.match(watchBusyMessage('building', false), /say \(watching\)/);
+});
+
+test('the banner says compiling only on a watching watch with a hand-off open', () => {
+	assert.strictEqual(watchBusyMessage('watching', true), compilingMessage());
+	assert.strictEqual(watchBusyMessage('watching', false), null);
+});
+
+test('the banner says nothing when the watch is idle, paused or exited', () => {
+	for (const state of ['idle', 'paused', 'exited', undefined]) {
+		assert.strictEqual(watchBusyMessage(state, true), null, `${state}: no rebuild is coming`);
+		assert.strictEqual(watchBusyMessage(state, false), null);
+	}
 });
