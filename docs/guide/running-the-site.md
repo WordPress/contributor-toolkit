@@ -50,7 +50,7 @@ The build watcher compiles what you edit into what the server actually serves: `
 
 The watch and the server are independent in both directions:
 
-- Starting the dev server starts the watch first (building once if the site has no `build/` yet), then serves.
+- Starting the dev server starts the watch first (building once if the site has no `build/` yet), then serves. On a Gutenberg site the watch removes `build/` and rebuilds it before it watches, so the server waits for the **Build watcher** tab to print *Watching for changes* (about twenty seconds) before the URL appears; a page opened before that would find the plugin unbuilt. Starting the watch by hand while a server is already up reopens that window: the site answers with Gutenberg's *requires files to be built* notice, or a PHP fatal, until the rebuild finishes.
 - Stopping the dev server leaves the watch running, so you can keep compile-on-save going without a server.
 - The watch exiting never touches the server.
 - You can start and stop the watch on its own, at any time, whether or not a server is up.
