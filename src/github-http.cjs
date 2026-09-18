@@ -78,11 +78,15 @@ function httpRequest(method, url, headers = {}, opts = {}) {
 		const requestOptions = { method, url };
 		// A token-bearing request never follows a redirect: whether Chromium's
 		// stack would re-send the Authorization header to a different host is
-		// not a question worth having an answer to. No GitHub endpoint this app
-		// calls redirects, so in practice this changes nothing — until the day
-		// something in the path does, when it fails closed instead of forwarding
-		// a credential.
-		if (opts.token) requestOptions.redirect = 'error';
+		// not a question worth having an answer to. 'manual' rather than 'error'
+		// because one GitHub endpoint this app calls does redirect: the fork's
+		// own URL, when the contributor's earlier fork was transferred to
+		// another account and its old name forwards to it. That is an answer
+		// the fork stage has to see as a status (it means "no fork under this
+		// name") rather than as a network failure, so the 'redirect' handler
+		// below reports the 3xx and lets the request be cancelled. The
+		// credential is still never re-sent anywhere.
+		if (opts.token) requestOptions.redirect = 'manual';
 		if (opts.partition) {
 			requestOptions.partition = opts.partition;
 			requestOptions.useSessionCookies = opts.useSessionCookies !== false;
@@ -100,6 +104,18 @@ function httpRequest(method, url, headers = {}, opts = {}) {
 			finish(reject, new Error(`Timed out after ${REQUEST_TIMEOUT_MS}ms`));
 		}, REQUEST_TIMEOUT_MS);
 
+		// Only reached in 'manual' mode (a token-bearing request). Not calling
+		// followRedirect() cancels the request; the 'error' that follows is
+		// absorbed by finish() having already settled.
+		request.on('redirect', (statusCode, _method, redirectUrl, responseHeaders) => {
+			clearTimeoutImpl(timer);
+			const lowerHeaders = {};
+			for (const [key, value] of Object.entries(responseHeaders || {})) {
+				lowerHeaders[key.toLowerCase()] = Array.isArray(value) ? value[0] : value;
+			}
+			wireLog(`← ${statusCode} ${method} ${url} (redirect not followed)`);
+			finish(resolve, { status: statusCode, headers: lowerHeaders, body: '', redirectUrl });
+		});
 		request.on('response', (response) => {
 			const chunks = [];
 			response.on('data', (chunk) => chunks.push(chunk));

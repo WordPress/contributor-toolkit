@@ -216,6 +216,25 @@ test('ensureFork refuses a fork of a different repository', async () => {
 	assert.match(res.error, /not a fork/);
 });
 
+// A contributor whose earlier fork was transferred to another account has a
+// name that redirects and no fork of their own (#494). The redirect used to
+// arrive as an exception and read as "No connection to GitHub"; it is the
+// 404 case, and forking again is what they need.
+test('ensureFork forks anew when the fork\u2019s name redirects to a transferred repository', async () => {
+	const api = router({
+		[`GET ${FORK_URL}`]: (seen) => (seen === 1
+			? { status: 307, headers: { location: 'https://api.github.com/repositories/379223682' } }
+			: { status: 200, json: FORK_JSON }),
+		[`GET ${FORK_URL}/git/ref/heads/trunk`]: { status: 200, json: { object: { sha: 'tip' } } },
+		'POST repos/WordPress/wordpress-develop/forks': { status: 202 }
+	});
+
+	const res = await ensureFork({ token: TOKEN, login: LOGIN }, api);
+
+	assert.deepStrictEqual(res, { ok: true, created: true });
+	assert.strictEqual(api.calls.filter((c) => c.method === 'POST').length, 1, 'one fork request');
+});
+
 // Forking is asynchronous: the POST answers 202 and the repository appears a
 // moment later. Treating the 202 as done is the bug this pins — the very next
 // request would 404 on a repository that is about to exist.

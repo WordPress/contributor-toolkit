@@ -33,6 +33,10 @@
  */
 
 const { getJson, postJson } = require('./github-http.cjs');
+
+// The redirects GitHub answers with when a repository's name forwards to
+// another (transfer, rename): what a fork stage reads as "nothing here".
+const REDIRECT_STATUSES = new Set([301, 302, 307, 308]);
 const { classifyHttpFailure } = require('./patch-sources.cjs');
 const { ticketUrl } = require('./renderer/trac-ticket.cjs');
 
@@ -294,11 +298,18 @@ async function ensureFork({ token, login }, deps = {}) {
 	} catch (e) {
 		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
 	}
+	// A redirect from the fork's URL is GitHub forwarding a name that no
+	// longer holds a repository: the contributor's earlier fork was
+	// transferred or renamed away. There is no fork under this login, and
+	// forking again is allowed (it retires the redirect), so it is the 404
+	// case. github-http.cjs reports the 3xx as a status rather than
+	// following it with the token (#494).
+	const forkMissing = existing.status === 404 || REDIRECT_STATUSES.has(existing.status);
 	if (existing.status === 200 && !isOurFork(existing.json)) return notAFork();
-	if (existing.status !== 200 && existing.status !== 404) return failure(existing, 'Could not check for your fork');
+	if (existing.status !== 200 && !forkMissing) return failure(existing, 'Could not check for your fork');
 
 	let created = false;
-	if (existing.status === 404) {
+	if (forkMissing) {
 		let forked;
 		try {
 			forked = await post(`${API}/repos/${up.owner}/${up.repo}/forks`, {}, { token });

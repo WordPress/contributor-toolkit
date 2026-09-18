@@ -69,17 +69,37 @@ test('httpRequest sends Authorization only when there is a token', async () => {
 	assert.strictEqual('Authorization' in without.sent.headers, false);
 });
 
-// A redirect on a token-bearing request must fail closed rather than let
-// Chromium's stack decide whether the Authorization header follows it to
-// another host. Anonymous requests keep the default and follow normally.
-test('httpRequest refuses redirects only when carrying a token', async () => {
+// A redirect on a token-bearing request must never be followed, so the
+// Authorization header cannot be forwarded to another host. Anonymous
+// requests keep the default and follow normally.
+test('httpRequest does not follow redirects when carrying a token', async () => {
 	const withToken = fakeNet((req) => respond(req, { status: 200, body: '{}' }));
 	await httpRequest('GET', 'https://api.github.com/user', {}, { net: withToken.client, token: 'gho_x' });
-	assert.strictEqual(withToken.sent.options.redirect, 'error');
+	assert.strictEqual(withToken.sent.options.redirect, 'manual');
 
 	const without = fakeNet((req) => respond(req, { status: 200, body: '{}' }));
 	await httpRequest('GET', 'https://api.github.com/x', {}, { net: without.client });
 	assert.strictEqual('redirect' in without.sent.options, false);
+});
+
+// The one GitHub redirect this app meets is the fork's URL forwarding to a
+// transferred repository (#494). It is an answer, not a failure: the 3xx
+// comes back as a status, the redirect is not followed, and the cancel
+// Electron then reports is absorbed.
+test('httpRequest reports a redirect as its status without following it', async () => {
+	let followed = false;
+	const net = fakeNet((req) => {
+		req.followRedirect = () => { followed = true; };
+		req.emit('redirect', 307, 'GET', 'https://api.github.com/repositories/1', { Location: ['https://api.github.com/repositories/1'] });
+		req.emit('error', new Error('net::ERR_ABORTED'));
+	});
+
+	const res = await httpRequest('GET', 'https://api.github.com/repos/me/gutenberg', {}, { net: net.client, token: 'gho_x' });
+
+	assert.strictEqual(res.status, 307);
+	assert.strictEqual(res.headers.location, 'https://api.github.com/repositories/1');
+	assert.strictEqual(res.body, '');
+	assert.strictEqual(followed, false);
 });
 
 test('httpRequest writes no body when none was given', async () => {
