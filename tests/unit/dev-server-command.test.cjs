@@ -146,6 +146,16 @@ test('watchTabLabel names each watcher lifecycle state', () => {
 	assert.strictEqual(watchTabLabel('paused'), 'Build watcher (paused)');
 });
 
+// While the watch compiles a change just applied, the tab says so; the
+// contributor is told to wait for it to go quiet (#492).
+test('watchTabLabel says compiling only on a watching watch', () => {
+	assert.strictEqual(watchTabLabel('watching', null, true), 'Build watcher (compiling)');
+	assert.strictEqual(watchTabLabel('watching', null, false), 'Build watcher (watching)');
+	assert.strictEqual(watchTabLabel('building', null, true), 'Build watcher (building)');
+	assert.strictEqual(watchTabLabel('paused', null, true), 'Build watcher (paused)');
+	assert.strictEqual(watchTabLabel('idle', null, true), 'Build watcher');
+});
+
 test('watchTabLabel shows the exit code when the watcher has exited', () => {
 	assert.strictEqual(watchTabLabel('exited', 0), 'Build watcher (exited 0)');
 	assert.strictEqual(watchTabLabel('exited', 1), 'Build watcher (exited 1)');
