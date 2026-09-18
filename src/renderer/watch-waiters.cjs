@@ -61,4 +61,39 @@ function createWatchWaiters() {
 	};
 }
 
-module.exports = { createWatchWaiters, watchOccupiesBuild };
+/**
+ * Which watcher run is the current one, so a callback from a replaced run can
+ * tell it is stale and leave the state alone.
+ *
+ * Stopping a run is asynchronous: `npmKill` returns once the signal is sent,
+ * and the process reports its exit later (up to the 3 s escalation when a
+ * descendant ignores SIGTERM, as Gutenberg's `tsc` does). A run started in
+ * between inherits the old run's late `onDone`, which would mark it exited and
+ * fail the server start queued behind it. Each start takes a token; every
+ * stop, pause and teardown invalidates the current one; each callback checks
+ * the token it was born with before touching anything.
+ *
+ * @return {{next: () => number, invalidate: () => void, isCurrent: (token: number) => boolean}}
+ */
+function createRunGeneration() {
+	let current = 0;
+	let started = false;
+	return {
+		next() {
+			current += 1;
+			started = true;
+			return current;
+		},
+		invalidate() {
+			current += 1;
+			started = false;
+		},
+		isCurrent(token) {
+			// Only a token next() handed out can be current: before the first
+			// start, and after an invalidate, nothing is.
+			return started && token === current;
+		}
+	};
+}
+
+module.exports = { createWatchWaiters, createRunGeneration, watchOccupiesBuild };

@@ -27,7 +27,7 @@ import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStart
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
-import { createWatchWaiters, watchOccupiesBuild } from './watch-waiters.cjs';
+import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from './watch-waiters.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
@@ -1350,6 +1350,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // from outside a render (#488).
   const watchWaitersRef = useRef(createWatchWaiters());
   const settleWatchWaiters = useCallback((ready) => { watchWaitersRef.current.settle(ready); }, []);
+  // Which watcher run is current. A stop returns before the process has
+  // exited, so a run started right after inherits the old run's late
+  // callbacks; each callback checks the token it was started with and leaves
+  // a replaced run's state alone (#488).
+  const watchGenerationRef = useRef(createRunGeneration());
   // '' | 'copied' | 'failed', on the debug.log Copy button for two seconds.
   const [debugCopied, setDebugCopied] = useState('');
   const debugCopyTimer = useRef(null);
@@ -1568,6 +1573,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // this site view unmounts (site switch, window teardown) its process would be
   // orphaned. Kill it on unmount / before switching sites.
   useEffect(() => () => {
+    watchGenerationRef.current.invalidate();
     const runId = watchRunIdRef.current;
     if (runId) window.api.npmKill({ runId, directoryPath: sitePath }).catch(() => {});
   }, [sitePath]);
@@ -2685,6 +2691,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const startWatchProcess = useCallback(() => {
     const plan = planDevServerStart({ hasBuilt: true }, projectBuild);
     const readiness = createWatchReadyDetector(plan.watch.readyPattern);
+    const generation = watchGenerationRef.current;
+    const token = generation.next();
     markWatchState(readiness.immediate ? 'watching' : 'building');
     watchWasActiveRef.current = true;
     appendWatch(`Running ${plan.watch.label}…\n`);
@@ -2694,17 +2702,25 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       args: plan.watch.args,
       track: false,
       mirrorToNpm: false,
-      onStart: (runId) => { watchRunIdRef.current = runId; },
+      onStart: (runId) => {
+        // Stopped before the spawn resolved: this run must not be recorded as
+        // the live watcher, and its process would otherwise outlive the stop.
+        if (!generation.isCurrent(token)) { window.api.npmKill({ runId, directoryPath: sitePath }).catch(() => {}); return; }
+        watchRunIdRef.current = runId;
+      },
       onLog: (chunk) => {
         appendWatch(chunk);
+        if (!generation.isCurrent(token)) return;
         if (readiness.feed(chunk) && watchStateRef.current === 'building') {
           markWatchState('watching');
           settleWatchWaiters(true);
         }
       },
       onDone: ({ code }) => {
-        watchRunIdRef.current = null;
         appendWatch(`\n${plan.watch.label} exited with code ${code}\n`);
+        // A replaced run's exit says nothing about the run that replaced it.
+        if (!generation.isCurrent(token)) return;
+        watchRunIdRef.current = null;
         // A watcher exit never touches a running server (#247). Only an
         // unexpected exit flips the tab to 'exited'; a stop/pause we asked for
         // has already moved the state to 'idle'/'paused', so leave it be. A
@@ -2717,7 +2733,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         settleWatchWaiters(false);
       }
     });
-  }, [appendWatch, markWatchState, projectBuild, runScript, settleWatchWaiters]);
+  }, [appendWatch, markWatchState, projectBuild, runScript, settleWatchWaiters, sitePath]);
 
   // Start the build watch, building first if the site has no completed build
   // (the _watch task deliberately skips that full build). `onReady` fires once
@@ -2770,6 +2786,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     const wasBuilding = watchStateRef.current === 'building';
     markWatchState('idle');
     watchWasActiveRef.current = false;
+    // From here the run being stopped is history: its late exit must not
+    // touch whatever starts next.
+    watchGenerationRef.current.invalidate();
     // A server waiting to start behind this watch is not going to.
     settleWatchWaiters(false);
     if (watchRunIdRef.current) {
@@ -2789,6 +2808,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const pauseWatcher = useCallback(async () => {
     if (watchStateRef.current !== 'watching' && watchStateRef.current !== 'building') return false;
     markWatchState('paused');
+    watchGenerationRef.current.invalidate();
     appendWatch('\nPaused while another operation uses the build.\n');
     try { await killWatcher(); } catch {}
     return true;

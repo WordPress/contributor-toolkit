@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { createWatchWaiters, watchOccupiesBuild } = require('../../src/renderer/watch-waiters.cjs');
+const { createWatchWaiters, createRunGeneration, watchOccupiesBuild } = require('../../src/renderer/watch-waiters.cjs');
 
 // The dev-server start is held until the watcher says build/ is complete
 // (#488). Ready calls the one side, failure the other, never both.
@@ -113,4 +113,40 @@ test('the watch does not occupy build/ when idle, paused or exited', () => {
 	assert.strictEqual(watchOccupiesBuild('paused'), false);
 	assert.strictEqual(watchOccupiesBuild('exited'), false);
 	assert.strictEqual(watchOccupiesBuild(undefined), false);
+});
+
+// A watcher stopped and restarted before the old process has exited: the old
+// run's late callbacks must see they are stale, or they mark the new run
+// exited and fail the server start queued behind it.
+test('a new start makes the previous run stale', () => {
+	const generation = createRunGeneration();
+	const first = generation.next();
+	const second = generation.next();
+
+	assert.strictEqual(generation.isCurrent(first), false);
+	assert.strictEqual(generation.isCurrent(second), true);
+});
+
+test('a stop makes the current run stale before any new start', () => {
+	const generation = createRunGeneration();
+	const token = generation.next();
+	generation.invalidate();
+
+	assert.strictEqual(generation.isCurrent(token), false);
+});
+
+test('a run is current until something replaces or invalidates it', () => {
+	const generation = createRunGeneration();
+	const token = generation.next();
+
+	assert.strictEqual(generation.isCurrent(token), true);
+});
+
+// Nothing has started: no token is current, so a callback that somehow
+// arrives with none is stale too.
+test('no token is current before the first start', () => {
+	const generation = createRunGeneration();
+
+	assert.strictEqual(generation.isCurrent(undefined), false);
+	assert.strictEqual(generation.isCurrent(0), false);
 });
