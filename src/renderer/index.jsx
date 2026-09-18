@@ -5608,7 +5608,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           <div style={{ marginTop: 8, fontSize: 12, color: '#3c434a' }}>
             {showTerminalHints ? (
               <>
-                <div>Edited files in <code>src/</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</div>
+                <div>Edited files in <code>{project.cards.sourceDir}</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</div>
                 <div style={{ marginTop: 2, marginBottom: 6 }}>Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
               </>
             ) : null}

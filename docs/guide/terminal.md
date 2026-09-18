@@ -22,7 +22,7 @@ Press **Ctrl+C** to stop the running command. The Up and Down arrow keys move th
 
 The [setup wizard](./setup-wizard) runs `npm install` and `npm run build` once, when the site is created. After that, keeping the built site in sync with your edits is up to you:
 
-- **Edited files in `src/`?** Run `npm run build` so the site picks them up.
+- **Edited files in `src/`?** (`packages/` on a Gutenberg site) Run `npm run build` so the site picks them up. While the [build watch](./running-the-site#the-build-watch) is running this is done for you as you save.
 - **Added a dependency to `package.json`?** Run `npm install`.
 
 Once the site has been built, these two hints appear directly under the terminal. The command in each hint is a link: clicking it types the command into the terminal for you, ready to run — it does not execute it. While a command is running the hints stop being links and show as plain text, so there is nothing to click until it finishes.

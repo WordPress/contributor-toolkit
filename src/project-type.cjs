@@ -105,6 +105,10 @@ const PROJECT_TYPES = {
 			},
 			applyHeading: 'Apply a patch or PR',
 			applyDescription: 'Pull requests are checked out with their author\u2019s commits. A .diff/.patch file is applied to the current branch as a removable layer.',
+			// Where a contributor edits, named by the hint under the terminal
+			// ("Edited files in src/? Run npm run build"). Core's source is
+			// src/; Gutenberg's is its packages (#490).
+			sourceDir: 'src/',
 			// Patch files are how work arrives from Trac; a target whose work
 			// arrives as pull requests has no use for the file picker.
 			patchFiles: true
@@ -195,6 +199,7 @@ const PROJECT_TYPES = {
 			},
 			applyHeading: 'Check out a pull request',
 			applyDescription: 'Pull requests are checked out with their author\u2019s commits.',
+			sourceDir: 'packages/',
 			patchFiles: false
 		},
 
