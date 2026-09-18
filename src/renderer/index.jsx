@@ -2271,6 +2271,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const terminalStateRef = useRef({ input: '', history: [], historyIndex: 0, running: false });
   const serverStartRequestedRef = useRef(false);
   const stoppingRef = useRef(false);
+  // True from a Stop we asked for until the server reports it has exited.
+  // playground:stop returns once the signal is sent, and the 'stopped' event
+  // arrives after stopDevServer has already cleared stoppingRef; without this
+  // every ordinary stop read as a crash, and the crash path killed "the last
+  // script in the directory", the watcher (#488).
+  const serverStopRequestedRef = useRef(false);
   const runningRef = useRef(false);
   const waitingForWatchRef = useRef(false);
   // "A dev-server boot is in progress or live." The terminal lock used to double
@@ -2576,6 +2582,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const stopDevServer = useCallback(async () => {
     if (stoppingRef.current) return;
     stoppingRef.current = true;
+    if (runningRef.current) serverStopRequestedRef.current = true;
     devServerActiveRef.current = false;
     setWaitingForWatch(false);
     waitingForWatchRef.current = false;
@@ -2610,6 +2617,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       return;
     }
     serverStartRequestedRef.current = true;
+    serverStopRequestedRef.current = false;
     setWaitingForWatch(false);
     waitingForWatchRef.current = false;
     ensureStick('runtime');
@@ -2635,13 +2643,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           serverStartRequestedRef.current = false;
         },
         ()=>{
+          const requested = serverStopRequestedRef.current;
+          serverStopRequestedRef.current = false;
           setRunning(false); runningRef.current = false; setServerUrl(''); serverStartRequestedRef.current = false;
           // A stop the user did not ask for is a crash: say so, and tear the
-          // whole dev session down — watcher included — instead of leaving the
-          // button spinning "Starting dev server…" forever (issue #73).
-          if (!stoppingRef.current) {
+          // server session down instead of leaving the button spinning
+          // "Starting dev server…" forever (issue #73). The watcher is not
+          // part of that session (#247) and is left running.
+          if (!stoppingRef.current && !requested) {
             appendRuntime('Dev server stopped unexpectedly (see Help → Open App Log for details).\n');
-            killCurrent().catch(() => {});
             stopDevServer().catch(() => {});
           }
         }
@@ -2650,7 +2660,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       // This also covers spawn failures that never produce a "stopped" event.
       if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
         appendRuntime(`Dev server failed to start: ${res.error || 'unknown error'}\n`);
-        killCurrent().catch(() => {});
         stopDevServer().catch(() => {});
         return;
       }
@@ -2675,7 +2684,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       if (tail?.filePath) setDebugLogPath(tail.filePath);
     } catch {}
     try { const { port, emails: fetchedEmails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(fetchedEmails||[]); } catch {}
-  }, [appendDebug, appendRuntime, ensureStick, killCurrent, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
+  }, [appendDebug, appendRuntime, ensureStick, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
 
   // The watcher process itself (the target's; grunt _watch on Core), streaming
   // into its own tab. No terminal lock, no server coupling — that independence
