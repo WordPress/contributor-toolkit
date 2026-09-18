@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { createWatchActivity, compilingMessage, watchBusyMessage } = require('../../src/renderer/watch-activity.cjs');
+const { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage } = require('../../src/renderer/watch-activity.cjs');
 
 // A change handed to the watch is compiling until the watch has been quiet
 // for quietMs (#492). The clock is injected: t is milliseconds.
@@ -143,4 +143,22 @@ test('the banner says nothing when the watch is idle, paused or exited', () => {
 		assert.strictEqual(watchBusyMessage(state, true), null, `${state}: no rebuild is coming`);
 		assert.strictEqual(watchBusyMessage(state, false), null);
 	}
+});
+
+// "Checked out — open the site to try it out." followed by "wait before trying
+// the site" contradicts itself; when the resumed watch is rebuilding, the
+// invitation goes and the rebuilding line follows.
+test('the apply finish line drops the invitation while the resumed watch rebuilds', () => {
+	const out = applyFinishMessage('\nChecked out — open the site to try it out.\n', 'building');
+
+	assert.doesNotMatch(out, /open the site to try it out/);
+	assert.match(out, /^\nChecked out\.\n/);
+	assert.match(out, /rebuilding after this change/);
+});
+
+test('the apply finish line is untouched when the watch is watching or stopped', () => {
+	const line = '\nChecked out — open the site to try it out.\n';
+
+	assert.strictEqual(applyFinishMessage(line, 'watching'), line);
+	assert.strictEqual(applyFinishMessage(line, 'idle'), line);
 });

@@ -87,4 +87,21 @@ function watchBusyMessage(watchState, compiling) {
 	return null;
 }
 
-module.exports = { createWatchActivity, compilingMessage, watchBusyMessage };
+/**
+ * The terminal line that ends an apply, given what the watch is doing once it
+ * has been resumed. An apply that ran the app's own build ends on "open the
+ * site to try it out"; when the resumed watch is rebuilding from scratch that
+ * is not yet true, so the invitation is dropped and the rebuilding line
+ * follows instead of contradicting it.
+ *
+ * @param {string} message    the line the apply would print on its own
+ * @param {string} watchState the watch state after the resume
+ * @return {string}
+ */
+function applyFinishMessage(message, watchState) {
+	const busy = watchBusyMessage(watchState, false);
+	if (!busy) return message;
+	return `${message.replace(/ — open the site to try it out\./, '.')}${busy}\n`;
+}
+
+module.exports = { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage };
