@@ -28,6 +28,7 @@ import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from './watch-waiters.cjs';
+import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage } from './watch-activity.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
@@ -1355,6 +1356,26 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // callbacks; each callback checks the token it was started with and leaves
   // a replaced run's state alone (#488).
   const watchGenerationRef = useRef(createRunGeneration());
+  // Whether the watch is still compiling a change just handed to it (#492).
+  // The ref keeps the timestamps; the state is what the banner and the tab
+  // title read. A 500 ms tick while compiling is what flips it back.
+  const watchActivityRef = useRef(createWatchActivity());
+  const [watchCompiling, setWatchCompiling] = useState(false);
+  useEffect(() => {
+    if (!watchCompiling) return undefined;
+    const tick = setInterval(() => {
+      if (!watchActivityRef.current.isCompiling(Date.now())) setWatchCompiling(false);
+    }, 500);
+    return () => clearInterval(tick);
+  }, [watchCompiling]);
+  const handOffToWatch = useCallback(() => {
+    watchActivityRef.current.handOff(Date.now());
+    setWatchCompiling(true);
+  }, []);
+  const clearWatchActivity = useCallback(() => {
+    watchActivityRef.current.clear();
+    setWatchCompiling(false);
+  }, []);
   // '' | 'copied' | 'failed', on the debug.log Copy button for two seconds.
   const [debugCopied, setDebugCopied] = useState('');
   const debugCopyTimer = useRef(null);
@@ -1750,9 +1771,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // output is the case this panel exists for.
   const logTabs = useMemo(() => ([
     { name: 'runtime', title: 'Server' },
-    { name: 'watch', title: watchTabLabel(watchState, watchExitCode) },
+    { name: 'watch', title: watchTabLabel(watchState, watchExitCode, watchCompiling) },
     { name: 'debug', title: debugUnread ? `debug.log (${debugUnread})` : 'debug.log' }
-  ]), [debugUnread, watchState, watchExitCode]);
+  ]), [debugUnread, watchState, watchExitCode, watchCompiling]);
   const clearDebugLog = useCallback(async () => {
     setDebugLogs('');
     setDebugUnread(0);
@@ -2720,6 +2741,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       onLog: (chunk) => {
         appendWatch(chunk);
         if (!generation.isCurrent(token)) return;
+        // A line within the grace period can reopen a window the tick had
+        // already closed (#492); the state has to follow the ref, or the
+        // banner stays clear while the rebuild runs. The tick closes it.
+        const now = Date.now();
+        watchActivityRef.current.output(now);
+        if (watchActivityRef.current.isCompiling(now)) setWatchCompiling(true);
         if (readiness.feed(chunk) && watchStateRef.current === 'building') {
           markWatchState('watching');
           settleWatchWaiters(true);
@@ -2730,6 +2757,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         // A replaced run's exit says nothing about the run that replaced it.
         if (!generation.isCurrent(token)) return;
         watchRunIdRef.current = null;
+        clearWatchActivity();
         // A watcher exit never touches a running server (#247). Only an
         // unexpected exit flips the tab to 'exited'; a stop/pause we asked for
         // has already moved the state to 'idle'/'paused', so leave it be. A
@@ -2742,7 +2770,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         settleWatchWaiters(false);
       }
     });
-  }, [appendWatch, markWatchState, projectBuild, runScript, settleWatchWaiters, sitePath]);
+  }, [appendWatch, clearWatchActivity, markWatchState, projectBuild, runScript, settleWatchWaiters, sitePath]);
 
   // Start the build watch, building first if the site has no completed build
   // (the _watch task deliberately skips that full build). `onReady` fires once
@@ -2798,6 +2826,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // From here the run being stopped is history: its late exit must not
     // touch whatever starts next.
     watchGenerationRef.current.invalidate();
+    clearWatchActivity();
     // A server waiting to start behind this watch is not going to.
     settleWatchWaiters(false);
     if (watchRunIdRef.current) {
@@ -2808,7 +2837,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       markTerminalRunning(false);
       terminalKillRef.current = null;
     }
-  }, [killCurrent, killWatcher, markTerminalRunning, markWatchState, settleWatchWaiters]);
+  }, [clearWatchActivity, killCurrent, killWatcher, markTerminalRunning, markWatchState, settleWatchWaiters]);
 
   // Pause the watch for an operation that needs the build directory and
   // node_modules to itself — an install, a full build, a trunk reset (#262).
@@ -2818,10 +2847,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     if (watchStateRef.current !== 'watching' && watchStateRef.current !== 'building') return false;
     markWatchState('paused');
     watchGenerationRef.current.invalidate();
+    clearWatchActivity();
     appendWatch('\nPaused while another operation uses the build.\n');
     try { await killWatcher(); } catch {}
     return true;
-  }, [appendWatch, killWatcher, markWatchState]);
+  }, [appendWatch, clearWatchActivity, killWatcher, markWatchState]);
 
   // Bring the watch back after a pause. Guarded on 'paused' so a dev-server stop
   // or a manual stop mid-operation (which sets 'idle') is never resurrected.
@@ -3314,10 +3344,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     markTerminalRunning(false);
     terminalKillRef.current = null;
     setApplyState('idle');
-    if (message) writeToTerminal(message);
     // Resume the watch if this apply paused it. Safe on every exit path
     // (success, failure, cancel) and a no-op if nothing was paused (#262).
     resumeWatcher();
+    // A resumed watch that rebuilds from scratch (Gutenberg's npm run dev)
+    // leaves the site unusable until it is watching again, and the banner
+    // above is already up (#492). The banner says so; so does the terminal,
+    // in place of "open the site to try it out".
+    if (message) writeToTerminal(applyFinishMessage(message, watchStateRef.current));
     loadStatus().catch(() => {});
     refreshDirty();
   };
@@ -3344,7 +3378,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       // A running build watch recompiles the src/ change on its own, so there is
       // no install and no build of our own to run — just hand off to it (#262).
       confirm(`${verb} the ${noun}`);
-      finishApply(`\n${verb} — the build watch is recompiling it. Open the site to try it out.\n`);
+      handOffToWatch();
+      finishApply(`\n${verb} — ${compilingMessage()}\n`);
       return;
     }
     if (needsInstall) {
@@ -5052,6 +5087,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             <div style={{ fontSize: 15, color: '#0f5132' }}><strong>{prCheckout.title}</strong></div>
             <div style={{ marginTop: 6, fontSize: 13, color: '#3c434a' }}>{prCheckout.body} {prCheckout.edits}</div>
             <div style={{ marginTop: 6, fontSize: 12 }}>Revert this PR before applying another PR or patch file.</div>
+            {watchBusyMessage(watchState, watchCompiling) ? (
+              <div style={{ marginTop: 8, fontSize: 13, color: '#6e5406' }}>{watchBusyMessage(watchState, watchCompiling)}</div>
+            ) : null}
             <Button variant="secondary" onClick={() => runPrSwitch({ leaving: true })} disabled={isUpdating || installing || building} style={{ marginTop: 10 }}>
               {prCheckout.backLabel}
             </Button>
@@ -5352,6 +5390,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                 <strong>{appliedLayer.label}</strong> {appliedLayer.summary}
               </div>
               <div style={{ marginTop: 8, fontSize: 12 }}>This patch is applied to your current work. Removing it may require undoing overlapping edits.</div>
+              {watchBusyMessage(watchState, watchCompiling) ? (
+                <div style={{ marginTop: 8, fontSize: 13, color: '#6e5406' }}>{watchBusyMessage(watchState, watchCompiling)}</div>
+              ) : null}
               {appliedLayer.explanation ? (
                 <div style={{ marginTop: 8, fontSize: 12, color: '#6e5406' }}>{appliedLayer.explanation}</div>
               ) : null}

@@ -106,15 +106,18 @@ function formatElapsed(seconds) {
  * contributor can tell at a glance whether `src/` edits are being compiled,
  * paused for another operation, or stopped — without opening the tab.
  *
- * `exitCode` is only meaningful when `state` is 'exited'.
+ * `exitCode` is only meaningful when `state` is 'exited'. `compiling` is
+ * whether the watch is still compiling a change just handed to it (#492,
+ * watch-activity.cjs); it only reads on a watching watch.
  *
  * @param {'idle'|'watching'|'building'|'paused'|'exited'} state
  * @param {number|null}                                    [exitCode]
+ * @param {boolean}                                        [compiling]
  * @return {string}
  */
-function watchTabLabel(state, exitCode) {
+function watchTabLabel(state, exitCode, compiling = false) {
 	switch (state) {
-		case 'watching': return 'Build watcher (watching)';
+		case 'watching': return compiling ? 'Build watcher (compiling)' : 'Build watcher (watching)';
 		case 'building': return 'Build watcher (building)';
 		case 'paused': return 'Build watcher (paused)';
 		case 'exited': {

@@ -46,7 +46,7 @@ The apply itself is Git's own `git apply`, the same command whoever receives you
 
 The panel shows each step as it runs: applying the patch, installing dependencies if needed, and rebuilding. When it finishes, the panel reports what is applied — the patch's name, how many files it changed, and when.
 
-If the [build watch](running-the-site#the-build-watch) is running and the patch does not move `package-lock.json`, there is no build step: the patch is applied and left for the watch to compile, and the checklist says so. A patch that does move the lockfile has to install and build, so it pauses the watch for the duration and resumes it after — the dev server stays up throughout.
+If the [build watch](running-the-site#the-build-watch) is running and the patch does not move `package-lock.json`, there is no build step: the patch is applied and left for the watch to compile, and the checklist says so. While the watch compiles it, the applied banner says so and the **Build watcher** tab title reads *(compiling)*; wait for both to clear before trying the site. A pull request is different: its checkout pauses the watch, runs the build itself and resumes the watch after. On a Gutenberg site the resumed watch rebuilds `build/` from scratch, about twenty seconds during which the site answers with Gutenberg's *requires files to be built* notice; the banner says so and the tab reads *(building)* until it is over. A patch that does move the lockfile has to install and build, so it pauses the watch for the duration and resumes it after — the dev server stays up throughout.
 
 ## When a patch will not apply
 
