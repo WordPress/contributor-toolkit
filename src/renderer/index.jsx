@@ -2836,7 +2836,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         }
       });
     } else {
-      await killCurrent().catch(() => {});
+      // Only the server. The watch is independent (#247), and this branch
+      // used to kill it by accident: killCurrent with no tracked run falls
+      // back to the last script in the directory, which is the watcher. On
+      // Core that cost a cheap grunt restart nobody noticed; on Gutenberg
+      // it is the whole 20 s rebuild on every Stop/Start (#488).
       await stopDevServer();
     }
   };
