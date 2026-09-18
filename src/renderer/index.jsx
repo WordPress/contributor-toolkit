@@ -2741,7 +2741,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       onLog: (chunk) => {
         appendWatch(chunk);
         if (!generation.isCurrent(token)) return;
-        watchActivityRef.current.output(Date.now());
+        // A line within the grace period can reopen a window the tick had
+        // already closed (#492); the state has to follow the ref, or the
+        // banner stays clear while the rebuild runs. The tick closes it.
+        const now = Date.now();
+        watchActivityRef.current.output(now);
+        if (watchActivityRef.current.isCompiling(now)) setWatchCompiling(true);
         if (readiness.feed(chunk) && watchStateRef.current === 'building') {
           markWatchState('watching');
           settleWatchWaiters(true);
