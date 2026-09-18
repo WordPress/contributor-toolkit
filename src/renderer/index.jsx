@@ -27,6 +27,7 @@ import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStart
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
+import { createWatchWaiters, watchOccupiesBuild } from './watch-waiters.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
@@ -1344,18 +1345,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     if (state === 'exited') setWatchExitCode(Number.isFinite(code) ? code : null);
   }, []);
   // Whoever is waiting for the watch to be ready to serve behind — the dev
-  // server start, today. Each entry is { onReady, onFail }; settleWatchWaiters
-  // empties the list and calls one side of every entry. Kept in a ref because
-  // the watcher's output handler settles it from outside a render (#488).
-  const watchWaitersRef = useRef([]);
-  const settleWatchWaiters = useCallback((ready) => {
-    const waiters = watchWaitersRef.current;
-    watchWaitersRef.current = [];
-    for (const waiter of waiters) {
-      const fn = ready ? waiter.onReady : waiter.onFail;
-      if (fn) { try { fn(); } catch {} }
-    }
-  }, []);
+  // server start, today. The queue and its settle-once rule live in
+  // watch-waiters.cjs; a ref because the watcher's output handler settles it
+  // from outside a render (#488).
+  const watchWaitersRef = useRef(createWatchWaiters());
+  const settleWatchWaiters = useCallback((ready) => { watchWaitersRef.current.settle(ready); }, []);
   // '' | 'copied' | 'failed', on the debug.log Copy button for two seconds.
   const [debugCopied, setDebugCopied] = useState('');
   const debugCopyTimer = useRef(null);
@@ -2716,7 +2710,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         // has already moved the state to 'idle'/'paused', so leave it be. A
         // server still waiting to start behind it does not get to: without a
         // completed build/ there is nothing to serve.
-        if (watchStateRef.current === 'watching' || watchStateRef.current === 'building') {
+        if (watchOccupiesBuild(watchStateRef.current)) {
           markWatchState('exited', code);
           watchWasActiveRef.current = false;
         }
@@ -2735,7 +2729,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const startBuildWatch = useCallback(({ onReady, onFail } = {}) => {
     const s = watchStateRef.current;
     if (s === 'watching') { if (onReady) onReady(); return; }
-    if (onReady || onFail) watchWaitersRef.current.push({ onReady, onFail });
+    watchWaitersRef.current.add(onReady, onFail);
     if (s === 'building') return; // already on its way to watching
     if (!hasBuilt) {
       // Fresh / skip-the-wizard sites need one full build before anything can
@@ -2819,6 +2813,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
 
   const toggleDevServer = async ()=>{
     if (!running) {
+      // A start is already queued behind the watch (or in flight): a second
+      // click must not queue a second server start (#488).
+      if (devServerActiveRef.current) return;
       // eslint-disable-next-line no-alert -- see the note above onRename.
       if (!skipInit && !hasBuilt) { alert('Please complete the full build before starting the dev server. You can also skip the wizard.'); return; }
       serverStartRequestedRef.current = false;
@@ -2831,7 +2828,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onReady: () => { startPhpServer().catch(() => {}); },
         // The watch never got to a complete build/: nothing to serve, so the
         // button goes back to "Start dev server" instead of "Starting…" forever.
-        onFail: () => { if (!serverStartRequestedRef.current) { devServerActiveRef.current = false; setStarting(false); } }
+        onFail: () => {
+          if (serverStartRequestedRef.current) return;
+          devServerActiveRef.current = false;
+          setStarting(false);
+          appendRuntime('Dev server start cancelled: the build watch stopped before build/ was complete. Start it again once the watch is running.\n');
+        }
       });
     } else {
       await killCurrent().catch(() => {});
@@ -3526,7 +3528,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
       return;
     }
-    const watcherActive = watchStateRef.current === 'watching';
+    const watcherActive = watchOccupiesBuild(watchStateRef.current);
     clearApplyError();
     setApplyNotice('');
     setApplyKind(leaving ? 'leave-pr' : 'pr');
@@ -3607,7 +3609,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       : Boolean(preview.needsInstall);
     // A running build watch already recompiles src/, so a src-only patch skips
     // the build and is not interrupted; an install/full build pauses it (#262).
-    const watcherActive = watchStateRef.current === 'watching';
+    const watcherActive = watchOccupiesBuild(watchStateRef.current);
     const impact = planWatchImpact({ needsInstall, watcherActive });
     clearApplyError();
     setApplyNotice('');
