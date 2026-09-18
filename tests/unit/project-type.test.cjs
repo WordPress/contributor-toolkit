@@ -108,6 +108,7 @@ test('every project type carries the full shape consumers depend on', () => {
 			for (const value of strings) assert.doesNotMatch(value, /trac|ticket/i, `${id}: "${value}" speaks of Trac`);
 		}
 		assert.equal(typeof cfg.cards.applyDescription, 'string', `${id}: cards.applyDescription`);
+		assert.match(cfg.cards.sourceDir, /^[a-z]+\/$/, `${id}: cards.sourceDir is a directory under the checkout`);
 		assert.equal(typeof cfg.cards.patchFiles, 'boolean', `${id}: cards.patchFiles`);
 		assert.equal(cfg.cards.patchFiles, cfg.workItem.provider === 'trac', `${id}: patch files go with Trac`);
 		assert.ok(['docroot', 'plugin-mount'].includes(cfg.serve.strategy));
@@ -123,9 +124,6 @@ test('every project type carries the full shape consumers depend on', () => {
 	}
 });
 
-// Where a site reads its own build from. Core's marker is the one site:status
-// always checked; Gutenberg's follows its current build layout (see the
-// registry comment for when it moved).
 // A watcher that rebuilds build/ on start says when it is done; one that does
 // not has no pattern, and a server behind it starts at once (#488).
 test('only a watcher that rebuilds on start carries a ready pattern', () => {
@@ -133,6 +131,17 @@ test('only a watcher that rebuilds on start carries a ready pattern', () => {
 	assert.equal(getProjectType('gutenberg').build.watch.readyPattern, 'Watching for changes');
 });
 
+// The hint under the terminal names where a contributor edits. Gutenberg has
+// no src/; a hint that says so sends a first-timer looking for a directory
+// that is not there (#490).
+test('the terminal hint names each project\u2019s own source directory', () => {
+	assert.equal(getProjectType('core').cards.sourceDir, 'src/');
+	assert.equal(getProjectType('gutenberg').cards.sourceDir, 'packages/');
+});
+
+// Where a site reads its own build from. Core's marker is the one site:status
+// always checked; Gutenberg's follows its current build layout (see the
+// registry comment for when it moved).
 test('the built marker names a file the build actually writes', () => {
 	assert.deepEqual(getProjectType('core').build.builtCheckRelPath, ['build', 'wp-includes', 'js', 'dist']);
 	assert.deepEqual(getProjectType('gutenberg').build.builtCheckRelPath, ['build', 'scripts', 'block-library', 'index.min.js']);
