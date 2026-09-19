@@ -2880,6 +2880,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       serverStartRequestedRef.current = false;
       devServerActiveRef.current = true;
       setStarting(true);
+      // A built site whose watch would first remove build/ (Gutenberg's npm run
+      // dev, #488) has nothing to wait for: the server starts on the build/ it
+      // has, in seconds instead of the watch's rebuild (#499). The watch stays
+      // where the contributor left it; Start build watch, or an apply, brings
+      // it up when it is wanted. Any watch already running is left alone.
+      const plan = planDevServerStart({ hasBuilt }, projectBuild);
+      if (!plan.watchBeforeServer && !watchOccupiesBuild(watchStateRef.current)) {
+        appendRuntime('build/ is complete: starting the server without the build watch. Start build watch to compile edits on save.\n');
+        startPhpServer().catch(() => {});
+        return;
+      }
       // The server needs build/ on disk, which the build watch guarantees. Start
       // the watch first (automatically, if it is not already running) and hang
       // the server start off its readiness — the watch stays independent after.
@@ -5003,7 +5014,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               variant="secondary"
               onClick={toggleWatch}
               disabled={isUpdating}
-              title={watchActive ? 'The build watch compiles src/ edits automatically' : 'Compile src/ edits on save (runs independently of the dev server)'}
+              title={watchActive ? `The build watch compiles ${project.cards.sourceDir} edits automatically` : `Compile ${project.cards.sourceDir} edits on save (runs independently of the dev server)`}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', padding: '12px 16px', fontSize: 15, borderRadius: 12 }}
             >
               <span

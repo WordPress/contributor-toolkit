@@ -11,10 +11,10 @@
  *
  * The watcher command is the target's (#251): Core's is `grunt -- _watch`,
  * Gutenberg's is `npm run dev`. The registry holds each with the reasoning
- * beside it; what this module decides is only whether a build has to run
- * first. Sites without a completed build need one, so they get `npm run
- * build`, whose exit code is a real completion signal, before the watcher
- * starts.
+ * beside it; what this module decides is whether a build has to run first,
+ * and whether the watch has to run before the server at all. Sites without a
+ * completed build need one, so they get `npm run build`, whose exit code is a
+ * real completion signal, before the watcher starts.
  */
 
 const { getProjectType } = require('../project-type.cjs');
@@ -26,21 +26,33 @@ const { getProjectType } = require('../project-type.cjs');
  *
  * @param {{hasBuilt?: boolean}}                                     [flags]
  * @param {{watch: {script: string, args: string[], label: string}}} [build]
- * @return {{needsBuild: boolean, watch: {script: string, args: string[], label: string}}}
+ * @return {{needsBuild: boolean, watchBeforeServer: boolean, watch: {script: string, args: string[], label: string, readyPattern: string|null}}}
  */
 function planDevServerStart(flags = {}, build = getProjectType().build) {
 	const hasBuilt = Boolean(flags.hasBuilt);
+	const readyPattern = typeof build.watch.readyPattern === 'string' && build.watch.readyPattern ? build.watch.readyPattern : null;
 	return {
 		// True when `npm run build` must run (and exit 0) before the watcher
 		// and the server may start.
 		needsBuild: !hasBuilt,
+		// True when the watch has to be running before the server starts.
+		// A watch that is safe from the start (Core's, no pattern) costs
+		// nothing, so it starts with the server and src/ edits compile on
+		// save from the first click. One that rebuilds build/ from scratch
+		// before it watches (Gutenberg's, #488) only has to go first when
+		// there is no build/ yet: on a built site it would spend 20 s on
+		// macOS, minutes on Windows (#499), to arrive at the build/ the site
+		// already has, while the server has nothing to serve. So the server
+		// starts at once there, and the watch is left for Start build watch
+		// or for an apply, which builds on its own when no watch is running.
+		watchBeforeServer: !hasBuilt || readyPattern === null,
 		watch: {
 			script: build.watch.script,
 			args: build.watch.args.slice(),
 			label: build.watch.label,
 			// The line the watcher prints once it is safe to serve, or null when
 			// it is safe from the start. See createWatchReadyDetector.
-			readyPattern: typeof build.watch.readyPattern === 'string' && build.watch.readyPattern ? build.watch.readyPattern : null
+			readyPattern
 		}
 	};
 }

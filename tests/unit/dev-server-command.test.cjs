@@ -64,6 +64,34 @@ test("Core's watcher has no ready pattern, so the server starts with it", () => 
 	assert.strictEqual(createWatchReadyDetector(plan.watch.readyPattern).immediate, true);
 });
 
+// A built Gutenberg site has nothing to gain from the watch before the server:
+// `npm run dev` would remove build/ and rebuild it (20 s on macOS, minutes on
+// Windows, #499) to arrive at the same build/ the site already has. The server
+// starts at once, and the watch is left for Start build watch or an apply.
+test('a built Gutenberg site starts the server without the watch (#499)', () => {
+	const plan = planDevServerStart({ hasBuilt: true }, getProjectType('gutenberg').build);
+
+	assert.strictEqual(plan.watchBeforeServer, false);
+	assert.strictEqual(plan.needsBuild, false);
+});
+
+// Without a completed build there is nothing to serve: the one-shot build and
+// the watch come first, and the server waits for the ready line as before.
+test('an unbuilt Gutenberg site still builds and watches before the server', () => {
+	const plan = planDevServerStart({ hasBuilt: false }, getProjectType('gutenberg').build);
+
+	assert.strictEqual(plan.watchBeforeServer, true);
+	assert.strictEqual(plan.needsBuild, true);
+});
+
+// Core's watch is free (no pattern, touches nothing on start), so it keeps
+// starting with the server: src/ edits compile on save from the first click.
+test('a built Core site keeps starting the watch with the server', () => {
+	const plan = planDevServerStart({ hasBuilt: true }, getProjectType('core').build);
+
+	assert.strictEqual(plan.watchBeforeServer, true);
+});
+
 test('with no pattern the detector is ready before any output', () => {
 	const detector = createWatchReadyDetector(null);
 
