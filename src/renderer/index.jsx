@@ -26,7 +26,7 @@ import 'xterm/css/xterm.css';
 import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision, setupStepLabel } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
-import { planDevServerStart, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
+import { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from './watch-waiters.cjs';
 import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage } from './watch-activity.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
@@ -1340,6 +1340,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Set while the watcher is (or was) live, so a pause knows whether a resume
   // has anything to bring back. Survives the process being killed for a pause.
   const watchWasActiveRef = useRef(false);
+  // True while the last thing to touch build/ was a watch rebuild that did not
+  // finish: stopped or crashed while 'building'. build/ may then be empty or
+  // half written whatever the status's marker file says, so the server does
+  // not start on it without a watch (#499, serveWithoutWatch). Cleared when a
+  // watch reaches watching or a one-shot npm run build exits 0.
+  const buildInterruptedRef = useRef(false);
   const markWatchState = useCallback((state, code = null) => {
     watchStateRef.current = state;
     setWatchState(state);
@@ -2242,6 +2248,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       if (name === 'build') {
         setBuilding(false);
         setBuildFailed(code !== 0);
+        if (code === 0) buildInterruptedRef.current = false;
         try { await loadStatus(); } catch {}
       }
       if (track) currentRunIdRef.current = null;
@@ -2748,6 +2755,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         watchActivityRef.current.output(now);
         if (watchActivityRef.current.isCompiling(now)) setWatchCompiling(true);
         if (readiness.feed(chunk) && watchStateRef.current === 'building') {
+          buildInterruptedRef.current = false;
           markWatchState('watching');
           settleWatchWaiters(true);
         }
@@ -2764,6 +2772,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         // server still waiting to start behind it does not get to: without a
         // completed build/ there is nothing to serve.
         if (watchOccupiesBuild(watchStateRef.current)) {
+          if (watchStateRef.current === 'building') buildInterruptedRef.current = true;
           markWatchState('exited', code);
           watchWasActiveRef.current = false;
         }
@@ -2821,6 +2830,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // User-initiated stop of the watch (its own button). Never touches the server.
   const stopWatcher = useCallback(async () => {
     const wasBuilding = watchStateRef.current === 'building';
+    if (wasBuilding) buildInterruptedRef.current = true;
     markWatchState('idle');
     watchWasActiveRef.current = false;
     // From here the run being stopped is history: its late exit must not
@@ -2884,9 +2894,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       // dev, #488) has nothing to wait for: the server starts on the build/ it
       // has, in seconds instead of the watch's rebuild (#499). The watch stays
       // where the contributor left it; Start build watch, or an apply, brings
-      // it up when it is wanted. Any watch already running is left alone.
-      const plan = planDevServerStart({ hasBuilt }, projectBuild);
-      if (!plan.watchBeforeServer && !watchOccupiesBuild(watchStateRef.current)) {
+      // it up when it is wanted. The rule, including what a watch already up
+      // or cut short means, is serveWithoutWatch's. "Built" is read afresh:
+      // the state copy is as old as the last status poll, and build/ may
+      // have gone since (a watch rebuild, a clean by hand).
+      let builtNow = hasBuilt;
+      try { const fresh = await window.api.getSiteStatus(sitePath); builtNow = Boolean(fresh?.hasBuilt); setHasBuilt(builtNow); } catch {}
+      if (serveWithoutWatch({ hasBuilt: builtNow, watchState: watchStateRef.current, buildInterrupted: buildInterruptedRef.current }, projectBuild)) {
         appendRuntime('build/ is complete: starting the server without the build watch. Start build watch to compile edits on save.\n');
         startPhpServer().catch(() => {});
         return;

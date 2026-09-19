@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { planDevServerStart, createWatchReadyDetector, formatElapsed, watchTabLabel } = require('../../src/renderer/dev-server-command.cjs');
+const { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel } = require('../../src/renderer/dev-server-command.cjs');
 const { getProjectType } = require('../../src/project-type.cjs');
 
 test('a built site skips the build and goes straight to the watcher (issue #72)', () => {
@@ -68,28 +68,50 @@ test("Core's watcher has no ready pattern, so the server starts with it", () => 
 // `npm run dev` would remove build/ and rebuild it (20 s on macOS, minutes on
 // Windows, #499) to arrive at the same build/ the site already has. The server
 // starts at once, and the watch is left for Start build watch or an apply.
-test('a built Gutenberg site starts the server without the watch (#499)', () => {
-	const plan = planDevServerStart({ hasBuilt: true }, getProjectType('gutenberg').build);
+test('a built Gutenberg site with no watch starts the server without it (#499)', () => {
+	const build = getProjectType('gutenberg').build;
 
-	assert.strictEqual(plan.watchBeforeServer, false);
-	assert.strictEqual(plan.needsBuild, false);
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'idle' }, build), true);
+	// A paused watch is an apply building on its own; serving meanwhile is fine.
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'paused' }, build), true);
 });
 
 // Without a completed build there is nothing to serve: the one-shot build and
 // the watch come first, and the server waits for the ready line as before.
 test('an unbuilt Gutenberg site still builds and watches before the server', () => {
-	const plan = planDevServerStart({ hasBuilt: false }, getProjectType('gutenberg').build);
+	const build = getProjectType('gutenberg').build;
 
-	assert.strictEqual(plan.watchBeforeServer, true);
-	assert.strictEqual(plan.needsBuild, true);
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: false, watchState: 'idle' }, build), false);
+	assert.strictEqual(planDevServerStart({ hasBuilt: false }, build).needsBuild, true);
+});
+
+// A watch already up is used as it is: the server hangs off its readiness,
+// ready at once when it is watching, after the rebuild when it is building.
+test('a Gutenberg watch that is watching or building is not bypassed', () => {
+	const build = getProjectType('gutenberg').build;
+
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'watching' }, build), false);
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'building' }, build), false);
+});
+
+// The status's "built" is one marker file, and a rebuild that was cut short
+// (the watch stopped or crashed while building) can leave that file in place
+// with the rest of build/ missing. The watch goes first there and completes
+// build/, as it did before #499; the marker is not trusted over the history.
+test('a Gutenberg build cut short sends the watch first again', () => {
+	const build = getProjectType('gutenberg').build;
+
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'exited' }, build), false);
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'idle', buildInterrupted: true }, build), false);
 });
 
 // Core's watch is free (no pattern, touches nothing on start), so it keeps
 // starting with the server: src/ edits compile on save from the first click.
 test('a built Core site keeps starting the watch with the server', () => {
-	const plan = planDevServerStart({ hasBuilt: true }, getProjectType('core').build);
+	const build = getProjectType('core').build;
 
-	assert.strictEqual(plan.watchBeforeServer, true);
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'idle' }, build), false);
+	assert.strictEqual(serveWithoutWatch({ hasBuilt: true, watchState: 'paused' }, build), false);
 });
 
 test('with no pattern the detector is ready before any output', () => {
