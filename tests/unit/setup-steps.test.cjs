@@ -64,6 +64,17 @@ test('an install in flight disables its own button', () => {
 	assert.strictEqual(steps.install.done, false);
 });
 
+// A status refresh mid-install sees a half-written node_modules. That is not
+// "installed", and the build must stay locked until npm exits (#495).
+test('a half-written node_modules during an install does not complete the step', () => {
+	const steps = computeSetupStepState({ hasNodeModules: true, installing: true });
+
+	assert.strictEqual(steps.install.done, false);
+	assert.strictEqual(steps.install.disabled, true);
+	assert.strictEqual(steps.build.ready, false);
+	assert.strictEqual(steps.build.disabled, true);
+});
+
 test('installed dependencies complete the install step and unlock the build', () => {
 	const steps = computeSetupStepState({ hasNodeModules: true });
 
