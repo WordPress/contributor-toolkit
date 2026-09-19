@@ -118,6 +118,18 @@ for ( const target of TARGETS ) {
 					expect( row[ 0 ] ).toContain( 'Deactivate' );
 					expect( plugins ).not.toMatch( />Delete</ );
 				}
+				if ( target.servedAsPlugin ) {
+					// INVARIANT: a built Gutenberg site serves at once, without the
+					// watch (#499): `npm run dev` would remove build/ and rebuild it
+					// first, for nothing. The button still offers the watch and its
+					// tab never went "building". Core's watch starts with the server.
+					await expect( page.getByRole( 'button', { name: 'Start build watch', exact: true } ) ).toBeVisible();
+					await expect( page.getByRole( 'tab', { name: 'Build watcher', exact: true } ) ).toBeVisible();
+					// Start it by hand so the stop below, and the process-tree check
+					// after it, still exercise the watch.
+					await page.getByRole( 'button', { name: 'Start build watch', exact: true } ).click();
+					await expect( page.getByRole( 'tab', { name: 'Build watcher (watching)', exact: true } ) ).toBeVisible( { timeout: 3 * 60_000 } );
+				}
 				await page.getByRole( 'button', { name: 'Stop build watch', exact: true } ).click();
 				await page.getByRole( 'button', { name: 'Stop dev server', exact: true } ).click();
 				await expect( page.getByRole( 'button', { name: 'Start dev server', exact: true } ) ).toBeVisible( { timeout: 60_000 } );

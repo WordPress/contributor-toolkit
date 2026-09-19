@@ -24,7 +24,7 @@ You never run it manually unless something failed: [trunk updates](./trunk-updat
 
 ### 4. Start dev server & finish wizard
 
-Click **Start dev server and finish the wizard** to launch the WordPress dev server for the first time. This completes the checklist and permanently replaces it with the compact action bar described below. The server URL, and a **wp-admin** link beside it, appear next to the button once it is up — see [Running the site](./running-the-site).
+Click **Start dev server and finish the wizard** to launch the WordPress dev server for the first time. This completes the checklist and permanently replaces it with the compact action bar described below. The server URL, and a **wp-admin** link beside it, appear next to the button once it is up — see [Running the site](./running-the-site). On a Gutenberg site the server starts on the build step 3 just produced, without the [build watch](./running-the-site#the-build-watch); start that yourself when you want your edits compiled on save.
 
 ## Stopping the chain
 
