@@ -33,8 +33,11 @@ function computeSetupStepState(flags = {}) {
 	// node_modules existing is not evidence the install succeeded: a failed
 	// install leaves a partial one behind, and treating that as a completed
 	// step disabled the retry and unlocked a build that could not work (#42).
-	// The recorded outcome of the last install run overrides existence.
-	const installOk = hasNodeModules && !installFailed;
+	// The recorded outcome of the last install run overrides existence. So
+	// does an install still running: a status refresh mid-install (switching
+	// back to the window is enough) sees a half-written node_modules, and
+	// read it as done, with the build unlocked over it (#495).
+	const installOk = hasNodeModules && !installFailed && !installing;
 
 	return {
 		download: {
