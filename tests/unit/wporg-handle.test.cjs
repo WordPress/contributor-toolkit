@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { PROFILES_HOST, MAX_HANDLE_LENGTH, profileUrl, parseHandle } = require('../../src/wporg-handle.cjs');
+const { PROFILES_HOST, MAX_HANDLE_LENGTH, isHandle, profileUrl, parseHandle } = require('../../src/wporg-handle.cjs');
 
 test('parseHandle: a bare username is a handle (issue #166)', () => {
 	const res = parseHandle('janedoe');
@@ -87,4 +87,52 @@ test('parseHandle: a profiles URL that is not a profile is refused (issue #166)'
 	assert.strictEqual(parseHandle('https://profiles.wordpress.org/').ok, false);
 	assert.strictEqual(parseHandle('https://profiles.wordpress.org/janedoe/activity/').ok, false);
 	assert.strictEqual(parseHandle('https://profiles.wordpress.org/%zz/').ok, false);
+});
+
+test('isHandle: valid canonical handles are accepted (issue #484)', () => {
+	for (const handle of ['janedoe', 'jane-doe', 'jane_doe', 'jane.doe', 'jane1', '1jane', 'j']) {
+		assert.strictEqual(isHandle(handle), true, `handle: ${handle}`);
+	}
+});
+
+// Stored handles are canonical lowercase; uppercase input is resolved by parseHandle,
+// not passed raw into filenames or structural headers.
+test('isHandle: uppercase handles are rejected (issue #484)', () => {
+	for (const handle of ['JaneDoe', 'JANEDOE', 'janeDoe']) {
+		assert.strictEqual(isHandle(handle), false, `handle: ${handle}`);
+	}
+});
+
+test('isHandle: handles at or beyond length boundaries (issue #484)', () => {
+	assert.strictEqual(isHandle('a'.repeat(MAX_HANDLE_LENGTH)), true);
+	assert.strictEqual(isHandle('a'.repeat(MAX_HANDLE_LENGTH + 1)), false);
+});
+
+test('isHandle: leading and trailing separators are rejected (issue #484)', () => {
+	for (const handle of ['-janedoe', 'janedoe-', '.janedoe', 'janedoe.', '_janedoe', 'janedoe_']) {
+		assert.strictEqual(isHandle(handle), false, `handle: ${handle}`);
+	}
+});
+
+// Anything that would break a filename or header line is refused.
+test('isHandle: characters outside the handle charset are rejected (issue #484)', () => {
+	const bad = [
+		'jane doe',
+		'jane/doe',
+		'jane\\doe',
+		'../../etc/passwd',
+		'jane\ndoe',
+		'jane#doe',
+		'jane%20doe',
+		'@janedoe'
+	];
+	for (const input of bad) {
+		assert.strictEqual(isHandle(input), false, `input: ${JSON.stringify(input)}`);
+	}
+});
+
+test('isHandle: empty input and non-string types are rejected (issue #484)', () => {
+	for (const bad of ['', '   ', null, undefined, 42, {}, [], true, false]) {
+		assert.strictEqual(isHandle(bad), false, `bad input: ${JSON.stringify(bad)}`);
+	}
 });
