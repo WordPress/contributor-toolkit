@@ -75,6 +75,21 @@ test('a half-written node_modules during an install does not complete the step',
 	assert.strictEqual(steps.build.disabled, true);
 });
 
+// The build's marker file (block-library's bundle on Gutenberg) lands mid-way
+// through `npm run build`, so a status refresh during the build reads the
+// site as built while later phases are still writing build/. That is not
+// "built": the step stays in progress and the server stays locked until the
+// build exits (#502), the same rule the install step got in #495.
+test('a marker written mid-build does not complete the build step', () => {
+	const steps = computeSetupStepState({ hasNodeModules: true, hasBuilt: true, building: true });
+
+	assert.strictEqual(steps.build.done, false);
+	assert.strictEqual(steps.build.disabled, true);
+	assert.strictEqual(steps.dev.ready, false);
+	assert.strictEqual(steps.dev.disabled, true);
+	assert.strictEqual(setupStepCopy({ hasNodeModules: true, hasBuilt: true, building: true }).buildLabel, 'Run full build');
+});
+
 test('installed dependencies complete the install step and unlock the build', () => {
 	const steps = computeSetupStepState({ hasNodeModules: true });
 

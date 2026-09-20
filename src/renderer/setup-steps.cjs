@@ -38,6 +38,12 @@ function computeSetupStepState(flags = {}) {
 	// back to the window is enough) sees a half-written node_modules, and
 	// read it as done, with the build unlocked over it (#495).
 	const installOk = hasNodeModules && !installFailed && !installing;
+	// The same for the build: "built" is one marker file, and on Gutenberg
+	// that file (block-library's bundle) lands mid-way through npm run build,
+	// with later phases still writing build/. A status refresh during the
+	// build read the step as done and unlocked the server over a half-written
+	// build/ (#502). A build still running overrides the marker.
+	const builtOk = hasBuilt && !building;
 
 	return {
 		download: {
@@ -55,15 +61,15 @@ function computeSetupStepState(flags = {}) {
 			disabled: isPending || statusLoading || installing || installOk || isUpdating
 		},
 		build: {
-			done: hasBuilt,
+			done: builtOk,
 			ready: installOk,
 			failed: buildFailed && !building && !hasBuilt,
-			disabled: statusLoading || building || !installOk || hasBuilt || isUpdating
+			disabled: statusLoading || building || !installOk || builtOk || isUpdating
 		},
 		dev: {
 			done: false,
-			ready: hasBuilt,
-			disabled: statusLoading || starting || !hasBuilt || isUpdating
+			ready: builtOk,
+			disabled: statusLoading || starting || !builtOk || isUpdating
 		}
 	};
 }
@@ -167,7 +173,7 @@ function setupStepLabel(status, isRunning) {
 function setupStepCopy(flags = {}, setup = getProjectType().setup) {
 	const state = computeSetupStepState(flags);
 	const installFailed = Boolean(flags.installFailed);
-	const hasBuilt = Boolean(flags.hasBuilt);
+	const hasBuilt = state.build.done;
 
 	let installLabel = 'Install npm dependencies';
 	if (state.install.done) installLabel = 'Dependencies installed';
