@@ -238,10 +238,19 @@ test('after a failed build the step reads failed, and the dev server stays locke
 	});
 });
 
-test('a build that succeeded after failing earlier reads complete, not failed', () => {
-	// hasBuilt is the ground truth; a stale buildFailed flag must not outrank it.
+test('a build that failed over an existing marker reads failed, not complete', () => {
+	// The marker is not ground truth (#502): a build stopped or failed late may
+	// have cleaned build/ and rewritten only part of it. buildFailed is never
+	// stale within a session, every build path clears it on success, so a flag
+	// still set outranks the marker and the dev server stays locked.
 	assert.deepStrictEqual(statuses({ hasNodeModules: true, hasBuilt: true, buildFailed: true }), {
-		download: 'complete', install: 'complete', build: 'complete', dev: 'current'
+		download: 'complete', install: 'complete', build: 'failed', dev: 'locked'
+	});
+});
+
+test('a build still running reads in progress, whatever the marker says (#502)', () => {
+	assert.deepStrictEqual(statuses({ hasNodeModules: true, hasBuilt: true, building: true }), {
+		download: 'complete', install: 'complete', build: 'current', dev: 'locked'
 	});
 });
 

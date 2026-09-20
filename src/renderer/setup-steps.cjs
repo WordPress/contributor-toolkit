@@ -42,8 +42,12 @@ function computeSetupStepState(flags = {}) {
 	// that file (block-library's bundle) lands mid-way through npm run build,
 	// with later phases still writing build/. A status refresh during the
 	// build read the step as done and unlocked the server over a half-written
-	// build/ (#502). A build still running overrides the marker.
-	const builtOk = hasBuilt && !building;
+	// build/ (#502). A build still running overrides the marker, and so does
+	// one that failed or was stopped: it may have cleaned build/ and rewritten
+	// only part of it, and every build path clears the flag on a later success
+	// (runScript's done handler), so a flag still set means the last attempt
+	// lost, whatever the marker says.
+	const builtOk = hasBuilt && !building && !buildFailed;
 
 	return {
 		download: {
@@ -63,7 +67,7 @@ function computeSetupStepState(flags = {}) {
 		build: {
 			done: builtOk,
 			ready: installOk,
-			failed: buildFailed && !building && !hasBuilt,
+			failed: buildFailed && !building,
 			disabled: statusLoading || building || !installOk || builtOk || isUpdating
 		},
 		dev: {
