@@ -75,6 +75,21 @@ test('a half-written node_modules during an install does not complete the step',
 	assert.strictEqual(steps.build.disabled, true);
 });
 
+// The build's marker file (block-library's bundle on Gutenberg) lands mid-way
+// through `npm run build`, so a status refresh during the build reads the
+// site as built while later phases are still writing build/. That is not
+// "built": the step stays in progress and the server stays locked until the
+// build exits (#502), the same rule the install step got in #495.
+test('a marker written mid-build does not complete the build step', () => {
+	const steps = computeSetupStepState({ hasNodeModules: true, hasBuilt: true, building: true });
+
+	assert.strictEqual(steps.build.done, false);
+	assert.strictEqual(steps.build.disabled, true);
+	assert.strictEqual(steps.dev.ready, false);
+	assert.strictEqual(steps.dev.disabled, true);
+	assert.strictEqual(setupStepCopy({ hasNodeModules: true, hasBuilt: true, building: true }).buildLabel, 'Run full build');
+});
+
 test('installed dependencies complete the install step and unlock the build', () => {
 	const steps = computeSetupStepState({ hasNodeModules: true });
 
@@ -223,10 +238,19 @@ test('after a failed build the step reads failed, and the dev server stays locke
 	});
 });
 
-test('a build that succeeded after failing earlier reads complete, not failed', () => {
-	// hasBuilt is the ground truth; a stale buildFailed flag must not outrank it.
+test('a build that failed over an existing marker reads failed, not complete', () => {
+	// The marker is not ground truth (#502): a build stopped or failed late may
+	// have cleaned build/ and rewritten only part of it. buildFailed is never
+	// stale within a session, every build path clears it on success, so a flag
+	// still set outranks the marker and the dev server stays locked.
 	assert.deepStrictEqual(statuses({ hasNodeModules: true, hasBuilt: true, buildFailed: true }), {
-		download: 'complete', install: 'complete', build: 'complete', dev: 'current'
+		download: 'complete', install: 'complete', build: 'failed', dev: 'locked'
+	});
+});
+
+test('a build still running reads in progress, whatever the marker says (#502)', () => {
+	assert.deepStrictEqual(statuses({ hasNodeModules: true, hasBuilt: true, building: true }), {
+		download: 'complete', install: 'complete', build: 'current', dev: 'locked'
 	});
 });
 

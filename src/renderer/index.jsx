@@ -4593,7 +4593,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       action: (
         <Button
           isBusy={building}
-          variant={hasBuilt ? 'secondary' : 'primary'}
+          variant={stepState.build.done ? 'secondary' : 'primary'}
           onClick={runBuildWithTerminal}
           disabled={stepState.build.disabled}
         >{buildLabel}</Button>
