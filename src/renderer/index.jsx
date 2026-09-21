@@ -1358,10 +1358,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const watchWaitersRef = useRef(createWatchWaiters());
   // Which apply's hand-off to the resumed watch is current (#506). The waiters
   // survive a pause (a queued dev-server start is meant to), so an apply's
-  // waiter left over from a rebuild that a later pause cut short would fire on
-  // the next run's ready line and confirm the wrong apply. Every pause bumps
-  // this; the callbacks compare it with the value they were registered under.
-  const applyHandOffRef = useRef(0);
+  // waiter left over from a rebuild that a later pause cut short, or that a
+  // later src-only apply overtook, would fire on the ready line and confirm an
+  // apply already reported. Every apply, switch and pause invalidates the
+  // generation; the callbacks check the token they were registered under. Same
+  // mechanism as the watch runs (createRunGeneration), for the same reason.
+  const applyHandOffRef = useRef(createRunGeneration());
   // The watch decision a saved-work restore made in begin, for its complete.
   const switchImpactRef = useRef(null);
   const settleWatchWaiters = useCallback((ready) => { watchWaitersRef.current.settle(ready); }, []);
@@ -2871,7 +2873,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     if (watchStateRef.current !== 'watching' && watchStateRef.current !== 'building') return false;
     markWatchState('paused');
     watchGenerationRef.current.invalidate();
-    applyHandOffRef.current += 1;
+    applyHandOffRef.current.invalidate();
     clearWatchActivity();
     appendWatch('\nPaused while another operation uses the build.\n');
     try { await killWatcher(); } catch {}
@@ -3428,15 +3430,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       }
       // Registered before the resume so a watch that dies at once still lands
       // in onFail. The waiters settle once per run: on the ready line or on exit.
-      const id = applyHandOffRef.current;
+      const token = applyHandOffRef.current.next();
       watchWaitersRef.current.add(
         () => {
-          if (applyHandOffRef.current !== id) return;
+          if (!applyHandOffRef.current.isCurrent(token)) return;
           confirm(`${verb} the ${noun}`);
           writeToTerminal(handOff.ready);
         },
         () => {
-          if (applyHandOffRef.current !== id) return;
+          if (!applyHandOffRef.current.isCurrent(token)) return;
           writeToTerminal(handOff.failed);
         }
       );
@@ -3675,6 +3677,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setApplyNeedsInstall(Boolean(preview?.needsInstall));
     setApplyBuildByWatcher(impact.buildBy);
     setApplyState('applying');
+    applyHandOffRef.current.invalidate();
     markTerminalRunning(true);
     if (impact.pauseWatcher) await pauseWatcher();
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
@@ -3716,6 +3719,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         }
         markTerminalRunning(true);
         terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+        applyHandOffRef.current.invalidate();
         // Restoring saved work is a whole-tree switch like a PR checkout: the
         // decision is made here, where the watch is paused, and read back in
         // complete (#506). This effect has no dependency list, so it runs on
@@ -3765,6 +3769,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setApplyKind('patch');
     setApplyBuildByWatcher(impact.buildBy);
     setApplyState('applying');
+    applyHandOffRef.current.invalidate();
     markTerminalRunning(true);
     if (impact.pauseWatcher) await pauseWatcher();
     // Same contract as the other chains: while `running` is set, Ctrl+C in the
