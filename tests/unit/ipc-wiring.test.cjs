@@ -1908,6 +1908,15 @@ function assertShimsPreloadCompat(label) {
 		shim.includes(`--require "${compat}"`),
 		`${label}: the node shim starts a child without the preload, so any yargs-based tool it runs misreads its arguments`
 	);
+	// On Windows the spawn patch is preloaded into every descendant Node and
+	// requires the hide-child-windows copy beside it (#497); both have to be
+	// there, since a path inside app.asar is not reliable under
+	// ELECTRON_RUN_AS_NODE.
+	if (process.platform === 'win32') {
+		for (const name of ['win-spawn-patch.js', 'hide-child-windows.js']) {
+			assert.ok(fs.existsSync(path.join(shimDir, name)), `${label}: ${name} was not copied next to the shims`);
+		}
+	}
 }
 
 // The three cross-platform decisions every spawn in main.js makes. No module

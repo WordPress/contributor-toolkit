@@ -192,14 +192,32 @@ function applyPatch(childProcess = require('child_process'), config = {}) {
 	return childProcess;
 }
 
-// Only self-applies when the app explicitly asked for it, so requiring this
-// module from a test never mutates the test process.
-if (process.env.WPTK_SPAWN_PATCH === '1') {
-	applyPatch(require('child_process'), {
-		npmCliPath: process.env.WPTK_NPM_CLI || null,
-		npxCliPath: process.env.WPTK_NPX_CLI || null,
-		nodeCompatPath: process.env.WPTK_NODE_COMPAT_PATH || null
+// What the preload does to the process it was loaded into. Only when the app
+// explicitly asked for it, so requiring this module from a test never mutates
+// the test process, and only on Windows, where both problems live.
+//
+// The second half is #497. Every descendant Node here is Electron running as
+// Node, a GUI-subsystem binary with no console of its own. When one of them
+// spawns cmd.exe without `windowsHide` — cross-spawn wrapping a .cmd stub, as
+// Gutenberg's tools/build-scripts do for `tsc` and `wp-build` — Windows finds
+// no console to inherit and allocates a brand-new visible one: the black
+// windows of #497, and closing one breaks the build. hideChildWindows() (the
+// copy ensureNodeShimDir() puts beside this file) forces the flag on every
+// child_process entry point of the process, the way the four runners already
+// do for themselves. The runners then get it twice, which the patch's own
+// marker makes a no-op. A missing copy costs the hiding, never the spawn patch.
+function selfApply({ env = process.env, platform = process.platform, childProcess = require('child_process'), requireHide = () => require(path.join(__dirname, 'hide-child-windows.js')) } = {}) {
+	if (platform !== 'win32' || env.WPTK_SPAWN_PATCH !== '1') return;
+	applyPatch(childProcess, {
+		npmCliPath: env.WPTK_NPM_CLI || null,
+		npxCliPath: env.WPTK_NPX_CLI || null,
+		nodeCompatPath: env.WPTK_NODE_COMPAT_PATH || null
 	});
+	try {
+		requireHide().hideChildWindows();
+	} catch {}
 }
 
-module.exports = { resolveSpawnTarget, applyPatch, defaultLookup, PATCH_MARKER };
+selfApply();
+
+module.exports = { resolveSpawnTarget, applyPatch, selfApply, defaultLookup, PATCH_MARKER };

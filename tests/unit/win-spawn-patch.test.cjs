@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { resolveSpawnTarget, applyPatch, defaultLookup, PATCH_MARKER } = require('../../src/win-spawn-patch.js');
+const { resolveSpawnTarget, applyPatch, selfApply, defaultLookup, PATCH_MARKER } = require('../../src/win-spawn-patch.js');
 
 // The Windows shim layout ensureNodeShimDir() writes, as the patch sees it.
 const WIN = {
@@ -241,4 +241,44 @@ test('applyPatch is idempotent so a duplicated --require cannot double-wrap', ()
 	assert.equal(fake[PATCH_MARKER], true);
 	fake.spawn('node');
 	assert.equal(depth, 1);
+});
+
+// #497: the preload reaches every descendant Node on Windows, and each of those
+// is Electron running as Node, a GUI-subsystem binary with no console. A
+// cmd.exe it spawns without windowsHide (cross-spawn wrapping a .cmd stub, as
+// Gutenberg's build scripts do for tsc and wp-build) gets a brand-new visible
+// console. So the same preload that fixes `spawn('node')` also hides consoles,
+// through the hide-child-windows copy beside it.
+function fakeChildProcess() {
+	return { spawn: () => 'spawned', spawnSync: () => {}, execFile: () => {}, execFileSync: () => {} };
+}
+
+test('selfApply applies the spawn patch and hides consoles on Windows when the app asked for it', () => {
+	const cp = fakeChildProcess();
+	const hidden = [];
+	selfApply({ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'win32', childProcess: cp, requireHide: () => ({ hideChildWindows: () => { hidden.push(cp); } }) });
+
+	assert.equal(cp[PATCH_MARKER], true, 'the spawn patch was not applied');
+	assert.deepEqual(hidden, [cp], 'hideChildWindows was not called');
+});
+
+test('selfApply does nothing without the flag, and nothing off Windows', () => {
+	for (const input of [
+		{ env: {}, platform: 'win32' },
+		{ env: { WPTK_SPAWN_PATCH: '0' }, platform: 'win32' },
+		{ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'darwin' }
+	]) {
+		const cp = fakeChildProcess();
+		let hideAsked = false;
+		selfApply({ ...input, childProcess: cp, requireHide: () => { hideAsked = true; return { hideChildWindows() {} }; } });
+		assert.equal(cp[PATCH_MARKER], undefined, JSON.stringify(input));
+		assert.equal(hideAsked, false, JSON.stringify(input));
+	}
+});
+
+test('selfApply keeps the spawn patch when the hide copy is missing beside it', () => {
+	const cp = fakeChildProcess();
+	selfApply({ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'win32', childProcess: cp, requireHide: () => { throw new Error("Cannot find module './hide-child-windows.js'"); } });
+
+	assert.equal(cp[PATCH_MARKER], true, 'a missing hide copy must not cost the spawn patch');
 });
