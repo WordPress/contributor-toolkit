@@ -19,9 +19,11 @@
 // It is the one tool the build spawns bare that a host install shadows with an
 // incompatible one.
 //
-// Deliberately self-contained (Node built-ins only): this file is copied into the
-// temp shim dir and required from there, because --require into a path inside
-// app.asar is not reliable under ELECTRON_RUN_AS_NODE.
+// Deliberately self-contained: Node built-ins, plus the one sibling
+// ensureNodeShimDir() copies beside it (hide-child-windows.js, #497) and
+// nothing else. This file is copied into the temp shim dir and required from
+// there, because --require into a path inside app.asar is not reliable under
+// ELECTRON_RUN_AS_NODE, and the shim dir has no other neighbour from src/.
 
 const path = require('path');
 const fs = require('fs');
@@ -201,11 +203,14 @@ function applyPatch(childProcess = require('child_process'), config = {}) {
 // spawns cmd.exe without `windowsHide` — cross-spawn wrapping a .cmd stub, as
 // Gutenberg's tools/build-scripts do for `tsc` and `wp-build` — Windows finds
 // no console to inherit and allocates a brand-new visible one: the black
-// windows of #497, and closing one breaks the build. hideChildWindows() (the
-// copy ensureNodeShimDir() puts beside this file) forces the flag on every
-// child_process entry point of the process, the way the four runners already
-// do for themselves. The runners then get it twice, which the patch's own
-// marker makes a no-op. A missing copy costs the hiding, never the spawn patch.
+// windows of #497, and closing one breaks the build. patchChildProcess() from
+// hide-child-windows.js (the copy ensureNodeShimDir() puts beside this file)
+// forces the flag on every child_process entry point of the process, the way
+// the four runners already do for themselves. The runners then get it twice,
+// which the patch's own marker makes a no-op. A missing copy costs the hiding,
+// never the spawn patch, and says nothing: this process's stdout and stderr
+// are the build's output, so a warning here would land in the middle of npm's
+// lines; main.js logs the copy failure where the log is.
 function selfApply({ env = process.env, platform = process.platform, childProcess = require('child_process'), requireHide = () => require(path.join(__dirname, 'hide-child-windows.js')) } = {}) {
 	if (platform !== 'win32' || env.WPTK_SPAWN_PATCH !== '1') return;
 	applyPatch(childProcess, {
@@ -214,7 +219,7 @@ function selfApply({ env = process.env, platform = process.platform, childProces
 		nodeCompatPath: env.WPTK_NODE_COMPAT_PATH || null
 	});
 	try {
-		requireHide().hideChildWindows();
+		requireHide().patchChildProcess(childProcess, platform);
 	} catch {}
 }
 

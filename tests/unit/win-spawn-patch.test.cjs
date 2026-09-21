@@ -256,10 +256,32 @@ function fakeChildProcess() {
 test('selfApply applies the spawn patch and hides consoles on Windows when the app asked for it', () => {
 	const cp = fakeChildProcess();
 	const hidden = [];
-	selfApply({ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'win32', childProcess: cp, requireHide: () => ({ hideChildWindows: () => { hidden.push(cp); } }) });
+	selfApply({ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'win32', childProcess: cp, requireHide: () => ({ patchChildProcess: (target, platform) => { hidden.push([target, platform]); return target; } }) });
 
 	assert.equal(cp[PATCH_MARKER], true, 'the spawn patch was not applied');
-	assert.deepEqual(hidden, [cp], 'hideChildWindows was not called');
+	assert.deepEqual(hidden, [[cp, 'win32']], 'patchChildProcess was not applied to the same child_process');
+});
+
+// The default requireHide is the one production runs: the copy in the shim dir
+// resolving its sibling by name. Reproduced with the two files copied into a
+// temp dir, the way ensureNodeShimDir() lays them out, and the real
+// hide-child-windows applied to a fake child_process so the test process is
+// never touched.
+test('selfApply from a shim-dir copy finds hide-child-windows.js beside it', () => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wptk-shims-'));
+	try {
+		for (const name of ['win-spawn-patch.js', 'hide-child-windows.js']) {
+			fs.copyFileSync(path.join(__dirname, '../../src', name), path.join(dir, name));
+		}
+		const copy = require(path.join(dir, 'win-spawn-patch.js'));
+		const cp = fakeChildProcess();
+		copy.selfApply({ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'win32', childProcess: cp });
+
+		assert.equal(cp[PATCH_MARKER], true);
+		assert.equal(cp[Symbol.for('wp-dev-env.windowsHidePatched')], true, 'the sibling copy was not found, so consoles would show (#497)');
+	} finally {
+		fs.rmSync(dir, { recursive: true, force: true });
+	}
 });
 
 test('selfApply does nothing without the flag, and nothing off Windows', () => {
@@ -270,7 +292,7 @@ test('selfApply does nothing without the flag, and nothing off Windows', () => {
 	]) {
 		const cp = fakeChildProcess();
 		let hideAsked = false;
-		selfApply({ ...input, childProcess: cp, requireHide: () => { hideAsked = true; return { hideChildWindows() {} }; } });
+		selfApply({ ...input, childProcess: cp, requireHide: () => { hideAsked = true; return { patchChildProcess: (target) => target }; } });
 		assert.equal(cp[PATCH_MARKER], undefined, JSON.stringify(input));
 		assert.equal(hideAsked, false, JSON.stringify(input));
 	}

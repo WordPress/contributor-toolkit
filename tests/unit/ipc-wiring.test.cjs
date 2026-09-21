@@ -1835,6 +1835,11 @@ test('main.js does not apply the windowsHide patch when it loads', () => {
 		[],
 		'main.js patched its own child_process with windowsHide — every spawn in the process now carries the flag, including the editor launch (#181)'
 	);
+	// Since #497 the win-spawn-patch preload reaches hideChildWindows on its
+	// own, by absolute path, which the stub map above cannot see. main.js only
+	// copies that file; requiring it would be the second way in.
+	const preloadRequired = Object.keys(require.cache).filter((file) => file.endsWith(`${path.sep}win-spawn-patch.js`));
+	assert.deepEqual(preloadRequired, [], 'main.js required the spawn-patch preload, which applies windowsHide by itself on Windows');
 });
 
 // --- npm:* -> src/npm-runner.js + src/kill-tree.js -----------------------
