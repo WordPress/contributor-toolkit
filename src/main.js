@@ -3428,7 +3428,32 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 			}, 0);
 		});
 
+		// `close` is the event the run settles on, and it waits for the stdio
+		// pipes. A descendant that outlives npm keeps them open — wp-build after
+		// its cmd.exe was closed by hand (#497) — so npm has exited, the step is
+		// still IN PROGRESS, and the terminal keeps receiving the orphan's output
+		// (#498). Mirror of the Stop escalation (#479) on the natural-exit path:
+		// three seconds after `exit` with no `close`, force the group by pid
+		// (on POSIX the detached group outlives its leader, so the orphan goes;
+		// on Windows `taskkill /T` from a pid that is gone reaches nothing, and
+		// the orphan runs on until it finishes) and destroy the pipes, which is
+		// what makes Node emit `close` with the exit code npm gave. The close
+		// handler then settles as usual, so the engines-retry decision stays in
+		// one place; whatever the orphan writes afterwards goes with the stream.
+		let letGo = null;
+		child.once('exit', (code, signal) => {
+			letGo = setTimeout(() => {
+				if (settled) return;
+				logEvent(logScope, `exited with code ${code}${signal ? ` (signal ${signal})` : ''} but a descendant still holds its output; forcing the tree and letting go`);
+				killTreeByPid(child.pid, 'SIGKILL');
+				for (const stream of [child.stdout, child.stderr, child.stdin]) {
+					if (stream && typeof stream.destroy === 'function') stream.destroy();
+				}
+			}, 3000);
+		});
+
 		child.on('close', (code, signal) => {
+			if (letGo) clearTimeout(letGo);
 			flushChildOutput(logScope);
 			logEvent(logScope, `exited with code ${code}${signal ? ` (signal ${signal})` : ''}`);
 			// `!settled` guards the case where the error path got there first: the
