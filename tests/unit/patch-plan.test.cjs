@@ -11,7 +11,7 @@ const {
 	planApply,
 	layoutMapper
 } = require('../../src/patch-plan.cjs');
-const { updateStepStatuses, SKIP_INSTALL_MESSAGE, BUILD_BY_WATCHER_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP } = require('../../src/renderer/update-plan.cjs');
+const { updateStepStatuses, SKIP_INSTALL_MESSAGE, BUILD_BY_WATCHER_MESSAGE, BUILD_BY_RESUMED_WATCH_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP } = require('../../src/renderer/update-plan.cjs');
 
 // The four header shapes that actually reach the app. Kept verbatim rather than
 // generated: the whole point of these tests is that real-world formatting —
@@ -390,12 +390,23 @@ test('planApplySteps: the build step is skipped and attributed to the watch (iss
 	assert.strictEqual(planApplySteps({ needsInstall: false })[2].skipped, false);
 });
 
+// #506: a watch that was paused for the apply and rebuilds from scratch when it
+// resumes (Gutenberg's npm run dev) is the one build that runs, so the step is
+// skipped with a message that names the resume, not a live recompile.
+test('planApplySteps: the build step names the resumed watch when it does the rebuild (#506)', () => {
+	const resumed = planApplySteps({ needsInstall: true, buildByWatcher: 'resumed-watch' });
+	assert.strictEqual(resumed[2].skipped, true);
+	assert.strictEqual(resumed[2].skipMessage, BUILD_BY_RESUMED_WATCH_MESSAGE);
+	assert.strictEqual(planApplySteps({ buildByWatcher: 'live-watch' })[2].skipMessage, BUILD_BY_WATCHER_MESSAGE);
+	assert.strictEqual(planApplySteps({ buildByWatcher: null })[2].skipped, false);
+});
+
 // This is the bug in #262: with a watch running, a src-only patch must NOT run
 // its own build (the watch does it) and must NOT pause the watch.
 test('planWatchImpact: a src-only patch under a running watch neither builds nor pauses (issue #262)', () => {
 	assert.deepStrictEqual(
 		planWatchImpact({ needsInstall: false, watcherActive: true }),
-		{ pauseWatcher: false, runBuild: false }
+		{ pauseWatcher: false, runBuild: false, buildBy: 'live-watch' }
 	);
 });
 
@@ -403,7 +414,7 @@ test('planWatchImpact: a src-only patch under a running watch neither builds nor
 test('planWatchImpact: a src-only patch with no watch runs the build itself (issue #262)', () => {
 	assert.deepStrictEqual(
 		planWatchImpact({ needsInstall: false, watcherActive: false }),
-		{ pauseWatcher: false, runBuild: true }
+		{ pauseWatcher: false, runBuild: true, buildBy: null }
 	);
 });
 
@@ -412,19 +423,73 @@ test('planWatchImpact: a src-only patch with no watch runs the build itself (iss
 test('planWatchImpact: a lockfile-changing patch builds, and pauses a live watch (issue #262)', () => {
 	assert.deepStrictEqual(
 		planWatchImpact({ needsInstall: true, watcherActive: true }),
-		{ pauseWatcher: true, runBuild: true }
+		{ pauseWatcher: true, runBuild: true, buildBy: null }
 	);
 	// With no watch to collide with, it builds but has nothing to pause.
 	assert.deepStrictEqual(
 		planWatchImpact({ needsInstall: true, watcherActive: false }),
-		{ pauseWatcher: false, runBuild: true }
+		{ pauseWatcher: false, runBuild: true, buildBy: null }
 	);
 });
 
 // Missing flags must behave as the safe default: run the build, pause nothing.
 test('planWatchImpact: missing flags build and pause nothing (issue #262)', () => {
-	assert.deepStrictEqual(planWatchImpact(), { pauseWatcher: false, runBuild: true });
-	assert.deepStrictEqual(planWatchImpact({}), { pauseWatcher: false, runBuild: true });
+	assert.deepStrictEqual(planWatchImpact(), { pauseWatcher: false, runBuild: true, buildBy: null });
+	assert.deepStrictEqual(planWatchImpact({}), { pauseWatcher: false, runBuild: true, buildBy: null });
+});
+
+// #506: a paused watch that rebuilds build/ from scratch when it resumes
+// (Gutenberg) makes the apply's own build redundant, so only the watch builds.
+test('planWatchImpact: a whole-tree switch under a watch that rebuilds on resume pauses and leaves the build to it (#506)', () => {
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: false, watcherActive: true, watchRebuildsOnStart: true, wholeTree: true }),
+		{ pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
+	);
+	// A lockfile change still installs first; the build is still the watch's.
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: true, watcherActive: true, watchRebuildsOnStart: true, wholeTree: true }),
+		{ pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
+	);
+});
+
+// Core's grunt _watch touches nothing on start, so its explicit build stays.
+test('planWatchImpact: a whole-tree switch under a watch that does not rebuild on resume pauses and builds (#506)', () => {
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: false, watcherActive: true, watchRebuildsOnStart: false, wholeTree: true }),
+		{ pauseWatcher: true, runBuild: true, buildBy: null }
+	);
+});
+
+// A whole-tree switch never hands off to a live watch: the checkout rewrites
+// far more than a src/ patch, so the watch is always paused for it.
+test('planWatchImpact: a whole-tree switch never leaves a live watch running (#506)', () => {
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: false, watcherActive: true, wholeTree: true }),
+		{ pauseWatcher: true, runBuild: true, buildBy: null }
+	);
+});
+
+// The same for a patch that moves the lockfile: install, then the resumed watch builds.
+test('planWatchImpact: a lockfile-changing patch under a watch that rebuilds on resume leaves the build to it (#506)', () => {
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: true, watcherActive: true, watchRebuildsOnStart: true }),
+		{ pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
+	);
+	// A src-only patch under that same watch is #262 as before: the live watch recompiles.
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: false, watcherActive: true, watchRebuildsOnStart: true }),
+		{ pauseWatcher: false, runBuild: false, buildBy: 'live-watch' }
+	);
+});
+
+// No watch: there is nothing to resume, so the flag changes nothing (#499).
+test('planWatchImpact: with no watch the rebuild-on-start flag changes nothing (#506)', () => {
+	for (const wholeTree of [false, true]) {
+		assert.deepStrictEqual(
+			planWatchImpact({ needsInstall: false, watcherActive: false, watchRebuildsOnStart: true, wholeTree }),
+			{ pauseWatcher: false, runBuild: true, buildBy: null }
+		);
+	}
 });
 
 // Every deletion fixture above carries a `diff --git` line, which this app's

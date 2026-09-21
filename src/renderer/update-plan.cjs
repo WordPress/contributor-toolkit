@@ -80,25 +80,30 @@ const STATE_TO_STEP = { fetching: 'fetch', installing: 'install', building: 'bui
 const APPLY_STATE_TO_STEP = { applying: 'apply', installing: 'install', building: 'build' };
 
 const BUILD_BY_WATCHER_MESSAGE = 'The build watch will recompile the change';
+const BUILD_BY_RESUMED_WATCH_MESSAGE = 'The build watch rebuilds when it resumes';
 
 /**
  * The chain applying a patch runs. Like the update chain, the install step is
- * named even when skipped so "apply" always means the same thing. When the
- * running build watch will recompile the change (a src-only patch, #262), the
- * build step is skipped too — with a message saying who is doing it instead.
+ * named even when skipped so "apply" always means the same thing. When a build
+ * watch does the rebuild instead of this chain, the build step is skipped too,
+ * with a message saying who is doing it: the running watch recompiling a
+ * src-only patch (`live-watch`, #262), or a watch paused for the apply that
+ * rebuilds from scratch when it resumes (`resumed-watch`, #506). A plain `true`
+ * is the live case, so older callers keep their meaning.
  *
- * @param {Object}  root0
- * @param {boolean} [root0.needsInstall]
- * @param {boolean} [root0.buildByWatcher]
- * @param {string}  [root0.kind]           `pr` when the first step checks out a PR.
+ * @param {Object}                                    root0
+ * @param {boolean}                                   [root0.needsInstall]
+ * @param {boolean|'live-watch'|'resumed-watch'|null} [root0.buildByWatcher]
+ * @param {string}                                    [root0.kind]           `pr` when the first step checks out a PR.
  * @return {Array}
  */
 function planApplySteps({ needsInstall, buildByWatcher, kind = 'patch' } = {}) {
 	const firstLabels = { pr: 'Apply the pull request', 'leave-pr': 'Revert the pull request' };
+	const buildSkipMessage = buildByWatcher === 'resumed-watch' ? BUILD_BY_RESUMED_WATCH_MESSAGE : BUILD_BY_WATCHER_MESSAGE;
 	return [
 		{ key: 'apply', label: firstLabels[kind] || 'Apply the patch', skipped: false },
 		{ key: 'install', label: 'Install dependencies', skipped: !needsInstall, skipMessage: SKIP_INSTALL_MESSAGE },
-		{ key: 'build', label: 'Rebuild', skipped: Boolean(buildByWatcher), skipMessage: BUILD_BY_WATCHER_MESSAGE }
+		{ key: 'build', label: 'Rebuild', skipped: Boolean(buildByWatcher), skipMessage: buildSkipMessage }
 	];
 }
 
@@ -129,25 +134,45 @@ function planSetupSteps() {
 }
 
 /**
- * How applying a patch (or updating trunk) should treat a running build watch
- * (#247, #262). A watch that is running already recompiles src/ on save, so a
- * patch that only touches src/ needs no build of its own and no interruption —
- * apply it and let the watch pick it up. Anything that has to install
- * dependencies or run a full build needs the build directory and node_modules
- * to itself, so the watch is paused for the duration and resumed after.
+ * How applying a patch, checking out a pull request or restoring saved work
+ * should treat a running build watch (#247, #262, #506). A watch that is running
+ * already recompiles src/ on save, so a patch that only touches src/ needs no
+ * build of its own and no interruption: apply it and let the watch pick it up.
+ * Anything that has to install dependencies or run a full build needs the build
+ * directory and node_modules to itself, so the watch is paused for the duration
+ * and resumed after. A whole-tree switch (`wholeTree`: a pull request checkout,
+ * leaving one, restoring saved work) rewrites far more than a src/ patch and
+ * always pauses a live watch.
+ *
+ * Which build runs after a pause depends on what the watch does when it comes
+ * back. Core's `grunt _watch` starts watching and touches nothing, so the apply
+ * has to build. Gutenberg's `npm run dev` removes build/ and rebuilds every
+ * package before it watches (`watchRebuildsOnStart`, the registry's
+ * readyPattern), and it cannot be told not to, so a build run by the apply is
+ * thrown away the moment the watch resumes: two full builds back to back (#506).
+ * There the apply skips its own build and the resumed watch does the one build;
+ * `buildBy` says so, for the step panel and the confirmation that waits on it.
  *
  * @param {Object}  root0
- * @param {boolean} [root0.needsInstall]  the patch/update changes the lockfile
- * @param {boolean} [root0.watcherActive] a build watch is currently running
- * @return {{ pauseWatcher: boolean, runBuild: boolean }}
+ * @param {boolean} [root0.needsInstall]         the patch/update changes the lockfile
+ * @param {boolean} [root0.watcherActive]        a build watch is currently running
+ * @param {boolean} [root0.watchRebuildsOnStart] the target's watch rebuilds build/ from scratch when started
+ * @param {boolean} [root0.wholeTree]            a pull request checkout, leave or restore, not a patch
+ * @return {{ pauseWatcher: boolean, runBuild: boolean, buildBy: null|'live-watch'|'resumed-watch' }}
  */
-function planWatchImpact({ needsInstall, watcherActive } = {}) {
-	// A full build runs unless a live watch can do the recompile instead.
-	const runBuild = Boolean(needsInstall) || !watcherActive;
-	// Pause only when we run a build/install ourselves and a watch is live to
-	// collide with it; a src-only patch with a watch never pauses.
-	const pauseWatcher = Boolean(watcherActive) && runBuild;
-	return { pauseWatcher, runBuild };
+function planWatchImpact({ needsInstall, watcherActive, watchRebuildsOnStart = false, wholeTree = false } = {}) {
+	const active = Boolean(watcherActive);
+	// A live watch takes a src-only patch as it is; a whole-tree switch never
+	// leaves it running.
+	if (active && !wholeTree && !needsInstall) {
+		return { pauseWatcher: false, runBuild: false, buildBy: 'live-watch' };
+	}
+	// From here any live watch is paused for what follows (install, checkout,
+	// build). Whether the apply builds depends on what the resumed watch does.
+	if (active && watchRebuildsOnStart) {
+		return { pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' };
+	}
+	return { pauseWatcher: active, runBuild: true, buildBy: null };
 }
 
 /**
@@ -231,6 +256,7 @@ module.exports = {
 	STALE_THRESHOLD_DAYS,
 	SKIP_INSTALL_MESSAGE,
 	BUILD_BY_WATCHER_MESSAGE,
+	BUILD_BY_RESUMED_WATCH_MESSAGE,
 	STATE_TO_STEP,
 	APPLY_STATE_TO_STEP,
 	SETUP_STATE_TO_STEP,
