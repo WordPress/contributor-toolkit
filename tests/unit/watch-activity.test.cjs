@@ -226,6 +226,14 @@ test('the applied banner is green with the given title once the watch is watchin
 	}
 });
 
+test('Revert carries the shared ticket-action gate whenever the watch is not building', () => {
+	const reason = 'Wait for the trunk update to finish.';
+	assert.strictEqual(appliedBannerState({ number: 1, watchState: 'watching', compiling: false, buildInterrupted: false, actionsReason: reason }).revertReason, reason);
+	assert.strictEqual(appliedBannerState({ number: 1, watchState: 'idle', compiling: false, buildInterrupted: true, actionsReason: reason }).revertReason, reason);
+	assert.strictEqual(appliedBannerState({ number: 1, watchState: 'building', compiling: false, buildInterrupted: false, actionsReason: reason }).revertReason, 'Wait for the build to finish.');
+	assert.strictEqual(appliedBannerState({ number: 1, watchState: 'watching', compiling: false, buildInterrupted: false }).revertReason, null);
+});
+
 test('the green applied banner keeps the compiling line while a hand-off is open', () => {
 	const out = appliedBannerState({ number: 71234, watchState: 'watching', compiling: true, buildInterrupted: false });
 	assert.strictEqual(out.tone, 'ready');

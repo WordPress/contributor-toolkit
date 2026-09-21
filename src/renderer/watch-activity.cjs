@@ -149,11 +149,16 @@ function resumedWatchHandOff(verb, noun, watchState) {
  *   body while a hand-off is still open.
  *
  * `title` is the headline; `body` is null when nothing needs saying.
+ * `revertReason` is why Revert waits, or null: the rebuild while the watch
+ * is building, otherwise `actionsReason`, the gate every ticket action shares
+ * (an install, a build of the app's own, a trunk update). The two never
+ * hold at once, since each of those pauses the watch, so the first is not
+ * hiding the second.
  *
- * @param {{number: number|string, watchState: string, compiling: boolean, buildInterrupted: boolean}} input
+ * @param {{number: number|string, watchState: string, compiling: boolean, buildInterrupted: boolean, actionsReason?: string|null}} input
  * @return {{tone: 'building'|'unbuilt'|'ready', title: string, body: string|null, revertReason: string|null}}
  */
-function appliedBannerState({ number, watchState, compiling, buildInterrupted }) {
+function appliedBannerState({ number, watchState, compiling, buildInterrupted, actionsReason = null }) {
 	if (watchState === 'building') {
 		return {
 			tone: 'building',
@@ -167,14 +172,14 @@ function appliedBannerState({ number, watchState, compiling, buildInterrupted })
 			tone: 'unbuilt',
 			title: `PR #${number} is applied but not built.`,
 			body: `The build watch stopped before it finished rebuilding, ${STALE_ASSETS}`,
-			revertReason: null
+			revertReason: actionsReason
 		};
 	}
 	return {
 		tone: 'ready',
 		title: `PR #${number} is applied.`,
 		body: watchBusyMessage(watchState, compiling),
-		revertReason: null
+		revertReason: actionsReason
 	};
 }
 

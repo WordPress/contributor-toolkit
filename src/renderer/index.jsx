@@ -3222,7 +3222,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const prCheckout = pullRequest ? describePrCheckout({ ...pullRequest, noun: workItem.noun }) : null;
   // The banner's tone and headline follow the watch (#509): green only once
   // the site is built around the checkout.
-  const prBanner = pullRequest ? appliedBannerState({ number: pullRequest.number, watchState, compiling: watchCompiling, buildInterrupted }) : null;
+  const prBanner = pullRequest ? appliedBannerState({ number: pullRequest.number, watchState, compiling: watchCompiling, buildInterrupted, actionsReason: ticketActionsReason }) : null;
   const prBannerColors = prBanner ? (APPLIED_BANNER_COLORS[prBanner.tone] || APPLIED_BANNER_COLORS.ready) : null;
   const prPreview = applyPreview?.kind === 'pr' ? describePrPreview({
     number: applyPreview.number,
@@ -5193,7 +5193,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             ) : null}
             <div style={{ marginTop: 6, fontSize: 13, color: '#3c434a' }}>{prCheckout.body} {prCheckout.edits}</div>
             <div style={{ marginTop: 6, fontSize: 12 }}>Revert this PR before applying another PR or patch file.</div>
-            <ReasonedButton variant="secondary" onClick={() => runPrSwitch({ leaving: true })} reason={prBanner.revertReason || ticketActionsReason} style={{ marginTop: 10 }}>
+            <ReasonedButton variant="secondary" onClick={() => runPrSwitch({ leaving: true })} reason={prBanner.revertReason} style={{ marginTop: 10 }}>
               {prCheckout.backLabel}
             </ReasonedButton>
           </div>
