@@ -17,16 +17,14 @@ test('the dirty-trunk PR retry publishes only the callback from a committed rend
 const rendererSource = fs.readFileSync(path.join(__dirname, '../../src/renderer/index.jsx'), 'utf8');
 
 test('PR checkout names the return ticket and explains where edits stay', () => {
-	const result = describePrCheckout({ number: 7, returnTo: 'ticket/62010', hasEdits: true });
-	assert.equal(result.title, 'PR #7 is applied.');
+	const result = describePrCheckout({ returnTo: 'ticket/62010', hasEdits: true });
 	assert.equal(result.backLabel, 'Revert this PR');
 	assert.equal(result.body, 'Your ticket changes are saved separately and return when you revert this PR.');
 	assert.match(result.edits, /stay with your local copy of the PR/);
 });
 
 test('a PR tried from trunk names trunk and has no edits notice', () => {
-	const result = describePrCheckout({ number: 7, returnTo: 'trunk' });
-	assert.equal(result.title, 'PR #7 is applied.');
+	const result = describePrCheckout({ returnTo: 'trunk' });
 	assert.equal(result.backLabel, 'Revert this PR');
 	assert.match(result.body, /returns to trunk/);
 	assert.match(result.edits, /stay with your local copy of the PR/);
@@ -89,9 +87,9 @@ test('the active PR is one site-level context instead of duplicated Apply-panel 
 // A Gutenberg site returns to an issue/ branch (#251): the box must say the
 // work is kept, not that reverting goes to trunk, and call it an issue.
 test('a PR checked out from an issue branch says the issue work returns on revert', () => {
-	const result = describePrCheckout({ number: 7, returnTo: 'issue/71234', noun: 'issue' });
+	const result = describePrCheckout({ returnTo: 'issue/71234', noun: 'issue' });
 	assert.equal(result.body, 'Your issue changes are saved separately and return when you revert this PR.');
 	assert.doesNotMatch(result.body, /trunk/);
 	// The namespace alone is not enough to change the noun; a site says it.
-	assert.match(describePrCheckout({ number: 7, returnTo: 'issue/71234' }).body, /Your ticket changes/);
+	assert.match(describePrCheckout({ returnTo: 'issue/71234' }).body, /Your ticket changes/);
 });
