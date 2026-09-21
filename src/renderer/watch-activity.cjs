@@ -104,4 +104,31 @@ function applyFinishMessage(message, watchState) {
 	return `${message.replace(/ — open the site to try it out\./, '.')}${busy}\n`;
 }
 
-module.exports = { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage };
+/**
+ * What an apply says when it leaves the one build to the watch it paused
+ * (#506): a watch that rebuilds build/ from scratch when it resumes makes a
+ * build of the apply's own redundant, so the apply resumes it and waits for
+ * its ready line before confirming. `waits` is false when there is no paused
+ * watch to resume (stopped by hand while the apply ran), and then `stopped`
+ * is the whole story; otherwise `ready` is the line for the ready pattern and
+ * `failed` the line for a watch that exits before it.
+ *
+ * @param {string} verb       'Checked out', 'Restored', 'Applied', 'Reverted'
+ * @param {string} noun       'pull request', 'previous branch', 'saved work', 'patch'
+ * @param {string} watchState the watch state at the hand-off
+ * @return {{waits: boolean, stopped?: string, ready?: string, failed?: string}}
+ */
+function resumedWatchHandOff(verb, noun, watchState) {
+	const done = `The ${noun} is ${verb.toLowerCase()}`;
+	const stale = 'so the site still runs the old assets. Start the build watch, or run npm run build in the Terminal below.';
+	if (watchState !== 'paused') {
+		return { waits: false, stopped: `\n${done} but the build watch was stopped, ${stale}\n` };
+	}
+	return {
+		waits: true,
+		ready: `\n${verb} — the build watch has rebuilt. Open the site to try it out.\n`,
+		failed: `\n${done} but the build watch stopped before it finished rebuilding, ${stale}\n`
+	};
+}
+
+module.exports = { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff };

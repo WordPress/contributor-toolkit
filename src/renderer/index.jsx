@@ -28,7 +28,7 @@ import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from './watch-waiters.cjs';
-import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage } from './watch-activity.cjs';
+import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff } from './watch-activity.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
@@ -1356,6 +1356,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // watch-waiters.cjs; a ref because the watcher's output handler settles it
   // from outside a render (#488).
   const watchWaitersRef = useRef(createWatchWaiters());
+  // Which apply's hand-off to the resumed watch is current (#506). The waiters
+  // survive a pause (a queued dev-server start is meant to), so an apply's
+  // waiter left over from a rebuild that a later pause cut short would fire on
+  // the next run's ready line and confirm the wrong apply. Every pause bumps
+  // this; the callbacks compare it with the value they were registered under.
+  const applyHandOffRef = useRef(0);
+  // The watch decision a saved-work restore made in begin, for its complete.
+  const switchImpactRef = useRef(null);
   const settleWatchWaiters = useCallback((ready) => { watchWaitersRef.current.settle(ready); }, []);
   // Which watcher run is current. A stop returns before the process has
   // exited, so a run started right after inherits the old run's late
@@ -2863,6 +2871,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     if (watchStateRef.current !== 'watching' && watchStateRef.current !== 'building') return false;
     markWatchState('paused');
     watchGenerationRef.current.invalidate();
+    applyHandOffRef.current += 1;
     clearWatchActivity();
     appendWatch('\nPaused while another operation uses the build.\n');
     try { await killWatcher(); } catch {}
@@ -3387,7 +3396,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     refreshDirty();
   };
 
-  const runApplyInstallAndBuild = (needsInstall, verb, { runBuild = true, buildBy = null, noun = 'patch' } = {}) => {
+  const runApplyInstallAndBuild = (needsInstall, verb, { buildBy = null, noun = 'patch' } = {}) => {
     const runBuildStep = () => {
       setApplyState('building');
       writeToTerminal('\nRunning npm run build…\n');
@@ -3412,27 +3421,29 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // dev-server start waits for (#488). Until then the terminal and the banner
     // say the watch is rebuilding (#492).
     const handOffToResumedWatch = () => {
-      if (watchStateRef.current !== 'paused') {
-        // Stopped by hand while the apply ran: nothing will resume, so nothing
-        // will build. Say so instead of waiting on a watch that is not coming.
-        finishApply(`\nThe ${noun} is ${verb.toLowerCase()} but the build watch was stopped, so the site still runs the old assets. Start the build watch, or run npm run build in the Terminal below.\n`);
+      const handOff = resumedWatchHandOff(verb, noun, watchStateRef.current);
+      if (!handOff.waits) {
+        finishApply(handOff.stopped);
         return;
       }
       // Registered before the resume so a watch that dies at once still lands
       // in onFail. The waiters settle once per run: on the ready line or on exit.
+      const id = applyHandOffRef.current;
       watchWaitersRef.current.add(
         () => {
+          if (applyHandOffRef.current !== id) return;
           confirm(`${verb} the ${noun}`);
-          writeToTerminal(`\n${verb} — the build watch has rebuilt. Open the site to try it out.\n`);
+          writeToTerminal(handOff.ready);
         },
         () => {
-          writeToTerminal(`\nThe ${noun} is ${verb.toLowerCase()} but the build watch stopped before it finished rebuilding, so the site still runs the old assets. Start the build watch, or run npm run build in the Terminal below.\n`);
+          if (applyHandOffRef.current !== id) return;
+          writeToTerminal(handOff.failed);
         }
       );
       finishApply(`\n${verb} — open the site to try it out.\n`);
     };
     const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
-    if (!runBuild && buildBy !== 'resumed-watch') {
+    if (buildBy === 'live-watch') {
       // A running build watch recompiles the src/ change on its own, so there is
       // no install and no build of our own to run — just hand off to it (#262).
       confirm(`${verb} the ${noun}`);
@@ -3686,7 +3697,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       runApplyInstallAndBuild(
         Boolean(res.needsInstall),
         leaving ? 'Restored' : 'Checked out',
-        { runBuild: impact.runBuild, buildBy: impact.buildBy, noun: leaving ? 'previous branch' : 'pull request' }
+        { buildBy: impact.buildBy, noun: leaving ? 'previous branch' : 'pull request' }
       );
     }
 
@@ -3697,9 +3708,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   };
   useLayoutEffect(() => {
     retryPrSwitchRef.current = runPrSwitch;
-    // Restoring saved work is a whole-tree switch like a PR checkout: a live
-    // watch is paused in begin, and the build after it is the same decision (#506).
-    let switchImpact = planWatchImpact({ needsInstall: false, watcherActive: false, watchRebuildsOnStart, wholeTree: true });
     ticketSwitchLifecycleRef.current = {
       begin: async () => {
         if (terminalStateRef.current.running) {
@@ -3708,17 +3716,24 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         }
         markTerminalRunning(true);
         terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-        switchImpact = planWatchImpact({ needsInstall: false, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
-        if (switchImpact.pauseWatcher) await pauseWatcher();
+        // Restoring saved work is a whole-tree switch like a PR checkout: the
+        // decision is made here, where the watch is paused, and read back in
+        // complete (#506). This effect has no dependency list, so it runs on
+        // every render and a variable scoped to it would be reset between
+        // begin and complete; a ref is what survives the IPC round trip.
+        const impact = planWatchImpact({ needsInstall: false, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
+        switchImpactRef.current = impact;
+        if (impact.pauseWatcher) await pauseWatcher();
         return true;
       },
       complete: (res) => {
         if (!res.prTransition) return false;
         setApplyKind('pr');
         setApplyNeedsInstall(Boolean(res.needsInstall));
-        setApplyBuildByWatcher(switchImpact.buildBy);
+        const impact = switchImpactRef.current || planWatchImpact({ needsInstall: false, watcherActive: false, watchRebuildsOnStart, wholeTree: true });
+        setApplyBuildByWatcher(impact.buildBy);
         clearApplyError();
-        runApplyInstallAndBuild(Boolean(res.needsInstall), 'Restored', { runBuild: switchImpact.runBuild, buildBy: switchImpact.buildBy, noun: 'saved work' });
+        runApplyInstallAndBuild(Boolean(res.needsInstall), 'Restored', { buildBy: impact.buildBy, noun: 'saved work' });
         return true;
       },
       finish: () => finishApply()
@@ -3810,7 +3825,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         // the patch is on disk now, but the site is not usable until it is built
         // around it, so announcing "applied" here would be premature. When a
         // watch will rebuild it, runApplyInstallAndBuild confirms right away.
-        runApplyInstallAndBuild(needsInstall, reverse ? 'Reverted' : 'Applied', { runBuild: impact.runBuild, buildBy: impact.buildBy });
+        runApplyInstallAndBuild(needsInstall, reverse ? 'Reverted' : 'Applied', { buildBy: impact.buildBy });
       }
     ).catch((e) => {
       // A rejected invoke never reaches onDone, so without this the terminal
