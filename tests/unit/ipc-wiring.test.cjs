@@ -2157,10 +2157,21 @@ test('a runner that exited but never closed is let go after a grace, with npm\'s
 	assert.deepEqual(child.stdout.destroy.calls, []);
 	t.mock.timers.tick(1);
 
-	assert.deepEqual(killTreeByPid.calls, [[child.pid, 'SIGKILL']], 'the group the runner led is forced by pid');
+	// The forced group signal is POSIX; on Windows the pid is dead and a
+	// taskkill on it could land on a reissued one (the npm:kill rule).
+	assert.deepEqual(
+		killTreeByPid.calls,
+		process.platform === 'win32' ? [] : [[child.pid, 'SIGKILL']],
+		'POSIX forces the group the runner led by pid; Windows must not'
+	);
 	for (const stream of [child.stdout, child.stderr, child.stdin]) {
 		assert.equal(stream.destroy.calls.length, 1, 'the pipe the orphan holds has to be destroyed, or close never comes');
 	}
+	// The contributor is told in the terminal, not only in the log file.
+	assert.ok(
+		event.sent.some((m) => m.channel === 'npm:run-script:log' && m.payload.type === 'stderr' && /still running and holding its output/.test(m.payload.data)),
+		'the let-go said nothing in the terminal'
+	);
 	assert.ok(!event.sent.some((m) => m.channel === 'npm:run-script:done'), 'done is the close handler\'s to send');
 	// Node emits close with the stored exit code once the destroyed pipes shut.
 	child.emit('close', 1, null);
@@ -2210,7 +2221,7 @@ test('an install that exited but never closed is let go the same way', async (t)
 
 	child.emit('exit', 1, null);
 	t.mock.timers.tick(3000);
-	assert.deepEqual(killTreeByPid.calls, [[child.pid, 'SIGKILL']]);
+	assert.deepEqual(killTreeByPid.calls, process.platform === 'win32' ? [] : [[child.pid, 'SIGKILL']]);
 	assert.equal(child.stderr.destroy.calls.length, 1);
 	child.emit('close', 1, null);
 	// The install's done follows a store write.

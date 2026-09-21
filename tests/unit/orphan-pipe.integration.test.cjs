@@ -41,9 +41,14 @@ test('a runner whose orphan holds the pipes exits without closing, and closes on
 		detached: true,
 		stdio: ['pipe', 'pipe', 'pipe']
 	});
-	t.after(() => { try { killTreeByPid(runner.pid, 'SIGKILL'); } catch {} });
-
+	// Straight to the group, never the bare pid: once the body has reaped the
+	// group, the runner's pid may be someone else's.
 	let orphanPid = null;
+	t.after(() => {
+		try { process.kill(-runner.pid, 'SIGKILL'); } catch {}
+		if (orphanPid !== null) { try { process.kill(orphanPid, 'SIGKILL'); } catch {} }
+	});
+
 	runner.stdout.on('data', (data) => { if (orphanPid === null) orphanPid = Number(String(data).trim()); });
 	const exited = new Promise((resolve) => runner.once('exit', resolve));
 	let closed = null;

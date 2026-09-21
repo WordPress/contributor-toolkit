@@ -43,7 +43,7 @@ They are listed cheapest first, and that ordering is the rule: **write a test at
 
 **1. Unit** — `tests/unit/`. Starts nothing; calls plain functions. Pure logic: parsing a ticket reference, deriving a status, building a command line. Blind to anything touching disk, a process or a window.
 
-**2. Integration** — the files named `*.integration.test.cjs`. Runs the real modules against real Git repositories in a temporary directory. Proves Git does what the code assumes when it switches a branch, applies a patch or updates trunk. Blind to everything above the module boundary.
+**2. Integration** — the files named `*.integration.test.cjs`. Runs the real modules against real Git repositories, or real processes, in a temporary directory. Proves Git does what the code assumes when it switches a branch, applies a patch or updates trunk, and that a process tree behaves the way the kill and let-go paths assume (`kill-tree`, `orphan-pipe`). Blind to everything above the module boundary.
 
 **3. IPC wiring** — one file, `tests/unit/ipc-wiring.test.cjs`. Loads the real `src/main.js` with `electron` replaced by a double, and exercises every handler: what each returns, what it rejects, what error it gives. Blind to the window, and its store is a stand-in rather than the real one.
 

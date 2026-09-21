@@ -3433,19 +3433,24 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 		// its cmd.exe was closed by hand (#497) — so npm has exited, the step is
 		// still IN PROGRESS, and the terminal keeps receiving the orphan's output
 		// (#498). Mirror of the Stop escalation (#479) on the natural-exit path:
-		// three seconds after `exit` with no `close`, force the group by pid
-		// (on POSIX the detached group outlives its leader, so the orphan goes;
-		// on Windows `taskkill /T` from a pid that is gone reaches nothing, and
-		// the orphan runs on until it finishes) and destroy the pipes, which is
-		// what makes Node emit `close` with the exit code npm gave. The close
-		// handler then settles as usual, so the engines-retry decision stays in
-		// one place; whatever the orphan writes afterwards goes with the stream.
+		// three seconds after `exit` with no `close`, force the group by pid on
+		// POSIX, where the detached group outlives its leader and the orphan
+		// goes with it, and destroy the pipes, which is what makes Node emit
+		// `close` with the exit code npm gave. The close handler then settles as
+		// usual, so the engines-retry decision stays in one place; whatever the
+		// orphan writes afterwards goes with the stream. Not forced on Windows,
+		// for the reason npm:kill gives: the pid is certainly dead by now, a
+		// `taskkill /T` on it reaches nothing of the orphan (its parent chain
+		// is gone) and could land on a reissued pid; there the orphan runs on
+		// until it finishes, and the terminal line says so.
 		let letGo = null;
 		child.once('exit', (code, signal) => {
 			letGo = setTimeout(() => {
 				if (settled) return;
-				logEvent(logScope, `exited with code ${code}${signal ? ` (signal ${signal})` : ''} but a descendant still holds its output; forcing the tree and letting go`);
-				killTreeByPid(child.pid, 'SIGKILL');
+				const exit = `code ${code}${signal ? ` (signal ${signal})` : ''}`;
+				logEvent(logScope, `exited with ${exit} but a descendant still holds its output; letting go`);
+				onLog('stderr', `\nnpm exited with ${exit}, but something it started is still running and holding its output. Letting go${process.platform === 'win32' ? '; that process runs on until it finishes on its own' : ' and ending it'}.\n`);
+				if (process.platform !== 'win32') killTreeByPid(child.pid, 'SIGKILL');
 				for (const stream of [child.stdout, child.stderr, child.stdin]) {
 					if (stream && typeof stream.destroy === 'function') stream.destroy();
 				}
