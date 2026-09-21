@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff } = require('../../src/renderer/watch-activity.cjs');
+const { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState } = require('../../src/renderer/watch-activity.cjs');
 
 // A change handed to the watch is compiling until the watch has been quiet
 // for quietMs (#492). The clock is injected: t is milliseconds.
@@ -186,4 +186,48 @@ test('the resumed-watch hand-off does not wait when nothing will resume', () => 
 		assert.match(out.stopped, /Start the build watch, or run npm run build/);
 		assert.strictEqual(out.ready, undefined);
 	}
+});
+
+// #509: the applied banner's colour has to follow the watch, the way the
+// terminal line does. Green while the resumed watch is still rebuilding said
+// "ready to try" eight minutes early on Windows.
+test('the applied banner is amber and says rebuilding while the watch builds', () => {
+	const out = appliedBannerState({ number: 71234, watchState: 'building', compiling: false, buildInterrupted: false });
+
+	assert.strictEqual(out.tone, 'building');
+	assert.strictEqual(out.title, 'PR #71234 is applied. The site is rebuilding.');
+	assert.strictEqual(out.body, watchBusyMessage('building', false));
+	assert.strictEqual(out.revertReason, 'Wait for the build to finish.');
+});
+
+test('the applied banner is red once the watch stopped before its ready line', () => {
+	for (const state of ['idle', 'exited', 'paused']) {
+		const out = appliedBannerState({ number: 71234, watchState: state, compiling: false, buildInterrupted: true });
+		assert.strictEqual(out.tone, 'unbuilt', `${state}: build/ is incomplete`);
+		assert.strictEqual(out.title, 'PR #71234 is applied but not built.');
+		assert.match(out.body, /still runs the old assets/);
+		assert.match(out.body, /Start the build watch, or run npm run build/);
+		assert.strictEqual(out.revertReason, null);
+	}
+});
+
+test('a watch building again takes precedence over the interrupted build it repairs', () => {
+	const out = appliedBannerState({ number: 1, watchState: 'building', compiling: false, buildInterrupted: true });
+	assert.strictEqual(out.tone, 'building');
+});
+
+test('the applied banner is green with the given title once the watch is watching or never ran', () => {
+	for (const state of ['watching', 'idle', 'paused', 'exited', undefined]) {
+		const out = appliedBannerState({ number: 71234, watchState: state, compiling: false, buildInterrupted: false });
+		assert.strictEqual(out.tone, 'ready', `${state}: the site is built`);
+		assert.strictEqual(out.title, 'PR #71234 is applied.');
+		assert.strictEqual(out.body, null);
+		assert.strictEqual(out.revertReason, null);
+	}
+});
+
+test('the green applied banner keeps the compiling line while a hand-off is open', () => {
+	const out = appliedBannerState({ number: 71234, watchState: 'watching', compiling: true, buildInterrupted: false });
+	assert.strictEqual(out.tone, 'ready');
+	assert.strictEqual(out.body, compilingMessage());
 });

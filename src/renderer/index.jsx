@@ -28,7 +28,7 @@ import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from './watch-waiters.cjs';
-import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff } from './watch-activity.cjs';
+import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState } from './watch-activity.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
@@ -71,6 +71,13 @@ const LOG_PANE_STYLE = { ...TERMINAL_FONT, lineHeight: 1.4, whiteSpace: 'pre-wra
 // The build-watch status dot, by state (#247). Keyed rather than nested
 // ternaries; an unknown state falls back to the grey "stopped" colour.
 const WATCH_DOT_COLORS = { watching: '#00a32a', building: '#dba617', paused: '#dba617', exited: '#d63638' };
+// The applied banner's colours by tone (#509): green for a built site, amber
+// while the watch rebuilds it, red when the rebuild was cut short.
+const APPLIED_BANNER_COLORS = {
+  ready: { border: '#94d3ae', background: '#f4fbf4', text: '#0f5132' },
+  building: { border: '#dba617', background: '#fcf9e8', text: '#6e5406' },
+  unbuilt: { border: '#d63638', background: '#fcf0f1', text: '#8a1f21' }
+};
 // What the Copy button says about the press just made. Keyed rather than
 // nested ternaries, so a fourth state is a line here instead of another branch
 // in the middle of the JSX.
@@ -1345,7 +1352,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // half written whatever the status's marker file says, so the server does
   // not start on it without a watch (#499, serveWithoutWatch). Cleared when a
   // watch reaches watching or a one-shot npm run build exits 0.
+  // The ref is what the callbacks read; the state is what the applied banner
+  // reads (#509), so both move together.
   const buildInterruptedRef = useRef(false);
+  const [buildInterrupted, setBuildInterrupted] = useState(false);
+  const markBuildInterrupted = useCallback((interrupted) => {
+    buildInterruptedRef.current = interrupted;
+    setBuildInterrupted(interrupted);
+  }, []);
   const markWatchState = useCallback((state, code = null) => {
     watchStateRef.current = state;
     setWatchState(state);
@@ -2264,7 +2278,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       if (name === 'build') {
         setBuilding(false);
         setBuildFailed(code !== 0);
-        if (code === 0) buildInterruptedRef.current = false;
+        if (code === 0) markBuildInterrupted(false);
         try { await loadStatus(); } catch {}
       }
       if (track) currentRunIdRef.current = null;
@@ -2278,7 +2292,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       if (name === 'build') setBuilding(false);
       if (onDone) onDone({ code: -1 });
     });
-  }, [appendNpm, ensureStick, loadStatus, sitePath]);
+  }, [appendNpm, ensureStick, loadStatus, markBuildInterrupted, sitePath]);
 
   const killCurrent = useCallback(async () => {
     const runId = currentRunIdRef.current;
@@ -2771,7 +2785,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         watchActivityRef.current.output(now);
         if (watchActivityRef.current.isCompiling(now)) setWatchCompiling(true);
         if (readiness.feed(chunk) && watchStateRef.current === 'building') {
-          buildInterruptedRef.current = false;
+          markBuildInterrupted(false);
           markWatchState('watching');
           settleWatchWaiters(true);
         }
@@ -2788,14 +2802,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         // server still waiting to start behind it does not get to: without a
         // completed build/ there is nothing to serve.
         if (watchOccupiesBuild(watchStateRef.current)) {
-          if (watchStateRef.current === 'building') buildInterruptedRef.current = true;
+          if (watchStateRef.current === 'building') markBuildInterrupted(true);
           markWatchState('exited', code);
           watchWasActiveRef.current = false;
         }
         settleWatchWaiters(false);
       }
     });
-  }, [appendWatch, clearWatchActivity, markWatchState, projectBuild, runScript, settleWatchWaiters, sitePath]);
+  }, [appendWatch, clearWatchActivity, markBuildInterrupted, markWatchState, projectBuild, runScript, settleWatchWaiters, sitePath]);
 
   // Start the build watch, building first if the site has no completed build
   // (the _watch task deliberately skips that full build). `onReady` fires once
@@ -2846,7 +2860,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // User-initiated stop of the watch (its own button). Never touches the server.
   const stopWatcher = useCallback(async () => {
     const wasBuilding = watchStateRef.current === 'building';
-    if (wasBuilding) buildInterruptedRef.current = true;
+    if (wasBuilding) markBuildInterrupted(true);
     markWatchState('idle');
     watchWasActiveRef.current = false;
     // From here the run being stopped is history: its late exit must not
@@ -2863,7 +2877,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       markTerminalRunning(false);
       terminalKillRef.current = null;
     }
-  }, [clearWatchActivity, killCurrent, killWatcher, markTerminalRunning, markWatchState, settleWatchWaiters]);
+  }, [clearWatchActivity, killCurrent, killWatcher, markBuildInterrupted, markTerminalRunning, markWatchState, settleWatchWaiters]);
 
   // Pause the watch for an operation that needs the build directory and
   // node_modules to itself — an install, a full build, a trunk reset (#262).
@@ -3206,6 +3220,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const prOwnershipRefusal = pullRequest ? prSubmissionRefusal(pullRequest.number) : '';
   const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
   const prCheckout = pullRequest ? describePrCheckout({ ...pullRequest, noun: workItem.noun }) : null;
+  // The banner's tone and headline follow the watch (#509): green only once
+  // the site is built around the checkout.
+  const prBanner = pullRequest ? appliedBannerState({ number: pullRequest.number, watchState, compiling: watchCompiling, buildInterrupted }) : null;
+  const prBannerColors = prBanner ? APPLIED_BANNER_COLORS[prBanner.tone] : null;
   const prPreview = applyPreview?.kind === 'pr' ? describePrPreview({
     number: applyPreview.number,
     files: applyPreview.files,
@@ -5168,16 +5186,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       <div {...cueProps('link-ticket')} style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
         <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{tracTicket ? `Working on ${workItem.noun} #${tracTicket}` : project.workItem.label}</div>
         {prCheckout && !isApplying ? (
-          <div {...cueProps('pr-checkout')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #94d3ae', background: '#f4fbf4', borderRadius: 8 }}>
-            <div style={{ fontSize: 15, color: '#0f5132' }}><strong>{prCheckout.title}</strong></div>
+          <div {...cueProps('pr-checkout')} style={{ marginTop: 12, padding: '14px 16px', border: `1px solid ${prBannerColors.border}`, background: prBannerColors.background, borderRadius: 8 }}>
+            <div style={{ fontSize: 15, color: prBannerColors.text }}><strong>{prBanner.title}</strong></div>
+            {prBanner.body ? (
+              <div style={{ marginTop: 6, fontSize: 13, color: prBannerColors.text }}>{prBanner.body}</div>
+            ) : null}
             <div style={{ marginTop: 6, fontSize: 13, color: '#3c434a' }}>{prCheckout.body} {prCheckout.edits}</div>
             <div style={{ marginTop: 6, fontSize: 12 }}>Revert this PR before applying another PR or patch file.</div>
-            {watchBusyMessage(watchState, watchCompiling) ? (
-              <div style={{ marginTop: 8, fontSize: 13, color: '#6e5406' }}>{watchBusyMessage(watchState, watchCompiling)}</div>
-            ) : null}
-            <Button variant="secondary" onClick={() => runPrSwitch({ leaving: true })} disabled={isUpdating || installing || building} style={{ marginTop: 10 }}>
+            <ReasonedButton variant="secondary" onClick={() => runPrSwitch({ leaving: true })} reason={prBanner.revertReason} disabled={isUpdating || installing || building} style={{ marginTop: 10 }}>
               {prCheckout.backLabel}
-            </Button>
+            </ReasonedButton>
           </div>
         ) : null}
         {tracTicket ? (

@@ -1,5 +1,8 @@
 'use strict';
 
+// What a site with an incomplete build/ is told, wherever it is told.
+const STALE_ASSETS = 'so the site still runs the old assets. Start the build watch, or run npm run build in the Terminal below.';
+
 /**
  * Whether the build watch is still compiling a change that was just handed
  * to it, so the screen can say so (#492).
@@ -120,7 +123,7 @@ function applyFinishMessage(message, watchState) {
  */
 function resumedWatchHandOff(verb, noun, watchState) {
 	const done = `The ${noun} is ${verb.toLowerCase()}`;
-	const stale = 'so the site still runs the old assets. Start the build watch, or run npm run build in the Terminal below.';
+	const stale = STALE_ASSETS;
 	if (watchState !== 'paused') {
 		return { waits: false, stopped: `\n${done} but the build watch was stopped, ${stale}\n` };
 	}
@@ -131,4 +134,48 @@ function resumedWatchHandOff(verb, noun, watchState) {
 	};
 }
 
-module.exports = { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff };
+/**
+ * The applied banner for a checked-out pull request, following the watch the
+ * way the terminal line does (#509). Green said "ready to try" while the
+ * resumed watch was still rebuilding build/ (eight minutes on Windows), so the
+ * colour now waits for the ready line:
+ *
+ * - 'building': the watch is rebuilding from scratch. Amber, and Revert
+ *   carries the same wait reason the ticket actions carry during a build.
+ * - 'unbuilt': the watch stopped or exited before its ready line, so build/
+ *   is incomplete (`buildInterrupted`, cleared by the next ready line or a
+ *   successful build). Red; the way out is the one the terminal names.
+ * - 'ready': the site is built. Green, with the #492 compiling line as the
+ *   body while a hand-off is still open.
+ *
+ * `title` is the headline; `body` is null when nothing needs saying.
+ *
+ * @param {{number: number|string, watchState: string, compiling: boolean, buildInterrupted: boolean}} input
+ * @return {{tone: 'building'|'unbuilt'|'ready', title: string, body: string|null, revertReason: string|null}}
+ */
+function appliedBannerState({ number, watchState, compiling, buildInterrupted }) {
+	if (watchState === 'building') {
+		return {
+			tone: 'building',
+			title: `PR #${number} is applied. The site is rebuilding.`,
+			body: watchBusyMessage('building', compiling),
+			revertReason: 'Wait for the build to finish.'
+		};
+	}
+	if (buildInterrupted) {
+		return {
+			tone: 'unbuilt',
+			title: `PR #${number} is applied but not built.`,
+			body: `The build watch stopped before it finished rebuilding, ${STALE_ASSETS}`,
+			revertReason: null
+		};
+	}
+	return {
+		tone: 'ready',
+		title: `PR #${number} is applied.`,
+		body: watchBusyMessage(watchState, compiling),
+		revertReason: null
+	};
+}
+
+module.exports = { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState };
