@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage } = require('../../src/renderer/watch-activity.cjs');
+const { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff } = require('../../src/renderer/watch-activity.cjs');
 
 // A change handed to the watch is compiling until the watch has been quiet
 // for quietMs (#492). The clock is injected: t is milliseconds.
@@ -161,4 +161,29 @@ test('the apply finish line is untouched when the watch is watching or stopped',
 
 	assert.strictEqual(applyFinishMessage(line, 'watching'), line);
 	assert.strictEqual(applyFinishMessage(line, 'idle'), line);
+});
+
+// #506: an apply that paused a watch which rebuilds from scratch on resume
+// (Gutenberg) leaves the one build to that resume. What the terminal says
+// depends on whether the watch is still there to resume, and then on how the
+// rebuild ends.
+test('the resumed-watch hand-off waits on a paused watch and names both endings', () => {
+	const out = resumedWatchHandOff('Checked out', 'pull request', 'paused');
+
+	assert.strictEqual(out.waits, true);
+	assert.match(out.ready, /^\nChecked out — the build watch has rebuilt\. Open the site to try it out\.\n$/);
+	assert.match(out.failed, /The pull request is checked out but the build watch stopped before it finished rebuilding/);
+	assert.match(out.failed, /still runs the old assets/);
+	assert.match(out.failed, /Start the build watch, or run npm run build/);
+	assert.strictEqual(out.stopped, undefined);
+});
+
+test('the resumed-watch hand-off does not wait when nothing will resume', () => {
+	for (const state of ['idle', 'exited', 'watching', undefined]) {
+		const out = resumedWatchHandOff('Restored', 'saved work', state);
+		assert.strictEqual(out.waits, false, `${state}: no resume is coming`);
+		assert.match(out.stopped, /The saved work is restored but the build watch was stopped/);
+		assert.match(out.stopped, /Start the build watch, or run npm run build/);
+		assert.strictEqual(out.ready, undefined);
+	}
 });
