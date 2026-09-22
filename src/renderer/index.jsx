@@ -3235,10 +3235,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       );
       setUpdateState(plan.waiting.updateState);
       setUpdateWaitingOnWatch(plan.waiting.waitingOnWatch);
-      if (plan.waiting.releaseTerminal) {
-        markTerminalRunning(false);
-        terminalKillRef.current = null;
-      }
+      // The watch writes to its own tab and holds no terminal lock, so the
+      // chain gives this one back while it waits.
+      markTerminalRunning(false);
+      terminalKillRef.current = null;
       writeToTerminal(plan.waiting.message);
       resumeWatcher();
     };

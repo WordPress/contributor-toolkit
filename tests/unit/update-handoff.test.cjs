@@ -15,8 +15,6 @@ test('the hand-off waits on the watch, keeping the card on the build step and re
 	assert.strictEqual(plan.waits, true);
 	assert.strictEqual(plan.waiting.updateState, 'building');
 	assert.strictEqual(plan.waiting.waitingOnWatch, true);
-	assert.strictEqual(plan.waiting.releaseTerminal, true);
-	assert.strictEqual(plan.waiting.completesUpdate, false);
 	assert.match(plan.waiting.message, /Build watcher tab/);
 	assert.match(plan.waiting.message, /completes when it is watching again/);
 	assert.strictEqual(plan.finish, undefined);
@@ -42,11 +40,14 @@ test('a watch that exits before its ready line leaves the update incomplete (#50
 });
 
 test('with no paused watch to resume, the update finishes at once and incomplete (#507)', () => {
-	for (const watchState of ['idle', 'exited', 'watching', undefined]) {
+	// 'building' is a live state of the same lifecycle (watchOccupiesBuild
+	// counts it as holding build/), so it belongs in this list: a watch that is
+	// building is not a paused one about to resume, and handing the update to it
+	// would wait on a ready line that is not coming.
+	for (const watchState of ['idle', 'exited', 'watching', 'building', undefined]) {
 		const plan = planUpdateHandOff(watchState);
 
 		assert.strictEqual(plan.waits, false, `${watchState}: no resume is coming`);
-		assert.strictEqual(plan.finish.completesUpdate, false);
 		assert.match(plan.finish.message, /Update incomplete/);
 		assert.strictEqual(plan.waiting, undefined);
 		assert.strictEqual(plan.ready, undefined);
@@ -61,5 +62,6 @@ test('only the ready line completes the update (#507)', () => {
 	const completing = [plan.waiting, plan.ready, plan.failed].filter((phase) => phase.completesUpdate);
 
 	assert.deepStrictEqual(completing, [plan.ready]);
-	assert.strictEqual(planUpdateHandOff('idle').finish.completesUpdate, false);
+	// The no-wait outcome carries no such flag at all: nothing rebuilt.
+	assert.strictEqual('completesUpdate' in planUpdateHandOff('idle').finish, false);
 });

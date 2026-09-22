@@ -22,8 +22,9 @@ const { resumedWatchUpdateHandOff } = require('./watch-activity.cjs');
  * - `finish`, when no paused watch will resume (stopped by hand during the
  *   install). Nothing rebuilds, so the update ends incomplete right away.
  * - `waiting`, applied at the hand-off: the card stays on step 3 naming the
- *   watch, and the terminal lock is released because the watch writes to its
- *   own tab and holds no lock of its own.
+ *   watch. Releasing the terminal lock stays in the component: it is a lock
+ *   release, not a decision, and the watch writes to its own tab and holds no
+ *   lock of its own.
  * - `ready` and `failed`, applied when the watch settles: its ready line means
  *   build/ is complete, so that is where the persisted marker, the summary and
  *   the toast go (`completesUpdate`); an exit before it leaves the update
@@ -34,24 +35,21 @@ const { resumedWatchUpdateHandOff } = require('./watch-activity.cjs');
  * `.github/instructions/code-review.instructions.md`): the component is left
  * applying the state and wiring the callbacks.
  *
+ * `completesUpdate` rides only on the two phases a callback branches on.
+ *
  * @param {string} watchState the watch state at the hand-off
  * @return {{waits: boolean, finish?: Object, waiting?: Object, ready?: Object, failed?: Object}}
  */
 function planUpdateHandOff(watchState) {
 	const handOff = resumedWatchUpdateHandOff(watchState);
 	if (!handOff.waits) {
-		return {
-			waits: false,
-			finish: { completesUpdate: false, message: handOff.stopped }
-		};
+		return { waits: false, finish: { message: handOff.stopped } };
 	}
 	return {
 		waits: true,
 		waiting: {
 			updateState: 'building',
 			waitingOnWatch: true,
-			releaseTerminal: true,
-			completesUpdate: false,
 			message: '\nThe build watch rebuilds build/ from scratch as it resumes — output in the Build watcher tab. The update completes when it is watching again.\n'
 		},
 		ready: {
