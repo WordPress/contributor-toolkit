@@ -46,7 +46,7 @@ import { statusBadge } from '../trac-ticket-info.cjs';
 import { prDateLabel } from './pr-date-label.cjs';
 import { workItemProvider } from '../work-item.cjs';
 import { adminUrl, adminerUrl } from './site-urls.cjs';
-import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
+import { ticketBranchRows, savedPrForSwitch, ticketListCard } from './ticket-branch-list.cjs';
 import { ticketTrunkNotice, rebaseRefusal } from './ticket-trunk-notice.cjs';
 import { legacySiteNotice } from './legacy-site.cjs';
 import { deepLinkNotice } from './deep-link-notice.cjs';
@@ -3791,17 +3791,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       finishApply();
     });
   };
-  // The pull request switching to this work item would put back, by number, or
-  // null — an unlink (empty ref), a ref the provider does not parse, a work
-  // item with no branch here yet, and one whose branch has no PR parked on it
-  // all answer the same way. `savedPr` is main's own reading of the record
-  // (#510), carried on the branch list the panel already reloads after every
-  // switch, so no round trip is added in front of one.
+  // The pull request a switch to this ref would put back (#510), read from the
+  // branch list the panel already reloads after every switch, so no round trip
+  // is added in front of one. An unlink and a ref this site's provider does not
+  // parse are not switches to a work item at all; the rest is the module's
+  // decision.
   const savedPrForRef = (ref) => {
     const parsed = workItem.parseRef(typeof ref === 'string' ? ref.trim() : '');
     if (!parsed.ok) return null;
-    const row = ticketBranches.branches.find((b) => String(b.ticketId) === String(parsed.id));
-    return row?.savedPr ?? null;
+    return savedPrForSwitch({
+      branches: ticketBranches.branches,
+      ticketId: parsed.id,
+      linkedTicket: tracTicket,
+      currentPr: pullRequest?.number ?? null
+    });
   };
   useLayoutEffect(() => {
     retryPrSwitchRef.current = runPrSwitch;

@@ -97,6 +97,39 @@ function ticketBranchRows({ branches, current, tracTicket, now }) {
 }
 
 /**
+ * The pull request a switch to this work item would put back, by number, or
+ * null when the switch only moves the checkout (#510).
+ *
+ * The distinction is what the renderer has to know *before* a switch starts,
+ * because only the restore pauses the build watch: it ends in an install and a
+ * build of its own (#506), while a plain switch leaves the running watch to
+ * recompile what changed. `sites:set-ticket` reports it afterwards; this reads
+ * the same record beforehand, off the `savedPr` each row carries.
+ *
+ * The work item already linked is the exception, and not a cosmetic one. A
+ * branch records its parked pull request only when it is left, so while you
+ * are on it the record says nothing and the row would answer null — which
+ * would read as "leaving a pull request", pause the watch, and charge a full
+ * rebuild for a switch main performs as a no-op. Linking the item in hand goes
+ * nowhere, so the answer is the pull request already checked out.
+ *
+ * @param {Object}  input
+ * @param {?Array}  input.branches       As returned by `branches:list`.
+ * @param {?number} input.ticketId       The work item being switched to, or null for an unlink.
+ * @param {?number} [input.linkedTicket] The work item linked now, or null.
+ * @param {?number} [input.currentPr]    The pull request checked out now, or null.
+ * @return {?number} The pull request number the switch would restore, or null.
+ */
+function savedPrForSwitch({ branches, ticketId, linkedTicket = null, currentPr = null } = {}) {
+	if (ticketId === null || ticketId === undefined) return null;
+	if (linkedTicket !== null && linkedTicket !== undefined && String(linkedTicket) === String(ticketId)) {
+		return currentPr ?? null;
+	}
+	const row = (Array.isArray(branches) ? branches : []).find((b) => b && String(b.ticketId) === String(ticketId));
+	return row && typeof row.savedPr === 'number' ? row.savedPr : null;
+}
+
+/**
  * Whether the site's tickets get a card of their own, and under what heading
  * (#240). The list left the Trac ticket card because only one of its sections
  * described the ticket in front of you — this one lists everywhere else you
@@ -124,5 +157,6 @@ function ticketListCard({ rowCount, linked, noun = 'ticket' }) {
 module.exports = {
 	relativeTimeLabel,
 	ticketBranchRows,
+	savedPrForSwitch,
 	ticketListCard
 };

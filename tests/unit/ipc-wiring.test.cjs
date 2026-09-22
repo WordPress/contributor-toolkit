@@ -3905,7 +3905,7 @@ test('branches:list reports the branches on disk with their stored context', asy
 // watch. The same record `ticketCheckoutRef` reads for the checkout is read
 // here, so the plan made before the switch matches what the switch does.
 test('branches:list reports the pull request a switch to each work item would restore (#510)', async () => {
-	const listTicketBranches = spy(async () => ['ticket/59234', 'ticket/61002', 'ticket/61003', 'pr/7']);
+	const listTicketBranches = spy(async () => ['ticket/59234', 'ticket/61002', 'ticket/61003', 'ticket/61004', 'pr/7']);
 	const currentBranchName = spy(async () => 'trunk');
 	const settings = fakeSettingsStore({
 		sites: ['/sites/wp'],
@@ -3917,6 +3917,9 @@ test('branches:list reports the pull request a switch to each work item would re
 					// with no recorded head: neither is somewhere to go back to.
 					'ticket/61002': { activePr: 'pr/9' },
 					'ticket/61003': { activePr: 'pr/11' },
+					// The ordinary row every plain switch relies on: nothing
+					// parked, so nothing to restore and nothing to pause for.
+					'ticket/61004': { lastUsedAt: 'yesterday' },
 					'pr/7': { headOid: 'a'.repeat(40) },
 					'pr/9': { headOid: 'b'.repeat(40) },
 					'pr/11': {}
@@ -3932,7 +3935,7 @@ test('branches:list reports the pull request a switch to each work item would re
 	const result = await main.invoke('branches:list', '/sites/wp');
 
 	const savedPr = Object.fromEntries(result.branches.map((b) => [b.ref, b.savedPr]));
-	assert.deepEqual(savedPr, { 'ticket/59234': 7, 'ticket/61002': null, 'ticket/61003': null });
+	assert.deepEqual(savedPr, { 'ticket/59234': 7, 'ticket/61002': null, 'ticket/61003': null, 'ticket/61004': null });
 });
 
 // The same wait, for the trunk update's own :done channel — and on the clock
