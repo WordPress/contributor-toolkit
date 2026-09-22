@@ -40,6 +40,19 @@ test('killTreeByPid forces the group even though the ChildProcess that led it ha
 	assert.equal(killTreeByPid(0, 'SIGKILL', { platform: 'darwin', kill: () => { throw new Error('must not be called'); } }), false, 'a pid that names no live process is refused, forced or not');
 });
 
+test('killTreeByPid with groupOnly never signals the bare pid when the group is gone', () => {
+	// The let-go after exit (#498): the leader is certainly dead, so a group
+	// that no longer exists means nothing is left, and the bare pid may have
+	// been handed to someone else since.
+	const calls = [];
+	const kill = (target, signal) => { calls.push([target, signal]); if (target < 0) throw Object.assign(new Error('ESRCH'), { code: 'ESRCH' }); };
+	assert.equal(killTreeByPid(42, 'SIGKILL', { platform: 'darwin', kill, groupOnly: true }), true);
+	assert.deepEqual(calls, [[-42, 'SIGKILL']], 'the fallback to the bare pid must not run');
+	calls.length = 0;
+	killTreeByPid(42, 'SIGKILL', { platform: 'darwin', kill });
+	assert.deepEqual(calls, [[-42, 'SIGKILL'], [42, 'SIGKILL']], 'without groupOnly the fallback stays, for a child that never led a group');
+});
+
 test('killTreePlan refuses pids that cannot name a live process', () => {
 	// pid 0 would signal the caller's own group and -1 every process the user
 	// owns — a bug here is catastrophic, so these must return null, not a plan.

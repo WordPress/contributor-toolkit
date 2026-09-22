@@ -1860,8 +1860,9 @@ function fakeChild() {
 	const child = new EventEmitter();
 	// setEncoding is a no-op here but has to exist: the Playground handlers call
 	// it on both streams before they attach a listener.
-	child.stdout = Object.assign(new EventEmitter(), { setEncoding() {} });
-	child.stderr = Object.assign(new EventEmitter(), { setEncoding() {} });
+	child.stdout = Object.assign(new EventEmitter(), { setEncoding() {}, destroy: spy() });
+	child.stderr = Object.assign(new EventEmitter(), { setEncoding() {}, destroy: spy() });
+	child.stdin = { destroy: spy() };
 	child.pid = 4242;
 	child.exitCode = null;
 	child.kill = spy();
@@ -2127,6 +2128,105 @@ test('npm:kill ends the script tree rather than signalling the runner alone', as
 		'POSIX escalates the whole tree by pid; Windows already forced it and must not escalate'
 	);
 	assert.deepEqual(cp.children[0].kill.calls, [], 'the escalation must not stop at the runner');
+});
+
+// #498: `close` waits for the stdio pipes, and a descendant that outlived npm
+// (wp-build after its cmd.exe was closed by hand, #497) keeps them open. npm
+// has exited, the step stays IN PROGRESS. Mirror of the Stop escalation on the
+// natural-exit path: three seconds after `exit` with no `close`, force the
+// group by pid (POSIX; the detached group outlives its leader) and destroy the
+// pipes, which is what makes Node emit the `close` the run settles on.
+test('a runner that exited but never closed is let go after a grace, with npm\'s code', async (t) => {
+	const cp = stubbedSpawn();
+	const killTreeByPid = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killTreeByPid }
+		}
+	});
+	const event = createIpcEvent();
+	const { runId } = await main.invokeWith('npm:run-script', event, '/sites/wp', 'build');
+	const child = cp.children[0];
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+
+	child.emit('exit', 1, null);
+	t.mock.timers.tick(2999);
+	assert.deepEqual(killTreeByPid.calls, [], 'the grace is what tells an orphan from a pipe still draining');
+	assert.deepEqual(child.stdout.destroy.calls, []);
+	t.mock.timers.tick(1);
+
+	// The forced group signal is POSIX; on Windows the pid is dead and a
+	// taskkill on it could land on a reissued one (the npm:kill rule).
+	assert.deepEqual(
+		killTreeByPid.calls,
+		process.platform === 'win32' ? [] : [[child.pid, 'SIGKILL', { groupOnly: true }]],
+		'POSIX forces the group the runner led by pid, and only the group; Windows must not'
+	);
+	for (const stream of [child.stdout, child.stderr, child.stdin]) {
+		assert.equal(stream.destroy.calls.length, 1, 'the pipe the orphan holds has to be destroyed, or close never comes');
+	}
+	// The contributor is told in the terminal, not only in the log file.
+	assert.ok(
+		event.sent.some((m) => m.channel === 'npm:run-script:log' && m.payload.type === 'stderr' && /still running and holding its output/.test(m.payload.data)),
+		'the let-go said nothing in the terminal'
+	);
+	assert.ok(!event.sent.some((m) => m.channel === 'npm:run-script:done'), 'done is the close handler\'s to send');
+	// Node emits close with the stored exit code once the destroyed pipes shut.
+	child.emit('close', 1, null);
+	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:run-script:done').map((m) => m.payload), [{ runId, code: 1 }]);
+});
+
+test('a runner whose close follows its exit inside the grace is left alone', async (t) => {
+	const cp = stubbedSpawn();
+	const killTreeByPid = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killTreeByPid }
+		}
+	});
+	const event = createIpcEvent();
+	const { runId } = await main.invokeWith('npm:run-script', event, '/sites/wp', 'build');
+	const child = cp.children[0];
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+
+	child.emit('exit', 0, null);
+	child.emit('close', 0, null);
+	t.mock.timers.tick(3000);
+
+	assert.deepEqual(killTreeByPid.calls, [], 'a tree that closed has nothing left to force, and its pid may be reissued');
+	assert.deepEqual(child.stdout.destroy.calls, []);
+	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:run-script:done').map((m) => m.payload), [{ runId, code: 0 }]);
+});
+
+test('an install that exited but never closed is let go the same way', async (t) => {
+	const cp = stubbedSpawn();
+	const killTreeByPid = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			// The install's done writes installFailed to the store first.
+			...fakeSettingsStore().stubs,
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killTreeByPid }
+		}
+	});
+	const event = createIpcEvent();
+	const { installId } = await main.invokeWith('npm:install', event, '/sites/wp');
+	const child = cp.children[0];
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+
+	child.emit('exit', 1, null);
+	t.mock.timers.tick(3000);
+	assert.deepEqual(killTreeByPid.calls, process.platform === 'win32' ? [] : [[child.pid, 'SIGKILL', { groupOnly: true }]]);
+	assert.equal(child.stderr.destroy.calls.length, 1);
+	child.emit('close', 1, null);
+	// The install's done follows a store write.
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:install:done').map((m) => m.payload), [{ installId, code: 1 }]);
 });
 
 test('npm:kill arms no escalation for a child that had already closed', async (t) => {
