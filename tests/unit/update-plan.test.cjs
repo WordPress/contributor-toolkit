@@ -9,6 +9,7 @@ const {
 	SETUP_STATE_TO_STEP,
 	trunkAgeInfo,
 	planUpdateSteps,
+	updateStepText,
 	planSetupSteps,
 	updateStepStatuses,
 	setupOutcome,
@@ -87,6 +88,27 @@ test('planUpdateSteps: the build step names the resumed watch while current, and
 	assert.match(UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE, /Build watcher tab/);
 	const statuses = updateStepStatuses(steps, 'building');
 	assert.strictEqual(statuses[2].status, 'current');
+});
+
+test('updateStepText: the build step names the resumed watch only while current (#507)', () => {
+	const steps = planUpdateSteps({ lockfileChanged: false, buildByWatcher: 'resumed-watch' });
+	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'current' }), UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE);
+	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'pending' }), 'Rebuild');
+	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'complete' }), 'Rebuilt');
+	const own = planUpdateSteps({ lockfileChanged: false });
+	assert.strictEqual(updateStepText(own, { key: 'build', status: 'current' }), 'Rebuilding — output in the Terminal below');
+});
+
+test('updateStepText: every step has a line for every status, and unknowns fall back rather than blank (#507)', () => {
+	const steps = planUpdateSteps({ lockfileChanged: false });
+	for (const key of ['fetch', 'install', 'build']) {
+		for (const status of ['pending', 'current', 'complete']) {
+			assert.ok(updateStepText(steps, { key, status }).length > 0, `${key}/${status}`);
+		}
+	}
+	assert.strictEqual(updateStepText(steps, { key: 'install', status: 'skipped' }), SKIP_INSTALL_MESSAGE);
+	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'skipped' }), 'Rebuild');
+	assert.strictEqual(updateStepText(steps, { key: 'nope', status: 'current' }), 'nope');
 });
 
 test('planUpdateSteps: with no watch doing the build, the build step carries no watch message (#507)', () => {

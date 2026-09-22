@@ -89,6 +89,33 @@ function planUpdateSteps({ lockfileChanged, buildByWatcher = null } = {}) {
 // Which chain step each renderer updateState is executing.
 const STATE_TO_STEP = { fetching: 'fetch', installing: 'install', building: 'build' };
 
+// What the update card says for each step in each status.
+const UPDATE_STEP_LABELS = {
+	fetch: { pending: 'Fetch and reset to trunk', current: 'Fetching and resetting to trunk…', complete: 'Fetched and reset to trunk' },
+	install: { pending: 'Install dependencies', current: 'Dependencies changed — installing the difference…', complete: 'Dependencies installed', skipped: SKIP_INSTALL_MESSAGE },
+	build: { pending: 'Rebuild', current: 'Rebuilding — output in the Terminal below', complete: 'Rebuilt' }
+};
+
+/**
+ * The line the update card shows for one step. The status labels are the
+ * table above; a step that names who runs it while current (the resumed watch,
+ * #507) carries that in `currentMessage` and it wins while the step is current.
+ * Unknown keys or statuses fall back to the pending label, then the key, so a
+ * new state never renders an empty row.
+ *
+ * @param {Array}  steps        from planUpdateSteps
+ * @param {Object} entry        one entry of updateStepStatuses
+ * @param {string} entry.key
+ * @param {string} entry.status
+ * @return {string}
+ */
+function updateStepText(steps, { key, status } = {}) {
+	const labels = UPDATE_STEP_LABELS[key] || {};
+	const planned = (steps || []).find((step) => step.key === key);
+	if (status === 'current' && planned && planned.currentMessage) return planned.currentMessage;
+	return labels[status] || labels.pending || key;
+}
+
 // Applying someone else's patch (#11) is the same three-stage chain with a
 // different first step, so it shares updateStepStatuses below. It lives here
 // rather than beside the patch parsing because this module is the renderer's
@@ -285,6 +312,7 @@ module.exports = {
 	trunkAgeInfo,
 	planUpdateSteps,
 	updateStepStatuses,
+	updateStepText,
 	setupOutcome,
 	updateOutcome
 };
