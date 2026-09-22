@@ -11,7 +11,7 @@ const {
 	planApply,
 	layoutMapper
 } = require('../../src/patch-plan.cjs');
-const { updateStepStatuses, SKIP_INSTALL_MESSAGE, BUILD_BY_WATCHER_MESSAGE, BUILD_BY_RESUMED_WATCH_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP } = require('../../src/renderer/update-plan.cjs');
+const { updateStepStatuses, SKIP_INSTALL_MESSAGE, BUILD_BY_WATCHER_MESSAGE, BUILD_BY_RESUMED_WATCH_MESSAGE, planApplySteps, planWatchImpact, planTicketSwitchImpact, APPLY_STATE_TO_STEP } = require('../../src/renderer/update-plan.cjs');
 
 // The four header shapes that actually reach the app. Kept verbatim rather than
 // generated: the whole point of these tests is that real-world formatting —
@@ -490,6 +490,68 @@ test('planWatchImpact: with no watch the rebuild-on-start flag changes nothing (
 			{ pauseWatcher: false, runBuild: true, buildBy: null }
 		);
 	}
+});
+
+// #510: linking, unlinking or switching work items moves the checkout and
+// nothing else. A watch that is running recompiles what changed on its own, so
+// it is left alone — on Gutenberg pausing it meant a full rebuild from scratch
+// when it resumed, for a switch that often moves two files.
+test('planTicketSwitchImpact: a switch with no pull request on either side leaves a live watch running (#510)', () => {
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: null, toPr: null, watcherActive: true, watchRebuildsOnStart: true }),
+		{ prTransition: false, pauseWatcher: false, runBuild: false, buildBy: 'live-watch' }
+	);
+	// Core's watch rebuilds nothing on start, and the answer is the same: the
+	// running watch is the one thing that recompiles the switched files.
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: null, toPr: null, watcherActive: true, watchRebuildsOnStart: false }),
+		{ prTransition: false, pauseWatcher: false, runBuild: false, buildBy: 'live-watch' }
+	);
+});
+
+// Restoring a parked pull request is the whole-tree switch that ends in an
+// install and a build (#506), so it still pauses the watch — and on a watch
+// that rebuilds from scratch when it resumes, that resume is the one build.
+test('planTicketSwitchImpact: restoring or leaving a pull request pauses the watch (#510)', () => {
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: null, toPr: 7, watcherActive: true, watchRebuildsOnStart: true }),
+		{ prTransition: true, pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
+	);
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: 7, toPr: null, watcherActive: true, watchRebuildsOnStart: false }),
+		{ prTransition: true, pauseWatcher: true, runBuild: true, buildBy: null }
+	);
+	// From one ticket's pull request to another's is still a transition.
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: 7, toPr: 9, watcherActive: true, watchRebuildsOnStart: true }),
+		{ prTransition: true, pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
+	);
+});
+
+// Linking the ticket whose own pull request is already checked out moves
+// nothing, which is what main reads from the two refs being equal.
+test('planTicketSwitchImpact: the same pull request on both sides is not a transition (#510)', () => {
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: 7, toPr: 7, watcherActive: true, watchRebuildsOnStart: true }),
+		{ prTransition: false, pauseWatcher: false, runBuild: false, buildBy: 'live-watch' }
+	);
+});
+
+// No watch: there is nothing to pause and nothing recompiling, so the switch
+// leaves the site as it leaves it today — the guide says to build by hand.
+test('planTicketSwitchImpact: with no watch running nothing is paused and nothing is handed off (#510)', () => {
+	for (const [fromPr, toPr, prTransition] of [[null, null, false], [null, 7, true]]) {
+		assert.deepStrictEqual(
+			planTicketSwitchImpact({ fromPr, toPr, watcherActive: false, watchRebuildsOnStart: true }),
+			{ prTransition, pauseWatcher: false, runBuild: true, buildBy: null }
+		);
+	}
+});
+
+// Missing flags must read as the plainest switch there is: no pull request on
+// either side, no watch to pause.
+test('planTicketSwitchImpact: missing flags pause nothing (#510)', () => {
+	assert.deepStrictEqual(planTicketSwitchImpact(), { prTransition: false, pauseWatcher: false, runBuild: true, buildBy: null });
 });
 
 // Every deletion fixture above carries a `diff --git` line, which this app's

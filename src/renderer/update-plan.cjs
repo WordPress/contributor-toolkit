@@ -221,6 +221,41 @@ function planWatchImpact({ needsInstall, watcherActive, watchRebuildsOnStart = f
 }
 
 /**
+ * How a work-item switch — linking, unlinking, resuming, switching — should
+ * treat a running build watch (#510).
+ *
+ * A switch used to be planned as a whole-tree change, so a watch was always
+ * paused for it and always resumed after. On Gutenberg that is the expensive
+ * answer: `npm run dev` removes build/ and rebuilds every package when it
+ * starts, so a switch that moved two files under packages/ paid a full rebuild
+ * (about 28 s on macOS, about 8 minutes on Windows) for nothing. The rebuild
+ * the switch actually needs is the selective one a running watch does on its
+ * own, the same bargain a src-only patch makes (#262): leave it running, let
+ * the checkout land, and it recompiles what changed.
+ *
+ * The exception is the switch that puts a parked pull request back: that one
+ * ends in an install and a build of its own, which need the build directory and
+ * node_modules to themselves (#506). Which switch that is has to be known
+ * before the checkout starts, so it is asked as two numbers — the pull request
+ * being left and the one being restored, either of them null — mirroring what
+ * `ticketPrImpact` in main decides after the fact from the two refs.
+ *
+ * @param {Object}  root0
+ * @param {?number} [root0.fromPr]               the pull request checked out now, or null
+ * @param {?number} [root0.toPr]                 the pull request this switch restores, or null
+ * @param {boolean} [root0.watcherActive]        a build watch is currently running
+ * @param {boolean} [root0.watchRebuildsOnStart] the target's watch rebuilds build/ from scratch when started
+ * @return {{ prTransition: boolean, pauseWatcher: boolean, runBuild: boolean, buildBy: null|'live-watch'|'resumed-watch' }}
+ */
+function planTicketSwitchImpact({ fromPr = null, toPr = null, watcherActive, watchRebuildsOnStart } = {}) {
+	const prTransition = fromPr !== toPr;
+	return {
+		prTransition,
+		...planWatchImpact({ needsInstall: false, watcherActive, watchRebuildsOnStart, wholeTree: prTransition })
+	};
+}
+
+/**
  * Maps the chain steps to checklist visual states for a given renderer
  * updateState. Steps before the current one are complete, the current one is
  * current, later ones pending; skipped steps stay 'skipped' once passed.
@@ -308,6 +343,7 @@ module.exports = {
 	SETUP_STATE_TO_STEP,
 	planApplySteps,
 	planWatchImpact,
+	planTicketSwitchImpact,
 	planSetupSteps,
 	trunkAgeInfo,
 	planUpdateSteps,
