@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { resolveSpawnTarget, applyPatch, defaultLookup, PATCH_MARKER } = require('../../src/win-spawn-patch.js');
+const { resolveSpawnTarget, applyPatch, selfApply, defaultLookup, PATCH_MARKER } = require('../../src/win-spawn-patch.js');
 
 // The Windows shim layout ensureNodeShimDir() writes, as the patch sees it.
 const WIN = {
@@ -241,4 +241,66 @@ test('applyPatch is idempotent so a duplicated --require cannot double-wrap', ()
 	assert.equal(fake[PATCH_MARKER], true);
 	fake.spawn('node');
 	assert.equal(depth, 1);
+});
+
+// #497: the preload reaches every descendant Node on Windows, and each of those
+// is Electron running as Node, a GUI-subsystem binary with no console. A
+// cmd.exe it spawns without windowsHide (cross-spawn wrapping a .cmd stub, as
+// Gutenberg's build scripts do for tsc and wp-build) gets a brand-new visible
+// console. So the same preload that fixes `spawn('node')` also hides consoles,
+// through the hide-child-windows copy beside it.
+function fakeChildProcess() {
+	return { spawn: () => 'spawned', spawnSync: () => {}, execFile: () => {}, execFileSync: () => {} };
+}
+
+test('selfApply applies the spawn patch and hides consoles on Windows when the app asked for it', () => {
+	const cp = fakeChildProcess();
+	const hidden = [];
+	selfApply({ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'win32', childProcess: cp, requireHide: () => ({ patchChildProcess: (target, platform) => { hidden.push([target, platform]); return target; } }) });
+
+	assert.equal(cp[PATCH_MARKER], true, 'the spawn patch was not applied');
+	assert.deepEqual(hidden, [[cp, 'win32']], 'patchChildProcess was not applied to the same child_process');
+});
+
+// The default requireHide is the one production runs: the copy in the shim dir
+// resolving its sibling by name. Reproduced with the two files copied into a
+// temp dir, the way ensureNodeShimDir() lays them out, and the real
+// hide-child-windows applied to a fake child_process so the test process is
+// never touched.
+test('selfApply from a shim-dir copy finds hide-child-windows.js beside it', () => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wptk-shims-'));
+	try {
+		for (const name of ['win-spawn-patch.js', 'hide-child-windows.js']) {
+			fs.copyFileSync(path.join(__dirname, '../../src', name), path.join(dir, name));
+		}
+		const copy = require(path.join(dir, 'win-spawn-patch.js'));
+		const cp = fakeChildProcess();
+		copy.selfApply({ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'win32', childProcess: cp });
+
+		assert.equal(cp[PATCH_MARKER], true);
+		assert.equal(cp[Symbol.for('wp-dev-env.windowsHidePatched')], true, 'the sibling copy was not found, so consoles would show (#497)');
+	} finally {
+		fs.rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test('selfApply does nothing without the flag, and nothing off Windows', () => {
+	for (const input of [
+		{ env: {}, platform: 'win32' },
+		{ env: { WPTK_SPAWN_PATCH: '0' }, platform: 'win32' },
+		{ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'darwin' }
+	]) {
+		const cp = fakeChildProcess();
+		let hideAsked = false;
+		selfApply({ ...input, childProcess: cp, requireHide: () => { hideAsked = true; return { patchChildProcess: (target) => target }; } });
+		assert.equal(cp[PATCH_MARKER], undefined, JSON.stringify(input));
+		assert.equal(hideAsked, false, JSON.stringify(input));
+	}
+});
+
+test('selfApply keeps the spawn patch when the hide copy is missing beside it', () => {
+	const cp = fakeChildProcess();
+	selfApply({ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'win32', childProcess: cp, requireHide: () => { throw new Error("Cannot find module './hide-child-windows.js'"); } });
+
+	assert.equal(cp[PATCH_MARKER], true, 'a missing hide copy must not cost the spawn patch');
 });

@@ -238,6 +238,16 @@ function ensureNodeShimDir() {
                 fs.copyFileSync(path.join(__dirname, 'win-spawn-patch.js'), dest);
                 spawnPatchPath = dest;
             } catch {}
+            // The patch also hides console windows in every descendant Node
+            // (#497), through hide-child-windows.js required from beside it.
+            // Separate try: a missing copy costs the hiding, not the patch.
+            try {
+                fs.copyFileSync(path.join(__dirname, 'hide-child-windows.js'), path.join(nodeShimDir, 'hide-child-windows.js'));
+            } catch (e) {
+                // The preload cannot say so itself (its stdout is the build's), so
+                // this is the one line that explains black windows coming back.
+                logError('shims', `could not copy hide-child-windows.js next to the shims; console windows will show below the runners: ${String(e && e.message ? e.message : e)}`);
+            }
             // Intentionally do NOT create node.exe here, as Electron's exe depends on adjacent DLLs.
             // Using node.exe from a temp dir causes STATUS_DLL_NOT_FOUND (0xC0000135) when spawned by npm.
         } else {
