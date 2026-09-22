@@ -2161,8 +2161,8 @@ test('a runner that exited but never closed is let go after a grace, with npm\'s
 	// taskkill on it could land on a reissued one (the npm:kill rule).
 	assert.deepEqual(
 		killTreeByPid.calls,
-		process.platform === 'win32' ? [] : [[child.pid, 'SIGKILL']],
-		'POSIX forces the group the runner led by pid; Windows must not'
+		process.platform === 'win32' ? [] : [[child.pid, 'SIGKILL', { groupOnly: true }]],
+		'POSIX forces the group the runner led by pid, and only the group; Windows must not'
 	);
 	for (const stream of [child.stdout, child.stderr, child.stdin]) {
 		assert.equal(stream.destroy.calls.length, 1, 'the pipe the orphan holds has to be destroyed, or close never comes');
@@ -2221,7 +2221,7 @@ test('an install that exited but never closed is let go the same way', async (t)
 
 	child.emit('exit', 1, null);
 	t.mock.timers.tick(3000);
-	assert.deepEqual(killTreeByPid.calls, process.platform === 'win32' ? [] : [[child.pid, 'SIGKILL']]);
+	assert.deepEqual(killTreeByPid.calls, process.platform === 'win32' ? [] : [[child.pid, 'SIGKILL', { groupOnly: true }]]);
 	assert.equal(child.stderr.destroy.calls.length, 1);
 	child.emit('close', 1, null);
 	// The install's done follows a store write.

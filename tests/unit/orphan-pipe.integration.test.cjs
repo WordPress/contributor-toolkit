@@ -49,7 +49,17 @@ test('a runner whose orphan holds the pipes exits without closing, and closes on
 		if (orphanPid !== null) { try { process.kill(orphanPid, 'SIGKILL'); } catch {} }
 	});
 
-	runner.stdout.on('data', (data) => { if (orphanPid === null) orphanPid = Number(String(data).trim()); });
+	// Data events are not line-delimited: wait for the newline before reading
+	// the pid, or a partial chunk names some other process.
+	let stdout = '';
+	runner.stdout.on('data', (data) => {
+		stdout += String(data);
+		const newline = stdout.indexOf('\n');
+		if (orphanPid === null && newline !== -1) {
+			const pid = Number(stdout.slice(0, newline).trim());
+			if (Number.isInteger(pid) && pid > 0) orphanPid = pid;
+		}
+	});
 	const exited = new Promise((resolve) => runner.once('exit', resolve));
 	let closed = null;
 	runner.once('close', (code, signal) => { closed = { code, signal }; });
@@ -60,7 +70,7 @@ test('a runner whose orphan holds the pipes exits without closing, and closes on
 	assert.equal(await until(() => closed !== null, 1000), false, 'close must not come while the orphan holds the pipes');
 
 	// What main.js does when the grace runs out.
-	killTreeByPid(runner.pid, 'SIGKILL');
+	killTreeByPid(runner.pid, 'SIGKILL', { groupOnly: true });
 	for (const stream of [runner.stdout, runner.stderr, runner.stdin]) stream.destroy();
 
 	assert.ok(await until(() => closed !== null, 5000), 'destroying the pipes did not deliver close');

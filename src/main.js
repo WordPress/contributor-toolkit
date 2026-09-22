@@ -3450,7 +3450,9 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 				const exit = `code ${code}${signal ? ` (signal ${signal})` : ''}`;
 				logEvent(logScope, `exited with ${exit} but a descendant still holds its output; letting go`);
 				onLog('stderr', `\nnpm exited with ${exit}, but something it started is still running and holding its output. Letting go${process.platform === 'win32' ? '; that process runs on until it finishes on its own' : ' and ending it'}.\n`);
-				if (process.platform !== 'win32') killTreeByPid(child.pid, 'SIGKILL');
+				// Group only: the leader is dead (this is its exit), so a group that
+				// is gone too leaves nothing to kill and a pid that may be reissued.
+				if (process.platform !== 'win32') killTreeByPid(child.pid, 'SIGKILL', { groupOnly: true });
 				for (const stream of [child.stdout, child.stderr, child.stdin]) {
 					if (stream && typeof stream.destroy === 'function') stream.destroy();
 				}

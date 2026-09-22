@@ -75,18 +75,25 @@ function killChildTree(child, deps = {}) {
  * there, which `close` not having fired tells it. Never throws; returns true
  * when a kill was attempted.
  *
+ * `groupOnly` is for a caller that knows the leader is dead because it saw
+ * its `exit` (#498): if the group is gone too there is nothing left to kill,
+ * and the bare pid may already be someone else's, so the fallback must not
+ * run. Without it the fallback stays, for a child that never led a group.
+ *
  * @param {number}              pid
  * @param {'SIGTERM'|'SIGKILL'} [signal]         Windows forces regardless.
  * @param {Object}              [deps]
  * @param {string}              [deps.platform]
  * @param {Function}            [deps.spawnSync]
  * @param {Function}            [deps.kill]
+ * @param {boolean}             [deps.groupOnly] POSIX: never fall back to the bare pid (see below)
  * @return {boolean}
  */
 function killTreeByPid(pid, signal = 'SIGTERM', {
 	platform = process.platform,
 	spawnSync = require('child_process').spawnSync,
-	kill = process.kill
+	kill = process.kill,
+	groupOnly = false
 } = {}) {
 	const plan = killTreePlan(platform, pid, signal);
 	if (!plan) return false;
@@ -97,6 +104,7 @@ function killTreeByPid(pid, signal = 'SIGTERM', {
 	try {
 		kill(plan.target, plan.signal);
 	} catch {
+		if (groupOnly) return true;
 		try { kill(plan.fallback, plan.signal); } catch {}
 	}
 	return true;
