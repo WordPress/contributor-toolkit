@@ -28,7 +28,8 @@ import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from './watch-waiters.cjs';
-import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, resumedWatchUpdateHandOff, appliedBannerState } from './watch-activity.cjs';
+import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState } from './watch-activity.cjs';
+import { planUpdateHandOff } from './update-handoff.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
@@ -3210,29 +3211,35 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // watch without settling the waiters) from orphaning this waiter. Loosen
     // one of those gates and this needs the token.
     const handOffToResumedWatch = () => {
-      const handOff = resumedWatchUpdateHandOff(watchStateRef.current);
-      if (!handOff.waits) {
-        finishUpdate(handOff.stopped);
+      const plan = planUpdateHandOff(watchStateRef.current);
+      if (!plan.waits) {
+        finishUpdate(plan.finish.message);
         return;
       }
-      setUpdateState('building');
-      const settle = (message) => {
-        setUpdateState('idle');
-        setUpdateWaitingOnWatch(false);
-        writeToTerminal(message);
+      // One way to apply an outcome, so the ready line and the exit cannot
+      // drift apart: the plan says which state each lands in and whether it is
+      // the one that completes the update.
+      const settle = async (phase) => {
+        if (phase.completesUpdate) await completeUpdate();
+        setUpdateState(phase.updateState);
+        setUpdateWaitingOnWatch(phase.waitingOnWatch);
+        writeToTerminal(phase.message);
         loadStatus().catch(() => {});
         refreshDirty();
       };
       // Registered before the resume so a watch that dies at once still lands
       // in onFail. The waiters settle once per run: on the ready line or on exit.
       watchWaitersRef.current.add(
-        async () => { await completeUpdate(); settle(handOff.ready); },
-        () => { settle(handOff.failed); }
+        () => { settle(plan.ready); },
+        () => { settle(plan.failed); }
       );
-      markTerminalRunning(false);
-      terminalKillRef.current = null;
-      setUpdateWaitingOnWatch(true);
-      writeToTerminal('\nThe build watch rebuilds build/ from scratch as it resumes — output in the Build watcher tab. The update completes when it is watching again.\n');
+      setUpdateState(plan.waiting.updateState);
+      setUpdateWaitingOnWatch(plan.waiting.waitingOnWatch);
+      if (plan.waiting.releaseTerminal) {
+        markTerminalRunning(false);
+        terminalKillRef.current = null;
+      }
+      writeToTerminal(plan.waiting.message);
       resumeWatcher();
     };
     const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
