@@ -28,7 +28,7 @@ import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from './watch-waiters.cjs';
-import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState } from './watch-activity.cjs';
+import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, resumedWatchUpdateHandOff, appliedBannerState } from './watch-activity.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
@@ -1534,6 +1534,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const [trunkDate, setTrunkDate] = useState(null);
   const [updateIncomplete, setUpdateIncomplete] = useState(false);
   const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
+  // Who runs the update's build: null for the chain itself, 'resumed-watch'
+  // when the watch paused for the reset rebuilds from scratch as it resumes and
+  // the chain leaves the one build to it (Gutenberg, #507). Decided where the
+  // watch is paused, read by the step card and the install step's hand-off.
+  const [updateBuildBy, setUpdateBuildBy] = useState(null);
+  // True from the hand-off to the resumed watch until its ready line or exit:
+  // the card stays on step 3, but the terminal is released, since the watch
+  // writes to its own tab and holds no terminal lock (#507).
+  const [updateWaitingOnWatch, setUpdateWaitingOnWatch] = useState(false);
   // Initial setup chain (#246): install then build, started by the clone
   // finishing rather than by a click. Same shape as the two chains below.
   const [setupChainState, setSetupChainState] = useState('idle'); // idle | installing | building
@@ -3141,13 +3150,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk, noun: workItem.noun });
   const legacyNotice = legacySiteNotice({ legacy });
   const mergeNotice = mergeInProgressNotice({ mergeInProgress });
-  const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged });
+  const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged, buildByWatcher: updateBuildBy });
   const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
   const finishUpdate = (message) => {
     markTerminalRunning(false);
     terminalKillRef.current = null;
     setUpdateState('idle');
+    setUpdateWaitingOnWatch(false);
     if (message) writeToTerminal(message);
     // Resume the watch if the update paused it (#262). Safe on every exit path
     // and a no-op if nothing was paused.
@@ -3160,7 +3170,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // and named when skipped) then a rebuild. Reuses the wizard's runInstall /
   // runScript so exit codes, retries and terminal streaming all behave
   // exactly as they do everywhere else (same pattern as toggleDevServer).
-  const runUpdateInstallAndBuild = (lockfileChanged) => {
+  const runUpdateInstallAndBuild = (lockfileChanged, { buildBy = null } = {}) => {
+    // build/ matches the new source: persist it, summarise, confirm. Shared by
+    // the chain's own build and the resumed watch's ready line.
+    const completeUpdate = async () => {
+      try { await window.api.markUpdateComplete(sitePath); } catch {}
+      const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
+      setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
+      confirm('Updated to the latest trunk');
+    };
     const runBuildStep = () => {
       setUpdateState('building');
       writeToTerminal('\nRunning npm run build…\n');
@@ -3168,10 +3186,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: async ({ code }) => {
           if (code === 0) {
-            try { await window.api.markUpdateComplete(sitePath); } catch {}
-            const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
-            setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
-            confirm('Updated to the latest trunk');
+            await completeUpdate();
             finishUpdate('\nUpdate complete — this site is now on the latest trunk.\n');
           } else {
             finishUpdate('\nUpdate incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.\n');
@@ -3179,6 +3194,44 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         }
       });
     };
+    // The watch paused for the reset rebuilds build/ from scratch when it
+    // resumes (Gutenberg, #507), so a build of our own would be thrown away the
+    // moment it comes back. Resume it now and let that be the one build. Unlike
+    // an apply (#506), the update is not done at the hand-off: the card stays
+    // on step 3, naming the watch, and the persisted "complete" marker waits for
+    // the ready line, so a watch that exits first leaves the update incomplete
+    // with the same banner and retry a failed build would. The terminal is
+    // released: the watch writes to its own tab and holds no terminal lock.
+    // No generation token here, unlike the apply: any ready line means build/
+    // is complete, which is exactly what "update complete" claims, and a card
+    // left on step 3 by a skipped settle would have no way off it.
+    const handOffToResumedWatch = () => {
+      const handOff = resumedWatchUpdateHandOff(watchStateRef.current);
+      if (!handOff.waits) {
+        finishUpdate(handOff.stopped);
+        return;
+      }
+      setUpdateState('building');
+      const settle = (message) => {
+        setUpdateState('idle');
+        setUpdateWaitingOnWatch(false);
+        writeToTerminal(message);
+        loadStatus().catch(() => {});
+        refreshDirty();
+      };
+      // Registered before the resume so a watch that dies at once still lands
+      // in onFail. The waiters settle once per run: on the ready line or on exit.
+      watchWaitersRef.current.add(
+        async () => { await completeUpdate(); settle(handOff.ready); },
+        () => { settle(handOff.failed); }
+      );
+      markTerminalRunning(false);
+      terminalKillRef.current = null;
+      setUpdateWaitingOnWatch(true);
+      writeToTerminal('\nThe build watch rebuilds build/ from scratch as it resumes — output in the Build watcher tab. The update completes when it is watching again.\n');
+      resumeWatcher();
+    };
+    const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
     if (lockfileChanged) {
       setUpdateState('installing');
       writeToTerminal('\npackage-lock.json changed — running npm install (only the changed packages are downloaded)…\n');
@@ -3189,12 +3242,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             finishUpdate('\nUpdate incomplete — npm install failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.\n');
             return;
           }
-          runBuildStep();
+          afterInstall();
         }
       });
     } else {
       writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
-      runBuildStep();
+      afterInstall();
     }
   };
 
@@ -3203,8 +3256,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // exit codes and terminal streaming behave identically.
   const isApplying = applyState !== 'idle';
   const showTerminalHints = Boolean(hasBuilt);
+  // An update waiting on the resumed watch has released the terminal (#507).
   const terminalBusy = computeTerminalBusy({
-    terminalRunning, installing, building, starting, running, isUpdating, isApplying
+    terminalRunning, installing, building, starting, running, isUpdating: isUpdating && !updateWaitingOnWatch, isApplying
   });
   const applySteps = planApplySteps({ needsInstall: applyNeedsInstall, buildByWatcher: applyBuildByWatcher, kind: applyKind });
   const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
@@ -3869,7 +3923,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // A trunk reset rewrites the whole tree at once; a live watch would try to
     // recompile mid-reset. Pause it for the update; finishUpdate resumes it. The
     // PHP server stays up — the rebuild regenerates build/ under it (#262).
-    await pauseWatcher();
+    // Whether the update builds after depends on what the resumed watch does:
+    // on Gutenberg it rebuilds from scratch anyway, so the one build is its
+    // (#507). Decided here, where the watch is paused, like a PR checkout.
+    const impact = planWatchImpact({ needsInstall: false, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
+    setUpdateBuildBy(impact.buildBy);
+    setUpdateWaitingOnWatch(false);
+    if (impact.pauseWatcher) await pauseWatcher();
     markTerminalRunning(true);
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(false);
@@ -3892,7 +3952,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         return;
       }
       setUpdateLockfileChanged(Boolean(res.lockfileChanged));
-      runUpdateInstallAndBuild(Boolean(res.lockfileChanged));
+      runUpdateInstallAndBuild(Boolean(res.lockfileChanged), { buildBy: impact.buildBy });
     });
   };
 
@@ -3969,14 +4029,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       return;
     }
     // Same as beginTrunkUpdate: install + a full build need the tree to
-    // themselves, so pause the watch; finishUpdate resumes it (#262).
-    await pauseWatcher();
+    // themselves, so pause the watch; finishUpdate resumes it (#262). And the
+    // same hand-off when the resumed watch is the one that rebuilds (#507).
+    const impact = planWatchImpact({ needsInstall: true, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
+    setUpdateBuildBy(impact.buildBy);
+    setUpdateWaitingOnWatch(false);
+    if (impact.pauseWatcher) await pauseWatcher();
     markTerminalRunning(true);
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(true);
     setLastUpdateSummary(null);
     updateStartRef.current = Date.now();
-    runUpdateInstallAndBuild(true);
+    runUpdateInstallAndBuild(true, { buildBy: impact.buildBy });
   };
 
   // The diff fetch, shared by opening the modal and by a discard that happens
@@ -4945,7 +5009,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
             {updateStepStates.map((s) => {
               const labels = UPDATE_STEP_LABELS[s.key] || {};
-              const text = labels[s.status] || labels.pending || s.key;
+              // A step may name who runs it while current (the resumed watch, #507).
+              const planned = updateSteps.find((step) => step.key === s.key);
+              const text = (s.status === 'current' && planned?.currentMessage) || labels[s.status] || labels.pending || s.key;
               const { symbol = '', color = '#6c6f72' } = UPDATE_STEP_MARKS[s.status] || {};
               return (
                 <div key={s.key} style={{ display: 'flex', alignItems: 'baseline', gap: 8, color, opacity: s.status === 'pending' || s.status === 'skipped' ? 0.75 : 1 }}>

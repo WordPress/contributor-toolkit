@@ -46,6 +46,10 @@ function trunkAgeInfo({ trunkDate, now = Date.now() } = {}) {
 }
 
 const SKIP_INSTALL_MESSAGE = 'Dependencies unchanged — skipping npm install';
+// The update's build step while a resumed watch does the rebuild (#507): the
+// step stays a real step, current until the watch's ready line, because the
+// update is not complete until build/ is back and the card is what says so.
+const UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE = 'The build watch is rebuilding — output in the Build watcher tab';
 
 /**
  * The update chain always has the same three steps; the middle one is skipped
@@ -53,10 +57,18 @@ const SKIP_INSTALL_MESSAGE = 'Dependencies unchanged — skipping npm install';
  * change between the old and new trunk. Naming the skipped step is deliberate:
  * "update" should always mean the same thing to the contributor.
  *
- * @param {Object}  root0
- * @param {boolean} [root0.lockfileChanged]
+ * The build step is never skipped, but who runs it can change: on a Gutenberg
+ * site whose watch was paused for the update, the resumed watch rebuilds from
+ * scratch anyway, so the update leaves the one build to it and the step names
+ * the watch while it is current (`buildByWatcher`, #507). The step's status
+ * still comes from the update state, so the card stays on step 3 until the
+ * watch is watching again.
+ *
+ * @param {Object}               root0
+ * @param {boolean}              [root0.lockfileChanged]
+ * @param {null|'resumed-watch'} [root0.buildByWatcher]
  */
-function planUpdateSteps({ lockfileChanged } = {}) {
+function planUpdateSteps({ lockfileChanged, buildByWatcher = null } = {}) {
 	return [
 		{ key: 'fetch', label: 'Fetch latest trunk', skipped: false },
 		{
@@ -65,7 +77,12 @@ function planUpdateSteps({ lockfileChanged } = {}) {
 			skipped: !lockfileChanged,
 			skipMessage: SKIP_INSTALL_MESSAGE
 		},
-		{ key: 'build', label: 'Rebuild', skipped: false }
+		{
+			key: 'build',
+			label: 'Rebuild',
+			skipped: false,
+			...(buildByWatcher === 'resumed-watch' ? { currentMessage: UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE } : {})
+		}
 	];
 }
 
@@ -134,15 +151,16 @@ function planSetupSteps() {
 }
 
 /**
- * How applying a patch, checking out a pull request or restoring saved work
- * should treat a running build watch (#247, #262, #506). A watch that is running
- * already recompiles src/ on save, so a patch that only touches src/ needs no
- * build of its own and no interruption: apply it and let the watch pick it up.
+ * How applying a patch, checking out a pull request, restoring saved work or
+ * updating trunk should treat a running build watch (#247, #262, #506, #507).
+ * A watch that is running already recompiles src/ on save, so a patch that only
+ * touches src/ needs no build of its own and no interruption: apply it and let
+ * the watch pick it up.
  * Anything that has to install dependencies or run a full build needs the build
  * directory and node_modules to itself, so the watch is paused for the duration
  * and resumed after. A whole-tree switch (`wholeTree`: a pull request checkout,
- * leaving one, restoring saved work) rewrites far more than a src/ patch and
- * always pauses a live watch.
+ * leaving one, restoring saved work, a trunk reset) rewrites far more than a
+ * src/ patch and always pauses a live watch.
  *
  * Which build runs after a pause depends on what the watch does when it comes
  * back. Core's `grunt _watch` starts watching and touches nothing, so the apply
@@ -157,7 +175,7 @@ function planSetupSteps() {
  * @param {boolean} [root0.needsInstall]         the patch/update changes the lockfile
  * @param {boolean} [root0.watcherActive]        a build watch is currently running
  * @param {boolean} [root0.watchRebuildsOnStart] the target's watch rebuilds build/ from scratch when started
- * @param {boolean} [root0.wholeTree]            a pull request checkout, leave or restore, not a patch
+ * @param {boolean} [root0.wholeTree]            a pull request checkout, leave, restore or trunk reset, not a patch
  * @return {{ pauseWatcher: boolean, runBuild: boolean, buildBy: null|'live-watch'|'resumed-watch' }}
  */
 function planWatchImpact({ needsInstall, watcherActive, watchRebuildsOnStart = false, wholeTree = false } = {}) {
@@ -257,6 +275,7 @@ module.exports = {
 	SKIP_INSTALL_MESSAGE,
 	BUILD_BY_WATCHER_MESSAGE,
 	BUILD_BY_RESUMED_WATCH_MESSAGE,
+	UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE,
 	STATE_TO_STEP,
 	APPLY_STATE_TO_STEP,
 	SETUP_STATE_TO_STEP,
