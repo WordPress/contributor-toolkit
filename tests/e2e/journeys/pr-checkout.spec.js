@@ -64,11 +64,23 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 	await expect( page.getByRole( 'button', { name: /choose a \.diff \/ \.patch file/i } ) ).toHaveCount( 0 );
 	await expect( page.getByRole( 'button', { name: 'Apply PR', exact: true } ) ).toHaveCount( 0 );
 	await expect( page.getByRole( 'button', { name: 'Apply…', exact: true } ) ).toHaveCount( 0 );
-	const contextBox = await activeContext.boundingBox();
-	const ticketBox = await page.getByText( `Working on ticket #${ TICKET }`, { exact: true } ).boundingBox();
-	const linkedPullRequestsBox = await page.getByText( 'Linked pull requests', { exact: true } ).boundingBox();
-	expect( ticketBox.y ).toBeLessThan( contextBox.y );
-	expect( contextBox.y ).toBeLessThan( linkedPullRequestsBox.y );
+	// The banner sits under the ticket heading and above the linked pull
+	// requests. Asserted as document order, not as Y coordinates: the moment
+	// the banner appears the next-action cue smooth-scrolls it into view, and
+	// three bounding boxes read mid-glide can land in any order (the macOS
+	// runner did, twice in a day). The card lays these out in document order,
+	// so the order is the claim.
+	const [ ticketEl, contextEl, linkedEl ] = await Promise.all( [
+		page.getByText( `Working on ticket #${ TICKET }`, { exact: true } ).elementHandle(),
+		activeContext.elementHandle(),
+		page.getByText( 'Linked pull requests', { exact: true } ).elementHandle(),
+	] );
+	const inOrder = await page.evaluate( ( [ a, b, c ] ) => {
+		// DOCUMENT_POSITION_FOLLOWING is bit 4 of the mask.
+		const follows = ( from, to ) => Math.floor( from.compareDocumentPosition( to ) / 4 ) % 2 === 1;
+		return follows( a, b ) && follows( b, c );
+	}, [ ticketEl, contextEl, linkedEl ] );
+	expect( inOrder ).toBe( true );
 	expect( read( site.dir, LOGIN ) ).toBe( PR_CONTENT );
 	expect( read( site.dir, DOOMED ) ).toBe( '<?php // to be deleted\n' );
 	expect( read( site.dir, SUBSTRATE ) ).toBe( SUBSTRATE_CONTENT );
