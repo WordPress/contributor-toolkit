@@ -3832,7 +3832,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         const impact = planTicketSwitchImpact({
           fromPr: pullRequest?.number ?? null,
           toPr: savedPrForRef(ref),
-          watcherActive: watchOccupiesBuild(watchStateRef.current),
+          watchState: watchStateRef.current,
           watchRebuildsOnStart
         });
         switchImpactRef.current = impact;

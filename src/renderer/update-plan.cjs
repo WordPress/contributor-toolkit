@@ -11,10 +11,14 @@
  * three plans beside the machinery they share is what stops a fourth chain
  * growing its own.
  *
- * Kept as a pure, dependency-free module so it can be unit tested without a
- * DOM: the renderer bundle imports it, `node --test` requires it directly
- * (same convention as setup-steps.cjs and dev-server-command.cjs).
+ * Kept free of the DOM so it can be unit tested without one: the renderer
+ * bundle imports it, `node --test` requires it directly (same convention as
+ * setup-steps.cjs and dev-server-command.cjs). Its one import is
+ * `watchOccupiesBuild`, which is the single definition of when the watch owns
+ * build/ and belongs beside the waiters that settle on it.
  */
+
+const { watchOccupiesBuild } = require('./watch-waiters.cjs');
 
 // A site older than this shows the staleness dot and notice. Local-only:
 // staleness is judged from the snapshot's own age, never from a network probe,
@@ -240,18 +244,36 @@ function planWatchImpact({ needsInstall, watcherActive, watchRebuildsOnStart = f
  * being left and the one being restored, either of them null — mirroring what
  * `ticketPrImpact` in main decides after the fact from the two refs.
  *
+ * The second exception is the watch that has not finished starting, which is
+ * why this takes the watch's state rather than a boolean: see below.
+ *
  * @param {Object}  root0
  * @param {?number} [root0.fromPr]               the pull request checked out now, or null
  * @param {?number} [root0.toPr]                 the pull request this switch restores, or null
- * @param {boolean} [root0.watcherActive]        a build watch is currently running
+ * @param {string}  [root0.watchState]           the build watch's state: 'watching', 'building', 'paused', 'exited', 'idle'
  * @param {boolean} [root0.watchRebuildsOnStart] the target's watch rebuilds build/ from scratch when started
  * @return {{ prTransition: boolean, pauseWatcher: boolean, runBuild: boolean, buildBy: null|'live-watch'|'resumed-watch' }}
  */
-function planTicketSwitchImpact({ fromPr = null, toPr = null, watcherActive, watchRebuildsOnStart } = {}) {
+function planTicketSwitchImpact({ fromPr = null, toPr = null, watchState, watchRebuildsOnStart } = {}) {
 	const prTransition = fromPr !== toPr;
+	// 'building' is a watch that has started and not yet reached its ready
+	// line: on Gutenberg it is rebuilding build/ from scratch, and before that
+	// the chain may be running a full build of its own. Either way it is not
+	// watching, so a checkout landing under it would not be recompiled — the
+	// packages already written would keep the old tree's output and the tab
+	// would go to (watching) over a build/ that mixes both. So a switch made in
+	// that window takes the pause it used to take, even though it moves no more
+	// than a src/ patch. Only a watch that is actually watching is handed the
+	// change (#510, found on the Windows pass, where the window is minutes).
+	const rebuilding = watchState === 'building';
 	return {
 		prTransition,
-		...planWatchImpact({ needsInstall: false, watcherActive, watchRebuildsOnStart, wholeTree: prTransition })
+		...planWatchImpact({
+			needsInstall: false,
+			watcherActive: watchOccupiesBuild(watchState),
+			watchRebuildsOnStart,
+			wholeTree: prTransition || rebuilding
+		})
 	};
 }
 

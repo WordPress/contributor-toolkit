@@ -498,13 +498,13 @@ test('planWatchImpact: with no watch the rebuild-on-start flag changes nothing (
 // when it resumed, for a switch that often moves two files.
 test('planTicketSwitchImpact: a switch with no pull request on either side leaves a live watch running (#510)', () => {
 	assert.deepStrictEqual(
-		planTicketSwitchImpact({ fromPr: null, toPr: null, watcherActive: true, watchRebuildsOnStart: true }),
+		planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'watching', watchRebuildsOnStart: true }),
 		{ prTransition: false, pauseWatcher: false, runBuild: false, buildBy: 'live-watch' }
 	);
 	// Core's watch rebuilds nothing on start, and the answer is the same: the
 	// running watch is the one thing that recompiles the switched files.
 	assert.deepStrictEqual(
-		planTicketSwitchImpact({ fromPr: null, toPr: null, watcherActive: true, watchRebuildsOnStart: false }),
+		planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'watching', watchRebuildsOnStart: false }),
 		{ prTransition: false, pauseWatcher: false, runBuild: false, buildBy: 'live-watch' }
 	);
 });
@@ -514,16 +514,16 @@ test('planTicketSwitchImpact: a switch with no pull request on either side leave
 // that rebuilds from scratch when it resumes, that resume is the one build.
 test('planTicketSwitchImpact: restoring or leaving a pull request pauses the watch (#510)', () => {
 	assert.deepStrictEqual(
-		planTicketSwitchImpact({ fromPr: null, toPr: 7, watcherActive: true, watchRebuildsOnStart: true }),
+		planTicketSwitchImpact({ fromPr: null, toPr: 7, watchState: 'watching', watchRebuildsOnStart: true }),
 		{ prTransition: true, pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
 	);
 	assert.deepStrictEqual(
-		planTicketSwitchImpact({ fromPr: 7, toPr: null, watcherActive: true, watchRebuildsOnStart: false }),
+		planTicketSwitchImpact({ fromPr: 7, toPr: null, watchState: 'watching', watchRebuildsOnStart: false }),
 		{ prTransition: true, pauseWatcher: true, runBuild: true, buildBy: null }
 	);
 	// From one ticket's pull request to another's is still a transition.
 	assert.deepStrictEqual(
-		planTicketSwitchImpact({ fromPr: 7, toPr: 9, watcherActive: true, watchRebuildsOnStart: true }),
+		planTicketSwitchImpact({ fromPr: 7, toPr: 9, watchState: 'watching', watchRebuildsOnStart: true }),
 		{ prTransition: true, pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
 	);
 });
@@ -532,7 +532,7 @@ test('planTicketSwitchImpact: restoring or leaving a pull request pauses the wat
 // nothing, which is what main reads from the two refs being equal.
 test('planTicketSwitchImpact: the same pull request on both sides is not a transition (#510)', () => {
 	assert.deepStrictEqual(
-		planTicketSwitchImpact({ fromPr: 7, toPr: 7, watcherActive: true, watchRebuildsOnStart: true }),
+		planTicketSwitchImpact({ fromPr: 7, toPr: 7, watchState: 'watching', watchRebuildsOnStart: true }),
 		{ prTransition: false, pauseWatcher: false, runBuild: false, buildBy: 'live-watch' }
 	);
 });
@@ -542,9 +542,46 @@ test('planTicketSwitchImpact: the same pull request on both sides is not a trans
 test('planTicketSwitchImpact: with no watch running nothing is paused and nothing is handed off (#510)', () => {
 	for (const [fromPr, toPr, prTransition] of [[null, null, false], [null, 7, true]]) {
 		assert.deepStrictEqual(
-			planTicketSwitchImpact({ fromPr, toPr, watcherActive: false, watchRebuildsOnStart: true }),
+			planTicketSwitchImpact({ fromPr, toPr, watchState: 'idle', watchRebuildsOnStart: true }),
 			{ prTransition, pauseWatcher: false, runBuild: true, buildBy: null }
 		);
+	}
+});
+
+// A watch that has started and not reached its ready line is rebuilding
+// build/ from scratch, so it cannot take a checkout incrementally: the
+// packages it has already written would keep the old tree's output. Found on
+// the Windows pass, where linking an issue is offered throughout the minutes
+// that rebuild takes (#510).
+test('planTicketSwitchImpact: a switch made while the watch is still rebuilding pauses it (#510)', () => {
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'building', watchRebuildsOnStart: true }),
+		{ prTransition: false, pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
+	);
+	// Core reaches its ready line at once, so it is only ever 'building' while
+	// the chain runs a full build of its own before starting the watch — which
+	// owns build/ just the same, and the switch waits for it.
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'building', watchRebuildsOnStart: false }),
+		{ prTransition: false, pauseWatcher: true, runBuild: true, buildBy: null }
+	);
+});
+
+// A watch that is watching is the case the fix is for: it recompiles what the
+// checkout changed, so nothing is paused and nothing is built twice.
+test('planTicketSwitchImpact: only a watching watch is handed the switch (#510)', () => {
+	const handedOff = planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'watching', watchRebuildsOnStart: true });
+	const paused = planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'building', watchRebuildsOnStart: true });
+
+	assert.strictEqual(handedOff.pauseWatcher, false);
+	assert.strictEqual(handedOff.buildBy, 'live-watch');
+	assert.strictEqual(paused.pauseWatcher, true);
+	assert.notStrictEqual(paused.buildBy, 'live-watch');
+	// A paused or exited watch is no watch at all: nothing to hand to.
+	for (const watchState of ['paused', 'exited', 'idle', undefined]) {
+		const plan = planTicketSwitchImpact({ fromPr: null, toPr: null, watchState, watchRebuildsOnStart: true });
+		assert.strictEqual(plan.pauseWatcher, false, `${watchState}: nothing to pause`);
+		assert.strictEqual(plan.buildBy, null, `${watchState}: nothing recompiles it`);
 	}
 });
 
