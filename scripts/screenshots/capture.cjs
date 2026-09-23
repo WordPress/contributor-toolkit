@@ -87,7 +87,8 @@ function expandHome(p) {
 async function setWindow(app, bounds) {
 	await app.evaluate(({ BrowserWindow }, size) => {
 		const win = BrowserWindow.getAllWindows()[0];
-		win.setBounds({ x: 40, y: 40, ...size });
+		win.setPosition(40, 40);
+		win.setContentSize(size.width, size.height);
 	}, bounds);
 }
 
