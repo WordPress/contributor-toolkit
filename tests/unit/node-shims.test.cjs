@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { nodeShim, cliShim, COMPAT_FLAG } = require('../../src/node-shims.cjs');
+const { nodeShim, cliShim, nodeExecPath, COMPAT_FLAG } = require('../../src/node-shims.cjs');
 
 const EXEC = {
 	darwin: '/Applications/App.app/Contents/MacOS/App',
@@ -97,4 +97,72 @@ test('a shim without a patch to preload is still a valid shim', () => {
 	assert.ok(!win.includes('--require'));
 	assert.ok(!win.includes(COMPAT_FLAG));
 	assert.ok(win.includes('%*'));
+});
+
+// --- nodeExecPath: which binary the shims exec (#518) ---------------------
+
+// The two macOS layouts the app actually runs in.
+const PACKAGED = '/Applications/WordPress Contributor Toolkit.app/Contents/MacOS/WordPress Contributor Toolkit';
+const PACKAGED_HELPER = '/Applications/WordPress Contributor Toolkit.app/Contents/Frameworks/WordPress Contributor Toolkit Helper.app/Contents/MacOS/WordPress Contributor Toolkit Helper';
+const DEV = '/repo/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron';
+const DEV_HELPER = '/repo/node_modules/electron/dist/Electron.app/Contents/Frameworks/Electron Helper.app/Contents/MacOS/Electron Helper';
+
+// Records what was probed as well as answering, so a test can assert that the
+// non-macOS paths never look at the filesystem at all.
+function probe(present = []) {
+	const asked = [];
+	const exists = (p) => {
+		asked.push(p);
+		return present.includes(p);
+	};
+	exists.asked = asked;
+	return exists;
+}
+
+// The packaged bundle is the one the bug was reported against: the main binary
+// has no LSUIElement, the Helper does, so this is the whole fix in one line.
+test('on macOS the packaged bundle resolves to its Helper', () => {
+	const exists = probe([PACKAGED_HELPER]);
+	assert.equal(nodeExecPath({ execPath: PACKAGED, platform: 'darwin', exists }), PACKAGED_HELPER);
+});
+
+// `npm start` runs from Electron's own dist, whose Helper is named after
+// Electron rather than the product. Same derivation, different name — if the
+// rule were hardcoded to the product name, development would silently keep the
+// old behaviour and the bug would only be fixed for people who never see it.
+test('on macOS the development Electron.app resolves to its Helper', () => {
+	const exists = probe([DEV_HELPER]);
+	assert.equal(nodeExecPath({ execPath: DEV, platform: 'darwin', exists }), DEV_HELPER);
+});
+
+// A layout with no Helper must degrade to what the app did before the fix: Dock
+// tiles come back, builds still run. Spawning a path that is not there would
+// turn a cosmetic bug into a build that never starts.
+test('on macOS a missing Helper falls back to the main binary', () => {
+	const exists = probe([]);
+	assert.equal(nodeExecPath({ execPath: PACKAGED, platform: 'darwin', exists }), PACKAGED);
+	assert.deepEqual(exists.asked, [PACKAGED_HELPER]);
+});
+
+// Windows and Linux have no such bundle, and #497/#512 fixed their symptom a
+// different way. They must return the binary untouched and not even look.
+test('off macOS the binary is returned untouched, with no filesystem probe', () => {
+	for (const [platform, execPath] of [['win32', EXEC.win32], ['linux', '/opt/app/app']]) {
+		const exists = probe([]);
+		assert.equal(nodeExecPath({ execPath, platform, exists }), execPath);
+		assert.deepEqual(exists.asked, [], `${platform} probed the filesystem`);
+	}
+});
+
+// The resolved path is what gets interpolated into a shim, and every macOS
+// bundle path has spaces in it. The Helper adds two more path components that
+// each contain one, so this is the case most likely to break quoting.
+test('a Helper path with spaces survives into a working shim', () => {
+	const exists = probe([PACKAGED_HELPER]);
+	const execPath = nodeExecPath({ execPath: PACKAGED, platform: 'darwin', exists });
+	const shim = nodeShim({ execPath, compatPath: COMPAT.darwin, platform: 'darwin' });
+
+	assert.ok(shim.includes(`"${PACKAGED_HELPER}"`));
+	assert.ok(shim.includes(`--require "${COMPAT.darwin}"`));
+	assert.ok(shim.includes('ELECTRON_RUN_AS_NODE=1'));
 });

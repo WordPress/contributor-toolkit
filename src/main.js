@@ -15,7 +15,7 @@ const {
 	buildChildEnv,
 	RELAXED_ENGINES_ENV
 } = require('./npm-runner');
-const { nodeShim, cliShim } = require('./node-shims.cjs');
+const { nodeShim, cliShim, nodeExecPath } = require('./node-shims.cjs');
 const {
 	initLogging,
 	getLogFilePath,
@@ -209,9 +209,13 @@ function ensureNodeShimDir() {
         nodeShimDir = null;
         throw new Error(`Could not install the Node compatibility preload: ${String(e && e.message ? e.message : e)}`);
     }
+    // The binary every shim execs. On macOS that is the Helper bundle, whose
+    // Info.plist carries LSUIElement, so a tool that sets its process title does
+    // not earn a Dock tile (#518); elsewhere it is process.execPath, unchanged.
+    const execPath = nodeExecPath();
     try {
         if (process.platform === 'win32') {
-            const content = nodeShim({ execPath: process.execPath, compatPath: nodeCompatPath });
+            const content = nodeShim({ execPath, compatPath: nodeCompatPath });
             fs.writeFileSync(path.join(nodeShimDir, 'node.cmd'), content);
             fs.writeFileSync(path.join(nodeShimDir, 'node.bat'), content);
             // Provide npm/npx shims that invoke npm's CLI through Electron's Node
@@ -222,8 +226,8 @@ function ensureNodeShimDir() {
                 const npxCliAbsPath = path.join(npmRootDir, 'bin', 'npx-cli.js');
                 npmCliPath = npmCliAbsPath;
                 npxCliPath = npxCliAbsPath;
-                const npmCmd = cliShim({ execPath: process.execPath, compatPath: nodeCompatPath, cliPath: npmCliAbsPath });
-                const npxCmd = cliShim({ execPath: process.execPath, compatPath: nodeCompatPath, cliPath: npxCliAbsPath });
+                const npmCmd = cliShim({ execPath, compatPath: nodeCompatPath, cliPath: npmCliAbsPath });
+                const npxCmd = cliShim({ execPath, compatPath: nodeCompatPath, cliPath: npxCliAbsPath });
                 fs.writeFileSync(path.join(nodeShimDir, 'npm.cmd'), npmCmd);
                 fs.writeFileSync(path.join(nodeShimDir, 'npm.bat'), npmCmd);
                 fs.writeFileSync(path.join(nodeShimDir, 'npx.cmd'), npxCmd);
@@ -251,7 +255,7 @@ function ensureNodeShimDir() {
             // Intentionally do NOT create node.exe here, as Electron's exe depends on adjacent DLLs.
             // Using node.exe from a temp dir causes STATUS_DLL_NOT_FOUND (0xC0000135) when spawned by npm.
         } else {
-            const content = nodeShim({ execPath: process.execPath, compatPath: nodeCompatPath });
+            const content = nodeShim({ execPath, compatPath: nodeCompatPath });
             fs.writeFileSync(path.join(nodeShimDir, 'node'), content, { mode: 0o755 });
             // Provide npm/npx shims that invoke npm's CLI through Electron's Node
             try {
@@ -259,8 +263,8 @@ function ensureNodeShimDir() {
                 const npmRootDir = path.dirname(npmPkgJsonPath);
                 const npmCliAbsPath = path.join(npmRootDir, 'bin', 'npm-cli.js');
                 const npxCliAbsPath = path.join(npmRootDir, 'bin', 'npx-cli.js');
-                const npmSh = cliShim({ execPath: process.execPath, compatPath: nodeCompatPath, cliPath: npmCliAbsPath });
-                const npxSh = cliShim({ execPath: process.execPath, compatPath: nodeCompatPath, cliPath: npxCliAbsPath });
+                const npmSh = cliShim({ execPath, compatPath: nodeCompatPath, cliPath: npmCliAbsPath });
+                const npxSh = cliShim({ execPath, compatPath: nodeCompatPath, cliPath: npxCliAbsPath });
                 fs.writeFileSync(path.join(nodeShimDir, 'npm'), npmSh, { mode: 0o755 });
                 fs.writeFileSync(path.join(nodeShimDir, 'npx'), npxSh, { mode: 0o755 });
             } catch {}
@@ -280,9 +284,15 @@ function ensureNodeShimDir() {
 // server-runner.js needs); it is layered on top of the shared environment, never
 // in place of it.
 function spawnRunner(runnerPath, args, { cwd, extraEnv = {} }) {
-	return spawn(process.execPath, [runnerPath, ...args], {
+	// nodeExecPath(), not process.execPath: on macOS the runners are npm, and npm
+	// sets its own process title, which would register the main bundle with
+	// LaunchServices and put a Dock tile up (#518). `NODE` names the same binary
+	// the runner is, so nothing below it disagrees about where Node lives.
+	const execPath = nodeExecPath();
+	return spawn(execPath, [runnerPath, ...args], {
 		cwd,
 		env: buildChildEnv({
+			execPath,
 			shimDir: ensureNodeShimDir(),
 			spawnPatchPath,
 			npmCliPath,
