@@ -3900,6 +3900,44 @@ test('branches:list reports the branches on disk with their stored context', asy
 	assert.equal(result.branches[1].baseOid, null, 'a branch the registry has never seen still lists');
 });
 
+// #510: the renderer has to know before a switch starts whether it restores a
+// parked pull request, because that is the one switch that pauses the build
+// watch. The same record `ticketCheckoutRef` reads for the checkout is read
+// here, so the plan made before the switch matches what the switch does.
+test('branches:list reports the pull request a switch to each work item would restore (#510)', async () => {
+	const listTicketBranches = spy(async () => ['ticket/59234', 'ticket/61002', 'ticket/61003', 'ticket/61004', 'pr/7']);
+	const currentBranchName = spy(async () => 'trunk');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				branches: {
+					'ticket/59234': { activePr: 'pr/7' },
+					// A PR parked on a branch that is no longer on disk, and one
+					// with no recorded head: neither is somewhere to go back to.
+					'ticket/61002': { activePr: 'pr/9' },
+					'ticket/61003': { activePr: 'pr/11' },
+					// The ordinary row every plain switch relies on: nothing
+					// parked, so nothing to restore and nothing to pause for.
+					'ticket/61004': { lastUsedAt: 'yesterday' },
+					'pr/7': { headOid: 'a'.repeat(40) },
+					'pr/9': { headOid: 'b'.repeat(40) },
+					'pr/11': {}
+				},
+				currentBranch: 'trunk'
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { listTicketBranches, currentBranchName } }
+	});
+
+	const result = await main.invoke('branches:list', '/sites/wp');
+
+	const savedPr = Object.fromEntries(result.branches.map((b) => [b.ref, b.savedPr]));
+	assert.deepEqual(savedPr, { 'ticket/59234': 7, 'ticket/61002': null, 'ticket/61003': null, 'ticket/61004': null });
+});
+
 // The same wait, for the trunk update's own :done channel — and on the clock
 // for the same reason, since a park reads the worktree before anything else.
 async function updateDone(event, updateId) {

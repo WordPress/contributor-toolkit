@@ -37,7 +37,7 @@ import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
-import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome, updateStepText } from './update-plan.cjs';
+import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, planTicketSwitchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome, updateStepText } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
@@ -46,7 +46,7 @@ import { statusBadge } from '../trac-ticket-info.cjs';
 import { prDateLabel } from './pr-date-label.cjs';
 import { workItemProvider } from '../work-item.cjs';
 import { adminUrl, adminerUrl } from './site-urls.cjs';
-import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
+import { ticketBranchRows, savedPrForSwitch, ticketListCard } from './ticket-branch-list.cjs';
 import { ticketTrunkNotice, rebaseRefusal } from './ticket-trunk-notice.cjs';
 import { legacySiteNotice } from './legacy-site.cjs';
 import { deepLinkNotice } from './deep-link-notice.cjs';
@@ -2003,7 +2003,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     let rebuilding = false;
     let ownsTerminal = false;
     try {
-      ownsTerminal = await ticketSwitchLifecycleRef.current.begin();
+      ownsTerminal = await ticketSwitchLifecycleRef.current.begin(ref);
       if (!ownsTerminal) return;
       const res = await window.api.setSiteTicket(sitePath, ref, options);
       if (!res?.ok) {
@@ -2046,7 +2046,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       await Promise.all([loadBranches(), loadStatus()]);
       // The tree under the note is a different branch's now (#239).
       reprobeAfterBranchChange();
-      rebuilding = ticketSwitchLifecycleRef.current.complete(res);
+      rebuilding = await ticketSwitchLifecycleRef.current.complete(res);
     } catch (e) {
       setTicketError(String(e));
     } finally {
@@ -3791,10 +3791,25 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       finishApply();
     });
   };
+  // The pull request a switch to this ref would put back (#510), read from the
+  // branch list the panel already reloads after every switch, so no round trip
+  // is added in front of one. An unlink and a ref this site's provider does not
+  // parse are not switches to a work item at all; the rest is the module's
+  // decision.
+  const savedPrForRef = (ref) => {
+    const parsed = workItem.parseRef(typeof ref === 'string' ? ref.trim() : '');
+    if (!parsed.ok) return null;
+    return savedPrForSwitch({
+      branches: ticketBranches.branches,
+      ticketId: parsed.id,
+      linkedTicket: tracTicket,
+      currentPr: pullRequest?.number ?? null
+    });
+  };
   useLayoutEffect(() => {
     retryPrSwitchRef.current = runPrSwitch;
     ticketSwitchLifecycleRef.current = {
-      begin: async () => {
+      begin: async (ref) => {
         if (terminalStateRef.current.running) {
           setTicketError('A command is already running. Stop it before switching tickets.');
           return false;
@@ -3802,21 +3817,49 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         markTerminalRunning(true);
         terminalKillRef.current = () => { killCurrent().catch(() => {}); };
         applyHandOffRef.current.invalidate();
-        // Restoring saved work is a whole-tree switch like a PR checkout: the
-        // decision is made here, where the watch is paused, and read back in
-        // complete (#506). This effect has no dependency list, so it runs on
-        // every render and a variable scoped to it would be reset between
-        // begin and complete; a ref is what survives the IPC round trip.
-        const impact = planWatchImpact({ needsInstall: false, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
+        // Only the switch that puts a parked pull request back is a whole-tree
+        // change that pauses the watch (#506); a plain link, unlink or switch
+        // moves the checkout and leaves the running watch to recompile what
+        // changed (#510). Which one this is has to be known before the
+        // checkout starts, and `sites:set-ticket` only says so afterwards — so
+        // it is read from the same record main will consult: the PR checked
+        // out now, and the one saved on the work item being switched to.
+        //
+        // The decision is made here, where the watch is paused, and read back
+        // in complete. This effect has no dependency list, so it runs on every
+        // render and a variable scoped to it would be reset between begin and
+        // complete; a ref is what survives the IPC round trip.
+        const impact = planTicketSwitchImpact({
+          fromPr: pullRequest?.number ?? null,
+          toPr: savedPrForRef(ref),
+          watchState: watchStateRef.current,
+          watchRebuildsOnStart
+        });
         switchImpactRef.current = impact;
         if (impact.pauseWatcher) await pauseWatcher();
         return true;
       },
-      complete: (res) => {
-        if (!res.prTransition) return false;
+      complete: async (res) => {
+        if (!res.prTransition) {
+          // The watch was left running for this switch and the checkout has
+          // landed: the files it wrote are what the watch now recompiles, so
+          // the banner and the tab say so until it goes quiet (#492).
+          if (switchImpactRef.current?.buildBy === 'live-watch') handOffToWatch();
+          return false;
+        }
         setApplyKind('pr');
         setApplyNeedsInstall(Boolean(res.needsInstall));
-        const impact = switchImpactRef.current || planWatchImpact({ needsInstall: false, watcherActive: false, watchRebuildsOnStart, wholeTree: true });
+        // A restore begin did not see coming — a retry of a failed switch,
+        // where main reads the ref the switch was leaving and the renderer
+        // cannot. The install and the build that follow still need the build
+        // directory and node_modules to themselves, so the pause happens late
+        // rather than not at all. The plan's own answer wins whenever it
+        // already paused, since a paused watch reads as inactive here.
+        let impact = switchImpactRef.current;
+        if (!impact?.pauseWatcher) {
+          impact = planWatchImpact({ needsInstall: false, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
+          if (impact.pauseWatcher) await pauseWatcher();
+        }
         setApplyBuildByWatcher(impact.buildBy);
         clearApplyError();
         runApplyInstallAndBuild(Boolean(res.needsInstall), 'Restored', { buildBy: impact.buildBy, noun: 'saved work' });

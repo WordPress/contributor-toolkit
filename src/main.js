@@ -2875,11 +2875,22 @@ async function ticketPrImpact(sitePath, from, to) {
     return { prTransition: true, needsInstall: await prNeedsInstall(sitePath, destination) };
 }
 
+// The pull request a switch to this work item would put back: the one parked on
+// it, with a head to go back to. Read from the record alone, so both the flow
+// that performs the switch and the list the renderer plans it from get the same
+// answer (#510) — the renderer has to know a restore is coming before the
+// switch starts, since that is the only switch that pauses the build watch.
+function savedPrRef(site, ticketRef) {
+    const ref = site.branches?.[ticketRef]?.activePr;
+    if (!ref || prNumberFromRef(ref) === null || !site.branches?.[ref]?.headOid) return null;
+    return ref;
+}
+
 async function ticketCheckoutRef(sitePath, ticketRef) {
     if (ticketIdFromRef(ticketRef) === null) return ticketRef;
     const site = await readSiteMeta(sitePath);
-    const ref = site.branches?.[ticketRef]?.activePr;
-    if (!ref || prNumberFromRef(ref) === null || !site.branches?.[ref]?.headOid) return ticketRef;
+    const ref = savedPrRef(site, ticketRef);
+    if (!ref) return ticketRef;
     return await resolveRef(sitePath, ref) ? ref : ticketRef;
 }
 
@@ -3034,13 +3045,21 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 ipcMain.handle('branches:list', async (_e, sitePath) => withRegisteredSite(sitePath, async () => {
 	const { ref: current, site } = await activeBranch(sitePath);
 	const stored = site.branches || {};
-	const branches = (await listTicketBranches(sitePath)).filter((ref) => ticketIdFromRef(ref) !== null).map((branchRef) => ({
-		ref: branchRef,
-		ticketId: ticketIdFromRef(branchRef),
-		baseOid: (stored[branchRef] || {}).baseOid || null,
-		lastUsedAt: (stored[branchRef] || {}).lastUsedAt || null,
-		appliedPatch: Boolean((stored[branchRef] || {}).appliedPatch)
-	}));
+	const refs = await listTicketBranches(sitePath);
+	const branches = refs.filter((ref) => ticketIdFromRef(ref) !== null).map((branchRef) => {
+		// The pull request switching to this work item would restore, by number
+		// (#510). `refs` is the same list the checkout's resolveRef would ask
+		// about, so the existence check costs no extra Git read.
+		const prRef = savedPrRef(site, branchRef);
+		return {
+			ref: branchRef,
+			ticketId: ticketIdFromRef(branchRef),
+			baseOid: (stored[branchRef] || {}).baseOid || null,
+			lastUsedAt: (stored[branchRef] || {}).lastUsedAt || null,
+			appliedPatch: Boolean((stored[branchRef] || {}).appliedPatch),
+			savedPr: prRef && refs.includes(prRef) ? prNumberFromRef(prRef) : null
+		};
+	});
 	return { ok: true, current, branches };
 }));
 

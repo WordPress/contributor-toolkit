@@ -19,6 +19,8 @@ Nothing is installed and nothing is rebuilt: `node_modules` and the database bel
 
 Built assets belong to the site too, which has a consequence. A switch changes the source but does not rebuild, so a running dev server may keep serving assets built for the work item you just left. Run `npm run build` in the [Terminal](./terminal) after switching if you want to see the other item's changes immediately. On a Core site the relevant source is usually under `src/`; on Gutenberg it can be in any package the build produces.
 
+With the [build watch](./running-the-site#the-build-watch) running, you do not have to do any of that, and the switch does not interrupt it. The files the checkout writes are the files the watch recompiles, so only what actually changed is rebuilt: the **Build watcher** tab reads *(compiling)* for a few seconds and then *(watching)* again, and it never goes to *(paused)*. The one switch that does pause it is the one that puts back a pull request you had parked on a work item, because that one installs and rebuilds afterwards. A switch made while the tab still reads *(building)* pauses it too: a watch that has not finished starting is not watching yet, so it would not pick the checkout up.
+
 ## Your work items on this site
 
 The site's saved work items get their own card, below the current work-item card and **Apply a patch or PR**. It appears once the [setup checklist](./setup-wizard) is finished or skipped, and only when the site has work on an item other than the one you are on — a site with nothing else to offer does not get an empty card.

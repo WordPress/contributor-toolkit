@@ -11,10 +11,14 @@
  * three plans beside the machinery they share is what stops a fourth chain
  * growing its own.
  *
- * Kept as a pure, dependency-free module so it can be unit tested without a
- * DOM: the renderer bundle imports it, `node --test` requires it directly
- * (same convention as setup-steps.cjs and dev-server-command.cjs).
+ * Kept free of the DOM so it can be unit tested without one: the renderer
+ * bundle imports it, `node --test` requires it directly (same convention as
+ * setup-steps.cjs and dev-server-command.cjs). Its one import is
+ * `watchOccupiesBuild`, which is the single definition of when the watch owns
+ * build/ and belongs beside the waiters that settle on it.
  */
+
+const { watchOccupiesBuild } = require('./watch-waiters.cjs');
 
 // A site older than this shows the staleness dot and notice. Local-only:
 // staleness is judged from the snapshot's own age, never from a network probe,
@@ -221,6 +225,59 @@ function planWatchImpact({ needsInstall, watcherActive, watchRebuildsOnStart = f
 }
 
 /**
+ * How a work-item switch — linking, unlinking, resuming, switching — should
+ * treat a running build watch (#510).
+ *
+ * A switch used to be planned as a whole-tree change, so a watch was always
+ * paused for it and always resumed after. On Gutenberg that is the expensive
+ * answer: `npm run dev` removes build/ and rebuilds every package when it
+ * starts, so a switch that moved two files under packages/ paid a full rebuild
+ * (about 28 s on macOS, about 8 minutes on Windows) for nothing. The rebuild
+ * the switch actually needs is the selective one a running watch does on its
+ * own, the same bargain a src-only patch makes (#262): leave it running, let
+ * the checkout land, and it recompiles what changed.
+ *
+ * The exception is the switch that puts a parked pull request back: that one
+ * ends in an install and a build of its own, which need the build directory and
+ * node_modules to themselves (#506). Which switch that is has to be known
+ * before the checkout starts, so it is asked as two numbers — the pull request
+ * being left and the one being restored, either of them null — mirroring what
+ * `ticketPrImpact` in main decides after the fact from the two refs.
+ *
+ * The second exception is the watch that has not finished starting, which is
+ * why this takes the watch's state rather than a boolean: see below.
+ *
+ * @param {Object}  root0
+ * @param {?number} [root0.fromPr]               the pull request checked out now, or null
+ * @param {?number} [root0.toPr]                 the pull request this switch restores, or null
+ * @param {string}  [root0.watchState]           the build watch's state: 'watching', 'building', 'paused', 'exited', 'idle'
+ * @param {boolean} [root0.watchRebuildsOnStart] the target's watch rebuilds build/ from scratch when started
+ * @return {{ prTransition: boolean, pauseWatcher: boolean, runBuild: boolean, buildBy: null|'live-watch'|'resumed-watch' }}
+ */
+function planTicketSwitchImpact({ fromPr = null, toPr = null, watchState, watchRebuildsOnStart } = {}) {
+	const prTransition = fromPr !== toPr;
+	// 'building' is a watch that has started and not yet reached its ready
+	// line: on Gutenberg it is rebuilding build/ from scratch, and before that
+	// the chain may be running a full build of its own. Either way it is not
+	// watching, so a checkout landing under it would not be recompiled — the
+	// packages already written would keep the old tree's output and the tab
+	// would go to (watching) over a build/ that mixes both. So a switch made in
+	// that window takes the pause it used to take, even though it moves no more
+	// than a src/ patch. Only a watch that is actually watching is handed the
+	// change (#510, found on the Windows pass, where the window is minutes).
+	const rebuilding = watchState === 'building';
+	return {
+		prTransition,
+		...planWatchImpact({
+			needsInstall: false,
+			watcherActive: watchOccupiesBuild(watchState),
+			watchRebuildsOnStart,
+			wholeTree: prTransition || rebuilding
+		})
+	};
+}
+
+/**
  * Maps the chain steps to checklist visual states for a given renderer
  * updateState. Steps before the current one are complete, the current one is
  * current, later ones pending; skipped steps stay 'skipped' once passed.
@@ -308,6 +365,7 @@ module.exports = {
 	SETUP_STATE_TO_STEP,
 	planApplySteps,
 	planWatchImpact,
+	planTicketSwitchImpact,
 	planSetupSteps,
 	trunkAgeInfo,
 	planUpdateSteps,
