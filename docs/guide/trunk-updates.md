@@ -14,7 +14,7 @@ This option is always there — on every site, at any time, no matter how old or
 
 The update fetches from the site's own `origin` remote. A site the app created points at `WordPress/wordpress-develop` or `WordPress/gutenberg`; a site you added from an existing checkout of a fork keeps fetching from that fork. A checkout with no `origin` remote cannot be updated; the terminal says so and how to add one.
 
-You no longer have to stop the dev server first. The update pauses the [build watch](./running-the-site#the-build-watch) for the rebuild and resumes it afterwards, and the PHP server keeps serving throughout.
+You no longer have to stop the dev server first. The update pauses the [build watch](./running-the-site#the-build-watch) for the reset and resumes it afterwards, and the PHP server keeps serving throughout.
 
 What it will not run alongside is another install or build. The **Update to latest trunk** button in the staleness notice is disabled while one is running — but the ☰ menu entry is not, and clicking it in that state simply does nothing, with no message to say why.
 
@@ -24,7 +24,7 @@ The update always shows the same three steps in a progress card, with a "step N 
 
 1. **Fetch and reset to trunk** — pull the newest commits and reset the checkout to them. If you have uncommitted changes the app stops and asks first, offering **Save them as a patch first (as a local file)** or **Discard them** — the second loses the work and cannot be undone. When you choose to save, the summary afterwards tells you where the patch went. If a merge started outside the app is waiting in the checkout, the update is refused before anything moves, because the reset would erase it; finish or abandon that merge from a terminal first, as described in [If a merge is in progress](ticket-branches#if-a-merge-is-in-progress).
 2. **Install dependencies** — runs only if `package-lock.json` changed between the old and new trunk; otherwise the step is shown as "Dependencies unchanged — skipping npm install". When it does run, most packages are already cached, so it downloads the difference, not the whole tree.
-3. **Rebuild** — rebuild the `build/` directory so it matches the new source.
+3. **Rebuild** — rebuild the `build/` directory so it matches the new source. On WordPress Core the update runs this build itself before the watch resumes. On a Gutenberg site with the watch running, the resumed watch rebuilds `build/` from scratch anyway, so the update leaves the one build to it: the step reads *The build watch is rebuilding*, its output goes to the **Build watcher** tab rather than the terminal, and the update completes when the tab reads *(watching)* again. The site answers with Gutenberg's *requires files to be built* notice until then. If you stop the watch before it finishes, the update stays incomplete and the red notice below offers the retry.
 
 ![The Updating to latest trunk card at step 1 of 3, fetching and resetting to trunk before install and rebuild](/screenshots/trunk-update-progress.png)
 

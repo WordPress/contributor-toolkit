@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState } = require('../../src/renderer/watch-activity.cjs');
+const { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, resumedWatchUpdateHandOff, appliedBannerState } = require('../../src/renderer/watch-activity.cjs');
 
 // A change handed to the watch is compiling until the watch has been quiet
 // for quietMs (#492). The clock is injected: t is milliseconds.
@@ -184,6 +184,30 @@ test('the resumed-watch hand-off does not wait when nothing will resume', () => 
 		assert.strictEqual(out.waits, false, `${state}: no resume is coming`);
 		assert.match(out.stopped, /The saved work is restored but the build watch was stopped/);
 		assert.match(out.stopped, /Start the build watch, or run npm run build/);
+		assert.strictEqual(out.ready, undefined);
+	}
+});
+
+// #507: the trunk update hands its one build to the resumed watch the way an
+// apply does, but "complete" waits for the ready line and a watch that exits
+// first leaves the update incomplete, with the retry the chain's own failed
+// build would name.
+test('the update hand-off completes on the ready line and stays incomplete on exit (#507)', () => {
+	const out = resumedWatchUpdateHandOff('paused');
+
+	assert.strictEqual(out.waits, true);
+	assert.match(out.ready, /^\nUpdate complete — the build watch has rebuilt, and this site is now on the latest trunk\.\n$/);
+	assert.match(out.failed, /^\nUpdate incomplete — the build watch stopped before it finished rebuilding\./);
+	assert.match(out.failed, /retry install & build from the banner above/);
+	assert.strictEqual(out.stopped, undefined);
+});
+
+test('the update hand-off does not wait when nothing will resume (#507)', () => {
+	for (const state of ['idle', 'exited', 'watching', undefined]) {
+		const out = resumedWatchUpdateHandOff(state);
+		assert.strictEqual(out.waits, false, `${state}: no resume is coming`);
+		assert.match(out.stopped, /^\nUpdate incomplete — the build watch was stopped, so nothing rebuilt\./);
+		assert.match(out.stopped, /retry install & build from the banner above/);
 		assert.strictEqual(out.ready, undefined);
 	}
 });

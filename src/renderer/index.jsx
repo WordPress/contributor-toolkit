@@ -29,6 +29,7 @@ import { computeTerminalBusy } from './terminal-hints.cjs';
 import { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from './watch-waiters.cjs';
 import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState } from './watch-activity.cjs';
+import { planUpdateHandOff } from './update-handoff.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
@@ -36,7 +37,7 @@ import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
-import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
+import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome, updateStepText } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
@@ -132,11 +133,6 @@ const PR_FAILURE_MESSAGES = {
 // Per-status wording for the update chain card (#94), following the issue's
 // mockups: the skipped install step is named, never hidden, and the build
 // step points at the Terminal instead of opening a second log surface.
-const UPDATE_STEP_LABELS = {
-  fetch: { pending: 'Fetch and reset to trunk', current: 'Fetching and resetting to trunk…', complete: 'Fetched and reset to trunk' },
-  install: { pending: 'Install dependencies', current: 'Dependencies changed — installing the difference…', complete: 'Dependencies installed', skipped: SKIP_INSTALL_MESSAGE },
-  build: { pending: 'Rebuild', current: 'Rebuilding — output in the Terminal below', complete: 'Rebuilt' }
-};
 // Checkmark/pointer and color per step status; pending/skipped fall back to
 // no symbol in muted gray.
 const UPDATE_STEP_MARKS = {
@@ -1534,6 +1530,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const [trunkDate, setTrunkDate] = useState(null);
   const [updateIncomplete, setUpdateIncomplete] = useState(false);
   const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
+  // Who runs the update's build: null for the chain itself, 'resumed-watch'
+  // when the watch paused for the reset rebuilds from scratch as it resumes and
+  // the chain leaves the one build to it (Gutenberg, #507). Decided where the
+  // watch is paused, read by the step card and the install step's hand-off.
+  const [updateBuildBy, setUpdateBuildBy] = useState(null);
+  // True from the hand-off to the resumed watch until its ready line or exit.
+  // The card stays on step 3 and every isUpdating gate holds, except Stop build
+  // watch: it is the one control that can end the wait, and a hung watch would
+  // otherwise leave the site row inert until an app restart (#507). The terminal
+  // lock is released (the watch holds none), but the prompt hints stay busy so
+  // the card does not offer npm run build over the tree the watch is rebuilding.
+  const [updateWaitingOnWatch, setUpdateWaitingOnWatch] = useState(false);
   // Initial setup chain (#246): install then build, started by the clone
   // finishing rather than by a click. Same shape as the two chains below.
   const [setupChainState, setSetupChainState] = useState('idle'); // idle | installing | building
@@ -3141,13 +3149,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk, noun: workItem.noun });
   const legacyNotice = legacySiteNotice({ legacy });
   const mergeNotice = mergeInProgressNotice({ mergeInProgress });
-  const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged });
+  const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged, buildByWatcher: updateBuildBy });
   const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
   const finishUpdate = (message) => {
     markTerminalRunning(false);
     terminalKillRef.current = null;
     setUpdateState('idle');
+    setUpdateWaitingOnWatch(false);
     if (message) writeToTerminal(message);
     // Resume the watch if the update paused it (#262). Safe on every exit path
     // and a no-op if nothing was paused.
@@ -3160,7 +3169,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // and named when skipped) then a rebuild. Reuses the wizard's runInstall /
   // runScript so exit codes, retries and terminal streaming all behave
   // exactly as they do everywhere else (same pattern as toggleDevServer).
-  const runUpdateInstallAndBuild = (lockfileChanged) => {
+  const runUpdateInstallAndBuild = (lockfileChanged, { buildBy = null } = {}) => {
+    // build/ matches the new source: persist it, summarise, confirm. Shared by
+    // the chain's own build and the resumed watch's ready line.
+    const completeUpdate = async () => {
+      try { await window.api.markUpdateComplete(sitePath); } catch {}
+      const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
+      setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
+      confirm('Updated to the latest trunk');
+    };
     const runBuildStep = () => {
       setUpdateState('building');
       writeToTerminal('\nRunning npm run build…\n');
@@ -3168,10 +3185,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: async ({ code }) => {
           if (code === 0) {
-            try { await window.api.markUpdateComplete(sitePath); } catch {}
-            const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
-            setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
-            confirm('Updated to the latest trunk');
+            await completeUpdate();
             finishUpdate('\nUpdate complete — this site is now on the latest trunk.\n');
           } else {
             finishUpdate('\nUpdate incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.\n');
@@ -3179,6 +3193,56 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         }
       });
     };
+    // The watch paused for the reset rebuilds build/ from scratch when it
+    // resumes (Gutenberg, #507), so a build of our own would be thrown away the
+    // moment it comes back. Resume it now and let that be the one build. Unlike
+    // an apply (#506), the update is not done at the hand-off: the card stays
+    // on step 3, naming the watch, and the persisted "complete" marker waits for
+    // the ready line, so a watch that exits first leaves the update incomplete
+    // with the same banner and retry a failed build would. The terminal is
+    // released: the watch writes to its own tab and holds no terminal lock.
+    // No generation token here, unlike the apply: any ready line means build/
+    // is complete, which is exactly what "update complete" claims, and a card
+    // left on step 3 by a skipped settle would have no way off it. That is safe
+    // only because every path that pauses or restarts the watch (a PR switch,
+    // a ticket switch, an apply, a retry) is gated on isUpdating, which holds
+    // through the wait; the terminal lock those paths also check is released
+    // here, so the isUpdating gates are what keeps a pause (which kills the
+    // watch without settling the waiters) from orphaning this waiter. Loosen
+    // one of those gates and this needs the token.
+    const handOffToResumedWatch = () => {
+      const plan = planUpdateHandOff(watchStateRef.current);
+      if (!plan.waits) {
+        finishUpdate(plan.finish.message);
+        return;
+      }
+      // One way to apply an outcome, so the ready line and the exit cannot
+      // drift apart: the plan says which state each lands in and whether it is
+      // the one that completes the update.
+      const settle = async (phase) => {
+        if (phase.completesUpdate) await completeUpdate();
+        setUpdateState(phase.updateState);
+        setUpdateWaitingOnWatch(phase.waitingOnWatch);
+        writeToTerminal(phase.message);
+        loadStatus().catch(() => {});
+        refreshDirty();
+      };
+      // Registered before the resume so a watch that dies at once still lands
+      // in onFail. The waiters settle once per run: on the ready line or on exit.
+      watchWaitersRef.current.add(
+        () => { settle(plan.ready); },
+        () => { settle(plan.failed); }
+      );
+      setUpdateState(plan.waiting.updateState);
+      setUpdateWaitingOnWatch(plan.waiting.waitingOnWatch);
+      // The watch writes to its own tab and holds no terminal lock, so the
+      // chain gives this one back while it waits.
+      markTerminalRunning(false);
+      terminalKillRef.current = null;
+      writeToTerminal(plan.waiting.message);
+      resumeWatcher();
+    };
+    const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
     if (lockfileChanged) {
       setUpdateState('installing');
       writeToTerminal('\npackage-lock.json changed — running npm install (only the changed packages are downloaded)…\n');
@@ -3189,12 +3253,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             finishUpdate('\nUpdate incomplete — npm install failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.\n');
             return;
           }
-          runBuildStep();
+          afterInstall();
         }
       });
     } else {
       writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
-      runBuildStep();
+      afterInstall();
     }
   };
 
@@ -3869,7 +3933,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // A trunk reset rewrites the whole tree at once; a live watch would try to
     // recompile mid-reset. Pause it for the update; finishUpdate resumes it. The
     // PHP server stays up — the rebuild regenerates build/ under it (#262).
-    await pauseWatcher();
+    // Whether the update builds after depends on what the resumed watch does:
+    // on Gutenberg it rebuilds from scratch anyway, so the one build is its
+    // (#507). Decided here, where the watch is paused, like a PR checkout.
+    const impact = planWatchImpact({ needsInstall: false, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
+    setUpdateBuildBy(impact.buildBy);
+    setUpdateWaitingOnWatch(false);
+    if (impact.pauseWatcher) await pauseWatcher();
     markTerminalRunning(true);
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(false);
@@ -3892,7 +3962,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         return;
       }
       setUpdateLockfileChanged(Boolean(res.lockfileChanged));
-      runUpdateInstallAndBuild(Boolean(res.lockfileChanged));
+      runUpdateInstallAndBuild(Boolean(res.lockfileChanged), { buildBy: impact.buildBy });
     });
   };
 
@@ -3969,14 +4039,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       return;
     }
     // Same as beginTrunkUpdate: install + a full build need the tree to
-    // themselves, so pause the watch; finishUpdate resumes it (#262).
-    await pauseWatcher();
+    // themselves, so pause the watch; finishUpdate resumes it (#262). And the
+    // same hand-off when the resumed watch is the one that rebuilds (#507).
+    const impact = planWatchImpact({ needsInstall: true, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
+    setUpdateBuildBy(impact.buildBy);
+    setUpdateWaitingOnWatch(false);
+    if (impact.pauseWatcher) await pauseWatcher();
     markTerminalRunning(true);
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(true);
     setLastUpdateSummary(null);
     updateStartRef.current = Date.now();
-    runUpdateInstallAndBuild(true);
+    runUpdateInstallAndBuild(true, { buildBy: impact.buildBy });
   };
 
   // The diff fetch, shared by opening the modal and by a discard that happens
@@ -4944,8 +5018,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           </div>
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
             {updateStepStates.map((s) => {
-              const labels = UPDATE_STEP_LABELS[s.key] || {};
-              const text = labels[s.status] || labels.pending || s.key;
+              const text = updateStepText(updateSteps, s);
               const { symbol = '', color = '#6c6f72' } = UPDATE_STEP_MARKS[s.status] || {};
               return (
                 <div key={s.key} style={{ display: 'flex', alignItems: 'baseline', gap: 8, color, opacity: s.status === 'pending' || s.status === 'skipped' ? 0.75 : 1 }}>
@@ -5105,7 +5178,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             <Button
               variant="secondary"
               onClick={toggleWatch}
-              disabled={isUpdating}
+              // The one control that can end an update waiting on the resumed
+              // watch (#507): a stop settles the waiters and leaves the update
+              // incomplete, with the retry banner. Everything else stays gated.
+              disabled={isUpdating && !updateWaitingOnWatch}
               title={watchActive ? `The build watch compiles ${project.cards.sourceDir} edits automatically` : `Compile ${project.cards.sourceDir} edits on save (runs independently of the dev server)`}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', padding: '12px 16px', fontSize: 15, borderRadius: 12 }}
             >

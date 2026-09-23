@@ -135,6 +135,32 @@ function resumedWatchHandOff(verb, noun, watchState) {
 }
 
 /**
+ * The trunk update's version of the hand-off above (#507). Same trigger: the
+ * watch paused for the reset rebuilds build/ from scratch as it resumes, so the
+ * update leaves the one build to it. The difference is what the outcome means:
+ * an update is not complete until build/ matches the new source, so the ready
+ * line is where "Update complete" and the persisted marker go, and a watch that
+ * exits first leaves the update incomplete, with the same banner and retry the
+ * chain's own failed build would leave. `waits` is false when no paused watch
+ * will resume (stopped by hand during the install), and then `stopped` is the
+ * whole story.
+ *
+ * @param {string} watchState the watch state at the hand-off
+ * @return {{waits: boolean, stopped?: string, ready?: string, failed?: string}}
+ */
+function resumedWatchUpdateHandOff(watchState) {
+	const retry = 'The code is new but the built assets are old; retry install & build from the banner above.';
+	if (watchState !== 'paused') {
+		return { waits: false, stopped: `\nUpdate incomplete — the build watch was stopped, so nothing rebuilt. ${retry}\n` };
+	}
+	return {
+		waits: true,
+		ready: '\nUpdate complete — the build watch has rebuilt, and this site is now on the latest trunk.\n',
+		failed: `\nUpdate incomplete — the build watch stopped before it finished rebuilding. ${retry}\n`
+	};
+}
+
+/**
  * The applied banner for a checked-out pull request, following the watch the
  * way the terminal line does (#509). Green said "ready to try" while the
  * resumed watch was still rebuilding build/ (eight minutes on Windows), so the
@@ -183,4 +209,4 @@ function appliedBannerState({ number, watchState, compiling, buildInterrupted, a
 	};
 }
 
-module.exports = { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState };
+module.exports = { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, resumedWatchUpdateHandOff, appliedBannerState };
