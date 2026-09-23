@@ -558,9 +558,12 @@ test('planTicketSwitchImpact: a switch made while the watch is still rebuilding 
 		planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'building', watchRebuildsOnStart: true }),
 		{ prTransition: false, pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
 	);
-	// Core reaches its ready line at once, so it is only ever 'building' while
-	// the chain runs a full build of its own before starting the watch — which
-	// owns build/ just the same, and the switch waits for it.
+	// The same answer without a watch that rebuilds on start, so the pause comes
+	// from the state and not from the target. Core is only ever 'building'
+	// during the one-shot build the Start build watch button runs on an unbuilt
+	// site, and that holds the terminal, so a switch is refused before it
+	// reaches this function — the case is here to pin the decision, not a path
+	// the app can walk.
 	assert.deepStrictEqual(
 		planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'building', watchRebuildsOnStart: false }),
 		{ prTransition: false, pauseWatcher: true, runBuild: true, buildBy: null }
