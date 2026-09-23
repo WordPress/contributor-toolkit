@@ -81,9 +81,12 @@ function nodeExecPath({
 } = {}) {
 	if (platform !== 'darwin') return execPath;
 	// …/Foo.app/Contents/MacOS/Foo → …/Foo.app/Contents/Frameworks/Foo Helper.app/Contents/MacOS/Foo Helper
-	const contents = path.dirname(path.dirname(execPath));
-	const name = path.basename(execPath);
-	const helper = path.join(
+	// path.posix, not path: a bundle path is POSIX by definition, and the
+	// platform is injected, so the unit suite runs this branch on Windows too,
+	// where path.join would write backslashes into a macOS path.
+	const contents = path.posix.dirname(path.posix.dirname(execPath));
+	const name = path.posix.basename(execPath);
+	const helper = path.posix.join(
 		contents,
 		'Frameworks',
 		`${name} Helper.app`,
