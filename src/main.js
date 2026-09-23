@@ -213,6 +213,13 @@ function ensureNodeShimDir() {
     // Info.plist carries LSUIElement, so a tool that sets its process title does
     // not earn a Dock tile (#518); elsewhere it is process.execPath, unchanged.
     const execPath = nodeExecPath();
+    // A macOS bundle with no Helper beside its binary falls back to the main
+    // binary and the tiles of #518 come back; without this line the log would
+    // read exactly as if the fix had never shipped. Only a bundle can be missing
+    // one: a bare node binary, as under the unit suite, has nothing to look for.
+    if (process.platform === 'darwin' && execPath === process.execPath && /\.app\/Contents\/MacOS\//.test(process.execPath)) {
+        logError('shims', `no Helper bundle found beside ${process.execPath}; Node children run on the main binary and Gutenberg builds will show Dock tiles (#518)`);
+    }
     try {
         if (process.platform === 'win32') {
             const content = nodeShim({ execPath, compatPath: nodeCompatPath });

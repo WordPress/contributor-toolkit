@@ -65,7 +65,8 @@ function windowsShim({ execPath, compatPath, cliPath = null }) {
 // `exec`, and npm sets its own; Core's grunt sets none, which is why only
 // Gutenberg ever showed this. The `… Helper.app` bundle beside the main binary
 // carries LSUIElement and is the same Electron (identical process.versions), so
-// running Electron-as-Node through it registers nothing.
+// running Electron-as-Node through it registers as a UIElement, which the
+// Dock does not show.
 //
 // Anywhere else the answer is process.execPath, unchanged — this must not touch
 // the filesystem on Windows or Linux, where there is nothing to look for.
