@@ -50,6 +50,7 @@ const {
 // The applied-layer module turns the handler's measured status into the
 // attribution the renderer shows.
 const { attributeConflicts } = require('../../src/renderer/applied-layer.cjs');
+const { nodeExecPath } = require('../../src/node-shims.cjs');
 const SRC_DIR = path.join(__dirname, '..', '..', 'src');
 const MAIN_PATH = path.join(SRC_DIR, 'main.js');
 
@@ -1888,13 +1889,20 @@ function stubbedSpawn() {
 // green. The Windows-only values are asserted as present rather than as strings,
 // because they are null off Windows and dropping the argument is exactly how a
 // Windows-only spawn failure ships from a green macOS run.
-function assertChildEnvRequest(buildChildEnv, label) {
+function assertChildEnvRequest(buildChildEnv, label, spawnedCommand) {
 	assert.equal(buildChildEnv.calls.length, 1, `${label}: buildChildEnv was not called exactly once`);
 	const request = buildChildEnv.calls[0][0];
 	assert.equal(typeof request.shimDir, 'string', `${label}: no shim directory, so a child npm cannot find a node`);
-	for (const key of ['spawnPatchPath', 'npmCliPath', 'npxCliPath']) {
+	// execPath is what keeps NODE, argv[0] and npm_node_execpath naming one
+	// binary once the runner is the Helper on macOS (#518); dropped, buildChildEnv
+	// defaults NODE to process.execPath while the child is something else.
+	for (const key of ['spawnPatchPath', 'npmCliPath', 'npxCliPath', 'execPath']) {
 		assert.ok(key in request, `${label}: buildChildEnv was called without ${key}`);
 	}
+	// Compared with the binary the runner was actually spawned on, not with a
+	// resolver run here: a test that stubs fs makes the derived Helper "exist",
+	// and the property that matters is only that the two agree.
+	assert.equal(request.execPath, spawnedCommand, `${label}: buildChildEnv was given a binary other than the one the runner runs on`);
 }
 
 // The shims on disk, not the module that formats them. node-shims.cjs is unit
@@ -1913,6 +1921,13 @@ function assertShimsPreloadCompat(label) {
 	assert.ok(
 		shim.includes(`--require "${compat}"`),
 		`${label}: the node shim starts a child without the preload, so any yargs-based tool it runs misreads its arguments`
+	);
+	// And it execs the binary nodeExecPath() resolves, which on macOS is the
+	// Helper (#518); a shim written from process.execPath would put the Dock
+	// tiles back with every other test green.
+	assert.ok(
+		shim.includes(`"${nodeExecPath()}"`),
+		`${label}: the node shim execs a binary other than nodeExecPath()`
 	);
 	// On Windows the spawn patch is preloaded into every descendant Node and
 	// requires the hide-child-windows copy beside it (#497); both have to be
@@ -1960,12 +1975,18 @@ test('npm:install spawns the runner with the environment npm-runner built', asyn
 
 	assert.equal(cp.spawned.length, 1);
 	assert.equal(path.basename(cp.spawned[0].args[0]), 'install-runner.js');
+	// The runner is npm and npm sets a process title, so it has to run on the
+	// same binary the shims resolve to, or the Dock tile of #518 comes half back.
+	// Under node this is process.execPath (no Helper to find); under the Electron
+	// pass both sides resolve to the Helper. Real fs here, so the resolver run in
+	// this process is the right oracle.
+	assert.equal(cp.spawned[0].command, nodeExecPath(), 'npm:install: the runner was spawned on a binary other than nodeExecPath()');
 	// The environment is the whole point of npm-runner: it is what makes a child
 	// npm find Electron's Node. A handler that assembled its own would break
 	// "zero prerequisites" without failing any of npm-runner's own tests.
 	assert.equal(cp.spawned[0].options.env, env);
 	assert.equal(createEngineMismatchDetector.calls.length, 1);
-	assertChildEnvRequest(buildChildEnv, 'npm:install');
+	assertChildEnvRequest(buildChildEnv, 'npm:install', cp.spawned[0].command);
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'npm:install');
 });
 
@@ -2008,7 +2029,7 @@ test('npm:run-script spawns the script runner through npm-runner too', async () 
 	assert.equal(path.basename(cp.spawned[0].args[0]), 'script-runner.js');
 	assert.deepEqual(cp.spawned[0].args.slice(1), ['/sites/wp', 'build', '--quiet']);
 	assert.equal(cp.spawned[0].options.env, env);
-	assertChildEnvRequest(buildChildEnv, 'npm:run-script');
+	assertChildEnvRequest(buildChildEnv, 'npm:run-script', cp.spawned[0].command);
 	// The build path: the one a runaway would actually be launched from (#275).
 	assertShimsPreloadCompat('npm:run-script');
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'npm:run-script');
@@ -2453,7 +2474,7 @@ test('playground:start spawns the server runner with the environment npm-runner 
 
 	assert.equal(path.basename(cp.spawned[0].args[0]), 'server-runner.js');
 	assert.equal(cp.spawned[0].options.env, env);
-	assertChildEnvRequest(buildChildEnv, 'playground:start');
+	assertChildEnvRequest(buildChildEnv, 'playground:start', cp.spawned[0].command);
 	// The SMTP settings server-runner.js reads ride along as extras instead of
 	// replacing the environment. Hand-building it here is what kept the Playground
 	// path outside npm-runner's tests, and what made "zero prerequisites" hold on
@@ -2508,7 +2529,7 @@ test('playground-web:start spawns its runner through npm-runner too', async (t) 
 
 	assert.equal(path.basename(cp.spawned[0].args[0]), 'playground-web-runner.js');
 	assert.equal(cp.spawned[0].options.env, env);
-	assertChildEnvRequest(buildChildEnv, 'playground-web:start');
+	assertChildEnvRequest(buildChildEnv, 'playground-web:start', cp.spawned[0].command);
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'playground-web:start');
 });
 

@@ -1,9 +1,14 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
+
 // The contents of the `node`, `npm` and `npx` shims the app writes onto PATH for
-// every child process it starts (see ensureNodeShimDir in main.js). Pure string
-// building, no fs and no electron, so the one property these shims must hold can
-// be unit-tested without spawning anything.
+// every child process it starts (see ensureNodeShimDir in main.js), plus the one
+// resolver that decides which binary they exec (nodeExecPath, #518). String
+// building and a single existence probe, no electron, so both the property these
+// shims must hold and the resolver's fallback can be unit-tested without
+// spawning anything or having a bundle on disk.
 //
 // That property is the preload. The shims point at Electron running under
 // ELECTRON_RUN_AS_NODE, and Electron keeps `process.versions.electron` set in
@@ -50,6 +55,51 @@ function windowsShim({ execPath, compatPath, cliPath = null }) {
 	return `@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n${flag}"${execPath}" ${requireArgs(compatPath)}${cli}%*\r\n`;
 }
 
+// Which binary the shims, and the runner spawns in main.js, should exec (#518).
+//
+// On macOS a process that assigns `process.title` is checked in with
+// LaunchServices by libuv's darwin implementation, and LaunchServices registers
+// it under the Info.plist of the bundle the binary lives in. The main bundle has
+// no LSUIElement, so such a process becomes a Foreground app and the Dock shows
+// a tile for it. A Gutenberg build runs a dozen workers that set their title to
+// `exec`, and npm sets its own; Core's grunt sets none, which is why only
+// Gutenberg ever showed this. The `… Helper.app` bundle beside the main binary
+// carries LSUIElement and is the same Electron (identical process.versions), so
+// running Electron-as-Node through it registers as a UIElement, which the
+// Dock does not show.
+//
+// Anywhere else the answer is process.execPath, unchanged — this must not touch
+// the filesystem on Windows or Linux, where there is nothing to look for.
+//
+// `platform` and `exists` are injected so the resolver stays testable without a
+// bundle on disk, which is the whole reason this module avoids electron and fs
+// everywhere else.
+function nodeExecPath({
+	execPath = process.execPath,
+	platform = process.platform,
+	exists = fs.existsSync
+} = {}) {
+	if (platform !== 'darwin') return execPath;
+	// …/Foo.app/Contents/MacOS/Foo → …/Foo.app/Contents/Frameworks/Foo Helper.app/Contents/MacOS/Foo Helper
+	// path.posix, not path: a bundle path is POSIX by definition, and the
+	// platform is injected, so the unit suite runs this branch on Windows too,
+	// where path.join would write backslashes into a macOS path.
+	const contents = path.posix.dirname(path.posix.dirname(execPath));
+	const name = path.posix.basename(execPath);
+	const helper = path.posix.join(
+		contents,
+		'Frameworks',
+		`${name} Helper.app`,
+		'Contents',
+		'MacOS',
+		`${name} Helper`
+	);
+	// A layout without that Helper — an unusual repackaging, a future rename —
+	// falls back to what the app did before this fix: the Dock tiles come back,
+	// nothing breaks.
+	return exists(helper) ? helper : execPath;
+}
+
 function nodeShim({ execPath, compatPath, platform = process.platform }) {
 	const build = platform === 'win32' ? windowsShim : posixShim;
 	return build({ execPath, compatPath });
@@ -60,4 +110,4 @@ function cliShim({ execPath, compatPath, cliPath, platform = process.platform })
 	return build({ execPath, compatPath, cliPath });
 }
 
-module.exports = { nodeShim, cliShim, COMPAT_FLAG };
+module.exports = { nodeShim, cliShim, nodeExecPath, COMPAT_FLAG };
