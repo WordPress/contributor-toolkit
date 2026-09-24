@@ -1,5 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { spawnSync } = require('child_process');
 
 const { nodeShim, cliShim, nodeExecPath, COMPAT_FLAG } = require('../../src/node-shims.cjs');
 
@@ -89,14 +93,92 @@ test('the Windows shim keeps backslashes in the preload path', () => {
 // Copying the patch out of the bundle is best-effort. Without it the shim must
 // still be a working shim — a build that cannot be patched has to keep running.
 test('a shim without a patch to preload is still a valid shim', () => {
-	const posix = nodeShim({ execPath: EXEC.darwin, compatPath: null, platform: 'darwin' });
-	assert.equal(posix, `#!/usr/bin/env bash\nELECTRON_RUN_AS_NODE=1 "${EXEC.darwin}" "$@"\n`);
-	assert.ok(!posix.includes(COMPAT_FLAG));
+	const posix = nodeShim({ execPath: '/opt/App/app', compatPath: null, platform: 'linux' });
+	assert.equal(posix, '#!/usr/bin/env bash\nELECTRON_RUN_AS_NODE=1 "/opt/App/app" "$@"\n');
+	const mac = nodeShim({ execPath: EXEC.darwin, compatPath: null, platform: 'darwin' });
+	assert.ok(mac.endsWith(`ELECTRON_RUN_AS_NODE=1 "${EXEC.darwin}" \${wptk_opts[@]+"\${wptk_opts[@]}"} "$@"\n`));
+	assert.ok(!mac.includes(COMPAT_FLAG));
 
 	const win = nodeShim({ execPath: EXEC.win32, compatPath: null, platform: 'win32' });
 	assert.ok(!win.includes('--require'));
 	assert.ok(!win.includes(COMPAT_FLAG));
 	assert.ok(win.includes('%*'));
+});
+
+// --- NODE_OPTIONS on macOS (#525) ------------------------------------------
+
+// Runs a darwin shim for real, with a stand-in binary that prints each argument
+// it receives on its own line, so the assertions read the argv Electron would.
+function runShim(t, { cliPath = null, nodeOptions, args = [] } = {}) {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'node-shims-test-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	const binary = path.join(dir, 'Fake Electron');
+	fs.writeFileSync(binary, '#!/usr/bin/env bash\nfor a in "$@"; do printf \'%s\\n\' "$a"; done\n', { mode: 0o755 });
+	// A file a glob would match, so an unquoted expansion would show up.
+	fs.writeFileSync(path.join(dir, 'star-target'), '');
+	const shimPath = path.join(dir, 'node');
+	const script = cliPath
+		? cliShim({ execPath: binary, compatPath: '/tmp/compat.js', cliPath, platform: 'darwin' })
+		: nodeShim({ execPath: binary, compatPath: '/tmp/compat.js', platform: 'darwin' });
+	fs.writeFileSync(shimPath, script, { mode: 0o755 });
+	const env = { ...process.env };
+	delete env.NODE_OPTIONS;
+	if (nodeOptions !== undefined) env.NODE_OPTIONS = nodeOptions;
+	const { status, stdout, stderr } = spawnSync(shimPath, args, { cwd: dir, env, encoding: 'utf8' });
+	assert.equal(status, 0, stderr);
+	return stdout.split('\n').slice(0, -1);
+}
+
+const skipOnWindows = { skip: process.platform === 'win32' && 'the POSIX shim runs under bash' };
+
+// Electron on macOS ignores NODE_OPTIONS in a process started by anything that
+// is not the app, and the shim is a bash script. A Gutenberg build that sets
+// `NODE_OPTIONS=--import=…` for a child therefore lost it, and the child failed.
+test('the macOS shim hands NODE_OPTIONS to Electron as arguments (#525)', skipOnWindows, (t) => {
+	assert.deepEqual(
+		runShim(t, { nodeOptions: '--max-old-space-size=4096 --import=esbuild-esm-loader/register', args: ['tz.js', 'build'] }),
+		['--require', '/tmp/compat.js', '--max-old-space-size=4096', '--import=esbuild-esm-loader/register', 'tz.js', 'build']
+	);
+});
+
+test('NODE_OPTIONS is split the way Node splits it, not the way bash does (#525)', skipOnWindows, (t) => {
+	const cases = [
+		[undefined, []],
+		['', []],
+		['   ', []],
+		['--a  --b', ['--a', '--b']],
+		['--require "/a b/c.js"', ['--require', '/a b/c.js']],
+		['--title="say \\"hi\\""', ['--title=say "hi"']],
+		['--x="a\\\\b"', ['--x=a\\b']],
+		['"" --a', ['--a']],
+		['--glob=star-*', ['--glob=star-*']],
+		['--dollar=$HOME', ['--dollar=$HOME']]
+	];
+	for (const [nodeOptions, expected] of cases) {
+		assert.deepEqual(
+			runShim(t, { nodeOptions, args: ['main.js', 'an arg with spaces'] }),
+			['--require', '/tmp/compat.js', ...expected, 'main.js', 'an arg with spaces'],
+			`NODE_OPTIONS=${JSON.stringify(nodeOptions)}`
+		);
+	}
+});
+
+// npm reads NODE_OPTIONS under the system Node too, so the CLI shims forward
+// it as well, ahead of the CLI so npm never sees the options as its own.
+test('the macOS npm shim forwards NODE_OPTIONS ahead of the CLI (#525)', skipOnWindows, (t) => {
+	assert.deepEqual(
+		runShim(t, { cliPath: '/app/npm-cli.js', nodeOptions: '--max-old-space-size=4096', args: ['run', 'build'] }),
+		['--require', '/tmp/compat.js', '--max-old-space-size=4096', '/app/npm-cli.js', 'run', 'build']
+	);
+});
+
+// Only macOS has the check. Linux Electron reads NODE_OPTIONS itself, and the
+// Windows children get it through win-spawn-patch, so those shims stay as they were.
+test('off macOS the shims do not touch NODE_OPTIONS (#525)', () => {
+	const linux = nodeShim({ execPath: '/opt/App/app', compatPath: '/tmp/compat.js', platform: 'linux' });
+	assert.equal(linux, '#!/usr/bin/env bash\nWPTK_NODE_COMPAT=1 ELECTRON_RUN_AS_NODE=1 "/opt/App/app" --require "/tmp/compat.js" "$@"\n');
+	const win = nodeShim({ execPath: EXEC.win32, compatPath: COMPAT.win32, platform: 'win32' });
+	assert.ok(!win.includes('NODE_OPTIONS'));
 });
 
 // --- nodeExecPath: which binary the shims exec (#518) ---------------------
