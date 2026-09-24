@@ -436,7 +436,11 @@ test('a directory the destination still has keeps its install (issue #529)', asy
 	assert.equal(read(dir, 'routes/home/node_modules/dep/index.js'), '// installed\n');
 });
 
-test('a directory that cannot be removed costs the old behaviour, never the switch (issue #529)', { skip: process.platform === 'win32' && 'chmod does not stop a delete on Windows' }, async (t) => {
+// chmod stops a delete only on POSIX, and not for root.
+const chmodSkip = (process.platform === 'win32' && 'chmod does not stop a delete on Windows')
+	|| (typeof process.getuid === 'function' && process.getuid() === 0 && 'chmod does not stop root');
+
+test('a directory that cannot be removed costs the old behaviour, never the switch (issue #529)', { skip: chmodSkip }, async (t) => {
 	const { dir } = await makeSite(t);
 	const { ref } = installNewerRouteOnTrunk(dir);
 	const locked = path.join(dir, 'routes', 'dashboard', 'node_modules', 'dep');
