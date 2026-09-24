@@ -31,6 +31,7 @@ const {
 	parkCurrentWork,
 	startTicketBranch,
 	switchToBranch,
+	leftoverEntries,
 	deleteTicketBranch,
 	resumeSwitch,
 	rebaseOntoTrunk
@@ -177,6 +178,125 @@ test('the gitignored substrate survives every switch (issue #108)', async (t) =>
 	// It must also stay out of the branch itself, or every switch would carry it.
 	const tracked = gitOk(['ls-tree', '-r', '--name-only', first.ref, '--'], dir).split('\n');
 	assert.equal(tracked.some((f) => f.startsWith('node_modules/')), false);
+});
+
+// A pull request branch whose tree carries a package trunk has since removed,
+// with that package's own `.gitignore`: the shape of gutenberg#76292 (#521).
+// `rootIgnore` also changes the root `.gitignore`, as a months-old pull
+// request against today's trunk nearly always does.
+function checkOutOldPullRequest(dir, { rootIgnore = false } = {}) {
+	const ref = prBranchRef(76292);
+	gitOk(['checkout', '-q', '-b', ref, TRUNK], dir);
+	fs.mkdirSync(path.join(dir, 'pkg'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'pkg', '.gitignore'), 'cache/\n*.gen.js\n');
+	fs.writeFileSync(path.join(dir, 'pkg', 'index.js'), 'module.exports = 1;\n');
+	const files = ['pkg/.gitignore', 'pkg/index.js'];
+	if (rootIgnore) {
+		fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules/\nbuild/\nyarn.lock\n');
+		files.push('.gitignore');
+	}
+	const head = commitFiles(dir, files, 'old pull request');
+	// What its install generates, ignored by the files above and nothing else.
+	fs.mkdirSync(path.join(dir, 'pkg', 'cache', 'data'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'pkg', 'cache', 'data', 'bg.json'), '{}\n');
+	fs.writeFileSync(path.join(dir, 'pkg', 'cache', 'index.native.js'), '// generated\n');
+	// A name Git would read as a pattern, if it were not escaped.
+	fs.writeFileSync(path.join(dir, 'pkg', '[a]*.gen.js'), '// generated\n');
+	if (rootIgnore) fs.writeFileSync(path.join(dir, 'yarn.lock'), '# generated\n');
+	return { ref, head };
+}
+
+test('files ignored only by the branch being left do not count as changes on the next (issue #521)', async (t) => {
+	const { dir, baseOid } = await makeSite(t);
+	const { head } = checkOutOldPullRequest(dir);
+
+	const result = await switchToBranch(dir, TRUNK, { baseOid: head });
+
+	// A whole ignored directory is one entry, not one line per file in it.
+	assert.deepEqual(result.excluded.sort(), ['pkg/[a]*.gen.js', 'pkg/cache/']);
+	assert.equal(read(dir, 'pkg/cache/data/bg.json'), '{}\n', 'nothing is deleted');
+	assert.equal(await hasChangesAgainst(dir), false, 'trunk must not read dirty with another branch\'s generated files');
+
+	// So leaving trunk is not refused, and a new ticket does not carry them.
+	const ticket = await startTicketBranch(dir, 61002);
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // real work\n');
+	await switchToBranch(dir, TRUNK, { baseOid });
+	const parked = gitOk(['ls-tree', '-r', '--name-only', ticket.ref, '--'], dir).split('\n');
+	assert.equal(parked.some((f) => f.startsWith('pkg/')), false, 'the WIP commit holds only the contributor\'s work');
+	assert.equal(parked.includes('wp-login.php'), true);
+
+	// Back and forth again: the block is written once, not once per switch.
+	await switchToBranch(dir, prBranchRef(76292), { baseOid });
+	await switchToBranch(dir, TRUNK, { baseOid: head });
+	const exclude = read(dir, '.git/info/exclude').split('\n');
+	assert.equal(exclude.filter((line) => line === '/pkg/cache/').length, 1);
+	assert.equal(exclude.filter((line) => line === '/pkg/\\[a]\\*.gen.js').length, 1);
+	assert.equal(exclude.filter((line) => line.startsWith('# WordPress Contributor Toolkit: generated')).length, 1);
+});
+
+test('a root .gitignore that differs widens the check to the whole tree (issue #521)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { head } = checkOutOldPullRequest(dir, { rootIgnore: true });
+
+	const result = await switchToBranch(dir, TRUNK, { baseOid: head });
+
+	assert.deepEqual(result.excluded.sort(), ['pkg/[a]*.gen.js', 'pkg/cache/', 'yarn.lock']);
+	assert.equal(await hasChangesAgainst(dir), false);
+	assert.equal(read(dir, 'node_modules/react/index.js'), 'expensive\n', 'ignored on both sides, so neither touched nor listed');
+});
+
+test('a switch whose trees agree on every .gitignore writes no exclude (issue #521)', async (t) => {
+	const { dir } = await makeSite(t);
+	const first = await startTicketBranch(dir, 59234);
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // work\n');
+	const result = await switchToBranch(dir, TRUNK, { baseOid: first.baseOid });
+	assert.deepEqual(result.excluded, []);
+	const exclude = exists(dir, '.git/info/exclude') ? read(dir, '.git/info/exclude') : '';
+	assert.equal(exclude.includes('WordPress Contributor Toolkit: generated'), false);
+});
+
+test('an exclude that cannot be written costs the old behaviour, never the switch (issue #521)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { head } = checkOutOldPullRequest(dir);
+	// A read-only exclude file: Git still reads it, the append fails.
+	const excludePath = path.join(dir, '.git', 'info', 'exclude');
+	fs.mkdirSync(path.dirname(excludePath), { recursive: true });
+	fs.writeFileSync(excludePath, '# the contributor\'s own\n');
+	fs.chmodSync(excludePath, 0o444);
+	let result;
+	try {
+		result = await switchToBranch(dir, TRUNK, { baseOid: head });
+	} finally {
+		// Writable again before tempDir removes it, which Windows refuses otherwise.
+		fs.chmodSync(excludePath, 0o644);
+	}
+
+	assert.equal(result.switched, true);
+	assert.deepEqual(result.excluded, []);
+	assert.equal(await currentBranchName(dir), TRUNK);
+	assert.equal(await hasChangesAgainst(dir), true, 'the leftovers show, as they did before the fix');
+});
+
+test('a file the contributor adds after such a switch still counts (issue #521)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { head } = checkOutOldPullRequest(dir);
+	await switchToBranch(dir, TRUNK, { baseOid: head });
+
+	fs.writeFileSync(path.join(dir, 'pkg', 'mine.js'), '// written by hand\n');
+	// Matched by `[a]*.gen.js` read as a glob: only the literal line keeps it visible.
+	fs.writeFileSync(path.join(dir, 'pkg', 'ab.gen.js'), '// written by hand\n');
+	assert.equal(await hasChangesAgainst(dir), true);
+	const ticket = await startTicketBranch(dir, 61002);
+	await switchToBranch(dir, TRUNK, { baseOid: ticket.baseOid });
+	const parked = gitOk(['ls-tree', '-r', '--name-only', ticket.ref, '--'], dir).split('\n');
+	assert.deepEqual(parked.filter((f) => f.startsWith('pkg/')).sort(), ['pkg/ab.gen.js', 'pkg/mine.js']);
+});
+
+test('leftoverEntries: an ignored directory once, a file exactly, and no name with a line break (issue #521)', () => {
+	const ignored = ['node_modules/', 'pkg/cache/', 'pkg/x.gen.js', 'bad\nname', 'deep/a/'];
+	const untracked = ['pkg/cache/a.json', 'pkg/cache/data/b.json', 'pkg/x.gen.js', 'pkg/mine.js', 'bad\nname', 'deep/a/b/c/d.txt'];
+	assert.deepEqual(leftoverEntries(ignored, untracked).sort(), ['deep/a/', 'pkg/cache/', 'pkg/x.gen.js']);
+	assert.deepEqual(leftoverEntries([], untracked), []);
 });
 
 test('parking is idempotent: re-parking rewrites one WIP commit, never stacks (issue #108)', async (t) => {
