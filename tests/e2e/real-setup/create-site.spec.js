@@ -79,7 +79,8 @@ for ( const target of TARGETS ) {
 				// INVARIANT: the app completes the automatic chain without retry clicks.
 				// WordPress mirrors the same success message in its live region.
 				await expect( page.getByText( 'This site is ready to work on', { exact: true } ).first() ).toBeVisible( {
-					timeout: 40 * 60_000,
+					// On the Windows runner `npm install` alone has taken over 40 minutes.
+					timeout: 75 * 60_000,
 				} );
 				const status = await page.evaluate( ( dir ) => window.api.getSiteStatus( dir ), sitePath );
 				expect( status.hasNodeModules ).toBe( true );
@@ -131,10 +132,11 @@ for ( const target of TARGETS ) {
 					await expect( page.getByRole( 'tab', { name: 'Build watcher', exact: true } ) ).toBeVisible();
 					// Start it by hand so the stop below, and the process-tree check
 					// after it, still exercise the watch. `npm run dev` removes build/
-					// and redoes the whole build before it watches: over 9 minutes on
-					// the macOS runner, as long as the wizard's own build.
+					// and redoes the whole build before it watches: as long as the
+					// wizard's own build, which has taken from 9 to over 13 minutes on
+					// the macOS runner.
 					await page.getByRole( 'button', { name: 'Start build watch', exact: true } ).click();
-					await expect( page.getByRole( 'tab', { name: 'Build watcher (watching)', exact: true } ) ).toBeVisible( { timeout: 15 * 60_000 } );
+					await expect( page.getByRole( 'tab', { name: 'Build watcher (watching)', exact: true } ) ).toBeVisible( { timeout: 30 * 60_000 } );
 				}
 				await page.getByRole( 'button', { name: 'Stop build watch', exact: true } ).click();
 				await page.getByRole( 'button', { name: 'Stop dev server', exact: true } ).click();
