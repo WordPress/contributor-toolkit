@@ -531,14 +531,15 @@ test('otherPaths: untracked files one by one, ignored ones with a whole director
 	fs.mkdirSync(path.join(dir, 'node_modules', 'react'), { recursive: true });
 	fs.writeFileSync(path.join(dir, 'node_modules', 'react', 'index.js'), 'dep\n');
 	fs.writeFileSync(path.join(dir, 'src', 'new.php'), '<?php\n');
-	fs.mkdirSync(path.join(dir, 'a*'));
-	fs.writeFileSync(path.join(dir, 'a*', 'star.txt'), 'star\n');
-	fs.mkdirSync(path.join(dir, 'ab'));
-	fs.writeFileSync(path.join(dir, 'ab', 'not-matched.txt'), 'glob would match\n');
+	// `[a]` read as a pattern matches the file `a`. Not `*`, which Windows
+	// refuses in a name.
+	fs.mkdirSync(path.join(dir, '[a]'));
+	fs.writeFileSync(path.join(dir, '[a]', 'bracket.txt'), 'bracket\n');
+	fs.writeFileSync(path.join(dir, 'a'), 'glob would match\n');
 
-	assert.deepEqual((await read.otherPaths(dir, [''])).sort(), ['a*/star.txt', 'ab/not-matched.txt', 'src/new.php']);
+	assert.deepEqual((await read.otherPaths(dir, [''])).sort(), ['[a]/bracket.txt', 'a', 'src/new.php']);
 	assert.deepEqual(await read.otherPaths(dir, [''], { ignored: true }), ['node_modules/']);
-	assert.deepEqual(await read.otherPaths(dir, ['a*']), ['a*/star.txt'], 'a * in a directory name is a character');
+	assert.deepEqual(await read.otherPaths(dir, ['[a]']), ['[a]/bracket.txt'], 'a [ in a directory name is a character');
 	assert.deepEqual(await read.otherPaths(dir, ['src']), ['src/new.php']);
 	assert.deepEqual(await read.otherPaths(dir, []), [], 'no directories, no spawn and nothing listed');
 });

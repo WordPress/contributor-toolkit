@@ -200,8 +200,9 @@ function checkOutOldPullRequest(dir, { rootIgnore = false } = {}) {
 	fs.mkdirSync(path.join(dir, 'pkg', 'cache', 'data'), { recursive: true });
 	fs.writeFileSync(path.join(dir, 'pkg', 'cache', 'data', 'bg.json'), '{}\n');
 	fs.writeFileSync(path.join(dir, 'pkg', 'cache', 'index.native.js'), '// generated\n');
-	// A name Git would read as a pattern, if it were not escaped.
-	fs.writeFileSync(path.join(dir, 'pkg', '[a]*.gen.js'), '// generated\n');
+	// A name Git would read as a pattern, if it were not escaped. Not `*`,
+	// which Windows refuses in a name.
+	fs.writeFileSync(path.join(dir, 'pkg', '[a]b.gen.js'), '// generated\n');
 	if (rootIgnore) fs.writeFileSync(path.join(dir, 'yarn.lock'), '# generated\n');
 	return { ref, head };
 }
@@ -213,7 +214,7 @@ test('files ignored only by the branch being left do not count as changes on the
 	const result = await switchToBranch(dir, TRUNK, { baseOid: head });
 
 	// A whole ignored directory is one entry, not one line per file in it.
-	assert.deepEqual(result.excluded.sort(), ['pkg/[a]*.gen.js', 'pkg/cache/']);
+	assert.deepEqual(result.excluded.sort(), ['pkg/[a]b.gen.js', 'pkg/cache/']);
 	assert.equal(read(dir, 'pkg/cache/data/bg.json'), '{}\n', 'nothing is deleted');
 	assert.equal(await hasChangesAgainst(dir), false, 'trunk must not read dirty with another branch\'s generated files');
 
@@ -230,7 +231,7 @@ test('files ignored only by the branch being left do not count as changes on the
 	await switchToBranch(dir, TRUNK, { baseOid: head });
 	const exclude = read(dir, '.git/info/exclude').split('\n');
 	assert.equal(exclude.filter((line) => line === '/pkg/cache/').length, 1);
-	assert.equal(exclude.filter((line) => line === '/pkg/\\[a]\\*.gen.js').length, 1);
+	assert.equal(exclude.filter((line) => line === '/pkg/\\[a]b.gen.js').length, 1);
 	assert.equal(exclude.filter((line) => line.startsWith('# WordPress Contributor Toolkit: generated')).length, 1);
 });
 
@@ -240,7 +241,7 @@ test('a root .gitignore that differs widens the check to the whole tree (issue #
 
 	const result = await switchToBranch(dir, TRUNK, { baseOid: head });
 
-	assert.deepEqual(result.excluded.sort(), ['pkg/[a]*.gen.js', 'pkg/cache/', 'yarn.lock']);
+	assert.deepEqual(result.excluded.sort(), ['pkg/[a]b.gen.js', 'pkg/cache/', 'yarn.lock']);
 	assert.equal(await hasChangesAgainst(dir), false);
 	assert.equal(read(dir, 'node_modules/react/index.js'), 'expensive\n', 'ignored on both sides, so neither touched nor listed');
 });
@@ -283,7 +284,7 @@ test('a file the contributor adds after such a switch still counts (issue #521)'
 	await switchToBranch(dir, TRUNK, { baseOid: head });
 
 	fs.writeFileSync(path.join(dir, 'pkg', 'mine.js'), '// written by hand\n');
-	// Matched by `[a]*.gen.js` read as a glob: only the literal line keeps it visible.
+	// Matched by `[a]b.gen.js` read as a glob: only the literal line keeps it visible.
 	fs.writeFileSync(path.join(dir, 'pkg', 'ab.gen.js'), '// written by hand\n');
 	assert.equal(await hasChangesAgainst(dir), true);
 	const ticket = await startTicketBranch(dir, 61002);
