@@ -300,6 +300,164 @@ test('leftoverEntries: an ignored directory once, a file exactly, and no name wi
 	assert.deepEqual(leftoverEntries([], untracked), []);
 });
 
+// A pull request based on an older trunk, then a route trunk added since,
+// installed on trunk: the shape of gutenberg#76292 against today's
+// `routes/dashboard` (#529). `routes/` itself is in both trees, as in
+// Gutenberg.
+function installNewerRouteOnTrunk(dir) {
+	fs.mkdirSync(path.join(dir, 'routes', 'home'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'routes', 'home', 'package.json'), '{}\n');
+	commitFiles(dir, ['routes/home/package.json'], 'add the home route');
+	const ref = prBranchRef(76292);
+	gitOk(['branch', ref, TRUNK], dir);
+	fs.mkdirSync(path.join(dir, 'routes', 'dashboard'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'routes', 'dashboard', 'package.json'), '{}\n');
+	commitFiles(dir, ['routes/dashboard/package.json'], 'add the dashboard route');
+	// What the trunk install writes there, ignored by the root `node_modules/`.
+	fs.mkdirSync(path.join(dir, 'routes', 'dashboard', 'node_modules', 'dep'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'routes', 'dashboard', 'node_modules', 'dep', 'index.js'), '// installed\n');
+	return { ref };
+}
+
+test('a directory the destination tree lacks, holding only an install, does not survive the switch (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, ['routes/dashboard']);
+	assert.equal(exists(dir, 'routes/dashboard'), false, 'wp-build reads every directory under routes/ as a route');
+	assert.equal(read(dir, 'routes/home/package.json'), '{}\n');
+	assert.equal(read(dir, 'node_modules/react/index.js'), 'expensive\n', 'the root install is in both trees, never touched');
+	assert.equal(await hasChangesAgainst(dir), false);
+});
+
+test('anything besides node_modules keeps the directory (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+	// Ignored too (the root `build/`), but not an install: never deleted.
+	fs.mkdirSync(path.join(dir, 'routes', 'dashboard', 'build'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'routes', 'dashboard', 'build', 'index.js'), '// built\n');
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, []);
+	assert.equal(read(dir, 'routes/dashboard/build/index.js'), '// built\n');
+	assert.equal(read(dir, 'routes/dashboard/node_modules/dep/index.js'), '// installed\n');
+});
+
+test('a node_modules that is not ignored keeps the directory (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+	// The destination does not ignore node_modules, so after the switch the
+	// install is untracked: what #521 excludes, never deletes.
+	gitOk(['checkout', '-q', ref], dir);
+	fs.writeFileSync(path.join(dir, '.gitignore'), 'build/\n');
+	commitFiles(dir, ['.gitignore'], 'an older root .gitignore');
+	gitOk(['checkout', '-q', TRUNK], dir);
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, []);
+	assert.equal(read(dir, 'routes/dashboard/node_modules/dep/index.js'), '// installed\n');
+	// Handed over to #521 instead, which hides it from the new branch.
+	assert.equal(result.excluded.includes('routes/dashboard/node_modules/'), true);
+	assert.equal(await hasChangesAgainst(dir), false);
+});
+
+// Outside the route, ignored by the root `build/`. A junction on Windows,
+// which needs no privilege; POSIX ignores the type.
+function linkedTarget(dir) {
+	const target = path.join(dir, 'build', 'shared');
+	fs.mkdirSync(target, { recursive: true });
+	fs.writeFileSync(path.join(target, 'keep.txt'), 'mine\n');
+	return target;
+}
+
+test('a symlink beside the install keeps the directory (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+	fs.symlinkSync(linkedTarget(dir), path.join(dir, 'routes', 'dashboard', 'linked'), 'junction');
+	// Ignored, so trunk is clean and only the walk can keep the directory.
+	fs.mkdirSync(path.join(dir, '.git', 'info'), { recursive: true });
+	fs.appendFileSync(path.join(dir, '.git', 'info', 'exclude'), '/routes/dashboard/linked\n');
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, []);
+	assert.equal(fs.lstatSync(path.join(dir, 'routes', 'dashboard', 'linked')).isSymbolicLink(), true);
+});
+
+test('a symlink inside node_modules goes with it, never what it points at (issue #529)', async (t) => {
+	// npm links workspaces this way: node_modules/<name> -> packages/<name>.
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+	fs.symlinkSync(linkedTarget(dir), path.join(dir, 'routes', 'dashboard', 'node_modules', 'linked'), 'junction');
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, ['routes/dashboard']);
+	assert.equal(read(dir, 'build/shared/keep.txt'), 'mine\n');
+});
+
+test('a directory the destination tracks under another case is not a leftover (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	const ref = prBranchRef(76292);
+	gitOk(['branch', ref, TRUNK], dir);
+	fs.mkdirSync(path.join(dir, 'Fixtures'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'Fixtures', 'readme.txt'), 'trunk\n');
+	commitFiles(dir, ['Fixtures/readme.txt'], 'trunk spells it Fixtures');
+	// The destination keeps a tracked file there, but only under node_modules,
+	// and spells the directory in lower case.
+	gitOk(['checkout', '-q', ref], dir);
+	fs.mkdirSync(path.join(dir, 'fixtures', 'node_modules', 'fake'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'fixtures', 'node_modules', 'fake', 'index.js'), '// tracked\n');
+	// Forced past the root `node_modules/` ignore, then committed as staged.
+	gitOk(['add', '-f', 'fixtures/node_modules/fake/index.js'], dir);
+	commitFiles(dir, [], 'a tracked fixture install');
+	gitOk(['checkout', '-q', TRUNK], dir);
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, []);
+	assert.equal(await hasChangesAgainst(dir, ref), false, 'nothing the destination tracks is deleted');
+});
+
+test('a directory the destination still has keeps its install (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	fs.mkdirSync(path.join(dir, 'routes', 'home', 'node_modules', 'dep'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'routes', 'home', 'node_modules', 'dep', 'index.js'), '// installed\n');
+	const { ref } = installNewerRouteOnTrunk(dir);
+	fs.writeFileSync(path.join(dir, 'routes', 'home', 'extra.js'), '// trunk only\n');
+	commitFiles(dir, ['routes/home/extra.js'], 'a trunk-only file in a shared route');
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, ['routes/dashboard']);
+	assert.equal(read(dir, 'routes/home/node_modules/dep/index.js'), '// installed\n');
+});
+
+// chmod stops a delete only on POSIX, and not for root.
+const chmodSkip = (process.platform === 'win32' && 'chmod does not stop a delete on Windows')
+	|| (typeof process.getuid === 'function' && process.getuid() === 0 && 'chmod does not stop root');
+
+test('a directory that cannot be removed costs the old behaviour, never the switch (issue #529)', { skip: chmodSkip }, async (t) => {
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+	const locked = path.join(dir, 'routes', 'dashboard', 'node_modules', 'dep');
+	fs.chmodSync(locked, 0o555);
+	let result;
+	try {
+		result = await switchToBranch(dir, ref);
+	} finally {
+		fs.chmodSync(locked, 0o755);
+	}
+
+	assert.equal(result.switched, true);
+	assert.deepEqual(result.removed, []);
+	assert.equal(await currentBranchName(dir), ref);
+});
+
 test('parking is idempotent: re-parking rewrites one WIP commit, never stacks (issue #108)', async (t) => {
 	const { dir } = await makeSite(t);
 	const { ref, baseOid } = await startTicketBranch(dir, 59234);
