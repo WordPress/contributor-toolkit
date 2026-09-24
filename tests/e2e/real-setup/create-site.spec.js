@@ -34,7 +34,11 @@ function watcherProcessesAlive( sitePath ) {
 for ( const target of TARGETS ) {
 	test( `a new ${ target.projectType } site downloads, installs, builds and serves WordPress`, async ( { session, request }, testInfo ) => {
 		test.skip( process.env.TOOLKIT_REAL_SETUP !== '1', 'Set TOOLKIT_REAL_SETUP=1 to allow a real network install.' );
-		const parent = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-real-setup-' ) ) );
+		// The long form of the temp directory. The Windows runner's os.tmpdir() is a
+		// short 8.3 path (C:\Users\RUNNER~1\...), which no contributor's site sits
+		// under; there, Gutenberg's `tsc --build` in `npm run dev` failed with a type
+		// error the one-shot build before it did not hit.
+		const parent = session.track( fs.mkdtempSync( path.join( fs.realpathSync.native( os.tmpdir() ), 'wpct-real-setup-' ) ) );
 		const sitePath = path.join( parent, 'real-setup' );
 		const { app, page } = await session.start();
 		const logPath = testInfo.outputPath( 'app.log' );
@@ -75,7 +79,8 @@ for ( const target of TARGETS ) {
 				// INVARIANT: the app completes the automatic chain without retry clicks.
 				// WordPress mirrors the same success message in its live region.
 				await expect( page.getByText( 'This site is ready to work on', { exact: true } ).first() ).toBeVisible( {
-					timeout: 40 * 60_000,
+					// On the Windows runner `npm install` alone has taken over 40 minutes.
+					timeout: 75 * 60_000,
 				} );
 				const status = await page.evaluate( ( dir ) => window.api.getSiteStatus( dir ), sitePath );
 				expect( status.hasNodeModules ).toBe( true );
@@ -126,9 +131,12 @@ for ( const target of TARGETS ) {
 					await expect( page.getByRole( 'button', { name: 'Start build watch', exact: true } ) ).toBeVisible();
 					await expect( page.getByRole( 'tab', { name: 'Build watcher', exact: true } ) ).toBeVisible();
 					// Start it by hand so the stop below, and the process-tree check
-					// after it, still exercise the watch.
+					// after it, still exercise the watch. `npm run dev` removes build/
+					// and redoes the whole build before it watches: as long as the
+					// wizard's own build, which has taken from 9 to over 13 minutes on
+					// the macOS runner.
 					await page.getByRole( 'button', { name: 'Start build watch', exact: true } ).click();
-					await expect( page.getByRole( 'tab', { name: 'Build watcher (watching)', exact: true } ) ).toBeVisible( { timeout: 3 * 60_000 } );
+					await expect( page.getByRole( 'tab', { name: 'Build watcher (watching)', exact: true } ) ).toBeVisible( { timeout: 30 * 60_000 } );
 				}
 				await page.getByRole( 'button', { name: 'Stop build watch', exact: true } ).click();
 				await page.getByRole( 'button', { name: 'Stop dev server', exact: true } ).click();
