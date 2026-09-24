@@ -412,8 +412,9 @@ test('a directory the destination tracks under another case is not a leftover (i
 	gitOk(['checkout', '-q', ref], dir);
 	fs.mkdirSync(path.join(dir, 'fixtures', 'node_modules', 'fake'), { recursive: true });
 	fs.writeFileSync(path.join(dir, 'fixtures', 'node_modules', 'fake', 'index.js'), '// tracked\n');
+	// Forced past the root `node_modules/` ignore, then committed as staged.
 	gitOk(['add', '-f', 'fixtures/node_modules/fake/index.js'], dir);
-	gitOk(['commit', '-q', '-m', 'a tracked fixture install'], dir);
+	commitFiles(dir, [], 'a tracked fixture install');
 	gitOk(['checkout', '-q', TRUNK], dir);
 
 	const result = await switchToBranch(dir, ref);
