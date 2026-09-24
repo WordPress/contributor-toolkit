@@ -109,11 +109,15 @@ test('a shim without a patch to preload is still a valid shim', () => {
 
 // Runs a darwin shim for real, with a stand-in binary that prints each argument
 // it receives on its own line, so the assertions read the argv Electron would.
+// It also prints the NODE_OPTIONS it was given, which must be empty: the
+// options arrive once, as arguments, never a second time from the environment.
+// Under /bin/bash where there is one, the 3.2 that macOS ships, not whichever
+// newer bash comes first on the runner's PATH.
 function runShim(t, { cliPath = null, nodeOptions, args = [] } = {}) {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'node-shims-test-'));
 	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 	const binary = path.join(dir, 'Fake Electron');
-	fs.writeFileSync(binary, '#!/usr/bin/env bash\nfor a in "$@"; do printf \'%s\\n\' "$a"; done\n', { mode: 0o755 });
+	fs.writeFileSync(binary, '#!/usr/bin/env bash\nfor a in "$@"; do printf \'%s\\n\' "$a"; done\nprintf \'NODE_OPTIONS=%s\\n\' "${NODE_OPTIONS-unset}"\n', { mode: 0o755 });
 	// A file a glob would match, so an unquoted expansion would show up.
 	fs.writeFileSync(path.join(dir, 'star-target'), '');
 	const shimPath = path.join(dir, 'node');
@@ -124,15 +128,18 @@ function runShim(t, { cliPath = null, nodeOptions, args = [] } = {}) {
 	const env = { ...process.env };
 	delete env.NODE_OPTIONS;
 	if (nodeOptions !== undefined) env.NODE_OPTIONS = nodeOptions;
-	const { status, stdout, stderr } = spawnSync(shimPath, args, { cwd: dir, env, encoding: 'utf8' });
+	const [command, argv] = fs.existsSync('/bin/bash') ? ['/bin/bash', [shimPath, ...args]] : [shimPath, args];
+	const { status, stdout, stderr } = spawnSync(command, argv, { cwd: dir, env, encoding: 'utf8' });
 	assert.equal(status, 0, stderr);
-	return stdout.split('\n').slice(0, -1);
+	const lines = stdout.split('\n').slice(0, -1);
+	assert.equal(lines.pop(), 'NODE_OPTIONS=', 'Electron must not read the options a second time');
+	return lines;
 }
 
 const skipOnWindows = { skip: process.platform === 'win32' && 'the POSIX shim runs under bash' };
 
-// Electron on macOS ignores NODE_OPTIONS in a process started by anything that
-// is not the app, and the shim is a bash script. A Gutenberg build that sets
+// Electron on macOS removes NODE_OPTIONS in a process started by anything that
+// is not the app (signed builds; unsigned ones read it), and the shim is a bash script. A Gutenberg build that sets
 // `NODE_OPTIONS=--import=…` for a child therefore lost it, and the child failed.
 test('the macOS shim hands NODE_OPTIONS to Electron as arguments (#525)', skipOnWindows, (t) => {
 	assert.deepEqual(
@@ -163,8 +170,9 @@ test('NODE_OPTIONS is split the way Node splits it, not the way bash does (#525)
 	}
 });
 
-// npm reads NODE_OPTIONS under the system Node too, so the CLI shims forward
-// it as well, ahead of the CLI so npm never sees the options as its own.
+// npm-cli itself gets the options, as under the system Node, ahead of the CLI
+// so npm never sees them as its own. What npm then starts does not inherit
+// them: Electron removed the variable from npm's environment.
 test('the macOS npm shim forwards NODE_OPTIONS ahead of the CLI (#525)', skipOnWindows, (t) => {
 	assert.deepEqual(
 		runShim(t, { cliPath: '/app/npm-cli.js', nodeOptions: '--max-old-space-size=4096', args: ['run', 'build'] }),

@@ -21,7 +21,8 @@ const path = require('path');
 // it is the right tool there — it has to reach a process several levels down that
 // we never invoke ourselves. Here we are the one invoking the process, and
 // measurement showed NODE_OPTIONS did not survive every chain reliably (on
-// macOS, Electron drops it in any process the app did not start itself, #525):
+// macOS, a signed Electron removes it in any process the app did not start
+// itself, #525):
 // an argument does, always, because it is not inherited at all. It also confines the
 // patch to processes that actually go through the shim, instead of leaking into
 // every unrelated Node process a build happens to start. The one other route to
@@ -39,12 +40,17 @@ function requireArgs(compatPath) {
 	return compatPath ? `--require "${compatPath}" ` : '';
 }
 
-// On macOS, Electron ignores NODE_OPTIONS in a process that something outside
-// the app started, and every shim is a bash script: a build that sets
-// `NODE_OPTIONS=--import=…` for a child lost it, and the child failed (#525).
-// So the macOS shims pass NODE_OPTIONS on as arguments, which Electron does
-// read, placed before the CLI and the caller's own arguments. NODE_OPTIONS
-// stays set for everything else that reads it.
+// On macOS, a signed Electron removes NODE_OPTIONS from a process that
+// something outside the app started, and every shim is a bash script: a build
+// that sets `NODE_OPTIONS=--import=…` for a child lost it, and the child failed
+// (#525). So the macOS shims pass NODE_OPTIONS on as arguments, which Electron
+// does read, placed before the CLI and the caller's own arguments. Only the
+// process the shim starts gets them: what that process starts in turn inherits
+// no NODE_OPTIONS, since Electron removed it.
+//
+// The variable is emptied for that one call. An unsigned Electron (`npm start`,
+// CI) still reads it, and would apply every option twice, which registers a
+// `--loader` twice; emptied, every build behaves like the signed one.
 //
 // Split the way Node splits it (ParseNodeOptionsEnvVar), not by bash word
 // splitting, which would glob-expand and ignore the quotes: a space outside
@@ -79,7 +85,8 @@ function posixShim({ execPath, compatPath, cliPath = null, forwardNodeOptions = 
 	const prelude = forwardNodeOptions ? NODE_OPTIONS_ARGS : '';
 	// Guarded, since bash before 4.4 calls an empty array unbound under `set -u`.
 	const options = forwardNodeOptions ? '${wptk_opts[@]+"${wptk_opts[@]}"} ' : '';
-	return `#!/usr/bin/env bash\n${prelude}${flag}ELECTRON_RUN_AS_NODE=1 "${execPath}" ${requireArgs(compatPath)}${options}${cli}"$@"\n`;
+	const cleared = forwardNodeOptions ? 'NODE_OPTIONS= ' : '';
+	return `#!/usr/bin/env bash\n${prelude}${cleared}${flag}ELECTRON_RUN_AS_NODE=1 "${execPath}" ${requireArgs(compatPath)}${options}${cli}"$@"\n`;
 }
 
 // Windows shims are .cmd/.bat. Backslashes inside a quoted command-line argument
