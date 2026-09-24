@@ -109,8 +109,10 @@ test('a shim without a patch to preload is still a valid shim', () => {
 
 // Runs a darwin shim for real, with a stand-in binary that prints each argument
 // it receives on its own line, so the assertions read the argv Electron would.
-// It also prints the NODE_OPTIONS it was given, which must be empty: the
+// It also prints the NODE_OPTIONS it was given, which must be unset: the
 // options arrive once, as arguments, never a second time from the environment.
+// Unset, not empty: a signed Electron prints a node_main.cc warning for the
+// variable merely being present, on every process a build starts.
 // Under /bin/bash where there is one, the 3.2 that macOS ships, not whichever
 // newer bash comes first on the runner's PATH.
 function runShim(t, { cliPath = null, nodeOptions, args = [] } = {}) {
@@ -132,7 +134,7 @@ function runShim(t, { cliPath = null, nodeOptions, args = [] } = {}) {
 	const { status, stdout, stderr } = spawnSync(command, argv, { cwd: dir, env, encoding: 'utf8' });
 	assert.equal(status, 0, stderr);
 	const lines = stdout.split('\n').slice(0, -1);
-	assert.equal(lines.pop(), 'NODE_OPTIONS=', 'Electron must not read the options a second time');
+	assert.equal(lines.pop(), 'NODE_OPTIONS=unset', 'Electron must not see the variable at all');
 	return lines;
 }
 

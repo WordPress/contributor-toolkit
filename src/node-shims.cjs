@@ -48,9 +48,11 @@ function requireArgs(compatPath) {
 // process the shim starts gets them: what that process starts in turn inherits
 // no NODE_OPTIONS, since Electron removed it.
 //
-// The variable is emptied for that one call. An unsigned Electron (`npm start`,
-// CI) still reads it, and would apply every option twice, which registers a
-// `--loader` twice; emptied, every build behaves like the signed one.
+// The variable is then unset, so Electron never sees it. An unsigned Electron
+// (`npm start`, CI) still reads it, and would apply every option twice, which
+// registers a `--loader` twice. Unset, not emptied: a signed Electron prints a
+// node_main.cc warning for the variable merely being present, which on a
+// Gutenberg build is a line per process that reads like an error.
 //
 // Split the way Node splits it (ParseNodeOptionsEnvVar), not by bash word
 // splitting, which would glob-expand and ignore the quotes: a space outside
@@ -74,6 +76,7 @@ const NODE_OPTIONS_ARGS = [
 	'\treturn 0',
 	'}',
 	'wptk_node_options',
+	'unset NODE_OPTIONS',
 	''
 ].join('\n');
 
@@ -85,8 +88,7 @@ function posixShim({ execPath, compatPath, cliPath = null, forwardNodeOptions = 
 	const prelude = forwardNodeOptions ? NODE_OPTIONS_ARGS : '';
 	// Guarded, since bash before 4.4 calls an empty array unbound under `set -u`.
 	const options = forwardNodeOptions ? '${wptk_opts[@]+"${wptk_opts[@]}"} ' : '';
-	const cleared = forwardNodeOptions ? 'NODE_OPTIONS= ' : '';
-	return `#!/usr/bin/env bash\n${prelude}${cleared}${flag}ELECTRON_RUN_AS_NODE=1 "${execPath}" ${requireArgs(compatPath)}${options}${cli}"$@"\n`;
+	return `#!/usr/bin/env bash\n${prelude}${flag}ELECTRON_RUN_AS_NODE=1 "${execPath}" ${requireArgs(compatPath)}${options}${cli}"$@"\n`;
 }
 
 // Windows shims are .cmd/.bat. Backslashes inside a quoted command-line argument
