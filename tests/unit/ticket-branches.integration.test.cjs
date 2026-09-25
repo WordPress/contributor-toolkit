@@ -332,6 +332,44 @@ test('a directory the destination tree lacks, holding only an install, does not 
 	assert.equal(await hasChangesAgainst(dir), false);
 });
 
+// What trunk's `tsc --build` leaves in a Gutenberg route beside its install,
+// ignored as Gutenberg ignores it. Seen on Windows, where it kept the whole
+// `routes/dashboard/` and wp-build failed as before.
+function writeTsBuildInfo(dir) {
+	for (const name of ['tsconfig.tsbuildinfo', 'tsconfig.test.tsbuildinfo']) {
+		fs.writeFileSync(path.join(dir, 'routes', 'dashboard', name), '{}\n');
+	}
+}
+
+test('TypeScript build info beside the install goes with it (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	fs.appendFileSync(path.join(dir, '.gitignore'), '*.tsbuildinfo\n');
+	commitFiles(dir, ['.gitignore'], 'ignore TypeScript build info');
+	const { ref } = installNewerRouteOnTrunk(dir);
+	writeTsBuildInfo(dir);
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, ['routes/dashboard']);
+	assert.equal(exists(dir, 'routes/dashboard'), false);
+	assert.equal(await hasChangesAgainst(dir), false);
+});
+
+test('TypeScript build info the destination does not ignore keeps the directory (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+	// Ignored on trunk only: after the switch it is untracked, what #521
+	// excludes, never deletes.
+	fs.appendFileSync(path.join(dir, '.gitignore'), '*.tsbuildinfo\n');
+	commitFiles(dir, ['.gitignore'], 'ignore TypeScript build info');
+	writeTsBuildInfo(dir);
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, []);
+	assert.equal(read(dir, 'routes/dashboard/tsconfig.tsbuildinfo'), '{}\n');
+});
+
 test('anything besides node_modules keeps the directory (issue #529)', async (t) => {
 	const { dir } = await makeSite(t);
 	const { ref } = installNewerRouteOnTrunk(dir);

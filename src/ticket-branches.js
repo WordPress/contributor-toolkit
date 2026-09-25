@@ -446,15 +446,19 @@ function parentsOfDeleted(rows) {
 }
 
 /**
- * Whether `abs` holds nothing but directories and `node_modules` directories,
- * however deep: what an install leaves behind, and nothing a contributor
- * wrote. A file, a symlink or anything else outside a `node_modules` says no.
+ * Whether `abs` holds nothing but directories, `node_modules` directories and
+ * `*.tsbuildinfo` files, however deep: what an install and `tsc --build`
+ * leave behind, and nothing a contributor wrote. The build info is
+ * TypeScript's incremental cache, rewritten by the next build; a Gutenberg
+ * route holds it beside its install once trunk's types are built. Any other
+ * file, a symlink or anything else outside a `node_modules` says no.
  *
  * @param {string} abs
  * @return {Promise<boolean>}
  */
 async function holdsOnlyInstalls(abs) {
 	for (const entry of await fs.promises.readdir(abs, { withFileTypes: true })) {
+		if (entry.isFile() && entry.name.endsWith('.tsbuildinfo')) continue;
 		if (!entry.isDirectory()) return false;
 		if (entry.name === 'node_modules') continue;
 		if (!(await holdsOnlyInstalls(path.join(abs, entry.name)))) return false;
@@ -471,7 +475,8 @@ async function holdsOnlyInstalls(abs) {
  * directory under `routes/` as a route, fails on its missing `package.json`.
  *
  * Deliberately narrow, since this deletes. Only the topmost directory the new
- * tree lacks, only when everything in it is a `node_modules` Git ignores:
+ * tree lacks, only when everything in it is a `node_modules`, or TypeScript
+ * build info, that Git ignores:
  * one untracked file (the contributor's, or what #521 excludes) keeps the
  * whole directory. The tree is compared without case, as macOS and Windows
  * compare names: a directory renamed only by case is the same directory on
