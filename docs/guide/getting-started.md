@@ -22,20 +22,7 @@ On Contributor Day, open that site and run [**Update to latest trunk**](./trunk-
 
 Download the latest build for your platform with the button above, then open the app.
 
-### If macOS blocks the app
-
-The app is signed and notarized by Automattic, so macOS should open it without issues. If Gatekeeper still blocks it (this can happen when the file was downloaded via a browser), try either of these:
-
-- Right-click the `.app` file and choose **Open**, then confirm in the dialog that appears.
-- Or remove the quarantine attribute from the `.app` bundle itself:
-
-  ```sh
-  xattr -d com.apple.quarantine "WordPress Contributor Toolkit.app"
-  ```
-
-  ::: warning Use `-d`, not `-dr`
-  The app is code-signed. The recursive flag (`-r`) tries to strip attributes from files inside the sealed bundle, which macOS rejects with permission errors. Removing the attribute from the top-level bundle is sufficient.
-  :::
+If macOS blocks the app when you first open it, see [Troubleshooting](./troubleshooting#macos-blocks-the-app-from-opening).
 
 ## Your first contribution
 
