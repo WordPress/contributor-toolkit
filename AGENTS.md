@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Instructions for AI coding agents working in this repository. Tool-neutral and canonical — `CLAUDE.md` points here rather than repeating it.
+Instructions for AI coding agents working in this repository. Tool-neutral and canonical — `CLAUDE.md` is a one-line `@AGENTS.md` import, so Claude Code loads this file at session start whether or not it can read `AGENTS.md` on its own, and nothing is repeated there.
 
 ## Where things are, whatever agent you use
 
