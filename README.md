@@ -5,6 +5,7 @@
 Make WordPress posts:
 - [WordPress Core Dev Environment Toolkit: A Faster Path to Your First Core Contribution](https://make.wordpress.org/core/2026/04/16/wordpress-core-dev-environment-toolkit-a-faster-path-to-your-first-core-contribution/) (April 2026)
 - [WordPress Contributor Toolkit 1.0: A smoother workflow for your first Core contribution](https://make.wordpress.org/core/2026/08/14/wordpress-contributor-toolkit-1-0-a-smoother-workflow-for-your-first-core-contribution/) (August 2026)
+- [WordPress Contributor Toolkit 1.2: One app for your first Core or Gutenberg contribution](https://make.wordpress.org/core/2026/09/25/wordpress-contributor-toolkit-1-2-one-app-for-your-first-core-or-gutenberg-contribution/) (September 2026)
 
 ----
 
