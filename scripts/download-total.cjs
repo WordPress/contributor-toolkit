@@ -30,8 +30,7 @@ function assetKey({ id, tag, asset }) {
 // prerelease titled "v0.1.1 draft", never as a release, but its three assets are v0.1.0 binaries
 // (`...Setup.0.1.0.exe`, `...-0.1.0.AppImage`, `...-0.1.0-arm64.dmg`). Their downloads are
 // downloads of the app as it then stood, so they belong in the total, and they belong to v0.1.0.
-// Filtering on the flag would silently drop 42 of them. The four releases this project has
-// shipped are v0.1.0, v0.1.2, v1.0.0 and v1.0.1.
+// Filtering on the flag would silently drop 42 of them.
 function isStableTag(tag) {
 	return !tag.replace(/^v/, '').includes('-');
 }
