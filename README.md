@@ -1,6 +1,6 @@
 ## WordPress Contributor Toolkit (Electron)
 
-[![Unit tests](https://github.com/WordPress/contributor-toolkit/actions/workflows/unit-tests.yml/badge.svg?branch=trunk)](https://github.com/WordPress/contributor-toolkit/actions/workflows/unit-tests.yml) [![Latest release](https://img.shields.io/github/v/release/WordPress/contributor-toolkit)](https://github.com/WordPress/contributor-toolkit/releases/latest) [![Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FWordPress%2Fcontributor-toolkit%2Fmetrics%2Fbadge.json)](https://github.com/WordPress/contributor-toolkit/blob/trunk/STATS.md)
+[![Unit tests](https://github.com/WordPress/contributor-toolkit/actions/workflows/unit-tests.yml/badge.svg?branch=trunk)](https://github.com/WordPress/contributor-toolkit/actions/workflows/unit-tests.yml) [![E2E](https://github.com/WordPress/contributor-toolkit/actions/workflows/e2e.yml/badge.svg?branch=trunk)](https://github.com/WordPress/contributor-toolkit/actions/workflows/e2e.yml) [![Latest release](https://img.shields.io/github/v/release/WordPress/contributor-toolkit)](https://github.com/WordPress/contributor-toolkit/releases/latest) [![Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FWordPress%2Fcontributor-toolkit%2Fmetrics%2Fbadge.json)](https://github.com/WordPress/contributor-toolkit/blob/trunk/STATS.md)
 
 Make WordPress posts:
 - [WordPress Core Dev Environment Toolkit: A Faster Path to Your First Core Contribution](https://make.wordpress.org/core/2026/04/16/wordpress-core-dev-environment-toolkit-a-faster-path-to-your-first-core-contribution/) (April 2026)
@@ -9,7 +9,7 @@ Make WordPress posts:
 
 ----
 
-The [WordPress Contributor Toolkit](https://make.wordpress.org/core/2026/04/16/wordpress-core-dev-environment-toolkit-a-faster-path-to-your-first-core-contribution/) is a desktop Electron application (macOS on Apple Silicon, Windows, and Linux) that takes a contributor from nothing to a working WordPress core development environment, lets them try the work that already exists on a Trac ticket, and lets them send their own change back — as a pull request, a Trac attachment, or a patch for a mentor. No Git, Node.js, npm or Docker on the host, and no push credential written to disk.
+The [WordPress Contributor Toolkit](https://make.wordpress.org/core/2026/09/25/wordpress-contributor-toolkit-1-2-one-app-for-your-first-core-or-gutenberg-contribution/) is a desktop Electron application (macOS on Apple Silicon, Windows, and Linux) that takes a contributor from nothing to a working development environment for WordPress Core or Gutenberg, lets them try the work that already exists on a Trac ticket or a GitHub issue, and lets them send their own change back: as a pull request, a Trac attachment, or a patch for a mentor. No Git, Node.js, npm or Docker on the host, and no push credential written to disk.
 
 ![A site ready for work: Start dev server, Start build watch, Review & submit changes, the Trac ticket panel and the patch panel](https://wordpress.github.io/contributor-toolkit/screenshots/site-view.png)
 
@@ -27,12 +27,12 @@ The toolkit aims to remove that whole path, not just its first step.
 
 Each of these has a page in the user guide.
 
-- **[Create a WordPress core development site](https://wordpress.github.io/contributor-toolkit/guide/creating-a-site)** with nothing installed on the host. The clone, the dependency install and the first build run as [one continuous chain](https://wordpress.github.io/contributor-toolkit/guide/setup-wizard) rather than four clicks.
-- **[Link a Trac ticket](https://wordpress.github.io/contributor-toolkit/guide/trac-tickets)** and read its facts in the app — summary, status and resolution, type, milestone, component, keywords, age. A ticket can also arrive from a browser: the app answers `wpct://ticket/62281` links and offers the ticket to the site you have open.
-- **[Try the work that already exists on it](https://wordpress.github.io/contributor-toolkit/guide/applying-patches)**: pull requests are checked out on their own branches with the author's commits, while `.diff` and `.patch` files are previewed and applied to the current ticket as removable layers. When a patch file will not apply, the app says which regions failed and why, and leaves the checkout untouched.
-- **[Hold work for several tickets in one site](https://wordpress.github.io/contributor-toolkit/guide/ticket-branches)**. Each ticket gets its own branch inside the site, so moving between them is a file swap of seconds instead of another clone and another install.
+- **[Create a WordPress Core or Gutenberg development site](https://wordpress.github.io/contributor-toolkit/guide/creating-a-site)** with nothing installed on the host. A Core site is a `wordpress-develop` checkout; a Gutenberg site is a `gutenberg` checkout served as a plugin in a stock WordPress. The clone, the dependency install and the first build run as [one continuous chain](https://wordpress.github.io/contributor-toolkit/guide/setup-wizard) rather than four clicks.
+- **[Link a Trac ticket](https://wordpress.github.io/contributor-toolkit/guide/trac-tickets)** to a Core site and read its facts in the app: summary, status and resolution, type, milestone, component, keywords, age. A ticket can also arrive from a browser: the app answers `wpct://ticket/62281` links and offers the ticket to the site you have open. On a Gutenberg site, **[link a GitHub issue](https://wordpress.github.io/contributor-toolkit/guide/gutenberg-issues)** instead, and the app lists the pull requests that cite it.
+- **[Try the work that already exists on it](https://wordpress.github.io/contributor-toolkit/guide/applying-patches)**: pull requests are checked out on their own branches with the author's commits, on both projects, while on Core `.diff` and `.patch` files are previewed and applied to the current ticket as removable layers. When a patch file will not apply, the app says which regions failed and why, and leaves the checkout untouched.
+- **[Hold work for several tickets or issues in one site](https://wordpress.github.io/contributor-toolkit/guide/ticket-branches)**. Each one gets its own branch inside the site, so moving between them is a file swap of seconds instead of another clone and another install.
 - **[Run the site](https://wordpress.github.io/contributor-toolkit/guide/running-the-site)** and debug it: a [debug log tab](https://wordpress.github.io/contributor-toolkit/guide/logs-and-debugging) with fatals surfaced instead of hidden behind the recovery screen, [the database](https://wordpress.github.io/contributor-toolkit/guide/database), [captured mail](https://wordpress.github.io/contributor-toolkit/guide/mail), and [a terminal](https://wordpress.github.io/contributor-toolkit/guide/terminal) using the Node.js runtime the app bundles.
-- **[Send the change back](https://wordpress.github.io/contributor-toolkit/guide/submitting-changes)** — [a GitHub pull request](https://wordpress.github.io/contributor-toolkit/guide/submit-github-pr) opened through device sign-in with no credential on disk, [a patch attached to Trac](https://wordpress.github.io/contributor-toolkit/guide/submit-trac), or [a patch handed to a mentor](https://wordpress.github.io/contributor-toolkit/guide/submit-mentor) that keeps your name on the work.
+- **[Send the change back](https://wordpress.github.io/contributor-toolkit/guide/submitting-changes)**: [a GitHub pull request](https://wordpress.github.io/contributor-toolkit/guide/submit-github-pr) to `wordpress-develop` or `WordPress/gutenberg`, opened through device sign-in with no credential on disk, [a patch attached to Trac](https://wordpress.github.io/contributor-toolkit/guide/submit-trac) (Core only), or [a patch handed to a mentor](https://wordpress.github.io/contributor-toolkit/guide/submit-mentor) that keeps your name on the work.
 - **[Keep the site current with trunk](https://wordpress.github.io/contributor-toolkit/guide/trunk-updates)** without recreating it, fetching only what changed.
 
 ## Documentation
@@ -85,9 +85,9 @@ How the app works from a user's point of view — the toolchain it bundles, keep
 
 - Integrate Playground's XDebug.
 - Explore bundling MySQL server with the app.
-- Finish moving every Git flow onto the bundled Git binary (https://github.com/WordPress/contributor-toolkit/issues/364).
 - Potentially integrate with Studio to benefit from PHP version selector, wp-cli integration and other Studio features.
-- An ergonomic way of managing the git repository from the UI (commit, conflicts, pushes etc.) Or would it make sense to just endorse another git client?
+- Resolve conflicts in the app. Branches, commits and pushes are already handled for each work item, but when a work item's branch cannot move onto current trunk, the app still hands it to a mentor.
+- Internationalization: the app's interface available in several languages, not only English.
 
 ### Download stats
 
@@ -95,7 +95,7 @@ Release downloads are the only usage signal this project has, and GitHub keeps n
 
 ### Contributing
 
-Much of the work here happens with the support of AI coding agents, and the quality bar is held by a set of guardrails rather than by trusting the agent. See [CONTRIBUTING.md](CONTRIBUTING.md) for what runs on every pull request (repo-wide lint, unit tests on macOS and Windows) and the single review standard to run yourself before opening one — as the `/self-review` skill in Claude Code, or by following the standard directly on any other agent.
+Much of the work here happens with the support of AI coding agents, and the quality bar is held by a set of guardrails rather than by trusting the agent. See [CONTRIBUTING.md](CONTRIBUTING.md) for what runs on every pull request (repo-wide lint, unit tests and end-to-end journeys on macOS and Windows) and the single review standard to run yourself before opening one, as the `/self-review` skill in Claude Code, or by following the standard directly on any other agent.
 
 ### License
 
