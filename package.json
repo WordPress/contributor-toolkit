@@ -132,7 +132,7 @@
     "concurrently": "^8.2.2",
     "electron": "43.6.0",
     "electron-builder": "^26.15.3",
-    "esbuild": "^0.23.0",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "playwright-core": "^1.62.1"
   },
@@ -141,6 +141,7 @@
     "electron-winstaller@5.4.0": true,
     "electron@43.6.0": true,
     "esbuild@0.23.1": true,
+    "esbuild@0.28.2": true,
     "fs-ext-extra-prebuilt@2.2.7": true
   }
 }
