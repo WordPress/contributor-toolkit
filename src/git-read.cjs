@@ -649,6 +649,37 @@ async function changesAgainst(dir, ref, { platform = process.platform, run = run
 }
 
 /**
+ * The files on disk that Git does not track, under `dirs` (the repository
+ * root when `dirs` names it as `''`). With `ignored`, the ones the checked-out
+ * `.gitignore` files hide instead, and a wholly ignored directory comes back
+ * as one entry ending in `/`, so `node_modules` costs one line, not a
+ * hundred thousand. Without it, every untracked file one by one, which is
+ * what a status counts. The directories are taken literally.
+ *
+ * Used around a switch whose two trees disagree about `.gitignore` (#521).
+ *
+ * @param {string}   dir
+ * @param {string[]} dirs
+ * @param {Object}   [options]
+ * @param {boolean}  [options.ignored]
+ * @param {string}   [options.platform]
+ * @param {Function} [options.run]      Injection point for tests.
+ * @return {Promise<string[]>}
+ */
+async function otherPaths(dir, dirs, { ignored = false, platform = process.platform, run = runGit } = {}) {
+	if (!dirs.length) return [];
+	// The same long-path switch every other worktree walk here takes, or a
+	// deep generated tree on Windows is the one place the walk cannot enter.
+	const win = await windowsArgs(dir, { platform, run });
+	const flags = ignored ? ['--ignored', '--directory'] : [];
+	const { stdout } = await run(
+		[...win, '--literal-pathspecs', 'ls-files', '--others', '--exclude-standard', ...flags, '-z', '--', ...dirs.map((d) => d || '.')],
+		{ cwd: dir }
+	);
+	return parseZList(stdout);
+}
+
+/**
  * The bytes of several paths at one commit, in a single spawn. Raw object
  * content: no line-ending conversion, exactly what `readBlob` returned.
  *
@@ -708,6 +739,23 @@ async function treeEntryMode(dir, oid, filepath) {
 	return entry ? entry.mode : null;
 }
 
+/**
+ * Every directory a commit's tree holds, at any depth, without a trailing
+ * `/`. One `ls-tree` of trees only: about 2,800 entries and 40 ms on a
+ * Gutenberg checkout. Used after a switch to tell which leftover directories
+ * the new tree does not have (#529).
+ *
+ * @param {string}   dir
+ * @param {string}   oid
+ * @param {Object}   [options]
+ * @param {Function} [options.run] Injection point for tests.
+ * @return {Promise<string[]>}
+ */
+async function treeDirectories(dir, oid, { run = runGit } = {}) {
+	const { stdout } = await run(['ls-tree', '-r', '-d', '--name-only', '-z', oid, '--'], { cwd: dir });
+	return parseZList(stdout);
+}
+
 module.exports = {
 	splitNul,
 	rowFromStatusEntry,
@@ -734,7 +782,9 @@ module.exports = {
 	listBranches,
 	statusRows,
 	changesAgainst,
+	otherPaths,
 	readBlobs,
 	blobOid,
-	treeEntryMode
+	treeEntryMode,
+	treeDirectories
 };

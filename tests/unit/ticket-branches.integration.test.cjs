@@ -31,6 +31,7 @@ const {
 	parkCurrentWork,
 	startTicketBranch,
 	switchToBranch,
+	leftoverEntries,
 	deleteTicketBranch,
 	resumeSwitch,
 	rebaseOntoTrunk
@@ -177,6 +178,322 @@ test('the gitignored substrate survives every switch (issue #108)', async (t) =>
 	// It must also stay out of the branch itself, or every switch would carry it.
 	const tracked = gitOk(['ls-tree', '-r', '--name-only', first.ref, '--'], dir).split('\n');
 	assert.equal(tracked.some((f) => f.startsWith('node_modules/')), false);
+});
+
+// A pull request branch whose tree carries a package trunk has since removed,
+// with that package's own `.gitignore`: the shape of gutenberg#76292 (#521).
+// `rootIgnore` also changes the root `.gitignore`, as a months-old pull
+// request against today's trunk nearly always does.
+function checkOutOldPullRequest(dir, { rootIgnore = false } = {}) {
+	const ref = prBranchRef(76292);
+	gitOk(['checkout', '-q', '-b', ref, TRUNK], dir);
+	fs.mkdirSync(path.join(dir, 'pkg'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'pkg', '.gitignore'), 'cache/\n*.gen.js\n');
+	fs.writeFileSync(path.join(dir, 'pkg', 'index.js'), 'module.exports = 1;\n');
+	const files = ['pkg/.gitignore', 'pkg/index.js'];
+	if (rootIgnore) {
+		fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules/\nbuild/\nyarn.lock\n');
+		files.push('.gitignore');
+	}
+	const head = commitFiles(dir, files, 'old pull request');
+	// What its install generates, ignored by the files above and nothing else.
+	fs.mkdirSync(path.join(dir, 'pkg', 'cache', 'data'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'pkg', 'cache', 'data', 'bg.json'), '{}\n');
+	fs.writeFileSync(path.join(dir, 'pkg', 'cache', 'index.native.js'), '// generated\n');
+	// A name Git would read as a pattern, if it were not escaped. Not `*`,
+	// which Windows refuses in a name.
+	fs.writeFileSync(path.join(dir, 'pkg', '[a]b.gen.js'), '// generated\n');
+	if (rootIgnore) fs.writeFileSync(path.join(dir, 'yarn.lock'), '# generated\n');
+	return { ref, head };
+}
+
+test('files ignored only by the branch being left do not count as changes on the next (issue #521)', async (t) => {
+	const { dir, baseOid } = await makeSite(t);
+	const { head } = checkOutOldPullRequest(dir);
+
+	const result = await switchToBranch(dir, TRUNK, { baseOid: head });
+
+	// A whole ignored directory is one entry, not one line per file in it.
+	assert.deepEqual(result.excluded.sort(), ['pkg/[a]b.gen.js', 'pkg/cache/']);
+	assert.equal(read(dir, 'pkg/cache/data/bg.json'), '{}\n', 'nothing is deleted');
+	assert.equal(await hasChangesAgainst(dir), false, 'trunk must not read dirty with another branch\'s generated files');
+
+	// So leaving trunk is not refused, and a new ticket does not carry them.
+	const ticket = await startTicketBranch(dir, 61002);
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // real work\n');
+	await switchToBranch(dir, TRUNK, { baseOid });
+	const parked = gitOk(['ls-tree', '-r', '--name-only', ticket.ref, '--'], dir).split('\n');
+	assert.equal(parked.some((f) => f.startsWith('pkg/')), false, 'the WIP commit holds only the contributor\'s work');
+	assert.equal(parked.includes('wp-login.php'), true);
+
+	// Back and forth again: the block is written once, not once per switch.
+	await switchToBranch(dir, prBranchRef(76292), { baseOid });
+	await switchToBranch(dir, TRUNK, { baseOid: head });
+	const exclude = read(dir, '.git/info/exclude').split('\n');
+	assert.equal(exclude.filter((line) => line === '/pkg/cache/').length, 1);
+	assert.equal(exclude.filter((line) => line === '/pkg/\\[a]b.gen.js').length, 1);
+	assert.equal(exclude.filter((line) => line.startsWith('# WordPress Contributor Toolkit: generated')).length, 1);
+});
+
+test('a root .gitignore that differs widens the check to the whole tree (issue #521)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { head } = checkOutOldPullRequest(dir, { rootIgnore: true });
+
+	const result = await switchToBranch(dir, TRUNK, { baseOid: head });
+
+	assert.deepEqual(result.excluded.sort(), ['pkg/[a]b.gen.js', 'pkg/cache/', 'yarn.lock']);
+	assert.equal(await hasChangesAgainst(dir), false);
+	assert.equal(read(dir, 'node_modules/react/index.js'), 'expensive\n', 'ignored on both sides, so neither touched nor listed');
+});
+
+test('a switch whose trees agree on every .gitignore writes no exclude (issue #521)', async (t) => {
+	const { dir } = await makeSite(t);
+	const first = await startTicketBranch(dir, 59234);
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // work\n');
+	const result = await switchToBranch(dir, TRUNK, { baseOid: first.baseOid });
+	assert.deepEqual(result.excluded, []);
+	const exclude = exists(dir, '.git/info/exclude') ? read(dir, '.git/info/exclude') : '';
+	assert.equal(exclude.includes('WordPress Contributor Toolkit: generated'), false);
+});
+
+test('an exclude that cannot be written costs the old behaviour, never the switch (issue #521)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { head } = checkOutOldPullRequest(dir);
+	// A read-only exclude file: Git still reads it, the append fails.
+	const excludePath = path.join(dir, '.git', 'info', 'exclude');
+	fs.mkdirSync(path.dirname(excludePath), { recursive: true });
+	fs.writeFileSync(excludePath, '# the contributor\'s own\n');
+	fs.chmodSync(excludePath, 0o444);
+	let result;
+	try {
+		result = await switchToBranch(dir, TRUNK, { baseOid: head });
+	} finally {
+		// Writable again before tempDir removes it, which Windows refuses otherwise.
+		fs.chmodSync(excludePath, 0o644);
+	}
+
+	assert.equal(result.switched, true);
+	assert.deepEqual(result.excluded, []);
+	assert.equal(await currentBranchName(dir), TRUNK);
+	assert.equal(await hasChangesAgainst(dir), true, 'the leftovers show, as they did before the fix');
+});
+
+test('a file the contributor adds after such a switch still counts (issue #521)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { head } = checkOutOldPullRequest(dir);
+	await switchToBranch(dir, TRUNK, { baseOid: head });
+
+	fs.writeFileSync(path.join(dir, 'pkg', 'mine.js'), '// written by hand\n');
+	// Matched by `[a]b.gen.js` read as a glob: only the literal line keeps it visible.
+	fs.writeFileSync(path.join(dir, 'pkg', 'ab.gen.js'), '// written by hand\n');
+	assert.equal(await hasChangesAgainst(dir), true);
+	const ticket = await startTicketBranch(dir, 61002);
+	await switchToBranch(dir, TRUNK, { baseOid: ticket.baseOid });
+	const parked = gitOk(['ls-tree', '-r', '--name-only', ticket.ref, '--'], dir).split('\n');
+	assert.deepEqual(parked.filter((f) => f.startsWith('pkg/')).sort(), ['pkg/ab.gen.js', 'pkg/mine.js']);
+});
+
+test('leftoverEntries: an ignored directory once, a file exactly, and no name with a line break (issue #521)', () => {
+	const ignored = ['node_modules/', 'pkg/cache/', 'pkg/x.gen.js', 'bad\nname', 'deep/a/'];
+	const untracked = ['pkg/cache/a.json', 'pkg/cache/data/b.json', 'pkg/x.gen.js', 'pkg/mine.js', 'bad\nname', 'deep/a/b/c/d.txt'];
+	assert.deepEqual(leftoverEntries(ignored, untracked).sort(), ['deep/a/', 'pkg/cache/', 'pkg/x.gen.js']);
+	assert.deepEqual(leftoverEntries([], untracked), []);
+});
+
+// A pull request based on an older trunk, then a route trunk added since,
+// installed on trunk: the shape of gutenberg#76292 against today's
+// `routes/dashboard` (#529). `routes/` itself is in both trees, as in
+// Gutenberg.
+function installNewerRouteOnTrunk(dir) {
+	fs.mkdirSync(path.join(dir, 'routes', 'home'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'routes', 'home', 'package.json'), '{}\n');
+	commitFiles(dir, ['routes/home/package.json'], 'add the home route');
+	const ref = prBranchRef(76292);
+	gitOk(['branch', ref, TRUNK], dir);
+	fs.mkdirSync(path.join(dir, 'routes', 'dashboard'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'routes', 'dashboard', 'package.json'), '{}\n');
+	commitFiles(dir, ['routes/dashboard/package.json'], 'add the dashboard route');
+	// What the trunk install writes there, ignored by the root `node_modules/`.
+	fs.mkdirSync(path.join(dir, 'routes', 'dashboard', 'node_modules', 'dep'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'routes', 'dashboard', 'node_modules', 'dep', 'index.js'), '// installed\n');
+	return { ref };
+}
+
+test('a directory the destination tree lacks, holding only an install, does not survive the switch (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, ['routes/dashboard']);
+	assert.equal(exists(dir, 'routes/dashboard'), false, 'wp-build reads every directory under routes/ as a route');
+	assert.equal(read(dir, 'routes/home/package.json'), '{}\n');
+	assert.equal(read(dir, 'node_modules/react/index.js'), 'expensive\n', 'the root install is in both trees, never touched');
+	assert.equal(await hasChangesAgainst(dir), false);
+});
+
+// What trunk's `tsc --build` leaves in a Gutenberg route beside its install,
+// ignored as Gutenberg ignores it. Seen on Windows, where it kept the whole
+// `routes/dashboard/` and wp-build failed as before.
+function writeTsBuildInfo(dir) {
+	for (const name of ['tsconfig.tsbuildinfo', 'tsconfig.test.tsbuildinfo']) {
+		fs.writeFileSync(path.join(dir, 'routes', 'dashboard', name), '{}\n');
+	}
+}
+
+test('TypeScript build info beside the install goes with it (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	fs.appendFileSync(path.join(dir, '.gitignore'), '*.tsbuildinfo\n');
+	commitFiles(dir, ['.gitignore'], 'ignore TypeScript build info');
+	const { ref } = installNewerRouteOnTrunk(dir);
+	writeTsBuildInfo(dir);
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, ['routes/dashboard']);
+	assert.equal(exists(dir, 'routes/dashboard'), false);
+	assert.equal(await hasChangesAgainst(dir), false);
+});
+
+test('TypeScript build info the destination does not ignore keeps the directory (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+	// Ignored on trunk only: after the switch it is untracked, what #521
+	// excludes, never deletes.
+	fs.appendFileSync(path.join(dir, '.gitignore'), '*.tsbuildinfo\n');
+	commitFiles(dir, ['.gitignore'], 'ignore TypeScript build info');
+	writeTsBuildInfo(dir);
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, []);
+	assert.equal(read(dir, 'routes/dashboard/tsconfig.tsbuildinfo'), '{}\n');
+});
+
+test('anything besides node_modules keeps the directory (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+	// Ignored too (the root `build/`), but not an install: never deleted.
+	fs.mkdirSync(path.join(dir, 'routes', 'dashboard', 'build'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'routes', 'dashboard', 'build', 'index.js'), '// built\n');
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, []);
+	assert.equal(read(dir, 'routes/dashboard/build/index.js'), '// built\n');
+	assert.equal(read(dir, 'routes/dashboard/node_modules/dep/index.js'), '// installed\n');
+});
+
+test('a node_modules that is not ignored keeps the directory (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+	// The destination does not ignore node_modules, so after the switch the
+	// install is untracked: what #521 excludes, never deletes.
+	gitOk(['checkout', '-q', ref], dir);
+	fs.writeFileSync(path.join(dir, '.gitignore'), 'build/\n');
+	commitFiles(dir, ['.gitignore'], 'an older root .gitignore');
+	gitOk(['checkout', '-q', TRUNK], dir);
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, []);
+	assert.equal(read(dir, 'routes/dashboard/node_modules/dep/index.js'), '// installed\n');
+	// Handed over to #521 instead, which hides it from the new branch.
+	assert.equal(result.excluded.includes('routes/dashboard/node_modules/'), true);
+	assert.equal(await hasChangesAgainst(dir), false);
+});
+
+// Outside the route, ignored by the root `build/`. A junction on Windows,
+// which needs no privilege; POSIX ignores the type.
+function linkedTarget(dir) {
+	const target = path.join(dir, 'build', 'shared');
+	fs.mkdirSync(target, { recursive: true });
+	fs.writeFileSync(path.join(target, 'keep.txt'), 'mine\n');
+	return target;
+}
+
+test('a symlink beside the install keeps the directory (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+	fs.symlinkSync(linkedTarget(dir), path.join(dir, 'routes', 'dashboard', 'linked'), 'junction');
+	// Ignored, so trunk is clean and only the walk can keep the directory.
+	fs.mkdirSync(path.join(dir, '.git', 'info'), { recursive: true });
+	fs.appendFileSync(path.join(dir, '.git', 'info', 'exclude'), '/routes/dashboard/linked\n');
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, []);
+	assert.equal(fs.lstatSync(path.join(dir, 'routes', 'dashboard', 'linked')).isSymbolicLink(), true);
+});
+
+test('a symlink inside node_modules goes with it, never what it points at (issue #529)', async (t) => {
+	// npm links workspaces this way: node_modules/<name> -> packages/<name>.
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+	fs.symlinkSync(linkedTarget(dir), path.join(dir, 'routes', 'dashboard', 'node_modules', 'linked'), 'junction');
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, ['routes/dashboard']);
+	assert.equal(read(dir, 'build/shared/keep.txt'), 'mine\n');
+});
+
+test('a directory the destination tracks under another case is not a leftover (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	const ref = prBranchRef(76292);
+	gitOk(['branch', ref, TRUNK], dir);
+	fs.mkdirSync(path.join(dir, 'Fixtures'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'Fixtures', 'readme.txt'), 'trunk\n');
+	commitFiles(dir, ['Fixtures/readme.txt'], 'trunk spells it Fixtures');
+	// The destination keeps a tracked file there, but only under node_modules,
+	// and spells the directory in lower case.
+	gitOk(['checkout', '-q', ref], dir);
+	fs.mkdirSync(path.join(dir, 'fixtures', 'node_modules', 'fake'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'fixtures', 'node_modules', 'fake', 'index.js'), '// tracked\n');
+	// Forced past the root `node_modules/` ignore, then committed as staged.
+	gitOk(['add', '-f', 'fixtures/node_modules/fake/index.js'], dir);
+	commitFiles(dir, [], 'a tracked fixture install');
+	gitOk(['checkout', '-q', TRUNK], dir);
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, []);
+	assert.equal(await hasChangesAgainst(dir, ref), false, 'nothing the destination tracks is deleted');
+});
+
+test('a directory the destination still has keeps its install (issue #529)', async (t) => {
+	const { dir } = await makeSite(t);
+	fs.mkdirSync(path.join(dir, 'routes', 'home', 'node_modules', 'dep'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'routes', 'home', 'node_modules', 'dep', 'index.js'), '// installed\n');
+	const { ref } = installNewerRouteOnTrunk(dir);
+	fs.writeFileSync(path.join(dir, 'routes', 'home', 'extra.js'), '// trunk only\n');
+	commitFiles(dir, ['routes/home/extra.js'], 'a trunk-only file in a shared route');
+
+	const result = await switchToBranch(dir, ref);
+
+	assert.deepEqual(result.removed, ['routes/dashboard']);
+	assert.equal(read(dir, 'routes/home/node_modules/dep/index.js'), '// installed\n');
+});
+
+// chmod stops a delete only on POSIX, and not for root.
+const chmodSkip = (process.platform === 'win32' && 'chmod does not stop a delete on Windows')
+	|| (typeof process.getuid === 'function' && process.getuid() === 0 && 'chmod does not stop root');
+
+test('a directory that cannot be removed costs the old behaviour, never the switch (issue #529)', { skip: chmodSkip }, async (t) => {
+	const { dir } = await makeSite(t);
+	const { ref } = installNewerRouteOnTrunk(dir);
+	const locked = path.join(dir, 'routes', 'dashboard', 'node_modules', 'dep');
+	fs.chmodSync(locked, 0o555);
+	let result;
+	try {
+		result = await switchToBranch(dir, ref);
+	} finally {
+		fs.chmodSync(locked, 0o755);
+	}
+
+	assert.equal(result.switched, true);
+	assert.deepEqual(result.removed, []);
+	assert.equal(await currentBranchName(dir), ref);
 });
 
 test('parking is idempotent: re-parking rewrites one WIP commit, never stacks (issue #108)', async (t) => {

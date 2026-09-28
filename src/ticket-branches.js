@@ -28,8 +28,10 @@
  *    risk #108 flags at the end.
  */
 
+const fs = require('node:fs');
+const path = require('node:path');
 const { mapCheckoutPhase } = require('./switch-progress.cjs');
-const { currentBranch, listBranches, resolveRef, statusRows, changesAgainst, mergeTree } = require('./git-read.cjs');
+const { currentBranch, listBranches, resolveRef, statusRows, changesAgainst, changedPathsBetween, otherPaths, treeDirectories, mergeTree } = require('./git-read.cjs');
 const { stagePaths, writeTree, commitTree, updateBranch, createBranchAt, pointHeadAt, deleteBranch, checkoutBranch } = require('./git-write.cjs');
 
 /** The pristine snapshot branch. Never committed to, never deleted. */
@@ -316,6 +318,206 @@ async function startTicketBranch(dir, ticketId, { prefix = DEFAULT_BRANCH_PREFIX
 }
 
 /**
+ * Marks the block of `.git/info/exclude` this module owns (#521). The
+ * paths under it are files a branch the contributor left had ignored, that
+ * the branch they arrived on does not, and that nobody wrote by hand.
+ */
+const LEFTOVERS_MARKER = '# WordPress Contributor Toolkit: generated files another branch ignored';
+
+/**
+ * What is ignored on disk now, in the directories whose `.gitignore` differs
+ * between HEAD and `ref`, or null when none does, which is nearly every
+ * switch and costs one tree diff. The root `.gitignore` widens it to the
+ * whole repository, still cheap: an ignored directory is one entry.
+ *
+ * @param {string}  dir
+ * @param {Array[]} rows the tree diff from HEAD to the ref being switched to
+ * @return {Promise<?{dirs: string[], ignored: string[]}>}
+ */
+async function ignoredBeforeSwitch(dir, rows) {
+	const dirs = new Set();
+	for (const [filepath] of rows) {
+		if (path.posix.basename(filepath) !== '.gitignore') continue;
+		const parent = path.posix.dirname(filepath);
+		dirs.add(parent === '.' ? '' : parent);
+	}
+	if (!dirs.size) return null;
+	const scope = dirs.has('') ? [''] : [...dirs];
+	return { dirs: scope, ignored: await otherPaths(dir, scope, { ignored: true }) };
+}
+
+/**
+ * One line of `.gitignore` syntax matching exactly `filepath` from the root:
+ * anchored, and with the characters Git would read as a pattern escaped. A
+ * directory keeps its trailing `/`, which Git reads as "this directory".
+ *
+ * @param {string} filepath
+ */
+function literalExcludeLine(filepath) {
+	return `/${filepath.replace(/[\\*?[]/g, '\\$&').replace(/ +$/, (spaces) => spaces.replace(/ /g, '\\ '))}`;
+}
+
+/**
+ * The entries of `ignored` (files, and directories ending in `/`) that hold
+ * at least one of `untracked`. An ignored directory is written back as the
+ * directory, not file by file: a generated tree such as `ios/Pods/` is tens
+ * of thousands of files, and Git weighs every exclude line against every
+ * path it looks at. Each path's ancestors are looked up in a Set, so the cost
+ * is the depth of the tree, not the number of ignored directories.
+ *
+ * @param {string[]} ignored
+ * @param {string[]} untracked
+ * @return {string[]}
+ */
+function leftoverEntries(ignored, untracked) {
+	const known = new Set(ignored);
+	const found = new Set();
+	for (const filepath of untracked) {
+		if (known.has(filepath)) {
+			found.add(filepath);
+			continue;
+		}
+		for (let slash = filepath.indexOf('/'); slash !== -1; slash = filepath.indexOf('/', slash + 1)) {
+			const parent = filepath.slice(0, slash + 1);
+			if (known.has(parent)) {
+				found.add(parent);
+				break;
+			}
+		}
+	}
+	// A line break in a name would split it into two exclude lines, the
+	// second unanchored and able to hide real work anywhere in the tree.
+	return [...found].filter((entry) => !/[\r\n]/.test(entry));
+}
+
+/**
+ * After a switch, the untracked files that were ignored before it, added to
+ * the app's block in `.git/info/exclude` so Git stops reporting them (#521).
+ * A branch's install or build generated them under that branch's own
+ * `.gitignore`, and a forced checkout leaves files it does not track where
+ * they are. Without this the branch arrived on reads dirty with work the
+ * contributor never did: trunk refuses to be left, and a new ticket parks
+ * the files into its WIP commit. Nothing is deleted; they stay on disk for
+ * the branch that made them, which ignores them anyway.
+ *
+ * @param {string}                              dir
+ * @param {{dirs: string[], ignored: string[]}} before
+ * @return {Promise<string[]>} the entries excluded, directories ending in `/`
+ */
+async function excludeLeftovers(dir, before) {
+	const leftovers = leftoverEntries(before.ignored, await otherPaths(dir, before.dirs));
+	if (!leftovers.length) return [];
+
+	const infoDir = path.join(dir, '.git', 'info');
+	const excludePath = path.join(infoDir, 'exclude');
+	let existing = '';
+	try {
+		existing = await fs.promises.readFile(excludePath, 'utf8');
+	} catch (error) {
+		if (!error || error.code !== 'ENOENT') throw error;
+	}
+	const present = new Set(existing.split(/\r?\n/));
+	const lines = leftovers.map(literalExcludeLine).filter((line) => !present.has(line));
+	if (!lines.length) return leftovers;
+	if (!present.has(LEFTOVERS_MARKER)) lines.unshift(LEFTOVERS_MARKER);
+	await fs.promises.mkdir(infoDir, { recursive: true });
+	const separator = existing && !existing.endsWith('\n') ? '\n' : '';
+	await fs.promises.appendFile(excludePath, `${separator}${lines.join('\n')}\n`);
+	return leftovers;
+}
+
+/**
+ * Every directory above a path the switch deletes, without a trailing `/`,
+ * not the root. The candidates for a directory the new tree no longer has
+ * (#529); pure, so it costs nothing when the diff deletes nothing.
+ *
+ * @param {Array[]} rows the tree diff, `[path, before, after]`
+ * @return {Set<string>}
+ */
+function parentsOfDeleted(rows) {
+	const dirs = new Set();
+	for (const [filepath, , after] of rows) {
+		if (after !== 0) continue;
+		for (let slash = filepath.indexOf('/'); slash !== -1; slash = filepath.indexOf('/', slash + 1)) {
+			dirs.add(filepath.slice(0, slash));
+		}
+	}
+	return dirs;
+}
+
+/**
+ * Whether `abs` holds nothing but directories, `node_modules` directories and
+ * `*.tsbuildinfo` files, however deep: what an install and `tsc --build`
+ * leave behind, and nothing a contributor wrote. The build info is
+ * TypeScript's incremental cache, rewritten by the next build; a Gutenberg
+ * route holds it beside its install once trunk's types are built. Any other
+ * file, a symlink or anything else outside a `node_modules` says no.
+ *
+ * @param {string} abs
+ * @return {Promise<boolean>}
+ */
+async function holdsOnlyInstalls(abs) {
+	for (const entry of await fs.promises.readdir(abs, { withFileTypes: true })) {
+		if (entry.isFile() && entry.name.endsWith('.tsbuildinfo')) continue;
+		if (!entry.isDirectory()) return false;
+		if (entry.name === 'node_modules') continue;
+		if (!(await holdsOnlyInstalls(path.join(abs, entry.name)))) return false;
+	}
+	return true;
+}
+
+/**
+ * After a switch, removes the directories the new tree does not have that
+ * are still on disk holding only an install the old branch made (#529).
+ * Git takes a directory's tracked files on a checkout and leaves its ignored
+ * ones, so a trunk-only `routes/dashboard/` survives a switch to an older
+ * pull request as a bare `node_modules`, and `wp-build`, which reads every
+ * directory under `routes/` as a route, fails on its missing `package.json`.
+ *
+ * Deliberately narrow, since this deletes. Only the topmost directory the new
+ * tree lacks, only when everything in it is a `node_modules`, or TypeScript
+ * build info, that Git ignores:
+ * one untracked file (the contributor's, or what #521 excludes) keeps the
+ * whole directory. The tree is compared without case, as macOS and Windows
+ * compare names: a directory renamed only by case is the same directory on
+ * disk, never a leftover. Switching back reinstalls when the directory is a
+ * workspace of the root lockfile, as Gutenberg's `routes/*` are. Each
+ * directory is best effort on its own.
+ *
+ * @param {string}      dir
+ * @param {Set<string>} candidates from parentsOfDeleted
+ * @return {Promise<string[]>} the directories removed
+ */
+async function removeLeftoverInstalls(dir, candidates) {
+	if (!candidates.size) return [];
+	const inTree = new Set((await treeDirectories(dir, 'HEAD')).map((d) => d.toLowerCase()));
+	const has = (d) => inTree.has(d.toLowerCase());
+	const gone = [...candidates].filter((d) => {
+		if (has(d)) return false;
+		const parent = path.posix.dirname(d);
+		return parent === '.' || has(parent);
+	}).sort();
+	const removed = [];
+	for (const d of gone) {
+		const abs = path.join(dir, ...d.split('/'));
+		try {
+			const stat = await fs.promises.lstat(abs);
+			if (!stat.isDirectory()) continue;
+			if (!(await holdsOnlyInstalls(abs))) continue;
+			if ((await otherPaths(dir, [d])).length) continue;
+			await fs.promises.rm(abs, { recursive: true, force: true, maxRetries: 3 });
+			removed.push(d);
+		} catch {
+			// Gone already, or a file held open on Windows past the retries,
+			// which can leave part of the install deleted and the directory
+			// still there: wp-build fails as before, and the next install on
+			// the branch that owns it fills it back in.
+		}
+	}
+	return removed;
+}
+
+/**
  * Parks the current ticket and checks out `ref`.
  *
  * The guard that matters: leaving *trunk* while it is dirty. Parking cannot
@@ -372,6 +574,22 @@ async function switchToBranch(dir, ref, { baseOid, author = WIP_AUTHOR, onProgre
 		({ parked } = await parkCurrentWork(dir, { baseOid, author, onProgress: report }));
 	}
 
+	// Read before the checkout, while the branch being left still has its
+	// `.gitignore` files on disk (#521). Best effort, here and after the
+	// checkout: failing costs only the old behaviour, the files showing up as
+	// changes, never the switch itself.
+	// The same tree diff also names the directories the switch may leave
+	// behind holding only an install (#529).
+	let before = null;
+	let candidates = new Set();
+	try {
+		const rows = await changedPathsBetween(dir, 'HEAD', ref);
+		candidates = parentsOfDeleted(rows);
+		before = await ignoredBeforeSwitch(dir, rows);
+	} catch {
+		before = null;
+	}
+
 	// Tagged with the stage it died in, the same contract updateToLatestTrunk
 	// uses, because the two halves fail very differently.
 	//
@@ -395,8 +613,16 @@ async function switchToBranch(dir, ref, { baseOid, author = WIP_AUTHOR, onProgre
 		}
 		throw e;
 	}
+	// Before the exclude: a directory holding what #521 excludes is not only
+	// an install, and must be kept, not deleted.
+	let removed = [];
+	try { removed = await removeLeftoverInstalls(dir, candidates); } catch { removed = []; }
+	let excluded = [];
+	if (before) {
+		try { excluded = await excludeLeftovers(dir, before); } catch { excluded = []; }
+	}
 	if (report) report({ stage: 'done', from });
-	return { switched: true, from, to: ref, parked };
+	return { switched: true, from, to: ref, parked, excluded, removed };
 }
 
 /**
@@ -593,6 +819,7 @@ module.exports = {
 	parkCurrentWork,
 	startTicketBranch,
 	switchToBranch,
+	leftoverEntries,
 	resumeSwitch,
 	rebaseOntoTrunk,
 	deleteTicketBranch

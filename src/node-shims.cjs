@@ -20,8 +20,10 @@ const path = require('path');
 // NODE_OPTIONS. NODE_OPTIONS is how win-spawn-patch.js reaches descendants, and
 // it is the right tool there — it has to reach a process several levels down that
 // we never invoke ourselves. Here we are the one invoking the process, and
-// measurement showed NODE_OPTIONS did not survive every chain reliably: an
-// argument does, always, because it is not inherited at all. It also confines the
+// measurement showed NODE_OPTIONS did not survive every chain reliably (on
+// macOS, a signed Electron removes it in any process the app did not start
+// itself, #525):
+// an argument does, always, because it is not inherited at all. It also confines the
 // patch to processes that actually go through the shim, instead of leaking into
 // every unrelated Node process a build happens to start. The one other route to
 // Electron-as-Node is the Windows spawn patch, which redirects `spawn('node')`
@@ -38,12 +40,55 @@ function requireArgs(compatPath) {
 	return compatPath ? `--require "${compatPath}" ` : '';
 }
 
+// On macOS, a signed Electron removes NODE_OPTIONS from a process that
+// something outside the app started, and every shim is a bash script: a build
+// that sets `NODE_OPTIONS=--import=…` for a child lost it, and the child failed
+// (#525). So the macOS shims pass NODE_OPTIONS on as arguments, which Electron
+// does read, placed before the CLI and the caller's own arguments. Only the
+// process the shim starts gets them: what that process starts in turn inherits
+// no NODE_OPTIONS, since Electron removed it.
+//
+// The variable is then unset, so Electron never sees it. An unsigned Electron
+// (`npm start`, CI) still reads it, and would apply every option twice, which
+// registers a `--loader` twice. Unset, not emptied: a signed Electron prints a
+// node_main.cc warning for the variable merely being present, which on a
+// Gutenberg build is a line per process that reads like an error.
+//
+// Split the way Node splits it (ParseNodeOptionsEnvVar), not by bash word
+// splitting, which would glob-expand and ignore the quotes: a space outside
+// quotes ends an option, `"` toggles quoting, and inside quotes `\` takes the
+// next character as it is. A function with locals, so no variable of ours
+// replaces one the child would inherit. Written for bash 3.2, the one macOS
+// ships.
+const NODE_OPTIONS_ARGS = [
+	'wptk_node_options() {',
+	'\tlocal s="${NODE_OPTIONS:-}" c tok= has=0 q=0 i=0',
+	'\twptk_opts=()',
+	'\twhile [ "$i" -lt "${#s}" ]; do',
+	'\t\tc="${s:i:1}"; i=$((i + 1))',
+	'\t\tif [ "$c" = \'\\\' ] && [ "$q" = 1 ]; then c="${s:i:1}"; i=$((i + 1))',
+	'\t\telif [ "$c" = \' \' ] && [ "$q" = 0 ]; then [ "$has" = 1 ] && wptk_opts+=("$tok"); tok=; has=0; continue',
+	'\t\telif [ "$c" = \'"\' ]; then q=$((1 - q)); continue',
+	'\t\tfi',
+	'\t\ttok="$tok$c"; has=1',
+	'\tdone',
+	'\t[ "$has" = 1 ] && wptk_opts+=("$tok")',
+	'\treturn 0',
+	'}',
+	'wptk_node_options',
+	'unset NODE_OPTIONS',
+	''
+].join('\n');
+
 // POSIX shims are bash scripts. The compat path is interpolated into a quoted
 // argument, so spaces are safe; unlike NODE_OPTIONS, nothing re-tokenises it.
-function posixShim({ execPath, compatPath, cliPath = null }) {
+function posixShim({ execPath, compatPath, cliPath = null, forwardNodeOptions = false }) {
 	const flag = compatPath ? `${COMPAT_FLAG}=1 ` : '';
 	const cli = cliPath ? `"${cliPath}" ` : '';
-	return `#!/usr/bin/env bash\n${flag}ELECTRON_RUN_AS_NODE=1 "${execPath}" ${requireArgs(compatPath)}${cli}"$@"\n`;
+	const prelude = forwardNodeOptions ? NODE_OPTIONS_ARGS : '';
+	// Guarded, since bash before 4.4 calls an empty array unbound under `set -u`.
+	const options = forwardNodeOptions ? '${wptk_opts[@]+"${wptk_opts[@]}"} ' : '';
+	return `#!/usr/bin/env bash\n${prelude}${flag}ELECTRON_RUN_AS_NODE=1 "${execPath}" ${requireArgs(compatPath)}${options}${cli}"$@"\n`;
 }
 
 // Windows shims are .cmd/.bat. Backslashes inside a quoted command-line argument
@@ -102,12 +147,12 @@ function nodeExecPath({
 
 function nodeShim({ execPath, compatPath, platform = process.platform }) {
 	const build = platform === 'win32' ? windowsShim : posixShim;
-	return build({ execPath, compatPath });
+	return build({ execPath, compatPath, forwardNodeOptions: platform === 'darwin' });
 }
 
 function cliShim({ execPath, compatPath, cliPath, platform = process.platform }) {
 	const build = platform === 'win32' ? windowsShim : posixShim;
-	return build({ execPath, compatPath, cliPath });
+	return build({ execPath, compatPath, cliPath, forwardNodeOptions: platform === 'darwin' });
 }
 
 module.exports = { nodeShim, cliShim, nodeExecPath, COMPAT_FLAG };

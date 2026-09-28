@@ -525,3 +525,21 @@ test('mergeBase and changedPathsBetween: a branch\'s own diff from where it left
 	assert.equal(await read.mergeBase(dir, 'trunk', 'elsewhere'), null);
 	await assert.rejects(read.mergeBase(dir, 'trunk', 'nope'), (error) => error.code === 128, 'an unknown ref is a fatal, not a "no"');
 });
+
+test('otherPaths: untracked files one by one, ignored ones with a whole directory as one entry, directories taken literally (#521)', async (t) => {
+	const dir = makeRepo(t);
+	fs.mkdirSync(path.join(dir, 'node_modules', 'react'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'node_modules', 'react', 'index.js'), 'dep\n');
+	fs.writeFileSync(path.join(dir, 'src', 'new.php'), '<?php\n');
+	// `[a]` read as a pattern matches the file `a`. Not `*`, which Windows
+	// refuses in a name.
+	fs.mkdirSync(path.join(dir, '[a]'));
+	fs.writeFileSync(path.join(dir, '[a]', 'bracket.txt'), 'bracket\n');
+	fs.writeFileSync(path.join(dir, 'a'), 'glob would match\n');
+
+	assert.deepEqual((await read.otherPaths(dir, [''])).sort(), ['[a]/bracket.txt', 'a', 'src/new.php']);
+	assert.deepEqual(await read.otherPaths(dir, [''], { ignored: true }), ['node_modules/']);
+	assert.deepEqual(await read.otherPaths(dir, ['[a]']), ['[a]/bracket.txt'], 'a [ in a directory name is a character');
+	assert.deepEqual(await read.otherPaths(dir, ['src']), ['src/new.php']);
+	assert.deepEqual(await read.otherPaths(dir, []), [], 'no directories, no spawn and nothing listed');
+});

@@ -2,7 +2,18 @@
 
 ## macOS blocks the app from opening
 
-The app is signed and notarized, but Gatekeeper can still block a freshly downloaded copy. Right-click the app and choose **Open**, or remove the quarantine attribute — the exact steps, including the `xattr` command and its one pitfall, are in [Getting started](./getting-started#if-macos-blocks-the-app).
+The app is signed and notarized by Automattic, so macOS should open it without issues. If Gatekeeper still blocks it (this can happen when the file was downloaded via a browser), try either of these:
+
+- Right-click the `.app` file and choose **Open**, then confirm in the dialog that appears.
+- Or remove the quarantine attribute from the `.app` bundle itself:
+
+  ```sh
+  xattr -d com.apple.quarantine "WordPress Contributor Toolkit.app"
+  ```
+
+  ::: warning Use `-d`, not `-dr`
+  The app is code-signed. The recursive flag (`-r`) tries to strip attributes from files inside the sealed bundle, which macOS rejects with permission errors. Removing the attribute from the top-level bundle is sufficient.
+  :::
 
 ## "Update incomplete" after a trunk update
 
