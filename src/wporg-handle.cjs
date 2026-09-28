@@ -22,9 +22,10 @@ const PROFILES_HOST = 'profiles.wordpress.org';
 
 // WordPress.org sanitizes a username down to this before it becomes the
 // profile slug: letters, digits, and the three separators, never leading or
-// trailing. Matched case-insensitively and stored lowercase, because that is
-// the form profiles.wordpress.org serves and the form props are written in.
-const HANDLE = /^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/i;
+// trailing. Lowercase only, because that is the form profiles.wordpress.org
+// serves and the form props are written in; the parser lowercases before it
+// asks, so the stored form and the accepted form are the same rule.
+const HANDLE = /^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/;
 
 // Longer than any real handle, short enough that the value stays a plausible
 // filename component and a single header line.
@@ -43,7 +44,6 @@ const NOT_A_HANDLE =
 function isHandle(value) {
 	return typeof value === 'string'
 		&& value.length <= MAX_HANDLE_LENGTH
-		&& value === value.toLowerCase()
 		&& HANDLE.test(value);
 }
 
@@ -60,10 +60,11 @@ function profileUrl(handle) {
  * @param {string} candidate
  */
 function fromHandle(candidate) {
-	if (candidate.length > MAX_HANDLE_LENGTH || !HANDLE.test(candidate)) {
-		return { ok: false, error: NOT_A_HANDLE };
-	}
-	const handle = candidate.toLowerCase();
+	// ASCII-only fold. String#toLowerCase also maps U+212A KELVIN SIGN to 'k',
+	// which would turn a homoglyph paste into somebody else's handle instead of
+	// refusing it; this module refuses, it does not repair.
+	const handle = candidate.replace(/[A-Z]/g, (c) => c.toLowerCase());
+	if (!isHandle(handle)) return { ok: false, error: NOT_A_HANDLE };
 	return { ok: true, handle, url: profileUrl(handle) };
 }
 
