@@ -19,6 +19,8 @@ import {
   Spinner,
   Tooltip
 } from '@wordpress/components';
+import { __, setLocaleData } from '@wordpress/i18n';
+import { addFilter } from '@wordpress/hooks';
 import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, edit, download, comment } from '@wordpress/icons';
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from '@xterm/xterm';
@@ -32,6 +34,7 @@ import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMes
 import { planUpdateHandOff } from './update-handoff.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
+import { applyLocale } from './locale-setup.cjs';
 import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
@@ -155,7 +158,9 @@ const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
 // What the create-site dialog offers under "Contribute to", read off the
 // registry so the copy and the order live in one place. Core is first, and
 // the default.
-const CREATE_SITE_TYPE_OPTIONS = Object.values(PROJECT_TYPES).map((t) => ({ label: t.wizardLabel, value: t.id, description: t.description }));
+// A function, not a constant: each description is translated when it is read,
+// which has to be after the locale has loaded.
+const createSiteTypeOptions = () => Object.values(PROJECT_TYPES).map((t) => ({ label: t.wizardLabel, value: t.id, description: t.description }));
 // Why the ticket's PR list could not be read, worded for the contributor.
 const TICKET_PATCH_STATUS_MESSAGE = {
   'rate-limited': 'GitHub is rate-limiting this connection.',
@@ -596,11 +601,11 @@ function App() {
   const handleCreateSiteSubmit = useCallback(async () => {
     const nameTrimmed = createSiteName.trim();
     if (!nameTrimmed) {
-      setCreateSiteError('Please provide a site name.');
+      setCreateSiteError(__('Please provide a site name.'));
       return;
     }
     if (!createSiteDir) {
-      setCreateSiteError('Please choose where to create the site.');
+      setCreateSiteError(__('Please choose where to create the site.'));
       return;
     }
 
@@ -794,16 +799,16 @@ function App() {
       <div style={{ width: sidebarCollapsed ? 56 : 280, background: '#1f1f1f', color: '#f7f7f7', display: 'flex', flexDirection: 'column', transition: 'width 0.2s ease', borderRight: '1px solid #2b2b2b' }}>
         <div style={{ padding: sidebarCollapsed ? '12px 8px' : '16px', borderBottom: '1px solid #2b2b2b' }}>
           <Flex align="center" justify="space-between">
-            {!sidebarCollapsed ? (<div style={{ fontWeight: 600 }}>Contributor Toolkit</div>) : null}
+            {!sidebarCollapsed ? (<div style={{ fontWeight: 600 }}>{__('Contributor Toolkit')}</div>) : null}
             <Button
               icon={sidebarCollapsed ? chevronRight : chevronLeft}
               onClick={() => setSidebarCollapsed((v) => !v)}
               variant="tertiary"
-              aria-label={sidebarCollapsed ? 'Expand site list' : 'Collapse site list'}
+              aria-label={sidebarCollapsed ? __('Expand site list') : __('Collapse site list')}
               isSmall
               style={{ color: '#f7f7f7' }}
             >
-              {!sidebarCollapsed ? 'Collapse' : null}
+              {!sidebarCollapsed ? __('Collapse') : null}
             </Button>
           </Flex>
           <Dropdown
@@ -817,7 +822,7 @@ function App() {
                 onClick={onToggle}
                 aria-expanded={isOpen}
                 aria-haspopup="dialog"
-                aria-label="Share feedback"
+                aria-label={__('Share feedback')}
                 icon={comment}
                 isSmall
                 style={{
@@ -831,14 +836,14 @@ function App() {
                   borderRadius: 0
                 }}
               >
-                {!sidebarCollapsed ? 'Share feedback' : null}
+                {!sidebarCollapsed ? __('Share feedback') : null}
               </Button>
             )}
             renderContent={({ onClose }) => (
               <div style={{ width: 320, padding: 16, color: '#1d2327' }}>
-                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Share feedback</div>
-                <p style={{ margin: '0 0 12px', lineHeight: 1.5 }}>Your feedback helps decide what to build next.</p>
-                <p style={{ margin: '0 0 16px', lineHeight: 1.5 }}>Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.</p>
+                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>{__('Share feedback')}</div>
+                <p style={{ margin: '0 0 12px', lineHeight: 1.5 }}>{__('Your feedback helps decide what to build next.')}</p>
+                <p style={{ margin: '0 0 16px', lineHeight: 1.5 }}>{__('Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.')}</p>
                 <Button
                   variant="link"
                   onClick={() => {
@@ -847,7 +852,7 @@ function App() {
                   }}
                   style={{ padding: 0, height: 'auto' }}
                 >
-                  Open the feedback form ↗
+                  {__('Open the feedback form ↗')}
                 </Button>
               </div>
             )}
@@ -855,7 +860,7 @@ function App() {
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? '12px 8px' : '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sortedSites.length === 0 && !sidebarCollapsed ? (
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>No sites yet.</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{__('No sites yet.')}</div>
           ) : null}
           {sortedSites.map((sitePath) => {
             const meta = siteMeta?.[sitePath] || {};
@@ -938,10 +943,10 @@ function App() {
             onClick={chooseAndSetup}
             disabled={createSubmitting}
             style={{ width: '100%', justifyContent: 'center' }}
-            aria-label="Create a site"
-            label={createSubmitting ? 'Finish creating the current site first' : undefined}
+            aria-label={__('Create a site')}
+            label={createSubmitting ? __('Finish creating the current site first') : undefined}
           >
-            {!sidebarCollapsed ? 'Create a site' : null}
+            {!sidebarCollapsed ? __('Create a site') : null}
           </Button>
         </div>
       </div>
@@ -1051,8 +1056,8 @@ function App() {
               ) : (
                 <Card>
                   <CardBody>
-                    <div style={{ marginBottom: 8 }}>No sites yet.</div>
-                    <div>Use the sidebar to create your first site.</div>
+                    <div style={{ marginBottom: 8 }}>{__('No sites yet.')}</div>
+                    <div>{__('Use the sidebar to create your first site.')}</div>
                   </CardBody>
                 </Card>
               )}
@@ -1063,7 +1068,7 @@ function App() {
       {createModalOpen ? (
         <Modal
           className="create-site-modal"
-          title="Create a site"
+          title={__('Create a site')}
           onRequestClose={closeCreateModal}
           shouldCloseOnClickOutside={!createSubmitting}
         >
@@ -1075,23 +1080,23 @@ function App() {
           >
             <TextControl
               id={CREATE_SITE_NAME_INPUT_ID}
-              label="Site name"
+              label={__('Site name')}
               value={createSiteName}
               onChange={(value) => setCreateSiteName(value)}
               disabled={createSubmitting}
-              placeholder="My WordPress site"
+              placeholder={__('My WordPress site')}
               // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: this is the first field of a just-opened modal.
               autoFocus
             />
             <RadioControl
-              label="Contribute to"
-              help="What this site is a checkout of: which repository it clones, and how it builds and runs. It cannot be changed later."
+              label={__('Contribute to')}
+              help={__('What this site is a checkout of: which repository it clones, and how it builds and runs. It cannot be changed later.')}
               selected={createSiteType}
-              options={CREATE_SITE_TYPE_OPTIONS}
+              options={createSiteTypeOptions()}
               onChange={(value) => setCreateSiteType(value)}
               disabled={createSubmitting}
             />
-            <label htmlFor={CREATE_SITE_LOCATION_INPUT_ID} style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#1d2327' }}>Site location</label>
+            <label htmlFor={CREATE_SITE_LOCATION_INPUT_ID} style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#1d2327' }}>{__('Site location')}</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <input
                 ref={createDirInputRef}
@@ -1113,17 +1118,17 @@ function App() {
                 aria-describedby={CREATE_SITE_LOCATION_HELP_ID}
                 style={{ height: 40, color: '#1d2327', background: '#fff', border: '1px solid #8c8f94', borderRadius: 4, padding: '6px 10px' }}
               />
-              <span style={{ fontSize: 12, color: '#3c434a' }}>{createSiteDir || 'No folder selected yet.'}</span>
+              <span style={{ fontSize: 12, color: '#3c434a' }}>{createSiteDir || __('No folder selected yet.')}</span>
             </div>
             <div id={CREATE_SITE_LOCATION_HELP_ID} style={{ fontSize: 12, color: '#3c434a', marginTop: -4 }}>
-              Choose the parent folder where you want this new site created. We&apos;ll add a new directory inside it for the project.
+              {__('Choose the parent folder where you want this new site created. We\'ll add a new directory inside it for the project.')}
             </div>
             {createSiteError ? (
               <div style={{ color: '#d63638', fontSize: 12 }}>{createSiteError}</div>
             ) : null}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Button type="button" variant="secondary" onClick={closeCreateModal} disabled={createSubmitting}>Cancel</Button>
-              <Button type="submit" variant="primary" isBusy={createSubmitting} disabled={createSubmitting}>Create site</Button>
+              <Button type="button" variant="secondary" onClick={closeCreateModal} disabled={createSubmitting}>{__('Cancel')}</Button>
+              <Button type="submit" variant="primary" isBusy={createSubmitting} disabled={createSubmitting}>{__('Create site')}</Button>
             </div>
           </form>
         </Modal>
@@ -6387,5 +6392,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   );
 }
 
-const root = createRoot(document.getElementById('root'));
-root.render(<App />);
+// The locale loads before the first render, so no string is ever painted in
+// English and then swapped. A failed read leaves the page in English.
+async function loadLocale() {
+  let reply;
+  try {
+    reply = await window.api.getLocale();
+  } catch (err) {
+    // eslint-disable-next-line no-console -- reaches the log file: logging.js initializes electron-log with spyRendererConsole, so this is how the renderer records a diagnostic.
+    console.error('Could not load the locale; showing English:', err);
+  }
+  document.documentElement.lang = applyLocale(reply, { setLocaleData, addFilter });
+  document.title = __('WordPress Contributor Toolkit');
+}
+
+loadLocale().then(() => {
+  const root = createRoot(document.getElementById('root'));
+  root.render(<App />);
+});

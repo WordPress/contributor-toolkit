@@ -16,8 +16,8 @@
   "main": "src/main.js",
   "scripts": {
     "start": "npm run build:once && concurrently -k \"npm:build:watch\" \"electron .\"",
-    "build:watch": "esbuild src/renderer/index.jsx --bundle --outdir=src/renderer --loader:.css=css --platform=browser --format=iife --jsx=automatic --log-level=info --watch",
-    "build:once": "esbuild src/renderer/index.jsx --bundle --outdir=src/renderer --loader:.css=css --platform=browser --format=iife --jsx=automatic --log-level=info",
+    "build:watch": "esbuild src/renderer/index.jsx --bundle --outdir=src/renderer --loader:.css=css --platform=browser --format=iife --jsx=automatic --alias:@wordpress/i18n=./node_modules/@wordpress/i18n/build-module/index.mjs --log-level=info --watch",
+    "build:once": "esbuild src/renderer/index.jsx --bundle --outdir=src/renderer --loader:.css=css --platform=browser --format=iife --jsx=automatic --alias:@wordpress/i18n=./node_modules/@wordpress/i18n/build-module/index.mjs --log-level=info",
     "postinstall": "electron-builder install-app-deps && npm run build:once",
     "dist:win": "npm run build:once && electron-builder --win --publish never",
     "dist:win:arm64": "npm run build:once && electron-builder --win --arm64 --publish never",
@@ -27,6 +27,7 @@
     "test:electron": "node scripts/run-tests-electron.cjs",
     "test:e2e": "playwright test --project=journeys",
     "test:e2e:packaged": "playwright test --project=packaged",
+    "i18n:pot": "node scripts/make-pot.cjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "shots": "npm run build:once && node scripts/screenshots/capture.cjs",
@@ -112,6 +113,8 @@
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
     "@wordpress/components": "^28.2.0",
+    "@wordpress/hooks": "^4.56.0",
+    "@wordpress/i18n": "^6.29.0",
     "@wordpress/icons": "^10.7.0",
     "@wp-playground/cli": "^3.1.47",
     "@xterm/xterm": "^5.5.0",
@@ -127,7 +130,9 @@
     "smtp-server": "^3.14.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
     "@playwright/test": "^1.62.1",
+    "@wordpress/babel-plugin-makepot": "^6.56.0",
     "@wordpress/eslint-plugin": "^25.7.0",
     "concurrently": "^8.2.2",
     "electron": "43.6.0",

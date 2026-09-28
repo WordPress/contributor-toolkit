@@ -84,6 +84,8 @@ const DEEP_LINK_CHANNEL = 'deep-link:ticket';
 // here has to know which kind it is holding.
 const { workItemProvider } = require('./work-item.cjs');
 const { LEGACY_SITE_ERROR } = require('./renderer/legacy-site.cjs');
+const { resolveCatalog } = require('./i18n.cjs');
+const { isPseudoLocale } = require('./renderer/pseudo-locale.cjs');
 const { mergeInProgressError, mergeCheckFailedError } = require('./renderer/merge-in-progress.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
@@ -636,6 +638,17 @@ ipcMain.handle('deep-link:ready', () => {
 	deepLinkQueue.markReady();
 	flushDeepLink();
 	return true;
+});
+
+// The language the window shows. `app.getLocale()` follows the OS, or Chromium's
+// `--lang` switch when one is passed, which is how the journeys pick a locale.
+// Chromium only accepts a language it ships resources for, so `--lang=en-XA`
+// reaches `getLocale()` as en-GB; the pseudo-locale is read off the switch itself.
+ipcMain.handle('i18n:locale', () => {
+	const requested = app.commandLine.getSwitchValue('lang');
+	const locale = isPseudoLocale(requested) ? requested : app.getLocale();
+	const data = resolveCatalog(locale, path.join(__dirname, 'languages'), (message) => logEvent('i18n', message));
+	return { locale, data };
 });
 
 // Without the lock, a link clicked while the app is running starts a second copy

@@ -68,6 +68,19 @@ GitHub fills every new pull request with [the template](.github/pull_request_tem
 
 Nothing enforces steps 1–4. Skipping them means a human reviewer is the first person to read the diff — which is exactly the cost this process exists to avoid.
 
+## Translatable strings
+
+The app is being made translatable with [`@wordpress/i18n`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-i18n/), one area at a time. The first-run screen and the create-site dialog are done; the rest is still plain English. When you wrap a string, or write a new one in an area that is already wrapped:
+
+- **Call `__()` when the string is shown, never when a module loads.** The locale arrives from main just before the first render, so a constant such as `const MESSAGE = __('…')` is evaluated too early and stays English. Make it a function, or a getter as in `src/project-type.cjs`.
+- **Pass a string literal.** `__(message)` or a template literal with `${}` cannot be extracted; `npm run i18n:pot` refuses it and names the line.
+- **Interpolate with `sprintf`, pluralise with `_n`.** A sentence built with `+` or `${}` fixes English word order into every language.
+- **Leave product names alone**: WordPress Core, Gutenberg, Trac, GitHub.
+
+To see what is wrapped, run the app in the pseudo-locale from the repository root: `npx electron . --lang=en-XA` (either platform). Every wrapped string shows accented and in brackets; plain English is a string nobody wrapped yet. `tests/e2e/journeys/i18n.spec.js` makes the same check on each finished screen, so when you finish wrapping a screen, add it there.
+
+`npm run i18n:pot` writes `languages/contributor-toolkit.pot`, the template a translator starts from. Catalogs go in `src/languages/` (see its README).
+
 ## The documentation site
 
 The user guide under `docs/` is a VitePress site, built by [`docs.yml`](.github/workflows/docs.yml) whenever it changes, on the pull request and again on the push to trunk, and deployed to GitHub Pages only when someone runs that workflow by hand. The live site therefore tracks the latest **release**, not trunk: your docs land with your change, and reach users when the version that contains the feature ships. Advancing it is one command, run from trunk as part of cutting a release:

@@ -34,3 +34,7 @@ fastlane/report.xml
 # is not on it (#399).
 vendor/bundle
 vendor/npm
+
+# The translation template. Generated from src/ by `npm run i18n:pot`, so it cannot drift from
+# the strings it lists.
+/languages/
