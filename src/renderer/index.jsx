@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Button,
@@ -12,6 +12,7 @@ import {
   MenuGroup,
   MenuItem,
   Modal,
+  RadioControl,
   SnackbarList,
   TextControl,
   TextareaControl,
@@ -29,37 +30,46 @@ import { Section } from './ui/Section.jsx';
 import { ActionRow } from './ui/ActionRow.jsx';
 import { MetaText } from './ui/MetaText.jsx';
 import { StatusBadge } from './ui/StatusBadge.jsx';
-import { Terminal } from 'xterm';
-import 'xterm/css/xterm.css';
+import { Terminal } from '@xterm/xterm';
+import '@xterm/xterm/css/xterm.css';
 import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision, setupStepLabel } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
-import { shouldShowTerminalHints, computeTerminalBusy } from './terminal-hints.cjs';
-import { planDevServerStart, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
+import { computeTerminalBusy } from './terminal-hints.cjs';
+import { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
+import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from './watch-waiters.cjs';
+import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState } from './watch-activity.cjs';
+import { planUpdateHandOff } from './update-handoff.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
+import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
-import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome } from './update-plan.cjs';
+import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, planTicketSwitchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome, updateStepText } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { parsePrRef } from '../patch-sources.cjs';
 import { prStateBadge } from './pr-state.cjs';
 import { statusBadge } from '../trac-ticket-info.cjs';
 import { prDateLabel } from './pr-date-label.cjs';
-import { ticketUrl, attachUrl } from './trac-ticket.cjs';
+import { workItemProvider } from '../work-item.cjs';
 import { adminUrl, adminerUrl } from './site-urls.cjs';
-import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
-import { ticketTrunkNotice } from './ticket-trunk-notice.cjs';
+import { ticketBranchRows, savedPrForSwitch, ticketListCard } from './ticket-branch-list.cjs';
+import { ticketTrunkNotice, rebaseRefusal } from './ticket-trunk-notice.cjs';
+import { legacySiteNotice } from './legacy-site.cjs';
+import { deepLinkNotice } from './deep-link-notice.cjs';
+import { mergeInProgressNotice } from './merge-in-progress.cjs';
+import { describePrCheckout, describePrPreview, prCheckoutRefusal, prSubmissionRefusal } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
 import { highlightLog } from './log-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
-import { changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
+import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
+import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage } from './confirmations.cjs';
+import { prStageLabel } from './pr-stage.cjs';
 
-const TERMINAL_ALLOWED_SCRIPTS = ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'];
 // One face for everything that is process output: the terminal below and every
 // log pane above it. Shared rather than repeated because the panes had drifted
 // into the app's sans-serif, which does not line up a stack trace and does not
@@ -71,6 +81,13 @@ const LOG_PANE_STYLE = { ...TERMINAL_FONT, lineHeight: 1.4, whiteSpace: 'pre-wra
 // The build-watch status dot, by state (#247). Keyed rather than nested
 // ternaries; an unknown state falls back to the grey "stopped" colour.
 const WATCH_DOT_COLORS = { watching: '#00a32a', building: '#dba617', paused: '#dba617', exited: '#d63638' };
+// The applied banner's colours by tone (#509): green for a built site, amber
+// while the watch rebuilds it, red when the rebuild was cut short.
+const APPLIED_BANNER_COLORS = {
+  ready: { border: '#94d3ae', background: '#f4fbf4', text: '#0f5132' },
+  building: { border: '#dba617', background: '#fcf9e8', text: '#6e5406' },
+  unbuilt: { border: '#d63638', background: '#fcf0f1', text: '#8a1f21' }
+};
 // What the Copy button says about the press just made. Keyed rather than
 // nested ternaries, so a fourth state is a line here instead of another branch
 // in the middle of the JSX.
@@ -80,53 +97,51 @@ const COPY_BUTTON_LABELS = {
   failed: 'Could not copy'
 };
 
+// A button that explains itself while disabled (#409). A reason disables it
+// the accessible way: still in the tab order, `aria-disabled` rather than
+// `disabled` so assistive technology reads it, the sentence as its
+// description and as a tooltip. `title` would do neither, since Chromium
+// shows no tooltip on a disabled control.
+//
+// The Tooltip is rendered whether or not there is a reason, and with no text
+// it renders its anchor and no popover. The conditional version returned two
+// different element types at the same position, so React remounted the
+// button every time the gate flipped — which throws away exactly what
+// `accessibleWhenDisabled` buys, since a keyboard user who just activated
+// the control has the focused element destroyed under them and focus falls
+// back to the document. `disabled` is passed through for gates that need no
+// sentence (an empty input, not a blocked action).
+function ReasonedButton({ reason, disabled, children, ...props }) {
+  return (
+    <Tooltip text={reason || undefined} placement="bottom">
+      <Button
+        {...props}
+        disabled={reason ? true : disabled}
+        accessibleWhenDisabled={Boolean(reason)}
+        description={reason || undefined}
+      >{children}</Button>
+    </Tooltip>
+  );
+}
 // One discard action, wherever it is offered. Keeping the disabled rendering
 // here means the ticket note cannot lose the explanation while the review
 // modal keeps it (or vice versa).
 function DiscardChangesLink({ label, onClick, reason, style }) {
-  if (!reason) {
-    return <Button variant="link" isDestructive onClick={onClick} style={style}>{label}</Button>;
-  }
-  return (
-    <Tooltip text={reason} placement="bottom">
-      <Button
-        variant="link"
-        isDestructive
-        onClick={onClick}
-        disabled
-        accessibleWhenDisabled
-        description={reason}
-        style={style}
-      >{label}</Button>
-    </Tooltip>
-  );
+  return <ReasonedButton variant="link" isDestructive onClick={onClick} reason={reason} style={style}>{label}</ReasonedButton>;
 }
-// What the app is doing while a pull request is being opened (#167). Each step
-// is named because they take visibly different amounts of time — forking is the
-// slow one, and an unlabelled spinner there reads as a hang.
-const PR_STAGE_LABELS = {
-  forking: 'Creating your fork of wordpress-develop…',
-  syncing: 'Bringing your fork up to date…',
-  committing: 'Uploading your changes…',
-  opening: 'Opening the pull request…'
-};
 // Why it failed, in a sentence that says what to do about it. Every one of
 // these still leaves the patch file, which is what the card offers underneath.
+// The no-ticket refusal is not here: the main process words it for the site's
+// work item (#251), and the fallback below shows that sentence as sent.
 const PR_FAILURE_MESSAGES = {
   unauthorized: 'That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.',
   'rate-limited': 'GitHub is rate-limiting this connection. It usually clears within the hour.',
   offline: 'No connection to GitHub.',
-  'no-ticket': 'Link a Trac ticket to this site first — a pull request has to cite one.',
   empty: 'There are no changes to open a pull request with.'
 };
 // Per-status wording for the update chain card (#94), following the issue's
 // mockups: the skipped install step is named, never hidden, and the build
 // step points at the Terminal instead of opening a second log surface.
-const UPDATE_STEP_LABELS = {
-  fetch: { pending: 'Fetch and reset to trunk', current: 'Fetching and resetting to trunk…', complete: 'Fetched and reset to trunk' },
-  install: { pending: 'Install dependencies', current: 'Dependencies changed — installing the difference…', complete: 'Dependencies installed', skipped: SKIP_INSTALL_MESSAGE },
-  build: { pending: 'Rebuild', current: 'Rebuilding — output in the Terminal below', complete: 'Rebuilt' }
-};
 // Checkmark/pointer and color per step status; pending/skipped fall back to
 // no symbol in muted gray.
 const UPDATE_STEP_MARKS = {
@@ -146,13 +161,16 @@ const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
 const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
 const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
+// What the create-site dialog offers under "Contribute to", read off the
+// registry so the copy and the order live in one place. Core is first, and
+// the default.
+const CREATE_SITE_TYPE_OPTIONS = Object.values(PROJECT_TYPES).map((t) => ({ label: t.wizardLabel, value: t.id, description: t.description }));
 // Why the ticket's PR list could not be read, worded for the contributor.
 const TICKET_PATCH_STATUS_MESSAGE = {
   'rate-limited': 'GitHub is rate-limiting this connection.',
   offline: 'Could not reach GitHub.',
   error: 'Could not read the pull requests from GitHub.'
 };
-const TRAC_TICKET_LISTS_URL = 'https://core.trac.wordpress.org/tickets/good-first-bugs';
 const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
 
 function formatEmailDate(email) {
@@ -357,9 +375,14 @@ function App() {
   useEffect(() => { (async () => { try { setWebAvailable(Boolean(await window.api.playgroundWebAvailable())); } catch {} })(); }, []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeSite, setActiveSite] = useState(null);
+  const [deletingSites, setDeletingSites] = useState([]);
+  // State paints the progress, while the ref closes the same-tick gap before
+  // React renders it and prevents two delete requests for one site.
+  const deletingSitesRef = useRef(new Set());
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createSiteName, setCreateSiteName] = useState('');
   const [createSiteDir, setCreateSiteDir] = useState('');
+  const [createSiteType, setCreateSiteType] = useState(DEFAULT_PROJECT_TYPE);
   const [createSiteError, setCreateSiteError] = useState('');
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
@@ -515,6 +538,27 @@ function App() {
     return () => { if (unsub) unsub(); };
   }, []);
 
+  // A ticket handed to the app by a `wpct://` link (#464). Held here rather
+  // than in SiteRow for the reason the switch progress gives: every row stays
+  // mounted, so subscribing per row would open one listener per site for an
+  // event that concerns exactly one of them.
+  //
+  // `at` is what makes the same ticket arriving twice two events. Without it
+  // the second link is the same state value, the effect below never re-runs,
+  // and a banner the contributor dismissed never comes back.
+  const [deepLink, setDeepLink] = useState(null);
+  useEffect(() => {
+    const unsub = window.api.subscribeDeepLinkTicket((p) => {
+      if (!p || !p.ticket) return;
+      setDeepLink({ ticket: p.ticket, at: Date.now() });
+    });
+    // Only after the subscription above exists: main holds a ticket that
+    // arrived while this page was still loading until it hears this.
+    Promise.resolve(window.api.deepLinkReady()).catch(() => {});
+    return () => { if (unsub) unsub(); };
+  }, []);
+  const clearDeepLink = useCallback(() => setDeepLink(null), []);
+
   // Refused while one is already running. Everything about this flow is
   // single-file and always has been — one pending card, one terminal, one
   // `clearPendingSites()` that clears them all — and `setupRowPathRef` is one
@@ -526,6 +570,7 @@ function App() {
     if (createSubmitting) return;
     setCreateSiteName('');
     setCreateSiteDir('');
+    setCreateSiteType(DEFAULT_PROJECT_TYPE);
     setCreateSiteError('');
     setCreateModalOpen(true);
   }, [createSubmitting]);
@@ -577,12 +622,15 @@ function App() {
     applySetup((state) => beginSetup(state, {
       path: targetDir,
       label: nameTrimmed,
-      createdAt: placeholderCreatedAt
+      createdAt: placeholderCreatedAt,
+      projectType: createSiteType
     }));
     setActiveSite(targetDir);
     setCreateModalOpen(false);
     setCreateSiteName('');
     setCreateSiteDir('');
+    const chosenType = createSiteType;
+    setCreateSiteType(DEFAULT_PROJECT_TYPE);
 
     try {
       setCreateSubmitting(true);
@@ -590,7 +638,7 @@ function App() {
       setTerminalMsgs('');
       addPendingSite(targetDir);
       appendSetupLog(targetDir, 'Starting site setup…\n');
-      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed });
+      const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed, projectType: chosenType });
       if (createdPath) {
         finalSitePath = createdPath;
         // Ordinarily already done, by the `cloning` status this handler's own
@@ -624,7 +672,7 @@ function App() {
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, moveSetupLog, refresh]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, createSiteType, moveSetupLog, refresh]);
 
   const closeCreateModal = useCallback(() => {
     if (createSubmitting) return;
@@ -689,15 +737,25 @@ function App() {
   }, [setSiteMeta]);
 
   const onDelete = useCallback(async (sitePath) => {
-    const result = await window.api.deleteSite(sitePath);
-    await refresh();
-    removeSetupLog(sitePath);
-    // A deletion that half-happened must not look like one that worked (#381).
-    // The sentence and the decision to show it live in confirmations.cjs,
-    // where the suite can reach them; the error tone stays until dismissed.
-    const failure = deleteFailureMessage(result);
-    if (failure) {
-      confirm(failure, { tone: 'error' });
+    if (deletingSitesRef.current.has(sitePath)) return;
+    deletingSitesRef.current.add(sitePath);
+    setDeletingSites((current) => (current.includes(sitePath) ? current : [...current, sitePath]));
+    let result;
+    try {
+      try {
+        result = await window.api.deleteSite(sitePath);
+      } catch {
+        result = { ok: false, reason: 'remove-failed', path: sitePath };
+      }
+      try { await refresh(); } catch {}
+      if (result?.ok) removeSetupLog(sitePath);
+      // A failed deletion stays visible and retryable. The error tone keeps its
+      // notice on screen until dismissed rather than expiring on a timer.
+      const failure = deleteFailureMessage(result);
+      if (failure) confirm(failure, { tone: 'error' });
+    } finally {
+      deletingSitesRef.current.delete(sitePath);
+      setDeletingSites((current) => current.filter((path) => path !== sitePath));
     }
   }, [refresh, removeSetupLog, confirm]);
 
@@ -745,7 +803,7 @@ function App() {
       <div style={{ width: sidebarCollapsed ? 56 : 280, background: '#1f1f1f', color: '#f7f7f7', display: 'flex', flexDirection: 'column', transition: 'width 0.2s ease', borderRight: '1px solid #2b2b2b' }}>
         <div style={{ padding: sidebarCollapsed ? '12px 8px' : '16px', borderBottom: '1px solid #2b2b2b' }}>
           <Flex align="center" justify="space-between">
-            {!sidebarCollapsed ? (<div style={{ fontWeight: 600 }}>WordPress Core</div>) : null}
+            {!sidebarCollapsed ? (<div style={{ fontWeight: 600 }}>Contributor Toolkit</div>) : null}
             <Button
               icon={sidebarCollapsed ? chevronRight : chevronLeft}
               onClick={() => setSidebarCollapsed((v) => !v)}
@@ -811,7 +869,14 @@ function App() {
           {sortedSites.map((sitePath) => {
             const meta = siteMeta?.[sitePath] || {};
             const siteName = (meta.label && meta.label.trim()) || pathBasename(sitePath);
+            // Every row says which project its site is (#251), so a list
+            // of mixed sites reads at a glance.
+            const projectTag = getProjectType(meta.projectType).tag;
             const isActive = activeSite === sitePath;
+            const isDeleting = deletingSites.includes(sitePath);
+            let siteButtonMinHeight = 40;
+            if (sidebarCollapsed) siteButtonMinHeight = 36;
+            else if (isDeleting) siteButtonMinHeight = 58;
             // Staleness surfaces in the sidebar before the site is even
             // opened (#94): amber = old trunk snapshot, red = an update that
             // moved trunk but never finished install/build.
@@ -832,6 +897,10 @@ function App() {
               <Button
                 key={sitePath}
                 onClick={() => handleSelectSite(sitePath)}
+                aria-busy={isDeleting}
+                aria-label={isDeleting ? `${siteName}, Deleting` : undefined}
+                disabled={isDeleting}
+                accessibleWhenDisabled={isDeleting}
                 variant="tertiary"
                 isSmall
                 isPressed={isActive}
@@ -843,15 +912,25 @@ function App() {
                   color: '#f7f7f7',
                   padding: sidebarCollapsed ? '8px 0' : '10px 12px',
                   borderRadius: 6,
+                  height: 'auto',
+                  minHeight: siteButtonMinHeight,
+                  opacity: 1,
                 }}
               >
-                {sidebarCollapsed ? (
+                {sidebarCollapsed && !isDeleting ? (
                   <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>{siteName.slice(0, 1).toUpperCase()}{staleDot}</span>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-                    <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{siteName}{staleDot}</span>
+                ) : null}
+                {sidebarCollapsed && isDeleting ? <Spinner style={{ width: 16, height: 16, margin: 0 }} /> : null}
+                {!sidebarCollapsed ? (
+                  <div style={{ width: '100%', minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3 }}>
+                      <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{siteName}{staleDot}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '1px 6px', borderRadius: 999, background: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.85)' }}>{projectTag}</span>
+                      {isDeleting ? <span style={{ fontSize: 11, lineHeight: 1.3, color: 'rgba(255,255,255,0.72)' }}>Deleting site…</span> : null}
+                    </div>
+                    {isDeleting ? <Spinner style={{ width: 16, height: 16, margin: 0, flexShrink: 0 }} /> : null}
                   </div>
-                )}
+                ) : null}
               </Button>
             );
           })}
@@ -868,10 +947,10 @@ function App() {
             onClick={chooseAndSetup}
             disabled={createSubmitting}
             style={{ width: '100%', justifyContent: 'center' }}
-            aria-label="Create WordPress Core site"
+            aria-label="Create a site"
             label={createSubmitting ? 'Finish creating the current site first' : undefined}
           >
-            {!sidebarCollapsed ? 'Create WordPress Core site' : null}
+            {!sidebarCollapsed ? 'Create a site' : null}
           </Button>
         </div>
       </div>
@@ -931,6 +1010,26 @@ function App() {
                 </Card>
               )}
 
+              {/* A ticket arrived from a link and there is no site to put it
+                  in. The site in front of the contributor gets its own
+                  confirmation inside the ticket panel, where the ticket would
+                  go; `activeSite` is null only when there are no sites at all,
+                  so this is the one other case. */}
+              {(() => {
+                if (!deepLink || activeSite) return null;
+                const notice = deepLinkNotice({ ticket: deepLink.ticket });
+                if (!notice) return null;
+                return (
+                  <div role="status" style={{ marginBottom: 24, padding: '12px 14px', background: '#f0f6fc', border: '1px solid #72aee6', borderRadius: 8, color: '#1d2327' }}>
+                    <div style={{ fontWeight: 600 }}>{notice.title}</div>
+                    <div style={{ marginTop: 4, fontSize: 13 }}>{notice.body}</div>
+                    <div style={{ marginTop: 8 }}>
+                      <Button variant="link" onClick={clearDeepLink} style={{ fontSize: 12 }}>Dismiss</Button>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {sortedSites.length > 0 ? (
                 sortedSites.map((s) => (
                   <div
@@ -943,17 +1042,22 @@ function App() {
                       initialized={Boolean(siteMeta?.[s]?.initialized)}
                       createdAt={siteMeta?.[s]?.createdAt}
                       label={siteMeta?.[s]?.label}
+                      projectType={siteMeta?.[s]?.projectType}
                       onInitialized={onInitialized}
                       onSiteMetaPatch={onSiteMetaPatch}
                       onDelete={onDelete}
                       onRename={onRename}
+                      onCreateSite={() => setCreateModalOpen(true)}
                       editor={detectedApplications}
                       wporg={wporg}
                       isPending={pendingSites.includes(s)}
+                      isDeleting={deletingSites.includes(s)}
                       setupLogs={setupLogsBySite[s] || ''}
                       switchProgress={switchProgressBySite[s] || null}
                       onClearSwitchNotices={clearSwitchNotices}
                       carriedWork={carriedWorkBySite[s] || null}
+                      deepLink={activeSite === s ? deepLink : null}
+                      onDeepLinkDone={clearDeepLink}
                       isActive={activeSite === s}
                     />
                   </div>
@@ -973,7 +1077,7 @@ function App() {
       {createModalOpen ? (
         <Modal
           className="create-site-modal"
-          title="Create WordPress Core site"
+          title="Create a site"
           onRequestClose={closeCreateModal}
           shouldCloseOnClickOutside={!createSubmitting}
         >
@@ -992,6 +1096,14 @@ function App() {
               placeholder="My WordPress site"
               // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: this is the first field of a just-opened modal.
               autoFocus
+            />
+            <RadioControl
+              label="Contribute to"
+              help="What this site is a checkout of: which repository it clones, and how it builds and runs. It cannot be changed later."
+              selected={createSiteType}
+              options={CREATE_SITE_TYPE_OPTIONS}
+              onChange={(value) => setCreateSiteType(value)}
+              disabled={createSubmitting}
             />
             <label htmlFor={CREATE_SITE_LOCATION_INPUT_ID} style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#1d2327' }}>Site location</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -1207,7 +1319,7 @@ function TerminalCommandLink({ command, onPrefill, disabled }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSiteMetaPatch, onDelete, onRename, editor, wporg, isPending = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1233,7 +1345,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [debugLogPath, setDebugLogPath] = useState('');
   const [activeLogTab, setActiveLogTab] = useState('runtime');
   const activeLogTabRef = useRef('runtime');
-  // The build watcher (grunt _watch) runs decoupled from the PHP server (issue
+  // The build watcher (the target's, see project-type.cjs) runs decoupled from the PHP server (issue
   // #247): its own output tab, its own lifecycle. `watchState` drives the tab
   // title; `watchExitCode` is only read when the state is 'exited'.
   const [watchLogs, setWatchLogs] = useState('');
@@ -1245,10 +1357,64 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Set while the watcher is (or was) live, so a pause knows whether a resume
   // has anything to bring back. Survives the process being killed for a pause.
   const watchWasActiveRef = useRef(false);
+  // True while the last thing to touch build/ was a watch rebuild that did not
+  // finish: stopped or crashed while 'building'. build/ may then be empty or
+  // half written whatever the status's marker file says, so the server does
+  // not start on it without a watch (#499, serveWithoutWatch). Cleared when a
+  // watch reaches watching or a one-shot npm run build exits 0.
+  // The ref is what the callbacks read; the state is what the applied banner
+  // reads (#509), so both move together.
+  const buildInterruptedRef = useRef(false);
+  const [buildInterrupted, setBuildInterrupted] = useState(false);
+  const markBuildInterrupted = useCallback((interrupted) => {
+    buildInterruptedRef.current = interrupted;
+    setBuildInterrupted(interrupted);
+  }, []);
   const markWatchState = useCallback((state, code = null) => {
     watchStateRef.current = state;
     setWatchState(state);
     if (state === 'exited') setWatchExitCode(Number.isFinite(code) ? code : null);
+  }, []);
+  // Whoever is waiting for the watch to be ready to serve behind — the dev
+  // server start, today. The queue and its settle-once rule live in
+  // watch-waiters.cjs; a ref because the watcher's output handler settles it
+  // from outside a render (#488).
+  const watchWaitersRef = useRef(createWatchWaiters());
+  // Which apply's hand-off to the resumed watch is current (#506). The waiters
+  // survive a pause (a queued dev-server start is meant to), so an apply's
+  // waiter left over from a rebuild that a later pause cut short, or that a
+  // later src-only apply overtook, would fire on the ready line and confirm an
+  // apply already reported. Every apply, switch and pause invalidates the
+  // generation; the callbacks check the token they were registered under. Same
+  // mechanism as the watch runs (createRunGeneration), for the same reason.
+  const applyHandOffRef = useRef(createRunGeneration());
+  // The watch decision a saved-work restore made in begin, for its complete.
+  const switchImpactRef = useRef(null);
+  const settleWatchWaiters = useCallback((ready) => { watchWaitersRef.current.settle(ready); }, []);
+  // Which watcher run is current. A stop returns before the process has
+  // exited, so a run started right after inherits the old run's late
+  // callbacks; each callback checks the token it was started with and leaves
+  // a replaced run's state alone (#488).
+  const watchGenerationRef = useRef(createRunGeneration());
+  // Whether the watch is still compiling a change just handed to it (#492).
+  // The ref keeps the timestamps; the state is what the banner and the tab
+  // title read. A 500 ms tick while compiling is what flips it back.
+  const watchActivityRef = useRef(createWatchActivity());
+  const [watchCompiling, setWatchCompiling] = useState(false);
+  useEffect(() => {
+    if (!watchCompiling) return undefined;
+    const tick = setInterval(() => {
+      if (!watchActivityRef.current.isCompiling(Date.now())) setWatchCompiling(false);
+    }, 500);
+    return () => clearInterval(tick);
+  }, [watchCompiling]);
+  const handOffToWatch = useCallback(() => {
+    watchActivityRef.current.handOff(Date.now());
+    setWatchCompiling(true);
+  }, []);
+  const clearWatchActivity = useCallback(() => {
+    watchActivityRef.current.clear();
+    setWatchCompiling(false);
   }, []);
   // '' | 'copied' | 'failed', on the debug.log Copy button for two seconds.
   const [debugCopied, setDebugCopied] = useState('');
@@ -1309,12 +1475,46 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // the app knows there is no build on disk, just not that the last attempt lost.
   const [buildFailed, setBuildFailed] = useState(false);
   const [hasBuilt, setHasBuilt] = useState(false);
+  // Which target this site is a checkout of (#251): the site record's field,
+  // carried by the placeholder from the moment the dialog closes, and Core
+  // for any site made before the field existed. `build` is what the watcher
+  // and the terminal's script list read. The work-item card shows on every
+  // site and takes its words from the provider; what is Trac's alone (the
+  // attachments, "Attach to Trac", the patch-file picker, the pull-request
+  // flow until PR 5) shows only where the work item is a Trac ticket.
+  const project = getProjectType(projectType);
+  const projectBuild = project.build;
+  // A watch that rebuilds build/ from scratch when it starts (Gutenberg's npm
+  // run dev, the registry's readyPattern) does the one build after an apply
+  // that paused it; the apply skips its own (#506).
+  const watchRebuildsOnStart = Boolean(projectBuild.watch.readyPattern);
+  // Trac's alone: the attachments, "Attach to Trac", "Read details from Trac".
+  // The pull-request destination is on every site since #251.
+  const showTracCards = project.workItem.provider === 'trac';
+  // Memoised on the registry entry, which is a stable object, so the
+  // callbacks that parse a reference do not change identity every render.
+  const workItem = useMemo(
+    () => workItemProvider(project.workItem.provider, `${project.upstream.owner}/${project.upstream.repo}`),
+    [project]
+  );
+  // Read through a ref by the terminal's command handlers rather than closed
+  // over: the xterm instance is created by an effect that depends on
+  // `printHelp`, so a new array identity here would otherwise dispose and
+  // recreate the terminal, scrollback and all, the first time a status
+  // reports a type. Same indirection as terminalInputHandlerRef.
+  const allowedScriptsRef = useRef(projectBuild.allowedScripts);
+  allowedScriptsRef.current = projectBuild.allowedScripts;
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
   // Trac ticket association (#109)
   const [tracTicket, setTracTicket] = useState(null);
   const [ticketBehindTrunk, setTicketBehindTrunk] = useState(false);
+  // A site the old engine made (#385): read, never written.
+  const [legacy, setLegacy] = useState(false);
+  // A merge started outside the app and not finished (#352): read, and
+  // every checkout write refused until a terminal ends it.
+  const [mergeInProgress, setMergeInProgress] = useState(null);
   const [ticketInput, setTicketInput] = useState('');
   const [ticketError, setTicketError] = useState('');
   const [ticketSaving, setTicketSaving] = useState(false);
@@ -1344,6 +1544,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const [trunkDate, setTrunkDate] = useState(null);
   const [updateIncomplete, setUpdateIncomplete] = useState(false);
   const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
+  // Who runs the update's build: null for the chain itself, 'resumed-watch'
+  // when the watch paused for the reset rebuilds from scratch as it resumes and
+  // the chain leaves the one build to it (Gutenberg, #507). Decided where the
+  // watch is paused, read by the step card and the install step's hand-off.
+  const [updateBuildBy, setUpdateBuildBy] = useState(null);
+  // True from the hand-off to the resumed watch until its ready line or exit.
+  // The card stays on step 3 and every isUpdating gate holds, except Stop build
+  // watch: it is the one control that can end the wait, and a hung watch would
+  // otherwise leave the site row inert until an app restart (#507). The terminal
+  // lock is released (the watch holds none), but the prompt hints stay busy so
+  // the card does not offer npm run build over the tree the watch is rebuilding.
+  const [updateWaitingOnWatch, setUpdateWaitingOnWatch] = useState(false);
   // Initial setup chain (#246): install then build, started by the clone
   // finishing rather than by a click. Same shape as the two chains below.
   const [setupChainState, setSetupChainState] = useState('idle'); // idle | installing | building
@@ -1352,12 +1564,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Applying someone else's patch (#11)
   const [applyState, setApplyState] = useState('idle'); // idle | applying | installing | building
   const [applyPreview, setApplyPreview] = useState(null);
+  const [applyKind, setApplyKind] = useState('patch');
   // Held separately from applyPreview: the preview is cleared the moment the
   // chain starts, and the step list still has to know whether install runs.
   const [applyNeedsInstall, setApplyNeedsInstall] = useState(false);
-  // True when a running build watch will recompile the change, so the apply
-  // chain shows its build step skipped and attributed to the watch (#262).
-  const [applyBuildByWatcher, setApplyBuildByWatcher] = useState(false);
+  // Which watch does the rebuild instead of the apply chain, so its build step
+  // shows skipped and attributed to it: 'live-watch' when a running watch
+  // recompiles the change (#262), 'resumed-watch' when the watch paused for the
+  // apply rebuilds from scratch as it resumes (#506), null when the chain builds.
+  const [applyBuildByWatcher, setApplyBuildByWatcher] = useState(null);
   const [applyError, setApplyError] = useState('');
   // The failure broken down: which regions of the patch no longer fit, where,
   // why, and what they were trying to change (#282, #226). Held beside
@@ -1373,11 +1588,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // fails — three rows above, in the case that prompted this — so the way out
   // is a scroll, not a fetch.
   const ticketPatchesRef = useRef(null);
+  // A dirty-trunk question is rendered before the PR switch function is
+  // declared below. Its continuation uses this current-render ref so clearing
+  // the trunk can retry the PR operation instead of routing `pr/N` through the
+  // ticket parser (#458).
+  const retryPrSwitchRef = useRef(null);
+  const ticketSwitchLifecycleRef = useRef(null);
   // Not every unhappy ending is a failure: a revert can find that the patch is
   // already gone, which resolves the situation rather than blocking it. Red
   // would read as "you broke something" when nothing is left to do.
   const [applyNotice, setApplyNotice] = useState('');
   const [appliedPatch, setAppliedPatch] = useState(null);
+  const [pullRequest, setPullRequest] = useState(null);
   const [prUrlInput, setPrUrlInput] = useState('');
   const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
   const [dirtySaving, setDirtySaving] = useState(false);
@@ -1430,6 +1652,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // this site view unmounts (site switch, window teardown) its process would be
   // orphaned. Kill it on unmount / before switching sites.
   useEffect(() => () => {
+    watchGenerationRef.current.invalidate();
     const runId = watchRunIdRef.current;
     if (runId) window.api.npmKill({ runId, directoryPath: sitePath }).catch(() => {});
   }, [sitePath]);
@@ -1606,9 +1829,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // output is the case this panel exists for.
   const logTabs = useMemo(() => ([
     { name: 'runtime', title: 'Server' },
-    { name: 'watch', title: watchTabLabel(watchState, watchExitCode) },
+    { name: 'watch', title: watchTabLabel(watchState, watchExitCode, watchCompiling) },
     { name: 'debug', title: debugUnread ? `debug.log (${debugUnread})` : 'debug.log' }
-  ]), [debugUnread, watchState, watchExitCode]);
+  ]), [debugUnread, watchState, watchExitCode, watchCompiling]);
   const clearDebugLog = useCallback(async () => {
     setDebugLogs('');
     setDebugUnread(0);
@@ -1667,7 +1890,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       setUpdateIncomplete(Boolean(s?.updateIncomplete));
       setTracTicket(s?.tracTicket || null);
       setTicketBehindTrunk(Boolean(s?.ticketBehindTrunk));
+      setLegacy(Boolean(s?.legacy));
+      setMergeInProgress(s?.mergeInProgress || null);
       setAppliedPatch(s?.appliedPatch || null);
+      setPullRequest(s?.pullRequest || null);
       if (metaPatchRef.current) {
         // A null trunkDate here means the git read failed (e.g. clone still
         // running) — keep whatever the sidebar already shows in that case.
@@ -1770,9 +1996,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   useEffect(() => {
     if (!isActive) return undefined;
     refreshDirty();
-    window.addEventListener('focus', refreshDirty);
-    return () => window.removeEventListener('focus', refreshDirty);
-  }, [isActive, refreshDirty]);
+    // The status too (#352): a merge started outside the app ends outside
+    // it, and returning focus is when the banner can have become stale.
+    const onFocus = () => { refreshDirty(); loadStatus().catch(() => {}); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [isActive, refreshDirty, loadStatus]);
 
   // Linking and unlinking are the same write (#109): an empty ref clears the
   // association, so Unlink needs no second channel. Resuming a ticket that
@@ -1785,7 +2014,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     setPatchSavedNotice('');
     // The previous switch's last sentence must not be this one's first frame.
     if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
+    let rebuilding = false;
+    let ownsTerminal = false;
     try {
+      ownsTerminal = await ticketSwitchLifecycleRef.current.begin(ref);
+      if (!ownsTerminal) return;
       const res = await window.api.setSiteTicket(sitePath, ref, options);
       if (!res?.ok) {
         // `dirty-trunk` is a question, not a failure (#234): main refuses it
@@ -1794,13 +2027,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         // error line over a set of choices would read as a fault, so the
         // message is kept for real failures only. `canCarry` is main's word
         // on whether the edits can ride into this ticket, and the count
-        // arrives only on the path that scanned before refusing.
+        // arrives only on the path that scanned before refusing. Only that
+        // path names the ticket too, so the other one reads it back off the
+        // ref the switch was asked for, rather than saying "the ticket" to
+        // someone who typed a number (#409).
         if (res?.code === 'dirty-trunk') {
+          const parsedRef = workItem.parseRef(String(ref));
           setBlockedByTrunkWork({
             ref: String(ref),
             canCarry: Boolean(res.canCarry),
             files: typeof res.files === 'number' ? res.files : null,
-            ticket: res.ticket || null
+            ticket: res.ticket || (parsedRef.ok ? parsedRef.id : null)
           });
         } else {
           setTicketError(res?.error || 'Could not save the ticket.');
@@ -1823,16 +2060,100 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       await Promise.all([loadBranches(), loadStatus()]);
       // The tree under the note is a different branch's now (#239).
       reprobeAfterBranchChange();
+      rebuilding = await ticketSwitchLifecycleRef.current.complete(res);
+    } catch (e) {
+      setTicketError(String(e));
+    } finally {
+      if (ownsTerminal && !rebuilding) ticketSwitchLifecycleRef.current.finish();
+      setTicketSaving(false);
+    }
+  }, [sitePath, workItem, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
+  const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
+  const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
+
+  // A ticket arrived from a link and this is the site in front of the
+  // contributor (#464). The answer goes through `saveTicket` like any other
+  // link, so every guard the panel already has — a running install, a
+  // mid-switch site, a merge started in a terminal, the dirty-trunk question —
+  // applies unchanged.
+  //
+  // Read straight off the prop, never copied into state here. Every row stays
+  // mounted behind `display: none`, so a row that kept its own copy would go on
+  // showing the question after another row answered it, and would raise it
+  // again the moment the contributor came back. The App's one value is the one
+  // truth, and answering clears it for everybody.
+  //
+  // The ticket field is deliberately left alone. It is free text the
+  // contributor may be halfway through, the question already says which ticket
+  // it means, and its button links that ticket directly — so writing over what
+  // they typed would buy nothing.
+  const deepLinkTicket = (deepLink && deepLink.ticket) ? deepLink.ticket : null;
+  // Which of the states the link is in is the module's decision, not this
+  // file's; here it is only rendered and dispatched.
+  const deepLinkState = deepLinkNotice({
+    ticket: deepLinkTicket,
+    provider: project.workItem.provider,
+    siteLabel: displayName,
+    currentTicket: tracTicket
+  });
+  const deepLinkPrompt = deepLinkState && deepLinkState.state === 'confirm' ? deepLinkState : null;
+  // A ticket that cannot land on this site (#251): said, dismissable, never
+  // consumed, so a Core site opened next still gets the question.
+  const deepLinkNoteState = deepLinkState && deepLinkState.state === 'unsupported' ? deepLinkState : null;
+  // Hidden here, on this site only: the ticket stays with the app, so a Core
+  // site opened next still gets the question. Reset when a link arrives, and
+  // only then: the prop is the event (App stamps each arrival, so the same
+  // ticket twice is two events), and it is null while another site is in
+  // front, which must not un-hide what the contributor hid here.
+  const [deepLinkNoteHidden, setDeepLinkNoteHidden] = useState(false);
+  // The stamp, not the object: the prop goes object → null → the same object
+  // when another site is looked at and this one comes back, and that is not
+  // a new arrival.
+  const deepLinkAt = deepLink ? deepLink.at : null;
+  useEffect(() => { if (deepLinkAt) setDeepLinkNoteHidden(false); }, [deepLinkAt]);
+  const deepLinkNote = deepLinkNoteHidden ? null : deepLinkNoteState;
+  // `settled` is a link for the ticket this site is on already. Cleared rather
+  // than merely hidden, so the question does not resurface on the next site the
+  // contributor opens.
+  const deepLinkSettled = Boolean(deepLinkState && deepLinkState.state === 'settled');
+  useEffect(() => {
+    if (deepLinkSettled && onDeepLinkDone) onDeepLinkDone();
+  }, [deepLinkSettled, onDeepLinkDone]);
+
+  const dismissDeepLink = useCallback(() => {
+    if (onDeepLinkDone) onDeepLinkDone();
+  }, [onDeepLinkDone]);
+
+  const acceptDeepLink = useCallback(() => {
+    if (deepLinkTicket !== null) saveTicket(String(deepLinkTicket));
+    if (onDeepLinkDone) onDeepLinkDone();
+  }, [deepLinkTicket, onDeepLinkDone, saveTicket]);
+
+  // The notice's own button (#385): the ticket's work replayed onto the
+  // current trunk in main. Same busy flag and progress line as a switch,
+  // because it parks and checks out the same way; a refusal is worded by the
+  // notice module and lands where the ticket's other refusals do.
+  const rebaseTicket = useCallback(async () => {
+    setTicketSaving(true);
+    setTicketError('');
+    if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
+    try {
+      const res = await window.api.rebaseBranch(sitePath);
+      if (!res?.ok) {
+        setTicketError(rebaseRefusal({ ...res, ticketId: tracTicket, noun: workItem.noun }));
+        return;
+      }
+      setTicketBehindTrunk(false);
+      await Promise.all([loadBranches(), loadStatus()]);
+      reprobeAfterBranchChange();
     } catch (e) {
       setTicketError(String(e));
     } finally {
       setTicketSaving(false);
     }
-  }, [sitePath, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
-  const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
-  const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
+  }, [sitePath, tracTicket, workItem, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
 
-  const discardTrunkWorkAndSwitch = useCallback(async (ref) => {
+  const discardTrunkWorkAndSwitch = useCallback(async (target) => {
     setTicketSaving(true);
     setTicketError('');
     // The refused attempt left its last frame behind — without this, the
@@ -1857,9 +2178,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } finally {
       setTicketSaving(false);
     }
-    // Outside the guard above: saveTicket owns the busy flag itself, and the
-    // discard has already succeeded — a failure here is about the switch.
-    await saveTicket(ref);
+    // Outside the guard above: the destination operation owns its own busy
+    // state, and the discard has already succeeded — a failure here is about
+    // that checkout. PR refs never go through the ticket parser.
+    if (target.kind === 'pr') await retryPrSwitchRef.current?.();
+    else await saveTicket(target.ref);
   }, [sitePath, saveTicket, onClearSwitchNotices]);
 
   // "Save them as a patch, then start clean" — one chosen outcome, not two
@@ -1870,7 +2193,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // while the dialog is up because it is not window-modal — without it the
   // panel underneath keeps taking clicks, and a discard chosen there would
   // run again when the dialog finally answers.
-  const saveTrunkWorkThenStartClean = useCallback(async (ref) => {
+  const saveTrunkWorkThenStartClean = useCallback(async (target) => {
     setTicketError('');
     let savedTo = '';
     setTicketSaving(true);
@@ -1889,7 +2212,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     } finally {
       setTicketSaving(false);
     }
-    await discardTrunkWorkAndSwitch(ref);
+    await discardTrunkWorkAndSwitch(target);
     // After the panel is gone, the only on-screen record of where the work
     // went. The switch clears `patchSavedTo` with the rest of the panel
     // state, so the sentence that survives is its own notice — same shape as
@@ -1947,6 +2270,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       if (code === 0) { try { await window.api.markSiteInitialized(sitePath); } catch {} onInitialized(sitePath); }
       try { await loadStatus(); } catch {}
       if (onDone) onDone({ code });
+    }).catch((error) => {
+      // A start that never got as far as a run id, so no done event is coming
+      // for it (#43): without this the button stays spinning on a run that does
+      // not exist. Same shape as runScript's catch.
+      appendNpm(`\nFailed to start npm install: ${error && error.message ? error.message : String(error)}\n`);
+      setInstalling(false);
+      if (onDone) onDone({ code: -1 });
     });
   }, [appendNpm, ensureStick, loadStatus, onInitialized, sitePath]);
 
@@ -1970,6 +2300,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       if (name === 'build') {
         setBuilding(false);
         setBuildFailed(code !== 0);
+        if (code === 0) markBuildInterrupted(false);
         try { await loadStatus(); } catch {}
       }
       if (track) currentRunIdRef.current = null;
@@ -1983,7 +2314,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       if (name === 'build') setBuilding(false);
       if (onDone) onDone({ code: -1 });
     });
-  }, [appendNpm, ensureStick, loadStatus, sitePath]);
+  }, [appendNpm, ensureStick, loadStatus, markBuildInterrupted, sitePath]);
 
   const killCurrent = useCallback(async () => {
     const runId = currentRunIdRef.current;
@@ -2020,6 +2351,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const terminalStateRef = useRef({ input: '', history: [], historyIndex: 0, running: false });
   const serverStartRequestedRef = useRef(false);
   const stoppingRef = useRef(false);
+  // True from a Stop we asked for until the server reports it has exited.
+  // playground:stop returns once the signal is sent, and the 'stopped' event
+  // arrives after stopDevServer has already cleared stoppingRef; without this
+  // every ordinary stop read as a crash, and the crash path killed "the last
+  // script in the directory", the watcher (#488).
+  const serverStopRequestedRef = useRef(false);
   const runningRef = useRef(false);
   const waitingForWatchRef = useRef(false);
   // "A dev-server boot is in progress or live." The terminal lock used to double
@@ -2140,7 +2477,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     writeToTerminal('Available commands:\n');
     writeToTerminal('  help                        Show this help text\n');
     writeToTerminal('  npm install                 Run npm install in the site directory\n');
-    writeToTerminal('  npm run <script>            Run one of: ' + TERMINAL_ALLOWED_SCRIPTS.join(', ') + '\n');
+    writeToTerminal('  npm run <script>            Run one of: ' + allowedScriptsRef.current.join(', ') + '\n');
     writeToTerminal('\nThe setup checklist runs npm install and npm run build once. Run them here\nwhenever you change files or add a dependency afterwards.\n');
   }, [writeToTerminal]);
 
@@ -2189,8 +2526,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         showPrompt(false);
         return;
       }
-      if (!TERMINAL_ALLOWED_SCRIPTS.includes(script)) {
-        writeToTerminal(`Unsupported script "${script}". Allowed scripts: ${TERMINAL_ALLOWED_SCRIPTS.join(', ')}\n`);
+      const allowedScripts = allowedScriptsRef.current;
+      if (!allowedScripts.includes(script)) {
+        writeToTerminal(`Unsupported script "${script}". Allowed scripts: ${allowedScripts.join(', ')}\n`);
         showPrompt(false);
         return;
       }
@@ -2324,6 +2662,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const stopDevServer = useCallback(async () => {
     if (stoppingRef.current) return;
     stoppingRef.current = true;
+    if (runningRef.current) serverStopRequestedRef.current = true;
     devServerActiveRef.current = false;
     setWaitingForWatch(false);
     waitingForWatchRef.current = false;
@@ -2358,6 +2697,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       return;
     }
     serverStartRequestedRef.current = true;
+    serverStopRequestedRef.current = false;
     setWaitingForWatch(false);
     waitingForWatchRef.current = false;
     ensureStick('runtime');
@@ -2383,13 +2723,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           serverStartRequestedRef.current = false;
         },
         ()=>{
+          const requested = serverStopRequestedRef.current;
+          serverStopRequestedRef.current = false;
           setRunning(false); runningRef.current = false; setServerUrl(''); serverStartRequestedRef.current = false;
           // A stop the user did not ask for is a crash: say so, and tear the
-          // whole dev session down — watcher included — instead of leaving the
-          // button spinning "Starting dev server…" forever (issue #73).
-          if (!stoppingRef.current) {
+          // server session down instead of leaving the button spinning
+          // "Starting dev server…" forever (issue #73). The watcher is not
+          // part of that session (#247) and is left running.
+          if (!stoppingRef.current && !requested) {
             appendRuntime('Dev server stopped unexpectedly (see Help → Open App Log for details).\n');
-            killCurrent().catch(() => {});
             stopDevServer().catch(() => {});
           }
         }
@@ -2398,7 +2740,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       // This also covers spawn failures that never produce a "stopped" event.
       if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
         appendRuntime(`Dev server failed to start: ${res.error || 'unknown error'}\n`);
-        killCurrent().catch(() => {});
         stopDevServer().catch(() => {});
         return;
       }
@@ -2423,42 +2764,86 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       if (tail?.filePath) setDebugLogPath(tail.filePath);
     } catch {}
     try { const { port, emails: fetchedEmails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(fetchedEmails||[]); } catch {}
-  }, [appendDebug, appendRuntime, ensureStick, killCurrent, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
+  }, [appendDebug, appendRuntime, ensureStick, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
 
-  // The watcher process itself (grunt _watch), streaming into its own tab. No
-  // terminal lock, no server coupling — that independence is the point of #247.
+  // The watcher process itself (the target's; grunt _watch on Core), streaming
+  // into its own tab. No terminal lock, no server coupling — that independence
+  // is the point of #247.
+  //
+  // When the watcher is ready to serve behind depends on the target (#488).
+  // Core's grunt _watch touches nothing on start, so it is ready at once.
+  // Gutenberg's npm run dev removes build/ and rebuilds it first, so the state
+  // stays 'building' until the watcher prints the registry's readyPattern; a
+  // server started before that line serves a plugin with no build/. The
+  // waiters (the dev-server start) are settled either way: ready when the
+  // watcher is, failed if it exits or is stopped first.
   const startWatchProcess = useCallback(() => {
-    const plan = planDevServerStart({ hasBuilt: true });
-    markWatchState('watching');
+    const plan = planDevServerStart({ hasBuilt: true }, projectBuild);
+    const readiness = createWatchReadyDetector(plan.watch.readyPattern);
+    const generation = watchGenerationRef.current;
+    const token = generation.next();
+    markWatchState(readiness.immediate ? 'watching' : 'building');
     watchWasActiveRef.current = true;
     appendWatch(`Running ${plan.watch.label}…\n`);
+    if (!readiness.immediate) appendWatch(`${plan.watch.label} rebuilds build/ before it watches. The dev server, if you started it, waits for "${plan.watch.readyPattern}".\n`);
+    if (readiness.immediate) settleWatchWaiters(true);
     runScript(plan.watch.script, {
       args: plan.watch.args,
       track: false,
       mirrorToNpm: false,
-      onStart: (runId) => { watchRunIdRef.current = runId; },
-      onLog: (chunk) => { appendWatch(chunk); },
+      onStart: (runId) => {
+        // Stopped before the spawn resolved: this run must not be recorded as
+        // the live watcher, and its process would otherwise outlive the stop.
+        if (!generation.isCurrent(token)) { window.api.npmKill({ runId, directoryPath: sitePath }).catch(() => {}); return; }
+        watchRunIdRef.current = runId;
+      },
+      onLog: (chunk) => {
+        appendWatch(chunk);
+        if (!generation.isCurrent(token)) return;
+        // A line within the grace period can reopen a window the tick had
+        // already closed (#492); the state has to follow the ref, or the
+        // banner stays clear while the rebuild runs. The tick closes it.
+        const now = Date.now();
+        watchActivityRef.current.output(now);
+        if (watchActivityRef.current.isCompiling(now)) setWatchCompiling(true);
+        if (readiness.feed(chunk) && watchStateRef.current === 'building') {
+          markBuildInterrupted(false);
+          markWatchState('watching');
+          settleWatchWaiters(true);
+        }
+      },
       onDone: ({ code }) => {
-        watchRunIdRef.current = null;
         appendWatch(`\n${plan.watch.label} exited with code ${code}\n`);
-        // A watcher exit never touches the server (#247). Only an unexpected
-        // exit flips the tab to 'exited'; a stop/pause we asked for has already
-        // moved the state to 'idle'/'paused', so leave it be.
-        if (watchStateRef.current === 'watching' || watchStateRef.current === 'building') {
+        // A replaced run's exit says nothing about the run that replaced it.
+        if (!generation.isCurrent(token)) return;
+        watchRunIdRef.current = null;
+        clearWatchActivity();
+        // A watcher exit never touches a running server (#247). Only an
+        // unexpected exit flips the tab to 'exited'; a stop/pause we asked for
+        // has already moved the state to 'idle'/'paused', so leave it be. A
+        // server still waiting to start behind it does not get to: without a
+        // completed build/ there is nothing to serve.
+        if (watchOccupiesBuild(watchStateRef.current)) {
+          if (watchStateRef.current === 'building') markBuildInterrupted(true);
           markWatchState('exited', code);
           watchWasActiveRef.current = false;
         }
+        settleWatchWaiters(false);
       }
     });
-  }, [appendWatch, markWatchState, runScript]);
+  }, [appendWatch, clearWatchActivity, markBuildInterrupted, markWatchState, projectBuild, runScript, settleWatchWaiters, sitePath]);
 
   // Start the build watch, building first if the site has no completed build
   // (the _watch task deliberately skips that full build). `onReady` fires once
-  // build/ exists and the watch has started — the server start hangs off it,
-  // but the watch stays independent afterwards.
-  const startBuildWatch = useCallback(({ onReady } = {}) => {
+  // build/ is complete and the watch is watching — the server start hangs off
+  // it, but the watch stays independent afterwards. `onFail` fires instead if
+  // the watch never gets there: the build failed, the watcher exited or was
+  // stopped first. A start requested while a watch is already on its way
+  // queues behind that one rather than being dropped.
+  const startBuildWatch = useCallback(({ onReady, onFail } = {}) => {
     const s = watchStateRef.current;
     if (s === 'watching') { if (onReady) onReady(); return; }
+    watchWaitersRef.current.add(onReady, onFail);
     if (s === 'building') return; // already on its way to watching
     if (!hasBuilt) {
       // Fresh / skip-the-wizard sites need one full build before anything can
@@ -2466,7 +2851,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       // it runs; the watch that follows does not. Reveal the tab so the build
       // is visible.
       const state = terminalStateRef.current;
-      if (state.running) { appendWatch('A command is already running in the terminal — stop it before starting the build watch.\n'); return; }
+      if (state.running) { appendWatch('A command is already running in the terminal — stop it before starting the build watch.\n'); settleWatchWaiters(false); return; }
       selectLogTab('watch');
       markWatchState('building');
       watchWasActiveRef.current = true;
@@ -2483,23 +2868,29 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             if (code !== 0) { appendWatch(`\nnpm run build failed with code ${code} — build watch not started.\n`); markWatchState('exited', code); }
             else markWatchState('idle');
             watchWasActiveRef.current = false;
+            settleWatchWaiters(false);
             return;
           }
           startWatchProcess();
-          if (onReady) onReady();
         }
       });
     } else {
       startWatchProcess();
-      if (onReady) onReady();
     }
-  }, [appendWatch, hasBuilt, killCurrent, markTerminalRunning, markWatchState, runScript, selectLogTab, startWatchProcess]);
+  }, [appendWatch, hasBuilt, killCurrent, markTerminalRunning, markWatchState, runScript, selectLogTab, settleWatchWaiters, startWatchProcess]);
 
   // User-initiated stop of the watch (its own button). Never touches the server.
   const stopWatcher = useCallback(async () => {
     const wasBuilding = watchStateRef.current === 'building';
+    if (wasBuilding) markBuildInterrupted(true);
     markWatchState('idle');
     watchWasActiveRef.current = false;
+    // From here the run being stopped is history: its late exit must not
+    // touch whatever starts next.
+    watchGenerationRef.current.invalidate();
+    clearWatchActivity();
+    // A server waiting to start behind this watch is not going to.
+    settleWatchWaiters(false);
     if (watchRunIdRef.current) {
       try { await killWatcher(); } catch {}
     } else if (wasBuilding) {
@@ -2508,7 +2899,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       markTerminalRunning(false);
       terminalKillRef.current = null;
     }
-  }, [killCurrent, killWatcher, markTerminalRunning, markWatchState]);
+  }, [clearWatchActivity, killCurrent, killWatcher, markBuildInterrupted, markTerminalRunning, markWatchState, settleWatchWaiters]);
 
   // Pause the watch for an operation that needs the build directory and
   // node_modules to itself — an install, a full build, a trunk reset (#262).
@@ -2517,10 +2908,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const pauseWatcher = useCallback(async () => {
     if (watchStateRef.current !== 'watching' && watchStateRef.current !== 'building') return false;
     markWatchState('paused');
+    watchGenerationRef.current.invalidate();
+    applyHandOffRef.current.invalidate();
+    clearWatchActivity();
     appendWatch('\nPaused while another operation uses the build.\n');
     try { await killWatcher(); } catch {}
     return true;
-  }, [appendWatch, killWatcher, markWatchState]);
+  }, [appendWatch, clearWatchActivity, killWatcher, markWatchState]);
 
   // Bring the watch back after a pause. Guarded on 'paused' so a dev-server stop
   // or a manual stop mid-operation (which sets 'idle') is never resurrected.
@@ -2541,17 +2935,49 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
 
   const toggleDevServer = async ()=>{
     if (!running) {
+      // A start is already queued behind the watch (or in flight): a second
+      // click must not queue a second server start (#488).
+      if (devServerActiveRef.current) return;
       // eslint-disable-next-line no-alert -- see the note above onRename.
       if (!skipInit && !hasBuilt) { alert('Please complete the full build before starting the dev server. You can also skip the wizard.'); return; }
       serverStartRequestedRef.current = false;
       devServerActiveRef.current = true;
       setStarting(true);
+      // A built site whose watch would first remove build/ (Gutenberg's npm run
+      // dev, #488) has nothing to wait for: the server starts on the build/ it
+      // has, in seconds instead of the watch's rebuild (#499). The watch stays
+      // where the contributor left it; Start build watch, or an apply, brings
+      // it up when it is wanted. The rule, including what a watch already up
+      // or cut short means, is serveWithoutWatch's. "Built" is read afresh:
+      // the state copy is as old as the last status poll, and build/ may
+      // have gone since (a watch rebuild, a clean by hand).
+      let builtNow = hasBuilt;
+      try { const fresh = await window.api.getSiteStatus(sitePath); builtNow = Boolean(fresh?.hasBuilt); setHasBuilt(builtNow); } catch {}
+      if (serveWithoutWatch({ hasBuilt: builtNow, watchState: watchStateRef.current, buildInterrupted: buildInterruptedRef.current }, projectBuild)) {
+        appendRuntime('build/ is complete: starting the server without the build watch. Start build watch to compile edits on save.\n');
+        startPhpServer().catch(() => {});
+        return;
+      }
       // The server needs build/ on disk, which the build watch guarantees. Start
       // the watch first (automatically, if it is not already running) and hang
       // the server start off its readiness — the watch stays independent after.
-      startBuildWatch({ onReady: () => { startPhpServer().catch(() => {}); } });
+      startBuildWatch({
+        onReady: () => { startPhpServer().catch(() => {}); },
+        // The watch never got to a complete build/: nothing to serve, so the
+        // button goes back to "Start dev server" instead of "Starting…" forever.
+        onFail: () => {
+          if (serverStartRequestedRef.current) return;
+          devServerActiveRef.current = false;
+          setStarting(false);
+          appendRuntime('Dev server start cancelled: the build watch stopped before build/ was complete. Start it again once the watch is running.\n');
+        }
+      });
     } else {
-      await killCurrent().catch(() => {});
+      // Only the server. The watch is independent (#247), and this branch
+      // used to kill it by accident: killCurrent with no tracked run falls
+      // back to the last script in the directory, which is the watcher. On
+      // Core that cost a cheap grunt restart nobody noticed; on Gutenberg
+      // it is the whole 20 s rebuild on every Stop/Start (#488).
       await stopDevServer();
     }
   };
@@ -2584,8 +3010,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
 
   // The tickets with work on this site (#108), in a card of their own (#240)
-  // between the Trac ticket card and the patch one — which ticket am I on,
-  // which of my tickets do I want, bring in work from elsewhere. The sentence
+  // below the Trac ticket card and the patch one — which ticket am I on, what
+  // work can I bring into it, which of my other tickets do I want. The sentence
   // differs with the state — with no ticket linked the rows offer to continue,
   // with one linked they point out the other open tickets — but the rows, the
   // ordering and the delete action are the same list, and it lives in the one
@@ -2596,7 +3022,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // operations as well as on each other — the same trio every destructive
   // control in the ticket panel guards on.
   const branchRows = ticketBranchRows({ branches: ticketBranches.branches, current: ticketBranches.current, tracTicket, now: Date.now() });
-  const ticketsCard = ticketListCard({ rowCount: branchRows.length, linked: Boolean(tracTicket) });
+  const ticketsCard = ticketListCard({ rowCount: branchRows.length, linked: Boolean(tracTicket), noun: workItem.noun });
   // What the switch is doing, while it does it (#173). Gated on the busy flag
   // rather than merely cleared by it: the last sends can land after the invoke
   // has already answered, which would flash a sentence under an idle panel.
@@ -2626,7 +3052,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       <span>{describeSwitchProgress(switchProgress)}</span>
     </div>
   ) : null;
-  const ticketActionsBlocked = ticketSaving || deletingBranch !== null || updateState !== 'idle' || installing || building;
+  // One gate for every ticket action, and the sentence that goes with it
+  // (#409): a control this disables says why, through ReasonedButton.
+  const ticketActionsReason = ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun });
+  const ticketActionsBlocked = Boolean(ticketActionsReason);
 
   // The one question both paths now ask (#234). Picking a ticket while trunk
   // has uncommitted edits used to do opposite things — carry them silently
@@ -2637,48 +3066,65 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // loose edits cannot ride into it. Rendered as a variable because two
   // views hold a "Link ticket" field, and a refusal with no panel under it
   // would be a dead end in the second one.
+  const dirtyQuestion = blockedByTrunkWork ? dirtyTrunkQuestion({
+    ...blockedByTrunkWork,
+    pullRequest: blockedByTrunkWork.kind === 'pr' ? blockedByTrunkWork.number : null,
+    noun: workItem.noun
+  }) : null;
   const blockedPanel = blockedByTrunkWork ? (
     <div style={{ marginTop: 8, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
-      <div>
-        {blockedByTrunkWork.files
-          ? `You have ${blockedByTrunkWork.files === 1 ? '1 uncommitted change' : `${blockedByTrunkWork.files} uncommitted changes`} on this site, not on any ticket yet.`
-          : 'You have uncommitted changes on this site, not on any ticket yet.'}
-        {' '}What should happen to them?
-        {blockedByTrunkWork.canCarry ? '' : ' This ticket already has its own work here, so these edits cannot come along into it.'}
-      </div>
+      <div>{dirtyQuestion.question}</div>
       {patchSavedTo ? (
         <div style={{ marginTop: 6, fontWeight: 600 }}>
           Saved to {patchSavedTo}. The edits are still in the working tree.
         </div>
       ) : null}
       <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        {blockedByTrunkWork.canCarry ? (
-          <Button
+        {dirtyQuestion.carry ? (
+          <ReasonedButton
             variant="link"
             isBusy={ticketSaving}
-            disabled={ticketActionsBlocked}
+            reason={ticketActionsReason}
             onClick={() => saveTicket(blockedByTrunkWork.ref, { carryTrunkWork: true })}
             style={{ fontSize: 12 }}
-          >Take these edits into {blockedByTrunkWork.ticket ? `#${blockedByTrunkWork.ticket}` : 'the ticket'}</Button>
+          >{dirtyQuestion.carry}</ReasonedButton>
         ) : null}
-        <Button variant="link" disabled={ticketActionsBlocked} onClick={() => saveTrunkWorkThenStartClean(blockedByTrunkWork.ref)} style={{ fontSize: 12 }}>
-          Save them as a patch, then start clean…
-        </Button>
-        <Button
+        <ReasonedButton variant="link" reason={ticketActionsReason} onClick={() => saveTrunkWorkThenStartClean(blockedByTrunkWork)} style={{ fontSize: 12 }}>
+          {dirtyQuestion.save}
+        </ReasonedButton>
+        <ReasonedButton
           variant="link"
           isDestructive
-          disabled={ticketActionsBlocked}
-          onClick={() => confirmAnd('Discard the uncommitted edits on trunk? This cannot be undone.', () => discardTrunkWorkAndSwitch(blockedByTrunkWork.ref))}
+          reason={ticketActionsReason}
+          onClick={() => confirmAnd('Discard the uncommitted edits on trunk? This cannot be undone.', () => discardTrunkWorkAndSwitch(blockedByTrunkWork))}
           style={{ fontSize: 12 }}
-        >Discard them and start clean</Button>
+        >{dirtyQuestion.discard}</ReasonedButton>
         {/* The way out that touches nothing — three consequential actions
             with no fourth door is its own trap (#234). */}
-        <Button variant="link" disabled={ticketActionsBlocked} onClick={() => { setBlockedByTrunkWork(null); setPatchSavedTo(''); }} style={{ fontSize: 12 }}>
-          Cancel
-        </Button>
+        <ReasonedButton variant="link" reason={ticketActionsReason} onClick={() => { setBlockedByTrunkWork(null); setPatchSavedTo(''); }} style={{ fontSize: 12 }}>
+          {dirtyQuestion.cancel}
+        </ReasonedButton>
       </div>
     </div>
   ) : null;
+
+  // What the panel says back after an action: the refusal, the switch's
+  // progress line, the carried-work and saved-clean notices, and the
+  // dirty-trunk question. Rendered under the controls that cause them, the
+  // Unlink row and the trunk notice's button when a ticket is linked, the
+  // Link ticket field when none is, rather than at the foot of a card that
+  // can be a screen tall by the time the pull requests have loaded.
+  const ticketFeedback = (
+    <>
+      {ticketError ? (
+        <div role="alert" style={{ marginTop: 8, color: '#d63638', fontSize: 12 }}>{ticketError}</div>
+      ) : null}
+      {switchProgressLine}
+      {carriedNotice}
+      {savedCleanNotice}
+      {blockedPanel}
+    </>
+  );
   const renderBranchRows = (linked) => (
     <div style={{ marginTop: 8, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
       {branchRows.map((row, i) => (
@@ -2686,22 +3132,22 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           <div style={{ flex: '1 1 auto', minWidth: 0 }}>
             <span style={{ fontSize: 13, color: '#1d2327' }}>
               {linked ? <>You also have work on #{row.ticketId}{' — '}</> : null}
-              <Button variant="link" onClick={() => saveTicket(String(row.ticketId))} disabled={ticketActionsBlocked} style={{ fontSize: 13 }}>
+              <ReasonedButton variant="link" onClick={() => saveTicket(String(row.ticketId))} reason={ticketActionsReason} style={{ fontSize: 13 }}>
                 {linked ? 'switch' : `Continue working on #${row.ticketId}`}
-              </Button>
+              </ReasonedButton>
             </span>
             {row.timeLabel ? (
               <div style={{ marginTop: 2, fontSize: 11, color: '#6c6f72' }}>{row.timeLabel}</div>
             ) : null}
           </div>
-          <Button
+          <ReasonedButton
             variant="link"
             isDestructive
             isBusy={deletingBranch === row.ref}
-            disabled={ticketActionsBlocked}
+            reason={ticketActionsReason}
             onClick={() => confirmAnd(`Delete all work on #${row.ticketId} on this site? This cannot be undone.`, () => deleteTicketWork(row.ref))}
             style={{ fontSize: 12, flex: '0 0 auto' }}
-          >Delete this ticket&apos;s work</Button>
+          >Delete this {workItem.noun}&apos;s work</ReasonedButton>
         </div>
       ))}
     </div>
@@ -2713,15 +3159,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Where the note goes moves with the ticket: a change that belongs to
   // #12345 is news for the ticket card, one that belongs to nothing is news
   // for the buttons that would give it somewhere to go.
-  const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket });
-  const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk });
-  const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged });
+  const changesNote = changesNoteParts({ ...(worktreeDirty || {}), tracTicket, pullRequest, workItemNoun: workItem.noun });
+  const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk, noun: workItem.noun });
+  const legacyNotice = legacySiteNotice({ legacy });
+  const mergeNotice = mergeInProgressNotice({ mergeInProgress });
+  const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged, buildByWatcher: updateBuildBy });
   const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
   const finishUpdate = (message) => {
     markTerminalRunning(false);
     terminalKillRef.current = null;
     setUpdateState('idle');
+    setUpdateWaitingOnWatch(false);
     if (message) writeToTerminal(message);
     // Resume the watch if the update paused it (#262). Safe on every exit path
     // and a no-op if nothing was paused.
@@ -2734,7 +3183,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // and named when skipped) then a rebuild. Reuses the wizard's runInstall /
   // runScript so exit codes, retries and terminal streaming all behave
   // exactly as they do everywhere else (same pattern as toggleDevServer).
-  const runUpdateInstallAndBuild = (lockfileChanged) => {
+  const runUpdateInstallAndBuild = (lockfileChanged, { buildBy = null } = {}) => {
+    // build/ matches the new source: persist it, summarise, confirm. Shared by
+    // the chain's own build and the resumed watch's ready line.
+    const completeUpdate = async () => {
+      try { await window.api.markUpdateComplete(sitePath); } catch {}
+      const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
+      setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
+      confirm('Updated to the latest trunk');
+    };
     const runBuildStep = () => {
       setUpdateState('building');
       writeToTerminal('\nRunning npm run build…\n');
@@ -2742,10 +3199,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: async ({ code }) => {
           if (code === 0) {
-            try { await window.api.markUpdateComplete(sitePath); } catch {}
-            const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
-            setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
-            confirm('Updated to the latest trunk');
+            await completeUpdate();
             finishUpdate('\nUpdate complete — this site is now on the latest trunk.\n');
           } else {
             finishUpdate('\nUpdate incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.\n');
@@ -2753,6 +3207,56 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         }
       });
     };
+    // The watch paused for the reset rebuilds build/ from scratch when it
+    // resumes (Gutenberg, #507), so a build of our own would be thrown away the
+    // moment it comes back. Resume it now and let that be the one build. Unlike
+    // an apply (#506), the update is not done at the hand-off: the card stays
+    // on step 3, naming the watch, and the persisted "complete" marker waits for
+    // the ready line, so a watch that exits first leaves the update incomplete
+    // with the same banner and retry a failed build would. The terminal is
+    // released: the watch writes to its own tab and holds no terminal lock.
+    // No generation token here, unlike the apply: any ready line means build/
+    // is complete, which is exactly what "update complete" claims, and a card
+    // left on step 3 by a skipped settle would have no way off it. That is safe
+    // only because every path that pauses or restarts the watch (a PR switch,
+    // a ticket switch, an apply, a retry) is gated on isUpdating, which holds
+    // through the wait; the terminal lock those paths also check is released
+    // here, so the isUpdating gates are what keeps a pause (which kills the
+    // watch without settling the waiters) from orphaning this waiter. Loosen
+    // one of those gates and this needs the token.
+    const handOffToResumedWatch = () => {
+      const plan = planUpdateHandOff(watchStateRef.current);
+      if (!plan.waits) {
+        finishUpdate(plan.finish.message);
+        return;
+      }
+      // One way to apply an outcome, so the ready line and the exit cannot
+      // drift apart: the plan says which state each lands in and whether it is
+      // the one that completes the update.
+      const settle = async (phase) => {
+        if (phase.completesUpdate) await completeUpdate();
+        setUpdateState(phase.updateState);
+        setUpdateWaitingOnWatch(phase.waitingOnWatch);
+        writeToTerminal(phase.message);
+        loadStatus().catch(() => {});
+        refreshDirty();
+      };
+      // Registered before the resume so a watch that dies at once still lands
+      // in onFail. The waiters settle once per run: on the ready line or on exit.
+      watchWaitersRef.current.add(
+        () => { settle(plan.ready); },
+        () => { settle(plan.failed); }
+      );
+      setUpdateState(plan.waiting.updateState);
+      setUpdateWaitingOnWatch(plan.waiting.waitingOnWatch);
+      // The watch writes to its own tab and holds no terminal lock, so the
+      // chain gives this one back while it waits.
+      markTerminalRunning(false);
+      terminalKillRef.current = null;
+      writeToTerminal(plan.waiting.message);
+      resumeWatcher();
+    };
+    const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
     if (lockfileChanged) {
       setUpdateState('installing');
       writeToTerminal('\npackage-lock.json changed — running npm install (only the changed packages are downloaded)…\n');
@@ -2763,12 +3267,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             finishUpdate('\nUpdate incomplete — npm install failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.\n');
             return;
           }
-          runBuildStep();
+          afterInstall();
         }
       });
     } else {
       writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
-      runBuildStep();
+      afterInstall();
     }
   };
 
@@ -2776,11 +3280,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Same three-stage shape as the update chain, and the same npm wrappers, so
   // exit codes and terminal streaming behave identically.
   const isApplying = applyState !== 'idle';
-  const showTerminalHints = shouldShowTerminalHints({ hasBuilt });
+  const showTerminalHints = Boolean(hasBuilt);
   const terminalBusy = computeTerminalBusy({
     terminalRunning, installing, building, starting, running, isUpdating, isApplying
   });
-  const applySteps = planApplySteps({ needsInstall: applyNeedsInstall, buildByWatcher: applyBuildByWatcher });
+  const applySteps = planApplySteps({ needsInstall: applyNeedsInstall, buildByWatcher: applyBuildByWatcher, kind: applyKind });
   const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
 
   // The applied patch as a layer with a name (#306), not an undo blob. Both
@@ -2791,7 +3295,22 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     when: appliedPatch?.appliedAt ? new Date(appliedPatch.appliedAt).toLocaleString() : ''
   });
   const appliedPatchLabel = appliedPatch?.label || 'The patch you applied';
+  const prOwnershipRefusal = pullRequest ? prSubmissionRefusal(pullRequest.number) : '';
   const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
+  const prCheckout = pullRequest ? describePrCheckout({ ...pullRequest, noun: workItem.noun }) : null;
+  // The banner's tone and headline follow the watch (#509): green only once
+  // the site is built around the checkout.
+  const prBanner = pullRequest ? appliedBannerState({ number: pullRequest.number, watchState, compiling: watchCompiling, buildInterrupted, actionsReason: ticketActionsReason }) : null;
+  const prBannerColors = prBanner ? (APPLIED_BANNER_COLORS[prBanner.tone] || APPLIED_BANNER_COLORS.ready) : null;
+  const prPreview = applyPreview?.kind === 'pr' ? describePrPreview({
+    number: applyPreview.number,
+    files: applyPreview.files,
+    needsInstall: applyPreview.needsInstall,
+    exists: applyPreview.exists,
+    moved: applyPreview.moved,
+    hasEdits: applyPreview.hasEdits,
+    state: applyPreview.prState
+  }) : null;
   // The layer exits reach the same two operations the changes note does, so
   // they go through the same guard: a discard is a force checkout, and running
   // it under a live dev server or a half-finished install rewrites the tree
@@ -2929,14 +3448,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     attachments: tracAttachments?.items,
     prRankComplete: ticketPatches?.rankComplete
   });
-  const latestIsAttachment = latestPatch?.kind === 'attachment';
+  // Attachments are Trac's; a GitHub issue never has one, whatever a stale
+  // scrape says (#251).
+  const latestIsAttachment = showTracCards && latestPatch?.kind === 'attachment';
   // The panel lists only what can be applied — screenshots and other non-patch
   // attachments are noise here. The parser still returns them (pickLatest and
   // tests rely on the full list); the filtering is purely what's shown.
   const patchAttachments = (tracAttachments?.items || []).filter((a) => a.applyable);
   // The ticket's own facts (#292), riding the same scrape as the attachments:
   // one Trac visit, one challenge, both answers.
-  const tracInfo = tracAttachments?.ticket || null;
+  const tracInfo = showTracCards ? (tracAttachments?.ticket || null) : null;
   const tracInfoBadge = statusBadge(tracInfo);
   const tracAttachmentsRead = tracAttachments
     && (tracAttachments.status === 'ok' || tracAttachments.status === 'no-attachments');
@@ -2961,15 +3482,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     markTerminalRunning(false);
     terminalKillRef.current = null;
     setApplyState('idle');
-    if (message) writeToTerminal(message);
     // Resume the watch if this apply paused it. Safe on every exit path
     // (success, failure, cancel) and a no-op if nothing was paused (#262).
     resumeWatcher();
+    // A resumed watch that rebuilds from scratch (Gutenberg's npm run dev)
+    // leaves the site unusable until it is watching again, and the banner
+    // above is already up (#492). The banner says so; so does the terminal,
+    // in place of "open the site to try it out".
+    if (message) writeToTerminal(applyFinishMessage(message, watchStateRef.current));
     loadStatus().catch(() => {});
     refreshDirty();
   };
 
-  const runApplyInstallAndBuild = (needsInstall, verb, { runBuild = true } = {}) => {
+  const runApplyInstallAndBuild = (needsInstall, verb, { buildBy = null, noun = 'patch' } = {}) => {
     const runBuildStep = () => {
       setApplyState('building');
       writeToTerminal('\nRunning npm run build…\n');
@@ -2980,36 +3505,66 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           // site is rebuilt around it, so "open the site to try it out" is true
           // (#253). A failed build leaves stale assets and its own banner, so it
           // gets no success confirmation.
-          if (code === 0) confirm(`${verb} the patch`);
+          if (code === 0) confirm(`${verb} the ${noun}`);
           finishApply(code === 0
             ? `\n${verb} — open the site to try it out.\n`
-            : `\nThe patch is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.\n`);
+            : `\nThe ${noun} is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.\n`);
         }
       });
     };
-    if (!runBuild) {
+    // The watch paused for this apply rebuilds build/ from scratch when it
+    // resumes (Gutenberg, #506), so a build of our own would be thrown away the
+    // moment finishApply resumes it. Skip it and let the resume be the one
+    // build; the confirmation waits for the watch's ready line, the same one the
+    // dev-server start waits for (#488). Until then the terminal and the banner
+    // say the watch is rebuilding (#492).
+    const handOffToResumedWatch = () => {
+      const handOff = resumedWatchHandOff(verb, noun, watchStateRef.current);
+      if (!handOff.waits) {
+        finishApply(handOff.stopped);
+        return;
+      }
+      // Registered before the resume so a watch that dies at once still lands
+      // in onFail. The waiters settle once per run: on the ready line or on exit.
+      const token = applyHandOffRef.current.next();
+      watchWaitersRef.current.add(
+        () => {
+          if (!applyHandOffRef.current.isCurrent(token)) return;
+          confirm(`${verb} the ${noun}`);
+          writeToTerminal(handOff.ready);
+        },
+        () => {
+          if (!applyHandOffRef.current.isCurrent(token)) return;
+          writeToTerminal(handOff.failed);
+        }
+      );
+      finishApply(`\n${verb} — open the site to try it out.\n`);
+    };
+    const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
+    if (buildBy === 'live-watch') {
       // A running build watch recompiles the src/ change on its own, so there is
       // no install and no build of our own to run — just hand off to it (#262).
-      confirm(`${verb} the patch`);
-      finishApply(`\n${verb} — the build watch is recompiling it. Open the site to try it out.\n`);
+      confirm(`${verb} the ${noun}`);
+      handOffToWatch();
+      finishApply(`\n${verb} — ${compilingMessage()}\n`);
       return;
     }
     if (needsInstall) {
       setApplyState('installing');
-      writeToTerminal('\nThe patch changes package-lock.json — running npm install…\n');
+      writeToTerminal(`\nThe ${noun} changes package-lock.json — running npm install…\n`);
       runInstall({
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
           if (code !== 0) {
-            finishApply('\nnpm install failed, so the build was skipped. The patch is applied but dependencies are stale.\n');
+            finishApply(`\nnpm install failed, so the build was skipped. The ${noun} is ${verb.toLowerCase()} but dependencies are stale.\n`);
             return;
           }
-          runBuildStep();
+          afterInstall();
         }
       });
     } else {
       writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
-      runBuildStep();
+      afterInstall();
     }
   };
 
@@ -3103,39 +3658,35 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     // hand (#292). Only then: the contributor just acted on this ticket, so a
     // human-check window appearing has context. On mount or re-activation the
     // ref is empty and nothing opens — details stay on demand, the #109 rule.
-    if (autoReadTicketRef.current === tracTicket) {
+    // And only for a Trac ticket (#251): a GitHub issue has nothing on Trac,
+    // and the Core ticket that shares its number is not it.
+    if (showTracCards && autoReadTicketRef.current === tracTicket) {
       autoReadTicketRef.current = null;
       // Through the ref, not the function: loadTracAttachments is declared
       // below this effect and recreated per render — the same shape as
       // metaPatchRef above.
       if (tracScrapeRef.current) tracScrapeRef.current();
     }
-  }, [tracTicket, isActive, loadTicketPatches]);
+  }, [tracTicket, isActive, loadTicketPatches, showTracCards]);
 
-  // Fetches a PR's diff and drops into the same preview the file picker uses,
-  // so applying a PR and applying a downloaded patch are one path from here on.
+  // Fetches the PR head through the site's origin and previews its own file
+  // list. No diff text crosses the renderer boundary: checkout retains the
+  // author's commits, while files and Trac attachments keep the patch path.
   const previewPr = async (pr) => {
     clearApplyError();
     setApplyNotice('');
     setFetchingPr(pr.number);
     try {
-      const diff = await window.api.fetchPrDiff(pr.number);
-      if (!diff || !diff.ok) {
-        setApplyError(diff?.status === 'rate-limited'
-          ? 'GitHub is rate-limiting this connection right now. Open the PR and download its .diff, then use “Choose a patch file”.'
-          : `Could not fetch the diff for PR #${pr.number}: ${diff?.error || 'unknown error'}`);
-        return;
-      }
-      const preview = await window.api.previewPatch(sitePath, diff.text);
+      const preview = await window.api.previewPullRequest(sitePath, pr.number);
       if (!preview || !preview.ok) {
-        setApplyError(preview?.error || 'Could not read that diff.');
+        setApplyError(prCheckoutRefusal({ ...preview, number: pr.number }));
         return;
       }
-      // `url` and `state` ride along so a conflict can offer the pull request
-      // itself, framed by what it is: an open one is rebased by its author, a
-      // closed one is nobody's to update (#282). State is absent when the PR
-      // came from a pasted number rather than the linked list.
-      setApplyPreview({ ...preview, label: `PR #${pr.number}`, text: diff.text, prUrl: pr.url, prState: pr.state || null });
+      setApplyPreview({
+        kind: 'pr', ...preview, label: `PR #${pr.number}`,
+        paths: preview.files.map((file) => file.path),
+        prUrl: pr.url, prState: pr.state || null
+      });
     } catch (e) {
       setApplyError(String(e));
     } finally {
@@ -3191,14 +3742,147 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // Apply a PR straight from a pasted URL or number, without needing it to be
   // linked to the ticket — same fetch → preview flow as the linked-PR list.
   const previewPrFromInput = () => {
-    const parsed = parsePrRef(prUrlInput);
+    // Guarded against this site's own repository: a wordpress-develop pull
+    // request pasted into a Gutenberg site is refused by name, not fetched
+    // from a repository that has no such ref.
+    const parsed = parsePrRef(prUrlInput, { repoPath: `${project.upstream.owner}/${project.upstream.repo}` });
     // clearApplyError first, not setApplyError alone: a parse error arriving on
     // top of a conflict breakdown would otherwise leave the stale regions on
     // screen hiding it, since the banner leads with the breakdown's headline.
     if (!parsed.ok) { clearApplyError(); setApplyError(parsed.error); setApplyNotice(''); return; }
     setPrUrlInput('');
-    previewPr({ number: parsed.number, url: `https://github.com/WordPress/wordpress-develop/pull/${parsed.number}` });
+    previewPr({ number: parsed.number, url: `https://github.com/${project.upstream.owner}/${project.upstream.repo}/pull/${parsed.number}` });
   };
+
+  const runPrSwitch = async ({ leaving = false } = {}) => {
+    const preview = applyPreview;
+    const number = leaving ? pullRequest?.number : preview?.number;
+    if (!number) return;
+    const state = terminalStateRef.current;
+    if (state.running) {
+      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      return;
+    }
+    // A checkout rewrites far more than a src/ patch, so a live watch is always
+    // paused. Whether we build after depends on what the resumed watch does (#506).
+    const watcherActive = watchOccupiesBuild(watchStateRef.current);
+    const impact = planWatchImpact({ needsInstall: false, watcherActive, watchRebuildsOnStart, wholeTree: true });
+    clearApplyError();
+    setApplyNotice('');
+    setApplyKind(leaving ? 'leave-pr' : 'pr');
+    setApplyNeedsInstall(Boolean(preview?.needsInstall));
+    setApplyBuildByWatcher(impact.buildBy);
+    setApplyState('applying');
+    applyHandOffRef.current.invalidate();
+    markTerminalRunning(true);
+    if (impact.pauseWatcher) await pauseWatcher();
+    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+    const run = leaving
+      ? window.api.leavePullRequest(sitePath, ({ data }) => writeToTerminal(data), complete)
+      : window.api.checkoutPullRequest(sitePath, number, ({ data }) => writeToTerminal(data), complete);
+
+    function complete(res) {
+      if (!res?.ok) {
+        if (!leaving && res?.code === 'dirty-trunk') {
+          setBlockedByTrunkWork({ kind: 'pr', number, ref: `pr/${number}`, canCarry: false, files: Number.isInteger(res.files) ? res.files : null, ticket: null });
+        } else {
+          setApplyError(prCheckoutRefusal({ ...res, number }));
+        }
+        finishApply();
+        return;
+      }
+      setApplyPreview(null);
+      setApplyNeedsInstall(Boolean(res.needsInstall));
+      runApplyInstallAndBuild(
+        Boolean(res.needsInstall),
+        leaving ? 'Restored' : 'Checked out',
+        { buildBy: impact.buildBy, noun: leaving ? 'previous branch' : 'pull request' }
+      );
+    }
+
+    run.catch((e) => {
+      setApplyError(String(e));
+      finishApply();
+    });
+  };
+  // The pull request a switch to this ref would put back (#510), read from the
+  // branch list the panel already reloads after every switch, so no round trip
+  // is added in front of one. An unlink and a ref this site's provider does not
+  // parse are not switches to a work item at all; the rest is the module's
+  // decision.
+  const savedPrForRef = (ref) => {
+    const parsed = workItem.parseRef(typeof ref === 'string' ? ref.trim() : '');
+    if (!parsed.ok) return null;
+    return savedPrForSwitch({
+      branches: ticketBranches.branches,
+      ticketId: parsed.id,
+      linkedTicket: tracTicket,
+      currentPr: pullRequest?.number ?? null
+    });
+  };
+  useLayoutEffect(() => {
+    retryPrSwitchRef.current = runPrSwitch;
+    ticketSwitchLifecycleRef.current = {
+      begin: async (ref) => {
+        if (terminalStateRef.current.running) {
+          setTicketError('A command is already running. Stop it before switching tickets.');
+          return false;
+        }
+        markTerminalRunning(true);
+        terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+        applyHandOffRef.current.invalidate();
+        // Only the switch that puts a parked pull request back is a whole-tree
+        // change that pauses the watch (#506); a plain link, unlink or switch
+        // moves the checkout and leaves the running watch to recompile what
+        // changed (#510). Which one this is has to be known before the
+        // checkout starts, and `sites:set-ticket` only says so afterwards — so
+        // it is read from the same record main will consult: the PR checked
+        // out now, and the one saved on the work item being switched to.
+        //
+        // The decision is made here, where the watch is paused, and read back
+        // in complete. This effect has no dependency list, so it runs on every
+        // render and a variable scoped to it would be reset between begin and
+        // complete; a ref is what survives the IPC round trip.
+        const impact = planTicketSwitchImpact({
+          fromPr: pullRequest?.number ?? null,
+          toPr: savedPrForRef(ref),
+          watchState: watchStateRef.current,
+          watchRebuildsOnStart
+        });
+        switchImpactRef.current = impact;
+        if (impact.pauseWatcher) await pauseWatcher();
+        return true;
+      },
+      complete: async (res) => {
+        if (!res.prTransition) {
+          // The watch was left running for this switch and the checkout has
+          // landed: the files it wrote are what the watch now recompiles, so
+          // the banner and the tab say so until it goes quiet (#492).
+          if (switchImpactRef.current?.buildBy === 'live-watch') handOffToWatch();
+          return false;
+        }
+        setApplyKind('pr');
+        setApplyNeedsInstall(Boolean(res.needsInstall));
+        // A restore begin did not see coming — a retry of a failed switch,
+        // where main reads the ref the switch was leaving and the renderer
+        // cannot. The install and the build that follow still need the build
+        // directory and node_modules to themselves, so the pause happens late
+        // rather than not at all. The plan's own answer wins whenever it
+        // already paused, since a paused watch reads as inactive here.
+        let impact = switchImpactRef.current;
+        if (!impact?.pauseWatcher) {
+          impact = planWatchImpact({ needsInstall: false, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
+          if (impact.pauseWatcher) await pauseWatcher();
+        }
+        setApplyBuildByWatcher(impact.buildBy);
+        clearApplyError();
+        runApplyInstallAndBuild(Boolean(res.needsInstall), 'Restored', { buildBy: impact.buildBy, noun: 'saved work' });
+        return true;
+      },
+      finish: () => finishApply()
+    };
+
+  });
 
   const runApply = async ({ reverse = false } = {}) => {
     const state = terminalStateRef.current;
@@ -3207,18 +3891,24 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       return;
     }
     const preview = applyPreview;
+    if (!reverse && preview?.kind === 'pr') {
+      await runPrSwitch();
+      return;
+    }
     const needsInstall = reverse
       ? Boolean(appliedPatch?.files?.includes('package-lock.json'))
       : Boolean(preview.needsInstall);
     // A running build watch already recompiles src/, so a src-only patch skips
     // the build and is not interrupted; an install/full build pauses it (#262).
-    const watcherActive = watchStateRef.current === 'watching';
-    const impact = planWatchImpact({ needsInstall, watcherActive });
+    const watcherActive = watchOccupiesBuild(watchStateRef.current);
+    const impact = planWatchImpact({ needsInstall, watcherActive, watchRebuildsOnStart });
     clearApplyError();
     setApplyNotice('');
     setApplyNeedsInstall(needsInstall);
-    setApplyBuildByWatcher(!impact.runBuild);
+    setApplyKind('patch');
+    setApplyBuildByWatcher(impact.buildBy);
     setApplyState('applying');
+    applyHandOffRef.current.invalidate();
     markTerminalRunning(true);
     if (impact.pauseWatcher) await pauseWatcher();
     // Same contract as the other chains: while `running` is set, Ctrl+C in the
@@ -3279,7 +3969,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         // the patch is on disk now, but the site is not usable until it is built
         // around it, so announcing "applied" here would be premature. When a
         // watch will rebuild it, runApplyInstallAndBuild confirms right away.
-        runApplyInstallAndBuild(needsInstall, reverse ? 'Reverted' : 'Applied', { runBuild: impact.runBuild });
+        runApplyInstallAndBuild(needsInstall, reverse ? 'Reverted' : 'Applied', { buildBy: impact.buildBy });
       }
     ).catch((e) => {
       // A rejected invoke never reaches onDone, so without this the terminal
@@ -3300,7 +3990,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     // A trunk reset rewrites the whole tree at once; a live watch would try to
     // recompile mid-reset. Pause it for the update; finishUpdate resumes it. The
     // PHP server stays up — the rebuild regenerates build/ under it (#262).
-    await pauseWatcher();
+    // Whether the update builds after depends on what the resumed watch does:
+    // on Gutenberg it rebuilds from scratch anyway, so the one build is its
+    // (#507). Decided here, where the watch is paused, like a PR checkout.
+    const impact = planWatchImpact({ needsInstall: false, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
+    setUpdateBuildBy(impact.buildBy);
+    setUpdateWaitingOnWatch(false);
+    if (impact.pauseWatcher) await pauseWatcher();
     markTerminalRunning(true);
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(false);
@@ -3323,7 +4019,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         return;
       }
       setUpdateLockfileChanged(Boolean(res.lockfileChanged));
-      runUpdateInstallAndBuild(Boolean(res.lockfileChanged));
+      runUpdateInstallAndBuild(Boolean(res.lockfileChanged), { buildBy: impact.buildBy });
     });
   };
 
@@ -3400,14 +4096,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       return;
     }
     // Same as beginTrunkUpdate: install + a full build need the tree to
-    // themselves, so pause the watch; finishUpdate resumes it (#262).
-    await pauseWatcher();
+    // themselves, so pause the watch; finishUpdate resumes it (#262). And the
+    // same hand-off when the resumed watch is the one that rebuilds (#507).
+    const impact = planWatchImpact({ needsInstall: true, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
+    setUpdateBuildBy(impact.buildBy);
+    setUpdateWaitingOnWatch(false);
+    if (impact.pauseWatcher) await pauseWatcher();
     markTerminalRunning(true);
     terminalKillRef.current = () => { killCurrent().catch(() => {}); };
     setUpdateLockfileChanged(true);
     setLastUpdateSummary(null);
     updateStartRef.current = Date.now();
-    runUpdateInstallAndBuild(true);
+    runUpdateInstallAndBuild(true, { buildBy: impact.buildBy });
   };
 
   // The diff fetch, shared by opening the modal and by a discard that happens
@@ -3544,6 +4244,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // put in the same box prefixed with 'Error'. The sentinel can arrive under
   // `#` lines naming binaries that could not be carried (#85), so the test is
   // "is there a diff under the commentary" rather than a string comparison.
+  const reviewContext = patchReviewContext({ pullRequest, tracTicket, workItemNoun: workItem.noun });
   const patchHasChanges = Boolean(patchText)
     && hasDiffLines(patchText)
     && !patchText.startsWith('Error');
@@ -3594,7 +4295,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // an attach form with nothing to attach.
   const saveForTrac = async () => {
     const filePath = await savePatchFile({ destination: 'trac' });
-    if (filePath && tracTicket) window.api.openExternal(attachUrl(tracTicket));
+    // Trac's alone; the destination only renders where the provider has one.
+    if (filePath && tracTicket && workItem.attachUrlFor) window.api.openExternal(workItem.attachUrlFor(tracTicket));
   };
 
   const saveForHandoff = async () => {
@@ -3707,6 +4409,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
   // deep and unreadable at the point where the wording matters most, so the
   // states get early returns and the card body gets one call.
   const renderPullRequestBody = () => {
+    if (pullRequest) {
+      return <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>{prOwnershipRefusal}</div>;
+    }
     if (appliedPatch) {
       return (
         <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
@@ -3745,19 +4450,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             </div>
           ) : null}
           {/*
-            The Trac loop-back is for a pull request that exists — a dry run
-            has no link worth posting on a ticket.
+            The loop-back to the work item is for a pull request that exists —
+            a dry run has no link worth posting. What the line says is the
+            project's: on Trac the link is what gets the pull request seen, on
+            GitHub the Fixes line has already done that (#251).
           */}
           {!prResult.dryRun && (
             <>
               <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-                Triage and props live on the ticket, so the link belongs there too.
+                {project.cards.prLoopBack}
               </div>
               <Button variant="secondary" onClick={copyPrLink} icon={prLinkCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
                 {prLinkCopied ? 'Link copied' : 'Copy the link'}
               </Button>
               {tracTicket ? (
-                <Button variant="primary" onClick={()=>window.api.openExternal(ticketUrl(tracTicket))} style={{ justifyContent:'center' }}>
+                <Button variant="primary" onClick={()=>window.api.openExternal(workItem.urlFor(tracTicket))} style={{ justifyContent:'center' }}>
                   Open #{tracTicket} to comment
                 </Button>
               ) : null}
@@ -3825,7 +4532,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               />
               {!prTitle.trim() ? (
                 <div style={{ fontSize:12, color:'#6c6f72', marginTop:-4 }}>
-                  Left empty, it will be titled <strong>Ticket #{tracTicket}</strong>.
+                  Left empty, it will be titled <strong>{workItem.defaultPrTitle(tracTicket)}</strong>.
                 </div>
               ) : null}
               {/*
@@ -3841,26 +4548,23 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 rows={4}
                 label="Notes for reviewers (optional)"
                 placeholder={'What the change does, and why.\nHow to see it working — the steps you used.\nAnything you are unsure about.'}
-                help="Goes at the top of the description. The ticket link and your WordPress.org username are added underneath."
+                help={project.cards.prNotesHelp}
               />
               {/*
-                Two facts from the core handbook that a first-timer has no way
-                to know and that change what they do next: nobody is watching
-                GitHub, and nothing is merged there. Both make the Trac step
-                this flow ends on the point rather than the postscript, so they
-                are stated before the button, not after the pull request
-                exists.
+                What a first-timer has no way to know about pull requests on
+                this project, stated before the button rather than after the
+                pull request exists. The facts are the registry's (#251): Core's
+                two are false on Gutenberg, where the pull request is the venue.
               */}
               <details style={{ fontSize:12, color:'#6c6f72' }}>
-                <summary style={{ cursor:'pointer', color:'#3858e9' }}>How pull requests work in core</summary>
+                <summary style={{ cursor:'pointer', color:'#3858e9' }}>{project.cards.prHow.summary}</summary>
                 <div style={{ padding:'8px 0 0', lineHeight:1.6, display:'flex', flexDirection:'column', gap:6 }}>
-                  <div>Nobody watches the pull request list. Yours is seen because its link is on the ticket — which is why this flow ends by sending you back there.</div>
-                  <div>Nothing is merged on GitHub either. A committer applies the change themselves, and the ticket is where they decide to.</div>
+                  {project.cards.prHow.lines.map((line) => <div key={line}>{line}</div>)}
                   <Button
                     variant="link"
-                    onClick={()=>window.api.openExternal('https://make.wordpress.org/core/handbook/contribute/git/github-pull-requests-for-code-review/')}
+                    onClick={()=>window.api.openExternal(project.cards.prHow.linkUrl)}
                     style={{ fontSize:12 }}
-                  >The handbook page on pull requests</Button>
+                  >{project.cards.prHow.linkLabel}</Button>
                 </div>
               </details>
               {/*
@@ -3878,11 +4582,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             </>
           ) : (
             <div style={{ fontSize:12, color:'#6c6f72' }}>
-              No ticket is linked to this site. A pull request has to cite one — link it in the Trac card.
+              {project.cards.prBlockedNote}
             </div>
           )}
+          {/*
+            The repository the stage label names is the effective target: the
+            sandbox when the override is set, else the site's own. The same
+            answer the test-mode badge above gives, so the two never disagree.
+          */}
           {prStage ? (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>{PR_STAGE_LABELS[prStage] || 'Working…'}</div>
+            <div style={{ fontSize:12, color:'#6c6f72' }}>{prStageLabel(prStage, githubAccount?.testMode?.target || `${project.upstream.owner}/${project.upstream.repo}`)}</div>
           ) : (
             <div style={{ fontSize:12, color:'#6c6f72' }}>
               {/*
@@ -3893,9 +4602,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               Signed in as {githubAccount.login} — the fork and branch go to{' '}
               <Button
                 variant="link"
-                onClick={()=>window.api.openExternal(`https://github.com/${githubAccount.login}/wordpress-develop`)}
+                onClick={()=>window.api.openExternal(`https://github.com/${githubAccount.login}/${project.upstream.repo}`)}
                 style={{ fontSize:12 }}
-              >{githubAccount.login}/wordpress-develop</Button>.{' '}
+              >{githubAccount.login}/{project.upstream.repo}</Button>.{' '}
               <Button variant="link" onClick={signOutOfGithub} style={{ fontSize:12 }}>Sign out</Button>
             </div>
           )}
@@ -3907,7 +4616,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       return (
         <>
           <div style={{ fontSize:12, color:'#6c6f72' }}>
-            Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other two destinations are unchanged.
+            Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.
           </div>
           <Button variant="link" onClick={()=>setGithubDeclined(false)} style={{ fontSize:12 }}>Show this again</Button>
         </>
@@ -3922,15 +4631,34 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           cliff is sprung rather than named.
         */}
         <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.6 }}>
-          Signing in lets the app fork wordpress-develop to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.
+          Signing in lets the app fork {project.upstream.repo} to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.
         </div>
         <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.6 }}>
-          It cannot create the GitHub account for you, and it cannot post to Trac on your behalf.
+          {project.cards.signInCannot}
         </div>
         <Button variant="primary" onClick={startGithubSignIn} style={{ justifyContent:'center' }}>Sign in with GitHub</Button>
         <Button variant="link" onClick={()=>{ setGithubDeclined(true); setGithubError(''); }} style={{ fontSize:12 }}>Not now</Button>
       </>
     );
+  };
+
+  const renderOwnershipWarning = () => {
+    if (pullRequest) {
+      return (
+        <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
+          {prOwnershipRefusal} You can still use <strong>Save</strong> to keep an unattributed copy of your edits.
+        </div>
+      );
+    }
+    if (appliedPatch) {
+      return (
+        <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
+          <strong>{appliedPatchLabel} is part of this checkout.</strong>{' '}
+          The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.
+        </div>
+      );
+    }
+    return null;
   };
 
   const copyDeviceCode = async () => {
@@ -4032,17 +4760,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     isUpdating
   };
   const stepState = computeSetupStepState(setupFlags);
-  const { installLabel, installDescription, buildLabel, buildDescription } = setupStepCopy(setupFlags);
+  const { installLabel, installDescription, buildLabel, buildDescription } = setupStepCopy(setupFlags, project.setup);
 
   const baseSteps = [
     {
       key: 'download',
-      label: 'Download WordPress development version',
+      label: project.setup.cloneLabel,
       description: isPending
         // The clone is also the trigger for everything after it (#246), so the
         // step says what happens next rather than implying a click is coming.
-        ? 'Cloning the WordPress develop repository… install and build start on their own when it finishes.'
-        : 'Clone the WordPress develop repository.',
+        ? 'Cloning the repository… install and build start on their own when it finishes.'
+        : project.setup.cloneDescription,
       ...stepState.download,
       running: isPending
     },
@@ -4070,7 +4798,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
       action: (
         <Button
           isBusy={building}
-          variant={hasBuilt ? 'secondary' : 'primary'}
+          variant={stepState.build.done ? 'secondary' : 'primary'}
           onClick={runBuildWithTerminal}
           disabled={stepState.build.disabled}
         >{buildLabel}</Button>
@@ -4079,7 +4807,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     {
       key: 'dev',
       label: 'Start dev server & finish wizard',
-      description: 'Launch the development server once to complete the WordPress setup wizard.',
+      description: project.setup.serverDescription,
       ...stepState.dev,
       running: starting,
       action: (
@@ -4130,8 +4858,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
     isUpdating,
     stale: age.stale,
     running,
+    pullRequest,
     hasChanges: Boolean(worktreeDirty && worktreeDirty.dirty),
-    ticketLinked: Boolean(tracTicket)
+    ticketLinked: Boolean(tracTicket),
+    workItemLabel: project.workItem.label
   });
   const nextActionId = nextAction ? nextAction.id : null;
   useNextActionCue(nextActionId, isActive, nextActionSectionRef);
@@ -4191,7 +4921,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               // the backstop, and not offering a control that cannot work is
               // the actual answer.
               ...(isPending ? [] : [
-                { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
+                isDeleting
+                  ? { title: 'Deleting…', isDisabled: true }
+                  : { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
               ])
             ]}
           />
@@ -4199,6 +4931,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
         meta={<>
           <MetaText>
             <StatusBadge status={initialized ? 'initialized' : 'uninitialized'} />
+            <span className="wpct-badge wpct-badge--neutral">{project.tag}</span>
             {createdLabel ? <span>Created {createdLabel}</span> : null}
             {age.known ? (
               <span className="wpct-meta">
@@ -4293,6 +5026,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           ) : null}
         </>}
       />
+      {legacyNotice && !isPending ? (
+        <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
+          <span style={{ flex: '1 1 320px' }}>
+            <strong>{legacyNotice.title}</strong> {legacyNotice.body}
+          </span>
+          <Button variant="primary" onClick={onCreateSite}>Create site</Button>
+        </div>
+      ) : null}
+      {mergeNotice && !isPending ? (
+        <div role="alert" style={{ padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
+          <strong>{mergeNotice.title}</strong> {mergeNotice.body}
+        </div>
+      ) : null}
       {updateIncomplete && !isUpdating ? (
         <div {...cueProps('retry-install-build')} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
           <span style={{ flex: '1 1 320px' }}>
@@ -4329,8 +5075,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           </div>
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
             {updateStepStates.map((s) => {
-              const labels = UPDATE_STEP_LABELS[s.key] || {};
-              const text = labels[s.status] || labels.pending || s.key;
+              const text = updateStepText(updateSteps, s);
               const { symbol = '', color = '#6c6f72' } = UPDATE_STEP_MARKS[s.status] || {};
               return (
                 <div key={s.key} style={{ display: 'flex', alignItems: 'baseline', gap: 8, color, opacity: s.status === 'pending' || s.status === 'skipped' ? 0.75 : 1 }}>
@@ -4485,8 +5230,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             <Button
               variant="secondary"
               onClick={toggleWatch}
-              disabled={isUpdating}
-              title={watchActive ? 'The build watch compiles src/ edits automatically' : 'Compile src/ edits on save (runs independently of the dev server)'}
+              // The one control that can end an update waiting on the resumed
+              // watch (#507): a stop settles the waiters and leaves the update
+              // incomplete, with the retry banner. Everything else stays gated.
+              disabled={isUpdating && !updateWaitingOnWatch}
+              title={watchActive ? `The build watch compiles ${project.cards.sourceDir} edits automatically` : `Compile ${project.cards.sourceDir} edits on save (runs independently of the dev server)`}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', padding: '12px 16px', fontSize: 15, borderRadius: 12 }}
             >
               <span
@@ -4532,9 +5280,51 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           ) : null}
         </div>
       ) : null}
+      {/* Above the ticket panel rather than inside it, and outside the wizard
+          gate: a link can arrive whether or not this site already has a ticket,
+          and a site still in the setup wizard shows no ticket panel at all —
+          which is exactly when a ticket that vanished silently would be worst. */}
+      {deepLinkNote ? (
+        <div role="status" style={{ padding: '14px 16px', border: '1px solid #dba617', background: '#fcf9e8', borderRadius: 8 }}>
+          <div style={{ fontWeight: 600, fontSize: 15, color: '#1d2327' }}>{deepLinkNote.title}</div>
+          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{deepLinkNote.body}</div>
+          <div style={{ marginTop: 10 }}><Button variant="link" onClick={() => setDeepLinkNoteHidden(true)}>Hide</Button></div>
+        </div>
+      ) : null}
+      {deepLinkPrompt ? (
+        <div role="status" style={{ padding: '12px 14px', background: '#f0f6fc', border: '1px solid #72aee6', borderRadius: 8, color: '#1d2327' }}>
+          <div style={{ fontWeight: 600 }}>{deepLinkPrompt.title}</div>
+          <div style={{ marginTop: 4, fontSize: 13 }}>{deepLinkPrompt.body}</div>
+          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {/* No `isBusy`: answering clears the App's deep-link value, so this
+                button is gone in the same tick it is pressed. What the link
+                started is then reported where every other ticket link reports
+                it — the panel's own progress line and `ticketError`. */}
+            <ReasonedButton
+              variant="primary"
+              onClick={acceptDeepLink}
+              reason={skipInit ? ticketActionsReason : 'Finish setting this site up first.'}
+            >{deepLinkPrompt.confirmLabel}</ReasonedButton>
+            <Button variant="link" onClick={dismissDeepLink}>Not now</Button>
+          </div>
+        </div>
+      ) : null}
       {skipInit ? (
       <div {...cueProps('link-ticket')} style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Trac ticket</div>
+        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{tracTicket ? `Working on ${workItem.noun} #${tracTicket}` : project.workItem.label}</div>
+        {prCheckout && !isApplying ? (
+          <div {...cueProps('pr-checkout')} style={{ marginTop: 12, padding: '14px 16px', border: `1px solid ${prBannerColors.border}`, background: prBannerColors.background, borderRadius: 8 }}>
+            <div style={{ fontSize: 15, color: prBannerColors.text }}><strong>{prBanner.title}</strong></div>
+            {prBanner.body ? (
+              <div style={{ marginTop: 6, fontSize: 13, color: prBannerColors.text }}>{prBanner.body}</div>
+            ) : null}
+            <div style={{ marginTop: 6, fontSize: 13, color: '#3c434a' }}>{prCheckout.body} {prCheckout.edits}</div>
+            <div style={{ marginTop: 6, fontSize: 12 }}>Revert this PR before applying another PR or patch file.</div>
+            <ReasonedButton variant="secondary" onClick={() => runPrSwitch({ leaving: true })} reason={prBanner.revertReason} style={{ marginTop: 10 }}>
+              {prCheckout.backLabel}
+            </ReasonedButton>
+          </div>
+        ) : null}
         {tracTicket ? (
           <>
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -4545,21 +5335,33 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: 999, fontSize: 18, fontWeight: 600, letterSpacing: '0.01em', background: '#f0f0f1', color: '#1d2327' }}>
                 #{tracTicket}
               </span>
-              <Button variant="link" onClick={() => window.api.openExternal(ticketUrl(tracTicket))}>Open in Trac</Button>
-              {!tracInfo ? (
+              <Button variant="link" onClick={() => window.api.openExternal(workItem.urlFor(tracTicket))}>{workItem.openLabel}</Button>
+              {showTracCards && !tracInfo ? (
                 <Button variant="link" onClick={loadTracAttachments} disabled={tracAttachmentsLoading}>
                   {tracAttachmentsLoading ? 'Reading ticket…' : 'Read details from Trac'}
                 </Button>
               ) : null}
-              <Button variant="link" isDestructive onClick={unlinkTicket} disabled={ticketActionsBlocked}>Unlink</Button>
+              <ReasonedButton variant="link" isDestructive onClick={unlinkTicket} reason={ticketActionsReason}>Unlink</ReasonedButton>
             </div>
 
             {staleTicketNotice ? (
               <div role="status" style={{ marginTop: 10, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
                 <div style={{ fontWeight: 600 }}>{staleTicketNotice.title}</div>
                 <div style={{ marginTop: 4 }}>{staleTicketNotice.body}</div>
+                <div style={{ marginTop: 8 }}>
+                  {/* Rewrites the tree when the ticket is checked out, so the
+                      same gate as a discard: nothing running over the files.
+                      Every branch of that gate has a sentence (#409). */}
+                  <ReasonedButton
+                    variant="secondary"
+                    isBusy={ticketSaving}
+                    reason={rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, devServerActive: isDevProcessActive, discarding, noun: workItem.noun })}
+                    onClick={rebaseTicket}
+                  >{staleTicketNotice.action}</ReasonedButton>
+                </div>
               </div>
             ) : null}
+            {ticketFeedback}
 
             {tracInfo ? (
               <div style={{ marginTop: 10 }}>
@@ -4626,7 +5428,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 </Button>
               </div>
               <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>
-                See the work that already exists on this ticket before adding your own.
+                See the work that already exists on this {workItem.noun} before adding your own.
               </div>
 
               {ticketPatchesLoading && !ticketPatches ? (
@@ -4634,7 +5436,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               ) : null}
 
               {ticketPatches && ticketPatches.status === 'ok' && ticketPatches.items.length === 0 ? (
-                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>No pull requests cite this ticket yet.</div>
+                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>No pull requests cite this {workItem.noun} yet.</div>
               ) : null}
 
               {ticketPatches && ticketPatches.status !== 'ok' && ticketPatches.status !== 'no-ticket' ? (
@@ -4657,6 +5459,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                             {' '}{pr.title}
                           </span>
                           {latestPill(latestPatch?.kind === 'pr' && latestPatch.key === pr.number)}
+                          {pullRequest?.number === pr.number ? <span style={{ ...pillStyle, background: '#f4fbf4', color: '#0f5132', marginLeft: 8 }}>Applied</span> : null}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, fontSize: 11, color: '#6c6f72' }}>
                           {prStatePill(pr.state)}
@@ -4666,13 +5469,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           })()}
                         </div>
                       </div>
-                      <Button
-                        variant="secondary"
-                        isBusy={fetchingPr === pr.number}
-                        disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingPr !== null}
-                        onClick={() => previewPr(pr)}
-                        style={{ flex: '0 0 auto' }}
-                      >Apply…</Button>
+                      {pullRequest ? null : (
+                        <Button
+                          variant="secondary"
+                          isBusy={fetchingPr === pr.number}
+                          disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingPr !== null}
+                          onClick={() => previewPr(pr)}
+                          style={{ flex: '0 0 auto' }}
+                        >Apply…</Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -4685,6 +5490,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               </div>
             ) : null}
 
+            {/* Trac's alone: a GitHub issue carries no attachments, its work
+                arrives as the pull requests listed above. */}
+            {showTracCards ? (
             <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Trac attachments</div>
@@ -4739,6 +5547,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           {[att.author && `by ${att.author}`, att.dateText, att.sizeText].filter(Boolean).join(' · ')}
                         </div>
                       </div>
+                      {!pullRequest ? (
                       <Button
                         variant="secondary"
                         isBusy={fetchingAttachment === att.url}
@@ -4746,16 +5555,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         onClick={() => previewAttachment(att)}
                         style={{ flex: '0 0 auto' }}
                       >Apply…</Button>
+                      ) : null}
                     </div>
                   ))}
                 </div>
               ) : null}
             </div>
+            ) : null}
           </>
         ) : (
           <>
             <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-              Tell the app which ticket you are working on. It is stored with the site, so it survives restarts, and you can change or remove it at any time.
+              Tell the app which {workItem.noun} you are working on. It is stored with the site, so it survives restarts, and you can change or remove it at any time.
             </div>
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 260 }}>
@@ -4764,17 +5575,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   onChange={(value) => { setTicketInput(value); setTicketError(''); }}
                   onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
                   disabled={ticketActionsBlocked}
-                  placeholder="Ticket number or URL, e.g. 62281"
-                  aria-label="Trac ticket number or URL"
+                  placeholder={workItem.refPlaceholder}
+                  aria-label={workItem.refLabel}
                 />
               </div>
-              <Button
+              <ReasonedButton
                 variant="secondary"
                 onClick={linkTicket}
                 isBusy={ticketSaving}
-                disabled={ticketActionsBlocked || !ticketInput.trim()}
+                reason={ticketActionsReason}
+                disabled={!ticketInput.trim()}
                 style={{ padding: '10px 16px', borderRadius: 10 }}
-              >Link ticket</Button>
+              >Link {workItem.noun}</ReasonedButton>
             </div>
             {/* Expectation-setting, not the warning itself: since #234 the
                 app asks before moving or discarding anything, so this only
@@ -4785,35 +5597,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             </div>
           </>
         )}
-        {ticketError ? (
-          <div role="alert" style={{ marginTop: 8, color: '#d63638', fontSize: 12 }}>{ticketError}</div>
-        ) : null}
-        {switchProgressLine}
-        {carriedNotice}
-        {savedCleanNotice}
-        {blockedPanel}
+        {tracTicket ? null : ticketFeedback}
         {tracTicket ? null : (
           <div style={{ marginTop: 8 }}>
-            <Button variant="link" onClick={() => window.api.openExternal(TRAC_TICKET_LISTS_URL)} style={{ fontSize: 12 }}>
-              Not sure yet? Browse good first bugs on Trac
+            <Button variant="link" onClick={() => window.api.openExternal(project.workItem.browseUrl)} style={{ fontSize: 12 }}>
+              Not sure yet? {project.workItem.browseLabel}
             </Button>
           </div>
         )}
       </div>
       ) : null}
-      {skipInit && ticketsCard ? (
+      {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{ticketsCard.heading}</div>
-          {renderBranchRows(Boolean(tracTicket))}
-        </div>
-      ) : null}
-      {skipInit ? (
-        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Apply a patch or PR</div>
-          {!applyPreview && !isApplying ? (
-            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-              Apply a pull request or a <code>.diff</code>/<code>.patch</code> file to this checkout and rebuild, so you can test the work before adding your own. Your own changes are left alone.
-            </div>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{project.cards.applyHeading}</div>
+          {!pullRequest && !applyPreview && !isApplying ? (
+            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{project.cards.applyDescription}</div>
           ) : null}
 
           {appliedLayer && !isApplying ? (
@@ -4821,6 +5619,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
               <div style={{ fontSize: 13, color: appliedLayer.canRevert ? '#0f5132' : '#6e5406' }}>
                 <strong>{appliedLayer.label}</strong> {appliedLayer.summary}
               </div>
+              <div style={{ marginTop: 8, fontSize: 12 }}>This patch is applied to your current work. Removing it may require undoing overlapping edits.</div>
+              {watchBusyMessage(watchState, watchCompiling) ? (
+                <div style={{ marginTop: 8, fontSize: 13, color: '#6e5406' }}>{watchBusyMessage(watchState, watchCompiling)}</div>
+              ) : null}
               {appliedLayer.explanation ? (
                 <div style={{ marginTop: 8, fontSize: 12, color: '#6e5406' }}>{appliedLayer.explanation}</div>
               ) : null}
@@ -4854,27 +5656,30 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           {applyPreview && !isApplying ? (
             <div {...cueProps('apply-preview')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
               <div style={{ fontSize: 13, color: '#1d2327' }}>
-                <strong>{applyPreview.label}</strong> changes {applyPreview.paths.length} file{applyPreview.paths.length === 1 ? '' : 's'}:
+                {prPreview ? <strong>{prPreview.headline}</strong> : <><strong>{applyPreview.label}</strong> changes {applyPreview.paths.length} file{applyPreview.paths.length === 1 ? '' : 's'}:</>}
               </div>
+              {applyPreview.kind === 'pr' && applyPreview.prState ? <div style={{ marginTop: 6 }}>{prStatePill(applyPreview.prState)}</div> : null}
+              {prPreview?.closedNote ? <div style={{ marginTop: 8, fontSize: 12, color: '#6e5406' }}>{prPreview.closedNote}</div> : null}
               <div style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere', maxHeight: 140, overflowY: 'auto' }}>
                 {applyPreview.paths.map((p) => <div key={p}>{p}</div>)}
               </div>
               {/* Who the colliding work belongs to (#306) is the sentence. */}
-              {previewAttribution.sentences.length ? (
+              {applyPreview.kind !== 'pr' && previewAttribution.sentences.length ? (
                 <div role="alert" style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
                   {previewAttribution.sentences.map((sentence) => <div key={sentence} style={{ marginTop: 2 }}>{sentence}</div>)}
                 </div>
               ) : null}
-              {applyPreview.unsupported.length ? (
+              {applyPreview.kind !== 'pr' && applyPreview.unsupported.length ? (
                 <div style={{ marginTop: 10, fontSize: 12, color: '#6e5406' }}>
                   {applyPreview.unsupported.join(', ')} {applyPreview.unsupported.length === 1 ? 'is a binary file and will be skipped' : 'are binary files and will be skipped'}.
                 </div>
               ) : null}
-              {applyPreview.needsInstall ? (
-                <div style={{ marginTop: 10, fontSize: 12, color: '#3c434a' }}>It changes <code>package-lock.json</code>, so dependencies will be installed before the rebuild.</div>
-              ) : null}
+              {prPreview?.installNote ? <div style={{ marginTop: 10, fontSize: 12, color: '#3c434a' }}>{prPreview.installNote}</div> : null}
+              {applyPreview.kind !== 'pr' && applyPreview.needsInstall ? <div style={{ marginTop: 10, fontSize: 12, color: '#3c434a' }}>It changes <code>package-lock.json</code>, so dependencies will be installed before the rebuild.</div> : null}
               <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>Apply and rebuild</Button>
+                <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>
+                  {prPreview ? prPreview.actionLabel : 'Apply and rebuild'}
+                </Button>
                 <Button variant="tertiary" onClick={() => { setApplyPreview(null); clearApplyError(); setApplyNotice(''); }}>Cancel</Button>
               </div>
             </div>
@@ -4904,7 +5709,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     whether the patch is worth rescuing. Without a breakdown the
                     original sentence is still the whole story. */}
                 <span style={{ flex: '1 1 auto' }}>
-                  {applyConflict?.headline || (/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`)} The checkout was not changed.
+                  {applyConflict?.headline || (/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`)}{applyKind === 'patch' ? ' The checkout was not changed.' : ''}
                 </span>
                 <Button
                   variant="tertiary"
@@ -5021,7 +5826,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
             </div>
           ) : null}
 
-          {!applyPreview && !isApplying ? (
+          {!pullRequest && !applyPreview && !isApplying ? (
             <div style={{ marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 280, flex: '1 1 280px' }}>
@@ -5041,13 +5846,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   style={{ padding: '10px 16px', borderRadius: 10 }}
                 >Apply PR</Button>
               </div>
-              <div style={{ marginTop: 10 }}>
-                <Button variant="link" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ fontSize: 13 }}>
-                  or choose a .diff / .patch file…
-                </Button>
-              </div>
+              {project.cards.patchFiles ? (
+                <div style={{ marginTop: 10 }}>
+                  <Button variant="link" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ fontSize: 13 }}>
+                    or choose a .diff / .patch file…
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : null}
+        </div>
+      ) : null}
+      {skipInit && ticketsCard ? (
+        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{ticketsCard.heading}</div>
+          {renderBranchRows(Boolean(tracTicket))}
         </div>
       ) : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -5066,7 +5879,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
           <div style={{ marginTop: 8, fontSize: 12, color: '#3c434a' }}>
             {showTerminalHints ? (
               <>
-                <div>Edited files in <code>src/</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</div>
+                <div>Edited files in <code>{project.cards.sourceDir}</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</div>
                 <div style={{ marginTop: 2, marginBottom: 6 }}>Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
               </>
             ) : null}
@@ -5256,9 +6069,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
               </div>
             )}
-            {!patchLoading && !patchHasChanges && (
+            {!patchLoading && patchLoadFailed ? (
+              <div role="alert" style={{ padding: '12px 16px', color: '#8a2424', background: '#fcf0f1', borderRadius: 6 }}>
+                Could not load your changes. Close this panel and try again. The error is shown below.
+              </div>
+            ) : null}
+            {!patchLoading && !patchLoadFailed && !patchHasChanges && (
               <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
-                There is nothing to send yet — this site has no changes against its copy of trunk.
+                {reviewContext.empty}
               </div>
             )}
 {/*
@@ -5289,7 +6107,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
                   <div>
                     <div style={{ fontWeight:600, fontSize:14, color:'#1d2327', display:'flex', alignItems:'baseline', gap:4, flexWrap:'wrap' }}>
-                      {tracTicket ? `Your changes for ticket #${tracTicket}` : 'Your changes'}
+                      {reviewContext.heading}
                       <span style={{ fontWeight:400 }}>
                         {'('}
                         <DiscardChangesLink
@@ -5301,7 +6119,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         {')'}
                       </span>
                     </div>
-                    <div style={{ fontSize:12, color:'#6c6f72' }}>Everything this site has that its copy of trunk does not.</div>
+                    <div style={{ fontSize:12, color:'#6c6f72' }}>{reviewContext.description}</div>
                     {discardError ? <div style={{ color:'#d63638', fontSize:12, marginTop:4 }}>{discardError}</div> : null}
                   </div>
                   {/*
@@ -5311,12 +6129,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     pane is a column.
                   */}
                   <div style={{ display:'flex', gap:8 }}>
-                    <Button variant="secondary" icon={download} onClick={savePatch} disabled={patchLoading}>Save</Button>
+                    <Button variant="secondary" icon={download} onClick={savePatch} disabled={patchLoading || patchLoadFailed}>Save</Button>
                     <Button
                       variant="secondary"
                       icon={patchCopied === 'copied' ? checkIcon : copyIcon}
                       onClick={copyPatch}
-                      disabled={patchLoading}
+                      disabled={patchLoading || patchLoadFailed}
                       // The label carries the outcome rather than a tooltip or
                       // a toast: it is the thing that was just pressed, so it
                       // is where the eye already is, and a screen reader
@@ -5375,15 +6193,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                 <div className="patch-destinations">
                   <div>
                   <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Where this patch goes</div>
-                  <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>The pull request is the one the app sends for you. The other two save a file for you to send.</div>
+                  <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>The pull request is the one the app sends for you. The others save a file for you to send.</div>
                   </div>
 
-                  {appliedPatch ? (
-                    <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
-                      <strong>{appliedPatchLabel} is part of this checkout.</strong>{' '}
-                      The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.
-                    </div>
-                  ) : null}
+                  {renderOwnershipWarning()}
 
                   {/*
                     Alone in its own group, because it is the one destination
@@ -5395,8 +6208,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   <DestinationGroup>
                     <Destination
                       title="Open a pull request"
-                      cost="A GitHub account. The fork is made for you; no password is typed into this app and no credential is written to disk."
-                      after="Automated checks run on it. Nobody watches GitHub, though — posting the link on the ticket is what gets it seen."
+                      cost={project.cards.prCost}
+                      after={project.cards.prAfter}
                     >
                       {/*
                         Absent from every shipped build. When a test switch is
@@ -5412,7 +6225,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                           <span>
                             {githubAccount.testMode.dryRun
                               ? 'Dry run — a branch is pushed to your fork, no pull request is opened.'
-                              : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to wordpress-develop.</>}
+                              : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to {project.upstream.owner}/{project.upstream.repo}.</>}
                           </span>
                         </div>
                       ) : null}
@@ -5435,13 +6248,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                   </DestinationGroup>
 
                   <DestinationGroup>
+                    {showTracCards ? (
                     <Destination
                       title="Attach to Trac"
                       cost="A WordPress.org account — needed anyway, for props and to comment."
                       after="No automated checks. Often followed by a request to open a pull request."
                     >
                       {tracTicket ? (
-                        <Button variant="primary" onClick={saveForTrac} disabled={Boolean(appliedPatch)} style={{ justifyContent:'center' }}>
+                        <Button variant="primary" onClick={saveForTrac} disabled={Boolean(appliedPatch || pullRequest)} style={{ justifyContent:'center' }}>
                           Save, then open #{tracTicket}
                         </Button>
                       ) : (
@@ -5457,13 +6271,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                             placeholder="Ticket number or URL, e.g. 62281"
                             aria-label="Trac ticket number or URL"
                           />
-                          <Button
+                          <ReasonedButton
                             variant="secondary"
                             onClick={linkTicket}
                             isBusy={ticketSaving}
-                            disabled={ticketActionsBlocked || !ticketInput.trim()}
+                            reason={ticketActionsReason}
+                            disabled={!ticketInput.trim()}
                             style={{ justifyContent:'center' }}
-                          >Link ticket</Button>
+                          >Link ticket</ReasonedButton>
                           {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
                           {switchProgressLine}
                           {savedCleanNotice}
@@ -5471,6 +6286,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                         </>
                       )}
                     </Destination>
+                    ) : null}
 
                     <Destination
                       title="Hand it to a mentor"
@@ -5479,7 +6295,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, onInitialized, onSit
                     >
                       {wporg?.handle && !editingHandle ? (
                         <>
-                          <Button variant="primary" onClick={saveForHandoff} disabled={Boolean(appliedPatch)} style={{ justifyContent:'center' }}>
+                          <Button variant="primary" onClick={saveForHandoff} disabled={Boolean(appliedPatch || pullRequest)} style={{ justifyContent:'center' }}>
                             Save patch as {wporg.handle}
                           </Button>
                           {/*

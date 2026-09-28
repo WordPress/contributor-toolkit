@@ -24,19 +24,21 @@ Click **Save patch as your-username**. The app saves a patch file that carries i
 # Generated: 2026-08-10
 ```
 
-The header says who made the patch, at which event, for which ticket, against which trunk revision, and when. A field the app does not know is left out rather than written as "unknown", so a mentor can trust the lines that are there. The `#` lines are ignored by `git apply`, `patch`, and Trac's own tooling, so the file applies exactly like a plain diff.
+On a Gutenberg site, the work-item line is `# Issue: https://github.com/WordPress/gutenberg/issues/71234`, using the linked issue's number. Core sites keep the Trac ticket line shown above.
+
+The header says who made the patch, at which event, for which ticket or issue, against which trunk revision, and when. A field the app does not know is left out rather than written as "unknown", so a mentor can trust the lines that are there. The `#` lines are ignored by `git apply`, `patch`, and Trac's own tooling, so the file applies exactly like a plain diff.
 
 Under the button, the card confirms what the header will claim — **The patch will say it was written at …**, or "No event on the patch" — on every save, so a remembered event from last year cannot stamp patches unnoticed.
 
 ## The file name
 
-The suggested filename carries the ticket and your username:
+The suggested filename carries the ticket or issue number and your username:
 
-- `62281.janedoe.diff` when a ticket is [linked to the site](trac-tickets)
+- `62281.janedoe.diff` when a ticket or issue numbered 62281 is linked to the site
 - `janedoe.diff` when none is
 
 The username is in the filename because it is what a mentor sorts a folder of patches by; the header is what survives if someone renames the file.
 
 ## What the mentor does with it
 
-The mentor uploads the patch to the Trac ticket (or turns it into a pull request) from their own account. The header tells them — and whoever assigns props — whose work it is and what it was based on, so the credit follows the file, not the account that uploaded it.
+For Core, the mentor uploads the patch to the Trac ticket or turns it into a pull request. For Gutenberg, they apply it to a Gutenberg checkout and open a pull request citing the issue. The header tells them — and whoever assigns props — whose work it is and what it was based on, so the credit follows the file, not the account that uploaded it.

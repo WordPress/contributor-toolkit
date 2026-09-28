@@ -6,9 +6,9 @@ After [creating a site](./creating-a-site), its view shows the **Initial setup c
 
 ## The four steps
 
-### 1. Download WordPress development version
+### 1. Download the project
 
-The clone of `wordpress-develop` that started when you created the site. It runs on its own; while it is in progress the checklist reads "Cloning the WordPress develop repository… the next step unlocks when it finishes." and every later step stays locked.
+The clone of the project's repository that started when you created the site. It runs on its own; while it is in progress the checklist reads "Cloning the repository… the next step unlocks when it finishes." and every later step stays locked.
 
 ### 2. Install npm dependencies
 
@@ -18,13 +18,13 @@ If it fails, the chain stops there and the button changes to **Retry npm install
 
 ### 3. Run full build
 
-Compiles WordPress core and generates the files the dev server serves. This is the longest step after the clone, and it follows the install without asking.
+Runs the project's full build and generates the files the dev server serves. A Core site compiles `src/` into `build/`; a Gutenberg site builds the plugin's packages. This is the longest step after the clone, and it follows the install without asking.
 
-You never run it manually unless something failed: [trunk updates](./trunk-updates) and [applied patches](./applying-patches) rebuild on their own, and while the [build watch](./running-the-site#the-build-watch) is running your own edits under `src/` are compiled as you save them.
+You never run it manually unless something failed: [trunk updates](./trunk-updates) and [applied patches or pull requests](./applying-patches) rebuild on their own, and while the [build watch](./running-the-site#the-build-watch) is running your edits are compiled as you save them.
 
 ### 4. Start dev server & finish wizard
 
-Click **Start dev server and finish the wizard** to launch the WordPress dev server for the first time. This completes the checklist and permanently replaces it with the compact action bar described below. The server URL, and a **wp-admin** link beside it, appear next to the button once it is up — see [Running the site](./running-the-site).
+Click **Start dev server and finish the wizard** to launch the WordPress dev server for the first time. This completes the checklist and permanently replaces it with the compact action bar described below. The server URL, and a **wp-admin** link beside it, appear next to the button once it is up — see [Running the site](./running-the-site). On a Gutenberg site the server starts on the build step 3 just produced, without the [build watch](./running-the-site#the-build-watch); start that yourself when you want your edits compiled on save.
 
 ## Stopping the chain
 
@@ -48,4 +48,4 @@ Steps also lock temporarily while a [trunk update](./trunk-updates) is running, 
 
 Below the checklist is a **Skip initialization wizard** link. Clicking it hides the checklist for this site, for good, and shows the compact action bar instead: the dev server start/stop button, the [build watch](./running-the-site#the-build-watch) button, and **Review & submit changes**. While the server is running, the site URL, **wp-admin** and **DB inspect (Adminer)** appear on a row below it.
 
-Skipping does not run any of the steps for you. If the dependencies were never installed or the build never ran, the dev server will not have anything to serve, so only skip on a site you know is already set up (for example, a `wordpress-develop` checkout you prepared outside the app). For everything else, finishing step 4 gets you to the same action bar with the work actually done.
+Skipping does not run any of the steps for you. If the dependencies were never installed or the build never ran, the dev server will not have anything to serve, so only skip on a site you know is already set up (for example, a `wordpress-develop` or `gutenberg` checkout you prepared outside the app). For everything else, finishing step 4 gets you to the same action bar with the work actually done.

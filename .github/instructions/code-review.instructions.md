@@ -6,23 +6,35 @@ applyTo: "**"
 
 What an automated reviewer should look for in this repo, and how to run that review. Written to be read by any agent, not one in particular — this is the single source of truth for the review standard, and it is deliberately the only copy of it.
 
-`AGENTS.md` and `.claude/skills/self-review/SKILL.md` point here rather than restate it. Copilot needs no pointer: it reads `.github/instructions/*.instructions.md` natively, selecting them by matching the `applyTo` glob above against the files in a pull request, so `**` means every PR gets this. That is the whole reason the file lives at this path and not somewhere better-named — a pointer would not have reached it, and a second condensed copy would have drifted.
+`AGENTS.md` and `.claude/skills/self-review/SKILL.md` point here rather than restate it. Copilot needs no pointer: it reads `.github/instructions/*.instructions.md` natively, selecting them by matching the `applyTo` glob above against the files in a pull request, so `**` means every PR gets this. That is the whole reason the file lives at this path and not somewhere better-named — a pointer would not have reached it, and a second condensed copy would have drifted. CodeRabbit reaches it through `.coderabbit.yaml`, which loads this file as a code guideline whenever a review is requested.
 
-The procedure below assumes an agent that can run commands. Copilot cannot; it should skip to **Scope** and treat the rest as the standard to review against.
+The procedure below assumes an agent that can run commands. Copilot and CodeRabbit cannot; they should skip to **Scope** and treat the rest as the standard to review against.
 
-Nothing runs this automatically. It is the author's pass, before a human reads the diff — which is the point: a finding fixed now costs one message, the same finding on the PR costs a review cycle. The producer is responsible for handing over a reviewable change, not the reviewer for reconstructing the context.
+CodeRabbit's automatic review is off: the WordPress organisation is on the free open-source plan, which includes about one review per hour for the whole organisation. Request one with `@coderabbitai review` on the pull request once the author's pass is done and the head commit is the one to review. If it answers "Review rate limited", wait the time it names and ask once more; if that is refused too, record the review as not run under **How to report** and let the author's pass carry the coverage. Do not post repeated requests. It is still the author's pass first, before a human or a bot reads the diff — which is the point: a finding fixed now costs one message, the same finding on the PR costs a review cycle. The producer is responsible for handing over a reviewable change, not the reviewer for reconstructing the context.
 
 ## Running the review
 
-**1. Establish the diff.**
+**1. Establish the review scope and diff.**
 
 ```bash
-git fetch origin trunk
-git diff --stat origin/trunk...HEAD
-git diff origin/trunk...HEAD
+# For a PR:
+base="$(gh pr view --json baseRefName --jq .baseRefName)" || {
+  echo "Could not determine the PR base; verify it before continuing."
+  exit 1
+}
+# For a confirmed no-PR review, use `base=trunk` instead of the assignment above.
+git fetch origin "$base"
+git diff --stat "origin/$base"...HEAD
+git diff "origin/$base"...HEAD
+git status --short
+git diff
+git diff --cached
+git ls-files --others --exclude-standard
 ```
 
-Include uncommitted work if there is any (`git status --short`, `git diff`) — the author is about to commit it, so it is in scope.
+For a PR, its configured base is the comparison base — including when it is another PR in a stack. Without a PR, first confirm that state, then use `base=trunk` as shown; name that assumption in the report instead of claiming the review covers a future stacked PR. A failed PR lookup does not prove that no PR exists: stop and verify the base rather than silently choosing `trunk`. `git status` is an inventory, not an inspection: review unstaged and staged diffs separately, and inspect the contents of every untracked file (including files in an untracked directory) that is in scope. The author is about to commit local work, so it is in scope too; ignored files are not, unless the change deliberately affects ignore rules.
+
+When a deterministic check fails, do not assign it to the branch merely because a historical run on `trunk` was clean. Verify the selected base, compare the failure against it when attribution is uncertain, and report the uncertainty rather than treating a baseline failure as a branch finding.
 
 **2. Run the deterministic layer first**, so mechanical findings never reach the judgement pass:
 
@@ -31,13 +43,13 @@ npm run lint
 npm test
 ```
 
-Both are repo-wide and both are clean on `trunk` — the lint backlog was cleared in #117, which is why `lint.yml` runs `eslint .` rather than linting only the changed files. So any failure here belongs to the branch. Report both results plainly.
+Both are repo-wide, and the lint backlog was cleared in #117, which is why `lint.yml` runs `eslint .` rather than linting only the changed files. A failure belongs to the branch only after the selected base is verified; when attribution is uncertain, compare against that base and report the uncertainty. A historical clean run on `trunk` is not enough. Report both results plainly.
 
 If ESLint fails, `npm run lint:fix` handles the mechanical part. Check what it rewrote before committing: it is also repo-wide, so a rule that starts flagging untouched files would pull them into the diff. Do not hand-fix what the fixer handles.
 
 **3. Review the five dimensions below.** Read the surrounding files, not just the diff — a diff rarely shows that a helper already handles the case, and the reporting bar requires verifying a finding before asserting it.
 
-Where the tool allows it, run this pass with fresh context — a subagent given the diff and this file, rather than the session that wrote the code. Nothing runs this review independently any more, so a reviewer that already believes the change is correct is the main way it stops working.
+Where the tool allows it, run this pass with fresh context — a subagent given the diff and this file, rather than the session that wrote the code. CodeRabbit may review it again on the pull request, but a reviewer that already believes the change is correct is still the main way this pass stops working.
 
 **4. Report, then offer.** Format below. Ask before changing anything: the author decides what is a real finding, which is the whole reason this happens before the PR rather than after.
 
@@ -59,9 +71,9 @@ That premise is what most of the rules below protect. A change that quietly rein
 
 Invariants. Breaking one is a `[fix here]` finding even when the code works on the author's machine.
 
-**Child processes run on Electron's bundled Node, never the host's.** Spawns go through `process.execPath` with `ELECTRON_RUN_AS_NODE=1` in the environment (see `runNpmWithEngineRetry` and the `playground:start` handler in `src/main.js`, and `buildChildEnv`). A bare `spawn('node')` or `spawn('npm')` assumes a host toolchain that is not there. On Windows child `npm` processes find a `node` at all only because of the `PATH` shim built by `ensureNodeShimDir` — new spawns must inherit that environment rather than build their own.
+**Child processes run on Electron's bundled Node, never the host's.** Spawns go through `nodeExecPath()` from `src/node-shims.cjs` with `ELECTRON_RUN_AS_NODE=1` in the environment (see `runNpmWithEngineRetry` and the `playground:start` handler in `src/main.js`, and `buildChildEnv`). That resolver is `process.execPath` everywhere except macOS, where it is the `… Helper.app` binary beside it, so a child that sets `process.title` does not put a Dock tile up (#518); a new spawn that names `process.execPath` directly for a Node child is a regression. Two uses of `process.execPath` are correct and stay: `src/win-spawn-patch.js`, which is Windows-only and where the resolver returns that same path by construction, and the `wpct://` protocol registration in `src/main.js`, which is not a spawn and has to name the app itself. A bare `spawn('node')` or `spawn('npm')` assumes a host toolchain that is not there. On Windows child `npm` processes find a `node` at all only because of the `PATH` shim built by `ensureNodeShimDir` — new spawns must inherit that environment rather than build their own. The one exception is the bundled Git, which is not a Node process and gets its own environment from `src/git-binary.cjs` (next invariant).
 
-**Git never shells out.** All Git operations go through `isomorphic-git`. Patch and diff generation is hand-rolled in `src/main.js` (stage untracked files, diff working tree against `origin/trunk`) precisely because there is no `git` binary to call. Any `spawn('git')` or `exec('git ...')` is a regression.
+**Git is the binary the app ships, never the host's.** Since #364 the app bundles Git through `dugite`, unpacked from `app.asar`. `require('dugite')` appears in exactly one file, `src/git-binary.cjs`; every Git spawn resolves the binary with its `resolveGitBinary`, takes its environment from `buildGitEnv`, its options from `SPAWN_OPTIONS` (which already sets `detached` the way section 4 asks), and starts its arguments with `BASE_ARGS`. That env drops every `GIT_*` variable the host had (dugite would otherwise honour `LOCAL_GIT_DIRECTORY` and `GIT_EXEC_PATH` and run a different Git), turns the host's system and global config off, and turns prompting off, so the host's shell or `~/.gitconfig` cannot change what the app does. A `spawn('git')` that relies on `PATH`, a hand-joined path into the dugite tree, a `GitProcess.exec` outside that file, a Git call given `buildChildEnv`'s environment, or one spawned without an explicit `cwd` is a regression. Parse only porcelain-stable output, with the flag that pins it (`--porcelain=v2`, `-z`, an explicit `--format`); parsing human-facing output is a finding however convenient. `src/git-run.cjs` is the only module that spawns the binary and `src/git-read.cjs` the only one that parses its output (`src/git-write.cjs` reading back the single object id `write-tree` and `commit-tree` print is not a parse); a new read belongs there, with a parser test on fixture bytes, not inline at a call site. Since #384 every read outside the write flows runs on the bundled Git and returns the same shapes the `isomorphic-git` calls returned (status rows included), so a facade signature that changes with the engine is a finding; the new-site clone (`src/git-clone.cjs`) and the ticket-branch writes (`src/ticket-branches.js` over the primitives in `src/git-write.cjs`: stage, commit-tree, update-ref, branch, checkout; the move of a ticket onto the current trunk is `merge-tree --write-tree` in `src/git-read.cjs`, a read in effect since it writes objects only, followed by the same commit-tree and update-ref) run on it too, with `src/git-progress.cjs` as the one place that reads Git's human-facing progress lines, because there is no porcelain for progress; a second parser of those lines anywhere else is a finding. The trunk update and both discards (`src/trunk-update.js`) run on the same primitives (`fetch` from the checkout's own `origin`, never a URL fixed in the app; `update-ref`; forced `checkout`; `reset` with a pathspec; `clean -fd`), and every command that streams progress goes through `streamGit` in `src/git-run.cjs`, so a second copy of that spawn-and-read block is a finding. Patch apply and revert (`src/patch-apply.js`) run on `git apply` (`applyPatch` in `src/git-write.cjs`: stdin, `-p1`, no `--index`, `--check` first), with the path rewrite to today's layout, the per-hunk wording of a refusal and the pre-write snapshot kept in JS, none of which writes; a second applier, or a write path that skips Git's check, is a finding. Patch and diff generation stays hand-rolled in `src/main.js` until the phase that moves it, and every shape it emits has to pass `git apply --check` (the agreement test in `ipc-wiring`). There is one Git engine since #386: `isomorphic-git` is not a dependency of this project at all, and a `require('isomorphic-git')` anywhere in the repository, or the package back in `package.json`, is a finding. Every test fixture is built by the bundled binary, through `tests/unit/helpers/git.cjs`: the fixture layer (`initRepo`, `commitFiles` and the reads beside them) for a suite that just needs a repository, its lower-level `git`/`gitOk` for the suites that cover one primitive and must not build their fixture with the layer above it. A suite that reaches for Git a third way, or hand-rolls the identity and the `core.autocrlf` decision the layer already makes, is a finding. Sites the old engine cloned are not written at all: every IPC handler that changes the checkout (ticket link and unlink, branch switch and delete, discard, trunk update, patch apply and revert) calls `legacySiteBlock` before anything that writes the checkout or the site's metadata (the one write that stays, `.git/info/exclude` from `site:status`, touches neither), and a new write handler without that gate is a finding; the detector is `isLegacySite` in `src/git-read.cjs` and the sentence is `src/renderer/legacy-site.cjs`, shared by main and the card.
 
 **`electron-store` is the only persistence layer.** No database, no sidecar JSON. It holds the site registry and per-site metadata and is the single source of truth for "known sites". A second store, a cache file, or state parked in a module-level variable that outlives a handler is architectural drift — flag it.
 
@@ -73,11 +85,17 @@ Invariants. Breaking one is a `[fix here]` finding even when the code works on t
 
 **Renderer decisions live in modules, not in `index.jsx`.** `src/renderer/index.jsx` mounts itself at module scope and cannot be loaded without a DOM, so nothing in the suite can reach it: a decision made there is untestable by construction. Anything with more than one branch — a string the user reads, a path joined, a status derived, a command parsed — belongs in a `src/renderer/*.cjs` module with its own test, leaving the component holding JSX, state assignments and the call. `site-folder.cjs` and `open-failure.cjs` are the shape.
 
+State that has to survive an `await` inside the component goes in a ref, never in a variable scoped to an effect. Several of the component's effects have no dependency list, so they run on every render, and a value computed there before an IPC round trip is reset by the renders the round trip causes; the code after the `await` then reads a fresh default and takes the wrong branch, silently. ESLint does not flag it (`react-hooks/exhaustive-deps` has nothing to say about an effect with no list), and nothing in the suite can reach it, so it is caught here or not at all.
+
+A chain that releases the terminal lock but keeps its own busy state (`updateState`, `applyState`) must keep at least one enabled control that can end the wait. The `isUpdating`-style disables are not released with the lock, and a state whose only exit is an external event (a watch's ready line, a process exit) that the UI has disabled the means to trigger leaves the site row inert until an app restart. Name which control ends the wait, and check that it is enabled while the wait lasts (#507).
+
 This is the direction chosen in #216 over building a DOM harness, which was judged too much setup for the coverage it buys against a 4000-line component. The consequence is that it is enforced here, by review, and nowhere else — `no-unused-vars` catches a module whose last call site is deleted, but nothing catches a second code path that answers the same question inline. That is exactly what #180 was. Reopen the harness question if a bug ever lands in the assignments the modules cannot absorb.
 
 **New dependencies are findings by default.** Native compilation or a host binary breaks the zero-prerequisite promise on user machines. A dependency with lifecycle scripts also needs an `allowScripts` entry in `package.json` — the mechanism already exists, and a missing entry means its install scripts silently don't run.
 
 **Changing the shape of what `electron-store` holds needs a migration path.** Existing users have site registries on disk; a renamed or restructured key silently orphans their sites.
+
+**Complexity stays proportional to current requirements.** The one-place rules above (one Git spawner, one parser, one store, one progress reader) are instances of this: reuse the repository's established mechanisms rather than introduce competing implementations of the same responsibility, and avoid speculative options, configuration surfaces and abstraction layers without a demonstrated current need. A complexity finding must identify the unnecessary mechanism and describe a simpler alternative that preserves required behaviour, error handling, security, cross-platform support and testability; "too complicated" on its own is not a finding. A single caller or implementation is not a finding by itself either: extraction for clarity, separation of responsibilities or testing can justify it. Apply this to complexity the PR introduces; broader simplifications belong in `[follow-up]`.
 
 ## 2. Security
 
@@ -131,6 +149,9 @@ macOS and Windows are the primary targets; Linux artifacts are published too. CI
 
 - Mocking the very thing the test claims to verify.
 - Asserting implementation details — exact log strings, call order of internals — instead of observable behaviour. These break on harmless refactors and survive real bugs.
+- Cleanup that is green while doing nothing. `t.after` hooks run in the order they were registered, so a fixture that reaches outside its own temporary directory (a worktree beside it, a patch file next to it) cannot clean up through a repository an earlier hook already removed; remove it as a directory with `removeRepo`, and use the throwing helper (`gitOk`) for any cleanup that goes through Git, or the only symptom is disk filling up.
+- A stub-map test that an absolute-path `require` walks around. The `ipc-wiring` loader stubs modules by their relative request (`'./hide-child-windows'`); a module reached by `require(path.join(__dirname, …))`, or by a file that main.js copies rather than requires, never hits the map, so a test asserting "this stub was not called" stays green while the real module runs. Assert on `require.cache` as well when the rule is "never loaded", not "never called".
+- A journey locator that changed meaning. `tests/e2e/journeys/*.spec.js` pin user-facing strings with `getByText(…, { exact: true })`; when a PR turns a fixed string into a conditional one (a headline that follows a state), grep the journeys for the old string and check that each assertion still asserts what it meant, rather than passing only because the fixture never reaches the new branch.
 - Passing on only one of the two Node runtimes. CI runs the suite on `.nvmrc`'s Node *and* on Electron's bundled Node because the two are set independently and have drifted; a test (or the code under it) that assumes the newer of the two is broken on the other.
 
 **Platform-conditional code needs both branches tested — from one machine.** The house pattern is dependency injection, not skipping: `tests/unit/win-spawn-patch.test.cjs` exercises the Windows paths from macOS by injecting `platform`, lookup and env rather than reading `process.platform`. A new platform split tested with `it.skip` on the other OS is a coverage hole CI will never close, since the suite runs on both platforms but each skips the other's branch.
@@ -152,9 +173,13 @@ macOS and Windows are the primary targets; Linux artifacts are published too. CI
 
 Where this runs before the PR exists, that report goes in the chat: no GitHub comments, no files written. Where it runs on a PR, `[fix here]` findings become inline comments on the exact lines and the counts go in a single summary comment, with the style notes in a collapsed `<details>` block.
 
-**On a re-run, reconcile — do not re-review from scratch.** Mark each earlier finding resolved, still open, or obsolete. Re-asserting a fixed finding is the fastest way to get the whole review ignored.
+**Record what was actually reviewed.** Alongside the outcome, name the reviewer (person, bot, or separate agent context), the reviewed head SHA and base SHA, and whether the review completed, was partial, or did not run. Link to the review report when one exists; for a local agent review, include its result in the PR's collapsed review outcome. If uncommitted changes were included, identify that scope explicitly: the head SHA alone does not identify them. Once committed, verify that the published diff matches the reviewed work and record the resulting SHA; review any differences before claiming coverage of it.
 
-**Say when there is nothing.** "No findings across the five dimensions" in one line is a good review. Do not pad. Do not restate what the PR does — the author knows.
+**A successful check is not evidence of a completed review.** Read the review output before reporting "no findings". A bot can report success while skipping review because of a usage limit, configuration, or an error; record that as "not run" with the reason, not as zero findings. A partial review must name what remains unreviewed. If CodeRabbit is unavailable, a completed review against this standard by a person or a fresh agent context can cover the change; identify that reviewer and the covered revision explicitly. This is a reporting requirement, not a new CI check or permission to bypass merge protections.
+
+**On a re-run, reconcile and inspect subsequent changes.** Mark each earlier finding resolved, still open, or obsolete, and review changes since the recorded head and base, including their effect on the surrounding code. Re-asserting a fixed finding is the fastest way to get the whole review ignored, but checking only old findings can miss new problems. After a push, rebase, or base update, do not carry the old result forward automatically. If the reviewed changes and relevant context are unchanged, record that comparison and the new head and base SHAs; otherwise review the affected scope and update the outcome.
+
+**Say when there is nothing.** For a completed review, "No findings across the five dimensions" plus the revision and reviewer record above is enough. Do not pad. Do not restate what the PR does — the author knows.
 
 **Verify before claiming.** Read the surrounding file before asserting an invariant is broken; the diff alone often does not show that a helper already handles the case. A confident wrong finding costs more than a missed one.
 

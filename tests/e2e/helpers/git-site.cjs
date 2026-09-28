@@ -17,7 +17,14 @@
 const fs = require( 'node:fs' );
 const os = require( 'node:os' );
 const path = require( 'node:path' );
-const git = require( 'isomorphic-git' );
+const { pathToFileURL } = require( 'node:url' );
+const {
+	gitOk: run,
+	initRepo,
+	commitFiles,
+	currentBranch: headBranch,
+	listBranches,
+} = require( '../../unit/helpers/git.cjs' );
 
 const TRUNK = 'trunk';
 const AUTHOR = { name: 'e2e', email: 'e2e@example.test' };
@@ -60,25 +67,49 @@ const TRUNK_FILES = {
 /**
  * Creates a repository the app will list, open, and consider ready to work in.
  *
- * @param {Object} session         A Session from ./app.cjs. The directory is
- *                                 registered with it, so it is removed after the
- *                                 app has stopped — doing it earlier fails on
- *                                 Windows, where a directory with open handles
- *                                 cannot be deleted.
- * @param {Object} [options]
- * @param {string} [options.label] The name shown in the sidebar.
- * @return {Promise<{dir: string, baseOid: string, settings: Object}>}
+ * @param {Object}  session          A Session from ./app.cjs. The directory is
+ *                                   registered with it, so it is removed after the
+ *                                   app has stopped — doing it earlier fails on
+ *                                   Windows, where a directory with open handles
+ *                                   cannot be deleted.
+ * @param {Object}  [options]
+ * @param {string}  [options.label]  The name shown in the sidebar.
+ * @param {boolean} [options.legacy] Shape the repository the way the old engine's shallow clone did (#385).
+ * @param {boolean} [options.origin] Give the site an `origin` it can fetch from: a clone of it on disk (#385).
+ * @return {Promise<{dir: string, baseOid: string, origin: ?string, settings: Object}>}
  */
-async function makeSite( session, { label = 'e2e-site' } = {} ) {
+async function makeSite( session, { label = 'e2e-site', legacy = false, origin = false } = {} ) {
 	const dir = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-site-' ) ) );
 
-	await git.init( { fs, dir, defaultBranch: TRUNK } );
+	// initRepo gives it the shape the clone writes (git-clone.cjs): a site the
+	// app supports has core.autocrlf pinned, so a switch writes LF on Windows
+	// too and the byte-for-byte invariants mean the same on every platform.
+	initRepo( dir, { branch: TRUNK } );
 	fs.mkdirSync( path.join( dir, 'src' ), { recursive: true } );
 	for ( const [ file, content ] of Object.entries( TRUNK_FILES ) ) {
 		fs.writeFileSync( path.join( dir, file ), content );
 	}
-	await git.add( { fs, dir, filepath: Object.keys( TRUNK_FILES ) } );
-	const baseOid = await git.commit( { fs, dir, message: 'trunk', author: AUTHOR } );
+	const baseOid = commitFiles( dir, Object.keys( TRUNK_FILES ), 'trunk', { author: AUTHOR } );
+
+	// What a site the old engine cloned looks like to the app (#385): the root
+	// commit listed in .git/shallow, and a remote with no promisor. The app
+	// detects it from exactly these two facts, so the fixture writes exactly
+	// these two things.
+	if ( legacy ) {
+		fs.writeFileSync( path.join( dir, '.git', 'shallow' ), `${ baseOid }\n` );
+		run( [ 'remote', 'add', 'origin', 'https://example.test/wordpress-develop.git' ], dir );
+	}
+
+	// Where "Update to latest trunk" fetches from (#385): a clone of the site
+	// beside it, reached over `file://`, that a journey moves ahead with
+	// `advanceOrigin`. A working clone rather than a bare one so the journey
+	// can commit into it with the same binary the app ships.
+	let originDir = null;
+	if ( origin ) {
+		originDir = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-origin-' ) ) );
+		run( [ 'clone', '-q', '--config', 'core.autocrlf=false', '--', dir, originDir ], path.dirname( originDir ) );
+		run( [ 'remote', 'add', 'origin', pathToFileURL( originDir ).href ], dir );
+	}
 
 	fs.mkdirSync( path.join( dir, 'node_modules', 'react' ), { recursive: true } );
 	fs.writeFileSync( path.join( dir, SUBSTRATE ), SUBSTRATE_CONTENT );
@@ -88,7 +119,50 @@ async function makeSite( session, { label = 'e2e-site' } = {} ) {
 	// what is checked, not its contents.
 	fs.mkdirSync( path.join( dir, 'build', 'wp-includes', 'js', 'dist' ), { recursive: true } );
 
-	return { dir, baseOid, settings: settingsFor( dir, label ) };
+	return { dir, baseOid, origin: originDir, settings: settingsFor( dir, label ) };
+}
+
+/**
+ * Commits new content into the site's origin, so the next update has
+ * something to fetch. Returns the new tip.
+ *
+ * @param {string}                 origin    The directory `makeSite` returned as `origin`.
+ * @param {Object<string, string>} files     Path → content, relative to the repository.
+ * @param {string}                 [message] Commit message.
+ * @return {string} The commit id trunk now points at in the origin.
+ */
+function advanceOrigin( origin, files, message = 'trunk moves on' ) {
+	for ( const [ file, content ] of Object.entries( files ) ) {
+		fs.mkdirSync( path.dirname( path.join( origin, file ) ), { recursive: true } );
+		fs.writeFileSync( path.join( origin, file ), content );
+	}
+	return commitFiles( origin, Object.keys( files ), message, { author: AUTHOR } );
+}
+
+/**
+ * Adds a pull request ref to the local origin without leaving a branch behind.
+ * GitHub exposes the same shape as `refs/pull/<number>/head`; the app fetches
+ * that ref directly and never needs the contributor's source branch.
+ *
+ * @param {string}                 origin    The directory `makeSite` returned as `origin`.
+ * @param {number}                 number    Pull request number.
+ * @param {Object<string, string>} files     Path → content, relative to the repository.
+ * @param {string}                 [message]
+ * @return {string} The pull request head commit.
+ */
+function addPullRequestToOrigin( origin, number, files, message = `PR #${ number }` ) {
+	const before = headBranch( origin );
+	const scratch = `e2e-pr-${ number }`;
+	run( [ 'checkout', '-q', '-b', scratch, TRUNK ], origin );
+	for ( const [ file, content ] of Object.entries( files ) ) {
+		fs.mkdirSync( path.dirname( path.join( origin, file ) ), { recursive: true } );
+		fs.writeFileSync( path.join( origin, file ), content );
+	}
+	const oid = commitFiles( origin, Object.keys( files ), message, { author: AUTHOR } );
+	run( [ 'update-ref', `refs/pull/${ number }/head`, oid ], origin );
+	run( [ 'checkout', '-q', before ], origin );
+	run( [ 'branch', '-D', scratch ], origin );
+	return oid;
 }
 
 /**
@@ -147,15 +221,15 @@ const write = ( dir, file, content ) => fs.writeFileSync( path.join( dir, file )
  * believes.
  *
  * @param {string} dir
- * @return {Promise<string[]>}
+ * @return {string[]}
  */
-const branches = ( dir ) => git.listBranches( { fs, dir } );
+const branches = ( dir ) => listBranches( dir );
 
 /**
  * @param {string} dir
- * @return {Promise<string>}
+ * @return {string}
  */
-const currentBranch = ( dir ) => git.currentBranch( { fs, dir, fullname: false } );
+const currentBranch = ( dir ) => headBranch( dir );
 
 /**
  * Writes a unified diff to a file the app's dialog can be pointed at.
@@ -186,6 +260,8 @@ function makePatchFile( session, name, hunks ) {
 
 module.exports = {
 	makeSite,
+	advanceOrigin,
+	addPullRequestToOrigin,
 	makePatchFile,
 	settingsFor,
 	read,

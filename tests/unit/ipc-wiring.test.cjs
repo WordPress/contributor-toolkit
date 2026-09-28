@@ -35,12 +35,46 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
-const git = require('isomorphic-git');
+const { AsyncLocalStorage } = require('node:async_hooks');
+const {
+	git: bin,
+	gitOk,
+	initRepo,
+	commitFiles,
+	resolveRef: revParse,
+	currentBranch,
+	listBranches,
+	commitMeta,
+	tempDir
+} = require('./helpers/git.cjs');
 // The applied-layer module turns the handler's measured status into the
 // attribution the renderer shows.
 const { attributeConflicts } = require('../../src/renderer/applied-layer.cjs');
+const { nodeExecPath } = require('../../src/node-shims.cjs');
 const SRC_DIR = path.join(__dirname, '..', '..', 'src');
 const MAIN_PATH = path.join(SRC_DIR, 'main.js');
+
+/**
+ * A repository shaped the way a checkout the app adopted is shaped rather than
+ * one it cloned itself: no `core.autocrlf` in the repository config, which is
+ * what leaves the Windows CRLF view (`crlfArgs` in git-read.cjs) in play. The
+ * patch-generation tests below use `patchRepo` instead, the clone's shape,
+ * because what they assert byte for byte is what a site the app made holds.
+ *
+ * @param {import('node:test').TestContext} t
+ * @param {string}                          prefix
+ * @return {string} The directory.
+ */
+const adoptedRepo = (t, prefix) => initRepo(tempDir(t, prefix), { autocrlf: null });
+
+/**
+ * The whole worktree and index as Git sees them, for the assertions that took
+ * a before-and-after snapshot to prove a handler staged nothing.
+ *
+ * @param {string} dir
+ * @return {string}
+ */
+const statusScan = (dir) => gitOk(['status', '--porcelain=v2', '-z', '--untracked-files=all'], dir);
 
 // --- the harness ---------------------------------------------------------
 //
@@ -77,6 +111,7 @@ function createElectronStub() {
 			const self = this;
 			this.webContents = {
 				send: (channel, payload) => { self.sent.push({ channel, payload }); },
+				isDestroyed: () => false,
 				on() {},
 				once() {},
 				setWindowOpenHandler() {},
@@ -89,6 +124,10 @@ function createElectronStub() {
 		on() {}
 		once() {}
 		show() {}
+		focus() {}
+		restore() {}
+		isMinimized() { return false; }
+		isDestroyed() { return false; }
 		close() {}
 		static getAllWindows() { return windows; }
 	}
@@ -109,7 +148,20 @@ function createElectronStub() {
 			getName: () => 'wordpress-contributor-toolkit',
 			setName() {},
 			getVersion: () => '0.0.0-test',
-			isPackaged: false
+			isPackaged: false,
+			// The `wpct://` registration (#464). The lock runs at module scope, so
+			// a missing stub would stop main.js loading at all rather than fail a
+			// handler — which is why it is here and not in a test's setup. The
+			// registration itself sits inside whenReady, which never settles
+			// here; what decides it is `protocolRegistration` in deep-link.cjs,
+			// covered by that module's own suite.
+			requestSingleInstanceLock: () => true,
+			setAsDefaultProtocolClient: () => true,
+			// True, not false: `showWindowForDeepLink` refuses to open a window
+			// before the app is ready, and with this false the whole main-process
+			// half of the deep-link flow returned on its first line in every test
+			// here — delivery included.
+			isReady: () => true
 		},
 		BrowserWindow: BrowserWindowStub,
 		Menu: {
@@ -419,6 +471,176 @@ test('sites:delete removes a registered directory and refuses an unregistered on
 	assert.deepEqual(Object.keys(settings.values.siteMeta), [unregistered]);
 });
 
+test('sites:delete removes Gutenberg runtime data only for a registered Gutenberg site', async (t) => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-runtime-'));
+	t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+	const site = path.join(root, 'gutenberg');
+	const core = path.join(root, 'core');
+	const runtime = path.join(root, 'runtime');
+	for (const dir of [site, core, runtime]) fs.mkdirSync(dir);
+	fs.writeFileSync(path.join(runtime, 'saved-content'), 'old site');
+	const settings = fakeSettingsStore({ sites: [site, core], siteMeta: { [site]: { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: {
+		...silentLogging(), ...settings.stubs,
+		'./playground-storage.cjs': { removePersistentPlaygroundSite: async (dir) => {
+			assert.equal(dir, site);
+			assert.ok(fs.existsSync(site), 'resolve the runtime before removing its checkout');
+			await fs.promises.rm(runtime, { recursive: true });
+		} }
+	} });
+	assert.deepEqual(await main.invoke('sites:delete', runtime), { ok: false, refused: true });
+	assert.deepEqual(await main.invoke('sites:delete', core), { ok: true });
+	assert.ok(fs.existsSync(runtime));
+	assert.deepEqual(await main.invoke('sites:delete', site), { ok: true });
+	assert.equal(fs.existsSync(runtime), false, 'deleted sites must not return with old posts');
+	assert.equal(fs.existsSync(site), false);
+});
+
+test('sites:delete keeps a Gutenberg checkout and registry entry when runtime removal fails', async (t) => {
+	const site = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-runtime-failure-'));
+	t.after(() => fs.rmSync(site, { recursive: true, force: true }));
+	const settings = fakeSettingsStore({ sites: [site], siteMeta: { [site]: { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: {
+		...silentLogging(), ...settings.stubs,
+		'./playground-storage.cjs': { removePersistentPlaygroundSite: async () => {
+			throw Object.assign(new Error('locked database'), { code: 'EBUSY' });
+		} }
+	} });
+	assert.deepEqual(await main.invoke('sites:delete', site), { ok: false, reason: 'remove-failed', path: site, code: 'EBUSY' });
+	assert.ok(fs.existsSync(site));
+	assert.deepEqual(settings.values.sites, [site]);
+	assert.equal(settings.values.siteMeta[site].projectType, 'gutenberg');
+});
+
+// A build watch and dev server keep their working directory open. On Windows
+// that makes the site's root undeletable until both process trees have fully
+// closed, so sending a kill and immediately calling removeTree is still a race.
+// The delete must wait for close, and the registry entry must remain retryable
+// throughout that wait.
+test('sites:delete stops and waits for the site processes before removing it (#414)', async () => {
+	const registered = '/sites/wp';
+	const settings = fakeSettingsStore({ sites: [registered], siteMeta: { [registered]: {} } });
+	const cp = stubbedSpawn();
+	const killChildTreeAndWait = spy((child) => new Promise((resolve) => child.once('close', () => resolve(true))));
+	const removeTree = spy(async () => {});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			...noSmtpServer(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTreeAndWait },
+			'./remove-tree': { removeTree }
+		}
+	});
+
+	await main.invoke('npm:run-script', registered, 'dev');
+	await main.invoke('npm:run-script', registered, 'build');
+	const pendingServer = main.invoke('playground:start', registered);
+	await waitForSpawnCount(cp, 3);
+	const deletion = main.invoke('sites:delete', registered);
+	await new Promise(setImmediate);
+
+	const beforeClose = {
+		killCalls: killChildTreeAndWait.calls.slice(),
+		removeCalls: removeTree.calls.slice(),
+		sites: settings.values.sites.slice()
+	};
+	for (const child of cp.children) child.emit('close', 0, null);
+	const [result] = await Promise.all([deletion, pendingServer]);
+
+	assert.deepEqual(beforeClose.killCalls, cp.children.map((child) => [child]), 'every site process tree must be stopped');
+	assert.deepEqual(beforeClose.removeCalls, [], 'removal must wait until every child has closed');
+	assert.deepEqual(beforeClose.sites, [registered], 'the site must stay visible and retryable while deletion waits');
+	assert.deepEqual(removeTree.calls, [[registered]]);
+	assert.deepEqual(result, { ok: true });
+	assert.deepEqual(settings.values.sites, []);
+});
+
+test('sites:delete keeps the site when one of its processes does not stop (#414)', async () => {
+	const registered = '/sites/wp';
+	const settings = fakeSettingsStore({ sites: [registered], siteMeta: { [registered]: {} } });
+	const cp = stubbedSpawn();
+	const killChildTreeAndWait = spy(async () => false);
+	const removeTree = spy(async () => {});
+	const logError = spy();
+	const main = loadMain({
+		stubs: {
+			'./logging': { ...silentLogging()['./logging'], logError },
+			...settings.stubs,
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTreeAndWait },
+			'./remove-tree': { removeTree }
+		}
+	});
+
+	await main.invoke('npm:run-script', registered, 'dev');
+	const result = await main.invoke('sites:delete', registered);
+	cp.children[0].emit('close', 1, null);
+
+	assert.deepEqual(killChildTreeAndWait.calls, [[cp.children[0]]]);
+	assert.deepEqual(removeTree.calls, [], 'a process that may still hold the folder must prevent removal');
+	assert.deepEqual(result, { ok: false, reason: 'remove-failed', path: registered, code: 'ETIMEDOUT' });
+	assert.deepEqual(settings.values.sites, [registered]);
+	assert.deepEqual(Object.keys(settings.values.siteMeta), [registered]);
+	assert.equal(logError.calls.length, 1);
+	assert.match(logError.calls[0][1], /kept .* in the registry/);
+});
+
+test('sites:delete does not let a stopped install retry while removing the site (#414)', async () => {
+	const registered = '/sites/wp';
+	const settings = fakeSettingsStore({ sites: [registered], siteMeta: { [registered]: {} } });
+	const cp = stubbedSpawn();
+	const shouldRetryWithRelaxedEngines = spy(({ cancelled }) => !cancelled);
+	const killChildTreeAndWait = spy(async (child) => {
+		child.emit('close', 1, null);
+		return true;
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTreeAndWait },
+			'./npm-runner': { shouldRetryWithRelaxedEngines },
+			'./remove-tree': { removeTree: async () => {} }
+		}
+	});
+
+	await main.invoke('npm:install', registered);
+	assert.equal(cp.spawned.length, 1);
+	assert.deepEqual(await main.invoke('sites:delete', registered), { ok: true });
+
+	assert.equal(shouldRetryWithRelaxedEngines.calls.length, 1);
+	assert.equal(shouldRetryWithRelaxedEngines.calls[0][0].cancelled, true);
+	assert.equal(cp.spawned.length, 1, 'deletion must not restart the install it stopped');
+});
+
+test('sites:delete ignores a runner that failed to spawn without closing (#414)', async () => {
+	const registered = '/sites/wp';
+	const settings = fakeSettingsStore({ sites: [registered], siteMeta: { [registered]: {} } });
+	const cp = stubbedSpawn();
+	const killChildTreeAndWait = spy(async () => false);
+	const removeTree = spy(async () => {});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTreeAndWait },
+			'./remove-tree': { removeTree }
+		}
+	});
+
+	await main.invoke('npm:install', registered);
+	cp.children[0].emit('error', Object.assign(new Error('spawn EPERM'), { code: 'EPERM' }));
+	await new Promise((resolve) => setTimeout(resolve, 0));
+
+	assert.deepEqual(await main.invoke('sites:delete', registered), { ok: true });
+	assert.deepEqual(killChildTreeAndWait.calls, [], 'a runner that never started cannot hold the folder open');
+	assert.deepEqual(removeTree.calls, [[registered]]);
+});
+
 // The tree a real Git leaves behind: a read-only loose object inside a
 // directory without its write bit. On POSIX plain removal fails on it — the
 // state that used to strand a site's folder on disk while the registry forgot
@@ -446,10 +668,10 @@ test('sites:delete clears the read-only attributes a real Git leaves behind (#38
 });
 
 // When the disk genuinely refuses, the handler must say so instead of
-// pretending: the registry half has already happened (deliberately — a locked
-// folder must not leave a site stuck undeletable), so the renderer gets a
-// machine-readable failure naming the surviving path, and the log gets the
-// stack. The refusal is staged by stubbing remove-tree rather than by locking
+// pretending: the registry entry must stay intact, so the contributor can retry
+// after releasing the folder. The renderer gets a machine-readable failure
+// naming the surviving path, and the log gets the stack. The refusal is staged
+// by stubbing remove-tree rather than by locking
 // a real directory: the real ways a removal fails differ by platform (an open
 // handle on Windows does not even refuse the unlink — libuv opens with
 // FILE_SHARE_DELETE), and the real propagation is remove-tree.test.cjs's job.
@@ -477,11 +699,10 @@ test('sites:delete reports a folder it could not remove instead of pretending (#
 	const result = await main.invoke('sites:delete', registered);
 	assert.deepEqual(result, { ok: false, reason: 'remove-failed', path: registered, code: 'EPERM' });
 	assert.equal(fs.existsSync(registered), true, 'the folder really did survive');
-	// The forget half happened first, on purpose; the contract is honesty, not rollback.
-	assert.deepEqual(settings.values.sites, []);
+	assert.deepEqual(settings.values.sites, [registered], 'the failed delete must remain retryable');
 	assert.equal(logError.calls.length, 1);
 	assert.equal(logError.calls[0][0], 'sites');
-	assert.match(logError.calls[0][1], /still on disk/);
+	assert.match(logError.calls[0][1], /kept .* in the registry/);
 });
 
 // --- site:status -> src/trunk-update.js ----------------------------------
@@ -504,9 +725,7 @@ test('site:status reports the trunk snapshot trunk-update read, not its own gues
 });
 
 test('site:status does not seed excludes in an unregistered repository (issue #19)', async (t) => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-unregistered-exclude-'));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	const dir = adoptedRepo(t, 'ipc-wiring-unregistered-exclude-');
 	const excludePath = path.join(dir, '.git', 'info', 'exclude');
 	fs.writeFileSync(excludePath, 'existing-rule/\n');
 	const settings = fakeSettingsStore({ sites: [], siteMeta: {} });
@@ -524,12 +743,9 @@ test('site:status does not seed excludes in an unregistered repository (issue #1
 });
 
 test('git:get-patch does not seed excludes in an unregistered repository (issue #19)', async (t) => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-unregistered-patch-exclude-'));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	const dir = adoptedRepo(t, 'ipc-wiring-unregistered-patch-exclude-');
 	fs.writeFileSync(path.join(dir, 'README.md'), 'base\n');
-	await git.add({ fs, dir, filepath: 'README.md' });
-	await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
+	commitFiles(dir, ['README.md'], 'init');
 	fs.appendFileSync(path.join(dir, 'README.md'), 'edit\n');
 	const excludePath = path.join(dir, '.git', 'info', 'exclude');
 	fs.writeFileSync(excludePath, 'existing-rule/\n');
@@ -564,7 +780,10 @@ test('git:discard-changes resets through trunk-update and clears the applied-pat
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { discardChanges } } });
 
 	assert.deepEqual(await main.invoke('git:discard-changes', '/sites/wp'), { ok: true });
-	assert.deepEqual(discardChanges.calls, [['/sites/wp']]);
+	assert.equal(discardChanges.calls.length, 1);
+	assert.equal(discardChanges.calls[0][0], '/sites/wp');
+	// The checkout child is tracked for the quit sweep, like every write (#385).
+	assert.equal(typeof discardChanges.calls[0][1].onChild, 'function');
 	// The record is cleared with the reset, not left for a later trunk update to
 	// clear — otherwise a failed update leaves a revert banner for a gone patch.
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch, null);
@@ -580,25 +799,15 @@ test('git:discard-changes resets through trunk-update and clears the applied-pat
 // `src/` layout instead, because a patch's paths are read through
 // `mapToSrcLayout` and a collision is a string match on the result.
 async function parkedTicketRepo(t, { workFile = 'wp-login.php' } = {}) {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-parked-'));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
-	const author = { name: 'test', email: 'test@example.com' };
+	const dir = adoptedRepo(t, 'ipc-wiring-parked-');
 	const abs = path.join(dir, workFile);
 	fs.mkdirSync(path.dirname(abs), { recursive: true });
 	const baseText = '<?php // login\n';
 	fs.writeFileSync(abs, baseText);
-	await git.add({ fs, dir, filepath: workFile });
-	const baseOid = await git.commit({ fs, dir, message: 'trunk snapshot', author });
-	await git.branch({ fs, dir, ref: 'ticket/62281', object: 'trunk', checkout: true });
+	const baseOid = commitFiles(dir, [workFile], 'trunk snapshot');
+	gitOk(['checkout', '-b', 'ticket/62281', 'trunk'], dir);
 	fs.writeFileSync(abs, `${baseText}// the ticket work\n`);
-	await git.add({ fs, dir, filepath: workFile });
-	await git.commit({
-		fs, dir,
-		message: 'Work in progress (WordPress Contributor Toolkit)',
-		author,
-		parent: [baseOid]
-	});
+	commitFiles(dir, [workFile], 'Work in progress (WordPress Contributor Toolkit)');
 	return { dir, baseOid, workFile, baseText };
 }
 
@@ -653,12 +862,9 @@ test('git:unsubmitted-work counts parked and uncommitted work as one answer (#23
 // On trunk there is no branch point and nothing parked, so the two questions
 // coincide — a site that never linked a ticket must see no change at all.
 test('git:unsubmitted-work matches git:worktree-dirty on trunk (#239)', async (t) => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-trunk-note-'));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	const dir = adoptedRepo(t, 'ipc-wiring-trunk-note-');
 	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // login\n');
-	await git.add({ fs, dir, filepath: 'wp-login.php' });
-	await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
+	commitFiles(dir, ['wp-login.php'], 'init');
 	const main = loadMain({
 		stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } }).stubs }
 	});
@@ -725,9 +931,9 @@ test('git:discard-to-base rewinds the branch to its base, parked work included (
 		/the ticket work/,
 		'the parked work is rewound too, unlike a plain discard'
 	);
-	assert.equal(await git.resolveRef({ fs, dir, ref: 'HEAD' }), baseOid, 'HEAD is the branch base');
+	assert.equal(revParse(dir, 'HEAD'), baseOid, 'HEAD is the branch base');
 	assert.equal(
-		await git.currentBranch({ fs, dir, fullname: false }),
+		currentBranch(dir),
 		'ticket/62281',
 		'still on the ticket branch — the ticket stays linked'
 	);
@@ -754,7 +960,10 @@ test('git:update-trunk hands the update to trunk-update and streams its log back
 	const options = await started;
 
 	assert.equal(options.dir, '/sites/wp');
-	assert.equal(options.url, 'https://github.com/WordPress/wordpress-develop.git');
+	// No URL: the update fetches from the checkout's own origin (#359). The
+	// children it spawns are tracked for the quit sweep, like every write.
+	assert.equal('url' in options, false);
+	assert.equal(typeof options.onChild, 'function');
 
 	// The module reports progress by calling back, and the renderer only sees it
 	// if the handler forwards it under the id it just handed out.
@@ -832,19 +1041,18 @@ test('git:update-trunk keeps the applied-patch record when the fetch fails', asy
 	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch.text, 'STORED');
 });
 
-test('sites:add normalizes line endings before adopting a directory', async () => {
-	// Throwing ends the handler at its first delegation, which is the only thing
-	// under test — and it has to end there. The next line is a store write, and
-	// this test hands the harness no settings store, so reaching it would start
-	// the real `import('electron-store')`, whose own `import {app} from 'electron'`
-	// loads the real electron package through the ESM loader, out of reach of the
-	// hook. See the guard test below for why that must not happen.
-	const ensureAutocrlf = spy(async () => { throw new Error('not a repository'); });
-	const main = loadMain({ stubs: { ...silentLogging(), './trunk-update': { ensureAutocrlf } } });
+test('sites:add seeds the local excludes and registers the directory, writing no Git config', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-wiring-add-');
+	const settings = fakeSettingsStore({ sites: [], siteMeta: {} });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	await main.invoke('sites:add', '/sites/wp').catch(() => {});
+	const sites = await main.invoke('sites:add', dir);
 
-	assert.deepEqual(ensureAutocrlf.calls, [['/sites/wp']]);
+	assert.deepEqual(sites, [dir]);
+	assert.match(fs.readFileSync(path.join(dir, '.git', 'info', 'exclude'), 'utf8'), /\.claude/);
+	// A checkout a host Git made is adopted as it is: the CRLF view the reads
+	// and writes carry on Windows is per command, never written to the repo.
+	assert.doesNotMatch(fs.readFileSync(path.join(dir, '.git', 'config'), 'utf8'), /autocrlf/);
 });
 
 // --- git:get-patch -> src/trunk-update.js + src/git-update.cjs -----------
@@ -852,25 +1060,20 @@ test('sites:add normalizes line endings before adopting a directory', async () =
 // Patch generation is the one delegation that needs a real repository:
 // normalizeEol is called per file, on content read out of the object store.
 test('git:get-patch normalizes both sides of the diff through git-update', async (t) => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-'));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	const dir = adoptedRepo(t, 'ipc-wiring-');
 	fs.writeFileSync(path.join(dir, 'text.txt'), 'line1\nline2\n');
-	await git.add({ fs, dir, filepath: 'text.txt' });
-	const head = await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
+	const head = commitFiles(dir, ['text.txt'], 'init');
 	// Without it the handler falls back to fetching wordpress-develop, and this
 	// suite does not touch the network.
-	await git.writeRef({ fs, dir, ref: 'refs/remotes/origin/trunk', value: head });
+	gitOk(['update-ref', 'refs/remotes/origin/trunk', head], dir);
 	fs.writeFileSync(path.join(dir, 'text.txt'), 'line1\nline2\nline3\n');
 
 	const real = require('../../src/git-update.cjs');
 	const normalizeEol = spy(real.normalizeEol);
-	const ensureAutocrlf = spy(async () => {});
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
-			'./git-update.cjs': { normalizeEol },
-			'./trunk-update': { ensureAutocrlf }
+			'./git-update.cjs': { normalizeEol }
 		}
 	});
 
@@ -882,7 +1085,6 @@ test('git:get-patch normalizes both sides of the diff through git-update', async
 	// both sides have to go through the module — the committed blob and what is
 	// on disk now.
 	assert.equal(normalizeEol.calls.length, 2);
-	assert.deepEqual(ensureAutocrlf.calls, [[dir]]);
 });
 
 // The `git.add` loop that used to stage every untracked file before diffing was
@@ -890,21 +1092,18 @@ test('git:get-patch normalizes both sides of the diff through git-update', async
 // the test that makes that claim falsifiable through the real handler: a new file
 // must reach the patch, and the contributor's index must be no dirtier for it.
 test('git:get-patch includes an untracked file without staging it (issues #108, #85)', async (t) => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-'));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	const dir = adoptedRepo(t, 'ipc-wiring-');
 	fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules/\n');
 	fs.writeFileSync(path.join(dir, 'text.txt'), 'line1\n');
-	await git.add({ fs, dir, filepath: ['.gitignore', 'text.txt'] });
-	await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
+	commitFiles(dir, ['.gitignore', 'text.txt'], 'init');
 
 	fs.writeFileSync(path.join(dir, 'brand-new.php'), '<?php // a file the contributor added\n');
 	// Ignored, and must stay out of the patch however the diff is computed.
 	fs.mkdirSync(path.join(dir, 'node_modules'));
 	fs.writeFileSync(path.join(dir, 'node_modules', 'junk.js'), 'noise\n');
 
-	const main = loadMain({ stubs: { ...silentLogging(), './trunk-update': { ensureAutocrlf: async () => {} } } });
-	const before = await git.statusMatrix({ fs, dir });
+	const main = loadMain({ stubs: { ...silentLogging() } });
+	const before = statusScan(dir);
 	const result = await main.invoke('git:get-patch', dir);
 
 	assert.equal(result.ok, true);
@@ -912,19 +1111,16 @@ test('git:get-patch includes an untracked file without staging it (issues #108, 
 	assert.match(result.patch, /\+<\?php \/\/ a file the contributor added/);
 	assert.doesNotMatch(result.patch, /node_modules/, 'gitignored paths stay out');
 	assert.deepEqual(
-		await git.statusMatrix({ fs, dir }),
+		statusScan(dir),
 		before,
 		'generating a patch must not stage anything into the contributor\'s index (#85)'
 	);
 });
 
 test('git:get-patch excludes local coding-agent directories from a managed site (issue #19)', async (t) => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-agent-exclude-'));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	const dir = adoptedRepo(t, 'ipc-wiring-agent-exclude-');
 	fs.writeFileSync(path.join(dir, 'README.md'), 'managed wordpress-develop site\n');
-	await git.add({ fs, dir, filepath: 'README.md' });
-	await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
+	commitFiles(dir, ['README.md'], 'init');
 	fs.writeFileSync(path.join(dir, '.git', 'info', 'exclude'), 'build/\n');
 
 	const agentArtifacts = [
@@ -946,8 +1142,7 @@ test('git:get-patch excludes local coding-agent directories from a managed site 
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
-			...fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } }).stubs,
-			'./trunk-update': { ensureAutocrlf: async () => {} }
+			...fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } }).stubs
 		}
 	});
 	await main.invoke('site:status', dir);
@@ -979,20 +1174,22 @@ test('git:get-patch excludes local coding-agent directories from a managed site 
 
 // A repository with a committed base, for the generation tests below. Returns
 // the directory; callers mutate the worktree and then invoke the handler.
+// Shaped like a site the app cloned (git-clone.cjs): `core.autocrlf=false`
+// keeps the tree LF on Windows too. Without it these repositories look like
+// checkouts a host Git made, and on Windows the reads and `git apply` carry
+// the CRLF view for those (crlfArgs), so a byte-for-byte assertion on what a
+// generated patch wrote would see CRLF where the patch said LF.
 async function patchRepo(t, files) {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-patch-'));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	const dir = initRepo(tempDir(t, 'ipc-wiring-patch-'));
 	for (const [name, content] of Object.entries(files)) {
 		fs.writeFileSync(path.join(dir, name), content);
 	}
-	await git.add({ fs, dir, filepath: Object.keys(files) });
-	await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
+	commitFiles(dir, Object.keys(files), 'init');
 	return dir;
 }
 
 function patchMain() {
-	return loadMain({ stubs: { ...silentLogging(), './trunk-update': { ensureAutocrlf: async () => {} } } });
+	return loadMain({ stubs: { ...silentLogging() } });
 }
 
 // The patch is what a contributor hands over, so a change it does not mention
@@ -1114,6 +1311,42 @@ test('a generated patch applies when the files have no trailing newline (#85)', 
 	assert.equal(applied.ok, true, applied.error);
 	assert.equal(fs.existsSync(path.join(target, 'gone.php')), false);
 	assert.equal(fs.readFileSync(path.join(target, 'edited.php'), 'utf8'), 'line1\nline2\nline3');
+});
+
+// The patch a contributor hands over is applied by whoever receives it with
+// `git apply`, so the app's own output has to pass the same tool it now uses
+// to apply patches (#385): every shape the generator emits, checked by the
+// bundled Git against a second checkout of the same base.
+test('a generated patch is accepted by git apply --check, every shape the generator emits (#85, #385)', async (t) => {
+	const base = {
+		'gone.php': '<?php // removed\n',
+		'edited.php': 'line1\nline2\n',
+		'noeol.php': 'one\ntwo',
+		'empty-gone.php': '',
+		'image.png': Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x01])
+	};
+	const source = await patchRepo(t, base);
+	fs.rmSync(path.join(source, 'gone.php'));
+	fs.rmSync(path.join(source, 'empty-gone.php'));
+	fs.writeFileSync(path.join(source, 'edited.php'), 'line1\nline2\nline3\n');
+	fs.writeFileSync(path.join(source, 'noeol.php'), 'one\ntwo\nthree');
+	fs.writeFileSync(path.join(source, 'added.php'), '<?php // new\n');
+	fs.writeFileSync(path.join(source, 'empty-added.php'), '');
+	fs.writeFileSync(path.join(source, 'image.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x02]));
+	const { patch } = await patchMain().invoke('git:get-patch', source);
+
+	const target = await patchRepo(t, base);
+	const file = path.join(target, '..', `${path.basename(target)}.diff`);
+	t.after(() => fs.rmSync(file, { force: true }));
+	fs.writeFileSync(file, patch);
+	const check = bin(['apply', '--check', '-p1', file], target);
+	assert.equal(check.status, 0, check.stderr);
+	assert.match(patch, /image\.png/, 'the binary file is named above the patch');
+	assert.equal(bin(['apply', '-p1', file], target).status, 0);
+	assert.equal(fs.readFileSync(path.join(target, 'noeol.php'), 'utf8'), 'one\ntwo\nthree');
+	assert.equal(fs.existsSync(path.join(target, 'gone.php')), false);
+	assert.equal(fs.existsSync(path.join(target, 'empty-gone.php')), false);
+	assert.equal(fs.readFileSync(path.join(target, 'empty-added.php'), 'utf8'), '');
 });
 
 // --- empty files added and deleted (#311) ---------------------------------
@@ -1271,15 +1504,14 @@ test('a tree whose only change is binary still reports no changes (#85)', async 
 test('git:create-patch and git:save-patch generate the patch the same way', async (t) => {
 	const dir = await fixtureRepo(t);
 	for (const channel of ['git:create-patch', 'git:save-patch']) {
-		// Throwing ends the handler at its first delegation — which is also what
-		// keeps this test off the network, since the next step fetches
-		// wordpress-develop when the repository has no origin/trunk.
-		const ensureAutocrlf = spy(async () => { throw new Error('not a repository'); });
-		const main = loadMain({ stubs: { ...silentLogging(), './trunk-update': { ensureAutocrlf } } });
+		// Throwing ends the handler at its first read, the base the walk
+		// compares against — the same one for both channels.
+		const resolveRef = spy(async () => { throw new Error('not a repository'); });
+		const main = loadMain({ stubs: { ...silentLogging(), './git-read.cjs': { resolveRef } } });
 
 		await main.invoke(channel, dir);
 
-		assert.deepEqual(ensureAutocrlf.calls, [[dir]], channel);
+		assert.deepEqual(resolveRef.calls[0], [dir, 'HEAD'], channel);
 	}
 });
 
@@ -1288,14 +1520,11 @@ test('git:create-patch and git:save-patch generate the patch the same way', asyn
 // A repository the patch path can actually run against, so the handler reaches
 // the provenance step instead of stopping at the first git call.
 async function fixtureRepo(t) {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-handoff-'));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	const dir = adoptedRepo(t, 'ipc-wiring-handoff-');
 	fs.writeFileSync(path.join(dir, 'text.txt'), 'line1\n');
-	await git.add({ fs, dir, filepath: 'text.txt' });
-	const head = await git.commit({ fs, dir, message: 'init', author: { name: 'test', email: 'test@example.com' } });
+	const head = commitFiles(dir, ['text.txt'], 'init');
 	// Without it the handler falls back to fetching wordpress-develop.
-	await git.writeRef({ fs, dir, ref: 'refs/remotes/origin/trunk', value: head });
+	gitOk(['update-ref', 'refs/remotes/origin/trunk', head], dir);
 	fs.writeFileSync(path.join(dir, 'text.txt'), 'line1\nline2\n');
 	return dir;
 }
@@ -1345,22 +1574,17 @@ test('git:save-patch with handoff asks patch-provenance for the header and the n
 // read off that same commit rather than the site record, so the two halves of
 // the line cannot describe different commits.
 test('git:save-patch with handoff dates the header from the branch base, not the site trunk', async (t) => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-branch-base-'));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
-	const author = { name: 'test', email: 'test@example.com' };
+	const dir = adoptedRepo(t, 'ipc-wiring-branch-base-');
 
 	fs.writeFileSync(path.join(dir, 'text.txt'), 'line1\n');
-	await git.add({ fs, dir, filepath: 'text.txt' });
-	const bornAt = await git.commit({ fs, dir, message: 'trunk as it was', author });
+	const bornAt = commitFiles(dir, ['text.txt'], 'trunk as it was');
 
 	// Trunk moves on after the branch exists — the case the site record gets
 	// right for trunk and wrong for every branch already open.
-	await git.branch({ fs, dir, ref: 'ticket/62281', object: bornAt });
+	gitOk(['branch', 'ticket/62281', bornAt], dir);
 	fs.writeFileSync(path.join(dir, 'upstream.txt'), 'landed later\n');
-	await git.add({ fs, dir, filepath: 'upstream.txt' });
-	const trunkNow = await git.commit({ fs, dir, message: 'trunk today', author });
-	await git.checkout({ fs, dir, ref: 'ticket/62281', force: true });
+	const trunkNow = commitFiles(dir, ['upstream.txt'], 'trunk today');
+	gitOk(['checkout', '--force', 'ticket/62281'], dir);
 	fs.writeFileSync(path.join(dir, 'text.txt'), 'line1\nthe contributor\n');
 
 	const buildProvenanceHeader = spy(() => '# header\n\n');
@@ -1388,8 +1612,8 @@ test('git:save-patch with handoff dates the header from the branch base, not the
 	assert.equal(details.trunkOid, bornAt, 'the header names the base the patch was diffed against');
 	assert.notEqual(details.trunkOid, trunkNow);
 
-	const { commit } = await git.readCommit({ fs, dir, oid: bornAt });
-	assert.equal(details.trunkDate, new Date(commit.committer.timestamp * 1000).toISOString());
+	const { committerTimestamp } = commitMeta(dir, bornAt);
+	assert.equal(details.trunkDate, new Date(committerTimestamp * 1000).toISOString());
 	assert.notEqual(details.trunkDate, '2026-08-08T09:00:00.000Z', 'the site record dates a different commit');
 });
 
@@ -1420,7 +1644,7 @@ test('git:save-patch without options is the bare diff under the name it always h
 // the header being *above* the diff is the whole of its usefulness: the same
 // lines appended after it would land inside the last hunk's context and stop
 // the patch applying anywhere.
-test('git:save-patch with handoff writes the header above the diff, and it still parses', async (t) => {
+for (const projectType of ['core', 'gutenberg']) test(`git:save-patch handoff names the ${projectType} work item and remains a valid patch`, async (t) => {
 	const dir = await fixtureRepo(t);
 	const target = path.join(dir, '..', `handoff-${process.pid}.diff`);
 	t.after(() => fs.rmSync(target, { force: true }));
@@ -1429,7 +1653,7 @@ test('git:save-patch with handoff writes the header above the diff, and it still
 		stubs: {
 			...silentLogging(),
 			...fakeSettingsStore({
-				siteMeta: { [dir]: { tracTicket: 62281 } },
+				siteMeta: { [dir]: { tracTicket: 62281, projectType } },
 				preferences: { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Europe 2026' }
 			}).stubs
 		}
@@ -1443,6 +1667,12 @@ test('git:save-patch with handoff writes the header above the diff, and it still
 	assert.ok(written.startsWith('# WordPress Contributor Toolkit patch\n'), written.slice(0, 200));
 	assert.ok(written.includes('# Contributor: janedoe (wordpress.org)'));
 	assert.ok(written.includes('# Event: WordCamp Europe 2026'));
+	if (projectType === 'gutenberg') {
+		assert.ok(written.includes('# Issue: https://github.com/WordPress/gutenberg/issues/62281'));
+		assert.doesNotMatch(written, /core\.trac\.wordpress\.org|# Ticket:/);
+	} else {
+		assert.ok(written.includes('# Ticket: https://core.trac.wordpress.org/ticket/62281'));
+	}
 	assert.ok(written.indexOf('# Generated:') < written.indexOf('---'), 'the header has to precede the diff');
 
 	// The app reads its own patches back when someone applies one, so a mentor's
@@ -1606,6 +1836,11 @@ test('main.js does not apply the windowsHide patch when it loads', () => {
 		[],
 		'main.js patched its own child_process with windowsHide — every spawn in the process now carries the flag, including the editor launch (#181)'
 	);
+	// Since #497 the win-spawn-patch preload reaches hideChildWindows on its
+	// own, by absolute path, which the stub map above cannot see. main.js only
+	// copies that file; requiring it would be the second way in.
+	const preloadRequired = Object.keys(require.cache).filter((file) => file.endsWith(`${path.sep}win-spawn-patch.js`));
+	assert.deepEqual(preloadRequired, [], 'main.js required the spawn-patch preload, which applies windowsHide by itself on Windows');
 });
 
 // --- npm:* -> src/npm-runner.js + src/kill-tree.js -----------------------
@@ -1626,8 +1861,9 @@ function fakeChild() {
 	const child = new EventEmitter();
 	// setEncoding is a no-op here but has to exist: the Playground handlers call
 	// it on both streams before they attach a listener.
-	child.stdout = Object.assign(new EventEmitter(), { setEncoding() {} });
-	child.stderr = Object.assign(new EventEmitter(), { setEncoding() {} });
+	child.stdout = Object.assign(new EventEmitter(), { setEncoding() {}, destroy: spy() });
+	child.stderr = Object.assign(new EventEmitter(), { setEncoding() {}, destroy: spy() });
+	child.stdin = { destroy: spy() };
 	child.pid = 4242;
 	child.exitCode = null;
 	child.kill = spy();
@@ -1653,12 +1889,54 @@ function stubbedSpawn() {
 // green. The Windows-only values are asserted as present rather than as strings,
 // because they are null off Windows and dropping the argument is exactly how a
 // Windows-only spawn failure ships from a green macOS run.
-function assertChildEnvRequest(buildChildEnv, label) {
+function assertChildEnvRequest(buildChildEnv, label, spawnedCommand) {
 	assert.equal(buildChildEnv.calls.length, 1, `${label}: buildChildEnv was not called exactly once`);
 	const request = buildChildEnv.calls[0][0];
 	assert.equal(typeof request.shimDir, 'string', `${label}: no shim directory, so a child npm cannot find a node`);
-	for (const key of ['spawnPatchPath', 'npmCliPath', 'npxCliPath']) {
+	// execPath is what keeps NODE, argv[0] and npm_node_execpath naming one
+	// binary once the runner is the Helper on macOS (#518); dropped, buildChildEnv
+	// defaults NODE to process.execPath while the child is something else.
+	for (const key of ['spawnPatchPath', 'npmCliPath', 'npxCliPath', 'execPath']) {
 		assert.ok(key in request, `${label}: buildChildEnv was called without ${key}`);
+	}
+	// Compared with the binary the runner was actually spawned on, not with a
+	// resolver run here: a test that stubs fs makes the derived Helper "exist",
+	// and the property that matters is only that the two agree.
+	assert.equal(request.execPath, spawnedCommand, `${label}: buildChildEnv was given a binary other than the one the runner runs on`);
+}
+
+// The shims on disk, not the module that formats them. node-shims.cjs is unit
+// tested, but it is main.js that decides whether to hand it the preload path at
+// all — and blanking that argument reintroduces #275 (a build that spawns
+// processes without bound) while every other test in the repo stays green.
+// ensureNodeShimDir cannot be stubbed, so the shims it really wrote are the
+// evidence; the `after` hook above sweeps them.
+function assertShimsPreloadCompat(label) {
+	const shimDir = path.join(os.tmpdir(), `electron-node-shims-${process.pid}`);
+	const compat = path.join(shimDir, 'electron-node-compat.js');
+	assert.ok(fs.existsSync(compat), `${label}: the compat preload was not copied next to the shims`);
+
+	const shimName = process.platform === 'win32' ? 'node.cmd' : 'node';
+	const shim = fs.readFileSync(path.join(shimDir, shimName), 'utf8');
+	assert.ok(
+		shim.includes(`--require "${compat}"`),
+		`${label}: the node shim starts a child without the preload, so any yargs-based tool it runs misreads its arguments`
+	);
+	// And it execs the binary nodeExecPath() resolves, which on macOS is the
+	// Helper (#518); a shim written from process.execPath would put the Dock
+	// tiles back with every other test green.
+	assert.ok(
+		shim.includes(`"${nodeExecPath()}"`),
+		`${label}: the node shim execs a binary other than nodeExecPath()`
+	);
+	// On Windows the spawn patch is preloaded into every descendant Node and
+	// requires the hide-child-windows copy beside it (#497); both have to be
+	// there, since a path inside app.asar is not reliable under
+	// ELECTRON_RUN_AS_NODE.
+	if (process.platform === 'win32') {
+		for (const name of ['win-spawn-patch.js', 'hide-child-windows.js']) {
+			assert.ok(fs.existsSync(path.join(shimDir, name)), `${label}: ${name} was not copied next to the shims`);
+		}
 	}
 }
 
@@ -1697,12 +1975,18 @@ test('npm:install spawns the runner with the environment npm-runner built', asyn
 
 	assert.equal(cp.spawned.length, 1);
 	assert.equal(path.basename(cp.spawned[0].args[0]), 'install-runner.js');
+	// The runner is npm and npm sets a process title, so it has to run on the
+	// same binary the shims resolve to, or the Dock tile of #518 comes half back.
+	// Under node this is process.execPath (no Helper to find); under the Electron
+	// pass both sides resolve to the Helper. Real fs here, so the resolver run in
+	// this process is the right oracle.
+	assert.equal(cp.spawned[0].command, nodeExecPath(), 'npm:install: the runner was spawned on a binary other than nodeExecPath()');
 	// The environment is the whole point of npm-runner: it is what makes a child
 	// npm find Electron's Node. A handler that assembled its own would break
 	// "zero prerequisites" without failing any of npm-runner's own tests.
 	assert.equal(cp.spawned[0].options.env, env);
 	assert.equal(createEngineMismatchDetector.calls.length, 1);
-	assertChildEnvRequest(buildChildEnv, 'npm:install');
+	assertChildEnvRequest(buildChildEnv, 'npm:install', cp.spawned[0].command);
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'npm:install');
 });
 
@@ -1745,18 +2029,97 @@ test('npm:run-script spawns the script runner through npm-runner too', async () 
 	assert.equal(path.basename(cp.spawned[0].args[0]), 'script-runner.js');
 	assert.deepEqual(cp.spawned[0].args.slice(1), ['/sites/wp', 'build', '--quiet']);
 	assert.equal(cp.spawned[0].options.env, env);
-	assertChildEnvRequest(buildChildEnv, 'npm:run-script');
+	assertChildEnvRequest(buildChildEnv, 'npm:run-script', cp.spawned[0].command);
+	// The build path: the one a runaway would actually be launched from (#275).
+	assertShimsPreloadCompat('npm:run-script');
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'npm:run-script');
 });
 
-test('npm:kill ends the script tree rather than signalling the runner alone', async (t) => {
+// The other half of the same wire: a preload that cannot be installed must not
+// degrade into shims without it. That state is #275 exactly, and it is reached
+// silently, the build hangs the machine instead of failing. The way it happens
+// in practice is the source file missing from the packaged bundle (a packaging
+// allow-list that forgot it), so it is the copy that fails here, not the temp
+// directory, which is why the shim writes would otherwise have gone ahead.
+test('npm:run-script refuses to start when the compat preload cannot be installed (#275, #43)', async () => {
+	const shimDir = path.join(os.tmpdir(), `electron-node-shims-${process.pid}`);
+	// A previous test in this file may have written a good set; the assertion
+	// below is about what this load writes.
+	fs.rmSync(shimDir, { recursive: true, force: true });
 	const cp = stubbedSpawn();
-	const killChildTree = spy();
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
 			'child_process': { spawn: cp.spawn },
-			'./kill-tree': { killChildTree }
+			'fs': {
+				copyFileSync(src, dest, ...rest) {
+					if (path.basename(src) === 'electron-node-compat.js') {
+						throw Object.assign(new Error('ENOENT: no such file or directory'), { code: 'ENOENT' });
+					}
+					return fs.copyFileSync(src, dest, ...rest);
+				}
+			}
+		}
+	});
+	const event = createIpcEvent();
+
+	// Rejected, not streamed. The renderer subscribes to the log and done
+	// channels only after this invoke resolves (#43), so a failure reported
+	// through them before the run id exists reaches nobody, and the terminal
+	// waits for a completion event that was sent to no listener.
+	await assert.rejects(
+		main.invokeWith('npm:run-script', event, '/sites/wp', 'build'),
+		/preload/,
+		'the refusal did not reach the caller, or did not name the preload'
+	);
+
+	assert.equal(cp.spawned.length, 0, 'the runner was started into shims that carry no preload');
+	const shimName = process.platform === 'win32' ? 'node.cmd' : 'node';
+	assert.ok(!fs.existsSync(path.join(shimDir, shimName)), 'a node shim without the preload was written anyway');
+	assert.deepEqual(event.sent, [], 'a start that has no run id yet must not send correlated events');
+});
+
+// The install path reaches the same start, and a rejection there has its own
+// consequence: nothing sets `installing` back, so the wizard's button spins on
+// a run that does not exist. Asserted here because the renderer's catch cannot
+// be unit tested.
+test('npm:install refuses to start when the compat preload cannot be installed (#275, #43)', async () => {
+	fs.rmSync(path.join(os.tmpdir(), `electron-node-shims-${process.pid}`), { recursive: true, force: true });
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore().stubs,
+			'child_process': { spawn: cp.spawn },
+			'fs': {
+				copyFileSync(src, dest, ...rest) {
+					if (path.basename(src) === 'electron-node-compat.js') {
+						throw Object.assign(new Error('ENOENT: no such file or directory'), { code: 'ENOENT' });
+					}
+					return fs.copyFileSync(src, dest, ...rest);
+				}
+			}
+		}
+	});
+	const event = createIpcEvent();
+
+	await assert.rejects(main.invokeWith('npm:install', event, '/sites/wp'), /preload/);
+
+	assert.equal(cp.spawned.length, 0);
+	assert.deepEqual(event.sent, [], 'a start that has no install id yet must not send correlated events');
+});
+
+test('npm:kill ends the script tree rather than signalling the runner alone', async (t) => {
+	const cp = stubbedSpawn();
+	// Answers true like the real one: the escalation is armed only when the
+	// polite signal was actually attempted.
+	const killChildTree = spy(() => true);
+	const killTreeByPid = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTree, killTreeByPid }
 		}
 	});
 
@@ -1771,6 +2134,162 @@ test('npm:kill ends the script tree rather than signalling the runner alone', as
 	// grunt), and child.kill() leaves everything past the first link running (#83).
 	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
 	assert.deepEqual(cp.children[0].kill.calls, []);
+
+	// The last resort, three seconds on, is the same tree signal forced, by
+	// pid rather than through the ChildProcess: a descendant that sat through
+	// SIGTERM (Gutenberg's native tsc, #251) is past the first link too, and
+	// the runner has usually died of the first signal by then, which a check
+	// on the ChildProcess would read as nothing left to do. Not on Windows,
+	// where the first step is already a forced `taskkill /T` of the tree and
+	// a second one three seconds on could land on a reissued pid.
+	t.mock.timers.tick(3000);
+	assert.deepEqual(
+		killTreeByPid.calls,
+		process.platform === 'win32' ? [] : [[cp.children[0].pid, 'SIGKILL']],
+		'POSIX escalates the whole tree by pid; Windows already forced it and must not escalate'
+	);
+	assert.deepEqual(cp.children[0].kill.calls, [], 'the escalation must not stop at the runner');
+});
+
+// #498: `close` waits for the stdio pipes, and a descendant that outlived npm
+// (wp-build after its cmd.exe was closed by hand, #497) keeps them open. npm
+// has exited, the step stays IN PROGRESS. Mirror of the Stop escalation on the
+// natural-exit path: three seconds after `exit` with no `close`, force the
+// group by pid (POSIX; the detached group outlives its leader) and destroy the
+// pipes, which is what makes Node emit the `close` the run settles on.
+test('a runner that exited but never closed is let go after a grace, with npm\'s code', async (t) => {
+	const cp = stubbedSpawn();
+	const killTreeByPid = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killTreeByPid }
+		}
+	});
+	const event = createIpcEvent();
+	const { runId } = await main.invokeWith('npm:run-script', event, '/sites/wp', 'build');
+	const child = cp.children[0];
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+
+	child.emit('exit', 1, null);
+	t.mock.timers.tick(2999);
+	assert.deepEqual(killTreeByPid.calls, [], 'the grace is what tells an orphan from a pipe still draining');
+	assert.deepEqual(child.stdout.destroy.calls, []);
+	t.mock.timers.tick(1);
+
+	// The forced group signal is POSIX; on Windows the pid is dead and a
+	// taskkill on it could land on a reissued one (the npm:kill rule).
+	assert.deepEqual(
+		killTreeByPid.calls,
+		process.platform === 'win32' ? [] : [[child.pid, 'SIGKILL', { groupOnly: true }]],
+		'POSIX forces the group the runner led by pid, and only the group; Windows must not'
+	);
+	for (const stream of [child.stdout, child.stderr, child.stdin]) {
+		assert.equal(stream.destroy.calls.length, 1, 'the pipe the orphan holds has to be destroyed, or close never comes');
+	}
+	// The contributor is told in the terminal, not only in the log file.
+	assert.ok(
+		event.sent.some((m) => m.channel === 'npm:run-script:log' && m.payload.type === 'stderr' && /still running and holding its output/.test(m.payload.data)),
+		'the let-go said nothing in the terminal'
+	);
+	assert.ok(!event.sent.some((m) => m.channel === 'npm:run-script:done'), 'done is the close handler\'s to send');
+	// Node emits close with the stored exit code once the destroyed pipes shut.
+	child.emit('close', 1, null);
+	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:run-script:done').map((m) => m.payload), [{ runId, code: 1 }]);
+});
+
+test('a runner whose close follows its exit inside the grace is left alone', async (t) => {
+	const cp = stubbedSpawn();
+	const killTreeByPid = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killTreeByPid }
+		}
+	});
+	const event = createIpcEvent();
+	const { runId } = await main.invokeWith('npm:run-script', event, '/sites/wp', 'build');
+	const child = cp.children[0];
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+
+	child.emit('exit', 0, null);
+	child.emit('close', 0, null);
+	t.mock.timers.tick(3000);
+
+	assert.deepEqual(killTreeByPid.calls, [], 'a tree that closed has nothing left to force, and its pid may be reissued');
+	assert.deepEqual(child.stdout.destroy.calls, []);
+	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:run-script:done').map((m) => m.payload), [{ runId, code: 0 }]);
+});
+
+test('an install that exited but never closed is let go the same way', async (t) => {
+	const cp = stubbedSpawn();
+	const killTreeByPid = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			// The install's done writes installFailed to the store first.
+			...fakeSettingsStore().stubs,
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killTreeByPid }
+		}
+	});
+	const event = createIpcEvent();
+	const { installId } = await main.invokeWith('npm:install', event, '/sites/wp');
+	const child = cp.children[0];
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+
+	child.emit('exit', 1, null);
+	t.mock.timers.tick(3000);
+	assert.deepEqual(killTreeByPid.calls, process.platform === 'win32' ? [] : [[child.pid, 'SIGKILL', { groupOnly: true }]]);
+	assert.equal(child.stderr.destroy.calls.length, 1);
+	child.emit('close', 1, null);
+	// The install's done follows a store write.
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(event.sent.filter((m) => m.channel === 'npm:install:done').map((m) => m.payload), [{ installId, code: 1 }]);
+});
+
+test('npm:kill arms no escalation for a child that had already closed', async (t) => {
+	const cp = stubbedSpawn();
+	const killTreeByPid = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			// The real killChildTree: it answers false for a closed child, which
+			// is the whole decision here.
+			'./kill-tree': { killTreeByPid }
+		}
+	});
+	const { runId } = await main.invoke('npm:run-script', '/sites/wp', 'build');
+	// The run finished, but Stop lands before the registry forgot it.
+	cp.children[0].exitCode = 0;
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	await main.invoke('npm:kill', { runId });
+	t.mock.timers.tick(3000);
+	// Its pid may belong to someone else by now; forcing it would be the bug.
+	assert.deepEqual(killTreeByPid.calls, []);
+});
+
+test('npm:kill stands the escalation down once the tree has closed', async (t) => {
+	const cp = stubbedSpawn();
+	const killTreeByPid = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTree: spy(() => true), killTreeByPid }
+		}
+	});
+	const { runId } = await main.invoke('npm:run-script', '/sites/wp', 'build');
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	await main.invoke('npm:kill', { runId });
+	// `close` means the pipes are shut, so nothing in the tree is left to force;
+	// forcing a pid the OS may have handed to someone else would be the bug.
+	cp.children[0].emit('close', null, 'SIGTERM');
+	t.mock.timers.tick(3000);
+	assert.deepEqual(killTreeByPid.calls, []);
 });
 
 // The install is the other thing a directory can be busy with, and it was the
@@ -1944,6 +2463,8 @@ test('playground:start spawns the server runner with the environment npm-runner 
 		stubs: {
 			...silentLogging(),
 			...noSmtpServer(),
+			// The handler reads the site's type off the store now (#251).
+			...fakeSettingsStore().stubs,
 			'child_process': { spawn: cp.spawn },
 			'./npm-runner': { buildChildEnv }
 		}
@@ -1953,7 +2474,7 @@ test('playground:start spawns the server runner with the environment npm-runner 
 
 	assert.equal(path.basename(cp.spawned[0].args[0]), 'server-runner.js');
 	assert.equal(cp.spawned[0].options.env, env);
-	assertChildEnvRequest(buildChildEnv, 'playground:start');
+	assertChildEnvRequest(buildChildEnv, 'playground:start', cp.spawned[0].command);
 	// The SMTP settings server-runner.js reads ride along as extras instead of
 	// replacing the environment. Hand-building it here is what kept the Playground
 	// path outside npm-runner's tests, and what made "zero prerequisites" hold on
@@ -1961,6 +2482,33 @@ test('playground:start spawns the server runner with the environment npm-runner 
 	assert.equal(buildChildEnv.calls[0][0].extraEnv.WP_MAIL_SMTP_HOST, '127.0.0.1');
 	assert.equal(buildChildEnv.calls[0][0].extraEnv.WP_MAIL_SMTP_PORT, '25');
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'playground:start');
+	// The runner is told what to serve as one JSON argument: a Core site's
+	// build/ as the docroot, run from that directory as before (#251).
+	const serve = JSON.parse(cp.spawned[0].args[1]);
+	assert.deepEqual(serve, { strategy: 'docroot', docroot: path.join('/sites/wp', 'build') });
+	assert.equal(cp.spawned[0].options.cwd, path.join('/sites/wp', 'build'));
+});
+
+test('playground:start serves a Gutenberg site as a plugin mounted from the checkout itself', async (t) => {
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noSmtpServer(),
+			...settings.stubs,
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { buildChildEnv: () => ({}) }
+		}
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground:start', '/sites/gb'));
+
+	assert.equal(path.basename(cp.spawned[0].args[0]), 'server-runner.js');
+	const serve = JSON.parse(cp.spawned[0].args[1]);
+	assert.deepEqual(serve, { strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: 'gutenberg' });
+	// There is no build/ docroot to run from: the checkout is the plugin.
+	assert.equal(cp.spawned[0].options.cwd, '/sites/gb');
 });
 
 test('playground-web:start spawns its runner through npm-runner too', async (t) => {
@@ -1981,7 +2529,7 @@ test('playground-web:start spawns its runner through npm-runner too', async (t) 
 
 	assert.equal(path.basename(cp.spawned[0].args[0]), 'playground-web-runner.js');
 	assert.equal(cp.spawned[0].options.env, env);
-	assertChildEnvRequest(buildChildEnv, 'playground-web:start');
+	assertChildEnvRequest(buildChildEnv, 'playground-web:start', cp.spawned[0].command);
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'playground-web:start');
 });
 
@@ -1992,6 +2540,7 @@ test('playground:stop ends the server tree rather than signalling the child', as
 		stubs: {
 			...silentLogging(),
 			...noSmtpServer(),
+			...fakeSettingsStore().stubs,
 			'child_process': { spawn: cp.spawn },
 			'./kill-tree': { killChildTree }
 		}
@@ -2058,13 +2607,17 @@ test('sites:set-ticket refuses unregistered site paths before writing metadata',
 
 // --- apply handlers (#11) ------------------------------------------------
 
-test('git:preview-patch reads the patch through patch-plan', async () => {
+test('git:preview-patch reads the patch through patch-plan, in the site\'s layout', async () => {
 	const parsePatchFiles = spy(() => ({ ok: false, error: 'unreadable' }));
-	const main = loadMain({ stubs: { ...silentLogging(), './patch-plan.cjs': { parsePatchFiles, planApply: () => ({}) } } });
+	const settings = fakeSettingsStore({ sites: ['/sites/wp', '/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-plan.cjs': { parsePatchFiles, planApply: () => ({}) } } });
 
 	const result = await main.invoke('git:preview-patch', '/sites/wp', 'PATCH TEXT');
+	await main.invoke('git:preview-patch', '/sites/gb', 'PATCH TEXT');
 
-	assert.deepEqual(parsePatchFiles.calls, [['PATCH TEXT']]);
+	// The layout is the registry's for the site (#251): a record with no type
+	// reads as Core, so the preview steers paths under src/ as it always did.
+	assert.deepEqual(parsePatchFiles.calls, [['PATCH TEXT', { layout: 'src-layout' }], ['PATCH TEXT', { layout: 'repo-relative' }]]);
 	assert.deepEqual(result, { ok: false, error: 'unreadable' });
 });
 
@@ -2140,12 +2693,10 @@ test('git:preview-patch stays quiet about files the ticket never touched (#301)'
 async function movedOnTrunkRepo(t) {
 	const repo = await parkedTicketRepo(t, { workFile: 'src/wp-login.php' });
 	const { dir } = repo;
-	const author = { name: 'test', email: 'test@example.com' };
-	await git.checkout({ fs, dir, ref: 'trunk' });
+	gitOk(['checkout', 'trunk'], dir);
 	fs.writeFileSync(path.join(dir, 'src', 'wp-signup.php'), '<?php // signup\n');
-	await git.add({ fs, dir, filepath: 'src/wp-signup.php' });
-	await git.commit({ fs, dir, message: 'trunk moves on', author });
-	await git.checkout({ fs, dir, ref: 'ticket/62281' });
+	commitFiles(dir, ['src/wp-signup.php'], 'trunk moves on');
+	gitOk(['checkout', 'ticket/62281'], dir);
 	return repo;
 }
 
@@ -2169,7 +2720,7 @@ test('git:preview-patch refuses a ticket with no recorded base (#308)', async (t
 // morning's work. It has to fail instead.
 async function unreadableBaseRepo(t) {
 	const repo = await parkedTicketRepo(t, { workFile: 'src/wp-login.php' });
-	await git.deleteBranch({ fs, dir: repo.dir, ref: 'trunk' });
+	gitOk(['branch', '-D', 'trunk'], repo.dir);
 	return repo;
 }
 
@@ -2268,6 +2819,33 @@ test('git:apply-patch refuses an unregistered site path before touching patch-ap
 
 	assert.deepEqual(await applyDone(event, applyId), { applyId, ok: false, error: 'Site is not registered' });
 	assert.deepEqual(applyPatchToDir.calls, []);
+});
+
+// The site's patch layout rides with every apply and undo (#251): a Gutenberg
+// site's diffs are applied where they name the file, a Core site's are steered
+// under src/ as they always were.
+test('git:apply-patch hands patch-apply the site\'s layout, on the apply and on the undo', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['packages/a.js'], skipped: [] }));
+	const settings = fakeSettingsStore({ sites: ['/sites/gb', '/sites/wp'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' }, '/sites/wp': {} } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './patch-apply': { applyPatchToDir } } });
+
+	const gb = createIpcEvent();
+	const { applyId: gbId } = await main.invokeWith('git:apply-patch', gb, '/sites/gb', { patchText: 'PATCH', label: 'PR 1' });
+	await applyDone(gb, gbId);
+	const wp = createIpcEvent();
+	const { applyId: wpId } = await main.invokeWith('git:apply-patch', wp, '/sites/wp', { patchText: 'PATCH', label: 'PR 2' });
+	await applyDone(wp, wpId);
+
+	assert.equal(applyPatchToDir.calls[0][0].layout, 'repo-relative');
+	assert.equal(applyPatchToDir.calls[1][0].layout, 'src-layout');
+
+	// The undo takes the same layout: a revert steered under a different
+	// layout than the apply would look for files where they never went.
+	const undo = createIpcEvent();
+	const { applyId: undoId } = await main.invokeWith('git:apply-patch', undo, '/sites/gb', { reverse: true });
+	await applyDone(undo, undoId);
+	assert.equal(applyPatchToDir.calls[2][0].reverse, true);
+	assert.equal(applyPatchToDir.calls[2][0].layout, 'repo-relative');
 });
 
 test('git:apply-patch delegates a forward apply to patch-apply and records it', async () => {
@@ -2449,14 +3027,28 @@ test('git:apply-patch reports applied-but-untracked when the undo also fails', a
 
 // --- linked-PR discovery (#109 / #11) ------------------------------------
 
-test('git:fetch-pr-diff asks github-prs for the diff', async () => {
-	const fetchPrDiff = spy(async () => ({ ok: true, text: 'DIFF' }));
-	const main = loadMain({ stubs: { ...silentLogging(), './github-prs': { fetchPrDiff, fetchLinkedPrs: async () => ({}) } } });
 
-	const result = await main.invoke('git:fetch-pr-diff', 7319);
+// The Trac window opens for a Trac ticket only (#251). A Gutenberg site stores
+// its issue in the same field, and its number is also a Core ticket's number:
+// scraping it would show that ticket's facts and attachments under the issue.
+test('trac:list-attachments opens the Trac window for a Trac site, and refuses a Gutenberg one by name', async (t) => {
+	const dir = await fixtureRepo(t);
+	const openAndScrape = spy(async () => ({ status: 'ok', items: [], ticket: { summary: 'A Core ticket' } }));
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { projectType: 'gutenberg', tracTicket: 49661 } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
 
-	assert.deepEqual(fetchPrDiff.calls, [[7319]]);
-	assert.deepEqual(result, { ok: true, text: 'DIFF' });
+	const refused = await main.invoke('trac:list-attachments', dir);
+	assert.equal(refused.ok, true);
+	assert.equal(refused.status, 'not-trac');
+	assert.deepEqual(refused.items, []);
+	assert.deepEqual(openAndScrape.calls, []);
+
+	const core = await fixtureRepo(t);
+	const coreSettings = fakeSettingsStore({ sites: [core], siteMeta: { [core]: { tracTicket: 49661 } } });
+	const coreMain = loadMain({ stubs: { ...silentLogging(), ...coreSettings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+	const read = await coreMain.invoke('trac:list-attachments', core);
+	assert.equal(read.status, 'ok');
+	assert.deepEqual(openAndScrape.calls, [[49661]]);
 });
 
 // git:list-ticket-patches reads the stored ticket, then delegates to github-prs
@@ -2468,7 +3060,7 @@ test('git:list-ticket-patches fetches the linked PRs for the stored ticket', asy
 
 	const result = await main.invoke('git:list-ticket-patches', '/sites/wp');
 
-	assert.deepEqual(fetchLinkedPrs.calls, [[62281, { known: null }]], 'nothing cached yet, so no dates to reuse');
+	assert.deepEqual(fetchLinkedPrs.calls, [[62281, { known: null, repo: 'WordPress/wordpress-develop', provider: 'trac' }]], 'nothing cached yet, so no dates to reuse');
 	assert.equal(result.ok, true);
 	assert.equal(result.ticket, 62281);
 	assert.equal(result.prs.status, 'ok');
@@ -2489,7 +3081,7 @@ test('git:list-ticket-patches hands the cached list back so commit dates are not
 	await main.invoke('git:list-ticket-patches', '/sites/wp'); // populates the cache
 	const result = await main.invoke('git:list-ticket-patches', '/sites/wp');
 
-	assert.deepEqual(fetchLinkedPrs.calls[1], [62281, { known: cachedItems }]);
+	assert.deepEqual(fetchLinkedPrs.calls[1], [62281, { known: cachedItems, repo: 'WordPress/wordpress-develop', provider: 'trac' }]);
 	assert.equal(result.prs.rankComplete, true, 'the completeness of the ranking survives the cache');
 });
 
@@ -2509,6 +3101,29 @@ test('git:list-ticket-patches falls back to the cached list when GitHub cannot b
 	assert.ok(result.prs.cachedAt, 'stamped with when it was last seen');
 });
 
+// A Gutenberg site's pull requests live in its own repository and cite an
+// issue, not a Trac ticket (#251); both facts ride to github-prs with the call.
+// The cache is keyed with the repository too: issue 62281 and ticket 62281
+// are different work items, and a Core site's bare key is left as it was so
+// nothing already cached is thrown away.
+test('git:list-ticket-patches on a Gutenberg site names its repository and provider, and caches apart from Core', async () => {
+	const fetchLinkedPrs = spy(async () => ({ status: 'ok', items: [{ number: 9 }], rankComplete: true }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp', '/sites/gb'],
+		siteMeta: { '/sites/wp': { tracTicket: 62281 }, '/sites/gb': { projectType: 'gutenberg', tracTicket: 62281 } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './github-prs': { fetchLinkedPrs } } });
+
+	await main.invoke('git:list-ticket-patches', '/sites/wp');
+	const result = await main.invoke('git:list-ticket-patches', '/sites/gb');
+
+	assert.deepEqual(fetchLinkedPrs.calls[0], [62281, { known: null, repo: 'WordPress/wordpress-develop', provider: 'trac' }]);
+	assert.deepEqual(fetchLinkedPrs.calls[1], [62281, { known: null, repo: 'WordPress/gutenberg', provider: 'github-issue' }], 'the Core list for the same number is not handed back as known');
+	assert.equal(result.ok, true);
+	assert.ok(settings.values['ticketPatches:62281'], 'the Core key is the one it always was');
+	assert.ok(settings.values['ticketPatches:WordPress/gutenberg:62281'], 'the Gutenberg key carries the repository');
+});
+
 test('git:list-ticket-patches returns no-ticket without calling github-prs when none is linked', async () => {
 	const fetchLinkedPrs = spy(async () => ({ status: 'ok', items: [] }));
 	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
@@ -2525,8 +3140,12 @@ test('git:list-ticket-patches returns no-ticket without calling github-prs when 
 // names the ticket means every patch comes out empty and the only way back to
 // the work is to unlink and re-link.
 test('git:update-trunk parks the ticket, updates, and returns to it (issue #108)', async () => {
-	const switchToBranch = spy(async () => ({ switched: true, parked: true }));
-	const currentBranchName = spy(async () => 'ticket/59234');
+	// The branch name follows the checkouts. A constant would hide the park from
+	// every read the handler makes between it and the return — which is how the
+	// site-level write of #419 went unseen here for as long as it did.
+	let head = 'ticket/59234';
+	const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true, parked: true }; });
+	const currentBranchName = spy(async () => head);
 	const updateToLatestTrunk = spy(async () => ({
 		upToDate: false, oldOid: 'old', newOid: 'new', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z'
 	}));
@@ -2564,7 +3183,673 @@ test('git:update-trunk parks the ticket, updates, and returns to it (issue #108)
 	assert.equal(meta.trunkOid, 'new');
 	// The incomplete flag describes the ticket's tree, not the site's.
 	assert.equal(meta.branches['ticket/59234'].updateIncomplete, true);
-	assert.equal(meta.updateIncomplete, undefined, 'it must not be written at site level any more');
+	// Site level holds no fresh `true` any more: what is there is the explicit
+	// clear of the copy earlier versions wrote (#419).
+	assert.equal(meta.updateIncomplete, false, 'the live flag is the branch\'s, and this is the cleared copy');
+});
+
+// The same lost write, one scope up. `sites:set-ticket` used to read the
+// branch's recorded base on the existing-branch path and write it straight
+// back, with the store awaited in between — so a `branches:rebase` that landed
+// in that window had its new base overwritten by the one it had just replaced.
+// The ticket then measures every patch against a trunk its work is no longer
+// on, which is exactly the silent wrong patch #172 is about.
+//
+// Staged the same way as the test above: the link is held at each of its store
+// accesses while a rebase runs to completion inside it.
+test('linking a ticket does not roll back a rebase that lands while it switches (issue #172)', async (t) => {
+	const flows = new AsyncLocalStorage();
+
+	async function run(holdAt) {
+		// Following the checkout is what makes the switch visible to the rebase
+		// running inside it: with a constant here the link would find itself
+		// already on the branch and return before it ever reads the base.
+		let head = 'trunk';
+		const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true }; });
+		const currentBranchName = spy(async () => head);
+		const rebaseOntoTrunk = spy(async () => ({ to: 'rebased', from: 'old', rebased: true }));
+		const settings = fakeSettingsStore({
+			sites: ['/sites/wp'],
+			siteMeta: {
+				'/sites/wp': {
+					currentBranch: 'trunk',
+					branches: { 'ticket/61002': { tracTicket: 61002, baseOid: 'old' } }
+				}
+			}
+		});
+		const { getStore: storeOf } = settings.stubs['./settings-store'];
+		let accesses = 0;
+		let rebase = null;
+		const getStore = async () => {
+			if (flows.getStore() === 'link') {
+				accesses += 1;
+				if (accesses === holdAt) {
+					rebase = flows.run('rebase', () => main.invoke('branches:rebase', '/sites/wp')).catch((e) => e);
+					await Promise.race([
+						rebase,
+						new Promise((_r, reject) => setTimeout(
+							() => reject(new Error(`the rebase never finished inside store access ${holdAt}`)),
+							4000
+						).unref())
+					]);
+				}
+			}
+			return storeOf();
+		};
+		const main = loadMain({
+			stubs: {
+				...silentLogging(),
+				'./settings-store': { getStore },
+				'./ticket-branches': {
+					switchToBranch,
+					rebaseOntoTrunk,
+					currentBranchName,
+					listTicketBranches: async () => ['ticket/61002'],
+					countChangesAgainst: async () => 0
+				}
+			}
+		});
+
+		const link = await flows.run('link', () => main.invoke('sites:set-ticket', '/sites/wp', '61002'));
+		return { accesses, link, rebase: await rebase, meta: settings.values.siteMeta['/sites/wp'] };
+	}
+
+	const { accesses } = await run(Infinity);
+	assert.ok(accesses >= 1, 'the link reaches the store at all, or there is no window to stage');
+
+	let moved = 0;
+	for (let holdAt = 1; holdAt <= accesses; holdAt += 1) {
+		await t.test(`the rebase lands in store access ${holdAt} of ${accesses}`, async () => {
+			const { link, rebase, meta } = await run(holdAt);
+			assert.equal(link.ok, true, 'the link itself succeeded');
+			// Held before the switch there is no ticket to rebase yet, so the
+			// rebase refuses and the base is simply the one already on record.
+			// Only the accesses after the switch can lose anything, and the
+			// count below is what insists some hold reached them.
+			if (rebase && rebase.ok) {
+				moved += 1;
+				assert.equal(meta.branches['ticket/61002'].baseOid, 'rebased',
+					'the base the rebase moved the branch to is the one every patch is measured against');
+			} else {
+				assert.equal(meta.branches['ticket/61002'].baseOid, 'old', 'nothing moved it, so nothing changed it');
+			}
+		});
+	}
+	assert.ok(moved >= 1, 'at least one hold has to be late enough for the rebase to run, or this proves nothing');
+});
+
+
+// The last writer of this shape, and the one that costs a contributor a patch
+// rather than a base. A rebase keeps the applied-patch record and drops only
+// its text, and it used to read that record, resolve the write scope (a Git
+// spawn), and then write back what it had read. A discard or an apply landing
+// in that window was replaced by the record from before it: "PR #8913 applied ·
+// Revert" over a tree the discard had just emptied, and a Revert that cannot
+// find its hunks.
+test('a rebase does not restore an applied-patch record a discard cleared while it ran (issue #172)', async (t) => {
+	const flows = new AsyncLocalStorage();
+
+	async function run(holdAt) {
+		const rebaseOntoTrunk = spy(async () => ({ to: 'new', from: 'old', rebased: true }));
+		const discardChanges = spy(async () => ({ discarded: true }));
+		const settings = fakeSettingsStore({
+			sites: ['/sites/wp'],
+			siteMeta: {
+				'/sites/wp': {
+					tracTicket: 61002,
+					currentBranch: 'ticket/61002',
+					branches: {
+						'ticket/61002': {
+							tracTicket: 61002,
+							baseOid: 'old',
+							appliedPatch: { label: 'PR #8913', appliedAt: '2026-01-01T00:00:00.000Z', files: ['a.php'], text: 'STORED' }
+						}
+					}
+				}
+			}
+		});
+		const { getStore: storeOf } = settings.stubs['./settings-store'];
+		let accesses = 0;
+		let discard = null;
+		const getStore = async () => {
+			if (flows.getStore() === 'rebase') {
+				accesses += 1;
+				if (accesses === holdAt) {
+					discard = flows.run('discard', () => main.invoke('git:discard-changes', '/sites/wp')).catch((e) => e);
+					await Promise.race([
+						discard,
+						new Promise((_r, reject) => setTimeout(
+							() => reject(new Error(`the discard never finished inside store access ${holdAt}`)),
+							4000
+						).unref())
+					]);
+				}
+			}
+			return storeOf();
+		};
+		const main = loadMain({
+			stubs: {
+				...silentLogging(),
+				'./settings-store': { getStore },
+				'./trunk-update': { discardChanges },
+				'./ticket-branches': { rebaseOntoTrunk, currentBranchName: async () => 'ticket/61002' }
+			}
+		});
+
+		const rebase = await flows.run('rebase', () => main.invoke('branches:rebase', '/sites/wp'));
+		return { accesses, rebase, discard: await discard, meta: settings.values.siteMeta['/sites/wp'] };
+	}
+
+	const { accesses } = await run(Infinity);
+	assert.ok(accesses >= 1, 'the rebase reaches the store at all, or there is no window to stage');
+
+	let cleared = 0;
+	for (let holdAt = 1; holdAt <= accesses; holdAt += 1) {
+		await t.test(`the discard lands in store access ${holdAt} of ${accesses}`, async () => {
+			const { rebase, discard, meta } = await run(holdAt);
+			assert.equal(rebase.ok, true, 'the rebase itself succeeded');
+			const entry = meta.branches['ticket/61002'];
+			assert.equal(entry.baseOid, 'new', 'the rebase still wrote its own record, so this run staged a real overlap');
+			if (discard && discard.ok) {
+				cleared += 1;
+				assert.equal(entry.appliedPatch, null,
+					'the discard emptied the tree, so nothing may put its record back');
+			} else {
+				// Refused before it wrote, so the record is the rebase's own:
+				// kept for the #328 ownership guard, with its text dropped.
+				assert.equal(entry.appliedPatch.label, 'PR #8913');
+				assert.equal(entry.appliedPatch.text, null);
+			}
+		});
+	}
+	assert.ok(cleared >= 1, 'some hold has to let the discard through, or this proves nothing');
+});
+
+// The migration to the #108 branch shape is the one write that cannot be a
+// single read-change-write: its git work (list the branches, create one) sits
+// between the read and the write, and the map it has built by then is a whole
+// map. Two flows entering it at once therefore race, and the loser's map is
+// built from a record that predates the winner's.
+//
+// `branches:rebase` is the flow here only because it migrates on its way in and
+// then reads what the migration returned, which is what makes both halves of
+// the correction observable from outside.
+function migratingMain(settings, ticketBranches) {
+	return loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./ticket-branches': { currentBranchName: async () => 'ticket/59234', ...ticketBranches }
+		}
+	});
+}
+
+test('a migration that finished first is not overwritten by one still doing its git work (issue #172)', async () => {
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		// A pre-#108 site: a ticket, and no `branches` map at all.
+		siteMeta: { '/sites/wp': { tracTicket: 59234 } }
+	});
+	let release;
+	const gate = new Promise((resolve) => { release = resolve; });
+	let calls = 0;
+	const main = migratingMain(settings, {
+		// The loser is held on its first call, after it has read the record and
+		// before it can write, and comes back to a branch the winner created
+		// while it waited. Holding on a flag the loser sets itself would make
+		// the loser the winner and there would be no race to test.
+		listTicketBranches: async () => {
+			calls += 1;
+			if (calls === 1) { await gate; return ['ticket/59234']; }
+			return [];
+		},
+		startTicketBranch: async () => ({ ref: 'ticket/59234', baseOid: 'winner', ticketId: 59234 }),
+		// Up to date, so it writes back the base it was handed: what stays in
+		// the store is what the migration recorded, which is the question here.
+		rebaseOntoTrunk: async (_dir, _ref, options) => ({ to: options.baseOid, from: options.baseOid, rebased: false })
+	});
+
+	// The loser starts first, so its read of the record sees no `branches`.
+	const loser = main.invoke('branches:rebase', '/sites/wp');
+	const winner = await main.invoke('branches:rebase', '/sites/wp');
+	release();
+	await loser;
+
+	assert.equal(winner.ok, true);
+	const entry = settings.values.siteMeta['/sites/wp'].branches['ticket/59234'];
+	// The loser saw the branch already on disk and would have recorded `null`
+	// for its base, which is the right answer for a branch this app did not
+	// create (#308) and the wrong one for a branch it created seconds earlier.
+	assert.equal(entry.baseOid, 'winner', 'the branch point of the checkout that actually happened');
+});
+
+test('a migration that lost the race still reports the record the winner wrote (issue #172)', async () => {
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { tracTicket: 59234 } }
+	});
+	let release;
+	const gate = new Promise((resolve) => { release = resolve; });
+	let calls = 0;
+	const rebaseOntoTrunk = spy(async (_dir, _ref, options) => ({ to: options.baseOid, from: options.baseOid, rebased: false }));
+	const main = migratingMain(settings, {
+		listTicketBranches: async () => [],
+		// The loser reached the real `startTicketBranch` first but the winner
+		// created the ref while it was working, so it comes back refused —
+		// which is what the real one does (`code: 'branch-exists'`), not a
+		// fall-through to the guard that compares records.
+		startTicketBranch: async () => {
+			calls += 1;
+			if (calls === 1) {
+				await gate;
+				const error = new Error('Already working on ticket #59234 in this site');
+				error.code = 'branch-exists';
+				throw error;
+			}
+			return { ref: 'ticket/59234', baseOid: 'winner', ticketId: 59234 };
+		},
+		rebaseOntoTrunk
+	});
+
+	const loser = main.invoke('branches:rebase', '/sites/wp');
+	const winner = await main.invoke('branches:rebase', '/sites/wp');
+	release();
+	const result = await loser;
+
+	assert.equal(winner.ok, true);
+	// The bug this pins: the catch handed back the read from the top of the
+	// migration, which has no `branches` key by definition, so the site looked
+	// unmigrated and its ticket looked baseless — "This ticket has no recorded
+	// starting point" for a branch whose base is on record.
+	assert.notEqual(result.code, 'no-base', 'the winner recorded a base, and the loser has to see it');
+	assert.equal(result.ok, true);
+	assert.equal(rebaseOntoTrunk.calls.length, 2);
+	assert.equal(rebaseOntoTrunk.calls[1][2].baseOid, 'winner');
+});
+
+// #419: the flag that says the tree is newer than the built assets was written
+// wherever HEAD happened to be, and the park has already moved HEAD to trunk by
+// then — so it landed at site level, while the build that follows cleared it on
+// the ticket branch. Nothing ever cleared the site-level copy, and it surfaced
+// as a red "Update incomplete" banner the moment the contributor came back to
+// trunk, minutes after the build that succeeded.
+//
+// The stub that matters here is `currentBranchName`: it follows the checkouts
+// instead of answering a constant, which is the only way this test can see the
+// park at all.
+test('git:update-trunk leaves no incomplete flag on trunk after the build finishes (issue #419)', async () => {
+	let head = 'ticket/60002';
+	const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true, parked: true }; });
+	const currentBranchName = spy(async () => head);
+	const updateToLatestTrunk = spy(async () => ({
+		upToDate: false, oldOid: 'old', newOid: 'new', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z'
+	}));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 60002,
+				currentBranch: 'ticket/60002',
+				branches: { 'ticket/60002': { tracTicket: 60002, baseOid: 'abc' } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk, readTrunkInfo: async () => ({ trunkOid: 'new', trunkDate: 'd' }) },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	const done = await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+	assert.equal(done.ok, true);
+	assert.equal(head, 'ticket/60002', 'the update ends back on the ticket');
+
+	// What the renderer does when the build that follows the update succeeds.
+	await main.invoke('sites:mark-update-complete', '/sites/wp');
+	// And then the contributor goes back to trunk — Unlink finishes there too.
+	await main.invoke('branches:switch', '/sites/wp', 'trunk');
+
+	const status = await main.invoke('site:status', '/sites/wp');
+	assert.equal(status.updateIncomplete, false, 'the build ran and succeeded; nothing is incomplete');
+});
+
+// The other half of #419's correction: an update started from trunk has no
+// branch to write to, and its flag has to stay where `site:status` reads it on
+// trunk. Naming the branch explicitly must not have moved that.
+test('git:update-trunk still records the incomplete flag at site level with no ticket linked (issue #419)', async () => {
+	const currentBranchName = spy(async () => 'trunk');
+	const switchToBranch = spy(async () => ({ switched: true }));
+	const updateToLatestTrunk = spy(async () => ({
+		upToDate: false, oldOid: 'old', newOid: 'new', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z'
+	}));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: {}, currentBranch: 'trunk' } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk, readTrunkInfo: async () => ({ trunkOid: 'new', trunkDate: 'd' }) },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+
+	assert.deepEqual(switchToBranch.calls, [], 'nothing to park');
+	assert.equal(settings.values.siteMeta['/sites/wp'].updateIncomplete, true);
+	assert.equal((await main.invoke('site:status', '/sites/wp')).updateIncomplete, true);
+});
+
+// The stale copy the correction above has to clear: a site that already went
+// through the bug carries `updateIncomplete: true` at site level, and nothing
+// in the normal flow ever reaches it again. Without this one-time clear the
+// false banner outlives the fix on every machine that already met it.
+test('git:update-trunk clears the stale site-level flag an earlier version left (issue #419)', async () => {
+	let head = 'ticket/60002';
+	const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true, parked: true }; });
+	const currentBranchName = spy(async () => head);
+	const updateToLatestTrunk = spy(async () => ({
+		upToDate: false, oldOid: 'old', newOid: 'new', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z'
+	}));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 60002,
+				currentBranch: 'ticket/60002',
+				updateIncomplete: true, // what the bug left behind
+				branches: { 'ticket/60002': { tracTicket: 60002, baseOid: 'abc' } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk, readTrunkInfo: async () => ({ trunkOid: 'new', trunkDate: 'd' }) },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+
+	const meta = settings.values.siteMeta['/sites/wp'];
+	assert.equal(meta.updateIncomplete, false, 'the copy nothing else would ever reach');
+	assert.equal(meta.branches['ticket/60002'].updateIncomplete, true, 'the live flag, on the branch the build ends on');
+});
+
+// The clear is not unconditional, and this is why. A branch with no entry of
+// its own — a site whose migration could not run, a branch the contributor's
+// own git client checked out — has just written its flag at site level, so
+// clearing it there would drop the only copy of a genuine incomplete state and
+// leave new code over old assets with nothing saying so.
+test('git:update-trunk keeps the flag when the branch has no meta of its own (issue #419)', async () => {
+	let head = 'ticket/60002';
+	const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true, parked: true }; });
+	const currentBranchName = spy(async () => head);
+	const updateToLatestTrunk = spy(async () => ({
+		upToDate: false, oldOid: 'old', newOid: 'new', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z'
+	}));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		// `branches` present, so the migration does not run; the checked-out
+		// branch simply is not in it.
+		siteMeta: { '/sites/wp': { tracTicket: 60002, currentBranch: 'ticket/60002', branches: {} } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk, readTrunkInfo: async () => ({ trunkOid: 'new', trunkDate: 'd' }) },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+
+	assert.equal(settings.values.siteMeta['/sites/wp'].updateIncomplete, true, 'the only copy there is');
+});
+
+// An update that finds nothing to fetch rebuilds nothing, so it writes no flag
+// — and must not erase one. The site-level flag it would have cleared can be a
+// real one: the failure path records it on trunk and leaves the contributor
+// there, and this is the run they make next.
+test('git:update-trunk that is already up to date does not erase a real incomplete flag (issue #419)', async () => {
+	let head = 'ticket/60002';
+	const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true, parked: true }; });
+	const currentBranchName = spy(async () => head);
+	const updateToLatestTrunk = spy(async () => ({
+		upToDate: true, oldOid: 'same', newOid: 'same', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z'
+	}));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 60002,
+				currentBranch: 'ticket/60002',
+				updateIncomplete: true,
+				branches: { 'ticket/60002': { tracTicket: 60002, baseOid: 'abc' } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk, readTrunkInfo: async () => ({ trunkOid: 'same', trunkDate: 'd' }) },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+
+	assert.equal(settings.values.siteMeta['/sites/wp'].updateIncomplete, true, 'nothing was rebuilt, so nothing is resolved');
+});
+
+// The flag and the applied-patch record move in opposite directions, and this
+// is the one that must not follow the flag onto the branch. The park commits
+// the worktree — applied hunks included — onto the ticket's WIP commit, and the
+// return checkout puts them back, so the patch is still in the work when the
+// update ends. Deleting its record would take away the Revert for hunks that
+// are on disk, and with it the refusal that stops them being submitted as the
+// contributor's own (#328). `branches:rebase` keeps the record for the same
+// reason. Only trunk's tree was reset, so only trunk's record goes.
+test('git:update-trunk keeps a ticket\'s applied-patch record, which the park carried through (issue #419)', async () => {
+	let head = 'ticket/60002';
+	const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true, parked: true }; });
+	const currentBranchName = spy(async () => head);
+	const updateToLatestTrunk = spy(async () => ({
+		upToDate: false, oldOid: 'old', newOid: 'new', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z'
+	}));
+	const appliedPatch = { label: 'PR #8913', text: 'STORED', files: ['f'] };
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 60002,
+				currentBranch: 'ticket/60002',
+				appliedPatch,
+				branches: { 'ticket/60002': { tracTicket: 60002, baseOid: 'abc', appliedPatch } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk, readTrunkInfo: async () => ({ trunkOid: 'new', trunkDate: 'd' }) },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+
+	const meta = settings.values.siteMeta['/sites/wp'];
+	assert.equal(meta.branches['ticket/60002'].appliedPatch.text, 'STORED', 'the patch is back on disk, so the Revert stays offered');
+	assert.equal(meta.appliedPatch, null, 'trunk\'s own record goes with the tree the update reset');
+	// And the status the card reads, on the ticket, still reports it.
+	assert.equal((await main.invoke('site:status', '/sites/wp')).appliedPatch.label, 'PR #8913');
+});
+
+// The same branch-with-no-entry case as above, for the other field. When the
+// branch has no entry, site level *is* its work meta — `readWorkMeta` reads it
+// there — so clearing the patch record there deletes the record of a patch the
+// park has just carried into the WIP commit and the return checkout is about to
+// put back on disk. The hunks would be applied with nothing saying so: no
+// Revert, and no refusal to stop them being submitted as the contributor's own
+// (#328). Only trunk's own record is trunk's to clear.
+test('git:update-trunk keeps the applied-patch record of a branch with no meta of its own (issue #419)', async () => {
+	let head = 'ticket/60002';
+	const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true, parked: true }; });
+	const currentBranchName = spy(async () => head);
+	const updateToLatestTrunk = spy(async () => ({
+		upToDate: false, oldOid: 'old', newOid: 'new', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z'
+	}));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 60002,
+				currentBranch: 'ticket/60002',
+				appliedPatch: { label: 'PR #8913', text: 'STORED', files: ['f'] },
+				branches: {}
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk, readTrunkInfo: async () => ({ trunkOid: 'new', trunkDate: 'd' }) },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+
+	const status = await main.invoke('site:status', '/sites/wp');
+	assert.equal(status.appliedPatch.label, 'PR #8913', 'the patch is back on disk, so the Revert stays offered');
+	assert.equal(status.appliedPatch.revertable, true, 'and the text that reverses it was not dropped');
+});
+
+// #172: every write to a site's metadata is a read of the whole record, one
+// change, and a write of the whole record back. Two writes that overlap lose
+// one of the two changes, and since #108 one of the values stored this way is
+// a branch's recorded trunk base — written once when the branch starts, and
+// the base every patch for that ticket is measured against. Lose it and the
+// patch is generated against the wrong trunk: not empty, not refused, wrong.
+//
+// The overlap the issue names is a ticket started while a trunk update is
+// finishing. The update's last writes put the incomplete flag on the branch it
+// returns to; the link records the new branch's base. Whichever of the
+// update's store accesses the link lands in, the base must be there afterwards.
+//
+// So the link is staged inside each store access the finishing update makes,
+// one run per access: the update is held at that access until the link has
+// run to completion, and then carries on. A test that picked one access by
+// number would test the count, and the count is an implementation detail.
+// Access one is counted from the moment the update's git work is done, which
+// is where "finishing" starts. `AsyncLocalStorage` tells the two flows apart
+// at the store, since both reach it through the same stubbed `getStore`.
+test('a ticket started while a trunk update is finishing keeps its recorded base (issue #172)', async (t) => {
+	const flows = new AsyncLocalStorage();
+
+	// Runs the update and lands the link inside the update's `holdAt`-th store
+	// access; `Infinity` runs the update alone and reports how many there are.
+	async function run(holdAt) {
+		let head = 'ticket/59234';
+		const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true, parked: true }; });
+		const currentBranchName = spy(async () => head);
+		const startTicketBranch = spy(async () => ({ ref: 'ticket/60002', baseOid: 'fresh', ticketId: 60002 }));
+		let finishing = false;
+		const updateToLatestTrunk = spy(async () => {
+			finishing = true;
+			return { upToDate: false, oldOid: 'old', newOid: 'new', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z' };
+		});
+		const settings = fakeSettingsStore({
+			sites: ['/sites/wp'],
+			siteMeta: {
+				'/sites/wp': {
+					tracTicket: 59234,
+					currentBranch: 'ticket/59234',
+					branches: { 'ticket/59234': { tracTicket: 59234, baseOid: 'abc' } }
+				}
+			}
+		});
+		const { getStore: storeOf } = settings.stubs['./settings-store'];
+		let accesses = 0;
+		let link = null;
+		const getStore = async () => {
+			if (flows.getStore() === 'update' && finishing) {
+				accesses += 1;
+				if (accesses === holdAt) {
+					link = flows.run('link', () => main.invoke('sites:set-ticket', '/sites/wp', '60002')).catch((e) => e);
+					// Bounded, because the obvious second fix for #172 is a
+					// mutex around the read-modify-write, and a mutex held
+					// across this access would have the update waiting for the
+					// link while the link waits for the lock. `node --test`
+					// sets no timeout, so an unbounded await there is a CI hang
+					// with no message rather than a test anyone can read.
+					await Promise.race([
+						link,
+						new Promise((_r, reject) => setTimeout(
+							() => reject(new Error(`the link never finished inside store access ${holdAt} — a fix that serialises with a lock held across the store would deadlock here`)),
+							4000
+						).unref())
+					]);
+				}
+			}
+			return storeOf();
+		};
+		const main = loadMain({
+			stubs: {
+				...silentLogging(),
+				'./settings-store': { getStore },
+				'./trunk-update': { updateToLatestTrunk },
+				'./ticket-branches': { switchToBranch, currentBranchName, startTicketBranch, listTicketBranches: async () => [], countChangesAgainst: async () => 0 }
+			}
+		});
+
+		const event = createIpcEvent();
+		const { updateId } = await flows.run('update', () => main.invokeWith('git:update-trunk', event, '/sites/wp'));
+		const done = await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+		assert.equal(done.ok, true);
+		return { accesses, link: await link, meta: settings.values.siteMeta['/sites/wp'] };
+	}
+
+	const { accesses } = await run(Infinity);
+	assert.ok(accesses >= 1, 'the finishing update reaches the store at all, or there is no window to stage');
+
+	for (let holdAt = 1; holdAt <= accesses; holdAt += 1) {
+		await t.test(`the link lands in store access ${holdAt} of ${accesses}`, async () => {
+			const { link, meta } = await run(holdAt);
+			assert.equal(link && link.ok, true, 'the link itself succeeded');
+			assert.equal(meta.branches['ticket/59234'].updateIncomplete, true,
+				'the update still wrote its own record after the hold, so this run staged a real overlap');
+			assert.equal(meta.branches['ticket/60002'] && meta.branches['ticket/60002'].baseOid, 'fresh',
+				'the new branch\'s base is what every patch for it is measured against');
+			assert.equal(meta.branches['ticket/59234'].baseOid, 'abc', 'and the other branch kept its own');
+		});
+	}
 });
 
 test('git:update-trunk says where the work went when the update fails (issue #108)', async () => {
@@ -2634,6 +3919,44 @@ test('branches:list reports the branches on disk with their stored context', asy
 	assert.deepEqual(result.branches.map((b) => b.ticketId), [59234, 61002]);
 	assert.equal(result.branches[0].baseOid, 'abc');
 	assert.equal(result.branches[1].baseOid, null, 'a branch the registry has never seen still lists');
+});
+
+// #510: the renderer has to know before a switch starts whether it restores a
+// parked pull request, because that is the one switch that pauses the build
+// watch. The same record `ticketCheckoutRef` reads for the checkout is read
+// here, so the plan made before the switch matches what the switch does.
+test('branches:list reports the pull request a switch to each work item would restore (#510)', async () => {
+	const listTicketBranches = spy(async () => ['ticket/59234', 'ticket/61002', 'ticket/61003', 'ticket/61004', 'pr/7']);
+	const currentBranchName = spy(async () => 'trunk');
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				branches: {
+					'ticket/59234': { activePr: 'pr/7' },
+					// A PR parked on a branch that is no longer on disk, and one
+					// with no recorded head: neither is somewhere to go back to.
+					'ticket/61002': { activePr: 'pr/9' },
+					'ticket/61003': { activePr: 'pr/11' },
+					// The ordinary row every plain switch relies on: nothing
+					// parked, so nothing to restore and nothing to pause for.
+					'ticket/61004': { lastUsedAt: 'yesterday' },
+					'pr/7': { headOid: 'a'.repeat(40) },
+					'pr/9': { headOid: 'b'.repeat(40) },
+					'pr/11': {}
+				},
+				currentBranch: 'trunk'
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { listTicketBranches, currentBranchName } }
+	});
+
+	const result = await main.invoke('branches:list', '/sites/wp');
+
+	const savedPr = Object.fromEntries(result.branches.map((b) => [b.ref, b.savedPr]));
+	assert.deepEqual(savedPr, { 'ticket/59234': 7, 'ticket/61002': null, 'ticket/61003': null, 'ticket/61004': null });
 });
 
 // The same wait, for the trunk update's own :done channel — and on the clock
@@ -2786,7 +4109,7 @@ test('the trunk update reports its switches in its own log, not on the switch ch
 			...silentLogging(),
 			...settings.stubs,
 			'./ticket-branches': { switchToBranch, currentBranchName },
-			'./trunk-update': { updateToLatestTrunk, ensureAutocrlf: async () => {}, readTrunkInfo: async () => ({}) }
+			'./trunk-update': { updateToLatestTrunk, readTrunkInfo: async () => ({}) }
 		}
 	});
 
@@ -2818,6 +4141,9 @@ test('branches:switch delegates to ticket-branches and records the new active br
 
 	assert.equal(switchToBranch.calls[0][1], 'ticket/61002');
 	assert.equal(switchToBranch.calls[0][2].baseOid, 'abc', 'the branch being left is parked onto its own branch point');
+	// The checkout runs as a child of its own, and quitting mid-switch has to
+	// end it: the handler hands the module a way to register it for the sweep.
+	assert.equal(typeof switchToBranch.calls[0][2].onChild, 'function');
 	assert.equal(result.parked, true);
 	// The ticket the rest of the app reads has to follow the branch, or the PR
 	// list and the attachment panel would still be showing the old ticket's.
@@ -2842,7 +4168,9 @@ test('branches:delete goes through ticket-branches and forgets the branch contex
 
 	const result = await main.invoke('branches:delete', '/sites/wp', 'ticket/61002');
 
-	assert.deepEqual(deleteTicketBranch.calls, [['/sites/wp', 'ticket/61002']]);
+	assert.deepEqual(deleteTicketBranch.calls.map(([dir, ref]) => [dir, ref]), [['/sites/wp', 'ticket/61002']]);
+	// The delete may check trunk out, a child the quit sweep has to reach.
+	assert.equal(typeof deleteTicketBranch.calls[0][2].onChild, 'function');
 	assert.equal(result.ok, true);
 	const meta = settings.values.siteMeta['/sites/wp'];
 	assert.equal(meta.branches['ticket/61002'], undefined, 'a deleted branch must not linger in the switcher');
@@ -3013,6 +4341,362 @@ test('a checkout that died mid-switch blocks further switching (issue #108)', as
 	assert.deepEqual(switchToBranch.calls, [], 'nothing is parked until the site is reconciled');
 });
 
+// The sentence the marker shows asks for a retry, so the retry has to be
+// the one switch the marker lets through. It goes through resumeSwitch, the
+// forced checkout with no park: the branch being left parked before the
+// first attempt moved a file, and parking again would write the mixed tree
+// over that commit. Success clears the marker like any finished switch.
+test('the failed switch can be retried to its own destination, without parking (issue #385)', async () => {
+	const switchToBranch = spy(async () => ({ switched: true }));
+	const resumeSwitch = spy(async () => ({ switched: true, from: 'trunk', to: 'ticket/61002', parked: false }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/61002': { tracTicket: 61002, baseOid: 'abc' } }, switchInProgress: { from: 'trunk', to: 'ticket/61002' } } }
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { switchToBranch, resumeSwitch, currentBranchName: async () => 'trunk' } }
+	});
+
+	const result = await main.invoke('branches:switch', '/sites/wp', 'ticket/61002');
+
+	assert.equal(result.ok, true);
+	assert.deepEqual(switchToBranch.calls, [], 'nothing is parked');
+	assert.equal(resumeSwitch.calls.length, 1);
+	assert.equal(resumeSwitch.calls[0][1], 'ticket/61002');
+	assert.equal(settings.values.siteMeta['/sites/wp'].switchInProgress, null, 'the marker is cleared');
+	assert.equal(settings.values.siteMeta['/sites/wp'].currentBranch, 'ticket/61002');
+	assert.equal(settings.values.siteMeta['/sites/wp'].tracTicket, 61002);
+});
+
+test('linking the ticket the failed switch was heading for is the same retry (issue #385)', async () => {
+	const switchToBranch = spy(async () => ({ switched: true }));
+	const startTicketBranch = spy(async () => ({ ref: 'ticket/61002', baseOid: 'abc' }));
+	const resumeSwitch = spy(async () => ({ switched: true, from: 'trunk', to: 'ticket/61002', parked: false }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/61002': { tracTicket: 61002, baseOid: 'abc' } }, switchInProgress: { from: 'trunk', to: 'ticket/61002' } } }
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { switchToBranch, startTicketBranch, resumeSwitch, currentBranchName: async () => 'trunk', listTicketBranches: async () => ['ticket/61002'] } }
+	});
+
+	const other = await main.invoke('sites:set-ticket', '/sites/wp', '59234');
+	assert.equal(other.code, 'switch-incomplete', 'any other destination is still refused');
+
+	const result = await main.invoke('sites:set-ticket', '/sites/wp', '61002');
+	assert.equal(result.ok, true);
+	assert.deepEqual(switchToBranch.calls, []);
+	assert.deepEqual(startTicketBranch.calls, []);
+	assert.equal(resumeSwitch.calls.length, 1);
+	assert.equal(settings.values.siteMeta['/sites/wp'].switchInProgress, null);
+	assert.equal(settings.values.siteMeta['/sites/wp'].tracTicket, 61002);
+});
+
+// Unlink is the other exit, and under the marker it is a forced checkout of
+// trunk with no park, for the same reason. It also works when HEAD is on trunk
+// already, which is what a switch that failed leaving trunk leaves behind and
+// where the old code cleared nothing.
+test('unlinking under a mid-switch marker returns to trunk without parking, from trunk too (issue #385)', async () => {
+	const switchToBranch = spy(async () => ({ switched: true }));
+	const resumeSwitch = spy(async () => ({ switched: false, from: 'trunk', to: 'trunk', parked: false }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: {}, currentBranch: 'trunk', switchInProgress: { from: 'trunk', to: 'ticket/61002' } } }
+	});
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { switchToBranch, resumeSwitch, currentBranchName: async () => 'trunk' } }
+	});
+
+	const result = await main.invoke('sites:set-ticket', '/sites/wp', '');
+
+	assert.equal(result.ok, true);
+	assert.deepEqual(switchToBranch.calls, []);
+	assert.equal(resumeSwitch.calls.length, 1);
+	assert.equal(resumeSwitch.calls[0][1], 'trunk');
+	assert.equal(settings.values.siteMeta['/sites/wp'].switchInProgress, null);
+	assert.equal(settings.values.siteMeta['/sites/wp'].currentBranch, 'trunk');
+});
+
+// --- legacy sites -> src/git-read.cjs isLegacySite (#385) ------------------
+//
+// A site the old engine made is read but never written. Every handler that
+// would write the checkout refuses with the same shape midSwitchBlock uses,
+// before it reaches the module that would do the writing.
+
+function legacyStubs(settings, extra = {}) {
+	return {
+		...silentLogging(),
+		...settings.stubs,
+		'./git-read.cjs': { isLegacySite: async () => true },
+		...extra
+	};
+}
+
+test('the branch handlers refuse a legacy site before touching ticket-branches (#385)', async () => {
+	const switchToBranch = spy(async () => ({ switched: true }));
+	const deleteTicketBranch = spy(async () => ({ deleted: true }));
+	const startTicketBranch = spy(async () => ({ started: true }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/61002': { baseOid: 'abc' } }, currentBranch: 'ticket/61002', tracTicket: 61002 } }
+	});
+	const main = loadMain({
+		stubs: legacyStubs(settings, { './ticket-branches': { switchToBranch, deleteTicketBranch, startTicketBranch } })
+	});
+
+	for (const [channel, ...args] of [
+		['branches:switch', '/sites/wp', 'trunk'],
+		['branches:delete', '/sites/wp', 'ticket/61002'],
+		['sites:set-ticket', '/sites/wp', '59234'],
+		['sites:set-ticket', '/sites/wp', '']
+	]) {
+		const result = await main.invoke(channel, ...args);
+		assert.equal(result.ok, false, channel);
+		assert.equal(result.code, 'legacy-site', channel);
+		assert.match(result.error, /earlier version of the app/, channel);
+	}
+	assert.deepEqual(switchToBranch.calls, []);
+	assert.deepEqual(deleteTicketBranch.calls, []);
+	assert.deepEqual(startTicketBranch.calls, []);
+	// The unlink path must not have moved the metadata either.
+	assert.equal(settings.values.siteMeta['/sites/wp'].tracTicket, 61002);
+});
+
+test('discarding refuses a legacy site before touching trunk-update (#385)', async () => {
+	const discardChanges = spy(async () => {});
+	const discardToBase = spy(async () => {});
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/61002': { baseOid: 'abc', appliedPatch: { label: 'p', text: 'X' } } }, currentBranch: 'ticket/61002', tracTicket: 61002 } }
+	});
+	const main = loadMain({
+		stubs: legacyStubs(settings, { './trunk-update': { discardChanges, discardToBase } })
+	});
+
+	for (const channel of ['git:discard-changes', 'git:discard-to-base']) {
+		const result = await main.invoke(channel, '/sites/wp');
+		assert.equal(result.code, 'legacy-site', channel);
+	}
+	assert.deepEqual(discardChanges.calls, []);
+	assert.deepEqual(discardToBase.calls, []);
+	// The applied-patch record stays: nothing was discarded.
+	assert.equal(settings.values.siteMeta['/sites/wp'].branches['ticket/61002'].appliedPatch.text, 'X');
+});
+
+test('the trunk update refuses a site with no origin before parking anything (#359)', async () => {
+	const updateToLatestTrunk = spy(async () => ({}));
+	const switchToBranch = spy(async () => ({ switched: true }));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { tracTicket: 59234, currentBranch: 'ticket/59234', branches: { 'ticket/59234': { tracTicket: 59234, baseOid: 'abc' } } } } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./git-read.cjs': { isLegacySite: async () => false, remoteUrl: async () => null },
+			'./trunk-update': { updateToLatestTrunk },
+			'./ticket-branches': { switchToBranch, currentBranchName: async () => 'ticket/59234' }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	const done = await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+
+	assert.equal(done.ok, false);
+	assert.equal(done.code, 'no-origin');
+	assert.deepEqual(updateToLatestTrunk.calls, []);
+	assert.deepEqual(switchToBranch.calls, [], 'the ticket was not parked for an update that cannot run');
+	assert.ok(event.sent.some((m) => m.channel === 'git:update-trunk:log' && /no origin remote/.test(m.payload.data)));
+});
+
+test('the trunk update refuses a legacy site on its done channel (#385)', async () => {
+	const updateToLatestTrunk = spy(async () => ({}));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { branches: {} } } });
+	const main = loadMain({ stubs: legacyStubs(settings, { './trunk-update': { updateToLatestTrunk } }) });
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	const done = await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+
+	assert.equal(done.ok, false);
+	assert.equal(done.code, 'legacy-site');
+	assert.deepEqual(updateToLatestTrunk.calls, []);
+	// The sentence also reaches the terminal the flow streams to.
+	assert.ok(event.sent.some((m) => m.channel === 'git:update-trunk:log' && /earlier version of the app/.test(m.payload.data)));
+});
+
+test('applying and reverting a patch refuse a legacy site before patch-apply (#385)', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { appliedPatch: { label: 'first', text: 'X' } } }
+	});
+	const main = loadMain({ stubs: legacyStubs(settings, { './patch-apply': { applyPatchToDir } }) });
+
+	for (const options of [{ patchText: 'P' }, { reverse: true }]) {
+		const event = createIpcEvent();
+		const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', options);
+		const done = await applyDone(event, applyId);
+		assert.equal(done.code, 'legacy-site', JSON.stringify(options));
+	}
+	assert.deepEqual(applyPatchToDir.calls, []);
+});
+
+test('deleting a legacy site still goes through, and status says the site is legacy (#385)', async () => {
+	const deleteRegisteredSite = spy(async () => true);
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const main = loadMain({
+		stubs: legacyStubs(settings, {
+			'./site-registry': { deleteRegisteredSite },
+			'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'x', trunkDate: 'd' }) },
+			'./ticket-branches': { currentBranchName: async () => 'trunk' }
+		})
+	});
+
+	const status = await main.invoke('site:status', '/sites/wp');
+	assert.equal(status.legacy, true);
+
+	await main.invoke('sites:delete', '/sites/wp');
+	assert.equal(deleteRegisteredSite.calls.length, 1);
+});
+
+test('a detector that fails leaves the site usable rather than flagged (#385)', async () => {
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./git-read.cjs': { isLegacySite: async () => { throw new Error('git died'); } },
+			'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'x', trunkDate: 'd' }) },
+			'./ticket-branches': { currentBranchName: async () => 'trunk' }
+		}
+	});
+
+	const status = await main.invoke('site:status', '/sites/wp');
+	assert.equal(status.legacy, false);
+	assert.equal(status.trunkOid, 'x', 'the rest of the status is still answered');
+});
+
+// --- branches:rebase — the notice's own button (#385) -----------------------
+
+function rebaseFixture({ baseOid = 'old', extraMeta = {} } = {}) {
+	return fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 61002,
+				currentBranch: 'ticket/61002',
+				branches: { 'ticket/61002': { tracTicket: 61002, baseOid, appliedPatch: { label: 'A.diff', text: 'x', files: ['f'] } } },
+				...extraMeta
+			}
+		}
+	});
+}
+
+test('branches:rebase moves the active ticket onto trunk, records the new base and drops the applied-patch record (#385)', async () => {
+	const rebaseOntoTrunk = spy(async () => ({ rebased: true, from: 'old', to: 'new', parked: true, oid: 'wip2' }));
+	const settings = rebaseFixture();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'new', trunkDate: 'd' }) },
+			'./ticket-branches': { rebaseOntoTrunk, currentBranchName: async () => 'ticket/61002' }
+		}
+	});
+	const event = createIpcEvent();
+
+	const result = await main.invokeWith('branches:rebase', event, '/sites/wp');
+
+	assert.deepEqual(result, { ok: true, ticket: 61002, from: 'old', to: 'new', rebased: true, parked: true });
+	assert.equal(rebaseOntoTrunk.calls[0][1], 'ticket/61002');
+	assert.equal(rebaseOntoTrunk.calls[0][2].baseOid, 'old');
+	assert.equal(typeof rebaseOntoTrunk.calls[0][2].onChild, 'function', 'the checkout child is tracked for the quit sweep');
+	const branch = settings.values.siteMeta['/sites/wp'].branches['ticket/61002'];
+	assert.equal(branch.baseOid, 'new');
+	// The patch is still in the work, so the record and the #328 guard stay;
+	// only the revert text, written against the old trunk, is dropped.
+	assert.deepEqual(branch.appliedPatch, { label: 'A.diff', text: null, files: ['f'] });
+	assert.equal(settings.values.siteMeta['/sites/wp'].switchInProgress, null);
+	// And the notice's own question answers "current" now.
+	const status = await main.invoke('site:status', '/sites/wp');
+	assert.equal(status.ticketBehindTrunk, false);
+});
+
+// The ref moves before the checkout. When only the checkout fails, the base
+// has to follow the ref at once: every patch reads `baseOid`, and none of
+// those readers is behind the marker.
+test('branches:rebase records the new base even when the checkout after the ref move fails (#385)', async () => {
+	const rebaseOntoTrunk = spy(async () => {
+		const error = new Error('index.lock');
+		error.stage = 'checkout';
+		error.from = 'ticket/61002';
+		error.to = 'ticket/61002';
+		error.movedTo = 'new';
+		throw error;
+	});
+	const settings = rebaseFixture();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { rebaseOntoTrunk, currentBranchName: async () => 'ticket/61002' } }
+	});
+
+	const result = await main.invoke('branches:rebase', '/sites/wp');
+
+	assert.equal(result.ok, false);
+	const site = settings.values.siteMeta['/sites/wp'];
+	assert.equal(site.branches['ticket/61002'].baseOid, 'new', 'the base follows the ref');
+	assert.deepEqual(site.switchInProgress, { from: 'ticket/61002', to: 'ticket/61002' }, 'and the marker says the swap is unfinished');
+	assert.equal(site.branches['ticket/61002'].appliedPatch.text, 'x', 'the record is untouched until the move completes');
+	// The marker's sentence names the exit the card has for this shape.
+	const again = await main.invoke('branches:rebase', '/sites/wp');
+	assert.equal(again.code, 'switch-incomplete');
+	assert.match(again.error, /Unlink the ticket and continue it/);
+	assert.doesNotMatch(again.error, /from ticket\/61002 to ticket\/61002/);
+});
+
+test('branches:rebase refuses on trunk, without a recorded base, on a legacy site and under a mid-switch marker (#385)', async () => {
+	const rebaseOntoTrunk = spy(async () => ({ rebased: true, from: 'old', to: 'new', parked: false }));
+	const cases = [
+		[fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { branches: {} } } }), 'trunk', {}, 'on-trunk'],
+		[rebaseFixture({ baseOid: null }), 'ticket/61002', {}, 'no-base'],
+		[rebaseFixture(), 'ticket/61002', { './git-read.cjs': { isLegacySite: async () => true } }, 'legacy-site'],
+		[rebaseFixture({ extraMeta: { switchInProgress: { from: 'trunk', to: 'ticket/61002' } } }), 'ticket/61002', {}, 'switch-incomplete']
+	];
+	for (const [settings, branch, extra, code] of cases) {
+		const main = loadMain({
+			stubs: { ...silentLogging(), ...settings.stubs, ...extra, './ticket-branches': { rebaseOntoTrunk, currentBranchName: async () => branch } }
+		});
+		const result = await main.invoke('branches:rebase', '/sites/wp');
+		assert.equal(result.ok, false, code);
+		assert.equal(result.code, code);
+	}
+	assert.deepEqual(rebaseOntoTrunk.calls, [], 'nothing was attempted');
+});
+
+test('branches:rebase hands a conflict back with the paths, and the base stays where it was (#385)', async () => {
+	const rebaseOntoTrunk = spy(async () => {
+		const error = new Error('Trunk and this ticket\'s work disagree');
+		error.code = 'rebase-conflict';
+		error.conflicts = ['src/wp-login.php'];
+		error.kinds = { 'src/wp-login.php': 'modify/delete' };
+		throw error;
+	});
+	const settings = rebaseFixture();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { rebaseOntoTrunk, currentBranchName: async () => 'ticket/61002' } }
+	});
+
+	const result = await main.invoke('branches:rebase', '/sites/wp');
+
+	assert.equal(result.ok, false);
+	assert.equal(result.code, 'rebase-conflict');
+	assert.deepEqual(result.conflicts, ['src/wp-login.php']);
+	assert.deepEqual(result.kinds, { 'src/wp-login.php': 'modify/delete' }, 'the kind reaches the renderer (#351)');
+	const branch = settings.values.siteMeta['/sites/wp'].branches['ticket/61002'];
+	assert.equal(branch.baseOid, 'old');
+	assert.equal(branch.appliedPatch.label, 'A.diff', 'nothing moved, so nothing is forgotten');
+	assert.equal(settings.values.siteMeta['/sites/wp'].switchInProgress, undefined, 'a refusal before any checkout leaves no marker');
+});
+
 test('a site that cannot be migrated is retried, not stranded on the old shape (issue #108)', async () => {
 	const startTicketBranch = spy(async () => { throw new Error('not a repository'); });
 	const listTicketBranches = spy(async () => { throw new Error('not a repository'); });
@@ -3093,11 +4777,58 @@ test('sites:set-ticket starts a branch for a ticket the site has not seen', asyn
 
 	const result = await main.invoke('sites:set-ticket', '/sites/wp', '62281');
 
-	assert.deepEqual(startTicketBranch.calls, [['/sites/wp', 62281]]);
+	assert.deepEqual(startTicketBranch.calls, [['/sites/wp', 62281, { prefix: 'ticket/' }]]);
 	assert.equal(result.branch, 'ticket/62281');
 	const meta = settings.values.siteMeta['/sites/wp'];
 	assert.equal(meta.tracTicket, 62281);
 	assert.equal(meta.branches['ticket/62281'].baseOid, 'abc', 'the branch point is recorded — it is the diff base');
+});
+
+// On a Gutenberg site the same handler reads a GitHub issue (#251): the site's
+// provider parses what was typed, and the branch is made under `issue/`, the
+// namespace the registry names for the type. Core sites are untouched by this,
+// which the test above is the proof of.
+test('sites:set-ticket on a Gutenberg site parses an issue and starts an issue/ branch', async () => {
+	const startTicketBranch = spy(async () => ({ ref: 'issue/71234', baseOid: 'abc', ticketId: 71234 }));
+	const listTicketBranches = spy(async () => []);
+	const currentBranchName = spy(async () => 'trunk');
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./ticket-branches': { startTicketBranch, listTicketBranches, currentBranchName, countChangesAgainst: async () => 0 }
+		}
+	});
+
+	const result = await main.invoke('sites:set-ticket', '/sites/gb', 'https://github.com/WordPress/gutenberg/issues/71234#issuecomment-1');
+
+	assert.equal(result.ok, true);
+	assert.deepEqual(startTicketBranch.calls, [['/sites/gb', 71234, { prefix: 'issue/' }]]);
+	assert.equal(result.branch, 'issue/71234');
+	const meta = settings.values.siteMeta['/sites/gb'];
+	assert.equal(meta.tracTicket, 71234, 'the stored key stays tracTicket; every read of the card is keyed on it');
+	assert.equal(meta.branches['issue/71234'].baseOid, 'abc');
+});
+
+test('sites:set-ticket on a Gutenberg site refuses what is not one of its issues, before any git work', async () => {
+	const startTicketBranch = spy(async () => ({}));
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { startTicketBranch, listTicketBranches: async () => [], currentBranchName: async () => 'trunk' } }
+	});
+
+	const pr = await main.invoke('sites:set-ticket', '/sites/gb', 'https://github.com/WordPress/gutenberg/pull/4496');
+	const trac = await main.invoke('sites:set-ticket', '/sites/gb', 'https://core.trac.wordpress.org/ticket/62281');
+	const elsewhere = await main.invoke('sites:set-ticket', '/sites/gb', 'https://github.com/WordPress/wordpress-develop/issues/1');
+
+	assert.equal(pr.ok, false);
+	assert.match(pr.error, /pull request/i, 'the obvious mistake is named');
+	assert.equal(trac.ok, false);
+	assert.equal(elsewhere.ok, false);
+	assert.match(elsewhere.error, /WordPress\/gutenberg/);
+	assert.deepEqual(startTicketBranch.calls, []);
+	assert.equal(settings.values.siteMeta['/sites/gb'].tracTicket, undefined);
 });
 
 // Linking a ticket this site has never seen used to carry whatever was loose
@@ -3122,24 +4853,19 @@ async function carriedWork(event, budgetMs = 4000) {
 // One repo shape both #234 tests need: a committed trunk with an edited file
 // and an untracked one on top of it.
 function dirtyTrunkFixture(t, prefix) {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	return (async () => {
-		await git.init({ fs, dir, defaultBranch: 'trunk' });
-		fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // trunk\n');
-		fs.writeFileSync(path.join(dir, 'wp-comments-post.php'), '<?php // trunk\n');
-		await git.add({ fs, dir, filepath: ['wp-login.php', 'wp-comments-post.php'] });
-		await git.commit({ fs, dir, message: 'trunk', author: { name: 't', email: 't@e' } });
-		fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // work started before the ticket was known\n');
-		fs.writeFileSync(path.join(dir, 'brand-new.php'), '<?php // and a new file\n');
-		return dir;
-	})();
+	const dir = adoptedRepo(t, prefix);
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // trunk\n');
+	fs.writeFileSync(path.join(dir, 'wp-comments-post.php'), '<?php // trunk\n');
+	commitFiles(dir, ['wp-login.php', 'wp-comments-post.php'], 'trunk');
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // work started before the ticket was known\n');
+	fs.writeFileSync(path.join(dir, 'brand-new.php'), '<?php // and a new file\n');
+	return dir;
 }
 
 // The ask itself (#234): the same gesture that used to move the work asks
 // first, moves nothing, and records nothing — Cancel has to cost zero.
 test('sites:set-ticket asks before carrying loose trunk work into a new ticket (issue #234)', async (t) => {
-	const dir = await dirtyTrunkFixture(t, 'ipc-wiring-ask-');
+	const dir = dirtyTrunkFixture(t, 'ipc-wiring-ask-');
 	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
@@ -3154,13 +4880,13 @@ test('sites:set-ticket asks before carrying loose trunk work into a new ticket (
 
 	// Asked, not half-done: still on trunk, no branch, nothing recorded.
 	assert.equal(await require('../../src/ticket-branches.js').currentBranchName(dir), 'trunk');
-	assert.equal((await git.listBranches({ fs, dir })).includes('ticket/62281'), false);
+	assert.equal(listBranches(dir).includes('ticket/62281'), false);
 	assert.equal(settings.values.siteMeta[dir].tracTicket, undefined);
 	assert.equal(await carriedWork(event, 300), null, 'nothing was carried, so nothing is claimed');
 });
 
 test('sites:set-ticket says how much loose work the chosen carry took into a new ticket (issue #108/#234)', async (t) => {
-	const dir = await dirtyTrunkFixture(t, 'ipc-wiring-carry-');
+	const dir = dirtyTrunkFixture(t, 'ipc-wiring-carry-');
 	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
@@ -3183,13 +4909,83 @@ test('sites:set-ticket says how much loose work the chosen carry took into a new
 	assert.match(fs.readFileSync(path.join(dir, 'wp-login.php'), 'utf8'), /before the ticket was known/);
 });
 
+// The record belongs with the work (#236). A carry moves the files onto the
+// branch; leaving the applied-patch record behind on trunk is what made the
+// panel greet a returning contributor with a patch it named, counted and
+// offered to revert, over a tree that no longer held any of it — and the
+// revert then blamed a trunk update that never happened.
+test('the carry takes the applied-patch record onto the ticket with the files (issue #236)', async (t) => {
+	const dir = dirtyTrunkFixture(t, 'ipc-wiring-carry-patch-');
+	const applied = {
+		label: '62281.diff',
+		appliedAt: '2026-09-15T08:22:44.741Z',
+		files: ['wp-login.php'],
+		text: 'diff --git a/wp-login.php b/wp-login.php\n'
+	};
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { appliedPatch: applied } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const event = createIpcEvent();
+	assert.equal((await main.invokeWith('sites:set-ticket', event, dir, '62281', { carryTrunkWork: true })).ok, true);
+	// The count runs after the handler answers, on a Git child of its own.
+	// Waiting for its notice is what says that child is done — on Windows an
+	// unfinished one holds the fixture directory open and the teardown cannot
+	// delete it.
+	assert.ok(await carriedWork(event), 'the carry finished and said so');
+
+	const meta = settings.values.siteMeta[dir];
+	assert.deepEqual(
+		meta.branches['ticket/62281'].appliedPatch,
+		applied,
+		'the whole record travels, the patch text included — it is what Revert reverses with'
+	);
+	assert.ok(!meta.appliedPatch, 'and trunk stops claiming a patch whose files it no longer holds');
+});
+
+// The window between creating the branch and moving the record: a patch
+// applied in it is recorded against the branch and is the newer of the two.
+// Overwriting it would drop the text Revert reverses with, leaving a patch on
+// disk the app cannot undo — the loss the carry exists to prevent, arriving
+// from the other side.
+test('the carry does not overwrite a patch recorded against the branch while it ran (issue #236)', async (t) => {
+	const dir = dirtyTrunkFixture(t, 'ipc-wiring-carry-patch-race-');
+	const fromTrunk = { label: 'older.diff', appliedAt: '2026-09-15T08:00:00.000Z', files: ['wp-login.php'], text: 'older\n' };
+	const onBranch = { label: 'newer.diff', appliedAt: '2026-09-15T08:30:00.000Z', files: ['wp-login.php'], text: 'newer\n' };
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { appliedPatch: fromTrunk, branches: { 'ticket/62281': { appliedPatch: onBranch } } } }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const event = createIpcEvent();
+	assert.equal((await main.invokeWith('sites:set-ticket', event, dir, '62281', { carryTrunkWork: true })).ok, true);
+	assert.ok(await carriedWork(event), 'the carry finished and said so — see the note in the test above');
+
+	const meta = settings.values.siteMeta[dir];
+	assert.deepEqual(meta.branches['ticket/62281'].appliedPatch, onBranch, 'the newer record survives');
+	assert.deepEqual(meta.appliedPatch, fromTrunk, 'and the older one is left where it is rather than taken down with it');
+});
+
+// The other half of the same rule: a carry the contributor declined moves
+// nothing, so a patch applied on trunk stays trunk's. Without this the fix
+// above could satisfy its test by clearing the record unconditionally.
+test('declining the carry leaves the applied-patch record on trunk (issue #236)', async (t) => {
+	const dir = dirtyTrunkFixture(t, 'ipc-wiring-carry-patch-declined-');
+	const applied = { label: '62281.diff', appliedAt: '2026-09-15T08:22:44.741Z', files: ['wp-login.php'], text: 'diff\n' };
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { appliedPatch: applied } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const event = createIpcEvent();
+	const result = await main.invokeWith('sites:set-ticket', event, dir, '62281');
+
+	assert.equal(result.code, 'dirty-trunk', 'the gesture asks rather than moving anything');
+	assert.deepEqual(settings.values.siteMeta[dir].appliedPatch, applied, 'nothing moved, so the record did not either');
+});
+
 test('nothing loose means nothing is claimed (issue #108)', async (t) => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-carry-clean-'));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	const dir = adoptedRepo(t, 'ipc-wiring-carry-clean-');
 	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // trunk\n');
-	await git.add({ fs, dir, filepath: 'wp-login.php' });
-	await git.commit({ fs, dir, message: 'trunk', author: { name: 't', email: 't@e' } });
+	commitFiles(dir, ['wp-login.php'], 'trunk');
 
 	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
@@ -3538,16 +5334,16 @@ test('dir:show refuses a path the registry does not hold, and logs it', async ()
 // --- creating a site, and opening it while it is still being created -----
 //
 // This handler was listed as NOT_REACHABLE, on the grounds that it clones
-// wordpress-develop over the network. It does not have to: `resolveStubs`
-// resolves bare packages through `require.resolve`, so `isomorphic-git` is
-// stubbable like any other module and the whole handler runs offline. That
+// wordpress-develop over the network. It does not have to: the clone lives in
+// its own module (git-clone.cjs, #385), so `cloneSite` is stubbable like any
+// other and the whole handler runs offline. That
 // matters here beyond coverage — #180 is a bug about *when* things are true
 // during the clone, and only a test that can be inside the clone can see it.
 
 // Runs `wordpress:setup` with a stubbed clone, and calls `duringClone` at the
 // moment the real clone would be running: the directory exists, nothing is in
 // the store yet. `clone` can be made to fail instead.
-async function runSetup({ duringClone, cloneFails = false, existing = [], extraStubs = {} } = {}) {
+async function runSetup({ duringClone, cloneFails = false, existing = [], extraStubs = {}, senderDestroyed = false, options = { siteName: 'demo', siteLabel: 'Demo' } } = {}) {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-setup-'));
 	for (const name of existing) fs.mkdirSync(path.join(root, name));
 
@@ -3555,28 +5351,134 @@ async function runSetup({ duringClone, cloneFails = false, existing = [], extraS
 	const seen = [];
 	let inside;
 
-	const clone = async ({ dir }) => {
+	const cloneCalls = [];
+	const clone = async ({ dir, url, branch, onProgress }) => {
+		cloneCalls.push({ dir, url, branch });
+		// The real clone reports progress from a stderr listener, and writes
+		// into the directory before it can fail: both are what the handler
+		// around it has to survive.
+		if (onProgress) onProgress({ phase: 'Receiving objects', percent: 42, loaded: 42, total: 100 });
 		if (duringClone) inside = await duringClone({ dir, root, main, settings });
-		if (cloneFails) throw new Error('clone failed');
+		if (cloneFails) {
+			fs.writeFileSync(path.join(dir, 'half-written'), 'partial\n');
+			throw new Error('clone failed');
+		}
 	};
 
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
 			...settings.stubs,
-			'isomorphic-git': { clone },
-			'./trunk-update': { ensureAutocrlf: async () => {}, readTrunkInfo: async () => ({ trunkOid: 'abc', trunkDate: '2026-01-01' }) },
+			'./git-clone.cjs': { cloneSite: clone },
+			'./trunk-update': { readTrunkInfo: async () => ({ trunkOid: 'abc', trunkDate: '2026-01-01' }) },
 			...extraStubs
 		}
 	});
 
 	const event = createIpcEvent();
-	const settled = await main.invokeWith('wordpress:setup', event, root, { siteName: 'demo', siteLabel: 'Demo' })
+	if (senderDestroyed) {
+		event.sender.isDestroyed = () => true;
+		event.sender.send = () => { throw new Error('Object has been destroyed'); };
+	}
+	const settled = await main.invokeWith('wordpress:setup', event, root, options)
 		.then((siteDir) => ({ siteDir }), (error) => ({ error }));
 
 	for (const { channel, payload } of event.sent) if (channel === 'download:status') seen.push(payload);
-	return { root, main, settings, inside, statuses: seen, ...settled };
+	return { root, main, settings, inside, statuses: seen, cloneCalls, ...settled };
 }
+
+// --- the project type -> src/project-type.cjs (#251) ----------------------
+//
+// The registry's own suite proves what each type says; these prove the two
+// handlers ask it. A site's type is chosen once, at creation, and read on
+// every status: a handler that stopped consulting the registry would clone
+// wordpress-develop for a Gutenberg site, or read a Gutenberg build as
+// unbuilt forever, while the registry's tests stayed green.
+
+test('wordpress:setup clones the chosen type\'s repository, names the folder after it, and records the type', async () => {
+	const { settings, siteDir, cloneCalls } = await runSetup({ options: { projectType: 'gutenberg', siteName: '', siteLabel: '' } });
+
+	assert.equal(cloneCalls.length, 1);
+	assert.equal(cloneCalls[0].url, 'https://github.com/WordPress/gutenberg.git');
+	assert.equal(cloneCalls[0].branch, 'trunk');
+	assert.equal(path.basename(siteDir), 'gutenberg-trunk', 'the default folder name is the type\'s, not Core\'s');
+	assert.equal(settings.values.siteMeta[siteDir].projectType, 'gutenberg');
+});
+
+test('wordpress:setup stores an unknown type as core and clones wordpress-develop', async () => {
+	const { settings, siteDir, cloneCalls } = await runSetup({ options: { projectType: 'plugin', siteName: '', siteLabel: '' } });
+
+	assert.equal(cloneCalls[0].url, 'https://github.com/WordPress/wordpress-develop.git');
+	assert.equal(path.basename(siteDir), 'wordpress-develop-trunk');
+	// The normalised id, not the renderer's string: a read of this record
+	// through the registry would answer Core either way, but what is stored
+	// should not be a value the registry never defined.
+	assert.equal(settings.values.siteMeta[siteDir].projectType, 'core');
+});
+
+test('wordpress:setup without a type behaves exactly as before: wordpress-develop, recorded as core', async () => {
+	const { settings, siteDir, cloneCalls } = await runSetup();
+
+	assert.equal(cloneCalls[0].url, 'https://github.com/WordPress/wordpress-develop.git');
+	assert.equal(settings.values.siteMeta[siteDir].projectType, 'core');
+});
+
+test('site:status reads the built marker of the site\'s type, and reports the type', async (t) => {
+	const dir = tempDir(t, 'ipc-wiring-project-type-status-');
+	// A completed Gutenberg build: the block-library script under build/scripts.
+	fs.mkdirSync(path.join(dir, 'build', 'scripts', 'block-library'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'build', 'scripts', 'block-library', 'index.min.js'), '');
+	const settings = fakeSettingsStore({ sites: [], siteMeta: { [dir]: { projectType: 'gutenberg' } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './trunk-update': { readTrunkInfo: async () => { throw new Error('no trunk'); } } }
+	});
+
+	const status = await main.invoke('site:status', dir);
+	assert.equal(status.projectType, 'gutenberg');
+	assert.equal(status.hasBuilt, true, 'a Gutenberg build is read through its own marker');
+
+	// The same tree read as a Core site is not built: Core's marker is
+	// build/wp-includes/js/dist, which a Gutenberg build never writes.
+	settings.values.siteMeta[dir] = {};
+	const asCore = await main.invoke('site:status', dir);
+	assert.equal(asCore.projectType, 'core', 'a record without the field is Core');
+	assert.equal(asCore.hasBuilt, false);
+});
+
+// Registering a finished clone is the widest instance of the #172 shape: it
+// held the whole site map, not one record, across a Git spawn on the new
+// checkout — so a write to any *other* site that landed while the trunk info
+// was being read was written back out of existence. The clone runs under
+// `setupTracker` with the rest of the app live, so that window is reachable by
+// anything the contributor does next.
+test('registering a finished clone does not undo another site\'s write while it reads the trunk info (issue #172)', async () => {
+	let inner;
+	const { settings, siteDir } = await runSetup({
+		duringClone: async ({ main, settings: st }) => {
+			// A second site, of the kind a contributor already has.
+			st.values.sites.push('/sites/other');
+			st.values.siteMeta['/sites/other'] = { label: 'Other', initialized: true };
+			inner = main;
+			return null;
+		},
+		extraStubs: {
+			'./trunk-update': {
+				readTrunkInfo: async () => {
+					await inner.invoke('sites:set-label', '/sites/other', 'Renamed mid-clone');
+					return { trunkOid: 'abc', trunkDate: '2026-01-01' };
+				}
+			}
+		}
+	});
+
+	assert.equal(settings.values.siteMeta[siteDir].trunkOid, 'abc', 'the new site still records its trunk');
+	assert.equal(
+		settings.values.siteMeta['/sites/other'].label,
+		'Renamed mid-clone',
+		'and the rename that happened while it read is still there'
+	);
+	assert.equal(settings.values.siteMeta['/sites/other'].initialized, true, 'with the rest of that record intact');
+});
 
 test('the folder can be revealed while it is still being cloned, without being registered', async () => {
 	const { root, settings, inside, siteDir } = await runSetup({
@@ -3617,9 +5519,25 @@ test('a clone that fails leaves nothing registered and nothing in flight', async
 	assert.match(String(error), /clone failed/);
 	assert.deepEqual(settings.values.sites, []);
 	assert.deepEqual(settings.values.siteMeta, {});
+	// And nothing is left on disk either: the handler creates the directory
+	// before the clone starts and the clone writes into it, so without the
+	// removal the next "Add a site" would adopt a half-written repository
+	// (#180's other half). Drop the catch and this is the assertion that fails.
+	assert.equal(fs.existsSync(path.join(root, 'demo')), false, 'the half-written clone is removed');
 	// The entry is released however the setup ends, so the path is refused again
 	// rather than staying openable — and, more importantly, staying undeletable.
 	assert.equal((await main.invoke('dir:show', path.join(root, 'demo'))).ok, false);
+});
+
+// Closing the window does not quit the app on macOS, and the clone runs on
+// past it. Progress arrives on a stderr listener now, outside any promise
+// chain, so a send into the dead webContents is an uncaught exception in the
+// main process rather than a rejected invoke.
+test('a window closed while the clone runs does not take the setup down with it', async () => {
+	const { root, settings, siteDir } = await runSetup({ senderDestroyed: true });
+
+	assert.equal(siteDir, path.join(root, 'demo'));
+	assert.deepEqual(settings.values.sites, [siteDir], 'the site is registered even with nobody listening');
 });
 
 test('a name already taken on disk is the one that opens, from the first moment', async () => {
@@ -3848,21 +5766,15 @@ test('github:sign-in-cancel during the account lookup wins: nothing is signed in
 // pull request would have carried no files at all, and the commit it asked
 // GitHub to build on would have been a commit GitHub has never seen.
 test('github:open-pr builds on the branch point, not on the parked WIP commit (issues #108, #167)', async (t) => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-wiring-pr-base-'));
-	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-	const author = { name: 'test', email: 'test@example.com' };
-	await git.init({ fs, dir, defaultBranch: 'trunk' });
+	const dir = adoptedRepo(t, 'ipc-wiring-pr-base-');
 	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // trunk\n');
-	await git.add({ fs, dir, filepath: 'wp-login.php' });
-	const bornAt = await git.commit({ fs, dir, message: 'trunk', author });
+	const bornAt = commitFiles(dir, ['wp-login.php'], 'trunk');
 
 	// The ticket branch, with its work already parked as a WIP commit — the
 	// state a contributor is in every time they come back to a ticket.
-	await git.branch({ fs, dir, ref: 'ticket/62281', object: bornAt });
-	await git.checkout({ fs, dir, ref: 'ticket/62281', force: true });
+	gitOk(['checkout', '-b', 'ticket/62281', bornAt], dir);
 	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // the contribution\n');
-	await git.add({ fs, dir, filepath: 'wp-login.php' });
-	await git.commit({ fs, dir, message: 'wip', author, parent: [bornAt] });
+	commitFiles(dir, ['wp-login.php'], 'wip');
 
 	const auth = fakeGithubAuth({ login: 'janedoe' });
 	const openPullRequest = spy(async () => ({ ok: true, url: 'u', number: 9, branch: 'trac-62281', exactBase: true }));
@@ -3937,10 +5849,56 @@ test('github:open-pr asks github-pr to open one, for the ticket this site is lin
 	// The notes are the caller's to supply — unlike the ticket, the handle and
 	// the event, which are read from stored state so the renderer cannot claim
 	// a different contributor or a different ticket than this site's.
-	assert.deepEqual(buildPullRequestBody.calls, [[{ ticketId: 62281, handle: 'janedoe', event: 'WordCamp Europe 2026', notes: 'What it does, and how to see it.' }]]);
+	assert.equal(buildPullRequestBody.calls.length, 1);
+	const [bodyArgs] = buildPullRequestBody.calls[0];
+	assert.deepEqual({ ...bodyArgs, project: undefined }, { ticketId: 62281, handle: 'janedoe', event: 'WordCamp Europe 2026', notes: 'What it does, and how to see it.', project: undefined });
+	// The body line and the work item's URL come from the site's type (#251):
+	// Core's is the Trac convention, unchanged.
+	assert.equal(bodyArgs.project.bodyLine(62281, 'https://core.trac.wordpress.org/ticket/62281'), 'Trac ticket: https://core.trac.wordpress.org/ticket/62281');
+	assert.equal(bodyArgs.project.workItemUrl, 'https://core.trac.wordpress.org/ticket/62281');
+	// So does the repository the flow targets and the branch it pushes.
+	assert.equal(args.project.id, 'core');
+	assert.deepEqual(args.project.upstream, { owner: 'WordPress', repo: 'wordpress-develop', base: 'trunk' });
+	assert.equal(args.project.pr.branchPrefix, 'trac-');
 	// The changed file the fixture leaves in the working tree, in the shape the
 	// tree API takes rather than as a diff.
 	assert.deepEqual(args.files.map((f) => [f.path, f.kind]), [['text.txt', 'modify']]);
+});
+
+// A Gutenberg site (#251) reaches the same flow with its own repository, branch
+// prefix, body line and fallback title. The refusal that stood here until the
+// flow read the site's type is gone with it.
+test('github:open-pr opens a Gutenberg site\'s pull request against WordPress/gutenberg, citing the issue (#251)', async (t) => {
+	const dir = await fixtureRepo(t);
+	const auth = fakeGithubAuth({ login: 'janedoe' });
+	const openPullRequest = spy(async () => ({ ok: true, url: 'https://github.com/WordPress/gutenberg/pull/9', number: 9, branch: 'fix/issue-71234', exactBase: true }));
+	const buildPullRequestBody = spy(() => 'BODY');
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { projectType: 'gutenberg', tracTicket: 71234 } } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./github-auth.cjs': auth,
+			'./github-pr.cjs': { openPullRequest, buildPullRequestBody }
+		}
+	});
+	await main.invokeWith('github:sign-in', createIpcEvent());
+	await settle();
+	await settle();
+
+	const result = await main.invoke('github:open-pr', dir, {});
+
+	assert.equal(result.ok, true);
+	const [args] = openPullRequest.calls[0];
+	assert.equal(args.ticketId, 71234);
+	// An empty title falls back to the work item's own noun, the same string
+	// the card's hint promises.
+	assert.equal(args.title, 'Issue #71234');
+	assert.deepEqual(args.project.upstream, { owner: 'WordPress', repo: 'gutenberg', base: 'trunk' });
+	assert.equal(args.project.pr.branchPrefix, 'fix/issue-');
+	const [bodyArgs] = buildPullRequestBody.calls[0];
+	assert.equal(bodyArgs.project.bodyLine(71234, bodyArgs.project.workItemUrl), 'Fixes #71234');
+	assert.equal(bodyArgs.project.workItemUrl, 'https://github.com/WordPress/gutenberg/issues/71234');
 });
 
 test('github:open-pr refuses before it reaches GitHub when nothing is signed in, or no ticket is linked', async (t) => {
@@ -3963,7 +5921,33 @@ test('github:open-pr refuses before it reaches GitHub when nothing is signed in,
 	await settle();
 	await settle();
 
-	assert.equal((await main.invoke('github:open-pr', dir, {})).reason, 'no-ticket');
+	const refused = await main.invoke('github:open-pr', dir, {});
+	assert.equal(refused.reason, 'no-ticket');
+	assert.match(refused.error, /Trac ticket/);
+	assert.deepEqual(openPullRequest.calls, []);
+});
+
+// The refusal names the work item the site actually takes (#251).
+test('github:open-pr names a GitHub issue when a Gutenberg site has none linked', async (t) => {
+	const dir = await fixtureRepo(t);
+	const openPullRequest = spy(async () => ({ ok: true }));
+	const auth = fakeGithubAuth();
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { projectType: 'gutenberg' } } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./github-auth.cjs': auth,
+			'./github-pr.cjs': { openPullRequest, buildPullRequestBody: () => '' }
+		}
+	});
+	await main.invokeWith('github:sign-in', createIpcEvent());
+	await settle();
+	await settle();
+
+	const result = await main.invoke('github:open-pr', dir, {});
+	assert.equal(result.reason, 'no-ticket');
+	assert.match(result.error, /GitHub issue/);
 	assert.deepEqual(openPullRequest.calls, []);
 });
 
@@ -4052,10 +6036,132 @@ test('the harness never loads the real electron package', () => {
 	assert.deepEqual(loaded, [], 'the real electron package was required; the stub did not cover this path');
 });
 
+// --- wpct:// links -> src/deep-link.cjs ----------------------------------
+//
+// Not an IPC channel but the same gap: the address arrives on an app lifecycle
+// event, and an event handler that stops asking deep-link.cjs would leave the
+// module's own suite green while the app answers whatever a web page sends it.
+
+test('open-url asks deep-link whether the address is a ticket (#464)', async () => {
+	const handleDeepLink = spy(() => false);
+	const main = loadMain({ stubs: { ...silentLogging(), './deep-link.cjs': { handleDeepLink } } });
+	const event = { preventDefault: spy() };
+
+	await main.emitAppEvent('open-url', event, 'wpct://ticket/62281');
+
+	assert.equal(handleDeepLink.calls.length, 1, 'the macOS intake no longer reaches the parser');
+	assert.equal(handleDeepLink.calls[0][0], 'wpct://ticket/62281');
+	// Without this the OS keeps its default handling of the address as well.
+	assert.equal(event.preventDefault.calls.length, 1);
+});
+
+test('second-instance reads the address out of argv and asks the same module (#464)', async () => {
+	const handleDeepLink = spy(() => false);
+	const main = loadMain({ stubs: { ...silentLogging(), './deep-link.cjs': { handleDeepLink } } });
+
+	// Windows and Linux: the address is one argument among the second process's
+	// own. pickDeepLinkArg is the real one — only the parser is stubbed.
+	await main.emitAppEvent('second-instance', {}, ['C:\\app.exe', '--no-sandbox', 'wpct://ticket/62281']);
+
+	assert.equal(handleDeepLink.calls.length, 1);
+	assert.equal(handleDeepLink.calls[0][0], 'wpct://ticket/62281');
+});
+
+test('a second instance with no address still only focuses the window (#464)', async () => {
+	const handleDeepLink = spy(() => false);
+	const main = loadMain({ stubs: { ...silentLogging(), './deep-link.cjs': { handleDeepLink } } });
+
+	await main.emitAppEvent('second-instance', {}, ['C:\\app.exe', '--no-sandbox']);
+
+	assert.equal(handleDeepLink.calls.length, 0, 'nothing to parse is not something to parse');
+});
+
+test('a ticket with no window open opens one, and reaches its page only once that page subscribes (#464)', async () => {
+	// The cold-start path end to end, through the real parser and the real
+	// queue. Nothing is stubbed but the logging: what this asserts is that a
+	// link with no window creates one (only child windows exist is the same
+	// case), that nothing is sent into a page that has not subscribed, and that
+	// `deep-link:ready` is what releases it.
+	const main = loadMain({ stubs: silentLogging() });
+
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281');
+
+	assert.equal(main.windows.length, 1, 'a link with no window open must open one');
+	assert.deepEqual(main.windows[0].sent, [], 'and must not send into a page that has not subscribed');
+
+	assert.equal(await main.invoke('deep-link:ready'), true);
+	assert.deepEqual(main.windows[0].sent, [{ channel: 'deep-link:ticket', payload: { ticket: 62281 } }]);
+});
+
+test('a refused address opens no window and sends nothing (#464)', async () => {
+	// The other half of "nothing happens until the address parses": any page can
+	// navigate to this scheme, so an address that is not a ticket must not even
+	// bring the app forward.
+	const main = loadMain({ stubs: silentLogging() });
+
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://evil/1');
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281/../9');
+
+	assert.equal(main.windows.length, 0);
+	assert.equal(await main.invoke('deep-link:ready'), true);
+	assert.equal(main.windows.length, 0, 'and nothing was queued to open one later');
+});
+
+test('a send that does not land keeps the ticket for the next page (#464)', async () => {
+	// The queue forgets a ticket only once the send returns. Asserted here and
+	// not only in the queue's own suite, because what makes it matter is this
+	// wiring: main catches the throw, and the ticket has to survive it.
+	const main = loadMain({ stubs: silentLogging() });
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281');
+
+	const win = main.windows[0];
+	win.webContents.send = () => { throw new Error('window is gone'); };
+	assert.equal(await main.invoke('deep-link:ready'), true, 'a failed send must not throw out of the handler');
+
+	const sent = [];
+	win.webContents.send = (channel, payload) => { sent.push({ channel, payload }); };
+	await main.invoke('deep-link:ready');
+	assert.deepEqual(sent, [{ channel: 'deep-link:ticket', payload: { ticket: 62281 } }], 'the ticket must survive a send that did not land');
+});
+
+test('a destroyed window is not sent a ticket, and does not consume one (#464)', async () => {
+	const main = loadMain({ stubs: silentLogging() });
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281');
+
+	const first = main.windows[0];
+	first.isDestroyed = () => true;
+	await main.invoke('deep-link:ready');
+	assert.deepEqual(first.sent, []);
+
+	// macOS: the app lives on without a window, and the next link reopens one.
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281');
+	assert.equal(main.windows.length, 2, 'a destroyed window must not count as a window');
+	await main.invoke('deep-link:ready');
+	assert.deepEqual(main.windows[1].sent, [{ channel: 'deep-link:ticket', payload: { ticket: 62281 } }]);
+});
+
+test('a second instance with an address delivers it, without one it only shows the window (#464)', async () => {
+	// Windows and Linux: the address is one argument among the second process's
+	// own, and a launch with no address is a request for the window that exists.
+	const main = loadMain({ stubs: silentLogging() });
+
+	await main.emitAppEvent('second-instance', {}, ['C:\\app.exe', '--no-sandbox', 'wpct://ticket/49215']);
+	assert.equal(main.windows.length, 1);
+	await main.invoke('deep-link:ready');
+	assert.deepEqual(main.windows[0].sent, [{ channel: 'deep-link:ticket', payload: { ticket: 49215 } }]);
+
+	await main.emitAppEvent('second-instance', {}, ['C:\\app.exe']);
+	assert.equal(main.windows.length, 1, 'no address is not a reason for another window');
+	assert.deepEqual(main.windows[0].sent.length, 1, 'and nothing more to deliver');
+});
+
 // --- coverage guard ------------------------------------------------------
 
 // Channels whose wiring is asserted above.
 const WIRED = new Set([
+	'git:preview-pr',
+	'git:checkout-pr',
+	'git:leave-pr',
 	'url:open',
 	'git:worktree-dirty',
 	'git:unsubmitted-work',
@@ -4078,12 +6184,13 @@ const WIRED = new Set([
 	'sites:set-ticket',
 	'branches:list',
 	'branches:switch',
+	'branches:rebase',
 	'branches:delete',
 	'git:preview-patch',
 	'git:apply-patch',
-	'git:fetch-pr-diff',
 	'git:list-ticket-patches',
 	'trac:fetch-attachment',
+	'trac:list-attachments',
 	'editor:list',
 	'editor:open',
 	'dir:show',
@@ -4102,6 +6209,7 @@ const WIRED = new Set([
 // branches on them. A channel here is a claim that there is no module call to
 // delete.
 const NO_DELEGATION = new Map([
+	['deep-link:ready', 'flushes a ticket main queued for the renderer; the parse it depends on is wired above, on open-url and second-instance'],
 	['sites:mark-update-complete', 'electron-store write'],
 	['sites:get', 'electron-store read'],
 	['sites:getAll', 'electron-store read'],
@@ -4133,9 +6241,7 @@ const NO_DELEGATION = new Map([
 
 // Channels that do delegate, but whose call sits behind something this harness
 // cannot stand in for yet. Each one is a known hole, not an oversight.
-const NOT_REACHABLE = new Map([
-	['trac:list-attachments', 'reads electron-store for the ticket before it can open the Trac window']
-]);
+const NOT_REACHABLE = new Map([]);
 
 const CLASSIFIED = [...WIRED, ...NO_DELEGATION.keys(), ...NOT_REACHABLE.keys()];
 
@@ -4289,4 +6395,619 @@ test('git:preview-patch: a layer file may also contain contributor edits (#306)'
 	assert.deepEqual(attributed.yours, []);
 	assert.deepEqual(attributed.fromLayer, ['src/wp-login.php']);
 	assert.ok(attributed.sentences.some((sentence) => /may also contain your own edits/.test(sentence)));
+});
+
+// --- a merge in progress -> src/git-read.cjs mergeInProgress (#352) ---------
+//
+// A merge, rebase, cherry-pick or three-way apply started outside the app
+// leaves the index unmerged, and every forced checkout the app's writes run
+// would erase it without a word. Every handler that would write the checkout
+// refuses with the same shape legacySiteBlock uses, before it reaches the
+// module that would do the writing. Reads, the patch export, opening a pull
+// request and deleting a site or another ticket's branch are not behind it.
+
+const MERGE_STATE = { kind: 'merge', paths: ['src/wp-login.php', 'src/doomed.php'] };
+
+function mergeStubs(settings, extra = {}) {
+	return {
+		...silentLogging(),
+		...settings.stubs,
+		'./git-read.cjs': { mergeInProgress: async () => MERGE_STATE },
+		...extra
+	};
+}
+
+const refusesMerge = (result, label) => {
+	assert.equal(result.ok, false, label);
+	assert.equal(result.code, 'merge-in-progress', label);
+	assert.deepEqual(result.paths, MERGE_STATE.paths, label);
+	assert.match(result.error, /merge started outside the app is in progress/, label);
+	assert.match(result.error, /src\/wp-login\.php and src\/doomed\.php/, `${label}: the files are named`);
+	assert.match(result.error, /git merge --abort/, `${label}: the way out is named`);
+};
+
+test('the branch handlers refuse a checkout mid-merge before touching ticket-branches (#352)', async () => {
+	const switchToBranch = spy(async () => ({ switched: true }));
+	const resumeSwitch = spy(async () => ({ switched: true }));
+	const deleteTicketBranch = spy(async () => ({ deleted: true }));
+	const startTicketBranch = spy(async () => ({ started: true }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/61002': { baseOid: 'abc' }, 'ticket/59234': { baseOid: 'def' } }, currentBranch: 'ticket/61002', tracTicket: 61002 } }
+	});
+	const main = loadMain({
+		stubs: mergeStubs(settings, { './ticket-branches': { switchToBranch, resumeSwitch, deleteTicketBranch, startTicketBranch, currentBranchName: async () => 'ticket/61002' } })
+	});
+
+	for (const [channel, ...args] of [
+		['branches:switch', '/sites/wp', 'trunk'],
+		['branches:delete', '/sites/wp', 'ticket/61002'],
+		['sites:set-ticket', '/sites/wp', '59234'],
+		['sites:set-ticket', '/sites/wp', '']
+	]) {
+		refusesMerge(await main.invoke(channel, ...args), channel);
+	}
+	assert.deepEqual(switchToBranch.calls, []);
+	assert.deepEqual(resumeSwitch.calls, []);
+	assert.deepEqual(deleteTicketBranch.calls, []);
+	assert.deepEqual(startTicketBranch.calls, []);
+	assert.equal(settings.values.siteMeta['/sites/wp'].tracTicket, 61002, 'the unlink path did not move the metadata');
+
+	// Deleting a ticket that is not checked out touches no file, so it goes through.
+	const other = await main.invoke('branches:delete', '/sites/wp', 'ticket/59234');
+	assert.equal(other.ok, true);
+	assert.deepEqual(deleteTicketBranch.calls.map(([, ref]) => ref), ['ticket/59234']);
+});
+
+test('the mid-merge refusal comes before the mid-switch retry, which is a forced checkout (#352)', async () => {
+	const resumeSwitch = spy(async () => ({ switched: true }));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/61002': { baseOid: 'abc' } }, currentBranch: 'trunk', switchInProgress: { from: 'trunk', to: 'ticket/61002' } } }
+	});
+	const main = loadMain({ stubs: mergeStubs(settings, { './ticket-branches': { resumeSwitch, currentBranchName: async () => 'trunk' } }) });
+
+	refusesMerge(await main.invoke('sites:set-ticket', '/sites/wp', '61002'), 'the retry');
+	refusesMerge(await main.invoke('branches:switch', '/sites/wp', 'ticket/61002'), 'the retry through switch');
+	assert.deepEqual(resumeSwitch.calls, []);
+});
+
+test('discarding refuses a checkout mid-merge before touching trunk-update (#352)', async () => {
+	const discardChanges = spy(async () => {});
+	const discardToBase = spy(async () => {});
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: { '/sites/wp': { branches: { 'ticket/61002': { baseOid: 'abc', appliedPatch: { label: 'p', text: 'X' } } }, currentBranch: 'ticket/61002', tracTicket: 61002 } }
+	});
+	const main = loadMain({ stubs: mergeStubs(settings, { './trunk-update': { discardChanges, discardToBase } }) });
+
+	for (const channel of ['git:discard-changes', 'git:discard-to-base']) {
+		refusesMerge(await main.invoke(channel, '/sites/wp'), channel);
+	}
+	assert.deepEqual(discardChanges.calls, []);
+	assert.deepEqual(discardToBase.calls, []);
+	assert.equal(settings.values.siteMeta['/sites/wp'].branches['ticket/61002'].appliedPatch.text, 'X', 'nothing was discarded');
+});
+
+test('the trunk update refuses a checkout mid-merge on its done channel, before parking (#352)', async () => {
+	const updateToLatestTrunk = spy(async () => ({}));
+	const switchToBranch = spy(async () => ({ switched: true }));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { tracTicket: 61002, currentBranch: 'ticket/61002', branches: { 'ticket/61002': { baseOid: 'abc' } } } } });
+	const main = loadMain({
+		stubs: mergeStubs(settings, { './trunk-update': { updateToLatestTrunk }, './ticket-branches': { switchToBranch, currentBranchName: async () => 'ticket/61002' } })
+	});
+
+	const event = createIpcEvent();
+	const { updateId } = await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	const done = await waitForDone(event, 'git:update-trunk:done', 'updateId', updateId);
+
+	refusesMerge(done, 'update');
+	assert.deepEqual(updateToLatestTrunk.calls, []);
+	assert.deepEqual(switchToBranch.calls, [], 'the ticket was not parked: parking commits the half-merged tree');
+	assert.ok(event.sent.some((m) => m.channel === 'git:update-trunk:log' && /merge started outside the app/.test(m.payload.data)), 'the sentence reaches the terminal');
+});
+
+test('applying and reverting a patch refuse a checkout mid-merge before patch-apply (#352)', async () => {
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: [], skipped: [] }));
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { appliedPatch: { label: 'first', text: 'X' } } } });
+	const main = loadMain({ stubs: mergeStubs(settings, { './patch-apply': { applyPatchToDir } }) });
+
+	for (const options of [{ patchText: 'P' }, { reverse: true }]) {
+		const event = createIpcEvent();
+		const { applyId } = await main.invokeWith('git:apply-patch', event, '/sites/wp', options);
+		refusesMerge(await applyDone(event, applyId), JSON.stringify(options));
+	}
+	assert.deepEqual(applyPatchToDir.calls, []);
+	assert.equal(settings.values.siteMeta['/sites/wp'].appliedPatch.text, 'X', 'the record was not touched');
+});
+
+test('branches:rebase refuses a checkout mid-merge (#352)', async () => {
+	const rebaseOntoTrunk = spy(async () => ({ rebased: true, from: 'old', to: 'new', parked: false }));
+	const settings = rebaseFixture();
+	const main = loadMain({ stubs: mergeStubs(settings, { './ticket-branches': { rebaseOntoTrunk, currentBranchName: async () => 'ticket/61002' } }) });
+	refusesMerge(await main.invoke('branches:rebase', '/sites/wp'), 'rebase');
+	assert.deepEqual(rebaseOntoTrunk.calls, []);
+});
+
+test('site:status reports the merge in progress; a detector that fails reports none there but refuses the writes (#352)', async () => {
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const readTrunkInfo = async () => ({ trunkOid: 'x', trunkDate: 'd' });
+	const reporting = loadMain({
+		stubs: mergeStubs(settings, { './trunk-update': { readTrunkInfo }, './ticket-branches': { currentBranchName: async () => 'trunk' } })
+	});
+	assert.deepEqual((await reporting.invoke('site:status', '/sites/wp')).mergeInProgress, MERGE_STATE);
+
+	const discardChanges = spy(async () => {});
+	const failing = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./git-read.cjs': { mergeInProgress: async () => { throw new Error('git died'); } },
+			'./trunk-update': { readTrunkInfo, discardChanges },
+			'./ticket-branches': { currentBranchName: async () => 'trunk' }
+		}
+	});
+	const status = await failing.invoke('site:status', '/sites/wp');
+	assert.equal(status.mergeInProgress, null);
+	assert.equal(status.trunkOid, 'x', 'the rest of the status is still answered');
+	// Unlike a missing origin, a merge the read could not see would be erased
+	// by the checkout that follows, so the write refuses rather than guesses.
+	const refused = await failing.invoke('git:discard-changes', '/sites/wp');
+	assert.equal(refused.ok, false);
+	assert.equal(refused.code, 'merge-check-failed');
+	assert.match(refused.error, /could not check whether a merge is in progress/);
+	assert.match(refused.error, /nothing was changed/);
+	assert.match(refused.error, /git died/, 'the reason rides along');
+	assert.deepEqual(discardChanges.calls, []);
+});
+
+test('a discard on a real checkout mid-merge leaves MERGE_HEAD, the unmerged entries and the markers in place (#352)', async (t) => {
+	const { dir, baseOid, workFile } = await parkedTicketRepo(t);
+	// What a mentor's terminal leaves: a branch that disagrees on the ticket's
+	// file, merged into it and stopped on the conflict.
+	gitOk(['checkout', '-q', '-b', 'mentor/fix', baseOid], dir);
+	fs.writeFileSync(path.join(dir, workFile), '<?php // login\n// the mentor\'s fix\n');
+	commitFiles(dir, [workFile], 'mentor');
+	gitOk(['checkout', '-q', 'ticket/62281'], dir);
+	// The identity `git merge` insists on before it starts, conflict or not.
+	const mentor = ['-c', 'user.name=mentor', '-c', 'user.email=mentor@example.com'];
+	assert.equal(bin([...mentor, 'merge', 'mentor/fix'], dir).status, 1, 'the merge stops on the conflict');
+	const before = statusScan(dir);
+	assert.match(before, /^u UU /m);
+	const main = parkedTicketMain(dir, baseOid);
+
+	const res = await main.invoke('git:discard-changes', dir);
+
+	assert.equal(res.ok, false);
+	assert.equal(res.code, 'merge-in-progress');
+	assert.deepEqual(res.paths, [workFile], 'the real path, from the real index');
+	assert.match(res.error, /merge started outside the app is in progress/);
+	assert.match(res.error, /conflicts in wp-login\.php/);
+	assert.equal(fs.existsSync(path.join(dir, '.git', 'MERGE_HEAD')), true, 'the merge is still open');
+	assert.equal(statusScan(dir), before, 'index and worktree untouched');
+	assert.match(fs.readFileSync(path.join(dir, workFile), 'utf8'), /^<<<<<<< /m, 'the markers, the interface for resolving it, are still there');
+});
+
+test('git:update-trunk returns to a checked-out PR and keeps its linked ticket (#458)', async () => {
+	// The branch name follows the checkouts. A constant would hide the park from
+	// every read the handler makes between it and the return — which is how the
+	// site-level write of #419 went unseen here for as long as it did.
+	let head = 'pr/7';
+	const switchToBranch = spy(async (_dir, to) => { head = to; return { switched: true, parked: true }; });
+	const currentBranchName = spy(async () => head);
+	const updateToLatestTrunk = spy(async () => ({
+		upToDate: false, oldOid: 'old', newOid: 'new', lockfileChanged: false, trunkDate: '2026-01-01T00:00:00.000Z'
+	}));
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 59234,
+				currentBranch: 'pr/7',
+				branches: { 'pr/7': { tracTicket: 59234, baseOid: 'abc' } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await new Promise((resolve) => setImmediate(resolve));
+
+	assert.equal(switchToBranch.calls.length, 2, 'parked onto trunk, then returned');
+	assert.equal(switchToBranch.calls[0][1], 'trunk');
+	assert.equal(switchToBranch.calls[0][2].baseOid, 'abc', 'parked onto its own branch point');
+	assert.equal(switchToBranch.calls[1][1], 'pr/7', 'the contributor ends up back on their ticket');
+
+	const meta = settings.values.siteMeta['/sites/wp'];
+	assert.equal(meta.currentBranch, 'pr/7');
+	assert.equal(meta.tracTicket, 59234, 'the panel and the worktree must agree on the ticket');
+	assert.equal(meta.trunkOid, 'new');
+	// The incomplete flag describes the ticket's tree, not the site's.
+	assert.equal(meta.branches['pr/7'].updateIncomplete, true);
+	// Site level holds no fresh `true` any more: what is there is the explicit
+	// clear of the copy earlier versions wrote (#419).
+	assert.equal(meta.updateIncomplete, false, 'the live flag is the branch\'s, and this is the cleared copy');
+});
+
+// PR checkout is layer 2's job; here the observable contract is the stream,
+// the guards and the store. A live head follows each successful fake switch.
+function prWiring({ head = 'ticket/59234', meta = {}, reads = {}, pr = {}, tickets = {} } = {}) {
+	const oid = 'a'.repeat(40);
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {
+		currentBranch: head, tracTicket: 59234,
+		branches: { 'ticket/59234': { baseOid: 'b'.repeat(40) }, 'pr/7': { headOid: oid, baseOid: oid, returnTo: 'ticket/59234' } }, ...meta
+	} } });
+	const fetchPullRequestHead = spy(async () => ({ oid }));
+	const checkoutPullRequest = spy(async (_dir, number) => { const from = head; head = `pr/${number}`; return { from, to: head, parked: true }; });
+	const leavePullRequest = spy(async (_dir, { returnTo }) => { const from = head; head = returnTo; return { from, to: head, parked: true }; });
+	const resumeSwitch = spy(async (_dir, to) => { head = to; return { to, parked: false }; });
+	const state = { exists: true, moved: false, hasEdits: false };
+	const main = loadMain({ stubs: {
+		...silentLogging(), ...settings.stubs,
+		'./git-read.cjs': { isLegacySite: async () => false, mergeInProgress: async () => null, remoteUrl: async () => 'file:///origin', blobOid: async () => oid, resolveRef: async () => oid, listBranches: async () => ['trunk', 'ticket/59234', 'pr/7'], ...reads },
+		'./ticket-branches': { currentBranchName: async () => head, listTicketBranches: async () => ['ticket/59234', 'pr/7'], countChangesAgainst: async () => 3, resumeSwitch, ...tickets },
+		'./pr-checkout': { fetchPullRequestHead, checkoutPullRequest, leavePullRequest, describePullRequestHead: async () => ({ files: [{ path: 'src/wp-login.php', kind: 'modified' }], needsInstall: false, base: oid }), pullRequestBranchState: async () => state, ...pr }
+	} });
+	return { main, settings, oid, state, fetchPullRequestHead, checkoutPullRequest, leavePullRequest, resumeSwitch };
+}
+
+async function runPr(main, action, ...args) {
+	const event = createIpcEvent();
+	const idKey = action === 'checkout' ? 'checkoutId' : 'leaveId';
+	const reply = await main.invokeWith(`git:${action}-pr`, event, '/sites/wp', ...args);
+	const done = await waitForDone(event, `git:${action}-pr:done`, idKey, reply[idKey]);
+	return { done, event };
+}
+
+test('git:preview-pr fetches by number and describes the fetched head without recording a checkout', async () => {
+	const f = prWiring();
+	const before = structuredClone(f.settings.values);
+	const result = await f.main.invoke('git:preview-pr', '/sites/wp', '7');
+	assert.equal(result.ok, true);
+	assert.equal(result.number, 7);
+	assert.equal(result.headOid, f.oid);
+	assert.equal(result.files[0].path, 'src/wp-login.php');
+	assert.equal(result.returnTo, 'ticket/59234');
+	assert.equal(f.fetchPullRequestHead.calls[0][1], 7);
+	assert.equal(typeof f.fetchPullRequestHead.calls[0][2].onChild, 'function');
+	assert.deepEqual(f.settings.values, before);
+	assert.equal(f.checkoutPullRequest.calls.length, 0);
+});
+
+for (const head of ['ticket/59234', 'trunk']) {
+	test(`git:checkout-pr from ${head} records the PR base and preserves ticket context`, async () => {
+		const f = prWiring({ head, meta: { branches: { 'ticket/59234': { baseOid: 'b'.repeat(40) } } } });
+		const { done } = await runPr(f.main, 'checkout', 7);
+		assert.equal(done.ok, true);
+		assert.equal(done.returnTo, head);
+		const m = f.settings.values.siteMeta['/sites/wp'];
+		assert.equal(m.currentBranch, 'pr/7');
+		assert.equal(m.tracTicket, 59234);
+		assert.equal(m.branches['pr/7'].headOid, f.oid);
+		assert.equal(m.branches['pr/7'].baseOid, f.oid);
+		assert.equal(m.branches['pr/7'].returnTo, head);
+		assert.equal(f.checkoutPullRequest.calls[0][2].fromBaseOid, head === 'trunk' ? undefined : 'b'.repeat(40));
+		assert.equal(typeof f.checkoutPullRequest.calls[0][2].onChild, 'function');
+	});
+}
+
+for (const [code, reads] of [
+	['legacy-site', { isLegacySite: async () => true }],
+	['no-origin', { remoteUrl: async () => null }],
+	['merge-in-progress', { mergeInProgress: async () => ({ kind: 'merge', paths: ['src/a.php'] }) }],
+	['merge-check-failed', { mergeInProgress: async () => { throw new Error('read failed'); } }]
+]) {
+	for (const action of ['preview', 'checkout', 'leave']) {
+		if (action === 'preview' && code.startsWith('merge-') || action === 'leave' && code === 'no-origin') continue;
+		test(`git:${action}-pr refuses ${code} before a fetch or switch`, async () => {
+			const f = prWiring({ head: 'pr/7', reads });
+			const before = structuredClone(f.settings.values);
+			const result = action === 'preview' ? await f.main.invoke('git:preview-pr', '/sites/wp', 7) : (await runPr(f.main, action, 7)).done;
+			assert.equal(result.code, code);
+			assert.equal(result.ok, false);
+			assert.equal(f.fetchPullRequestHead.calls.length, 0);
+			assert.equal(f.checkoutPullRequest.calls.length, 0);
+			assert.equal(f.leavePullRequest.calls.length, 0);
+			assert.deepEqual(f.settings.values, before);
+		});
+	}
+}
+
+for (const value of [0, -1, 1.5, '7; echo', true, {}, Number.MAX_SAFE_INTEGER + 1]) {
+	test(`git:checkout-pr validates IPC number ${JSON.stringify(value)}`, async () => {
+		const f = prWiring();
+		const { done } = await runPr(f.main, 'checkout', value);
+		assert.equal(done.code, 'bad-pr-number');
+		assert.equal(f.fetchPullRequestHead.calls.length, 0);
+	});
+}
+
+for (const code of ['dirty-trunk', 'pr-has-edits', 'pr-branch-exists', 'already-checked-out', 'no-such-branch']) {
+	test(`git:checkout-pr streams ${code} and leaves the registry alone`, async () => {
+		const f = prWiring({ pr: { checkoutPullRequest: async () => { throw Object.assign(new Error('refused'), { code, files: 3 }); } } });
+		const before = structuredClone(f.settings.values);
+		const { done, event } = await runPr(f.main, 'checkout', 7);
+		assert.equal(done.ok, false);
+		assert.equal(done.code, code);
+		assert.equal(done.number, 7);
+		if (code === 'dirty-trunk') assert.equal(done.files, 3);
+		assert.ok(event.sent.some((m) => m.channel === 'git:checkout-pr:log' && m.payload.data.includes(done.error)));
+		assert.deepEqual(f.settings.values, before);
+	});
+}
+
+test('PR fetch failure reaches the stream without writing checkout metadata', async () => {
+	const f = prWiring({ pr: { fetchPullRequestHead: async () => { throw new Error('offline'); } } });
+	const before = structuredClone(f.settings.values);
+	const { done } = await runPr(f.main, 'checkout', 7);
+	assert.equal(done.code, 'fetch-failed');
+	assert.match(done.error, /offline/);
+	assert.deepEqual(f.settings.values, before);
+});
+
+test('a partial PR checkout records the head and retries the original destination without another fetch or park', async () => {
+	const oid = 'c'.repeat(40);
+	const f = prWiring({ meta: { branches: { 'ticket/59234': { baseOid: 'b'.repeat(40) } } }, pr: {
+		checkoutPullRequest: async () => { throw Object.assign(new Error('locked'), { stage: 'checkout', from: 'ticket/59234', to: 'pr/7', created: true, headOid: oid }); }
+	} });
+	const first = (await runPr(f.main, 'checkout', 7)).done;
+	assert.equal(first.ok, false);
+	const m = f.settings.values.siteMeta['/sites/wp'];
+	assert.deepEqual(m.switchInProgress, { from: 'ticket/59234', to: 'pr/7' });
+	assert.equal(m.branches['pr/7'].headOid, oid);
+	const second = (await runPr(f.main, 'checkout', 7)).done;
+	assert.equal(second.ok, true);
+	assert.equal(f.fetchPullRequestHead.calls.length, 1);
+	assert.equal(f.resumeSwitch.calls.length, 1);
+	assert.equal(f.settings.values.siteMeta['/sites/wp'].switchInProgress, null);
+	assert.equal(f.settings.values.siteMeta['/sites/wp'].branches['pr/7'].headOid, oid);
+});
+
+test('a moved PR updates its recorded base but preserves the original return ticket', async () => {
+	const oid = 'c'.repeat(40);
+	const f = prWiring({ head: 'trunk', pr: { fetchPullRequestHead: async () => ({ oid }), checkoutPullRequest: async () => ({ moved: true, parked: false }) } });
+	const { done } = await runPr(f.main, 'checkout', 7);
+	assert.equal(done.moved, true);
+	const m = f.settings.values.siteMeta['/sites/wp'].branches['pr/7'];
+	assert.equal(m.baseOid, oid);
+	assert.equal(m.returnTo, 'ticket/59234');
+});
+
+test('a moved PR with local edits returns to its saved copy instead of replacing it (#458)', async () => {
+	const movedHead = 'c'.repeat(40);
+	const localTip = 'd'.repeat(40);
+	const originalHead = 'a'.repeat(40);
+	const switchToBranch = spy(async (_dir, ref) => ({ from: 'ticket/59234', to: ref, parked: true }));
+	const f = prWiring({
+		reads: { resolveRef: async (_dir, ref) => ref === 'pr/7' ? localTip : originalHead },
+		pr: {
+			fetchPullRequestHead: async () => ({ oid: movedHead }),
+			pullRequestBranchState: async () => ({ exists: true, moved: true, hasEdits: true, tip: localTip })
+		},
+		tickets: { switchToBranch }
+	});
+
+	const { done } = await runPr(f.main, 'checkout', 7);
+	assert.equal(done.ok, true);
+	assert.equal(done.localCopy, true);
+	assert.equal(switchToBranch.calls[0][1], 'pr/7');
+	assert.equal(f.checkoutPullRequest.calls.length, 0);
+	assert.equal(f.settings.values.siteMeta['/sites/wp'].branches['pr/7'].headOid, f.oid, 'the recorded author head stays at v1');
+});
+
+for (const present of [true, false]) {
+	test(`git:leave-pr restores ${present ? 'the ticket' : 'trunk when the ticket was deleted'}`, async () => {
+		const f = prWiring({ head: 'pr/7', reads: { listBranches: async () => present ? ['trunk', 'ticket/59234', 'pr/7'] : ['trunk', 'pr/7'], blobOid: async (_dir, ref) => ref === 'HEAD' ? 'a'.repeat(40) : 'b'.repeat(40) } });
+		const { done } = await runPr(f.main, 'leave');
+		assert.equal(done.ok, true);
+		assert.equal(done.needsInstall, true);
+		assert.equal(done.returnTo, present ? 'ticket/59234' : 'trunk');
+		assert.equal(f.leavePullRequest.calls[0][1].headOid, f.oid);
+		const m = f.settings.values.siteMeta['/sites/wp'];
+		assert.equal(m.currentBranch, done.returnTo);
+		assert.equal(m.tracTicket, present ? 59234 : null);
+	});
+}
+
+test('git:leave-pr refuses when no PR is checked out', async () => {
+	const f = prWiring();
+	assert.equal((await runPr(f.main, 'leave')).done.code, 'not-on-pr');
+	assert.equal(f.leavePullRequest.calls.length, 0);
+});
+
+test('git:leave-pr retries an interrupted return without parking partial files', async () => {
+	const f = prWiring({ head: 'pr/7', meta: { switchInProgress: { from: 'pr/7', to: 'ticket/59234' } } });
+	assert.equal((await runPr(f.main, 'leave')).done.ok, true);
+	assert.equal(f.resumeSwitch.calls.length, 1);
+	assert.equal(f.leavePullRequest.calls.length, 0);
+	assert.equal(f.settings.values.siteMeta['/sites/wp'].switchInProgress, null);
+});
+
+test('an unrelated interrupted switch blocks PR checkout and leave', async () => {
+	const f = prWiring({ head: 'pr/7', meta: { switchInProgress: { from: 'pr/7', to: 'ticket/9' } } });
+	assert.equal((await runPr(f.main, 'checkout', 7)).done.code, 'switch-incomplete');
+	assert.equal((await runPr(f.main, 'leave')).done.code, 'switch-incomplete');
+	assert.equal(f.resumeSwitch.calls.length, 0);
+});
+
+test('PR handlers refuse unregistered paths, including on the done stream', async () => {
+	const f = prWiring();
+	f.settings.values.sites = [];
+	assert.equal((await f.main.invoke('git:preview-pr', '/sites/wp', 7)).ok, false);
+	for (const action of ['checkout', 'leave']) assert.match((await runPr(f.main, action, 7)).done.error, /not registered/);
+	assert.equal(f.fetchPullRequestHead.calls.length, 0);
+});
+
+test('branches:list excludes PR refs and branches:rebase refuses them', async () => {
+	const rebaseOntoTrunk = spy();
+	const f = prWiring({ head: 'pr/7', tickets: { rebaseOntoTrunk } });
+	const list = await f.main.invoke('branches:list', '/sites/wp');
+	assert.deepEqual(list.branches.map((b) => b.ref), ['ticket/59234']);
+	assert.equal((await f.main.invoke('branches:rebase', '/sites/wp')).code, 'not-a-ticket-branch');
+	assert.equal(rebaseOntoTrunk.calls.length, 0);
+});
+
+test('deleting a return ticket redirects PRs to trunk without changing their head', async () => {
+	const f = prWiring({ head: 'pr/7', tickets: { deleteTicketBranch: async () => {} } });
+	assert.equal((await f.main.invoke('branches:delete', '/sites/wp', 'ticket/59234')).ok, true);
+	const m = f.settings.values.siteMeta['/sites/wp'];
+	assert.equal(m.branches['pr/7'].returnTo, 'trunk');
+	assert.equal(m.branches['pr/7'].headOid, f.oid);
+	assert.equal(m.currentBranch, 'pr/7');
+});
+
+test('site:status identifies a checked-out PR and suppresses the ticket rebase notice', async () => {
+	const f = prWiring({ head: 'pr/7', meta: { trunkOid: 'b'.repeat(40) } });
+	// An unregistered read skips .git/info/exclude on this fake path.
+	f.settings.values.sites = [];
+	const result = await f.main.invoke('site:status', '/sites/wp');
+	assert.equal(result.pullRequest.number, 7);
+	assert.equal(result.pullRequest.returnTo, 'ticket/59234');
+	assert.equal(result.ticketBehindTrunk, false);
+});
+
+test('git:save-patch refuses submission destinations on a PR checkout, but still saves a copy (#458)', async (t) => {
+	const dir = await fixtureRepo(t);
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'pr/7': { headOid: revParse(dir, 'HEAD'), baseOid: revParse(dir, 'HEAD') } } } },
+		preferences: { wporgHandle: 'janedoe' }
+	});
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs, './ticket-branches': { currentBranchName: async () => 'pr/7' } } });
+
+	const handoff = await main.invoke('git:save-patch', dir, { handoff: true });
+	const trac = await main.invoke('git:save-patch', dir, { destination: 'trac' });
+
+	assert.deepEqual(handoff, {
+		ok: false,
+		reason: 'pr-checkout',
+		error: require('../../src/renderer/pr-checkout.cjs').prSubmissionRefusal(7)
+	});
+	assert.deepEqual(trac, handoff);
+	assert.deepEqual(main.calls.showSaveDialog, [], 'a refused submission must not create a file');
+
+	const copy = await main.invoke('git:save-patch', dir);
+	assert.equal(copy.canceled, true);
+	assert.equal(main.calls.showSaveDialog.length, 1, 'an unattributed backup remains available');
+});
+
+test('github:open-pr refuses a PR checkout before it reaches GitHub (#458)', async (t) => {
+	const dir = await fixtureRepo(t);
+	const auth = fakeGithubAuth({ login: 'janedoe' });
+	const openPullRequest = spy(async () => ({ ok: true }));
+	const settings = fakeSettingsStore({
+		sites: [dir],
+		siteMeta: { [dir]: { tracTicket: 62281, branches: { 'pr/7': { headOid: 'a'.repeat(40) } } } }
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./github-auth.cjs': auth,
+			'./ticket-branches': { currentBranchName: async () => 'pr/7' },
+			'./github-pr.cjs': { openPullRequest, buildPullRequestBody: () => '' }
+		}
+	});
+
+	await main.invokeWith('github:sign-in', createIpcEvent());
+	await settle();
+	await settle();
+
+	const result = await main.invoke('github:open-pr', dir, {});
+
+	assert.deepEqual(result, {
+		ok: false,
+		reason: 'pr-checkout',
+		error: require('../../src/renderer/pr-checkout.cjs').prSubmissionRefusal(7),
+		stage: 'ownership'
+	});
+	assert.deepEqual(openPullRequest.calls, []);
+});
+
+test('returning to an unchanged PR with parked lockfile edits measures the copy actually checked out', async () => {
+	const oid = 'a'.repeat(40);
+	const wip = 'c'.repeat(40);
+	const f = prWiring({ reads: {
+		resolveRef: async (_dir, ref) => ref === 'pr/7' ? wip : oid,
+		blobOid: async (_dir, ref) => ref === wip ? 'changed-lockfile' : 'original-lockfile'
+	} });
+	assert.equal((await runPr(f.main, 'checkout', 7)).done.needsInstall, true);
+});
+
+test('old PRs do not count generated Gutenberg files, including a previously parked copy', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-old-pr-generated-');
+	fs.writeFileSync(path.join(dir, 'README.md'), 'base\n');
+	commitFiles(dir, ['README.md'], 'base');
+	const baseOid = revParse(dir, 'HEAD');
+	gitOk(['checkout', '-b', 'pr/7'], dir);
+	fs.mkdirSync(path.join(dir, 'gutenberg'), { recursive: true });
+	fs.writeFileSync(path.join(dir, 'gutenberg', 'generated.js'), 'generated\n');
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { branches: { 'pr/7': { baseOid, headOid: baseOid, pullRequest: 7 } } } } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	await main.invoke('site:status', dir);
+	assert.equal((await main.invoke('git:unsubmitted-work', dir)).changedCount, 0);
+	gitOk(['add', '-f', 'gutenberg/generated.js'], dir);
+	commitFiles(dir, [], 'old parked generated files');
+	fs.appendFileSync(path.join(dir, 'README.md'), 'my edit\n');
+	assert.equal((await main.invoke('git:unsubmitted-work', dir)).changedCount, 1);
+	const result = await main.invoke('git:get-patch', dir);
+	assert.equal(result.ok, true);
+	assert.match(result.patch, /my edit/);
+	assert.doesNotMatch(result.patch, /gutenberg/);
+});
+
+test('the patch panel can render a large added text file without overflowing the stack', async (t) => {
+	const dir = adoptedRepo(t, 'ipc-large-patch-');
+	fs.writeFileSync(path.join(dir, 'README.md'), 'base\n');
+	commitFiles(dir, ['README.md'], 'base');
+	fs.writeFileSync(path.join(dir, 'large.txt'), 'line\n'.repeat(150000));
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: {} } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+	const result = await main.invoke('git:get-patch', dir);
+	assert.equal(result.ok, true, result.error);
+	assert.match(result.patch, /\+line/);
+});
+
+for (const changed of [false, true]) {
+	test(`resuming an applied PR reports rebuild and install=${changed} from its lockfile`, async () => {
+		const oid = 'c'.repeat(40);
+		const switchToBranch = spy(async () => ({ parked: true }));
+		const f = prWiring({
+			meta: { branches: {
+				'ticket/59234': { baseOid: oid, activePr: 'pr/7' },
+				'pr/7': { headOid: oid, baseOid: oid, returnTo: 'ticket/59234' }
+			} },
+			reads: { blobOid: async (_dir, ref) => changed && ref === 'pr/7' ? 'd'.repeat(40) : oid },
+			tickets: { switchToBranch }
+		});
+		const result = await f.main.invoke('sites:set-ticket', '/sites/wp', '59234');
+		assert.equal(result.ok, true);
+		assert.equal(result.branch, 'pr/7');
+		assert.equal(result.prTransition, true);
+		assert.equal(result.needsInstall, changed);
+		assert.equal(switchToBranch.calls[0][1], 'pr/7');
+	});
+}
+
+test('linking a new ticket from a PR measures trunk before the new branch exists', async () => {
+	const oid = 'c'.repeat(40);
+	const f = prWiring({ head: 'pr/7',
+		reads: {
+			resolveRef: async (_dir, ref) => ref === 'ticket/60003' ? null : oid,
+			blobOid: async (_dir, ref) => { if (ref === 'ticket/60003') throw new Error('missing branch'); return oid; }
+		},
+		tickets: { switchToBranch: async () => ({ parked: true }), startTicketBranch: async () => ({ baseOid: oid }) }
+	});
+	const result = await f.main.invoke('sites:set-ticket', '/sites/wp', '60003');
+	assert.equal(result.ok, true, result.error);
+	assert.equal(result.branch, 'ticket/60003');
+	assert.equal(result.prTransition, true);
 });

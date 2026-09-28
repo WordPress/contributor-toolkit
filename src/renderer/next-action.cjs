@@ -35,8 +35,10 @@
  * @param {boolean} state.isUpdating       A trunk update is running now.
  * @param {boolean} state.stale            The trunk snapshot is old (#94).
  * @param {boolean} state.running          The dev server is up.
+ * @param {?Object} state.pullRequest      The PR currently checked out.
  * @param {boolean} state.hasChanges       The working tree has uncommitted edits.
- * @param {boolean} state.ticketLinked     A Trac ticket is linked.
+ * @param {boolean} state.ticketLinked     A work item (Trac ticket, GitHub issue) is linked.
+ * @param {string}  [state.workItemLabel]  What the site calls it (#251); `Trac ticket` when absent.
  * @return {?{id: string, reason: string}} The block to point at, or null.
  */
 function deriveNextAction(state = {}) {
@@ -98,6 +100,10 @@ function deriveNextAction(state = {}) {
 		return { id: 'start-dev', reason: 'Start the dev server to work on the site.' };
 	}
 
+	if (state.pullRequest && Number.isInteger(state.pullRequest.number)) {
+		return { id: 'pr-checkout', reason: `PR #${state.pullRequest.number} is applied; revert it before applying another change.` };
+	}
+
 	if (Boolean(state.hasChanges)) {
 		return {
 			id: 'review-changes',
@@ -106,7 +112,7 @@ function deriveNextAction(state = {}) {
 	}
 
 	if (!Boolean(state.ticketLinked)) {
-		return { id: 'link-ticket', reason: 'Link a Trac ticket to give your work a home.' };
+		return { id: 'link-ticket', reason: `Link a ${state.workItemLabel || 'Trac ticket'} to give your work a home.` };
 	}
 
 	return null;

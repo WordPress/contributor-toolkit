@@ -13,9 +13,11 @@
 //   - `describeAppliedLayer` offers Revert when the text was retained, and the
 //     copy-and-discard exit when it was too large to keep.
 //
-// Pure and dependency-free like update-plan.cjs and apply-conflict.cjs, for the
-// same reason: the renderer bundle imports it, `node --test` requires it
-// directly, and neither needs a DOM.
+// DOM-free like apply-conflict.cjs and update-plan.cjs, for the same reason:
+// the renderer bundle imports it, `node --test` requires it directly, and
+// neither needs a DOM. This one has no imports at all; update-plan.cjs takes
+// one from a sibling, which is allowed for the same reason — a decision with a
+// single definition belongs beside it, not copied.
 'use strict';
 
 // Saving a copy and then discarding is a recommendable way forward on this

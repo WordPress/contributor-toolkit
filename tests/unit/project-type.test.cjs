@@ -1,0 +1,174 @@
+'use strict';
+
+// The project-type registry (src/project-type.cjs) is the one place the
+// per-target facts live, and every consumer reaches them through getProjectType
+// / projectTypeForSite. These tests pin the two things those consumers rely on:
+// the default-to-Core seam (an unknown or missing type is Core, with no throw),
+// and that both known types carry the full shape a consumer will read.
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const {
+	PROJECT_TYPES,
+	DEFAULT_PROJECT_TYPE,
+	getProjectType,
+	projectTypeForSite,
+	isProjectTypeId,
+	normalizeProjectType
+} = require('../../src/project-type.cjs');
+const { WORK_ITEM_BRANCH_PREFIXES } = require('../../src/ticket-branches.js');
+
+test('the default project type is core', () => {
+	assert.equal(DEFAULT_PROJECT_TYPE, 'core');
+	assert.equal(getProjectType(DEFAULT_PROJECT_TYPE).id, 'core');
+});
+
+test('getProjectType returns the named type when it is known', () => {
+	assert.equal(getProjectType('core').id, 'core');
+	assert.equal(getProjectType('gutenberg').id, 'gutenberg');
+});
+
+// The seam the whole feature rests on: anything that is not a known id resolves
+// to Core rather than throwing or returning undefined. A site made before the
+// field existed (undefined), a typo, a hostile value, all Core.
+test('getProjectType falls back to core for unknown or missing ids', () => {
+	// The last three are inherited keys of a plain object: without an
+	// own-property check they resolve to Object.prototype and to functions.
+	for (const bad of [undefined, null, '', 'GUTENBERG', 'core ', 'plugin', 42, {}, '__proto__', 'constructor', 'toString']) {
+		assert.equal(getProjectType(bad).id, 'core', `expected core for ${JSON.stringify(bad)}`);
+	}
+});
+
+test('projectTypeForSite reads the id straight off a site meta record', () => {
+	assert.equal(projectTypeForSite({ projectType: 'gutenberg' }).id, 'gutenberg');
+	// Absent field, empty meta, and no meta at all all mean Core.
+	assert.equal(projectTypeForSite({}).id, 'core');
+	assert.equal(projectTypeForSite(undefined).id, 'core');
+	assert.equal(projectTypeForSite(null).id, 'core');
+});
+
+test('isProjectTypeId is true only for defined ids', () => {
+	assert.equal(isProjectTypeId('core'), true);
+	assert.equal(isProjectTypeId('gutenberg'), true);
+	assert.equal(isProjectTypeId('nope'), false);
+	assert.equal(isProjectTypeId(undefined), false);
+});
+
+test('normalizeProjectType passes known ids through and coerces the rest to core', () => {
+	assert.equal(normalizeProjectType('gutenberg'), 'gutenberg');
+	assert.equal(normalizeProjectType('core'), 'core');
+	assert.equal(normalizeProjectType('bogus'), 'core');
+	assert.equal(normalizeProjectType(undefined), 'core');
+});
+
+// Consumers in later PRs read cfg.clone.url, cfg.upstream.repo, the built-check
+// path, the watch command, the serve strategy, etc. If a type is missing one of
+// these, that consumer breaks only for that type and only at runtime, so assert
+// the shape here where it is cheap to catch.
+test('every project type carries the full shape consumers depend on', () => {
+	for (const [id, cfg] of Object.entries(PROJECT_TYPES)) {
+		assert.equal(cfg.id, id, `${id}: id must match its key`);
+		assert.equal(typeof cfg.label, 'string');
+		// Every site wears its type on its row, so every type has a short tag.
+		assert.match(cfg.tag, /^[A-Za-z]{1,12}$/, `${id}: tag`);
+		assert.equal(typeof cfg.wizardLabel, 'string');
+
+		assert.equal(typeof cfg.clone.url, 'string');
+		assert.match(cfg.clone.url, /^https:\/\/github\.com\/.+\.git$/);
+		assert.equal(typeof cfg.clone.ref, 'string');
+		assert.match(cfg.defaultFolderName, /^[a-z0-9-]+$/, `${id}: the default folder name must already be a safe file name`);
+
+		assert.equal(typeof cfg.upstream.owner, 'string');
+		assert.equal(typeof cfg.upstream.repo, 'string');
+		assert.equal(typeof cfg.upstream.base, 'string');
+
+		assert.ok(Array.isArray(cfg.build.builtCheckRelPath) && cfg.build.builtCheckRelPath.length > 0);
+		assert.equal(typeof cfg.build.watch.script, 'string');
+		assert.ok(Array.isArray(cfg.build.watch.args));
+		assert.ok(Array.isArray(cfg.build.allowedScripts) && cfg.build.allowedScripts.length > 0);
+
+		for (const key of ['cloneLabel', 'cloneDescription', 'buildDescription', 'builtDescription', 'serverDescription']) {
+			assert.equal(typeof cfg.setup[key], 'string', `${id}: setup.${key}`);
+		}
+		assert.equal(typeof cfg.cards.applyHeading, 'string', `${id}: cards.applyHeading`);
+		// Every target opens pull requests (#251), so every target carries the
+		// whole destination's copy.
+		for (const key of ['prBlockedNote', 'prCost', 'prAfter', 'signInCannot', 'prNotesHelp', 'prLoopBack']) {
+			assert.equal(typeof cfg.cards[key], 'string', `${id}: cards.${key}`);
+		}
+		assert.equal(typeof cfg.cards.prHow.summary, 'string', `${id}: cards.prHow.summary`);
+		assert.ok(Array.isArray(cfg.cards.prHow.lines) && cfg.cards.prHow.lines.length > 0, `${id}: cards.prHow.lines`);
+		assert.equal(typeof cfg.cards.prHow.linkLabel, 'string', `${id}: cards.prHow.linkLabel`);
+		assert.match(cfg.cards.prHow.linkUrl, /^https:\/\//, `${id}: cards.prHow.linkUrl`);
+		// What the renderer cannot be tested for (index.jsx): a target whose
+		// work item is not a Trac ticket says nothing about Trac in its cards.
+		if (cfg.workItem.provider !== 'trac') {
+			const strings = Object.values(cfg.cards).filter((v) => typeof v === 'string')
+				.concat(cfg.cards.prHow.summary, cfg.cards.prHow.lines, cfg.cards.prHow.linkLabel);
+			for (const value of strings) assert.doesNotMatch(value, /trac|ticket/i, `${id}: "${value}" speaks of Trac`);
+		}
+		assert.equal(typeof cfg.cards.applyDescription, 'string', `${id}: cards.applyDescription`);
+		assert.match(cfg.cards.sourceDir, /^[a-z]+\/$/, `${id}: cards.sourceDir is a directory under the checkout`);
+		assert.equal(typeof cfg.cards.patchFiles, 'boolean', `${id}: cards.patchFiles`);
+		assert.equal(cfg.cards.patchFiles, cfg.workItem.provider === 'trac', `${id}: patch files go with Trac`);
+		assert.ok(['docroot', 'plugin-mount'].includes(cfg.serve.strategy));
+		assert.ok(['src-layout', 'repo-relative'].includes(cfg.patch.layout));
+		assert.ok(['trac', 'github-issue'].includes(cfg.workItem.provider));
+		// The namespace a site writes its work-item branches under has to be
+		// one every read in ticket-branches.js accepts, or `branches:list` and
+		// the delete guard would not see the branches the site itself made.
+		assert.ok(WORK_ITEM_BRANCH_PREFIXES.includes(cfg.workItem.branchPrefix), `${id}: workItem.branchPrefix ${cfg.workItem.branchPrefix} is not a namespace ticket-branches.js reads`);
+
+		assert.equal(typeof cfg.pr.branchPrefix, 'string');
+		assert.equal(typeof cfg.pr.bodyLine, 'function');
+	}
+});
+
+// A watcher that rebuilds build/ on start says when it is done; one that does
+// not has no pattern, and a server behind it starts at once (#488).
+test('only a watcher that rebuilds on start carries a ready pattern', () => {
+	assert.equal(getProjectType('core').build.watch.readyPattern, undefined);
+	assert.equal(getProjectType('gutenberg').build.watch.readyPattern, 'Watching for changes');
+});
+
+// The hint under the terminal names where a contributor edits. Gutenberg has
+// no src/; a hint that says so sends a first-timer looking for a directory
+// that is not there (#490).
+test('the terminal hint names each project\u2019s own source directory', () => {
+	assert.equal(getProjectType('core').cards.sourceDir, 'src/');
+	assert.equal(getProjectType('gutenberg').cards.sourceDir, 'packages/');
+});
+
+// Where a site reads its own build from. Core's marker is the one site:status
+// always checked; Gutenberg's follows its current build layout (see the
+// registry comment for when it moved).
+test('the built marker names a file the build actually writes', () => {
+	assert.deepEqual(getProjectType('core').build.builtCheckRelPath, ['build', 'wp-includes', 'js', 'dist']);
+	assert.deepEqual(getProjectType('gutenberg').build.builtCheckRelPath, ['build', 'scripts', 'block-library', 'index.min.js']);
+});
+
+// The two concrete targets, spelled out so a wrong-repo regression is caught
+// here rather than by a contributor whose PR lands in the wrong project.
+test('core and gutenberg point at their real repositories', () => {
+	assert.equal(getProjectType('core').clone.url, 'https://github.com/WordPress/wordpress-develop.git');
+	assert.deepEqual(
+		{ ...getProjectType('core').upstream },
+		{ owner: 'WordPress', repo: 'wordpress-develop', base: 'trunk' }
+	);
+
+	assert.equal(getProjectType('gutenberg').clone.url, 'https://github.com/WordPress/gutenberg.git');
+	assert.deepEqual(
+		{ ...getProjectType('gutenberg').upstream },
+		{ owner: 'WordPress', repo: 'gutenberg', base: 'trunk' }
+	);
+});
+
+// The pull-request body line is where the two work-item worlds show through:
+// Core cites a Trac URL, Gutenberg closes a GitHub issue by number.
+test('the PR body line matches each project’s work-item convention', () => {
+	assert.equal(
+		getProjectType('core').pr.bodyLine(62281, 'https://core.trac.wordpress.org/ticket/62281'),
+		'Trac ticket: https://core.trac.wordpress.org/ticket/62281'
+	);
+	assert.equal(getProjectType('gutenberg').pr.bodyLine(12345), 'Fixes #12345');
+});

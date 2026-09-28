@@ -29,11 +29,11 @@
 /**
  * The optimistic row, before the main process has answered.
  *
- * @param {{sites: string[], siteMeta: Object}}              state
- * @param {{path: string, label: string, createdAt: string}} site
+ * @param {{sites: string[], siteMeta: Object}}                                    state
+ * @param {{path: string, label: string, createdAt: string, projectType?: string}} site
  * @return {{sites: string[], siteMeta: Object}}
  */
-function beginSetup({ sites, siteMeta }, { path, label, createdAt }) {
+function beginSetup({ sites, siteMeta }, { path, label, createdAt, projectType }) {
 	return {
 		sites: sites.includes(path) ? sites : [...sites, path],
 		siteMeta: {
@@ -42,6 +42,10 @@ function beginSetup({ sites, siteMeta }, { path, label, createdAt }) {
 				...(siteMeta[path] || {}),
 				label,
 				createdAt: siteMeta[path]?.createdAt || createdAt,
+				// The choice made in the dialog (#251), so the row and the
+				// checklist know what is being cloned before the store does:
+				// the record is written when the clone finishes.
+				...(projectType ? { projectType } : {}),
 				initialized: false
 			}
 		}

@@ -21,12 +21,14 @@
 // line to move, few enough that the IPC channel stays a channel.
 const DEFAULT_INTERVAL_MS = 100;
 
-// isomorphic-git's own phase strings, which belong to it and not to us. Pinned
-// here so a version bump breaks one lookup rather than leaking a foreign
-// vocabulary into the UI.
+// Git's own phase names, lowercased by git-progress.cjs, which belong to it
+// and not to us. Pinned here so a Git upgrade that renames one breaks a single
+// lookup rather than leaking a foreign vocabulary into the UI. `Updating
+// files` is what checkout has said since 2.x; the older name is kept in case
+// a site's own hooks or filters ever surface it.
 const CHECKOUT_PHASES = {
-	'Analyzing workdir': 'analyze',
-	'Updating workdir': 'apply'
+	'updating files': 'apply',
+	'checking out files': 'apply'
 };
 
 /**
@@ -42,9 +44,9 @@ const CHECKOUT_PHASES = {
  * changes, and again by `flush()` at the end. A progress line that freezes is
  * read as a hang, which is the exact failure this is meant to prevent.
  *
- * `emit` is deliberately synchronous and returns nothing: isomorphic-git awaits
- * whatever `onProgress` returns, so a promise here would add a microtask
- * between every one of those 4400 events.
+ * `emit` is deliberately synchronous and returns nothing: it is called from a
+ * stderr listener for every progress line Git prints, and a promise here would
+ * add a microtask between every one of those events for nobody to await.
  *
  * @param {Object}   options
  * @param {Function} options.onEmit       Called with each payload that survives.
@@ -87,11 +89,11 @@ function createProgressThrottle({ onEmit, intervalMs = DEFAULT_INTERVAL_MS, now 
 }
 
 /**
- * One of isomorphic-git's checkout progress events, in this app's vocabulary.
- *
- * `Analyzing workdir` reports a running count with no total — there is no
- * honest percentage for that half, and the sentence for it says so rather than
- * inventing one.
+ * One of Git's checkout progress events (git-progress.cjs), in this app's
+ * vocabulary. Git reports one phase, with a total, once the files to write are
+ * known; the `analyze` stage the old engine reported before that has no
+ * counterpart and is simply never emitted now, which `describeSwitchProgress`
+ * tolerates like any other absent stage.
  *
  * @param {{phase: string, loaded: number, total: number}} event
  * @return {{stage: string, loaded: number, total: ?number}} Our shape.
@@ -110,8 +112,35 @@ function mapCheckoutPhase(event = {}) {
  * @param {?string} ref
  */
 function ticketOf(ref) {
-	const match = /^ticket\/(\d+)$/.exec(String(ref || ''));
+	// Both work-item namespaces (#251, ticket-branches.js): a Gutenberg site's
+	// `issue/71234` is `#71234` on screen the way `ticket/59234` is `#59234`.
+	const match = /^(?:ticket|issue)\/(\d+)$/.exec(String(ref || ''));
 	return match ? match[1] : null;
+}
+
+/**
+ * A pull request number from a branch ref (#458), or null for anything else.
+ *
+ * @param {?string} ref
+ */
+function prOf(ref) {
+	const match = /^pr\/(\d+)$/.exec(String(ref || ''));
+	return match ? match[1] : null;
+}
+
+/**
+ * What a branch is called on screen: a ticket by its number, a pull request
+ * by its number, and nothing for trunk or a branch the app did not make.
+ *
+ * @param {?string} ref
+ * @return {?string} `#59234`, `PR #7701`, or null.
+ */
+function nameOf(ref) {
+	const ticket = ticketOf(ref);
+	if (ticket) return `#${ticket}`;
+	const pr = prOf(ref);
+	if (pr) return `PR #${pr}`;
+	return null;
 }
 
 /**
@@ -132,12 +161,13 @@ function ticketOf(ref) {
  */
 function describeSwitchProgress({ stage, loaded, total, from, to } = {}) {
 	const saving = () => {
-		const leaving = ticketOf(from);
-		return leaving ? `your work on #${leaving}` : 'your work';
+		const leaving = nameOf(from);
+		if (!leaving) return 'your work';
+		return prOf(from) ? `your edits on ${leaving}` : `your work on ${leaving}`;
 	};
 	const entering = () => {
-		const id = ticketOf(to);
-		return id ? ` for #${id}` : '';
+		const name = nameOf(to);
+		return name ? ` for ${name}` : '';
 	};
 
 	switch (stage) {
@@ -147,15 +177,20 @@ function describeSwitchProgress({ stage, loaded, total, from, to } = {}) {
 			return `Saving ${saving()}… ${withCount(loaded, total)}`;
 		case 'commit':
 			return `Saving ${saving()}…`;
+		case 'rebase':
+			return `Moving ${saving()} onto the current trunk…`;
 		case 'analyze':
 			return 'Checking which files change…';
 		case 'apply':
 			return `Swapping files${entering()}… ${withCount(loaded, total)}`;
-		case 'done':
-			return ticketOf(to) ? `Ready to work on #${ticketOf(to)}` : 'Ready';
+		case 'done': {
+			if (prOf(to)) return `Ready to try ${nameOf(to)}`;
+			const ticket = nameOf(to);
+			return ticket ? `Ready to work on ${ticket}` : 'Ready';
+		}
 		default:
-			// A stage this version does not know — a newer isomorphic-git, or a
-			// caller ahead of this module. Saying something true and vague beats
+			// A stage this version does not know — a newer Git, or a caller
+			// ahead of this module. Saying something true and vague beats
 			// rendering nothing where a sentence was.
 			return 'Working…';
 	}

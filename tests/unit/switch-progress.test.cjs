@@ -97,9 +97,9 @@ test('throttle: flush with nothing pending emits nothing (issue #173)', () => {
 	assert.deepStrictEqual(emitted, []);
 });
 
-// isomorphic-git awaits whatever onProgress returns. A thenable would put a
-// microtask between every one of ~4400 checkout events, so the callback is
-// synchronous by contract, not by accident.
+// emit runs inside a stderr listener, once per progress line Git prints. A
+// thenable would put a microtask between every one of those events for nobody
+// to await, so the callback is synchronous by contract, not by accident.
 test('throttle: emit is synchronous and returns nothing to await (issue #173)', () => {
 	const { throttle } = harness();
 
@@ -129,20 +129,20 @@ test('throttle: an infinite interval reduces a switch to one line per stage (iss
 
 // --- mapCheckoutPhase ------------------------------------------------------
 
-test('mapCheckoutPhase: the two phases checkout actually emits (issue #173)', () => {
+test('mapCheckoutPhase: the phase checkout actually emits, as git-progress.cjs lowercases it (issue #173)', () => {
 	assert.deepStrictEqual(
-		mapCheckoutPhase({ phase: 'Analyzing workdir', loaded: 12 }),
-		{ stage: 'analyze', loaded: 12, total: undefined }
+		mapCheckoutPhase({ phase: 'updating files', percent: 7, loaded: 3, total: 40 }),
+		{ stage: 'apply', loaded: 3, total: 40 }
 	);
 	assert.deepStrictEqual(
-		mapCheckoutPhase({ phase: 'Updating workdir', loaded: 3, total: 40 }),
+		mapCheckoutPhase({ phase: 'checking out files', loaded: 3, total: 40 }),
 		{ stage: 'apply', loaded: 3, total: 40 }
 	);
 });
 
-// isomorphic-git owns these strings, not us. A version bump that renames or
-// adds one must degrade to a generic stage rather than an undefined that
-// renders as "undefined" in front of a contributor.
+// Git owns these strings, not us. An upgrade that renames or adds one must
+// degrade to a generic stage rather than an undefined that renders as
+// "undefined" in front of a contributor.
 test('mapCheckoutPhase: an unknown phase still produces a usable stage (issue #173)', () => {
 	const mapped = mapCheckoutPhase({ phase: 'Reticulating splines', loaded: 1, total: 2 });
 
@@ -170,9 +170,9 @@ test('describeSwitchProgress: leaving trunk talks about the work, not a branch n
 	assert.doesNotMatch(line, /trunk/);
 });
 
-// `Analyzing workdir` reports `loaded` with no `total`, so there is no honest
-// percentage for that half of the checkout — and a made-up one is worse than
-// none.
+// A stage without a `total` (the old engine's analyze phase reported a running
+// count and nothing else) has no honest percentage, and a made-up one is worse
+// than none.
 test('describeSwitchProgress: a percentage only when there is a total (issue #173)', () => {
 	assert.doesNotMatch(describeSwitchProgress({ stage: 'analyze', loaded: 900 }), /%/);
 	assert.doesNotMatch(describeSwitchProgress({ stage: 'apply', loaded: 5, total: 0 }), /%/);
@@ -186,4 +186,38 @@ test('describeSwitchProgress: every stage says something, including one we do no
 		assert.ok(line.length > 0, stage);
 		assert.doesNotMatch(line, /undefined|NaN/, stage);
 	}
+});
+
+test('describeSwitchProgress: the move onto trunk names the ticket whose work moves (#385)', () => {
+	const line = describeSwitchProgress({ stage: 'rebase', from: 'ticket/59234', to: 'ticket/59234' });
+	assert.match(line, /#59234/);
+	assert.match(line, /trunk/);
+	assert.doesNotMatch(line, /ticket\//);
+});
+
+test('describeSwitchProgress: a pull request branch is named as a pull request, never as a ref (#458)', () => {
+	const entering = describeSwitchProgress({ stage: 'apply', loaded: 25, total: 100, from: 'ticket/59234', to: 'pr/7701' });
+	assert.match(entering, /PR #7701/);
+	assert.match(entering, /25%/);
+	assert.doesNotMatch(entering, /pr\//);
+
+	assert.strictEqual(describeSwitchProgress({ stage: 'done', to: 'pr/7701' }), 'Ready to try PR #7701');
+
+	const leaving = describeSwitchProgress({ stage: 'scan', from: 'pr/7701', to: 'ticket/59234' });
+	assert.match(leaving, /edits on PR #7701/);
+	assert.doesNotMatch(leaving, /pr\//);
+	// Leaving a ticket still says "work": the two are different things to
+	// the contributor, and the sentence is what tells them which is being saved.
+	assert.match(describeSwitchProgress({ stage: 'scan', from: 'ticket/59234', to: 'pr/7701' }), /work on #59234/);
+});
+
+// A Gutenberg site's branch is `issue/N` (#251); on screen it is `#N`, the way
+// `ticket/N` is, or the switch sentences would name a ref nobody typed.
+test('describeSwitchProgress names an issue/ branch by its number, like a ticket/ one (#251)', () => {
+	const leaving = describeSwitchProgress({ stage: 'scan', from: 'issue/71234', to: 'issue/71300' });
+	assert.match(leaving, /#71234/);
+	assert.doesNotMatch(leaving, /issue\//);
+	const entering = describeSwitchProgress({ stage: 'apply', from: 'trunk', to: 'issue/71300' });
+	assert.match(entering, /for #71300/);
+	assert.strictEqual(describeSwitchProgress({ stage: 'done', from: 'trunk', to: 'issue/71300' }), describeSwitchProgress({ stage: 'done', from: 'trunk', to: 'ticket/71300' }));
 });

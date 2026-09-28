@@ -137,6 +137,16 @@ function recorder() {
 // scope for #149 and deliberately not covered here.
 const RUNS = [
 	{
+		name: 'checkoutPullRequest', idKey: 'checkoutId', invokeChannel: 'git:checkout-pr',
+		logChannel: 'git:checkout-pr:log', doneChannel: 'git:checkout-pr:done',
+		start: (api, callbacks) => api.checkoutPullRequest('/sites/wp', 7, callbacks.onLog, callbacks.onDone)
+	},
+	{
+		name: 'leavePullRequest', idKey: 'leaveId', invokeChannel: 'git:leave-pr',
+		logChannel: 'git:leave-pr:log', doneChannel: 'git:leave-pr:done',
+		start: (api, callbacks) => api.leavePullRequest('/sites/wp', callbacks.onLog, callbacks.onDone)
+	},
+	{
 		name: 'runNpmInstall',
 		idKey: 'installId',
 		invokeChannel: 'npm:install',
@@ -514,5 +524,19 @@ for (const sub of SUBSCRIPTIONS) {
 		unsubscribe();
 
 		assert.equal(ipcRenderer.listenerCount(sub.channel), 0);
+	});
+}
+
+for (const run of RUNS.filter((r) => r.name.endsWith('PullRequest'))) {
+	test(`${run.name} receives an immediate refusal before invoke resolves`, async () => {
+		const loaded = loadPreload({ invokeResults: { [run.invokeChannel]: () => {
+			loaded.ipcRenderer.emit(run.doneChannel, { [run.idKey]: 'fast', ok: false });
+			return { [run.idKey]: 'fast' };
+		} } });
+		const callbacks = recorder();
+		await run.start(loaded.api, callbacks);
+		assert.equal(callbacks.done.length, 1);
+		assert.equal(loaded.ipcRenderer.listenerCount(run.doneChannel), 0);
+		assert.equal(loaded.ipcRenderer.listenerCount(run.logChannel), 0);
 	});
 }

@@ -2,15 +2,46 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
-const { ticketTrunkNotice } = require('../../src/renderer/ticket-trunk-notice.cjs');
+const { ticketTrunkNotice, rebaseRefusal } = require('../../src/renderer/ticket-trunk-notice.cjs');
 
-test('ticketTrunkNotice says what changed and gives the deliberately manual exit (#305)', () => {
+test('ticketTrunkNotice says what changed and offers the move (#305, #385)', () => {
 	assert.deepStrictEqual(ticketTrunkNotice({ ticketId: 123, behind: true }), {
 		title: 'Trunk has moved since this ticket started.',
-		body: 'Newer patches may not apply cleanly. Save a copy of your work, unlink the ticket, delete its work from the site, then link #123 again to start from the current trunk.'
+		body: 'Newer patches may not apply cleanly. Move your work onto the current trunk here, or save a copy of it and start the ticket again.',
+		action: 'Update this ticket to the current trunk'
 	});
+});
+
+test('rebaseRefusal names the files that clash and hands over the manual path (#385)', () => {
+	const sentence = rebaseRefusal({ code: 'rebase-conflict', conflicts: ['src/wp-login.php', 'src/wp-admin/about.php'], ticketId: 123 });
+	assert.match(sentence, /src\/wp-login\.php, src\/wp-admin\/about\.php/);
+	assert.match(sentence, /Nothing was moved/);
+	assert.match(sentence, /link #123 again/);
+	assert.match(rebaseRefusal({ code: 'rebase-conflict', ticketId: 123 }), /^Trunk and your work disagree\. Nothing was moved/);
+	assert.match(rebaseRefusal({ code: 'no-base', ticketId: 123 }), /which trunk #123 started from/);
+	assert.equal(rebaseRefusal({ code: 'legacy-site', error: 'the sentence' }), 'the sentence');
+	assert.equal(rebaseRefusal({}), 'Could not move the ticket onto the current trunk.');
+});
+
+// The conflicts Git reports are not all "the same lines": a file trunk
+// deleted, or one both sides created, is refused with the reason Git gives,
+// not a sentence that is false for it (#351).
+test('rebaseRefusal words each conflict by its kind, and a kind it has no words for generically (#351)', () => {
+	const kinds = { 'src/a.php': 'content', 'src/b.php': 'content', 'src/gone.php': 'modify/delete', 'src/new.php': 'add/add', 'src/odd.php': 'rename/delete' };
+	const sentence = rebaseRefusal({ code: 'rebase-conflict', conflicts: ['src/gone.php', 'src/a.php', 'src/new.php', 'src/odd.php', 'src/b.php'], kinds, ticketId: 123 });
+	assert.strictEqual(sentence,
+		'Trunk changed the same lines as your work in: src/a.php, src/b.php. '
+		+ 'Deleted on one side and changed on the other: src/gone.php. '
+		+ 'Trunk added a file your work also adds, with different content: src/new.php. '
+		+ 'Trunk and your work disagree in: src/odd.php. '
+		+ 'Nothing was moved. Save a copy of your work, unlink the ticket, delete its work from the site, then link #123 again and apply the copy.');
+	// Without kinds (an older main, or a path Git gave no record for) the
+	// path is still named, generically rather than as a clash it may not be.
+	assert.match(rebaseRefusal({ code: 'rebase-conflict', conflicts: ['src/x.php'], ticketId: 1 }), /^Trunk and your work disagree in: src\/x\.php\. Nothing was moved/);
+	assert.match(rebaseRefusal({ code: 'rebase-conflict', conflicts: ['src/x.php', 'src/y.php'], kinds: { 'src/x.php': 'modify/delete', 'src/y.php': 'modify/delete' }, ticketId: 1 }), /^Deleted on one side and changed on the other: src\/x\.php, src\/y\.php\./);
+	// A kind naming an inherited property is not a clause: the path stays in
+	// the sentence, generically, rather than vanishing from it.
+	assert.match(rebaseRefusal({ code: 'rebase-conflict', conflicts: ['src/x.php'], kinds: { 'src/x.php': 'constructor' }, ticketId: 1 }), /^Trunk and your work disagree in: src\/x\.php\./);
 });
 
 test('ticketTrunkNotice stays silent without a ticket or a known move (#305)', () => {
@@ -21,15 +52,39 @@ test('ticketTrunkNotice stays silent without a ticket or a known move (#305)', (
 	]) assert.equal(ticketTrunkNotice(state), null);
 });
 
-test('the ticket card renders the stale-ticket notice returned by status (#305)', () => {
-	const source = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'renderer', 'index.jsx'), 'utf8');
-	assert.match(source, /setTicketBehindTrunk\(Boolean\(s\?\.ticketBehindTrunk\)\)/);
-	assert.match(source, /ticketTrunkNotice\(\{ ticketId: tracTicket, behind: ticketBehindTrunk \}\)/);
-	assert.match(source, /staleTicketNotice\.title/);
-	assert.match(source, /staleTicketNotice\.body/);
-	assert.match(
-		source,
-		/setTicketBehindTrunk\(false\);\s+setTracTicket\(res\.ticket\);/,
-		'a switched ticket must not render with the previous ticket\'s stale flag'
-	);
+// On a Gutenberg site the same notice and the same refusals speak of an
+// issue (#251); nothing about the move itself changes.
+test('ticketTrunkNotice and rebaseRefusal take the site\'s noun', () => {
+	const notice = ticketTrunkNotice({ ticketId: 71234, behind: true, noun: 'issue' });
+	assert.equal(notice.title, 'Trunk has moved since this issue started.');
+	assert.equal(notice.action, 'Update this issue to the current trunk');
+	assert.doesNotMatch(notice.body, /ticket/);
+	const refusal = rebaseRefusal({ code: 'no-base', ticketId: 71234, noun: 'issue' });
+	assert.match(refusal, /Keep this issue's branch/);
+	assert.doesNotMatch(refusal, /ticket/);
+	assert.equal(rebaseRefusal({ code: 'other', noun: 'issue' }), 'Could not move the issue onto the current trunk.');
+});
+
+test('Gutenberg recovery preserves the branch instead of requiring an unavailable patch import', () => {
+	const notice = ticketTrunkNotice({ ticketId: 71234, behind: true, noun: 'issue' });
+	assert.doesNotMatch(notice.body, /start the issue again/);
+	for (const failure of [
+		{ code: 'no-base' },
+		{ code: 'rebase-conflict' },
+		{ code: 'rebase-conflict', conflicts: ['packages/editor/index.js'], kinds: { 'packages/editor/index.js': 'content' } }
+	]) {
+		const message = rebaseRefusal({ ...failure, ticketId: 71234, noun: 'issue' });
+		assert.match(message, /Keep this issue's branch/);
+		assert.match(message, /save a copy/i);
+		assert.match(message, /mentor/);
+		assert.doesNotMatch(message, /unlink|delete its work|apply the copy|link #71234 again/);
+	}
+});
+
+// Main's on-trunk and not-a-ticket-branch sentences name a ticket whatever
+// the site; the card words them with its own noun (#251).
+test('rebaseRefusal words on-trunk and not-a-ticket-branch itself, with the noun', () => {
+	assert.equal(rebaseRefusal({ code: 'on-trunk', error: 'main says ticket' }), 'Link a ticket first: trunk is what tickets are measured against.');
+	assert.equal(rebaseRefusal({ code: 'on-trunk', error: 'main says ticket', noun: 'issue' }), 'Link an issue first: trunk is what issues are measured against.');
+	assert.equal(rebaseRefusal({ code: 'not-a-ticket-branch', noun: 'issue' }), 'Only an issue branch can be moved onto the current trunk.');
 });

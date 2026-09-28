@@ -1,7 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
-const { resolveSpawnTarget, applyPatch, PATCH_MARKER } = require('../../src/win-spawn-patch.js');
+const { resolveSpawnTarget, applyPatch, selfApply, defaultLookup, PATCH_MARKER } = require('../../src/win-spawn-patch.js');
 
 // The Windows shim layout ensureNodeShimDir() writes, as the patch sees it.
 const WIN = {
@@ -9,16 +12,20 @@ const WIN = {
 	execPath: 'C:\\App\\App.exe',
 	npmCliPath: 'C:\\App\\resources\\app.asar\\node_modules\\npm\\bin\\npm-cli.js',
 	npxCliPath: 'C:\\App\\resources\\app.asar\\node_modules\\npm\\bin\\npx-cli.js',
-	env: { Path: 'C:\\shims;C:\\Windows', PATHEXT: '.COM;.EXE;.BAT;.CMD' },
+	env: { Path: 'C:\\shims;C:\\Windows', PATHEXT: '.COM;.EXE;.BAT;.CMD', SystemRoot: 'C:\\Windows' },
 	lookup: (file) => {
 		const known = {
 			node: 'C:\\shims\\node.cmd',
 			grunt: 'C:\\site\\node_modules\\.bin\\grunt.cmd',
-			mysqld: 'C:\\tools\\mysqld.exe'
+			mysqld: 'C:\\tools\\mysqld.exe',
+			// Windows's own bsdtar, present since Windows 10 1803.
+			'c:\\windows\\system32\\tar.exe': 'C:\\Windows\\System32\\tar.exe'
 		};
 		return known[String(file).toLowerCase()] || null;
 	}
 };
+
+const SYSTEM_TAR = 'C:\\Windows\\System32\\tar.exe';
 
 // The exact call wordpress-develop's Gruntfile makes in gutenberg:verify.
 test('a bare `node` spawn is redirected to Electron in Node mode, without a shell', () => {
@@ -52,6 +59,28 @@ test('npm and npx are redirected to their JS CLIs', () => {
 
 	const npx = resolveSpawnTarget({ ...WIN, file: 'npx.cmd', args: ['wp-scripts', 'build'] });
 	assert.deepEqual(npx.args, [WIN.npxCliPath, 'wp-scripts', 'build']);
+});
+
+// The redirect bypasses the node.cmd shim, so the runtime-identity preload the
+// shim carries (#275) has to be re-attached here or a tool started this way sees
+// `versions.electron` again and misreads its arguments.
+test('the node, npm and npx redirects carry the compat preload when the app installed one', () => {
+	const compat = 'C:\\shims\\electron-node-compat.js';
+	const node = resolveSpawnTarget({ ...WIN, nodeCompatPath: compat, file: 'node', args: ['-e', '1'] });
+	assert.deepEqual(node.args, ['--require', compat, '-e', '1']);
+	assert.equal(node.options.env.WPTK_NODE_COMPAT, '1');
+
+	const npm = resolveSpawnTarget({ ...WIN, nodeCompatPath: compat, file: 'npm', args: ['ci'] });
+	assert.deepEqual(npm.args, ['--require', compat, WIN.npmCliPath, 'ci']);
+
+	const npx = resolveSpawnTarget({ ...WIN, nodeCompatPath: compat, file: 'npx', args: ['x'] });
+	assert.deepEqual(npx.args, ['--require', compat, WIN.npxCliPath, 'x']);
+});
+
+test('without a compat preload the redirects add no --require and no flag', () => {
+	const node = resolveSpawnTarget({ ...WIN, file: 'node', args: ['x.js'] });
+	assert.deepEqual(node.args, ['x.js']);
+	assert.equal(node.options.env.WPTK_NODE_COMPAT, undefined);
 });
 
 test('npm falls through to the shell branch when no npm CLI path is known', () => {
@@ -93,6 +122,74 @@ test('commands that Windows can exec directly are left alone', () => {
 	assert.equal(resolveSpawnTarget({ ...WIN, file: 'C:\\tools\\thing.exe', args: [] }), null);
 	// Unresolvable name: leave it be so the caller sees the real ENOENT.
 	assert.equal(resolveSpawnTarget({ ...WIN, file: 'nonesuch', args: [] }), null);
+});
+
+// The exact call wordpress-develop's tools/gutenberg/download.js makes (#373).
+// With Git for Windows on PATH a bare `tar` is GNU tar, which reads `C:` as a
+// remote host; Windows's own bsdtar in System32 handles the drive letter.
+test('a bare `tar` spawn is redirected to System32 bsdtar, args and options intact', () => {
+	const options = { stdio: ['ignore', 'inherit', 'inherit'] };
+	const target = resolveSpawnTarget({
+		...WIN,
+		file: 'tar',
+		args: ['-xzf', 'C:\\site\\.gutenberg\\artifact.tgz', '-C', 'C:\\site\\.gutenberg\\src'],
+		options
+	});
+
+	assert.equal(target.file, SYSTEM_TAR);
+	assert.deepEqual(target.args, ['-xzf', 'C:\\site\\.gutenberg\\artifact.tgz', '-C', 'C:\\site\\.gutenberg\\src']);
+	assert.deepEqual(target.options, options);
+	// Not Electron: no shell, and no Node-mode env rewrite either.
+	assert.ok(!target.options.shell);
+	assert.equal(target.options.env, undefined);
+
+	for (const file of ['tar.exe', 'TAR']) {
+		assert.equal(resolveSpawnTarget({ ...WIN, file, args: [] }).file, SYSTEM_TAR, file);
+	}
+});
+
+test('without System32\\tar.exe a bare `tar` gets the same handling as any other command', () => {
+	// A tar.exe found on PATH is left alone, so whatever tar the host has still
+	// runs: today's failure, but not a new one.
+	const gnu = resolveSpawnTarget({
+		...WIN,
+		lookup: (file) => (String(file).toLowerCase() === 'tar' ? 'C:\\Program Files\\Git\\usr\\bin\\tar.exe' : null),
+		file: 'tar',
+		args: ['-xzf', 'a.tgz']
+	});
+	assert.equal(gnu, null);
+
+	// A tar.cmd on PATH still reaches the shell fallback; the tar branch must not
+	// swallow the call on its way there.
+	const script = resolveSpawnTarget({
+		...WIN,
+		lookup: (file) => (String(file).toLowerCase() === 'tar' ? 'C:\\tools\\tar.cmd' : null),
+		file: 'tar',
+		args: ['-xzf', 'a.tgz']
+	});
+	assert.equal(script.options.shell, true);
+	assert.equal(script.file, '"C:\\tools\\tar.cmd"');
+
+	assert.equal(resolveSpawnTarget({ ...WIN, lookup: () => null, file: 'tar', args: [] }), null);
+});
+
+// The tar branch hands defaultLookup a full path, so its job there is plain
+// existence, not a PATH search. Pinned on a real file: the other tar tests all
+// inject lookup, and this is the one thing the production path relies on.
+test('defaultLookup with a path that has a directory reports whether that file exists', (t) => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wptk-tar-lookup-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	const present = path.join(dir, 'tar.exe');
+	fs.writeFileSync(present, '');
+
+	const env = { Path: 'C:\\somewhere-else', PATHEXT: '.COM;.EXE;.BAT;.CMD' };
+	assert.equal(defaultLookup(present, env), present);
+	assert.equal(defaultLookup(path.join(dir, 'missing.exe'), env), null);
+});
+
+test('an explicit path to some other tar is not rewritten', () => {
+	const gitTar = 'C:\\Program Files\\Git\\usr\\bin\\tar.exe';
+	assert.equal(resolveSpawnTarget({ ...WIN, file: gitTar, args: ['-xzf', 'a.tgz'] }), null);
 });
 
 test('a call that already asked for a shell is left alone', () => {
@@ -144,4 +241,66 @@ test('applyPatch is idempotent so a duplicated --require cannot double-wrap', ()
 	assert.equal(fake[PATCH_MARKER], true);
 	fake.spawn('node');
 	assert.equal(depth, 1);
+});
+
+// #497: the preload reaches every descendant Node on Windows, and each of those
+// is Electron running as Node, a GUI-subsystem binary with no console. A
+// cmd.exe it spawns without windowsHide (cross-spawn wrapping a .cmd stub, as
+// Gutenberg's build scripts do for tsc and wp-build) gets a brand-new visible
+// console. So the same preload that fixes `spawn('node')` also hides consoles,
+// through the hide-child-windows copy beside it.
+function fakeChildProcess() {
+	return { spawn: () => 'spawned', spawnSync: () => {}, execFile: () => {}, execFileSync: () => {} };
+}
+
+test('selfApply applies the spawn patch and hides consoles on Windows when the app asked for it', () => {
+	const cp = fakeChildProcess();
+	const hidden = [];
+	selfApply({ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'win32', childProcess: cp, requireHide: () => ({ patchChildProcess: (target, platform) => { hidden.push([target, platform]); return target; } }) });
+
+	assert.equal(cp[PATCH_MARKER], true, 'the spawn patch was not applied');
+	assert.deepEqual(hidden, [[cp, 'win32']], 'patchChildProcess was not applied to the same child_process');
+});
+
+// The default requireHide is the one production runs: the copy in the shim dir
+// resolving its sibling by name. Reproduced with the two files copied into a
+// temp dir, the way ensureNodeShimDir() lays them out, and the real
+// hide-child-windows applied to a fake child_process so the test process is
+// never touched.
+test('selfApply from a shim-dir copy finds hide-child-windows.js beside it', () => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wptk-shims-'));
+	try {
+		for (const name of ['win-spawn-patch.js', 'hide-child-windows.js']) {
+			fs.copyFileSync(path.join(__dirname, '../../src', name), path.join(dir, name));
+		}
+		const copy = require(path.join(dir, 'win-spawn-patch.js'));
+		const cp = fakeChildProcess();
+		copy.selfApply({ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'win32', childProcess: cp });
+
+		assert.equal(cp[PATCH_MARKER], true);
+		assert.equal(cp[Symbol.for('wp-dev-env.windowsHidePatched')], true, 'the sibling copy was not found, so consoles would show (#497)');
+	} finally {
+		fs.rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test('selfApply does nothing without the flag, and nothing off Windows', () => {
+	for (const input of [
+		{ env: {}, platform: 'win32' },
+		{ env: { WPTK_SPAWN_PATCH: '0' }, platform: 'win32' },
+		{ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'darwin' }
+	]) {
+		const cp = fakeChildProcess();
+		let hideAsked = false;
+		selfApply({ ...input, childProcess: cp, requireHide: () => { hideAsked = true; return { patchChildProcess: (target) => target }; } });
+		assert.equal(cp[PATCH_MARKER], undefined, JSON.stringify(input));
+		assert.equal(hideAsked, false, JSON.stringify(input));
+	}
+});
+
+test('selfApply keeps the spawn patch when the hide copy is missing beside it', () => {
+	const cp = fakeChildProcess();
+	selfApply({ env: { WPTK_SPAWN_PATCH: '1' }, platform: 'win32', childProcess: cp, requireHide: () => { throw new Error("Cannot find module './hide-child-windows.js'"); } });
+
+	assert.equal(cp[PATCH_MARKER], true, 'a missing hide copy must not cost the spawn patch');
 });

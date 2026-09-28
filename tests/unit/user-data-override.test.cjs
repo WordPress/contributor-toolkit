@@ -45,7 +45,10 @@ function createElectronStub({ isPackaged, setPathThrows = false }) {
 				getAppPath: () => path.join(__dirname, '..', '..'),
 				getName: () => 'wordpress-contributor-toolkit',
 				setName() {},
-				getVersion: () => '0.0.0-test'
+				getVersion: () => '0.0.0-test',
+				// The `wpct://` registration runs at require time too (#464).
+				requestSingleInstanceLock: () => true,
+				setAsDefaultProtocolClient: () => true
 			},
 			BrowserWindow: BrowserWindowStub,
 			Menu: { buildFromTemplate: (t) => ({ t }), setApplicationMenu() {} },

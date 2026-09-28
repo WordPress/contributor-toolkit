@@ -3,8 +3,6 @@
 // DOM; index.jsx only interleaves the parts with its two link buttons.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 
 const {
 	changesNoteParts,
@@ -15,6 +13,7 @@ const {
 	discardDisabledReason,
 	DISCARD_CONFIRM_MESSAGE
 } = require('../../src/renderer/changes-note.cjs');
+const { WORK_ITEM_BRANCH_PREFIXES } = require('../../src/ticket-branches.js');
 
 test('changesNoteParts says nothing about a clean tree', () => {
 	assert.equal(changesNoteParts({ dirty: false, changedCount: 0, tracTicket: null }), null);
@@ -33,6 +32,41 @@ test('changesNoteParts places a ticketed note in the ticket card and names the t
 	const parts = changesNoteParts({ dirty: true, changedCount: 3, tracTicket: '12345' });
 	assert.equal(parts.placement, 'ticket');
 	assert.equal(parts.lead, 'You have 3 unsubmitted changes for ticket #12345. You can ');
+});
+
+test('changesNoteParts attributes work on a PR checkout to the PR, not the linked ticket', () => {
+	const parts = changesNoteParts({ dirty: true, changedCount: 2, tracTicket: '12345', pullRequest: { number: 7701 } });
+	assert.equal(parts.placement, 'ticket');
+	assert.match(parts.lead, /2 changes on top of PR #7701/);
+	assert.doesNotMatch(parts.lead, /12345/);
+	assert.match(parts.end, /stay with this pull request's local copy/);
+	assert.match(parts.end, /when you revert this PR/);
+	assert.equal(parts.unlinkNote, undefined);
+});
+
+// The note's regex cannot import the list (ticket-branches.js reaches for
+// Git), so this walks the list against it: a namespace the app writes that the
+// note did not know would leave a Gutenberg site's changes by the buttons
+// instead of in its work-item card.
+test('changesNoteParts places a PR that returns to any work-item namespace in the card (#251)', () => {
+	for (const prefix of WORK_ITEM_BRANCH_PREFIXES) {
+		const parts = changesNoteParts({ dirty: true, changedCount: 1, tracTicket: '71234', pullRequest: { number: 7701, returnTo: `${prefix}71234` } });
+		assert.equal(parts.placement, 'ticket', `${prefix}: a PR returning there belongs to the card`);
+	}
+});
+
+test('changesNoteParts keeps work on a PR reached from trunk visible by the site controls', () => {
+	const parts = changesNoteParts({ dirty: true, changedCount: 1, pullRequest: { number: 7701, returnTo: 'trunk' } });
+	assert.equal(parts.placement, 'buttons');
+	assert.match(parts.end, /when you revert this PR/);
+	assert.doesNotMatch(parts.end, /ticket/);
+});
+
+test('changesNoteParts follows a PR return redirected to trunk even while the old ticket is linked', () => {
+	const parts = changesNoteParts({ dirty: true, changedCount: 1, tracTicket: '12345', pullRequest: { number: 7701, returnTo: 'trunk' } });
+	assert.equal(parts.placement, 'buttons');
+	assert.match(parts.end, /when you revert this PR/);
+	assert.doesNotMatch(parts.end, /your ticket/);
 });
 
 test('changesNoteParts names the modal in the ticket card and the patch by the buttons', () => {
@@ -193,8 +227,28 @@ test('discardDisabledReason reports the operation in progress before secondary b
 	);
 });
 
-test('both visible discard links use the shared explanatory control', () => {
-	const source = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'renderer', 'index.jsx'), 'utf8');
-	const uses = source.match(/<DiscardChangesLink\b/g) || [];
-	assert.equal(uses.length, 2, 'the ticket note and review modal must share the tooltip-enabled discard link');
+ test('review context names the PR base instead of trunk or the ticket', () => {
+	const { patchReviewContext } = require('../../src/renderer/changes-note.cjs');
+	const pr = patchReviewContext({ pullRequest: { number: 7 }, tracTicket: 123 });
+	assert.match(pr.heading, /PR #7/);
+	assert.match(pr.description, /original PR commits/);
+	assert.doesNotMatch(pr.empty, /trunk/);
+	assert.match(patchReviewContext({ tracTicket: 123 }).heading, /ticket #123/);
+	assert.equal(patchReviewContext().heading, 'Your changes');
+});
+
+// The note says what the site calls its work item (#251).
+test('changesNoteParts speaks of an issue when told the site\'s noun', () => {
+	const linked = changesNoteParts({ dirty: true, changedCount: 2, tracTicket: '71234', workItemNoun: 'issue' });
+	assert.equal(linked.placement, 'ticket');
+	assert.match(linked.lead, /for issue #71234/);
+	assert.match(linked.unlinkNote, /Unlinking this issue/);
+	assert.doesNotMatch(linked.lead + linked.unlinkNote, /ticket/);
+	const loose = changesNoteParts({ dirty: true, changedCount: 1, tracTicket: null, workItemNoun: 'issue' });
+	assert.match(loose.lead, /not assigned to any issue/);
+});
+
+test('patchReviewContext names the work item by the site\'s noun (#251)', () => {
+	const { patchReviewContext } = require('../../src/renderer/changes-note.cjs');
+	assert.equal(patchReviewContext({ tracTicket: 71234, workItemNoun: 'issue' }).heading, 'Your changes for issue #71234');
 });

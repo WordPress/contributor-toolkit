@@ -1,6 +1,43 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Subscribe before invoking: a validation refusal can arrive before the reply
+// carrying its id. Keep those early events until the id is known, then apply
+// the same correlation as later events. Never expose the Electron event.
+async function runPullRequest(channel, idKey, args, onLog, onDone) {
+	let id;
+	let pending = [];
+	const cleanup = () => {
+		ipcRenderer.removeListener(`${channel}:log`, logHandler);
+		ipcRenderer.removeListener(`${channel}:done`, doneHandler);
+	};
+	const deliver = (done, payload) => {
+		if (id === undefined) { pending.push([done, payload]); return; }
+		if (payload[idKey] !== id) return;
+		if (done) {
+			cleanup();
+			if (onDone) onDone(payload);
+		} else if (onLog) onLog(payload);
+	};
+	const logHandler = (_e, payload) => deliver(false, payload);
+	const doneHandler = (_e, payload) => deliver(true, payload);
+	ipcRenderer.on(`${channel}:log`, logHandler);
+	ipcRenderer.on(`${channel}:done`, doneHandler);
+	try {
+		const reply = await ipcRenderer.invoke(channel, ...args);
+		id = reply[idKey];
+		for (const [done, payload] of pending) deliver(done, payload);
+		pending = [];
+		return reply;
+	} catch (e) {
+		cleanup();
+		throw e;
+	}
+}
+
 contextBridge.exposeInMainWorld('api', {
+	previewPullRequest: (sitePath, number) => ipcRenderer.invoke('git:preview-pr', sitePath, number),
+	checkoutPullRequest: (sitePath, number, onLog, onDone) => runPullRequest('git:checkout-pr', 'checkoutId', [sitePath, number], onLog, onDone),
+	leavePullRequest: (sitePath, onLog, onDone) => runPullRequest('git:leave-pr', 'leaveId', [sitePath], onLog, onDone),
 	// Only so the window can name things the way the platform does — "Show in
 	// Finder" against "Show in Explorer". Nothing branches on it in the main
 	// process, where `process.platform` is read directly.
@@ -77,6 +114,10 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	switchBranch: (sitePath, ref) => ipcRenderer.invoke('branches:switch', sitePath, ref)
 ,
+	// The active ticket's work moved onto the current trunk (#385); progress
+	// rides the switch channel.
+	rebaseBranch: (sitePath) => ipcRenderer.invoke('branches:rebase', sitePath)
+,
 	deleteBranch: (sitePath, ref) => ipcRenderer.invoke('branches:delete', sitePath, ref)
 ,
 	// A long-lived subscription rather than the per-run pair the installs use
@@ -98,6 +139,18 @@ contextBridge.exposeInMainWorld('api', {
 		ipcRenderer.on('ticket:carried-work', h);
 		return () => ipcRenderer.removeListener('ticket:carried-work', h);
 	}
+,
+	// A ticket handed to the app by a `wpct://` link (#464). Subscribe first,
+	// then call `deepLinkReady` — main holds a ticket that arrived during
+	// startup until that call, because a send to a page still loading is
+	// dropped silently.
+	subscribeDeepLinkTicket: (handler) => {
+		const h = (_e, payload) => handler && handler(payload);
+		ipcRenderer.on('deep-link:ticket', h);
+		return () => ipcRenderer.removeListener('deep-link:ticket', h);
+	}
+,
+	deepLinkReady: () => ipcRenderer.invoke('deep-link:ready')
 ,
 	subscribeSetupProgress: (handler) => {
 		const h = (_e, payload) => handler && handler(payload);
@@ -189,8 +242,6 @@ contextBridge.exposeInMainWorld('api', {
 	previewPatch: (sitePath, patchText) => ipcRenderer.invoke('git:preview-patch', sitePath, patchText)
 ,
 	listTicketPatches: (sitePath) => ipcRenderer.invoke('git:list-ticket-patches', sitePath)
-,
-	fetchPrDiff: (number) => ipcRenderer.invoke('git:fetch-pr-diff', number)
 ,
 	listTracAttachments: (sitePath) => ipcRenderer.invoke('trac:list-attachments', sitePath)
 ,
@@ -339,4 +390,3 @@ contextBridge.exposeInMainWorld('api', {
 		return () => ipcRenderer.removeListener('smtp:started', h);
 	}
 });
-

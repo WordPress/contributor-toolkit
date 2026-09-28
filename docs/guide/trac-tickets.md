@@ -1,5 +1,9 @@
 # Working on a Trac ticket
 
+::: info WordPress Core sites
+The Trac ticket card is on WordPress Core sites. A Gutenberg site works on a [GitHub issue](./gutenberg-issues) instead, in the same card; a `wpct://ticket` link opened while a Gutenberg site is in front says so and waits for a Core site to be opened.
+:::
+
 Every WordPress core change starts life on a [Trac](https://core.trac.wordpress.org/) ticket. The **Trac ticket** panel on the site view links your site to the ticket you are working on, and then shows you the work that already exists on it — pull requests on GitHub and patch files attached on Trac — so you can test it before adding your own.
 
 ![The Trac ticket panel, showing a linked ticket with its summary, status, type, milestone and component read from Trac, and the pull request that cites it](/screenshots/trac-ticket-panel.png)
@@ -12,6 +16,16 @@ Every WordPress core change starts life on a [Trac](https://core.trac.wordpress.
 The ticket is stored with the site, so it survives restarts. You can change or remove it at any time.
 
 If you do not have a ticket yet, click **Not sure yet? Browse good first bugs on Trac** to open Trac's curated ticket lists in your browser.
+
+## Open a ticket from your browser
+
+The app answers links of the form `wpct://ticket/62281`. Opening one brings the app forward with that ticket ready, and asks whether to link it to the site you have open. Nothing happens to your site until you answer: linking parks whatever the site is working on and checks out the ticket's branch, so a link fills the number in and leaves the decision to you.
+
+![The question a link raises above the Trac ticket panel: Link ticket #62281 to my-first-patch?, with Link ticket and Not now](/screenshots/deep-link-prompt.png)
+
+If you have no site yet, the app says the ticket is waiting and points you at creating one. With several sites, the question is asked for the site you have open; to work the ticket in a different one, choose it in the sidebar first and open the link again.
+
+The scheme is registered the first time you run an installed build, so a link works from anywhere your browser or terminal can open one. Nothing on the web uses it yet: this is the address for anything that wants to hand a ticket to the app, including tools you or your team write.
 
 Linking a ticket gives it its own branch inside the site, so the work you do for it is kept apart from every other ticket on that site. A site can hold as many tickets as you like — see [Working on several tickets](./ticket-branches).
 
@@ -46,11 +60,11 @@ The count is the ticket's whole work, including everything parked when you last 
 
 The panel searches GitHub for pull requests on `WordPress/wordpress-develop` that cite the ticket number, and lists them newest first. Each row shows the PR number (click it to open the PR in your browser), its title, its state, and a date labelled with what it is: **last commit** when the newest commit's date could be resolved, **updated** only as a fallback when it could not. Click **Refresh** to search again.
 
-![The Trac ticket panel with two linked pull requests, one carrying a red CLOSED pill and one a green OPEN pill](/screenshots/linked-pull-requests.png)
+![The ticket panel with an open linked pull request and a patch attachment, each with a preview action](/screenshots/linked-pull-requests.png)
 
 The state is a coloured pill, in GitHub's own three colours: green **OPEN**, purple **MERGED**, red **CLOSED**. Red here is a label and not a warning — a closed pull request is an outcome, not a failure. Merged is rare on `wordpress-develop`, where a pull request is opened for review and the change usually lands as a commit instead.
 
-Each pull request has an **Apply…** button, which fetches its diff and shows you a preview before anything is changed — see [Applying patches and PRs](applying-patches).
+Each pull request has a **Apply…** button, which fetches its commits from the site's origin and shows you a file preview before checking out its own `pr/NNNN` branch — see [Applying patches and PRs](applying-patches).
 
 The search uses GitHub's unauthenticated API, which allows 60 requests per hour from your machine. If the limit is spent or you are offline, the panel says so and falls back to the last list it saw, noting when that was. A pull request that changed state since then keeps its old pill until the next successful lookup.
 
@@ -60,7 +74,7 @@ On many tickets — good first bugs especially — the existing work is a `.diff
 
 Trac answers non-browser clients with a proof-of-work interstitial, so the app cannot simply download the list. Instead it opens the ticket in a real browser window, where the check runs — usually automatically within a few seconds, staying hidden. If Trac escalates to an "I am human" checkbox, the window appears so you can click it once. The window then closes on its own; the attachment list is read from the page and shown in the panel.
 
-Each attachment row shows the filename (click it to open the file in your browser), the author, the date, and the size. Rows for patch files have an **Apply…** button that works the same way as for pull requests.
+Each attachment row shows the filename (click it to open the file in your browser), the author, the date, and the size. Rows for patch files have a **Apply…** button that previews the file and applies it as a removable layer on the current ticket branch.
 
 Two things can go wrong:
 
@@ -76,5 +90,5 @@ When a ticket has both pull requests and attachments, the panel marks the most r
 ## Next steps
 
 - [Work on more than one ticket in the same site](ticket-branches)
-- [Apply a patch or PR to your site](applying-patches)
+- [Apply a patch or PR on your site](applying-patches)
 - [Submit your own changes](submitting-changes)

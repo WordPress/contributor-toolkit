@@ -5,9 +5,11 @@ const assert = require('node:assert');
 const {
 	STALE_THRESHOLD_DAYS,
 	SKIP_INSTALL_MESSAGE,
+	UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE,
 	SETUP_STATE_TO_STEP,
 	trunkAgeInfo,
 	planUpdateSteps,
+	updateStepText,
 	planSetupSteps,
 	updateStepStatuses,
 	setupOutcome,
@@ -73,6 +75,48 @@ test('planUpdateSteps: install is skipped, with the exact message, when the lock
 	assert.strictEqual(steps[1].skipped, true);
 	assert.strictEqual(steps[1].skipMessage, SKIP_INSTALL_MESSAGE);
 	assert.strictEqual(SKIP_INSTALL_MESSAGE, 'Dependencies unchanged — skipping npm install');
+});
+
+// #507: on a Gutenberg site the watch paused for the reset rebuilds from
+// scratch as it resumes, so the update leaves the one build to it. The step is
+// not skipped (the update is not complete until build/ is back): it stays a
+// real third step, naming the watch while it is current.
+test('planUpdateSteps: the build step names the resumed watch while current, and is never skipped (#507)', () => {
+	const steps = planUpdateSteps({ lockfileChanged: false, buildByWatcher: 'resumed-watch' });
+	assert.strictEqual(steps[2].skipped, false);
+	assert.strictEqual(steps[2].currentMessage, UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE);
+	assert.match(UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE, /Build watcher tab/);
+	const statuses = updateStepStatuses(steps, 'building');
+	assert.strictEqual(statuses[2].status, 'current');
+});
+
+test('updateStepText: the build step names the resumed watch only while current (#507)', () => {
+	const steps = planUpdateSteps({ lockfileChanged: false, buildByWatcher: 'resumed-watch' });
+	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'current' }), UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE);
+	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'pending' }), 'Rebuild');
+	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'complete' }), 'Rebuilt');
+	const own = planUpdateSteps({ lockfileChanged: false });
+	assert.strictEqual(updateStepText(own, { key: 'build', status: 'current' }), 'Rebuilding — output in the Terminal below');
+});
+
+test('updateStepText: every step has a line for every status, and unknowns fall back rather than blank (#507)', () => {
+	const steps = planUpdateSteps({ lockfileChanged: false });
+	for (const key of ['fetch', 'install', 'build']) {
+		for (const status of ['pending', 'current', 'complete']) {
+			assert.ok(updateStepText(steps, { key, status }).length > 0, `${key}/${status}`);
+		}
+	}
+	assert.strictEqual(updateStepText(steps, { key: 'install', status: 'skipped' }), SKIP_INSTALL_MESSAGE);
+	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'skipped' }), 'Rebuild');
+	assert.strictEqual(updateStepText(steps, { key: 'nope', status: 'current' }), 'nope');
+});
+
+test('planUpdateSteps: with no watch doing the build, the build step carries no watch message (#507)', () => {
+	for (const buildByWatcher of [null, undefined, false]) {
+		const steps = planUpdateSteps({ lockfileChanged: true, buildByWatcher });
+		assert.strictEqual(steps[2].skipped, false);
+		assert.strictEqual('currentMessage' in steps[2], false, `${buildByWatcher}: the chain builds`);
+	}
 });
 
 test('updateStepStatuses: while building, fetch is complete and a skipped install shows as skipped (issue #94)', () => {

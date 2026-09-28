@@ -138,6 +138,21 @@ test('a running server with pending changes points at reviewing them', () => {
 	assert.strictEqual(next.id, 'review-changes');
 });
 
+test('a checked-out PR points to its return control before offering submission', () => {
+	const next = deriveNextAction({
+		skipInit: true,
+		running: true,
+		hasChanges: true,
+		ticketLinked: true,
+		pullRequest: { number: 7701 }
+	});
+
+	assert.deepStrictEqual(next, {
+		id: 'pr-checkout',
+		reason: 'PR #7701 is applied; revert it before applying another change.'
+	});
+});
+
 test('a running, clean site with no ticket points at linking one', () => {
 	const next = deriveNextAction({
 		skipInit: true,
@@ -163,4 +178,12 @@ test('a running, clean, linked site has no next action', () => {
 test('missing state is treated as nothing pending, not a crash', () => {
 	assert.strictEqual(deriveNextAction(), null);
 	assert.strictEqual(deriveNextAction({}), null);
+});
+
+// The hint names the site's own work item (#251): a Gutenberg site is not
+// told to link a Trac ticket it cannot link.
+test('link-ticket names the work item the site takes', () => {
+	const base = { skipInit: true, currentSetupStep: null, running: true, ticketLinked: false };
+	assert.equal(deriveNextAction(base).reason, 'Link a Trac ticket to give your work a home.');
+	assert.equal(deriveNextAction({ ...base, workItemLabel: 'GitHub issue' }).reason, 'Link a GitHub issue to give your work a home.');
 });

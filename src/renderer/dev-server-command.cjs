@@ -2,45 +2,125 @@
 
 /**
  * Decides what starting the dev server has to run, from whether the site
- * already has a completed build.
+ * already has a completed build and which target it is a checkout of.
  *
- * Kept as a pure, dependency-free module so it can be unit tested without a
- * DOM: the renderer bundle imports it, `node --test` requires it directly
- * (same convention as setup-steps.cjs).
+ * Kept as a pure module so it can be unit tested without a DOM: the renderer
+ * bundle imports it, `node --test` requires it directly (same convention as
+ * setup-steps.cjs). Its one dependency is the project-type registry, which
+ * is pure too.
  *
- * Why the watcher is `grunt -- _watch` and not `npm run watch`:
- * wordpress-develop's Gruntfile renames the real watch task to `_watch` and
- * registers a `watch` wrapper that runs the entire production `build` task
- * first when invoked without arguments. On a site that has already completed
- * the wizard's full build that rebuild has nothing to do, yet it is where
- * tens of minutes go on every dev-server start (30+ on a Windows VM).
- * Invoking `_watch` through the `grunt` passthrough script starts the same
- * watchers immediately. Sites without a completed build still need one, so
- * they get `npm run build` — whose exit code is a real completion signal —
- * before the watcher starts.
- *
- * The `'--'` in the watcher args is load-bearing: script-runner.js
- * deliberately does not insert a separator, and without one npm consumes
- * `_watch` as its own argument and runs bare `grunt` — the default task,
- * i.e. a full build with no watcher.
+ * The watcher command is the target's (#251): Core's is `grunt -- _watch`,
+ * Gutenberg's is `npm run dev`. The registry holds each with the reasoning
+ * beside it; what this module decides is whether a build has to run first,
+ * and whether the watch has to run before the server at all
+ * (serveWithoutWatch). Sites without a completed build need one, so they get
+ * `npm run build`, whose exit code is a real completion signal, before the
+ * watcher starts.
  */
 
-const WATCH_SCRIPT = 'grunt';
-const WATCH_ARGS = ['--', '_watch'];
-const WATCH_COMMAND_LABEL = 'npm run grunt -- _watch';
+const { getProjectType } = require('../project-type.cjs');
 
-function planDevServerStart(flags = {}) {
+/**
+ * `build` is the registry's `build` entry for the site's type. It defaults to
+ * Core's, so a caller that does not know the type gets what every site got
+ * before.
+ *
+ * @param {{hasBuilt?: boolean}}                                     [flags]
+ * @param {{watch: {script: string, args: string[], label: string}}} [build]
+ * @return {{needsBuild: boolean, watch: {script: string, args: string[], label: string, readyPattern: string|null}}}
+ */
+function planDevServerStart(flags = {}, build = getProjectType().build) {
 	const hasBuilt = Boolean(flags.hasBuilt);
 	return {
 		// True when `npm run build` must run (and exit 0) before the watcher
 		// and the server may start.
 		needsBuild: !hasBuilt,
 		watch: {
-			script: WATCH_SCRIPT,
-			args: WATCH_ARGS.slice(),
-			label: WATCH_COMMAND_LABEL
+			script: build.watch.script,
+			args: build.watch.args.slice(),
+			label: build.watch.label,
+			// The line the watcher prints once it is safe to serve, or null when
+			// it is safe from the start. See createWatchReadyDetector.
+			readyPattern: watchReadyPattern(build)
 		}
 	};
+}
+
+function watchReadyPattern(build) {
+	return typeof build.watch.readyPattern === 'string' && build.watch.readyPattern ? build.watch.readyPattern : null;
+}
+
+/**
+ * Whether the dev server may start on the build/ the site has, without the
+ * build watch running first.
+ *
+ * A watch that is safe from the start (Core's, no ready pattern) costs
+ * nothing, so it starts with the server and src/ edits compile on save from
+ * the first click: never without. One that rebuilds build/ from scratch
+ * before it watches (Gutenberg's, #488) only has to go first when build/ is
+ * not there to serve: on a built site it would spend 20 s on macOS, minutes
+ * on Windows (#499), to arrive at the build/ the site already has, while the
+ * server waits with nothing to do. So there the server starts at once, and
+ * the watch is left for Start build watch or for an apply, which builds on
+ * its own when no watch is running.
+ *
+ * build/ is only "there" when nothing has been tearing it down: a watch that
+ * is watching or building is used as it is (the server hangs off its
+ * readiness); one that exited on its own, or was stopped while it was still
+ * rebuilding (`buildInterrupted`), may have left build/ empty or half
+ * written, and the marker file the status reads is not proof otherwise. In
+ * those cases the watch goes first and completes build/, as before #499. A
+ * paused watch means an apply is building on its own; serving meanwhile is
+ * what the guide already promises.
+ *
+ * @param {{hasBuilt?: boolean, watchState?: string, buildInterrupted?: boolean}} [flags]
+ * @param {{watch: {readyPattern?: string}}}                                      [build]
+ * @return {boolean}
+ */
+function serveWithoutWatch(flags = {}, build = getProjectType().build) {
+	if (watchReadyPattern(build) === null) return false;
+	if (!flags.hasBuilt || flags.buildInterrupted) return false;
+	const state = flags.watchState || 'idle';
+	return state === 'idle' || state === 'paused';
+}
+
+/**
+ * Tells, from the watcher's output, when the server may start.
+ *
+ * A watcher that rebuilds `build/` from scratch before it watches (Gutenberg's
+ * `npm run dev`, #488) is not ready when its process is: it is ready when it
+ * prints the registry's `readyPattern`. One with no pattern (Core's `grunt --
+ * _watch`) is ready as soon as it starts, and `immediate` says so.
+ *
+ * `feed` takes the output as it streams, in whatever chunks the pipe delivers,
+ * and returns true once the pattern has been seen. The pattern may straddle two
+ * chunks, so the detector keeps the tail of the last one; and it fires once
+ * only, because wp-build prints the same line after every rebuild and the
+ * server must not be started twice.
+ *
+ * @param {string|null} [readyPattern]
+ * @return {{immediate: boolean, ready: boolean, feed: (chunk: string) => boolean}}
+ */
+function createWatchReadyDetector(readyPattern) {
+	const pattern = typeof readyPattern === 'string' && readyPattern ? readyPattern : null;
+	const detector = {
+		immediate: pattern === null,
+		ready: pattern === null,
+		feed(chunk) {
+			if (detector.ready) return false;
+			tail += String(chunk === null || chunk === undefined ? '' : chunk);
+			if (tail.includes(pattern)) {
+				detector.ready = true;
+				tail = '';
+				return true;
+			}
+			// Keep only what a pattern split across chunks could still need.
+			if (tail.length > pattern.length) tail = tail.slice(tail.length - (pattern.length - 1));
+			return false;
+		}
+	};
+	let tail = '';
+	return detector;
 }
 
 /**
@@ -65,15 +145,18 @@ function formatElapsed(seconds) {
  * contributor can tell at a glance whether `src/` edits are being compiled,
  * paused for another operation, or stopped — without opening the tab.
  *
- * `exitCode` is only meaningful when `state` is 'exited'.
+ * `exitCode` is only meaningful when `state` is 'exited'. `compiling` is
+ * whether the watch is still compiling a change just handed to it (#492,
+ * watch-activity.cjs); it only reads on a watching watch.
  *
  * @param {'idle'|'watching'|'building'|'paused'|'exited'} state
  * @param {number|null}                                    [exitCode]
+ * @param {boolean}                                        [compiling]
  * @return {string}
  */
-function watchTabLabel(state, exitCode) {
+function watchTabLabel(state, exitCode, compiling = false) {
 	switch (state) {
-		case 'watching': return 'Build watcher (watching)';
+		case 'watching': return compiling ? 'Build watcher (compiling)' : 'Build watcher (watching)';
 		case 'building': return 'Build watcher (building)';
 		case 'paused': return 'Build watcher (paused)';
 		case 'exited': {
@@ -85,4 +168,4 @@ function watchTabLabel(state, exitCode) {
 	}
 }
 
-module.exports = { planDevServerStart, formatElapsed, watchTabLabel };
+module.exports = { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel };

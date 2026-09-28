@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { relativeTimeLabel, ticketBranchRows, ticketListCard } = require('../../src/renderer/ticket-branch-list.cjs');
+const { relativeTimeLabel, ticketBranchRows, savedPrForSwitch, ticketListCard } = require('../../src/renderer/ticket-branch-list.cjs');
 
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -133,10 +133,10 @@ test('card: no rows means no card, not an empty one', () => {
 
 // The card's position is the whole point of #240, and no test renders the
 // DOM, so the layout is pinned at the source: the rows render once, from a
-// card of their own that sits between the Trac ticket card and the patch one.
-// Reading order is a behaviour here — which ticket am I on, which of my
-// tickets do I want, bring in work from elsewhere.
-test('card: the list renders once, in its own card between the ticket card and the patch card (issue #240)', () => {
+// card of their own, last of the three. Reading order is a behaviour here —
+// which ticket am I on, what work can I bring into it, and only then the
+// other tickets parked on this site.
+test('card: the list renders once, in its own card below the ticket card and the patch card (issue #240)', () => {
 	const source = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'renderer', 'index.jsx'), 'utf8');
 
 	// The headings come from ticketListCard, so the card cannot say one thing
@@ -151,12 +151,16 @@ test('card: the list renders once, in its own card between the ticket card and t
 	// name so that a comment naming the helper is not a red suite.
 	assert.strictEqual(source.split('renderBranchRows(').length - 1, 1, 'expected exactly one renderBranchRows( call: the single card that renders the list');
 
-	// Between the two cards it used to sit inside of and above.
-	const ticketCard = source.indexOf('>Trac ticket<');
+	// Below both: the work item in hand, then the work you can apply to it,
+	// then the other work items this site is holding. The heading takes the
+	// site's noun (#251); the template is the anchor.
+	const ticketCard = source.indexOf('Working on ${workItem.noun} #');
 	const listCard = source.indexOf('{ticketsCard.heading}');
-	const patchCard = source.indexOf('>Apply a patch or PR<');
+	// The heading comes from the registry now, one wording per target (#251);
+	// the read of it is the anchor.
+	const patchCard = source.indexOf('{project.cards.applyHeading}');
 	assert.ok(ticketCard !== -1 && listCard !== -1 && patchCard !== -1, 'one of the three card headings is missing from index.jsx');
-	assert.ok(ticketCard < listCard && listCard < patchCard, 'the tickets card is not between the Trac ticket card and the patch card');
+	assert.ok(ticketCard < patchCard && patchCard < listCard, 'the tickets card is not below the Trac ticket card and the patch card');
 });
 
 // --- relativeTimeLabel ------------------------------------------------------
@@ -193,4 +197,52 @@ test('time: no record and unparseable records produce no label, not a wrong one'
 	assert.strictEqual(relativeTimeLabel(null, NOW), null);
 	assert.strictEqual(relativeTimeLabel(undefined, NOW), null);
 	assert.strictEqual(relativeTimeLabel('not-a-date', NOW), null);
+});
+
+// The card's heading says what the site calls its work item (#251).
+test('ticketListCard: the heading takes the site\'s noun, ticket unless told otherwise', () => {
+	assert.equal(ticketListCard({ rowCount: 1, linked: false }).heading, 'Your tickets on this site');
+	assert.equal(ticketListCard({ rowCount: 1, linked: true, noun: 'issue' }).heading, 'Other issues on this site');
+	assert.equal(ticketListCard({ rowCount: 0, linked: true, noun: 'issue' }), null);
+});
+
+// #510: only a switch that puts a parked pull request back pauses the build
+// watch, and the renderer has to know which switch that is before the checkout
+// starts. The branch list carries the answer for every work item but the one
+// in hand.
+const PARKED = [
+	{ ref: 'ticket/59234', ticketId: 59234, savedPr: 7 },
+	{ ref: 'ticket/61002', ticketId: 61002, savedPr: null },
+	{ ref: 'ticket/61003', ticketId: 61003 }
+];
+
+test('savedPrForSwitch: a work item with a pull request parked on it reports it (#510)', () => {
+	assert.strictEqual(savedPrForSwitch({ branches: PARKED, ticketId: 59234 }), 7);
+	// The string a text field produces is the same work item as the number.
+	assert.strictEqual(savedPrForSwitch({ branches: PARKED, ticketId: '59234' }), 7);
+});
+
+test('savedPrForSwitch: a plain switch reports no pull request (#510)', () => {
+	// Nothing parked, no record at all, a work item with no branch here yet,
+	// an unlink, and a list that has not loaded: all the same answer, because
+	// all of them only move the checkout.
+	assert.strictEqual(savedPrForSwitch({ branches: PARKED, ticketId: 61002 }), null);
+	assert.strictEqual(savedPrForSwitch({ branches: PARKED, ticketId: 61003 }), null);
+	assert.strictEqual(savedPrForSwitch({ branches: PARKED, ticketId: 12345 }), null);
+	assert.strictEqual(savedPrForSwitch({ branches: PARKED, ticketId: null }), null);
+	assert.strictEqual(savedPrForSwitch({ branches: null, ticketId: 59234 }), null);
+	assert.strictEqual(savedPrForSwitch(), null);
+});
+
+// The branch records its parked PR only when it is left, so the row for the
+// work item in hand says nothing while you are on it. Read off the row, a
+// re-link of that same item would look like leaving a pull request and pause
+// the watch for a switch that moves nothing.
+test('savedPrForSwitch: re-linking the work item in hand keeps the pull request it is on (#510)', () => {
+	const branches = [{ ref: 'ticket/59234', ticketId: 59234, savedPr: null }];
+	assert.strictEqual(savedPrForSwitch({ branches, ticketId: 59234, linkedTicket: 59234, currentPr: 7 }), 7);
+	// On the same item with no pull request checked out, there is still none.
+	assert.strictEqual(savedPrForSwitch({ branches, ticketId: 59234, linkedTicket: 59234, currentPr: null }), null);
+	// Another item is read off the list as usual, not off what is checked out.
+	assert.strictEqual(savedPrForSwitch({ branches: PARKED, ticketId: 61002, linkedTicket: 59234, currentPr: 7 }), null);
 });

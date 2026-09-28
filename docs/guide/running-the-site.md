@@ -1,6 +1,6 @@
 # Running the site
 
-Once the [setup wizard](./setup-wizard) is complete, the site view shows a **Start dev server** button. This starts a local WordPress that serves the code in your site's `build/` directory, so you can see your changes running.
+Once the [setup wizard](./setup-wizard) is complete, the site view shows a **Start dev server** button. This starts a local WordPress that runs your site's code, so you can see your changes running: for a WordPress Core site, the WordPress built into its `build/` directory; for a Gutenberg site, a stock WordPress with your checkout as its Gutenberg plugin.
 
 ![The site view with Start dev server, Start build watch and Review & submit changes](/screenshots/site-view.png)
 
@@ -31,14 +31,15 @@ The **wp-admin** link next to the site URL opens the dashboard directly. It appe
 
 The dev server is not a stub — it is WordPress Playground running your checkout:
 
-- The app spawns the [Playground CLI](https://wordpress.github.io/wordpress-playground/) (`@wp-playground/cli`) in server mode, with your site's `build/` directory mounted as the WordPress root. PHP runs as WebAssembly inside the bundled Node.js runtime, so no PHP install is needed.
+- The app runs the [Playground CLI](https://wordpress.github.io/wordpress-playground/) (`@wp-playground/cli`). For a WordPress Core site, your `build/` directory is mounted as the WordPress root. For a Gutenberg site, Playground installs WordPress on the first start, keeps that installation for the checkout, and mounts your checkout at `wp-content/plugins/gutenberg`, activated. Posts, settings and uploaded files survive **Stop dev server**, starting it again, and restarting the app. PHP runs as WebAssembly inside the bundled Node.js runtime, so no PHP install is needed.
+- On a Gutenberg site the served WordPress cannot install, update or delete plugins and themes, and has no file editor. The mounted plugin *is* your working tree, uncommitted work and `.git` included, and **Plugins → Delete** would remove it; the app tells WordPress not to modify files instead. To try another plugin alongside Gutenberg, use a WordPress Core site.
 - The database is **SQLite**, stored inside the Playground instance. This covers most core contribution work; if a ticket specifically needs MySQL behaviour, this environment cannot reproduce it.
 - The server binds to the loopback interface only. It is reachable from your machine, not from the rest of your network.
 - Outgoing mail is captured locally instead of being sent — see [Mail](./mail).
 
 ## The build watch
 
-The build watcher compiles what you edit under `src/` into `build/`, which is what the server actually serves. It has its own **Start build watch** button next to the dev-server button, and its own status dot:
+The build watcher compiles what you edit into what the server actually serves: `src/` into `build/` on a WordPress Core site, the packages into their `build/` directories on a Gutenberg site, where the watcher is Gutenberg's own `npm run dev` and rebuilds everything once before it starts watching. It has its own **Start build watch** button next to the dev-server button, and its own status dot:
 
 | Dot | State |
 | --- | --- |
@@ -49,12 +50,13 @@ The build watcher compiles what you edit under `src/` into `build/`, which is wh
 
 The watch and the server are independent in both directions:
 
-- Starting the dev server starts the watch first (building once if the site has no `build/` yet), then serves.
+- On a WordPress Core site, starting the dev server starts the watch first (building once if the site has no `build/` yet), then serves. Its watch touches nothing on start, so the URL appears at once.
+- On a Gutenberg site that is already built, starting the dev server does not start the watch: the server serves the `build/` the site has, and the URL appears in seconds. The watch is Gutenberg's `npm run dev`, which removes `build/` and rebuilds it (about twenty seconds on macOS, several minutes on Windows) before it watches, and on a built site that rebuild produces what was already there. Start it with **Start build watch** when you want edits under `packages/` compiled on save; applying a pull request or a patch, and updating trunk, rebuild on their own when no watch is running. On a Gutenberg site that has never been built, the watch still runs first, and the server waits for the **Build watcher** tab to print *Watching for changes* before the URL appears; a page opened before that would find the plugin unbuilt. The same happens after a rebuild that was cut short, a watch stopped or exited while its tab read *(building)*: `build/` may be incomplete, so the next server start sends the watch first and waits for it. Starting the watch by hand while a server is already up reopens that window: the site answers with Gutenberg's *requires files to be built* notice, or a PHP fatal, until the rebuild finishes.
 - Stopping the dev server leaves the watch running, so you can keep compile-on-save going without a server.
 - The watch exiting never touches the server.
 - You can start and stop the watch on its own, at any time, whether or not a server is up.
 
-While the watch is running, applying a patch or updating trunk uses it rather than fighting it. A patch that does not move `package-lock.json` is applied and left for the watch to recompile — the checklist shows the build step skipped and names the watch as doing it. One that does move the lockfile has to install and build, so it pauses the watch for the duration and resumes it after, with the PHP server up throughout.
+While the watch is running, applying a patch, switching work items or updating trunk uses it rather than fighting it. A patch that does not move `package-lock.json` is applied and left for the watch to recompile — the checklist shows the build step skipped and names the watch as doing it. One that does move the lockfile has to install, so it pauses the watch for the duration and resumes it after, with the PHP server up throughout. On Core the install is followed by a build; on Gutenberg a patch's resumed watch rebuilds from scratch on its own, so the patch runs no separate build and the checklist says the resumed watch is doing it. A trunk update follows the same rule: on Core it builds itself before the watch resumes, on Gutenberg it resumes the watch and lets that rebuild be the one build, and the update completes on the watch's ready line. Linking, unlinking or switching a [work item](./ticket-branches) only moves the checkout, so the watch is left running and recompiles the files that changed; restoring a pull request you had parked on a work item is the one switch that pauses it, because it installs and builds afterwards, as does any switch made before the watch has finished starting.
 
 Its output goes to its own **Build watcher** log tab, not to the terminal, and it no longer holds the terminal's "running" lock — so the terminal and one-shot actions stay available while it runs.
 

@@ -5,12 +5,12 @@ Everything about tests in this repository: what to run, what the suite is made o
 ## What to run
 
 ```
-npm test                    # the fast suite — layers 1–3, under three seconds
+npm test                    # the fast suite — layers 1–3, a few seconds
 npm run test:e2e            # the app, driven — layer 4, seconds
 npm run lint                # ESLint over the whole repo
 ```
 
-`npm test` is the one to run without thinking about it. It touches no network: the single suite that needs a Git remote starts a loopback server and serves the repository to itself.
+`npm test` is the one to run without thinking about it. It touches no network: every suite that needs a Git remote reaches a repository on disk over `file://`.
 
 Two more, for when you need them:
 
@@ -27,11 +27,13 @@ To run one file: `node --test tests/unit/azure-sign.test.cjs`. To run one journe
 
 ```
 tests/
-  unit/            layers 1-3 — npm test — under three seconds
+  unit/            layers 1-3 — npm test — a few seconds
     fixtures/      package.json trees the integration tests copy; not tests themselves
+    helpers/       the bundled-Git driver and fixture builder the Git suites share; not a test either
   e2e/
     journeys/      layer 4 — npm run test:e2e
     packaged/      layer 5 — npm run test:e2e:packaged, and it needs a build first
+    real-setup/    opt-in layer 4 — real network setup, manual workflow only
     helpers/       the app session fixture and the Git site builder; not tests either
 ```
 
@@ -41,7 +43,7 @@ They are listed cheapest first, and that ordering is the rule: **write a test at
 
 **1. Unit** — `tests/unit/`. Starts nothing; calls plain functions. Pure logic: parsing a ticket reference, deriving a status, building a command line. Blind to anything touching disk, a process or a window.
 
-**2. Integration** — the files named `*.integration.test.cjs`. Runs the real modules against real Git repositories in a temporary directory. Proves Git does what the code assumes when it switches a branch, applies a patch or updates trunk. Blind to everything above the module boundary.
+**2. Integration** — the files named `*.integration.test.cjs`. Runs the real modules against real Git repositories, or real processes, in a temporary directory. Proves Git does what the code assumes when it switches a branch, applies a patch or updates trunk, and that a process tree behaves the way the kill and let-go paths assume (`kill-tree`, `orphan-pipe`). Blind to everything above the module boundary.
 
 **3. IPC wiring** — one file, `tests/unit/ipc-wiring.test.cjs`. Loads the real `src/main.js` with `electron` replaced by a double, and exercises every handler: what each returns, what it rejects, what error it gives. Blind to the window, and its store is a stand-in rather than the real one.
 
@@ -54,12 +56,14 @@ Layers 1–3 are `npm test`. Layers 4 and 5 are the two `test:e2e` commands. Tha
 ## Where to put a new test
 
 - **A pure function, a derived string, a decision with branches** → layer 1. If it lives inside `src/renderer/index.jsx` today, move it to a `src/renderer/*.cjs` module first: that component mounts at module scope and nothing in the suite can load it, so a decision made there is untestable by construction.
-- **Anything that asks Git a question** → layer 2, against a real repository. There is a local Git server fixture in `tests/unit/trunk-update-fetch.integration.test.cjs` for cases that need a remote, because `isomorphic-git` has no `file://` transport.
+- **Anything that asks Git a question** → layer 2, against a real repository. A remote is a repository on disk reached over `file://`, as in `tests/unit/git-clone.integration.test.cjs` and `tests/unit/trunk-update-fetch.integration.test.cjs`; nothing starts a server.
 - **A new IPC handler** → layer 3, plus the `contextBridge` entry in `src/preload.js`, which layer 5 checks is actually exposed.
 - **A flow that spans the interface, the main process, Git and the store at once** → layer 4.
 - **Something that can only break during packaging** → layer 5.
 
 Keep layer 4 small on purpose. Every test there costs an app launch, and any assertion that does not need a window belongs one layer down.
+
+**A journey earns its place in the default suite by being a path a contributor walks, not a state someone had to fabricate.** That is the question to ask, rather than whether the bug that prompted it was specific: "update trunk while a ticket is linked, then come back to trunk" is one bug's reproduction and also the crossing of the app's two main flows, so it belongs here; a state reachable only by editing the store by hand, or by failing a checkout part-way, does not, however real the bug. The cost is the reason the bar exists at all — every journey runs on macOS and Windows for every non-draft pull request — so a journey that costs a second and covers a flow is cheap, and one that costs a minute to pin a single branch of one handler is not, and belongs at layer 3 where that branch can be reached directly. When something genuinely needs an app launch but not on every pull request, the opt-in lane below is where it goes: `tests/e2e/real-setup/` runs only from its own manual workflow, and can be pointed at Windows from any machine.
 
 The failures worth layer 4 are the ones that fall *between* the other layers, where every piece works and the whole does not. One example, found while writing the first journeys: the integration tests prove branch switching restores work correctly, and the wiring tests prove the delete handler returns the checkout to trunk when the deleted branch was the current one — but the interface leaves the currently linked ticket out of the list it offers delete controls for, so that branch of the handler cannot be reached by a contributor at all. Three layers passing, one path dead.
 
@@ -88,7 +92,37 @@ npm run test:e2e:packaged
 
 `CSC_IDENTITY_AUTO_DISCOVERY=false` is mandatory on macOS — electron-builder signs during `--dir` without it — and harmless everywhere else. The test tells you if you forgot the build.
 
+Two of its tests read the payload against the allow-list in `build.files` (package.json): the root of `app.asar`, through Electron's own fs from inside the packaged app, and the root of `app.asar.unpacked` on disk, must hold nothing outside that list. That is what keeps a directory from shipping itself: to widen what ships, edit both the list in package.json and the one in `tests/e2e/packaged/smoke.spec.js`, on purpose. CI seeds a signing key, Playwright output, a leftover `dist/` and the VitePress build under `docs/` before packaging so the run proves they stay out (#387, #390). Locally the seeding is not automatic: a checkout that has run the suites or the docs build carries `test-results/` and `docs/.vitepress/dist/` already and a green run proves the same thing for those two, but `.codesigning` exists only on a signing machine, so the full proof is the CI run.
+
+Every copy of this app shares one bundle identifier, so on macOS several builds are one app as far as the OS is concerned — an installed copy, and a `dist/mac-arm64` build in each worktree. Launch Services resolves a URL scheme to that identifier and then picks a copy itself, which need not be the one whose `Info.plist` claimed the scheme, or even one that carries the feature under test. Testing a `wpct://` link therefore means naming the build: `open -a "<path>/dist/mac-arm64/WordPress Contributor Toolkit.app" "wpct://ticket/62281"`, with every other copy quit first. Clicking a link in a browser, or a bare `open "wpct://…"`, tests whichever copy the OS happens to prefer, and a build with no deep-link code in it answers by doing nothing at all. `grep deep-link ~/Library/Logs/electron-setup-wordpress-core/*.log` says whether the build you meant to test is the one that ran.
+
+Quit the installed app before running it. Since #464 the app takes a single-instance lock, keyed on the user-data directory, and `isPackaged` is true here — so the artifact uses the same real profile as an installed copy and quits on startup if one is already open. The failure looks like packaging and is not. The journeys are unaffected: each runs on its own throwaway profile through `TOOLKIT_USER_DATA_DIR`. `npm run shots` is affected in the same way as the packaged test, because its live tier launches against the real profile too.
+
 Neither end-to-end command downloads a browser. The only thing they launch is the Electron already in the tree, which is why CI has no `playwright install` step. The one exception is the Inspector, and it is opt-in — see above.
+
+## Running a real setup on demand
+
+The **[Real WordPress setup](.github/workflows/real-setup.yml)** workflow is manual only: it never runs on a pull request, push or schedule, and is not a required PR check. Once the workflow exists on `trunk`, open **Actions → Real WordPress setup → Run workflow**, select the branch to test and choose macOS, Windows or both. Download the `playwright-real-setup-<platform>` artifact to read the HTML report and app log; failures also include the fixture's screenshot, settings and trace.
+
+This drives the source app through **Create site**, lets it clone the current `wordpress-develop` and automatically install dependencies and build, then starts the dev server and checks that PHP serves the WordPress login form over HTTP. Only the native folder chooser is answered by the harness; Git, npm, the build and the server are real. It uses a throwaway profile and site directory, closes the app and attempts to remove those directories afterwards. Forced cancellation can interrupt cleanup; hosted runners are disposable. It does not test the signed installer or the native folder dialog itself.
+
+Allow tens of minutes, network access and several GB of free disk. The test has a 45-minute limit, the job has a 60-minute limit including dependency installation, and there are no automatic retries. GitHub, npm or upstream WordPress changes can break a run without a Toolkit regression; inspect the failed step and logs before assigning a cause. No WordPress checkout or site dependency cache is reused between runs.
+
+To run locally, install this worktree's dependencies and run `npm run build:once`, then opt in explicitly:
+
+```sh
+# macOS / POSIX shell
+TOOLKIT_REAL_SETUP=1 npx --no-install playwright test --config tests/e2e/real-setup.config.js
+```
+
+```powershell
+# Windows PowerShell
+$env:TOOLKIT_REAL_SETUP = '1'
+npx --no-install playwright test --config tests/e2e/real-setup.config.js
+Remove-Item Env:TOOLKIT_REAL_SETUP
+```
+
+The separate config keeps this test out of both default Playwright projects and `npm test`; without the environment opt-in, even an explicit run of this config skips the network setup.
 
 ## Auditing an end-to-end test
 

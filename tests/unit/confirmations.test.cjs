@@ -90,10 +90,20 @@ test('removing an id that matches nothing returns the same state object', () => 
 	assert.strictEqual(after, state, 'no needless re-render for a no-op removal');
 });
 
-test('an opened pull request is confirmed by its number (issue #253)', () => {
+test('an opened pull request is confirmed by its number, and by the repository its URL names (issue #253, #251)', () => {
 	assert.strictEqual(
 		prConfirmationMessage({ ok: true, number: 42 }),
 		'Opened pull request #42'
+	);
+	assert.strictEqual(
+		prConfirmationMessage({ ok: true, number: 42, url: 'https://github.com/WordPress/gutenberg/pull/42' }),
+		'Opened pull request #42 on WordPress/gutenberg'
+	);
+	// Where it actually went, not where the site's type says it goes: a
+	// sandbox run lands elsewhere and the toast has to say so.
+	assert.strictEqual(
+		prConfirmationMessage({ ok: true, number: 1, url: 'https://github.com/sandbox-org/pr-sandbox/pull/1' }),
+		'Opened pull request #1 on sandbox-org/pr-sandbox'
 	);
 });
 
@@ -104,17 +114,17 @@ test('a dry run says no pull request was opened rather than "#undefined" (issue 
 	);
 });
 
-test('a deletion that half-failed names the surviving path and the code (issue #381)', () => {
+test('a failed deletion says the listed site can be retried and names the code (#414)', () => {
 	assert.strictEqual(
 		deleteFailureMessage({ ok: false, reason: 'remove-failed', path: '/sites/demo', code: 'EPERM' }),
-		'The site was removed from the list, but its folder could not be deleted (EPERM) and is still at /sites/demo'
+		'The site is still listed because its folder could not be deleted (EPERM). Close anything using it, then try again. Folder: /sites/demo'
 	);
 });
 
-test('a deletion failure without a code still reads as a sentence (issue #381)', () => {
+test('a deletion failure without a code still reads as a sentence (#414)', () => {
 	assert.strictEqual(
 		deleteFailureMessage({ ok: false, reason: 'remove-failed', path: '/sites/demo' }),
-		'The site was removed from the list, but its folder could not be deleted and is still at /sites/demo'
+		'The site is still listed because its folder could not be deleted. Close anything using it, then try again. Folder: /sites/demo'
 	);
 });
 

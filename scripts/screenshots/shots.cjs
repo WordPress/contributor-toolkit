@@ -6,7 +6,8 @@
 //   - tier 'fixture': captured fully automatically against seeded state;
 //     tier 'live': needs a real, initialized site and a maintainer at the
 //     keyboard (the harness pauses and says what to set up);
-//   - variant: which fixture the shot needs ('seeded' or 'empty');
+//   - variant: which fixture the shot needs ('seeded', isolated 'debug',
+//     'gutenberg' or 'empty');
 //   - prepare(page): drives the UI to the state worth photographing. Selectors
 //     go by the words on screen, same as the repo's hand-testing convention —
 //     if a label changes, the shot fails loudly instead of photographing the
@@ -94,7 +95,7 @@ const shots = [
 		tier: 'fixture',
 		variant: 'empty',
 		prepare: async (page) => {
-			await page.getByRole('button', { name: 'Create WordPress Core site' }).click();
+			await page.getByRole('button', { name: 'Create a site' }).click();
 			await page.getByRole('dialog').getByText('Site name').waitFor();
 		}
 	},
@@ -117,6 +118,25 @@ const shots = [
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
 			await page.getByRole('button', { name: 'Submit changes' }).waitFor();
+		}
+	},
+	{
+		slug: 'gutenberg-site-view',
+		tier: 'fixture',
+		variant: 'gutenberg',
+		prepare: async (page) => {
+			await selectSite(page, 'my-gutenberg-fix');
+			await card(page, 'GitHub issue').waitFor();
+		}
+	},
+	{
+		slug: 'gutenberg-pull-request-panel',
+		tier: 'fixture',
+		variant: 'gutenberg',
+		target: (page) => card(page, 'Check out a pull request'),
+		prepare: async (page) => {
+			await selectSite(page, 'my-gutenberg-fix');
+			await card(page, 'Check out a pull request').waitFor();
 		}
 	},
 	{
@@ -149,6 +169,26 @@ const shots = [
 		}
 	},
 	{
+		slug: 'deep-link-prompt',
+		tier: 'fixture',
+		variant: 'seeded',
+		target: (page) => page.getByRole('status').filter({ hasText: 'came from a link' }),
+		// The one shot that cannot be reached by driving the UI (#464): the
+		// ticket arrives from the operating system, so the picture is taken by
+		// making the main process receive the address it would receive from a
+		// browser. `app.emit` rather than a real activation, because a launch
+		// from source does not own the scheme on macOS or Linux — see
+		// protocolRegistration in src/deep-link.cjs.
+		prepare: async (page, app) => {
+			await selectSite(page, 'my-first-patch');
+			await card(page, 'Working on ticket #60000').waitFor();
+			await app.evaluate(({ app: electronApp }, url) => {
+				electronApp.emit('open-url', { preventDefault() {} }, url);
+			}, 'wpct://ticket/62281');
+			await page.getByText('came from a link').waitFor();
+		}
+	},
+	{
 		slug: 'terminal',
 		tier: 'fixture',
 		variant: 'seeded',
@@ -161,12 +201,24 @@ const shots = [
 	{
 		slug: 'debug-log',
 		tier: 'fixture',
-		variant: 'seeded',
+		variant: 'debug',
 		target: (page) => card(page, 'Logs'),
-		prepare: async (page) => {
+		prepare: async (page, app) => {
 			await selectSite(page, 'my-first-patch');
+			// Starting a real dev session is what makes the renderer attach the
+			// debug-log tail, but this fixture deliberately is not a WordPress clone.
+			// Keep both long-running processes pending so the screenshot exercises
+			// the real tail without publishing their inevitable fixture failures.
+			await app.evaluate(({ ipcMain }) => {
+				ipcMain.removeHandler('npm:run-script');
+				ipcMain.handle('npm:run-script', async () => ({ runId: 'docs-debug-log' }));
+				ipcMain.removeHandler('playground:start');
+				ipcMain.handle('playground:start', async () => ({ ok: true }));
+			});
+			await page.getByRole('button', { name: 'Start dev server' }).click();
 			await page.getByRole('tab', { name: /debug\.log/ }).filter({ visible: true }).click();
-			await page.getByText('PHP Notice', { exact: false }).filter({ visible: true }).first().waitFor();
+			await page.getByText('Undefined variable $post', { exact: false }).filter({ visible: true }).first().waitFor();
+			await page.getByRole('tab', { name: /exited/i }).filter({ visible: true }).waitFor({ state: 'detached' });
 		}
 	},
 	{

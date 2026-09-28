@@ -13,6 +13,12 @@
  * tokeniser matches the bare number in comments and unrelated text, so the
  * verification is what makes the list trustworthy rather than merely plausible.
  *
+ * A Gutenberg site (#251) asks the same two questions of `WordPress/gutenberg`,
+ * where the convention is GitHub's own: a pull request cites the issue it is
+ * for with a closing keyword ("Fixes #71234") or the issue's URL. The
+ * verification is chosen per work-item kind (`citesWorkItemFor`); the search,
+ * the states and the ordering are the same for both.
+ *
  * Kept pure and dependency-free so the verification and the failure
  * classification — the parts that decide whether the UI shows work that exists
  * — are unit tested without a network: the main process requires it, and so
@@ -24,14 +30,17 @@ const PR_REPO_PATH = 'WordPress/wordpress-develop';
 
 /**
  * Resolves what a contributor pastes into "apply a PR" to a pull request
- * number. Accepts a bare number or a wordpress-develop PR URL (with any
- * trailing `/files`, `#…`, `?…`). A PR from another repo is rejected by name —
- * its diff would not fit this checkout.
+ * number. Accepts a bare number or a PR URL on the site's own repository (with
+ * any trailing `/files`, `#…`, `?…`). A PR from another repo is rejected by
+ * name — its diff would not fit this checkout.
  *
  * @param {string} input
+ * @param {Object} [options]
+ * @param {string} [options.repoPath] `owner/repo` this site is a checkout of;
+ *                                    wordpress-develop when absent.
  * @return {{ok: true, number: number}|{ok: false, error: string}}
  */
-function parsePrRef(input) {
+function parsePrRef(input, { repoPath = PR_REPO_PATH } = {}) {
 	const raw = typeof input === 'string' ? input.trim() : '';
 	if (!raw) return { ok: false, error: 'Enter a pull request URL or number.' };
 
@@ -48,8 +57,8 @@ function parsePrRef(input) {
 	}
 	const match = /^\/([^/]+\/[^/]+)\/pull\/(\d+)(?:[/?#]|$)/.exec(parsed.pathname + (parsed.pathname.endsWith('/') ? '' : '/'));
 	if (!match) return { ok: false, error: 'That does not look like a pull request URL.' };
-	if (match[1].toLowerCase() !== PR_REPO_PATH.toLowerCase()) {
-		return { ok: false, error: `Only ${PR_REPO_PATH} pull requests can be applied here.` };
+	if (match[1].toLowerCase() !== String(repoPath).toLowerCase()) {
+		return { ok: false, error: `Only ${repoPath} pull requests can be applied here.` };
 	}
 	return { ok: true, number: Number(match[2]) };
 }
@@ -77,6 +86,49 @@ function bodyCitesTicket(body, ticketId) {
 }
 
 /**
+ * True when a PR body cites this exact GitHub issue, the way GitHub itself
+ * links the two (#251): a closing keyword in front of `#N`, `owner/repo#N` or
+ * the issue's full URL ("Fixes #71234", "Closes: WordPress/gutenberg#71234",
+ * "Resolves https://github.com/WordPress/gutenberg/issues/71234"). Those are
+ * the forms that make the pull request show under "linked pull requests" on
+ * the issue, so the list here agrees with what GitHub shows. A bare `#N` or a
+ * bare URL elsewhere in the body does not count, for the same reason an
+ * unlabelled Trac number does not: the search surfaced it from prose, and
+ * GitHub does not link on a mention either.
+ *
+ * @param {string}        body
+ * @param {number|string} issueId
+ * @param {string}        [repoPath]
+ * @return {boolean}
+ */
+function bodyCitesIssue(body, issueId, repoPath = PR_REPO_PATH) {
+	if (typeof body !== 'string') return false;
+	const id = String(issueId).replace(/[^0-9]/g, '');
+	if (!id) return false;
+	const repo = String(repoPath).replace(/[.\\/]/g, '\\$&');
+	// GitHub's closing keywords, each in its three forms, then an optional
+	// colon, then the reference in any of its three shapes. `(?<![0-9])` is
+	// not needed on the left: the keyword is what precedes the digits.
+	const reference = `(?:(?:${repo})?#${id}|https?://github\\.com/${repo}/issues/${id})(?![0-9])`;
+	const closing = new RegExp(`\\b(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\\s*:?\\s*${reference}`, 'i');
+	return closing.test(body);
+}
+
+/**
+ * The verification a work-item kind uses (#251): what it means for a pull
+ * request body to be *for* this ticket or issue. The Trac form is the default,
+ * so a caller with no kind to hand behaves as it always did.
+ *
+ * @param {string} [provider] 'trac' or 'github-issue'.
+ * @param {string} [repoPath] the repository whose issues are cited.
+ * @return {function(string, (number|string)): boolean}
+ */
+function citesWorkItemFor(provider, repoPath = PR_REPO_PATH) {
+	if (provider === 'github-issue') return (body, id) => bodyCitesIssue(body, id, repoPath);
+	return bodyCitesTicket;
+}
+
+/**
  * What happened to one pull request, from a `search/issues` item: open, merged
  * or closed-unmerged.
  *
@@ -101,9 +153,12 @@ function prState(item) {
  *
  * @param {Object}        searchJson
  * @param {number|string} ticketId
+ * @param {Object}        [options]
+ * @param {Function}      [options.cites]    the verification, from `citesWorkItemFor`; Trac's when absent.
+ * @param {string}        [options.repoPath] where a PR lives when the item carries no `html_url`.
  * @return {Array<{number: number, title: string, state: 'open'|'merged'|'closed', updatedAt: string, url: string}>}
  */
-function parseLinkedPrs(searchJson, ticketId) {
+function parseLinkedPrs(searchJson, ticketId, { cites = bodyCitesTicket, repoPath = PR_REPO_PATH } = {}) {
 	const items = searchJson && Array.isArray(searchJson.items) ? searchJson.items : [];
 	const seen = new Set();
 	const prs = [];
@@ -111,7 +166,7 @@ function parseLinkedPrs(searchJson, ticketId) {
 		// `search/issues` returns issues and PRs together; only PRs carry
 		// `pull_request`.
 		if (!item || !item.pull_request) continue;
-		if (!bodyCitesTicket(item.body, ticketId)) continue;
+		if (!cites(item.body, ticketId)) continue;
 		if (seen.has(item.number)) continue;
 		seen.add(item.number);
 		prs.push({
@@ -124,7 +179,7 @@ function parseLinkedPrs(searchJson, ticketId) {
 			// unauthenticated quota this file is careful with.
 			state: prState(item),
 			updatedAt: item.updated_at || item.created_at || '',
-			url: item.html_url || `https://github.com/WordPress/wordpress-develop/pull/${item.number}`
+			url: item.html_url || `https://github.com/${repoPath}/pull/${item.number}`
 		});
 	}
 	prs.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
@@ -190,7 +245,10 @@ function classifyHttpFailure(status, headers = {}) {
 
 module.exports = {
 	TICKET_HOST,
+	PR_REPO_PATH,
 	bodyCitesTicket,
+	bodyCitesIssue,
+	citesWorkItemFor,
 	parseLinkedPrs,
 	orderByCommitDate,
 	classifyHttpFailure,

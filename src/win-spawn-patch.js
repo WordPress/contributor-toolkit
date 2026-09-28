@@ -9,9 +9,21 @@
 // Grunt runs two levels below us (script-runner -> cmd.exe -> grunt.cmd -> node),
 // so an inherited NODE_OPTIONS preload is the only way to reach it.
 //
-// Deliberately self-contained (Node built-ins only): this file is copied into the
-// temp shim dir and required from there, because --require into a path inside
-// app.asar is not reliable under ELECTRON_RUN_AS_NODE.
+// The same preload also settles which `tar` the build gets (#373). wordpress-develop's
+// tools/gutenberg/download.js extracts the Gutenberg artifact with a bare
+// `spawn('tar', ['-xzf', 'C:\…', …])`, and Git for Windows puts GNU tar ahead of
+// Windows's own bsdtar on PATH. GNU tar reads `C:` as a remote host and the build
+// dies at gutenberg:verify. A `tar.cmd` in the shim dir would have to run through
+// cmd.exe like any other script below, so the bare name is redirected here
+// instead, straight to %SystemRoot%\System32\tar.exe, no shell and no quoting.
+// It is the one tool the build spawns bare that a host install shadows with an
+// incompatible one.
+//
+// Deliberately self-contained: Node built-ins, plus the one sibling
+// ensureNodeShimDir() copies beside it (hide-child-windows.js, #497) and
+// nothing else. This file is copied into the temp shim dir and required from
+// there, because --require into a path inside app.asar is not reliable under
+// ELECTRON_RUN_AS_NODE, and the shim dir has no other neighbour from src/.
 
 const path = require('path');
 const fs = require('fs');
@@ -32,12 +44,18 @@ function shimName(file) {
 	return base;
 }
 
+function hasDirectory(file) {
+	const name = String(file || '');
+	return name.includes('/') || name.includes('\\');
+}
+
 // Mirrors libuv's PATH/PATHEXT search closely enough to tell whether a bare
-// command name would land on a script the OS cannot exec directly.
+// command name would land on a script the OS cannot exec directly. Given a path
+// with a directory it just reports whether that file exists.
 function defaultLookup(file, env) {
 	const name = String(file || '');
 	if (!name) return null;
-	const hasDir = name.includes('/') || name.includes('\\');
+	const hasDir = hasDirectory(name);
 	const candidateDirs = hasDir
 		? [null]
 		: String(env.Path || env.PATH || '').split(';').filter(Boolean);
@@ -60,10 +78,23 @@ function quoteForCmd(value) {
 }
 
 // Clones the caller's env (or inherits process.env) and forces Electron into
-// Node mode, since the command we redirect to is electron.exe.
-function withNodeMode(options) {
+// Node mode, since the command we redirect to is electron.exe. When the app
+// installed the runtime-identity preload, the flag it acts on travels too.
+function withNodeMode(options, nodeCompatPath) {
 	const baseEnv = options && options.env ? options.env : process.env;
-	return { ...options, env: { ...baseEnv, ELECTRON_RUN_AS_NODE: '1' } };
+	const env = { ...baseEnv, ELECTRON_RUN_AS_NODE: '1' };
+	if (nodeCompatPath) env.WPTK_NODE_COMPAT = '1';
+	return { ...options, env };
+}
+
+// The redirect below skips the node.cmd shim, and with it the `--require` of
+// electron-node-compat.js the shim carries (#275, see node-shims.cjs). Without
+// re-attaching it here a tool reached through `spawn('node', …)` sees
+// `versions.electron` again and misreads its own arguments. An argument, not
+// NODE_OPTIONS, for the reason given in node-shims.cjs; a native path, because
+// a quoted argument is literal and nothing re-tokenises it.
+function preloadArgs(nodeCompatPath) {
+	return nodeCompatPath ? ['--require', nodeCompatPath] : [];
 }
 
 // Decides how a child_process call must be rewritten. Returns null when the call
@@ -76,6 +107,7 @@ function resolveSpawnTarget({
 	execPath = process.execPath,
 	npmCliPath = null,
 	npxCliPath = null,
+	nodeCompatPath = null,
 	env = process.env,
 	lookup = defaultLookup
 } = {}) {
@@ -87,13 +119,24 @@ function resolveSpawnTarget({
 	// Preferred path: call Electron's binary directly. No shell, so no quoting
 	// hazard, and it works even when the .cmd shim is missing entirely.
 	if (name === 'node') {
-		return { file: execPath, args: [...args], options: withNodeMode(options) };
+		return { file: execPath, args: [...preloadArgs(nodeCompatPath), ...args], options: withNodeMode(options, nodeCompatPath) };
 	}
 	if (name === 'npm' && npmCliPath) {
-		return { file: execPath, args: [npmCliPath, ...args], options: withNodeMode(options) };
+		return { file: execPath, args: [...preloadArgs(nodeCompatPath), npmCliPath, ...args], options: withNodeMode(options, nodeCompatPath) };
 	}
 	if (name === 'npx' && npxCliPath) {
-		return { file: execPath, args: [npxCliPath, ...args], options: withNodeMode(options) };
+		return { file: execPath, args: [...preloadArgs(nodeCompatPath), npxCliPath, ...args], options: withNodeMode(options, nodeCompatPath) };
+	}
+
+	// A bare `tar` goes to Windows's bsdtar, which understands drive letters. An
+	// explicit path is somebody's deliberate choice and is kept; a Windows with no
+	// System32\tar.exe (before 10 1803) falls through to the same handling as any
+	// other command.
+	if (name === 'tar' && !hasDirectory(file) && env.SystemRoot) {
+		const systemTar = lookup(path.win32.join(env.SystemRoot, 'System32', 'tar.exe'), env);
+		if (systemTar) {
+			return { file: systemTar, args: [...args], options };
+		}
 	}
 
 	// Fallback for every other .cmd/.bat shim (bin stubs of npm packages, etc.):
@@ -151,13 +194,35 @@ function applyPatch(childProcess = require('child_process'), config = {}) {
 	return childProcess;
 }
 
-// Only self-applies when the app explicitly asked for it, so requiring this
-// module from a test never mutates the test process.
-if (process.env.WPTK_SPAWN_PATCH === '1') {
-	applyPatch(require('child_process'), {
-		npmCliPath: process.env.WPTK_NPM_CLI || null,
-		npxCliPath: process.env.WPTK_NPX_CLI || null
+// What the preload does to the process it was loaded into. Only when the app
+// explicitly asked for it, so requiring this module from a test never mutates
+// the test process, and only on Windows, where both problems live.
+//
+// The second half is #497. Every descendant Node here is Electron running as
+// Node, a GUI-subsystem binary with no console of its own. When one of them
+// spawns cmd.exe without `windowsHide` — cross-spawn wrapping a .cmd stub, as
+// Gutenberg's tools/build-scripts do for `tsc` and `wp-build` — Windows finds
+// no console to inherit and allocates a brand-new visible one: the black
+// windows of #497, and closing one breaks the build. patchChildProcess() from
+// hide-child-windows.js (the copy ensureNodeShimDir() puts beside this file)
+// forces the flag on every child_process entry point of the process, the way
+// the four runners already do for themselves. The runners then get it twice,
+// which the patch's own marker makes a no-op. A missing copy costs the hiding,
+// never the spawn patch, and says nothing: this process's stdout and stderr
+// are the build's output, so a warning here would land in the middle of npm's
+// lines; main.js logs the copy failure where the log is.
+function selfApply({ env = process.env, platform = process.platform, childProcess = require('child_process'), requireHide = () => require(path.join(__dirname, 'hide-child-windows.js')) } = {}) {
+	if (platform !== 'win32' || env.WPTK_SPAWN_PATCH !== '1') return;
+	applyPatch(childProcess, {
+		npmCliPath: env.WPTK_NPM_CLI || null,
+		npxCliPath: env.WPTK_NPX_CLI || null,
+		nodeCompatPath: env.WPTK_NODE_COMPAT_PATH || null
 	});
+	try {
+		requireHide().patchChildProcess(childProcess, platform);
+	} catch {}
 }
 
-module.exports = { resolveSpawnTarget, applyPatch, PATCH_MARKER };
+selfApply();
+
+module.exports = { resolveSpawnTarget, applyPatch, selfApply, defaultLookup, PATCH_MARKER };

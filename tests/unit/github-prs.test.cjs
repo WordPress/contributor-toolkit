@@ -367,3 +367,27 @@ test('fetchLinkedPrs reports offline on a transport failure rather than empty', 
 	assert.strictEqual(res.status, 'offline');
 	assert.deepStrictEqual(res.items, []);
 });
+
+// --- a Gutenberg site's pull requests (#251) -----------------------------
+
+// Everything the search and the ranking ask GitHub for goes to the site's own
+// repository, and a row survives on the issue citation, not the Trac one.
+test('fetchLinkedPrs searches and ranks in the repository it is given, verifying by issue citation (#251)', async () => {
+	const gbItem = (number, body) => ({ ...searchItem(number, '2026-01-01T00:00:00Z'), body, html_url: `https://github.com/WordPress/gutenberg/pull/${number}` });
+	const gh = ghDouble([gbItem(7, 'Fixes #71234'), gbItem(8, CITE(71234))], { 7: ['2025-12-30T10:00:00Z'] });
+
+	const res = await fetchLinkedPrs('71234', { httpGet: gh.httpGet, repo: 'WordPress/gutenberg', provider: 'github-issue' });
+
+	assert.strictEqual(res.status, 'ok');
+	assert.deepStrictEqual(res.items.map((pr) => pr.number), [7], 'the Trac-cited row is not a Gutenberg link');
+	assert.match(gh.calls[0], /q=repo%3AWordPress%2Fgutenberg%20is%3Apr%2071234/);
+	assert.deepStrictEqual(gh.commitCalls(), ['https://api.github.com/repos/WordPress/gutenberg/pulls/7/commits?per_page=100']);
+});
+
+test('fetchLinkedPrs without a repository is a Core site\'s, unchanged (#251)', async () => {
+	const gh = ghDouble([searchItem(42, '2026-01-01T00:00:00Z')], { 42: ['2025-12-30T10:00:00Z'] });
+	const res = await fetchLinkedPrs('123', { httpGet: gh.httpGet });
+	assert.strictEqual(res.items.length, 1);
+	assert.match(gh.calls[0], /repo%3AWordPress%2Fwordpress-develop/);
+	assert.match(gh.commitCalls()[0], /repos\/WordPress\/wordpress-develop\//);
+});

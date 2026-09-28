@@ -6,9 +6,12 @@ const {
 	stripPathPrefix,
 	mapToSrcLayout,
 	parsePatchFiles,
-	planApply
+	splitPatchSections,
+	rewritePatchPaths,
+	planApply,
+	layoutMapper
 } = require('../../src/patch-plan.cjs');
-const { updateStepStatuses, SKIP_INSTALL_MESSAGE, BUILD_BY_WATCHER_MESSAGE, planApplySteps, planWatchImpact, APPLY_STATE_TO_STEP } = require('../../src/renderer/update-plan.cjs');
+const { updateStepStatuses, SKIP_INSTALL_MESSAGE, BUILD_BY_WATCHER_MESSAGE, BUILD_BY_RESUMED_WATCH_MESSAGE, planApplySteps, planWatchImpact, planTicketSwitchImpact, APPLY_STATE_TO_STEP } = require('../../src/renderer/update-plan.cjs');
 
 // The four header shapes that actually reach the app. Kept verbatim rather than
 // generated: the whole point of these tests is that real-world formatting —
@@ -301,9 +304,16 @@ test('planApply: a clean tree has no conflicts (issue #11)', () => {
 	assert.deepStrictEqual(planApply({ files, dirtyPaths: [] }).conflicts, []);
 });
 
-test('planApply: binary files are listed as unsupported (issue #11)', () => {
+test('planApply: binary files with no data are listed as unsupported, ones that carry their bytes are not (issue #11, #385)', () => {
 	const { files } = parsePatchFiles(GITHUB_DIFF + BINARY_DIFF);
 	assert.deepStrictEqual(planApply({ files }).unsupported, ['src/x.png']);
+	const withData = 'diff --git a/src/y.png b/src/y.png\nnew file mode 100644\nindex 0000000..1111111\nGIT binary patch\nliteral 8\nPcmeAS@N;KiWMT#Y3Bdt%\n\nliteral 0\nHcmV?d00001\n\n';
+	const parsed = parsePatchFiles(GITHUB_DIFF + BINARY_DIFF + withData);
+	assert.deepStrictEqual(parsed.files.map((f) => [f.path, f.kind, Boolean(f.hasBinaryData)]), [
+		['src/wp-includes/foo.php', 'modify', false], ['src/x.png', 'binary', false], ['src/y.png', 'binary', true]
+	]);
+	assert.deepStrictEqual(planApply({ files: parsed.files }).unsupported, ['src/x.png']);
+	assert.deepStrictEqual(planApply({ files: parsed.files }).paths, ['src/wp-includes/foo.php', 'src/x.png', 'src/y.png']);
 });
 
 test('planApply: an install is needed only when the lockfile is touched (issue #11)', () => {
@@ -341,6 +351,12 @@ test('planApplySteps: the install step is named even when skipped (issue #11)', 
 	assert.strictEqual(planApplySteps({ needsInstall: true })[1].skipped, false);
 });
 
+test('planApplySteps: a PR is checked out while files still use the patch wording (#458)', () => {
+	assert.strictEqual(planApplySteps({ kind: 'pr' })[0].label, 'Apply the pull request');
+	assert.strictEqual(planApplySteps({ kind: 'leave-pr' })[0].label, 'Revert the pull request');
+	assert.strictEqual(planApplySteps({ kind: 'patch' })[0].label, 'Apply the patch');
+});
+
 // The apply chain reuses the update chain's renderer helper by passing its own
 // state map; this is what proves the third parameter actually drives it.
 test('planApplySteps: updateStepStatuses drives the apply chain too (issue #11)', () => {
@@ -374,12 +390,23 @@ test('planApplySteps: the build step is skipped and attributed to the watch (iss
 	assert.strictEqual(planApplySteps({ needsInstall: false })[2].skipped, false);
 });
 
+// #506: a watch that was paused for the apply and rebuilds from scratch when it
+// resumes (Gutenberg's npm run dev) is the one build that runs, so the step is
+// skipped with a message that names the resume, not a live recompile.
+test('planApplySteps: the build step names the resumed watch when it does the rebuild (#506)', () => {
+	const resumed = planApplySteps({ needsInstall: true, buildByWatcher: 'resumed-watch' });
+	assert.strictEqual(resumed[2].skipped, true);
+	assert.strictEqual(resumed[2].skipMessage, BUILD_BY_RESUMED_WATCH_MESSAGE);
+	assert.strictEqual(planApplySteps({ buildByWatcher: 'live-watch' })[2].skipMessage, BUILD_BY_WATCHER_MESSAGE);
+	assert.strictEqual(planApplySteps({ buildByWatcher: null })[2].skipped, false);
+});
+
 // This is the bug in #262: with a watch running, a src-only patch must NOT run
 // its own build (the watch does it) and must NOT pause the watch.
 test('planWatchImpact: a src-only patch under a running watch neither builds nor pauses (issue #262)', () => {
 	assert.deepStrictEqual(
 		planWatchImpact({ needsInstall: false, watcherActive: true }),
-		{ pauseWatcher: false, runBuild: false }
+		{ pauseWatcher: false, runBuild: false, buildBy: 'live-watch' }
 	);
 });
 
@@ -387,7 +414,7 @@ test('planWatchImpact: a src-only patch under a running watch neither builds nor
 test('planWatchImpact: a src-only patch with no watch runs the build itself (issue #262)', () => {
 	assert.deepStrictEqual(
 		planWatchImpact({ needsInstall: false, watcherActive: false }),
-		{ pauseWatcher: false, runBuild: true }
+		{ pauseWatcher: false, runBuild: true, buildBy: null }
 	);
 });
 
@@ -396,19 +423,175 @@ test('planWatchImpact: a src-only patch with no watch runs the build itself (iss
 test('planWatchImpact: a lockfile-changing patch builds, and pauses a live watch (issue #262)', () => {
 	assert.deepStrictEqual(
 		planWatchImpact({ needsInstall: true, watcherActive: true }),
-		{ pauseWatcher: true, runBuild: true }
+		{ pauseWatcher: true, runBuild: true, buildBy: null }
 	);
 	// With no watch to collide with, it builds but has nothing to pause.
 	assert.deepStrictEqual(
 		planWatchImpact({ needsInstall: true, watcherActive: false }),
-		{ pauseWatcher: false, runBuild: true }
+		{ pauseWatcher: false, runBuild: true, buildBy: null }
 	);
 });
 
 // Missing flags must behave as the safe default: run the build, pause nothing.
 test('planWatchImpact: missing flags build and pause nothing (issue #262)', () => {
-	assert.deepStrictEqual(planWatchImpact(), { pauseWatcher: false, runBuild: true });
-	assert.deepStrictEqual(planWatchImpact({}), { pauseWatcher: false, runBuild: true });
+	assert.deepStrictEqual(planWatchImpact(), { pauseWatcher: false, runBuild: true, buildBy: null });
+	assert.deepStrictEqual(planWatchImpact({}), { pauseWatcher: false, runBuild: true, buildBy: null });
+});
+
+// #506: a paused watch that rebuilds build/ from scratch when it resumes
+// (Gutenberg) makes the apply's own build redundant, so only the watch builds.
+test('planWatchImpact: a whole-tree switch under a watch that rebuilds on resume pauses and leaves the build to it (#506)', () => {
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: false, watcherActive: true, watchRebuildsOnStart: true, wholeTree: true }),
+		{ pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
+	);
+	// A lockfile change still installs first; the build is still the watch's.
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: true, watcherActive: true, watchRebuildsOnStart: true, wholeTree: true }),
+		{ pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
+	);
+});
+
+// Core's grunt _watch touches nothing on start, so its explicit build stays.
+test('planWatchImpact: a whole-tree switch under a watch that does not rebuild on resume pauses and builds (#506)', () => {
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: false, watcherActive: true, watchRebuildsOnStart: false, wholeTree: true }),
+		{ pauseWatcher: true, runBuild: true, buildBy: null }
+	);
+});
+
+// A whole-tree switch never hands off to a live watch: the checkout rewrites
+// far more than a src/ patch, so the watch is always paused for it.
+test('planWatchImpact: a whole-tree switch never leaves a live watch running (#506)', () => {
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: false, watcherActive: true, wholeTree: true }),
+		{ pauseWatcher: true, runBuild: true, buildBy: null }
+	);
+});
+
+// The same for a patch that moves the lockfile: install, then the resumed watch builds.
+test('planWatchImpact: a lockfile-changing patch under a watch that rebuilds on resume leaves the build to it (#506)', () => {
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: true, watcherActive: true, watchRebuildsOnStart: true }),
+		{ pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
+	);
+	// A src-only patch under that same watch is #262 as before: the live watch recompiles.
+	assert.deepStrictEqual(
+		planWatchImpact({ needsInstall: false, watcherActive: true, watchRebuildsOnStart: true }),
+		{ pauseWatcher: false, runBuild: false, buildBy: 'live-watch' }
+	);
+});
+
+// No watch: there is nothing to resume, so the flag changes nothing (#499).
+test('planWatchImpact: with no watch the rebuild-on-start flag changes nothing (#506)', () => {
+	for (const wholeTree of [false, true]) {
+		assert.deepStrictEqual(
+			planWatchImpact({ needsInstall: false, watcherActive: false, watchRebuildsOnStart: true, wholeTree }),
+			{ pauseWatcher: false, runBuild: true, buildBy: null }
+		);
+	}
+});
+
+// #510: linking, unlinking or switching work items moves the checkout and
+// nothing else. A watch that is running recompiles what changed on its own, so
+// it is left alone — on Gutenberg pausing it meant a full rebuild from scratch
+// when it resumed, for a switch that often moves two files.
+test('planTicketSwitchImpact: a switch with no pull request on either side leaves a live watch running (#510)', () => {
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'watching', watchRebuildsOnStart: true }),
+		{ prTransition: false, pauseWatcher: false, runBuild: false, buildBy: 'live-watch' }
+	);
+	// Core's watch rebuilds nothing on start, and the answer is the same: the
+	// running watch is the one thing that recompiles the switched files.
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'watching', watchRebuildsOnStart: false }),
+		{ prTransition: false, pauseWatcher: false, runBuild: false, buildBy: 'live-watch' }
+	);
+});
+
+// Restoring a parked pull request is the whole-tree switch that ends in an
+// install and a build (#506), so it still pauses the watch — and on a watch
+// that rebuilds from scratch when it resumes, that resume is the one build.
+test('planTicketSwitchImpact: restoring or leaving a pull request pauses the watch (#510)', () => {
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: null, toPr: 7, watchState: 'watching', watchRebuildsOnStart: true }),
+		{ prTransition: true, pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
+	);
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: 7, toPr: null, watchState: 'watching', watchRebuildsOnStart: false }),
+		{ prTransition: true, pauseWatcher: true, runBuild: true, buildBy: null }
+	);
+	// From one ticket's pull request to another's is still a transition.
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: 7, toPr: 9, watchState: 'watching', watchRebuildsOnStart: true }),
+		{ prTransition: true, pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
+	);
+});
+
+// Linking the ticket whose own pull request is already checked out moves
+// nothing, which is what main reads from the two refs being equal.
+test('planTicketSwitchImpact: the same pull request on both sides is not a transition (#510)', () => {
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: 7, toPr: 7, watchState: 'watching', watchRebuildsOnStart: true }),
+		{ prTransition: false, pauseWatcher: false, runBuild: false, buildBy: 'live-watch' }
+	);
+});
+
+// No watch: there is nothing to pause and nothing recompiling, so the switch
+// leaves the site as it leaves it today — the guide says to build by hand.
+test('planTicketSwitchImpact: with no watch running nothing is paused and nothing is handed off (#510)', () => {
+	for (const [fromPr, toPr, prTransition] of [[null, null, false], [null, 7, true]]) {
+		assert.deepStrictEqual(
+			planTicketSwitchImpact({ fromPr, toPr, watchState: 'idle', watchRebuildsOnStart: true }),
+			{ prTransition, pauseWatcher: false, runBuild: true, buildBy: null }
+		);
+	}
+});
+
+// A watch that has started and not reached its ready line is rebuilding
+// build/ from scratch, so it cannot take a checkout incrementally: the
+// packages it has already written would keep the old tree's output. Found on
+// the Windows pass, where linking an issue is offered throughout the minutes
+// that rebuild takes (#510).
+test('planTicketSwitchImpact: a switch made while the watch is still rebuilding pauses it (#510)', () => {
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'building', watchRebuildsOnStart: true }),
+		{ prTransition: false, pauseWatcher: true, runBuild: false, buildBy: 'resumed-watch' }
+	);
+	// The same answer without a watch that rebuilds on start, so the pause comes
+	// from the state and not from the target. Core is only ever 'building'
+	// during the one-shot build the Start build watch button runs on an unbuilt
+	// site, and that holds the terminal, so a switch is refused before it
+	// reaches this function — the case is here to pin the decision, not a path
+	// the app can walk.
+	assert.deepStrictEqual(
+		planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'building', watchRebuildsOnStart: false }),
+		{ prTransition: false, pauseWatcher: true, runBuild: true, buildBy: null }
+	);
+});
+
+// A watch that is watching is the case the fix is for: it recompiles what the
+// checkout changed, so nothing is paused and nothing is built twice.
+test('planTicketSwitchImpact: only a watching watch is handed the switch (#510)', () => {
+	const handedOff = planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'watching', watchRebuildsOnStart: true });
+	const paused = planTicketSwitchImpact({ fromPr: null, toPr: null, watchState: 'building', watchRebuildsOnStart: true });
+
+	assert.strictEqual(handedOff.pauseWatcher, false);
+	assert.strictEqual(handedOff.buildBy, 'live-watch');
+	assert.strictEqual(paused.pauseWatcher, true);
+	assert.notStrictEqual(paused.buildBy, 'live-watch');
+	// A paused or exited watch is no watch at all: nothing to hand to.
+	for (const watchState of ['paused', 'exited', 'idle', undefined]) {
+		const plan = planTicketSwitchImpact({ fromPr: null, toPr: null, watchState, watchRebuildsOnStart: true });
+		assert.strictEqual(plan.pauseWatcher, false, `${watchState}: nothing to pause`);
+		assert.strictEqual(plan.buildBy, null, `${watchState}: nothing recompiles it`);
+	}
+});
+
+// Missing flags must read as the plainest switch there is: no pull request on
+// either side, no watch to pause.
+test('planTicketSwitchImpact: missing flags pause nothing (#510)', () => {
+	assert.deepStrictEqual(planTicketSwitchImpact(), { prTransition: false, pauseWatcher: false, runBuild: true, buildBy: null });
 });
 
 // Every deletion fixture above carries a `diff --git` line, which this app's
@@ -428,4 +611,112 @@ test('parsePatchFiles: a deletion in this app\'s own generated shape is a delete
 	assert.strictEqual(res.ok, true, res.error);
 	assert.strictEqual(res.files[0].kind, 'delete');
 	assert.strictEqual(res.files[0].path, 'src/old.php');
+});
+
+// --- what Git is handed (#385) --------------------------------------------
+//
+// `git apply -p1` reads the paths off the headers, so the rewrite the parser
+// applies to its result has to be applied to the text as well, and the two
+// have to agree: the preview names the file, Git writes it.
+
+test('rewritePatchPaths: every header shape lands on the path the parser reports (#385)', () => {
+	for (const text of [GITHUB_DIFF, TRAC_SVN_DIFF, OLD_LAYOUT_DIFF, ADD_DIFF, DELETE_DIFF]) {
+		const rewritten = rewritePatchPaths(text);
+		const [file] = parsePatchFiles(text).files;
+		const [section] = splitPatchSections(rewritten);
+		assert.strictEqual(section.path, file.path, text.split('\n')[0]);
+		assert.match(rewritten, new RegExp(`\\+\\+\\+ ${file.kind === 'delete' ? '/dev/null' : `b/${file.path.replace(/[.]/g, '\\.')}`}`));
+	}
+	// The Trac shapes, spelled out: no prefix and an old layout both become a/ b/ under src/.
+	assert.match(rewritePatchPaths(OLD_LAYOUT_DIFF), /^--- a\/src\/wp-admin\/admin\.php\n\+\+\+ b\/src\/wp-admin\/admin\.php$/m);
+	assert.match(rewritePatchPaths(OLD_LAYOUT_DIFF), /^Index: src\/wp-admin\/admin\.php$/m);
+	assert.match(rewritePatchPaths(TRAC_SVN_DIFF), /^--- a\/src\/wp-includes\/foo\.php\n\+\+\+ b\/src\/wp-includes\/foo\.php$/m, 'the tab and revision note go with the prefix');
+	// Hunk content that starts like a header is content.
+	const tricky = 'diff --git a/src/x.php b/src/x.php\n--- a/src/x.php\n+++ b/src/x.php\n@@ -1,2 +1,2 @@\n-- one\n+-- two\n';
+	assert.strictEqual(rewritePatchPaths(tricky), tricky);
+});
+
+test('rewritePatchPaths: renames, the old trunk/ prefix and /dev/null with a trailing tab (#385)', () => {
+	const rename = 'diff --git a/wp-admin/old.php b/wp-admin/new.php\nsimilarity index 90%\nrename from wp-admin/old.php\nrename to wp-admin/new.php\n--- a/wp-admin/old.php\n+++ b/wp-admin/new.php\n@@ -1 +1 @@\n-a\n+b\n';
+	assert.strictEqual(rewritePatchPaths(rename), 'diff --git a/src/wp-admin/old.php b/src/wp-admin/new.php\nsimilarity index 90%\nrename from src/wp-admin/old.php\nrename to src/wp-admin/new.php\n--- a/src/wp-admin/old.php\n+++ b/src/wp-admin/new.php\n@@ -1 +1 @@\n-a\n+b\n');
+	assert.match(rewritePatchPaths('Index: trunk/wp-login.php\n--- trunk/wp-login.php\t(revision 1)\n+++ trunk/wp-login.php\t(working copy)\n@@ -1 +1 @@\n-a\n+b\n'), /^--- a\/src\/wp-login\.php\n\+\+\+ b\/src\/wp-login\.php$/m);
+	// jsdiff writes a tab after the name, /dev/null included.
+	assert.match(rewritePatchPaths('--- a/gone.php\t\n+++ /dev/null\t\n@@ -1,1 +0,0 @@\n-x\n'), /^--- a\/gone\.php\n\+\+\+ \/dev\/null$/m);
+	assert.throws(() => rewritePatchPaths('diff --git "a/we\\303\\251.php" "b/we\\303\\251.php"\n--- "a/we\\303\\251.php"\n+++ "b/we\\303\\251.php"\n@@ -1 +1 @@\n-a\n+b\n'), /quoted or ambiguous/);
+});
+
+test('splitPatchSections: one section per file, binary data told apart from a data-less marker, prose before the first dropped (#385)', () => {
+	const binaryWithData = 'diff --git a/src/x.png b/src/x.png\nnew file mode 100644\nindex 0000000..1111111\nGIT binary patch\nliteral 8\nPcmeAS@N;KiWMT#Y3Bdt%\n\nliteral 0\nHcmV?d00001\n\n';
+	const text = `# two files are not in this patch\n${GITHUB_DIFF}${BINARY_DIFF}${binaryWithData}${ADD_DIFF}`;
+	const sections = splitPatchSections(text);
+	assert.deepStrictEqual(sections.map((s) => [s.path, s.from, s.isBinary, s.hasBinaryData]), [
+		['src/wp-includes/foo.php', 'src/wp-includes/foo.php', false, false],
+		['src/x.png', 'src/x.png', true, false],
+		['src/x.png', '', true, true],
+		['src/new.php', '', false, false]
+	]);
+	assert.strictEqual(sections.map((s) => s.text).join(''), text.slice(text.indexOf('diff --git')), 'the sections are the text, minus the prose');
+	// The app's own output has no diff --git line: a section starts at its ---.
+	const own = '===================================================================\n--- a/gone.php\t\n+++ /dev/null\t\n@@ -1,1 +0,0 @@\n-x\n===================================================================\n--- /dev/null\t\n+++ b/new.php\t\n@@ -0,0 +1,1 @@\n+y\n';
+	assert.deepStrictEqual(splitPatchSections(own).map((s) => [s.path, s.from]), [['gone.php', 'gone.php'], ['new.php', '']]);
+	// A rename names both ends.
+	assert.deepStrictEqual(splitPatchSections('diff --git a/src/old.php b/src/new.php\nsimilarity index 100%\nrename from src/old.php\nrename to src/new.php\n').map((s) => [s.path, s.from]), [['src/new.php', 'src/old.php']]);
+});
+
+// jsdiff drops a section with no hunks whenever another follows it, which
+// used to lose a binary or a pure rename placed before a text file. Parsing
+// section by section makes the file list the section list.
+test('parsePatchFiles: a binary or a pure rename ahead of a text file is not swallowed (#385)', () => {
+	const rename = 'diff --git a/src/old.php b/src/new.php\nsimilarity index 100%\nrename from src/old.php\nrename to src/new.php\n';
+	const { files } = parsePatchFiles(BINARY_DIFF + rename + GITHUB_DIFF + BINARY_DIFF);
+	assert.deepStrictEqual(files.map((f) => [f.kind, f.path]), [
+		['binary', 'src/x.png'], ['rename', 'src/new.php'], ['modify', 'src/wp-includes/foo.php'], ['binary', 'src/x.png']
+	]);
+	assert.strictEqual(files[1].oldPath, 'src/old.php');
+});
+
+test('splitPatchSections: records actual destinations for forward and reverse writes (#413)', () => {
+	const cases = [
+		['diff --git a/a.php b/a.php\n--- a/a.php\n+++ b/a.php\n@@ -1 +1 @@\n-old\n+new\n', 'a.php', 'a.php'],
+		['diff --git a/a.php b/a.php\n--- /dev/null\n+++ b/a.php\n@@ -0,0 +1 @@\n+new\n', '', 'a.php'],
+		['diff --git a/a.php b/a.php\n--- a/a.php\n+++ /dev/null\n@@ -1 +0,0 @@\n-old\n', 'a.php', ''],
+		['diff --git a/a.php b/a.php\nnew file mode 100644\nindex 0000000..e69de29\n', '', 'a.php'],
+		['diff --git a/a.php b/a.php\ndeleted file mode 100644\nindex e69de29..0000000\n', 'a.php', ''],
+		['diff --git a/a.bin b/a.bin\nnew file mode 100644\nGIT binary patch\nliteral 0\nHcmV?d00001\n', '', 'a.bin'],
+		['diff --git a/a.bin b/a.bin\ndeleted file mode 100644\nGIT binary patch\nliteral 0\nHcmV?d00001\n', 'a.bin', ''],
+		['diff --git a/a.php b/b.php\nsimilarity index 100%\nrename from a.php\nrename to b.php\n', 'a.php', 'b.php']
+	];
+	for (const [text, from, to] of cases) {
+		const [section] = splitPatchSections(text);
+		assert.deepStrictEqual([section.from, section.to], [from, to], text);
+	}
+});
+
+// --- a repository whose diffs already name the file where it lives (#251) ---
+
+// The Core rules exist for Trac patches from before the src/ move. A
+// Gutenberg diff names `packages/…` and `lib/…` already, and a root `index.php`
+// or `wp-*` path there must not be steered under a src/ the repository does
+// not have.
+test('parsePatchFiles: a repo-relative layout leaves every path where the diff names it (#251)', () => {
+	const res = parsePatchFiles(OLD_LAYOUT_DIFF, { layout: 'repo-relative' });
+	assert.strictEqual(res.ok, true);
+	assert.strictEqual(res.files[0].path, 'wp-admin/admin.php');
+	assert.strictEqual(parsePatchFiles(OLD_LAYOUT_DIFF).files[0].path, 'src/wp-admin/admin.php', 'the default is still Core\'s');
+	assert.strictEqual(parsePatchFiles(OLD_LAYOUT_DIFF, { layout: 'src-layout' }).files[0].path, 'src/wp-admin/admin.php');
+});
+
+test('rewritePatchPaths: a repo-relative layout still normalises the headers, without moving the file (#251)', () => {
+	const rewritten = rewritePatchPaths(OLD_LAYOUT_DIFF, { layout: 'repo-relative' });
+	assert.match(rewritten, /^--- a\/wp-admin\/admin\.php\n\+\+\+ b\/wp-admin\/admin\.php$/m, 'the a/ b/ form Git reads, on the path as named');
+	assert.match(rewritten, /^Index: wp-admin\/admin\.php$/m);
+	// The two readers agree, the way they do for Core.
+	assert.strictEqual(parsePatchFiles(rewritten, { layout: 'repo-relative' }).files[0].path, 'wp-admin/admin.php');
+});
+
+test('layoutMapper: a layout the registry does not define throws rather than guessing (#251)', () => {
+	assert.strictEqual(layoutMapper()('wp-login.php'), 'src/wp-login.php');
+	assert.strictEqual(layoutMapper('repo-relative')('wp-login.php'), 'wp-login.php');
+	assert.throws(() => layoutMapper('flat'), /Unknown patch layout: flat/);
+	assert.throws(() => parsePatchFiles(OLD_LAYOUT_DIFF, { layout: 'flat' }), /Unknown patch layout/);
 });
