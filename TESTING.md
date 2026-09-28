@@ -124,6 +124,8 @@ Remove-Item Env:TOOLKIT_REAL_SETUP
 
 The separate config keeps this test out of both default Playwright projects and `npm test`; without the environment opt-in, even an explicit run of this config skips the network setup.
 
+This is also the only test that starts the Playground server on Electron's bundled Node. Nothing that runs on a pull request does: the journeys and the packaged smoke never click **Start dev server**, and the unit suite reaches the server handler only with a stubbed `child_process`. A crash inside that child, such as the V8 WebAssembly fault that Electron 43.7.0 introduced on Apple Silicon (see the Electron pin in AGENTS.md), passes every automatic check. So any change to the `electron` version, or to `src/server-runner.js` and what it loads, needs this workflow run on macOS, or a manual **Start dev server** on an Apple Silicon Mac, and the pull request should say which. A plain php-wasm run does not reproduce that crash; it needs the full Playground boot against a real WordPress build, which is why it lives here and not at layer 2.
+
 ## Auditing an end-to-end test
 
 A test that asserts nothing passes. For a suite whose entire content is tests, that is the risk that matters, and neither a green run nor a recording of one will tell you: both look identical whether the assertion is load-bearing or decorative.
