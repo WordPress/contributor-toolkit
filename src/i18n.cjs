@@ -30,9 +30,9 @@ const LOCALE_PATTERN = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
  * @param {string}   locale A Chromium locale, as `app.getLocale()` returns it.
  * @param {string}   dir    The directory holding `<locale>.json` files.
  * @param {Function} [log]  Called with a sentence for each catalog skipped as unreadable.
- * @return {Object|null} Jed locale data, or null to keep the English source strings.
+ * @return {Promise<Object|null>} Jed locale data, or null to keep the English source strings.
  */
-function resolveCatalog(locale, dir, log = () => {}) {
+async function resolveCatalog(locale, dir, log = () => {}) {
 	if (typeof locale !== 'string' || !LOCALE_PATTERN.test(locale)) return null;
 	const candidates = [locale];
 	const language = locale.split('-')[0];
@@ -40,8 +40,10 @@ function resolveCatalog(locale, dir, log = () => {}) {
 	for (const candidate of candidates) {
 		let raw;
 		try {
-			raw = fs.readFileSync(path.join(dir, `${candidate}.json`), 'utf8');
-		} catch {
+			raw = await fs.promises.readFile(path.join(dir, `${candidate}.json`), 'utf8');
+		} catch (e) {
+			// No file for this locale is the normal case; anything else is a catalog we shipped and cannot read.
+			if (e.code !== 'ENOENT') log(`skipped ${candidate}.json: ${e.message}`);
 			continue;
 		}
 		let messages;
@@ -51,7 +53,7 @@ function resolveCatalog(locale, dir, log = () => {}) {
 			log(`skipped ${candidate}.json: ${e.message}`);
 			continue;
 		}
-		if (messages) return messages;
+		if (messages && typeof messages === 'object' && !Array.isArray(messages)) return messages;
 		log(`skipped ${candidate}.json: no locale_data.messages`);
 	}
 	return null;

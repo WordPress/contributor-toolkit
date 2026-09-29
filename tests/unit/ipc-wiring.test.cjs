@@ -6158,7 +6158,7 @@ test('a second instance with an address delivers it, without one it only shows t
 });
 
 test('i18n:locale asks i18n.cjs for the catalog of the locale Electron reports', async () => {
-	const resolveCatalog = spy(() => ({ 'No sites yet.': ['Aucun site.'] }));
+	const resolveCatalog = spy(async () => ({ 'No sites yet.': ['Aucun site.'] }));
 	const main = loadMain({ stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog } } });
 
 	const reply = await main.invoke('i18n:locale');
@@ -6173,7 +6173,7 @@ test('i18n:locale asks i18n.cjs for the catalog of the locale Electron reports',
 });
 
 test('i18n:locale takes the pseudo-locale from --lang, which Chromium does not report', async () => {
-	const resolveCatalog = spy(() => null);
+	const resolveCatalog = spy(async () => null);
 	const main = loadMain({ stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog } } });
 	main.electron.app.commandLine.getSwitchValue = (name) => (name === 'lang' ? 'en-XA' : '');
 
