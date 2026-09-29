@@ -91,7 +91,7 @@ The app picks the catalog for the operating system's language. Two kinds of loca
 
 ## The documentation site
 
-The user guide under `docs/` is a VitePress site, built by [`docs.yml`](.github/workflows/docs.yml) whenever it changes, on the pull request and again on the push to trunk, and deployed to GitHub Pages only when someone runs that workflow by hand. The live site therefore tracks the latest **release**, not trunk: your docs land with your change, and reach users when the version that contains the feature ships. Advancing it is one command, run from trunk as part of cutting a release:
+The user guide under `docs/` is a VitePress site, built by [`docs.yml`](.github/workflows/docs.yml) whenever it changes, on the pull request and again on the push to trunk, and deployed to GitHub Pages only when someone runs that workflow by hand. The live site therefore tracks the latest **release**, not trunk: your docs land with your change, and reach users when the version that contains the feature ships. Advancing it is one command, run from trunk as part of [cutting a release](RELEASING.md):
 
 ```bash
 gh workflow run docs.yml --ref trunk -f ref=v1.2.0
