@@ -22,7 +22,16 @@ test('resolveCatalog logs a catalog it cannot parse and falls back to the langua
 	const messages = resolveCatalog('xx-BR', FIXTURES, (message) => logged.push(message));
 	assert.deepEqual(messages['No sites yet.'], ['Xx sites xx.']);
 	assert.equal(logged.length, 1);
-	assert.match(logged[0], /^skipped xx-BR\.json: /);
+	assert.match(logged[0], /^skipped xx-br\.json: /);
+});
+
+test('resolveCatalog finds a catalog by its lowercase translate.wordpress.org slug', () => {
+	// Chromium says `pt-BR`; translate.wordpress.org's file is `pt-br`.
+	assert.deepEqual(resolveCatalog('XX-yy', FIXTURES)['No sites yet.'], ['Yy sites yy.']);
+});
+
+test('resolveCatalog maps Filipino from Chromium\'s fil to translate.wordpress.org\'s tl', () => {
+	assert.deepEqual(resolveCatalog('fil', FIXTURES)['No sites yet.'], ['Wala pang site.']);
 });
 
 test('resolveCatalog returns null when there is no catalog, English included', () => {

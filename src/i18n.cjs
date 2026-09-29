@@ -17,11 +17,18 @@ const path = require('node:path');
 // outside the catalog directory.
 const LOCALE_PATTERN = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 
+// Catalogs are named by translate.wordpress.org's locale slug, which is
+// lowercase (`pt-br`, `zh-tw`) and differs from Chromium's name in one case.
+// Checked against every locale Electron ships: the rest match once lowercased,
+// or through the bare-language fallback (`pt-PT` to `pt`, `es-419` to `es`).
+const GLOTPRESS_SLUGS = { fil: 'tl' };
+
 /**
  * The catalog for a locale, or null when there is none.
  *
- * Tries the exact locale, then its bare language (`de-DE`, then `de`). A file is
- * the JSON `wp i18n make-json` writes, and what comes back is its
+ * Tries the exact locale, then its bare language (`de-DE`, then `de`), as the
+ * lowercase slug translate.wordpress.org names it. A file is the JSON that
+ * translate.wordpress.org's `jed1x` export writes, and what comes back is its
  * `locale_data.messages`, which is what `setLocaleData` takes.
  *
  * A catalog that cannot be read as one is logged and skipped, so a broken
@@ -34,9 +41,10 @@ const LOCALE_PATTERN = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
  */
 function resolveCatalog(locale, dir, log = () => {}) {
 	if (typeof locale !== 'string' || !LOCALE_PATTERN.test(locale)) return null;
-	const candidates = [locale];
-	const language = locale.split('-')[0];
-	if (language !== locale) candidates.push(language);
+	const slug = locale.toLowerCase();
+	const candidates = [GLOTPRESS_SLUGS[slug] || slug];
+	const language = slug.split('-')[0];
+	if (language !== candidates[0]) candidates.push(GLOTPRESS_SLUGS[language] || language);
 	for (const candidate of candidates) {
 		let raw;
 		try {

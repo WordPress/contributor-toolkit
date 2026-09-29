@@ -1,0 +1,101 @@
+# Publishes the app's translatable strings for translate.wordpress.org.
+#
+# translate.wordpress.org imports the originals of `meta/contributor-toolkit` from one fixed URL:
+#
+#   https://raw.githubusercontent.com/WordPress/contributor-toolkit/translations/contributor-toolkit.pot
+#
+# so every push to trunk that can change a string regenerates the .pot and commits it to
+# `translations`, an orphan branch holding that one file. Openverse publishes its strings the same
+# way. The .pot is never committed to trunk, where it could drift from the source it lists.
+#
+# Two jobs, because extracting the strings runs npm packages (Babel and its plugins) and publishing
+# needs a token that can push. The first job runs that code with a read-only token; the second
+# holds the write token and runs nothing but Git.
+
+name: Translatable strings
+
+on:
+  push:
+    branches: [trunk]
+    paths:
+      - 'src/**'
+      - 'scripts/make-pot.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Two runs pushing to the same branch would race.
+concurrency:
+  group: i18n-pot
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    name: extract strings
+    if: github.repository_owner == 'WordPress'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # The extractor needs Babel and nothing else. Skipping lifecycle scripts skips the
+      # postinstall, which would download Electron and build the renderer for no reason.
+      - run: npm ci --ignore-scripts
+
+      # Fails, naming the line, on a translation call the .pot cannot hold.
+      - run: npm run i18n:pot
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pot
+          path: languages/contributor-toolkit.pot
+          retention-days: 1
+
+  publish:
+    name: publish to the translations branch
+    needs: extract
+    runs-on: ubuntu-latest
+    # Writes to the `translations` branch.
+    permissions:
+      contents: write
+    steps:
+      # Pinned to a commit, not a tag: this job holds a token that can push to any branch, trunk
+      # included, and a SHA cannot be repointed.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: pot
+          path: ${{ runner.temp }}/pot
+
+      - name: Commit the .pot to `translations`
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          # `translations` does not exist on the first run. Orphaning keeps trunk's files out of
+          # the commit: `--cached` unstages everything, and only the .pot is added back.
+          if git ls-remote --exit-code --heads origin translations >/dev/null 2>&1; then
+            git fetch --depth=1 origin translations:translations
+            git checkout translations
+          else
+            git checkout --orphan translations
+            git rm -rf --cached . >/dev/null
+          fi
+
+          cp "$RUNNER_TEMP/pot/contributor-toolkit.pot" contributor-toolkit.pot
+          git add contributor-toolkit.pot
+          if git diff --cached --quiet; then
+            echo "No change to the strings."
+            exit 0
+          fi
+          git commit -m "Update contributor-toolkit.pot from $GITHUB_SHA"
+          git push origin translations

@@ -79,7 +79,14 @@ The app is being made translatable with [`@wordpress/i18n`](https://developer.wo
 
 To see what is wrapped, run the app in the pseudo-locale from the repository root: `npx electron . --lang=en-XA` (either platform). Every wrapped string shows accented and in brackets; plain English is a string nobody wrapped yet. `tests/e2e/journeys/i18n.spec.js` makes the same check on each finished screen, so when you finish wrapping a screen, add it there.
 
-`npm run i18n:pot` writes `languages/contributor-toolkit.pot`, the template a translator starts from. Catalogs go in `src/languages/` (see its README).
+### How strings reach translators, and translations reach the app
+
+Translations happen on translate.wordpress.org, in the project `meta/contributor-toolkit`: <https://translate.wordpress.org/projects/meta/contributor-toolkit/>.
+
+- **Out:** every push to trunk that touches `src/` runs [`i18n-pot.yml`](.github/workflows/i18n-pot.yml), which regenerates the `.pot` and commits it to the `translations` branch. translate.wordpress.org imports its strings from <https://raw.githubusercontent.com/WordPress/contributor-toolkit/translations/contributor-toolkit.pot>. Nothing to do by hand; run `npm run i18n:pot` from the repository root to see the same file locally, at `languages/contributor-toolkit.pot`.
+- **Back:** in the version-bump pull request for a release, run `npm run i18n:download` from the repository root. It writes a catalog to `src/languages/` for every locale at least 80% translated, removes the catalog of any locale that fell below that, and prints a table; commit `src/languages/` and paste the table into the pull request. Until translate.wordpress.org has the project, the script says so and changes nothing, and the release ships in English.
+
+The app picks the catalog for the operating system's language, and sets the page right-to-left when the catalog translates the text direction to `rtl`, as Arabic, Hebrew and Persian do.
 
 ## The documentation site
 

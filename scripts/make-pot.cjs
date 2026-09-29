@@ -67,7 +67,18 @@ function makePot({ files = sourceFiles(), output = DEFAULT_OUTPUT } = {}) {
 	// One plugin list for every file, so Babel reuses one instance of the
 	// makepot plugin and its strings accumulate across files.
 	const plugins = [
-		[makepot, { output, headers: { 'project-id-version': 'WordPress Contributor Toolkit' } }],
+		[makepot, {
+			output,
+			// These replace the plugin's defaults rather than adding to them, so the
+			// charset is restated: without it the .pot says `text/plain;`, and
+			// translate.wordpress.org would have to guess the encoding of `↗`.
+			headers: {
+				'content-type': 'text/plain; charset=UTF-8',
+				'x-generator': 'babel-plugin-makepot',
+				'project-id-version': 'WordPress Contributor Toolkit',
+				'report-msgid-bugs-to': 'https://github.com/WordPress/contributor-toolkit/issues'
+			}
+		}],
 		nonLiteralCalls(problems)
 	];
 	// The plugin writes each `#:` reference relative to the process's working
