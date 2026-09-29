@@ -44,6 +44,7 @@ test('a translation call with a non-literal string is refused, with its line', (
 		'__(message);',
 		"__(`Hi ${message}`);",
 		"_n('One site', `${1} sites`, 2);",
+		'__(`Static`);',
 		"__('Fine');",
 		"sprintf(__('Fine %s'), message);",
 		''
@@ -51,8 +52,10 @@ test('a translation call with a non-literal string is refused, with its line', (
 
 	const { problems } = makePot({ files: [file], output: path.join(dir, 'out.pot') });
 
-	assert.equal(problems.length, 3, problems.join('\n'));
+	assert.equal(problems.length, 4, problems.join('\n'));
 	assert.match(problems[0], /copy\.cjs:3 __\(\) needs a string literal, not Identifier/);
 	assert.match(problems[1], /copy\.cjs:4 __\(\) needs a string literal, not TemplateLiteral/);
 	assert.match(problems[2], /copy\.cjs:5 _n\(\) needs a string literal, not TemplateLiteral/);
+	// The extractor reads only string literals, so even a template with nothing in it would be left out of the POT.
+	assert.match(problems[3], /copy\.cjs:6 __\(\) needs a string literal, not TemplateLiteral/);
 });

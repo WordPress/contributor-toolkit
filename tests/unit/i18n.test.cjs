@@ -2,25 +2,26 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const path = require('node:path');
 const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { resolveCatalog, catalogCandidates, reachableSlugs, ELECTRON_LOCALES } = require('../../src/i18n.cjs');
 const { isPseudoLocale, pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 const { createI18n } = require('@wordpress/i18n');
 
 const FIXTURES = path.join(__dirname, 'fixtures', 'languages');
 
-test('resolveCatalog prefers the exact locale', () => {
-	assert.deepEqual(resolveCatalog('xx-YY', FIXTURES)['No sites yet.'], ['Yy sites yy.']);
+test('resolveCatalog prefers the exact locale', async () => {
+	assert.deepEqual((await resolveCatalog('xx-YY', FIXTURES))['No sites yet.'], ['Yy sites yy.']);
 });
 
-test('resolveCatalog falls back to the bare language', () => {
-	assert.deepEqual(resolveCatalog('xx-ZZ', FIXTURES)['No sites yet.'], ['Xx sites xx.']);
+test('resolveCatalog falls back to the bare language', async () => {
+	assert.deepEqual((await resolveCatalog('xx-ZZ', FIXTURES))['No sites yet.'], ['Xx sites xx.']);
 });
 
-test('resolveCatalog logs a catalog it cannot parse and falls back to the language', () => {
+test('resolveCatalog logs a catalog it cannot parse and falls back to the language', async () => {
 	const logged = [];
-	const messages = resolveCatalog('xx-BR', FIXTURES, (message) => logged.push(message));
+	const messages = await resolveCatalog('xx-BR', FIXTURES, (message) => logged.push(message));
 	assert.deepEqual(messages['No sites yet.'], ['Xx sites xx.']);
 	assert.equal(logged.length, 1);
 	assert.match(logged[0], /^skipped xx-br\.json: /);
@@ -36,9 +37,9 @@ test('a locale tries its lowercase translate.wordpress.org slug, then its langua
 	assert.deepEqual(catalogCandidates('../etc'), []);
 });
 
-test('Filipino is Chromium\'s fil and translate.wordpress.org\'s tl, tried once', () => {
+test('Filipino is Chromium\'s fil and translate.wordpress.org\'s tl, tried once', async () => {
 	assert.deepEqual(catalogCandidates('fil'), ['tl']);
-	assert.deepEqual(resolveCatalog('fil', FIXTURES)['No sites yet.'], ['Wala pang site.']);
+	assert.deepEqual((await resolveCatalog('fil', FIXTURES))['No sites yet.'], ['Wala pang site.']);
 });
 
 test('reachable slugs are what some Electron locale can load, and nothing else', () => {
@@ -63,20 +64,45 @@ test('ELECTRON_LOCALES is the list the installed Electron ships', () => {
 	assert.deepEqual([...shipped].sort(), [...ELECTRON_LOCALES].sort());
 });
 
-test('resolveCatalog returns null when there is no catalog, English included', () => {
-	assert.equal(resolveCatalog('de-DE', FIXTURES), null);
-	assert.equal(resolveCatalog('en-US', FIXTURES), null);
-	assert.equal(resolveCatalog('en', FIXTURES), null);
+test('resolveCatalog logs a catalog whose messages are not a record and falls back to the language', async () => {
+	const logged = [];
+	const messages = await resolveCatalog('xx-AR', FIXTURES, (message) => logged.push(message));
+	assert.deepEqual(messages['No sites yet.'], ['Xx sites xx.']);
+	assert.deepEqual(logged, ['skipped xx-ar.json: no locale_data.messages']);
 });
 
-test('resolveCatalog refuses anything that is not a locale, so it cannot name a path', () => {
-	assert.equal(resolveCatalog('../fixtures/languages/xx', FIXTURES), null);
-	assert.equal(resolveCatalog('', FIXTURES), null);
-	assert.equal(resolveCatalog(undefined, FIXTURES), null);
+test('resolveCatalog logs a catalog it cannot read, but not one that is missing', async (t) => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'i18n-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	fs.copyFileSync(path.join(FIXTURES, 'xx.json'), path.join(dir, 'xx.json'));
+	// A directory where the catalog should be: reading it fails, and not with ENOENT.
+	fs.mkdirSync(path.join(dir, 'xx-de.json'));
+
+	const logged = [];
+	const messages = await resolveCatalog('xx-DE', dir, (message) => logged.push(message));
+	assert.deepEqual(messages['No sites yet.'], ['Xx sites xx.']);
+	assert.equal(logged.length, 1);
+	assert.match(logged[0], /^skipped xx-de\.json: .*EISDIR/);
+
+	logged.length = 0;
+	await resolveCatalog('xx-FR', dir, (message) => logged.push(message));
+	assert.deepEqual(logged, [], 'a missing xx-fr.json is the normal case, not a problem');
 });
 
-test('a resolved catalog translates through @wordpress/i18n', () => {
-	const i18n = createI18n(resolveCatalog('xx', FIXTURES));
+test('resolveCatalog returns null when there is no catalog, English included', async () => {
+	assert.equal(await resolveCatalog('de-DE', FIXTURES), null);
+	assert.equal(await resolveCatalog('en-US', FIXTURES), null);
+	assert.equal(await resolveCatalog('en', FIXTURES), null);
+});
+
+test('resolveCatalog refuses anything that is not a locale, so it cannot name a path', async () => {
+	assert.equal(await resolveCatalog('../fixtures/languages/xx', FIXTURES), null);
+	assert.equal(await resolveCatalog('', FIXTURES), null);
+	assert.equal(await resolveCatalog(undefined, FIXTURES), null);
+});
+
+test('a resolved catalog translates through @wordpress/i18n', async () => {
+	const i18n = createI18n(await resolveCatalog('xx', FIXTURES));
 	assert.equal(i18n.__('No sites yet.'), 'Xx sites xx.');
 	// A string the catalog lacks keeps its English source.
 	assert.equal(i18n.__('Create a site'), 'Create a site');
