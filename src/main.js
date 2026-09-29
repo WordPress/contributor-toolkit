@@ -644,10 +644,10 @@ ipcMain.handle('deep-link:ready', () => {
 // `--lang` switch when one is passed, which is how the journeys pick a locale.
 // Chromium only accepts a language it ships resources for, so `--lang=en-XA`
 // reaches `getLocale()` as en-GB; the pseudo-locale is read off the switch itself.
-ipcMain.handle('i18n:locale', () => {
+ipcMain.handle('i18n:locale', async () => {
 	const requested = app.commandLine.getSwitchValue('lang');
 	const locale = isPseudoLocale(requested) ? requested : app.getLocale();
-	const data = resolveCatalog(locale, path.join(__dirname, 'languages'), (message) => logEvent('i18n', message));
+	const data = await resolveCatalog(locale, path.join(__dirname, 'languages'), (message) => logEvent('i18n', message));
 	return { locale, data };
 });
 
