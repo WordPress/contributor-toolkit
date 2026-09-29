@@ -17,9 +17,9 @@ Versions are `X.Y.Z` for a stable release and `X.Y.Z-beta.N` for a beta. Tags ad
    python3 -c "import json;d=json.load(open('package-lock.json'));print(d['version'], d['packages']['']['version'])"
    ```
 
-4. Run `npm run i18n:download` and commit `src/languages/`. It writes a catalog for every locale at least 80% translated on translate.wordpress.org, removes any that fell below, and prints a coverage table. Skipping this ships the previous release's translations, or none, and nothing fails. Until translate.wordpress.org has the project, the script says so, changes nothing, and the release ships in English. See [Translatable strings](CONTRIBUTING.md#translatable-strings) in `CONTRIBUTING.md`.
+4. Run `npm run i18n:download` and commit `src/languages/`. It writes a catalog for every locale at least 80% translated on translate.wordpress.org, removes the rest, and prints a coverage table. Locales the app can't select and right-to-left ones are held back, and the table lists them under **Not shipped**. Skipping this step ships the previous release's translations, or none, and nothing fails. Until translate.wordpress.org has the project, the script exits with an error naming the missing project and changes nothing. That is expected: there is nothing to commit, and the release ships in English. See [Translatable strings](CONTRIBUTING.md#translatable-strings) in `CONTRIBUTING.md`.
 5. Run `npm run lint` and `npm test`.
-6. Open the pull request, titled `Bump version to X.Y.Z`, and paste the coverage table into its description. [#533](https://github.com/WordPress/contributor-toolkit/pull/533) is a good model. `git diff trunk` must show exactly three changed lines outside `src/languages/`.
+6. Open the pull request, titled `Bump version to X.Y.Z`, and paste the coverage table into its description, or the script's message if it printed no table. [#533](https://github.com/WordPress/contributor-toolkit/pull/533) is a good model. `git diff trunk` must show exactly three changed lines outside `src/languages/`.
 
 ## 2. Check the signed artifacts
 
