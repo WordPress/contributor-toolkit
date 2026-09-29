@@ -43,7 +43,6 @@ function nonLiteralCalls(problems) {
 				for (const i of STRING_ARGUMENTS[name]) {
 					const arg = node.arguments[i];
 					if (!arg || arg.type === 'StringLiteral') continue;
-					if (arg.type === 'TemplateLiteral' && arg.expressions.length === 0) continue;
 					const file = path.relative(REPO_ROOT, state.filename);
 					problems.push(`${file}:${node.loc.start.line} ${name}() needs a string literal, not ${arg.type}`);
 				}
