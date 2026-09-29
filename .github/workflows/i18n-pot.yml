@@ -33,7 +33,10 @@ concurrency:
 jobs:
   extract:
     name: extract strings
-    if: github.repository_owner == 'WordPress'
+    # Trunk only, whichever way the run started: a hand-started run from a feature
+    # branch would otherwise publish that branch's strings, and translate.wordpress.org
+    # would mark trunk's missing ones obsolete until the next push.
+    if: github.repository_owner == 'WordPress' && github.ref == 'refs/heads/trunk'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

@@ -53,6 +53,7 @@ Worth knowing so you don't wait on them:
 
 - **Buildkite signed builds** produce Windows, Linux, and macOS artifacts for every branch with an open PR, so a change is testable on a real machine without a local build. Force-pushing a branch invalidates earlier artifacts — check the build matches the current head commit before testing.
 - **Download stats** ([`download-stats.yml`](.github/workflows/download-stats.yml)) is a weekly cron that records release-asset counts to a `metrics` branch. It is not related to PR quality.
+- **Translatable strings** ([`i18n-pot.yml`](.github/workflows/i18n-pot.yml)) runs after a push to trunk and publishes the `.pot` to the `translations` branch for translate.wordpress.org. It never runs on a PR.
 
 ## Before you open a pull request
 
@@ -81,12 +82,12 @@ To see what is wrapped, run the app in the pseudo-locale from the repository roo
 
 ### How strings reach translators, and translations reach the app
 
-Translations happen on translate.wordpress.org, in the project `meta/contributor-toolkit`: <https://translate.wordpress.org/projects/meta/contributor-toolkit/>.
+Translations happen on translate.wordpress.org, in the project `meta/contributor-toolkit`: <https://translate.wordpress.org/projects/meta/contributor-toolkit/>. The Meta team creates a project like this on request, from the WordPress.org Meta Trac or the #meta channel on Make WordPress Slack; translating the app as a whole is tracked in [#540](https://github.com/WordPress/contributor-toolkit/issues/540).
 
 - **Out:** every push to trunk that touches `src/` runs [`i18n-pot.yml`](.github/workflows/i18n-pot.yml), which regenerates the `.pot` and commits it to the `translations` branch. translate.wordpress.org imports its strings from <https://raw.githubusercontent.com/WordPress/contributor-toolkit/translations/contributor-toolkit.pot>. Nothing to do by hand; run `npm run i18n:pot` from the repository root to see the same file locally, at `languages/contributor-toolkit.pot`.
 - **Back:** in the version-bump pull request for a release, run `npm run i18n:download` from the repository root. It writes a catalog to `src/languages/` for every locale at least 80% translated, removes the catalog of any locale that fell below that, and prints a table; commit `src/languages/` and paste the table into the pull request. Until translate.wordpress.org has the project, the script says so and changes nothing, and the release ships in English.
 
-The app picks the catalog for the operating system's language, and sets the page right-to-left when the catalog translates the text direction to `rtl`, as Arabic, Hebrew and Persian do.
+The app picks the catalog for the operating system's language. Two kinds of locale pass the cut-off and still do not ship, and the table names them: ones the app can never select, because Electron only reports its own list of languages (Chilean Spanish reaches the app as Latin American Spanish, and loads `es`), and right-to-left ones such as Arabic, Hebrew and Persian. The page already follows a catalog's text direction, but the app's styles are not right-to-left yet, so those locales wait until they are.
 
 ## The documentation site
 

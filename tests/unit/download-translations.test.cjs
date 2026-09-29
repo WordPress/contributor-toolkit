@@ -109,8 +109,88 @@ test('a locale slug that could name a path is refused', async (t) => {
 	assert.deepEqual(fs.readdirSync(dir), []);
 });
 
-test('the table lists each locale and names the ones removed', () => {
-	const table = formatTable({ shipped: [{ locale: 'de', percent: 100, strings: 26 }], removed: ['fr'] });
+test('an answer in an unexpected shape is refused and changes nothing', async (t) => {
+	// Read as "nothing translated", any of these would remove every catalog and
+	// exit cleanly, and a release would ship without its translations.
+	for (const body of [{}, { translation_sets: [] }, { translation_sets: [{ locale: 'de', percent: 100 }] }]) {
+		const dir = tempDir(t);
+		fs.writeFileSync(path.join(dir, 'de.json'), 'the old catalog');
+		const { fetch } = fakeFetch({ [API]: body });
+		await assert.rejects(downloadTranslations({ dir, fetch }), /in a shape this script does not know/, JSON.stringify(body));
+		assert.equal(fs.readFileSync(path.join(dir, 'de.json'), 'utf8'), 'the old catalog');
+	}
+});
+
+test('a locale the app never selects is not shipped, and is named with the reason', async (t) => {
+	const dir = tempDir(t);
+	const { fetch, calls } = fakeFetch({
+		[API]: { translation_sets: [
+			{ locale: 'de', percent_translated: 100, current_count: 26 },
+			{ locale: 'es-cl', percent_translated: 100, current_count: 26 }
+		] },
+		[exportUrl('de')]: catalog('de', 'x')
+	});
+
+	const result = await downloadTranslations({ dir, fetch });
+
+	assert.deepEqual(fs.readdirSync(dir), ['de.json']);
+	assert.ok(!calls.includes(exportUrl('es-cl')));
+	assert.deepEqual(result.skipped.map(({ locale, reason }) => [locale, reason]), [['es-cl', 'the app never selects this locale']]);
+});
+
+test('a right-to-left locale is held back until the styles support it', async (t) => {
+	const dir = tempDir(t);
+	const { fetch } = fakeFetch({
+		[API]: { translation_sets: [
+			{ locale: 'ar', percent_translated: 100, current_count: 26 },
+			{ locale: 'he', percent_translated: 95, current_count: 25 },
+			{ locale: 'de', percent_translated: 100, current_count: 26 }
+		] },
+		[exportUrl('de')]: catalog('de', 'x')
+	});
+
+	const result = await downloadTranslations({ dir, fetch });
+
+	assert.deepEqual(fs.readdirSync(dir), ['de.json']);
+	assert.deepEqual(result.skipped.map(({ locale }) => locale), ['ar', 'he']);
+	assert.match(result.skipped[0].reason, /right-to-left/);
+});
+
+test('a throttled request waits as long as it is asked, then tries again', async (t) => {
+	const dir = tempDir(t);
+	const waits = [];
+	let throttled = 2;
+	const fetch = async (url) => {
+		if (url === API) return { ok: true, status: 200, json: async () => ({ translation_sets: [{ locale: 'de', percent_translated: 100, current_count: 1 }] }) };
+		if (throttled-- > 0) return { ok: false, status: 429, headers: new Map([['retry-after', '7']]), json: async () => ({}) };
+		return { ok: true, status: 200, json: async () => catalog('de', 'x') };
+	};
+
+	await downloadTranslations({ dir, fetch, wait: async (ms) => waits.push(ms) });
+
+	assert.deepEqual(waits, [7000, 7000]);
+	assert.deepEqual(fs.readdirSync(dir), ['de.json']);
+});
+
+test('a request still throttled after three tries fails, and changes nothing', async (t) => {
+	const dir = tempDir(t);
+	const fetch = async (url) => (url === API
+		? { ok: true, status: 200, json: async () => ({ translation_sets: [{ locale: 'de', percent_translated: 100, current_count: 1 }] }) }
+		: { ok: false, status: 429, headers: new Map(), json: async () => ({}) });
+	const waits = [];
+
+	await assert.rejects(downloadTranslations({ dir, fetch, wait: async (ms) => waits.push(ms) }), /429 from/);
+	assert.deepEqual(waits, [15000, 15000]);
+	assert.deepEqual(fs.readdirSync(dir), []);
+});
+
+test('the table lists each locale, what was held back and why, and what was removed', () => {
+	const table = formatTable({
+		shipped: [{ locale: 'de', percent: 100, strings: 26 }],
+		skipped: [{ locale: 'ar', percent: 90, reason: 'right-to-left, held back until the styles support it' }],
+		removed: ['fr']
+	});
 	assert.match(table, /\| de \| 100% \| 26 \|/);
-	assert.match(table, /Removed, below 80%: fr/);
+	assert.match(table, /- ar \(90%\): right-to-left/);
+	assert.match(table, /Removed: fr/);
 });

@@ -6,11 +6,13 @@
 // fallen below it, and prints a table for the pull request description.
 //
 // Nothing in src/languages/ changes unless every download succeeded: the files are
-// written to a temporary directory first and copied in at the end.
+// written to a temporary directory first, and each one replaces its old copy by a
+// rename, which leaves either the old file or the new one, never a partial one.
 
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { reachableSlugs } = require('../src/i18n.cjs');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const DEFAULT_DIR = path.join(REPO_ROOT, 'src', 'languages');
@@ -23,9 +25,20 @@ const USER_AGENT = 'WordPress Contributor Toolkit (https://github.com/WordPress/
 // translate.wordpress.org until it is ready.
 const MIN_COVERAGE = 80;
 
+// How often a throttled request is tried, and how long to wait between tries.
+const MAX_ATTEMPTS = 3;
+const DEFAULT_RETRY_SECONDS = 15;
+const MAX_RETRY_SECONDS = 60;
+
 // A slug from the API becomes a file name, so it must be only what a locale
 // slug is made of.
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+// Right-to-left languages are held back until the app's styles support them.
+// The page's direction already follows the catalog, but @wordpress/components'
+// RTL stylesheet is not loaded and the app's own styles use left and right, so
+// an Arabic or Hebrew catalog today would ship a half-mirrored window.
+const RTL_LANGUAGES = new Set(['ar', 'arq', 'ary', 'azb', 'ckb', 'dv', 'fa', 'haz', 'he', 'ps', 'rhg', 'sd', 'skr', 'snd', 'syr', 'ug', 'ur', 'yi']);
 
 /**
  * Downloads every locale of `project` at or above `minCoverage` into `dir`.
@@ -35,16 +48,27 @@ const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
  * @param {string}   [options.dir]         Where the catalogs go.
  * @param {number}   [options.minCoverage] The percent a locale needs to ship.
  * @param {Function} [options.fetch]       `fetch`, replaceable in tests.
- * @return {Promise<{shipped: Object[], removed: string[]}>} What was written, and what was removed.
+ * @param {Function} [options.wait]        Waits the given milliseconds; replaceable in tests.
+ * @return {Promise<{shipped: Object[], skipped: Object[], removed: string[]}>} What was written, what
+ *         passed the cut-off but was held back and why, and what was removed.
  */
 async function downloadTranslations({
 	project = DEFAULT_PROJECT,
 	dir = DEFAULT_DIR,
 	minCoverage = MIN_COVERAGE,
-	fetch = globalThis.fetch
+	fetch = globalThis.fetch,
+	wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 } = {}) {
 	const get = async (url) => {
-		const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+		let res;
+		// translate.wordpress.org answers 429 when asked too often, even one request
+		// at a time. Wait as long as it asks (capped) and try again, a few times.
+		for (let attempt = 1; ; attempt++) {
+			res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+			if (res.status !== 429 || attempt === MAX_ATTEMPTS) break;
+			const seconds = Number(res.headers?.get?.('retry-after')) || DEFAULT_RETRY_SECONDS;
+			await wait(Math.min(seconds, MAX_RETRY_SECONDS) * 1000);
+		}
 		if (!res.ok) {
 			const error = new Error(`${res.status} from ${url}`);
 			error.status = res.status;
@@ -58,20 +82,35 @@ async function downloadTranslations({
 		({ translation_sets: sets } = await get(`${BASE_URL}/api/projects/meta/${project}/`));
 	} catch (e) {
 		if (e.status === 404) {
-			throw new Error(`translate.wordpress.org has no project meta/${project} yet. It is created by the Meta team; see "Translatable strings" in CONTRIBUTING.md.`);
+			throw new Error(`translate.wordpress.org has no project meta/${project} yet. The Meta team creates it on request; see "Translatable strings" in CONTRIBUTING.md.`);
 		}
 		throw e;
 	}
 
-	const shipped = sets
-		.filter((set) => set.locale !== 'en' && set.percent_translated >= minCoverage)
-		.map((set) => ({ locale: set.locale, percent: set.percent_translated, strings: set.current_count }))
-		.sort((a, b) => a.locale.localeCompare(b.locale));
+	// An answer in any other shape is refused rather than read as "nothing is
+	// translated", which would remove every catalog and still exit cleanly.
+	const valid = Array.isArray(sets) && sets.length > 0 &&
+		sets.every((set) => typeof set?.locale === 'string' && typeof set.percent_translated === 'number');
+	if (!valid) throw new Error(`translate.wordpress.org answered for meta/${project} in a shape this script does not know; nothing was changed.`);
+
+	const reachable = reachableSlugs();
+	const shipped = [];
+	const skipped = [];
+	for (const set of sets) {
+		if (set.locale === 'en' || set.percent_translated < minCoverage) continue;
+		if (!SLUG_PATTERN.test(set.locale)) throw new Error(`Refusing the locale slug ${JSON.stringify(set.locale)}: it is not a locale.`);
+		const row = { locale: set.locale, percent: set.percent_translated, strings: set.current_count };
+		if (!reachable.has(set.locale)) skipped.push({ ...row, reason: 'the app never selects this locale' });
+		else if (RTL_LANGUAGES.has(set.locale.split('-')[0])) skipped.push({ ...row, reason: 'right-to-left, held back until the styles support it' });
+		else shipped.push(row);
+	}
+	const byLocale = (a, b) => a.locale.localeCompare(b.locale);
+	shipped.sort(byLocale);
+	skipped.sort(byLocale);
 
 	const staging = fs.mkdtempSync(path.join(os.tmpdir(), 'toolkit-languages-'));
 	try {
 		for (const { locale } of shipped) {
-			if (!SLUG_PATTERN.test(locale)) throw new Error(`Refusing the locale slug ${JSON.stringify(locale)}: it is not a locale.`);
 			// One at a time: a burst of requests is what translate.wordpress.org throttles.
 			const catalog = await get(`${BASE_URL}/projects/meta/${project}/${locale}/default/export-translations/?format=jed1x`);
 			if (!catalog?.locale_data?.messages) throw new Error(`The ${locale} export has no locale_data.messages.`);
@@ -79,11 +118,19 @@ async function downloadTranslations({
 		}
 
 		fs.mkdirSync(dir, { recursive: true });
-		const keep = new Set(shipped.map(({ locale }) => `${locale}.json`));
-		const removed = fs.readdirSync(dir).filter((name) => name.endsWith('.json') && !keep.has(name));
+		const keep = shipped.map(({ locale }) => `${locale}.json`);
+		// Copied in beside their final names first, so a copy that fails (a full
+		// disk) leaves every old catalog in place; only the renames replace them.
+		try {
+			for (const name of keep) fs.copyFileSync(path.join(staging, name), path.join(dir, `${name}.download`));
+		} catch (e) {
+			for (const name of keep) fs.rmSync(path.join(dir, `${name}.download`), { force: true });
+			throw e;
+		}
+		for (const name of keep) fs.renameSync(path.join(dir, `${name}.download`), path.join(dir, name));
+		const removed = fs.readdirSync(dir).filter((name) => name.endsWith('.json') && !keep.includes(name));
 		for (const name of removed) fs.rmSync(path.join(dir, name));
-		for (const name of keep) fs.copyFileSync(path.join(staging, name), path.join(dir, name));
-		return { shipped, removed: removed.map((name) => name.replace(/\.json$/, '')) };
+		return { shipped, skipped, removed: removed.map((name) => name.replace(/\.json$/, '')) };
 	} finally {
 		fs.rmSync(staging, { recursive: true, force: true });
 	}
@@ -92,13 +139,15 @@ async function downloadTranslations({
 /**
  * The Markdown table for the release pull request.
  *
- * @param {{shipped: Object[], removed: string[]}} result What downloadTranslations returned.
+ * @param {{shipped: Object[], skipped?: Object[], removed: string[]}} result What downloadTranslations returned.
  * @return {string}
  */
-function formatTable({ shipped, removed }) {
+function formatTable({ shipped, skipped = [], removed }) {
 	const rows = shipped.map(({ locale, percent, strings }) => `| ${locale} | ${percent}% | ${strings} |`);
-	const table = ['| Locale | Translated | Strings |', '| --- | --- | --- |', ...rows].join('\n');
-	return removed.length ? `${table}\n\nRemoved, below ${MIN_COVERAGE}%: ${removed.join(', ')}` : table;
+	const parts = [['| Locale | Translated | Strings |', '| --- | --- | --- |', ...rows].join('\n')];
+	if (skipped.length) parts.push(`Not shipped:\n${skipped.map(({ locale, percent, reason }) => `- ${locale} (${percent}%): ${reason}`).join('\n')}`);
+	if (removed.length) parts.push(`Removed: ${removed.join(', ')}`);
+	return parts.join('\n\n');
 }
 
 module.exports = { downloadTranslations, formatTable, MIN_COVERAGE };
@@ -108,7 +157,7 @@ if (require.main === module) {
 	const project = projectArg ? projectArg.slice('--project='.length) : DEFAULT_PROJECT;
 	downloadTranslations({ project }).then(
 		(result) => {
-			console.log(result.shipped.length || result.removed.length ? formatTable(result) : `No locale of meta/${project} is at ${MIN_COVERAGE}% yet.`);
+			console.log(result.shipped.length || result.skipped.length || result.removed.length ? formatTable(result) : `No locale of meta/${project} is at ${MIN_COVERAGE}% yet.`);
 		},
 		(e) => {
 			console.error(e.message);
