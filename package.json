@@ -73,7 +73,20 @@
       "!node_modules/dugite/git/{mingw64,clangarm64}/share/doc{,/**/*}",
       "!node_modules/fs-ext-extra-prebuilt/build/*.vcxproj*",
       "!node_modules/fs-ext-extra-prebuilt/build/Release/fs_ext.{exp,iobj,ipdb,lib}",
-      "!node_modules/fs-ext-extra-prebuilt/build/Release/obj{,/**/*}"
+      "!node_modules/fs-ext-extra-prebuilt/build/Release/obj{,/**/*}",
+      "!node_modules/esbuild{,/**/*}",
+      "!node_modules/@esbuild{,/**/*}",
+      "!node_modules/@base-ui{,/**/*}",
+      "!node_modules/@date-fns{,/**/*}",
+      "!node_modules/@daypicker{,/**/*}",
+      "!node_modules/react-day-picker{,/**/*}",
+      "!node_modules/reselect{,/**/*}",
+      "!node_modules/tabbable{,/**/*}",
+      "!node_modules/colorjs.io{,/**/*}",
+      "!node_modules/@wordpress/base-styles{,/**/*}",
+      "!node_modules/@wordpress/kebab-case{,/**/*}",
+      "!node_modules/@wordpress/style-runtime{,/**/*}",
+      "!node_modules/@wordpress/ui{,/**/*}"
     ],
     "asarUnpack": [
       "node_modules/dugite/git/**"
