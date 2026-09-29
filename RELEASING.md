@@ -28,11 +28,11 @@ Buildkite builds signed Windows, macOS and Linux artifacts for the pull request'
 - The app's `app.asar` root holds exactly `node_modules`, `package.json` and `src`, with npm 11 under `node_modules/npm` and no `.codesigning` directory.
 - On macOS, `CFBundleShortVersionString` in the app's `Info.plist` reads `X.Y.Z`.
 
-Download those three files. They are what the release ships.
-
 ## 3. Merge
 
-Update the branch with trunk first if it has fallen behind, and check the artifacts again on the new head. Then squash-merge. The merged commit has the same content as the build you checked, and it is the one you tag.
+Update the branch with trunk first if it has fallen behind, and check the artifacts again on the new head. Download the three files from the build you checked last. They are what the release ships.
+
+Then squash-merge. The merged commit has the same content as that build, and it is the one you tag.
 
 ## 4. Publish the GitHub release
 
@@ -51,7 +51,7 @@ gh release create vX.Y.Z \
 - **A beta** adds `--prerelease`, so `releases/latest` stays on the last stable release.
 - **A stable release** takes `releases/latest`.
 
-The notes open with what changed for a contributor, grouped by theme, with the pull request number on each line. The [v1.2.0 notes](https://github.com/WordPress/contributor-toolkit/releases/tag/v1.2.0) are a good model.
+The notes open with what changed for a contributor, grouped by theme, with the pull request number on each line, and end with a **Downloads** section naming the file for each platform. The [v1.2.0 notes](https://github.com/WordPress/contributor-toolkit/releases/tag/v1.2.0) are a good model.
 
 ## 5. Deploy the docs
 
@@ -65,4 +65,4 @@ The dispatch has to be on trunk; the `ref` input is the tag. See [the documentat
 
 ## 6. Close the milestone
 
-Close the `vX.Y.Z` milestone, and move anything still open in it to the next one.
+If the release has a milestone, close it and move anything still open in it to the next one. A beta often has none: leave the stable release's milestone open until the stable release ships.
