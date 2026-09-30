@@ -79,7 +79,7 @@ The app is being made translatable with [`@wordpress/i18n`](https://developer.wo
 
 To see what is wrapped, run the app in the pseudo-locale from the repository root: `npx electron . --lang=en-XA` (either platform). Every wrapped string shows accented and in brackets; plain English is a string nobody wrapped yet. `tests/e2e/journeys/i18n.spec.js` makes the same check on each finished screen, so when you finish wrapping a screen, add it there.
 
-`npm run i18n:pot` writes `languages/contributor-toolkit.pot`, the template a translator starts from. Catalogs go in `src/languages/` (see its README).
+`npm run i18n:pot` writes `contributor-toolkit.pot` at the repository root, the template a translator starts from. Catalogs go in `src/languages/` (see its README).
 
 ## The documentation site
 

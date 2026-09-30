@@ -37,4 +37,4 @@ vendor/npm
 
 # The translation template. Generated from src/ by `npm run i18n:pot`, so it cannot drift from
 # the strings it lists.
-/languages/
+*.pot

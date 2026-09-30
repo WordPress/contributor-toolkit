@@ -1,8 +1,8 @@
 // Extracts every translatable string in src/ into a gettext template (.pot).
 //
-// `npm run i18n:pot` writes languages/contributor-toolkit.pot, the file a
-// translator (or translate.wordpress.org) starts from. It is generated, never
-// committed, so it cannot drift from the source.
+// `npm run i18n:pot` writes contributor-toolkit.pot at the repository root, the
+// file a translator (or translate.wordpress.org) starts from. It is generated,
+// never committed, so it cannot drift from the source.
 //
 // The extraction is @wordpress/babel-plugin-makepot, the one WordPress itself
 // uses. That plugin skips a translation call whose string is not a literal
@@ -15,7 +15,7 @@ const babel = require('@babel/core');
 const makepot = require('@wordpress/babel-plugin-makepot');
 
 const REPO_ROOT = path.join(__dirname, '..');
-const DEFAULT_OUTPUT = path.join(REPO_ROOT, 'languages', 'contributor-toolkit.pot');
+const DEFAULT_OUTPUT = path.join(REPO_ROOT, 'contributor-toolkit.pot');
 const PROJECT = 'WordPress Contributor Toolkit';
 const { bugs, license } = require('../package.json');
 
