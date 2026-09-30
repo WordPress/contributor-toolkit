@@ -1492,9 +1492,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // over: the xterm instance is created by an effect that depends on
   // `printHelp`, so a new array identity here would otherwise dispose and
   // recreate the terminal, scrollback and all, the first time a status
-  // reports a type. Same indirection as terminalInputHandlerRef.
+  // reports a type. Same indirection as terminalInputHandlerRef, and updated
+  // the same way: from an effect, once the render that changed it is on screen.
   const allowedScriptsRef = useRef(projectBuild.allowedScripts);
-  allowedScriptsRef.current = projectBuild.allowedScripts;
+  useLayoutEffect(() => {
+    allowedScriptsRef.current = projectBuild.allowedScripts;
+  }, [projectBuild.allowedScripts]);
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);

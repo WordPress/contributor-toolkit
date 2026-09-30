@@ -20,9 +20,15 @@ const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
 const { makeSite, read, exists, branches, currentBranch, LOGIN, SUBSTRATE, SUBSTRATE_CONTENT } = require( '../helpers/git-site.cjs' );
 const { git, gitOk, commitFiles } = require( '../../unit/helpers/git.cjs' );
+const { mergeInProgressError } = require( '../../../src/renderer/merge-in-progress.cjs' );
 
 const TICKET = '60001';
 const BANNER = 'A merge started outside the app is in progress.';
+// What the app says about this merge, whole, as the module that words it
+// gives it (#352). The card and the refusal from the main process are both
+// held to it below, which is what keeps either from growing a wording of its
+// own: the literals above and beside it only pin the parts worth reading here.
+const SENTENCE = mergeInProgressError( { kind: 'merge', paths: [ LOGIN ] } );
 const MENTOR_LOGIN = '<?php // the mentor\'s fix\n';
 
 /**
@@ -59,6 +65,8 @@ test( 'a merge left half done by a terminal is named on the card, refuses the ti
 	await expect( banner ).toBeVisible( { timeout: 30_000 } );
 	await expect( banner ).toContainText( 'conflicts in src/wp-login.php' );
 	await expect( banner ).toContainText( 'git merge --abort' );
+	// INVARIANT — and it is the module's sentence, nothing added or reworded.
+	await expect( banner ).toHaveText( SENTENCE );
 
 	// INVARIANT — linking a ticket is refused with the same sentence, and the
 	// merge is left exactly as the terminal left it: no branch, MERGE_HEAD
@@ -66,8 +74,10 @@ test( 'a merge left half done by a terminal is named on the card, refuses the ti
 	await page.getByLabel( 'Trac ticket number or URL' ).first().fill( TICKET );
 	await page.getByRole( 'button', { name: 'Link ticket', exact: true } ).first().click();
 	// The refusal under the field is a second alert with the same sentence,
-	// beside the banner: two on screen, where one is the banner alone.
-	await expect( page.getByRole( 'alert' ).filter( { hasText: 'Finish it from a terminal' } ) ).toHaveCount( 2, { timeout: 30_000 } );
+	// beside the banner: two on screen, where one is the banner alone. The
+	// whole sentence, so a refusal worded anywhere but in the module is one
+	// alert here and not two.
+	await expect( page.getByRole( 'alert' ).filter( { hasText: SENTENCE } ) ).toHaveCount( 2, { timeout: 30_000 } );
 	expect( branches( site.dir ) ).not.toContain( `ticket/${ TICKET }` );
 	expect( mergeHead( site.dir ) ).toBe( true );
 	expect( read( site.dir, LOGIN ) ).toBe( markersBefore );
