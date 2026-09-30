@@ -18,6 +18,7 @@
  */
 
 const { test, expect } = require( '../helpers/app.cjs' );
+const ui = require( '../helpers/ui.cjs' );
 const { makeSite, advanceOrigin, read, write, currentBranch, SUBSTRATE, SUBSTRATE_CONTENT, LOGIN, DOOMED } = require( '../helpers/git-site.cjs' );
 
 const TICKET = '60001';
@@ -35,20 +36,18 @@ const BUTTON = 'Update this ticket to the current trunk';
  */
 async function makeTicketBehindTrunk( session, site, originChange ) {
 	const { page } = session;
-	await page.getByLabel( 'Trac ticket number or URL' ).first().fill( TICKET );
-	await page.getByRole( 'button', { name: 'Link ticket', exact: true } ).first().click();
-	await expect( page.getByText( `#${ TICKET }`, { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
+	await ui.linkTicket( page, TICKET );
 	write( site.dir, LOGIN, MY_LOGIN );
 	// Park the edit on the ticket (unlink, then continue) so the update meets
 	// a clean tree: the edit is the ticket's work, not something to save or
 	// discard at the update's dirty-tree question.
-	await page.getByRole( 'button', { name: 'Unlink', exact: true } ).click();
-	await page.getByRole( 'button', { name: `Continue working on #${ TICKET }`, exact: true } ).click( { timeout: 30_000 } );
-	await expect( page.getByText( `#${ TICKET }`, { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
+	await ui.unlinkButton( page ).click();
+	await ui.continueWorkingButton( page, TICKET ).click( { timeout: 30_000 } );
+	await expect( ui.workItemNumber( page, TICKET ).first() ).toBeVisible( { timeout: 30_000 } );
 	const newTip = advanceOrigin( site.origin, originChange );
 
-	await page.getByRole( 'button', { name: 'More', exact: true } ).click();
-	await page.getByRole( 'menuitem', { name: 'Update to latest trunk', exact: true } ).click();
+	await ui.siteMenuButton( page ).click();
+	await ui.updateTrunkMenuItem( page ).click();
 	await expect( page.getByText( 'Updated to the latest trunk' ).first() ).toBeVisible( { timeout: 120_000 } );
 	await expect( page.getByText( NOTICE ) ).toBeVisible( { timeout: 30_000 } );
 	return newTip;

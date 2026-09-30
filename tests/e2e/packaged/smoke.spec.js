@@ -16,6 +16,7 @@ const fs = require( 'node:fs' );
 const path = require( 'node:path' );
 const { execFileSync } = require( 'node:child_process' );
 const { test, expect, _electron: electron } = require( '@playwright/test' );
+const ui = require( '../helpers/ui.cjs' );
 
 const REPO_ROOT = path.join( __dirname, '..', '..', '..' );
 const DIST = path.join( REPO_ROOT, 'dist' );
@@ -204,7 +205,7 @@ test( 'the packaged app boots and paints its first window', async () => {
 	// #root is in the static HTML, so its presence proves nothing, and neither does
 	// its one child: that is the design system's provider, which is there whatever
 	// the app inside it rendered. What the app rendered is one level further down.
-	await expect( firstWindow.locator( '#root > * > *' ) ).not.toHaveCount( 0 );
+	await expect( ui.renderedApp( firstWindow ) ).not.toHaveCount( 0 );
 	// `exact` matters: "Contributor Toolkit" is also a substring of button labels and
 	// step descriptions further down the page.
 	await expect( firstWindow.getByText( 'Contributor Toolkit', { exact: true } ) ).toBeVisible();

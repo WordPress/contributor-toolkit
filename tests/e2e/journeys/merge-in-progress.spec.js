@@ -18,6 +18,7 @@
 const fs = require( 'node:fs' );
 const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
+const ui = require( '../helpers/ui.cjs' );
 const { makeSite, read, exists, branches, currentBranch, LOGIN, SUBSTRATE, SUBSTRATE_CONTENT } = require( '../helpers/git-site.cjs' );
 const { git, gitOk, commitFiles } = require( '../../unit/helpers/git.cjs' );
 const { mergeInProgressError } = require( '../../../src/renderer/merge-in-progress.cjs' );
@@ -75,8 +76,8 @@ test( 'a merge left half done by a terminal is named on the card, refuses the ti
 	// INVARIANT — linking a ticket is refused with the same sentence, and the
 	// merge is left exactly as the terminal left it: no branch, MERGE_HEAD
 	// still there, the markers still in the file.
-	await page.getByLabel( 'Trac ticket number or URL' ).first().fill( TICKET );
-	await page.getByRole( 'button', { name: 'Link ticket', exact: true } ).first().click();
+	await ui.ticketField( page ).first().fill( TICKET );
+	await ui.linkTicketButton( page ).first().click();
 	// The refusal under the field is a second alert with the same sentence,
 	// beside the banner: two on screen, where one is the banner alone. The
 	// whole sentence, so a refusal worded anywhere but in the module is one
@@ -100,9 +101,7 @@ test( 'a merge left half done by a terminal is named on the card, refuses the ti
 
 	// INVARIANT — with the merge gone, the same link goes through and the
 	// banner goes with it.
-	await reopened.getByLabel( 'Trac ticket number or URL' ).first().fill( TICKET );
-	await reopened.getByRole( 'button', { name: 'Link ticket', exact: true } ).first().click();
-	await expect( reopened.getByText( `#${ TICKET }`, { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
+	await ui.linkTicket( reopened, TICKET );
 	await expect( reopened.getByRole( 'alert' ).filter( { hasText: BANNER } ) ).toHaveCount( 0 );
 	expect( branches( site.dir ) ).toContain( `ticket/${ TICKET }` );
 	// INVARIANT — the substrate was never touched.
@@ -119,12 +118,10 @@ test( 'a merge finished by a terminal before the app opens is not a merge in pro
 	expect( mergeHead( site.dir ) ).toBe( false );
 
 	const { page } = await session.start( site.settings );
-	await expect( page.getByLabel( 'Trac ticket number or URL' ).first() ).toBeVisible( { timeout: 30_000 } );
+	await expect( ui.ticketField( page ).first() ).toBeVisible( { timeout: 30_000 } );
 	// INVARIANT — no banner, and the ticket links.
 	await expect( page.getByRole( 'alert' ).filter( { hasText: BANNER } ) ).toHaveCount( 0 );
-	await page.getByLabel( 'Trac ticket number or URL' ).first().fill( TICKET );
-	await page.getByRole( 'button', { name: 'Link ticket', exact: true } ).first().click();
-	await expect( page.getByText( `#${ TICKET }`, { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
+	await ui.linkTicket( page, TICKET );
 	// CHARACTERISATION — the hand-made merge commit is the branch point the app
 	// recorded, so the mentor's work is part of the site, not of the ticket.
 	expect( read( site.dir, LOGIN ) ).toBe( MENTOR_LOGIN );
