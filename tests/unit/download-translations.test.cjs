@@ -134,6 +134,17 @@ test('an export without locale_data is refused rather than shipped', async (t) =
 	assert.deepEqual(fs.readdirSync(dir), []);
 });
 
+test('an export whose messages the app cannot read leaves the existing catalog alone', async (t) => {
+	const dir = tempDir(t);
+	fs.writeFileSync(path.join(dir, 'de.json'), 'the old catalog');
+	const { fetch } = fakeFetch({
+		[API]: { translation_sets: [{ locale: 'de', slug: 'default', percent_translated: 100, current_count: 1 }] },
+		[exportUrl('de')]: { locale_data: { messages: [] } }
+	});
+	await assert.rejects(downloadTranslations({ dir, fetch }), /de export has no locale_data/);
+	assert.equal(fs.readFileSync(path.join(dir, 'de.json'), 'utf8'), 'the old catalog');
+});
+
 test('a locale slug that could name a path is refused', async (t) => {
 	const dir = tempDir(t);
 	const { fetch } = fakeFetch({ [API]: { translation_sets: [{ locale: '../evil', slug: 'default', percent_translated: 100, current_count: 1 }] } });

@@ -116,7 +116,9 @@ async function downloadTranslations({
 		for (const { locale } of shipped) {
 			// One at a time: a burst of requests is what translate.wordpress.org throttles.
 			const catalog = await get(`${BASE_URL}/projects/meta/${project}/${locale}/default/export-translations/?format=jed1x`);
-			if (!catalog?.locale_data?.messages) throw new Error(`The ${locale} export has no locale_data.messages.`);
+			// The same test resolveCatalog in src/i18n.cjs applies, so nothing ships that the app would skip.
+			const messages = catalog?.locale_data?.messages;
+			if (!messages || typeof messages !== 'object' || Array.isArray(messages)) throw new Error(`The ${locale} export has no locale_data.messages.`);
 			fs.writeFileSync(path.join(staging, `${locale}.json`), `${JSON.stringify(catalog, null, '\t')}\n`);
 		}
 
