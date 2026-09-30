@@ -74,6 +74,7 @@ import { Destination, DestinationGroup } from './components/destination.jsx';
 import { TerminalCommandLink } from './components/terminal-command-link.jsx';
 import { RenameSiteModal } from './components/rename-site-modal.jsx';
 import { EmailModal } from './components/email-modal.jsx';
+import { DirtyTreeModal } from './components/dirty-tree-modal.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
@@ -1279,7 +1280,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
   const [dirtySaving, setDirtySaving] = useState(false);
   const [dirtyFiles, setDirtyFiles] = useState([]);
-  const [dirtyChoice, setDirtyChoice] = useState('save'); // save | discard
   const [dirtyError, setDirtyError] = useState(null); // failure text shown inside the dirty-tree modal
   const [updateLockfileChanged, setUpdateLockfileChanged] = useState(false);
   const [lastUpdateSummary, setLastUpdateSummary] = useState(null);
@@ -3659,7 +3659,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       const res = await window.api.isWorktreeDirty(sitePath);
       if (res && res.ok && res.dirty) {
         setDirtyFiles(Array.isArray(res.files) ? res.files : []);
-        setDirtyChoice('save');
         setDirtyError(null);
         setDirtyModalOpen(true);
         return;
@@ -5595,68 +5594,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         </div>
       </div>
       {dirtyModalOpen ? (
-        <Modal
-          title="Update to latest trunk?"
-          onRequestClose={() => { if (!dirtySaving) setDirtyModalOpen(false); }}
-          shouldCloseOnClickOutside={!dirtySaving}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 520 }}>
-            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-              You&apos;ve changed {dirtyFiles.length === 1 ? '1 file' : `${dirtyFiles.length} files`} in this site. Resetting to trunk would throw them away.
-            </p>
-            {dirtyFiles.length ? (
-              <div style={{ border: '1px solid #dcdcde', borderRadius: 6, padding: '10px 12px', maxHeight: 140, overflowY: 'auto' }}>
-                {dirtyFiles.map((f) => (
-                  <div key={f} style={{ fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere' }}>{f}</div>
-                ))}
-              </div>
-            ) : null}
-            {[
-              { key: 'save', label: 'Save them as a patch first (as a local file)', detail: 'a .diff on your machine — nothing is sent to Trac' },
-              { key: 'discard', label: 'Discard them', detail: 'your changes are lost; this cannot be undone', destructive: true }
-            ].map((opt) => {
-              const selected = dirtyChoice === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => setDirtyChoice(opt.key)}
-                  disabled={dirtySaving}
-                  aria-pressed={selected}
-                  style={{
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    font: 'inherit',
-                    fontSize: 13,
-                    padding: '10px 12px',
-                    borderRadius: 6,
-                    border: selected ? '2px solid #3858e9' : '1px solid #dcdcde',
-                    background: selected ? '#f0f3ff' : '#fff',
-                    color: opt.destructive ? '#b32d2e' : '#1d2327'
-                  }}
-                >
-                  <span style={{ fontWeight: 600 }}>{opt.label}</span>
-                  <span style={{ color: opt.destructive ? '#b32d2e' : '#6c6f72' }}> — {opt.detail}</span>
-                </button>
-              );
-            })}
-            {dirtyError ? (
-              <div role="alert" style={{ padding: '10px 12px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 13, lineHeight: 1.5, color: '#8a2424', overflowWrap: 'anywhere' }}>
-                {dirtyError}
-              </div>
-            ) : null}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-              <Button variant="secondary" onClick={() => setDirtyModalOpen(false)} disabled={dirtySaving}>Cancel</Button>
-              <Button
-                variant="primary"
-                isDestructive={dirtyChoice === 'discard'}
-                isBusy={dirtySaving}
-                disabled={dirtySaving}
-                onClick={() => (dirtyChoice === 'discard' ? dirtyDiscardAndUpdate() : dirtySaveAndUpdate())}
-              >{dirtyChoice === 'discard' ? 'Discard & update' : 'Save patch & update'}</Button>
-            </div>
-          </div>
-        </Modal>
+        <DirtyTreeModal
+          files={dirtyFiles}
+          saving={dirtySaving}
+          error={dirtyError}
+          onSave={dirtySaveAndUpdate}
+          onDiscard={dirtyDiscardAndUpdate}
+          onClose={() => setDirtyModalOpen(false)}
+        />
       ) : null}
       {renameModalOpen ? (
         <RenameSiteModal sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
