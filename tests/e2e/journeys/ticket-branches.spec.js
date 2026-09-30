@@ -38,6 +38,7 @@ const {
 	LOGIN,
 	DOOMED,
 } = require( '../helpers/git-site.cjs' );
+const { ticketListCard } = require( '../../../src/renderer/ticket-branch-list.cjs' );
 
 const MY_EDIT = '<?php // my fix for 60001\n';
 
@@ -167,26 +168,37 @@ test( 'unlinking parks a ticket, and the next one starts from trunk', async ( { 
 	// is the order a contributor reads in: which ticket am I on, what can I
 	// apply to it, and only then what else this site is holding. Listed twice,
 	// or back inside the ticket's own card, is the layout #240 left.
-	const otherTickets = page.getByText( 'Other tickets on this site', { exact: true } );
+	//
+	// The heading is asked of the module that words it rather than written out
+	// here. A heading restated in the component would match a literal for as
+	// long as the two happened to agree, and keep matching it after the module
+	// moved on; held to the module, the copy goes red the day they part.
+	const otherTickets = page.getByText( ticketListCard( { rowCount: 1, linked: true } ).heading, { exact: true } );
+	const switchBack = page.getByRole( 'button', { name: 'switch', exact: true } );
 	await expect( otherTickets ).toHaveCount( 1 );
-	await expect( page.getByRole( 'button', { name: 'switch', exact: true } ) ).toHaveCount( 1 );
+	await expect( switchBack ).toHaveCount( 1 );
+	// The row after its heading, so the card is the list and not a heading
+	// left behind by rows that went back into the ticket's card.
 	expect( await inDocumentOrder( page, [
 		page.getByText( 'Working on ticket #60002', { exact: true } ),
 		page.getByText( 'Apply a patch or PR', { exact: true } ),
 		otherTickets,
+		switchBack,
 	] ) ).toBe( true );
 
 	// INVARIANT — with nothing linked the same card holds every ticket, under
 	// the heading for that state, and is still the last of the three.
 	await page.getByRole( 'button', { name: 'Unlink', exact: true } ).click();
-	const yourTickets = page.getByText( 'Your tickets on this site', { exact: true } );
+	const yourTickets = page.getByText( ticketListCard( { rowCount: 2, linked: false } ).heading, { exact: true } );
+	const continueWorking = page.getByRole( 'button', { name: /^Continue working on #6000[12]$/ } );
 	await expect( yourTickets ).toHaveCount( 1 );
 	await expect( otherTickets ).toHaveCount( 0 );
-	await expect( page.getByRole( 'button', { name: /^Continue working on #6000[12]$/ } ) ).toHaveCount( 2 );
+	await expect( continueWorking ).toHaveCount( 2 );
 	expect( await inDocumentOrder( page, [
 		page.getByLabel( 'Trac ticket number or URL' ),
 		page.getByText( 'Apply a patch or PR', { exact: true } ),
 		yourTickets,
+		continueWorking.first(),
 	] ) ).toBe( true );
 } );
 
