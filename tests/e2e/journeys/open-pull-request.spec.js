@@ -13,6 +13,7 @@
  */
 
 const { test, expect } = require( '../helpers/app.cjs' );
+const ui = require( '../helpers/ui.cjs' );
 const { makeSite, write, LOGIN } = require( '../helpers/git-site.cjs' );
 
 const TICKET = '60001';
@@ -48,13 +49,13 @@ test( 'a Gutenberg site opens its pull request against WordPress/gutenberg, word
 	const { app, page } = await session.start( site.settings );
 	await expect( page.getByText( 'Gutenberg', { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
 
-	await page.getByLabel( 'GitHub issue number or URL' ).fill( ISSUE );
-	await page.getByRole( 'button', { name: 'Link issue', exact: true } ).click();
+	await ui.issueField( page ).fill( ISSUE );
+	await ui.linkIssueButton( page ).click();
 	await expect( page.getByText( `Working on issue #${ ISSUE }`, { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	write( site.dir, LOGIN, '<?php // my change\n' );
 
 	await stubGithub( app, { url: `https://github.com/WordPress/gutenberg/pull/9`, number: 9, branch: `fix/issue-${ ISSUE }` } );
-	await page.getByRole( 'button', { name: 'Review & submit changes', exact: true } ).click();
+	await ui.reviewChangesButton( page ).click();
 
 	// INVARIANT — signed in, the form is worded for this project: the fork
 	// goes to the gutenberg repository, an untitled pull request is an issue,
@@ -93,13 +94,11 @@ test( 'a Core site opens its pull request against wordpress-develop, worded for 
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
 
-	await page.getByLabel( 'Trac ticket number or URL' ).first().fill( TICKET );
-	await page.getByRole( 'button', { name: 'Link ticket', exact: true } ).first().click();
-	await expect( page.getByText( `#${ TICKET }`, { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
+	await ui.linkTicket( page, TICKET );
 	write( site.dir, LOGIN, '<?php // my change\n' );
 
 	await stubGithub( app, { url: `https://github.com/WordPress/wordpress-develop/pull/9`, number: 9, branch: `trac-${ TICKET }` } );
-	await page.getByRole( 'button', { name: 'Review & submit changes', exact: true } ).click();
+	await ui.reviewChangesButton( page ).click();
 
 	await expect( page.getByText( /Signed in as janedoe/ ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.getByRole( 'button', { name: 'janedoe/wordpress-develop', exact: true } ) ).toBeVisible();

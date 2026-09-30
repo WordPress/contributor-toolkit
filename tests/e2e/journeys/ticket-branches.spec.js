@@ -25,6 +25,7 @@
 const fs = require( 'node:fs' );
 const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
+const ui = require( '../helpers/ui.cjs' );
 const {
 	makeSite,
 	read,
@@ -38,6 +39,7 @@ const {
 	LOGIN,
 	DOOMED,
 } = require( '../helpers/git-site.cjs' );
+const { ticketListCard } = require( '../../../src/renderer/ticket-branch-list.cjs' );
 
 const MY_EDIT = '<?php // my fix for 60001\n';
 
@@ -46,27 +48,6 @@ const MY_EDIT = '<?php // my fix for 60001\n';
  * @param {string} file
  */
 const remove = ( dir, file ) => fs.unlinkSync( path.join( dir, file ) );
-
-/**
- * The panel row for one ticket, in the list of a site's tickets.
- *
- * Addressed by the ticket it offers to continue rather than by position. Every
- * row carries an identically labelled delete control, and the list is ordered by
- * how recently each ticket was used — so `.first()` picks whichever ticket the
- * app most recently touched, which is a different one depending on how far the
- * render has got. That is a test that deletes the wrong branch and then fails
- * somewhere else entirely.
- *
- * @param {Object} page
- * @param {string} ticket
- * @return {Object} The row locator.
- */
-const ticketRow = ( page, ticket ) =>
-	page
-		.locator( 'div' )
-		.filter( { has: page.getByRole( 'button', { name: `Continue working on #${ ticket }`, exact: true } ) } )
-		.filter( { has: page.getByRole( 'button', { name: "Delete this ticket's work", exact: true } ) } )
-		.last();
 
 /**
  * Links a ticket through the panel, the way a contributor does.
@@ -82,17 +63,12 @@ const ticketRow = ( page, ticket ) =>
  * @param {string} ticket
  */
 async function linkTicket( page, ticket ) {
-	const unlink = page.getByRole( 'button', { name: 'Unlink', exact: true } );
+	const unlink = ui.unlinkButton( page );
 	if ( await unlink.isVisible().catch( () => false ) ) {
 		await unlink.click();
-		await expect( page.getByLabel( 'Trac ticket number or URL' ).first() ).toBeVisible();
+		await expect( ui.ticketField( page ).first() ).toBeVisible();
 	}
-	await page.getByLabel( 'Trac ticket number or URL' ).first().fill( ticket );
-	await page.getByRole( 'button', { name: 'Link ticket', exact: true } ).first().click();
-	// The ticket number rendered as the panel's subject is the app saying it
-	// finished. Waiting on it rather than on a timeout is what keeps this honest
-	// on a Windows runner, where the checkout takes noticeably longer.
-	await expect( page.getByText( `#${ ticket }`, { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
+	await ui.linkTicket( page, ticket );
 }
 
 test( 'linking a ticket creates its branch and leaves trunk alone', async ( { session } ) => {
@@ -141,6 +117,44 @@ test( 'unlinking parks a ticket, and the next one starts from trunk', async ( { 
 	// INVARIANT — both tickets are offered in the panel, so the parked one is
 	// reachable rather than merely present in the repository.
 	await expect( page.getByText( '#60001', { exact: false } ).first() ).toBeVisible();
+
+	// INVARIANT — the parked ticket is listed once, in a card of its own, below
+	// the ticket in hand and the work that can be brought into it (#240). That
+	// is the order a contributor reads in: which ticket am I on, what can I
+	// apply to it, and only then what else this site is holding. Listed twice,
+	// or back inside the ticket's own card, is the layout #240 left.
+	//
+	// The heading is asked of the module that words it rather than written out
+	// here. A heading restated in the component would match a literal for as
+	// long as the two happened to agree, and keep matching it after the module
+	// moved on; held to the module, the copy goes red the day they part.
+	const otherTickets = page.getByText( ticketListCard( { rowCount: 1, linked: true } ).heading, { exact: true } );
+	const switchBack = ui.switchBackButton( page );
+	await expect( otherTickets ).toHaveCount( 1 );
+	await expect( switchBack ).toHaveCount( 1 );
+	// The row after its heading, so the card is the list and not a heading
+	// left behind by rows that went back into the ticket's card.
+	expect( await ui.inDocumentOrder( page, [
+		page.getByText( 'Working on ticket #60002', { exact: true } ),
+		page.getByText( 'Apply a patch or PR', { exact: true } ),
+		otherTickets,
+		switchBack,
+	] ) ).toBe( true );
+
+	// INVARIANT — with nothing linked the same card holds every ticket, under
+	// the heading for that state, and is still the last of the three.
+	await ui.unlinkButton( page ).click();
+	const yourTickets = page.getByText( ticketListCard( { rowCount: 2, linked: false } ).heading, { exact: true } );
+	const continueWorking = ui.continueWorkingButton( page );
+	await expect( yourTickets ).toHaveCount( 1 );
+	await expect( otherTickets ).toHaveCount( 0 );
+	await expect( continueWorking ).toHaveCount( 2 );
+	expect( await ui.inDocumentOrder( page, [
+		ui.ticketField( page ),
+		page.getByText( 'Apply a patch or PR', { exact: true } ),
+		yourTickets,
+		continueWorking.first(),
+	] ) ).toBe( true );
 } );
 
 test( 'switching back to a ticket restores its work byte for byte', async ( { session } ) => {
@@ -157,7 +171,7 @@ test( 'switching back to a ticket restores its work byte for byte', async ( { se
 	expect( exists( site.dir, DOOMED ) ).toBe( true );
 
 	// Back to the first ticket, through the row the panel offers for it.
-	await page.getByRole( 'button', { name: 'switch', exact: true } ).click();
+	await ui.switchBackButton( page ).click();
 	await expect
 		.poll( () => currentBranch( site.dir ), { timeout: 20_000 } )
 		.toBe( 'ticket/60001' );
@@ -181,9 +195,9 @@ test( "deleting a ticket's work removes only that ticket", async ( { session } )
 	// currently linked — its card is the panel above — so the delete control for
 	// a ticket only exists once you are not on it. A contributor deleting the
 	// ticket they are working on takes this same route.
-	await page.getByRole( 'button', { name: 'Unlink', exact: true } ).click();
+	await ui.unlinkButton( page ).click();
 
-	const row = ticketRow( page, '60002' );
+	const row = ui.ticketRow( page, '60002' );
 	await expect( row ).toBeVisible();
 	await row.getByRole( 'button', { name: "Delete this ticket's work", exact: true } ).click();
 
@@ -201,10 +215,10 @@ test( "deleting a ticket's work removes only that ticket", async ( { session } )
 	// the repository. A row still offering to continue work that no longer
 	// exists is a dead end.
 	await expect(
-		page.getByRole( 'button', { name: 'Continue working on #60002', exact: true } )
+		ui.continueWorkingButton( page, '60002' )
 	).toHaveCount( 0 );
 	await expect(
-		page.getByRole( 'button', { name: 'Continue working on #60001', exact: true } )
+		ui.continueWorkingButton( page, '60001' )
 	).toBeVisible();
 
 	// INVARIANT — it asked first. A destructive action that skips the

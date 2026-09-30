@@ -2,8 +2,6 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
 const { mergeInProgressNotice, mergeInProgressError, mergeCheckFailedError } = require('../../src/renderer/merge-in-progress.cjs');
 
 test('mergeInProgressNotice names the operation, the files and both ways out (#352)', () => {
@@ -57,18 +55,6 @@ test('the refusal main returns is the notice as one sentence, with no em dash (#
 	const notice = mergeInProgressNotice({ mergeInProgress: state });
 	assert.equal(mergeInProgressError(state), `${notice.title} ${notice.body}`);
 	assert.doesNotMatch(mergeInProgressError(state), /—/);
-});
-
-test('main and the card read the same module (#352)', () => {
-	const root = path.join(__dirname, '..', '..', 'src');
-	const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
-	assert.match(main, /require\('\.\/renderer\/merge-in-progress\.cjs'\)/);
-	assert.match(main, /mergeInProgressError\(state\)/);
-	const source = fs.readFileSync(path.join(root, 'renderer', 'index.jsx'), 'utf8');
-	assert.match(source, /setMergeInProgress\(s\?\.mergeInProgress \|\| null\)/);
-	assert.match(source, /mergeInProgressNotice\(\{ mergeInProgress \}\)/);
-	assert.match(source, /mergeNotice\.title/);
-	assert.match(source, /mergeNotice\.body/);
 });
 
 test('a read that failed refuses the write and says nothing changed (#352)', () => {

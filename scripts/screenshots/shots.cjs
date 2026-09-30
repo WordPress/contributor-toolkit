@@ -29,29 +29,22 @@
 // The price is that these four need a maintainer and a real site; the fixture
 // tier still covers everything else.
 
+// Where the app's controls and cards are is written down once, for the journeys
+// and for these shots alike.
+const ui = require('../../tests/e2e/helpers/ui.cjs');
+
 /**
  * Clicks a site in the sidebar and waits for its view to render.
+ *
+ * By the label alone rather than through `ui.sidebarEntry`: a fixture site
+ * whose snapshot is old wears a staleness dot, and the dot is part of the
+ * entry's accessible name.
  *
  * @param {import('playwright-core').Page} page
  * @param {string}                         label
  */
 async function selectSite(page, label) {
 	await page.getByText(label, { exact: true }).first().click();
-}
-
-/**
- * Locates a site-view card by its heading text (the cards are styled divs, not
- * landmarks). Every site's view is in the DOM at once — only the selected one
- * is visible — so the visibility filter is what picks the right card.
- *
- * @param {import('playwright-core').Page} page
- * @param {string}                         heading
- */
-function card(page, heading) {
-	return page
-		.locator(`div:has(> div:text-is("${heading}"))`)
-		.filter({ visible: true })
-		.last();
 }
 
 const shots = [
@@ -68,8 +61,8 @@ const shots = [
 		tier: 'fixture',
 		variant: 'empty',
 		prepare: async (page) => {
-			await page.getByRole('button', { name: 'Create a site' }).click();
-			await page.getByRole('dialog').getByText('Site name').waitFor();
+			await ui.createSiteButton(page).click();
+			await ui.createSiteDialog(page).getByText('Site name').waitFor();
 		}
 	},
 	{
@@ -78,17 +71,17 @@ const shots = [
 		variant: 'gutenberg',
 		prepare: async (page) => {
 			await selectSite(page, 'my-gutenberg-fix');
-			await card(page, 'GitHub issue').waitFor();
+			await ui.card(page, 'GitHub issue').waitFor();
 		}
 	},
 	{
 		slug: 'gutenberg-pull-request-panel',
 		tier: 'fixture',
 		variant: 'gutenberg',
-		target: (page) => card(page, 'Check out a pull request'),
+		target: (page) => ui.card(page, 'Check out a pull request'),
 		prepare: async (page) => {
 			await selectSite(page, 'my-gutenberg-fix');
-			await card(page, 'Check out a pull request').waitFor();
+			await ui.card(page, 'Check out a pull request').waitFor();
 		}
 	},
 	{
@@ -97,8 +90,8 @@ const shots = [
 		variant: 'seeded',
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
-			await page.getByRole('button', { name: 'More' }).click();
-			await page.getByRole('menuitem', { name: 'Update to latest trunk' }).waitFor();
+			await ui.siteMenuButton(page).click();
+			await ui.updateTrunkMenuItem(page).waitFor();
 		}
 	},
 	{
@@ -114,10 +107,10 @@ const shots = [
 		slug: 'apply-patch-panel',
 		tier: 'fixture',
 		variant: 'seeded',
-		target: (page) => card(page, 'Apply a patch or PR'),
+		target: (page) => ui.card(page, 'Apply a patch or PR'),
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
-			await card(page, 'Apply a patch or PR').waitFor();
+			await ui.card(page, 'Apply a patch or PR').waitFor();
 		}
 	},
 	{
@@ -133,7 +126,7 @@ const shots = [
 		// protocolRegistration in src/deep-link.cjs.
 		prepare: async (page, app) => {
 			await selectSite(page, 'my-first-patch');
-			await card(page, 'Working on ticket #60000').waitFor();
+			await ui.card(page, 'Working on ticket #60000').waitFor();
 			await app.evaluate(({ app: electronApp }, url) => {
 				electronApp.emit('open-url', { preventDefault() {} }, url);
 			}, 'wpct://ticket/62281');
@@ -144,17 +137,17 @@ const shots = [
 		slug: 'terminal',
 		tier: 'fixture',
 		variant: 'seeded',
-		target: (page) => card(page, 'Terminal'),
+		target: (page) => ui.card(page, 'Terminal'),
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
-			await card(page, 'Terminal').waitFor();
+			await ui.card(page, 'Terminal').waitFor();
 		}
 	},
 	{
 		slug: 'debug-log',
 		tier: 'fixture',
 		variant: 'debug',
-		target: (page) => card(page, 'Logs'),
+		target: (page) => ui.card(page, 'Logs'),
 		prepare: async (page, app) => {
 			await selectSite(page, 'my-first-patch');
 			// Starting a real dev session is what makes the renderer attach the
@@ -167,7 +160,7 @@ const shots = [
 				ipcMain.removeHandler('playground:start');
 				ipcMain.handle('playground:start', async () => ({ ok: true }));
 			});
-			await page.getByRole('button', { name: 'Start dev server' }).click();
+			await ui.startDevServerButton(page).click();
 			await page.getByRole('tab', { name: /debug\.log/ }).filter({ visible: true }).click();
 			await page.getByText('Undefined variable $post', { exact: false }).filter({ visible: true }).first().waitFor();
 			await page.getByRole('tab', { name: /exited/i }).filter({ visible: true }).waitFor({ state: 'detached' });
@@ -180,7 +173,7 @@ const shots = [
 		target: (page) => page.getByText('Welcome to WordPress Contributor Day').locator('../..'),
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
-			await page.getByRole('button', { name: 'Start dev server' }).click();
+			await ui.startDevServerButton(page).click();
 			await page.getByText('Welcome to WordPress Contributor Day').filter({ visible: true }).waitFor();
 		}
 	},
@@ -191,7 +184,7 @@ const shots = [
 		target: (page) => page.getByText('Update incomplete', { exact: true }).locator('../..'),
 		prepare: async (page) => {
 			await selectSite(page, 'needs-rebuild');
-			await page.getByRole('button', { name: 'Retry install & build' }).waitFor();
+			await ui.retryInstallButton(page).waitFor();
 		}
 	},
 
@@ -225,7 +218,7 @@ const shots = [
 	{
 		slug: 'trac-ticket-panel',
 		tier: 'live',
-		target: (page) => card(page, 'Trac ticket'),
+		target: (page) => ui.card(page, 'Trac ticket'),
 		instructions:
 			'Same screen as site-view — the ticket facts read and the linked pull requests listed. This one is cropped to the Trac ticket card.'
 	},
@@ -260,7 +253,7 @@ const shots = [
 	{
 		slug: 'apply-patch-conflict',
 		tier: 'live',
-		target: (page) => card(page, 'Apply a patch or PR'),
+		target: (page) => ui.card(page, 'Apply a patch or PR'),
 		instructions:
 			'On an isolated site, preview a patch or pull request that does not fit the checkout, click "Apply and rebuild", and wait until the panel confirms that the checkout was not changed.'
 	}

@@ -4,6 +4,7 @@ const path = require( 'node:path' );
 const { finished } = require( 'node:stream/promises' );
 const { execFileSync } = require( 'node:child_process' );
 const { test, expect } = require( '../helpers/app.cjs' );
+const ui = require( '../helpers/ui.cjs' );
 
 // One real setup per contribution target (#251). The steps are the same; what
 // differs is the choice in the dialog, what the status reports, and what the
@@ -52,8 +53,8 @@ for ( const target of TARGETS ) {
 		try {
 			await test.step( 'Create a site in an isolated temporary directory', async () => {
 				await session.answerFileDialog( [ parent ] );
-				await page.getByRole( 'button', { name: 'Create a site', exact: true } ).click();
-				const modal = page.getByRole( 'dialog', { name: 'Create a site' } );
+				await ui.createSiteButton( page ).click();
+				const modal = ui.createSiteDialog( page );
 				const choice = modal.getByRole( 'radio', { name: target.choice, exact: true } );
 				await choice.click();
 				await expect( choice ).toBeChecked();
@@ -140,7 +141,7 @@ for ( const target of TARGETS ) {
 				}
 				await page.getByRole( 'button', { name: 'Stop build watch', exact: true } ).click();
 				await page.getByRole( 'button', { name: 'Stop dev server', exact: true } ).click();
-				await expect( page.getByRole( 'button', { name: 'Start dev server', exact: true } ) ).toBeVisible( { timeout: 60_000 } );
+				await expect( ui.startDevServerButton( page ) ).toBeVisible( { timeout: 60_000 } );
 			} );
 
 			await test.step( 'Stopping the watch ends its whole process tree', async () => {
