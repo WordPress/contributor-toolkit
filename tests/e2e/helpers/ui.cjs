@@ -65,6 +65,16 @@ const createSiteDialog = ( page ) => page.getByRole( 'dialog', { name: 'Create a
  */
 const renderedApp = ( page ) => page.locator( '#root > * > *' );
 
+/**
+ * The open site's heading. The site's name is in the sidebar too, so this is
+ * the half of the pair `sidebarEntry` is not.
+ *
+ * @param {Object} page
+ * @param {string} label The site's name.
+ * @return {Object} The locator.
+ */
+const siteHeading = ( page, label ) => page.getByRole( 'heading', { name: label, exact: true } );
+
 const siteMenuButton = ( page ) => page.getByRole( 'button', { name: 'More', exact: true } );
 const updateTrunkMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Update to latest trunk', exact: true } );
 const deleteSiteMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Delete this site', exact: true } );
@@ -206,6 +216,7 @@ module.exports = {
 	createSiteButton,
 	createSiteDialog,
 	renderedApp,
+	siteHeading,
 	siteMenuButton,
 	updateTrunkMenuItem,
 	deleteSiteMenuItem,
