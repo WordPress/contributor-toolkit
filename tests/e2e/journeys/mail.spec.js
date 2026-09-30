@@ -29,10 +29,13 @@ const RESET = {
 	cc: 'auditor@example.test',
 	date: '2026-08-10T09:30:00.000Z',
 	sentAt: '2026-08-10T09:30:00.000Z',
-	text: 'Someone has requested a password reset.',
+	// The two parts say different things on purpose: a mail has both, a reader
+	// is shown the HTML one, and a dialog that showed the text part instead
+	// would otherwise read the same.
+	text: 'Plain text part: a password reset was requested.',
 	html: '<p>Someone has requested a <strong>password reset</strong>.</p>',
 	headers: {},
-	raw: 'Subject: [Test Site] Password Reset\nX-Mailer: PHPMailer\n\nSomeone has requested a password reset.',
+	raw: 'Subject: [Test Site] Password Reset\nX-Mailer: PHPMailer\n\nPlain text part: a password reset was requested.',
 };
 // No HTML part and nobody copied in: the dialog has to show the text, and no
 // line for a field the mail does not have.
@@ -72,13 +75,16 @@ test( 'a mail the site sent opens as the one that was clicked, in its rendered a
 	await expect( dialog.getByText( `From: ${ RESET.from }`, { exact: true } ) ).toBeVisible();
 	await expect( dialog.getByText( `To: ${ RESET.to }`, { exact: true } ) ).toBeVisible();
 	await expect( dialog.getByText( `CC: ${ RESET.cc }`, { exact: true } ) ).toBeVisible();
-	await expect( dialog.getByText( /^Date: .*2026/ ) ).toBeVisible();
+	// The journeys run in en-GB and UTC, so this is the whole string and not a
+	// pattern a raw timestamp would also fit.
+	await expect( dialog.getByText( 'Date: 10/08/2026, 09:30:00', { exact: true } ) ).toBeVisible();
 
-	// INVARIANT — it opens on the mail as a reader would see it, the HTML part
-	// rendered rather than shown as markup.
+	// INVARIANT — it opens on the mail as a reader would see it: the HTML part,
+	// rendered rather than shown as markup, and not the text part beside it.
 	await expect( dialog.getByRole( 'tab', { name: 'Rendered', exact: true } ) ).toHaveAttribute( 'aria-selected', 'true' );
 	await expect( dialog.getByText( 'Someone has requested a password reset.', { exact: true } ) ).toBeVisible();
 	await expect( dialog.getByText( '<strong>' ) ).toHaveCount( 0 );
+	await expect( dialog.getByText( 'Plain text part' ) ).toHaveCount( 0 );
 	await expect( dialog.getByText( 'X-Mailer: PHPMailer' ) ).toHaveCount( 0 );
 
 	// INVARIANT — and the other tab is the mail as it was sent, headers and all.
@@ -89,6 +95,7 @@ test( 'a mail the site sent opens as the one that was clicked, in its rendered a
 	await page.keyboard.press( 'Escape' );
 	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
 	await expect( resetRow ).toBeVisible();
+	await expect( commentRow ).toBeVisible();
 
 	// INVARIANT — the next mail opened is that mail and nothing of the last
 	// one: its own subject, no line for the copy it does not have, its text
