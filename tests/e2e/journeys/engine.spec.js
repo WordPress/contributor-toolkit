@@ -86,6 +86,44 @@ test( 'the app launches from source and lists the site it was seeded with', asyn
 	await expect( page.getByText( 'No sites yet.', { exact: true } ) ).toHaveCount( 0 );
 } );
 
+test( 'the design system\'s tokens and its injected styles reach the window (#549)', async ( { session } ) => {
+	const site = makeListedSite( session, 'design-system' );
+	const { page } = await session.start( site.settings );
+	await expect( sidebarEntry( page, 'design-system' ) ).toBeVisible();
+
+	// The tokens are a stylesheet the bundle has to carry. Without it every
+	// `var(--wpds-…)` in the app's own styles resolves to nothing, and nothing
+	// fails: the components fall back to their built-in values and only the
+	// parts written against the tokens lose their colour. Which value it holds
+	// is the design system's business, so only that it holds one is asserted:
+	// an element painted with a token is not left transparent.
+	const painted = await page.evaluate( () => {
+		const probe = document.createElement( 'div' );
+		probe.style.background = 'var(--wpds-color-background-interactive-brand-strong)';
+		document.body.appendChild( probe );
+		const background = window.getComputedStyle( probe ).backgroundColor;
+		probe.remove();
+		return background;
+	} );
+	expect( painted ).not.toBe( 'rgba(0, 0, 0, 0)' );
+
+	// `@wordpress/theme` and `@wordpress/ui` do not ship a stylesheet for their
+	// components: each one adds a `<style>` element when its module loads, which
+	// the window's content security policy has to allow. If it stops allowing
+	// it, these two are what show it first. The provider's wrapper becomes a
+	// block between `#root` and the app, and the text read aloud for the next
+	// step (#252) appears on screen.
+	const wrapper = await page.locator( '#root > *' ).first().evaluate( ( el ) => window.getComputedStyle( el ).display );
+	expect( wrapper ).toBe( 'contents' );
+	const spoken = page.locator( '[data-visually-hidden]' ).first();
+	await expect( spoken ).toHaveAttribute( 'role', 'status' );
+	const box = await spoken.evaluate( ( el ) => {
+		const style = window.getComputedStyle( el );
+		return { position: style.position, width: style.width };
+	} );
+	expect( box ).toEqual( { position: 'absolute', width: '1px' } );
+} );
+
 test( 'the app writes to the throwaway profile and not to the real one', async ( { session } ) => {
 	const { app } = await session.start();
 
