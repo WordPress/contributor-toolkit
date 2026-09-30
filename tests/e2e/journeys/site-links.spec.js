@@ -2,7 +2,7 @@
  * Following a link to the running site, by a gesture that asks for a new
  * window (#284).
  *
- * The links under "Start dev server" are how a contributor gets to the site
+ * The links under "Start development server" are how a contributor gets to the site
  * they are working on, and the site belongs in their browser, where there is
  * an address bar and a back button. A plain click has always gone there. A
  * middle click asks for a new window instead, and the app has one window: the
@@ -51,7 +51,7 @@ test( 'a middle click on a link to the site opens it in the browser, and not in 
 	const opened = () => app.evaluate( () => global.e2eOpened );
 	await ui.startDevServerButton( page ).click();
 
-	const admin = page.getByRole( 'link', { name: 'wp-admin', exact: true } );
+	const admin = ui.adminLink( page );
 	await expect( admin ).toBeVisible( { timeout: 30_000 } );
 	// CHARACTERISATION — the app opens the site in the browser by itself once
 	// the server is up, so that address is already there.

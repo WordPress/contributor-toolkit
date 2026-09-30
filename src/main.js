@@ -591,9 +591,8 @@ function createWindow() {
 	mainWindow.webContents.on('did-start-loading', () => deepLinkQueue.reset());
 
 	// This is the window with the preload bridge, so it stays on the app's own
-	// page and opens no other (window-navigation.js). Set before the page loads,
-	// so there is no first navigation it could miss. Nothing awaits these
-	// events: a browser that could not be opened is logged here or nowhere.
+	// page and opens no other (window-navigation.js). Nothing awaits the events
+	// behind that: a browser that could not be opened is logged here or nowhere.
 	pinToOwnPage(mainWindow.webContents, {
 		openInBrowser: (url) => {
 			openInBrowser(url).catch((e) => logError('url', `could not open ${describeRefused(url)}: ${String(e && e.message ? e.message : e)}`));

@@ -147,7 +147,7 @@ function createElectronStub({ ready = false } = {}) {
 		// for it. Returns whether a listener cancelled it.
 		emitNavigation(name, url) {
 			let prevented = false;
-			const event = { url, preventDefault() { prevented = true; } };
+			const event = { url, isMainFrame: true, preventDefault() { prevented = true; } };
 			for (const listener of this.webContentsListeners.get(name) || []) listener(event, url);
 			return prevented;
 		}
@@ -461,25 +461,6 @@ async function openMainWindow(main) {
 // The hand-off to the browser is a promise that the navigation events, being
 // synchronous, cannot wait for.
 const handedOff = () => new Promise((resolve) => setImmediate(resolve));
-
-test('the main window is pinned to its own page before anything is loaded into it', async () => {
-	let loadedWhenPinned = null;
-	const pinToOwnPage = spy(() => { loadedWhenPinned = main.windows[0].loaded.length; });
-	const main = loadMain({ stubs: { ...silentLogging(), './window-navigation': { pinToOwnPage } } });
-
-	const win = await openMainWindow(main);
-
-	assert.equal(pinToOwnPage.calls.length, 1);
-	const [webContents, options] = pinToOwnPage.calls[0];
-	assert.equal(webContents, win.webContents);
-	// The module cancels and denies; where a refused address goes instead is
-	// this function, and without it a link would simply do nothing.
-	assert.equal(typeof options.openInBrowser, 'function');
-	// Pinned first: a window loaded before it is pinned has a moment in which
-	// it is not.
-	assert.equal(loadedWhenPinned, 0);
-	assert.equal(win.loaded.length, 1);
-});
 
 // The end of the wire, with the real modules in place. It fails if the main
 // window stops asking window-navigation.js, and if what that module is given

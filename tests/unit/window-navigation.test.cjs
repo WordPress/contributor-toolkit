@@ -23,9 +23,9 @@ function fakeWebContents(url = APP_PAGE) {
 			listeners.get(name).push(listener);
 		},
 		// Returns whether the navigation was cancelled.
-		emit(name, target) {
+		emit(name, target, { isMainFrame = true } = {}) {
 			let prevented = false;
-			const event = { url: target, preventDefault() { prevented = true; } };
+			const event = { url: target, isMainFrame, preventDefault() { prevented = true; } };
 			for (const listener of listeners.get(name) || []) listener(event);
 			return prevented;
 		}
@@ -65,6 +65,15 @@ test('a redirect away from the page is cancelled too', () => {
 
 	assert.equal(wc.emit('will-redirect', 'https://wordpress.org/'), true);
 	assert.deepEqual(offered, ['https://wordpress.org/']);
+});
+
+test('a frame inside the page redirecting is not the window leaving', () => {
+	// will-redirect is sent for frames too. Treating one as the window's own
+	// would open the browser on an address nobody clicked.
+	const { wc, offered } = pinned();
+
+	assert.equal(wc.emit('will-redirect', 'https://wordpress.org/', { isMainFrame: false }), false);
+	assert.deepEqual(offered, []);
 });
 
 test('no scheme is a way out, another local file included', () => {

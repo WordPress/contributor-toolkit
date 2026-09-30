@@ -63,10 +63,15 @@ function pinToOwnPage(wc, { openInBrowser }) {
 		event.preventDefault();
 		openInBrowser(event.url);
 	};
-	// will-navigate is a link, a form or a <meta refresh> in the page;
-	// will-redirect is the HTTP 3xx a navigation can turn into on the way.
+	// A link, a form or a <meta refresh> in the page.
 	wc.on('will-navigate', stayOnOwnPage);
-	wc.on('will-redirect', stayOnOwnPage);
+	// The HTTP 3xx a navigation can turn into on the way. Unlike will-navigate
+	// it is also sent for a frame inside the page, and a frame redirecting is
+	// not the window leaving: what a frame may load is the content security
+	// policy's to say, and its address is not one to hand to the browser.
+	wc.on('will-redirect', (event) => {
+		if (event.isMainFrame) stayOnOwnPage(event);
+	});
 }
 
 module.exports = { pinToOwnPage };
