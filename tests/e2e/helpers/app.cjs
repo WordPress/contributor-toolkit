@@ -110,12 +110,16 @@ class Session {
 	/**
 	 * Seeds settings.json and launches the app.
 	 *
-	 * @param {Object} settings Initial electron-store contents. Defaults to a
-	 *                          first-launch app with no sites.
+	 * @param {Object} settings       Initial electron-store contents. Defaults to a
+	 *                                first-launch app with no sites.
+	 * @param {Object} [options]
+	 * @param {string} [options.lang] The locale to launch in, in place of en-GB. It
+	 *                                holds across restart().
 	 * @return {Promise<{app: Object, page: Object}>} The Electron app and its first window.
 	 */
-	async start( settings = EMPTY_SETTINGS ) {
+	async start( settings = EMPTY_SETTINGS, { lang } = {} ) {
 		if ( this.app ) throw new Error( 'This session already has an app running; call restart() instead.' );
+		this.lang = lang;
 		this.writeSettings( settings );
 		return this.#launch();
 	}
@@ -140,7 +144,10 @@ class Session {
 			// the same trick scripts/run-tests-electron.cjs and the screenshot
 			// harness use.
 			executablePath: require( 'electron' ),
-			args: [ ...ELECTRON_SWITCHES, REPO_ROOT ],
+			args: [
+				...ELECTRON_SWITCHES.map( ( s ) => ( this.lang && s.startsWith( '--lang=' ) ? `--lang=${ this.lang }` : s ) ),
+				REPO_ROOT,
+			],
 			// Watching a run is only ever a question of recording it. `_electron.launch`
 			// takes `recordVideo` but not `slowMo`, and Playwright drops launch options it
 			// does not recognise without a word — so a `slowMo` added here would leave the

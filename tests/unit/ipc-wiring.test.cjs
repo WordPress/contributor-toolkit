@@ -148,6 +148,8 @@ function createElectronStub() {
 			getName: () => 'wordpress-contributor-toolkit',
 			setName() {},
 			getVersion: () => '0.0.0-test',
+			getLocale: () => 'en-GB',
+			commandLine: { getSwitchValue: () => '' },
 			isPackaged: false,
 			// The `wpct://` registration (#464). The lock runs at module scope, so
 			// a missing stub would stop main.js loading at all rather than fail a
@@ -6155,10 +6157,34 @@ test('a second instance with an address delivers it, without one it only shows t
 	assert.deepEqual(main.windows[0].sent.length, 1, 'and nothing more to deliver');
 });
 
+test('i18n:locale asks i18n.cjs for the catalog of the locale Electron reports', async () => {
+	const resolveCatalog = spy(async () => ({ 'No sites yet.': ['Aucun site.'] }));
+	const main = loadMain({ stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog } } });
+
+	const reply = await main.invoke('i18n:locale');
+
+	assert.equal(resolveCatalog.calls.length, 1);
+	const [locale, dir, log] = resolveCatalog.calls[0];
+	assert.equal(locale, 'en-GB');
+	assert.equal(dir, path.join(SRC_DIR, 'languages'));
+	// A catalog it skips is reported to the app log, not dropped.
+	assert.equal(typeof log, 'function');
+	assert.deepEqual(reply, { locale: 'en-GB', data: { 'No sites yet.': ['Aucun site.'] } });
+});
+
+test('i18n:locale takes the pseudo-locale from --lang, which Chromium does not report', async () => {
+	const resolveCatalog = spy(async () => null);
+	const main = loadMain({ stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog } } });
+	main.electron.app.commandLine.getSwitchValue = (name) => (name === 'lang' ? 'en-XA' : '');
+
+	assert.deepEqual(await main.invoke('i18n:locale'), { locale: 'en-XA', data: null });
+});
+
 // --- coverage guard ------------------------------------------------------
 
 // Channels whose wiring is asserted above.
 const WIRED = new Set([
+	'i18n:locale',
 	'git:preview-pr',
 	'git:checkout-pr',
 	'git:leave-pr',

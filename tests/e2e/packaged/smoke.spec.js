@@ -53,6 +53,7 @@ const EXPECTED_API_KEYS = [
 	'fetchTracAttachment',
 	'getEmails',
 	'getGithubAccount',
+	'getLocale',
 	'getPatch',
 	'getProvenance',
 	'getSiteStatus',
