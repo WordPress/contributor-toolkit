@@ -25,6 +25,8 @@ test('the .pot holds the first-run screen and has no call it cannot extract', (t
 	for (const msgid of ['No sites yet.', 'Create a site', 'Use the sidebar to create your first site.']) {
 		assert.ok(pot.includes(`msgid "${msgid}"`), `${msgid} is in the .pot`);
 	}
+	// The header names the encoding, so the non-ASCII strings import intact.
+	assert.match(pot, /"Content-Type: text\/plain; charset=utf-8\\n"/i);
 	// References are relative to the repository, so the .pot reads the same on
 	// every machine that generates it.
 	assert.match(pot, /#: src\/renderer\/index\.jsx:\d+/);

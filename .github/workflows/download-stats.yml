@@ -40,8 +40,8 @@ jobs:
     name: snapshot download counts
     runs-on: ubuntu-latest
     steps:
-      # Pinned to a commit, not a tag. This job is the only one in the repo holding
-      # `contents: write`, so a moved tag here would mean third-party code running weekly with a
+      # Pinned to a commit, not a tag. This job holds `contents: write` (so does the publish job
+      # in i18n-pot.yml), so a moved tag here would mean third-party code running weekly with a
       # token that can push to any branch, trunk included. A SHA cannot be repointed.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
