@@ -34,7 +34,7 @@ tests/
     journeys/      layer 4 — npm run test:e2e
     packaged/      layer 5 — npm run test:e2e:packaged, and it needs a build first
     real-setup/    opt-in layer 4 — real network setup, manual workflow only
-    helpers/       the app session fixture and the Git site builder; not tests either
+    helpers/       the app session fixture, the Git site builder and the names of what is on screen; not tests either
 ```
 
 Two directories, because the split that matters is what a test costs to run, not what it covers: everything in `unit/` is a function call, and everything in `e2e/` launches the app. The layers below subdivide that, and the file name says which — a layer-2 test is `*.integration.test.cjs`, and anything under `e2e/` is `*.spec.js`.
@@ -220,6 +220,7 @@ Every matrix uses `fail-fast: false`, so a Windows failure never hides the macOS
 
 - **`npm test` is separated from the end-to-end suite by filename, not by directory.** `node --test` is run with no path at all, so it walks the whole repository and collects by name: `*.test.cjs` and four other shapes Node treats as test files — `*-test.cjs`, `*_test.cjs`, `test-*.cjs`, `test.cjs`. The journeys are `*.spec.js`, which matches none of them. Now that both suites live under `tests/`, that naming is the only thing keeping them apart, and a file under `tests/e2e/` named any of the five would silently join the fast suite and cost it an app launch. **End-to-end files are `.spec.js`.** The separation is worth defending: the fast suite has to stay something you run without thinking.
 - End-to-end selectors read the text and roles already on screen. No `data-testid` — the visible copy is the contract, and renaming a button is a change worth noticing.
+- A control more than one end-to-end file reaches is located in `tests/e2e/helpers/ui.cjs`, and so is any locator that depends on how the screen is built rather than on what it says (a sidebar entry, a card). The journeys and `scripts/screenshots/` both read it, so renaming a button or rebuilding a card is one change. A sentence only one journey asserts, or a button only one journey presses, stays in that journey: it is what the journey is about.
 - No test reads a component's source, the `.jsx` under `src/renderer/`, as text. A test that greps the component for a call, a literal or the order of two strings pins the file rather than the screen: it goes red when the code moves and stays green when the screen is wrong. What is on the page and where, a journey asserts, with order read as document order rather than from bounding boxes (the page scrolls as cards appear). How a component is allowed to be written, a lint rule asserts: `react-hooks/refs` is on for the renderer for that reason.
 - Journeys mark each assertion as an **invariant** (must hold under any model of how work is stored) or a **characterisation** (true because of how the app stores things today). A red invariant is a bug; a red characterisation is a prompt to read it and update it deliberately.
 - A bugfix's test must fail on the old code. A test written after the fix pins whatever the current behaviour is, rather than the correction.

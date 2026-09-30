@@ -25,6 +25,7 @@
 const fs = require( 'node:fs' );
 const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
+const ui = require( '../helpers/ui.cjs' );
 const {
 	makeSite,
 	read,
@@ -83,37 +84,12 @@ const ticketRow = ( page, ticket ) =>
  * @param {string} ticket
  */
 async function linkTicket( page, ticket ) {
-	const unlink = page.getByRole( 'button', { name: 'Unlink', exact: true } );
+	const unlink = ui.unlinkButton( page );
 	if ( await unlink.isVisible().catch( () => false ) ) {
 		await unlink.click();
-		await expect( page.getByLabel( 'Trac ticket number or URL' ).first() ).toBeVisible();
+		await expect( ui.ticketField( page ).first() ).toBeVisible();
 	}
-	await page.getByLabel( 'Trac ticket number or URL' ).first().fill( ticket );
-	await page.getByRole( 'button', { name: 'Link ticket', exact: true } ).first().click();
-	// The ticket number rendered as the panel's subject is the app saying it
-	// finished. Waiting on it rather than on a timeout is what keeps this honest
-	// on a Windows runner, where the checkout takes noticeably longer.
-	await expect( page.getByText( `#${ ticket }`, { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
-}
-
-/**
- * Whether the elements come one after another in the document, in the order
- * given. The site's cards are laid out in document order, so this is where
- * each one sits on the page, read without a bounding box: the page scrolls to
- * the next step as cards appear, and a box measured mid-scroll can land
- * anywhere (#478).
- *
- * @param {Object}   page
- * @param {Object[]} locators Each matching exactly one element.
- * @return {Promise<boolean>} True when every element follows the one before it.
- */
-async function inDocumentOrder( page, locators ) {
-	const handles = await Promise.all( locators.map( ( locator ) => locator.elementHandle() ) );
-	return page.evaluate( ( elements ) => {
-		// DOCUMENT_POSITION_FOLLOWING is bit 4 of the mask.
-		const follows = ( from, to ) => Math.floor( from.compareDocumentPosition( to ) / 4 ) % 2 === 1;
-		return elements.every( ( element, i ) => i === 0 || follows( elements[ i - 1 ], element ) );
-	}, handles );
+	await ui.linkTicket( page, ticket );
 }
 
 test( 'linking a ticket creates its branch and leaves trunk alone', async ( { session } ) => {
@@ -174,12 +150,12 @@ test( 'unlinking parks a ticket, and the next one starts from trunk', async ( { 
 	// long as the two happened to agree, and keep matching it after the module
 	// moved on; held to the module, the copy goes red the day they part.
 	const otherTickets = page.getByText( ticketListCard( { rowCount: 1, linked: true } ).heading, { exact: true } );
-	const switchBack = page.getByRole( 'button', { name: 'switch', exact: true } );
+	const switchBack = ui.switchBackButton( page );
 	await expect( otherTickets ).toHaveCount( 1 );
 	await expect( switchBack ).toHaveCount( 1 );
 	// The row after its heading, so the card is the list and not a heading
 	// left behind by rows that went back into the ticket's card.
-	expect( await inDocumentOrder( page, [
+	expect( await ui.inDocumentOrder( page, [
 		page.getByText( 'Working on ticket #60002', { exact: true } ),
 		page.getByText( 'Apply a patch or PR', { exact: true } ),
 		otherTickets,
@@ -188,14 +164,14 @@ test( 'unlinking parks a ticket, and the next one starts from trunk', async ( { 
 
 	// INVARIANT — with nothing linked the same card holds every ticket, under
 	// the heading for that state, and is still the last of the three.
-	await page.getByRole( 'button', { name: 'Unlink', exact: true } ).click();
+	await ui.unlinkButton( page ).click();
 	const yourTickets = page.getByText( ticketListCard( { rowCount: 2, linked: false } ).heading, { exact: true } );
 	const continueWorking = page.getByRole( 'button', { name: /^Continue working on #6000[12]$/ } );
 	await expect( yourTickets ).toHaveCount( 1 );
 	await expect( otherTickets ).toHaveCount( 0 );
 	await expect( continueWorking ).toHaveCount( 2 );
-	expect( await inDocumentOrder( page, [
-		page.getByLabel( 'Trac ticket number or URL' ),
+	expect( await ui.inDocumentOrder( page, [
+		ui.ticketField( page ),
 		page.getByText( 'Apply a patch or PR', { exact: true } ),
 		yourTickets,
 		continueWorking.first(),
@@ -216,7 +192,7 @@ test( 'switching back to a ticket restores its work byte for byte', async ( { se
 	expect( exists( site.dir, DOOMED ) ).toBe( true );
 
 	// Back to the first ticket, through the row the panel offers for it.
-	await page.getByRole( 'button', { name: 'switch', exact: true } ).click();
+	await ui.switchBackButton( page ).click();
 	await expect
 		.poll( () => currentBranch( site.dir ), { timeout: 20_000 } )
 		.toBe( 'ticket/60001' );
@@ -240,7 +216,7 @@ test( "deleting a ticket's work removes only that ticket", async ( { session } )
 	// currently linked — its card is the panel above — so the delete control for
 	// a ticket only exists once you are not on it. A contributor deleting the
 	// ticket they are working on takes this same route.
-	await page.getByRole( 'button', { name: 'Unlink', exact: true } ).click();
+	await ui.unlinkButton( page ).click();
 
 	const row = ticketRow( page, '60002' );
 	await expect( row ).toBeVisible();

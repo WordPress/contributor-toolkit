@@ -10,6 +10,7 @@
  */
 
 const { test, expect } = require( '../helpers/app.cjs' );
+const ui = require( '../helpers/ui.cjs' );
 const { makeSite, branches, addPullRequestToOrigin, currentBranch, read, write, LOGIN } = require( '../helpers/git-site.cjs' );
 
 const PR = 7;
@@ -40,14 +41,14 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	await expect( page.getByRole( 'button', { name: 'Not sure yet? Browse good first issues on GitHub' } ) ).toBeVisible();
 	await expect( page.getByText( 'Check out a pull request', { exact: true } ) ).toBeVisible();
 	await expect( page.getByText( 'Trac ticket', { exact: true } ) ).toHaveCount( 0 );
-	await expect( page.getByLabel( 'Trac ticket number or URL' ) ).toHaveCount( 0 );
-	await expect( page.getByRole( 'button', { name: 'or choose a .diff / .patch file…' } ) ).toHaveCount( 0 );
+	await expect( ui.ticketField( page ) ).toHaveCount( 0 );
+	await expect( ui.choosePatchFileButton( page ) ).toHaveCount( 0 );
 
 	// INVARIANT — a pull-request URL pasted where the issue goes is refused by
 	// name, before anything is written.
-	const field = page.getByLabel( 'GitHub issue number or URL' );
+	const field = ui.issueField( page );
 	await field.fill( 'https://github.com/WordPress/gutenberg/pull/4496' );
-	await page.getByRole( 'button', { name: 'Link issue', exact: true } ).click();
+	await ui.linkIssueButton( page ).click();
 	await expect( page.getByRole( 'alert' ).filter( { hasText: 'That is a pull request' } ) ).toBeVisible();
 	expect( branches( site.dir ) ).toEqual( [ 'trunk' ] );
 
@@ -55,7 +56,7 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	// branch under issue/, the noun its upstream uses; the Trac-only pieces
 	// stay off the linked card too.
 	await field.fill( 'https://github.com/WordPress/gutenberg/issues/71234#issuecomment-1' );
-	await page.getByRole( 'button', { name: 'Link issue', exact: true } ).click();
+	await ui.linkIssueButton( page ).click();
 	await expect( page.getByText( 'Working on issue #71234', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.getByRole( 'button', { name: 'Open on GitHub', exact: true } ) ).toBeVisible();
 	await expect( page.getByRole( 'button', { name: 'Read details from Trac' } ) ).toHaveCount( 0 );
@@ -76,20 +77,20 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	// repository: a wordpress-develop URL is refused by name, a
 	// WordPress/gutenberg one is fetched. While it is applied the card says so
 	// and offers the way back, and the way back is the issue's branch.
-	const prField = page.getByLabel( 'Pull request URL or number' );
+	const prField = ui.prField( page );
 	await prField.fill( `https://github.com/WordPress/wordpress-develop/pull/${ PR }` );
-	await page.getByRole( 'button', { name: 'Apply PR', exact: true } ).last().click();
+	await ui.applyPrButton( page ).last().click();
 	await expect( page.getByRole( 'alert' ).filter( { hasText: 'Only WordPress/gutenberg pull requests' } ) ).toBeVisible();
 	await prField.fill( `https://github.com/WordPress/gutenberg/pull/${ PR }` );
-	await page.getByRole( 'button', { name: 'Apply PR', exact: true } ).last().click();
+	await ui.applyPrButton( page ).last().click();
 	await expect( page.getByText( `PR #${ PR } changes 1 file.`, { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
-	await page.getByRole( 'button', { name: 'Apply and rebuild', exact: true } ).click();
+	await ui.applyAndRebuildButton( page ).click();
 	await expect.poll( () => currentBranch( site.dir ), { timeout: 60_000 } ).toBe( `pr/${ PR }` );
 	await expect( page.getByText( `PR #${ PR } is applied.`, { exact: true } ) ).toBeVisible( { timeout: 60_000 } );
 	await expect( page.getByText( 'Your issue changes are saved separately and return when you revert this PR.' ) ).toBeVisible();
 	expect( read( site.dir, LOGIN ) ).toBe( PR_CONTENT );
 
-	await page.getByRole( 'button', { name: 'Revert this PR', exact: true } ).click();
+	await ui.revertPrButton( page ).click();
 	await expect.poll( () => currentBranch( site.dir ), { timeout: 60_000 } ).toBe( 'issue/71234' );
 	await expect( page.getByText( 'Working on issue #71234', { exact: true } ) ).toBeVisible();
 	await expect( page.getByText( `PR #${ PR } is applied.`, { exact: true } ) ).toHaveCount( 0 );
@@ -100,7 +101,7 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	// pane says the flow is missing. Sending is not exercised here; that needs
 	// a live GitHub and a sandbox upstream.
 	write( site.dir, LOGIN, '<?php // my change\n' );
-	await page.getByRole( 'button', { name: 'Review & submit changes', exact: true } ).click();
+	await ui.reviewChangesButton( page ).click();
 	await expect( page.getByText( 'Where this patch goes', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.getByText( 'Open a pull request', { exact: true } ) ).toBeVisible();
 	await expect( page.getByText( /A GitHub account\. The fork is made for you/ ) ).toBeVisible();
@@ -115,7 +116,7 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 		electronApp.emit( 'open-url', { preventDefault() {} }, url );
 	}, 'wpct://ticket/62281' );
 	await expect( page.getByText( 'Ticket #62281 cannot be linked to' ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( page.getByRole( 'button', { name: 'Link ticket', exact: true } ) ).toHaveCount( 0 );
+	await expect( ui.linkTicketButton( page ) ).toHaveCount( 0 );
 	expect( branches( site.dir ) ).not.toContain( 'ticket/62281' );
 
 	// CHARACTERISATION — hiding the note is this site's business; the ticket

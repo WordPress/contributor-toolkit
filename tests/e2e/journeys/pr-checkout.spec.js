@@ -8,6 +8,7 @@
 
 const { gitOk, commitFiles } = require( '../../unit/helpers/git.cjs' );
 const { test, expect } = require( '../helpers/app.cjs' );
+const ui = require( '../helpers/ui.cjs' );
 const {
 	makeSite,
 	addPullRequestToOrigin,
@@ -26,12 +27,6 @@ const TICKET_EDIT = '<?php // my ticket work\n';
 const PR_CONTENT = '<?php // pull request 7\n';
 const PR_EDIT = '<?php // my experiment on pull request 7\n';
 
-async function linkTicket( page ) {
-	await page.getByLabel( 'Trac ticket number or URL' ).first().fill( TICKET );
-	await page.getByRole( 'button', { name: 'Link ticket', exact: true } ).first().click();
-	await expect( page.getByText( `#${ TICKET }`, { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
-}
-
 test( 'a PR checkout keeps ticket work and later PR edits on their own branches', async ( { session } ) => {
 	const site = await makeSite( session, { origin: true } );
 	const prHead = addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );
@@ -42,27 +37,27 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 		ipcMain.removeHandler( 'trac:list-attachments' );
 		ipcMain.handle( 'trac:list-attachments', () => ( { ok: true, status: 'ok', items: [ { filename: '60001.diff', url: 'https://core.trac.wordpress.org/attachment/ticket/60001/60001.diff', applyable: true } ] } ) );
 	} );
-	await linkTicket( page );
+	await ui.linkTicket( page, TICKET );
 	await expect( page.getByRole( 'button', { name: 'Apply…', exact: true } ) ).toHaveCount( 2 );
-	await expect( page.getByRole( 'button', { name: 'Apply PR', exact: true } ) ).toHaveCount( 1 );
+	await expect( ui.applyPrButton( page ) ).toHaveCount( 1 );
 
 	write( site.dir, DOOMED, TICKET_EDIT );
-	await page.getByLabel( 'Pull request URL or number' ).fill( String( PR ) );
-	await page.getByRole( 'button', { name: 'Apply PR', exact: true } ).last().click();
+	await ui.prField( page ).fill( String( PR ) );
+	await ui.applyPrButton( page ).last().click();
 
 	await expect( page.getByText( `PR #${ PR } changes 1 file.`, { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible();
-	await page.getByRole( 'button', { name: 'Apply and rebuild', exact: true } ).click();
+	await ui.applyAndRebuildButton( page ).click();
 
 	await expect
 		.poll( () => currentBranch( site.dir ), { timeout: 60_000 } )
 		.toBe( `pr/${ PR }` );
 	const activeContext = page.getByText( `PR #${ PR } is applied.`, { exact: true } );
 	await expect( activeContext ).toBeVisible( { timeout: 60_000 } );
-	await expect( page.getByRole( 'button', { name: 'Revert this PR', exact: true } ) ).toHaveCount( 1 );
-	await expect( page.getByLabel( 'Pull request URL or number' ) ).toHaveCount( 0 );
-	await expect( page.getByRole( 'button', { name: /choose a \.diff \/ \.patch file/i } ) ).toHaveCount( 0 );
-	await expect( page.getByRole( 'button', { name: 'Apply PR', exact: true } ) ).toHaveCount( 0 );
+	await expect( ui.revertPrButton( page ) ).toHaveCount( 1 );
+	await expect( ui.prField( page ) ).toHaveCount( 0 );
+	await expect( ui.choosePatchFileButton( page ) ).toHaveCount( 0 );
+	await expect( ui.applyPrButton( page ) ).toHaveCount( 0 );
 	await expect( page.getByRole( 'button', { name: 'Apply…', exact: true } ) ).toHaveCount( 0 );
 	// The banner sits under the ticket heading and above the linked pull
 	// requests. Asserted as document order, not as Y coordinates: the moment
@@ -70,28 +65,22 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 	// three bounding boxes read mid-glide can land in any order (the macOS
 	// runner did, twice in a day). The card lays these out in document order,
 	// so the order is the claim.
-	const [ ticketEl, contextEl, linkedEl ] = await Promise.all( [
-		page.getByText( `Working on ticket #${ TICKET }`, { exact: true } ).elementHandle(),
-		activeContext.elementHandle(),
-		page.getByText( 'Linked pull requests', { exact: true } ).elementHandle(),
-	] );
-	const inOrder = await page.evaluate( ( [ a, b, c ] ) => {
-		// DOCUMENT_POSITION_FOLLOWING is bit 4 of the mask.
-		const follows = ( from, to ) => Math.floor( from.compareDocumentPosition( to ) / 4 ) % 2 === 1;
-		return follows( a, b ) && follows( b, c );
-	}, [ ticketEl, contextEl, linkedEl ] );
-	expect( inOrder ).toBe( true );
+	expect( await ui.inDocumentOrder( page, [
+		page.getByText( `Working on ticket #${ TICKET }`, { exact: true } ),
+		activeContext,
+		page.getByText( 'Linked pull requests', { exact: true } ),
+	] ) ).toBe( true );
 	expect( read( site.dir, LOGIN ) ).toBe( PR_CONTENT );
 	expect( read( site.dir, DOOMED ) ).toBe( '<?php // to be deleted\n' );
 	expect( read( site.dir, SUBSTRATE ) ).toBe( SUBSTRATE_CONTENT );
 
 	write( site.dir, LOGIN, PR_EDIT );
-	await page.getByRole( 'button', { name: 'Revert this PR', exact: true } ).click();
+	await ui.revertPrButton( page ).click();
 
 	// HEAD moves before the handler saves metadata. Wait for the UI to finish
 	// restoring and rebuilding the previous branch before inspecting that state.
-	await expect( page.getByLabel( 'Pull request URL or number' ) ).toBeVisible( { timeout: 60_000 } );
-	await expect( page.getByLabel( 'Pull request URL or number' ) ).toBeEnabled();
+	await expect( ui.prField( page ) ).toBeVisible( { timeout: 60_000 } );
+	await expect( ui.prField( page ) ).toBeEnabled();
 	await expect
 		.poll( () => currentBranch( site.dir ), { timeout: 60_000 } )
 		.toBe( `ticket/${ TICKET }` );
@@ -106,8 +95,8 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 	expect( gitOk( [ 'rev-parse', `pr/${ PR }` ], site.dir ) ).not.toBe( prHead );
 
 	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: '<?php // pull request 7 moved\n' }, 'PR #7 moves' );
-	await page.getByLabel( 'Pull request URL or number' ).fill( String( PR ) );
-	await page.getByRole( 'button', { name: 'Apply PR', exact: true } ).last().click();
+	await ui.prField( page ).fill( String( PR ) );
+	await ui.applyPrButton( page ).last().click();
 	await expect( page.getByText( `PR #${ PR } has moved on GitHub, but your copy has edits on top.`, { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await page.getByRole( 'button', { name: 'Return to saved copy', exact: true } ).click();
 	await expect.poll( () => currentBranch( site.dir ), { timeout: 60_000 } ).toBe( `pr/${ PR }` );
@@ -121,10 +110,10 @@ test( 'discarding loose trunk edits continues into the requested PR checkout', a
 	const confirmsAnswered = await session.acceptConfirms();
 	write( site.dir, DOOMED, TICKET_EDIT );
 
-	await page.getByLabel( 'Pull request URL or number' ).fill( String( PR ) );
-	await page.getByRole( 'button', { name: 'Apply PR', exact: true } ).last().click();
+	await ui.prField( page ).fill( String( PR ) );
+	await ui.applyPrButton( page ).last().click();
 	await expect( page.getByText( `PR #${ PR } changes 1 file.`, { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
-	await page.getByRole( 'button', { name: 'Apply and rebuild', exact: true } ).click();
+	await ui.applyAndRebuildButton( page ).click();
 
 	const discard = page.getByRole( 'button', { name: `Discard them and check out PR #${ PR }`, exact: true } );
 	await expect( discard ).toBeVisible( { timeout: 30_000 } );
@@ -142,17 +131,17 @@ test( 'a failed finish remains visible and offers no new patch source', async ( 
 	const site = await makeSite( session, { origin: true } );
 	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );
 	const { app, page } = await session.start( site.settings );
-	await page.getByLabel( 'Pull request URL or number' ).fill( String( PR ) );
-	await page.getByRole( 'button', { name: 'Apply PR', exact: true } ).last().click();
-	await page.getByRole( 'button', { name: 'Apply and rebuild', exact: true } ).click();
-	await expect( page.getByRole( 'button', { name: 'Revert this PR', exact: true } ) ).toBeVisible();
+	await ui.prField( page ).fill( String( PR ) );
+	await ui.applyPrButton( page ).last().click();
+	await ui.applyAndRebuildButton( page ).click();
+	await expect( ui.revertPrButton( page ) ).toBeVisible();
 	await app.evaluate( ( { ipcMain } ) => {
 		ipcMain.removeHandler( 'git:leave-pr' );
 		ipcMain.handle( 'git:leave-pr', () => { throw new Error( 'Cannot finish this test right now' ); } );
 	} );
-	await page.getByRole( 'button', { name: 'Revert this PR', exact: true } ).click();
+	await ui.revertPrButton( page ).click();
 	await expect( page.getByRole( 'alert' ).filter( { hasText: 'Cannot finish this test right now' } ) ).toBeVisible();
-	await expect( page.getByLabel( 'Pull request URL or number' ) ).toHaveCount( 0 );
+	await expect( ui.prField( page ) ).toHaveCount( 0 );
 	expect( currentBranch( site.dir ) ).toBe( `pr/${ PR }` );
 } );
 
@@ -164,42 +153,42 @@ test( 'resuming a ticket restores its applied PR until explicitly reverted', asy
 		'build.cjs': "const fs = require('fs'); fs.mkdirSync('build', { recursive: true }); fs.writeFileSync('build/pr-version', fs.readFileSync('src/wp-login.php'));\n"
 	} );
 	let { page } = await session.start( site.settings );
-	await linkTicket( page );
+	await ui.linkTicket( page, TICKET );
 	write( site.dir, DOOMED, TICKET_EDIT );
-	await page.getByLabel( 'Pull request URL or number' ).fill( String( PR ) );
-	await page.getByRole( 'button', { name: 'Apply PR', exact: true } ).click();
-	await page.getByRole( 'button', { name: 'Apply and rebuild', exact: true } ).click();
-	await expect( page.getByRole( 'button', { name: 'Revert this PR', exact: true } ) ).toBeVisible();
+	await ui.prField( page ).fill( String( PR ) );
+	await ui.applyPrButton( page ).click();
+	await ui.applyAndRebuildButton( page ).click();
+	await expect( ui.revertPrButton( page ) ).toBeVisible();
 	await expect.poll( () => read( site.dir, 'build/pr-version' ) ).toBe( PR_CONTENT );
 	write( site.dir, LOGIN, PR_EDIT );
-	await page.getByRole( 'button', { name: 'Unlink', exact: true } ).click();
+	await ui.unlinkButton( page ).click();
 	await expect.poll( () => currentBranch( site.dir ) ).toBe( 'trunk' );
 	write( site.dir, 'build/pr-version', 'stale assets' );
 	( { page } = await session.restart() );
-	await linkTicket( page );
+	await ui.linkTicket( page, TICKET );
 	await expect.poll( () => currentBranch( site.dir ) ).toBe( `pr/${ PR }` );
-	await expect( page.getByRole( 'button', { name: 'Revert this PR', exact: true } ) ).toBeVisible();
+	await expect( ui.revertPrButton( page ) ).toBeVisible();
 	expect( read( site.dir, LOGIN ) ).toBe( PR_EDIT );
 	await expect.poll( () => read( site.dir, 'build/pr-version' ) ).toBe( PR_EDIT );
 	expect( read( site.dir, DOOMED ) ).toBe( '<?php // to be deleted\n' );
-	await page.getByRole( 'button', { name: 'Unlink', exact: true } ).click();
+	await ui.unlinkButton( page ).click();
 	await expect.poll( () => currentBranch( site.dir ) ).toBe( 'trunk' );
-	await page.getByLabel( 'Trac ticket number or URL' ).first().fill( '60002' );
-	await page.getByRole( 'button', { name: 'Link ticket', exact: true } ).first().click();
+	await ui.ticketField( page ).first().fill( '60002' );
+	await ui.linkTicketButton( page ).first().click();
 	await expect.poll( () => currentBranch( site.dir ) ).toBe( 'ticket/60002' );
-	await page.getByRole( 'button', { name: 'switch', exact: true } ).click();
+	await ui.switchBackButton( page ).click();
 	await expect.poll( () => currentBranch( site.dir ) ).toBe( `pr/${ PR }` );
 	await expect( page.getByText( `Working on ticket #${ TICKET }`, { exact: true } ) ).toBeVisible();
 	expect( read( site.dir, LOGIN ) ).toBe( PR_EDIT );
 	await expect.poll( () => read( site.dir, 'build/pr-version' ) ).toBe( PR_EDIT );
-	await page.getByRole( 'button', { name: 'Revert this PR', exact: true } ).click();
+	await ui.revertPrButton( page ).click();
 	await expect.poll( () => currentBranch( site.dir ) ).toBe( `ticket/${ TICKET }` );
 	expect( read( site.dir, DOOMED ) ).toBe( TICKET_EDIT );
-	await page.getByRole( 'button', { name: 'Unlink', exact: true } ).click();
+	await ui.unlinkButton( page ).click();
 	await expect.poll( () => currentBranch( site.dir ) ).toBe( 'trunk' );
-	await linkTicket( page );
+	await ui.linkTicket( page, TICKET );
 	await expect.poll( () => currentBranch( site.dir ) ).toBe( `ticket/${ TICKET }` );
-	await expect( page.getByRole( 'button', { name: 'Revert this PR', exact: true } ) ).toHaveCount( 0 );
+	await expect( ui.revertPrButton( page ) ).toHaveCount( 0 );
 } );
 
 test( 'a failed review reports an error instead of claiming there are no changes', async ( { session } ) => {
@@ -209,7 +198,7 @@ test( 'a failed review reports an error instead of claiming there are no changes
 		ipcMain.removeHandler( 'git:get-patch' );
 		ipcMain.handle( 'git:get-patch', () => ( { ok: false, error: 'Cannot read this patch' } ) );
 	} );
-	await page.getByRole( 'button', { name: 'Review & submit changes', exact: true } ).click();
+	await ui.reviewChangesButton( page ).click();
 	await expect( page.getByText( 'Error: Cannot read this patch', { exact: true } ) ).toBeVisible();
 	await expect( page.getByText( /There is nothing to send yet/ ) ).toHaveCount( 0 );
 	await expect( page.getByRole( 'alert' ).filter( { hasText: 'Could not load your changes' } ) ).toBeVisible();
@@ -220,13 +209,13 @@ test( 'switching tickets does not take over a running terminal command', async (
 	write( site.dir, 'package.json', JSON.stringify( { name: 'e2e-fixture-site', version: '1.0.0', scripts: { test: "node -e \"require('fs').writeFileSync('build/terminal-started', 'ready'); setTimeout(() => {}, 60000)\"" } } ) );
 	commitFiles( site.dir, [ 'package.json' ], 'terminal script fixture' );
 	const { page } = await session.start( site.settings );
-	await linkTicket( page );
-	await expect( page.getByRole( 'button', { name: 'Unlink', exact: true } ) ).toBeEnabled();
+	await ui.linkTicket( page, TICKET );
+	await expect( ui.unlinkButton( page ) ).toBeEnabled();
 	const terminal = page.getByRole( 'textbox', { name: 'Terminal input' } );
 	await terminal.pressSequentially( 'npm run test', { delay: 30 } );
 	await terminal.press( 'Enter' );
 	await expect.poll( () => { try { return read( site.dir, 'build/terminal-started' ); } catch { return null; } } ).toBe( 'ready' );
-	await page.getByRole( 'button', { name: 'Unlink', exact: true } ).click();
+	await ui.unlinkButton( page ).click();
 	await expect( page.getByText( 'A command is already running. Stop it before switching tickets.', { exact: true } ) ).toBeVisible();
 	expect( currentBranch( site.dir ) ).toBe( `ticket/${ TICKET }` );
 	await terminal.press( 'Control+c' );
