@@ -73,6 +73,7 @@ import { LogText } from './components/log-text.jsx';
 import { Destination, DestinationGroup } from './components/destination.jsx';
 import { TerminalCommandLink } from './components/terminal-command-link.jsx';
 import { RenameSiteModal } from './components/rename-site-modal.jsx';
+import { EmailModal } from './components/email-modal.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
@@ -151,11 +152,6 @@ const TICKET_PATCH_STATUS_MESSAGE = {
 };
 const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
 
-function formatEmailDate(email) {
-  if (email.sentAt) return new Date(email.sentAt).toLocaleString();
-  if (email.date) return new Date(email.date).toLocaleString();
-  return '';
-}
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
 function App() {
@@ -1139,9 +1135,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const newEmailUnsubRef = useRef(null);
   const smtpStartedUnsubRef = useRef(null);
   const wpDebugUnsubRef = useRef(null);
-  const [isEmailOpen, setIsEmailOpen] = useState(false);
+  // The mail open in the dialog, or null while none is: the dialog is up
+  // exactly while there is one to show.
   const [activeEmail, setActiveEmail] = useState(null);
-  const [, setEmailViewTab] = useState('rendered');
   const [building, setBuilding] = useState(false);
   const [hasNodeModules, setHasNodeModules] = useState(false);
   const [installFailed, setInstallFailed] = useState(false);
@@ -1505,7 +1501,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     if (!revealed?.ok) appendDebug(`Could not show the log file: ${revealed?.error || revealed?.reason || 'unknown error'}\n`);
   }, [appendDebug, sitePath]);
   const sortEmails = useCallback((list)=>[...list].sort((a,b)=>new Date(b.sentAt||b.date||0)-new Date(a.sentAt||a.date||0)),[]);
-  const openEmail = useCallback((m)=>{ setActiveEmail(m); setEmailViewTab('rendered'); setIsEmailOpen(true); },[]);
+  const openEmail = useCallback((m)=>{ setActiveEmail(m); },[]);
+  const closeEmail = useCallback(()=>{ setActiveEmail(null); },[]);
   const clearEmails = useCallback(async ()=>{ await window.api.clearEmails(sitePath); setEmails([]); }, [sitePath]);
   const loadStatus = useCallback(async ()=>{
     try {
@@ -5970,35 +5967,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           </div>
         </Modal>
       )}
-      {isEmailOpen && activeEmail && (
-        <Modal
-          title={activeEmail.subject || 'Email'}
-          onRequestClose={()=>{ setIsEmailOpen(false); setActiveEmail(null); }}
-          shouldCloseOnClickOutside
-          isFullScreen
-        >
-          <div style={{ padding: 8 }}>
-            <div style={{ marginBottom: 8, fontSize:12, color:'#444' }}>
-              <div><strong>From:</strong> {activeEmail.from || ''}</div>
-              <div><strong>To:</strong> {activeEmail.to || ''}</div>
-              {activeEmail.cc ? (<div><strong>CC:</strong> {activeEmail.cc}</div>) : null}
-              <div><strong>Date:</strong> {formatEmailDate(activeEmail)}</div>
-            </div>
-            <TabPanel className="email-tabs" activeClass="is-active" onSelect={(n)=>setEmailViewTab(n)} tabs={[{name:'rendered',title:'Rendered'},{name:'raw',title:'Raw'}]}>
-              {(tab)=> tab.name==='rendered' ? (
-                <div style={{ border:'1px solid #ddd', borderRadius:6, padding:12, minHeight:'60vh', background:'#fff' }}>
-                  {activeEmail.html ? (
-                    <div dangerouslySetInnerHTML={{ __html: String(activeEmail.html) }} />
-                  ) : (
-                    <pre style={{ whiteSpace:'pre-wrap', margin:0 }}>{activeEmail.text || ''}</pre>
-                  )}
-                </div>
-              ) : (
-                <pre style={{ whiteSpace:'pre-wrap', margin:0, background:'#111', color:'#eee', padding:12, borderRadius:6, minHeight:'60vh', overflow:'auto' }}>{activeEmail.raw || activeEmail.text || ''}</pre>
-              )}
-            </TabPanel>
-          </div>
-        </Modal>
+      {activeEmail && (
+        <EmailModal email={activeEmail} onClose={closeEmail} />
       )}
     </section>
   );
