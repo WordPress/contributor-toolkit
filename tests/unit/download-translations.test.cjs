@@ -33,10 +33,10 @@ const exportUrl = (locale) => `https://translate.wordpress.org/projects/meta/con
 
 const SETS = {
 	translation_sets: [
-		{ locale: 'de', percent_translated: 100, current_count: 26 },
-		{ locale: 'pt-br', percent_translated: 80, current_count: 21 },
-		{ locale: 'fr', percent_translated: 79, current_count: 20 },
-		{ locale: 'ja', percent_translated: 0, current_count: 0 }
+		{ locale: 'de', slug: 'default', percent_translated: 100, current_count: 26 },
+		{ locale: 'pt-br', slug: 'default', percent_translated: 80, current_count: 21 },
+		{ locale: 'fr', slug: 'default', percent_translated: 79, current_count: 20 },
+		{ locale: 'ja', slug: 'default', percent_translated: 0, current_count: 0 }
 	]
 };
 
@@ -87,6 +87,38 @@ test('a failed export changes nothing in the catalog directory', async (t) => {
 	assert.equal(fs.readFileSync(path.join(dir, 'de.json'), 'utf8'), 'the old catalog');
 });
 
+test('a variant such as German (formal) is not read as the locale it varies', async (t) => {
+	// The export is always the default set's, so a variant's percentage must not
+	// decide whether de.json ships, nor list de twice.
+	const dir = tempDir(t);
+	const { fetch, calls } = fakeFetch({
+		[API]: {
+			translation_sets: [
+				{ locale: 'de', slug: 'default', percent_translated: 40, current_count: 10 },
+				{ locale: 'de', slug: 'formal', percent_translated: 100, current_count: 26 },
+				{ locale: 'pt', slug: 'default', percent_translated: 100, current_count: 26 },
+				{ locale: 'pt', slug: 'ao90', percent_translated: 100, current_count: 26 }
+			]
+		},
+		[exportUrl('pt')]: catalog('pt', 'x')
+	});
+
+	const result = await downloadTranslations({ dir, fetch });
+
+	assert.deepEqual(result.shipped.map((row) => row.locale), ['pt']);
+	assert.deepEqual(fs.readdirSync(dir), ['pt.json']);
+	assert.ok(!calls.includes(exportUrl('de')));
+	assert.equal(calls.filter((url) => url === exportUrl('pt')).length, 1);
+});
+
+test('a translation set without a slug is refused rather than skipped', async (t) => {
+	const dir = tempDir(t);
+	fs.writeFileSync(path.join(dir, 'de.json'), 'the old catalog');
+	const { fetch } = fakeFetch({ [API]: { translation_sets: [{ locale: 'de', percent_translated: 100, current_count: 1 }] } });
+	await assert.rejects(downloadTranslations({ dir, fetch }), /in a shape this script does not know/);
+	assert.deepEqual(fs.readdirSync(dir), ['de.json']);
+});
+
 test('a project translate.wordpress.org does not have yet is named as such', async (t) => {
 	const { fetch } = fakeFetch({});
 	await assert.rejects(downloadTranslations({ dir: tempDir(t), fetch }), /has no project meta\/contributor-toolkit yet/);
@@ -95,7 +127,7 @@ test('a project translate.wordpress.org does not have yet is named as such', asy
 test('an export without locale_data is refused rather than shipped', async (t) => {
 	const dir = tempDir(t);
 	const { fetch } = fakeFetch({
-		[API]: { translation_sets: [{ locale: 'de', percent_translated: 100, current_count: 1 }] },
+		[API]: { translation_sets: [{ locale: 'de', slug: 'default', percent_translated: 100, current_count: 1 }] },
 		[exportUrl('de')]: { error: 'not a catalog' }
 	});
 	await assert.rejects(downloadTranslations({ dir, fetch }), /de export has no locale_data/);
@@ -104,7 +136,7 @@ test('an export without locale_data is refused rather than shipped', async (t) =
 
 test('a locale slug that could name a path is refused', async (t) => {
 	const dir = tempDir(t);
-	const { fetch } = fakeFetch({ [API]: { translation_sets: [{ locale: '../evil', percent_translated: 100, current_count: 1 }] } });
+	const { fetch } = fakeFetch({ [API]: { translation_sets: [{ locale: '../evil', slug: 'default', percent_translated: 100, current_count: 1 }] } });
 	await assert.rejects(downloadTranslations({ dir, fetch }), /Refusing the locale slug/);
 	assert.deepEqual(fs.readdirSync(dir), []);
 });
@@ -125,8 +157,8 @@ test('a locale the app never selects is not shipped, and is named with the reaso
 	const dir = tempDir(t);
 	const { fetch, calls } = fakeFetch({
 		[API]: { translation_sets: [
-			{ locale: 'de', percent_translated: 100, current_count: 26 },
-			{ locale: 'es-cl', percent_translated: 100, current_count: 26 }
+			{ locale: 'de', slug: 'default', percent_translated: 100, current_count: 26 },
+			{ locale: 'es-cl', slug: 'default', percent_translated: 100, current_count: 26 }
 		] },
 		[exportUrl('de')]: catalog('de', 'x')
 	});
@@ -142,9 +174,9 @@ test('a right-to-left locale is held back until the styles support it', async (t
 	const dir = tempDir(t);
 	const { fetch } = fakeFetch({
 		[API]: { translation_sets: [
-			{ locale: 'ar', percent_translated: 100, current_count: 26 },
-			{ locale: 'he', percent_translated: 95, current_count: 25 },
-			{ locale: 'de', percent_translated: 100, current_count: 26 }
+			{ locale: 'ar', slug: 'default', percent_translated: 100, current_count: 26 },
+			{ locale: 'he', slug: 'default', percent_translated: 95, current_count: 25 },
+			{ locale: 'de', slug: 'default', percent_translated: 100, current_count: 26 }
 		] },
 		[exportUrl('de')]: catalog('de', 'x')
 	});
@@ -161,7 +193,7 @@ test('a throttled request waits as long as it is asked, then tries again', async
 	const waits = [];
 	let throttled = 2;
 	const fetch = async (url) => {
-		if (url === API) return { ok: true, status: 200, json: async () => ({ translation_sets: [{ locale: 'de', percent_translated: 100, current_count: 1 }] }) };
+		if (url === API) return { ok: true, status: 200, json: async () => ({ translation_sets: [{ locale: 'de', slug: 'default', percent_translated: 100, current_count: 1 }] }) };
 		if (throttled-- > 0) return { ok: false, status: 429, headers: new Map([['retry-after', '7']]), json: async () => ({}) };
 		return { ok: true, status: 200, json: async () => catalog('de', 'x') };
 	};
@@ -175,7 +207,7 @@ test('a throttled request waits as long as it is asked, then tries again', async
 test('a request still throttled after three tries fails, and changes nothing', async (t) => {
 	const dir = tempDir(t);
 	const fetch = async (url) => (url === API
-		? { ok: true, status: 200, json: async () => ({ translation_sets: [{ locale: 'de', percent_translated: 100, current_count: 1 }] }) }
+		? { ok: true, status: 200, json: async () => ({ translation_sets: [{ locale: 'de', slug: 'default', percent_translated: 100, current_count: 1 }] }) }
 		: { ok: false, status: 429, headers: new Map(), json: async () => ({}) });
 	const waits = [];
 

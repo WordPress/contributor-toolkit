@@ -90,13 +90,16 @@ async function downloadTranslations({
 	// An answer in any other shape is refused rather than read as "nothing is
 	// translated", which would remove every catalog and still exit cleanly.
 	const valid = Array.isArray(sets) && sets.length > 0 &&
-		sets.every((set) => typeof set?.locale === 'string' && typeof set.percent_translated === 'number');
+		sets.every((set) => typeof set?.locale === 'string' && typeof set.slug === 'string' && typeof set.percent_translated === 'number');
 	if (!valid) throw new Error(`translate.wordpress.org answered for meta/${project} in a shape this script does not know; nothing was changed.`);
 
 	const reachable = reachableSlugs();
 	const shipped = [];
 	const skipped = [];
 	for (const set of sets) {
+		// A variant, such as German (formal), shares its locale with the default
+		// set, but the export below is always the default set's.
+		if (set.slug !== 'default') continue;
 		if (set.locale === 'en' || set.percent_translated < minCoverage) continue;
 		if (!SLUG_PATTERN.test(set.locale)) throw new Error(`Refusing the locale slug ${JSON.stringify(set.locale)}: it is not a locale.`);
 		const row = { locale: set.locale, percent: set.percent_translated, strings: set.current_count };
