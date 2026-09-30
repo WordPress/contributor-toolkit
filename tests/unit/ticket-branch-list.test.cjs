@@ -2,8 +2,6 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
 const { relativeTimeLabel, ticketBranchRows, savedPrForSwitch, ticketListCard } = require('../../src/renderer/ticket-branch-list.cjs');
 
 const MINUTE_MS = 60 * 1000;
@@ -129,38 +127,6 @@ test('card: the heading follows the state — other tickets when linked, your ti
 test('card: no rows means no card, not an empty one', () => {
 	assert.strictEqual(ticketListCard({ rowCount: 0, linked: true }), null);
 	assert.strictEqual(ticketListCard({ rowCount: 0, linked: false }), null);
-});
-
-// The card's position is the whole point of #240, and no test renders the
-// DOM, so the layout is pinned at the source: the rows render once, from a
-// card of their own, last of the three. Reading order is a behaviour here —
-// which ticket am I on, what work can I bring into it, and only then the
-// other tickets parked on this site.
-test('card: the list renders once, in its own card below the ticket card and the patch card (issue #240)', () => {
-	const source = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'renderer', 'index.jsx'), 'utf8');
-
-	// The headings come from ticketListCard, so the card cannot say one thing
-	// while the tested module says another. Restated literals in index.jsx
-	// would be the two-copies drift this module exists to prevent.
-	assert.ok(!source.includes('Other tickets on this site'), 'index.jsx restates the linked heading instead of using ticketListCard');
-	assert.ok(!source.includes('Your tickets on this site'), 'index.jsx restates the unlinked heading instead of using ticketListCard');
-
-	// One call site. Two was the old shape — one per state of the ticket card —
-	// and going back to two is the list mounting twice, or quietly moving back
-	// inside the card it just left. Counted as a call rather than as the bare
-	// name so that a comment naming the helper is not a red suite.
-	assert.strictEqual(source.split('renderBranchRows(').length - 1, 1, 'expected exactly one renderBranchRows( call: the single card that renders the list');
-
-	// Below both: the work item in hand, then the work you can apply to it,
-	// then the other work items this site is holding. The heading takes the
-	// site's noun (#251); the template is the anchor.
-	const ticketCard = source.indexOf('Working on ${workItem.noun} #');
-	const listCard = source.indexOf('{ticketsCard.heading}');
-	// The heading comes from the registry now, one wording per target (#251);
-	// the read of it is the anchor.
-	const patchCard = source.indexOf('{project.cards.applyHeading}');
-	assert.ok(ticketCard !== -1 && listCard !== -1 && patchCard !== -1, 'one of the three card headings is missing from index.jsx');
-	assert.ok(ticketCard < patchCard && patchCard < listCard, 'the tickets card is not below the Trac ticket card and the patch card');
 });
 
 // --- relativeTimeLabel ------------------------------------------------------

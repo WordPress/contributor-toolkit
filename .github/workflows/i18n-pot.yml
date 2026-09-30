@@ -19,7 +19,7 @@ on:
     branches: [trunk]
     paths:
       - 'src/**'
-      - 'scripts/make-pot.cjs'
+      - 'scripts/generate-pot.cjs'
   workflow_dispatch:
 
 permissions:
@@ -58,7 +58,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pot
-          path: languages/contributor-toolkit.pot
+          path: contributor-toolkit.pot
           retention-days: 1
 
   publish:
@@ -95,7 +95,9 @@ jobs:
           fi
 
           cp "$RUNNER_TEMP/pot/contributor-toolkit.pot" contributor-toolkit.pot
-          git add contributor-toolkit.pot
+          # Forced: trunk's .gitignore ignores *.pot, and on the first run it is still in the
+          # working tree after orphaning.
+          git add -f contributor-toolkit.pot
           if git diff --cached --quiet; then
             echo "No change to the strings."
             exit 0

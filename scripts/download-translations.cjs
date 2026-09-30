@@ -90,13 +90,16 @@ async function downloadTranslations({
 	// An answer in any other shape is refused rather than read as "nothing is
 	// translated", which would remove every catalog and still exit cleanly.
 	const valid = Array.isArray(sets) && sets.length > 0 &&
-		sets.every((set) => typeof set?.locale === 'string' && typeof set.percent_translated === 'number');
+		sets.every((set) => typeof set?.locale === 'string' && typeof set.slug === 'string' && typeof set.percent_translated === 'number');
 	if (!valid) throw new Error(`translate.wordpress.org answered for meta/${project} in a shape this script does not know; nothing was changed.`);
 
 	const reachable = reachableSlugs();
 	const shipped = [];
 	const skipped = [];
 	for (const set of sets) {
+		// A variant, such as German (formal), shares its locale with the default
+		// set, but the export below is always the default set's.
+		if (set.slug !== 'default') continue;
 		if (set.locale === 'en' || set.percent_translated < minCoverage) continue;
 		if (!SLUG_PATTERN.test(set.locale)) throw new Error(`Refusing the locale slug ${JSON.stringify(set.locale)}: it is not a locale.`);
 		const row = { locale: set.locale, percent: set.percent_translated, strings: set.current_count };
@@ -113,7 +116,9 @@ async function downloadTranslations({
 		for (const { locale } of shipped) {
 			// One at a time: a burst of requests is what translate.wordpress.org throttles.
 			const catalog = await get(`${BASE_URL}/projects/meta/${project}/${locale}/default/export-translations/?format=jed1x`);
-			if (!catalog?.locale_data?.messages) throw new Error(`The ${locale} export has no locale_data.messages.`);
+			// The same test resolveCatalog in src/i18n.cjs applies, so nothing ships that the app would skip.
+			const messages = catalog?.locale_data?.messages;
+			if (!messages || typeof messages !== 'object' || Array.isArray(messages)) throw new Error(`The ${locale} export has no locale_data.messages.`);
 			fs.writeFileSync(path.join(staging, `${locale}.json`), `${JSON.stringify(catalog, null, '\t')}\n`);
 		}
 
