@@ -42,7 +42,9 @@ const outDir = path.join(repoRoot, 'docs', 'public', 'screenshots');
 // scale-factor switch a retina display doubles the pixel size of half the
 // screenshots and the docs pages render them inconsistently.
 const WINDOW = { width: 1200, height: 800 };
-const ELECTRON_SWITCHES = ['--force-device-scale-factor=1', '--lang=en-GB'];
+// en-US: the source language, so the docs show the strings as written, never a
+// translation catalog's.
+const ELECTRON_SWITCHES = ['--force-device-scale-factor=1', '--lang=en-US'];
 
 function parseArgs(argv) {
 	const args = { tier: 'fixture', only: null, userData: null };

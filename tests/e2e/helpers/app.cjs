@@ -29,8 +29,10 @@ const REPO_ROOT = path.join( __dirname, '..', '..', '..' );
 
 // DPR 1 and a fixed locale and timezone: selectors read the text the app renders,
 // and some of that text is dates. Without these, a retina laptop and a CI runner
-// disagree about what is on screen.
-const ELECTRON_SWITCHES = [ '--force-device-scale-factor=1', '--lang=en-GB' ];
+// disagree about what is on screen. The locale is en-US, the language the source
+// strings are written in, so no translation catalog ever loads; en-GB used to be
+// here, and translate.wordpress.org ships a British English one.
+const ELECTRON_SWITCHES = [ '--force-device-scale-factor=1', '--lang=en-US' ];
 
 /**
  * Whether two paths name the same directory.
@@ -113,7 +115,7 @@ class Session {
 	 * @param {Object} settings       Initial electron-store contents. Defaults to a
 	 *                                first-launch app with no sites.
 	 * @param {Object} [options]
-	 * @param {string} [options.lang] The locale to launch in, in place of en-GB. It
+	 * @param {string} [options.lang] The locale to launch in, in place of en-US. It
 	 *                                holds across restart().
 	 * @return {Promise<{app: Object, page: Object}>} The Electron app and its first window.
 	 */

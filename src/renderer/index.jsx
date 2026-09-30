@@ -18,7 +18,7 @@ import {
   TextareaControl,
   Spinner
 } from '@wordpress/components';
-import { __, setLocaleData } from '@wordpress/i18n';
+import { __, _x, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
 import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, pencil, download, comment } from '@wordpress/icons';
 import { ThemeProvider } from '@wordpress/theme';
@@ -38,7 +38,7 @@ import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMes
 import { planUpdateHandOff } from './update-handoff.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
-import { applyLocale } from './locale-setup.cjs';
+import { applyLocale, textDirection } from './locale-setup.cjs';
 import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
 import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
@@ -5930,6 +5930,7 @@ async function loadLocale() {
     console.error('Could not load the locale; showing English:', err);
   }
   document.documentElement.lang = applyLocale(reply, { setLocaleData, addFilter });
+  document.documentElement.dir = textDirection(_x);
   document.title = __('WordPress Contributor Toolkit');
 }
 
