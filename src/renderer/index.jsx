@@ -21,7 +21,12 @@ import {
 } from '@wordpress/components';
 import { __, _x, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
-import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, edit, download, comment } from '@wordpress/icons';
+import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, pencil, download, comment } from '@wordpress/icons';
+import { ThemeProvider } from '@wordpress/theme';
+import { VisuallyHidden } from '@wordpress/ui';
+// The design system's tokens: every `--wpds-*` custom property, at its default,
+// on `:root`.
+import '@wordpress/theme/design-tokens.css';
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
@@ -799,7 +804,7 @@ function App() {
       <div style={{ width: sidebarCollapsed ? 56 : 280, background: '#1f1f1f', color: '#f7f7f7', display: 'flex', flexDirection: 'column', transition: 'width 0.2s ease', borderRight: '1px solid #2b2b2b' }}>
         <div style={{ padding: sidebarCollapsed ? '12px 8px' : '16px', borderBottom: '1px solid #2b2b2b' }}>
           <Flex align="center" justify="space-between">
-            {!sidebarCollapsed ? (<div style={{ fontWeight: 600 }}>{__('Contributor Toolkit')}</div>) : null}
+            {!sidebarCollapsed ? (<div style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{__('Contributor Toolkit')}</div>) : null}
             <Button
               icon={sidebarCollapsed ? chevronRight : chevronLeft}
               onClick={() => setSidebarCollapsed((v) => !v)}
@@ -1492,9 +1497,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // over: the xterm instance is created by an effect that depends on
   // `printHelp`, so a new array identity here would otherwise dispose and
   // recreate the terminal, scrollback and all, the first time a status
-  // reports a type. Same indirection as terminalInputHandlerRef.
+  // reports a type. Same indirection as terminalInputHandlerRef, and updated
+  // the same way: from an effect, once the render that changed it is on screen.
   const allowedScriptsRef = useRef(projectBuild.allowedScripts);
-  allowedScriptsRef.current = projectBuild.allowedScripts;
+  useLayoutEffect(() => {
+    allowedScriptsRef.current = projectBuild.allowedScripts;
+  }, [projectBuild.allowedScripts]);
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
@@ -4879,15 +4887,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           whereas a change to one already in the DOM is. Only the active row ever
           holds text, so only the visible site speaks; it clears to nothing when
           there is no next action. */}
-      <div className="sr-only" role="status" aria-live="polite">
+      <VisuallyHidden role="status" aria-live="polite">
         {isActive && nextAction ? `Next step: ${nextAction.reason}` : ''}
-      </div>
+      </VisuallyHidden>
       <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 440px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <h1 style={{ margin: 0, fontSize: 28, lineHeight: 1.2 }}>{displayName}</h1>
             <Button
-              icon={edit}
+              icon={pencil}
               label="Rename site"
               aria-label="Rename site"
               onClick={openRenameModal}
@@ -6407,7 +6415,13 @@ async function loadLocale() {
   document.title = __('WordPress Contributor Toolkit');
 }
 
+// The design system's provider, at its defaults: the tokens stylesheet already
+// holds every value, so this changes nothing on screen yet. It is here so the
+// redesign (#542) has one place to set colour and corner radius from. `isRoot`
+// puts whatever it overrides on the document rather than on its own wrapper,
+// which is what reaches a modal or a popover: those are portalled to `body`,
+// outside this tree.
 loadLocale().then(() => {
   const root = createRoot(document.getElementById('root'));
-  root.render(<App />);
+  root.render(<ThemeProvider isRoot><App /></ThemeProvider>);
 });

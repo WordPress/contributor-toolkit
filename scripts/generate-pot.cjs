@@ -1,9 +1,10 @@
 // Extracts every translatable string in src/ into a gettext template (.pot).
 //
-// `npm run i18n:pot` writes languages/contributor-toolkit.pot, the file a
-// translator (or translate.wordpress.org) starts from. It is generated, and never
-// committed to trunk, so it cannot drift from the source; .github/workflows/i18n-pot.yml
-// publishes it to the `translations` branch for translate.wordpress.org.
+// `npm run i18n:pot` writes contributor-toolkit.pot at the repository root, the
+// file a translator (or translate.wordpress.org) starts from. It is generated,
+// never committed to trunk, so it cannot drift from the source;
+// .github/workflows/i18n-pot.yml publishes it to the `translations` branch for
+// translate.wordpress.org.
 //
 // The extraction is @wordpress/babel-plugin-makepot, the one WordPress itself
 // uses. That plugin skips a translation call whose string is not a literal
@@ -16,7 +17,27 @@ const babel = require('@babel/core');
 const makepot = require('@wordpress/babel-plugin-makepot');
 
 const REPO_ROOT = path.join(__dirname, '..');
-const DEFAULT_OUTPUT = path.join(REPO_ROOT, 'languages', 'contributor-toolkit.pot');
+const DEFAULT_OUTPUT = path.join(REPO_ROOT, 'contributor-toolkit.pot');
+const PROJECT = 'WordPress Contributor Toolkit';
+const { bugs, license } = require('../package.json');
+
+// The header entries Openverse's .pot carries, the ones a gettext tool or
+// translate.wordpress.org expects to find. Replacing the plugin's defaults
+// drops its `X-Generator`, and Content-Type must name its charset here or the
+// compiler writes `text/plain;` with none.
+function potHeaders(now = new Date()) {
+	return {
+		'project-id-version': PROJECT,
+		'report-msgid-bugs-to': bugs.url,
+		'pot-creation-date': `${now.toISOString().split('.')[0]}+00:00`,
+		'mime-version': '1.0',
+		'content-type': 'text/plain; charset=UTF-8',
+		'content-transfer-encoding': '8bit',
+		'po-revision-date': 'YEAR-MO-DA HO:MI+ZONE',
+		'last-translator': 'FULL NAME <EMAIL@ADDRESS>',
+		'language-team': 'LANGUAGE <LL@li.org>'
+	};
+}
 
 // The argument each translation function reads its source string from: the
 // singular for all four, and the plural too for `_n` and `_nx`.
@@ -60,25 +81,15 @@ function nonLiteralCalls(problems) {
  * @param {string}   [options.output] Where to write the .pot.
  * @return {{output: string, problems: string[]}} Where the .pot went, and each non-literal call found.
  */
-function makePot({ files = sourceFiles(), output = DEFAULT_OUTPUT } = {}) {
+function generatePot({ files = sourceFiles(), output = DEFAULT_OUTPUT } = {}) {
 	fs.mkdirSync(path.dirname(output), { recursive: true });
 	fs.rmSync(output, { force: true });
 	const problems = [];
+	const now = new Date();
 	// One plugin list for every file, so Babel reuses one instance of the
 	// makepot plugin and its strings accumulate across files.
 	const plugins = [
-		[makepot, {
-			output,
-			// These replace the plugin's defaults rather than adding to them, so the
-			// charset is restated: without it the .pot says `text/plain;`, and
-			// translate.wordpress.org would have to guess the encoding of `↗`.
-			headers: {
-				'content-type': 'text/plain; charset=UTF-8',
-				'x-generator': 'babel-plugin-makepot',
-				'project-id-version': 'WordPress Contributor Toolkit',
-				'report-msgid-bugs-to': 'https://github.com/WordPress/contributor-toolkit/issues'
-			}
-		}],
+		[makepot, { output, headers: potHeaders(now) }],
 		nonLiteralCalls(problems)
 	];
 	// The plugin writes each `#:` reference relative to the process's working
@@ -100,13 +111,18 @@ function makePot({ files = sourceFiles(), output = DEFAULT_OUTPUT } = {}) {
 	} finally {
 		process.chdir(previousCwd);
 	}
+	// The plugin has no option for the comment above the header entry.
+	if (fs.existsSync(output)) {
+		const comment = `# Copyright (C) ${now.getUTCFullYear()} ${PROJECT}\n# This file is distributed under the ${license} license.\n`;
+		fs.writeFileSync(output, comment + fs.readFileSync(output, 'utf8'));
+	}
 	return { output, problems };
 }
 
-module.exports = { makePot, sourceFiles };
+module.exports = { generatePot, sourceFiles };
 
 if (require.main === module) {
-	const { output, problems } = makePot();
+	const { output, problems } = generatePot();
 	if (problems.length) {
 		console.error(`Translation calls the .pot cannot hold:\n${problems.map((p) => `  ${p}`).join('\n')}`);
 		process.exit(1);

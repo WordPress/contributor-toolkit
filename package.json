@@ -27,7 +27,7 @@
     "test:electron": "node scripts/run-tests-electron.cjs",
     "test:e2e": "playwright test --project=journeys",
     "test:e2e:packaged": "playwright test --project=packaged",
-    "i18n:pot": "node scripts/make-pot.cjs",
+    "i18n:pot": "node scripts/generate-pot.cjs",
     "i18n:download": "node scripts/download-translations.cjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -75,7 +75,21 @@
       "!node_modules/dugite/git/{mingw64,clangarm64}/share/doc{,/**/*}",
       "!node_modules/fs-ext-extra-prebuilt/build/*.vcxproj*",
       "!node_modules/fs-ext-extra-prebuilt/build/Release/fs_ext.{exp,iobj,ipdb,lib}",
-      "!node_modules/fs-ext-extra-prebuilt/build/Release/obj{,/**/*}"
+      "!node_modules/fs-ext-extra-prebuilt/build/Release/obj{,/**/*}",
+      "!node_modules/esbuild{,/**/*}",
+      "!node_modules/@esbuild{,/**/*}",
+      "!node_modules/@base-ui{,/**/*}",
+      "!node_modules/@date-fns{,/**/*}",
+      "!node_modules/@daypicker{,/**/*}",
+      "!node_modules/react-day-picker{,/**/*}",
+      "!node_modules/reselect{,/**/*}",
+      "!node_modules/tabbable{,/**/*}",
+      "!node_modules/colorjs.io{,/**/*}",
+      "!node_modules/@wordpress/base-styles{,/**/*}",
+      "!node_modules/@wordpress/kebab-case{,/**/*}",
+      "!node_modules/@wordpress/style-runtime{,/**/*}",
+      "!node_modules/@wordpress/theme{,/**/*}",
+      "!node_modules/@wordpress/ui{,/**/*}"
     ],
     "asarUnpack": [
       "node_modules/dugite/git/**"
@@ -113,10 +127,12 @@
   "dependencies": {
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
-    "@wordpress/components": "^28.2.0",
+    "@wordpress/components": "^41.0.0",
     "@wordpress/hooks": "^4.56.0",
     "@wordpress/i18n": "^6.29.0",
-    "@wordpress/icons": "^10.7.0",
+    "@wordpress/icons": "^17.0.0",
+    "@wordpress/theme": "^2.2.0",
+    "@wordpress/ui": "^0.23.0",
     "@wp-playground/cli": "^3.1.47",
     "@xterm/xterm": "^5.5.0",
     "diff": "^8.0.4",
@@ -138,7 +154,7 @@
     "concurrently": "^8.2.2",
     "electron": "43.6.0",
     "electron-builder": "^26.15.3",
-    "esbuild": "^0.23.0",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "playwright-core": "^1.62.1"
   },
@@ -147,6 +163,7 @@
     "electron-winstaller@5.4.0": true,
     "electron@43.6.0": true,
     "esbuild@0.23.1": true,
+    "esbuild@0.28.2": true,
     "fs-ext-extra-prebuilt@2.2.7": true
   }
 }
