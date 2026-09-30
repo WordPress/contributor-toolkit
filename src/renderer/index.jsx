@@ -23,7 +23,7 @@ import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check a
 import { ThemeProvider } from '@wordpress/theme';
 import { VisuallyHidden } from '@wordpress/ui';
 // The design system's tokens: every `--wpds-*` custom property, at its default,
-// on `:root`. Ahead of the components' stylesheet, which reads them.
+// on `:root`.
 import '@wordpress/theme/design-tokens.css';
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from '@xterm/xterm';

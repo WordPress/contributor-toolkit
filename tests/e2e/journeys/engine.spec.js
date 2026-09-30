@@ -2,13 +2,14 @@
  * The engine's own test (#360).
  *
  * Not a journey: it asserts nothing about ticket branches or patches. It asserts
- * that the four things every journey depends on actually work, so that when a
+ * that the five things every journey depends on actually work, so that when a
  * journey fails it is about the flow and not about the harness.
  *
  *   1. The app launches from the source tree and paints.
- *   2. It uses the throwaway profile, and nothing else.
- *   3. What it persists survives closing and reopening it.
- *   4. A native file dialog can be answered from the test.
+ *   2. The design system's tokens and the styles it adds at run time are applied.
+ *   3. It uses the throwaway profile, and nothing else.
+ *   4. What it persists survives closing and reopening it.
+ *   5. A native file dialog can be answered from the test.
  *
  * If this file is red, no other journey's result means anything.
  */
@@ -70,13 +71,15 @@ function makeListedSite( session, label ) {
 	};
 }
 
-test( 'the app launches from source and lists the site it was seeded with', async ( { session } ) => {
+test( 'the app launches from source, styled, and lists the site it was seeded with', async ( { session } ) => {
 	const site = makeListedSite( session, 'engine-check' );
 	const { page } = await session.start( site.settings );
 
 	await expect( page ).toHaveTitle( 'WordPress Contributor Toolkit' );
-	// #root is in the static HTML, so its presence proves nothing — its children do.
-	await expect( page.locator( '#root > *' ) ).not.toHaveCount( 0 );
+	// #root is in the static HTML, so its presence proves nothing, and neither does
+	// its one child: that is the design system's provider, which is there whatever
+	// the app inside it rendered. What the app rendered is one level further down.
+	await expect( page.locator( '#root > * > *' ) ).not.toHaveCount( 0 );
 
 	// `exact`, because the sidebar heading "Contributor Toolkit" is a substring of
 	// several button labels further down the page.
@@ -84,13 +87,10 @@ test( 'the app launches from source and lists the site it was seeded with', asyn
 	// The row wears its project (#251): a Core site says Core, not nothing.
 	await expect( sidebarEntry( page, 'engine-check' ) ).toHaveAccessibleName( 'engine-check Core' );
 	await expect( page.getByText( 'No sites yet.', { exact: true } ) ).toHaveCount( 0 );
-} );
 
-test( 'the design system\'s tokens and its injected styles reach the window (#549)', async ( { session } ) => {
-	const site = makeListedSite( session, 'design-system' );
-	const { page } = await session.start( site.settings );
-	await expect( sidebarEntry( page, 'design-system' ) ).toBeVisible();
-
+	// The design system reaches the window (#549), asserted here because it needs
+	// a painted window and nothing else, and this test already has one.
+	//
 	// The tokens are a stylesheet the bundle has to carry. Without it every
 	// `var(--wpds-…)` in the app's own styles resolves to nothing, and nothing
 	// fails: the components fall back to their built-in values and only the
@@ -115,8 +115,13 @@ test( 'the design system\'s tokens and its injected styles reach the window (#54
 	// step (#252) appears on screen.
 	const wrapper = await page.locator( '#root > *' ).first().evaluate( ( el ) => window.getComputedStyle( el ).display );
 	expect( wrapper ).toBe( 'contents' );
-	const spoken = page.locator( '[data-visually-hidden]' ).first();
-	await expect( spoken ).toHaveAttribute( 'role', 'status' );
+	// Found by what it says, which is the only thing a screen reader user has of
+	// it. Not by the attribute the component puts on it: `@wordpress/components`
+	// puts the same one on its own hidden text, and hides that with inline
+	// styles, so the first match could pass with no injected style at all.
+	const spoken = page.getByRole( 'status' ).filter( { hasText: /^Next step: / } );
+	await expect( spoken ).toHaveCount( 1 );
+	await expect( spoken ).toHaveAttribute( 'aria-live', 'polite' );
 	const box = await spoken.evaluate( ( el ) => {
 		const style = window.getComputedStyle( el );
 		return { position: style.position, width: style.width };
