@@ -28,7 +28,11 @@ const BANNER = 'A merge started outside the app is in progress.';
 // gives it (#352). The card and the refusal from the main process are both
 // held to it below, which is what keeps either from growing a wording of its
 // own: the literals above and beside it only pin the parts worth reading here.
-const SENTENCE = mergeInProgressError( { kind: 'merge', paths: [ LOGIN ] } );
+//
+// The path is written the way Git reports it, with a forward slash on every
+// platform. `LOGIN` is the same file as the operating system spells it, which
+// on Windows is a backslash the app never shows.
+const SENTENCE = mergeInProgressError( { kind: 'merge', paths: [ 'src/wp-login.php' ] } );
 const MENTOR_LOGIN = '<?php // the mentor\'s fix\n';
 
 /**
