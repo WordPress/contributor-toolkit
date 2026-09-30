@@ -314,9 +314,9 @@ test( 'app.asar carries exactly the allow-listed top-level entries', async () =>
 	// Their directories hold nothing but `.jsx`, so with the sources gone the
 	// directories are not there either.
 	expect( rendererEntries, 'the esbuild sources are replaced by the bundle, not shipped beside it' )
-		.not.toEqual( expect.arrayContaining( [ 'components' ] ) );
+		.not.toContain( 'components' );
 	expect( rendererEntries, 'the esbuild sources are replaced by the bundle, not shipped beside it' )
-		.not.toEqual( expect.arrayContaining( [ 'hooks' ] ) );
+		.not.toContain( 'hooks' );
 	expect( rendererEntries, 'the renderer bundle is missing — was `npm run build:once` run before packaging?' )
 		.toEqual( expect.arrayContaining( [ 'index.html', 'index.js', 'index.css' ] ) );
 } );

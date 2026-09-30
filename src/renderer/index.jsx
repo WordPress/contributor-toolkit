@@ -1454,7 +1454,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     try {
       result = await window.api.openInEditor(sitePath, editorPath);
     } catch (err) {
-      // eslint-disable-next-line no-console -- see the note on the first console.error above.
+      // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
       console.error('Could not open the site directory:', err);
       result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
@@ -1474,7 +1474,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     try {
       result = await window.api.showSiteInFileManager(sitePath);
     } catch (err) {
-      // eslint-disable-next-line no-console -- see the note on the first console.error above.
+      // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
       console.error('Could not reveal the site folder:', err);
       result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
