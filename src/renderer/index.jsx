@@ -72,6 +72,7 @@ import { DiffText } from './components/diff-text.jsx';
 import { LogText } from './components/log-text.jsx';
 import { Destination, DestinationGroup } from './components/destination.jsx';
 import { TerminalCommandLink } from './components/terminal-command-link.jsx';
+import { RenameSiteModal } from './components/rename-site-modal.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
@@ -133,7 +134,6 @@ const UPDATE_STEP_MARKS = {
 const FILE_MANAGER_LABELS = { darwin: 'Show in Finder', win32: 'Show in Explorer' };
 const FILE_MANAGER_NAMES = { darwin: 'Finder', win32: 'File Explorer' };
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
-const RENAME_INPUT_ID = 'rename-site-name-input';
 const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
 const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
 const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
@@ -1343,61 +1343,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
 
   const siteName = pathBasename(sitePath);
   const displayName = (label && label.trim()) || siteName;
+  // Whether the rename dialog is up. Everything else about it, the value being
+  // typed, the refusal, the busy flag, is the dialog's own (#553).
   const [renameModalOpen, setRenameModalOpen] = useState(false);
-  const [renameValue, setRenameValue] = useState(displayName);
-  const [renameError, setRenameError] = useState('');
-  const [renaming, setRenaming] = useState(false);
-  useEffect(() => { setRenameValue(displayName); }, [displayName]);
-  useEffect(() => {
-    if (!renameModalOpen) return;
-    const input = document.getElementById(RENAME_INPUT_ID);
-    if (input) {
-      input.focus();
-      if (typeof input.select === 'function') input.select();
-    }
-  }, [renameModalOpen]);
-
-  const openRenameModal = useCallback(() => {
-    setRenameValue(displayName);
-    setRenameError('');
-    setRenameModalOpen(true);
-  }, [displayName]);
-
-  const closeRenameModal = useCallback(() => {
-    if (renaming) return;
-    setRenameModalOpen(false);
-  }, [renaming]);
-
-  const submitRename = useCallback(async () => {
-    const trimmed = renameValue.trim();
-    if (!trimmed) {
-      setRenameError('Site name cannot be empty.');
-      return;
-    }
-    try {
-      setRenaming(true);
-      setRenameError('');
-      if (onRename) await onRename(sitePath, trimmed);
-      setRenameModalOpen(false);
-    } catch (err) {
-      setRenameError(String(err));
-    } finally {
-      setRenaming(false);
-    }
-  }, [onRename, renameValue, sitePath]);
-
-  const handleRenameSubmit = useCallback((event) => {
-    event.preventDefault();
-    submitRename();
-  }, [submitRename]);
-
-  const handleRenameFormKeyDown = useCallback((event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      closeRenameModal();
-    }
-  }, [closeRenameModal]);
+  const openRenameModal = useCallback(() => setRenameModalOpen(true), []);
+  const closeRenameModal = useCallback(() => setRenameModalOpen(false), []);
   const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : '';
   const [pathCopied, setPathCopied] = useState(false);
   const copyTimeoutRef = useRef(null);
@@ -5712,33 +5662,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         </Modal>
       ) : null}
       {renameModalOpen ? (
-        <Modal
-          title="Rename site"
-          onRequestClose={closeRenameModal}
-          shouldCloseOnClickOutside={!renaming}
-        >
-          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape-to-close/Enter-to-submit on the modal form is standard, intentional behavior. */}
-          <form
-            onSubmit={handleRenameSubmit}
-            onKeyDown={handleRenameFormKeyDown}
-            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
-          >
-            <TextControl
-              id={RENAME_INPUT_ID}
-              label="Site name"
-              value={renameValue}
-              onChange={(value) => setRenameValue(value)}
-              disabled={renaming}
-              // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: this is the only field of a just-opened modal.
-              autoFocus
-            />
-            {renameError ? <div style={{ color: '#d63638', fontSize: 12 }}>{renameError}</div> : null}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Button type="button" variant="secondary" onClick={closeRenameModal} disabled={renaming}>Cancel</Button>
-              <Button type="submit" variant="primary" isBusy={renaming} disabled={renaming}>Save</Button>
-            </div>
-          </form>
-        </Modal>
+        <RenameSiteModal sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
       ) : null}
       {isPatchOpen && (
         <Modal
