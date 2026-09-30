@@ -59,7 +59,7 @@ function nonLiteralCalls(problems) {
  * @param {string}   [options.output] Where to write the .pot.
  * @return {{output: string, problems: string[]}} Where the .pot went, and each non-literal call found.
  */
-function makePot({ files = sourceFiles(), output = DEFAULT_OUTPUT } = {}) {
+function generatePot({ files = sourceFiles(), output = DEFAULT_OUTPUT } = {}) {
 	fs.mkdirSync(path.dirname(output), { recursive: true });
 	fs.rmSync(output, { force: true });
 	const problems = [];
@@ -91,10 +91,10 @@ function makePot({ files = sourceFiles(), output = DEFAULT_OUTPUT } = {}) {
 	return { output, problems };
 }
 
-module.exports = { makePot, sourceFiles };
+module.exports = { generatePot, sourceFiles };
 
 if (require.main === module) {
-	const { output, problems } = makePot();
+	const { output, problems } = generatePot();
 	if (problems.length) {
 		console.error(`Translation calls the .pot cannot hold:\n${problems.map((p) => `  ${p}`).join('\n')}`);
 		process.exit(1);

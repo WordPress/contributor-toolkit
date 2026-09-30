@@ -5,10 +5,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { makePot } = require('../../scripts/make-pot.cjs');
+const { generatePot } = require('../../scripts/generate-pot.cjs');
 
 function tempDir(t) {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'make-pot-'));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'generate-pot-'));
 	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 	return dir;
 }
@@ -19,7 +19,7 @@ test('the .pot holds the first-run screen and has no call it cannot extract', (t
 	const previousCwd = process.cwd();
 	process.chdir(os.tmpdir());
 	t.after(() => process.chdir(previousCwd));
-	const { output, problems } = makePot({ output: path.join(tempDir(t), 'toolkit.pot') });
+	const { output, problems } = generatePot({ output: path.join(tempDir(t), 'toolkit.pot') });
 	assert.deepEqual(problems, []);
 	const pot = fs.readFileSync(output, 'utf8');
 	for (const msgid of ['No sites yet.', 'Create a site', 'Use the sidebar to create your first site.']) {
@@ -45,7 +45,7 @@ test('a translation call with a non-literal string is refused, with its line', (
 		''
 	].join('\n'));
 
-	const { problems } = makePot({ files: [file], output: path.join(dir, 'out.pot') });
+	const { problems } = generatePot({ files: [file], output: path.join(dir, 'out.pot') });
 
 	assert.equal(problems.length, 4, problems.join('\n'));
 	assert.match(problems[0], /copy\.cjs:3 __\(\) needs a string literal, not Identifier/);

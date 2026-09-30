@@ -27,7 +27,7 @@
     "test:electron": "node scripts/run-tests-electron.cjs",
     "test:e2e": "playwright test --project=journeys",
     "test:e2e:packaged": "playwright test --project=packaged",
-    "i18n:pot": "node scripts/make-pot.cjs",
+    "i18n:pot": "node scripts/generate-pot.cjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "shots": "npm run build:once && node scripts/screenshots/capture.cjs",
