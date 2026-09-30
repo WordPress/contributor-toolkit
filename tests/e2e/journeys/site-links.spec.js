@@ -51,7 +51,7 @@ test( 'a middle click on a link to the site opens it in the browser, and not in 
 	const opened = () => app.evaluate( () => global.e2eOpened );
 	await ui.startDevServerButton( page ).click();
 
-	const admin = page.getByRole( 'link', { name: 'wp-admin', exact: true } );
+	const admin = ui.adminLink( page );
 	await expect( admin ).toBeVisible( { timeout: 30_000 } );
 	// CHARACTERISATION — the app opens the site in the browser by itself once
 	// the server is up, so that address is already there.
