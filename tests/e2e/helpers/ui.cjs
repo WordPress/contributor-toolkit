@@ -10,9 +10,9 @@
 // is a change to this file and to nothing that uses it.
 //
 // What is here: every control, something typed into or clicked, that more
-// than one of those files reaches; and four locators that find a part of the
-// screen by how it is built rather than by what it says, which are the
-// rendered app, a sidebar entry, a card and a ticket's row.
+// than one of those files reaches; and five locators that find a part of the
+// screen rather than something to press, which are the rendered app, a sidebar
+// entry, the open site's heading, a card and a ticket's row.
 //
 // What is not here: a sentence one journey asserts, a button only one journey
 // presses, and a selector only one file needs even when it reads the markup
@@ -64,6 +64,16 @@ const createSiteDialog = ( page ) => page.getByRole( 'dialog', { name: 'Create a
  * @return {Object} The locator.
  */
 const renderedApp = ( page ) => page.locator( '#root > * > *' );
+
+/**
+ * The open site's heading. The site's name is in the sidebar too, so this is
+ * the half of the pair `sidebarEntry` is not.
+ *
+ * @param {Object} page
+ * @param {string} label The site's name.
+ * @return {Object} The locator.
+ */
+const siteHeading = ( page, label ) => page.getByRole( 'heading', { name: label, exact: true } );
 
 const siteMenuButton = ( page ) => page.getByRole( 'button', { name: 'More', exact: true } );
 const updateTrunkMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Update to latest trunk', exact: true } );
@@ -206,6 +216,7 @@ module.exports = {
 	createSiteButton,
 	createSiteDialog,
 	renderedApp,
+	siteHeading,
 	siteMenuButton,
 	updateTrunkMenuItem,
 	deleteSiteMenuItem,

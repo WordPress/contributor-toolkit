@@ -298,8 +298,9 @@ test( 'app.asar carries exactly the allow-listed top-level entries', async () =>
 	}
 
 	// The one negative pattern in the allow-list. `src/**/*` would otherwise
-	// carry the un-bundled entry point into the archive beside the esbuild
-	// output that replaces it, and a root listing cannot see one level down.
+	// carry the un-bundled renderer sources, the entry point and every
+	// component and hook it imports, into the archive beside the esbuild output
+	// that replaces them, and a root listing cannot see one level down.
 	const rendererEntries = await electronApp.evaluate( ( { app } ) => {
 		const nodeRequire = process.mainModule.require;
 		const appFs = nodeRequire( 'node:fs' );
@@ -310,6 +311,12 @@ test( 'app.asar carries exactly the allow-listed top-level entries', async () =>
 
 	expect( rendererEntries, 'the esbuild sources are replaced by the bundle, not shipped beside it' )
 		.not.toContain( 'index.jsx' );
+	// Their directories hold nothing but `.jsx`, so with the sources gone the
+	// directories are not there either.
+	expect( rendererEntries, 'the esbuild sources are replaced by the bundle, not shipped beside it' )
+		.not.toContain( 'components' );
+	expect( rendererEntries, 'the esbuild sources are replaced by the bundle, not shipped beside it' )
+		.not.toContain( 'hooks' );
 	expect( rendererEntries, 'the renderer bundle is missing — was `npm run build:once` run before packaging?' )
 		.toEqual( expect.arrayContaining( [ 'index.html', 'index.js', 'index.css' ] ) );
 } );
@@ -324,8 +331,8 @@ test( 'app.asar carries exactly the allow-listed top-level entries', async () =>
  * exclusion list again, wearing a different sign. So the expected set is derived
  * from Git instead, and moves with the repository on its own:
  *
- *   tracked under src/, minus the esbuild entry point the bundle replaces,
- *   plus the two build outputs that replace it.
+ *   tracked under src/, minus the renderer's `.jsx` sources the bundle
+ *   replaces, plus the two build outputs that replace them.
  *
  * A credential, a scratch file, a coverage report or a stray build artefact
  * written anywhere under `src/` is untracked, so it is not in the expected set,
@@ -337,10 +344,13 @@ test( 'app.asar carries exactly the repository files src/**/* allows', async () 
 		.filter( Boolean )
 		.map( ( file ) => file.replace( /\\/g, '/' ) );
 
-	// The esbuild entry point is excluded by `build.files`; its outputs are
-	// gitignored, because they are built rather than committed (#120).
+	// The renderer's `.jsx` sources are excluded by `build.files`: in that
+	// directory `.jsx` means "bundled by esbuild", the entry point and what it
+	// imports alike, and the `.cjs` modules beside them ship because the main
+	// process requires some of them. The bundle's outputs are gitignored,
+	// because they are built rather than committed (#120).
 	const expected = [
-		...tracked.filter( ( file ) => file !== 'src/renderer/index.jsx' ),
+		...tracked.filter( ( file ) => ! /^src\/renderer\/.*\.jsx$/.test( file ) ),
 		'src/renderer/index.js',
 		'src/renderer/index.css',
 	].sort();

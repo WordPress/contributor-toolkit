@@ -24,8 +24,8 @@ const ui = require( '../helpers/ui.cjs' );
 // fixture's problem; these are the fake sites and patch files pointed at from it.
 // The site's name is on screen twice — the sidebar entry and the heading of the
 // open site — so neither can be reached by text alone. Roles tell them apart, and
-// say which half of the app the assertion is about. The entry is `ui.sidebarEntry`.
-const openSiteHeading = ( page, label ) => page.getByRole( 'heading', { name: label, exact: true } );
+// say which half of the app the assertion is about: `ui.sidebarEntry` and
+// `ui.siteHeading`.
 
 const scratch = [];
 test.afterEach( () => {
@@ -160,7 +160,7 @@ test( 'state written by the app survives closing and reopening it', async ( { se
 
 	const { page: reopened } = await session.restart();
 	await expect( ui.sidebarEntry( reopened, 'after-restart' ) ).toBeVisible();
-	await expect( openSiteHeading( reopened, 'after-restart' ) ).toBeVisible();
+	await expect( ui.siteHeading( reopened, 'after-restart' ) ).toBeVisible();
 	expect( session.readSettings().siteMeta[ site.dir ].label ).toBe( 'after-restart' );
 } );
 
