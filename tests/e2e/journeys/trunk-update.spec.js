@@ -162,7 +162,7 @@ test( 'an update asks before it resets edits in the tree: cancelling keeps them,
 			global.__e2eCloseSaveDialog = resolve;
 		} );
 	} );
-	// The app writes the patch out before it asks where to put it, so the save
+	// The app builds the patch before it asks where to put it, so the save
 	// dialog comes up a moment after the click and not with it.
 	const saveDialogIsOpen = () => app.evaluate( () => typeof global.__e2eCloseSaveDialog === 'function' );
 	const closeSaveDialog = ( answer ) => app.evaluate( ( electron, result ) => {
@@ -191,18 +191,25 @@ test( 'an update asks before it resets edits in the tree: cancelling keeps them,
 	// INVARIANT — the button says what the chosen answer will do, and
 	// dismissing the dialog does none of it: no confirmation asked, the edit
 	// in place, trunk where it was.
+	//
+	// The tree is not read the instant the dialog is gone: a reset that Cancel
+	// had wrongly started would not have touched a file yet. The update is
+	// asked for again first. That goes back through the main process's own
+	// look at the tree, which has to find the edit for the question to come up
+	// a second time, and it cannot come up at all while an update is running.
 	await discardChoice.click();
 	await expect( discardAndUpdate ).toBeVisible();
 	await expect( saveAndUpdate ).toHaveCount( 0 );
 	await dialog.getByRole( 'button', { name: 'Cancel', exact: true } ).click();
 	await expect( dialog ).toHaveCount( 0 );
 	expect( await confirmsAnswered() ).toBe( 0 );
+	await startUpdate();
+	await expect( dialog.getByText( 'src/doomed.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	expect( read( site.dir, DOOMED ) ).toBe( MY_EDIT );
 	expect( read( site.dir, LOGIN ) ).toBe( '<?php // trunk\n' );
 
 	// INVARIANT — asked again, the dialog is back on the safe answer, not on
 	// the one it was left on.
-	await startUpdate();
 	await expect( saveChoice ).toHaveAttribute( 'aria-pressed', 'true' );
 
 	// INVARIANT — while a save is under way the question cannot be dismissed
@@ -213,7 +220,15 @@ test( 'an update asks before it resets edits in the tree: cancelling keeps them,
 	await expect.poll( saveDialogIsOpen ).toBe( true );
 	await expect( saveAndUpdate ).toBeDisabled();
 	await dialog.getByRole( 'button', { name: 'Close', exact: true } ).click();
+	// The close button fades the dialog out first and asks to close it when
+	// the fade is done, so for a fifth of a second the dialog is on screen
+	// whether or not it is about to go. The class is the components' own mark
+	// of that fade, and the one selector here that reads markup: there is no
+	// role or text for "has finished deciding". With animations off it is
+	// never there and the wait is nothing.
+	await expect( page.locator( '.components-modal__screen-overlay.is-animating-out' ) ).toHaveCount( 0 );
 	await expect( dialog ).toBeVisible();
+	expect( await saveDialogIsOpen() ).toBe( true );
 
 	// INVARIANT — backing out of the save dialog leaves the question open and
 	// the edit in place: nothing is reset for a patch that was never written.
