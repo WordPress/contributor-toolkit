@@ -20,6 +20,11 @@ import {
   Tooltip
 } from '@wordpress/components';
 import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, pencil, download, comment } from '@wordpress/icons';
+import { ThemeProvider } from '@wordpress/theme';
+import { VisuallyHidden } from '@wordpress/ui';
+// The design system's tokens: every `--wpds-*` custom property, at its default,
+// on `:root`.
+import '@wordpress/theme/design-tokens.css';
 import '@wordpress/components/build-style/style.css';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
@@ -4874,9 +4879,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           whereas a change to one already in the DOM is. Only the active row ever
           holds text, so only the visible site speaks; it clears to nothing when
           there is no next action. */}
-      <div className="sr-only" role="status" aria-live="polite">
+      <VisuallyHidden role="status" aria-live="polite">
         {isActive && nextAction ? `Next step: ${nextAction.reason}` : ''}
-      </div>
+      </VisuallyHidden>
       <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 440px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -6387,5 +6392,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   );
 }
 
+// The design system's provider, at its defaults: the tokens stylesheet already
+// holds every value, so this changes nothing on screen yet. It is here so the
+// redesign (#542) has one place to set colour and corner radius from. `isRoot`
+// puts whatever it overrides on the document rather than on its own wrapper,
+// which is what reaches a modal or a popover: those are portalled to `body`,
+// outside this tree.
 const root = createRoot(document.getElementById('root'));
-root.render(<App />);
+root.render(<ThemeProvider isRoot><App /></ThemeProvider>);

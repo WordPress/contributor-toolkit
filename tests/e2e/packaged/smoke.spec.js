@@ -201,8 +201,10 @@ test( 'the packaged app boots and paints its first window', async () => {
 	// reliable. A painted window covers the same failure class positively.
 	await expect( firstWindow ).toHaveTitle( 'WordPress Contributor Toolkit' );
 
-	// #root is in the static HTML, so its presence proves nothing — its children do.
-	await expect( firstWindow.locator( '#root > *' ) ).not.toHaveCount( 0 );
+	// #root is in the static HTML, so its presence proves nothing, and neither does
+	// its one child: that is the design system's provider, which is there whatever
+	// the app inside it rendered. What the app rendered is one level further down.
+	await expect( firstWindow.locator( '#root > * > *' ) ).not.toHaveCount( 0 );
 	// `exact` matters: "Contributor Toolkit" is also a substring of button labels and
 	// step descriptions further down the page.
 	await expect( firstWindow.getByText( 'Contributor Toolkit', { exact: true } ) ).toBeVisible();

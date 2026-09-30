@@ -86,6 +86,7 @@
       "!node_modules/@wordpress/base-styles{,/**/*}",
       "!node_modules/@wordpress/kebab-case{,/**/*}",
       "!node_modules/@wordpress/style-runtime{,/**/*}",
+      "!node_modules/@wordpress/theme{,/**/*}",
       "!node_modules/@wordpress/ui{,/**/*}"
     ],
     "asarUnpack": [
@@ -126,6 +127,8 @@
     "@emotion/styled": "^11.13.0",
     "@wordpress/components": "^41.0.0",
     "@wordpress/icons": "^17.0.0",
+    "@wordpress/theme": "^2.2.0",
+    "@wordpress/ui": "^0.23.0",
     "@wp-playground/cli": "^3.1.47",
     "@xterm/xterm": "^5.5.0",
     "diff": "^8.0.4",
