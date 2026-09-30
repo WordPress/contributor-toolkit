@@ -10,9 +10,9 @@
 // is a change to this file and to nothing that uses it.
 //
 // What is here: every control, something typed into or clicked, that more
-// than one of those files reaches; and four locators that find a part of the
-// screen by how it is built rather than by what it says, which are the
-// rendered app, a sidebar entry, a card and a ticket's row.
+// than one of those files reaches; and five locators that find a part of the
+// screen rather than something to press, which are the rendered app, a sidebar
+// entry, the open site's heading, a card and a ticket's row.
 //
 // What is not here: a sentence one journey asserts, a button only one journey
 // presses, and a selector only one file needs even when it reads the markup

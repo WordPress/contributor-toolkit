@@ -17,6 +17,8 @@ export function RenameSiteModal({ sitePath, displayName, onRename, onClose }) {
   const [renameValue, setRenameValue] = useState(displayName);
   const [renameError, setRenameError] = useState('');
   const [renaming, setRenaming] = useState(false);
+  // Follows the site's name if it changes under an open dialog. On mount it
+  // sets the value the state already starts with, which does nothing.
   useEffect(() => { setRenameValue(displayName); }, [displayName]);
   useEffect(() => {
     const input = document.getElementById(RENAME_INPUT_ID);
