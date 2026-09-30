@@ -42,7 +42,7 @@ async function makeTicketBehindTrunk( session, site, originChange ) {
 	// a clean tree: the edit is the ticket's work, not something to save or
 	// discard at the update's dirty-tree question.
 	await ui.unlinkButton( page ).click();
-	await page.getByRole( 'button', { name: `Continue working on #${ TICKET }`, exact: true } ).click( { timeout: 30_000 } );
+	await ui.continueWorkingButton( page, TICKET ).click( { timeout: 30_000 } );
 	await expect( ui.workItemNumber( page, TICKET ).first() ).toBeVisible( { timeout: 30_000 } );
 	const newTip = advanceOrigin( site.origin, originChange );
 

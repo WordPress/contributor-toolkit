@@ -56,7 +56,7 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 	await expect( activeContext ).toBeVisible( { timeout: 60_000 } );
 	await expect( ui.revertPrButton( page ) ).toHaveCount( 1 );
 	await expect( ui.prField( page ) ).toHaveCount( 0 );
-	await expect( ui.choosePatchFileButton( page ) ).toHaveCount( 0 );
+	await expect( ui.anyPatchFileButton( page ) ).toHaveCount( 0 );
 	await expect( ui.applyPrButton( page ) ).toHaveCount( 0 );
 	await expect( page.getByRole( 'button', { name: 'Apply…', exact: true } ) ).toHaveCount( 0 );
 	// The banner sits under the ticket heading and above the linked pull

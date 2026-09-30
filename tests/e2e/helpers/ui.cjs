@@ -9,13 +9,16 @@
 // written down, so that renaming a button, or turning a menu into a dialog,
 // is a change to this file and to nothing that uses it.
 //
-// What belongs here is a control that more than one file reaches, something
-// typed into or clicked, and any locator that has to know how the screen is
-// built rather than what it says: a sidebar entry, a card. What does not
-// belong here is a sentence one journey asserts, or a button only one journey
-// presses. Those are what that journey is about, and they read best where the
-// claim is made; the wording itself is pinned by the unit test of the module
-// that words it.
+// What is here: every control, something typed into or clicked, that more
+// than one of those files reaches; and four locators that find a part of the
+// screen by how it is built rather than by what it says, which are the
+// rendered app, a sidebar entry, a card and a ticket's row.
+//
+// What is not here: a sentence one journey asserts, a button only one journey
+// presses, and a selector only one file needs even when it reads the markup
+// (the engine journey's spinner, the crops in scripts/screenshots/shots.cjs).
+// Those are what that file is about, and they read best where the claim is
+// made.
 //
 // Every locator is the one a caller would have written inline, and nothing
 // more: no `.first()`, no waiting, no visibility filter unless the comment
@@ -33,6 +36,12 @@
  * open site, so neither can be reached by text alone. The entry's accessible
  * name is the site's label followed by its project tag (#251), so the label is
  * matched as the whole name minus that one word.
+ *
+ * That is the name of a site with nothing to report, and only of that one. A
+ * site whose trunk is old or whose update is incomplete adds its dot's text to
+ * the name, and a site being deleted is named "<label>, Deleting": this
+ * matches none of them. Seed a recent `trunkDate`, or find those by the name
+ * they have.
  *
  * @param {Object} page
  * @param {string} label The site's name.
@@ -68,9 +77,10 @@ const retryInstallButton = ( page ) => page.getByRole( 'button', { name: 'Retry 
  * A card of the site's view, by its heading.
  *
  * The cards are styled `div`s with the heading as their first child, not
- * landmarks, so this reads the shape of the markup: the one selector here that
- * does. Every site's view is in the document at once and only the selected one
- * is visible, so the visibility filter is what picks the right card.
+ * landmarks, so this reads the shape of the markup. Every site's view is in
+ * the document at once and only the selected one is visible, so the visibility
+ * filter is what picks the right card, and `.last()` the innermost `div` that
+ * fits, should a wrapper around the card ever fit too.
  *
  * @param {Object} page
  * @param {string} heading The card's heading, exactly.
@@ -103,6 +113,42 @@ const workItemNumber = ( page, number ) => page.getByText( `#${ number }`, { exa
 const switchBackButton = ( page ) => page.getByRole( 'button', { name: 'switch', exact: true } );
 
 /**
+ * The way back to a parked ticket while nothing is linked.
+ *
+ * @param {Object}        page
+ * @param {string|number} [ticket] Which ticket's; every parked ticket's when left out.
+ * @return {Object} The locator.
+ */
+const continueWorkingButton = ( page, ticket ) =>
+	page.getByRole( 'button', ticket === undefined
+		? { name: /^Continue working on #\d+$/ }
+		: { name: `Continue working on #${ ticket }`, exact: true } );
+
+/**
+ * The row for one parked ticket, in the list of a site's tickets.
+ *
+ * Addressed by the ticket it offers to continue rather than by position. Every
+ * row carries an identically labelled delete control, and the list is ordered by
+ * how recently each ticket was used, so `.first()` picks whichever ticket the
+ * app most recently touched, which is a different one depending on how far the
+ * render has got. That is a test that deletes the wrong branch and then fails
+ * somewhere else entirely.
+ *
+ * The rows are `div`s, so this reads the shape of the markup: the innermost
+ * `div` holding both of the row's controls.
+ *
+ * @param {Object} page
+ * @param {string} ticket
+ * @return {Object} The locator.
+ */
+const ticketRow = ( page, ticket ) =>
+	page
+		.locator( 'div' )
+		.filter( { has: continueWorkingButton( page, ticket ) } )
+		.filter( { has: page.getByRole( 'button', { name: "Delete this ticket's work", exact: true } ) } )
+		.last();
+
+/**
  * Links a ticket through the card, the way a contributor does, and waits for
  * the app to say it finished.
  *
@@ -124,10 +170,11 @@ async function linkTicket( page, ticket ) {
 
 const prField = ( page ) => page.getByLabel( 'Pull request URL or number' );
 const applyPrButton = ( page ) => page.getByRole( 'button', { name: 'Apply PR', exact: true } );
-// By part of its name: the button reads "or choose a .diff / .patch file…",
-// and the journeys that assert it is gone should not pass because the
-// sentence around those words changed.
-const choosePatchFileButton = ( page ) => page.getByRole( 'button', { name: 'choose a .diff / .patch file' } );
+const choosePatchFileButton = ( page ) => page.getByRole( 'button', { name: 'or choose a .diff / .patch file…', exact: true } );
+// Any button that offers to choose a patch file, whatever else its name says.
+// For asserting there is none: held to the exact name above, that assertion
+// would pass the day the sentence around those words changed.
+const anyPatchFileButton = ( page ) => page.getByRole( 'button', { name: 'choose a .diff / .patch file' } );
 const applyAndRebuildButton = ( page ) => page.getByRole( 'button', { name: 'Apply and rebuild', exact: true } );
 const revertPatchButton = ( page ) => page.getByRole( 'button', { name: 'Revert this patch', exact: true } );
 const revertPrButton = ( page ) => page.getByRole( 'button', { name: 'Revert this PR', exact: true } );
@@ -173,10 +220,13 @@ module.exports = {
 	unlinkButton,
 	workItemNumber,
 	switchBackButton,
+	continueWorkingButton,
+	ticketRow,
 	linkTicket,
 	prField,
 	applyPrButton,
 	choosePatchFileButton,
+	anyPatchFileButton,
 	applyAndRebuildButton,
 	revertPatchButton,
 	revertPrButton,

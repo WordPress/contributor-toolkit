@@ -42,7 +42,7 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	await expect( page.getByText( 'Check out a pull request', { exact: true } ) ).toBeVisible();
 	await expect( page.getByText( 'Trac ticket', { exact: true } ) ).toHaveCount( 0 );
 	await expect( ui.ticketField( page ) ).toHaveCount( 0 );
-	await expect( ui.choosePatchFileButton( page ) ).toHaveCount( 0 );
+	await expect( ui.anyPatchFileButton( page ) ).toHaveCount( 0 );
 
 	// INVARIANT — a pull-request URL pasted where the issue goes is refused by
 	// name, before anything is written.
