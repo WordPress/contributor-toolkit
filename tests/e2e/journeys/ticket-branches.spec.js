@@ -38,6 +38,7 @@ const {
 	LOGIN,
 	DOOMED,
 } = require( '../helpers/git-site.cjs' );
+const { ticketListCard } = require( '../../../src/renderer/ticket-branch-list.cjs' );
 
 const MY_EDIT = '<?php // my fix for 60001\n';
 
@@ -95,6 +96,26 @@ async function linkTicket( page, ticket ) {
 	await expect( page.getByText( `#${ ticket }`, { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
 }
 
+/**
+ * Whether the elements come one after another in the document, in the order
+ * given. The site's cards are laid out in document order, so this is where
+ * each one sits on the page, read without a bounding box: the page scrolls to
+ * the next step as cards appear, and a box measured mid-scroll can land
+ * anywhere (#478).
+ *
+ * @param {Object}   page
+ * @param {Object[]} locators Each matching exactly one element.
+ * @return {Promise<boolean>} True when every element follows the one before it.
+ */
+async function inDocumentOrder( page, locators ) {
+	const handles = await Promise.all( locators.map( ( locator ) => locator.elementHandle() ) );
+	return page.evaluate( ( elements ) => {
+		// DOCUMENT_POSITION_FOLLOWING is bit 4 of the mask.
+		const follows = ( from, to ) => Math.floor( from.compareDocumentPosition( to ) / 4 ) % 2 === 1;
+		return elements.every( ( element, i ) => i === 0 || follows( elements[ i - 1 ], element ) );
+	}, handles );
+}
+
 test( 'linking a ticket creates its branch and leaves trunk alone', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings );
@@ -141,6 +162,44 @@ test( 'unlinking parks a ticket, and the next one starts from trunk', async ( { 
 	// INVARIANT — both tickets are offered in the panel, so the parked one is
 	// reachable rather than merely present in the repository.
 	await expect( page.getByText( '#60001', { exact: false } ).first() ).toBeVisible();
+
+	// INVARIANT — the parked ticket is listed once, in a card of its own, below
+	// the ticket in hand and the work that can be brought into it (#240). That
+	// is the order a contributor reads in: which ticket am I on, what can I
+	// apply to it, and only then what else this site is holding. Listed twice,
+	// or back inside the ticket's own card, is the layout #240 left.
+	//
+	// The heading is asked of the module that words it rather than written out
+	// here. A heading restated in the component would match a literal for as
+	// long as the two happened to agree, and keep matching it after the module
+	// moved on; held to the module, the copy goes red the day they part.
+	const otherTickets = page.getByText( ticketListCard( { rowCount: 1, linked: true } ).heading, { exact: true } );
+	const switchBack = page.getByRole( 'button', { name: 'switch', exact: true } );
+	await expect( otherTickets ).toHaveCount( 1 );
+	await expect( switchBack ).toHaveCount( 1 );
+	// The row after its heading, so the card is the list and not a heading
+	// left behind by rows that went back into the ticket's card.
+	expect( await inDocumentOrder( page, [
+		page.getByText( 'Working on ticket #60002', { exact: true } ),
+		page.getByText( 'Apply a patch or PR', { exact: true } ),
+		otherTickets,
+		switchBack,
+	] ) ).toBe( true );
+
+	// INVARIANT — with nothing linked the same card holds every ticket, under
+	// the heading for that state, and is still the last of the three.
+	await page.getByRole( 'button', { name: 'Unlink', exact: true } ).click();
+	const yourTickets = page.getByText( ticketListCard( { rowCount: 2, linked: false } ).heading, { exact: true } );
+	const continueWorking = page.getByRole( 'button', { name: /^Continue working on #6000[12]$/ } );
+	await expect( yourTickets ).toHaveCount( 1 );
+	await expect( otherTickets ).toHaveCount( 0 );
+	await expect( continueWorking ).toHaveCount( 2 );
+	expect( await inDocumentOrder( page, [
+		page.getByLabel( 'Trac ticket number or URL' ),
+		page.getByText( 'Apply a patch or PR', { exact: true } ),
+		yourTickets,
+		continueWorking.first(),
+	] ) ).toBe( true );
 } );
 
 test( 'switching back to a ticket restores its work byte for byte', async ( { session } ) => {

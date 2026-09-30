@@ -80,6 +80,14 @@ export default [
 		},
 		rules: {
 			'react/react-in-jsx-scope': 'off',
+
+			// A ref is written in an effect or a handler, never while rendering. A
+			// render can be thrown away, and a ref written during one then holds a
+			// value from a render that was never shown: a callback published that
+			// way closes over state the screen does not have (#458). Nothing in the
+			// suite can load a component to see it, so this rule is the check, and
+			// it holds in whichever file the component ends up.
+			'react-hooks/refs': 'error',
 		},
 	},
 
