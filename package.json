@@ -53,7 +53,7 @@
     "files": [
       "package.json",
       "src/**/*",
-      "!src/renderer/index.jsx",
+      "!src/renderer/**/*.jsx",
       "local-playground-web/**/*",
       "!node_modules/dugite/git/libexec/git-core/*.dll",
       "!node_modules/dugite/git/libexec/git-core/*.dylib",

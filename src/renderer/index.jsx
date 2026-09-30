@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Button,
@@ -16,8 +16,7 @@ import {
   SnackbarList,
   TextControl,
   TextareaControl,
-  Spinner,
-  Tooltip
+  Spinner
 } from '@wordpress/components';
 import { __, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
@@ -61,13 +60,23 @@ import { deepLinkNotice } from './deep-link-notice.cjs';
 import { mergeInProgressNotice } from './merge-in-progress.cjs';
 import { describePrCheckout, describePrPreview, prCheckoutRefusal, prSubmissionRefusal } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
-import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
-import { highlightLog } from './log-highlight.cjs';
+import { hasDiffLines } from './diff-highlight.cjs';
 import { carryTestMode } from './github-account.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage } from './confirmations.cjs';
 import { prStageLabel } from './pr-stage.cjs';
+import { ReasonedButton } from './components/reasoned-button.jsx';
+import { DiscardChangesLink } from './components/discard-changes-link.jsx';
+import { DiffText } from './components/diff-text.jsx';
+import { LogText } from './components/log-text.jsx';
+import { Destination, DestinationGroup } from './components/destination.jsx';
+import { TerminalCommandLink } from './components/terminal-command-link.jsx';
+import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
+import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
+import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
+import { useSites } from './hooks/use-sites.jsx';
+import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
 // One face for everything that is process output: the terminal below and every
 // log pane above it. Shared rather than repeated because the panes had drifted
@@ -96,38 +105,6 @@ const COPY_BUTTON_LABELS = {
   failed: 'Could not copy'
 };
 
-// A button that explains itself while disabled (#409). A reason disables it
-// the accessible way: still in the tab order, `aria-disabled` rather than
-// `disabled` so assistive technology reads it, the sentence as its
-// description and as a tooltip. `title` would do neither, since Chromium
-// shows no tooltip on a disabled control.
-//
-// The Tooltip is rendered whether or not there is a reason, and with no text
-// it renders its anchor and no popover. The conditional version returned two
-// different element types at the same position, so React remounted the
-// button every time the gate flipped — which throws away exactly what
-// `accessibleWhenDisabled` buys, since a keyboard user who just activated
-// the control has the focused element destroyed under them and focus falls
-// back to the document. `disabled` is passed through for gates that need no
-// sentence (an empty input, not a blocked action).
-function ReasonedButton({ reason, disabled, children, ...props }) {
-  return (
-    <Tooltip text={reason || undefined} placement="bottom">
-      <Button
-        {...props}
-        disabled={reason ? true : disabled}
-        accessibleWhenDisabled={Boolean(reason)}
-        description={reason || undefined}
-      >{children}</Button>
-    </Tooltip>
-  );
-}
-// One discard action, wherever it is offered. Keeping the disabled rendering
-// here means the ticket note cannot lose the explanation while the review
-// modal keeps it (or vice versa).
-function DiscardChangesLink({ label, onClick, reason, style }) {
-  return <ReasonedButton variant="link" isDestructive onClick={onClick} reason={reason} style={style}>{label}</ReasonedButton>;
-}
 // Why it failed, in a sentence that says what to do about it. Every one of
 // these still leaves the patch file, which is what the card offers underneath.
 // The no-ticket refusal is not here: the main process words it for the site's
@@ -181,160 +158,11 @@ function formatEmailDate(email) {
 }
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
-// Which applications this machine has is a fact about the machine, not about a
-// site, so it is held once for the window rather than once per site. Every site
-// is mounted at all times (the inactive ones are hidden), so per-row state here
-// would mean N copies of the same answer and N filesystem sweeps.
-//
-// Detection is deliberately not part of the load: the probe behind `editor:list`
-// waits until a menu is actually opened. It is re-run on every open rather than
-// cached for the session, because an editor installed while this app is running
-// is one the next menu should offer. The previous answer is kept on screen in the
-// meantime, so reopening the menu does not blink through an empty list.
-function useDetectedEditors() {
-  const [detected, setDetected] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const loadDetected = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await window.api.listEditors();
-      setDetected(result?.detected || []);
-    } catch (err) {
-      // The menu still offers the file manager and "Other application…", which
-      // is enough to finish the job — but "detection failed" and "nothing is
-      // installed" must not be the same event to whoever reads the log.
-      // eslint-disable-next-line no-console -- reaches the log file: logging.js initializes electron-log with spyRendererConsole, so this is how the renderer records a diagnostic.
-      console.error('Could not list the editors on this machine:', err);
-      setDetected([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  return { detected, loading, loadDetected };
-}
-
-// Who this contributor is and where they are contributing from (#166), held
-// once for the same reason the detected editors are: both are facts about the
-// person or their machine, not about a checkout, so answering them in one site's
-// patch modal must not leave every other site still asking.
-function useContributorProvenance() {
-  const [handle, setHandle] = useState(null);
-  const [event, setEvent] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    window.api.getProvenance()
-      .then((res) => {
-        if (cancelled) return;
-        setHandle(res?.handle || null);
-        setEvent(res?.event || null);
-      })
-      // "nothing answered yet" is an ordinary state; "the store could not be
-      // read" is not, and the two must not look the same in the log. Same
-      // argument as useDetectedEditors above.
-      // eslint-disable-next-line no-console -- reaches the log file, see the note in useDetectedEditors.
-      .catch((err) => console.error('Could not read the remembered contributor details:', err));
-    return () => { cancelled = true; };
-  }, []);
-
-  // An empty ref forgets the field. A rejected invoke comes back as a refusal
-  // rather than being raised: the caller shows the message next to the input.
-  const rememberHandle = useCallback(async (ref) => {
-    let result;
-    try {
-      result = await window.api.setWporgHandle(ref);
-    } catch (err) {
-      // eslint-disable-next-line no-console -- see the note above.
-      console.error('Could not remember that WordPress.org handle:', err);
-      return { ok: false, error: String(err?.message ?? err) };
-    }
-    if (result?.ok) setHandle(result.handle || null);
-    return result;
-  }, []);
-
-  const rememberEvent = useCallback(async (ref) => {
-    let result;
-    try {
-      result = await window.api.setContributionEvent(ref);
-    } catch (err) {
-      // eslint-disable-next-line no-console -- see the note above.
-      console.error('Could not remember that event:', err);
-      return { ok: false, error: String(err?.message ?? err) };
-    }
-    if (result?.ok) setEvent(result.event || null);
-    return result;
-  }, []);
-
-  return { handle, event, rememberHandle, rememberEvent };
-}
-
-// Brings the block the contributor should act on next into view when it changes,
-// so their one hint is never left below the fold (#252). The mark itself is
-// drawn by React — the `.next-action-cue` class the render binds to this same id
-// — because a className survives re-render where an imperative one would be
-// reconciled away; this handles only the movement, which no className can do.
-//
-// Gated on `isActive` because every SiteRow stays mounted at once: without it a
-// background site could yank the viewport the moment its own state changed. It
-// fires on a *change* of the id (or on becoming active), not on every render, so
-// a contributor reading one block is not dragged off it by an unrelated update.
-function useNextActionCue(nextActionId, isActive, containerRef) {
-  useEffect(() => {
-    if (!isActive || !nextActionId) return;
-    const root = containerRef.current;
-    if (!root) return;
-    const el = root.querySelector(`[data-next-action="${nextActionId}"]`);
-    if (!el) return;
-    // `center` brings the block clearly into view rather than just nudging it to
-    // the nearest edge — the cue only fires when the target *changes*, so this
-    // moves the viewport to whatever is newly worth looking at (a step that just
-    // became current, an operation that just started) without fighting a
-    // contributor mid-read. Reduced motion drops the smooth glide to an instant
-    // jump.
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
-  }, [nextActionId, isActive, containerRef]);
-}
-
-// The two halves are one piece of state because one change moves both: adopting
-// the directory the app really created has to retire the guessed row and carry
-// its metadata across, and two setters cannot do that without a render in
-// between where the site has a path under one key and a label under another.
-// `setSiteMeta` keeps its old signature so every other caller is untouched;
-// `applySetup` is for the changes that need the pair, which is every change the
-// create flow makes.
-function useSites() {
-  const [state, setState] = useState({ sites: [], siteMeta: {} });
-  const setSiteMeta = useCallback((update) => setState((prev) => ({
-    ...prev,
-    siteMeta: typeof update === 'function' ? update(prev.siteMeta) : update
-  })), []);
-  const applySetup = useCallback((fn) => setState(fn), []);
-  const refresh = useCallback(async () => {
-    const { sites: list, siteMeta: meta } = await window.api.getSitesWithMeta();
-    setState({ sites: list, siteMeta: meta || {} });
-  }, []);
-  useEffect(() => { refresh(); }, [refresh]);
-  return { sites: state.sites, siteMeta: state.siteMeta, refresh, setSiteMeta, applySetup };
-}
-
-// The one way any panel confirms a completed action (#253). `confirm(message)`
-// queues a transient, screen-reader-announced notice; the provider below renders
-// the queue once for the window. The default is a no-op so a component rendered
-// outside the provider (a test, say) does not throw on a stray confirm.
-const ConfirmationContext = createContext(() => {});
-
-function useConfirmation() {
-  return useContext(ConfirmationContext);
-}
-
 function App() {
   const { sites, siteMeta, refresh, setSiteMeta, applySetup } = useSites();
   // The confirmation queue for the whole window. It lives here, above every
   // SiteRow, because only one row is visible at a time and a per-row toast would
-  // be hidden along with its inactive row. See ConfirmationContext above.
+  // be hidden along with its inactive row. See ConfirmationContext in hooks/use-confirmation.jsx.
   const [confirmations, dispatchConfirmation] = useReducer(confirmationReducer, initialConfirmations);
   const confirm = useCallback((content, options = {}) => {
     dispatchConfirmation({ type: 'add', content, tone: options.tone });
@@ -1164,154 +992,6 @@ function App() {
       />
     </div>
     </ConfirmationContext.Provider>
-  );
-}
-
-// What each kind of patch line looks like (#166). The classification is in
-// diff-highlight.cjs; the colours are here because they are a property of this
-// pane, not of a diff. Added and removed lines carry a wash as well as a
-// foreground colour so the two are still distinguishable without colour vision
-// — the sign in column 0 is the other half of that, and it is never hidden.
-const DIFF_LINE_STYLES = {
-  add: { color: '#7ee787', background: 'rgba(46,160,67,0.18)' },
-  del: { color: '#ffa198', background: 'rgba(248,81,73,0.18)' },
-  hunk: { color: '#d2a8ff' },
-  meta: { color: '#79c0ff' },
-  header: { color: '#8b949e', fontStyle: 'italic' },
-  context: {}
-};
-
-// The patch, painted. An empty line still needs to occupy one: `\n` is appended
-// per line rather than joining, so the last line of a patch that ends in a
-// newline does not silently gain or lose one.
-//
-// Memoised on the text, because this renders inside SiteRow — which re-renders
-// on every chunk a running dev server or watch task streams into its log. The
-// patch has not changed; without this, each chunk re-splits it and hands React
-// thousands of fresh spans to reconcile, on the same thread that has to paint
-// the log.
-function DiffText({ text }) {
-  const lines = useMemo(() => highlightDiff(text), [text]);
-  if (!lines) return text;
-  return lines.map((line, index) => (
-    // A diff line has no identity beyond its position, and the whole pane is
-    // replaced when the patch changes.
-    <span key={index} style={{ display: 'block', ...DIFF_LINE_STYLES[line.kind] }}>
-      {line.text || ' '}
-    </span>
-  ));
-}
-
-// What each kind of log line looks like. Same split as the diff pane: the
-// classification is in log-highlight.cjs, the colours are a property of this
-// pane. Colour is never the only signal — the words `Fatal error`, `Warning`,
-// `Deprecated` stay in the text, and the severity is a re-statement of them, so
-// nothing is lost without colour vision.
-const LOG_LINE_STYLES = {
-  fatal: { color: '#ffa198' },
-  warning: { color: '#ffb86c' },
-  deprecated: { color: '#e3d16a' },
-  notice: { color: '#e3d16a' },
-  // Stack frames and node's "(Use `…`)" follow-ups: they belong to the line
-  // above and are most of the volume in a full pane, so they recede.
-  trace: { color: '#8b949e' },
-  ready: { color: '#7ee787', fontWeight: 600 },
-  plain: {}
-};
-// The `[11-Aug-2026 …]` every debug.log line opens with. It is worth keeping —
-// it is how two runs of the same request are told apart — but it is the same 26
-// characters on every line, so it is the last thing that should catch the eye.
-const LOG_STAMP_STYLE = { color: '#6e7681' };
-
-// A log pane, painted. Memoised on the text because a running dev server streams
-// chunks into it: without this, an unrelated SiteRow re-render re-splits the
-// whole buffer. Only the tail is turned into per-line spans (see
-// MAX_HIGHLIGHTED_LINES); everything older is one plain string, so the element
-// count stays flat however long the server runs.
-function LogText({ text }) {
-  const painted = useMemo(() => highlightLog(text), [text]);
-  if (!painted) return null;
-  return (
-    <>
-      {painted.head}
-      {painted.lines.map((line, index) => (
-        // A log line has no identity beyond its position, and lines only ever
-        // arrive at the end.
-        <span key={index} style={{ display: 'block', ...LOG_LINE_STYLES[line.kind] }}>
-          {line.stamp ? <span style={LOG_STAMP_STYLE}>{line.stamp}</span> : null}
-          {/* A blank line still has to occupy one, same as in the diff pane. */}
-          {line.stamp === '' && line.text === '' ? ' ' : line.text}
-        </span>
-      ))}
-    </>
-  );
-}
-
-// One destination for a finished patch (#166): what it is, what it costs to
-// use, and what happens afterwards. The costs are the point — they are what the
-// app used to leave the contributor to find out on their own — so every
-// destination states one, in the same place and the same shape, rather than the
-// cheap one being presented as the obvious choice.
-function Destination({ title, cost, after, children }) {
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-      <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>{title}</div>
-      <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>{cost}</div>
-      <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>{after}</div>
-      {/*
-        The actions follow the prose rather than being pushed to the bottom of
-        the row: the destinations carry different numbers of controls, so
-        bottom-aligning them lines up nothing and leaves a hole above the
-        shorter one's button.
-      */}
-      <div style={{ paddingTop:4, display:'flex', flexDirection:'column', gap:8 }}>{children}</div>
-    </div>
-  );
-}
-
-// The card around the destinations that ask the same thing of the contributor.
-//
-// Three equal cards said the three destinations were three variations on one
-// choice. They are not: two of them save a file and stop, leaving the
-// contributor to carry it somewhere, and the third signs them in and pushes on
-// their behalf. That is the fork in the road, and a layout that hides it makes
-// the reader rediscover it by reading all three in full.
-//
-// So the shared card is the grouping, and the hairline between destinations
-// inside it says "another way to do the same kind of thing" — as against the
-// gap between cards, which says "a different kind of thing". No group heading:
-// the line above the grid names the split once, and a heading per card would
-// say it twice while pushing the destinations themselves further down.
-function DestinationGroup({ children }) {
-  // Filtered because a conditional destination renders as false, and an empty
-  // section would draw a divider with nothing under it.
-  const destinations = React.Children.toArray(children).filter(Boolean);
-  return (
-    <div style={{ display:'flex', flexDirection:'column', border:'1px solid #dcdcde', borderRadius:10, background:'#fff' }}>
-      {destinations.map((destination, index) => (
-        // Position is the only identity a destination in a fixed list has, and
-        // the list is rebuilt whole when it changes.
-        <div key={index} style={{ padding:'14px 16px', borderTop: index === 0 ? 'none' : '1px solid #dcdcde' }}>
-          {destination}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// A command named in the hints under the Terminal (#182). Clicking it types the
-// command at the prompt and stops there — running it is the contributor's
-// keypress, so the hint teaches where these commands live instead of becoming a
-// second, hidden set of build buttons. Rendered as plain text while something is
-// running, since prefilling then would land in the middle of live output.
-function TerminalCommandLink({ command, onPrefill, disabled }) {
-  if (disabled) return <code>{command}</code>;
-  return (
-    <Button
-      variant="link"
-      onClick={() => onPrefill(command)}
-      style={{ fontSize: 12, fontFamily: 'monospace', height: 'auto' }}
-    >{command}</Button>
   );
 }
 
