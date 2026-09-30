@@ -55,6 +55,14 @@ jobs:
       # Fails, naming the line, on a translation call the .pot cannot hold.
       - run: npm run i18n:pot
 
+      # GNU gettext's own compiler reads the .pot the way translate.wordpress.org will, and fails
+      # on a syntax error before the file is published. It warns about the header fields a
+      # template leaves at their defaults, which does not fail it.
+      - name: Check the .pot with msgfmt
+        run: |
+          command -v msgfmt >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q gettext; }
+          msgfmt --check -o /dev/null contributor-toolkit.pot
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pot
