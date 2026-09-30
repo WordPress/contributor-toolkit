@@ -16,6 +16,26 @@ const makepot = require('@wordpress/babel-plugin-makepot');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const DEFAULT_OUTPUT = path.join(REPO_ROOT, 'languages', 'contributor-toolkit.pot');
+const PROJECT = 'WordPress Contributor Toolkit';
+const { bugs, license } = require('../package.json');
+
+// The header entries Openverse's .pot carries, the ones a gettext tool or
+// translate.wordpress.org expects to find. Replacing the plugin's defaults
+// drops its `X-Generator`, and Content-Type must name its charset here or the
+// compiler writes `text/plain;` with none.
+function potHeaders(now = new Date()) {
+	return {
+		'project-id-version': PROJECT,
+		'report-msgid-bugs-to': bugs.url,
+		'pot-creation-date': `${now.toISOString().split('.')[0]}+00:00`,
+		'mime-version': '1.0',
+		'content-type': 'text/plain; charset=UTF-8',
+		'content-transfer-encoding': '8bit',
+		'po-revision-date': 'YEAR-MO-DA HO:MI+ZONE',
+		'last-translator': 'FULL NAME <EMAIL@ADDRESS>',
+		'language-team': 'LANGUAGE <LL@li.org>'
+	};
+}
 
 // The argument each translation function reads its source string from: the
 // singular for all four, and the plural too for `_n` and `_nx`.
@@ -63,10 +83,11 @@ function generatePot({ files = sourceFiles(), output = DEFAULT_OUTPUT } = {}) {
 	fs.mkdirSync(path.dirname(output), { recursive: true });
 	fs.rmSync(output, { force: true });
 	const problems = [];
+	const now = new Date();
 	// One plugin list for every file, so Babel reuses one instance of the
 	// makepot plugin and its strings accumulate across files.
 	const plugins = [
-		[makepot, { output, headers: { 'project-id-version': 'WordPress Contributor Toolkit' } }],
+		[makepot, { output, headers: potHeaders(now) }],
 		nonLiteralCalls(problems)
 	];
 	// The plugin writes each `#:` reference relative to the process's working
@@ -87,6 +108,11 @@ function generatePot({ files = sourceFiles(), output = DEFAULT_OUTPUT } = {}) {
 		}
 	} finally {
 		process.chdir(previousCwd);
+	}
+	// The plugin has no option for the comment above the header entry.
+	if (fs.existsSync(output)) {
+		const comment = `# Copyright (C) ${now.getUTCFullYear()} ${PROJECT}\n# This file is distributed under the ${license} license.\n`;
+		fs.writeFileSync(output, comment + fs.readFileSync(output, 'utf8'));
 	}
 	return { output, problems };
 }

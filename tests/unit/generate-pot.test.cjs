@@ -30,6 +30,26 @@ test('the .pot holds the first-run screen and has no call it cannot extract', (t
 	assert.match(pot, /#: src\/renderer\/index\.jsx:\d+/);
 });
 
+test('the .pot carries the full gettext header', (t) => {
+	const { output } = generatePot({ output: path.join(tempDir(t), 'toolkit.pot') });
+	// Join the lines the compiler wraps at 76 columns back into one string each.
+	const pot = fs.readFileSync(output, 'utf8').replace(/"\n"/g, '');
+	assert.match(pot, /^# Copyright \(C\) \d{4} WordPress Contributor Toolkit\n# This file is distributed under the GPL-2\.0-or-later license\.\n/);
+	for (const header of [
+		'Project-Id-Version: WordPress Contributor Toolkit',
+		'Report-Msgid-Bugs-To: https://github.com/WordPress/contributor-toolkit/issues',
+		'MIME-Version: 1.0',
+		'Content-Type: text/plain; charset=utf-8',
+		'Content-Transfer-Encoding: 8bit',
+		'PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE',
+		'Last-Translator: FULL NAME <EMAIL@ADDRESS>',
+		'Language-Team: LANGUAGE <LL@li.org>'
+	]) {
+		assert.ok(pot.includes(`${header}\\n`), `${header} is in the header`);
+	}
+	assert.match(pot, /POT-Creation-Date: \d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00\\n/);
+});
+
 test('a translation call with a non-literal string is refused, with its line', (t) => {
 	const dir = tempDir(t);
 	const file = path.join(dir, 'copy.cjs');
