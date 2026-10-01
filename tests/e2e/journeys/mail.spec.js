@@ -16,7 +16,9 @@
  * The second journey is the list while the server runs (#554): mail arriving,
  * where it lands, whose it is, and what stopping, starting again and clearing
  * do to it. There is no mail server either, so the test says what the main
- * process says when one catches a mail, on the channels it says it on.
+ * process says when one catches a mail, on the channels it says it on. It
+ * leaves out what the real one does first, which is to write the mail to the
+ * store, and that is why the mails it announces are gone after a restart.
  *
  * Assertions are marked INVARIANT or CHARACTERISATION; see
  * ticket-branches.spec.js for why.
@@ -175,10 +177,12 @@ test( 'mail that arrives while the dev server runs joins the list newest first, 
 	expect( await ui.inDocumentOrder( page, [ row( 'Newer mail' ), commentRow, row( 'Older mail' ) ] ) ).toBe( true );
 
 	// INVARIANT — stopping the server stops the listening: the line says so,
-	// and a mail caught afterwards does not join the list.
+	// and a mail caught afterwards does not join the list. The real mail
+	// server stops with the dev server and would catch nothing; the test
+	// says one was caught anyway, because that is the only way to see that
+	// nothing is listening.
 	await tell( 'playground:url', { sitePath: site.dir, url: 'http://127.0.0.1:9400/' } );
-	const stop = page.getByRole( 'button', { name: 'Stop dev server', exact: true } );
-	await stop.click();
+	await ui.stopDevServerButton( page ).click();
 	await expect( notListening ).toBeVisible();
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await caught( site.dir, 'While stopped', '2026-08-10T12:00:00.000Z' );

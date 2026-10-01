@@ -140,7 +140,7 @@ for ( const target of TARGETS ) {
 					await expect( page.getByRole( 'tab', { name: 'Build watcher (watching)', exact: true } ) ).toBeVisible( { timeout: 30 * 60_000 } );
 				}
 				await page.getByRole( 'button', { name: 'Stop build watch', exact: true } ).click();
-				await page.getByRole( 'button', { name: 'Stop dev server', exact: true } ).click();
+				await ui.stopDevServerButton( page ).click();
 				await expect( ui.startDevServerButton( page ) ).toBeVisible( { timeout: 60_000 } );
 			} );
 
