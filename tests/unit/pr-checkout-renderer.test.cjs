@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { describePrCheckout, describePrPreview, prSubmissionRefusal, prCheckoutRefusal } = require('../../src/renderer/pr-checkout.cjs');
+const { describePrCheckout, describePrPreview, prSubmissionRefusal, prSubmissionBlocked, prCheckoutRefusal } = require('../../src/renderer/pr-checkout.cjs');
 
 test('PR checkout names the return ticket and explains where edits stay', () => {
 	const result = describePrCheckout({ returnTo: 'ticket/62010', hasEdits: true });
@@ -25,6 +25,23 @@ test('submission refusal explains ownership and how to get back to your work', (
 test('submission refusal does not invent a ticket when the PR came from trunk', () => {
 	assert.match(prSubmissionRefusal(7, 'trunk'), /Revert this PR/);
 	assert.doesNotMatch(prSubmissionRefusal(7, 'trunk'), /your ticket/);
+});
+
+test('the pull request card submits a checkout that is all the contributor\'s own', () => {
+	assert.equal(prSubmissionBlocked({ pullRequest: null, appliedPatch: null, appliedPatchLabel: 'The patch you applied' }), '');
+});
+
+test('an applied patch blocks the pull request card, named the way the app names it', () => {
+	assert.equal(
+		prSubmissionBlocked({ pullRequest: null, appliedPatch: { label: '62010.diff' }, appliedPatchLabel: '62010.diff' }),
+		'Revert 62010.diff before opening a pull request from this checkout.'
+	);
+});
+
+test('a checked-out pull request blocks the card with its own refusal, ahead of a patch applied on top', () => {
+	const refusal = prSubmissionRefusal(7);
+	assert.equal(prSubmissionBlocked({ pullRequest: { number: 7 }, appliedPatch: null, appliedPatchLabel: 'The patch you applied' }), refusal);
+	assert.equal(prSubmissionBlocked({ pullRequest: { number: 7 }, appliedPatch: { label: '62010.diff' }, appliedPatchLabel: '62010.diff' }), refusal);
 });
 
 for (const [code, sentence] of [
