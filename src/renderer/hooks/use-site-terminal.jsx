@@ -26,7 +26,10 @@ const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 // copy the screen reads, `terminalRunning`, together; and `terminalKillRef`,
 // where whoever holds the lock leaves the function Ctrl+C calls.
 //
-// `terminalContainerRef` goes on the element the terminal is drawn in.
+// `terminalContainerRef` goes on the element the terminal is drawn in, and
+// `isActive` says whether this site is the one on screen: the terminal is
+// made when the site's view mounts and put on the page the first time the
+// site is shown.
 // `writeToTerminal` prints, and `prefillTerminalCommand` puts a command at the
 // prompt without running it. Every function returned keeps its identity for
 // the life of the component. The effect that creates the xterm instance
@@ -35,7 +38,7 @@ const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 // change, it would dispose the terminal and make another, scrollback and all.
 // None of them depends on the three runners, which may change as often as
 // they like.
-export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCurrent }) {
+export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCurrent, isActive }) {
   // Read through a ref by the terminal's command handlers rather than closed
   // over: the xterm instance is created by an effect that depends on
   // `printHelp`, so a new array identity here would otherwise dispose and
@@ -290,7 +293,8 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
       ...TERMINAL_FONT
     });
     terminalRef.current = term;
-    term.open(container);
+    // Not opened here: see the effect below. Everything written before it
+    // opens is kept in the terminal's buffer and drawn when it does.
     term.write(normalizeForTerminal('WordPress npm helper terminal.\n'));
     printHelp();
     showPrompt(false);
@@ -308,6 +312,26 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
       terminalStickRef.current = true;
     };
   }, [normalizeForTerminal, printHelp, showPrompt]);
+
+  // The terminal is put on the page the first time its site is the one on
+  // screen, not when the view mounts. xterm sets the spacing between
+  // characters from the width of a glyph it measures in the document as it
+  // opens and as it draws a row, and every site's view mounts behind
+  // `display: none` (the selected site is only chosen by an effect after
+  // that), where a glyph measures zero: the spacing came out a whole cell
+  // wide, and any row drawn before the site was shown stayed that way, every
+  // letter a cell apart and each line cut in half.
+  //
+  // After every render, and not only when `isActive` changes: the effect
+  // above can make the terminal anew, and the new one has to be opened too.
+  // Once a terminal has an element there is nothing left to do here, and
+  // xterm would do nothing with a second call either.
+  useEffect(() => {
+    const term = terminalRef.current;
+    const container = terminalContainerRef.current;
+    if (!isActive || !term || !container || term.element) return;
+    term.open(container);
+  });
 
   return {
     terminalContainerRef,
