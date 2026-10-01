@@ -59,7 +59,7 @@ npm run dist:win     # Windows (x64 by default)
 npm run dist:win:arm64
 ```
 
-The renderer is bundled by esbuild into `src/renderer/index.js` and `index.css`. Those are generated files, are not committed, and are rebuilt by `npm install`, `npm start` and every `npm run dist` — so there is no bundling step to remember after changing `src/renderer/index.jsx`. `npm run build:once` still exists if you want to rebuild on its own.
+The renderer is bundled by esbuild into `src/renderer/index.js` and `index.css`. Those are generated files, are not committed, and are rebuilt by `npm install`, `npm start` and every `npm run dist` — so there is no bundling step to remember after changing `src/renderer/index.jsx` or the components and hooks it imports from `src/renderer/components/` and `src/renderer/hooks/`. `npm run build:once` still exists if you want to rebuild on its own.
 
 Output goes to `dist/`. On Linux, `npm run dist` creates an AppImage. macOS packages use the build machine's architecture, and the published macOS builds currently target Apple Silicon (`arm64`) only.
 

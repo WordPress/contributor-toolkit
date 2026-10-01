@@ -17,6 +17,8 @@
 // to Core. A site created before this field existed has no `projectType`, so it
 // keeps Core behavior with no migration and no store write.
 
+const { __ } = require('@wordpress/i18n');
+
 const WORDPRESS_DEVELOP_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 const GUTENBERG_GIT_URL = 'https://github.com/WordPress/gutenberg.git';
 
@@ -32,9 +34,11 @@ const PROJECT_TYPES = {
 		tag: 'Core',
 		// The option label shown in the create-site wizard picker, and the
 		// line under it. They say what the app does with the site today, not
-		// what a later version will.
+		// what a later version will. The line is a getter so it is translated
+		// when it is read, after the renderer has loaded its locale, rather
+		// than once, in English, when this module loads.
 		wizardLabel: 'WordPress Core',
-		description: 'The wordpress-develop repository: Trac tickets, patches and pull requests.',
+		get description() { return __('The wordpress-develop repository: Trac tickets, patches and pull requests.'); },
 
 		// git-clone.cjs decides the clone's shape (partial, single branch); the
 		// registry only says where from and which branch.
@@ -145,7 +149,7 @@ const PROJECT_TYPES = {
 		label: 'Gutenberg',
 		tag: 'Gutenberg',
 		wizardLabel: 'Gutenberg',
-		description: 'The block editor, built and run as a plugin in a stock WordPress: GitHub issues, and pull requests by checkout.',
+		get description() { return __('The block editor, built and run as a plugin in a stock WordPress: GitHub issues, and pull requests by checkout.'); },
 
 		clone: { url: GUTENBERG_GIT_URL, ref: 'trunk' },
 		defaultFolderName: 'gutenberg-trunk',

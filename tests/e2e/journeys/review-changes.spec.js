@@ -1,0 +1,424 @@
+/**
+ * "Review & submit changes": reading your own changes, and sending them off
+ * the way that needs no account (#553).
+ *
+ * The dialog opens on the diff: what this site has that its copy of trunk does
+ * not. It is the last look a contributor gets at their work before it becomes
+ * a patch or a pull request, and the pane around it is where that work can be
+ * saved to a file, copied, or thrown away. So the diff has to be the tree's,
+ * the file has to hold it, and discarding has to say so and leave the pane
+ * showing what is left, which is nothing. That is the first journey here.
+ *
+ * Beside the diff are the places the patch can go. The second journey is one
+ * of them, handing the patch to a mentor, and the third is another, attaching
+ * it to the ticket on Trac. The pull request is `open-pull-request.spec.js`,
+ * and which destinations a site offers at all is `gutenberg-site.spec.js`. A
+ * diff that could not be read is in `pr-checkout.spec.js`.
+ *
+ * The fourth journey is the dialog around all of that, on a checkout that is
+ * not all the contributor's own: what it says above the destinations, what
+ * each of them then refuses, and what is still allowed. The same for a
+ * checkout that is someone else's pull request is in `pr-checkout.spec.js`,
+ * where one is checked out.
+ *
+ * Copying is asked of a stand-in. The button writes to the system clipboard,
+ * and a journey that let it would replace whatever the person running the
+ * suite had on theirs.
+ *
+ * Assertions are marked INVARIANT or CHARACTERISATION; see
+ * ticket-branches.spec.js for why.
+ */
+
+const fs = require( 'node:fs' );
+const os = require( 'node:os' );
+const path = require( 'node:path' );
+const { test, expect } = require( '../helpers/app.cjs' );
+const ui = require( '../helpers/ui.cjs' );
+const { makeSite, makePatchFile, read, write, LOGIN, DOOMED } = require( '../helpers/git-site.cjs' );
+const { discardDisabledReason } = require( '../../../src/renderer/changes-note.cjs' );
+const { parseHandle } = require( '../../../src/wporg-handle.cjs' );
+const { TITLE } = require( '../../../src/patch-provenance.cjs' );
+const { attachUrl } = require( '../../../src/renderer/trac-ticket.cjs' );
+
+const MY_EDIT = '<?php // my fix\n';
+
+test( 'the review pane shows the tree\'s diff, saves it to the file chosen, says when it could not, and is empty after a discard', async ( { session } ) => {
+	const site = await makeSite( session );
+	const saveDir = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-review-' ) ) );
+	const savedFile = path.join( saveDir, 'my-fix.diff' );
+	const { app, page } = await session.start( site.settings );
+	const confirmsAnswered = await session.acceptConfirms();
+	// The save dialog is the operating system's; the test answers for it, and
+	// counts how often it was asked.
+	const answerSaveDialog = ( answer ) => app.evaluate( ( { dialog }, result ) => {
+		dialog.showSaveDialog = async () => {
+			global.__e2eSaveDialogs = ( global.__e2eSaveDialogs || 0 ) + 1;
+			return result;
+		};
+	}, answer );
+	const saveDialogsAnswered = () => app.evaluate( () => global.__e2eSaveDialogs || 0 );
+
+	write( site.dir, LOGIN, MY_EDIT );
+	await ui.reviewChangesButton( page ).click();
+	const dialog = page.getByRole( 'dialog', { name: 'Review & submit changes' } );
+	const save = dialog.getByRole( 'button', { name: 'Save', exact: true } );
+
+	// The pane is found by the line that says what it holds; the wording is a
+	// CHARACTERISATION, pinned by the unit test of the module that words it.
+	await expect( dialog.getByText( 'Everything this site has that its copy of trunk does not.', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	// INVARIANT — the pane is the diff of the tree against trunk: the line that
+	// went and the line that came, under the file's name as the patch writes it.
+	await expect( dialog.getByText( '+++ b/src/wp-login.php', { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByText( '-<?php // trunk', { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByText( '+<?php // my fix', { exact: true } ) ).toBeVisible();
+
+	// INVARIANT — backing out of the save dialog reports nothing: no "Saved
+	// to", and no error for a save that was never attempted.
+	//
+	// Nothing on screen changes when a save is backed out of, so there is
+	// nothing to wait for there. The test waits for the save dialog to have
+	// been answered, then asks the main process one more question and waits
+	// for that answer: the reply to the save was sent before it, so by then the
+	// pane has heard how the save went.
+	await answerSaveDialog( { canceled: true } );
+	await save.click();
+	await expect.poll( saveDialogsAnswered ).toBe( 1 );
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+	await expect( dialog.getByText( /^Saved to / ) ).toHaveCount( 0 );
+	await expect( dialog.getByRole( 'alert' ) ).toHaveCount( 0 );
+
+	// INVARIANT — a save that fails says so in the pane, with the reason, and
+	// claims no file.
+	await answerSaveDialog( { canceled: false, filePath: path.join( saveDir, 'no-such-folder', 'my-fix.diff' ) } );
+	await save.click();
+	await expect( dialog.getByRole( 'alert' ).filter( { hasText: /^Could not save the patch: .*ENOENT/ } ) ).toBeVisible();
+	await expect( dialog.getByText( /^Saved to / ) ).toHaveCount( 0 );
+
+	// INVARIANT — a save that works writes the diff on screen to the file that
+	// was chosen, names that file in the pane, and takes the earlier failure
+	// away.
+	await answerSaveDialog( { canceled: false, filePath: savedFile } );
+	await save.click();
+	await expect( dialog.getByText( `Saved to ${ savedFile }`, { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByRole( 'alert' ) ).toHaveCount( 0 );
+	expect( fs.readFileSync( savedFile, 'utf8' ) ).toContain( '+<?php // my fix' );
+
+	// INVARIANT — the button that copies says how the copy went, on itself:
+	// the diff on screen is what was copied, and a copy that failed is not
+	// reported as one that worked.
+	const copyButton = dialog.getByRole( 'button', { name: /^(Copy|Copied|Could not copy)$/ } );
+	await page.evaluate( () => {
+		navigator.clipboard.writeText = async ( text ) => {
+			window.__e2eCopied = text;
+		};
+	} );
+	await expect( copyButton ).toHaveAccessibleName( 'Copy' );
+	await copyButton.click();
+	await expect( copyButton ).toHaveAccessibleName( 'Copied' );
+	expect( await page.evaluate( () => window.__e2eCopied ) ).toContain( '+<?php // my fix' );
+	await page.evaluate( () => {
+		navigator.clipboard.writeText = async () => {
+			throw new Error( 'the document is not focused' );
+		};
+	} );
+	await copyButton.click();
+	await expect( copyButton ).toHaveAccessibleName( 'Could not copy' );
+
+	// INVARIANT — discarding asks first, puts the file back, and the pane then
+	// shows what is left to send: nothing, and it says so rather than showing
+	// an empty box.
+	await dialog.getByRole( 'button', { name: 'Discard all changes', exact: true } ).click();
+	await expect( dialog.getByText( 'No changes.', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( dialog.getByText( 'There is nothing to send yet — this site has no changes against its copy of trunk.', { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByText( '+<?php // my fix', { exact: true } ) ).toHaveCount( 0 );
+	expect( await confirmsAnswered() ).toBe( 1 );
+	expect( read( site.dir, LOGIN ) ).toBe( '<?php // trunk\n' );
+
+	// INVARIANT — with nothing to discard, the control is off and says why,
+	// instead of offering to do it again.
+	const discard = dialog.getByRole( 'button', { name: 'Discard all changes', exact: true } );
+	await expect( discard ).toBeDisabled();
+	await expect( discard ).toHaveAccessibleDescription( discardDisabledReason( { patchHasChanges: false } ) );
+} );
+
+/**
+ * Handing the patch to a mentor (#166).
+ *
+ * The one way out of the dialog that needs no account anywhere: the patch is
+ * saved with the contributor's WordPress.org username and the event they are
+ * at written into it, so whoever pushes it knows whose props it carries. The
+ * app asks for the two once and remembers them for every site. So what is
+ * typed has to be what is remembered, a name that is not a username has to be
+ * turned away with the reason, and the saved file has to say what the dialog
+ * said it would.
+ */
+test( 'handing a patch to a mentor asks for a username once, refuses one that is not, and saves a patch that carries it', async ( { session } ) => {
+	const site = await makeSite( session );
+	const saveDir = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-handoff-' ) ) );
+	const savedFile = path.join( saveDir, 'handoff.diff' );
+	const { app, page } = await session.start( site.settings );
+	// The save dialog is the operating system's; the test answers for it, and
+	// keeps the name the app proposed.
+	await app.evaluate( ( { dialog }, filePath ) => {
+		dialog.showSaveDialog = async ( options ) => {
+			global.__e2eProposedName = options.defaultPath;
+			return { canceled: false, filePath };
+		};
+	}, savedFile );
+
+	write( site.dir, LOGIN, MY_EDIT );
+	const openDialog = async () => {
+		await ui.reviewChangesButton( page ).click();
+		await expect( dialog.getByText( 'Hand it to a mentor', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	};
+	const dialog = page.getByRole( 'dialog', { name: 'Review & submit changes' } );
+	const username = dialog.getByLabel( 'WordPress.org username', { exact: true } );
+	const event = dialog.getByLabel( 'Event this patch was written at', { exact: true } );
+	const remember = dialog.getByRole( 'button', { name: 'Remember this', exact: true } );
+	const saveAs = ( handle ) => dialog.getByRole( 'button', { name: `Save patch as ${ handle }`, exact: true } );
+	await openDialog();
+
+	// INVARIANT — before the first answer there is nothing to save as and
+	// nothing to remember: the form is shown, and its button is off until
+	// there is a name in it.
+	await expect( username ).toHaveValue( '' );
+	await expect( remember ).toBeDisabled();
+	await expect( dialog.getByRole( 'button', { name: /^Save patch as / } ) ).toHaveCount( 0 );
+
+	// INVARIANT — a name typed and abandoned is not waiting in the form the
+	// next time the dialog opens.
+	await username.fill( 'abandoned' );
+	await page.keyboard.press( 'Escape' );
+	await expect( dialog ).toHaveCount( 0 );
+	await openDialog();
+	await expect( username ).toHaveValue( '' );
+
+	// INVARIANT — a name that is not a WordPress.org username is turned away,
+	// with the reason, and nothing is remembered.
+	await username.fill( 'jane doe!' );
+	await remember.click();
+	await expect( dialog.getByRole( 'alert' ).filter( { hasText: parseHandle( 'jane doe!' ).error } ) ).toBeVisible();
+	expect( session.readSettings().preferences.wporgHandle ).toBeFalsy();
+
+	// INVARIANT — typing a new name takes the complaint about the last one
+	// away, and a username and an event, once given, are what the dialog offers
+	// to save as and says the patch will carry.
+	await username.fill( 'janedoe' );
+	await expect( dialog.getByRole( 'alert' ) ).toHaveCount( 0 );
+	await event.fill( 'WordCamp Test 2026' );
+	await remember.click();
+	await expect( saveAs( 'janedoe' ) ).toBeVisible();
+	await expect( dialog.getByText( 'The patch will say it was written at WordCamp Test 2026.', { exact: true } ) ).toBeVisible();
+	// CHARACTERISATION — they are the app's, not the site's: kept in its
+	// preferences.
+	expect( session.readSettings().preferences ).toMatchObject( { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Test 2026' } );
+
+	// INVARIANT — changing them starts from what is remembered, and an event
+	// left empty is an event cleared, which the dialog then says.
+	await dialog.getByRole( 'button', { name: 'Change these', exact: true } ).click();
+	await expect( username ).toHaveValue( 'janedoe' );
+	await expect( event ).toHaveValue( 'WordCamp Test 2026' );
+	await event.fill( '' );
+	await remember.click();
+	await expect( dialog.getByText( 'No event on the patch.', { exact: true } ) ).toBeVisible();
+
+	// INVARIANT — the file says what the dialog said it would: it opens as a
+	// patch from this app, names the contributor, names no event because the
+	// dialog had just said there was none, and holds the diff. It is proposed
+	// under a name that carries the username, and the pane names where it went.
+	await saveAs( 'janedoe' ).click();
+	await expect( dialog.getByText( `Saved to ${ savedFile }`, { exact: true } ) ).toBeVisible();
+	const saved = fs.readFileSync( savedFile, 'utf8' );
+	expect( saved.startsWith( TITLE ) ).toBe( true );
+	expect( saved ).toContain( '# Contributor: janedoe (wordpress.org)\n' );
+	expect( saved ).not.toMatch( /^# Event:/m );
+	expect( saved ).toContain( '+<?php // my fix' );
+	expect( path.basename( await app.evaluate( () => global.__e2eProposedName ) ) ).toBe( 'janedoe.diff' );
+
+	// INVARIANT — a change begun and abandoned changes nothing: the next time
+	// the dialog opens it offers the name that was remembered, not the form.
+	await dialog.getByRole( 'button', { name: 'Change these', exact: true } ).click();
+	await username.fill( 'someoneelse' );
+	await page.keyboard.press( 'Escape' );
+	await expect( dialog ).toHaveCount( 0 );
+	await openDialog();
+	await expect( saveAs( 'janedoe' ) ).toBeVisible();
+	await expect( username ).toHaveCount( 0 );
+} );
+
+/**
+ * Attaching the patch to its ticket on Trac (#166).
+ *
+ * The app does not post to Trac: it saves the file and opens the ticket's
+ * attach page, and the contributor uploads it. So the destination needs a
+ * ticket, and where there is none it asks for one in place, with the same
+ * questions the ticket's own card asks, the one about edits already in the
+ * tree among them. Once there is a ticket, the page is opened only after a
+ * file exists, so nobody lands on an attach form with nothing to attach.
+ *
+ * Nothing here leaves the machine. The handler that opens a link is replaced
+ * by one that records the address, so no browser is opened; the save dialog is
+ * the operating system's, and the test answers for it; and the two lookups
+ * that linking a ticket starts, pull requests on GitHub and attachments on
+ * Trac, are answered with nothing found.
+ */
+test( 'attaching to Trac asks for a ticket where there is none, carries the edits into it, and opens the attach page only once the file is saved', async ( { session } ) => {
+	const TICKET = '60001';
+	const site = await makeSite( session );
+	const saveDir = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-trac-' ) ) );
+	const savedFile = path.join( saveDir, 'for-trac.diff' );
+	const { app, page } = await session.start( site.settings );
+	await app.evaluate( ( { ipcMain, dialog } ) => {
+		ipcMain.removeHandler( 'url:open' );
+		ipcMain.handle( 'url:open', ( event, url ) => {
+			global.__e2eOpened = ( global.__e2eOpened || [] ).concat( [ url ] );
+			return true;
+		} );
+		dialog.showSaveDialog = async () => {
+			global.__e2eSaveDialogs = ( global.__e2eSaveDialogs || 0 ) + 1;
+			return global.__e2eSaveAnswer;
+		};
+		ipcMain.removeHandler( 'git:list-ticket-patches' );
+		ipcMain.handle( 'git:list-ticket-patches', () => ( { ok: true, prs: { status: 'ok', items: [] } } ) );
+		ipcMain.removeHandler( 'trac:list-attachments' );
+		ipcMain.handle( 'trac:list-attachments', () => ( { ok: true, status: 'ok', items: [] } ) );
+	} );
+	const answerSaveDialog = ( answer ) => app.evaluate( ( electron, result ) => {
+		global.__e2eSaveAnswer = result;
+	}, answer );
+	const saveDialogsAnswered = () => app.evaluate( () => global.__e2eSaveDialogs || 0 );
+	const opened = () => app.evaluate( () => global.__e2eOpened || [] );
+
+	write( site.dir, LOGIN, MY_EDIT );
+	await ui.reviewChangesButton( page ).click();
+	const dialog = page.getByRole( 'dialog', { name: 'Review & submit changes' } );
+	await expect( dialog.getByText( 'Attach to Trac', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — with no ticket there is nothing to attach to, and the
+	// destination says so and asks for one instead of offering to save.
+	await expect( dialog.getByText( 'No ticket is linked to this site, so there is nowhere to attach it yet.', { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByRole( 'button', { name: /^Save, then open #/ } ) ).toHaveCount( 0 );
+	await expect( ui.linkTicketButton( dialog ) ).toBeDisabled();
+
+	// INVARIANT — something that is not a ticket is turned away where it was
+	// typed, with what a ticket looks like.
+	await ui.ticketField( dialog ).fill( 'not a ticket' );
+	await ui.linkTicketButton( dialog ).click();
+	await expect( dialog.getByRole( 'alert' ).filter( { hasText: /^Enter a ticket number like/ } ) ).toBeVisible();
+
+	// INVARIANT — linking from here asks the question linking always asks when
+	// there are edits in the tree, in this dialog and not behind it, and
+	// taking the edits along links the ticket with them still in place.
+	await ui.ticketField( dialog ).fill( TICKET );
+	await ui.linkTicketButton( dialog ).click();
+	await dialog.getByRole( 'button', { name: `Take these edits into #${ TICKET }`, exact: true } ).click();
+	const saveThenOpen = dialog.getByRole( 'button', { name: `Save, then open #${ TICKET }`, exact: true } );
+	await expect( saveThenOpen ).toBeVisible( { timeout: 30_000 } );
+	await expect( ui.ticketField( dialog ) ).toHaveCount( 0 );
+	expect( read( site.dir, LOGIN ) ).toBe( MY_EDIT );
+
+	// INVARIANT — a save that is backed out of opens nothing: there is no file
+	// to attach.
+	await answerSaveDialog( { canceled: true } );
+	await saveThenOpen.click();
+	await expect.poll( saveDialogsAnswered ).toBe( 1 );
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+	expect( await opened() ).toEqual( [] );
+
+	// INVARIANT — a save that works writes the plain diff, with nothing of the
+	// contributor in it, and then opens that ticket's attach page, once.
+	await answerSaveDialog( { canceled: false, filePath: savedFile } );
+	await saveThenOpen.click();
+	await expect( dialog.getByText( `Saved to ${ savedFile }`, { exact: true } ) ).toBeVisible();
+	await expect.poll( opened ).toEqual( [ attachUrl( TICKET ) ] );
+	const saved = fs.readFileSync( savedFile, 'utf8' );
+	expect( saved ).toContain( '+<?php // my fix' );
+	expect( saved.startsWith( TITLE ) ).toBe( false );
+} );
+
+test( 'a checkout carrying someone else\'s patch says so above the destinations, is refused by each of them, and can still be saved', async ( { session } ) => {
+	const TICKET = '60001';
+	const PATCH = 'ticket-60001.patch';
+	const site = await makeSite( session );
+	// A username already remembered, so the mentor hand-off has a save to
+	// refuse.
+	site.settings.preferences.wporgHandle = 'janedoe';
+	const { app, page } = await session.start( site.settings );
+	// Nothing here leaves the machine: the two lookups that linking a ticket
+	// starts find nothing, and the save dialog is backed out of and counted.
+	// The app is told it is signed in to GitHub, and counts being asked: signed
+	// out, the pull request card has no form to offer whatever else is true,
+	// and "it offers no form" would be a claim that cannot come out false.
+	await app.evaluate( ( { ipcMain, dialog } ) => {
+		ipcMain.removeHandler( 'git:list-ticket-patches' );
+		ipcMain.handle( 'git:list-ticket-patches', () => ( { ok: true, prs: { status: 'ok', items: [] } } ) );
+		ipcMain.removeHandler( 'trac:list-attachments' );
+		ipcMain.handle( 'trac:list-attachments', () => ( { ok: true, status: 'ok', items: [] } ) );
+		ipcMain.removeHandler( 'github:account' );
+		ipcMain.handle( 'github:account', () => {
+			global.__e2eAccountAsked = ( global.__e2eAccountAsked || 0 ) + 1;
+			return { ok: true, login: 'janedoe', configured: true, testMode: null };
+		} );
+		dialog.showSaveDialog = async () => {
+			global.__e2eSaveDialogs = ( global.__e2eSaveDialogs || 0 ) + 1;
+			return { canceled: true };
+		};
+	} );
+	const saveDialogsAnswered = () => app.evaluate( () => global.__e2eSaveDialogs || 0 );
+	const accountAsked = () => app.evaluate( () => global.__e2eAccountAsked || 0 );
+
+	await ui.linkTicket( page, TICKET );
+	// Someone else's patch goes on, through the app's own file dialog and the
+	// preview it shows first, and then the contributor edits another file.
+	const patch = makePatchFile( session, PATCH, [
+		{ file: 'wp-login.php', from: '<?php // trunk', to: '<?php // fixed by the patch' },
+	] );
+	await session.answerFileDialog( [ patch ] );
+	await ui.choosePatchFileButton( page ).click();
+	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await ui.applyAndRebuildButton( page ).click();
+	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );
+	write( site.dir, DOOMED, MY_EDIT );
+
+	await ui.reviewChangesButton( page ).click();
+	const dialog = page.getByRole( 'dialog', { name: 'Review & submit changes' } );
+	const warning = dialog.getByRole( 'alert' ).filter( { hasText: `${ PATCH } is part of this checkout.` } );
+
+	// INVARIANT — the dialog says whose work this is before it offers anywhere
+	// to send it, and that a copy can still be kept.
+	await expect( warning ).toBeVisible( { timeout: 30_000 } );
+	await expect( warning ).toContainText( 'this combined patch cannot be submitted as your work' );
+	await expect( warning ).toContainText( 'You can still use Save to keep an unattributed copy' );
+	expect( await ui.inDocumentOrder( page, [
+		dialog.getByText( 'Where this patch goes', { exact: true } ),
+		warning,
+		dialog.getByText( 'Open a pull request', { exact: true } ),
+	] ) ).toBe( true );
+
+	// INVARIANT — every destination that would send it under the
+	// contributor's name refuses: the pull request says what to do first and
+	// offers no form, signed in and with a ticket linked though the
+	// contributor is, and the two that save a file for sending will not save.
+	//
+	// The form's absence is read only once the card knows the account: until
+	// the answer arrives there is no form whatever the card would go on to
+	// show. So the test waits for the account to have been asked for, then
+	// asks the main process one more question and waits for that answer, by
+	// which time the card has heard the first.
+	await expect( dialog.getByText( `Revert ${ PATCH } before opening a pull request from this checkout.`, { exact: true } ) ).toBeVisible();
+	await expect.poll( accountAsked ).toBeGreaterThan( 0 );
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+	await expect( dialog.getByText( /Signed in as janedoe/ ) ).toHaveCount( 0 );
+	await expect( dialog.getByRole( 'button', { name: 'Open pull request', exact: true } ) ).toHaveCount( 0 );
+	await expect( dialog.getByRole( 'button', { name: `Save, then open #${ TICKET }`, exact: true } ) ).toBeDisabled();
+	await expect( dialog.getByRole( 'button', { name: 'Save patch as janedoe', exact: true } ) ).toBeDisabled();
+
+	// INVARIANT — the copy the warning promises can be had: Save asks where
+	// to put it.
+	await dialog.getByRole( 'button', { name: 'Save', exact: true } ).click();
+	await expect.poll( saveDialogsAnswered ).toBe( 1 );
+
+	// CHARACTERISATION — Escape closes the dialog.
+	await page.keyboard.press( 'Escape' );
+	await expect( dialog ).toHaveCount( 0 );
+} );

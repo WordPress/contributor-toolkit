@@ -2,19 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { describePrCheckout, describePrPreview, prSubmissionRefusal, prCheckoutRefusal } = require('../../src/renderer/pr-checkout.cjs');
-
-test('the dirty-trunk PR retry publishes only the callback from a committed render (#458)', () => {
-	const source = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'renderer', 'index.jsx'), 'utf8');
-	const assignment = 'retryPrSwitchRef.current = runPrSwitch;';
-	assert.equal(source.split(assignment).length - 1, 1, 'expected one retry callback assignment');
-	const committedEffect = [...source.matchAll(/useLayoutEffect\(\(\) => \{([\s\S]*?)\n  \}\);/g)]
-		.find((match) => match[1].includes(assignment));
-	assert.ok(committedEffect, 'retry callback assignment must run in a layout effect, after React commits the render');
-});
-const rendererSource = fs.readFileSync(path.join(__dirname, '../../src/renderer/index.jsx'), 'utf8');
+const { describePrCheckout, describePrPreview, prSubmissionRefusal, prSubmissionBlocked, prCheckoutRefusal } = require('../../src/renderer/pr-checkout.cjs');
 
 test('PR checkout names the return ticket and explains where edits stay', () => {
 	const result = describePrCheckout({ returnTo: 'ticket/62010', hasEdits: true });
@@ -37,6 +25,23 @@ test('submission refusal explains ownership and how to get back to your work', (
 test('submission refusal does not invent a ticket when the PR came from trunk', () => {
 	assert.match(prSubmissionRefusal(7, 'trunk'), /Revert this PR/);
 	assert.doesNotMatch(prSubmissionRefusal(7, 'trunk'), /your ticket/);
+});
+
+test('the pull request card submits a checkout that is all the contributor\'s own', () => {
+	assert.equal(prSubmissionBlocked({ pullRequest: null, appliedPatch: null, appliedPatchLabel: 'The patch you applied' }), '');
+});
+
+test('an applied patch blocks the pull request card, named the way the app names it', () => {
+	assert.equal(
+		prSubmissionBlocked({ pullRequest: null, appliedPatch: { label: '62010.diff' }, appliedPatchLabel: '62010.diff' }),
+		'Revert 62010.diff before opening a pull request from this checkout.'
+	);
+});
+
+test('a checked-out pull request blocks the card with its own refusal, ahead of a patch applied on top', () => {
+	const refusal = prSubmissionRefusal(7);
+	assert.equal(prSubmissionBlocked({ pullRequest: { number: 7 }, appliedPatch: null, appliedPatchLabel: 'The patch you applied' }), refusal);
+	assert.equal(prSubmissionBlocked({ pullRequest: { number: 7 }, appliedPatch: { label: '62010.diff' }, appliedPatchLabel: '62010.diff' }), refusal);
 });
 
 for (const [code, sentence] of [
@@ -74,14 +79,6 @@ test('PR preview distinguishes a saved copy, a moved head and edits on the old h
 test('a closed PR is still available for investigation', () => {
 	assert.match(describePrPreview({ number: 7, state: 'closed' }).closedNote, /closed.*still check out/);
 	assert.equal(describePrPreview({ number: 7, state: 'open' }).closedNote, '');
-});
-
-test('the active PR is one site-level context instead of duplicated Apply-panel actions', () => {
-	assert.equal(rendererSource.match(/runPrSwitch\(\{ leaving: true \}\)/g)?.length, 1);
-	assert.ok(rendererSource.indexOf("cueProps('link-ticket')") < rendererSource.indexOf("cueProps('pr-checkout')"));
-	assert.ok(rendererSource.indexOf("cueProps('pr-checkout')") < rendererSource.indexOf('>Linked pull requests<'));
-	assert.match(rendererSource, />Apply PR<\/Button>/);
-	assert.doesNotMatch(rendererSource, /Apply a patch file on top of PR #/);
 });
 
 // A Gutenberg site returns to an issue/ branch (#251): the box must say the

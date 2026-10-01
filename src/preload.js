@@ -152,6 +152,9 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	deepLinkReady: () => ipcRenderer.invoke('deep-link:ready')
 ,
+	// The locale and its catalog, read once before the first render.
+	getLocale: () => ipcRenderer.invoke('i18n:locale')
+,
 	subscribeSetupProgress: (handler) => {
 		const h = (_e, payload) => handler && handler(payload);
 		ipcRenderer.on('download:progress', h);

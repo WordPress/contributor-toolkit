@@ -4,6 +4,7 @@ const path = require( 'node:path' );
 const { finished } = require( 'node:stream/promises' );
 const { execFileSync } = require( 'node:child_process' );
 const { test, expect } = require( '../helpers/app.cjs' );
+const ui = require( '../helpers/ui.cjs' );
 
 // One real setup per contribution target (#251). The steps are the same; what
 // differs is the choice in the dialog, what the status reports, and what the
@@ -52,8 +53,8 @@ for ( const target of TARGETS ) {
 		try {
 			await test.step( 'Create a site in an isolated temporary directory', async () => {
 				await session.answerFileDialog( [ parent ] );
-				await page.getByRole( 'button', { name: 'Create a site', exact: true } ).click();
-				const modal = page.getByRole( 'dialog', { name: 'Create a site' } );
+				await ui.createSiteButton( page ).click();
+				const modal = ui.createSiteDialog( page );
 				const choice = modal.getByRole( 'radio', { name: target.choice, exact: true } );
 				await choice.click();
 				await expect( choice ).toBeChecked();
@@ -128,19 +129,19 @@ for ( const target of TARGETS ) {
 					// watch (#499): `npm run dev` would remove build/ and rebuild it
 					// first, for nothing. The button still offers the watch and its
 					// tab never went "building". Core's watch starts with the server.
-					await expect( page.getByRole( 'button', { name: 'Start build watch', exact: true } ) ).toBeVisible();
-					await expect( page.getByRole( 'tab', { name: 'Build watcher', exact: true } ) ).toBeVisible();
+					await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
+					await expect( ui.logTab( page, 'Build watcher' ) ).toBeVisible();
 					// Start it by hand so the stop below, and the process-tree check
 					// after it, still exercise the watch. `npm run dev` removes build/
 					// and redoes the whole build before it watches: as long as the
 					// wizard's own build, which has taken from 9 to over 13 minutes on
 					// the macOS runner.
-					await page.getByRole( 'button', { name: 'Start build watch', exact: true } ).click();
-					await expect( page.getByRole( 'tab', { name: 'Build watcher (watching)', exact: true } ) ).toBeVisible( { timeout: 30 * 60_000 } );
+					await ui.startBuildWatchButton( page ).click();
+					await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible( { timeout: 30 * 60_000 } );
 				}
-				await page.getByRole( 'button', { name: 'Stop build watch', exact: true } ).click();
-				await page.getByRole( 'button', { name: 'Stop dev server', exact: true } ).click();
-				await expect( page.getByRole( 'button', { name: 'Start dev server', exact: true } ) ).toBeVisible( { timeout: 60_000 } );
+				await ui.stopBuildWatchButton( page ).click();
+				await ui.stopDevServerButton( page ).click();
+				await expect( ui.startDevServerButton( page ) ).toBeVisible( { timeout: 60_000 } );
 			} );
 
 			await test.step( 'Stopping the watch ends its whole process tree', async () => {

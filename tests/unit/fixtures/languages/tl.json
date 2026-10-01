@@ -1,0 +1,8 @@
+{
+	"locale_data": {
+		"messages": {
+			"": { "domain": "messages", "lang": "tl", "plural-forms": "nplurals=2; plural=n != 1;" },
+			"No sites yet.": [ "Wala pang site." ]
+		}
+	}
+}

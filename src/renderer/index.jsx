@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Button,
@@ -11,61 +11,80 @@ import {
   Icon,
   MenuGroup,
   MenuItem,
-  Modal,
-  RadioControl,
   SnackbarList,
   TextControl,
-  TextareaControl,
-  Spinner,
-  Tooltip
+  Spinner
 } from '@wordpress/components';
-import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, edit, download, comment } from '@wordpress/icons';
+import { __, _x, setLocaleData } from '@wordpress/i18n';
+import { addFilter } from '@wordpress/hooks';
+import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, pencil, comment } from '@wordpress/icons';
+import { ThemeProvider } from '@wordpress/theme';
+import { VisuallyHidden } from '@wordpress/ui';
+// The design system's tokens: every `--wpds-*` custom property, at its default,
+// on `:root`.
+import '@wordpress/theme/design-tokens.css';
 import '@wordpress/components/build-style/style.css';
-import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision, setupStepLabel } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
-import { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
-import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from './watch-waiters.cjs';
-import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState } from './watch-activity.cjs';
-import { planUpdateHandOff } from './update-handoff.cjs';
-import { appendBounded, countLines } from './debug-log.cjs';
+import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
+import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
-import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
-import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
+import { applyLocale, textDirection } from './locale-setup.cjs';
+import { getProjectType } from '../project-type.cjs';
+import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
-import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
-import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, planTicketSwitchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome, updateStepText } from './update-plan.cjs';
+import { trunkAgeInfo, updateStepStatuses, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome, updateStepText } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
-import { parsePrRef } from '../patch-sources.cjs';
 import { prStateBadge } from './pr-state.cjs';
 import { statusBadge } from '../trac-ticket-info.cjs';
 import { prDateLabel } from './pr-date-label.cjs';
 import { workItemProvider } from '../work-item.cjs';
 import { adminUrl, adminerUrl } from './site-urls.cjs';
-import { ticketBranchRows, savedPrForSwitch, ticketListCard } from './ticket-branch-list.cjs';
-import { ticketTrunkNotice, rebaseRefusal } from './ticket-trunk-notice.cjs';
+import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
+import { ticketTrunkNotice } from './ticket-trunk-notice.cjs';
 import { legacySiteNotice } from './legacy-site.cjs';
 import { deepLinkNotice } from './deep-link-notice.cjs';
 import { mergeInProgressNotice } from './merge-in-progress.cjs';
-import { describePrCheckout, describePrPreview, prCheckoutRefusal, prSubmissionRefusal } from './pr-checkout.cjs';
+import { describePrCheckout, describePrPreview, prSubmissionBlocked } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
-import { highlightDiff, hasDiffLines } from './diff-highlight.cjs';
-import { highlightLog } from './log-highlight.cjs';
-import { carryTestMode } from './github-account.cjs';
+import { hasDiffLines } from './diff-highlight.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
-import { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage } from './confirmations.cjs';
-import { prStageLabel } from './pr-stage.cjs';
+import { initialConfirmations, confirmationReducer, deleteFailureMessage } from './confirmations.cjs';
+import { ReasonedButton } from './components/reasoned-button.jsx';
+import { DiscardChangesLink } from './components/discard-changes-link.jsx';
+import { LogText } from './components/log-text.jsx';
+import { DestinationGroup } from './components/destination.jsx';
+import { TerminalCommandLink } from './components/terminal-command-link.jsx';
+import { RenameSiteModal } from './components/rename-site-modal.jsx';
+import { EmailModal } from './components/email-modal.jsx';
+import { DirtyTreeModal } from './components/dirty-tree-modal.jsx';
+import { CreateSiteModal } from './components/create-site-modal.jsx';
+import { PatchDiffPane } from './components/patch-diff-pane.jsx';
+import { MentorHandoff } from './components/mentor-handoff.jsx';
+import { TracDestination } from './components/trac-destination.jsx';
+import { PullRequestDestination } from './components/pull-request-destination.jsx';
+import { ReviewDialog } from './components/review-dialog.jsx';
+import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
+import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
+import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
+import { useSites } from './hooks/use-sites.jsx';
+import { usePullRequest } from './hooks/use-pull-request.jsx';
+import { useSiteMail } from './hooks/use-site-mail.jsx';
+import { useSiteLogs } from './hooks/use-site-logs.jsx';
+import { useSiteTerminal, TERMINAL_FONT } from './hooks/use-site-terminal.jsx';
+import { useSiteScripts } from './hooks/use-site-scripts.jsx';
+import { useBuildWatch } from './hooks/use-build-watch.jsx';
+import { useDevServer } from './hooks/use-dev-server.jsx';
+import { useTrunkUpdate } from './hooks/use-trunk-update.jsx';
+import { useSiteTicket } from './hooks/use-site-ticket.jsx';
+import { useApplyPatch } from './hooks/use-apply-patch.jsx';
+import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
-// One face for everything that is process output: the terminal below and every
-// log pane above it. Shared rather than repeated because the panes had drifted
-// into the app's sans-serif, which does not line up a stack trace and does not
-// read as a console even though that is exactly what it is.
-const TERMINAL_FONT = { fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace', fontSize: 13 };
 // Shared by every log pane so the tabs cannot drift apart visually. The line
 // height is looser than xterm's: this is wrapped text in a div, not painted rows.
 const LOG_PANE_STYLE = { ...TERMINAL_FONT, lineHeight: 1.4, whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 12, borderRadius: 6, height: 220, overflow: 'auto' };
@@ -88,48 +107,6 @@ const COPY_BUTTON_LABELS = {
   failed: 'Could not copy'
 };
 
-// A button that explains itself while disabled (#409). A reason disables it
-// the accessible way: still in the tab order, `aria-disabled` rather than
-// `disabled` so assistive technology reads it, the sentence as its
-// description and as a tooltip. `title` would do neither, since Chromium
-// shows no tooltip on a disabled control.
-//
-// The Tooltip is rendered whether or not there is a reason, and with no text
-// it renders its anchor and no popover. The conditional version returned two
-// different element types at the same position, so React remounted the
-// button every time the gate flipped — which throws away exactly what
-// `accessibleWhenDisabled` buys, since a keyboard user who just activated
-// the control has the focused element destroyed under them and focus falls
-// back to the document. `disabled` is passed through for gates that need no
-// sentence (an empty input, not a blocked action).
-function ReasonedButton({ reason, disabled, children, ...props }) {
-  return (
-    <Tooltip text={reason || undefined} placement="bottom">
-      <Button
-        {...props}
-        disabled={reason ? true : disabled}
-        accessibleWhenDisabled={Boolean(reason)}
-        description={reason || undefined}
-      >{children}</Button>
-    </Tooltip>
-  );
-}
-// One discard action, wherever it is offered. Keeping the disabled rendering
-// here means the ticket note cannot lose the explanation while the review
-// modal keeps it (or vice versa).
-function DiscardChangesLink({ label, onClick, reason, style }) {
-  return <ReasonedButton variant="link" isDestructive onClick={onClick} reason={reason} style={style}>{label}</ReasonedButton>;
-}
-// Why it failed, in a sentence that says what to do about it. Every one of
-// these still leaves the patch file, which is what the card offers underneath.
-// The no-ticket refusal is not here: the main process words it for the site's
-// work item (#251), and the fallback below shows that sentence as sent.
-const PR_FAILURE_MESSAGES = {
-  unauthorized: 'That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.',
-  'rate-limited': 'GitHub is rate-limiting this connection. It usually clears within the hour.',
-  offline: 'No connection to GitHub.',
-  empty: 'There are no changes to open a pull request with.'
-};
 // Per-status wording for the update chain card (#94), following the issue's
 // mockups: the skipped install step is named, never hidden, and the build
 // step points at the Terminal instead of opening a second log surface.
@@ -147,184 +124,20 @@ const UPDATE_STEP_MARKS = {
 // the "Open directory in" menu, where every other row is a bare name.
 const FILE_MANAGER_LABELS = { darwin: 'Show in Finder', win32: 'Show in Explorer' };
 const FILE_MANAGER_NAMES = { darwin: 'Finder', win32: 'File Explorer' };
-const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
-const RENAME_INPUT_ID = 'rename-site-name-input';
-const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
-const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
-const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
-// What the create-site dialog offers under "Contribute to", read off the
-// registry so the copy and the order live in one place. Core is first, and
-// the default.
-const CREATE_SITE_TYPE_OPTIONS = Object.values(PROJECT_TYPES).map((t) => ({ label: t.wizardLabel, value: t.id, description: t.description }));
 // Why the ticket's PR list could not be read, worded for the contributor.
 const TICKET_PATCH_STATUS_MESSAGE = {
   'rate-limited': 'GitHub is rate-limiting this connection.',
   offline: 'Could not reach GitHub.',
   error: 'Could not read the pull requests from GitHub.'
 };
-const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
 
-function formatEmailDate(email) {
-  if (email.sentAt) return new Date(email.sentAt).toLocaleString();
-  if (email.date) return new Date(email.date).toLocaleString();
-  return '';
-}
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
-
-// Which applications this machine has is a fact about the machine, not about a
-// site, so it is held once for the window rather than once per site. Every site
-// is mounted at all times (the inactive ones are hidden), so per-row state here
-// would mean N copies of the same answer and N filesystem sweeps.
-//
-// Detection is deliberately not part of the load: the probe behind `editor:list`
-// waits until a menu is actually opened. It is re-run on every open rather than
-// cached for the session, because an editor installed while this app is running
-// is one the next menu should offer. The previous answer is kept on screen in the
-// meantime, so reopening the menu does not blink through an empty list.
-function useDetectedEditors() {
-  const [detected, setDetected] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const loadDetected = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await window.api.listEditors();
-      setDetected(result?.detected || []);
-    } catch (err) {
-      // The menu still offers the file manager and "Other application…", which
-      // is enough to finish the job — but "detection failed" and "nothing is
-      // installed" must not be the same event to whoever reads the log.
-      // eslint-disable-next-line no-console -- reaches the log file: logging.js initializes electron-log with spyRendererConsole, so this is how the renderer records a diagnostic.
-      console.error('Could not list the editors on this machine:', err);
-      setDetected([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  return { detected, loading, loadDetected };
-}
-
-// Who this contributor is and where they are contributing from (#166), held
-// once for the same reason the detected editors are: both are facts about the
-// person or their machine, not about a checkout, so answering them in one site's
-// patch modal must not leave every other site still asking.
-function useContributorProvenance() {
-  const [handle, setHandle] = useState(null);
-  const [event, setEvent] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    window.api.getProvenance()
-      .then((res) => {
-        if (cancelled) return;
-        setHandle(res?.handle || null);
-        setEvent(res?.event || null);
-      })
-      // "nothing answered yet" is an ordinary state; "the store could not be
-      // read" is not, and the two must not look the same in the log. Same
-      // argument as useDetectedEditors above.
-      // eslint-disable-next-line no-console -- reaches the log file, see the note in useDetectedEditors.
-      .catch((err) => console.error('Could not read the remembered contributor details:', err));
-    return () => { cancelled = true; };
-  }, []);
-
-  // An empty ref forgets the field. A rejected invoke comes back as a refusal
-  // rather than being raised: the caller shows the message next to the input.
-  const rememberHandle = useCallback(async (ref) => {
-    let result;
-    try {
-      result = await window.api.setWporgHandle(ref);
-    } catch (err) {
-      // eslint-disable-next-line no-console -- see the note above.
-      console.error('Could not remember that WordPress.org handle:', err);
-      return { ok: false, error: String(err?.message ?? err) };
-    }
-    if (result?.ok) setHandle(result.handle || null);
-    return result;
-  }, []);
-
-  const rememberEvent = useCallback(async (ref) => {
-    let result;
-    try {
-      result = await window.api.setContributionEvent(ref);
-    } catch (err) {
-      // eslint-disable-next-line no-console -- see the note above.
-      console.error('Could not remember that event:', err);
-      return { ok: false, error: String(err?.message ?? err) };
-    }
-    if (result?.ok) setEvent(result.event || null);
-    return result;
-  }, []);
-
-  return { handle, event, rememberHandle, rememberEvent };
-}
-
-// Brings the block the contributor should act on next into view when it changes,
-// so their one hint is never left below the fold (#252). The mark itself is
-// drawn by React — the `.next-action-cue` class the render binds to this same id
-// — because a className survives re-render where an imperative one would be
-// reconciled away; this handles only the movement, which no className can do.
-//
-// Gated on `isActive` because every SiteRow stays mounted at once: without it a
-// background site could yank the viewport the moment its own state changed. It
-// fires on a *change* of the id (or on becoming active), not on every render, so
-// a contributor reading one block is not dragged off it by an unrelated update.
-function useNextActionCue(nextActionId, isActive, containerRef) {
-  useEffect(() => {
-    if (!isActive || !nextActionId) return;
-    const root = containerRef.current;
-    if (!root) return;
-    const el = root.querySelector(`[data-next-action="${nextActionId}"]`);
-    if (!el) return;
-    // `center` brings the block clearly into view rather than just nudging it to
-    // the nearest edge — the cue only fires when the target *changes*, so this
-    // moves the viewport to whatever is newly worth looking at (a step that just
-    // became current, an operation that just started) without fighting a
-    // contributor mid-read. Reduced motion drops the smooth glide to an instant
-    // jump.
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
-  }, [nextActionId, isActive, containerRef]);
-}
-
-// The two halves are one piece of state because one change moves both: adopting
-// the directory the app really created has to retire the guessed row and carry
-// its metadata across, and two setters cannot do that without a render in
-// between where the site has a path under one key and a label under another.
-// `setSiteMeta` keeps its old signature so every other caller is untouched;
-// `applySetup` is for the changes that need the pair, which is every change the
-// create flow makes.
-function useSites() {
-  const [state, setState] = useState({ sites: [], siteMeta: {} });
-  const setSiteMeta = useCallback((update) => setState((prev) => ({
-    ...prev,
-    siteMeta: typeof update === 'function' ? update(prev.siteMeta) : update
-  })), []);
-  const applySetup = useCallback((fn) => setState(fn), []);
-  const refresh = useCallback(async () => {
-    const { sites: list, siteMeta: meta } = await window.api.getSitesWithMeta();
-    setState({ sites: list, siteMeta: meta || {} });
-  }, []);
-  useEffect(() => { refresh(); }, [refresh]);
-  return { sites: state.sites, siteMeta: state.siteMeta, refresh, setSiteMeta, applySetup };
-}
-
-// The one way any panel confirms a completed action (#253). `confirm(message)`
-// queues a transient, screen-reader-announced notice; the provider below renders
-// the queue once for the window. The default is a no-op so a component rendered
-// outside the provider (a test, say) does not throw on a stray confirm.
-const ConfirmationContext = createContext(() => {});
-
-function useConfirmation() {
-  return useContext(ConfirmationContext);
-}
 
 function App() {
   const { sites, siteMeta, refresh, setSiteMeta, applySetup } = useSites();
   // The confirmation queue for the whole window. It lives here, above every
   // SiteRow, because only one row is visible at a time and a per-row toast would
-  // be hidden along with its inactive row. See ConfirmationContext above.
+  // be hidden along with its inactive row. See ConfirmationContext in hooks/use-confirmation.jsx.
   const [confirmations, dispatchConfirmation] = useReducer(confirmationReducer, initialConfirmations);
   const confirm = useCallback((content, options = {}) => {
     dispatchConfirmation({ type: 'add', content, tone: options.tone });
@@ -354,7 +167,6 @@ function App() {
   const clearPendingSites = useCallback(() => setPendingSites([]), []);
   const [terminalMsgs, setTerminalMsgs] = useState('');
   const termRef = useRef(null);
-  const createDirInputRef = useRef(null);
   useEffect(() => { if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight; }, [terminalMsgs]);
   const [webStarting, setWebStarting] = useState(false);
   const [webUrl, setWebUrl] = useState('');
@@ -371,9 +183,9 @@ function App() {
   // React renders it and prevents two delete requests for one site.
   const deletingSitesRef = useRef(new Set());
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createSiteName, setCreateSiteName] = useState('');
-  const [createSiteDir, setCreateSiteDir] = useState('');
-  const [createSiteType, setCreateSiteType] = useState(DEFAULT_PROJECT_TYPE);
+  // The one message under the create-site form: the dialog's complaint about
+  // a missing answer, or why the setup it started failed. Held here because
+  // the second is written here, possibly after the dialog has closed.
   const [createSiteError, setCreateSiteError] = useState('');
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
@@ -433,36 +245,6 @@ function App() {
       return next;
     });
   }, []);
-
-  useEffect(() => {
-    let styleEl = document.getElementById(CREATE_SITE_MODAL_STYLE_ID);
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = CREATE_SITE_MODAL_STYLE_ID;
-      styleEl.textContent = `
-.create-site-modal .components-modal__header-heading { color: #1d2327; }
-.create-site-modal .components-modal__header { border-bottom: 1px solid #e2e4e7; }
-.create-site-modal .components-modal__content { color: #1d2327; }
-`;
-      document.head.appendChild(styleEl);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!createModalOpen) return;
-    const input = document.getElementById(CREATE_SITE_NAME_INPUT_ID);
-    if (input) {
-      input.focus();
-      if (typeof input.select === 'function') input.select();
-    }
-  }, [createModalOpen]);
-
-  useEffect(() => {
-    if (createModalOpen) return;
-    if (createDirInputRef.current) {
-      createDirInputRef.current.value = '';
-    }
-  }, [createModalOpen]);
 
   useEffect(() => {
     const unsubProg = window.api.subscribeSetupProgress((p) => {
@@ -559,51 +341,14 @@ function App() {
   // shape.
   const chooseAndSetup = useCallback(() => {
     if (createSubmitting) return;
-    setCreateSiteName('');
-    setCreateSiteDir('');
-    setCreateSiteType(DEFAULT_PROJECT_TYPE);
     setCreateSiteError('');
     setCreateModalOpen(true);
   }, [createSubmitting]);
 
-  const openDirectoryPicker = useCallback(async () => {
-    try {
-      const dir = await window.api.chooseDirectory();
-      if (dir) {
-        setCreateSiteDir(dir);
-        setCreateSiteError('');
-      }
-    } catch {}
-  }, []);
-
-  const handleCreateDirInputChange = useCallback((event) => {
-    const inputEl = event.target;
-    createDirInputRef.current = inputEl;
-    const files = inputEl.files;
-    if (!files || files.length === 0) {
-      inputEl.value = '';
-      return;
-    }
-
-    const resolved = directoryFromFileEntry(files[0], inputEl.value);
-    setCreateSiteDir(resolved);
-    // Clearing the error only when there is a directory: a selection that
-    // resolved to nothing has not fixed anything the message was about.
-    if (resolved) setCreateSiteError('');
-    inputEl.value = '';
-  }, [setCreateSiteDir, setCreateSiteError]);
-
-  const handleCreateSiteSubmit = useCallback(async () => {
-    const nameTrimmed = createSiteName.trim();
-    if (!nameTrimmed) {
-      setCreateSiteError('Please provide a site name.');
-      return;
-    }
-    if (!createSiteDir) {
-      setCreateSiteError('Please choose where to create the site.');
-      return;
-    }
-
+  // What the create-site dialog hands over once it has every answer: the name,
+  // trimmed, the parent folder and the project. The dialog closes here, and the
+  // setup it started goes on without it.
+  const startSiteSetup = useCallback(async ({ name: nameTrimmed, dir: createSiteDir, projectType: createSiteType }) => {
     const cleanFolder = sanitizeSiteFolder(nameTrimmed);
     const targetDir = resolveTargetDir(createSiteDir, cleanFolder);
     let finalSitePath = targetDir;
@@ -618,10 +363,7 @@ function App() {
     }));
     setActiveSite(targetDir);
     setCreateModalOpen(false);
-    setCreateSiteName('');
-    setCreateSiteDir('');
     const chosenType = createSiteType;
-    setCreateSiteType(DEFAULT_PROJECT_TYPE);
 
     try {
       setCreateSubmitting(true);
@@ -663,30 +405,9 @@ function App() {
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, createSiteType, moveSetupLog, refresh]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, moveSetupLog, refresh]);
 
-  const closeCreateModal = useCallback(() => {
-    if (createSubmitting) return;
-    setCreateModalOpen(false);
-  }, [createSubmitting]);
-
-  const handleCreateModalSubmit = useCallback((event) => {
-    event.preventDefault();
-    handleCreateSiteSubmit();
-  }, [handleCreateSiteSubmit]);
-
-  const handleCreateModalKeyDown = useCallback((event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      closeCreateModal();
-    }
-  }, [closeCreateModal]);
-
-  const handleCreateDirInputClick = useCallback((event) => {
-    event.preventDefault();
-    void openDirectoryPicker();
-  }, [openDirectoryPicker]);
+  const closeCreateModal = useCallback(() => setCreateModalOpen(false), []);
 
   const togglePlaygroundWeb = useCallback(async () => {
     if (!webUrl) {
@@ -794,16 +515,16 @@ function App() {
       <div style={{ width: sidebarCollapsed ? 56 : 280, background: '#1f1f1f', color: '#f7f7f7', display: 'flex', flexDirection: 'column', transition: 'width 0.2s ease', borderRight: '1px solid #2b2b2b' }}>
         <div style={{ padding: sidebarCollapsed ? '12px 8px' : '16px', borderBottom: '1px solid #2b2b2b' }}>
           <Flex align="center" justify="space-between">
-            {!sidebarCollapsed ? (<div style={{ fontWeight: 600 }}>Contributor Toolkit</div>) : null}
+            {!sidebarCollapsed ? (<div style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{__('Contributor Toolkit')}</div>) : null}
             <Button
               icon={sidebarCollapsed ? chevronRight : chevronLeft}
               onClick={() => setSidebarCollapsed((v) => !v)}
               variant="tertiary"
-              aria-label={sidebarCollapsed ? 'Expand site list' : 'Collapse site list'}
+              aria-label={sidebarCollapsed ? __('Expand site list') : __('Collapse site list')}
               isSmall
               style={{ color: '#f7f7f7' }}
             >
-              {!sidebarCollapsed ? 'Collapse' : null}
+              {!sidebarCollapsed ? __('Collapse') : null}
             </Button>
           </Flex>
           <Dropdown
@@ -817,7 +538,7 @@ function App() {
                 onClick={onToggle}
                 aria-expanded={isOpen}
                 aria-haspopup="dialog"
-                aria-label="Share feedback"
+                aria-label={__('Share feedback')}
                 icon={comment}
                 isSmall
                 style={{
@@ -831,14 +552,14 @@ function App() {
                   borderRadius: 0
                 }}
               >
-                {!sidebarCollapsed ? 'Share feedback' : null}
+                {!sidebarCollapsed ? __('Share feedback') : null}
               </Button>
             )}
             renderContent={({ onClose }) => (
               <div style={{ width: 320, padding: 16, color: '#1d2327' }}>
-                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Share feedback</div>
-                <p style={{ margin: '0 0 12px', lineHeight: 1.5 }}>Your feedback helps decide what to build next.</p>
-                <p style={{ margin: '0 0 16px', lineHeight: 1.5 }}>Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.</p>
+                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>{__('Share feedback')}</div>
+                <p style={{ margin: '0 0 12px', lineHeight: 1.5 }}>{__('Your feedback helps decide what to build next.')}</p>
+                <p style={{ margin: '0 0 16px', lineHeight: 1.5 }}>{__('Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.')}</p>
                 <Button
                   variant="link"
                   onClick={() => {
@@ -847,7 +568,7 @@ function App() {
                   }}
                   style={{ padding: 0, height: 'auto' }}
                 >
-                  Open the feedback form ↗
+                  {__('Open the feedback form ↗')}
                 </Button>
               </div>
             )}
@@ -855,7 +576,7 @@ function App() {
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? '12px 8px' : '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sortedSites.length === 0 && !sidebarCollapsed ? (
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>No sites yet.</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{__('No sites yet.')}</div>
           ) : null}
           {sortedSites.map((sitePath) => {
             const meta = siteMeta?.[sitePath] || {};
@@ -938,10 +659,10 @@ function App() {
             onClick={chooseAndSetup}
             disabled={createSubmitting}
             style={{ width: '100%', justifyContent: 'center' }}
-            aria-label="Create a site"
-            label={createSubmitting ? 'Finish creating the current site first' : undefined}
+            aria-label={__('Create a site')}
+            label={createSubmitting ? __('Finish creating the current site first') : undefined}
           >
-            {!sidebarCollapsed ? 'Create a site' : null}
+            {!sidebarCollapsed ? __('Create a site') : null}
           </Button>
         </div>
       </div>
@@ -1051,8 +772,8 @@ function App() {
               ) : (
                 <Card>
                   <CardBody>
-                    <div style={{ marginBottom: 8 }}>No sites yet.</div>
-                    <div>Use the sidebar to create your first site.</div>
+                    <div style={{ marginBottom: 8 }}>{__('No sites yet.')}</div>
+                    <div>{__('Use the sidebar to create your first site.')}</div>
                   </CardBody>
                 </Card>
               )}
@@ -1061,72 +782,7 @@ function App() {
         </div>
       </div>
       {createModalOpen ? (
-        <Modal
-          className="create-site-modal"
-          title="Create a site"
-          onRequestClose={closeCreateModal}
-          shouldCloseOnClickOutside={!createSubmitting}
-        >
-          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape-to-close/Enter-to-submit on the modal form is standard, intentional behavior. */}
-          <form
-            onSubmit={handleCreateModalSubmit}
-            onKeyDown={handleCreateModalKeyDown}
-            style={{ display: 'flex', flexDirection: 'column', gap: 16, color: '#1d2327', colorScheme: 'light' }}
-          >
-            <TextControl
-              id={CREATE_SITE_NAME_INPUT_ID}
-              label="Site name"
-              value={createSiteName}
-              onChange={(value) => setCreateSiteName(value)}
-              disabled={createSubmitting}
-              placeholder="My WordPress site"
-              // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: this is the first field of a just-opened modal.
-              autoFocus
-            />
-            <RadioControl
-              label="Contribute to"
-              help="What this site is a checkout of: which repository it clones, and how it builds and runs. It cannot be changed later."
-              selected={createSiteType}
-              options={CREATE_SITE_TYPE_OPTIONS}
-              onChange={(value) => setCreateSiteType(value)}
-              disabled={createSubmitting}
-            />
-            <label htmlFor={CREATE_SITE_LOCATION_INPUT_ID} style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#1d2327' }}>Site location</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <input
-                ref={createDirInputRef}
-                id={CREATE_SITE_LOCATION_INPUT_ID}
-                type="file"
-                webkitdirectory=""
-                // eslint-disable-next-line react/no-unknown-property -- non-standard but required alongside webkitdirectory for cross-browser directory pickers.
-                directory=""
-                multiple
-                onChange={handleCreateDirInputChange}
-                onClick={handleCreateDirInputClick}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    void openDirectoryPicker();
-                  }
-                }}
-                disabled={createSubmitting}
-                aria-describedby={CREATE_SITE_LOCATION_HELP_ID}
-                style={{ height: 40, color: '#1d2327', background: '#fff', border: '1px solid #8c8f94', borderRadius: 4, padding: '6px 10px' }}
-              />
-              <span style={{ fontSize: 12, color: '#3c434a' }}>{createSiteDir || 'No folder selected yet.'}</span>
-            </div>
-            <div id={CREATE_SITE_LOCATION_HELP_ID} style={{ fontSize: 12, color: '#3c434a', marginTop: -4 }}>
-              Choose the parent folder where you want this new site created. We&apos;ll add a new directory inside it for the project.
-            </div>
-            {createSiteError ? (
-              <div style={{ color: '#d63638', fontSize: 12 }}>{createSiteError}</div>
-            ) : null}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Button type="button" variant="secondary" onClick={closeCreateModal} disabled={createSubmitting}>Cancel</Button>
-              <Button type="submit" variant="primary" isBusy={createSubmitting} disabled={createSubmitting}>Create site</Button>
-            </div>
-          </form>
-        </Modal>
+        <CreateSiteModal submitting={createSubmitting} error={createSiteError} onError={setCreateSiteError} onCreate={startSiteSetup} onClose={closeCreateModal} />
       ) : null}
     </div>
     {/* One toast region for the window (#253). Anchored top-right and sized to
@@ -1157,154 +813,6 @@ function App() {
   );
 }
 
-// What each kind of patch line looks like (#166). The classification is in
-// diff-highlight.cjs; the colours are here because they are a property of this
-// pane, not of a diff. Added and removed lines carry a wash as well as a
-// foreground colour so the two are still distinguishable without colour vision
-// — the sign in column 0 is the other half of that, and it is never hidden.
-const DIFF_LINE_STYLES = {
-  add: { color: '#7ee787', background: 'rgba(46,160,67,0.18)' },
-  del: { color: '#ffa198', background: 'rgba(248,81,73,0.18)' },
-  hunk: { color: '#d2a8ff' },
-  meta: { color: '#79c0ff' },
-  header: { color: '#8b949e', fontStyle: 'italic' },
-  context: {}
-};
-
-// The patch, painted. An empty line still needs to occupy one: `\n` is appended
-// per line rather than joining, so the last line of a patch that ends in a
-// newline does not silently gain or lose one.
-//
-// Memoised on the text, because this renders inside SiteRow — which re-renders
-// on every chunk a running dev server or watch task streams into its log. The
-// patch has not changed; without this, each chunk re-splits it and hands React
-// thousands of fresh spans to reconcile, on the same thread that has to paint
-// the log.
-function DiffText({ text }) {
-  const lines = useMemo(() => highlightDiff(text), [text]);
-  if (!lines) return text;
-  return lines.map((line, index) => (
-    // A diff line has no identity beyond its position, and the whole pane is
-    // replaced when the patch changes.
-    <span key={index} style={{ display: 'block', ...DIFF_LINE_STYLES[line.kind] }}>
-      {line.text || ' '}
-    </span>
-  ));
-}
-
-// What each kind of log line looks like. Same split as the diff pane: the
-// classification is in log-highlight.cjs, the colours are a property of this
-// pane. Colour is never the only signal — the words `Fatal error`, `Warning`,
-// `Deprecated` stay in the text, and the severity is a re-statement of them, so
-// nothing is lost without colour vision.
-const LOG_LINE_STYLES = {
-  fatal: { color: '#ffa198' },
-  warning: { color: '#ffb86c' },
-  deprecated: { color: '#e3d16a' },
-  notice: { color: '#e3d16a' },
-  // Stack frames and node's "(Use `…`)" follow-ups: they belong to the line
-  // above and are most of the volume in a full pane, so they recede.
-  trace: { color: '#8b949e' },
-  ready: { color: '#7ee787', fontWeight: 600 },
-  plain: {}
-};
-// The `[11-Aug-2026 …]` every debug.log line opens with. It is worth keeping —
-// it is how two runs of the same request are told apart — but it is the same 26
-// characters on every line, so it is the last thing that should catch the eye.
-const LOG_STAMP_STYLE = { color: '#6e7681' };
-
-// A log pane, painted. Memoised on the text because a running dev server streams
-// chunks into it: without this, an unrelated SiteRow re-render re-splits the
-// whole buffer. Only the tail is turned into per-line spans (see
-// MAX_HIGHLIGHTED_LINES); everything older is one plain string, so the element
-// count stays flat however long the server runs.
-function LogText({ text }) {
-  const painted = useMemo(() => highlightLog(text), [text]);
-  if (!painted) return null;
-  return (
-    <>
-      {painted.head}
-      {painted.lines.map((line, index) => (
-        // A log line has no identity beyond its position, and lines only ever
-        // arrive at the end.
-        <span key={index} style={{ display: 'block', ...LOG_LINE_STYLES[line.kind] }}>
-          {line.stamp ? <span style={LOG_STAMP_STYLE}>{line.stamp}</span> : null}
-          {/* A blank line still has to occupy one, same as in the diff pane. */}
-          {line.stamp === '' && line.text === '' ? ' ' : line.text}
-        </span>
-      ))}
-    </>
-  );
-}
-
-// One destination for a finished patch (#166): what it is, what it costs to
-// use, and what happens afterwards. The costs are the point — they are what the
-// app used to leave the contributor to find out on their own — so every
-// destination states one, in the same place and the same shape, rather than the
-// cheap one being presented as the obvious choice.
-function Destination({ title, cost, after, children }) {
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-      <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>{title}</div>
-      <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>{cost}</div>
-      <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>{after}</div>
-      {/*
-        The actions follow the prose rather than being pushed to the bottom of
-        the row: the destinations carry different numbers of controls, so
-        bottom-aligning them lines up nothing and leaves a hole above the
-        shorter one's button.
-      */}
-      <div style={{ paddingTop:4, display:'flex', flexDirection:'column', gap:8 }}>{children}</div>
-    </div>
-  );
-}
-
-// The card around the destinations that ask the same thing of the contributor.
-//
-// Three equal cards said the three destinations were three variations on one
-// choice. They are not: two of them save a file and stop, leaving the
-// contributor to carry it somewhere, and the third signs them in and pushes on
-// their behalf. That is the fork in the road, and a layout that hides it makes
-// the reader rediscover it by reading all three in full.
-//
-// So the shared card is the grouping, and the hairline between destinations
-// inside it says "another way to do the same kind of thing" — as against the
-// gap between cards, which says "a different kind of thing". No group heading:
-// the line above the grid names the split once, and a heading per card would
-// say it twice while pushing the destinations themselves further down.
-function DestinationGroup({ children }) {
-  // Filtered because a conditional destination renders as false, and an empty
-  // section would draw a divider with nothing under it.
-  const destinations = React.Children.toArray(children).filter(Boolean);
-  return (
-    <div style={{ display:'flex', flexDirection:'column', border:'1px solid #dcdcde', borderRadius:10, background:'#fff' }}>
-      {destinations.map((destination, index) => (
-        // Position is the only identity a destination in a fixed list has, and
-        // the list is rebuilt whole when it changes.
-        <div key={index} style={{ padding:'14px 16px', borderTop: index === 0 ? 'none' : '1px solid #dcdcde' }}>
-          {destination}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// A command named in the hints under the Terminal (#182). Clicking it types the
-// command at the prompt and stops there — running it is the contributor's
-// keypress, so the hint teaches where these commands live instead of becoming a
-// second, hidden set of build buttons. Rendered as plain text while something is
-// running, since prefilling then would land in the middle of live output.
-function TerminalCommandLink({ command, onPrefill, disabled }) {
-  if (disabled) return <code>{command}</code>;
-  return (
-    <Button
-      variant="link"
-      onClick={() => onPrefill(command)}
-      style={{ fontSize: 12, fontFamily: 'monospace', height: 'auto' }}
-    >{command}</Button>
-  );
-}
-
 function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
@@ -1314,97 +822,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
   useEffect(() => { metaPatchRef.current = onSiteMetaPatch; }, [onSiteMetaPatch]);
-  // state
-  const [serverUrl, setServerUrl] = useState('');
-  const [starting, setStarting] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [installing, setInstalling] = useState(false);
-  const [npmLogs, setNpmLogs] = useState('');
-  const [runtimeLogs, setRuntimeLogs] = useState('');
-  // WordPress's own debug.log, kept apart from the server's output: one is what
-  // Playground is doing, the other is what the contributor's code is doing, and
-  // interleaving them buries the second in the first.
-  const [debugLogs, setDebugLogs] = useState('');
-  const [debugUnread, setDebugUnread] = useState(0);
-  // Kept after the dev server stops: the file is still there, and so is the
-  // reason someone wants the path.
-  const [debugLogPath, setDebugLogPath] = useState('');
-  const [activeLogTab, setActiveLogTab] = useState('runtime');
-  const activeLogTabRef = useRef('runtime');
-  // The build watcher (the target's, see project-type.cjs) runs decoupled from the PHP server (issue
-  // #247): its own output tab, its own lifecycle. `watchState` drives the tab
-  // title; `watchExitCode` is only read when the state is 'exited'.
-  const [watchLogs, setWatchLogs] = useState('');
-  const [watchState, setWatchState] = useState('idle');
-  const [watchExitCode, setWatchExitCode] = useState(null);
-  // Ref mirror for the inline reads (guards, callbacks) that must not wait for a
-  // re-render, the same split as terminalRunning/terminalStateRef below.
-  const watchStateRef = useRef('idle');
-  // Set while the watcher is (or was) live, so a pause knows whether a resume
-  // has anything to bring back. Survives the process being killed for a pause.
-  const watchWasActiveRef = useRef(false);
-  // True while the last thing to touch build/ was a watch rebuild that did not
-  // finish: stopped or crashed while 'building'. build/ may then be empty or
-  // half written whatever the status's marker file says, so the server does
-  // not start on it without a watch (#499, serveWithoutWatch). Cleared when a
-  // watch reaches watching or a one-shot npm run build exits 0.
-  // The ref is what the callbacks read; the state is what the applied banner
-  // reads (#509), so both move together.
-  const buildInterruptedRef = useRef(false);
-  const [buildInterrupted, setBuildInterrupted] = useState(false);
-  const markBuildInterrupted = useCallback((interrupted) => {
-    buildInterruptedRef.current = interrupted;
-    setBuildInterrupted(interrupted);
-  }, []);
-  const markWatchState = useCallback((state, code = null) => {
-    watchStateRef.current = state;
-    setWatchState(state);
-    if (state === 'exited') setWatchExitCode(Number.isFinite(code) ? code : null);
-  }, []);
-  // Whoever is waiting for the watch to be ready to serve behind — the dev
-  // server start, today. The queue and its settle-once rule live in
-  // watch-waiters.cjs; a ref because the watcher's output handler settles it
-  // from outside a render (#488).
-  const watchWaitersRef = useRef(createWatchWaiters());
-  // Which apply's hand-off to the resumed watch is current (#506). The waiters
-  // survive a pause (a queued dev-server start is meant to), so an apply's
-  // waiter left over from a rebuild that a later pause cut short, or that a
-  // later src-only apply overtook, would fire on the ready line and confirm an
-  // apply already reported. Every apply, switch and pause invalidates the
-  // generation; the callbacks check the token they were registered under. Same
-  // mechanism as the watch runs (createRunGeneration), for the same reason.
-  const applyHandOffRef = useRef(createRunGeneration());
-  // The watch decision a saved-work restore made in begin, for its complete.
-  const switchImpactRef = useRef(null);
-  const settleWatchWaiters = useCallback((ready) => { watchWaitersRef.current.settle(ready); }, []);
-  // Which watcher run is current. A stop returns before the process has
-  // exited, so a run started right after inherits the old run's late
-  // callbacks; each callback checks the token it was started with and leaves
-  // a replaced run's state alone (#488).
-  const watchGenerationRef = useRef(createRunGeneration());
-  // Whether the watch is still compiling a change just handed to it (#492).
-  // The ref keeps the timestamps; the state is what the banner and the tab
-  // title read. A 500 ms tick while compiling is what flips it back.
-  const watchActivityRef = useRef(createWatchActivity());
-  const [watchCompiling, setWatchCompiling] = useState(false);
-  useEffect(() => {
-    if (!watchCompiling) return undefined;
-    const tick = setInterval(() => {
-      if (!watchActivityRef.current.isCompiling(Date.now())) setWatchCompiling(false);
-    }, 500);
-    return () => clearInterval(tick);
-  }, [watchCompiling]);
-  const handOffToWatch = useCallback(() => {
-    watchActivityRef.current.handOff(Date.now());
-    setWatchCompiling(true);
-  }, []);
-  const clearWatchActivity = useCallback(() => {
-    watchActivityRef.current.clear();
-    setWatchCompiling(false);
-  }, []);
-  // '' | 'copied' | 'failed', on the debug.log Copy button for two seconds.
-  const [debugCopied, setDebugCopied] = useState('');
-  const debugCopyTimer = useRef(null);
+  // What this site's processes have said (#554): the text of the Logs panel's
+  // panes, which tab is open and the debug.log tail. Whoever runs a process
+  // appends to its pane, so the functions those callbacks call are taken out
+  // by name; each keeps its identity, which their dependency lists rely on.
+  const logs = useSiteLogs({ sitePath });
+  const { appendNpm, appendRuntime, appendWatch, ensureStick, selectTab: selectLogTab, startDebugTail, stopDebugTail } = logs;
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [patchText, setPatchText] = useState('');
   const [patchLoading, setPatchLoading] = useState(false);
@@ -1424,42 +847,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const [worktreeDirty, setWorktreeDirty] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState(null);
-  const [handleInput, setHandleInput] = useState('');
-  const [eventInput, setEventInput] = useState('');
-  const [handleError, setHandleError] = useState('');
-  const [handleSaving, setHandleSaving] = useState(false);
-  const [editingHandle, setEditingHandle] = useState(false);
-  // Opening a pull request (#167). `githubAccount` is null until the panel has
-  // asked; `{ login: null }` is a real answer meaning signed out, and the two
-  // must not render the same way — offering "Sign in" before the app knows
-  // whether it already is signed in makes the panel flicker on every open.
-  const [githubAccount, setGithubAccount] = useState(null);
-  const [githubDeviceCode, setGithubDeviceCode] = useState(null);
-  const [githubError, setGithubError] = useState('');
-  const [githubDeclined, setGithubDeclined] = useState(false);
-  const [codeCopied, setCodeCopied] = useState(false);
-  const [prTitle, setPrTitle] = useState('');
-  const [prNotes, setPrNotes] = useState('');
-  const [prStage, setPrStage] = useState('');
-  const [prResult, setPrResult] = useState(null);
-  const [prError, setPrError] = useState(null);
-  const [prLinkCopied, setPrLinkCopied] = useState(false);
-  const [emails, setEmails] = useState([]);
-  const [smtpPort, setSmtpPort] = useState(0);
-  const newEmailUnsubRef = useRef(null);
-  const smtpStartedUnsubRef = useRef(null);
-  const wpDebugUnsubRef = useRef(null);
-  const [isEmailOpen, setIsEmailOpen] = useState(false);
-  const [activeEmail, setActiveEmail] = useState(null);
-  const [, setEmailViewTab] = useState('rendered');
-  const [building, setBuilding] = useState(false);
+  // Opening a pull request (#167): the account, the sign-in, the form and the
+  // attempt. Held here because all of it outlives the card that shows it.
+  const prSubmission = usePullRequest({ sitePath, confirm });
+  // The mail this site's WordPress sent (#554): the list, the port and the one
+  // open in the dialog. The dev server below says when the list is live, so
+  // the three functions it calls are taken out by name; each keeps its
+  // identity, which the callbacks that list them as dependencies rely on.
+  const mail = useSiteMail({ sitePath });
+  const { listen: listenForMail, stopListening: stopListeningForMail, load: loadMail } = mail;
   const [hasNodeModules, setHasNodeModules] = useState(false);
   const [installFailed, setInstallFailed] = useState(false);
-  // The build's counterpart to installFailed — session-local, because only the
-  // install outcome is persisted (main.js records it on the site's meta). After
-  // a restart a failed build reads "Ready" again, which is the honest fallback:
-  // the app knows there is no build on disk, just not that the last attempt lost.
-  const [buildFailed, setBuildFailed] = useState(false);
   const [hasBuilt, setHasBuilt] = useState(false);
   // Which target this site is a checkout of (#251): the site record's field,
   // carried by the placeholder from the moment the dialog closes, and Core
@@ -1483,16 +881,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     () => workItemProvider(project.workItem.provider, `${project.upstream.owner}/${project.upstream.repo}`),
     [project]
   );
-  // Read through a ref by the terminal's command handlers rather than closed
-  // over: the xterm instance is created by an effect that depends on
-  // `printHelp`, so a new array identity here would otherwise dispose and
-  // recreate the terminal, scrollback and all, the first time a status
-  // reports a type. Same indirection as terminalInputHandlerRef.
-  const allowedScriptsRef = useRef(projectBuild.allowedScripts);
-  allowedScriptsRef.current = projectBuild.allowedScripts;
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
-  const [waitingForWatch, setWaitingForWatch] = useState(false);
   // Trac ticket association (#109)
   const [tracTicket, setTracTicket] = useState(null);
   const [ticketBehindTrunk, setTicketBehindTrunk] = useState(false);
@@ -1501,210 +891,31 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // A merge started outside the app and not finished (#352): read, and
   // every checkout write refused until a terminal ends it.
   const [mergeInProgress, setMergeInProgress] = useState(null);
-  const [ticketInput, setTicketInput] = useState('');
-  const [ticketError, setTicketError] = useState('');
-  const [ticketSaving, setTicketSaving] = useState(false);
-  // The site's ticket branches (#108): what branches:list reported, so the
-  // panel can offer the tickets that already have work here.
-  const [ticketBranches, setTicketBranches] = useState({ current: null, branches: [] });
-  const [deletingBranch, setDeletingBranch] = useState(null);
-  // The ticket a switch was refused for because trunk had loose edits, and
-  // where those edits were saved if the contributor chose to keep them.
-  const [blockedByTrunkWork, setBlockedByTrunkWork] = useState(null);
-  // Where the edits went when "save them as a patch, then start clean" ran
-  // to completion (#234) — the panel that showed the path is gone by then.
-  const [patchSavedNotice, setPatchSavedNotice] = useState('');
-  // How many loose files rode along into a ticket that had no branch yet, so
-  // the panel can say where they went instead of moving them in silence.
-  const [patchSavedTo, setPatchSavedTo] = useState('');
-  // Patches on the linked ticket (#11): { status, items, cachedAt } or null.
-  const [ticketPatches, setTicketPatches] = useState(null);
-  const [ticketPatchesLoading, setTicketPatchesLoading] = useState(false);
-  const [fetchingPr, setFetchingPr] = useState(null);
-  // Trac attachments (#11): loaded on demand, since opening a real Trac window
-  // can surface the proof-of-work challenge. null until the user asks.
-  const [tracAttachments, setTracAttachments] = useState(null);
-  const [tracAttachmentsLoading, setTracAttachmentsLoading] = useState(false);
-  const [fetchingAttachment, setFetchingAttachment] = useState(null);
-  // Trunk update path (#94)
+  // What the site's status says about its trunk (#94): the date of the commit
+  // it is on, and whether an update was left incomplete. The update itself is
+  // useTrunkUpdate, below.
   const [trunkDate, setTrunkDate] = useState(null);
   const [updateIncomplete, setUpdateIncomplete] = useState(false);
-  const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
-  // Who runs the update's build: null for the chain itself, 'resumed-watch'
-  // when the watch paused for the reset rebuilds from scratch as it resumes and
-  // the chain leaves the one build to it (Gutenberg, #507). Decided where the
-  // watch is paused, read by the step card and the install step's hand-off.
-  const [updateBuildBy, setUpdateBuildBy] = useState(null);
-  // True from the hand-off to the resumed watch until its ready line or exit.
-  // The card stays on step 3 and every isUpdating gate holds, except Stop build
-  // watch: it is the one control that can end the wait, and a hung watch would
-  // otherwise leave the site row inert until an app restart (#507). The terminal
-  // lock is released (the watch holds none), but the prompt hints stay busy so
-  // the card does not offer npm run build over the tree the watch is rebuilding.
-  const [updateWaitingOnWatch, setUpdateWaitingOnWatch] = useState(false);
   // Initial setup chain (#246): install then build, started by the clone
   // finishing rather than by a click. Same shape as the two chains below.
   const [setupChainState, setSetupChainState] = useState('idle'); // idle | installing | building
   // How the last chain ended, or null while one is running or none has run.
   const [setupChainEnd, setSetupChainEnd] = useState(null);
-  // Applying someone else's patch (#11)
-  const [applyState, setApplyState] = useState('idle'); // idle | applying | installing | building
-  const [applyPreview, setApplyPreview] = useState(null);
-  const [applyKind, setApplyKind] = useState('patch');
-  // Held separately from applyPreview: the preview is cleared the moment the
-  // chain starts, and the step list still has to know whether install runs.
-  const [applyNeedsInstall, setApplyNeedsInstall] = useState(false);
-  // Which watch does the rebuild instead of the apply chain, so its build step
-  // shows skipped and attributed to it: 'live-watch' when a running watch
-  // recompiles the change (#262), 'resumed-watch' when the watch paused for the
-  // apply rebuilds from scratch as it resumes (#506), null when the chain builds.
-  const [applyBuildByWatcher, setApplyBuildByWatcher] = useState(null);
-  const [applyError, setApplyError] = useState('');
-  // The failure broken down: which regions of the patch no longer fit, where,
-  // why, and what they were trying to change (#282, #226). Held beside
-  // applyError rather than replacing it — a refusal with nothing to break down
-  // (a parse error, a rolled-back write) still has only its sentence.
-  const [applyConflict, setApplyConflict] = useState(null);
-  // One call, because the breakdown must never outlive the sentence it belongs
-  // to: every place that took the error banner down predates it, and any that
-  // cleared only one would leave regions on screen describing a patch the
-  // contributor has moved on from.
-  const clearApplyError = () => { setApplyError(''); setApplyConflict(null); };
   // Where "try another patch" goes. The list is already on screen when a patch
   // fails — three rows above, in the case that prompted this — so the way out
   // is a scroll, not a fetch.
   const ticketPatchesRef = useRef(null);
-  // A dirty-trunk question is rendered before the PR switch function is
-  // declared below. Its continuation uses this current-render ref so clearing
-  // the trunk can retry the PR operation instead of routing `pr/N` through the
-  // ticket parser (#458).
-  const retryPrSwitchRef = useRef(null);
-  const ticketSwitchLifecycleRef = useRef(null);
-  // Not every unhappy ending is a failure: a revert can find that the patch is
-  // already gone, which resolves the situation rather than blocking it. Red
-  // would read as "you broke something" when nothing is left to do.
-  const [applyNotice, setApplyNotice] = useState('');
   const [appliedPatch, setAppliedPatch] = useState(null);
   const [pullRequest, setPullRequest] = useState(null);
-  const [prUrlInput, setPrUrlInput] = useState('');
-  const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
-  const [dirtySaving, setDirtySaving] = useState(false);
-  const [dirtyFiles, setDirtyFiles] = useState([]);
-  const [dirtyChoice, setDirtyChoice] = useState('save'); // save | discard
-  const [dirtyError, setDirtyError] = useState(null); // failure text shown inside the dirty-tree modal
-  const [updateLockfileChanged, setUpdateLockfileChanged] = useState(false);
-  const [lastUpdateSummary, setLastUpdateSummary] = useState(null);
-  const updateStartRef = useRef(null);
-  const savedPatchPathRef = useRef(null);
   const setupLogsRef = useRef('');
-
-  // sticky refs per log
-  const npmRef = useRef(null);
-  const runtimeRef = useRef(null);
-  const debugRef = useRef(null);
-  const watchRef = useRef(null);
-  const currentRunIdRef = useRef(null);
-  // The watcher's own run handle, kept apart from currentRunIdRef so it can be
-  // killed on its own (pause, dev-server stop) without disturbing whatever
-  // one-shot the terminal is tracking.
-  const watchRunIdRef = useRef(null);
-  const threshold = 8;
-  const [logStick, setLogStick] = useState({ npm: true, runtime: true, debug: true, watch: true });
-  const updateStick = useCallback((key, value) => {
-    setLogStick((prev) => (prev[key] === value ? prev : { ...prev, [key]: value }));
-  }, []);
-  const ensureStick = useCallback((key) => {
-    setLogStick((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
-  }, []);
-  useEffect(() => { if (logStick.npm && npmRef.current) npmRef.current.scrollTop = npmRef.current.scrollHeight; }, [npmLogs, logStick.npm]);
-  // Both log effects watch `activeLogTab` because TabPanel renders only the
-  // selected tab: the pane is a fresh element every time it is switched back to,
-  // scrolled to the top, and the arriving-text dependency alone would not fire
-  // to put it back at the bottom. The guard is not just for the dependency — the
-  // other tab's element is unmounted, so there is nothing to scroll.
-  useEffect(() => {
-    if (activeLogTab !== 'runtime') return;
-    if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight;
-  }, [runtimeLogs, logStick.runtime, activeLogTab]);
-  useEffect(() => {
-    if (activeLogTab !== 'debug') return;
-    if (logStick.debug && debugRef.current) debugRef.current.scrollTop = debugRef.current.scrollHeight;
-  }, [debugLogs, logStick.debug, activeLogTab]);
-  useEffect(() => {
-    if (activeLogTab !== 'watch') return;
-    if (logStick.watch && watchRef.current) watchRef.current.scrollTop = watchRef.current.scrollHeight;
-  }, [watchLogs, logStick.watch, activeLogTab]);
-  // Independence has a cost: nothing else tears the watcher down now, so when
-  // this site view unmounts (site switch, window teardown) its process would be
-  // orphaned. Kill it on unmount / before switching sites.
-  useEffect(() => () => {
-    watchGenerationRef.current.invalidate();
-    const runId = watchRunIdRef.current;
-    if (runId) window.api.npmKill({ runId, directoryPath: sitePath }).catch(() => {});
-  }, [sitePath]);
-  const makeOnScroll = useCallback((key) => (e) => {
-    const el = e.currentTarget;
-    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
-    updateStick(key, atBottom);
-  }, [threshold, updateStick]);
 
   const siteName = pathBasename(sitePath);
   const displayName = (label && label.trim()) || siteName;
+  // Whether the rename dialog is up. Everything else about it, the value being
+  // typed, the refusal, the busy flag, is the dialog's own (#553).
   const [renameModalOpen, setRenameModalOpen] = useState(false);
-  const [renameValue, setRenameValue] = useState(displayName);
-  const [renameError, setRenameError] = useState('');
-  const [renaming, setRenaming] = useState(false);
-  useEffect(() => { setRenameValue(displayName); }, [displayName]);
-  useEffect(() => {
-    if (!renameModalOpen) return;
-    const input = document.getElementById(RENAME_INPUT_ID);
-    if (input) {
-      input.focus();
-      if (typeof input.select === 'function') input.select();
-    }
-  }, [renameModalOpen]);
-
-  const openRenameModal = useCallback(() => {
-    setRenameValue(displayName);
-    setRenameError('');
-    setRenameModalOpen(true);
-  }, [displayName]);
-
-  const closeRenameModal = useCallback(() => {
-    if (renaming) return;
-    setRenameModalOpen(false);
-  }, [renaming]);
-
-  const submitRename = useCallback(async () => {
-    const trimmed = renameValue.trim();
-    if (!trimmed) {
-      setRenameError('Site name cannot be empty.');
-      return;
-    }
-    try {
-      setRenaming(true);
-      setRenameError('');
-      if (onRename) await onRename(sitePath, trimmed);
-      setRenameModalOpen(false);
-    } catch (err) {
-      setRenameError(String(err));
-    } finally {
-      setRenaming(false);
-    }
-  }, [onRename, renameValue, sitePath]);
-
-  const handleRenameSubmit = useCallback((event) => {
-    event.preventDefault();
-    submitRename();
-  }, [submitRename]);
-
-  const handleRenameFormKeyDown = useCallback((event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      closeRenameModal();
-    }
-  }, [closeRenameModal]);
+  const openRenameModal = useCallback(() => setRenameModalOpen(true), []);
+  const closeRenameModal = useCallback(() => setRenameModalOpen(false), []);
   const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : '';
   const [pathCopied, setPathCopied] = useState(false);
   const copyTimeoutRef = useRef(null);
@@ -1761,7 +972,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     try {
       result = await window.api.openInEditor(sitePath, editorPath);
     } catch (err) {
-      // eslint-disable-next-line no-console -- see the note on the first console.error above.
+      // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
       console.error('Could not open the site directory:', err);
       result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
@@ -1781,89 +992,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     try {
       result = await window.api.showSiteInFileManager(sitePath);
     } catch (err) {
-      // eslint-disable-next-line no-console -- see the note on the first console.error above.
+      // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
       console.error('Could not reveal the site folder:', err);
       result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
     setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
 
-  const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
-  const appendRuntime = useCallback((s)=>setRuntimeLogs((v)=>v + String(s ?? '')),[]);
-  const appendDebug = useCallback((s) => {
-    const chunk = String(s ?? '');
-    if (!chunk) return;
-    setDebugLogs((v) => appendBounded(v, chunk));
-    // Counted only while the tab is not the one being read. Selecting it zeroes
-    // the badge, so incrementing there would flicker it straight back on.
-    if (activeLogTabRef.current !== 'debug') setDebugUnread((n) => n + countLines(chunk));
-  }, []);
-  // Bounded like the debug pane: the watcher is long-lived and chatty, so its
-  // pane cannot grow without limit the way an unrendered buffer quietly could.
-  const appendWatch = useCallback((s) => {
-    const chunk = String(s ?? '');
-    if (!chunk) return;
-    setWatchLogs((v) => appendBounded(v, chunk));
-  }, []);
-  const selectLogTab = useCallback((name) => {
-    activeLogTabRef.current = name;
-    setActiveLogTab(name);
-    if (name === 'debug') setDebugUnread(0);
-  }, []);
-  // The count is on the tab rather than beside it because the tab is what the
-  // contributor is not looking at: a notice landing while they read the server
-  // output is the case this panel exists for.
-  const logTabs = useMemo(() => ([
-    { name: 'runtime', title: 'Server' },
-    { name: 'watch', title: watchTabLabel(watchState, watchExitCode, watchCompiling) },
-    { name: 'debug', title: debugUnread ? `debug.log (${debugUnread})` : 'debug.log' }
-  ]), [debugUnread, watchState, watchExitCode, watchCompiling]);
-  const clearDebugLog = useCallback(async () => {
-    setDebugLogs('');
-    setDebugUnread(0);
-    // The file has to go with the pane. Clearing only the pane looks like it
-    // worked and then hands the same lines back on the next dev-server start,
-    // because the tail replays whatever is on disk when it attaches.
-    let cleared;
-    try {
-      cleared = await window.api.clearWpDebug(sitePath);
-    } catch (e) {
-      cleared = { ok: false, error: e && e.message ? e.message : String(e) };
-    }
-    if (!cleared?.ok) appendDebug(`Could not clear ${pathBasename(sitePath)}'s debug.log: ${cleared?.error || cleared?.reason || 'unknown error'}. The panel was cleared; the file was not.\n`);
-  }, [appendDebug, sitePath]);
-  // Same shape as copyPatch below, and for the same reason: a clipboard write
-  // has no visible result, so the button has to report one. This log goes
-  // straight into a Trac ticket or a pull request comment.
-  const copyDebugLog = useCallback(async () => {
-    if (debugCopyTimer.current) clearTimeout(debugCopyTimer.current);
-    let state = 'copied';
-    try {
-      await navigator.clipboard.writeText(debugLogs);
-    } catch {
-      state = 'failed';
-    }
-    setDebugCopied(state);
-    debugCopyTimer.current = setTimeout(() => setDebugCopied(''), 2000);
-  }, [debugLogs]);
-  useEffect(() => () => { if (debugCopyTimer.current) clearTimeout(debugCopyTimer.current); }, []);
-  // Switching to another site unmounts this panel without going through
-  // stopDevServer, so the listener has to come off here too.
-  useEffect(() => () => { try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {} }, []);
-  const revealDebugLog = useCallback(async () => {
-    let revealed;
-    try {
-      revealed = await window.api.revealWpDebug(sitePath);
-    } catch (e) {
-      revealed = { ok: false, error: e && e.message ? e.message : String(e) };
-    }
-    // Nothing on screen moves when a file manager opens behind the app, so a
-    // refusal that says nothing is a button that did nothing.
-    if (!revealed?.ok) appendDebug(`Could not show the log file: ${revealed?.error || revealed?.reason || 'unknown error'}\n`);
-  }, [appendDebug, sitePath]);
-  const sortEmails = useCallback((list)=>[...list].sort((a,b)=>new Date(b.sentAt||b.date||0)-new Date(a.sentAt||a.date||0)),[]);
-  const openEmail = useCallback((m)=>{ setActiveEmail(m); setEmailViewTab('rendered'); setIsEmailOpen(true); },[]);
-  const clearEmails = useCallback(async ()=>{ await window.api.clearEmails(sitePath); setEmails([]); }, [sitePath]);
   const loadStatus = useCallback(async ()=>{
     try {
       setStatusLoading(true);
@@ -1897,17 +1032,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   }, [sitePath]);
   useEffect(()=>{ loadStatus(); }, [loadStatus]);
 
-  // Deliberately not part of loadStatus: that one is called after every long
-  // operation, and the branch list only changes when a ticket is linked,
-  // resumed or deleted — the three paths that call this themselves.
-  const loadBranches = useCallback(async () => {
-    try {
-      const res = await window.api.listBranches(sitePath);
-      if (res?.ok) setTicketBranches({ current: res.current, branches: res.branches || [] });
-    } catch {}
-  }, [sitePath]);
-  useEffect(()=>{ loadBranches(); }, [loadBranches]);
-
   // The note's probe. It asks the wide question — unsubmitted work measured
   // from the ticket's branch point, the same measurement the patch makes —
   // not whether the tree has uncommitted edits (#239): under the ticket-as-
@@ -1932,10 +1056,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // decided by the module so the card has one rule for it and a test to hold
   // it. The generation bump is what makes it outrank a probe that started
   // before the discard did.
-  const applyDiscardToNote = (outcome) => {
+  // Memoised with nothing to depend on: it touches a ref and a setter. The
+  // ticket hook lists it among a callback's dependencies, and a new function
+  // here on every render would give that callback a new identity each time.
+  const applyDiscardToNote = useCallback((outcome) => {
     dirtyProbeRef.current.generation++;
     setWorktreeDirty(noteAfterDiscard(outcome));
-  };
+  }, []);
   const refreshDirty = useCallback(async () => {
     const probe = dirtyProbeRef.current;
     // A walk already running answers for the tree as it was when it started.
@@ -1989,73 +1116,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     return () => window.removeEventListener('focus', onFocus);
   }, [isActive, refreshDirty, loadStatus]);
 
-  // Linking and unlinking are the same write (#109): an empty ref clears the
-  // association, so Unlink needs no second channel. Resuming a ticket that
-  // already has a branch is also this write (#108) — main switches to the
-  // existing branch instead of creating one, with the same parking rules.
-  const saveTicket = useCallback(async (ref, options = undefined) => {
-    setTicketSaving(true);
-    setTicketError('');
-    setBlockedByTrunkWork(null);
-    setPatchSavedNotice('');
-    // The previous switch's last sentence must not be this one's first frame.
-    if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
-    let rebuilding = false;
-    let ownsTerminal = false;
-    try {
-      ownsTerminal = await ticketSwitchLifecycleRef.current.begin(ref);
-      if (!ownsTerminal) return;
-      const res = await window.api.setSiteTicket(sitePath, ref, options);
-      if (!res?.ok) {
-        // `dirty-trunk` is a question, not a failure (#234): main refuses it
-        // on both paths — a new ticket that would carry the edits, a known
-        // one that cannot — and the panel asks what happens to them. A red
-        // error line over a set of choices would read as a fault, so the
-        // message is kept for real failures only. `canCarry` is main's word
-        // on whether the edits can ride into this ticket, and the count
-        // arrives only on the path that scanned before refusing. Only that
-        // path names the ticket too, so the other one reads it back off the
-        // ref the switch was asked for, rather than saying "the ticket" to
-        // someone who typed a number (#409).
-        if (res?.code === 'dirty-trunk') {
-          const parsedRef = workItem.parseRef(String(ref));
-          setBlockedByTrunkWork({
-            ref: String(ref),
-            canCarry: Boolean(res.canCarry),
-            files: typeof res.files === 'number' ? res.files : null,
-            ticket: res.ticket || (parsedRef.ok ? parsedRef.id : null)
-          });
-        } else {
-          setTicketError(res?.error || 'Could not save the ticket.');
-        }
-        return;
-      }
-      // The status belongs to the branch we just left. Clear it in the same
-      // render that names the new ticket; loadStatus will restore the new
-      // branch's answer below (#305).
-      setTicketBehindTrunk(false);
-      setTracTicket(res.ticket);
-      if (res.ticket) autoReadTicketRef.current = res.ticket;
-      setTicketInput('');
-      setPatchSavedTo('');
-      if (metaPatchRef.current) metaPatchRef.current(sitePath, { tracTicket: res.ticket });
-      // Both, and awaited: the branch list decides which rows show, and
-      // appliedPatch/updateIncomplete are per-branch (#108) — without the
-      // status reload, switching tickets would keep showing the other
-      // ticket's "patch applied · Revert" banner over this branch's tree.
-      await Promise.all([loadBranches(), loadStatus()]);
-      // The tree under the note is a different branch's now (#239).
-      reprobeAfterBranchChange();
-      rebuilding = await ticketSwitchLifecycleRef.current.complete(res);
-    } catch (e) {
-      setTicketError(String(e));
-    } finally {
-      if (ownsTerminal && !rebuilding) ticketSwitchLifecycleRef.current.finish();
-      setTicketSaving(false);
-    }
-  }, [sitePath, workItem, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
-  const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
-  const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
+  // The ticket or issue this site is working on (#554): linking, leaving,
+  // switching, moving onto trunk and deleting, with the question a switch
+  // asks about trunk's loose edits. The three refs are how it and the apply
+  // chain, called further down, reach each other.
+  const { ticketInput, setTicketInput, ticketError, setTicketError, ticketSaving, ticketBranches, deletingBranch, blockedByTrunkWork, setBlockedByTrunkWork, patchSavedNotice, patchSavedTo, setPatchSavedTo, saveTicket, linkTicket, unlinkTicket, rebaseTicket, discardTrunkWorkAndSwitch, saveTrunkWorkThenStartClean, deleteTicketWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef } = useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, setTicketBehindTrunk, metaPatchRef, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange, applyDiscardToNote });
 
   // A ticket arrived from a link and this is the site in front of the
   // contributor (#464). The answer goes through `saveTicket` like any other
@@ -2115,265 +1180,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     if (onDeepLinkDone) onDeepLinkDone();
   }, [deepLinkTicket, onDeepLinkDone, saveTicket]);
 
-  // The notice's own button (#385): the ticket's work replayed onto the
-  // current trunk in main. Same busy flag and progress line as a switch,
-  // because it parks and checks out the same way; a refusal is worded by the
-  // notice module and lands where the ticket's other refusals do.
-  const rebaseTicket = useCallback(async () => {
-    setTicketSaving(true);
-    setTicketError('');
-    if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
-    try {
-      const res = await window.api.rebaseBranch(sitePath);
-      if (!res?.ok) {
-        setTicketError(rebaseRefusal({ ...res, ticketId: tracTicket, noun: workItem.noun }));
-        return;
-      }
-      setTicketBehindTrunk(false);
-      await Promise.all([loadBranches(), loadStatus()]);
-      reprobeAfterBranchChange();
-    } catch (e) {
-      setTicketError(String(e));
-    } finally {
-      setTicketSaving(false);
-    }
-  }, [sitePath, tracTicket, workItem, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
+  // The npm runs this view starts (#554): the install and the scripts, and the
+  // flags the rest of the view reads about them. Called here because it needs
+  // `loadStatus` above; the terminal and the build watch below run through it.
+  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized });
 
-  const discardTrunkWorkAndSwitch = useCallback(async (target) => {
-    setTicketSaving(true);
-    setTicketError('');
-    // The refused attempt left its last frame behind — without this, the
-    // discard runs under a spinner describing a switch that never happened.
-    if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
-    try {
-      const res = await window.api.discardChanges(sitePath);
-      if (!res?.ok) {
-        setTicketError(res?.error || 'Could not discard the changes.');
-        return;
-      }
-      setPatchSavedTo('');
-      setBlockedByTrunkWork(null);
-      // The switch below re-walks the tree, so on the happy path this is
-      // redundant — but a switch that fails returns without reprobing, and
-      // the note would go on offering to discard trunk work that is already
-      // gone (#239).
-      applyDiscardToNote(discardOutcome(res));
-    } catch (e) {
-      setTicketError(String(e));
-      return;
-    } finally {
-      setTicketSaving(false);
-    }
-    // Outside the guard above: the destination operation owns its own busy
-    // state, and the discard has already succeeded — a failure here is about
-    // that checkout. PR refs never go through the ticket parser.
-    if (target.kind === 'pr') await retryPrSwitchRef.current?.();
-    else await saveTicket(target.ref);
-  }, [sitePath, saveTicket, onClearSwitchNotices]);
-
-  // "Save them as a patch, then start clean" — one chosen outcome, not two
-  // steps the contributor has to sequence themselves (#234). The discard only
-  // runs once the save dialog has really produced a file: cancelling the
-  // dialog cancels the whole option, and a failed save leaves the edits in
-  // the working tree with the question still open. The busy flag is held
-  // while the dialog is up because it is not window-modal — without it the
-  // panel underneath keeps taking clicks, and a discard chosen there would
-  // run again when the dialog finally answers.
-  const saveTrunkWorkThenStartClean = useCallback(async (target) => {
-    setTicketError('');
-    let savedTo = '';
-    setTicketSaving(true);
-    try {
-      const res = await window.api.savePatch(sitePath);
-      if (res?.canceled) return;
-      if (!res?.ok) {
-        setTicketError(res?.error || 'Could not save the patch.');
-        return;
-      }
-      savedTo = res.filePath || '';
-      setPatchSavedTo(savedTo);
-    } catch (e) {
-      setTicketError(String(e));
-      return;
-    } finally {
-      setTicketSaving(false);
-    }
-    await discardTrunkWorkAndSwitch(target);
-    // After the panel is gone, the only on-screen record of where the work
-    // went. The switch clears `patchSavedTo` with the rest of the panel
-    // state, so the sentence that survives is its own notice — same shape as
-    // carriedNotice, and true even if the switch itself failed: by now the
-    // patch is written and the tree is clean.
-    setPatchSavedNotice(savedTo);
-  }, [sitePath, discardTrunkWorkAndSwitch]);
-
-  // "Delete this ticket's work" (#108) — destroys the branch, which is why it
-  // sits behind a confirm while switching does not.
-  const deleteTicketWork = useCallback(async (ref) => {
-    setDeletingBranch(ref);
-    setTicketError('');
-    try {
-      const res = await window.api.deleteBranch(sitePath, ref);
-      if (!res?.ok) {
-        setTicketError(res?.error || 'Could not delete the branch.');
-        return;
-      }
-      await loadBranches();
-      // 'trunk' is the literal main returns (TRUNK in ticket-branches.js,
-      // which the renderer cannot import — it pulls in fs). It means the site
-      // now sits on trunk: usually because the delete was made from there,
-      // but also when the deleted branch was somehow the active one — main
-      // then cleared the ticket, and the status reload re-syncs the panel and
-      // the sidebar to that.
-      if (res.current === 'trunk') await loadStatus();
-      // Only a delete that took the checkout with it changed what the note is
-      // measuring against (#239): deleting a ticket you are not on — including
-      // from trunk, where `current` says trunk either way — leaves the tree
-      // alone, and re-walking it would blank the sentence and rebuild the
-      // identical one. After loadStatus, so a fast walk cannot render trunk's
-      // count under the ticket number the delete just cleared.
-      if (res.movedToTrunk) reprobeAfterBranchChange();
-    } catch (e) {
-      setTicketError(String(e));
-    } finally {
-      setDeletingBranch(null);
-    }
-  }, [sitePath, loadBranches, loadStatus, reprobeAfterBranchChange]);
-
-  const runInstall = useCallback((options = {}) => {
-    const { onLog, onDone } = options;
-    setInstalling(true);
-    ensureStick('npm');
-    window.api.runNpmInstall(sitePath, ({ data }) => {
-      appendNpm(data);
-      if (onLog) onLog(data);
-    }, async ({ code }) => {
-      appendNpm(`\ninstall exited with code ${code}\n`);
-      setInstalling(false);
-      // A failed install must not mark the site initialized (#42): the wizard
-      // would advance to a build that cannot work. Leaving the step incomplete
-      // keeps the install button available for a retry.
-      if (code === 0) { try { await window.api.markSiteInitialized(sitePath); } catch {} onInitialized(sitePath); }
-      try { await loadStatus(); } catch {}
-      if (onDone) onDone({ code });
-    }).catch((error) => {
-      // A start that never got as far as a run id, so no done event is coming
-      // for it (#43): without this the button stays spinning on a run that does
-      // not exist. Same shape as runScript's catch.
-      appendNpm(`\nFailed to start npm install: ${error && error.message ? error.message : String(error)}\n`);
-      setInstalling(false);
-      if (onDone) onDone({ code: -1 });
-    });
-  }, [appendNpm, ensureStick, loadStatus, onInitialized, sitePath]);
-
-  // `track` (default) records the run in currentRunIdRef so killCurrent/Ctrl+C
-  // reach it; the decoupled watcher passes track:false and takes its runId
-  // through onStart into its own ref instead. `mirrorToNpm` (default) copies the
-  // output into the shared npm buffer; the watcher passes false so its stream
-  // stays in its own tab (and does not grow that buffer without bound).
-  const runScript = useCallback((name, options = {}) => {
-    const { onLog, onDone, args = [], track = true, mirrorToNpm = true, onStart } = options;
-    ensureStick('npm');
-    // Clearing the failure here rather than on the next exit is what stops the
-    // step reading "Failed" while its own retry is streaming to the terminal.
-    if (name === 'build') { setBuilding(true); setBuildFailed(false); }
-    if (track) currentRunIdRef.current = null;
-    return window.api.runNpmScript(sitePath, name, args, ({ data }) => {
-      if (mirrorToNpm) appendNpm(data);
-      if (onLog) onLog(data);
-    }, async ({ code }) => {
-      if (mirrorToNpm) appendNpm(`\n${name} exited with code ${code}\n`);
-      if (name === 'build') {
-        setBuilding(false);
-        setBuildFailed(code !== 0);
-        if (code === 0) markBuildInterrupted(false);
-        try { await loadStatus(); } catch {}
-      }
-      if (track) currentRunIdRef.current = null;
-      if (onDone) onDone({ code });
-    }).then(({ runId }) => {
-      if (track) currentRunIdRef.current = runId;
-      if (onStart) onStart(runId);
-    }).catch((error) => {
-      if (track) currentRunIdRef.current = null;
-      if (mirrorToNpm) appendNpm(`\nFailed to start npm run ${name}: ${error && error.message ? error.message : String(error)}\n`);
-      if (name === 'build') setBuilding(false);
-      if (onDone) onDone({ code: -1 });
-    });
-  }, [appendNpm, ensureStick, loadStatus, markBuildInterrupted, sitePath]);
-
-  const killCurrent = useCallback(async () => {
-    const runId = currentRunIdRef.current;
-    try {
-      await window.api.npmKill({ runId, directoryPath: sitePath });
-    } finally {
-      currentRunIdRef.current = null;
-    }
-  }, [sitePath]);
-
-  // Kills only the watcher, by its own runId, so stopping or pausing it never
-  // reaches whatever one-shot currentRunIdRef is tracking. Kill by runId is
-  // exact: the watcher is always stopped before any other per-directory run
-  // starts, so main's one-per-directory fallback is never contended.
-  const killWatcher = useCallback(async () => {
-    const runId = watchRunIdRef.current;
-    if (!runId) return;
-    try {
-      await window.api.npmKill({ runId, directoryPath: sitePath });
-    } finally {
-      watchRunIdRef.current = null;
-    }
-  }, [sitePath]);
-
-  // terminal refs/state (after run helpers so dependencies are available)
-  const terminalContainerRef = useRef(null);
+  // The site's terminal (#554): the xterm instance, what is typed in it and
+  // the commands it runs through the three runners above. The lock, the kill
+  // handler and the writer are taken out by name because every chain below
+  // holds the lock and writes its progress there, as it always has.
+  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent });
   // The scroll root for the next-action cue (#252): the whole detail section, so
   // the cue can find whichever block is the next step wherever it sits.
   const nextActionSectionRef = useRef(null);
-  const terminalRef = useRef(null);
-  const terminalStickRef = useRef(true);
-  const terminalInputHandlerRef = useRef(() => {});
-  const terminalKillRef = useRef(null);
-  const terminalStateRef = useRef({ input: '', history: [], historyIndex: 0, running: false });
-  const serverStartRequestedRef = useRef(false);
-  const stoppingRef = useRef(false);
-  // True from a Stop we asked for until the server reports it has exited.
-  // playground:stop returns once the signal is sent, and the 'stopped' event
-  // arrives after stopDevServer has already cleared stoppingRef; without this
-  // every ordinary stop read as a crash, and the crash path killed "the last
-  // script in the directory", the watcher (#488).
-  const serverStopRequestedRef = useRef(false);
-  const runningRef = useRef(false);
-  const waitingForWatchRef = useRef(false);
-  // "A dev-server boot is in progress or live." The terminal lock used to double
-  // as this signal, but the watcher no longer holds that lock (#247), so
-  // startPhpServer needs its own flag to know the boot was not aborted.
-  const devServerActiveRef = useRef(false);
-
-  useEffect(() => { runningRef.current = running; }, [running]);
-  useEffect(() => { waitingForWatchRef.current = waitingForWatch; }, [waitingForWatch]);
-
-  // The terminal's own busy flag lives in a ref, so nothing re-renders when it
-  // moves — fine for the guards that read it inline, useless for anything the
-  // UI has to reflect. The hints under the Terminal (#182) do have to reflect
-  // it, so every write goes through here and keeps a state copy in step. The
-  // direction that hurts is the ref saying "busy" while the state says "free":
-  // the hint links stay enabled and their click is silently refused.
-  const [terminalRunning, setTerminalRunning] = useState(false);
-  const markTerminalRunning = useCallback((value) => {
-    const next = Boolean(value);
-    terminalStateRef.current.running = next;
-    setTerminalRunning(next);
-  }, []);
-
-  const normalizeForTerminal = useCallback((text) => String(text ?? '').replace(/\r?\n/g, '\r\n'), []);
-
-  const writeToTerminal = useCallback((text) => {
-    const term = terminalRef.current;
-    if (!term) return;
-    term.write(normalizeForTerminal(text));
-    if (terminalStickRef.current) term.scrollToBottom();
-  }, [normalizeForTerminal]);
 
   // Taking a step back by hand is the answer to "Setup stopped." — so the
   // notice goes away here rather than lingering over work already resumed.
@@ -2399,240 +1218,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     });
   }, [runScript, writeToTerminal]);
 
-  const showPrompt = useCallback((prependNewLine = true) => {
-    const term = terminalRef.current;
-    if (!term) return;
-    const state = terminalStateRef.current;
-    if (prependNewLine) term.write('\r\n');
-    term.write('$ ');
-    state.input = '';
-    state.historyIndex = state.history.length;
-    if (terminalStickRef.current) term.scrollToBottom();
-  }, []);
-
-  const replaceTerminalInput = useCallback((next) => {
-    const term = terminalRef.current;
-    if (!term) return;
-    const state = terminalStateRef.current;
-    const current = state.input;
-    if (current && current.length) {
-      for (let i = 0; i < current.length; i += 1) {
-        term.write('\b \b');
-      }
-    }
-    state.input = next;
-    if (next) term.write(next);
-    if (terminalStickRef.current) term.scrollToBottom();
-  }, []);
-
-  // Drops a command at the prompt without running it, for the hints under the
-  // Terminal (#182). Build and install are one-time steps in the setup
-  // checklist, so a contributor who edits files or adds a dependency later has
-  // no button left to press — the terminal is the path that still works, and
-  // nothing pointed at it. Prefilling rather than running is the point: the
-  // command lands where they can see it, and they press Enter themselves.
-  const prefillTerminalCommand = useCallback((command) => {
-    // The links are already rendered as plain text while the terminal is busy,
-    // so this is the belt to that braces — but it says so rather than returning
-    // silently, matching every other busy guard in this file. A guard that
-    // swallows the click is how a link becomes a control that does nothing.
-    if (terminalStateRef.current.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    replaceTerminalInput(command);
-    const term = terminalRef.current;
-    if (term) term.focus();
-  }, [replaceTerminalInput, writeToTerminal]);
-
-  const addCommandToHistory = useCallback((value) => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    const state = terminalStateRef.current;
-    if (state.history[state.history.length - 1] === trimmed) {
-      state.historyIndex = state.history.length;
-      return;
-    }
-    const nextHistory = [...state.history, trimmed];
-    if (nextHistory.length > 50) nextHistory.shift();
-    state.history = nextHistory;
-    state.historyIndex = nextHistory.length;
-  }, []);
-
-  const printHelp = useCallback(() => {
-    writeToTerminal('Available commands:\n');
-    writeToTerminal('  help                        Show this help text\n');
-    writeToTerminal('  npm install                 Run npm install in the site directory\n');
-    writeToTerminal('  npm run <script>            Run one of: ' + allowedScriptsRef.current.join(', ') + '\n');
-    writeToTerminal('\nThe setup checklist runs npm install and npm run build once. Run them here\nwhenever you change files or add a dependency afterwards.\n');
-  }, [writeToTerminal]);
-
-  const executeTerminalCommand = useCallback((rawCommand) => {
-    const command = rawCommand.trim();
-    const state = terminalStateRef.current;
-    if (!command) {
-      showPrompt(false);
-      return;
-    }
-
-    addCommandToHistory(command);
-
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-
-    if (command === 'help') {
-      printHelp();
-      showPrompt(false);
-      return;
-    }
-
-    const lower = command.toLowerCase();
-    if (TERMINAL_INSTALL_ALIASES.includes(lower)) {
-      markTerminalRunning(true);
-      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-      writeToTerminal('Running npm install…\n');
-      runInstall({
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          writeToTerminal(`npm install exited with code ${code}\n`);
-          markTerminalRunning(false);
-          terminalKillRef.current = null;
-          showPrompt(false);
-        }
-      });
-      return;
-    }
-
-    if (lower.startsWith('npm run ')) {
-      const script = command.slice(8).trim();
-      if (!script) {
-        writeToTerminal('Missing script name. Example: npm run build\n');
-        showPrompt(false);
-        return;
-      }
-      const allowedScripts = allowedScriptsRef.current;
-      if (!allowedScripts.includes(script)) {
-        writeToTerminal(`Unsupported script "${script}". Allowed scripts: ${allowedScripts.join(', ')}\n`);
-        showPrompt(false);
-        return;
-      }
-      markTerminalRunning(true);
-      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-      writeToTerminal(`Running npm run ${script}…\n`);
-      runScript(script, {
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          writeToTerminal(`npm run ${script} exited with code ${code}\n`);
-          markTerminalRunning(false);
-          terminalKillRef.current = null;
-          showPrompt(false);
-        }
-      });
-      return;
-    }
-
-    writeToTerminal(`Unsupported command: ${command}\nTry "help" for the list of supported commands.\n`);
-    showPrompt(false);
-  }, [addCommandToHistory, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
-
-  const handleTerminalData = useCallback((data) => {
-    const term = terminalRef.current;
-    if (!term) return;
-    const state = terminalStateRef.current;
-
-    if (data === '\u0003') { // Ctrl+C
-      term.write('^C\r\n');
-      state.input = '';
-      state.historyIndex = state.history.length;
-      if (state.running) {
-        if (terminalKillRef.current) terminalKillRef.current();
-      } else {
-        showPrompt(false);
-      }
-      return;
-    }
-
-    if (state.running) {
-      // Ignore all other input while command is running
-      return;
-    }
-
-    if (data === '\r') { // Enter
-      const current = state.input;
-      state.input = '';
-      term.write('\r\n');
-      state.historyIndex = state.history.length;
-      executeTerminalCommand(current);
-      return;
-    }
-
-    if (data === '\u007f') { // Backspace
-      if (state.input.length > 0) {
-        state.input = state.input.slice(0, -1);
-        term.write('\b \b');
-      }
-      return;
-    }
-
-    if (data === '\u001b[A' || data === '\u001b[B') { // history navigation
-      if (!state.history.length) return;
-      if (data === '\u001b[A') {
-        state.historyIndex = Math.max(0, state.historyIndex - 1);
-      } else {
-        state.historyIndex = Math.min(state.history.length, state.historyIndex + 1);
-      }
-      const nextValue = state.historyIndex >= state.history.length ? '' : state.history[state.historyIndex];
-      replaceTerminalInput(nextValue);
-      return;
-    }
-
-    if (data.startsWith('\u001b')) {
-      // Ignore other escape sequences
-      return;
-    }
-
-    state.input += data;
-    term.write(data);
-    if (terminalStickRef.current) term.scrollToBottom();
-  }, [executeTerminalCommand, replaceTerminalInput, showPrompt]);
-
-  useEffect(() => {
-    terminalInputHandlerRef.current = handleTerminalData;
-  }, [handleTerminalData]);
-
-  useEffect(() => {
-    const container = terminalContainerRef.current;
-    if (!container) return undefined;
-    const term = new Terminal({
-      rows: 12,
-      cursorBlink: true,
-      scrollback: 4000,
-      convertEol: false,
-      theme: { background: '#111', foreground: '#f5f5f5' },
-      ...TERMINAL_FONT
-    });
-    terminalRef.current = term;
-    term.open(container);
-    term.write(normalizeForTerminal('WordPress npm helper terminal.\n'));
-    printHelp();
-    showPrompt(false);
-    const dataDisposable = term.onData((d) => terminalInputHandlerRef.current(d));
-    const scrollDisposable = term.onScroll(() => {
-      const buffer = term.buffer.active;
-      const atBottom = buffer.baseY + buffer.cursorY >= buffer.length - term.rows;
-      terminalStickRef.current = atBottom;
-    });
-    return () => {
-      dataDisposable.dispose();
-      scrollDisposable.dispose();
-      term.dispose();
-      terminalRef.current = null;
-      terminalStickRef.current = true;
-    };
-  }, [normalizeForTerminal, printHelp, showPrompt]);
-
   useEffect(() => {
     const incoming = setupLogs || '';
     if (!incoming) return;
@@ -2645,355 +1230,48 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     }
     setupLogsRef.current = incoming;
   }, [appendNpm, setupLogs, writeToTerminal]);
-  const stopDevServer = useCallback(async () => {
-    if (stoppingRef.current) return;
-    stoppingRef.current = true;
-    if (runningRef.current) serverStopRequestedRef.current = true;
-    devServerActiveRef.current = false;
-    setWaitingForWatch(false);
-    waitingForWatchRef.current = false;
-    serverStartRequestedRef.current = false;
-    setStarting(false);
-    try { await window.api.stopServer(sitePath); } catch {}
-    try { window.api.stopWpDebug(sitePath); } catch {}
-    // stopWpDebug only tears down the watcher in the main process. The renderer
-    // keeps its own 'wp:debug-log:data' listener until this runs, and a second
-    // start would add another one on top of it — every line then appended once
-    // per dev-server run the session has had.
-    try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {}
-    try { if (newEmailUnsubRef.current) { newEmailUnsubRef.current(); newEmailUnsubRef.current = null; } } catch {}
-    try { if (smtpStartedUnsubRef.current) { smtpStartedUnsubRef.current(); smtpStartedUnsubRef.current = null; } } catch {}
-    setRunning(false);
-    runningRef.current = false;
-    setServerUrl('');
-    setSmtpPort(0);
-    stoppingRef.current = false;
-    waitingForWatchRef.current = false;
-    terminalKillRef.current = null;
-    markTerminalRunning(false);
-    currentRunIdRef.current = null;
-    // The watcher is independent now (#247): stopping the dev server leaves it
-    // running, so a contributor can keep compiling on save without serving the
-    // site. It is stopped only by its own control (stopWatcher).
-  }, [markTerminalRunning, setRunning, setServerUrl, setSmtpPort, setStarting, setWaitingForWatch, sitePath]);
 
-  const startPhpServer = useCallback(async () => {
-    if (serverStartRequestedRef.current || stoppingRef.current || !devServerActiveRef.current) {
-      serverStartRequestedRef.current = false;
-      return;
-    }
-    serverStartRequestedRef.current = true;
-    serverStopRequestedRef.current = false;
-    setWaitingForWatch(false);
-    waitingForWatchRef.current = false;
-    ensureStick('runtime');
-    setStarting(true);
-    // Subscribe to SMTP events before starting to avoid missing early events
-    if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port)=>setSmtpPort(port||0));
-    if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg)=>setEmails((prev)=>sortEmails([msg, ...prev])));
-    try {
-      const res = await window.api.startServer(
-        sitePath,
-        (p)=>appendRuntime(p.data || ''),
-        (url)=>{
-          if (stoppingRef.current) {
-            serverStartRequestedRef.current = false;
-            return;
-          }
-          const u = url.replace(/\/$/,'/');
-          setServerUrl(u);
-          window.api.openExternal(u);
-          setRunning(true);
-          runningRef.current = true;
-          setStarting(false);
-          serverStartRequestedRef.current = false;
-        },
-        ()=>{
-          const requested = serverStopRequestedRef.current;
-          serverStopRequestedRef.current = false;
-          setRunning(false); runningRef.current = false; setServerUrl(''); serverStartRequestedRef.current = false;
-          // A stop the user did not ask for is a crash: say so, and tear the
-          // server session down instead of leaving the button spinning
-          // "Starting dev server…" forever (issue #73). The watcher is not
-          // part of that session (#247) and is left running.
-          if (!stoppingRef.current && !requested) {
-            appendRuntime('Dev server stopped unexpectedly (see Help → Open App Log for details).\n');
-            stopDevServer().catch(() => {});
-          }
-        }
-      );
-      // A failed start reports through the return value, not an exception.
-      // This also covers spawn failures that never produce a "stopped" event.
-      if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
-        appendRuntime(`Dev server failed to start: ${res.error || 'unknown error'}\n`);
-        stopDevServer().catch(() => {});
-        return;
-      }
-    } catch (error) {
-      appendRuntime(`Failed to start PHP server: ${error && error.message ? error.message : String(error)}\n`);
-      setStarting(false);
-      serverStartRequestedRef.current = false;
-      runningRef.current = false;
-      return;
-    }
-    // Reset before subscribing: the tail replays the tail of the file when it
-    // attaches (up to 256KB, startWpDebugTail in main.js), so a restart would
-    // otherwise show the previous session's log a second time below itself.
-    // Stopping the server does not clear the pane — after a crash that log is
-    // the thing to read — but starting a new run does.
-    setDebugLogs('');
-    setDebugUnread(0);
-    try {
-      if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; }
-      const tail = await window.api.startWpDebug(sitePath,(d)=>appendDebug(d || ''));
-      wpDebugUnsubRef.current = tail?.unsubscribe || null;
-      if (tail?.filePath) setDebugLogPath(tail.filePath);
-    } catch {}
-    try { const { port, emails: fetchedEmails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(fetchedEmails||[]); } catch {}
-  }, [appendDebug, appendRuntime, ensureStick, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
+  // The build watch (#554): its state, its run and what can be done to it. It
+  // is called here because it needs the script runner and the terminal's lock
+  // above. What the chains below use of it is taken out by name.
+  const { watchState, watchExitCode, watchCompiling, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, startBuildWatch, pauseWatcher, resumeWatcher, toggleWatch } = useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, terminalStateRef, terminalKillRef, markTerminalRunning });
+  // The count is on the tab rather than beside it because the tab is what the
+  // contributor is not looking at: a notice landing while they read the server
+  // output is the case this panel exists for.
+  const logTabs = useMemo(() => ([
+    { name: 'runtime', title: 'Server' },
+    { name: 'watch', title: watchTabLabel(watchState, watchExitCode, watchCompiling) },
+    { name: 'debug', title: logs.debugUnread ? `debug.log (${logs.debugUnread})` : 'debug.log' }
+  ]), [logs.debugUnread, watchState, watchExitCode, watchCompiling]);
 
-  // The watcher process itself (the target's; grunt _watch on Core), streaming
-  // into its own tab. No terminal lock, no server coupling — that independence
-  // is the point of #247.
-  //
-  // When the watcher is ready to serve behind depends on the target (#488).
-  // Core's grunt _watch touches nothing on start, so it is ready at once.
-  // Gutenberg's npm run dev removes build/ and rebuilds it first, so the state
-  // stays 'building' until the watcher prints the registry's readyPattern; a
-  // server started before that line serves a plugin with no build/. The
-  // waiters (the dev-server start) are settled either way: ready when the
-  // watcher is, failed if it exits or is stopped first.
-  const startWatchProcess = useCallback(() => {
-    const plan = planDevServerStart({ hasBuilt: true }, projectBuild);
-    const readiness = createWatchReadyDetector(plan.watch.readyPattern);
-    const generation = watchGenerationRef.current;
-    const token = generation.next();
-    markWatchState(readiness.immediate ? 'watching' : 'building');
-    watchWasActiveRef.current = true;
-    appendWatch(`Running ${plan.watch.label}…\n`);
-    if (!readiness.immediate) appendWatch(`${plan.watch.label} rebuilds build/ before it watches. The dev server, if you started it, waits for "${plan.watch.readyPattern}".\n`);
-    if (readiness.immediate) settleWatchWaiters(true);
-    runScript(plan.watch.script, {
-      args: plan.watch.args,
-      track: false,
-      mirrorToNpm: false,
-      onStart: (runId) => {
-        // Stopped before the spawn resolved: this run must not be recorded as
-        // the live watcher, and its process would otherwise outlive the stop.
-        if (!generation.isCurrent(token)) { window.api.npmKill({ runId, directoryPath: sitePath }).catch(() => {}); return; }
-        watchRunIdRef.current = runId;
-      },
-      onLog: (chunk) => {
-        appendWatch(chunk);
-        if (!generation.isCurrent(token)) return;
-        // A line within the grace period can reopen a window the tick had
-        // already closed (#492); the state has to follow the ref, or the
-        // banner stays clear while the rebuild runs. The tick closes it.
-        const now = Date.now();
-        watchActivityRef.current.output(now);
-        if (watchActivityRef.current.isCompiling(now)) setWatchCompiling(true);
-        if (readiness.feed(chunk) && watchStateRef.current === 'building') {
-          markBuildInterrupted(false);
-          markWatchState('watching');
-          settleWatchWaiters(true);
-        }
-      },
-      onDone: ({ code }) => {
-        appendWatch(`\n${plan.watch.label} exited with code ${code}\n`);
-        // A replaced run's exit says nothing about the run that replaced it.
-        if (!generation.isCurrent(token)) return;
-        watchRunIdRef.current = null;
-        clearWatchActivity();
-        // A watcher exit never touches a running server (#247). Only an
-        // unexpected exit flips the tab to 'exited'; a stop/pause we asked for
-        // has already moved the state to 'idle'/'paused', so leave it be. A
-        // server still waiting to start behind it does not get to: without a
-        // completed build/ there is nothing to serve.
-        if (watchOccupiesBuild(watchStateRef.current)) {
-          if (watchStateRef.current === 'building') markBuildInterrupted(true);
-          markWatchState('exited', code);
-          watchWasActiveRef.current = false;
-        }
-        settleWatchWaiters(false);
-      }
-    });
-  }, [appendWatch, clearWatchActivity, markBuildInterrupted, markWatchState, projectBuild, runScript, settleWatchWaiters, sitePath]);
-
-  // Start the build watch, building first if the site has no completed build
-  // (the _watch task deliberately skips that full build). `onReady` fires once
-  // build/ is complete and the watch is watching — the server start hangs off
-  // it, but the watch stays independent afterwards. `onFail` fires instead if
-  // the watch never gets there: the build failed, the watcher exited or was
-  // stopped first. A start requested while a watch is already on its way
-  // queues behind that one rather than being dropped.
-  const startBuildWatch = useCallback(({ onReady, onFail } = {}) => {
-    const s = watchStateRef.current;
-    if (s === 'watching') { if (onReady) onReady(); return; }
-    watchWaitersRef.current.add(onReady, onFail);
-    if (s === 'building') return; // already on its way to watching
-    if (!hasBuilt) {
-      // Fresh / skip-the-wizard sites need one full build before anything can
-      // watch or serve. It is a one-shot, so it holds the terminal lock while
-      // it runs; the watch that follows does not. Reveal the tab so the build
-      // is visible.
-      const state = terminalStateRef.current;
-      if (state.running) { appendWatch('A command is already running in the terminal — stop it before starting the build watch.\n'); settleWatchWaiters(false); return; }
-      selectLogTab('watch');
-      markWatchState('building');
-      watchWasActiveRef.current = true;
-      markTerminalRunning(true);
-      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-      appendWatch('No completed build found — running npm run build first…\n');
-      runScript('build', {
-        mirrorToNpm: false,
-        onLog: (chunk) => { appendWatch(chunk); },
-        onDone: ({ code }) => {
-          markTerminalRunning(false);
-          terminalKillRef.current = null;
-          if (code !== 0 || watchStateRef.current !== 'building') {
-            if (code !== 0) { appendWatch(`\nnpm run build failed with code ${code} — build watch not started.\n`); markWatchState('exited', code); }
-            else markWatchState('idle');
-            watchWasActiveRef.current = false;
-            settleWatchWaiters(false);
-            return;
-          }
-          startWatchProcess();
-        }
-      });
-    } else {
-      startWatchProcess();
-    }
-  }, [appendWatch, hasBuilt, killCurrent, markTerminalRunning, markWatchState, runScript, selectLogTab, settleWatchWaiters, startWatchProcess]);
-
-  // User-initiated stop of the watch (its own button). Never touches the server.
-  const stopWatcher = useCallback(async () => {
-    const wasBuilding = watchStateRef.current === 'building';
-    if (wasBuilding) markBuildInterrupted(true);
-    markWatchState('idle');
-    watchWasActiveRef.current = false;
-    // From here the run being stopped is history: its late exit must not
-    // touch whatever starts next.
-    watchGenerationRef.current.invalidate();
-    clearWatchActivity();
-    // A server waiting to start behind this watch is not going to.
-    settleWatchWaiters(false);
-    if (watchRunIdRef.current) {
-      try { await killWatcher(); } catch {}
-    } else if (wasBuilding) {
-      // Still in the one-shot build phase — that run is the tracked one.
-      try { await killCurrent(); } catch {}
-      markTerminalRunning(false);
-      terminalKillRef.current = null;
-    }
-  }, [clearWatchActivity, killCurrent, killWatcher, markBuildInterrupted, markTerminalRunning, markWatchState, settleWatchWaiters]);
-
-  // Pause the watch for an operation that needs the build directory and
-  // node_modules to itself — an install, a full build, a trunk reset (#262).
-  // Returns whether it actually paused, so a caller can log accordingly; resume
-  // is safe to call unconditionally since it no-ops unless the state is 'paused'.
-  const pauseWatcher = useCallback(async () => {
-    if (watchStateRef.current !== 'watching' && watchStateRef.current !== 'building') return false;
-    markWatchState('paused');
-    watchGenerationRef.current.invalidate();
-    applyHandOffRef.current.invalidate();
-    clearWatchActivity();
-    appendWatch('\nPaused while another operation uses the build.\n');
-    try { await killWatcher(); } catch {}
-    return true;
-  }, [appendWatch, clearWatchActivity, killWatcher, markWatchState]);
-
-  // Bring the watch back after a pause. Guarded on 'paused' so a dev-server stop
-  // or a manual stop mid-operation (which sets 'idle') is never resurrected.
-  const resumeWatcher = useCallback(() => {
-    if (watchStateRef.current !== 'paused') return;
-    appendWatch('\nResumed.\n');
-    startWatchProcess();
-  }, [appendWatch, startWatchProcess]);
-
-  const toggleWatch = useCallback(() => {
-    const s = watchStateRef.current;
-    if (s === 'watching' || s === 'building') { stopWatcher(); return; }
-    // Starting it from its own button reveals the tab, whether or not a build
-    // runs first — that is where its output and state live.
-    selectLogTab('watch');
-    startBuildWatch();
-  }, [selectLogTab, startBuildWatch, stopWatcher]);
-
-  const toggleDevServer = async ()=>{
-    if (!running) {
-      // A start is already queued behind the watch (or in flight): a second
-      // click must not queue a second server start (#488).
-      if (devServerActiveRef.current) return;
-      // eslint-disable-next-line no-alert -- see the note above onRename.
-      if (!skipInit && !hasBuilt) { alert('Please complete the full build before starting the dev server. You can also skip the wizard.'); return; }
-      serverStartRequestedRef.current = false;
-      devServerActiveRef.current = true;
-      setStarting(true);
-      // A built site whose watch would first remove build/ (Gutenberg's npm run
-      // dev, #488) has nothing to wait for: the server starts on the build/ it
-      // has, in seconds instead of the watch's rebuild (#499). The watch stays
-      // where the contributor left it; Start build watch, or an apply, brings
-      // it up when it is wanted. The rule, including what a watch already up
-      // or cut short means, is serveWithoutWatch's. "Built" is read afresh:
-      // the state copy is as old as the last status poll, and build/ may
-      // have gone since (a watch rebuild, a clean by hand).
-      let builtNow = hasBuilt;
-      try { const fresh = await window.api.getSiteStatus(sitePath); builtNow = Boolean(fresh?.hasBuilt); setHasBuilt(builtNow); } catch {}
-      if (serveWithoutWatch({ hasBuilt: builtNow, watchState: watchStateRef.current, buildInterrupted: buildInterruptedRef.current }, projectBuild)) {
-        appendRuntime('build/ is complete: starting the server without the build watch. Start build watch to compile edits on save.\n');
-        startPhpServer().catch(() => {});
-        return;
-      }
-      // The server needs build/ on disk, which the build watch guarantees. Start
-      // the watch first (automatically, if it is not already running) and hang
-      // the server start off its readiness — the watch stays independent after.
-      startBuildWatch({
-        onReady: () => { startPhpServer().catch(() => {}); },
-        // The watch never got to a complete build/: nothing to serve, so the
-        // button goes back to "Start dev server" instead of "Starting…" forever.
-        onFail: () => {
-          if (serverStartRequestedRef.current) return;
-          devServerActiveRef.current = false;
-          setStarting(false);
-          appendRuntime('Dev server start cancelled: the build watch stopped before build/ was complete. Start it again once the watch is running.\n');
-        }
-      });
-    } else {
-      // Only the server. The watch is independent (#247), and this branch
-      // used to kill it by accident: killCurrent with no tracked run falls
-      // back to the last script in the directory, which is the watcher. On
-      // Core that cost a cheap grunt restart nobody noticed; on Gutenberg
-      // it is the whole 20 s rebuild on every Stop/Start (#488).
-      await stopDevServer();
-    }
-  };
-  const isServerStarting = waitingForWatch || (starting && !serverUrl);
-  const isDevProcessActive = running || isServerStarting;
-  let devServerButtonLabel = 'Start dev server';
-  if (isDevProcessActive) devServerButtonLabel = isServerStarting ? 'Starting dev server...' : 'Stop dev server';
+  // The dev server (#554): its state, its guards and its one button. It is
+  // called here because starting it needs everything above: the build watch,
+  // the logs, the mail, the terminal's lock and the script runner.
+  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, devServerButtonLabel, startElapsed, toggleDevServer } = useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
   // The build watch has its own control and status dot beside the server's — it
   // runs independently of the server (#247). Green watching, amber building or
   // paused, red an unexpected exit, grey stopped.
   const watchActive = watchState === 'watching' || watchState === 'building';
   const watchDotColor = WATCH_DOT_COLORS[watchState] || '#8c8f94';
   const watchButtonLabel = watchActive ? 'Stop build watch' : 'Start build watch';
-  // Elapsed-seconds counter for the starting state, so a slow boot is
-  // distinguishable from a hang (issue #73).
-  const [startElapsed, setStartElapsed] = useState(0);
-  useEffect(() => {
-    if (!isServerStarting) {
-      setStartElapsed(0);
-      return undefined;
-    }
-    const id = setInterval(() => setStartElapsed((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [isServerStarting]);
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
   }, [sitePath]);
   // eslint-disable-next-line no-alert -- see the note above onRename.
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
+
+  // Updating to the latest trunk (#94, #554): the chain, the question it asks
+  // about edits in the tree, and the retry. Called here because it runs
+  // through everything above, and because what follows reads whether an
+  // update is under way.
+  const { updateState, isUpdating, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+
+  // Putting someone else's patch or pull request on this site (#554): what a
+  // ticket offers, the preview, and the chain. Called here because it runs
+  // through everything above, and because what follows reads whether an
+  // apply is under way.
+  const { applyState, isApplying, applyKind, applySteps, applyStepStates, applyPreview, setApplyPreview, applyError, setApplyError, applyConflict, setApplyConflict, applyNotice, setApplyNotice, clearApplyError, prUrlInput, setPrUrlInput, fetchingPr, fetchingAttachment, ticketPatches, ticketPatchesLoading, tracAttachments, tracAttachmentsLoading, patchAttachments, loadTicketPatches, loadTracAttachments, choosePatchFile, previewPr, previewAttachment, previewPrFromInput, runPrSwitch, runApply } = useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart });
 
   // The tickets with work on this site (#108), in a card of their own (#240)
   // below the Trac ticket card and the patch one — which ticket am I on, what
@@ -3139,9 +1417,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     </div>
   );
 
-  // --- Update to latest trunk (#94) ---
+  // How old the site's trunk is (#94), for the notice that offers an update.
   const age = trunkAgeInfo({ trunkDate });
-  const isUpdating = updateState !== 'idle';
   // Where the note goes moves with the ticket: a change that belongs to
   // #12345 is news for the ticket card, one that belongs to nothing is news
   // for the buttons that would give it somewhere to go.
@@ -3149,129 +1426,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk, noun: workItem.noun });
   const legacyNotice = legacySiteNotice({ legacy });
   const mergeNotice = mergeInProgressNotice({ mergeInProgress });
-  const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged, buildByWatcher: updateBuildBy });
-  const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
-  const finishUpdate = (message) => {
-    markTerminalRunning(false);
-    terminalKillRef.current = null;
-    setUpdateState('idle');
-    setUpdateWaitingOnWatch(false);
-    if (message) writeToTerminal(message);
-    // Resume the watch if the update paused it (#262). Safe on every exit path
-    // and a no-op if nothing was paused.
-    resumeWatcher();
-    loadStatus().catch(() => {});
-    refreshDirty();
-  };
-
-  // Steps 2 and 3 of the chain: npm install (only when the lockfile moved,
-  // and named when skipped) then a rebuild. Reuses the wizard's runInstall /
-  // runScript so exit codes, retries and terminal streaming all behave
-  // exactly as they do everywhere else (same pattern as toggleDevServer).
-  const runUpdateInstallAndBuild = (lockfileChanged, { buildBy = null } = {}) => {
-    // build/ matches the new source: persist it, summarise, confirm. Shared by
-    // the chain's own build and the resumed watch's ready line.
-    const completeUpdate = async () => {
-      try { await window.api.markUpdateComplete(sitePath); } catch {}
-      const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
-      setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
-      confirm('Updated to the latest trunk');
-    };
-    const runBuildStep = () => {
-      setUpdateState('building');
-      writeToTerminal('\nRunning npm run build…\n');
-      runScript('build', {
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: async ({ code }) => {
-          if (code === 0) {
-            await completeUpdate();
-            finishUpdate('\nUpdate complete — this site is now on the latest trunk.\n');
-          } else {
-            finishUpdate('\nUpdate incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.\n');
-          }
-        }
-      });
-    };
-    // The watch paused for the reset rebuilds build/ from scratch when it
-    // resumes (Gutenberg, #507), so a build of our own would be thrown away the
-    // moment it comes back. Resume it now and let that be the one build. Unlike
-    // an apply (#506), the update is not done at the hand-off: the card stays
-    // on step 3, naming the watch, and the persisted "complete" marker waits for
-    // the ready line, so a watch that exits first leaves the update incomplete
-    // with the same banner and retry a failed build would. The terminal is
-    // released: the watch writes to its own tab and holds no terminal lock.
-    // No generation token here, unlike the apply: any ready line means build/
-    // is complete, which is exactly what "update complete" claims, and a card
-    // left on step 3 by a skipped settle would have no way off it. That is safe
-    // only because every path that pauses or restarts the watch (a PR switch,
-    // a ticket switch, an apply, a retry) is gated on isUpdating, which holds
-    // through the wait; the terminal lock those paths also check is released
-    // here, so the isUpdating gates are what keeps a pause (which kills the
-    // watch without settling the waiters) from orphaning this waiter. Loosen
-    // one of those gates and this needs the token.
-    const handOffToResumedWatch = () => {
-      const plan = planUpdateHandOff(watchStateRef.current);
-      if (!plan.waits) {
-        finishUpdate(plan.finish.message);
-        return;
-      }
-      // One way to apply an outcome, so the ready line and the exit cannot
-      // drift apart: the plan says which state each lands in and whether it is
-      // the one that completes the update.
-      const settle = async (phase) => {
-        if (phase.completesUpdate) await completeUpdate();
-        setUpdateState(phase.updateState);
-        setUpdateWaitingOnWatch(phase.waitingOnWatch);
-        writeToTerminal(phase.message);
-        loadStatus().catch(() => {});
-        refreshDirty();
-      };
-      // Registered before the resume so a watch that dies at once still lands
-      // in onFail. The waiters settle once per run: on the ready line or on exit.
-      watchWaitersRef.current.add(
-        () => { settle(plan.ready); },
-        () => { settle(plan.failed); }
-      );
-      setUpdateState(plan.waiting.updateState);
-      setUpdateWaitingOnWatch(plan.waiting.waitingOnWatch);
-      // The watch writes to its own tab and holds no terminal lock, so the
-      // chain gives this one back while it waits.
-      markTerminalRunning(false);
-      terminalKillRef.current = null;
-      writeToTerminal(plan.waiting.message);
-      resumeWatcher();
-    };
-    const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
-    if (lockfileChanged) {
-      setUpdateState('installing');
-      writeToTerminal('\npackage-lock.json changed — running npm install (only the changed packages are downloaded)…\n');
-      runInstall({
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          if (code !== 0) {
-            finishUpdate('\nUpdate incomplete — npm install failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.\n');
-            return;
-          }
-          afterInstall();
-        }
-      });
-    } else {
-      writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
-      afterInstall();
-    }
-  };
-
-  // --- Applying someone else's patch (#11) ---
-  // Same three-stage shape as the update chain, and the same npm wrappers, so
-  // exit codes and terminal streaming behave identically.
-  const isApplying = applyState !== 'idle';
+  // Whether the terminal is free, and what the site's view says about the
+  // patch or pull request that is applied (#11).
   const showTerminalHints = Boolean(hasBuilt);
   const terminalBusy = computeTerminalBusy({
     terminalRunning, installing, building, starting, running, isUpdating, isApplying
   });
-  const applySteps = planApplySteps({ needsInstall: applyNeedsInstall, buildByWatcher: applyBuildByWatcher, kind: applyKind });
-  const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
 
   // The applied patch as a layer with a name (#306), not an undo blob. Both
   // answers come from the same record: whether it can still be lifted out —
@@ -3281,7 +1442,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     when: appliedPatch?.appliedAt ? new Date(appliedPatch.appliedAt).toLocaleString() : ''
   });
   const appliedPatchLabel = appliedPatch?.label || 'The patch you applied';
-  const prOwnershipRefusal = pullRequest ? prSubmissionRefusal(pullRequest.number) : '';
   const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
   const prCheckout = pullRequest ? describePrCheckout({ ...pullRequest, noun: workItem.noun }) : null;
   // The banner's tone and headline follow the watch (#509): green only once
@@ -3437,10 +1597,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Attachments are Trac's; a GitHub issue never has one, whatever a stale
   // scrape says (#251).
   const latestIsAttachment = showTracCards && latestPatch?.kind === 'attachment';
-  // The panel lists only what can be applied — screenshots and other non-patch
-  // attachments are noise here. The parser still returns them (pickLatest and
-  // tests rely on the full list); the filtering is purely what's shown.
-  const patchAttachments = (tracAttachments?.items || []).filter((a) => a.applyable);
   // The ticket's own facts (#292), riding the same scrape as the attachments:
   // one Trac visit, one challenge, both answers.
   const tracInfo = showTracCards ? (tracAttachments?.ticket || null) : null;
@@ -3462,638 +1618,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         {badge.label}
       </span>
     );
-  };
-
-  const finishApply = (message) => {
-    markTerminalRunning(false);
-    terminalKillRef.current = null;
-    setApplyState('idle');
-    // Resume the watch if this apply paused it. Safe on every exit path
-    // (success, failure, cancel) and a no-op if nothing was paused (#262).
-    resumeWatcher();
-    // A resumed watch that rebuilds from scratch (Gutenberg's npm run dev)
-    // leaves the site unusable until it is watching again, and the banner
-    // above is already up (#492). The banner says so; so does the terminal,
-    // in place of "open the site to try it out".
-    if (message) writeToTerminal(applyFinishMessage(message, watchStateRef.current));
-    loadStatus().catch(() => {});
-    refreshDirty();
-  };
-
-  const runApplyInstallAndBuild = (needsInstall, verb, { buildBy = null, noun = 'patch' } = {}) => {
-    const runBuildStep = () => {
-      setApplyState('building');
-      writeToTerminal('\nRunning npm run build…\n');
-      runScript('build', {
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          // Only now is the apply genuinely done — the patch is on disk and the
-          // site is rebuilt around it, so "open the site to try it out" is true
-          // (#253). A failed build leaves stale assets and its own banner, so it
-          // gets no success confirmation.
-          if (code === 0) confirm(`${verb} the ${noun}`);
-          finishApply(code === 0
-            ? `\n${verb} — open the site to try it out.\n`
-            : `\nThe ${noun} is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.\n`);
-        }
-      });
-    };
-    // The watch paused for this apply rebuilds build/ from scratch when it
-    // resumes (Gutenberg, #506), so a build of our own would be thrown away the
-    // moment finishApply resumes it. Skip it and let the resume be the one
-    // build; the confirmation waits for the watch's ready line, the same one the
-    // dev-server start waits for (#488). Until then the terminal and the banner
-    // say the watch is rebuilding (#492).
-    const handOffToResumedWatch = () => {
-      const handOff = resumedWatchHandOff(verb, noun, watchStateRef.current);
-      if (!handOff.waits) {
-        finishApply(handOff.stopped);
-        return;
-      }
-      // Registered before the resume so a watch that dies at once still lands
-      // in onFail. The waiters settle once per run: on the ready line or on exit.
-      const token = applyHandOffRef.current.next();
-      watchWaitersRef.current.add(
-        () => {
-          if (!applyHandOffRef.current.isCurrent(token)) return;
-          confirm(`${verb} the ${noun}`);
-          writeToTerminal(handOff.ready);
-        },
-        () => {
-          if (!applyHandOffRef.current.isCurrent(token)) return;
-          writeToTerminal(handOff.failed);
-        }
-      );
-      finishApply(`\n${verb} — open the site to try it out.\n`);
-    };
-    const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
-    if (buildBy === 'live-watch') {
-      // A running build watch recompiles the src/ change on its own, so there is
-      // no install and no build of our own to run — just hand off to it (#262).
-      confirm(`${verb} the ${noun}`);
-      handOffToWatch();
-      finishApply(`\n${verb} — ${compilingMessage()}\n`);
-      return;
-    }
-    if (needsInstall) {
-      setApplyState('installing');
-      writeToTerminal(`\nThe ${noun} changes package-lock.json — running npm install…\n`);
-      runInstall({
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          if (code !== 0) {
-            finishApply(`\nnpm install failed, so the build was skipped. The ${noun} is ${verb.toLowerCase()} but dependencies are stale.\n`);
-            return;
-          }
-          afterInstall();
-        }
-      });
-    } else {
-      writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
-      afterInstall();
-    }
-  };
-
-  // Reads a patch file and works out what it would do, without touching the
-  // checkout — the contributor decides after seeing the file list.
-  const choosePatchFile = async () => {
-    clearApplyError();
-    setApplyNotice('');
-    try {
-      const chosen = await window.api.choosePatchFile();
-      if (!chosen) return;
-      if (chosen.error) {
-        setApplyError(`Could not read that file: ${chosen.error}`);
-        return;
-      }
-      const preview = await window.api.previewPatch(sitePath, chosen.text);
-      if (!preview || !preview.ok) {
-        setApplyError(preview?.error || 'Could not read that patch.');
-        return;
-      }
-      setApplyPreview({ ...preview, label: chosen.name, text: chosen.text });
-    } catch (e) {
-      setApplyError(String(e));
-    }
-  };
-
-  // Loads the PRs linked to the ticket. Manual, not on a timer: each call is a
-  // request against a shared, unauthenticated GitHub limit, so it runs when the
-  // contributor asks — on link, and on an explicit refresh.
-  const loadTicketPatches = useCallback(async () => {
-    setTicketPatchesLoading(true);
-    try {
-      const res = await window.api.listTicketPatches(sitePath);
-      setTicketPatches(res && res.ok ? res.prs : { status: 'error', items: [] });
-    } catch {
-      setTicketPatches({ status: 'error', items: [] });
-    } finally {
-      setTicketPatchesLoading(false);
-    }
-  }, [sitePath]);
-
-  // Load the ticket's PRs only for the active site. Every SiteRow stays mounted
-  // (the parent hides inactive ones), so fetching on mount would spend the
-  // shared, unauthenticated GitHub quota once per linked site on every launch.
-  // The ref keeps re-activating a site from re-fetching the same ticket; a
-  // relink (ticket change) and the Refresh button still fetch. Unlinking clears
-  // the list. Placed after loadTicketPatches is defined: an effect that named it
-  // earlier in the body would read the const before its declaration ran.
-  const loadedTicketRef = useRef(null);
-  // Set only by saveTicket, on a link the contributor just performed. The
-  // per-ticket effect below consumes it to auto-read the ticket's details:
-  // there, after the generation bump, so the scrape's result is not dropped as
-  // stale. A ref and not state — it must not survive a remount, or selecting
-  // an already-linked site would open a Trac window nobody asked for (#292).
-  const autoReadTicketRef = useRef(null);
-  const tracScrapeRef = useRef(null);
-  // A Trac scrape can run up to 90s. Bump a generation on every ticket change so
-  // a scrape that resolves after the ticket has moved on is dropped, rather than
-  // shown under the wrong ticket or clearing a newer request's loading flag. Kept
-  // on its own [tracTicket]-only effect, deliberately not folded into the one
-  // below: that effect also re-runs on an `isActive` toggle (switching site tabs
-  // and back), which must not bump the generation of an in-flight scrape that
-  // has nothing to do with this ticket change (#299 follow-up). Declared first —
-  // React runs same-component passive effects in declaration order — so the
-  // bump always lands before the auto-triggered scrape a few lines down (#299).
-  const scrapeGenRef = useRef(0);
-  useEffect(() => { scrapeGenRef.current += 1; }, [tracTicket]);
-  useEffect(() => {
-    if (!tracTicket) {
-      setTicketPatches(null);
-      // Attachments are per-ticket and loaded on demand; a stale list from the
-      // previous ticket must not linger, and a scrape dropped by the generation
-      // bump above must not leave a stuck spinner.
-      setTracAttachments(null);
-      setTracAttachmentsLoading(false);
-      loadedTicketRef.current = null;
-      return;
-    }
-    if (!isActive || loadedTicketRef.current === tracTicket) return;
-    // A new ticket on the active site: drop any attachments the previous one
-    // loaded (and clear its loading flag, so a scrape dropped by the generation
-    // bump above cannot leave a stuck spinner with no button to recover), then
-    // fetch its PRs. Marked loaded before the fetch resolves, on purpose: a
-    // failed initial fetch is not retried on every re-activation (which could
-    // keep spending a rate-limited quota) — Refresh is the retry.
-    setTracAttachments(null);
-    setTracAttachmentsLoading(false);
-    loadedTicketRef.current = tracTicket;
-    loadTicketPatches();
-    // Auto-read the ticket's own facts when this ticket was just linked by
-    // hand (#292). Only then: the contributor just acted on this ticket, so a
-    // human-check window appearing has context. On mount or re-activation the
-    // ref is empty and nothing opens — details stay on demand, the #109 rule.
-    // And only for a Trac ticket (#251): a GitHub issue has nothing on Trac,
-    // and the Core ticket that shares its number is not it.
-    if (showTracCards && autoReadTicketRef.current === tracTicket) {
-      autoReadTicketRef.current = null;
-      // Through the ref, not the function: loadTracAttachments is declared
-      // below this effect and recreated per render — the same shape as
-      // metaPatchRef above.
-      if (tracScrapeRef.current) tracScrapeRef.current();
-    }
-  }, [tracTicket, isActive, loadTicketPatches, showTracCards]);
-
-  // Fetches the PR head through the site's origin and previews its own file
-  // list. No diff text crosses the renderer boundary: checkout retains the
-  // author's commits, while files and Trac attachments keep the patch path.
-  const previewPr = async (pr) => {
-    clearApplyError();
-    setApplyNotice('');
-    setFetchingPr(pr.number);
-    try {
-      const preview = await window.api.previewPullRequest(sitePath, pr.number);
-      if (!preview || !preview.ok) {
-        setApplyError(prCheckoutRefusal({ ...preview, number: pr.number }));
-        return;
-      }
-      setApplyPreview({
-        kind: 'pr', ...preview, label: `PR #${pr.number}`,
-        paths: preview.files.map((file) => file.path),
-        prUrl: pr.url, prState: pr.state || null
-      });
-    } catch (e) {
-      setApplyError(String(e));
-    } finally {
-      setFetchingPr(null);
-    }
-  };
-
-  // Opens the real Trac ticket (the user clears the challenge once if shown),
-  // scrapes its attachment list, and shows it in-app. On demand, not on link.
-  const loadTracAttachments = async () => {
-    const gen = scrapeGenRef.current;
-    clearApplyError();
-    setTracAttachmentsLoading(true);
-    try {
-      const res = await window.api.listTracAttachments(sitePath);
-      if (gen !== scrapeGenRef.current) return; // ticket changed mid-scrape; drop the stale result
-      setTracAttachments(res && res.ok ? res : { status: 'error', items: [] });
-    } catch {
-      if (gen !== scrapeGenRef.current) return;
-      setTracAttachments({ status: 'error', items: [] });
-    } finally {
-      if (gen === scrapeGenRef.current) setTracAttachmentsLoading(false);
-    }
-  };
-
-  // Downloads an attachment through the challenge-passing session and hands it
-  // to the same preview the PR and file paths use.
-  useEffect(() => { tracScrapeRef.current = loadTracAttachments; });
-
-  const previewAttachment = async (att) => {
-    clearApplyError();
-    setApplyNotice('');
-    setFetchingAttachment(att.url);
-    try {
-      const res = await window.api.fetchTracAttachment(att.url);
-      if (!res || !res.ok) {
-        setApplyError(res?.error || `Could not download ${att.filename}.`);
-        return;
-      }
-      const preview = await window.api.previewPatch(sitePath, res.text);
-      if (!preview || !preview.ok) {
-        setApplyError(preview?.error || 'Could not read that patch.');
-        return;
-      }
-      setApplyPreview({ ...preview, label: att.filename, text: res.text });
-    } catch (e) {
-      setApplyError(String(e));
-    } finally {
-      setFetchingAttachment(null);
-    }
-  };
-
-  // Apply a PR straight from a pasted URL or number, without needing it to be
-  // linked to the ticket — same fetch → preview flow as the linked-PR list.
-  const previewPrFromInput = () => {
-    // Guarded against this site's own repository: a wordpress-develop pull
-    // request pasted into a Gutenberg site is refused by name, not fetched
-    // from a repository that has no such ref.
-    const parsed = parsePrRef(prUrlInput, { repoPath: `${project.upstream.owner}/${project.upstream.repo}` });
-    // clearApplyError first, not setApplyError alone: a parse error arriving on
-    // top of a conflict breakdown would otherwise leave the stale regions on
-    // screen hiding it, since the banner leads with the breakdown's headline.
-    if (!parsed.ok) { clearApplyError(); setApplyError(parsed.error); setApplyNotice(''); return; }
-    setPrUrlInput('');
-    previewPr({ number: parsed.number, url: `https://github.com/${project.upstream.owner}/${project.upstream.repo}/pull/${parsed.number}` });
-  };
-
-  const runPrSwitch = async ({ leaving = false } = {}) => {
-    const preview = applyPreview;
-    const number = leaving ? pullRequest?.number : preview?.number;
-    if (!number) return;
-    const state = terminalStateRef.current;
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    // A checkout rewrites far more than a src/ patch, so a live watch is always
-    // paused. Whether we build after depends on what the resumed watch does (#506).
-    const watcherActive = watchOccupiesBuild(watchStateRef.current);
-    const impact = planWatchImpact({ needsInstall: false, watcherActive, watchRebuildsOnStart, wholeTree: true });
-    clearApplyError();
-    setApplyNotice('');
-    setApplyKind(leaving ? 'leave-pr' : 'pr');
-    setApplyNeedsInstall(Boolean(preview?.needsInstall));
-    setApplyBuildByWatcher(impact.buildBy);
-    setApplyState('applying');
-    applyHandOffRef.current.invalidate();
-    markTerminalRunning(true);
-    if (impact.pauseWatcher) await pauseWatcher();
-    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-    const run = leaving
-      ? window.api.leavePullRequest(sitePath, ({ data }) => writeToTerminal(data), complete)
-      : window.api.checkoutPullRequest(sitePath, number, ({ data }) => writeToTerminal(data), complete);
-
-    function complete(res) {
-      if (!res?.ok) {
-        if (!leaving && res?.code === 'dirty-trunk') {
-          setBlockedByTrunkWork({ kind: 'pr', number, ref: `pr/${number}`, canCarry: false, files: Number.isInteger(res.files) ? res.files : null, ticket: null });
-        } else {
-          setApplyError(prCheckoutRefusal({ ...res, number }));
-        }
-        finishApply();
-        return;
-      }
-      setApplyPreview(null);
-      setApplyNeedsInstall(Boolean(res.needsInstall));
-      runApplyInstallAndBuild(
-        Boolean(res.needsInstall),
-        leaving ? 'Restored' : 'Checked out',
-        { buildBy: impact.buildBy, noun: leaving ? 'previous branch' : 'pull request' }
-      );
-    }
-
-    run.catch((e) => {
-      setApplyError(String(e));
-      finishApply();
-    });
-  };
-  // The pull request a switch to this ref would put back (#510), read from the
-  // branch list the panel already reloads after every switch, so no round trip
-  // is added in front of one. An unlink and a ref this site's provider does not
-  // parse are not switches to a work item at all; the rest is the module's
-  // decision.
-  const savedPrForRef = (ref) => {
-    const parsed = workItem.parseRef(typeof ref === 'string' ? ref.trim() : '');
-    if (!parsed.ok) return null;
-    return savedPrForSwitch({
-      branches: ticketBranches.branches,
-      ticketId: parsed.id,
-      linkedTicket: tracTicket,
-      currentPr: pullRequest?.number ?? null
-    });
-  };
-  useLayoutEffect(() => {
-    retryPrSwitchRef.current = runPrSwitch;
-    ticketSwitchLifecycleRef.current = {
-      begin: async (ref) => {
-        if (terminalStateRef.current.running) {
-          setTicketError('A command is already running. Stop it before switching tickets.');
-          return false;
-        }
-        markTerminalRunning(true);
-        terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-        applyHandOffRef.current.invalidate();
-        // Only the switch that puts a parked pull request back is a whole-tree
-        // change that pauses the watch (#506); a plain link, unlink or switch
-        // moves the checkout and leaves the running watch to recompile what
-        // changed (#510). Which one this is has to be known before the
-        // checkout starts, and `sites:set-ticket` only says so afterwards — so
-        // it is read from the same record main will consult: the PR checked
-        // out now, and the one saved on the work item being switched to.
-        //
-        // The decision is made here, where the watch is paused, and read back
-        // in complete. This effect has no dependency list, so it runs on every
-        // render and a variable scoped to it would be reset between begin and
-        // complete; a ref is what survives the IPC round trip.
-        const impact = planTicketSwitchImpact({
-          fromPr: pullRequest?.number ?? null,
-          toPr: savedPrForRef(ref),
-          watchState: watchStateRef.current,
-          watchRebuildsOnStart
-        });
-        switchImpactRef.current = impact;
-        if (impact.pauseWatcher) await pauseWatcher();
-        return true;
-      },
-      complete: async (res) => {
-        if (!res.prTransition) {
-          // The watch was left running for this switch and the checkout has
-          // landed: the files it wrote are what the watch now recompiles, so
-          // the banner and the tab say so until it goes quiet (#492).
-          if (switchImpactRef.current?.buildBy === 'live-watch') handOffToWatch();
-          return false;
-        }
-        setApplyKind('pr');
-        setApplyNeedsInstall(Boolean(res.needsInstall));
-        // A restore begin did not see coming — a retry of a failed switch,
-        // where main reads the ref the switch was leaving and the renderer
-        // cannot. The install and the build that follow still need the build
-        // directory and node_modules to themselves, so the pause happens late
-        // rather than not at all. The plan's own answer wins whenever it
-        // already paused, since a paused watch reads as inactive here.
-        let impact = switchImpactRef.current;
-        if (!impact?.pauseWatcher) {
-          impact = planWatchImpact({ needsInstall: false, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
-          if (impact.pauseWatcher) await pauseWatcher();
-        }
-        setApplyBuildByWatcher(impact.buildBy);
-        clearApplyError();
-        runApplyInstallAndBuild(Boolean(res.needsInstall), 'Restored', { buildBy: impact.buildBy, noun: 'saved work' });
-        return true;
-      },
-      finish: () => finishApply()
-    };
-
-  });
-
-  const runApply = async ({ reverse = false } = {}) => {
-    const state = terminalStateRef.current;
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    const preview = applyPreview;
-    if (!reverse && preview?.kind === 'pr') {
-      await runPrSwitch();
-      return;
-    }
-    const needsInstall = reverse
-      ? Boolean(appliedPatch?.files?.includes('package-lock.json'))
-      : Boolean(preview.needsInstall);
-    // A running build watch already recompiles src/, so a src-only patch skips
-    // the build and is not interrupted; an install/full build pauses it (#262).
-    const watcherActive = watchOccupiesBuild(watchStateRef.current);
-    const impact = planWatchImpact({ needsInstall, watcherActive, watchRebuildsOnStart });
-    clearApplyError();
-    setApplyNotice('');
-    setApplyNeedsInstall(needsInstall);
-    setApplyKind('patch');
-    setApplyBuildByWatcher(impact.buildBy);
-    setApplyState('applying');
-    applyHandOffRef.current.invalidate();
-    markTerminalRunning(true);
-    if (impact.pauseWatcher) await pauseWatcher();
-    // Same contract as the other chains: while `running` is set, Ctrl+C in the
-    // terminal has to reach the child process the chain is about to spawn.
-    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-    window.api.applyPatch(
-      sitePath,
-      reverse ? { reverse: true } : { patchText: preview.text, label: preview.label },
-      ({ data }) => writeToTerminal(data),
-      (res) => {
-        if (!res || !res.ok) {
-          // The main process has already dropped the stale record, so reloading
-          // the status is what takes the "is applied" banner down and frees the
-          // panel to accept another patch. Nothing was written, so there is
-          // nothing to install or build.
-          if (res?.notApplied) {
-            if (res.recordCleared) {
-              setApplyNotice(`${res.error} The applied-patch record has been cleared.`);
-            } else {
-              setApplyError(`${res.error} The record of it could not be cleared, so this site still thinks it is applied.`);
-            }
-            // finishApply reloads the status, which is what takes the banner
-            // down now that the main process has dropped the record.
-            finishApply();
-            return;
-          }
-          setApplyError(res?.error || 'The patch could not be applied.');
-          // A conflict is where the panel used to stop: one file named, the
-          // rest of the failures left in the terminal, and no sense of whether
-          // one region of twenty missed or all of them. The breakdown is what
-          // turns that into a decision (#282). A reverse gets its own framing
-          // (#306): it fails only because the contributor's own edits are on the
-          // patch's lines, so the ticket's other patches and the pull request's
-          // author are both the wrong place to send them.
-          setApplyConflict(describeApplyFailure(res, reverse
-            ? { reverting: appliedPatch?.label || 'That patch' }
-            : {
-              otherPatchCount: otherPatchCount({
-                label: preview?.label,
-                prs: ticketPatches?.items,
-                attachments: patchAttachments
-              }),
-              prUrl: preview?.prUrl || null,
-              prState: preview?.prState || null,
-              appliedPatch,
-              // The preview's own collision list: the files this ticket has work
-              // in, measured from its base (#301). Without it an open pull
-              // request is always narrated as stale, so a failure caused by the
-              // contributor's own edits sends them to ask a stranger for a
-              // rebase that would not help (#303).
-              ownWorkPaths: preview?.conflicts || []
-            }));
-          finishApply();
-          return;
-        }
-        setApplyPreview(null);
-        // The confirmation waits until the rebuild finishes (see runBuildStep) —
-        // the patch is on disk now, but the site is not usable until it is built
-        // around it, so announcing "applied" here would be premature. When a
-        // watch will rebuild it, runApplyInstallAndBuild confirms right away.
-        runApplyInstallAndBuild(needsInstall, reverse ? 'Reverted' : 'Applied', { buildBy: impact.buildBy });
-      }
-    ).catch((e) => {
-      // A rejected invoke never reaches onDone, so without this the terminal
-      // stays wedged with `running` set and no way back short of a reload.
-      setApplyError(String(e));
-      finishApply();
-    });
-  };
-
-  // Step 1: fetch + reset in the main process, then hand over to the npm
-  // steps. Assumes the tree is clean (startTrunkUpdate handles dirty trees).
-  const beginTrunkUpdate = async () => {
-    const state = terminalStateRef.current;
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    // A trunk reset rewrites the whole tree at once; a live watch would try to
-    // recompile mid-reset. Pause it for the update; finishUpdate resumes it. The
-    // PHP server stays up — the rebuild regenerates build/ under it (#262).
-    // Whether the update builds after depends on what the resumed watch does:
-    // on Gutenberg it rebuilds from scratch anyway, so the one build is its
-    // (#507). Decided here, where the watch is paused, like a PR checkout.
-    const impact = planWatchImpact({ needsInstall: false, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
-    setUpdateBuildBy(impact.buildBy);
-    setUpdateWaitingOnWatch(false);
-    if (impact.pauseWatcher) await pauseWatcher();
-    markTerminalRunning(true);
-    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-    setUpdateLockfileChanged(false);
-    setLastUpdateSummary(null);
-    updateStartRef.current = Date.now();
-    setUpdateState('fetching');
-    window.api.updateTrunk(sitePath, ({ data }) => writeToTerminal(data), (res) => {
-      if (!res || !res.ok) {
-        // The main process already wrote the failure message to the stream.
-        finishUpdate();
-        return;
-      }
-      if (res.upToDate) {
-        // Nothing to fetch — but "Already up to date." only reaching the
-        // terminal left the contributor unsure the check had even run (#253).
-        // The confirmation says so where it will be seen; there is no install
-        // or build to follow.
-        confirm('Already up to date with trunk');
-        finishUpdate();
-        return;
-      }
-      setUpdateLockfileChanged(Boolean(res.lockfileChanged));
-      runUpdateInstallAndBuild(Boolean(res.lockfileChanged), { buildBy: impact.buildBy });
-    });
-  };
-
-  const startTrunkUpdate = async () => {
-    // The dev server no longer blocks an update: the watch is paused for the
-    // reset and the PHP server stays up (#262). Only real in-progress work
-    // (an update, install or build already running) still blocks.
-    if (isUpdating || installing || building) return;
-    savedPatchPathRef.current = null;
-    try {
-      const res = await window.api.isWorktreeDirty(sitePath);
-      if (res && res.ok && res.dirty) {
-        setDirtyFiles(Array.isArray(res.files) ? res.files : []);
-        setDirtyChoice('save');
-        setDirtyError(null);
-        setDirtyModalOpen(true);
-        return;
-      }
-    } catch {}
-    beginTrunkUpdate();
-  };
-
-  // Dirty-tree resolutions. Saving is the default: it is what the tool is
-  // for, and it is the only option that cannot lose work.
-  const dirtySaveAndUpdate = async () => {
-    setDirtySaving(true);
-    setDirtyError(null);
-    try {
-      const res = await window.api.savePatch(sitePath);
-      if (res && res.canceled) return; // stay in the modal
-      if (!res || !res.ok || !res.filePath) {
-        setDirtyError(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
-        return;
-      }
-      const d = await window.api.discardChanges(sitePath);
-      if (!d || !d.ok) {
-        setDirtyError(`Saved your changes to ${res.filePath}, but resetting the working tree failed: ${d && d.error ? d.error : 'Unknown error'}`);
-        return;
-      }
-      savedPatchPathRef.current = res.filePath;
-      applyDiscardToNote(discardOutcome(d));
-      setDirtyModalOpen(false);
-      writeToTerminal(`\nSaved your changes to ${res.filePath} and reset the working tree.\n`);
-      // This ran as the contributor closed the modal; the confirmation is the
-      // only trace of it outside the terminal (#253).
-      confirm(`Saved your changes to ${pathBasename(res.filePath)} and reset the working tree`);
-      beginTrunkUpdate();
-    } finally {
-      setDirtySaving(false);
-    }
-  };
-
-  const dirtyDiscardAndUpdate = () => confirmAnd(DISCARD_CONFIRM_MESSAGE, async () => {
-    setDirtyError(null);
-    const d = await window.api.discardChanges(sitePath);
-    if (!d || !d.ok) {
-      setDirtyError(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
-      return;
-    }
-    applyDiscardToNote(discardOutcome(d));
-    setDirtyModalOpen(false);
-    writeToTerminal('\nDiscarded local changes.\n');
-    confirm('Local changes discarded.');
-    beginTrunkUpdate();
-  });
-
-  // Re-entry point for a previously interrupted update: trunk already moved,
-  // so only install+build remain. Install runs unconditionally — the
-  // lockfile delta from the failed run is no longer known.
-  const retryInstallAndBuild = async () => {
-    const state = terminalStateRef.current;
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    // Same as beginTrunkUpdate: install + a full build need the tree to
-    // themselves, so pause the watch; finishUpdate resumes it (#262). And the
-    // same hand-off when the resumed watch is the one that rebuilds (#507).
-    const impact = planWatchImpact({ needsInstall: true, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
-    setUpdateBuildBy(impact.buildBy);
-    setUpdateWaitingOnWatch(false);
-    if (impact.pauseWatcher) await pauseWatcher();
-    markTerminalRunning(true);
-    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-    setUpdateLockfileChanged(true);
-    setLastUpdateSummary(null);
-    updateStartRef.current = Date.now();
-    runUpdateInstallAndBuild(true, { buildBy: impact.buildBy });
   };
 
   // The diff fetch, shared by opening the modal and by a discard that happens
@@ -4125,18 +1649,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setPatchSaved(null);
     setPatchSaveError('');
     setDiscardError(null);
-    setHandleError('');
-    setEditingHandle(false);
-    // Same rule for the pull request card: last time's outcome belongs to last
-    // time's patch. The account is not reset — that survives the modal — but it
-    // is re-read, since it can have been signed out from another site's panel.
-    setPrResult(null);
-    setPrError(null);
-    setPrStage('');
-    setPrNotes('');
-    setGithubError('');
-    setGithubDeclined(false);
-    loadGithubAccount();
+    // Same rule for the pull request card, which also reads the account again.
+    prSubmission.startReview();
     await loadPatchText();
   };
 
@@ -4288,398 +1802,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const saveForHandoff = async () => {
     if (!wporg?.handle) return;
     await savePatchFile({ handoff: true });
-  };
-
-  // --- The pull request destination (#167) ---
-
-  const loadGithubAccount = async () => {
-    try {
-      const res = await window.api.getGithubAccount();
-      setGithubAccount(res && res.ok ? res : { login: null, configured: false });
-    } catch {
-      setGithubAccount({ login: null, configured: false });
-    }
-  };
-
-  // Sign-in is two-legged on purpose: this resolves as soon as there is a code
-  // to show, because the contributor's next move is in a browser, and the
-  // outcome of the wait arrives later on the callback.
-  const startGithubSignIn = async () => {
-    setGithubError('');
-    setCodeCopied(false);
-    let started;
-    try {
-      started = await window.api.signInToGithub((done) => {
-        setGithubDeviceCode(null);
-        if (done && done.ok) {
-          setGithubAccount((prev) => carryTestMode(prev, { login: done.login, configured: true }));
-          setGithubError('');
-          return;
-        }
-        // Declining is a choice, not a fault, so it reads as one.
-        setGithubError(done && done.reason === 'denied'
-          ? 'The authorization was declined on GitHub. Nothing was changed.'
-          : (done && done.error) || 'Sign-in did not complete.');
-      });
-    } catch (e) {
-      setGithubError(e && e.message ? e.message : String(e));
-      return;
-    }
-    if (!started || !started.ok) {
-      setGithubError((started && started.error) || 'Could not start sign-in.');
-      return;
-    }
-    setGithubDeviceCode({ userCode: started.userCode, verificationUri: started.verificationUri });
-    // Opening the page here rather than making it a second button: the code on
-    // screen is only useful on that page, and a contributor who has just been
-    // told what will happen should not have to go looking for where.
-    window.api.openExternal(started.verificationUri);
-  };
-
-  const cancelGithubSignIn = async () => {
-    setGithubDeviceCode(null);
-    setGithubError('');
-    try { await window.api.cancelGithubSignIn(); } catch {}
-  };
-
-  const signOutOfGithub = async () => {
-    try { await window.api.signOutOfGithub(); } catch {}
-    setGithubAccount((prev) => carryTestMode(prev, { login: null, configured: prev?.configured !== false }));
-    setPrResult(null);
-    setPrError(null);
-  };
-
-  const openPullRequest = async () => {
-    setPrError(null);
-    setPrResult(null);
-    setPrStage('forking');
-    // Subscribed only for the duration of the attempt: the event carries a site
-    // path because one main process serves every open site, and a stale
-    // listener would move another site's spinner.
-    const unsubscribe = window.api.subscribePullRequestProgress((payload) => {
-      if (payload && payload.sitePath === sitePath) setPrStage(payload.stage);
-    });
-    try {
-      const res = await window.api.openPullRequest(sitePath, { title: prTitle, notes: prNotes });
-      if (res && res.ok) {
-        setPrResult(res);
-        // The result panel below carries the link; this announces the outcome
-        // for a contributor who looked away during the slow fork step (#253).
-        confirm(prConfirmationMessage(res));
-      } else {
-        setPrError(res || { reason: 'error', error: 'The pull request could not be opened.' });
-        // A revoked authorization is forgotten in the main process, so the card
-        // has to stop claiming an account it no longer has.
-        if (res && res.reason === 'unauthorized') setGithubAccount((prev) => carryTestMode(prev, { login: null, configured: true }));
-      }
-    } catch (e) {
-      setPrError({ reason: 'error', error: e && e.message ? e.message : String(e) });
-    } finally {
-      setPrStage('');
-      unsubscribe();
-    }
-  };
-
-  const copyPrLink = async () => {
-    if (!prResult?.url) return;
-    try {
-      await navigator.clipboard.writeText(prResult.url);
-      setPrLinkCopied(true);
-      setTimeout(() => setPrLinkCopied(false), 2000);
-    } catch {}
-  };
-
-  // The pull request card has six states and they are genuinely sequential —
-  // done, still asking, waiting on the browser, ready, declined, not started.
-  // Written as nested ternaries in the JSX that is one expression six levels
-  // deep and unreadable at the point where the wording matters most, so the
-  // states get early returns and the card body gets one call.
-  const renderPullRequestBody = () => {
-    if (pullRequest) {
-      return <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>{prOwnershipRefusal}</div>;
-    }
-    if (appliedPatch) {
-      return (
-        <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
-          Revert {appliedPatchLabel} before opening a pull request from this checkout.
-        </div>
-      );
-    }
-
-    if (prResult) {
-      return (
-        <>
-          {/*
-            A dry run (WP_DEV_ENV_GITHUB_DRY_RUN) stops after the branch: the
-            fork writes are private, the pull request is the step watchers
-            hear about. Saying so beats a "pull request #null".
-          */}
-          {prResult.dryRun ? (
-            <div style={{ fontSize:13, color:'#0f5132' }}>
-              Dry run — branch <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}><code style={{ fontSize:12 }}>{prResult.branch}</code></Button> was created on your fork; no pull request was opened.
-            </div>
-          ) : (
-          <div style={{ fontSize:13, color:'#0f5132' }}>
-            Opened <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}>pull request #{prResult.number}</Button>
-            {' '}from <code style={{ fontSize:12 }}>{prResult.branch}</code>.
-          </div>
-          )}
-          {/*
-            The branch always bases on today's trunk (see resolveBase); this
-            names the consequence when the local checkout was behind it. The
-            clash guard has already ruled out upstream changes to the same
-            files, so this is information, not alarm.
-          */}
-          {prResult.exactBase === false ? (
-            <div style={{ fontSize:12, color:'#6e5406', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, padding:'8px 10px' }}>
-              Your checkout was behind trunk, so the branch was based on today&apos;s trunk. None of your files were changed upstream in between — the pull request shows only your work.
-            </div>
-          ) : null}
-          {/*
-            The loop-back to the work item is for a pull request that exists —
-            a dry run has no link worth posting. What the line says is the
-            project's: on Trac the link is what gets the pull request seen, on
-            GitHub the Fixes line has already done that (#251).
-          */}
-          {!prResult.dryRun && (
-            <>
-              <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-                {project.cards.prLoopBack}
-              </div>
-              <Button variant="secondary" onClick={copyPrLink} icon={prLinkCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
-                {prLinkCopied ? 'Link copied' : 'Copy the link'}
-              </Button>
-              {tracTicket ? (
-                <Button variant="primary" onClick={()=>window.api.openExternal(workItem.urlFor(tracTicket))} style={{ justifyContent:'center' }}>
-                  Open #{tracTicket} to comment
-                </Button>
-              ) : null}
-            </>
-          )}
-        </>
-      );
-    }
-
-    // Not yet asked, which is not the same as signed out: offering "Sign in"
-    // before the answer arrives makes the card flicker on every open.
-    if (githubAccount === null) {
-      return <div style={{ fontSize:12, color:'#6c6f72' }}>Checking…</div>;
-    }
-
-    if (githubAccount.configured === false) {
-      return (
-        <div style={{ fontSize:12, color:'#6c6f72' }}>
-          This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.
-        </div>
-      );
-    }
-
-    if (githubDeviceCode) {
-      return (
-        <>
-          <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-            Enter this code at <strong>github.com/login/device</strong>, which has been opened in your browser.
-          </div>
-          <div style={{ fontFamily:'Menlo, Consolas, monospace', fontSize:24, letterSpacing:2, fontWeight:600, textAlign:'center', padding:'10px 0', color:'#1d2327' }}>
-            {githubDeviceCode.userCode}
-          </div>
-          <Button variant="secondary" onClick={copyDeviceCode} icon={codeCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
-            {codeCopied ? 'Code copied' : 'Copy the code'}
-          </Button>
-          <Flex justify="center" gap={2}>
-            <Spinner />
-            <div style={{ fontSize:12, color:'#6c6f72' }}>Waiting for you to finish in the browser…</div>
-          </Flex>
-          <Button variant="link" onClick={cancelGithubSignIn} style={{ fontSize:12 }}>Cancel</Button>
-        </>
-      );
-    }
-
-    if (githubAccount.login) {
-      return (
-        <>
-          {tracTicket ? (
-            <>
-              {/*
-                The placeholder used to be the fallback title, `Ticket #NNNNN`,
-                which taught the wrong thing by example: a reviewer scanning a
-                list of pull requests learns nothing from a ticket number they
-                can already see. It shows a good title instead, and the line
-                under the field says what an empty box will produce, so the
-                fallback stays honest without being the model.
-              */}
-              <TextControl
-                value={prTitle}
-                onChange={setPrTitle}
-                disabled={Boolean(prStage)}
-                placeholder="Reject a theme zip in the plugin installer"
-                label="Title"
-                help="What the change does, in one line. Reviewers scan these."
-              />
-              {!prTitle.trim() ? (
-                <div style={{ fontSize:12, color:'#6c6f72', marginTop:-4 }}>
-                  Left empty, it will be titled <strong>{workItem.defaultPrTitle(tracTicket)}</strong>.
-                </div>
-              ) : null}
-              {/*
-                The one part of the body a human writes, and the reason the
-                field exists: everything else — the ticket link, the handle,
-                the event — the app already knows and adds. It goes to the top
-                of the description, above the ticket line.
-              */}
-              <TextareaControl
-                value={prNotes}
-                onChange={setPrNotes}
-                disabled={Boolean(prStage)}
-                rows={4}
-                label="Notes for reviewers (optional)"
-                placeholder={'What the change does, and why.\nHow to see it working — the steps you used.\nAnything you are unsure about.'}
-                help={project.cards.prNotesHelp}
-              />
-              {/*
-                What a first-timer has no way to know about pull requests on
-                this project, stated before the button rather than after the
-                pull request exists. The facts are the registry's (#251): Core's
-                two are false on Gutenberg, where the pull request is the venue.
-              */}
-              <details style={{ fontSize:12, color:'#6c6f72' }}>
-                <summary style={{ cursor:'pointer', color:'#3858e9' }}>{project.cards.prHow.summary}</summary>
-                <div style={{ padding:'8px 0 0', lineHeight:1.6, display:'flex', flexDirection:'column', gap:6 }}>
-                  {project.cards.prHow.lines.map((line) => <div key={line}>{line}</div>)}
-                  <Button
-                    variant="link"
-                    onClick={()=>window.api.openExternal(project.cards.prHow.linkUrl)}
-                    style={{ fontSize:12 }}
-                  >{project.cards.prHow.linkLabel}</Button>
-                </div>
-              </details>
-              {/*
-                The button says what it will actually do. A dry run's button
-                reading "Open pull request" is the label lying about the mode,
-                which is the failure this whole indicator exists to prevent.
-              */}
-              <Button
-                variant="primary"
-                onClick={openPullRequest}
-                isBusy={Boolean(prStage)}
-                disabled={Boolean(prStage)}
-                style={{ justifyContent:'center' }}
-              >{githubAccount?.testMode?.dryRun ? 'Push branch (dry run)' : 'Open pull request'}</Button>
-            </>
-          ) : (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>
-              {project.cards.prBlockedNote}
-            </div>
-          )}
-          {/*
-            The repository the stage label names is the effective target: the
-            sandbox when the override is set, else the site's own. The same
-            answer the test-mode badge above gives, so the two never disagree.
-          */}
-          {prStage ? (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>{prStageLabel(prStage, githubAccount?.testMode?.target || `${project.upstream.owner}/${project.upstream.repo}`)}</div>
-          ) : (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>
-              {/*
-                The destination is named, not implied: "the fork is made for
-                you" answers what, this answers where — which account the fork
-                and the branch land in.
-              */}
-              Signed in as {githubAccount.login} — the fork and branch go to{' '}
-              <Button
-                variant="link"
-                onClick={()=>window.api.openExternal(`https://github.com/${githubAccount.login}/${project.upstream.repo}`)}
-                style={{ fontSize:12 }}
-              >{githubAccount.login}/{project.upstream.repo}</Button>.{' '}
-              <Button variant="link" onClick={signOutOfGithub} style={{ fontSize:12 }}>Sign out</Button>
-            </div>
-          )}
-        </>
-      );
-    }
-
-    if (githubDeclined) {
-      return (
-        <>
-          <div style={{ fontSize:12, color:'#6c6f72' }}>
-            Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.
-          </div>
-          <Button variant="link" onClick={()=>setGithubDeclined(false)} style={{ fontSize:12 }}>Show this again</Button>
-        </>
-      );
-    }
-
-    return (
-      <>
-        {/*
-          The whole ask, before any of it happens — including the part the app
-          cannot do for you. Declining has to be as visible as accepting, or the
-          cliff is sprung rather than named.
-        */}
-        <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.6 }}>
-          Signing in lets the app fork {project.upstream.repo} to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.
-        </div>
-        <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.6 }}>
-          {project.cards.signInCannot}
-        </div>
-        <Button variant="primary" onClick={startGithubSignIn} style={{ justifyContent:'center' }}>Sign in with GitHub</Button>
-        <Button variant="link" onClick={()=>{ setGithubDeclined(true); setGithubError(''); }} style={{ fontSize:12 }}>Not now</Button>
-      </>
-    );
-  };
-
-  const renderOwnershipWarning = () => {
-    if (pullRequest) {
-      return (
-        <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
-          {prOwnershipRefusal} You can still use <strong>Save</strong> to keep an unattributed copy of your edits.
-        </div>
-      );
-    }
-    if (appliedPatch) {
-      return (
-        <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
-          <strong>{appliedPatchLabel} is part of this checkout.</strong>{' '}
-          The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const copyDeviceCode = async () => {
-    if (!githubDeviceCode?.userCode) return;
-    try {
-      await navigator.clipboard.writeText(githubDeviceCode.userCode);
-      setCodeCopied(true);
-      setTimeout(() => setCodeCopied(false), 2000);
-    } catch {}
-  };
-
-  // Both fields are written in one go, because they are asked in one form. The
-  // event is optional: an empty box means "not at an event", which is also how
-  // it is cleared once the WordCamp is over.
-  const rememberContributor = async () => {
-    if (!wporg) return;
-    setHandleSaving(true);
-    setHandleError('');
-    try {
-      const named = await wporg.rememberHandle(handleInput);
-      if (!named?.ok) {
-        setHandleError(named?.error || 'Could not save that username.');
-        return;
-      }
-      const at = await wporg.rememberEvent(eventInput);
-      if (!at?.ok) {
-        setHandleError(at?.error || 'Could not save that event.');
-        return;
-      }
-      setHandleInput('');
-      setEventInput('');
-      setEditingHandle(false);
-    } finally {
-      setHandleSaving(false);
-    }
   };
 
   const statusStyles = initialized
@@ -4874,15 +1996,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           whereas a change to one already in the DOM is. Only the active row ever
           holds text, so only the visible site speaks; it clears to nothing when
           there is no next action. */}
-      <div className="sr-only" role="status" aria-live="polite">
+      <VisuallyHidden role="status" aria-live="polite">
         {isActive && nextAction ? `Next step: ${nextAction.reason}` : ''}
-      </div>
+      </VisuallyHidden>
       <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 440px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <h1 style={{ margin: 0, fontSize: 28, lineHeight: 1.2 }}>{displayName}</h1>
             <Button
-              icon={edit}
+              icon={pencil}
               label="Rename site"
               aria-label="Rename site"
               onClick={openRenameModal}
@@ -5885,12 +3007,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           <TabPanel className="log-tabs" activeClass="is-active" onSelect={selectLogTab} tabs={logTabs}>
             {(tab) => {
               if (tab.name === 'runtime') {
-                return <div ref={runtimeRef} onScroll={makeOnScroll('runtime')} style={LOG_PANE_STYLE}><LogText text={runtimeLogs} /></div>;
+                return <div ref={logs.runtimeRef} onScroll={logs.makeOnScroll('runtime')} style={LOG_PANE_STYLE}><LogText text={logs.runtimeLogs} /></div>;
               }
               if (tab.name === 'watch') {
                 return (
-                  <div ref={watchRef} onScroll={makeOnScroll('watch')} style={LOG_PANE_STYLE}>
-                    {watchLogs ? <LogText text={watchLogs} /> : (
+                  <div ref={logs.watchRef} onScroll={logs.makeOnScroll('watch')} style={LOG_PANE_STYLE}>
+                    {logs.watchLogs ? <LogText text={logs.watchLogs} /> : (
                       <span style={{ color:'#888', fontFamily:'-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>The build watch compiles <code>src/</code> edits into <code>build/</code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.</span>
                     )}
                   </div>
@@ -5898,8 +3020,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               }
               return (
                 <>
-                <div ref={debugRef} onScroll={makeOnScroll('debug')} style={LOG_PANE_STYLE}>
-                  {debugLogs ? <LogText text={debugLogs} /> : (
+                <div ref={logs.debugRef} onScroll={logs.makeOnScroll('debug')} style={LOG_PANE_STYLE}>
+                  {logs.debugLogs ? <LogText text={logs.debugLogs} /> : (
                     // An empty pane reads as broken, which is what this one was
                     // for as long as WP_DEBUG_LOG was never set. Say what fills
                     // it instead. In the app's own font, not the terminal's:
@@ -5914,11 +3036,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                       it is what someone needs to tail it in a terminal or attach
                       it to a ticket. Selectable rather than truncated with an
                       ellipsis: a path you cannot copy is decoration. */}
-                  <code style={{ fontSize:11, color:'#666', userSelect:'text', wordBreak:'break-all', flex:'1 1 240px' }}>{debugLogPath || 'The log file appears once the dev server has run.'}</code>
+                  <code style={{ fontSize:11, color:'#666', userSelect:'text', wordBreak:'break-all', flex:'1 1 240px' }}>{logs.debugLogPath || 'The log file appears once the dev server has run.'}</code>
                   <div style={{ display:'flex', gap:8 }}>
-                    <Button size="small" variant="secondary" onClick={revealDebugLog} disabled={!debugLogPath}>Show in folder</Button>
-                    <Button size="small" variant="secondary" onClick={copyDebugLog} disabled={!debugLogs}>{COPY_BUTTON_LABELS[debugCopied] || COPY_BUTTON_LABELS.idle}</Button>
-                    <Button size="small" variant="secondary" onClick={clearDebugLog} disabled={!debugLogs}>Clear</Button>
+                    <Button size="small" variant="secondary" onClick={logs.revealDebugLog} disabled={!logs.debugLogPath}>Show in folder</Button>
+                    <Button size="small" variant="secondary" onClick={logs.copyDebugLog} disabled={!logs.debugLogs}>{COPY_BUTTON_LABELS[logs.debugCopied] || COPY_BUTTON_LABELS.idle}</Button>
+                    <Button size="small" variant="secondary" onClick={logs.clearDebugLog} disabled={!logs.debugLogs}>Clear</Button>
                   </div>
                 </div>
                 </>
@@ -5929,18 +3051,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Mail</div>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-            <div style={{ fontSize:12, color:'#666' }}>{smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : 'SMTP will start with the dev server.'}</div>
-            <div><Button size="small" variant="secondary" onClick={clearEmails}>Clear emails</Button></div>
+            <div style={{ fontSize:12, color:'#666' }}>{mail.smtpPort ? `SMTP listening on 127.0.0.1:${mail.smtpPort}` : 'SMTP will start with the dev server.'}</div>
+            <div><Button size="small" variant="secondary" onClick={mail.clear}>Clear emails</Button></div>
           </div>
           <div style={{ border:'1px solid #ddd', borderRadius:6, maxHeight:220, overflow:'auto' }}>
-            {emails && emails.length ? emails.map((m)=>{
+            {mail.emails && mail.emails.length ? mail.emails.map((m)=>{
               const when = m.sentAt || m.date; const whenStr = when ? new Date(when).toLocaleString() : '';
               return (
                 <div key={m.id}
                   role="button"
                   tabIndex={0}
-                  onClick={()=>openEmail(m)}
-                  onKeyDown={(e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEmail(m); } }}
+                  onClick={()=>mail.open(m)}
+                  onKeyDown={(e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mail.open(m); } }}
                   style={{ padding:'8px 10px', cursor:'pointer', borderBottom:'1px solid #eee', display:'flex', gap:8 }}
                 >
                   <div style={{ flex:'0 0 180px', color:'#555', fontSize:12 }}>{whenStr}</div>
@@ -5955,437 +3077,118 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         </div>
       </div>
       {dirtyModalOpen ? (
-        <Modal
-          title="Update to latest trunk?"
-          onRequestClose={() => { if (!dirtySaving) setDirtyModalOpen(false); }}
-          shouldCloseOnClickOutside={!dirtySaving}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 520 }}>
-            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-              You&apos;ve changed {dirtyFiles.length === 1 ? '1 file' : `${dirtyFiles.length} files`} in this site. Resetting to trunk would throw them away.
-            </p>
-            {dirtyFiles.length ? (
-              <div style={{ border: '1px solid #dcdcde', borderRadius: 6, padding: '10px 12px', maxHeight: 140, overflowY: 'auto' }}>
-                {dirtyFiles.map((f) => (
-                  <div key={f} style={{ fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere' }}>{f}</div>
-                ))}
-              </div>
-            ) : null}
-            {[
-              { key: 'save', label: 'Save them as a patch first (as a local file)', detail: 'a .diff on your machine — nothing is sent to Trac' },
-              { key: 'discard', label: 'Discard them', detail: 'your changes are lost; this cannot be undone', destructive: true }
-            ].map((opt) => {
-              const selected = dirtyChoice === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => setDirtyChoice(opt.key)}
-                  disabled={dirtySaving}
-                  aria-pressed={selected}
-                  style={{
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    font: 'inherit',
-                    fontSize: 13,
-                    padding: '10px 12px',
-                    borderRadius: 6,
-                    border: selected ? '2px solid #3858e9' : '1px solid #dcdcde',
-                    background: selected ? '#f0f3ff' : '#fff',
-                    color: opt.destructive ? '#b32d2e' : '#1d2327'
-                  }}
-                >
-                  <span style={{ fontWeight: 600 }}>{opt.label}</span>
-                  <span style={{ color: opt.destructive ? '#b32d2e' : '#6c6f72' }}> — {opt.detail}</span>
-                </button>
-              );
-            })}
-            {dirtyError ? (
-              <div role="alert" style={{ padding: '10px 12px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 13, lineHeight: 1.5, color: '#8a2424', overflowWrap: 'anywhere' }}>
-                {dirtyError}
-              </div>
-            ) : null}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-              <Button variant="secondary" onClick={() => setDirtyModalOpen(false)} disabled={dirtySaving}>Cancel</Button>
-              <Button
-                variant="primary"
-                isDestructive={dirtyChoice === 'discard'}
-                isBusy={dirtySaving}
-                disabled={dirtySaving}
-                onClick={() => (dirtyChoice === 'discard' ? dirtyDiscardAndUpdate() : dirtySaveAndUpdate())}
-              >{dirtyChoice === 'discard' ? 'Discard & update' : 'Save patch & update'}</Button>
-            </div>
-          </div>
-        </Modal>
+        <DirtyTreeModal
+          files={dirtyFiles}
+          saving={dirtySaving}
+          error={dirtyError}
+          onSave={dirtySaveAndUpdate}
+          onDiscard={dirtyDiscardAndUpdate}
+          onClose={() => setDirtyModalOpen(false)}
+        />
       ) : null}
       {renameModalOpen ? (
-        <Modal
-          title="Rename site"
-          onRequestClose={closeRenameModal}
-          shouldCloseOnClickOutside={!renaming}
-        >
-          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape-to-close/Enter-to-submit on the modal form is standard, intentional behavior. */}
-          <form
-            onSubmit={handleRenameSubmit}
-            onKeyDown={handleRenameFormKeyDown}
-            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
-          >
-            <TextControl
-              id={RENAME_INPUT_ID}
-              label="Site name"
-              value={renameValue}
-              onChange={(value) => setRenameValue(value)}
-              disabled={renaming}
-              // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: this is the only field of a just-opened modal.
-              autoFocus
-            />
-            {renameError ? <div style={{ color: '#d63638', fontSize: 12 }}>{renameError}</div> : null}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Button type="button" variant="secondary" onClick={closeRenameModal} disabled={renaming}>Cancel</Button>
-              <Button type="submit" variant="primary" isBusy={renaming} disabled={renaming}>Save</Button>
-            </div>
-          </form>
-        </Modal>
+        <RenameSiteModal sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
       ) : null}
       {isPatchOpen && (
-        <Modal
-          title="Review & submit changes"
-          onRequestClose={()=>setIsPatchOpen(false)}
-          shouldCloseOnClickOutside
-          isFullScreen
-          headerClassName="patch-modal-header"
+        <ReviewDialog
+          onClose={()=>setIsPatchOpen(false)}
+          age={age}
+          loading={patchLoading}
+          loadFailed={patchLoadFailed}
+          hasChanges={patchHasChanges}
+          emptyMessage={reviewContext.empty}
+          pullRequest={pullRequest}
+          appliedPatch={appliedPatch}
+          appliedPatchLabel={appliedPatchLabel}
+          diff={
+            <PatchDiffPane
+              heading={reviewContext.heading}
+              description={reviewContext.description}
+              patchText={patchText}
+              patchLoading={patchLoading}
+              patchLoadFailed={patchLoadFailed}
+              patchSaved={patchSaved}
+              patchSaveError={patchSaveError}
+              copyLabel={COPY_BUTTON_LABELS[patchCopied] || COPY_BUTTON_LABELS.idle}
+              copied={patchCopied === 'copied'}
+              discardReason={modalDiscardReason}
+              discardError={discardError}
+              onSave={savePatch}
+              onCopy={copyPatch}
+              onDiscard={discardAllChanges}
+            />
+          }
         >
-          <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
-            {!patchLoading && age.stale && (
-              <div style={{ padding:'12px 16px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:13, lineHeight:1.5, color:'#6e5406' }}>
-                This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
-              </div>
-            )}
-            {!patchLoading && patchLoadFailed ? (
-              <div role="alert" style={{ padding: '12px 16px', color: '#8a2424', background: '#fcf0f1', borderRadius: 6 }}>
-                Could not load your changes. Close this panel and try again. The error is shown below.
-              </div>
+          {/*
+            Alone in its own group, because it is the one destination
+            that acts for the contributor: it signs them in, forks, and
+            pushes. That is also where the signup cliff is (#167), named
+            here before anything happens rather than sprung after they
+            have left the venue.
+          */}
+          <DestinationGroup>
+            <PullRequestDestination
+              pr={prSubmission}
+              project={project}
+              workItem={workItem}
+              ticket={tracTicket}
+              refusal={prSubmissionBlocked({ pullRequest, appliedPatch, appliedPatchLabel })}
+              onSavePatch={savePatch}
+            />
+          </DestinationGroup>
+
+          <DestinationGroup>
+            {showTracCards ? (
+            <TracDestination
+              ticket={tracTicket}
+              saveDisabled={Boolean(appliedPatch || pullRequest)}
+              onSave={saveForTrac}
+              ticketInput={ticketInput}
+              onTicketInputChange={(value) => { setTicketInput(value); setTicketError(''); }}
+              onLinkTicket={linkTicket}
+              linking={ticketSaving}
+              linkReason={ticketActionsReason}
+              ticketError={ticketError}
+            >
+              {switchProgressLine}
+              {savedCleanNotice}
+              {blockedPanel}
+            </TracDestination>
             ) : null}
-            {!patchLoading && !patchLoadFailed && !patchHasChanges && (
-              <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
-                {reviewContext.empty}
-              </div>
-            )}
-{/*
-              Diff on the left, destinations on the right (#186).
 
-              The patch used to sit under the destinations, which put the
-              choice above the thing being chosen for: a contributor scrolled
-              past three cards to read their own code, then scrolled back. The
-              code is what they came to look at and the largest thing on the
-              screen, so it takes the room, and where it can go stands beside
-              it — visible the whole time they are reading, rather than
-              something to scroll back to.
-
-              This is the shape of an earlier take on the same screen (#6),
-              revived here on top of the destinations this app has now.
-            */}
-            <div className="patch-columns">
-
-              {/*
-                The column widths, the stacking breakpoint and what scrolls in
-                each case are in index.html — a media query can express them and
-                an inline style cannot. `min-width: 0` there is load-bearing on
-                a flex child holding a <pre>: without it the diff's longest line
-                sets the column's floor and pushes the destinations off the
-                modal instead of scrolling.
-              */}
-              <div className="patch-diff">
-                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
-                  <div>
-                    <div style={{ fontWeight:600, fontSize:14, color:'#1d2327', display:'flex', alignItems:'baseline', gap:4, flexWrap:'wrap' }}>
-                      {reviewContext.heading}
-                      <span style={{ fontWeight:400 }}>
-                        {'('}
-                        <DiscardChangesLink
-                          label="Discard all changes"
-                          onClick={discardAllChanges}
-                          reason={modalDiscardReason}
-                          style={{ fontSize: 12 }}
-                        />
-                        {')'}
-                      </span>
-                    </div>
-                    <div style={{ fontSize:12, color:'#6c6f72' }}>{reviewContext.description}</div>
-                    {discardError ? <div style={{ color:'#d63638', fontSize:12, marginTop:4 }}>{discardError}</div> : null}
-                  </div>
-                  {/*
-                    Out of the diff and into the header: these used to float
-                    over the top-right of the code, which was survivable at
-                    full width and covers the first line of a hunk once the
-                    pane is a column.
-                  */}
-                  <div style={{ display:'flex', gap:8 }}>
-                    <Button variant="secondary" icon={download} onClick={savePatch} disabled={patchLoading || patchLoadFailed}>Save</Button>
-                    <Button
-                      variant="secondary"
-                      icon={patchCopied === 'copied' ? checkIcon : copyIcon}
-                      onClick={copyPatch}
-                      disabled={patchLoading || patchLoadFailed}
-                      // The label carries the outcome rather than a tooltip or
-                      // a toast: it is the thing that was just pressed, so it
-                      // is where the eye already is, and a screen reader
-                      // announces the change on the focused control.
-                    >{COPY_BUTTON_LABELS[patchCopied] || COPY_BUTTON_LABELS.idle}</Button>
-                  </div>
-                </div>
-                {/*
-                  Under the diff rather than beside the destinations that
-                  trigger it: this is the outcome for the file, the file is
-                  what this column is, and the header's own Save button needs
-                  somewhere to report even when there are no destinations to
-                  show.
-                */}
-                {patchSaved ? (
-                  <div style={{ fontSize:13, color:'#0f5132' }}>Saved to {patchSaved}</div>
-                ) : null}
-                {patchSaveError ? (
-                  <div role="alert" style={{ fontSize:13, color:'#d63638' }}>Could not save the patch: {patchSaveError}</div>
-                ) : null}
-                <div style={{ position:'relative', flex:1, minHeight:0 }}>
-              {patchLoading ? (
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:16 }}>
-                  <Spinner />
-                  <div style={{ color:'#666', fontSize:14 }}>Generating patch...</div>
-                </div>
-              ) : (
-                <>
-                  {/*
-                      `boxSizing: border-box` with `height: 100%` and a
-                      padding: without it the pane is its container plus
-                      24px of padding, and it overflows by exactly that.
-                      Invisible while the diff spanned the modal and the
-                      overflow fell off the bottom; beside a sidebar it
-                      sits on top of the destinations.
-                    */}
-                    <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', boxSizing:'border-box', overflowY:'auto' }}>
-                    {patchText && patchText.trim().length ? <DiffText text={patchText} /> : 'No changes.'}
-                  </pre>
-                </>
-              )}
-                </div>
-              </div>
-
-              {/*
-                Where the patch goes, named at the moment it exists (#166),
-                each destination with what it costs — a tool that emits a file
-                and stops leaves the contributor to work that out alone.
-
-                Grouped by who does the sending, and stacked rather than laid
-                side by side: in a column the grouping is what the shared card
-                says, and the sidebar can scroll on its own while the diff
-                stays put.
-              */}
-              {!patchLoading && patchHasChanges && (
-                <div className="patch-destinations">
-                  <div>
-                  <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Where this patch goes</div>
-                  <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>The pull request is the one the app sends for you. The others save a file for you to send.</div>
-                  </div>
-
-                  {renderOwnershipWarning()}
-
-                  {/*
-                    Alone in its own group, because it is the one destination
-                    that acts for the contributor: it signs them in, forks, and
-                    pushes. That is also where the signup cliff is (#167), named
-                    here before anything happens rather than sprung after they
-                    have left the venue.
-                  */}
-                  <DestinationGroup>
-                    <Destination
-                      title="Open a pull request"
-                      cost={project.cards.prCost}
-                      after={project.cards.prAfter}
-                    >
-                      {/*
-                        Absent from every shipped build. When a test switch is
-                        set it sits above the button, because that is where the
-                        decision is made — a mode set in a terminal minutes
-                        earlier, in an app that otherwise looks identical, is how
-                        a dry run that silently was not one opened a real pull
-                        request during testing.
-                      */}
-                      {githubAccount?.testMode ? (
-                        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', background:'#f0f0f1', border:'1px dashed #949494', borderRadius:6, fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-                          <span style={{ fontWeight:600, letterSpacing:0.5, textTransform:'uppercase', fontSize:10, color:'#1d2327' }}>Test mode</span>
-                          <span>
-                            {githubAccount.testMode.dryRun
-                              ? 'Dry run — a branch is pushed to your fork, no pull request is opened.'
-                              : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to {project.upstream.owner}/{project.upstream.repo}.</>}
-                          </span>
-                        </div>
-                      ) : null}
-                      {renderPullRequestBody()}
-                      {githubError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{githubError}</div> : null}
-                      {prError ? (
-                        <>
-                          <div role="alert" style={{ color:'#d63638', fontSize:12 }}>
-                            {PR_FAILURE_MESSAGES[prError.reason] || prError.error}
-                          </div>
-                          {/*
-                            Every failure lands here, and every failure has the
-                            same floor: the file exists regardless of what GitHub
-                            did.
-                          */}
-                          <Button variant="secondary" onClick={savePatch} style={{ justifyContent:'center' }}>Save the patch file instead</Button>
-                        </>
-                      ) : null}
-                    </Destination>
-                  </DestinationGroup>
-
-                  <DestinationGroup>
-                    {showTracCards ? (
-                    <Destination
-                      title="Attach to Trac"
-                      cost="A WordPress.org account — needed anyway, for props and to comment."
-                      after="No automated checks. Often followed by a request to open a pull request."
-                    >
-                      {tracTicket ? (
-                        <Button variant="primary" onClick={saveForTrac} disabled={Boolean(appliedPatch || pullRequest)} style={{ justifyContent:'center' }}>
-                          Save, then open #{tracTicket}
-                        </Button>
-                      ) : (
-                        <>
-                          <div style={{ fontSize:12, color:'#6c6f72' }}>
-                            No ticket is linked to this site, so there is nowhere to attach it yet.
-                          </div>
-                          <TextControl
-                            value={ticketInput}
-                            onChange={(value) => { setTicketInput(value); setTicketError(''); }}
-                            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
-                            disabled={ticketActionsBlocked}
-                            placeholder="Ticket number or URL, e.g. 62281"
-                            aria-label="Trac ticket number or URL"
-                          />
-                          <ReasonedButton
-                            variant="secondary"
-                            onClick={linkTicket}
-                            isBusy={ticketSaving}
-                            reason={ticketActionsReason}
-                            disabled={!ticketInput.trim()}
-                            style={{ justifyContent:'center' }}
-                          >Link ticket</ReasonedButton>
-                          {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
-                          {switchProgressLine}
-                          {savedCleanNotice}
-                          {blockedPanel}
-                        </>
-                      )}
-                    </Destination>
-                    ) : null}
-
-                    <Destination
-                      title="Hand it to a mentor"
-                      cost="No accounts at all. The patch carries your WordPress.org username, and the event you are at."
-                      after="Someone else pushes it; the props still land on you."
-                    >
-                      {wporg?.handle && !editingHandle ? (
-                        <>
-                          <Button variant="primary" onClick={saveForHandoff} disabled={Boolean(appliedPatch || pullRequest)} style={{ justifyContent:'center' }}>
-                            Save patch as {wporg.handle}
-                          </Button>
-                          {/*
-                            The event is shown on every save rather than only when
-                            it is set: a remembered WordCamp from last year would
-                            otherwise keep stamping patches with nobody seeing it.
-                          */}
-                          <div style={{ fontSize:12, color:'#6c6f72' }}>
-                            {wporg.event ? <>The patch will say it was written at <strong>{wporg.event}</strong>.</> : 'No event on the patch.'}
-                          </div>
-                          <Button
-                            variant="link"
-                            onClick={() => {
-                              setHandleInput(wporg.handle);
-                              setEventInput(wporg.event || '');
-                              setHandleError('');
-                              setEditingHandle(true);
-                            }}
-                            style={{ fontSize:12 }}
-                          >Change these</Button>
-                        </>
-                      ) : (
-                        <>
-                          <div style={{ fontSize:12, color:'#6c6f72' }}>
-                            Asked once and remembered for every site — these are facts about you, not about this checkout.
-                          </div>
-                          <TextControl
-                            value={handleInput}
-                            onChange={(value) => { setHandleInput(value); setHandleError(''); }}
-                            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); rememberContributor(); } }}
-                            disabled={handleSaving}
-                            placeholder="WordPress.org username, e.g. janedoe"
-                            aria-label="WordPress.org username"
-                          />
-                          <TextControl
-                            value={eventInput}
-                            onChange={(value) => { setEventInput(value); setHandleError(''); }}
-                            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); rememberContributor(); } }}
-                            disabled={handleSaving}
-                            placeholder="Event, e.g. WordCamp Europe 2026 (optional)"
-                            aria-label="Event this patch was written at"
-                          />
-                          <Button
-                            variant="secondary"
-                            onClick={rememberContributor}
-                            isBusy={handleSaving}
-                            // Empty is a valid answer only when there is
-                            // something to clear — a shared laptop at a
-                            // contributor day, the next person taking over.
-                            // Before the first answer it would just be a button
-                            // that does nothing.
-                            disabled={handleSaving || (!handleInput.trim() && !wporg?.handle)}
-                            style={{ justifyContent:'center' }}
-                          >Remember this</Button>
-                          {handleError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{handleError}</div> : null}
-                        </>
-                      )}
-                    </Destination>
-                  </DestinationGroup>
-                  </div>
-              )}
-            </div>
-          </div>
-        </Modal>
+            <MentorHandoff wporg={wporg} saveDisabled={Boolean(appliedPatch || pullRequest)} onSave={saveForHandoff} />
+          </DestinationGroup>
+        </ReviewDialog>
       )}
-      {isEmailOpen && activeEmail && (
-        <Modal
-          title={activeEmail.subject || 'Email'}
-          onRequestClose={()=>{ setIsEmailOpen(false); setActiveEmail(null); }}
-          shouldCloseOnClickOutside
-          isFullScreen
-        >
-          <div style={{ padding: 8 }}>
-            <div style={{ marginBottom: 8, fontSize:12, color:'#444' }}>
-              <div><strong>From:</strong> {activeEmail.from || ''}</div>
-              <div><strong>To:</strong> {activeEmail.to || ''}</div>
-              {activeEmail.cc ? (<div><strong>CC:</strong> {activeEmail.cc}</div>) : null}
-              <div><strong>Date:</strong> {formatEmailDate(activeEmail)}</div>
-            </div>
-            <TabPanel className="email-tabs" activeClass="is-active" onSelect={(n)=>setEmailViewTab(n)} tabs={[{name:'rendered',title:'Rendered'},{name:'raw',title:'Raw'}]}>
-              {(tab)=> tab.name==='rendered' ? (
-                <div style={{ border:'1px solid #ddd', borderRadius:6, padding:12, minHeight:'60vh', background:'#fff' }}>
-                  {activeEmail.html ? (
-                    <div dangerouslySetInnerHTML={{ __html: String(activeEmail.html) }} />
-                  ) : (
-                    <pre style={{ whiteSpace:'pre-wrap', margin:0 }}>{activeEmail.text || ''}</pre>
-                  )}
-                </div>
-              ) : (
-                <pre style={{ whiteSpace:'pre-wrap', margin:0, background:'#111', color:'#eee', padding:12, borderRadius:6, minHeight:'60vh', overflow:'auto' }}>{activeEmail.raw || activeEmail.text || ''}</pre>
-              )}
-            </TabPanel>
-          </div>
-        </Modal>
+      {mail.activeEmail && (
+        <EmailModal email={mail.activeEmail} onClose={mail.close} />
       )}
     </section>
   );
 }
 
-const root = createRoot(document.getElementById('root'));
-root.render(<App />);
+// The locale loads before the first render, so no string is ever painted in
+// English and then swapped. A failed read leaves the page in English.
+async function loadLocale() {
+  let reply;
+  try {
+    reply = await window.api.getLocale();
+  } catch (err) {
+    // eslint-disable-next-line no-console -- reaches the log file: logging.js initializes electron-log with spyRendererConsole, so this is how the renderer records a diagnostic.
+    console.error('Could not load the locale; showing English:', err);
+  }
+  document.documentElement.lang = applyLocale(reply, { setLocaleData, addFilter });
+  document.documentElement.dir = textDirection(_x);
+  document.title = __('WordPress Contributor Toolkit');
+}
+
+// The design system's provider, at its defaults: the tokens stylesheet already
+// holds every value, so this changes nothing on screen yet. It is here so the
+// redesign (#542) has one place to set colour and corner radius from. `isRoot`
+// puts whatever it overrides on the document rather than on its own wrapper,
+// which is what reaches a modal or a popover: those are portalled to `body`,
+// outside this tree.
+loadLocale().then(() => {
+  const root = createRoot(document.getElementById('root'));
+  root.render(<ThemeProvider isRoot><App /></ThemeProvider>);
+});

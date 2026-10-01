@@ -14,6 +14,7 @@
  */
 
 const { test, expect } = require( '../helpers/app.cjs' );
+const ui = require( '../helpers/ui.cjs' );
 const {
 	makeSite,
 	makePatchFile,
@@ -29,21 +30,11 @@ const TRUNK_LOGIN = '<?php // trunk';
 const PATCHED_LOGIN = '<?php // fixed by the patch';
 const MY_EDIT = '<?php // my work on 60001\n';
 
-/**
- * @param {Object} page
- * @param {string} ticket
- */
-async function linkTicket( page, ticket ) {
-	await page.getByLabel( 'Trac ticket number or URL' ).first().fill( ticket );
-	await page.getByRole( 'button', { name: 'Link ticket', exact: true } ).first().click();
-	await expect( page.getByText( `#${ ticket }`, { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
-}
-
 test( 'the linked ticket and its work are still there after a restart', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings );
 
-	await linkTicket( page, '60001' );
+	await ui.linkTicket( page, '60001' );
 	write( site.dir, LOGIN, MY_EDIT );
 
 	const { page: reopened } = await session.restart();
@@ -51,7 +42,7 @@ test( 'the linked ticket and its work are still there after a restart', async ( 
 	// INVARIANT — the app opens where the contributor left it. Coming back to a
 	// site that has forgotten which ticket it was on is the cheapest possible way
 	// to lose somebody's afternoon.
-	await expect( reopened.getByText( '#60001', { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
+	await expect( ui.workItemNumber( reopened, '60001' ).first() ).toBeVisible( { timeout: 30_000 } );
 
 	// INVARIANT — and it did not touch the checkout on the way past. A restart is
 	// not a switch.
@@ -63,16 +54,16 @@ test( 'the linked ticket and its work are still there after a restart', async ( 
 test( 'an applied patch is still applied after a restart, and still revertable', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings );
-	await linkTicket( page, '60001' );
+	await ui.linkTicket( page, '60001' );
 
 	const patch = makePatchFile( session, 'ticket-60001.patch', [
 		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
 	] );
 	await session.answerFileDialog( [ patch ] );
-	await page.getByRole( 'button', { name: 'or choose a .diff / .patch file…', exact: true } ).click();
+	await ui.choosePatchFileButton( page ).click();
 	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
-	await page.getByRole( 'button', { name: 'Apply and rebuild', exact: true } ).click();
-	await expect( page.getByRole( 'button', { name: 'Revert this patch', exact: true } ) ).toBeVisible( {
+	await ui.applyAndRebuildButton( page ).click();
+	await expect( ui.revertPatchButton( page ) ).toBeVisible( {
 		timeout: 60_000,
 	} );
 
@@ -82,15 +73,15 @@ test( 'an applied patch is still applied after a restart, and still revertable',
 	// and still offers to take it off. Forgetting that leaves a contributor
 	// unable to tell their own changes from the patch's, and about to submit
 	// both as theirs.
-	await expect( reopened.getByRole( 'button', { name: 'Revert this patch', exact: true } ) ).toBeVisible( {
+	await expect( ui.revertPatchButton( reopened ) ).toBeVisible( {
 		timeout: 30_000,
 	} );
 	expect( read( site.dir, LOGIN ) ).toBe( `${ PATCHED_LOGIN }\n` );
 
 	// INVARIANT — and the offer is real, not just rendered. Reverting after a
 	// restart puts the checkout back.
-	await reopened.getByRole( 'button', { name: 'Revert this patch', exact: true } ).click();
-	await expect( reopened.getByRole( 'button', { name: 'Revert this patch', exact: true } ) ).toHaveCount( 0, {
+	await ui.revertPatchButton( reopened ).click();
+	await expect( ui.revertPatchButton( reopened ) ).toHaveCount( 0, {
 		timeout: 60_000,
 	} );
 	// The button leaves the moment the revert starts, so it is not the signal
@@ -105,18 +96,18 @@ test( "a site's tickets survive a restart, with the base each patch is measured 
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings );
 
-	await linkTicket( page, '60001' );
+	await ui.linkTicket( page, '60001' );
 	write( site.dir, LOGIN, MY_EDIT );
-	await page.getByRole( 'button', { name: 'Unlink', exact: true } ).click();
-	await expect( page.getByLabel( 'Trac ticket number or URL' ).first() ).toBeVisible();
-	await linkTicket( page, '60002' );
+	await ui.unlinkButton( page ).click();
+	await expect( ui.ticketField( page ).first() ).toBeVisible();
+	await ui.linkTicket( page, '60002' );
 
 	const { page: reopened } = await session.restart();
 
 	// INVARIANT — both tickets come back, and the parked one is still offered.
 	// A ticket that survives in Git but not in the app is work a contributor
 	// cannot reach from the interface.
-	await expect( reopened.getByText( '#60002', { exact: true } ).first() ).toBeVisible( { timeout: 30_000 } );
+	await expect( ui.workItemNumber( reopened, '60002' ).first() ).toBeVisible( { timeout: 30_000 } );
 	// Matched on the sentence rather than on a button label: the row for another
 	// ticket reads "Continue working on #N" when nothing is linked and "You also
 	// have work on #N — switch" when something is, and after this restart

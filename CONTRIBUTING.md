@@ -53,6 +53,7 @@ Worth knowing so you don't wait on them:
 
 - **Buildkite signed builds** produce Windows, Linux, and macOS artifacts for every branch with an open PR, so a change is testable on a real machine without a local build. Force-pushing a branch invalidates earlier artifacts — check the build matches the current head commit before testing.
 - **Download stats** ([`download-stats.yml`](.github/workflows/download-stats.yml)) is a weekly cron that records release-asset counts to a `metrics` branch. It is not related to PR quality.
+- **Translatable strings** ([`i18n-pot.yml`](.github/workflows/i18n-pot.yml)) runs after a push to trunk and publishes the `.pot` to the `translations` branch for translate.wordpress.org. It never runs on a PR.
 
 ## Before you open a pull request
 
@@ -67,6 +68,26 @@ In an agent-assisted change your agent runs steps 1–3 — it invokes the revie
 GitHub fills every new pull request with [the template](.github/pull_request_template.md); steps 3 and 4 have their place in it already. It is built so a reviewer gets the change in five minutes — Why, What changes, How to test this, Risks, Related stay visible and everything deeper goes in a collapsed `<details>` block. Move detail out of the way rather than dropping it. The same template covers a fix, a feature and a process change; it flags the few places where the three want different things.
 
 Nothing enforces steps 1–4. Skipping them means a human reviewer is the first person to read the diff — which is exactly the cost this process exists to avoid.
+
+## Translatable strings
+
+The app is being made translatable with [`@wordpress/i18n`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-i18n/), one area at a time. The first-run screen and the create-site dialog are done; the rest is still plain English. When you wrap a string, or write a new one in an area that is already wrapped:
+
+- **Call `__()` when the string is shown, never when a module loads.** The locale arrives from main just before the first render, so a constant such as `const MESSAGE = __('…')` is evaluated too early and stays English. Make it a function, or a getter as in `src/project-type.cjs`.
+- **Pass a string literal.** `__(message)` or a template literal with `${}` cannot be extracted; `npm run i18n:pot` refuses it and names the line.
+- **Interpolate with `sprintf`, pluralise with `_n`.** A sentence built with `+` or `${}` fixes English word order into every language.
+- **Leave product names alone**: WordPress Core, Gutenberg, Trac, GitHub.
+
+To see what is wrapped, run the app in the pseudo-locale from the repository root: `npx electron . --lang=en-XA` (either platform). Every wrapped string shows accented and in brackets; plain English is a string nobody wrapped yet. `tests/e2e/journeys/i18n.spec.js` makes the same check on each finished screen, so when you finish wrapping a screen, add it there.
+
+### How strings reach translators, and translations reach the app
+
+Translations happen on translate.wordpress.org, in the project `meta/contributor-toolkit`: <https://translate.wordpress.org/projects/meta/contributor-toolkit/>. The Meta team creates a project like this on request, from the WordPress.org Meta Trac or the #meta channel on Make WordPress Slack; translating the app as a whole is tracked in [#540](https://github.com/WordPress/contributor-toolkit/issues/540).
+
+- **Out:** every push to trunk that touches `src/` runs [`i18n-pot.yml`](.github/workflows/i18n-pot.yml), which regenerates the `.pot` and commits it to the `translations` branch. translate.wordpress.org imports its strings from <https://raw.githubusercontent.com/WordPress/contributor-toolkit/translations/contributor-toolkit.pot>. Nothing to do by hand; run `npm run i18n:pot` from the repository root to see the same file locally, at `contributor-toolkit.pot` in the repository root.
+- **Back:** in the version-bump pull request for a release, run `npm run i18n:download` from the repository root. It writes a catalog to `src/languages/` for every locale at least 80% translated, removes the catalog of any locale that fell below that, and prints a table; commit `src/languages/` and paste the table into the pull request. To include strings awaiting approval, run `npm run i18n:download -- --status=current,waiting` from the repository root; approved and waiting strings count toward the same 80% cutoff and appear in the exported catalogs. Use `--status=waiting` for waiting strings only, or include `fuzzy` in the comma-separated status list. Add `--locales=de,fr` to limit downloads and removals to those locale slugs, leaving other catalogs untouched. Explicitly specifying `--status` or `--locales` (`--locale` is accepted as an alias) bypasses the 80% cutoff; locale eligibility rules still apply. Unknown flags are rejected before any catalogs change. To choose another project, pass its full path, for example `--project=meta/contributor-toolkit` (the default). Until translate.wordpress.org has the project, the script says so and changes nothing, and the release ships in English.
+
+The app picks the catalog for the operating system's language. Right-to-left locales such as Arabic, Hebrew and Persian pass the cut-off and still do not ship, and the table names them: the page already follows a catalog's text direction, but the app's styles are not right-to-left yet, so those locales wait until they are. Every other locale over the cut-off ships, even one the app cannot select yet because Electron only reports its own list of languages (Mexican Spanish reaches the app as Latin American Spanish, and loads `es`). The table names those too; loading them is [#584](https://github.com/WordPress/contributor-toolkit/issues/584).
 
 ## The documentation site
 
