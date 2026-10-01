@@ -14,30 +14,35 @@
  * and stop one are answered by stubs that keep what they were asked, and the
  * test says what a running script would say, on the channels it says it on,
  * as TESTING.md describes. What that leaves out: a real run writes its output
- * to the app's log as well, and ends by itself; here a command runs until the
- * test says it has ended. A real command, started and stopped, is in
- * `pr-checkout.spec.js`.
+ * to the app's log as well, and ends by itself, with the code the process
+ * gave; here a command runs until the test says it has ended, with a code
+ * the test chose, including after Ctrl+C. A real install also records in the
+ * store whether it failed, before it says it is done; here the store is not
+ * written. A real command, started and stopped, is in `pr-checkout.spec.js`.
  *
  * The screen is read from the terminal's own rows, which is the markup of the
- * library that draws it: nothing with a role holds what a terminal shows. It
- * holds the last dozen lines and no more, so each claim is about what was
- * just printed.
+ * library that draws it: nothing with a role holds what a terminal shows. The
+ * rows are the dozen lines in view, which can include what earlier steps
+ * printed, so every sentence looked for is one that is printed for the first
+ * time at its step.
+ *
+ * That it is one terminal from start to finish has no line of its own here,
+ * and needs none. A terminal made anew opens on its banner with everything
+ * before it gone, so one remade as a command started or ended would have lost
+ * the line the next step looks for.
  *
  * Assertions are marked INVARIANT or CHARACTERISATION; see
  * ticket-branches.spec.js for why.
  */
 
-const fs = require( 'node:fs' );
-const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite } = require( '../helpers/git-site.cjs' );
 
 test( 'the terminal runs the commands it knows one at a time, refuses the rest by name, and leaves a suggested command at the prompt for the contributor to run', async ( { session } ) => {
+	// The fixture is a site that has been built, which is when the hints under
+	// the terminal are shown.
 	const site = await makeSite( session );
-	// A site that has been built, which is when the hints under the terminal
-	// are shown.
-	fs.mkdirSync( path.join( site.dir, 'build', 'wp-includes', 'js', 'dist' ), { recursive: true } );
 	const { app, page } = await session.start( site.settings );
 	await app.evaluate( ( { ipcMain } ) => {
 		const asked = { scripts: [], installs: [], kills: [] };
@@ -77,20 +82,23 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	const buildHint = terminalCard.getByRole( 'button', { name: 'npm run build', exact: true } );
 
 	// CHARACTERISATION — it opens on what it can do, with the scripts this
-	// project allows named in the help.
+	// project allows named in the help, and under it the hints are links.
 	await expect( screen ).toContainText( 'WordPress npm helper terminal.', { timeout: 30_000 } );
 	await expect( screen ).toContainText( 'Run one of: build, build:dev, dev, test, watch, grunt' );
+	await expect( buildHint ).toBeVisible();
 
 	// INVARIANT — what it does not know it refuses by name, and it runs
-	// nothing.
+	// nothing. CHARACTERISATION — the scripts it names are Core's today.
 	await enter( 'ls -la' );
 	await expect( screen ).toContainText( 'Unsupported command: ls -la' );
 	await enter( 'npm run deploy' );
 	await expect( screen ).toContainText( 'Unsupported script "deploy". Allowed scripts: build, build:dev, dev, test, watch, grunt' );
+	await heard();
 	expect( ( await asked() ).scripts ).toEqual( [] );
 
 	// INVARIANT — a character taken back is not part of the command, and a
 	// script the project allows is run in this site's directory.
+	// CHARACTERISATION — with no arguments of its own.
 	await type( 'npm run testx' );
 	await terminal.press( 'Backspace' );
 	await terminal.press( 'Enter' );
@@ -100,8 +108,9 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	// INVARIANT — while it runs, what the script prints is shown, the hints
 	// stop being links, and keys pressed go nowhere: no second command is
 	// started. The script is not the build, which takes the hints away by
-	// another route, so it is the terminal's own lock that does it here.
-	await tell( 'npm:run-script:log', { runId: 'e2e-run-1', data: 'running 42 tests\n' } );
+	// another route, so it is the terminal's own lock that does it here; they
+	// were links a moment ago, above.
+	await tell( 'npm:run-script:log', { runId: 'e2e-run-1', type: 'stdout', data: 'running 42 tests\n' } );
 	await expect( screen ).toContainText( 'running 42 tests' );
 	await expect( buildHint ).toHaveCount( 0 );
 	await enter( 'npm run watch' );
@@ -135,7 +144,8 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	await tell( 'npm:run-script:done', { runId: 'e2e-run-2', code: 0 } );
 	await expect( screen ).toContainText( 'npm run build exited with code 0' );
 
-	// INVARIANT — the up arrow brings the last command back to the prompt.
+	// INVARIANT — the up arrow steps back through what was run: twice from an
+	// empty prompt is the command before the last.
 	await enter( 'help' );
 	await terminal.press( 'ArrowUp' );
 	await terminal.press( 'ArrowUp' );
@@ -145,14 +155,22 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	await tell( 'npm:run-script:done', { runId: 'e2e-run-3', code: 0 } );
 	await expect( buildHint ).toBeVisible();
 
-	// INVARIANT — npm install runs the install, under either of its names,
-	// and says how it ended.
-	await enter( 'npm i' );
+	// INVARIANT — npm install runs the install in this site's directory,
+	// shows what it prints and says how it ended, and it starts no script.
+	await enter( 'npm install' );
 	await expect( screen ).toContainText( 'Running npm install…' );
 	await expect.poll( async () => ( await asked() ).installs ).toEqual( [ site.dir ] );
-	await tell( 'npm:install:log', { installId: 'e2e-install-1', data: 'added 1 package\n' } );
+	await tell( 'npm:install:log', { installId: 'e2e-install-1', type: 'stdout', data: 'added 1 package\n' } );
 	await expect( screen ).toContainText( 'added 1 package' );
 	await tell( 'npm:install:done', { installId: 'e2e-install-1', code: 0 } );
 	await expect( screen ).toContainText( 'npm install exited with code 0' );
+
+	// CHARACTERISATION — its short name runs it too. The third, a bare
+	// `install`, is not typed here.
+	await enter( 'npm i' );
+	await expect.poll( async () => ( await asked() ).installs ).toEqual( [ site.dir, site.dir ] );
+	await tell( 'npm:install:done', { installId: 'e2e-install-2', code: 1 } );
+	await expect( screen ).toContainText( 'npm install exited with code 1' );
+	await heard();
 	expect( ( await asked() ).scripts ).toHaveLength( 3 );
 } );

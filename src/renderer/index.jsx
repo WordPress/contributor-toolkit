@@ -83,10 +83,6 @@ import { useSiteLogs } from './hooks/use-site-logs.jsx';
 import { useSiteTerminal, TERMINAL_FONT } from './hooks/use-site-terminal.jsx';
 import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
-// One face for everything that is process output: the terminal below and every
-// log pane above it. Shared rather than repeated because the panes had drifted
-// into the app's sans-serif, which does not line up a stack trace and does not
-// read as a console even though that is exactly what it is.
 // Shared by every log pane so the tabs cannot drift apart visually. The line
 // height is looser than xterm's: this is wrapped text in a div, not painted rows.
 const LOG_PANE_STYLE = { ...TERMINAL_FONT, lineHeight: 1.4, whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 12, borderRadius: 6, height: 220, overflow: 'auto' };

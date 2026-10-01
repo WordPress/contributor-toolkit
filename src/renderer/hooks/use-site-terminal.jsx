@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 
-// The font of the terminal, and of the log panes beside it, which are drawn to
-// look like it.
+// One face for everything that is process output: the terminal and every log
+// pane. Shared rather than repeated because the panes had drifted into the
+// app's sans-serif, which does not line up a stack trace and does not read as
+// a console even though that is exactly what it is.
 export const TERMINAL_FONT = { fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace', fontSize: 13 };
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 
@@ -27,9 +29,11 @@ const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 // `terminalContainerRef` goes on the element the terminal is drawn in.
 // `writeToTerminal` prints, and `prefillTerminalCommand` puts a command at the
 // prompt without running it. Every function returned keeps its identity for
-// the life of the component: the xterm instance is created by an effect that
-// depends on some of them, and one that changed would dispose the terminal
-// and make another, scrollback and all.
+// the life of the component. The effect that creates the xterm instance
+// depends on the help it prints and the prompt it shows, and through the help
+// on `writeToTerminal`; were any of those to change, it would dispose the
+// terminal and make another, scrollback and all. None of them depends on the
+// three runners, which may change as often as they like.
 export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCurrent }) {
   // Read through a ref by the terminal's command handlers rather than closed
   // over: the xterm instance is created by an effect that depends on
