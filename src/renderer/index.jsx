@@ -33,7 +33,6 @@ import { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, format
 import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from './watch-waiters.cjs';
 import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState } from './watch-activity.cjs';
 import { planUpdateHandOff } from './update-handoff.cjs';
-import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { applyLocale } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
@@ -81,6 +80,7 @@ import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
 import { useSites } from './hooks/use-sites.jsx';
 import { usePullRequest } from './hooks/use-pull-request.jsx';
 import { useSiteMail } from './hooks/use-site-mail.jsx';
+import { useSiteLogs } from './hooks/use-site-logs.jsx';
 import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
 // One face for everything that is process output: the terminal below and every
@@ -831,22 +831,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const [starting, setStarting] = useState(false);
   const [running, setRunning] = useState(false);
   const [installing, setInstalling] = useState(false);
-  const [npmLogs, setNpmLogs] = useState('');
-  const [runtimeLogs, setRuntimeLogs] = useState('');
-  // WordPress's own debug.log, kept apart from the server's output: one is what
-  // Playground is doing, the other is what the contributor's code is doing, and
-  // interleaving them buries the second in the first.
-  const [debugLogs, setDebugLogs] = useState('');
-  const [debugUnread, setDebugUnread] = useState(0);
-  // Kept after the dev server stops: the file is still there, and so is the
-  // reason someone wants the path.
-  const [debugLogPath, setDebugLogPath] = useState('');
-  const [activeLogTab, setActiveLogTab] = useState('runtime');
-  const activeLogTabRef = useRef('runtime');
+  // What this site's processes have said (#554): the text of the Logs panel's
+  // panes, which tab is open and the debug.log tail. Whoever runs a process
+  // appends to its pane, so the functions those callbacks call are taken out
+  // by name; each keeps its identity, which their dependency lists rely on.
+  const logs = useSiteLogs({ sitePath });
+  const { appendNpm, appendRuntime, appendWatch, ensureStick, selectTab: selectLogTab, startDebugTail, stopDebugTail } = logs;
   // The build watcher (the target's, see project-type.cjs) runs decoupled from the PHP server (issue
   // #247): its own output tab, its own lifecycle. `watchState` drives the tab
   // title; `watchExitCode` is only read when the state is 'exited'.
-  const [watchLogs, setWatchLogs] = useState('');
   const [watchState, setWatchState] = useState('idle');
   const [watchExitCode, setWatchExitCode] = useState(null);
   // Ref mirror for the inline reads (guards, callbacks) that must not wait for a
@@ -914,9 +907,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     watchActivityRef.current.clear();
     setWatchCompiling(false);
   }, []);
-  // '' | 'copied' | 'failed', on the debug.log Copy button for two seconds.
-  const [debugCopied, setDebugCopied] = useState('');
-  const debugCopyTimer = useRef(null);
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [patchText, setPatchText] = useState('');
   const [patchLoading, setPatchLoading] = useState(false);
@@ -945,7 +935,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // identity, which the callbacks that list them as dependencies rely on.
   const mail = useSiteMail({ sitePath });
   const { listen: listenForMail, stopListening: stopListeningForMail, load: loadMail } = mail;
-  const wpDebugUnsubRef = useRef(null);
   const [building, setBuilding] = useState(false);
   const [hasNodeModules, setHasNodeModules] = useState(false);
   const [installFailed, setInstallFailed] = useState(false);
@@ -1094,42 +1083,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const savedPatchPathRef = useRef(null);
   const setupLogsRef = useRef('');
 
-  // sticky refs per log
-  const npmRef = useRef(null);
-  const runtimeRef = useRef(null);
-  const debugRef = useRef(null);
-  const watchRef = useRef(null);
   const currentRunIdRef = useRef(null);
   // The watcher's own run handle, kept apart from currentRunIdRef so it can be
   // killed on its own (pause, dev-server stop) without disturbing whatever
   // one-shot the terminal is tracking.
   const watchRunIdRef = useRef(null);
-  const threshold = 8;
-  const [logStick, setLogStick] = useState({ npm: true, runtime: true, debug: true, watch: true });
-  const updateStick = useCallback((key, value) => {
-    setLogStick((prev) => (prev[key] === value ? prev : { ...prev, [key]: value }));
-  }, []);
-  const ensureStick = useCallback((key) => {
-    setLogStick((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
-  }, []);
-  useEffect(() => { if (logStick.npm && npmRef.current) npmRef.current.scrollTop = npmRef.current.scrollHeight; }, [npmLogs, logStick.npm]);
-  // Both log effects watch `activeLogTab` because TabPanel renders only the
-  // selected tab: the pane is a fresh element every time it is switched back to,
-  // scrolled to the top, and the arriving-text dependency alone would not fire
-  // to put it back at the bottom. The guard is not just for the dependency — the
-  // other tab's element is unmounted, so there is nothing to scroll.
-  useEffect(() => {
-    if (activeLogTab !== 'runtime') return;
-    if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight;
-  }, [runtimeLogs, logStick.runtime, activeLogTab]);
-  useEffect(() => {
-    if (activeLogTab !== 'debug') return;
-    if (logStick.debug && debugRef.current) debugRef.current.scrollTop = debugRef.current.scrollHeight;
-  }, [debugLogs, logStick.debug, activeLogTab]);
-  useEffect(() => {
-    if (activeLogTab !== 'watch') return;
-    if (logStick.watch && watchRef.current) watchRef.current.scrollTop = watchRef.current.scrollHeight;
-  }, [watchLogs, logStick.watch, activeLogTab]);
   // Independence has a cost: nothing else tears the watcher down now, so when
   // this site view unmounts (site switch, window teardown) its process would be
   // orphaned. Kill it on unmount / before switching sites.
@@ -1138,12 +1096,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     const runId = watchRunIdRef.current;
     if (runId) window.api.npmKill({ runId, directoryPath: sitePath }).catch(() => {});
   }, [sitePath]);
-  const makeOnScroll = useCallback((key) => (e) => {
-    const el = e.currentTarget;
-    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
-    updateStick(key, atBottom);
-  }, [threshold, updateStick]);
-
   const siteName = pathBasename(sitePath);
   const displayName = (label && label.trim()) || siteName;
   // Whether the rename dialog is up. Everything else about it, the value being
@@ -1234,79 +1186,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
 
-  const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
-  const appendRuntime = useCallback((s)=>setRuntimeLogs((v)=>v + String(s ?? '')),[]);
-  const appendDebug = useCallback((s) => {
-    const chunk = String(s ?? '');
-    if (!chunk) return;
-    setDebugLogs((v) => appendBounded(v, chunk));
-    // Counted only while the tab is not the one being read. Selecting it zeroes
-    // the badge, so incrementing there would flicker it straight back on.
-    if (activeLogTabRef.current !== 'debug') setDebugUnread((n) => n + countLines(chunk));
-  }, []);
-  // Bounded like the debug pane: the watcher is long-lived and chatty, so its
-  // pane cannot grow without limit the way an unrendered buffer quietly could.
-  const appendWatch = useCallback((s) => {
-    const chunk = String(s ?? '');
-    if (!chunk) return;
-    setWatchLogs((v) => appendBounded(v, chunk));
-  }, []);
-  const selectLogTab = useCallback((name) => {
-    activeLogTabRef.current = name;
-    setActiveLogTab(name);
-    if (name === 'debug') setDebugUnread(0);
-  }, []);
   // The count is on the tab rather than beside it because the tab is what the
   // contributor is not looking at: a notice landing while they read the server
   // output is the case this panel exists for.
   const logTabs = useMemo(() => ([
     { name: 'runtime', title: 'Server' },
     { name: 'watch', title: watchTabLabel(watchState, watchExitCode, watchCompiling) },
-    { name: 'debug', title: debugUnread ? `debug.log (${debugUnread})` : 'debug.log' }
-  ]), [debugUnread, watchState, watchExitCode, watchCompiling]);
-  const clearDebugLog = useCallback(async () => {
-    setDebugLogs('');
-    setDebugUnread(0);
-    // The file has to go with the pane. Clearing only the pane looks like it
-    // worked and then hands the same lines back on the next dev-server start,
-    // because the tail replays whatever is on disk when it attaches.
-    let cleared;
-    try {
-      cleared = await window.api.clearWpDebug(sitePath);
-    } catch (e) {
-      cleared = { ok: false, error: e && e.message ? e.message : String(e) };
-    }
-    if (!cleared?.ok) appendDebug(`Could not clear ${pathBasename(sitePath)}'s debug.log: ${cleared?.error || cleared?.reason || 'unknown error'}. The panel was cleared; the file was not.\n`);
-  }, [appendDebug, sitePath]);
-  // Same shape as copyPatch below, and for the same reason: a clipboard write
-  // has no visible result, so the button has to report one. This log goes
-  // straight into a Trac ticket or a pull request comment.
-  const copyDebugLog = useCallback(async () => {
-    if (debugCopyTimer.current) clearTimeout(debugCopyTimer.current);
-    let state = 'copied';
-    try {
-      await navigator.clipboard.writeText(debugLogs);
-    } catch {
-      state = 'failed';
-    }
-    setDebugCopied(state);
-    debugCopyTimer.current = setTimeout(() => setDebugCopied(''), 2000);
-  }, [debugLogs]);
-  useEffect(() => () => { if (debugCopyTimer.current) clearTimeout(debugCopyTimer.current); }, []);
-  // Switching to another site unmounts this panel without going through
-  // stopDevServer, so the listener has to come off here too.
-  useEffect(() => () => { try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {} }, []);
-  const revealDebugLog = useCallback(async () => {
-    let revealed;
-    try {
-      revealed = await window.api.revealWpDebug(sitePath);
-    } catch (e) {
-      revealed = { ok: false, error: e && e.message ? e.message : String(e) };
-    }
-    // Nothing on screen moves when a file manager opens behind the app, so a
-    // refusal that says nothing is a button that did nothing.
-    if (!revealed?.ok) appendDebug(`Could not show the log file: ${revealed?.error || revealed?.reason || 'unknown error'}\n`);
-  }, [appendDebug, sitePath]);
+    { name: 'debug', title: logs.debugUnread ? `debug.log (${logs.debugUnread})` : 'debug.log' }
+  ]), [logs.debugUnread, watchState, watchExitCode, watchCompiling]);
   const loadStatus = useCallback(async ()=>{
     try {
       setStatusLoading(true);
@@ -2098,12 +1985,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     serverStartRequestedRef.current = false;
     setStarting(false);
     try { await window.api.stopServer(sitePath); } catch {}
-    try { window.api.stopWpDebug(sitePath); } catch {}
-    // stopWpDebug only tears down the watcher in the main process. The renderer
-    // keeps its own 'wp:debug-log:data' listener until this runs, and a second
-    // start would add another one on top of it — every line then appended once
-    // per dev-server run the session has had.
-    try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {}
+    stopDebugTail();
     stopListeningForMail();
     setRunning(false);
     runningRef.current = false;
@@ -2116,7 +1998,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // The watcher is independent now (#247): stopping the dev server leaves it
     // running, so a contributor can keep compiling on save without serving the
     // site. It is stopped only by its own control (stopWatcher).
-  }, [markTerminalRunning, setRunning, setServerUrl, setStarting, setWaitingForWatch, sitePath, stopListeningForMail]);
+  }, [markTerminalRunning, setRunning, setServerUrl, setStarting, setWaitingForWatch, sitePath, stopDebugTail, stopListeningForMail]);
 
   const startPhpServer = useCallback(async () => {
     if (serverStartRequestedRef.current || stoppingRef.current || !devServerActiveRef.current) {
@@ -2176,21 +2058,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       runningRef.current = false;
       return;
     }
-    // Reset before subscribing: the tail replays the tail of the file when it
-    // attaches (up to 256KB, startWpDebugTail in main.js), so a restart would
-    // otherwise show the previous session's log a second time below itself.
-    // Stopping the server does not clear the pane — after a crash that log is
-    // the thing to read — but starting a new run does.
-    setDebugLogs('');
-    setDebugUnread(0);
-    try {
-      if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; }
-      const tail = await window.api.startWpDebug(sitePath,(d)=>appendDebug(d || ''));
-      wpDebugUnsubRef.current = tail?.unsubscribe || null;
-      if (tail?.filePath) setDebugLogPath(tail.filePath);
-    } catch {}
+    await startDebugTail();
     await loadMail();
-  }, [appendDebug, appendRuntime, ensureStick, listenForMail, loadMail, setRunning, setServerUrl, setStarting, sitePath, stopDevServer]);
+  }, [appendRuntime, ensureStick, listenForMail, loadMail, setRunning, setServerUrl, setStarting, sitePath, startDebugTail, stopDevServer]);
 
   // The watcher process itself (the target's; grunt _watch on Core), streaming
   // into its own tab. No terminal lock, no server coupling — that independence
@@ -4921,12 +4791,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           <TabPanel className="log-tabs" activeClass="is-active" onSelect={selectLogTab} tabs={logTabs}>
             {(tab) => {
               if (tab.name === 'runtime') {
-                return <div ref={runtimeRef} onScroll={makeOnScroll('runtime')} style={LOG_PANE_STYLE}><LogText text={runtimeLogs} /></div>;
+                return <div ref={logs.runtimeRef} onScroll={logs.makeOnScroll('runtime')} style={LOG_PANE_STYLE}><LogText text={logs.runtimeLogs} /></div>;
               }
               if (tab.name === 'watch') {
                 return (
-                  <div ref={watchRef} onScroll={makeOnScroll('watch')} style={LOG_PANE_STYLE}>
-                    {watchLogs ? <LogText text={watchLogs} /> : (
+                  <div ref={logs.watchRef} onScroll={logs.makeOnScroll('watch')} style={LOG_PANE_STYLE}>
+                    {logs.watchLogs ? <LogText text={logs.watchLogs} /> : (
                       <span style={{ color:'#888', fontFamily:'-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>The build watch compiles <code>src/</code> edits into <code>build/</code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.</span>
                     )}
                   </div>
@@ -4934,8 +4804,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               }
               return (
                 <>
-                <div ref={debugRef} onScroll={makeOnScroll('debug')} style={LOG_PANE_STYLE}>
-                  {debugLogs ? <LogText text={debugLogs} /> : (
+                <div ref={logs.debugRef} onScroll={logs.makeOnScroll('debug')} style={LOG_PANE_STYLE}>
+                  {logs.debugLogs ? <LogText text={logs.debugLogs} /> : (
                     // An empty pane reads as broken, which is what this one was
                     // for as long as WP_DEBUG_LOG was never set. Say what fills
                     // it instead. In the app's own font, not the terminal's:
@@ -4950,11 +4820,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                       it is what someone needs to tail it in a terminal or attach
                       it to a ticket. Selectable rather than truncated with an
                       ellipsis: a path you cannot copy is decoration. */}
-                  <code style={{ fontSize:11, color:'#666', userSelect:'text', wordBreak:'break-all', flex:'1 1 240px' }}>{debugLogPath || 'The log file appears once the dev server has run.'}</code>
+                  <code style={{ fontSize:11, color:'#666', userSelect:'text', wordBreak:'break-all', flex:'1 1 240px' }}>{logs.debugLogPath || 'The log file appears once the dev server has run.'}</code>
                   <div style={{ display:'flex', gap:8 }}>
-                    <Button size="small" variant="secondary" onClick={revealDebugLog} disabled={!debugLogPath}>Show in folder</Button>
-                    <Button size="small" variant="secondary" onClick={copyDebugLog} disabled={!debugLogs}>{COPY_BUTTON_LABELS[debugCopied] || COPY_BUTTON_LABELS.idle}</Button>
-                    <Button size="small" variant="secondary" onClick={clearDebugLog} disabled={!debugLogs}>Clear</Button>
+                    <Button size="small" variant="secondary" onClick={logs.revealDebugLog} disabled={!logs.debugLogPath}>Show in folder</Button>
+                    <Button size="small" variant="secondary" onClick={logs.copyDebugLog} disabled={!logs.debugLogs}>{COPY_BUTTON_LABELS[logs.debugCopied] || COPY_BUTTON_LABELS.idle}</Button>
+                    <Button size="small" variant="secondary" onClick={logs.clearDebugLog} disabled={!logs.debugLogs}>Clear</Button>
                   </div>
                 </div>
                 </>
