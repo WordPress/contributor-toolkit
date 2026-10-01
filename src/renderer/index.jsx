@@ -19,7 +19,7 @@ import {
 } from '@wordpress/components';
 import { __, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
-import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, pencil, download, comment } from '@wordpress/icons';
+import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, pencil, comment } from '@wordpress/icons';
 import { ThemeProvider } from '@wordpress/theme';
 import { VisuallyHidden } from '@wordpress/ui';
 // The design system's tokens: every `--wpds-*` custom property, at its default,
@@ -67,7 +67,6 @@ import { initialConfirmations, confirmationReducer, prConfirmationMessage, delet
 import { prStageLabel } from './pr-stage.cjs';
 import { ReasonedButton } from './components/reasoned-button.jsx';
 import { DiscardChangesLink } from './components/discard-changes-link.jsx';
-import { DiffText } from './components/diff-text.jsx';
 import { LogText } from './components/log-text.jsx';
 import { Destination, DestinationGroup } from './components/destination.jsx';
 import { TerminalCommandLink } from './components/terminal-command-link.jsx';
@@ -75,6 +74,7 @@ import { RenameSiteModal } from './components/rename-site-modal.jsx';
 import { EmailModal } from './components/email-modal.jsx';
 import { DirtyTreeModal } from './components/dirty-tree-modal.jsx';
 import { CreateSiteModal } from './components/create-site-modal.jsx';
+import { PatchDiffPane } from './components/patch-diff-pane.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
@@ -5487,81 +5487,22 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                 sets the column's floor and pushes the destinations off the
                 modal instead of scrolling.
               */}
-              <div className="patch-diff">
-                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
-                  <div>
-                    <div style={{ fontWeight:600, fontSize:14, color:'#1d2327', display:'flex', alignItems:'baseline', gap:4, flexWrap:'wrap' }}>
-                      {reviewContext.heading}
-                      <span style={{ fontWeight:400 }}>
-                        {'('}
-                        <DiscardChangesLink
-                          label="Discard all changes"
-                          onClick={discardAllChanges}
-                          reason={modalDiscardReason}
-                          style={{ fontSize: 12 }}
-                        />
-                        {')'}
-                      </span>
-                    </div>
-                    <div style={{ fontSize:12, color:'#6c6f72' }}>{reviewContext.description}</div>
-                    {discardError ? <div style={{ color:'#d63638', fontSize:12, marginTop:4 }}>{discardError}</div> : null}
-                  </div>
-                  {/*
-                    Out of the diff and into the header: these used to float
-                    over the top-right of the code, which was survivable at
-                    full width and covers the first line of a hunk once the
-                    pane is a column.
-                  */}
-                  <div style={{ display:'flex', gap:8 }}>
-                    <Button variant="secondary" icon={download} onClick={savePatch} disabled={patchLoading || patchLoadFailed}>Save</Button>
-                    <Button
-                      variant="secondary"
-                      icon={patchCopied === 'copied' ? checkIcon : copyIcon}
-                      onClick={copyPatch}
-                      disabled={patchLoading || patchLoadFailed}
-                      // The label carries the outcome rather than a tooltip or
-                      // a toast: it is the thing that was just pressed, so it
-                      // is where the eye already is, and a screen reader
-                      // announces the change on the focused control.
-                    >{COPY_BUTTON_LABELS[patchCopied] || COPY_BUTTON_LABELS.idle}</Button>
-                  </div>
-                </div>
-                {/*
-                  Under the diff rather than beside the destinations that
-                  trigger it: this is the outcome for the file, the file is
-                  what this column is, and the header's own Save button needs
-                  somewhere to report even when there are no destinations to
-                  show.
-                */}
-                {patchSaved ? (
-                  <div style={{ fontSize:13, color:'#0f5132' }}>Saved to {patchSaved}</div>
-                ) : null}
-                {patchSaveError ? (
-                  <div role="alert" style={{ fontSize:13, color:'#d63638' }}>Could not save the patch: {patchSaveError}</div>
-                ) : null}
-                <div style={{ position:'relative', flex:1, minHeight:0 }}>
-              {patchLoading ? (
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:16 }}>
-                  <Spinner />
-                  <div style={{ color:'#666', fontSize:14 }}>Generating patch...</div>
-                </div>
-              ) : (
-                <>
-                  {/*
-                      `boxSizing: border-box` with `height: 100%` and a
-                      padding: without it the pane is its container plus
-                      24px of padding, and it overflows by exactly that.
-                      Invisible while the diff spanned the modal and the
-                      overflow fell off the bottom; beside a sidebar it
-                      sits on top of the destinations.
-                    */}
-                    <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#111', color:'#eee', padding:12, borderRadius:6, height:'100%', boxSizing:'border-box', overflowY:'auto' }}>
-                    {patchText && patchText.trim().length ? <DiffText text={patchText} /> : 'No changes.'}
-                  </pre>
-                </>
-              )}
-                </div>
-              </div>
+              <PatchDiffPane
+                heading={reviewContext.heading}
+                description={reviewContext.description}
+                patchText={patchText}
+                patchLoading={patchLoading}
+                patchLoadFailed={patchLoadFailed}
+                patchSaved={patchSaved}
+                patchSaveError={patchSaveError}
+                copyLabel={COPY_BUTTON_LABELS[patchCopied] || COPY_BUTTON_LABELS.idle}
+                copied={patchCopied === 'copied'}
+                discardReason={modalDiscardReason}
+                discardError={discardError}
+                onSave={savePatch}
+                onCopy={copyPatch}
+                onDiscard={discardAllChanges}
+              />
 
               {/*
                 Where the patch goes, named at the moment it exists (#166),
