@@ -26,6 +26,7 @@ const {
 } = require('../../src/npm-runner.js');
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'engine-strict');
+const LINKED_FIXTURE = path.join(__dirname, 'fixtures', 'linked-install');
 const INSTALL_RUNNER = path.join(__dirname, '..', '..', 'src', 'install-runner.js');
 
 // Keep npm quiet and offline: the fixture's only dependency is a local folder,
@@ -37,14 +38,14 @@ const QUIET_NPM = {
 	npm_config_progress: 'false'
 };
 
-function copyFixture() {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'engine-strict-'));
-	fs.cpSync(FIXTURE, dir, { recursive: true });
+function copyFixture(fixture = FIXTURE) {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), `${path.basename(fixture)}-`));
+	fs.cpSync(fixture, dir, { recursive: true });
 	return dir;
 }
 
 // Runs the production install runner the same way main.js spawns it.
-function runInstall(dir, { relaxEngines }) {
+function runInstall(dir, { relaxEngines = false } = {}) {
 	return new Promise((resolve) => {
 		const child = spawn(process.execPath, [INSTALL_RUNNER, dir], {
 			cwd: dir,
@@ -87,5 +88,24 @@ test('the same install succeeds once engine checks are relaxed', { timeout: 1200
 		fs.existsSync(path.join(dir, 'node_modules', 'needs-future-node')),
 		true,
 		`the dependency should have been installed. Output:\n${output}`
+	);
+});
+
+// #586: Electron's crypto has no SHAKE256, and npm's isolated installer, which
+// `install-strategy = linked` selects (Gutenberg's .npmrc), names its store with
+// it. Under `npm run test:electron` this fails with "Digest method not
+// supported" unless the install runner adds the hash before loading npm.
+test('a linked install succeeds on the runtime the app runs npm on', { timeout: 120000 }, async (t) => {
+	const dir = copyFixture(LINKED_FIXTURE);
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+	const { code, output } = await runInstall(dir);
+
+	assert.doesNotMatch(output, /Digest method not supported/);
+	assert.equal(code, 0, `expected a clean exit, got ${code}. Output:\n${output}`);
+	assert.equal(
+		fs.existsSync(path.join(dir, 'node_modules', 'local-dep', 'package.json')),
+		true,
+		`the dependency should have been linked. Output:\n${output}`
 	);
 });
