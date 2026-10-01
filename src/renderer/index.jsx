@@ -80,6 +80,7 @@ import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
 import { useSites } from './hooks/use-sites.jsx';
 import { usePullRequest } from './hooks/use-pull-request.jsx';
+import { useSiteMail } from './hooks/use-site-mail.jsx';
 import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
 // One face for everything that is process output: the terminal below and every
@@ -938,14 +939,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Opening a pull request (#167): the account, the sign-in, the form and the
   // attempt. Held here because all of it outlives the card that shows it.
   const prSubmission = usePullRequest({ sitePath, confirm });
-  const [emails, setEmails] = useState([]);
-  const [smtpPort, setSmtpPort] = useState(0);
-  const newEmailUnsubRef = useRef(null);
-  const smtpStartedUnsubRef = useRef(null);
+  // The mail this site's WordPress sent (#554): the list, the port and the one
+  // open in the dialog. The dev server below says when the list is live, so
+  // the three functions it calls are taken out by name; each keeps its
+  // identity, which the callbacks that list them as dependencies rely on.
+  const mail = useSiteMail({ sitePath });
+  const { listen: listenForMail, stopListening: stopListeningForMail, load: loadMail } = mail;
   const wpDebugUnsubRef = useRef(null);
-  // The mail open in the dialog, or null while none is: the dialog is up
-  // exactly while there is one to show.
-  const [activeEmail, setActiveEmail] = useState(null);
   const [building, setBuilding] = useState(false);
   const [hasNodeModules, setHasNodeModules] = useState(false);
   const [installFailed, setInstallFailed] = useState(false);
@@ -1307,10 +1307,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // refusal that says nothing is a button that did nothing.
     if (!revealed?.ok) appendDebug(`Could not show the log file: ${revealed?.error || revealed?.reason || 'unknown error'}\n`);
   }, [appendDebug, sitePath]);
-  const sortEmails = useCallback((list)=>[...list].sort((a,b)=>new Date(b.sentAt||b.date||0)-new Date(a.sentAt||a.date||0)),[]);
-  const openEmail = useCallback((m)=>{ setActiveEmail(m); },[]);
-  const closeEmail = useCallback(()=>{ setActiveEmail(null); },[]);
-  const clearEmails = useCallback(async ()=>{ await window.api.clearEmails(sitePath); setEmails([]); }, [sitePath]);
   const loadStatus = useCallback(async ()=>{
     try {
       setStatusLoading(true);
@@ -2108,12 +2104,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // start would add another one on top of it — every line then appended once
     // per dev-server run the session has had.
     try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {}
-    try { if (newEmailUnsubRef.current) { newEmailUnsubRef.current(); newEmailUnsubRef.current = null; } } catch {}
-    try { if (smtpStartedUnsubRef.current) { smtpStartedUnsubRef.current(); smtpStartedUnsubRef.current = null; } } catch {}
+    stopListeningForMail();
     setRunning(false);
     runningRef.current = false;
     setServerUrl('');
-    setSmtpPort(0);
     stoppingRef.current = false;
     waitingForWatchRef.current = false;
     terminalKillRef.current = null;
@@ -2122,7 +2116,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // The watcher is independent now (#247): stopping the dev server leaves it
     // running, so a contributor can keep compiling on save without serving the
     // site. It is stopped only by its own control (stopWatcher).
-  }, [markTerminalRunning, setRunning, setServerUrl, setSmtpPort, setStarting, setWaitingForWatch, sitePath]);
+  }, [markTerminalRunning, setRunning, setServerUrl, setStarting, setWaitingForWatch, sitePath, stopListeningForMail]);
 
   const startPhpServer = useCallback(async () => {
     if (serverStartRequestedRef.current || stoppingRef.current || !devServerActiveRef.current) {
@@ -2136,8 +2130,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     ensureStick('runtime');
     setStarting(true);
     // Subscribe to SMTP events before starting to avoid missing early events
-    if (!smtpStartedUnsubRef.current) smtpStartedUnsubRef.current = window.api.onSmtpStarted(sitePath, (port)=>setSmtpPort(port||0));
-    if (!newEmailUnsubRef.current) newEmailUnsubRef.current = window.api.onNewEmail(sitePath, (msg)=>setEmails((prev)=>sortEmails([msg, ...prev])));
+    listenForMail();
     try {
       const res = await window.api.startServer(
         sitePath,
@@ -2196,8 +2189,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       wpDebugUnsubRef.current = tail?.unsubscribe || null;
       if (tail?.filePath) setDebugLogPath(tail.filePath);
     } catch {}
-    try { const { port, emails: fetchedEmails } = await window.api.getEmails(sitePath); if (port) setSmtpPort(port); setEmails(fetchedEmails||[]); } catch {}
-  }, [appendDebug, appendRuntime, ensureStick, newEmailUnsubRef, setEmails, setRunning, setServerUrl, setStarting, setSmtpPort, sitePath, smtpStartedUnsubRef, sortEmails, stopDevServer]);
+    await loadMail();
+  }, [appendDebug, appendRuntime, ensureStick, listenForMail, loadMail, setRunning, setServerUrl, setStarting, sitePath, stopDevServer]);
 
   // The watcher process itself (the target's; grunt _watch on Core), streaming
   // into its own tab. No terminal lock, no server coupling — that independence
@@ -4972,18 +4965,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Mail</div>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-            <div style={{ fontSize:12, color:'#666' }}>{smtpPort ? `SMTP listening on 127.0.0.1:${smtpPort}` : 'SMTP will start with the dev server.'}</div>
-            <div><Button size="small" variant="secondary" onClick={clearEmails}>Clear emails</Button></div>
+            <div style={{ fontSize:12, color:'#666' }}>{mail.smtpPort ? `SMTP listening on 127.0.0.1:${mail.smtpPort}` : 'SMTP will start with the dev server.'}</div>
+            <div><Button size="small" variant="secondary" onClick={mail.clear}>Clear emails</Button></div>
           </div>
           <div style={{ border:'1px solid #ddd', borderRadius:6, maxHeight:220, overflow:'auto' }}>
-            {emails && emails.length ? emails.map((m)=>{
+            {mail.emails && mail.emails.length ? mail.emails.map((m)=>{
               const when = m.sentAt || m.date; const whenStr = when ? new Date(when).toLocaleString() : '';
               return (
                 <div key={m.id}
                   role="button"
                   tabIndex={0}
-                  onClick={()=>openEmail(m)}
-                  onKeyDown={(e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEmail(m); } }}
+                  onClick={()=>mail.open(m)}
+                  onKeyDown={(e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mail.open(m); } }}
                   style={{ padding:'8px 10px', cursor:'pointer', borderBottom:'1px solid #eee', display:'flex', gap:8 }}
                 >
                   <div style={{ flex:'0 0 180px', color:'#555', fontSize:12 }}>{whenStr}</div>
@@ -5081,8 +5074,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           </DestinationGroup>
         </ReviewDialog>
       )}
-      {activeEmail && (
-        <EmailModal email={activeEmail} onClose={closeEmail} />
+      {mail.activeEmail && (
+        <EmailModal email={mail.activeEmail} onClose={mail.close} />
       )}
     </section>
   );

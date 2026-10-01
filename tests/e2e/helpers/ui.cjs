@@ -86,6 +86,8 @@ const updateTrunkMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Upd
 const deleteSiteMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Delete this site', exact: true } );
 
 const startDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Start dev server', exact: true } );
+// The same button once the server has an address; while it is still starting it reads neither.
+const stopDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Stop dev server', exact: true } );
 const reviewChangesButton = ( page ) => page.getByRole( 'button', { name: 'Review & submit changes', exact: true } );
 const retryInstallButton = ( page ) => page.getByRole( 'button', { name: 'Retry install & build', exact: true } );
 
@@ -228,6 +230,7 @@ module.exports = {
 	updateTrunkMenuItem,
 	deleteSiteMenuItem,
 	startDevServerButton,
+	stopDevServerButton,
 	reviewChangesButton,
 	retryInstallButton,
 	card,
