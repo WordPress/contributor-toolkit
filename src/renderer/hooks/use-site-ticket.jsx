@@ -48,17 +48,19 @@ export function useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, s
   // How many loose files rode along into a ticket that had no branch yet, so
   // the panel can say where they went instead of moving them in silence.
   const [patchSavedTo, setPatchSavedTo] = useState('');
-  // A dirty-trunk question is rendered before the PR switch function is
-  // declared below. Its continuation uses this current-render ref so clearing
-  // the trunk can retry the PR operation instead of routing `pr/N` through the
+  // The dirty-trunk question is answered here, and the PR switch function is
+  // declared in useApplyPatch, which is called after this hook and fills this
+  // ref on every render. The question's continuation uses it so clearing the
+  // trunk can retry the PR operation instead of routing `pr/N` through the
   // ticket parser (#458).
   const retryPrSwitchRef = useRef(null);
   const ticketSwitchLifecycleRef = useRef(null);
   // Set only by saveTicket, on a link the contributor just performed. The
-  // per-ticket effect below consumes it to auto-read the ticket's details:
-  // there, after the generation bump, so the scrape's result is not dropped as
-  // stale. A ref and not state — it must not survive a remount, or selecting
-  // an already-linked site would open a Trac window nobody asked for (#292).
+  // per-ticket effect in useApplyPatch consumes it to auto-read the ticket's
+  // details: there, after the generation bump, so the scrape's result is not
+  // dropped as stale. A ref and not state — it must not survive a remount, or
+  // selecting an already-linked site would open a Trac window nobody asked
+  // for (#292).
   const autoReadTicketRef = useRef(null);
 
   // Deliberately not part of loadStatus: that one is called after every long

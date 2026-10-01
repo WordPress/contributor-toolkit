@@ -12,8 +12,8 @@
  * says it is ready, and incomplete if the watch goes first.
  *
  * `trunk-update.spec.js` is the update with no watch running, where none of
- * this happens. These are the only journeys that pause a watch and bring it
- * back.
+ * this happens. A pull request's checkout pauses a watch and brings it back
+ * the same way, and that is `watch-during-changes.spec.js`.
  *
  * The fetch and the reset are real: the origin is a clone on disk, moved
  * ahead by the test. Nothing else is run. The handlers that start an install,
@@ -23,7 +23,8 @@
  * writes its output to the app's log as well, and ends by itself with the code
  * the process gave; here a script runs until the test says it has ended. A
  * real install records in the store whether it failed, and a real build
- * leaves a `build/` behind; here neither happens.
+ * leaves a `build/` behind; here neither happens. Recording that an update is
+ * complete is still the app's own; the test only counts it being asked for.
  *
  * Assertions are marked INVARIANT or CHARACTERISATION; see
  * ticket-branches.spec.js for why.
@@ -46,7 +47,7 @@ const NEWEST_LOGIN = '<?php // newest trunk\n';
 // touched yet.
 async function standInForRuns( app, page, watched ) {
 	await app.evaluate( ( { ipcMain }, file ) => {
-		const asked = { scripts: [], installs: 0, kills: [], treeAtKill: [] };
+		const asked = { scripts: [], installs: 0, kills: [], treeAtKill: [], completions: 0 };
 		global.__e2eUpdate = asked;
 		// The same way to Node's modules the packaged smoke test takes.
 		const { readFileSync } = process.mainModule.require( 'node:fs' );
@@ -66,6 +67,16 @@ async function standInForRuns( app, page, watched ) {
 			asked.kills.push( params.runId );
 			asked.treeAtKill.push( readFileSync( file, 'utf8' ) );
 			return { ok: true };
+		} );
+		// Recording that the update is complete is still done by the app. The
+		// test only counts it being asked for, which is the first thing a
+		// completed update does, before it says anything on screen. The
+		// handler is reached through the map Electron keeps them in, which is
+		// not part of its interface.
+		const markComplete = ipcMain._invokeHandlers.get( 'sites:mark-update-complete' );
+		replace( 'sites:mark-update-complete', ( ...args ) => {
+			asked.completions += 1;
+			return markComplete( ...args );
 		} );
 	}, watched );
 	const tell = ( channel, payload ) => app.evaluate( ( { BrowserWindow }, [ to, what ] ) => {
@@ -199,11 +210,18 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	// rebuilding. The watch's own stop can be pressed, which is the way out
 	// of a watch that never gets there, while the update still holds its
 	// other gates: the dev server's button, for one, cannot.
+	// What settles it is whether the app has asked for the update to be
+	// recorded as complete: it asks in the same turn as it hears the line, so
+	// the count is final once the line has been heard. What it says on screen
+	// comes only after that request is answered, so the look at the screen
+	// that follows catches an announcement made without completing and no
+	// more than that. It is one look and not a wait: the announcement goes
+	// away by itself, and a wait for it to be absent would pass once a wrong
+	// one had gone.
 	await runs.scriptPrints( 2, 'webpack compiled 12 modules\n' );
 	await runs.heard();
+	expect( ( await runs.asked() ).completions ).toBe( 0 );
 	await expect( card ).toBeVisible();
-	// Read once and not waited for: the announcement goes away by itself, and
-	// waiting for it to be absent would pass once a wrong one had gone.
 	expect( await updated.count() ).toBe( 0 );
 	await expect( ui.stopBuildWatchButton( page ) ).toBeEnabled();
 	await expect( ui.startDevServerButton( page ) ).toBeDisabled();
@@ -211,6 +229,7 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	// INVARIANT — the watch saying it is ready is what completes the update.
 	await runs.scriptPrints( 2, 'Watching for changes\n' );
 	await expect( updated.first() ).toBeVisible();
+	expect( ( await runs.asked() ).completions ).toBe( 1 );
 	await expect( card ).toHaveCount( 0 );
 	await expect.poll( () => Boolean( session.readSettings().siteMeta[ site.dir ].updateIncomplete ) ).toBe( false );
 	expect( ( await runs.asked() ).scripts ).toEqual( [ 'dev', 'dev' ] );

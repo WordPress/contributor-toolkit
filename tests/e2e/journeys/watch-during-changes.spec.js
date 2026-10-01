@@ -28,7 +28,8 @@
  * the process gave; here a script runs until the test says it has ended, and
  * a watcher that is "compiling" prints nothing, so it counts as done when the
  * app's own quiet period is over. The two lookups that linking a ticket
- * starts find nothing, so nothing here reaches GitHub or Trac.
+ * starts find nothing, so nothing here reaches GitHub or Trac; the one that
+ * reads the ticket's page is counted.
  *
  * What the app announces, it announces in a message that goes away by itself
  * after a few seconds. So "it has not said so yet" is read once, at that
@@ -55,6 +56,8 @@ async function standIn( app, page ) {
 	await app.evaluate( ( { ipcMain } ) => {
 		const asked = { scripts: [], installs: 0, kills: [] };
 		global.__e2eChanges = asked;
+		// Kept apart from what was run, which the journeys compare whole.
+		global.__e2eTicketPagesRead = 0;
 		const replace = ( channel, handler ) => {
 			ipcMain.removeHandler( channel );
 			ipcMain.handle( channel, handler );
@@ -72,7 +75,10 @@ async function standIn( app, page ) {
 			return { ok: true };
 		} );
 		replace( 'git:list-ticket-patches', () => ( { ok: true, prs: { status: 'ok', items: [] } } ) );
-		replace( 'trac:list-attachments', () => ( { ok: true, status: 'ok', items: [] } ) );
+		replace( 'trac:list-attachments', () => {
+			global.__e2eTicketPagesRead += 1;
+			return { ok: true, status: 'ok', items: [] };
+		} );
 	} );
 	const tell = ( channel, payload ) => app.evaluate( ( { BrowserWindow }, [ to, what ] ) => {
 		for ( const win of BrowserWindow.getAllWindows() ) {
@@ -81,6 +87,7 @@ async function standIn( app, page ) {
 	}, [ channel, payload ] );
 	return {
 		asked: () => app.evaluate( () => global.__e2eChanges ),
+		ticketPagesRead: () => app.evaluate( () => global.__e2eTicketPagesRead ),
 		scriptPrints: ( run, text ) => tell( 'npm:run-script:log', { runId: `e2e-run-${ run }`, type: 'stdout', data: text } ),
 		scriptEnds: ( run, code ) => tell( 'npm:run-script:done', { runId: `e2e-run-${ run }`, code } ),
 		// Told and heard: the reply to a question asked after the telling
@@ -109,6 +116,7 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.startBuildWatchButton( page ).click();
 	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
+	// CHARACTERISATION — on Core the watcher is grunt watch, here and below.
 	await expect.poll( async () => ( await runs.asked() ).scripts ).toEqual( [ 'grunt' ] );
 
 	// INVARIANT — linking a ticket moves the checkout under a watch that is
@@ -118,6 +126,12 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 	await expect( ui.logTab( page, 'Build watcher (compiling)' ) ).toBeVisible();
 	await runs.heard();
 	expect( await runs.asked() ).toEqual( { scripts: [ 'grunt' ], installs: 0, kills: [] } );
+
+	// INVARIANT — a ticket linked by hand has its page read for what it
+	// offers to apply, without anything else being pressed (#292), and once.
+	await expect.poll( () => runs.ticketPagesRead() ).toBe( 1 );
+	await runs.heard();
+	expect( await runs.ticketPagesRead() ).toBe( 1 );
 
 	// The watch has gone quiet again before the next change, so that what its
 	// tab says after it is about that change and not this one.
@@ -132,10 +146,12 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 	await session.answerFileDialog( [ patch ] );
 	await ui.choosePatchFileButton( page ).click();
 	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	// The tab is looked at first: it says so only for as long as the app's
+	// quiet period lasts, and the announcement stays longer than that.
 	await ui.applyAndRebuildButton( page ).click();
-	await expect( said( 'Applied the patch' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( ui.logTab( page, 'Build watcher (compiling)' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( said( 'Applied the patch' ) ).toBeVisible();
 	expect( read( site.dir, LOGIN ) ).toBe( `${ PATCHED }\n` );
-	await expect( ui.logTab( page, 'Build watcher (compiling)' ) ).toBeVisible();
 	await runs.heard();
 	expect( await runs.asked() ).toEqual( { scripts: [ 'grunt' ], installs: 0, kills: [] } );
 
@@ -152,8 +168,8 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 	// build runs, and the watch is not brought back before it ends.
 	await checkOutPullRequest( page );
 	await expect.poll( async () => ( await runs.asked() ).kills ).toEqual( [ 'e2e-run-1' ] );
-	await expect.poll( () => currentBranch( site.dir ), { timeout: 60_000 } ).toBe( `pr/${ PR }` );
-	await expect.poll( async () => ( await runs.asked() ).scripts, { timeout: 60_000 } ).toEqual( [ 'grunt', 'build' ] );
+	await expect.poll( () => currentBranch( site.dir ), { timeout: 30_000 } ).toBe( `pr/${ PR }` );
+	await expect.poll( async () => ( await runs.asked() ).scripts, { timeout: 30_000 } ).toEqual( [ 'grunt', 'build' ] );
 	expect( read( site.dir, LOGIN ) ).toBe( PR_CONTENT );
 	await expect( ui.logTab( page, 'Build watcher (paused)' ) ).toBeVisible();
 	await runs.heard();
@@ -195,8 +211,8 @@ test( 'where the watcher rebuilds everything as it starts, a pull request\'s che
 	// watcher is asked for again and no build is (#506).
 	await checkOutPullRequest( page );
 	await expect.poll( async () => ( await runs.asked() ).kills ).toEqual( [ 'e2e-run-1' ] );
-	await expect.poll( () => currentBranch( site.dir ), { timeout: 60_000 } ).toBe( `pr/${ PR }` );
-	await expect.poll( async () => ( await runs.asked() ).scripts, { timeout: 60_000 } ).toEqual( [ 'dev', 'dev' ] );
+	await expect.poll( () => currentBranch( site.dir ), { timeout: 30_000 } ).toBe( `pr/${ PR }` );
+	await expect.poll( async () => ( await runs.asked() ).scripts, { timeout: 30_000 } ).toEqual( [ 'dev', 'dev' ] );
 	expect( read( site.dir, LOGIN ) ).toBe( PR_CONTENT );
 	await expect( ui.logTab( page, 'Build watcher (building)' ) ).toBeVisible();
 

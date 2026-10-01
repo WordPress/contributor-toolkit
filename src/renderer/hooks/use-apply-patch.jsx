@@ -279,7 +279,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
       autoReadTicketRef.current = null;
       // Through the ref, not the function: loadTracAttachments is declared
       // below this effect and recreated per render — the same shape as
-      // metaPatchRef above.
+      // SiteRow's metaPatchRef.
       if (tracScrapeRef.current) tracScrapeRef.current();
     }
   }, [tracTicket, isActive, loadTicketPatches, showTracCards, autoReadTicketRef]);
@@ -327,10 +327,10 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     }
   };
 
-  // Downloads an attachment through the challenge-passing session and hands it
-  // to the same preview the PR and file paths use.
   useEffect(() => { tracScrapeRef.current = loadTracAttachments; });
 
+  // Downloads an attachment through the challenge-passing session and hands it
+  // to the same preview the PR and file paths use.
   const previewAttachment = async (att) => {
     clearApplyError();
     setApplyNotice('');
