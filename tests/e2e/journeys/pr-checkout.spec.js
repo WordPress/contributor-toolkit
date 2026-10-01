@@ -20,6 +20,7 @@ const {
 	LOGIN,
 	DOOMED,
 } = require( '../helpers/git-site.cjs' );
+const { prSubmissionRefusal } = require( '../../../src/renderer/pr-checkout.cjs' );
 
 const TICKET = '60001';
 const PR = 7;
@@ -75,6 +76,21 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 	expect( read( site.dir, SUBSTRATE ) ).toBe( SUBSTRATE_CONTENT );
 
 	write( site.dir, LOGIN, PR_EDIT );
+
+	// INVARIANT — edits on top of a pull request are not the contributor's to
+	// submit, and the review says so twice: above the destinations, with the
+	// copy that can still be kept, and on the pull request card in place of
+	// everything it would otherwise offer.
+	await ui.reviewChangesButton( page ).click();
+	const review = page.getByRole( 'dialog', { name: 'Review & submit changes' } );
+	const ownership = review.getByRole( 'alert' ).filter( { hasText: prSubmissionRefusal( PR ) } );
+	await expect( ownership ).toBeVisible( { timeout: 30_000 } );
+	await expect( ownership ).toContainText( 'You can still use Save to keep an unattributed copy of your edits.' );
+	await expect( review.getByText( prSubmissionRefusal( PR ), { exact: true } ) ).toBeVisible();
+	await expect( review.getByRole( 'button', { name: 'Sign in with GitHub', exact: true } ) ).toHaveCount( 0 );
+	await ui.closeDialogButton( review ).click();
+	await expect( review ).toHaveCount( 0 );
+
 	await ui.revertPrButton( page ).click();
 
 	// HEAD moves before the handler saves metadata. Wait for the UI to finish

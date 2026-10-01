@@ -15,6 +15,12 @@
  * and which destinations a site offers at all is `gutenberg-site.spec.js`. A
  * diff that could not be read is in `pr-checkout.spec.js`.
  *
+ * The fourth journey is the dialog around all of that, on a checkout that is
+ * not all the contributor's own: what it says above the destinations, what
+ * each of them then refuses, and what is still allowed. The same for a
+ * checkout that is someone else's pull request is in `pr-checkout.spec.js`,
+ * where one is checked out.
+ *
  * Copying is asked of a stand-in. The button writes to the system clipboard,
  * and a journey that let it would replace whatever the person running the
  * suite had on theirs.
@@ -28,7 +34,7 @@ const os = require( 'node:os' );
 const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
-const { makeSite, read, write, LOGIN } = require( '../helpers/git-site.cjs' );
+const { makeSite, makePatchFile, read, write, LOGIN, DOOMED } = require( '../helpers/git-site.cjs' );
 const { discardDisabledReason } = require( '../../../src/renderer/changes-note.cjs' );
 const { parseHandle } = require( '../../../src/wporg-handle.cjs' );
 const { TITLE } = require( '../../../src/patch-provenance.cjs' );
@@ -328,4 +334,74 @@ test( 'attaching to Trac asks for a ticket where there is none, carries the edit
 	const saved = fs.readFileSync( savedFile, 'utf8' );
 	expect( saved ).toContain( '+<?php // my fix' );
 	expect( saved.startsWith( TITLE ) ).toBe( false );
+} );
+
+test( 'a checkout carrying someone else\'s patch says so above the destinations, is refused by each of them, and can still be saved', async ( { session } ) => {
+	const TICKET = '60001';
+	const PATCH = 'ticket-60001.patch';
+	const site = await makeSite( session );
+	// A username already remembered, so the mentor hand-off has a save to
+	// refuse.
+	site.settings.preferences.wporgHandle = 'janedoe';
+	const { app, page } = await session.start( site.settings );
+	// Nothing here leaves the machine: the two lookups that linking a ticket
+	// starts find nothing, and the save dialog is backed out of and counted.
+	await app.evaluate( ( { ipcMain, dialog } ) => {
+		ipcMain.removeHandler( 'git:list-ticket-patches' );
+		ipcMain.handle( 'git:list-ticket-patches', () => ( { ok: true, prs: { status: 'ok', items: [] } } ) );
+		ipcMain.removeHandler( 'trac:list-attachments' );
+		ipcMain.handle( 'trac:list-attachments', () => ( { ok: true, status: 'ok', items: [] } ) );
+		dialog.showSaveDialog = async () => {
+			global.__e2eSaveDialogs = ( global.__e2eSaveDialogs || 0 ) + 1;
+			return { canceled: true };
+		};
+	} );
+	const saveDialogsAnswered = () => app.evaluate( () => global.__e2eSaveDialogs || 0 );
+
+	await ui.linkTicket( page, TICKET );
+	// Someone else's patch goes on, through the app's own file dialog and the
+	// preview it shows first, and then the contributor edits another file.
+	const patch = makePatchFile( session, PATCH, [
+		{ file: 'wp-login.php', from: '<?php // trunk', to: '<?php // fixed by the patch' },
+	] );
+	await session.answerFileDialog( [ patch ] );
+	await ui.choosePatchFileButton( page ).click();
+	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await ui.applyAndRebuildButton( page ).click();
+	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );
+	write( site.dir, DOOMED, MY_EDIT );
+
+	await ui.reviewChangesButton( page ).click();
+	const dialog = page.getByRole( 'dialog', { name: 'Review & submit changes' } );
+	const warning = dialog.getByRole( 'alert' ).filter( { hasText: `${ PATCH } is part of this checkout.` } );
+
+	// INVARIANT — the dialog says whose work this is before it offers anywhere
+	// to send it, and that a copy can still be kept.
+	await expect( warning ).toBeVisible( { timeout: 30_000 } );
+	await expect( warning ).toContainText( 'this combined patch cannot be submitted as your work' );
+	await expect( warning ).toContainText( 'You can still use Save to keep an unattributed copy' );
+	expect( await ui.inDocumentOrder( page, [
+		dialog.getByText( 'Where this patch goes', { exact: true } ),
+		warning,
+		dialog.getByText( 'Open a pull request', { exact: true } ),
+	] ) ).toBe( true );
+
+	// INVARIANT — every destination that would send it under the
+	// contributor's name refuses: the pull request says what to do first and
+	// offers neither a sign-in nor a form, and the two that save a file for
+	// sending will not save.
+	await expect( dialog.getByText( `Revert ${ PATCH } before opening a pull request from this checkout.`, { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByRole( 'button', { name: 'Sign in with GitHub', exact: true } ) ).toHaveCount( 0 );
+	await expect( dialog.getByRole( 'button', { name: 'Open pull request', exact: true } ) ).toHaveCount( 0 );
+	await expect( dialog.getByRole( 'button', { name: `Save, then open #${ TICKET }`, exact: true } ) ).toBeDisabled();
+	await expect( dialog.getByRole( 'button', { name: 'Save patch as janedoe', exact: true } ) ).toBeDisabled();
+
+	// INVARIANT — the copy the warning promises can be had: Save asks where
+	// to put it.
+	await dialog.getByRole( 'button', { name: 'Save', exact: true } ).click();
+	await expect.poll( saveDialogsAnswered ).toBe( 1 );
+
+	// CHARACTERISATION — Escape closes the dialog.
+	await page.keyboard.press( 'Escape' );
+	await expect( dialog ).toHaveCount( 0 );
 } );
