@@ -145,6 +145,11 @@ test( 'the sites list can be put away and brought back, and while it is away it 
 	await expect( entry ).toBeVisible( { timeout: 30_000 } );
 	await expect( ui.createSiteButton( page ) ).toBeVisible();
 	await expect( hideSitesListButton( page ) ).toHaveAttribute( 'aria-expanded', 'true' );
+	// INVARIANT — what the button says it opens and closes is the list: the
+	// element it names is there, and the list is inside it.
+	const controlled = await hideSitesListButton( page ).getAttribute( 'aria-controls' );
+	expect( controlled ).toBeTruthy();
+	await expect( page.locator( `[id="${ controlled }"]` ).getByRole( 'region', { name: 'My sites' } ) ).toBeVisible();
 
 	// INVARIANT — hidden, the list is gone for a screen reader and for the
 	// keyboard too, and the open site is still there with the way to bring

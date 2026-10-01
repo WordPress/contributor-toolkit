@@ -12,7 +12,8 @@
 // What is here: every control, something typed into or clicked, that more
 // than one of those files reaches; and six locators that find a part of the
 // screen rather than something to press, which are the rendered app, an entry
-// of the sites list, what a window with no site says, the open site's heading, a card and a ticket's row.
+// of the sites list, what a window with no site says, the open site's
+// heading, a card and a ticket's row.
 //
 // What is not here: a sentence one journey asserts, a button only one journey
 // presses, and a selector only one file needs even when it reads the markup

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { sitesListRows, siteAttention, siteToOpen, rowId, DELETING_TEXT } = require('../../src/renderer/sites-list.cjs');
+const { sitesListRows, siteAttention, siteToOpen, rowId } = require('../../src/renderer/sites-list.cjs');
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse('2026-10-01T12:00:00.000Z');
@@ -48,7 +48,7 @@ test('a site being deleted says so in place of its project, and keeps its projec
 		now: NOW
 	});
 	assert.equal(row.deleting, true);
-	assert.equal(row.description, DELETING_TEXT);
+	assert.equal(row.description, 'Deleting site…');
 	assert.equal(row.project, 'Gutenberg');
 	assert.equal(other.deleting, false);
 	assert.equal(other.description, 'Core');

@@ -1,17 +1,17 @@
 import { useMemo } from 'react';
 import { Page } from '@wordpress/admin-ui';
 import { DataViews } from '@wordpress/dataviews';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import { Icon, wordpress } from '@wordpress/icons';
 import { Button, VisuallyHidden } from '@wordpress/ui';
 
 // The list's two fields: the name, which is the row's title and so its
 // accessible name, and the line under it. A site with something to report
 // (#94) wears a dot before its name, and says what the dot means in words
-// after it: the name comes first for a screen reader, and for someone typing
-// the first letters of the site they want. A site on its way out says so the
-// same way, since pressing its entry opens nothing. Built on first render and
-// not as the module loads, which is before the locale has.
+// after it, so that the name is what a screen reader says first. A site on
+// its way out says so the same way, since pressing its entry opens nothing.
+// Built on first render and not as the module loads, which is before the
+// locale has.
 const buildFields = () => [
   {
     id: 'name',
@@ -22,8 +22,15 @@ const buildFields = () => [
       <span className="sites-sidebar-name">
         {item.attention ? <span className={`sites-sidebar-dot is-${item.attention.kind}`} title={item.attention.text} aria-hidden="true" /> : null}
         <span className="sites-sidebar-name-text">{item.name}</span>
-        {item.attention ? <VisuallyHidden render={<span />}>{`(${item.attention.text})`}</VisuallyHidden> : null}
-        {item.deleting ? <VisuallyHidden render={<span />}>(Deleting)</VisuallyHidden> : null}
+        {item.attention ? (
+          <VisuallyHidden render={<span />}>
+            {
+              // translators: %s: what a site has to report, such as that its update is incomplete. It follows the site's name.
+              sprintf(__('(%s)'), item.attention.text)
+            }
+          </VisuallyHidden>
+        ) : null}
+        {item.deleting ? <VisuallyHidden render={<span />}>{__('(Deleting)')}</VisuallyHidden> : null}
       </span>
     )
   },

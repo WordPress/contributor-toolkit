@@ -8,11 +8,10 @@
 // yet.
 'use strict';
 
+const { __, _n, sprintf } = require('@wordpress/i18n');
 const { getProjectType } = require('../project-type.cjs');
 const { pathBasename } = require('./path-basename.cjs');
 const { trunkAgeInfo } = require('./update-plan.cjs');
-
-const DELETING_TEXT = 'Deleting site…';
 
 /**
  * What a site's dot reports, before the site is even opened (#94): an update
@@ -26,11 +25,15 @@ const DELETING_TEXT = 'Deleting site…';
  */
 function siteAttention(meta = {}, now = Date.now()) {
 	if (meta.updateIncomplete) {
-		return { kind: 'incomplete', text: 'Update incomplete — code is new, built assets are old' };
+		return { kind: 'incomplete', text: __('Update incomplete — code is new, built assets are old') };
 	}
 	const age = trunkAgeInfo({ trunkDate: meta.trunkDate, now });
 	if (age.stale) {
-		return { kind: 'stale', text: `WordPress code is ${age.ageDays} days old — update to latest trunk` };
+		return {
+			kind: 'stale',
+			// translators: %d: how many days old the site's copy of the WordPress code is.
+			text: sprintf(_n('WordPress code is %d day old — update to latest trunk', 'WordPress code is %d days old — update to latest trunk', age.ageDays), age.ageDays)
+		};
 	}
 	return null;
 }
@@ -72,7 +75,7 @@ function sitesListRows({ sites, siteMeta = {}, deleting = [], now = Date.now() }
 			path: sitePath,
 			name: (meta.label && meta.label.trim()) || pathBasename(sitePath),
 			project,
-			description: isDeleting ? DELETING_TEXT : project,
+			description: isDeleting ? __('Deleting site…') : project,
 			deleting: isDeleting,
 			attention: siteAttention(meta, now)
 		};
@@ -101,4 +104,4 @@ function siteToOpen({ selection, current, rows }) {
 	return next ? next.path : current;
 }
 
-module.exports = { sitesListRows, siteAttention, siteToOpen, rowId, DELETING_TEXT };
+module.exports = { sitesListRows, siteAttention, siteToOpen, rowId };
