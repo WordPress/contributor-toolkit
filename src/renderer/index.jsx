@@ -56,7 +56,7 @@ import { ticketTrunkNotice, rebaseRefusal } from './ticket-trunk-notice.cjs';
 import { legacySiteNotice } from './legacy-site.cjs';
 import { deepLinkNotice } from './deep-link-notice.cjs';
 import { mergeInProgressNotice } from './merge-in-progress.cjs';
-import { describePrCheckout, describePrPreview, prCheckoutRefusal, prSubmissionRefusal } from './pr-checkout.cjs';
+import { describePrCheckout, describePrPreview, prCheckoutRefusal, prSubmissionRefusal, prSubmissionBlocked } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
@@ -2729,10 +2729,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   });
   const appliedPatchLabel = appliedPatch?.label || 'The patch you applied';
   const prOwnershipRefusal = pullRequest ? prSubmissionRefusal(pullRequest.number) : '';
-  // Why the pull request card will not submit this checkout, or '' when it
-  // will: someone else's pull request first, then someone else's patch.
-  const prSubmissionBlocked = prOwnershipRefusal
-    || (appliedPatch ? `Revert ${appliedPatchLabel} before opening a pull request from this checkout.` : '');
   const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
   const prCheckout = pullRequest ? describePrCheckout({ ...pullRequest, noun: workItem.noun }) : null;
   // The banner's tone and headline follow the watch (#509): green only once
@@ -5131,7 +5127,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                       project={project}
                       workItem={workItem}
                       ticket={tracTicket}
-                      refusal={prSubmissionBlocked}
+                      refusal={prSubmissionBlocked({ pullRequest, appliedPatch, appliedPatchLabel })}
                       onSavePatch={savePatch}
                     />
                   </DestinationGroup>

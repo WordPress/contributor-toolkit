@@ -219,7 +219,7 @@ test( 'an update asks before it resets edits in the tree: cancelling keeps them,
 	await saveAndUpdate.click();
 	await expect.poll( saveDialogIsOpen ).toBe( true );
 	await expect( saveAndUpdate ).toBeDisabled();
-	await dialog.getByRole( 'button', { name: 'Close', exact: true } ).click();
+	await ui.closeDialogButton( dialog ).click();
 	// The close button fades the dialog out first and asks to close it when
 	// the fade is done, so for a fifth of a second the dialog is on screen
 	// whether or not it is about to go. The class is the components' own mark

@@ -17,7 +17,7 @@
  * when the dialog is closed part-way. GitHub's device flow is stubbed at the
  * same seam, and the test plays GitHub's answer itself.
  *
- * Assertions are marked INVARIANT or CHARACTERISATION; see
+ * Where an assertion is marked INVARIANT or CHARACTERISATION, see
  * ticket-branches.spec.js for why.
  */
 
@@ -203,7 +203,7 @@ test( 'a contributor who is not signed in is asked first, can say no, signs in w
 	const title = dialog.getByRole( 'textbox', { name: 'Title', exact: true } );
 	const notes = dialog.getByRole( 'textbox', { name: 'Notes for reviewers (optional)', exact: true } );
 	const closeAndReopen = async () => {
-		await dialog.getByRole( 'button', { name: 'Close', exact: true } ).click();
+		await ui.closeDialogButton( dialog ).click();
 		await expect( dialog ).toHaveCount( 0 );
 		await ui.reviewChangesButton( page ).click();
 	};
@@ -227,7 +227,7 @@ test( 'a contributor who is not signed in is asked first, can say no, signs in w
 	await signIn.click();
 	await expect( code ).toBeVisible();
 	await expect( signIn ).toHaveCount( 0 );
-	expect( ( await githubStub( app ) ).opened ).toEqual( [ DEVICE_PAGE ] );
+	await expect.poll( async () => ( await githubStub( app ) ).opened ).toEqual( [ DEVICE_PAGE ] );
 
 	// INVARIANT — GitHub's answer arrives after the code was shown, and a
 	// refusal there reads as the choice it was: the code goes, the card says
@@ -237,8 +237,9 @@ test( 'a contributor who is not signed in is asked first, can say no, signs in w
 	await expect( code ).toHaveCount( 0 );
 
 	// CHARACTERISATION — a sign-in under way is not dropped by closing the
-	// dialog: the code is still there when it opens again, and nothing asked
-	// GitHub for a second one.
+	// dialog: the code is still there when it opens again, and opening it
+	// asked GitHub for nothing. Two sign-ins were started so far, the one
+	// that was refused and this one.
 	await signIn.click();
 	await expect( code ).toBeVisible();
 	await closeAndReopen();
@@ -250,9 +251,9 @@ test( 'a contributor who is not signed in is asked first, can say no, signs in w
 	await expect( dialog.getByText( /Signed in as janedoe/ ) ).toBeVisible();
 	await expect( code ).toHaveCount( 0 );
 
-	// INVARIANT — a pull request that could not be opened says why, sends
-	// what was typed and nothing else, and offers the file, which asks where
-	// to save it.
+	// INVARIANT — a pull request that could not be opened says why, and
+	// offers the file, which asks where to save it. That the attempt sent the
+	// form and nothing else is a CHARACTERISATION, as in the first journey.
 	await title.fill( 'Reject a theme zip' );
 	await notes.fill( 'Upload a theme in the plugin installer.' );
 	await openPr.click();

@@ -10,9 +10,10 @@ import { prConfirmationMessage } from '../confirmations.cjs';
 // (PullRequestDestination), because most of it has to outlive the card. A
 // sign-in is finished in a browser and an attempt takes as long as a fork
 // takes, and the dialog can be closed during either: the code has to be there
-// when it opens again, and the outcome has to have somewhere to land. The
-// account outlives the dialog for a plainer reason: knowing it already is what
-// keeps the card from asking "Checking…" on every open.
+// when it opens again, and an attempt that is still running has to go on
+// moving the card it was started from. The account outlives the dialog for a
+// plainer reason: knowing it already is what keeps the card from asking
+// "Checking…" on every open.
 //
 // `sitePath` is the site the pull request is opened from. `confirm` announces
 // the outcome to a contributor who looked away.
