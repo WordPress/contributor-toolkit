@@ -11,8 +11,8 @@
 //
 // What is here: every control, something typed into or clicked, that more
 // than one of those files reaches; and five locators that find a part of the
-// screen rather than something to press, which are the rendered app, a sidebar
-// entry, the open site's heading, a card and a ticket's row.
+// screen rather than something to press, which are the rendered app, an entry
+// of the sites list, the open site's heading, a card and a ticket's row.
 //
 // What is not here: a sentence one journey asserts, a button only one journey
 // presses, and a selector only one file needs even when it reads the markup
@@ -27,31 +27,53 @@
 // No `expect` in this file. The screenshot harness loads it with
 // `playwright-core` alone, and an assertion belongs in the test that makes it.
 
-// --- The sidebar -------------------------------------------------------------
+// --- The sites list ----------------------------------------------------------
 
 /**
- * A site's entry in the sidebar.
+ * A site's entry in the sites list.
  *
- * The site's name is on screen twice, the sidebar entry and the heading of the
- * open site, so neither can be reached by text alone. The entry's accessible
- * name is the site's label followed by its project tag (#251), so the label is
- * matched as the whole name minus that one word.
+ * The site's name is on screen twice, the entry in the list and the heading
+ * of the open site, so neither can be reached by text alone. The entry is a
+ * button named by the site's label. The line under it, the project (#251) or
+ * that the site is being deleted, is in the entry's row and not in the
+ * button's name.
  *
  * That is the name of a site with nothing to report, and only of that one. A
- * site whose trunk is old or whose update is incomplete adds its dot's text to
- * the name, and a site being deleted is named "<label>, Deleting": this
- * matches none of them. Seed a recent `trunkDate`, or find those by the name
- * they have.
+ * site whose trunk is old or whose update is incomplete has its dot's text in
+ * front of its name, and a site being deleted is named "Deleting. <label>":
+ * this matches none of them. Seed a recent `trunkDate`, or find those by the
+ * name they have.
+ *
+ * While the list is hidden its entries are not in the accessibility tree, so
+ * this finds none.
  *
  * @param {Object} page
  * @param {string} label The site's name.
  * @return {Object} The locator.
  */
-const sidebarEntry = ( page, label ) =>
-	page.getByRole( 'button', { name: new RegExp( `^${ label.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' ) } (Core|Gutenberg)$` ) } );
+const sidebarEntry = ( page, label ) => page.getByRole( 'button', { name: label, exact: true } );
 
-const createSiteButton = ( page ) => page.getByRole( 'button', { name: 'Create a site', exact: true } );
+// The list's own button, there whenever the list is: with at least one site.
+const createSiteButton = ( page ) => page.getByRole( 'button', { name: 'Create new site', exact: true } );
+/**
+ * The button in the middle of a window with no site in it. It has the name the
+ * create-site dialog gives its own button, so this is the one in the app's
+ * own element: a dialog is drawn outside it.
+ *
+ * @param {Object} page
+ * @return {Object} The locator.
+ */
+const createFirstSiteButton = ( page ) =>
+	page.locator( '#root' ).getByRole( 'button', { name: 'Create site', exact: true } );
+// What a window with no site in it says.
+const noSitesTitle = ( page ) => page.getByText( 'No sites', { exact: true } );
 const createSiteDialog = ( page ) => page.getByRole( 'dialog', { name: 'Create a site' } );
+// The button that closes the sites list and the one that brings it back: one
+// button, named by what pressing it does.
+const hideSitesListButton = ( page ) => page.getByRole( 'button', { name: 'Hide sites list', exact: true } );
+const showSitesListButton = ( page ) => page.getByRole( 'button', { name: 'Show sites list', exact: true } );
+// In the footer, whatever the window shows above it.
+const giveFeedbackButton = ( page ) => page.getByRole( 'button', { name: 'Give feedback', exact: true } );
 
 // --- A dialog ----------------------------------------------------------------
 
@@ -72,8 +94,8 @@ const closeDialogButton = ( dialog ) => dialog.getByRole( 'button', { name: 'Clo
 const renderedApp = ( page ) => page.locator( '#root > * > *' );
 
 /**
- * The open site's heading. The site's name is in the sidebar too, so this is
- * the half of the pair `sidebarEntry` is not.
+ * The open site's heading, in the page's header. The site's name is in the
+ * sites list too, so this is the half of the pair `sidebarEntry` is not.
  *
  * @param {Object} page
  * @param {string} label The site's name.
@@ -245,7 +267,12 @@ async function inDocumentOrder( page, locators ) {
 module.exports = {
 	sidebarEntry,
 	createSiteButton,
+	createFirstSiteButton,
+	noSitesTitle,
 	createSiteDialog,
+	hideSitesListButton,
+	showSitesListButton,
+	giveFeedbackButton,
 	closeDialogButton,
 	renderedApp,
 	siteHeading,

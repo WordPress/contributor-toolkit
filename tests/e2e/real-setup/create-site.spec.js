@@ -53,7 +53,7 @@ for ( const target of TARGETS ) {
 		try {
 			await test.step( 'Create a site in an isolated temporary directory', async () => {
 				await session.answerFileDialog( [ parent ] );
-				await ui.createSiteButton( page ).click();
+				await ui.createFirstSiteButton( page ).click();
 				const modal = ui.createSiteDialog( page );
 				const choice = modal.getByRole( 'radio', { name: target.choice, exact: true } );
 				await choice.click();

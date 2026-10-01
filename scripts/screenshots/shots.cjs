@@ -53,7 +53,7 @@ const shots = [
 		tier: 'fixture',
 		variant: 'empty',
 		prepare: async (page) => {
-			await page.getByText('No sites yet.').first().waitFor();
+			await ui.noSitesTitle(page).waitFor();
 		}
 	},
 	{
@@ -61,7 +61,7 @@ const shots = [
 		tier: 'fixture',
 		variant: 'empty',
 		prepare: async (page) => {
-			await ui.createSiteButton(page).click();
+			await ui.createFirstSiteButton(page).click();
 			await ui.createSiteDialog(page).getByText('Site name').waitFor();
 		}
 	},

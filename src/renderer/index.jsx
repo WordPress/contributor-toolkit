@@ -11,26 +11,32 @@ import {
   Icon,
   MenuGroup,
   MenuItem,
+  SlotFillProvider,
   SnackbarList,
   TextControl,
   Spinner
 } from '@wordpress/components';
+import { Page } from '@wordpress/admin-ui';
 import { __, _x, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
-import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, pencil, comment } from '@wordpress/icons';
+import { chevronDown, copy as copyIcon, check as checkIcon, pencil, drawerLeft, globe } from '@wordpress/icons';
 import { ThemeProvider } from '@wordpress/theme';
-import { VisuallyHidden } from '@wordpress/ui';
+import { Badge, Button as UiButton, EmptyState, IconButton, VisuallyHidden } from '@wordpress/ui';
 // The design system's tokens: every `--wpds-*` custom property, at its default,
 // on `:root`.
 import '@wordpress/theme/design-tokens.css';
 import '@wordpress/components/build-style/style.css';
+import '@wordpress/dataviews/build-style/style.css';
 import '@xterm/xterm/css/xterm.css';
+// After the libraries' own, so the shell's rules are the later ones.
+import './shell.css';
 import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision, setupStepLabel } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
+import { sitesListRows, siteToOpen } from './sites-list.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
@@ -69,6 +75,8 @@ import { MentorHandoff } from './components/mentor-handoff.jsx';
 import { TracDestination } from './components/trac-destination.jsx';
 import { PullRequestDestination } from './components/pull-request-destination.jsx';
 import { ReviewDialog } from './components/review-dialog.jsx';
+import { SitesSidebar } from './components/sites-sidebar.jsx';
+import { AppFooter } from './components/app-footer.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
@@ -176,7 +184,8 @@ function App() {
   useEffect(() => { if (webLogRef.current) webLogRef.current.scrollTop = webLogRef.current.scrollHeight; }, [webLogs]);
   const [webAvailable, setWebAvailable] = useState(false);
   useEffect(() => { (async () => { try { setWebAvailable(Boolean(await window.api.playgroundWebAvailable())); } catch {} })(); }, []);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Whether the sites list is showing. Closed, it gives its width to the page.
+  const [sitesListOpen, setSitesListOpen] = useState(true);
   const [activeSite, setActiveSite] = useState(null);
   const [deletingSites, setDeletingSites] = useState([]);
   // State paints the progress, while the ref closes the same-tick gap before
@@ -505,240 +514,158 @@ function App() {
     setActiveSite((current) => (current && sortedSites.includes(current) ? current : sortedSites[0]));
   }, [sortedSites]);
 
-  const handleSelectSite = useCallback((sitePath) => {
-    setActiveSite(sitePath);
-  }, []);
+  // The list reports its selection; which site that opens is decided in
+  // sites-list.cjs.
+  const sitesRows = useMemo(
+    () => sitesListRows({ sites: sortedSites, siteMeta, deleting: deletingSites }),
+    [sortedSites, siteMeta, deletingSites]
+  );
+  const openRow = sitesRows.find((row) => row.path === activeSite) || null;
+  const handleChangeSelection = useCallback((selection) => {
+    setActiveSite((current) => siteToOpen({ selection, current, rows: sitesRows }));
+  }, [sitesRows]);
+  const openFeedbackForm = useCallback(() => { window.api.openExternal(FEEDBACK_FORM_URL); }, []);
+
+  // What the window has to say that is about no one site: the Playground web
+  // server where a build ships one, a setup in flight, and a ticket that
+  // arrived from a link with no site to put it in. The prototype (#542) has no
+  // place for these yet, so they stay above whatever the page area shows.
+  const windowNotices = (
+    <>
+      {webAvailable ? (
+        <Flex align="center" justify="flex-end" style={{ gap: 8, marginBottom: 24 }}>
+          <Button
+            isBusy={webStarting}
+            variant={webUrl ? 'secondary' : 'primary'}
+            onClick={togglePlaygroundWeb}
+          >{webUrl ? 'Stop Playground web server' : 'Start Playground web server'}</Button>
+          {webStarting || webUrl ? (
+            <span style={{ fontSize: 12 }}>
+              {webStarting ? 'Starting…' : (
+                <a href={webUrl || 'http://127.0.0.1:39372/'} onClick={(e) => { e.preventDefault(); window.api.openExternal(webUrl || 'http://127.0.0.1:39372/'); }}>{webUrl || 'http://127.0.0.1:39372/'}</a>
+              )}
+            </span>
+          ) : null}
+        </Flex>
+      ) : null}
+
+      {/* Playground web server status + logs */}
+      {(webStarting || webUrl || webError || webLogs) ? (
+        <Card style={{ marginBottom: 24 }}>
+          <CardBody>
+            <div style={{ display:'flex', alignItems:'center', gap:8, justifyContent:'space-between' }}>
+              <div style={{ fontWeight: 600 }}>Playground web server</div>
+              <div style={{ fontSize:12, color:'#666' }}>
+                {webStarting ? 'Starting…' : null}
+                {!webStarting && webUrl ? (
+                  <a href={webUrl} onClick={(e)=>{ e.preventDefault(); window.api.openExternal(webUrl); }}>{webUrl}</a>
+                ) : null}
+                {!webStarting && !webUrl ? 'Stopped' : null}
+              </div>
+            </div>
+            {webError ? (<div style={{ marginTop:6, color:'#C00', fontSize:12 }}>{webError}</div>) : null}
+            <div ref={webLogRef} style={{ ...LOG_PANE_STYLE, marginTop:8, padding:8, height:140 }}><LogText text={webLogs} /></div>
+          </CardBody>
+        </Card>
+      ) : null}
+
+      {pendingSites.length > 0 && (
+        <Card style={{ marginBottom: 24 }}>
+          <CardBody>
+            <div style={{ fontWeight: 600 }}>Setting up new site…</div>
+            {downloadPhase && <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>{downloadPhase}</div>}
+            <div ref={termRef} style={{ whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 8, borderRadius: 6, height: 140, overflow: 'auto' }}>{terminalMsgs}</div>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* A ticket arrived from a link and there is no site to put it
+          in. The site in front of the contributor gets its own
+          confirmation inside the ticket panel, where the ticket would
+          go; `activeSite` is null only when there are no sites at all,
+          so this is the one other case. */}
+      {(() => {
+        if (!deepLink || activeSite) return null;
+        const notice = deepLinkNotice({ ticket: deepLink.ticket });
+        if (!notice) return null;
+        return (
+          <div role="status" style={{ marginBottom: 24, padding: '12px 14px', background: '#f0f6fc', border: '1px solid #72aee6', borderRadius: 8, color: '#1d2327' }}>
+            <div style={{ fontWeight: 600 }}>{notice.title}</div>
+            <div style={{ marginTop: 4, fontSize: 13 }}>{notice.body}</div>
+            <div style={{ marginTop: 8 }}>
+              <Button variant="link" onClick={clearDeepLink} style={{ fontSize: 12 }}>Dismiss</Button>
+            </div>
+          </div>
+        );
+      })()}
+    </>
+  );
 
   return (
     <ConfirmationContext.Provider value={confirm}>
-    <div style={{ display: 'flex', height: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>
-      <div style={{ width: sidebarCollapsed ? 56 : 280, background: '#1f1f1f', color: '#f7f7f7', display: 'flex', flexDirection: 'column', transition: 'width 0.2s ease', borderRight: '1px solid #2b2b2b' }}>
-        <div style={{ padding: sidebarCollapsed ? '12px 8px' : '16px', borderBottom: '1px solid #2b2b2b' }}>
-          <Flex align="center" justify="space-between">
-            {!sidebarCollapsed ? (<div style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{__('Contributor Toolkit')}</div>) : null}
-            <Button
-              icon={sidebarCollapsed ? chevronRight : chevronLeft}
-              onClick={() => setSidebarCollapsed((v) => !v)}
-              variant="tertiary"
-              aria-label={sidebarCollapsed ? __('Expand site list') : __('Collapse site list')}
-              isSmall
-              style={{ color: '#f7f7f7' }}
+    <SlotFillProvider>
+    <div className="app-root">
+      {sortedSites.length === 0 ? (
+        // No site, so no list and no page: what there is to do is in the
+        // middle of the window. The footer stays, since what it holds is
+        // about the app and not about a site.
+        <>
+          <div className="page-body">
+            <div className="page-body-notices">{windowNotices}</div>
+            <div className="page-body-center">
+              <EmptyState.Root>
+                <EmptyState.Icon icon={globe} />
+                <EmptyState.Title>{__('No sites')}</EmptyState.Title>
+                <EmptyState.Description>{__('Create your first site to begin contributing')}</EmptyState.Description>
+                <EmptyState.Actions>
+                  <UiButton onClick={chooseAndSetup} disabled={createSubmitting}>{__('Create site')}</UiButton>
+                </EmptyState.Actions>
+              </EmptyState.Root>
+            </div>
+          </div>
+          <AppFooter onOpenFeedbackForm={openFeedbackForm} />
+        </>
+      ) : (
+        <div className={sitesListOpen ? 'site-shell' : 'site-shell is-sites-list-hidden'}>
+          {/* Hidden, the list is out of the tab order and out of the
+              accessibility tree as well as out of sight. `inert` is given as a
+              string: React 18 drops the boolean. */}
+          <div className="sites-sidebar-slot" inert={sitesListOpen ? undefined : ''} aria-hidden={!sitesListOpen}>
+            <SitesSidebar
+              rows={sitesRows}
+              selectedId={openRow ? openRow.id : null}
+              onChangeSelection={handleChangeSelection}
+              onCreateSite={chooseAndSetup}
+              creating={createSubmitting}
+            />
+          </div>
+          <div className="site-shell-main">
+            <Page
+              className="app-page"
+              title={openRow ? openRow.name : ''}
+              badges={openRow ? <Badge>{openRow.project}</Badge> : null}
+              showSidebarToggle
+              hasPadding={false}
+              ariaLabel={openRow ? openRow.name : __('Site')}
             >
-              {!sidebarCollapsed ? __('Collapse') : null}
-            </Button>
-          </Flex>
-          <Dropdown
-            popoverProps={{
-              placement: sidebarCollapsed ? 'right-start' : 'bottom-start',
-              offset: 8
-            }}
-            renderToggle={({ isOpen, onToggle }) => (
-              <Button
-                variant="secondary"
-                onClick={onToggle}
-                aria-expanded={isOpen}
-                aria-haspopup="dialog"
-                aria-label={__('Share feedback')}
-                icon={comment}
-                isSmall
-                style={{
-                  width: '100%',
-                  justifyContent: 'center',
-                  marginTop: 12,
-                  background: '#e8e8e8',
-                  color: '#1e1e1e',
-                  borderColor: '#e8e8e8',
-                  padding: sidebarCollapsed ? '10px 0' : '10px 12px',
-                  borderRadius: 0
-                }}
-              >
-                {!sidebarCollapsed ? __('Share feedback') : null}
-              </Button>
-            )}
-            renderContent={({ onClose }) => (
-              <div style={{ width: 320, padding: 16, color: '#1d2327' }}>
-                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>{__('Share feedback')}</div>
-                <p style={{ margin: '0 0 12px', lineHeight: 1.5 }}>{__('Your feedback helps decide what to build next.')}</p>
-                <p style={{ margin: '0 0 16px', lineHeight: 1.5 }}>{__('Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.')}</p>
-                <Button
-                  variant="link"
-                  onClick={() => {
-                    onClose();
-                    window.api.openExternal(FEEDBACK_FORM_URL);
-                  }}
-                  style={{ padding: 0, height: 'auto' }}
-                >
-                  {__('Open the feedback form ↗')}
-                </Button>
-              </div>
-            )}
-          />
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? '12px 8px' : '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {sortedSites.length === 0 && !sidebarCollapsed ? (
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{__('No sites yet.')}</div>
-          ) : null}
-          {sortedSites.map((sitePath) => {
-            const meta = siteMeta?.[sitePath] || {};
-            const siteName = (meta.label && meta.label.trim()) || pathBasename(sitePath);
-            // Every row says which project its site is (#251), so a list
-            // of mixed sites reads at a glance.
-            const projectTag = getProjectType(meta.projectType).tag;
-            const isActive = activeSite === sitePath;
-            const isDeleting = deletingSites.includes(sitePath);
-            let siteButtonMinHeight = 40;
-            if (sidebarCollapsed) siteButtonMinHeight = 36;
-            else if (isDeleting) siteButtonMinHeight = 58;
-            // Staleness surfaces in the sidebar before the site is even
-            // opened (#94): amber = old trunk snapshot, red = an update that
-            // moved trunk but never finished install/build.
-            const trunkAge = trunkAgeInfo({ trunkDate: meta.trunkDate });
-            let staleDotColor = null;
-            if (meta.updateIncomplete) staleDotColor = '#d63638';
-            else if (trunkAge.stale) staleDotColor = '#dba617';
-            const staleDotTitle = meta.updateIncomplete
-              ? 'Update incomplete — code is new, built assets are old'
-              : `WordPress code is ${trunkAge.ageDays} days old — update to latest trunk`;
-            const staleDot = staleDotColor ? (
-              <span
-                title={staleDotTitle}
-                style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: staleDotColor, flexShrink: 0 }}
-              />
-            ) : null;
-            return (
-              <Button
-                key={sitePath}
-                onClick={() => handleSelectSite(sitePath)}
-                aria-busy={isDeleting}
-                aria-label={isDeleting ? `${siteName}, Deleting` : undefined}
-                disabled={isDeleting}
-                accessibleWhenDisabled={isDeleting}
-                variant="tertiary"
-                isSmall
-                isPressed={isActive}
-                style={{
-                  width: '100%',
-                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                  background: isActive ? 'rgba(255,255,255,0.16)' : 'transparent',
-                  border: '1px solid rgba(255,255,255,0.18)',
-                  color: '#f7f7f7',
-                  padding: sidebarCollapsed ? '8px 0' : '10px 12px',
-                  borderRadius: 6,
-                  height: 'auto',
-                  minHeight: siteButtonMinHeight,
-                  opacity: 1,
-                }}
-              >
-                {sidebarCollapsed && !isDeleting ? (
-                  <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>{siteName.slice(0, 1).toUpperCase()}{staleDot}</span>
-                ) : null}
-                {sidebarCollapsed && isDeleting ? <Spinner style={{ width: 16, height: 16, margin: 0 }} /> : null}
-                {!sidebarCollapsed ? (
-                  <div style={{ width: '100%', minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3 }}>
-                      <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{siteName}{staleDot}</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '1px 6px', borderRadius: 999, background: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.85)' }}>{projectTag}</span>
-                      {isDeleting ? <span style={{ fontSize: 11, lineHeight: 1.3, color: 'rgba(255,255,255,0.72)' }}>Deleting site…</span> : null}
-                    </div>
-                    {isDeleting ? <Spinner style={{ width: 16, height: 16, margin: 0, flexShrink: 0 }} /> : null}
-                  </div>
-                ) : null}
-              </Button>
-            );
-          })}
-        </div>
-        <div
-          style={{
-            padding: sidebarCollapsed ? '12px 8px 20px' : '16px 16px 24px',
-            borderTop: '1px solid #2b2b2b'
-          }}
-        >
-          <Button
-            icon={plus}
-            variant="primary"
-            onClick={chooseAndSetup}
-            disabled={createSubmitting}
-            style={{ width: '100%', justifyContent: 'center' }}
-            aria-label={__('Create a site')}
-            label={createSubmitting ? __('Finish creating the current site first') : undefined}
-          >
-            {!sidebarCollapsed ? __('Create a site') : null}
-          </Button>
-        </div>
-      </div>
-      <div style={{ flex: 1, background: '#fff', color: '#1d2327', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 32px 48px' }}>
-          <div style={{ maxWidth: 1040, margin: '0 auto' }}>
-            {webAvailable ? (
-              <Flex align="center" justify="flex-end" style={{ gap: 8, marginBottom: 24 }}>
-                <Button
-                  isBusy={webStarting}
-                  variant={webUrl ? 'secondary' : 'primary'}
-                  onClick={togglePlaygroundWeb}
-                >{webUrl ? 'Stop Playground web server' : 'Start Playground web server'}</Button>
-                {webStarting || webUrl ? (
-                  <span style={{ fontSize: 12 }}>
-                    {webStarting ? 'Starting…' : (
-                      <a href={webUrl || 'http://127.0.0.1:39372/'} onClick={(e) => { e.preventDefault(); window.api.openExternal(webUrl || 'http://127.0.0.1:39372/'); }}>{webUrl || 'http://127.0.0.1:39372/'}</a>
-                    )}
-                  </span>
-                ) : null}
-              </Flex>
-            ) : null}
-
-            {/* Playground web server status + logs */}
-            {(webStarting || webUrl || webError || webLogs) ? (
-              <Card style={{ marginBottom: 24 }}>
-                <CardBody>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, justifyContent:'space-between' }}>
-                    <div style={{ fontWeight: 600 }}>Playground web server</div>
-                    <div style={{ fontSize:12, color:'#666' }}>
-                      {webStarting ? 'Starting…' : null}
-                      {!webStarting && webUrl ? (
-                        <a href={webUrl} onClick={(e)=>{ e.preventDefault(); window.api.openExternal(webUrl); }}>{webUrl}</a>
-                      ) : null}
-                      {!webStarting && !webUrl ? 'Stopped' : null}
-                    </div>
-                  </div>
-                  {webError ? (<div style={{ marginTop:6, color:'#C00', fontSize:12 }}>{webError}</div>) : null}
-                  <div ref={webLogRef} style={{ ...LOG_PANE_STYLE, marginTop:8, padding:8, height:140 }}><LogText text={webLogs} /></div>
-                </CardBody>
-              </Card>
-            ) : null}
-
-            <div id="sites">
-              {pendingSites.length > 0 && (
-                <Card style={{ marginBottom: 24 }}>
-                  <CardBody>
-                    <div style={{ fontWeight: 600 }}>Setting up new site…</div>
-                    {downloadPhase && <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>{downloadPhase}</div>}
-                    <div ref={termRef} style={{ whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 8, borderRadius: 6, height: 140, overflow: 'auto' }}>{terminalMsgs}</div>
-                  </CardBody>
-                </Card>
-              )}
-
-              {/* A ticket arrived from a link and there is no site to put it
-                  in. The site in front of the contributor gets its own
-                  confirmation inside the ticket panel, where the ticket would
-                  go; `activeSite` is null only when there are no sites at all,
-                  so this is the one other case. */}
-              {(() => {
-                if (!deepLink || activeSite) return null;
-                const notice = deepLinkNotice({ ticket: deepLink.ticket });
-                if (!notice) return null;
-                return (
-                  <div role="status" style={{ marginBottom: 24, padding: '12px 14px', background: '#f0f6fc', border: '1px solid #72aee6', borderRadius: 8, color: '#1d2327' }}>
-                    <div style={{ fontWeight: 600 }}>{notice.title}</div>
-                    <div style={{ marginTop: 4, fontSize: 13 }}>{notice.body}</div>
-                    <div style={{ marginTop: 8 }}>
-                      <Button variant="link" onClick={clearDeepLink} style={{ fontSize: 12 }}>Dismiss</Button>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {sortedSites.length > 0 ? (
-                sortedSites.map((s) => (
+              <Page.SidebarToggleFill>
+                <IconButton
+                  icon={drawerLeft}
+                  label={sitesListOpen ? __('Hide sites list') : __('Show sites list')}
+                  variant="minimal"
+                  tone="neutral"
+                  size="compact"
+                  aria-pressed={sitesListOpen}
+                  onClick={() => setSitesListOpen((open) => !open)}
+                />
+              </Page.SidebarToggleFill>
+              <div className="site-workspace-main">
+                {windowNotices}
+                {/* Every site's view stays mounted, and only the open one is
+                    shown: a site's terminal, its server and its watch live in
+                    its view, and have to outlive the look at another site. */}
+                <div id="sites">
+                  {sortedSites.map((s) => (
                   <div
                     key={s}
                     style={{ display: activeSite === s ? 'block' : 'none' }}
@@ -768,31 +695,29 @@ function App() {
                       isActive={activeSite === s}
                     />
                   </div>
-                ))
-              ) : (
-                <Card>
-                  <CardBody>
-                    <div style={{ marginBottom: 8 }}>{__('No sites yet.')}</div>
-                    <div>{__('Use the sidebar to create your first site.')}</div>
-                  </CardBody>
-                </Card>
-              )}
-            </div>
+                ))}
+                </div>
+              </div>
+            </Page>
+            <AppFooter onOpenFeedbackForm={openFeedbackForm} />
           </div>
         </div>
-      </div>
+      )}
       {createModalOpen ? (
         <CreateSiteModal submitting={createSubmitting} error={createSiteError} onError={setCreateSiteError} onCreate={startSiteSetup} onClose={closeCreateModal} />
       ) : null}
     </div>
-    {/* One toast region for the window (#253). Anchored top-right and sized to
-        its content so it never covers the rest of the UI; SnackbarList announces
+    </SlotFillProvider>
+    {/* One toast region for the window (#253). Anchored bottom-right, above
+        the footer, and sized to its content: the top-right corner is where the
+        open site's actions are (#555), and a toast that stays until dismissed
+        would sit on them. SnackbarList announces
         each message via aria-live. The z-index clears the modal overlay
         (components-modal__screen-overlay is 100000, and a modal is a later body
         portal that would otherwise win the tie) so a confirmation for an action
         taken inside a modal — saving a patch, opening a PR — is still seen. It
         stays below popovers/dropdowns (1000000), which should sit over it. */}
-    <div style={{ position: 'fixed', right: 24, top: 24, zIndex: 100001, pointerEvents: 'none' }}>
+    <div className="toast-stack">
       <SnackbarList
         className="toolkit-snackbars"
         // The icon and the tone class are added here, at render, rather than in
@@ -2001,8 +1926,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       </VisuallyHidden>
       <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 440px', minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <h1 style={{ margin: 0, fontSize: 28, lineHeight: 1.2 }}>{displayName}</h1>
+          {/* The site's name and its project are in the page's header (#555),
+              which the window draws for whichever site is open. Renaming stays
+              here until the site's menu moves there too (#556). */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#3c434a', flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', ...statusStyles }}>
+              {initialized ? 'Initialized' : 'Uninitialized'}
+            </span>
             <Button
               icon={pencil}
               label="Rename site"
@@ -2011,12 +1941,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               variant="tertiary"
               isSmall
             />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: '#3c434a', flexWrap: 'wrap' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', ...statusStyles }}>
-              {initialized ? 'Initialized' : 'Uninitialized'}
-            </span>
-            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '2px 8px', borderRadius: 999, background: '#f0f0f1', color: '#1d2327' }}>{project.tag}</span>
             {createdLabel ? <span>Created {createdLabel}</span> : null}
             {age.known ? (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>

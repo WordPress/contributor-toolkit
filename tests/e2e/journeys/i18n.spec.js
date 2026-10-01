@@ -47,16 +47,16 @@ async function unwrapped( locator ) {
 test( 'the first-run screen and the create-site dialog are fully translatable', async ( { session } ) => {
 	const { page } = await session.start( undefined, { lang: 'en-XA' } );
 
-	const createButton = page.getByRole( 'button', { name: pseudoLocalize( 'Create a site' ), exact: true } );
+	const createButton = page.getByRole( 'button', { name: pseudoLocalize( 'Create site' ), exact: true } );
 	await expect( createButton ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.locator( 'html' ) ).toHaveAttribute( 'lang', 'en-XA' );
 	await expect( page ).toHaveTitle( pseudoLocalize( 'WordPress Contributor Toolkit' ) );
 
-	// The sidebar and the empty state.
+	// The window with no site in it, and its footer.
 	expect( await unwrapped( page.locator( '#root' ) ) ).toEqual( [] );
 
 	// The feedback popover.
-	await page.getByRole( 'button', { name: pseudoLocalize( 'Share feedback' ), exact: true } ).click();
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Give feedback' ), exact: true } ).click();
 	const feedback = page.locator( '.components-popover' );
 	await expect( feedback ).toBeVisible();
 	expect( await unwrapped( feedback ) ).toEqual( [] );
