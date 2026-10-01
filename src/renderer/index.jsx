@@ -76,6 +76,7 @@ import { DirtyTreeModal } from './components/dirty-tree-modal.jsx';
 import { CreateSiteModal } from './components/create-site-modal.jsx';
 import { PatchDiffPane } from './components/patch-diff-pane.jsx';
 import { MentorHandoff } from './components/mentor-handoff.jsx';
+import { TracDestination } from './components/trac-destination.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
@@ -5542,43 +5543,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
 
                   <DestinationGroup>
                     {showTracCards ? (
-                    <Destination
-                      title="Attach to Trac"
-                      cost="A WordPress.org account — needed anyway, for props and to comment."
-                      after="No automated checks. Often followed by a request to open a pull request."
+                    <TracDestination
+                      ticket={tracTicket}
+                      saveDisabled={Boolean(appliedPatch || pullRequest)}
+                      onSave={saveForTrac}
+                      ticketInput={ticketInput}
+                      onTicketInputChange={(value) => { setTicketInput(value); setTicketError(''); }}
+                      onLinkTicket={linkTicket}
+                      linking={ticketSaving}
+                      linkReason={ticketActionsReason}
+                      ticketError={ticketError}
                     >
-                      {tracTicket ? (
-                        <Button variant="primary" onClick={saveForTrac} disabled={Boolean(appliedPatch || pullRequest)} style={{ justifyContent:'center' }}>
-                          Save, then open #{tracTicket}
-                        </Button>
-                      ) : (
-                        <>
-                          <div style={{ fontSize:12, color:'#6c6f72' }}>
-                            No ticket is linked to this site, so there is nowhere to attach it yet.
-                          </div>
-                          <TextControl
-                            value={ticketInput}
-                            onChange={(value) => { setTicketInput(value); setTicketError(''); }}
-                            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
-                            disabled={ticketActionsBlocked}
-                            placeholder="Ticket number or URL, e.g. 62281"
-                            aria-label="Trac ticket number or URL"
-                          />
-                          <ReasonedButton
-                            variant="secondary"
-                            onClick={linkTicket}
-                            isBusy={ticketSaving}
-                            reason={ticketActionsReason}
-                            disabled={!ticketInput.trim()}
-                            style={{ justifyContent:'center' }}
-                          >Link ticket</ReasonedButton>
-                          {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
-                          {switchProgressLine}
-                          {savedCleanNotice}
-                          {blockedPanel}
-                        </>
-                      )}
-                    </Destination>
+                      {switchProgressLine}
+                      {savedCleanNotice}
+                      {blockedPanel}
+                    </TracDestination>
                     ) : null}
 
                     <MentorHandoff wporg={wporg} saveDisabled={Boolean(appliedPatch || pullRequest)} onSave={saveForHandoff} />

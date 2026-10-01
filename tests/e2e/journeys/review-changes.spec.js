@@ -10,10 +10,10 @@
  * showing what is left, which is nothing. That is the first journey here.
  *
  * Beside the diff are the places the patch can go. The second journey is one
- * of them, handing the patch to a mentor. The pull request is
- * `open-pull-request.spec.js`, and which destinations a site offers at all is
- * `gutenberg-site.spec.js`. A diff that could not be read is in
- * `pr-checkout.spec.js`.
+ * of them, handing the patch to a mentor, and the third is another, attaching
+ * it to the ticket on Trac. The pull request is `open-pull-request.spec.js`,
+ * and which destinations a site offers at all is `gutenberg-site.spec.js`. A
+ * diff that could not be read is in `pr-checkout.spec.js`.
  *
  * Copying is asked of a stand-in. The button writes to the system clipboard,
  * and a journey that let it would replace whatever the person running the
@@ -32,6 +32,7 @@ const { makeSite, read, write, LOGIN } = require( '../helpers/git-site.cjs' );
 const { discardDisabledReason } = require( '../../../src/renderer/changes-note.cjs' );
 const { parseHandle } = require( '../../../src/wporg-handle.cjs' );
 const { TITLE } = require( '../../../src/patch-provenance.cjs' );
+const { attachUrl } = require( '../../../src/renderer/trac-ticket.cjs' );
 
 const MY_EDIT = '<?php // my fix\n';
 
@@ -237,4 +238,87 @@ test( 'handing a patch to a mentor asks for a username once, refuses one that is
 	await openDialog();
 	await expect( saveAs( 'janedoe' ) ).toBeVisible();
 	await expect( username ).toHaveCount( 0 );
+} );
+
+/**
+ * Attaching the patch to its ticket on Trac (#166).
+ *
+ * The app does not post to Trac: it saves the file and opens the ticket's
+ * attach page, and the contributor uploads it. So the destination needs a
+ * ticket, and where there is none it asks for one in place, with the same
+ * questions the ticket's own card asks, the one about edits already in the
+ * tree among them. Once there is a ticket, the page is opened only after a
+ * file exists, so nobody lands on an attach form with nothing to attach.
+ *
+ * The handler that opens a link is replaced by one that records the address:
+ * a journey does not open a browser.
+ */
+test( 'attaching to Trac asks for a ticket where there is none, carries the edits into it, and opens the attach page only once the file is saved', async ( { session } ) => {
+	const TICKET = '60001';
+	const site = await makeSite( session );
+	const saveDir = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-trac-' ) ) );
+	const savedFile = path.join( saveDir, 'for-trac.diff' );
+	const { app, page } = await session.start( site.settings );
+	await app.evaluate( ( { ipcMain, dialog } ) => {
+		ipcMain.removeHandler( 'url:open' );
+		ipcMain.handle( 'url:open', ( event, url ) => {
+			global.__e2eOpened = ( global.__e2eOpened || [] ).concat( [ url ] );
+			return true;
+		} );
+		dialog.showSaveDialog = async () => {
+			global.__e2eSaveDialogs = ( global.__e2eSaveDialogs || 0 ) + 1;
+			return global.__e2eSaveAnswer;
+		};
+	} );
+	const answerSaveDialog = ( answer ) => app.evaluate( ( electron, result ) => {
+		global.__e2eSaveAnswer = result;
+	}, answer );
+	const saveDialogsAnswered = () => app.evaluate( () => global.__e2eSaveDialogs || 0 );
+	const opened = () => app.evaluate( () => global.__e2eOpened || [] );
+
+	write( site.dir, LOGIN, MY_EDIT );
+	await ui.reviewChangesButton( page ).click();
+	const dialog = page.getByRole( 'dialog', { name: 'Review & submit changes' } );
+	await expect( dialog.getByText( 'Attach to Trac', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — with no ticket there is nothing to attach to, and the
+	// destination says so and asks for one instead of offering to save.
+	await expect( dialog.getByText( 'No ticket is linked to this site, so there is nowhere to attach it yet.', { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByRole( 'button', { name: /^Save, then open #/ } ) ).toHaveCount( 0 );
+	await expect( ui.linkTicketButton( dialog ) ).toBeDisabled();
+
+	// INVARIANT — something that is not a ticket is turned away where it was
+	// typed, with what a ticket looks like.
+	await ui.ticketField( dialog ).fill( 'not a ticket' );
+	await ui.linkTicketButton( dialog ).click();
+	await expect( dialog.getByRole( 'alert' ).filter( { hasText: /^Enter a ticket number like/ } ) ).toBeVisible();
+
+	// INVARIANT — linking from here asks the question linking always asks when
+	// there are edits in the tree, in this dialog and not behind it, and
+	// taking the edits along links the ticket with them still in place.
+	await ui.ticketField( dialog ).fill( TICKET );
+	await ui.linkTicketButton( dialog ).click();
+	await dialog.getByRole( 'button', { name: `Take these edits into #${ TICKET }`, exact: true } ).click();
+	const saveThenOpen = dialog.getByRole( 'button', { name: `Save, then open #${ TICKET }`, exact: true } );
+	await expect( saveThenOpen ).toBeVisible( { timeout: 30_000 } );
+	await expect( ui.ticketField( dialog ) ).toHaveCount( 0 );
+	expect( read( site.dir, LOGIN ) ).toBe( MY_EDIT );
+
+	// INVARIANT — a save that is backed out of opens nothing: there is no file
+	// to attach.
+	await answerSaveDialog( { canceled: true } );
+	await saveThenOpen.click();
+	await expect.poll( saveDialogsAnswered ).toBe( 1 );
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+	expect( await opened() ).toEqual( [] );
+
+	// INVARIANT — a save that works writes the plain diff, with nothing of the
+	// contributor in it, and then opens that ticket's attach page, once.
+	await answerSaveDialog( { canceled: false, filePath: savedFile } );
+	await saveThenOpen.click();
+	await expect( dialog.getByText( `Saved to ${ savedFile }`, { exact: true } ) ).toBeVisible();
+	await expect.poll( opened ).toEqual( [ attachUrl( TICKET ) ] );
+	const saved = fs.readFileSync( savedFile, 'utf8' );
+	expect( saved ).toContain( '+<?php // my fix' );
+	expect( saved.startsWith( TITLE ) ).toBe( false );
 } );
