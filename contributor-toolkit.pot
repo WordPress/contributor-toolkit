@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-09-30T17:53:57+00:00\n"
+"POT-Creation-Date: 2026-10-01T07:32:48+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -23,104 +23,105 @@ msgstr ""
 msgid "The wordpress-develop repository: Trac tickets, patches and pull requests."
 msgstr ""
 
-#: src/renderer/index.jsx:434
-msgid "Please provide a site name."
-msgstr ""
-
-#: src/renderer/index.jsx:438
-msgid "Please choose where to create the site."
-msgstr ""
-
-#: src/renderer/index.jsx:5933
-msgid "WordPress Contributor Toolkit"
-msgstr ""
-
-#: src/renderer/index.jsx:632
-msgid "Contributor Toolkit"
-msgstr ""
-
-#: src/renderer/index.jsx:637
-msgid "Expand site list"
-msgstr ""
-
-#: src/renderer/index.jsx:637
-msgid "Collapse site list"
-msgstr ""
-
-#: src/renderer/index.jsx:641
-msgid "Collapse"
-msgstr ""
-
-#: src/renderer/index.jsx:674
-msgid "Share feedback"
-msgstr ""
-
-#: src/renderer/index.jsx:675
-msgid "Your feedback helps decide what to build next."
-msgstr ""
-
-#: src/renderer/index.jsx:676
-msgid ""
-"Responses go into a shared form the team reviews regularly. Submissions are "
-"anonymous unless you add your email."
-msgstr ""
-
-#: src/renderer/index.jsx:685
-msgid "Open the feedback form ↗"
-msgstr ""
-
-#: src/renderer/index.jsx:777
-msgid "Finish creating the current site first"
-msgstr ""
-
-#: src/renderer/index.jsx:889
-msgid "No sites yet."
-msgstr ""
-
-#: src/renderer/index.jsx:890
-msgid "Use the sidebar to create your first site."
-msgstr ""
-
-#: src/renderer/index.jsx:901
+#: src/renderer/components/create-site-modal.jsx:129
+#: src/renderer/index.jsx:677
 msgid "Create a site"
 msgstr ""
 
-#: src/renderer/index.jsx:913
+#: src/renderer/components/create-site-modal.jsx:141
 msgid "Site name"
 msgstr ""
 
-#: src/renderer/index.jsx:917
+#: src/renderer/components/create-site-modal.jsx:145
 msgid "My WordPress site"
 msgstr ""
 
-#: src/renderer/index.jsx:922
+#: src/renderer/components/create-site-modal.jsx:150
 msgid "Contribute to"
 msgstr ""
 
-#: src/renderer/index.jsx:923
+#: src/renderer/components/create-site-modal.jsx:151
 msgid ""
 "What this site is a checkout of: which repository it clones, and how it "
 "builds and runs. It cannot be changed later."
 msgstr ""
 
-#: src/renderer/index.jsx:929
+#: src/renderer/components/create-site-modal.jsx:157
 msgid "Site location"
 msgstr ""
 
-#: src/renderer/index.jsx:951
+#: src/renderer/components/create-site-modal.jsx:179
 msgid "No folder selected yet."
 msgstr ""
 
-#: src/renderer/index.jsx:954
+#: src/renderer/components/create-site-modal.jsx:182
 msgid ""
 "Choose the parent folder where you want this new site created. We'll add a "
 "new directory inside it for the project."
 msgstr ""
 
-#: src/renderer/index.jsx:960
+#: src/renderer/components/create-site-modal.jsx:188
 msgid "Cancel"
 msgstr ""
 
-#: src/renderer/index.jsx:961
+#: src/renderer/components/create-site-modal.jsx:189
 msgid "Create site"
+msgstr ""
+
+#: src/renderer/components/create-site-modal.jsx:93
+msgid "Please provide a site name."
+msgstr ""
+
+#: src/renderer/components/create-site-modal.jsx:97
+msgid "Please choose where to create the site."
+msgstr ""
+
+#: src/renderer/index.jsx:530
+msgid "Contributor Toolkit"
+msgstr ""
+
+#: src/renderer/index.jsx:535
+msgid "Expand site list"
+msgstr ""
+
+#: src/renderer/index.jsx:535
+msgid "Collapse site list"
+msgstr ""
+
+#: src/renderer/index.jsx:539
+msgid "Collapse"
+msgstr ""
+
+#: src/renderer/index.jsx:572
+msgid "Share feedback"
+msgstr ""
+
+#: src/renderer/index.jsx:573
+msgid "Your feedback helps decide what to build next."
+msgstr ""
+
+#: src/renderer/index.jsx:574
+msgid ""
+"Responses go into a shared form the team reviews regularly. Submissions are "
+"anonymous unless you add your email."
+msgstr ""
+
+#: src/renderer/index.jsx:5766
+msgid "WordPress Contributor Toolkit"
+msgstr ""
+
+#: src/renderer/index.jsx:583
+msgid "Open the feedback form ↗"
+msgstr ""
+
+#: src/renderer/index.jsx:675
+msgid "Finish creating the current site first"
+msgstr ""
+
+#: src/renderer/index.jsx:787
+msgid "No sites yet."
+msgstr ""
+
+#: src/renderer/index.jsx:788
+msgid "Use the sidebar to create your first site."
 msgstr ""
