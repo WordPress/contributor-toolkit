@@ -123,7 +123,8 @@ async function downloadTranslations({
 			throw new Error(`translate.wordpress.org answered for ${project} without valid translation counts; nothing was changed.`);
 		}
 		const strings = status.reduce((sum, value) => sum + set[`${value}_count`], 0);
-		const percent = currentOnly ? set.percent_translated : (set.all_count ? Math.min(100, Math.floor(100 * strings / set.all_count)) : 0);
+		let percent = set.percent_translated;
+		if (!currentOnly) percent = set.all_count ? Math.min(100, Math.floor(100 * strings / set.all_count)) : 0;
 		if (set.locale === 'en' || (!explicitSelection && percent < minCoverage)) continue;
 		if (!SLUG_PATTERN.test(set.locale)) throw new Error(`Refusing the locale slug ${JSON.stringify(set.locale)}: it is not a locale.`);
 		const row = { locale: set.locale, percent, strings };
