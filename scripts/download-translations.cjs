@@ -55,8 +55,9 @@ const RTL_LANGUAGES = new Set(['ar', 'arq', 'ary', 'azb', 'ckb', 'dv', 'fa', 'ha
  * @param {string[]} [options.locales]     Limit changes to these locale slugs.
  * @param {Function} [options.fetch]       `fetch`, replaceable in tests.
  * @param {Function} [options.wait]        Waits the given milliseconds; replaceable in tests.
- * @return {Promise<{shipped: Object[], skipped: Object[], removed: string[]}>} What was written, what
- *         passed the cut-off but was held back and why, and what was removed.
+ * @return {Promise<{shipped: Object[], skipped: Object[], removed: string[]}>} What was written, each
+ *         with whether the app can select it yet; what passed the cut-off but was held back and
+ *         why; and what was removed.
  */
 async function downloadTranslations({
 	project = DEFAULT_PROJECT,
@@ -128,9 +129,10 @@ async function downloadTranslations({
 		if (set.locale === 'en' || (!explicitSelection && percent < minCoverage)) continue;
 		if (!SLUG_PATTERN.test(set.locale)) throw new Error(`Refusing the locale slug ${JSON.stringify(set.locale)}: it is not a locale.`);
 		const row = { locale: set.locale, percent, strings };
-		if (!reachable.has(set.locale)) skipped.push({ ...row, reason: 'the app never selects this locale' });
-		else if (RTL_LANGUAGES.has(set.locale.split('-')[0])) skipped.push({ ...row, reason: 'right-to-left, held back until the styles support it' });
-		else shipped.push(row);
+		if (RTL_LANGUAGES.has(set.locale.split('-')[0])) skipped.push({ ...row, reason: 'right-to-left, held back until the styles support it' });
+		// Shipped even when the app cannot select it yet (#584), so the catalog is
+		// there once it can; the table names it.
+		else shipped.push({ ...row, selectable: reachable.has(set.locale) });
 	}
 	const byLocale = (a, b) => a.locale.localeCompare(b.locale);
 	shipped.sort(byLocale);
@@ -176,6 +178,8 @@ async function downloadTranslations({
 function formatTable({ shipped, skipped = [], removed }) {
 	const rows = shipped.map(({ locale, percent, strings }) => `| ${locale} | ${percent}% | ${strings} |`);
 	const parts = [['| Locale | Translated | Strings |', '| --- | --- | --- |', ...rows].join('\n')];
+	const unselectable = shipped.filter(({ selectable }) => selectable === false).map(({ locale }) => locale);
+	if (unselectable.length) parts.push(`Shipped, but the app cannot select it yet (#584): ${unselectable.join(', ')}`);
 	if (skipped.length) parts.push(`Not shipped:\n${skipped.map(({ locale, percent, reason }) => `- ${locale} (${percent}%): ${reason}`).join('\n')}`);
 	if (removed.length) parts.push(`Removed: ${removed.join(', ')}`);
 	return parts.join('\n\n');

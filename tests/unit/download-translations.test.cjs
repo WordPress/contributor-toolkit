@@ -86,7 +86,7 @@ test('explicit statuses export waiting strings below the default cut-off', async
 	const approvedOnly = await downloadTranslations({ dir, fetch });
 	assert.deepEqual(approvedOnly.shipped, []);
 	const result = await downloadTranslations({ dir, fetch, status: ['current', 'waiting'] });
-	assert.deepEqual(result.shipped, [{ locale: 'de', percent: 80, strings: 8 }, { locale: 'fr', percent: 70, strings: 7 }]);
+	assert.deepEqual(result.shipped, [{ locale: 'de', percent: 80, strings: 8, selectable: true }, { locale: 'fr', percent: 70, strings: 7, selectable: true }]);
 	assert.deepEqual(fs.readdirSync(dir).sort(), ['de.json', 'fr.json']);
 	assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, 'de.json'), 'utf8')).locale_data.messages['No sites yet.'], ['Waiting translation']);
 	assert.ok(calls.includes(waitingUrl));
@@ -208,21 +208,22 @@ test('an answer in an unexpected shape is refused and changes nothing', async (t
 	}
 });
 
-test('a locale the app never selects is not shipped, and is named with the reason', async (t) => {
+test('a locale the app cannot select yet still ships, and is marked as such', async (t) => {
 	const dir = tempDir(t);
-	const { fetch, calls } = fakeFetch({
+	const { fetch } = fakeFetch({
 		[API]: { translation_sets: [
 			{ locale: 'de', slug: 'default', percent_translated: 100, current_count: 26 },
 			{ locale: 'es-cl', slug: 'default', percent_translated: 100, current_count: 26 }
 		] },
-		[exportUrl('de')]: catalog('de', 'x')
+		[exportUrl('de')]: catalog('de', 'x'),
+		[exportUrl('es-cl')]: catalog('es-cl', 'x')
 	});
 
 	const result = await downloadTranslations({ dir, fetch });
 
-	assert.deepEqual(fs.readdirSync(dir), ['de.json']);
-	assert.ok(!calls.includes(exportUrl('es-cl')));
-	assert.deepEqual(result.skipped.map(({ locale, reason }) => [locale, reason]), [['es-cl', 'the app never selects this locale']]);
+	assert.deepEqual(fs.readdirSync(dir).sort(), ['de.json', 'es-cl.json']);
+	assert.deepEqual(result.shipped.map(({ locale, selectable }) => [locale, selectable]), [['de', true], ['es-cl', false]]);
+	assert.deepEqual(result.skipped, []);
 });
 
 test('a right-to-left locale is held back until the styles support it', async (t) => {
@@ -271,13 +272,15 @@ test('a request still throttled after three tries fails, and changes nothing', a
 	assert.deepEqual(fs.readdirSync(dir), []);
 });
 
-test('the table lists each locale, what was held back and why, and what was removed', () => {
+test('the table lists each locale, what the app cannot select yet, what was held back and why, and what was removed', () => {
 	const table = formatTable({
-		shipped: [{ locale: 'de', percent: 100, strings: 26 }],
+		shipped: [{ locale: 'de', percent: 100, strings: 26, selectable: true }, { locale: 'es-mx', percent: 100, strings: 26, selectable: false }],
 		skipped: [{ locale: 'ar', percent: 90, reason: 'right-to-left, held back until the styles support it' }],
 		removed: ['fr']
 	});
 	assert.match(table, /\| de \| 100% \| 26 \|/);
+	assert.match(table, /\| es-mx \| 100% \| 26 \|/);
+	assert.match(table, /cannot select it yet \(#584\): es-mx$/m);
 	assert.match(table, /- ar \(90%\): right-to-left/);
 	assert.match(table, /Removed: fr/);
 });
@@ -302,7 +305,7 @@ test('a waiting-only list exports and counts only waiting strings', async (t) =>
 		[url]: catalog('de', 'waiting')
 	});
 	const result = await downloadTranslations({ dir, fetch, status: ['waiting'] });
-	assert.deepEqual(result.shipped, [{ locale: 'de', percent: 80, strings: 8 }]);
+	assert.deepEqual(result.shipped, [{ locale: 'de', percent: 80, strings: 8, selectable: true }]);
 });
 
 test('invalid lists fail before fetching or changing catalogs', async (t) => {
