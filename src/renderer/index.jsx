@@ -12,7 +12,6 @@ import {
   MenuGroup,
   MenuItem,
   Modal,
-  RadioControl,
   SnackbarList,
   TextControl,
   TextareaControl,
@@ -39,8 +38,8 @@ import { planUpdateHandOff } from './update-handoff.cjs';
 import { appendBounded, countLines } from './debug-log.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { applyLocale } from './locale-setup.cjs';
-import { PROJECT_TYPES, getProjectType, DEFAULT_PROJECT_TYPE } from '../project-type.cjs';
-import { sanitizeSiteFolder, resolveTargetDir, directoryFromFileEntry } from './site-folder.cjs';
+import { getProjectType } from '../project-type.cjs';
+import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
@@ -75,6 +74,7 @@ import { TerminalCommandLink } from './components/terminal-command-link.jsx';
 import { RenameSiteModal } from './components/rename-site-modal.jsx';
 import { EmailModal } from './components/email-modal.jsx';
 import { DirtyTreeModal } from './components/dirty-tree-modal.jsx';
+import { CreateSiteModal } from './components/create-site-modal.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
@@ -136,22 +136,12 @@ const UPDATE_STEP_MARKS = {
 const FILE_MANAGER_LABELS = { darwin: 'Show in Finder', win32: 'Show in Explorer' };
 const FILE_MANAGER_NAMES = { darwin: 'Finder', win32: 'File Explorer' };
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
-const CREATE_SITE_NAME_INPUT_ID = 'create-site-name-input';
-const CREATE_SITE_LOCATION_INPUT_ID = 'create-site-location-input';
-const CREATE_SITE_LOCATION_HELP_ID = 'create-site-location-help';
-// What the create-site dialog offers under "Contribute to", read off the
-// registry so the copy and the order live in one place. Core is first, and
-// the default.
-// A function, not a constant: each description is translated when it is read,
-// which has to be after the locale has loaded.
-const createSiteTypeOptions = () => Object.values(PROJECT_TYPES).map((t) => ({ label: t.wizardLabel, value: t.id, description: t.description }));
 // Why the ticket's PR list could not be read, worded for the contributor.
 const TICKET_PATCH_STATUS_MESSAGE = {
   'rate-limited': 'GitHub is rate-limiting this connection.',
   offline: 'Could not reach GitHub.',
   error: 'Could not read the pull requests from GitHub.'
 };
-const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
 
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
@@ -189,7 +179,6 @@ function App() {
   const clearPendingSites = useCallback(() => setPendingSites([]), []);
   const [terminalMsgs, setTerminalMsgs] = useState('');
   const termRef = useRef(null);
-  const createDirInputRef = useRef(null);
   useEffect(() => { if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight; }, [terminalMsgs]);
   const [webStarting, setWebStarting] = useState(false);
   const [webUrl, setWebUrl] = useState('');
@@ -206,9 +195,8 @@ function App() {
   // React renders it and prevents two delete requests for one site.
   const deletingSitesRef = useRef(new Set());
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createSiteName, setCreateSiteName] = useState('');
-  const [createSiteDir, setCreateSiteDir] = useState('');
-  const [createSiteType, setCreateSiteType] = useState(DEFAULT_PROJECT_TYPE);
+  // What the create-site dialog shows when it next opens: why the last setup
+  // failed, if one did. Its own complaints about a missing answer are its own.
   const [createSiteError, setCreateSiteError] = useState('');
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
@@ -268,36 +256,6 @@ function App() {
       return next;
     });
   }, []);
-
-  useEffect(() => {
-    let styleEl = document.getElementById(CREATE_SITE_MODAL_STYLE_ID);
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = CREATE_SITE_MODAL_STYLE_ID;
-      styleEl.textContent = `
-.create-site-modal .components-modal__header-heading { color: #1d2327; }
-.create-site-modal .components-modal__header { border-bottom: 1px solid #e2e4e7; }
-.create-site-modal .components-modal__content { color: #1d2327; }
-`;
-      document.head.appendChild(styleEl);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!createModalOpen) return;
-    const input = document.getElementById(CREATE_SITE_NAME_INPUT_ID);
-    if (input) {
-      input.focus();
-      if (typeof input.select === 'function') input.select();
-    }
-  }, [createModalOpen]);
-
-  useEffect(() => {
-    if (createModalOpen) return;
-    if (createDirInputRef.current) {
-      createDirInputRef.current.value = '';
-    }
-  }, [createModalOpen]);
 
   useEffect(() => {
     const unsubProg = window.api.subscribeSetupProgress((p) => {
@@ -394,51 +352,14 @@ function App() {
   // shape.
   const chooseAndSetup = useCallback(() => {
     if (createSubmitting) return;
-    setCreateSiteName('');
-    setCreateSiteDir('');
-    setCreateSiteType(DEFAULT_PROJECT_TYPE);
     setCreateSiteError('');
     setCreateModalOpen(true);
   }, [createSubmitting]);
 
-  const openDirectoryPicker = useCallback(async () => {
-    try {
-      const dir = await window.api.chooseDirectory();
-      if (dir) {
-        setCreateSiteDir(dir);
-        setCreateSiteError('');
-      }
-    } catch {}
-  }, []);
-
-  const handleCreateDirInputChange = useCallback((event) => {
-    const inputEl = event.target;
-    createDirInputRef.current = inputEl;
-    const files = inputEl.files;
-    if (!files || files.length === 0) {
-      inputEl.value = '';
-      return;
-    }
-
-    const resolved = directoryFromFileEntry(files[0], inputEl.value);
-    setCreateSiteDir(resolved);
-    // Clearing the error only when there is a directory: a selection that
-    // resolved to nothing has not fixed anything the message was about.
-    if (resolved) setCreateSiteError('');
-    inputEl.value = '';
-  }, [setCreateSiteDir, setCreateSiteError]);
-
-  const handleCreateSiteSubmit = useCallback(async () => {
-    const nameTrimmed = createSiteName.trim();
-    if (!nameTrimmed) {
-      setCreateSiteError(__('Please provide a site name.'));
-      return;
-    }
-    if (!createSiteDir) {
-      setCreateSiteError(__('Please choose where to create the site.'));
-      return;
-    }
-
+  // What the create-site dialog hands over once it has every answer: the name,
+  // trimmed, the parent folder and the project. The dialog closes here, and the
+  // setup it started goes on without it.
+  const startSiteSetup = useCallback(async ({ name: nameTrimmed, dir: createSiteDir, projectType: createSiteType }) => {
     const cleanFolder = sanitizeSiteFolder(nameTrimmed);
     const targetDir = resolveTargetDir(createSiteDir, cleanFolder);
     let finalSitePath = targetDir;
@@ -453,10 +374,7 @@ function App() {
     }));
     setActiveSite(targetDir);
     setCreateModalOpen(false);
-    setCreateSiteName('');
-    setCreateSiteDir('');
     const chosenType = createSiteType;
-    setCreateSiteType(DEFAULT_PROJECT_TYPE);
 
     try {
       setCreateSubmitting(true);
@@ -498,30 +416,9 @@ function App() {
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, createSiteDir, createSiteName, createSiteType, moveSetupLog, refresh]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, moveSetupLog, refresh]);
 
-  const closeCreateModal = useCallback(() => {
-    if (createSubmitting) return;
-    setCreateModalOpen(false);
-  }, [createSubmitting]);
-
-  const handleCreateModalSubmit = useCallback((event) => {
-    event.preventDefault();
-    handleCreateSiteSubmit();
-  }, [handleCreateSiteSubmit]);
-
-  const handleCreateModalKeyDown = useCallback((event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      closeCreateModal();
-    }
-  }, [closeCreateModal]);
-
-  const handleCreateDirInputClick = useCallback((event) => {
-    event.preventDefault();
-    void openDirectoryPicker();
-  }, [openDirectoryPicker]);
+  const closeCreateModal = useCallback(() => setCreateModalOpen(false), []);
 
   const togglePlaygroundWeb = useCallback(async () => {
     if (!webUrl) {
@@ -896,72 +793,7 @@ function App() {
         </div>
       </div>
       {createModalOpen ? (
-        <Modal
-          className="create-site-modal"
-          title={__('Create a site')}
-          onRequestClose={closeCreateModal}
-          shouldCloseOnClickOutside={!createSubmitting}
-        >
-          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape-to-close/Enter-to-submit on the modal form is standard, intentional behavior. */}
-          <form
-            onSubmit={handleCreateModalSubmit}
-            onKeyDown={handleCreateModalKeyDown}
-            style={{ display: 'flex', flexDirection: 'column', gap: 16, color: '#1d2327', colorScheme: 'light' }}
-          >
-            <TextControl
-              id={CREATE_SITE_NAME_INPUT_ID}
-              label={__('Site name')}
-              value={createSiteName}
-              onChange={(value) => setCreateSiteName(value)}
-              disabled={createSubmitting}
-              placeholder={__('My WordPress site')}
-              // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: this is the first field of a just-opened modal.
-              autoFocus
-            />
-            <RadioControl
-              label={__('Contribute to')}
-              help={__('What this site is a checkout of: which repository it clones, and how it builds and runs. It cannot be changed later.')}
-              selected={createSiteType}
-              options={createSiteTypeOptions()}
-              onChange={(value) => setCreateSiteType(value)}
-              disabled={createSubmitting}
-            />
-            <label htmlFor={CREATE_SITE_LOCATION_INPUT_ID} style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#1d2327' }}>{__('Site location')}</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <input
-                ref={createDirInputRef}
-                id={CREATE_SITE_LOCATION_INPUT_ID}
-                type="file"
-                webkitdirectory=""
-                // eslint-disable-next-line react/no-unknown-property -- non-standard but required alongside webkitdirectory for cross-browser directory pickers.
-                directory=""
-                multiple
-                onChange={handleCreateDirInputChange}
-                onClick={handleCreateDirInputClick}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    void openDirectoryPicker();
-                  }
-                }}
-                disabled={createSubmitting}
-                aria-describedby={CREATE_SITE_LOCATION_HELP_ID}
-                style={{ height: 40, color: '#1d2327', background: '#fff', border: '1px solid #8c8f94', borderRadius: 4, padding: '6px 10px' }}
-              />
-              <span style={{ fontSize: 12, color: '#3c434a' }}>{createSiteDir || __('No folder selected yet.')}</span>
-            </div>
-            <div id={CREATE_SITE_LOCATION_HELP_ID} style={{ fontSize: 12, color: '#3c434a', marginTop: -4 }}>
-              {__('Choose the parent folder where you want this new site created. We\'ll add a new directory inside it for the project.')}
-            </div>
-            {createSiteError ? (
-              <div style={{ color: '#d63638', fontSize: 12 }}>{createSiteError}</div>
-            ) : null}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Button type="button" variant="secondary" onClick={closeCreateModal} disabled={createSubmitting}>{__('Cancel')}</Button>
-              <Button type="submit" variant="primary" isBusy={createSubmitting} disabled={createSubmitting}>{__('Create site')}</Button>
-            </div>
-          </form>
-        </Modal>
+        <CreateSiteModal submitting={createSubmitting} initialError={createSiteError} onCreate={startSiteSetup} onClose={closeCreateModal} />
       ) : null}
     </div>
     {/* One toast region for the window (#253). Anchored top-right and sized to
