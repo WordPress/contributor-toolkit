@@ -24,7 +24,6 @@ import { VisuallyHidden } from '@wordpress/ui';
 // on `:root`.
 import '@wordpress/theme/design-tokens.css';
 import '@wordpress/components/build-style/style.css';
-import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision, setupStepLabel } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
@@ -81,13 +80,13 @@ import { useSites } from './hooks/use-sites.jsx';
 import { usePullRequest } from './hooks/use-pull-request.jsx';
 import { useSiteMail } from './hooks/use-site-mail.jsx';
 import { useSiteLogs } from './hooks/use-site-logs.jsx';
+import { useSiteTerminal, TERMINAL_FONT } from './hooks/use-site-terminal.jsx';
 import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
 // One face for everything that is process output: the terminal below and every
 // log pane above it. Shared rather than repeated because the panes had drifted
 // into the app's sans-serif, which does not line up a stack trace and does not
 // read as a console even though that is exactly what it is.
-const TERMINAL_FONT = { fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace', fontSize: 13 };
 // Shared by every log pane so the tabs cannot drift apart visually. The line
 // height is looser than xterm's: this is wrapped text in a div, not painted rows.
 const LOG_PANE_STYLE = { ...TERMINAL_FONT, lineHeight: 1.4, whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 12, borderRadius: 6, height: 220, overflow: 'auto' };
@@ -127,7 +126,6 @@ const UPDATE_STEP_MARKS = {
 // the "Open directory in" menu, where every other row is a bare name.
 const FILE_MANAGER_LABELS = { darwin: 'Show in Finder', win32: 'Show in Explorer' };
 const FILE_MANAGER_NAMES = { darwin: 'Finder', win32: 'File Explorer' };
-const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 // Why the ticket's PR list could not be read, worded for the contributor.
 const TICKET_PATCH_STATUS_MESSAGE = {
   'rate-limited': 'GitHub is rate-limiting this connection.',
@@ -966,16 +964,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     () => workItemProvider(project.workItem.provider, `${project.upstream.owner}/${project.upstream.repo}`),
     [project]
   );
-  // Read through a ref by the terminal's command handlers rather than closed
-  // over: the xterm instance is created by an effect that depends on
-  // `printHelp`, so a new array identity here would otherwise dispose and
-  // recreate the terminal, scrollback and all, the first time a status
-  // reports a type. Same indirection as terminalInputHandlerRef, and updated
-  // the same way: from an effect, once the render that changed it is on screen.
-  const allowedScriptsRef = useRef(projectBuild.allowedScripts);
-  useLayoutEffect(() => {
-    allowedScriptsRef.current = projectBuild.allowedScripts;
-  }, [projectBuild.allowedScripts]);
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
@@ -1655,16 +1643,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     }
   }, [sitePath]);
 
-  // terminal refs/state (after run helpers so dependencies are available)
-  const terminalContainerRef = useRef(null);
+  // The site's terminal (#554): the xterm instance, what is typed in it and
+  // the commands it runs through the three runners above. The lock, the kill
+  // handler and the writer are taken out by name because every chain below
+  // holds the lock and writes its progress there, as it always has.
+  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent });
   // The scroll root for the next-action cue (#252): the whole detail section, so
   // the cue can find whichever block is the next step wherever it sits.
   const nextActionSectionRef = useRef(null);
-  const terminalRef = useRef(null);
-  const terminalStickRef = useRef(true);
-  const terminalInputHandlerRef = useRef(() => {});
-  const terminalKillRef = useRef(null);
-  const terminalStateRef = useRef({ input: '', history: [], historyIndex: 0, running: false });
   const serverStartRequestedRef = useRef(false);
   const stoppingRef = useRef(false);
   // True from a Stop we asked for until the server reports it has exited.
@@ -1682,28 +1668,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
 
   useEffect(() => { runningRef.current = running; }, [running]);
   useEffect(() => { waitingForWatchRef.current = waitingForWatch; }, [waitingForWatch]);
-
-  // The terminal's own busy flag lives in a ref, so nothing re-renders when it
-  // moves — fine for the guards that read it inline, useless for anything the
-  // UI has to reflect. The hints under the Terminal (#182) do have to reflect
-  // it, so every write goes through here and keeps a state copy in step. The
-  // direction that hurts is the ref saying "busy" while the state says "free":
-  // the hint links stay enabled and their click is silently refused.
-  const [terminalRunning, setTerminalRunning] = useState(false);
-  const markTerminalRunning = useCallback((value) => {
-    const next = Boolean(value);
-    terminalStateRef.current.running = next;
-    setTerminalRunning(next);
-  }, []);
-
-  const normalizeForTerminal = useCallback((text) => String(text ?? '').replace(/\r?\n/g, '\r\n'), []);
-
-  const writeToTerminal = useCallback((text) => {
-    const term = terminalRef.current;
-    if (!term) return;
-    term.write(normalizeForTerminal(text));
-    if (terminalStickRef.current) term.scrollToBottom();
-  }, [normalizeForTerminal]);
 
   // Taking a step back by hand is the answer to "Setup stopped." — so the
   // notice goes away here rather than lingering over work already resumed.
@@ -1728,240 +1692,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       }
     });
   }, [runScript, writeToTerminal]);
-
-  const showPrompt = useCallback((prependNewLine = true) => {
-    const term = terminalRef.current;
-    if (!term) return;
-    const state = terminalStateRef.current;
-    if (prependNewLine) term.write('\r\n');
-    term.write('$ ');
-    state.input = '';
-    state.historyIndex = state.history.length;
-    if (terminalStickRef.current) term.scrollToBottom();
-  }, []);
-
-  const replaceTerminalInput = useCallback((next) => {
-    const term = terminalRef.current;
-    if (!term) return;
-    const state = terminalStateRef.current;
-    const current = state.input;
-    if (current && current.length) {
-      for (let i = 0; i < current.length; i += 1) {
-        term.write('\b \b');
-      }
-    }
-    state.input = next;
-    if (next) term.write(next);
-    if (terminalStickRef.current) term.scrollToBottom();
-  }, []);
-
-  // Drops a command at the prompt without running it, for the hints under the
-  // Terminal (#182). Build and install are one-time steps in the setup
-  // checklist, so a contributor who edits files or adds a dependency later has
-  // no button left to press — the terminal is the path that still works, and
-  // nothing pointed at it. Prefilling rather than running is the point: the
-  // command lands where they can see it, and they press Enter themselves.
-  const prefillTerminalCommand = useCallback((command) => {
-    // The links are already rendered as plain text while the terminal is busy,
-    // so this is the belt to that braces — but it says so rather than returning
-    // silently, matching every other busy guard in this file. A guard that
-    // swallows the click is how a link becomes a control that does nothing.
-    if (terminalStateRef.current.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    replaceTerminalInput(command);
-    const term = terminalRef.current;
-    if (term) term.focus();
-  }, [replaceTerminalInput, writeToTerminal]);
-
-  const addCommandToHistory = useCallback((value) => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    const state = terminalStateRef.current;
-    if (state.history[state.history.length - 1] === trimmed) {
-      state.historyIndex = state.history.length;
-      return;
-    }
-    const nextHistory = [...state.history, trimmed];
-    if (nextHistory.length > 50) nextHistory.shift();
-    state.history = nextHistory;
-    state.historyIndex = nextHistory.length;
-  }, []);
-
-  const printHelp = useCallback(() => {
-    writeToTerminal('Available commands:\n');
-    writeToTerminal('  help                        Show this help text\n');
-    writeToTerminal('  npm install                 Run npm install in the site directory\n');
-    writeToTerminal('  npm run <script>            Run one of: ' + allowedScriptsRef.current.join(', ') + '\n');
-    writeToTerminal('\nThe setup checklist runs npm install and npm run build once. Run them here\nwhenever you change files or add a dependency afterwards.\n');
-  }, [writeToTerminal]);
-
-  const executeTerminalCommand = useCallback((rawCommand) => {
-    const command = rawCommand.trim();
-    const state = terminalStateRef.current;
-    if (!command) {
-      showPrompt(false);
-      return;
-    }
-
-    addCommandToHistory(command);
-
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-
-    if (command === 'help') {
-      printHelp();
-      showPrompt(false);
-      return;
-    }
-
-    const lower = command.toLowerCase();
-    if (TERMINAL_INSTALL_ALIASES.includes(lower)) {
-      markTerminalRunning(true);
-      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-      writeToTerminal('Running npm install…\n');
-      runInstall({
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          writeToTerminal(`npm install exited with code ${code}\n`);
-          markTerminalRunning(false);
-          terminalKillRef.current = null;
-          showPrompt(false);
-        }
-      });
-      return;
-    }
-
-    if (lower.startsWith('npm run ')) {
-      const script = command.slice(8).trim();
-      if (!script) {
-        writeToTerminal('Missing script name. Example: npm run build\n');
-        showPrompt(false);
-        return;
-      }
-      const allowedScripts = allowedScriptsRef.current;
-      if (!allowedScripts.includes(script)) {
-        writeToTerminal(`Unsupported script "${script}". Allowed scripts: ${allowedScripts.join(', ')}\n`);
-        showPrompt(false);
-        return;
-      }
-      markTerminalRunning(true);
-      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-      writeToTerminal(`Running npm run ${script}…\n`);
-      runScript(script, {
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          writeToTerminal(`npm run ${script} exited with code ${code}\n`);
-          markTerminalRunning(false);
-          terminalKillRef.current = null;
-          showPrompt(false);
-        }
-      });
-      return;
-    }
-
-    writeToTerminal(`Unsupported command: ${command}\nTry "help" for the list of supported commands.\n`);
-    showPrompt(false);
-  }, [addCommandToHistory, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
-
-  const handleTerminalData = useCallback((data) => {
-    const term = terminalRef.current;
-    if (!term) return;
-    const state = terminalStateRef.current;
-
-    if (data === '\u0003') { // Ctrl+C
-      term.write('^C\r\n');
-      state.input = '';
-      state.historyIndex = state.history.length;
-      if (state.running) {
-        if (terminalKillRef.current) terminalKillRef.current();
-      } else {
-        showPrompt(false);
-      }
-      return;
-    }
-
-    if (state.running) {
-      // Ignore all other input while command is running
-      return;
-    }
-
-    if (data === '\r') { // Enter
-      const current = state.input;
-      state.input = '';
-      term.write('\r\n');
-      state.historyIndex = state.history.length;
-      executeTerminalCommand(current);
-      return;
-    }
-
-    if (data === '\u007f') { // Backspace
-      if (state.input.length > 0) {
-        state.input = state.input.slice(0, -1);
-        term.write('\b \b');
-      }
-      return;
-    }
-
-    if (data === '\u001b[A' || data === '\u001b[B') { // history navigation
-      if (!state.history.length) return;
-      if (data === '\u001b[A') {
-        state.historyIndex = Math.max(0, state.historyIndex - 1);
-      } else {
-        state.historyIndex = Math.min(state.history.length, state.historyIndex + 1);
-      }
-      const nextValue = state.historyIndex >= state.history.length ? '' : state.history[state.historyIndex];
-      replaceTerminalInput(nextValue);
-      return;
-    }
-
-    if (data.startsWith('\u001b')) {
-      // Ignore other escape sequences
-      return;
-    }
-
-    state.input += data;
-    term.write(data);
-    if (terminalStickRef.current) term.scrollToBottom();
-  }, [executeTerminalCommand, replaceTerminalInput, showPrompt]);
-
-  useEffect(() => {
-    terminalInputHandlerRef.current = handleTerminalData;
-  }, [handleTerminalData]);
-
-  useEffect(() => {
-    const container = terminalContainerRef.current;
-    if (!container) return undefined;
-    const term = new Terminal({
-      rows: 12,
-      cursorBlink: true,
-      scrollback: 4000,
-      convertEol: false,
-      theme: { background: '#111', foreground: '#f5f5f5' },
-      ...TERMINAL_FONT
-    });
-    terminalRef.current = term;
-    term.open(container);
-    term.write(normalizeForTerminal('WordPress npm helper terminal.\n'));
-    printHelp();
-    showPrompt(false);
-    const dataDisposable = term.onData((d) => terminalInputHandlerRef.current(d));
-    const scrollDisposable = term.onScroll(() => {
-      const buffer = term.buffer.active;
-      const atBottom = buffer.baseY + buffer.cursorY >= buffer.length - term.rows;
-      terminalStickRef.current = atBottom;
-    });
-    return () => {
-      dataDisposable.dispose();
-      scrollDisposable.dispose();
-      term.dispose();
-      terminalRef.current = null;
-      terminalStickRef.current = true;
-    };
-  }, [normalizeForTerminal, printHelp, showPrompt]);
 
   useEffect(() => {
     const incoming = setupLogs || '';
@@ -1998,7 +1728,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // The watcher is independent now (#247): stopping the dev server leaves it
     // running, so a contributor can keep compiling on save without serving the
     // site. It is stopped only by its own control (stopWatcher).
-  }, [markTerminalRunning, setRunning, setServerUrl, setStarting, setWaitingForWatch, sitePath, stopDebugTail, stopListeningForMail]);
+  }, [markTerminalRunning, setRunning, setServerUrl, setStarting, setWaitingForWatch, sitePath, stopDebugTail, stopListeningForMail, terminalKillRef]);
 
   const startPhpServer = useCallback(async () => {
     if (serverStartRequestedRef.current || stoppingRef.current || !devServerActiveRef.current) {
@@ -2173,7 +1903,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     } else {
       startWatchProcess();
     }
-  }, [appendWatch, hasBuilt, killCurrent, markTerminalRunning, markWatchState, runScript, selectLogTab, settleWatchWaiters, startWatchProcess]);
+  }, [appendWatch, hasBuilt, killCurrent, markTerminalRunning, markWatchState, runScript, selectLogTab, settleWatchWaiters, startWatchProcess, terminalKillRef, terminalStateRef]);
 
   // User-initiated stop of the watch (its own button). Never touches the server.
   const stopWatcher = useCallback(async () => {
@@ -2195,7 +1925,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       markTerminalRunning(false);
       terminalKillRef.current = null;
     }
-  }, [clearWatchActivity, killCurrent, killWatcher, markBuildInterrupted, markTerminalRunning, markWatchState, settleWatchWaiters]);
+  }, [clearWatchActivity, killCurrent, killWatcher, markBuildInterrupted, markTerminalRunning, markWatchState, settleWatchWaiters, terminalKillRef]);
 
   // Pause the watch for an operation that needs the build directory and
   // node_modules to itself — an install, a full build, a trunk reset (#262).
