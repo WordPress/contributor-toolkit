@@ -27,6 +27,7 @@ const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite, read, write, LOGIN } = require( '../helpers/git-site.cjs' );
 const { discardDisabledReason } = require( '../../../src/renderer/changes-note.cjs' );
+const { parseHandle } = require( '../../../src/wporg-handle.cjs' );
 
 const MY_EDIT = '<?php // my fix\n';
 
@@ -127,4 +128,105 @@ test( 'the review pane shows the tree\'s diff, saves it to the file chosen, says
 	const discard = dialog.getByRole( 'button', { name: 'Discard all changes', exact: true } );
 	await expect( discard ).toBeDisabled();
 	await expect( discard ).toHaveAccessibleDescription( discardDisabledReason( { patchHasChanges: false } ) );
+} );
+
+/**
+ * Handing the patch to a mentor (#553).
+ *
+ * The one way out of the dialog that needs no account anywhere: the patch is
+ * saved with the contributor's WordPress.org username and the event they are
+ * at written into it, so whoever pushes it knows whose props it carries. The
+ * app asks for the two once and remembers them for every site. So what is
+ * typed has to be what is remembered, a name that is not a username has to be
+ * turned away with the reason, and the saved file has to say what the dialog
+ * said it would.
+ */
+test( 'handing a patch to a mentor asks for a username once, refuses one that is not, and saves a patch that carries it', async ( { session } ) => {
+	const site = await makeSite( session );
+	const saveDir = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-handoff-' ) ) );
+	const savedFile = path.join( saveDir, 'handoff.diff' );
+	const { app, page } = await session.start( site.settings );
+	// The save dialog is the operating system's; the test answers for it, and
+	// keeps the name the app proposed.
+	await app.evaluate( ( { dialog }, filePath ) => {
+		dialog.showSaveDialog = async ( options ) => {
+			global.__e2eProposedName = options.defaultPath;
+			return { canceled: false, filePath };
+		};
+	}, savedFile );
+
+	write( site.dir, LOGIN, MY_EDIT );
+	const openDialog = async () => {
+		await ui.reviewChangesButton( page ).click();
+		await expect( dialog.getByText( 'Hand it to a mentor', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	};
+	const dialog = page.getByRole( 'dialog', { name: 'Review & submit changes' } );
+	const username = dialog.getByLabel( 'WordPress.org username', { exact: true } );
+	const event = dialog.getByLabel( 'Event this patch was written at', { exact: true } );
+	const remember = dialog.getByRole( 'button', { name: 'Remember this', exact: true } );
+	const saveAs = ( handle ) => dialog.getByRole( 'button', { name: `Save patch as ${ handle }`, exact: true } );
+	await openDialog();
+
+	// INVARIANT — before the first answer there is nothing to save as and
+	// nothing to remember: the form is shown, and its button is off until
+	// there is a name in it.
+	await expect( username ).toHaveValue( '' );
+	await expect( remember ).toBeDisabled();
+	await expect( dialog.getByRole( 'button', { name: /^Save patch as / } ) ).toHaveCount( 0 );
+
+	// INVARIANT — a name typed and abandoned is not waiting in the form the
+	// next time the dialog opens.
+	await username.fill( 'abandoned' );
+	await page.keyboard.press( 'Escape' );
+	await expect( dialog ).toHaveCount( 0 );
+	await openDialog();
+	await expect( username ).toHaveValue( '' );
+
+	// INVARIANT — a name that is not a WordPress.org username is turned away,
+	// with the reason, and nothing is remembered.
+	await username.fill( 'jane doe!' );
+	await remember.click();
+	await expect( dialog.getByRole( 'alert' ).filter( { hasText: parseHandle( 'jane doe!' ).error } ) ).toBeVisible();
+	expect( session.readSettings().preferences.wporgHandle ).toBeFalsy();
+
+	// INVARIANT — a username and an event, once given, are what the dialog
+	// offers to save as and says the patch will carry, and the complaint about
+	// the earlier name is gone.
+	await username.fill( 'janedoe' );
+	await event.fill( 'WordCamp Test 2026' );
+	await remember.click();
+	await expect( saveAs( 'janedoe' ) ).toBeVisible();
+	await expect( dialog.getByText( 'The patch will say it was written at WordCamp Test 2026.', { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByRole( 'alert' ) ).toHaveCount( 0 );
+	// CHARACTERISATION — they are the app's, not the site's: kept in its
+	// preferences.
+	expect( session.readSettings().preferences ).toMatchObject( { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Test 2026' } );
+
+	// INVARIANT — changing them starts from what is remembered, and an event
+	// left empty is an event cleared, which the dialog then says.
+	await dialog.getByRole( 'button', { name: 'Change these', exact: true } ).click();
+	await expect( username ).toHaveValue( 'janedoe' );
+	await expect( event ).toHaveValue( 'WordCamp Test 2026' );
+	await event.fill( '' );
+	await remember.click();
+	await expect( dialog.getByText( 'No event on the patch.', { exact: true } ) ).toBeVisible();
+
+	// INVARIANT — the file is the diff with the username in it, proposed under
+	// a name that carries the username, and the pane names where it went.
+	await saveAs( 'janedoe' ).click();
+	await expect( dialog.getByText( `Saved to ${ savedFile }`, { exact: true } ) ).toBeVisible();
+	const saved = fs.readFileSync( savedFile, 'utf8' );
+	expect( saved ).toContain( 'janedoe' );
+	expect( saved ).toContain( '+<?php // my fix' );
+	expect( path.basename( await app.evaluate( () => global.__e2eProposedName ) ) ).toBe( 'janedoe.diff' );
+
+	// INVARIANT — a change begun and abandoned changes nothing: the next time
+	// the dialog opens it offers the name that was remembered, not the form.
+	await dialog.getByRole( 'button', { name: 'Change these', exact: true } ).click();
+	await username.fill( 'someoneelse' );
+	await page.keyboard.press( 'Escape' );
+	await expect( dialog ).toHaveCount( 0 );
+	await openDialog();
+	await expect( saveAs( 'janedoe' ) ).toBeVisible();
+	await expect( username ).toHaveCount( 0 );
 } );
