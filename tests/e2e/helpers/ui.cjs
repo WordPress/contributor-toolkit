@@ -53,6 +53,12 @@ const sidebarEntry = ( page, label ) =>
 const createSiteButton = ( page ) => page.getByRole( 'button', { name: 'Create a site', exact: true } );
 const createSiteDialog = ( page ) => page.getByRole( 'dialog', { name: 'Create a site' } );
 
+// --- A dialog ----------------------------------------------------------------
+
+// The button in a dialog's header that closes it. Takes the dialog, not the
+// page: more than one can be in the document.
+const closeDialogButton = ( dialog ) => dialog.getByRole( 'button', { name: 'Close', exact: true } );
+
 // --- The open site -----------------------------------------------------------
 
 /**
@@ -215,6 +221,7 @@ module.exports = {
 	sidebarEntry,
 	createSiteButton,
 	createSiteDialog,
+	closeDialogButton,
 	renderedApp,
 	siteHeading,
 	siteMenuButton,

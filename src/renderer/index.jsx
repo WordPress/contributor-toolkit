@@ -14,7 +14,6 @@ import {
   Modal,
   SnackbarList,
   TextControl,
-  TextareaControl,
   Spinner
 } from '@wordpress/components';
 import { __, setLocaleData } from '@wordpress/i18n';
@@ -57,18 +56,16 @@ import { ticketTrunkNotice, rebaseRefusal } from './ticket-trunk-notice.cjs';
 import { legacySiteNotice } from './legacy-site.cjs';
 import { deepLinkNotice } from './deep-link-notice.cjs';
 import { mergeInProgressNotice } from './merge-in-progress.cjs';
-import { describePrCheckout, describePrPreview, prCheckoutRefusal, prSubmissionRefusal } from './pr-checkout.cjs';
+import { describePrCheckout, describePrPreview, prCheckoutRefusal, prSubmissionRefusal, prSubmissionBlocked } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
-import { carryTestMode } from './github-account.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
-import { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage } from './confirmations.cjs';
-import { prStageLabel } from './pr-stage.cjs';
+import { initialConfirmations, confirmationReducer, deleteFailureMessage } from './confirmations.cjs';
 import { ReasonedButton } from './components/reasoned-button.jsx';
 import { DiscardChangesLink } from './components/discard-changes-link.jsx';
 import { LogText } from './components/log-text.jsx';
-import { Destination, DestinationGroup } from './components/destination.jsx';
+import { DestinationGroup } from './components/destination.jsx';
 import { TerminalCommandLink } from './components/terminal-command-link.jsx';
 import { RenameSiteModal } from './components/rename-site-modal.jsx';
 import { EmailModal } from './components/email-modal.jsx';
@@ -77,10 +74,12 @@ import { CreateSiteModal } from './components/create-site-modal.jsx';
 import { PatchDiffPane } from './components/patch-diff-pane.jsx';
 import { MentorHandoff } from './components/mentor-handoff.jsx';
 import { TracDestination } from './components/trac-destination.jsx';
+import { PullRequestDestination } from './components/pull-request-destination.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
 import { useSites } from './hooks/use-sites.jsx';
+import { usePullRequest } from './hooks/use-pull-request.jsx';
 import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
 // One face for everything that is process output: the terminal below and every
@@ -110,16 +109,6 @@ const COPY_BUTTON_LABELS = {
   failed: 'Could not copy'
 };
 
-// Why it failed, in a sentence that says what to do about it. Every one of
-// these still leaves the patch file, which is what the card offers underneath.
-// The no-ticket refusal is not here: the main process words it for the site's
-// work item (#251), and the fallback below shows that sentence as sent.
-const PR_FAILURE_MESSAGES = {
-  unauthorized: 'That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.',
-  'rate-limited': 'GitHub is rate-limiting this connection. It usually clears within the hour.',
-  offline: 'No connection to GitHub.',
-  empty: 'There are no changes to open a pull request with.'
-};
 // Per-status wording for the update chain card (#94), following the issue's
 // mockups: the skipped install step is named, never hidden, and the build
 // step points at the Terminal instead of opening a second log surface.
@@ -946,21 +935,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const [worktreeDirty, setWorktreeDirty] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState(null);
-  // Opening a pull request (#167). `githubAccount` is null until the panel has
-  // asked; `{ login: null }` is a real answer meaning signed out, and the two
-  // must not render the same way — offering "Sign in" before the app knows
-  // whether it already is signed in makes the panel flicker on every open.
-  const [githubAccount, setGithubAccount] = useState(null);
-  const [githubDeviceCode, setGithubDeviceCode] = useState(null);
-  const [githubError, setGithubError] = useState('');
-  const [githubDeclined, setGithubDeclined] = useState(false);
-  const [codeCopied, setCodeCopied] = useState(false);
-  const [prTitle, setPrTitle] = useState('');
-  const [prNotes, setPrNotes] = useState('');
-  const [prStage, setPrStage] = useState('');
-  const [prResult, setPrResult] = useState(null);
-  const [prError, setPrError] = useState(null);
-  const [prLinkCopied, setPrLinkCopied] = useState(false);
+  // Opening a pull request (#167): the account, the sign-in, the form and the
+  // attempt. Held here because all of it outlives the card that shows it.
+  const prSubmission = usePullRequest({ sitePath, confirm });
   const [emails, setEmails] = useState([]);
   const [smtpPort, setSmtpPort] = useState(0);
   const newEmailUnsubRef = useRef(null);
@@ -3594,16 +3571,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setPatchSaved(null);
     setPatchSaveError('');
     setDiscardError(null);
-    // Same rule for the pull request card: last time's outcome belongs to last
-    // time's patch. The account is not reset — that survives the modal — but it
-    // is re-read, since it can have been signed out from another site's panel.
-    setPrResult(null);
-    setPrError(null);
-    setPrStage('');
-    setPrNotes('');
-    setGithubError('');
-    setGithubDeclined(false);
-    loadGithubAccount();
+    // Same rule for the pull request card, which also reads the account again.
+    prSubmission.startReview();
     await loadPatchText();
   };
 
@@ -3757,344 +3726,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     await savePatchFile({ handoff: true });
   };
 
-  // --- The pull request destination (#167) ---
-
-  const loadGithubAccount = async () => {
-    try {
-      const res = await window.api.getGithubAccount();
-      setGithubAccount(res && res.ok ? res : { login: null, configured: false });
-    } catch {
-      setGithubAccount({ login: null, configured: false });
-    }
-  };
-
-  // Sign-in is two-legged on purpose: this resolves as soon as there is a code
-  // to show, because the contributor's next move is in a browser, and the
-  // outcome of the wait arrives later on the callback.
-  const startGithubSignIn = async () => {
-    setGithubError('');
-    setCodeCopied(false);
-    let started;
-    try {
-      started = await window.api.signInToGithub((done) => {
-        setGithubDeviceCode(null);
-        if (done && done.ok) {
-          setGithubAccount((prev) => carryTestMode(prev, { login: done.login, configured: true }));
-          setGithubError('');
-          return;
-        }
-        // Declining is a choice, not a fault, so it reads as one.
-        setGithubError(done && done.reason === 'denied'
-          ? 'The authorization was declined on GitHub. Nothing was changed.'
-          : (done && done.error) || 'Sign-in did not complete.');
-      });
-    } catch (e) {
-      setGithubError(e && e.message ? e.message : String(e));
-      return;
-    }
-    if (!started || !started.ok) {
-      setGithubError((started && started.error) || 'Could not start sign-in.');
-      return;
-    }
-    setGithubDeviceCode({ userCode: started.userCode, verificationUri: started.verificationUri });
-    // Opening the page here rather than making it a second button: the code on
-    // screen is only useful on that page, and a contributor who has just been
-    // told what will happen should not have to go looking for where.
-    window.api.openExternal(started.verificationUri);
-  };
-
-  const cancelGithubSignIn = async () => {
-    setGithubDeviceCode(null);
-    setGithubError('');
-    try { await window.api.cancelGithubSignIn(); } catch {}
-  };
-
-  const signOutOfGithub = async () => {
-    try { await window.api.signOutOfGithub(); } catch {}
-    setGithubAccount((prev) => carryTestMode(prev, { login: null, configured: prev?.configured !== false }));
-    setPrResult(null);
-    setPrError(null);
-  };
-
-  const openPullRequest = async () => {
-    setPrError(null);
-    setPrResult(null);
-    setPrStage('forking');
-    // Subscribed only for the duration of the attempt: the event carries a site
-    // path because one main process serves every open site, and a stale
-    // listener would move another site's spinner.
-    const unsubscribe = window.api.subscribePullRequestProgress((payload) => {
-      if (payload && payload.sitePath === sitePath) setPrStage(payload.stage);
-    });
-    try {
-      const res = await window.api.openPullRequest(sitePath, { title: prTitle, notes: prNotes });
-      if (res && res.ok) {
-        setPrResult(res);
-        // The result panel below carries the link; this announces the outcome
-        // for a contributor who looked away during the slow fork step (#253).
-        confirm(prConfirmationMessage(res));
-      } else {
-        setPrError(res || { reason: 'error', error: 'The pull request could not be opened.' });
-        // A revoked authorization is forgotten in the main process, so the card
-        // has to stop claiming an account it no longer has.
-        if (res && res.reason === 'unauthorized') setGithubAccount((prev) => carryTestMode(prev, { login: null, configured: true }));
-      }
-    } catch (e) {
-      setPrError({ reason: 'error', error: e && e.message ? e.message : String(e) });
-    } finally {
-      setPrStage('');
-      unsubscribe();
-    }
-  };
-
-  const copyPrLink = async () => {
-    if (!prResult?.url) return;
-    try {
-      await navigator.clipboard.writeText(prResult.url);
-      setPrLinkCopied(true);
-      setTimeout(() => setPrLinkCopied(false), 2000);
-    } catch {}
-  };
-
-  // The pull request card has six states and they are genuinely sequential —
-  // done, still asking, waiting on the browser, ready, declined, not started.
-  // Written as nested ternaries in the JSX that is one expression six levels
-  // deep and unreadable at the point where the wording matters most, so the
-  // states get early returns and the card body gets one call.
-  const renderPullRequestBody = () => {
-    if (pullRequest) {
-      return <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>{prOwnershipRefusal}</div>;
-    }
-    if (appliedPatch) {
-      return (
-        <div style={{ fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
-          Revert {appliedPatchLabel} before opening a pull request from this checkout.
-        </div>
-      );
-    }
-
-    if (prResult) {
-      return (
-        <>
-          {/*
-            A dry run (WP_DEV_ENV_GITHUB_DRY_RUN) stops after the branch: the
-            fork writes are private, the pull request is the step watchers
-            hear about. Saying so beats a "pull request #null".
-          */}
-          {prResult.dryRun ? (
-            <div style={{ fontSize:13, color:'#0f5132' }}>
-              Dry run — branch <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}><code style={{ fontSize:12 }}>{prResult.branch}</code></Button> was created on your fork; no pull request was opened.
-            </div>
-          ) : (
-          <div style={{ fontSize:13, color:'#0f5132' }}>
-            Opened <Button variant="link" onClick={()=>window.api.openExternal(prResult.url)} style={{ fontSize:13 }}>pull request #{prResult.number}</Button>
-            {' '}from <code style={{ fontSize:12 }}>{prResult.branch}</code>.
-          </div>
-          )}
-          {/*
-            The branch always bases on today's trunk (see resolveBase); this
-            names the consequence when the local checkout was behind it. The
-            clash guard has already ruled out upstream changes to the same
-            files, so this is information, not alarm.
-          */}
-          {prResult.exactBase === false ? (
-            <div style={{ fontSize:12, color:'#6e5406', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, padding:'8px 10px' }}>
-              Your checkout was behind trunk, so the branch was based on today&apos;s trunk. None of your files were changed upstream in between — the pull request shows only your work.
-            </div>
-          ) : null}
-          {/*
-            The loop-back to the work item is for a pull request that exists —
-            a dry run has no link worth posting. What the line says is the
-            project's: on Trac the link is what gets the pull request seen, on
-            GitHub the Fixes line has already done that (#251).
-          */}
-          {!prResult.dryRun && (
-            <>
-              <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-                {project.cards.prLoopBack}
-              </div>
-              <Button variant="secondary" onClick={copyPrLink} icon={prLinkCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
-                {prLinkCopied ? 'Link copied' : 'Copy the link'}
-              </Button>
-              {tracTicket ? (
-                <Button variant="primary" onClick={()=>window.api.openExternal(workItem.urlFor(tracTicket))} style={{ justifyContent:'center' }}>
-                  Open #{tracTicket} to comment
-                </Button>
-              ) : null}
-            </>
-          )}
-        </>
-      );
-    }
-
-    // Not yet asked, which is not the same as signed out: offering "Sign in"
-    // before the answer arrives makes the card flicker on every open.
-    if (githubAccount === null) {
-      return <div style={{ fontSize:12, color:'#6c6f72' }}>Checking…</div>;
-    }
-
-    if (githubAccount.configured === false) {
-      return (
-        <div style={{ fontSize:12, color:'#6c6f72' }}>
-          This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.
-        </div>
-      );
-    }
-
-    if (githubDeviceCode) {
-      return (
-        <>
-          <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-            Enter this code at <strong>github.com/login/device</strong>, which has been opened in your browser.
-          </div>
-          <div style={{ fontFamily:'Menlo, Consolas, monospace', fontSize:24, letterSpacing:2, fontWeight:600, textAlign:'center', padding:'10px 0', color:'#1d2327' }}>
-            {githubDeviceCode.userCode}
-          </div>
-          <Button variant="secondary" onClick={copyDeviceCode} icon={codeCopied ? checkIcon : copyIcon} style={{ justifyContent:'center' }}>
-            {codeCopied ? 'Code copied' : 'Copy the code'}
-          </Button>
-          <Flex justify="center" gap={2}>
-            <Spinner />
-            <div style={{ fontSize:12, color:'#6c6f72' }}>Waiting for you to finish in the browser…</div>
-          </Flex>
-          <Button variant="link" onClick={cancelGithubSignIn} style={{ fontSize:12 }}>Cancel</Button>
-        </>
-      );
-    }
-
-    if (githubAccount.login) {
-      return (
-        <>
-          {tracTicket ? (
-            <>
-              {/*
-                The placeholder used to be the fallback title, `Ticket #NNNNN`,
-                which taught the wrong thing by example: a reviewer scanning a
-                list of pull requests learns nothing from a ticket number they
-                can already see. It shows a good title instead, and the line
-                under the field says what an empty box will produce, so the
-                fallback stays honest without being the model.
-              */}
-              <TextControl
-                value={prTitle}
-                onChange={setPrTitle}
-                disabled={Boolean(prStage)}
-                placeholder="Reject a theme zip in the plugin installer"
-                label="Title"
-                help="What the change does, in one line. Reviewers scan these."
-              />
-              {!prTitle.trim() ? (
-                <div style={{ fontSize:12, color:'#6c6f72', marginTop:-4 }}>
-                  Left empty, it will be titled <strong>{workItem.defaultPrTitle(tracTicket)}</strong>.
-                </div>
-              ) : null}
-              {/*
-                The one part of the body a human writes, and the reason the
-                field exists: everything else — the ticket link, the handle,
-                the event — the app already knows and adds. It goes to the top
-                of the description, above the ticket line.
-              */}
-              <TextareaControl
-                value={prNotes}
-                onChange={setPrNotes}
-                disabled={Boolean(prStage)}
-                rows={4}
-                label="Notes for reviewers (optional)"
-                placeholder={'What the change does, and why.\nHow to see it working — the steps you used.\nAnything you are unsure about.'}
-                help={project.cards.prNotesHelp}
-              />
-              {/*
-                What a first-timer has no way to know about pull requests on
-                this project, stated before the button rather than after the
-                pull request exists. The facts are the registry's (#251): Core's
-                two are false on Gutenberg, where the pull request is the venue.
-              */}
-              <details style={{ fontSize:12, color:'#6c6f72' }}>
-                <summary style={{ cursor:'pointer', color:'#3858e9' }}>{project.cards.prHow.summary}</summary>
-                <div style={{ padding:'8px 0 0', lineHeight:1.6, display:'flex', flexDirection:'column', gap:6 }}>
-                  {project.cards.prHow.lines.map((line) => <div key={line}>{line}</div>)}
-                  <Button
-                    variant="link"
-                    onClick={()=>window.api.openExternal(project.cards.prHow.linkUrl)}
-                    style={{ fontSize:12 }}
-                  >{project.cards.prHow.linkLabel}</Button>
-                </div>
-              </details>
-              {/*
-                The button says what it will actually do. A dry run's button
-                reading "Open pull request" is the label lying about the mode,
-                which is the failure this whole indicator exists to prevent.
-              */}
-              <Button
-                variant="primary"
-                onClick={openPullRequest}
-                isBusy={Boolean(prStage)}
-                disabled={Boolean(prStage)}
-                style={{ justifyContent:'center' }}
-              >{githubAccount?.testMode?.dryRun ? 'Push branch (dry run)' : 'Open pull request'}</Button>
-            </>
-          ) : (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>
-              {project.cards.prBlockedNote}
-            </div>
-          )}
-          {/*
-            The repository the stage label names is the effective target: the
-            sandbox when the override is set, else the site's own. The same
-            answer the test-mode badge above gives, so the two never disagree.
-          */}
-          {prStage ? (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>{prStageLabel(prStage, githubAccount?.testMode?.target || `${project.upstream.owner}/${project.upstream.repo}`)}</div>
-          ) : (
-            <div style={{ fontSize:12, color:'#6c6f72' }}>
-              {/*
-                The destination is named, not implied: "the fork is made for
-                you" answers what, this answers where — which account the fork
-                and the branch land in.
-              */}
-              Signed in as {githubAccount.login} — the fork and branch go to{' '}
-              <Button
-                variant="link"
-                onClick={()=>window.api.openExternal(`https://github.com/${githubAccount.login}/${project.upstream.repo}`)}
-                style={{ fontSize:12 }}
-              >{githubAccount.login}/{project.upstream.repo}</Button>.{' '}
-              <Button variant="link" onClick={signOutOfGithub} style={{ fontSize:12 }}>Sign out</Button>
-            </div>
-          )}
-        </>
-      );
-    }
-
-    if (githubDeclined) {
-      return (
-        <>
-          <div style={{ fontSize:12, color:'#6c6f72' }}>
-            Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.
-          </div>
-          <Button variant="link" onClick={()=>setGithubDeclined(false)} style={{ fontSize:12 }}>Show this again</Button>
-        </>
-      );
-    }
-
-    return (
-      <>
-        {/*
-          The whole ask, before any of it happens — including the part the app
-          cannot do for you. Declining has to be as visible as accepting, or the
-          cliff is sprung rather than named.
-        */}
-        <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.6 }}>
-          Signing in lets the app fork {project.upstream.repo} to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.
-        </div>
-        <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.6 }}>
-          {project.cards.signInCannot}
-        </div>
-        <Button variant="primary" onClick={startGithubSignIn} style={{ justifyContent:'center' }}>Sign in with GitHub</Button>
-        <Button variant="link" onClick={()=>{ setGithubDeclined(true); setGithubError(''); }} style={{ fontSize:12 }}>Not now</Button>
-      </>
-    );
-  };
-
   const renderOwnershipWarning = () => {
     if (pullRequest) {
       return (
@@ -4112,15 +3743,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       );
     }
     return null;
-  };
-
-  const copyDeviceCode = async () => {
-    if (!githubDeviceCode?.userCode) return;
-    try {
-      await navigator.clipboard.writeText(githubDeviceCode.userCode);
-      setCodeCopied(true);
-      setTimeout(() => setCodeCopied(false), 2000);
-    } catch {}
   };
 
   const statusStyles = initialized
@@ -5500,45 +5122,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                     have left the venue.
                   */}
                   <DestinationGroup>
-                    <Destination
-                      title="Open a pull request"
-                      cost={project.cards.prCost}
-                      after={project.cards.prAfter}
-                    >
-                      {/*
-                        Absent from every shipped build. When a test switch is
-                        set it sits above the button, because that is where the
-                        decision is made — a mode set in a terminal minutes
-                        earlier, in an app that otherwise looks identical, is how
-                        a dry run that silently was not one opened a real pull
-                        request during testing.
-                      */}
-                      {githubAccount?.testMode ? (
-                        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', background:'#f0f0f1', border:'1px dashed #949494', borderRadius:6, fontSize:12, color:'#3c434a', lineHeight:1.5 }}>
-                          <span style={{ fontWeight:600, letterSpacing:0.5, textTransform:'uppercase', fontSize:10, color:'#1d2327' }}>Test mode</span>
-                          <span>
-                            {githubAccount.testMode.dryRun
-                              ? 'Dry run — a branch is pushed to your fork, no pull request is opened.'
-                              : <>Pull requests go to <code style={{ fontSize:11 }}>{githubAccount.testMode.target}</code>, not to {project.upstream.owner}/{project.upstream.repo}.</>}
-                          </span>
-                        </div>
-                      ) : null}
-                      {renderPullRequestBody()}
-                      {githubError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{githubError}</div> : null}
-                      {prError ? (
-                        <>
-                          <div role="alert" style={{ color:'#d63638', fontSize:12 }}>
-                            {PR_FAILURE_MESSAGES[prError.reason] || prError.error}
-                          </div>
-                          {/*
-                            Every failure lands here, and every failure has the
-                            same floor: the file exists regardless of what GitHub
-                            did.
-                          */}
-                          <Button variant="secondary" onClick={savePatch} style={{ justifyContent:'center' }}>Save the patch file instead</Button>
-                        </>
-                      ) : null}
-                    </Destination>
+                    <PullRequestDestination
+                      pr={prSubmission}
+                      project={project}
+                      workItem={workItem}
+                      ticket={tracTicket}
+                      refusal={prSubmissionBlocked({ pullRequest, appliedPatch, appliedPatchLabel })}
+                      onSavePatch={savePatch}
+                    />
                   </DestinationGroup>
 
                   <DestinationGroup>

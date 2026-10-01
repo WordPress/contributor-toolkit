@@ -24,6 +24,26 @@ function prSubmissionRefusal(number) {
 	return `PR #${number} is applied. Its author's commits are this checkout's history, so it cannot be submitted as your work. Revert this PR first.`;
 }
 
+/**
+ * Why the pull request card will not submit this checkout, as the sentence it
+ * shows in place of everything else, or '' when it will.
+ *
+ * Someone else's pull request comes first: while one is checked out, a patch
+ * applied on top of it is the smaller fact, and reverting the pull request is
+ * the way out of both.
+ *
+ * @param {Object}  state
+ * @param {?Object} state.pullRequest       The pull request checked out, if one is.
+ * @param {?Object} state.appliedPatch      The patch applied to the checkout, if one is.
+ * @param {string}  state.appliedPatchLabel What the app calls that patch.
+ * @return {string}
+ */
+function prSubmissionBlocked({ pullRequest, appliedPatch, appliedPatchLabel }) {
+	if (pullRequest) return prSubmissionRefusal(pullRequest.number);
+	if (appliedPatch) return `Revert ${appliedPatchLabel} before opening a pull request from this checkout.`;
+	return '';
+}
+
 function prCheckoutRefusal({ code, number, error }) {
 	switch (code) {
 		case 'pr-has-edits': return `PR #${number} has moved on GitHub and your copy has edits on top. Discard those edits before updating it, or keep the copy you have.`;
@@ -50,4 +70,4 @@ function describePrPreview({ number, files = [], needsInstall = false, exists = 
 	};
 }
 
-module.exports = { describePrCheckout, describePrPreview, prSubmissionRefusal, prCheckoutRefusal };
+module.exports = { describePrCheckout, describePrPreview, prSubmissionRefusal, prSubmissionBlocked, prCheckoutRefusal };
