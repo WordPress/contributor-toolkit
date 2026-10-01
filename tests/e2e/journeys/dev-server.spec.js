@@ -21,12 +21,18 @@
  * answers at once and the address is said afterwards, so the debug.log tail
  * and the mail list are brought up before there is an address and not
  * after; a real server that is stopped exits and that exit is announced, and
- * here the test announces it; a real start that fails is followed by such an
- * exit too, and here it is not, so a failed start's exit arriving while the
- * failure is still being cleared up is not walked; no mail server is started
- * with it; and nothing is written to the app's log. A real build also leaves
- * a `build/` behind, and here the test writes the one file that says a site
- * is built when it needs the site to be.
+ * here the test announces it; no mail server is started with it; and nothing
+ * is written to the app's log. A real build also leaves a `build/` behind,
+ * and here the test writes the one file that says a site is built when it
+ * needs the site to be.
+ *
+ * A start that fails is the least like the real thing. Here the failure is
+ * the answer and nothing else is said. A real server that exits before it has
+ * an address announces the exit first and answers that it failed after; one
+ * that times out answers first and exits after; one that could not be
+ * spawned answers and announces nothing. None of those orders is walked
+ * here, so what the button and the Server tab say when an exit and a failure
+ * arrive together is not pinned.
  *
  * The mail list and the Logs panel while a server runs are `mail.spec.js`
  * and `logs.spec.js`; the watch by itself is `build-watch.spec.js`.
@@ -140,7 +146,9 @@ test( 'the dev server\'s button starts one server however often it is pressed, s
 	// then ask for the server. So the test waits in three steps before it
 	// counts: until anything the press asked has reached the main process,
 	// until every question about the site has been answered, and until what
-	// the press would do with that answer has been asked for.
+	// the press would do with that answer has been asked for. The last step
+	// takes two round trips: one for the answer to have reached the page, and
+	// one for what the page then asks to have reached the main process.
 	await starting.click();
 	await server.heard();
 	await expect.poll( async () => {
