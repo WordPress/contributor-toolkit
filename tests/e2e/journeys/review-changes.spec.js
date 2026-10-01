@@ -1,16 +1,19 @@
 /**
- * Reading your own changes before they go anywhere (#553).
+ * "Review & submit changes": reading your own changes, and sending them off
+ * the way that needs no account (#553).
  *
- * "Review & submit changes" opens on the diff: what this site has that its
- * copy of trunk does not. It is the last look a contributor gets at their work
- * before it becomes a patch or a pull request, and the pane around it is where
- * that work can be saved to a file, copied, or thrown away. So the diff has to
- * be the tree's, the file has to hold it, and discarding has to say so and
- * leave the pane showing what is left, which is nothing.
+ * The dialog opens on the diff: what this site has that its copy of trunk does
+ * not. It is the last look a contributor gets at their work before it becomes
+ * a patch or a pull request, and the pane around it is where that work can be
+ * saved to a file, copied, or thrown away. So the diff has to be the tree's,
+ * the file has to hold it, and discarding has to say so and leave the pane
+ * showing what is left, which is nothing. That is the first journey here.
  *
- * Where the patch goes from here, the destinations on the right, is
- * `open-pull-request.spec.js` and `gutenberg-site.spec.js`. A diff that could
- * not be read is in `pr-checkout.spec.js`.
+ * Beside the diff are the places the patch can go. The second journey is one
+ * of them, handing the patch to a mentor. The pull request is
+ * `open-pull-request.spec.js`, and which destinations a site offers at all is
+ * `gutenberg-site.spec.js`. A diff that could not be read is in
+ * `pr-checkout.spec.js`.
  *
  * Copying is asked of a stand-in. The button writes to the system clipboard,
  * and a journey that let it would replace whatever the person running the
@@ -28,6 +31,7 @@ const ui = require( '../helpers/ui.cjs' );
 const { makeSite, read, write, LOGIN } = require( '../helpers/git-site.cjs' );
 const { discardDisabledReason } = require( '../../../src/renderer/changes-note.cjs' );
 const { parseHandle } = require( '../../../src/wporg-handle.cjs' );
+const { TITLE } = require( '../../../src/patch-provenance.cjs' );
 
 const MY_EDIT = '<?php // my fix\n';
 
@@ -131,7 +135,7 @@ test( 'the review pane shows the tree\'s diff, saves it to the file chosen, says
 } );
 
 /**
- * Handing the patch to a mentor (#553).
+ * Handing the patch to a mentor (#166).
  *
  * The one way out of the dialog that needs no account anywhere: the patch is
  * saved with the contributor's WordPress.org username and the event they are
@@ -189,15 +193,15 @@ test( 'handing a patch to a mentor asks for a username once, refuses one that is
 	await expect( dialog.getByRole( 'alert' ).filter( { hasText: parseHandle( 'jane doe!' ).error } ) ).toBeVisible();
 	expect( session.readSettings().preferences.wporgHandle ).toBeFalsy();
 
-	// INVARIANT — a username and an event, once given, are what the dialog
-	// offers to save as and says the patch will carry, and the complaint about
-	// the earlier name is gone.
+	// INVARIANT — typing a new name takes the complaint about the last one
+	// away, and a username and an event, once given, are what the dialog offers
+	// to save as and says the patch will carry.
 	await username.fill( 'janedoe' );
+	await expect( dialog.getByRole( 'alert' ) ).toHaveCount( 0 );
 	await event.fill( 'WordCamp Test 2026' );
 	await remember.click();
 	await expect( saveAs( 'janedoe' ) ).toBeVisible();
 	await expect( dialog.getByText( 'The patch will say it was written at WordCamp Test 2026.', { exact: true } ) ).toBeVisible();
-	await expect( dialog.getByRole( 'alert' ) ).toHaveCount( 0 );
 	// CHARACTERISATION — they are the app's, not the site's: kept in its
 	// preferences.
 	expect( session.readSettings().preferences ).toMatchObject( { wporgHandle: 'janedoe', contributionEvent: 'WordCamp Test 2026' } );
@@ -211,12 +215,16 @@ test( 'handing a patch to a mentor asks for a username once, refuses one that is
 	await remember.click();
 	await expect( dialog.getByText( 'No event on the patch.', { exact: true } ) ).toBeVisible();
 
-	// INVARIANT — the file is the diff with the username in it, proposed under
-	// a name that carries the username, and the pane names where it went.
+	// INVARIANT — the file says what the dialog said it would: it opens as a
+	// patch from this app, names the contributor, names no event because the
+	// dialog had just said there was none, and holds the diff. It is proposed
+	// under a name that carries the username, and the pane names where it went.
 	await saveAs( 'janedoe' ).click();
 	await expect( dialog.getByText( `Saved to ${ savedFile }`, { exact: true } ) ).toBeVisible();
 	const saved = fs.readFileSync( savedFile, 'utf8' );
-	expect( saved ).toContain( 'janedoe' );
+	expect( saved.startsWith( TITLE ) ).toBe( true );
+	expect( saved ).toContain( '# Contributor: janedoe (wordpress.org)\n' );
+	expect( saved ).not.toMatch( /^# Event:/m );
 	expect( saved ).toContain( '+<?php // my fix' );
 	expect( path.basename( await app.evaluate( () => global.__e2eProposedName ) ) ).toBe( 'janedoe.diff' );
 

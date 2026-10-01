@@ -12,7 +12,8 @@ import { Destination } from './destination.jsx';
 // about the person and not about a checkout. This component owns the form that
 // asks, what is typed in it, and whether it is showing. It is rendered only
 // while the destinations are, so the form is empty and closed each time the
-// dialog opens: a name typed and abandoned is not waiting there.
+// dialog opens, and after a discard that leaves nothing to send: a name typed
+// and abandoned is not waiting there.
 //
 // `onSave` writes the file; `saveDisabled` is the caller knowing the patch is
 // not the contributor's own to hand over.
