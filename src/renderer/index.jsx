@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Button,
@@ -29,31 +29,27 @@ import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStart
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
-import { watchOccupiesBuild } from './watch-waiters.cjs';
-import { compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState } from './watch-activity.cjs';
-import { planUpdateHandOff } from './update-handoff.cjs';
+import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
-import { describeApplyFailure, otherPatchCount } from './apply-conflict.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
-import { trunkAgeInfo, planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planApplySteps, planWatchImpact, planTicketSwitchImpact, APPLY_STATE_TO_STEP, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome, updateStepText } from './update-plan.cjs';
+import { trunkAgeInfo, updateStepStatuses, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome, updateStepText } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
-import { parsePrRef } from '../patch-sources.cjs';
 import { prStateBadge } from './pr-state.cjs';
 import { statusBadge } from '../trac-ticket-info.cjs';
 import { prDateLabel } from './pr-date-label.cjs';
 import { workItemProvider } from '../work-item.cjs';
 import { adminUrl, adminerUrl } from './site-urls.cjs';
-import { ticketBranchRows, savedPrForSwitch, ticketListCard } from './ticket-branch-list.cjs';
-import { ticketTrunkNotice, rebaseRefusal } from './ticket-trunk-notice.cjs';
+import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
+import { ticketTrunkNotice } from './ticket-trunk-notice.cjs';
 import { legacySiteNotice } from './legacy-site.cjs';
 import { deepLinkNotice } from './deep-link-notice.cjs';
 import { mergeInProgressNotice } from './merge-in-progress.cjs';
-import { describePrCheckout, describePrPreview, prCheckoutRefusal, prSubmissionBlocked } from './pr-checkout.cjs';
+import { describePrCheckout, describePrPreview, prSubmissionBlocked } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
@@ -84,6 +80,9 @@ import { useSiteTerminal, TERMINAL_FONT } from './hooks/use-site-terminal.jsx';
 import { useSiteScripts } from './hooks/use-site-scripts.jsx';
 import { useBuildWatch } from './hooks/use-build-watch.jsx';
 import { useDevServer } from './hooks/use-dev-server.jsx';
+import { useTrunkUpdate } from './hooks/use-trunk-update.jsx';
+import { useSiteTicket } from './hooks/use-site-ticket.jsx';
+import { useApplyPatch } from './hooks/use-apply-patch.jsx';
 import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
 // Shared by every log pane so the tabs cannot drift apart visually. The line
@@ -829,8 +828,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // by name; each keeps its identity, which their dependency lists rely on.
   const logs = useSiteLogs({ sitePath });
   const { appendNpm, appendRuntime, appendWatch, ensureStick, selectTab: selectLogTab, startDebugTail, stopDebugTail } = logs;
-  // The watch decision a saved-work restore made in begin, for its complete.
-  const switchImpactRef = useRef(null);
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [patchText, setPatchText] = useState('');
   const [patchLoading, setPatchLoading] = useState(false);
@@ -894,100 +891,22 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // A merge started outside the app and not finished (#352): read, and
   // every checkout write refused until a terminal ends it.
   const [mergeInProgress, setMergeInProgress] = useState(null);
-  const [ticketInput, setTicketInput] = useState('');
-  const [ticketError, setTicketError] = useState('');
-  const [ticketSaving, setTicketSaving] = useState(false);
-  // The site's ticket branches (#108): what branches:list reported, so the
-  // panel can offer the tickets that already have work here.
-  const [ticketBranches, setTicketBranches] = useState({ current: null, branches: [] });
-  const [deletingBranch, setDeletingBranch] = useState(null);
-  // The ticket a switch was refused for because trunk had loose edits, and
-  // where those edits were saved if the contributor chose to keep them.
-  const [blockedByTrunkWork, setBlockedByTrunkWork] = useState(null);
-  // Where the edits went when "save them as a patch, then start clean" ran
-  // to completion (#234) — the panel that showed the path is gone by then.
-  const [patchSavedNotice, setPatchSavedNotice] = useState('');
-  // How many loose files rode along into a ticket that had no branch yet, so
-  // the panel can say where they went instead of moving them in silence.
-  const [patchSavedTo, setPatchSavedTo] = useState('');
-  // Patches on the linked ticket (#11): { status, items, cachedAt } or null.
-  const [ticketPatches, setTicketPatches] = useState(null);
-  const [ticketPatchesLoading, setTicketPatchesLoading] = useState(false);
-  const [fetchingPr, setFetchingPr] = useState(null);
-  // Trac attachments (#11): loaded on demand, since opening a real Trac window
-  // can surface the proof-of-work challenge. null until the user asks.
-  const [tracAttachments, setTracAttachments] = useState(null);
-  const [tracAttachmentsLoading, setTracAttachmentsLoading] = useState(false);
-  const [fetchingAttachment, setFetchingAttachment] = useState(null);
-  // Trunk update path (#94)
+  // What the site's status says about its trunk (#94): the date of the commit
+  // it is on, and whether an update was left incomplete. The update itself is
+  // useTrunkUpdate, below.
   const [trunkDate, setTrunkDate] = useState(null);
   const [updateIncomplete, setUpdateIncomplete] = useState(false);
-  const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
-  // Who runs the update's build: null for the chain itself, 'resumed-watch'
-  // when the watch paused for the reset rebuilds from scratch as it resumes and
-  // the chain leaves the one build to it (Gutenberg, #507). Decided where the
-  // watch is paused, read by the step card and the install step's hand-off.
-  const [updateBuildBy, setUpdateBuildBy] = useState(null);
-  // True from the hand-off to the resumed watch until its ready line or exit.
-  // The card stays on step 3 and every isUpdating gate holds, except Stop build
-  // watch: it is the one control that can end the wait, and a hung watch would
-  // otherwise leave the site row inert until an app restart (#507). The terminal
-  // lock is released (the watch holds none), but the prompt hints stay busy so
-  // the card does not offer npm run build over the tree the watch is rebuilding.
-  const [updateWaitingOnWatch, setUpdateWaitingOnWatch] = useState(false);
   // Initial setup chain (#246): install then build, started by the clone
   // finishing rather than by a click. Same shape as the two chains below.
   const [setupChainState, setSetupChainState] = useState('idle'); // idle | installing | building
   // How the last chain ended, or null while one is running or none has run.
   const [setupChainEnd, setSetupChainEnd] = useState(null);
-  // Applying someone else's patch (#11)
-  const [applyState, setApplyState] = useState('idle'); // idle | applying | installing | building
-  const [applyPreview, setApplyPreview] = useState(null);
-  const [applyKind, setApplyKind] = useState('patch');
-  // Held separately from applyPreview: the preview is cleared the moment the
-  // chain starts, and the step list still has to know whether install runs.
-  const [applyNeedsInstall, setApplyNeedsInstall] = useState(false);
-  // Which watch does the rebuild instead of the apply chain, so its build step
-  // shows skipped and attributed to it: 'live-watch' when a running watch
-  // recompiles the change (#262), 'resumed-watch' when the watch paused for the
-  // apply rebuilds from scratch as it resumes (#506), null when the chain builds.
-  const [applyBuildByWatcher, setApplyBuildByWatcher] = useState(null);
-  const [applyError, setApplyError] = useState('');
-  // The failure broken down: which regions of the patch no longer fit, where,
-  // why, and what they were trying to change (#282, #226). Held beside
-  // applyError rather than replacing it — a refusal with nothing to break down
-  // (a parse error, a rolled-back write) still has only its sentence.
-  const [applyConflict, setApplyConflict] = useState(null);
-  // One call, because the breakdown must never outlive the sentence it belongs
-  // to: every place that took the error banner down predates it, and any that
-  // cleared only one would leave regions on screen describing a patch the
-  // contributor has moved on from.
-  const clearApplyError = () => { setApplyError(''); setApplyConflict(null); };
   // Where "try another patch" goes. The list is already on screen when a patch
   // fails — three rows above, in the case that prompted this — so the way out
   // is a scroll, not a fetch.
   const ticketPatchesRef = useRef(null);
-  // A dirty-trunk question is rendered before the PR switch function is
-  // declared below. Its continuation uses this current-render ref so clearing
-  // the trunk can retry the PR operation instead of routing `pr/N` through the
-  // ticket parser (#458).
-  const retryPrSwitchRef = useRef(null);
-  const ticketSwitchLifecycleRef = useRef(null);
-  // Not every unhappy ending is a failure: a revert can find that the patch is
-  // already gone, which resolves the situation rather than blocking it. Red
-  // would read as "you broke something" when nothing is left to do.
-  const [applyNotice, setApplyNotice] = useState('');
   const [appliedPatch, setAppliedPatch] = useState(null);
   const [pullRequest, setPullRequest] = useState(null);
-  const [prUrlInput, setPrUrlInput] = useState('');
-  const [dirtyModalOpen, setDirtyModalOpen] = useState(false);
-  const [dirtySaving, setDirtySaving] = useState(false);
-  const [dirtyFiles, setDirtyFiles] = useState([]);
-  const [dirtyError, setDirtyError] = useState(null); // failure text shown inside the dirty-tree modal
-  const [updateLockfileChanged, setUpdateLockfileChanged] = useState(false);
-  const [lastUpdateSummary, setLastUpdateSummary] = useState(null);
-  const updateStartRef = useRef(null);
-  const savedPatchPathRef = useRef(null);
   const setupLogsRef = useRef('');
 
   const siteName = pathBasename(sitePath);
@@ -1113,17 +1032,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   }, [sitePath]);
   useEffect(()=>{ loadStatus(); }, [loadStatus]);
 
-  // Deliberately not part of loadStatus: that one is called after every long
-  // operation, and the branch list only changes when a ticket is linked,
-  // resumed or deleted — the three paths that call this themselves.
-  const loadBranches = useCallback(async () => {
-    try {
-      const res = await window.api.listBranches(sitePath);
-      if (res?.ok) setTicketBranches({ current: res.current, branches: res.branches || [] });
-    } catch {}
-  }, [sitePath]);
-  useEffect(()=>{ loadBranches(); }, [loadBranches]);
-
   // The note's probe. It asks the wide question — unsubmitted work measured
   // from the ticket's branch point, the same measurement the patch makes —
   // not whether the tree has uncommitted edits (#239): under the ticket-as-
@@ -1148,10 +1056,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // decided by the module so the card has one rule for it and a test to hold
   // it. The generation bump is what makes it outrank a probe that started
   // before the discard did.
-  const applyDiscardToNote = (outcome) => {
+  // Memoised with nothing to depend on: it touches a ref and a setter. The
+  // ticket hook lists it among a callback's dependencies, and a new function
+  // here on every render would give that callback a new identity each time.
+  const applyDiscardToNote = useCallback((outcome) => {
     dirtyProbeRef.current.generation++;
     setWorktreeDirty(noteAfterDiscard(outcome));
-  };
+  }, []);
   const refreshDirty = useCallback(async () => {
     const probe = dirtyProbeRef.current;
     // A walk already running answers for the tree as it was when it started.
@@ -1205,73 +1116,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     return () => window.removeEventListener('focus', onFocus);
   }, [isActive, refreshDirty, loadStatus]);
 
-  // Linking and unlinking are the same write (#109): an empty ref clears the
-  // association, so Unlink needs no second channel. Resuming a ticket that
-  // already has a branch is also this write (#108) — main switches to the
-  // existing branch instead of creating one, with the same parking rules.
-  const saveTicket = useCallback(async (ref, options = undefined) => {
-    setTicketSaving(true);
-    setTicketError('');
-    setBlockedByTrunkWork(null);
-    setPatchSavedNotice('');
-    // The previous switch's last sentence must not be this one's first frame.
-    if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
-    let rebuilding = false;
-    let ownsTerminal = false;
-    try {
-      ownsTerminal = await ticketSwitchLifecycleRef.current.begin(ref);
-      if (!ownsTerminal) return;
-      const res = await window.api.setSiteTicket(sitePath, ref, options);
-      if (!res?.ok) {
-        // `dirty-trunk` is a question, not a failure (#234): main refuses it
-        // on both paths — a new ticket that would carry the edits, a known
-        // one that cannot — and the panel asks what happens to them. A red
-        // error line over a set of choices would read as a fault, so the
-        // message is kept for real failures only. `canCarry` is main's word
-        // on whether the edits can ride into this ticket, and the count
-        // arrives only on the path that scanned before refusing. Only that
-        // path names the ticket too, so the other one reads it back off the
-        // ref the switch was asked for, rather than saying "the ticket" to
-        // someone who typed a number (#409).
-        if (res?.code === 'dirty-trunk') {
-          const parsedRef = workItem.parseRef(String(ref));
-          setBlockedByTrunkWork({
-            ref: String(ref),
-            canCarry: Boolean(res.canCarry),
-            files: typeof res.files === 'number' ? res.files : null,
-            ticket: res.ticket || (parsedRef.ok ? parsedRef.id : null)
-          });
-        } else {
-          setTicketError(res?.error || 'Could not save the ticket.');
-        }
-        return;
-      }
-      // The status belongs to the branch we just left. Clear it in the same
-      // render that names the new ticket; loadStatus will restore the new
-      // branch's answer below (#305).
-      setTicketBehindTrunk(false);
-      setTracTicket(res.ticket);
-      if (res.ticket) autoReadTicketRef.current = res.ticket;
-      setTicketInput('');
-      setPatchSavedTo('');
-      if (metaPatchRef.current) metaPatchRef.current(sitePath, { tracTicket: res.ticket });
-      // Both, and awaited: the branch list decides which rows show, and
-      // appliedPatch/updateIncomplete are per-branch (#108) — without the
-      // status reload, switching tickets would keep showing the other
-      // ticket's "patch applied · Revert" banner over this branch's tree.
-      await Promise.all([loadBranches(), loadStatus()]);
-      // The tree under the note is a different branch's now (#239).
-      reprobeAfterBranchChange();
-      rebuilding = await ticketSwitchLifecycleRef.current.complete(res);
-    } catch (e) {
-      setTicketError(String(e));
-    } finally {
-      if (ownsTerminal && !rebuilding) ticketSwitchLifecycleRef.current.finish();
-      setTicketSaving(false);
-    }
-  }, [sitePath, workItem, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
-  const linkTicket = useCallback(() => saveTicket(ticketInput), [saveTicket, ticketInput]);
-  const unlinkTicket = useCallback(() => saveTicket(''), [saveTicket]);
+  // The ticket or issue this site is working on (#554): linking, leaving,
+  // switching, moving onto trunk and deleting, with the question a switch
+  // asks about trunk's loose edits. The three refs are how it and the apply
+  // chain, called further down, reach each other.
+  const { ticketInput, setTicketInput, ticketError, setTicketError, ticketSaving, ticketBranches, deletingBranch, blockedByTrunkWork, setBlockedByTrunkWork, patchSavedNotice, patchSavedTo, setPatchSavedTo, saveTicket, linkTicket, unlinkTicket, rebaseTicket, discardTrunkWorkAndSwitch, saveTrunkWorkThenStartClean, deleteTicketWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef } = useSiteTicket({ sitePath, workItem, tracTicket, setTracTicket, setTicketBehindTrunk, metaPatchRef, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange, applyDiscardToNote });
 
   // A ticket arrived from a link and this is the site in front of the
   // contributor (#464). The answer goes through `saveTicket` like any other
@@ -1330,131 +1179,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     if (deepLinkTicket !== null) saveTicket(String(deepLinkTicket));
     if (onDeepLinkDone) onDeepLinkDone();
   }, [deepLinkTicket, onDeepLinkDone, saveTicket]);
-
-  // The notice's own button (#385): the ticket's work replayed onto the
-  // current trunk in main. Same busy flag and progress line as a switch,
-  // because it parks and checks out the same way; a refusal is worded by the
-  // notice module and lands where the ticket's other refusals do.
-  const rebaseTicket = useCallback(async () => {
-    setTicketSaving(true);
-    setTicketError('');
-    if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
-    try {
-      const res = await window.api.rebaseBranch(sitePath);
-      if (!res?.ok) {
-        setTicketError(rebaseRefusal({ ...res, ticketId: tracTicket, noun: workItem.noun }));
-        return;
-      }
-      setTicketBehindTrunk(false);
-      await Promise.all([loadBranches(), loadStatus()]);
-      reprobeAfterBranchChange();
-    } catch (e) {
-      setTicketError(String(e));
-    } finally {
-      setTicketSaving(false);
-    }
-  }, [sitePath, tracTicket, workItem, loadBranches, loadStatus, onClearSwitchNotices, reprobeAfterBranchChange]);
-
-  const discardTrunkWorkAndSwitch = useCallback(async (target) => {
-    setTicketSaving(true);
-    setTicketError('');
-    // The refused attempt left its last frame behind — without this, the
-    // discard runs under a spinner describing a switch that never happened.
-    if (onClearSwitchNotices) onClearSwitchNotices(sitePath);
-    try {
-      const res = await window.api.discardChanges(sitePath);
-      if (!res?.ok) {
-        setTicketError(res?.error || 'Could not discard the changes.');
-        return;
-      }
-      setPatchSavedTo('');
-      setBlockedByTrunkWork(null);
-      // The switch below re-walks the tree, so on the happy path this is
-      // redundant — but a switch that fails returns without reprobing, and
-      // the note would go on offering to discard trunk work that is already
-      // gone (#239).
-      applyDiscardToNote(discardOutcome(res));
-    } catch (e) {
-      setTicketError(String(e));
-      return;
-    } finally {
-      setTicketSaving(false);
-    }
-    // Outside the guard above: the destination operation owns its own busy
-    // state, and the discard has already succeeded — a failure here is about
-    // that checkout. PR refs never go through the ticket parser.
-    if (target.kind === 'pr') await retryPrSwitchRef.current?.();
-    else await saveTicket(target.ref);
-  }, [sitePath, saveTicket, onClearSwitchNotices]);
-
-  // "Save them as a patch, then start clean" — one chosen outcome, not two
-  // steps the contributor has to sequence themselves (#234). The discard only
-  // runs once the save dialog has really produced a file: cancelling the
-  // dialog cancels the whole option, and a failed save leaves the edits in
-  // the working tree with the question still open. The busy flag is held
-  // while the dialog is up because it is not window-modal — without it the
-  // panel underneath keeps taking clicks, and a discard chosen there would
-  // run again when the dialog finally answers.
-  const saveTrunkWorkThenStartClean = useCallback(async (target) => {
-    setTicketError('');
-    let savedTo = '';
-    setTicketSaving(true);
-    try {
-      const res = await window.api.savePatch(sitePath);
-      if (res?.canceled) return;
-      if (!res?.ok) {
-        setTicketError(res?.error || 'Could not save the patch.');
-        return;
-      }
-      savedTo = res.filePath || '';
-      setPatchSavedTo(savedTo);
-    } catch (e) {
-      setTicketError(String(e));
-      return;
-    } finally {
-      setTicketSaving(false);
-    }
-    await discardTrunkWorkAndSwitch(target);
-    // After the panel is gone, the only on-screen record of where the work
-    // went. The switch clears `patchSavedTo` with the rest of the panel
-    // state, so the sentence that survives is its own notice — same shape as
-    // carriedNotice, and true even if the switch itself failed: by now the
-    // patch is written and the tree is clean.
-    setPatchSavedNotice(savedTo);
-  }, [sitePath, discardTrunkWorkAndSwitch]);
-
-  // "Delete this ticket's work" (#108) — destroys the branch, which is why it
-  // sits behind a confirm while switching does not.
-  const deleteTicketWork = useCallback(async (ref) => {
-    setDeletingBranch(ref);
-    setTicketError('');
-    try {
-      const res = await window.api.deleteBranch(sitePath, ref);
-      if (!res?.ok) {
-        setTicketError(res?.error || 'Could not delete the branch.');
-        return;
-      }
-      await loadBranches();
-      // 'trunk' is the literal main returns (TRUNK in ticket-branches.js,
-      // which the renderer cannot import — it pulls in fs). It means the site
-      // now sits on trunk: usually because the delete was made from there,
-      // but also when the deleted branch was somehow the active one — main
-      // then cleared the ticket, and the status reload re-syncs the panel and
-      // the sidebar to that.
-      if (res.current === 'trunk') await loadStatus();
-      // Only a delete that took the checkout with it changed what the note is
-      // measuring against (#239): deleting a ticket you are not on — including
-      // from trunk, where `current` says trunk either way — leaves the tree
-      // alone, and re-walking it would blank the sentence and rebuild the
-      // identical one. After loadStatus, so a fast walk cannot render trunk's
-      // count under the ticket number the delete just cleared.
-      if (res.movedToTrunk) reprobeAfterBranchChange();
-    } catch (e) {
-      setTicketError(String(e));
-    } finally {
-      setDeletingBranch(null);
-    }
-  }, [sitePath, loadBranches, loadStatus, reprobeAfterBranchChange]);
 
   // The npm runs this view starts (#554): the install and the scripts, and the
   // flags the rest of the view reads about them. Called here because it needs
@@ -1536,6 +1260,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   }, [sitePath]);
   // eslint-disable-next-line no-alert -- see the note above onRename.
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
+
+  // Updating to the latest trunk (#94, #554): the chain, the question it asks
+  // about edits in the tree, and the retry. Called here because it runs
+  // through everything above, and because what follows reads whether an
+  // update is under way.
+  const { updateState, isUpdating, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+
+  // Putting someone else's patch or pull request on this site (#554): what a
+  // ticket offers, the preview, and the chain. Called here because it runs
+  // through everything above, and because what follows reads whether an
+  // apply is under way.
+  const { applyState, isApplying, applyKind, applySteps, applyStepStates, applyPreview, setApplyPreview, applyError, setApplyError, applyConflict, setApplyConflict, applyNotice, setApplyNotice, clearApplyError, prUrlInput, setPrUrlInput, fetchingPr, fetchingAttachment, ticketPatches, ticketPatchesLoading, tracAttachments, tracAttachmentsLoading, patchAttachments, loadTicketPatches, loadTracAttachments, choosePatchFile, previewPr, previewAttachment, previewPrFromInput, runPrSwitch, runApply } = useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart });
 
   // The tickets with work on this site (#108), in a card of their own (#240)
   // below the Trac ticket card and the patch one — which ticket am I on, what
@@ -1681,9 +1417,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     </div>
   );
 
-  // --- Update to latest trunk (#94) ---
+  // How old the site's trunk is (#94), for the notice that offers an update.
   const age = trunkAgeInfo({ trunkDate });
-  const isUpdating = updateState !== 'idle';
   // Where the note goes moves with the ticket: a change that belongs to
   // #12345 is news for the ticket card, one that belongs to nothing is news
   // for the buttons that would give it somewhere to go.
@@ -1691,129 +1426,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const staleTicketNotice = ticketTrunkNotice({ ticketId: tracTicket, behind: ticketBehindTrunk, noun: workItem.noun });
   const legacyNotice = legacySiteNotice({ legacy });
   const mergeNotice = mergeInProgressNotice({ mergeInProgress });
-  const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged, buildByWatcher: updateBuildBy });
-  const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
-  const finishUpdate = (message) => {
-    markTerminalRunning(false);
-    terminalKillRef.current = null;
-    setUpdateState('idle');
-    setUpdateWaitingOnWatch(false);
-    if (message) writeToTerminal(message);
-    // Resume the watch if the update paused it (#262). Safe on every exit path
-    // and a no-op if nothing was paused.
-    resumeWatcher();
-    loadStatus().catch(() => {});
-    refreshDirty();
-  };
-
-  // Steps 2 and 3 of the chain: npm install (only when the lockfile moved,
-  // and named when skipped) then a rebuild. Reuses the wizard's runInstall /
-  // runScript so exit codes, retries and terminal streaming all behave
-  // exactly as they do everywhere else (same pattern as toggleDevServer).
-  const runUpdateInstallAndBuild = (lockfileChanged, { buildBy = null } = {}) => {
-    // build/ matches the new source: persist it, summarise, confirm. Shared by
-    // the chain's own build and the resumed watch's ready line.
-    const completeUpdate = async () => {
-      try { await window.api.markUpdateComplete(sitePath); } catch {}
-      const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
-      setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
-      confirm('Updated to the latest trunk');
-    };
-    const runBuildStep = () => {
-      setUpdateState('building');
-      writeToTerminal('\nRunning npm run build…\n');
-      runScript('build', {
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: async ({ code }) => {
-          if (code === 0) {
-            await completeUpdate();
-            finishUpdate('\nUpdate complete — this site is now on the latest trunk.\n');
-          } else {
-            finishUpdate('\nUpdate incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.\n');
-          }
-        }
-      });
-    };
-    // The watch paused for the reset rebuilds build/ from scratch when it
-    // resumes (Gutenberg, #507), so a build of our own would be thrown away the
-    // moment it comes back. Resume it now and let that be the one build. Unlike
-    // an apply (#506), the update is not done at the hand-off: the card stays
-    // on step 3, naming the watch, and the persisted "complete" marker waits for
-    // the ready line, so a watch that exits first leaves the update incomplete
-    // with the same banner and retry a failed build would. The terminal is
-    // released: the watch writes to its own tab and holds no terminal lock.
-    // No generation token here, unlike the apply: any ready line means build/
-    // is complete, which is exactly what "update complete" claims, and a card
-    // left on step 3 by a skipped settle would have no way off it. That is safe
-    // only because every path that pauses or restarts the watch (a PR switch,
-    // a ticket switch, an apply, a retry) is gated on isUpdating, which holds
-    // through the wait; the terminal lock those paths also check is released
-    // here, so the isUpdating gates are what keeps a pause (which kills the
-    // watch without settling the waiters) from orphaning this waiter. Loosen
-    // one of those gates and this needs the token.
-    const handOffToResumedWatch = () => {
-      const plan = planUpdateHandOff(watchStateRef.current);
-      if (!plan.waits) {
-        finishUpdate(plan.finish.message);
-        return;
-      }
-      // One way to apply an outcome, so the ready line and the exit cannot
-      // drift apart: the plan says which state each lands in and whether it is
-      // the one that completes the update.
-      const settle = async (phase) => {
-        if (phase.completesUpdate) await completeUpdate();
-        setUpdateState(phase.updateState);
-        setUpdateWaitingOnWatch(phase.waitingOnWatch);
-        writeToTerminal(phase.message);
-        loadStatus().catch(() => {});
-        refreshDirty();
-      };
-      // Registered before the resume so a watch that dies at once still lands
-      // in onFail. The waiters settle once per run: on the ready line or on exit.
-      watchWaitersRef.current.add(
-        () => { settle(plan.ready); },
-        () => { settle(plan.failed); }
-      );
-      setUpdateState(plan.waiting.updateState);
-      setUpdateWaitingOnWatch(plan.waiting.waitingOnWatch);
-      // The watch writes to its own tab and holds no terminal lock, so the
-      // chain gives this one back while it waits.
-      markTerminalRunning(false);
-      terminalKillRef.current = null;
-      writeToTerminal(plan.waiting.message);
-      resumeWatcher();
-    };
-    const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
-    if (lockfileChanged) {
-      setUpdateState('installing');
-      writeToTerminal('\npackage-lock.json changed — running npm install (only the changed packages are downloaded)…\n');
-      runInstall({
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          if (code !== 0) {
-            finishUpdate('\nUpdate incomplete — npm install failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.\n');
-            return;
-          }
-          afterInstall();
-        }
-      });
-    } else {
-      writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
-      afterInstall();
-    }
-  };
-
-  // --- Applying someone else's patch (#11) ---
-  // Same three-stage shape as the update chain, and the same npm wrappers, so
-  // exit codes and terminal streaming behave identically.
-  const isApplying = applyState !== 'idle';
+  // Whether the terminal is free, and what the site's view says about the
+  // patch or pull request that is applied (#11).
   const showTerminalHints = Boolean(hasBuilt);
   const terminalBusy = computeTerminalBusy({
     terminalRunning, installing, building, starting, running, isUpdating, isApplying
   });
-  const applySteps = planApplySteps({ needsInstall: applyNeedsInstall, buildByWatcher: applyBuildByWatcher, kind: applyKind });
-  const applyStepStates = updateStepStatuses(applySteps, applyState, APPLY_STATE_TO_STEP);
 
   // The applied patch as a layer with a name (#306), not an undo blob. Both
   // answers come from the same record: whether it can still be lifted out —
@@ -1978,10 +1597,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Attachments are Trac's; a GitHub issue never has one, whatever a stale
   // scrape says (#251).
   const latestIsAttachment = showTracCards && latestPatch?.kind === 'attachment';
-  // The panel lists only what can be applied — screenshots and other non-patch
-  // attachments are noise here. The parser still returns them (pickLatest and
-  // tests rely on the full list); the filtering is purely what's shown.
-  const patchAttachments = (tracAttachments?.items || []).filter((a) => a.applyable);
   // The ticket's own facts (#292), riding the same scrape as the attachments:
   // one Trac visit, one challenge, both answers.
   const tracInfo = showTracCards ? (tracAttachments?.ticket || null) : null;
@@ -2003,637 +1618,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         {badge.label}
       </span>
     );
-  };
-
-  const finishApply = (message) => {
-    markTerminalRunning(false);
-    terminalKillRef.current = null;
-    setApplyState('idle');
-    // Resume the watch if this apply paused it. Safe on every exit path
-    // (success, failure, cancel) and a no-op if nothing was paused (#262).
-    resumeWatcher();
-    // A resumed watch that rebuilds from scratch (Gutenberg's npm run dev)
-    // leaves the site unusable until it is watching again, and the banner
-    // above is already up (#492). The banner says so; so does the terminal,
-    // in place of "open the site to try it out".
-    if (message) writeToTerminal(applyFinishMessage(message, watchStateRef.current));
-    loadStatus().catch(() => {});
-    refreshDirty();
-  };
-
-  const runApplyInstallAndBuild = (needsInstall, verb, { buildBy = null, noun = 'patch' } = {}) => {
-    const runBuildStep = () => {
-      setApplyState('building');
-      writeToTerminal('\nRunning npm run build…\n');
-      runScript('build', {
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          // Only now is the apply genuinely done — the patch is on disk and the
-          // site is rebuilt around it, so "open the site to try it out" is true
-          // (#253). A failed build leaves stale assets and its own banner, so it
-          // gets no success confirmation.
-          if (code === 0) confirm(`${verb} the ${noun}`);
-          finishApply(code === 0
-            ? `\n${verb} — open the site to try it out.\n`
-            : `\nThe ${noun} is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.\n`);
-        }
-      });
-    };
-    // The watch paused for this apply rebuilds build/ from scratch when it
-    // resumes (Gutenberg, #506), so a build of our own would be thrown away the
-    // moment finishApply resumes it. Skip it and let the resume be the one
-    // build; the confirmation waits for the watch's ready line, the same one the
-    // dev-server start waits for (#488). Until then the terminal and the banner
-    // say the watch is rebuilding (#492).
-    const handOffToResumedWatch = () => {
-      const handOff = resumedWatchHandOff(verb, noun, watchStateRef.current);
-      if (!handOff.waits) {
-        finishApply(handOff.stopped);
-        return;
-      }
-      // Registered before the resume so a watch that dies at once still lands
-      // in onFail. The waiters settle once per run: on the ready line or on exit.
-      const token = applyHandOffRef.current.next();
-      watchWaitersRef.current.add(
-        () => {
-          if (!applyHandOffRef.current.isCurrent(token)) return;
-          confirm(`${verb} the ${noun}`);
-          writeToTerminal(handOff.ready);
-        },
-        () => {
-          if (!applyHandOffRef.current.isCurrent(token)) return;
-          writeToTerminal(handOff.failed);
-        }
-      );
-      finishApply(`\n${verb} — open the site to try it out.\n`);
-    };
-    const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
-    if (buildBy === 'live-watch') {
-      // A running build watch recompiles the src/ change on its own, so there is
-      // no install and no build of our own to run — just hand off to it (#262).
-      confirm(`${verb} the ${noun}`);
-      handOffToWatch();
-      finishApply(`\n${verb} — ${compilingMessage()}\n`);
-      return;
-    }
-    if (needsInstall) {
-      setApplyState('installing');
-      writeToTerminal(`\nThe ${noun} changes package-lock.json — running npm install…\n`);
-      runInstall({
-        onLog: (chunk) => writeToTerminal(chunk),
-        onDone: ({ code }) => {
-          if (code !== 0) {
-            finishApply(`\nnpm install failed, so the build was skipped. The ${noun} is ${verb.toLowerCase()} but dependencies are stale.\n`);
-            return;
-          }
-          afterInstall();
-        }
-      });
-    } else {
-      writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
-      afterInstall();
-    }
-  };
-
-  // Reads a patch file and works out what it would do, without touching the
-  // checkout — the contributor decides after seeing the file list.
-  const choosePatchFile = async () => {
-    clearApplyError();
-    setApplyNotice('');
-    try {
-      const chosen = await window.api.choosePatchFile();
-      if (!chosen) return;
-      if (chosen.error) {
-        setApplyError(`Could not read that file: ${chosen.error}`);
-        return;
-      }
-      const preview = await window.api.previewPatch(sitePath, chosen.text);
-      if (!preview || !preview.ok) {
-        setApplyError(preview?.error || 'Could not read that patch.');
-        return;
-      }
-      setApplyPreview({ ...preview, label: chosen.name, text: chosen.text });
-    } catch (e) {
-      setApplyError(String(e));
-    }
-  };
-
-  // Loads the PRs linked to the ticket. Manual, not on a timer: each call is a
-  // request against a shared, unauthenticated GitHub limit, so it runs when the
-  // contributor asks — on link, and on an explicit refresh.
-  const loadTicketPatches = useCallback(async () => {
-    setTicketPatchesLoading(true);
-    try {
-      const res = await window.api.listTicketPatches(sitePath);
-      setTicketPatches(res && res.ok ? res.prs : { status: 'error', items: [] });
-    } catch {
-      setTicketPatches({ status: 'error', items: [] });
-    } finally {
-      setTicketPatchesLoading(false);
-    }
-  }, [sitePath]);
-
-  // Load the ticket's PRs only for the active site. Every SiteRow stays mounted
-  // (the parent hides inactive ones), so fetching on mount would spend the
-  // shared, unauthenticated GitHub quota once per linked site on every launch.
-  // The ref keeps re-activating a site from re-fetching the same ticket; a
-  // relink (ticket change) and the Refresh button still fetch. Unlinking clears
-  // the list. Placed after loadTicketPatches is defined: an effect that named it
-  // earlier in the body would read the const before its declaration ran.
-  const loadedTicketRef = useRef(null);
-  // Set only by saveTicket, on a link the contributor just performed. The
-  // per-ticket effect below consumes it to auto-read the ticket's details:
-  // there, after the generation bump, so the scrape's result is not dropped as
-  // stale. A ref and not state — it must not survive a remount, or selecting
-  // an already-linked site would open a Trac window nobody asked for (#292).
-  const autoReadTicketRef = useRef(null);
-  const tracScrapeRef = useRef(null);
-  // A Trac scrape can run up to 90s. Bump a generation on every ticket change so
-  // a scrape that resolves after the ticket has moved on is dropped, rather than
-  // shown under the wrong ticket or clearing a newer request's loading flag. Kept
-  // on its own [tracTicket]-only effect, deliberately not folded into the one
-  // below: that effect also re-runs on an `isActive` toggle (switching site tabs
-  // and back), which must not bump the generation of an in-flight scrape that
-  // has nothing to do with this ticket change (#299 follow-up). Declared first —
-  // React runs same-component passive effects in declaration order — so the
-  // bump always lands before the auto-triggered scrape a few lines down (#299).
-  const scrapeGenRef = useRef(0);
-  useEffect(() => { scrapeGenRef.current += 1; }, [tracTicket]);
-  useEffect(() => {
-    if (!tracTicket) {
-      setTicketPatches(null);
-      // Attachments are per-ticket and loaded on demand; a stale list from the
-      // previous ticket must not linger, and a scrape dropped by the generation
-      // bump above must not leave a stuck spinner.
-      setTracAttachments(null);
-      setTracAttachmentsLoading(false);
-      loadedTicketRef.current = null;
-      return;
-    }
-    if (!isActive || loadedTicketRef.current === tracTicket) return;
-    // A new ticket on the active site: drop any attachments the previous one
-    // loaded (and clear its loading flag, so a scrape dropped by the generation
-    // bump above cannot leave a stuck spinner with no button to recover), then
-    // fetch its PRs. Marked loaded before the fetch resolves, on purpose: a
-    // failed initial fetch is not retried on every re-activation (which could
-    // keep spending a rate-limited quota) — Refresh is the retry.
-    setTracAttachments(null);
-    setTracAttachmentsLoading(false);
-    loadedTicketRef.current = tracTicket;
-    loadTicketPatches();
-    // Auto-read the ticket's own facts when this ticket was just linked by
-    // hand (#292). Only then: the contributor just acted on this ticket, so a
-    // human-check window appearing has context. On mount or re-activation the
-    // ref is empty and nothing opens — details stay on demand, the #109 rule.
-    // And only for a Trac ticket (#251): a GitHub issue has nothing on Trac,
-    // and the Core ticket that shares its number is not it.
-    if (showTracCards && autoReadTicketRef.current === tracTicket) {
-      autoReadTicketRef.current = null;
-      // Through the ref, not the function: loadTracAttachments is declared
-      // below this effect and recreated per render — the same shape as
-      // metaPatchRef above.
-      if (tracScrapeRef.current) tracScrapeRef.current();
-    }
-  }, [tracTicket, isActive, loadTicketPatches, showTracCards]);
-
-  // Fetches the PR head through the site's origin and previews its own file
-  // list. No diff text crosses the renderer boundary: checkout retains the
-  // author's commits, while files and Trac attachments keep the patch path.
-  const previewPr = async (pr) => {
-    clearApplyError();
-    setApplyNotice('');
-    setFetchingPr(pr.number);
-    try {
-      const preview = await window.api.previewPullRequest(sitePath, pr.number);
-      if (!preview || !preview.ok) {
-        setApplyError(prCheckoutRefusal({ ...preview, number: pr.number }));
-        return;
-      }
-      setApplyPreview({
-        kind: 'pr', ...preview, label: `PR #${pr.number}`,
-        paths: preview.files.map((file) => file.path),
-        prUrl: pr.url, prState: pr.state || null
-      });
-    } catch (e) {
-      setApplyError(String(e));
-    } finally {
-      setFetchingPr(null);
-    }
-  };
-
-  // Opens the real Trac ticket (the user clears the challenge once if shown),
-  // scrapes its attachment list, and shows it in-app. On demand, not on link.
-  const loadTracAttachments = async () => {
-    const gen = scrapeGenRef.current;
-    clearApplyError();
-    setTracAttachmentsLoading(true);
-    try {
-      const res = await window.api.listTracAttachments(sitePath);
-      if (gen !== scrapeGenRef.current) return; // ticket changed mid-scrape; drop the stale result
-      setTracAttachments(res && res.ok ? res : { status: 'error', items: [] });
-    } catch {
-      if (gen !== scrapeGenRef.current) return;
-      setTracAttachments({ status: 'error', items: [] });
-    } finally {
-      if (gen === scrapeGenRef.current) setTracAttachmentsLoading(false);
-    }
-  };
-
-  // Downloads an attachment through the challenge-passing session and hands it
-  // to the same preview the PR and file paths use.
-  useEffect(() => { tracScrapeRef.current = loadTracAttachments; });
-
-  const previewAttachment = async (att) => {
-    clearApplyError();
-    setApplyNotice('');
-    setFetchingAttachment(att.url);
-    try {
-      const res = await window.api.fetchTracAttachment(att.url);
-      if (!res || !res.ok) {
-        setApplyError(res?.error || `Could not download ${att.filename}.`);
-        return;
-      }
-      const preview = await window.api.previewPatch(sitePath, res.text);
-      if (!preview || !preview.ok) {
-        setApplyError(preview?.error || 'Could not read that patch.');
-        return;
-      }
-      setApplyPreview({ ...preview, label: att.filename, text: res.text });
-    } catch (e) {
-      setApplyError(String(e));
-    } finally {
-      setFetchingAttachment(null);
-    }
-  };
-
-  // Apply a PR straight from a pasted URL or number, without needing it to be
-  // linked to the ticket — same fetch → preview flow as the linked-PR list.
-  const previewPrFromInput = () => {
-    // Guarded against this site's own repository: a wordpress-develop pull
-    // request pasted into a Gutenberg site is refused by name, not fetched
-    // from a repository that has no such ref.
-    const parsed = parsePrRef(prUrlInput, { repoPath: `${project.upstream.owner}/${project.upstream.repo}` });
-    // clearApplyError first, not setApplyError alone: a parse error arriving on
-    // top of a conflict breakdown would otherwise leave the stale regions on
-    // screen hiding it, since the banner leads with the breakdown's headline.
-    if (!parsed.ok) { clearApplyError(); setApplyError(parsed.error); setApplyNotice(''); return; }
-    setPrUrlInput('');
-    previewPr({ number: parsed.number, url: `https://github.com/${project.upstream.owner}/${project.upstream.repo}/pull/${parsed.number}` });
-  };
-
-  const runPrSwitch = async ({ leaving = false } = {}) => {
-    const preview = applyPreview;
-    const number = leaving ? pullRequest?.number : preview?.number;
-    if (!number) return;
-    const state = terminalStateRef.current;
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    // A checkout rewrites far more than a src/ patch, so a live watch is always
-    // paused. Whether we build after depends on what the resumed watch does (#506).
-    const watcherActive = watchOccupiesBuild(watchStateRef.current);
-    const impact = planWatchImpact({ needsInstall: false, watcherActive, watchRebuildsOnStart, wholeTree: true });
-    clearApplyError();
-    setApplyNotice('');
-    setApplyKind(leaving ? 'leave-pr' : 'pr');
-    setApplyNeedsInstall(Boolean(preview?.needsInstall));
-    setApplyBuildByWatcher(impact.buildBy);
-    setApplyState('applying');
-    applyHandOffRef.current.invalidate();
-    markTerminalRunning(true);
-    if (impact.pauseWatcher) await pauseWatcher();
-    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-    const run = leaving
-      ? window.api.leavePullRequest(sitePath, ({ data }) => writeToTerminal(data), complete)
-      : window.api.checkoutPullRequest(sitePath, number, ({ data }) => writeToTerminal(data), complete);
-
-    function complete(res) {
-      if (!res?.ok) {
-        if (!leaving && res?.code === 'dirty-trunk') {
-          setBlockedByTrunkWork({ kind: 'pr', number, ref: `pr/${number}`, canCarry: false, files: Number.isInteger(res.files) ? res.files : null, ticket: null });
-        } else {
-          setApplyError(prCheckoutRefusal({ ...res, number }));
-        }
-        finishApply();
-        return;
-      }
-      setApplyPreview(null);
-      setApplyNeedsInstall(Boolean(res.needsInstall));
-      runApplyInstallAndBuild(
-        Boolean(res.needsInstall),
-        leaving ? 'Restored' : 'Checked out',
-        { buildBy: impact.buildBy, noun: leaving ? 'previous branch' : 'pull request' }
-      );
-    }
-
-    run.catch((e) => {
-      setApplyError(String(e));
-      finishApply();
-    });
-  };
-  // The pull request a switch to this ref would put back (#510), read from the
-  // branch list the panel already reloads after every switch, so no round trip
-  // is added in front of one. An unlink and a ref this site's provider does not
-  // parse are not switches to a work item at all; the rest is the module's
-  // decision.
-  const savedPrForRef = (ref) => {
-    const parsed = workItem.parseRef(typeof ref === 'string' ? ref.trim() : '');
-    if (!parsed.ok) return null;
-    return savedPrForSwitch({
-      branches: ticketBranches.branches,
-      ticketId: parsed.id,
-      linkedTicket: tracTicket,
-      currentPr: pullRequest?.number ?? null
-    });
-  };
-  useLayoutEffect(() => {
-    retryPrSwitchRef.current = runPrSwitch;
-    ticketSwitchLifecycleRef.current = {
-      begin: async (ref) => {
-        if (terminalStateRef.current.running) {
-          setTicketError('A command is already running. Stop it before switching tickets.');
-          return false;
-        }
-        markTerminalRunning(true);
-        terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-        applyHandOffRef.current.invalidate();
-        // Only the switch that puts a parked pull request back is a whole-tree
-        // change that pauses the watch (#506); a plain link, unlink or switch
-        // moves the checkout and leaves the running watch to recompile what
-        // changed (#510). Which one this is has to be known before the
-        // checkout starts, and `sites:set-ticket` only says so afterwards — so
-        // it is read from the same record main will consult: the PR checked
-        // out now, and the one saved on the work item being switched to.
-        //
-        // The decision is made here, where the watch is paused, and read back
-        // in complete. This effect has no dependency list, so it runs on every
-        // render and a variable scoped to it would be reset between begin and
-        // complete; a ref is what survives the IPC round trip.
-        const impact = planTicketSwitchImpact({
-          fromPr: pullRequest?.number ?? null,
-          toPr: savedPrForRef(ref),
-          watchState: watchStateRef.current,
-          watchRebuildsOnStart
-        });
-        switchImpactRef.current = impact;
-        if (impact.pauseWatcher) await pauseWatcher();
-        return true;
-      },
-      complete: async (res) => {
-        if (!res.prTransition) {
-          // The watch was left running for this switch and the checkout has
-          // landed: the files it wrote are what the watch now recompiles, so
-          // the banner and the tab say so until it goes quiet (#492).
-          if (switchImpactRef.current?.buildBy === 'live-watch') handOffToWatch();
-          return false;
-        }
-        setApplyKind('pr');
-        setApplyNeedsInstall(Boolean(res.needsInstall));
-        // A restore begin did not see coming — a retry of a failed switch,
-        // where main reads the ref the switch was leaving and the renderer
-        // cannot. The install and the build that follow still need the build
-        // directory and node_modules to themselves, so the pause happens late
-        // rather than not at all. The plan's own answer wins whenever it
-        // already paused, since a paused watch reads as inactive here.
-        let impact = switchImpactRef.current;
-        if (!impact?.pauseWatcher) {
-          impact = planWatchImpact({ needsInstall: false, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
-          if (impact.pauseWatcher) await pauseWatcher();
-        }
-        setApplyBuildByWatcher(impact.buildBy);
-        clearApplyError();
-        runApplyInstallAndBuild(Boolean(res.needsInstall), 'Restored', { buildBy: impact.buildBy, noun: 'saved work' });
-        return true;
-      },
-      finish: () => finishApply()
-    };
-
-  });
-
-  const runApply = async ({ reverse = false } = {}) => {
-    const state = terminalStateRef.current;
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    const preview = applyPreview;
-    if (!reverse && preview?.kind === 'pr') {
-      await runPrSwitch();
-      return;
-    }
-    const needsInstall = reverse
-      ? Boolean(appliedPatch?.files?.includes('package-lock.json'))
-      : Boolean(preview.needsInstall);
-    // A running build watch already recompiles src/, so a src-only patch skips
-    // the build and is not interrupted; an install/full build pauses it (#262).
-    const watcherActive = watchOccupiesBuild(watchStateRef.current);
-    const impact = planWatchImpact({ needsInstall, watcherActive, watchRebuildsOnStart });
-    clearApplyError();
-    setApplyNotice('');
-    setApplyNeedsInstall(needsInstall);
-    setApplyKind('patch');
-    setApplyBuildByWatcher(impact.buildBy);
-    setApplyState('applying');
-    applyHandOffRef.current.invalidate();
-    markTerminalRunning(true);
-    if (impact.pauseWatcher) await pauseWatcher();
-    // Same contract as the other chains: while `running` is set, Ctrl+C in the
-    // terminal has to reach the child process the chain is about to spawn.
-    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-    window.api.applyPatch(
-      sitePath,
-      reverse ? { reverse: true } : { patchText: preview.text, label: preview.label },
-      ({ data }) => writeToTerminal(data),
-      (res) => {
-        if (!res || !res.ok) {
-          // The main process has already dropped the stale record, so reloading
-          // the status is what takes the "is applied" banner down and frees the
-          // panel to accept another patch. Nothing was written, so there is
-          // nothing to install or build.
-          if (res?.notApplied) {
-            if (res.recordCleared) {
-              setApplyNotice(`${res.error} The applied-patch record has been cleared.`);
-            } else {
-              setApplyError(`${res.error} The record of it could not be cleared, so this site still thinks it is applied.`);
-            }
-            // finishApply reloads the status, which is what takes the banner
-            // down now that the main process has dropped the record.
-            finishApply();
-            return;
-          }
-          setApplyError(res?.error || 'The patch could not be applied.');
-          // A conflict is where the panel used to stop: one file named, the
-          // rest of the failures left in the terminal, and no sense of whether
-          // one region of twenty missed or all of them. The breakdown is what
-          // turns that into a decision (#282). A reverse gets its own framing
-          // (#306): it fails only because the contributor's own edits are on the
-          // patch's lines, so the ticket's other patches and the pull request's
-          // author are both the wrong place to send them.
-          setApplyConflict(describeApplyFailure(res, reverse
-            ? { reverting: appliedPatch?.label || 'That patch' }
-            : {
-              otherPatchCount: otherPatchCount({
-                label: preview?.label,
-                prs: ticketPatches?.items,
-                attachments: patchAttachments
-              }),
-              prUrl: preview?.prUrl || null,
-              prState: preview?.prState || null,
-              appliedPatch,
-              // The preview's own collision list: the files this ticket has work
-              // in, measured from its base (#301). Without it an open pull
-              // request is always narrated as stale, so a failure caused by the
-              // contributor's own edits sends them to ask a stranger for a
-              // rebase that would not help (#303).
-              ownWorkPaths: preview?.conflicts || []
-            }));
-          finishApply();
-          return;
-        }
-        setApplyPreview(null);
-        // The confirmation waits until the rebuild finishes (see runBuildStep) —
-        // the patch is on disk now, but the site is not usable until it is built
-        // around it, so announcing "applied" here would be premature. When a
-        // watch will rebuild it, runApplyInstallAndBuild confirms right away.
-        runApplyInstallAndBuild(needsInstall, reverse ? 'Reverted' : 'Applied', { buildBy: impact.buildBy });
-      }
-    ).catch((e) => {
-      // A rejected invoke never reaches onDone, so without this the terminal
-      // stays wedged with `running` set and no way back short of a reload.
-      setApplyError(String(e));
-      finishApply();
-    });
-  };
-
-  // Step 1: fetch + reset in the main process, then hand over to the npm
-  // steps. Assumes the tree is clean (startTrunkUpdate handles dirty trees).
-  const beginTrunkUpdate = async () => {
-    const state = terminalStateRef.current;
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    // A trunk reset rewrites the whole tree at once; a live watch would try to
-    // recompile mid-reset. Pause it for the update; finishUpdate resumes it. The
-    // PHP server stays up — the rebuild regenerates build/ under it (#262).
-    // Whether the update builds after depends on what the resumed watch does:
-    // on Gutenberg it rebuilds from scratch anyway, so the one build is its
-    // (#507). Decided here, where the watch is paused, like a PR checkout.
-    const impact = planWatchImpact({ needsInstall: false, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
-    setUpdateBuildBy(impact.buildBy);
-    setUpdateWaitingOnWatch(false);
-    if (impact.pauseWatcher) await pauseWatcher();
-    markTerminalRunning(true);
-    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-    setUpdateLockfileChanged(false);
-    setLastUpdateSummary(null);
-    updateStartRef.current = Date.now();
-    setUpdateState('fetching');
-    window.api.updateTrunk(sitePath, ({ data }) => writeToTerminal(data), (res) => {
-      if (!res || !res.ok) {
-        // The main process already wrote the failure message to the stream.
-        finishUpdate();
-        return;
-      }
-      if (res.upToDate) {
-        // Nothing to fetch — but "Already up to date." only reaching the
-        // terminal left the contributor unsure the check had even run (#253).
-        // The confirmation says so where it will be seen; there is no install
-        // or build to follow.
-        confirm('Already up to date with trunk');
-        finishUpdate();
-        return;
-      }
-      setUpdateLockfileChanged(Boolean(res.lockfileChanged));
-      runUpdateInstallAndBuild(Boolean(res.lockfileChanged), { buildBy: impact.buildBy });
-    });
-  };
-
-  const startTrunkUpdate = async () => {
-    // The dev server no longer blocks an update: the watch is paused for the
-    // reset and the PHP server stays up (#262). Only real in-progress work
-    // (an update, install or build already running) still blocks.
-    if (isUpdating || installing || building) return;
-    savedPatchPathRef.current = null;
-    try {
-      const res = await window.api.isWorktreeDirty(sitePath);
-      if (res && res.ok && res.dirty) {
-        setDirtyFiles(Array.isArray(res.files) ? res.files : []);
-        setDirtyError(null);
-        setDirtyModalOpen(true);
-        return;
-      }
-    } catch {}
-    beginTrunkUpdate();
-  };
-
-  // Dirty-tree resolutions. Saving is the default: it is what the tool is
-  // for, and it is the only option that cannot lose work.
-  const dirtySaveAndUpdate = async () => {
-    setDirtySaving(true);
-    setDirtyError(null);
-    try {
-      const res = await window.api.savePatch(sitePath);
-      if (res && res.canceled) return; // stay in the modal
-      if (!res || !res.ok || !res.filePath) {
-        setDirtyError(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
-        return;
-      }
-      const d = await window.api.discardChanges(sitePath);
-      if (!d || !d.ok) {
-        setDirtyError(`Saved your changes to ${res.filePath}, but resetting the working tree failed: ${d && d.error ? d.error : 'Unknown error'}`);
-        return;
-      }
-      savedPatchPathRef.current = res.filePath;
-      applyDiscardToNote(discardOutcome(d));
-      setDirtyModalOpen(false);
-      writeToTerminal(`\nSaved your changes to ${res.filePath} and reset the working tree.\n`);
-      // This ran as the contributor closed the modal; the confirmation is the
-      // only trace of it outside the terminal (#253).
-      confirm(`Saved your changes to ${pathBasename(res.filePath)} and reset the working tree`);
-      beginTrunkUpdate();
-    } finally {
-      setDirtySaving(false);
-    }
-  };
-
-  const dirtyDiscardAndUpdate = () => confirmAnd(DISCARD_CONFIRM_MESSAGE, async () => {
-    setDirtyError(null);
-    const d = await window.api.discardChanges(sitePath);
-    if (!d || !d.ok) {
-      setDirtyError(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
-      return;
-    }
-    applyDiscardToNote(discardOutcome(d));
-    setDirtyModalOpen(false);
-    writeToTerminal('\nDiscarded local changes.\n');
-    confirm('Local changes discarded.');
-    beginTrunkUpdate();
-  });
-
-  // Re-entry point for a previously interrupted update: trunk already moved,
-  // so only install+build remain. Install runs unconditionally — the
-  // lockfile delta from the failed run is no longer known.
-  const retryInstallAndBuild = async () => {
-    const state = terminalStateRef.current;
-    if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
-      return;
-    }
-    // Same as beginTrunkUpdate: install + a full build need the tree to
-    // themselves, so pause the watch; finishUpdate resumes it (#262). And the
-    // same hand-off when the resumed watch is the one that rebuilds (#507).
-    const impact = planWatchImpact({ needsInstall: true, watcherActive: watchOccupiesBuild(watchStateRef.current), watchRebuildsOnStart, wholeTree: true });
-    setUpdateBuildBy(impact.buildBy);
-    setUpdateWaitingOnWatch(false);
-    if (impact.pauseWatcher) await pauseWatcher();
-    markTerminalRunning(true);
-    terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-    setUpdateLockfileChanged(true);
-    setLastUpdateSummary(null);
-    updateStartRef.current = Date.now();
-    runUpdateInstallAndBuild(true, { buildBy: impact.buildBy });
   };
 
   // The diff fetch, shared by opening the modal and by a discard that happens
