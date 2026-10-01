@@ -88,8 +88,8 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	} );
 
 	const logs = ui.card( page, 'Logs' );
-	const serverTab = logs.getByRole( 'tab', { name: 'Server', exact: true } );
-	const debugTab = ( unread ) => logs.getByRole( 'tab', { name: unread ? `debug.log (${ unread })` : 'debug.log', exact: true } );
+	const serverTab = ui.logTab( page, 'Server' );
+	const debugTab = ( unread ) => ui.logTab( page, unread ? `debug.log (${ unread })` : 'debug.log' );
 	const line = ( text ) => logs.getByText( text, { exact: true } );
 	const empty = logs.getByText( /^No PHP notices or errors yet\./ );
 	const showInFolder = logs.getByRole( 'button', { name: 'Show in folder', exact: true } );
@@ -250,9 +250,9 @@ test( 'the Server tab follows the server\'s output to its last line, stops follo
 
 	// INVARIANT — a tab left and come back to is a new pane, and it opens at
 	// the last line too, not at the top.
-	await logs.getByRole( 'tab', { name: 'debug.log', exact: true } ).click();
+	await ui.logTab( page, 'debug.log' ).click();
 	await expect( line( 'server line 100' ) ).toHaveCount( 0 );
-	await logs.getByRole( 'tab', { name: 'Server', exact: true } ).click();
+	await ui.logTab( page, 'Server' ).click();
 	await expect( line( 'server line 100' ) ).toHaveCount( 1 );
 	await expect.poll( async () => ( await paneOf( line( 'server line 100' ) ) ).atBottom ).toBe( true );
 } );
