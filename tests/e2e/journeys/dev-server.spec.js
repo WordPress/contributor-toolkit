@@ -18,11 +18,15 @@
  * and the test says what the main process would say, on the channels it says
  * it on, as TESTING.md describes. What that leaves out: the real start
  * answers only once the server has an address or has failed, and here it
- * answers at once and the address is said afterwards; a real server that is
- * stopped exits and that exit is announced, and here the test announces it;
- * no mail server is started with it; and nothing is written to the app's
- * log. A real build also leaves a `build/` behind, and here the test writes
- * the one file that says a site is built when it needs the site to be.
+ * answers at once and the address is said afterwards, so the debug.log tail
+ * and the mail list are brought up before there is an address and not
+ * after; a real server that is stopped exits and that exit is announced, and
+ * here the test announces it; a real start that fails is followed by such an
+ * exit too, and here it is not, so a failed start's exit arriving while the
+ * failure is still being cleared up is not walked; no mail server is started
+ * with it; and nothing is written to the app's log. A real build also leaves
+ * a `build/` behind, and here the test writes the one file that says a site
+ * is built when it needs the site to be.
  *
  * The mail list and the Logs panel while a server runs are `mail.spec.js`
  * and `logs.spec.js`; the watch by itself is `build-watch.spec.js`.
@@ -43,12 +47,26 @@ const URL = 'http://127.0.0.1:9400/';
 // scripts.
 async function standIn( app, page, sitePath ) {
 	await app.evaluate( ( { ipcMain } ) => {
-		const asked = { starts: [], stops: [], scripts: [], kills: [], opened: [], startAnswer: { ok: true } };
+		const asked = { starts: [], stops: [], scripts: [], kills: [], opened: [], startAnswer: { ok: true }, statusAsked: 0, statusAnswered: 0 };
 		global.__e2eServer = asked;
 		const replace = ( channel, handler ) => {
 			ipcMain.removeHandler( channel );
 			ipcMain.handle( channel, handler );
 		};
+		// How the site is, is still answered by the app. The test only counts
+		// the question being asked and being answered: pressing the server's
+		// button asks it before it asks for a server, and the answer takes as
+		// long as reading the checkout takes. The handler is reached through
+		// the map Electron keeps them in, which is not part of its interface.
+		const siteStatus = ipcMain._invokeHandlers.get( 'site:status' );
+		replace( 'site:status', async ( ...args ) => {
+			asked.statusAsked += 1;
+			try {
+				return await siteStatus( ...args );
+			} finally {
+				asked.statusAnswered += 1;
+			}
+		} );
 		replace( 'playground:start', ( event, dir ) => {
 			asked.starts.push( dir );
 			return asked.startAnswer;
@@ -77,8 +95,8 @@ async function standIn( app, page, sitePath ) {
 	}, [ channel, payload ] );
 	return {
 		asked: () => app.evaluate( () => {
-			const { starts, stops, scripts, kills, opened } = global.__e2eServer;
-			return { starts, stops, scripts, kills, opened };
+			const { starts, stops, scripts, kills, opened, statusAsked, statusAnswered } = global.__e2eServer;
+			return { starts, stops, scripts, kills, opened, statusAsked, statusAnswered };
 		} ),
 		nextStartAnswers: ( answer ) => app.evaluate( ( electron, value ) => {
 			global.__e2eServer.startAnswer = value;
@@ -112,17 +130,24 @@ test( 'the dev server\'s button starts one server however often it is pressed, s
 	// build watch is started with it.
 	await ui.startDevServerButton( page ).click();
 	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir ] );
-	expect( ( await server.asked() ).scripts ).toEqual( [ { name: 'grunt', args: [ '--', '_watch' ] } ] );
+	await expect.poll( async () => ( await server.asked() ).scripts ).toEqual( [ { name: 'grunt', args: [ '--', '_watch' ] } ] );
 	await expect( starting ).toBeVisible();
 	await expect( page.getByText( /^Dev server is starting… \(/ ) ).toBeVisible();
 
 	// INVARIANT — pressed again while it starts, it starts nothing more (#488).
 	// A press that did start a server would first ask the main process how
 	// the site is, which takes as long as reading the checkout takes, and only
-	// then ask for the server. So the test asks how the site is itself, after
-	// the press, and then one thing more, before it counts.
+	// then ask for the server. So the test waits in three steps before it
+	// counts: until anything the press asked has reached the main process,
+	// until every question about the site has been answered, and until what
+	// the press would do with that answer has been asked for.
 	await starting.click();
-	await page.evaluate( ( dir ) => window.api.getSiteStatus( dir ), site.dir );
+	await server.heard();
+	await expect.poll( async () => {
+		const { statusAsked, statusAnswered } = await server.asked();
+		return statusAsked === statusAnswered;
+	} ).toBe( true );
+	await server.heard();
 	await server.heard();
 	expect( ( await server.asked() ).starts ).toHaveLength( 1 );
 
@@ -162,6 +187,7 @@ test( 'the dev server\'s button starts one server however often it is pressed, s
 	await expect( line( 'Dev server stopped unexpectedly (see Help → Open App Log for details).' ) ).toBeVisible();
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( ui.stopBuildWatchButton( page ) ).toBeVisible();
+	await server.heard();
 	expect( ( await server.asked() ).kills ).toEqual( [] );
 
 	// INVARIANT — a server that could not start says why, and the button
@@ -217,8 +243,9 @@ test( 'on a project whose watcher rebuilds everything, the server waits for a fi
 	await server.serverHasAddress();
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
 
-	// The server and the watch are both stopped, and the site is now a built
-	// one: the file the app looks for is there.
+	// Not claims of this journey, but the way to its last one: the server and
+	// the watch are both stopped, and the site is made a built one by the
+	// file the app looks for being there.
 	await ui.stopDevServerButton( page ).click();
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await server.serverHasGone( 0 );

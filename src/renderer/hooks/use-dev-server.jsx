@@ -142,7 +142,7 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
       // A start is already queued behind the watch (or in flight): a second
       // click must not queue a second server start (#488).
       if (devServerActiveRef.current) return;
-      // eslint-disable-next-line no-alert -- see the note above onRename.
+      // eslint-disable-next-line no-alert -- see the note above onRename in index.jsx.
       if (!skipInit && !hasBuilt) { alert('Please complete the full build before starting the dev server. You can also skip the wizard.'); return; }
       serverStartRequestedRef.current = false;
       devServerActiveRef.current = true;

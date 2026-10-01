@@ -823,7 +823,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
   useEffect(() => { metaPatchRef.current = onSiteMetaPatch; }, [onSiteMetaPatch]);
-  // state
   // What this site's processes have said (#554): the text of the Logs panel's
   // panes, which tab is open and the debug.log tail. Whoever runs a process
   // appends to its pane, so the functions those callbacks call are taken out
