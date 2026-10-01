@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-01T12:48:51+00:00\n"
+"POT-Creation-Date: 2026-10-01T13:39:10+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -24,7 +24,7 @@ msgid "The wordpress-develop repository: Trac tickets, patches and pull requests
 msgstr ""
 
 #: src/renderer/components/create-site-modal.jsx:129
-#: src/renderer/index.jsx:665
+#: src/renderer/index.jsx:666
 msgid "Create a site"
 msgstr ""
 
@@ -76,52 +76,52 @@ msgstr ""
 msgid "Please choose where to create the site."
 msgstr ""
 
-#: src/renderer/index.jsx:4363
+#: src/renderer/index.jsx:4197
 msgid "WordPress Contributor Toolkit"
 msgstr ""
 
-#: src/renderer/index.jsx:518
+#: src/renderer/index.jsx:519
 msgid "Contributor Toolkit"
 msgstr ""
 
-#: src/renderer/index.jsx:523
+#: src/renderer/index.jsx:524
 msgid "Expand site list"
 msgstr ""
 
-#: src/renderer/index.jsx:523
+#: src/renderer/index.jsx:524
 msgid "Collapse site list"
 msgstr ""
 
-#: src/renderer/index.jsx:527
+#: src/renderer/index.jsx:528
 msgid "Collapse"
 msgstr ""
 
-#: src/renderer/index.jsx:560
+#: src/renderer/index.jsx:561
 msgid "Share feedback"
 msgstr ""
 
-#: src/renderer/index.jsx:561
+#: src/renderer/index.jsx:562
 msgid "Your feedback helps decide what to build next."
 msgstr ""
 
-#: src/renderer/index.jsx:562
+#: src/renderer/index.jsx:563
 msgid ""
 "Responses go into a shared form the team reviews regularly. Submissions are "
 "anonymous unless you add your email."
 msgstr ""
 
-#: src/renderer/index.jsx:571
+#: src/renderer/index.jsx:572
 msgid "Open the feedback form ↗"
 msgstr ""
 
-#: src/renderer/index.jsx:663
+#: src/renderer/index.jsx:664
 msgid "Finish creating the current site first"
 msgstr ""
 
-#: src/renderer/index.jsx:775
+#: src/renderer/index.jsx:776
 msgid "No sites yet."
 msgstr ""
 
-#: src/renderer/index.jsx:776
+#: src/renderer/index.jsx:777
 msgid "Use the sidebar to create your first site."
 msgstr ""
