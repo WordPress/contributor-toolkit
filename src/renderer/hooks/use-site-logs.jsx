@@ -134,8 +134,9 @@ export function useSiteLogs({ sitePath }) {
     debugCopyTimer.current = setTimeout(() => setDebugCopied(''), 2000);
   }, [debugLogs]);
   useEffect(() => () => { if (debugCopyTimer.current) clearTimeout(debugCopyTimer.current); }, []);
-  // Switching to another site unmounts this panel without going through
-  // stopDevServer, so the listener has to come off here too.
+  // A site's view can go without its dev server having been stopped, when the
+  // site is deleted or the window is torn down, so the listener has to come
+  // off here too.
   useEffect(() => () => { try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {} }, []);
   const revealDebugLog = useCallback(async () => {
     let revealed;
@@ -167,10 +168,10 @@ export function useSiteLogs({ sitePath }) {
   }, [appendDebug, sitePath]);
 
   // For the moment a dev server stops. stopWpDebug only tears down the watcher
-  // in the main process. The renderer keeps its own 'wp:debug-log:data'
-  // listener until this runs, and a second start would add another one on top
-  // of it — every line then appended once per dev-server run the session has
-  // had.
+  // in the main process; the renderer keeps its own 'wp:debug-log:data'
+  // listener until this takes it off. A start takes off any it finds as well,
+  // so one left behind here would not be doubled, but two listeners on one
+  // tail is every line appended twice, and neither place trusts the other.
   const stopDebugTail = useCallback(() => {
     try { window.api.stopWpDebug(sitePath); } catch {}
     try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {}

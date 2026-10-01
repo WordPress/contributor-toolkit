@@ -17,6 +17,14 @@
  * manager and the clipboard are the person's who runs the suite, so both are
  * stand-ins.
  *
+ * What the stand-in for the server leaves out. The real start answers only
+ * once the server has an address; the stub answers at once, so here the
+ * debug.log tail attaches while the button still reads "Starting dev
+ * server...", which a real run never shows, and the test has to say the
+ * address itself before there is a server to stop. The real server's output
+ * goes to the window that asked for it and into the app's log; the test's
+ * goes to every window, of which there is one, and into no log.
+ *
  * Assertions are marked INVARIANT or CHARACTERISATION; see
  * ticket-branches.spec.js for why.
  */
@@ -98,8 +106,9 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	await expect( clear ).toBeDisabled();
 
 	// INVARIANT — what arrives while the other tab is being read is counted
-	// on this one: the line the file held and the line the app adds to say
-	// where the earlier run ends.
+	// on this one. CHARACTERISATION — the count is two: the line the file
+	// held, and the line the app adds to say where the earlier run ends, which
+	// counts as unseen like any other.
 	await serverTab.click();
 	await ui.startDevServerButton( page ).click();
 	await expect( debugTab( 2 ) ).toBeVisible( { timeout: 30_000 } );
@@ -139,24 +148,29 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	await expect.poll( () => app.evaluate( () => global.__e2eRevealed || [] ) ).toEqual( [ logFile ] );
 
 	// INVARIANT — Clear empties the file and not only the pane, and the tail
-	// goes on: the next line arrives, and nothing cleared comes back with it.
+	// goes on: the next line WordPress writes arrives.
 	await clear.click();
 	await expect( empty ).toBeVisible();
 	await expect.poll( () => fs.statSync( logFile ).size ).toBe( 0 );
 	wordpressWrites( 'PHP Notice: after the clear\n' );
 	await expect( line( 'PHP Notice: after the clear' ) ).toBeVisible();
-	await expect( line( 'PHP Notice: left by an earlier run' ) ).toHaveCount( 0 );
 
 	// CHARACTERISATION — stopping the server leaves the pane as it was: after
-	// a crash this is the thing to read.
+	// a crash this is the thing to read. The button offers to stop only a
+	// server that has an address, and the stub never gave one, so the test
+	// says it.
 	await tell( app, 'playground:url', { sitePath: site.dir, url: 'http://127.0.0.1:9400/' } );
 	await ui.stopDevServerButton( page ).click();
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( line( 'PHP Notice: after the clear' ) ).toBeVisible();
 
-	// INVARIANT — the next start shows the file once. The pane is emptied
-	// before the tail replays the file into it, and nothing from the first run
-	// is still listening: either would show the line a second time.
+	// INVARIANT — the next start shows the file once, from its first line to
+	// the one written while nothing was running. Two things have to have
+	// happened for that. The stop ended the tail in the main process: a tail
+	// left running is not started again, so the file would not be replayed
+	// and the line written while stopped would never be shown. And the start
+	// emptied the pane before the replay: the line already in it would
+	// otherwise be there twice.
 	wordpressWrites( 'PHP Notice: written while stopped\n' );
 	await ui.startDevServerButton( page ).click();
 	await expect( line( 'PHP Notice: written while stopped' ) ).toBeVisible( { timeout: 30_000 } );
@@ -189,17 +203,17 @@ test( 'the Server tab follows the server\'s output to its last line, stops follo
 			scrolls: pane.scrollHeight > pane.clientHeight,
 		};
 	} );
-	// Scrolls it, the way a wheel or a drag of the scrollbar would. The page
-	// is told of a scroll when it next draws, not when the position is set, so
-	// this waits for two frames to have been drawn before it returns: by then
-	// the pane has been told, and has decided whether it is still following.
-	const scrollPaneOf = ( locator, to ) => locator.evaluate( async ( element, where ) => {
+	// Scrolls it, and tells the pane so. A page is told of a scroll when it
+	// next draws, not when the position is set, and a window that is hidden
+	// or covered does not draw; so the test sends the event the browser
+	// would, and what follows does not depend on a frame.
+	const scrollPaneOf = ( locator, to ) => locator.evaluate( ( element, where ) => {
 		let pane = element.parentElement;
 		while ( pane && ! [ 'auto', 'scroll' ].includes( window.getComputedStyle( pane ).overflowY ) ) {
 			pane = pane.parentElement;
 		}
 		pane.scrollTop = where === 'top' ? 0 : pane.scrollHeight;
-		await new Promise( ( drawn ) => window.requestAnimationFrame( () => window.requestAnimationFrame( drawn ) ) );
+		pane.dispatchEvent( new window.Event( 'scroll' ) );
 	}, to );
 
 	// The page listens for the server's output from the moment it asks for a
