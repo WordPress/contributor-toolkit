@@ -1,0 +1,261 @@
+/*
+  The window's shell (#555): the sites list on the left, the open site's page
+  beside it, and a footer under the page. Every value is a design-system token,
+  with the token's default as the fallback, so the theme provider can change
+  them all from one place.
+*/
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* The design system's body text, so that what inherits its type (links, fields,
+   buttons) is not the browser's 16px. */
+body {
+  margin: 0;
+  position: relative;
+  background: var(--wpds-color-background-surface-neutral, #fcfcfc);
+  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+  font-family: var(--wpds-typography-font-family-body);
+  font-size: var(--wpds-typography-font-size-md, 13px);
+  font-weight: var(--wpds-typography-font-weight-default, 400);
+  line-height: var(--wpds-typography-line-height-sm, 20px);
+}
+
+.app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--wpds-color-background-surface-neutral, #fcfcfc);
+}
+
+.app-root .app-page {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+}
+
+/* The window with no site in it: what there is to say sits in the middle. */
+.page-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.page-body-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-body-notices {
+  align-self: stretch;
+  padding: var(--wpds-dimension-padding-2xl, 24px);
+}
+
+.page-body-notices:empty {
+  display: none;
+}
+
+/* Two columns, and the first one closes by going to no width at all. */
+.site-shell {
+  --sites-sidebar-width: var(--wpds-dimension-surface-width-sm, 320px);
+  display: grid;
+  grid-template-columns: var(--sites-sidebar-width) minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  transition: grid-template-columns var(--wpds-motion-duration-lg, 300ms)
+    var(--wpds-motion-easing-expressive, ease);
+}
+
+.site-shell.is-sites-list-hidden {
+  grid-template-columns: 0px minmax(0, 1fr);
+}
+
+.site-shell > * {
+  min-width: 0;
+}
+
+.site-shell-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sites-sidebar-slot {
+  overflow-x: clip;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.site-shell.is-sites-list-hidden .sites-sidebar-slot {
+  pointer-events: none;
+}
+
+.sites-sidebar {
+  box-sizing: border-box;
+  width: var(--sites-sidebar-width);
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  height: 100%;
+  border-inline-end: var(--wpds-border-width-xs, 1px) solid
+    var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
+  background: var(--wpds-color-background-surface-neutral, #fcfcfc);
+  transform: translateX(0);
+  transition: transform var(--wpds-motion-duration-lg, 300ms)
+    var(--wpds-motion-easing-expressive, ease);
+}
+
+.site-shell.is-sites-list-hidden .sites-sidebar {
+  transform: translateX(-100%);
+}
+
+/* Out by the side it sits on, whichever that is in the reader's language. */
+[dir="rtl"] .site-shell.is-sites-list-hidden .sites-sidebar {
+  transform: translateX(100%);
+}
+
+.sites-sidebar-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.sites-sidebar-list .dataviews-wrapper {
+  --wp-dataviews-color-background: transparent;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
+}
+
+.sites-sidebar-name {
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-sm, 8px);
+  min-width: 0;
+}
+
+.sites-sidebar-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sites-sidebar-description {
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  font-size: var(--wpds-typography-font-size-sm, 12px);
+}
+
+/* What a site has to report before it is opened (#94). */
+.sites-sidebar-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.sites-sidebar-dot.is-stale {
+  background: var(--wpds-color-stroke-surface-warning-strong, #936300);
+}
+
+.sites-sidebar-dot.is-incomplete {
+  background: var(--wpds-color-stroke-surface-error-strong, #cc1818);
+}
+
+/* The open site's page: it scrolls, and nothing else in the shell does. */
+.site-workspace-main {
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: var(--wpds-dimension-padding-2xl, 24px);
+}
+
+/* What the page holds stops growing with the window, and sits in the middle
+   of what is left over: a log pane two thousand pixels wide reads no better. */
+.site-workspace-content {
+  max-width: 1080px;
+  margin-inline: auto;
+}
+
+/* `index.html` still gives every `button` an 8px right margin, which the old
+   site view's rows of buttons lean on until that view is rebuilt (#557). The
+   shell's own buttons are placed by what holds them, and the margin put each
+   of them 8px out: a row's click area stopped short of its edge, and the one
+   button of an empty window sat off its centre. */
+.sites-sidebar button,
+.sites-list-toggle,
+.page-body-center button,
+.app-footer button {
+  margin-right: 0;
+}
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--wpds-dimension-padding-sm, 8px)
+    var(--wpds-dimension-padding-2xl, 24px);
+  border-top: var(--wpds-border-width-xs, 1px) solid
+    var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
+  background: var(--wpds-color-background-surface-neutral, #fcfcfc);
+}
+
+.app-footer-actions,
+.app-footer-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-xs, 4px);
+}
+
+.app-footer-meta {
+  gap: var(--wpds-dimension-gap-md, 12px);
+}
+
+.app-footer-feedback {
+  width: 320px;
+  padding: var(--wpds-dimension-padding-lg, 16px);
+}
+
+.app-footer-feedback-title {
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+  margin-bottom: var(--wpds-dimension-gap-sm, 8px);
+}
+
+.app-footer-feedback p {
+  margin: 0 0 var(--wpds-dimension-gap-md, 12px);
+}
+
+/* The window's toasts (#253): over everything but a popover, in the corner
+   the page's actions are not in, and clear of the footer. The wrapper lets
+   clicks through, and a toast takes its own, which the library sees to.
+   `#root` is deliberately not made a stacking context of its own: this has to
+   rise over a dialog, which is drawn on `body`, so that what was done inside
+   one is still confirmed. */
+.toast-stack {
+  position: fixed;
+  inset-inline-end: var(--wpds-dimension-padding-2xl, 24px);
+  bottom: 64px;
+  z-index: 100001;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-shell,
+  .sites-sidebar {
+    transition-duration: 0s;
+  }
+}

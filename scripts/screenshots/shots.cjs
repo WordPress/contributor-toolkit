@@ -44,7 +44,8 @@ const ui = require('../../tests/e2e/helpers/ui.cjs');
  * @param {string}                         label
  */
 async function selectSite(page, label) {
-	await page.getByText(label, { exact: true }).first().click();
+	const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	await page.getByRole('button', { name: new RegExp(`^${escaped}( \\(.*\\))?$`) }).click();
 }
 
 const shots = [
@@ -53,7 +54,7 @@ const shots = [
 		tier: 'fixture',
 		variant: 'empty',
 		prepare: async (page) => {
-			await page.getByText('No sites yet.').first().waitFor();
+			await ui.noSitesTitle(page).waitFor();
 		}
 	},
 	{
@@ -61,7 +62,7 @@ const shots = [
 		tier: 'fixture',
 		variant: 'empty',
 		prepare: async (page) => {
-			await ui.createSiteButton(page).click();
+			await ui.createFirstSiteButton(page).click();
 			await ui.createSiteDialog(page).getByText('Site name').waitFor();
 		}
 	},

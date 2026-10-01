@@ -195,6 +195,13 @@ function createElectronStub() {
 			async openExternal(url) { calls.openExternal.push(url); },
 			async openPath(target) { calls.openPath.push(target); },
 			showItemInFolder(target) { calls.showItemInFolder.push(target); }
+		},
+		// What `createWindow` sizes the main window from (#555). A screen with
+		// less room than the window is designed for, in both directions, so a
+		// test that reads the window's options can tell the screen's numbers
+		// from the defaults.
+		screen: {
+			getPrimaryDisplay: () => ({ workAreaSize: { width: 1100, height: 720 } })
 		}
 	};
 
@@ -6093,6 +6100,20 @@ test('a ticket with no window open opens one, and reaches its page only once tha
 
 	assert.equal(await main.invoke('deep-link:ready'), true);
 	assert.deepEqual(main.windows[0].sent, [{ channel: 'deep-link:ticket', payload: { ticket: 62281 } }]);
+});
+
+test('the main window is sized from the primary screen\'s work area, with a minimum (#555)', async () => {
+	// The arithmetic is window-size.cjs's, with its own suite. This is that
+	// `createWindow` asks the screen and gives the window what comes back: the
+	// stub's screen is smaller than the 1280×800 the shell is designed for, so
+	// a window opened at the defaults, or at the old fixed size, fails here.
+	const main = loadMain({ stubs: silentLogging() });
+
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281');
+
+	assert.equal(main.windows.length, 1);
+	const { width, height, minWidth, minHeight } = main.windows[0].options;
+	assert.deepEqual({ width, height, minWidth, minHeight }, { width: 1100, height: 720, minWidth: 800, minHeight: 600 });
 });
 
 test('a refused address opens no window and sends nothing (#464)', async () => {

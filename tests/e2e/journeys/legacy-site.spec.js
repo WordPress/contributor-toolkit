@@ -56,7 +56,7 @@ test( 'a site the old engine made is read, refused on every write, and can still
 	// INVARIANT — deleting is not behind the refusal.
 	await ui.siteMenuButton( page ).click();
 	await ui.deleteSiteMenuItem( page ).click();
-	await expect( page.getByText( 'No sites yet.' ).first() ).toBeVisible( { timeout: 30_000 } );
+	await expect( ui.noSitesTitle( page ) ).toBeVisible( { timeout: 30_000 } );
 	expect( await confirmsAnswered() ).toBe( 1 );
 	// CHARACTERISATION — the registry forgot it.
 	expect( session.readSettings().sites ).toEqual( [] );

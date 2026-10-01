@@ -207,9 +207,9 @@ test( 'the packaged app boots and paints its first window', async () => {
 	// its one child: that is the design system's provider, which is there whatever
 	// the app inside it rendered. What the app rendered is one level further down.
 	await expect( ui.renderedApp( firstWindow ) ).not.toHaveCount( 0 );
-	// `exact` matters: "Contributor Toolkit" is also a substring of button labels and
-	// step descriptions further down the page.
-	await expect( firstWindow.getByText( 'Contributor Toolkit', { exact: true } ) ).toBeVisible();
+	// The footer is there whether this machine has sites or none, and it is the
+	// app's own, not something the static HTML or the provider would paint.
+	await expect( ui.giveFeedbackButton( firstWindow ) ).toBeVisible();
 } );
 
 test( 'the preload bridge exposes every expected key', async () => {
@@ -347,10 +347,11 @@ test( 'app.asar carries exactly the repository files src/**/* allows', async () 
 	// The renderer's `.jsx` sources are excluded by `build.files`: in that
 	// directory `.jsx` means "bundled by esbuild", the entry point and what it
 	// imports alike, and the `.cjs` modules beside them ship because the main
-	// process requires some of them. The bundle's outputs are gitignored,
+	// process requires some of them. The shell's stylesheet is a source of the
+	// same bundle and is excluded by name. The bundle's outputs are gitignored,
 	// because they are built rather than committed (#120).
 	const expected = [
-		...tracked.filter( ( file ) => ! /^src\/renderer\/.*\.jsx$/.test( file ) ),
+		...tracked.filter( ( file ) => ! /^src\/renderer\/.*\.jsx$/.test( file ) && file !== 'src/renderer/shell.css' ),
 		'src/renderer/index.js',
 		'src/renderer/index.css',
 	].sort();
