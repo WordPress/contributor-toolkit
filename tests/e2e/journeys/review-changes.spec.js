@@ -346,17 +346,26 @@ test( 'a checkout carrying someone else\'s patch says so above the destinations,
 	const { app, page } = await session.start( site.settings );
 	// Nothing here leaves the machine: the two lookups that linking a ticket
 	// starts find nothing, and the save dialog is backed out of and counted.
+	// The app is told it is signed in to GitHub, and counts being asked: signed
+	// out, the pull request card has no form to offer whatever else is true,
+	// and "it offers no form" would be a claim that cannot come out false.
 	await app.evaluate( ( { ipcMain, dialog } ) => {
 		ipcMain.removeHandler( 'git:list-ticket-patches' );
 		ipcMain.handle( 'git:list-ticket-patches', () => ( { ok: true, prs: { status: 'ok', items: [] } } ) );
 		ipcMain.removeHandler( 'trac:list-attachments' );
 		ipcMain.handle( 'trac:list-attachments', () => ( { ok: true, status: 'ok', items: [] } ) );
+		ipcMain.removeHandler( 'github:account' );
+		ipcMain.handle( 'github:account', () => {
+			global.__e2eAccountAsked = ( global.__e2eAccountAsked || 0 ) + 1;
+			return { ok: true, login: 'janedoe', configured: true, testMode: null };
+		} );
 		dialog.showSaveDialog = async () => {
 			global.__e2eSaveDialogs = ( global.__e2eSaveDialogs || 0 ) + 1;
 			return { canceled: true };
 		};
 	} );
 	const saveDialogsAnswered = () => app.evaluate( () => global.__e2eSaveDialogs || 0 );
+	const accountAsked = () => app.evaluate( () => global.__e2eAccountAsked || 0 );
 
 	await ui.linkTicket( page, TICKET );
 	// Someone else's patch goes on, through the app's own file dialog and the
@@ -388,10 +397,18 @@ test( 'a checkout carrying someone else\'s patch says so above the destinations,
 
 	// INVARIANT — every destination that would send it under the
 	// contributor's name refuses: the pull request says what to do first and
-	// offers neither a sign-in nor a form, and the two that save a file for
-	// sending will not save.
+	// offers no form, signed in and with a ticket linked though the
+	// contributor is, and the two that save a file for sending will not save.
+	//
+	// The form's absence is read only once the card knows the account: until
+	// the answer arrives there is no form whatever the card would go on to
+	// show. So the test waits for the account to have been asked for, then
+	// asks the main process one more question and waits for that answer, by
+	// which time the card has heard the first.
 	await expect( dialog.getByText( `Revert ${ PATCH } before opening a pull request from this checkout.`, { exact: true } ) ).toBeVisible();
-	await expect( dialog.getByRole( 'button', { name: 'Sign in with GitHub', exact: true } ) ).toHaveCount( 0 );
+	await expect.poll( accountAsked ).toBeGreaterThan( 0 );
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+	await expect( dialog.getByText( /Signed in as janedoe/ ) ).toHaveCount( 0 );
 	await expect( dialog.getByRole( 'button', { name: 'Open pull request', exact: true } ) ).toHaveCount( 0 );
 	await expect( dialog.getByRole( 'button', { name: `Save, then open #${ TICKET }`, exact: true } ) ).toBeDisabled();
 	await expect( dialog.getByRole( 'button', { name: 'Save patch as janedoe', exact: true } ) ).toBeDisabled();
