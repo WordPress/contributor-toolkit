@@ -8,8 +8,8 @@
 'use strict';
 
 const DEFAULT_SIZE = { width: 1280, height: 800 };
-// With the sites list closed, what is left is the page at the width it had
-// before there was a list.
+// Room for the page with the sites list closed. The window had no minimum
+// before; this one is the smallest the page's cards stay readable at.
 const MINIMUM_SIZE = { width: 800, height: 600 };
 
 /**

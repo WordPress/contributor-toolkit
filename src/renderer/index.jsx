@@ -630,7 +630,7 @@ function App() {
           {/* Hidden, the list is out of the tab order and out of the
               accessibility tree as well as out of sight. `inert` is given as a
               string: React 18 drops the boolean. */}
-          <div className="sites-sidebar-slot" inert={sitesListOpen ? undefined : ''} aria-hidden={!sitesListOpen}>
+          <div id="sites-list" className="sites-sidebar-slot" inert={sitesListOpen ? undefined : ''} aria-hidden={!sitesListOpen}>
             <SitesSidebar
               rows={sitesRows}
               selectedId={openRow ? openRow.id : null}
@@ -648,54 +648,61 @@ function App() {
               hasPadding={false}
               ariaLabel={openRow ? openRow.name : __('Site')}
             >
+              {/* The button says what pressing it does, and that is the one
+                  place its state is said: a pressed state beside a name that
+                  changes would say it twice, and the two would disagree. */}
               <Page.SidebarToggleFill>
                 <IconButton
+                  className="sites-list-toggle"
                   icon={drawerLeft}
                   label={sitesListOpen ? __('Hide sites list') : __('Show sites list')}
                   variant="minimal"
                   tone="neutral"
                   size="compact"
-                  aria-pressed={sitesListOpen}
+                  aria-expanded={sitesListOpen}
+                  aria-controls="sites-list"
                   onClick={() => setSitesListOpen((open) => !open)}
                 />
               </Page.SidebarToggleFill>
               <div className="site-workspace-main">
-                {windowNotices}
-                {/* Every site's view stays mounted, and only the open one is
-                    shown: a site's terminal, its server and its watch live in
-                    its view, and have to outlive the look at another site. */}
-                <div id="sites">
-                  {sortedSites.map((s) => (
-                  <div
-                    key={s}
-                    style={{ display: activeSite === s ? 'block' : 'none' }}
-                    aria-hidden={activeSite === s ? false : true}
-                  >
-                    <SiteRow
-                      sitePath={s}
-                      initialized={Boolean(siteMeta?.[s]?.initialized)}
-                      createdAt={siteMeta?.[s]?.createdAt}
-                      label={siteMeta?.[s]?.label}
-                      projectType={siteMeta?.[s]?.projectType}
-                      onInitialized={onInitialized}
-                      onSiteMetaPatch={onSiteMetaPatch}
-                      onDelete={onDelete}
-                      onRename={onRename}
-                      onCreateSite={() => setCreateModalOpen(true)}
-                      editor={detectedApplications}
-                      wporg={wporg}
-                      isPending={pendingSites.includes(s)}
-                      isDeleting={deletingSites.includes(s)}
-                      setupLogs={setupLogsBySite[s] || ''}
-                      switchProgress={switchProgressBySite[s] || null}
-                      onClearSwitchNotices={clearSwitchNotices}
-                      carriedWork={carriedWorkBySite[s] || null}
-                      deepLink={activeSite === s ? deepLink : null}
-                      onDeepLinkDone={clearDeepLink}
-                      isActive={activeSite === s}
-                    />
+                <div className="site-workspace-content">
+                  {windowNotices}
+                  {/* Every site's view stays mounted, and only the open one is
+                      shown: a site's terminal, its server and its watch live in
+                      its view, and have to outlive the look at another site. */}
+                  <div id="sites">
+                    {sortedSites.map((s) => (
+                    <div
+                      key={s}
+                      style={{ display: activeSite === s ? 'block' : 'none' }}
+                      aria-hidden={activeSite === s ? false : true}
+                    >
+                      <SiteRow
+                        sitePath={s}
+                        initialized={Boolean(siteMeta?.[s]?.initialized)}
+                        createdAt={siteMeta?.[s]?.createdAt}
+                        label={siteMeta?.[s]?.label}
+                        projectType={siteMeta?.[s]?.projectType}
+                        onInitialized={onInitialized}
+                        onSiteMetaPatch={onSiteMetaPatch}
+                        onDelete={onDelete}
+                        onRename={onRename}
+                        onCreateSite={() => setCreateModalOpen(true)}
+                        editor={detectedApplications}
+                        wporg={wporg}
+                        isPending={pendingSites.includes(s)}
+                        isDeleting={deletingSites.includes(s)}
+                        setupLogs={setupLogsBySite[s] || ''}
+                        switchProgress={switchProgressBySite[s] || null}
+                        onClearSwitchNotices={clearSwitchNotices}
+                        carriedWork={carriedWorkBySite[s] || null}
+                        deepLink={activeSite === s ? deepLink : null}
+                        onDeepLinkDone={clearDeepLink}
+                        isActive={activeSite === s}
+                      />
+                    </div>
+                  ))}
                   </div>
-                ))}
                 </div>
               </div>
             </Page>

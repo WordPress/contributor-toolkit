@@ -10,9 +10,9 @@
 // is a change to this file and to nothing that uses it.
 //
 // What is here: every control, something typed into or clicked, that more
-// than one of those files reaches; and five locators that find a part of the
+// than one of those files reaches; and six locators that find a part of the
 // screen rather than something to press, which are the rendered app, an entry
-// of the sites list, the open site's heading, a card and a ticket's row.
+// of the sites list, what a window with no site says, the open site's heading, a card and a ticket's row.
 //
 // What is not here: a sentence one journey asserts, a button only one journey
 // presses, and a selector only one file needs even when it reads the markup
@@ -39,10 +39,10 @@
  * button's name.
  *
  * That is the name of a site with nothing to report, and only of that one. A
- * site whose trunk is old or whose update is incomplete has its dot's text in
- * front of its name, and a site being deleted is named "Deleting. <label>":
- * this matches none of them. Seed a recent `trunkDate`, or find those by the
- * name they have.
+ * site whose trunk is old or whose update is incomplete has its dot's text
+ * after its name, in brackets, and a site being deleted is named
+ * "<label> (Deleting)": this matches none of them. Seed a recent `trunkDate`,
+ * or find those by the name they have.
  *
  * While the list is hidden its entries are not in the accessibility tree, so
  * this finds none.
@@ -68,10 +68,6 @@ const createFirstSiteButton = ( page ) =>
 // What a window with no site in it says.
 const noSitesTitle = ( page ) => page.getByText( 'No sites', { exact: true } );
 const createSiteDialog = ( page ) => page.getByRole( 'dialog', { name: 'Create a site' } );
-// The button that closes the sites list and the one that brings it back: one
-// button, named by what pressing it does.
-const hideSitesListButton = ( page ) => page.getByRole( 'button', { name: 'Hide sites list', exact: true } );
-const showSitesListButton = ( page ) => page.getByRole( 'button', { name: 'Show sites list', exact: true } );
 // In the footer, whatever the window shows above it.
 const giveFeedbackButton = ( page ) => page.getByRole( 'button', { name: 'Give feedback', exact: true } );
 
@@ -270,8 +266,6 @@ module.exports = {
 	createFirstSiteButton,
 	noSitesTitle,
 	createSiteDialog,
-	hideSitesListButton,
-	showSitesListButton,
 	giveFeedbackButton,
 	closeDialogButton,
 	renderedApp,

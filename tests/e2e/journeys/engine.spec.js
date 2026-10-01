@@ -199,8 +199,8 @@ test( 'a failed site deletion stays visible, reports the failure, and can be ret
 	// The row speaks while the call is outstanding, in place of its project,
 	// and the only delete action is disabled so a second request cannot race
 	// the first one.
-	await expect( page.getByRole( 'button', { name: 'Deleting. delete-retry', exact: true } ) ).toBeVisible();
-	await expect( page.getByText( 'Deleting site…', { exact: true } ) ).toBeVisible();
+	await expect( page.getByRole( 'button', { name: 'delete-retry (Deleting)', exact: true } ) ).toBeVisible();
+	await expect( page.getByRole( 'row', { name: /^delete-retry/ } ).getByText( 'Deleting site…', { exact: true } ) ).toBeVisible();
 	await ui.siteMenuButton( page ).click();
 	await expect( page.getByRole( 'menuitem', { name: 'Deleting…', exact: true } ) ).toBeDisabled();
 	await ui.siteMenuButton( page ).click();

@@ -547,13 +547,11 @@ function createWindow() {
 	// A new page has not subscribed yet, so anything queued waits for its
 	// `deep-link:ready` rather than being sent into a page that is still loading.
 	deepLinkQueue.reset();
-	// Sized for the shell, and no larger than the screen it opens on (#555).
+	// Sized for the shell, and no larger than the primary screen (#555).
 	// `screen` is only usable once the app is ready, which is the only time
 	// this runs.
-	let workArea;
-	try { workArea = screen.getPrimaryDisplay().workAreaSize; } catch {}
     mainWindow = new BrowserWindow({
-		...mainWindowSize(workArea),
+		...mainWindowSize(screen.getPrimaryDisplay().workAreaSize),
         icon: process.platform === 'linux' ? path.join(__dirname, '..', 'build', 'icon.png') : undefined,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),

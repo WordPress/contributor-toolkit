@@ -44,7 +44,8 @@ const ui = require('../../tests/e2e/helpers/ui.cjs');
  * @param {string}                         label
  */
 async function selectSite(page, label) {
-	await page.getByText(label, { exact: true }).first().click();
+	const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	await page.getByRole('button', { name: new RegExp(`^${escaped}( \\(.*\\))?$`) }).click();
 }
 
 const shots = [

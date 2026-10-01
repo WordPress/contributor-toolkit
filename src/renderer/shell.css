@@ -184,6 +184,25 @@ body {
   padding: var(--wpds-dimension-padding-2xl, 24px);
 }
 
+/* What the page holds stops growing with the window, and sits in the middle
+   of what is left over: a log pane two thousand pixels wide reads no better. */
+.site-workspace-content {
+  max-width: 1080px;
+  margin-inline: auto;
+}
+
+/* `index.html` still gives every `button` an 8px right margin, which the old
+   site view's rows of buttons lean on until that view is rebuilt (#557). The
+   shell's own buttons are placed by what holds them, and the margin put each
+   of them 8px out: a row's click area stopped short of its edge, and the one
+   button of an empty window sat off its centre. */
+.sites-sidebar button,
+.sites-list-toggle,
+.page-body-center button,
+.app-footer button {
+  margin-right: 0;
+}
+
 .app-footer {
   display: flex;
   align-items: center;

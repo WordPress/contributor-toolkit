@@ -13,8 +13,9 @@
  * What a site's entry says about it, the project or that it is being deleted,
  * is `engine.spec.js`'s; which entry a selection opens, and what a dot
  * reports, are decided in `sites-list.cjs` and held by its unit tests. The
- * sites here are folders with no checkout in them: the shell never asks what
- * is inside one.
+ * sites here are folders with no checkout in them, which is all the shell
+ * needs of one: a site's view shows what it can of such a folder, and none of
+ * these journeys reads that.
  *
  * Assertions are marked INVARIANT or CHARACTERISATION; see
  * ticket-branches.spec.js for why.
@@ -27,6 +28,10 @@ const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 
 const DAY = 24 * 60 * 60 * 1000;
+// The button that closes the sites list and the one that brings it back: one
+// button, named by what pressing it does.
+const hideSitesListButton = ( page ) => page.getByRole( 'button', { name: 'Hide sites list', exact: true } );
+const showSitesListButton = ( page ) => page.getByRole( 'button', { name: 'Show sites list', exact: true } );
 const FEEDBACK_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
 /**
@@ -125,11 +130,11 @@ test( 'a site with something to report says so in the list before it is opened',
 	await expect( ui.siteHeading( page, 'up-to-date' ) ).toBeVisible( { timeout: 30_000 } );
 
 	// INVARIANT — the two sites that are not open say what is wrong with them
-	// as part of their name, which is what a screen reader hears and what the
-	// dot shows on hover (#94). The site with nothing to report has its name
-	// alone.
-	await expect( page.getByRole( 'button', { name: 'Update incomplete — code is new, built assets are old. unfinished', exact: true } ) ).toBeVisible();
-	await expect( page.getByRole( 'button', { name: 'WordPress code is 30 days old — update to latest trunk. old-trunk', exact: true } ) ).toBeVisible();
+	// as part of their name, after it, which is what a screen reader hears
+	// and what the dot shows on hover (#94). The site with nothing to report
+	// has its name alone.
+	await expect( page.getByRole( 'button', { name: 'unfinished (Update incomplete — code is new, built assets are old)', exact: true } ) ).toBeVisible();
+	await expect( page.getByRole( 'button', { name: 'old-trunk (WordPress code is 30 days old — update to latest trunk)', exact: true } ) ).toBeVisible();
 	await expect( ui.sidebarEntry( page, 'up-to-date' ) ).toBeVisible();
 } );
 
@@ -139,15 +144,17 @@ test( 'the sites list can be put away and brought back, and while it is away it 
 	const entry = ui.sidebarEntry( page, 'only-site' );
 	await expect( entry ).toBeVisible( { timeout: 30_000 } );
 	await expect( ui.createSiteButton( page ) ).toBeVisible();
+	await expect( hideSitesListButton( page ) ).toHaveAttribute( 'aria-expanded', 'true' );
 
 	// INVARIANT — hidden, the list is gone for a screen reader and for the
 	// keyboard too, and the open site is still there with the way to bring
-	// the list back.
-	await ui.hideSitesListButton( page ).click();
+	// the list back, which says the list is closed.
+	await hideSitesListButton( page ).click();
+	await expect( showSitesListButton( page ) ).toHaveAttribute( 'aria-expanded', 'false' );
 	await expect( entry ).toHaveCount( 0 );
 	await expect( ui.createSiteButton( page ) ).toHaveCount( 0 );
 	await expect( ui.siteHeading( page, 'only-site' ) ).toBeVisible();
-	await expect( ui.hideSitesListButton( page ) ).toHaveCount( 0 );
+	await expect( hideSitesListButton( page ) ).toHaveCount( 0 );
 	// The keyboard half: the list's button is still in the document, found
 	// here as a hidden one, and it does not take focus when it is given it.
 	const hiddenCreate = page.getByRole( 'button', { name: 'Create new site', exact: true, includeHidden: true } );
@@ -156,7 +163,7 @@ test( 'the sites list can be put away and brought back, and while it is away it 
 	await expect( hiddenCreate ).not.toBeFocused();
 
 	// INVARIANT — and it comes back as it was.
-	await ui.showSitesListButton( page ).click();
+	await showSitesListButton( page ).click();
 	await expect( entry ).toBeVisible();
 	await expect( entry ).toHaveAttribute( 'aria-pressed', 'true' );
 	await expect( ui.createSiteButton( page ) ).toBeVisible();
@@ -181,7 +188,7 @@ test( 'a window with no site in it has no list, says what to do, and keeps the f
 	// to do about it.
 	await expect( ui.noSitesTitle( page ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.getByRole( 'region', { name: 'My sites' } ) ).toHaveCount( 0 );
-	await expect( ui.hideSitesListButton( page ) ).toHaveCount( 0 );
+	await expect( hideSitesListButton( page ) ).toHaveCount( 0 );
 	await ui.createFirstSiteButton( page ).click();
 	await expect( ui.createSiteDialog( page ) ).toBeVisible();
 	await page.keyboard.press( 'Escape' );
@@ -190,13 +197,17 @@ test( 'a window with no site in it has no list, says what to do, and keeps the f
 	// INVARIANT — giving feedback is about the app, so it is there with no
 	// site. It says where the form is and who reads it before anything is
 	// opened, and then opens that form and nothing else.
+	// "Nothing opened yet" is read after a question the page has answered: a
+	// request to open something, sent by the press, would have reached the
+	// main process before that question did.
+	const openForm = page.getByRole( 'button', { name: 'Open the feedback form ↗', exact: true } );
 	await ui.giveFeedbackButton( page ).click();
-	const popover = page.locator( '.components-popover' );
-	await expect( popover.getByText( 'Submissions are anonymous unless you add your email.', { exact: false } ) ).toBeVisible();
+	await expect( page.getByText( 'Submissions are anonymous unless you add your email.', { exact: false } ) ).toBeVisible();
+	await page.evaluate( () => window.api.getSitesWithMeta() );
 	expect( await opened() ).toEqual( [] );
-	await popover.getByRole( 'button', { name: 'Open the feedback form ↗', exact: true } ).click();
+	await openForm.click();
 	await expect.poll( opened ).toEqual( [ FEEDBACK_FORM ] );
-	await expect( popover ).toHaveCount( 0 );
+	await expect( openForm ).toHaveCount( 0 );
 } );
 
 test( 'the window opens at the size the shell is designed for, or the screen\'s if that is smaller, and cannot be made smaller than its page', async ( { session } ) => {

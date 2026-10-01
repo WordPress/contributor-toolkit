@@ -1,15 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Page } from '@wordpress/admin-ui';
-import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
+import { DataViews } from '@wordpress/dataviews';
 import { __ } from '@wordpress/i18n';
 import { Icon, wordpress } from '@wordpress/icons';
 import { Button, VisuallyHidden } from '@wordpress/ui';
 
 // The list's two fields: the name, which is the row's title and so its
 // accessible name, and the line under it. A site with something to report
-// (#94) wears a dot before its name, and says what the dot means in words a
-// screen reader gets as part of the name. Built on first render and not as
-// the module loads, which is before the locale has.
+// (#94) wears a dot before its name, and says what the dot means in words
+// after it: the name comes first for a screen reader, and for someone typing
+// the first letters of the site they want. A site on its way out says so the
+// same way, since pressing its entry opens nothing. Built on first render and
+// not as the module loads, which is before the locale has.
 const buildFields = () => [
   {
     id: 'name',
@@ -18,17 +20,10 @@ const buildFields = () => [
     enableHiding: false,
     render: ({ item }) => (
       <span className="sites-sidebar-name">
-        {item.attention ? (
-          <>
-            <span className={`sites-sidebar-dot is-${item.attention.kind}`} title={item.attention.text} aria-hidden="true" />
-            <VisuallyHidden render={<span />}>{`${item.attention.text}. `}</VisuallyHidden>
-          </>
-        ) : null}
-        {/* A site on its way out says so as part of its name too: pressing
-            its entry opens nothing. In front of the name, like the dot's
-            text, so the name reads as a sentence and then the site. */}
-        {item.deleting ? <VisuallyHidden render={<span />}>Deleting. </VisuallyHidden> : null}
+        {item.attention ? <span className={`sites-sidebar-dot is-${item.attention.kind}`} title={item.attention.text} aria-hidden="true" /> : null}
         <span className="sites-sidebar-name-text">{item.name}</span>
+        {item.attention ? <VisuallyHidden render={<span />}>{`(${item.attention.text})`}</VisuallyHidden> : null}
+        {item.deleting ? <VisuallyHidden render={<span />}>(Deleting)</VisuallyHidden> : null}
       </span>
     )
   },
@@ -40,13 +35,12 @@ const buildFields = () => [
   }
 ];
 
-// A plain list: every site on one page, the name over the project, and
-// nothing to configure.
+// A plain list: every site, the name over the project, and nothing to
+// configure. No control that could change the view is drawn, so the view is a
+// constant, and the list is given every row: there is no second page for a
+// site to be left on.
 const VIEW = {
   type: 'list',
-  search: '',
-  page: 1,
-  perPage: 100,
   titleField: 'name',
   descriptionField: 'description',
   showMedia: false,
@@ -54,6 +48,7 @@ const VIEW = {
   layout: { density: 'balanced' }
 };
 const LAYOUTS = { list: { layout: { density: 'balanced' } } };
+const keepView = () => {};
 const getItemId = (item) => item.id;
 
 /**
@@ -68,9 +63,8 @@ const getItemId = (item) => item.id;
  * @param {boolean}  props.creating          A site is being created, so another cannot be started.
  */
 export function SitesSidebar({ rows, selectedId, onChangeSelection, onCreateSite, creating = false }) {
-  const [view, setView] = useState(VIEW);
   const fields = useMemo(buildFields, []);
-  const { data, paginationInfo } = useMemo(() => filterSortAndPaginate(rows, view, fields), [rows, view, fields]);
+  const paginationInfo = useMemo(() => ({ totalItems: rows.length, totalPages: 1 }), [rows.length]);
   const selection = useMemo(() => (selectedId ? [selectedId] : []), [selectedId]);
 
   return (
@@ -96,10 +90,10 @@ export function SitesSidebar({ rows, selectedId, onChangeSelection, onCreateSite
     >
       <div className="sites-sidebar-list">
         <DataViews
-          data={data}
+          data={rows}
           fields={fields}
-          view={view}
-          onChangeView={setView}
+          view={VIEW}
+          onChangeView={keepView}
           paginationInfo={paginationInfo}
           defaultLayouts={LAYOUTS}
           getItemId={getItemId}
