@@ -28,9 +28,11 @@
  * `trunk-update-watch.spec.js`. Checking out a pull request, leaving one and
  * restoring a saved one do the same; an applied patch does that or hands it
  * the change, depending on what the patch touches; a ticket switch that
- * leaves it running hands it the files that moved. The journeys for those
- * still run with no watch running, where pausing and resuming do nothing and
- * nothing is handed over.
+ * leaves it running hands it the files that moved. A checkout, a patch of
+ * source files and a ticket switch with the watch running are
+ * `watch-during-changes.spec.js`; leaving a pull request, restoring a saved
+ * one and a patch the watch has to be paused for still run only with no
+ * watch running, where pausing and resuming do nothing.
  *
  * The watch's button is meant to open the watch's tab, and does not: the tab
  * panel cannot be switched from outside it, so the app changes what it
