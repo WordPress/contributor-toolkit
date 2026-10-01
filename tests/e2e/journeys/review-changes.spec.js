@@ -250,8 +250,11 @@ test( 'handing a patch to a mentor asks for a username once, refuses one that is
  * tree among them. Once there is a ticket, the page is opened only after a
  * file exists, so nobody lands on an attach form with nothing to attach.
  *
- * The handler that opens a link is replaced by one that records the address:
- * a journey does not open a browser.
+ * Nothing here leaves the machine. The handler that opens a link is replaced
+ * by one that records the address, so no browser is opened; the save dialog is
+ * the operating system's, and the test answers for it; and the two lookups
+ * that linking a ticket starts, pull requests on GitHub and attachments on
+ * Trac, are answered with nothing found.
  */
 test( 'attaching to Trac asks for a ticket where there is none, carries the edits into it, and opens the attach page only once the file is saved', async ( { session } ) => {
 	const TICKET = '60001';
@@ -269,6 +272,10 @@ test( 'attaching to Trac asks for a ticket where there is none, carries the edit
 			global.__e2eSaveDialogs = ( global.__e2eSaveDialogs || 0 ) + 1;
 			return global.__e2eSaveAnswer;
 		};
+		ipcMain.removeHandler( 'git:list-ticket-patches' );
+		ipcMain.handle( 'git:list-ticket-patches', () => ( { ok: true, prs: { status: 'ok', items: [] } } ) );
+		ipcMain.removeHandler( 'trac:list-attachments' );
+		ipcMain.handle( 'trac:list-attachments', () => ( { ok: true, status: 'ok', items: [] } ) );
 	} );
 	const answerSaveDialog = ( answer ) => app.evaluate( ( electron, result ) => {
 		global.__e2eSaveAnswer = result;
