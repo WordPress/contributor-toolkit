@@ -28,7 +28,7 @@ import '@xterm/xterm/css/xterm.css';
 import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision, setupStepLabel } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
-import { serveWithoutWatch, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
+import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchOccupiesBuild } from './watch-waiters.cjs';
 import { compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState } from './watch-activity.cjs';
 import { planUpdateHandOff } from './update-handoff.cjs';
@@ -83,6 +83,7 @@ import { useSiteLogs } from './hooks/use-site-logs.jsx';
 import { useSiteTerminal, TERMINAL_FONT } from './hooks/use-site-terminal.jsx';
 import { useSiteScripts } from './hooks/use-site-scripts.jsx';
 import { useBuildWatch } from './hooks/use-build-watch.jsx';
+import { useDevServer } from './hooks/use-dev-server.jsx';
 import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
 // Shared by every log pane so the tabs cannot drift apart visually. The line
@@ -823,9 +824,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const metaPatchRef = useRef(onSiteMetaPatch);
   useEffect(() => { metaPatchRef.current = onSiteMetaPatch; }, [onSiteMetaPatch]);
   // state
-  const [serverUrl, setServerUrl] = useState('');
-  const [starting, setStarting] = useState(false);
-  const [running, setRunning] = useState(false);
   // What this site's processes have said (#554): the text of the Logs panel's
   // panes, which tab is open and the debug.log tail. Whoever runs a process
   // appends to its pane, so the functions those callbacks call are taken out
@@ -889,7 +887,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   );
   const [skipInit, setSkipInit] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
-  const [waitingForWatch, setWaitingForWatch] = useState(false);
   // Trac ticket association (#109)
   const [tracTicket, setTracTicket] = useState(null);
   const [ticketBehindTrunk, setTicketBehindTrunk] = useState(false);
@@ -1473,23 +1470,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The scroll root for the next-action cue (#252): the whole detail section, so
   // the cue can find whichever block is the next step wherever it sits.
   const nextActionSectionRef = useRef(null);
-  const serverStartRequestedRef = useRef(false);
-  const stoppingRef = useRef(false);
-  // True from a Stop we asked for until the server reports it has exited.
-  // playground:stop returns once the signal is sent, and the 'stopped' event
-  // arrives after stopDevServer has already cleared stoppingRef; without this
-  // every ordinary stop read as a crash, and the crash path killed "the last
-  // script in the directory", the watcher (#488).
-  const serverStopRequestedRef = useRef(false);
-  const runningRef = useRef(false);
-  const waitingForWatchRef = useRef(false);
-  // "A dev-server boot is in progress or live." The terminal lock used to double
-  // as this signal, but the watcher no longer holds that lock (#247), so
-  // startPhpServer needs its own flag to know the boot was not aborted.
-  const devServerActiveRef = useRef(false);
-
-  useEffect(() => { runningRef.current = running; }, [running]);
-  useEffect(() => { waitingForWatchRef.current = waitingForWatch; }, [waitingForWatch]);
 
   // Taking a step back by hand is the answer to "Setup stopped." — so the
   // notice goes away here rather than lingering over work already resumed.
@@ -1527,92 +1507,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     }
     setupLogsRef.current = incoming;
   }, [appendNpm, setupLogs, writeToTerminal]);
-  const stopDevServer = useCallback(async () => {
-    if (stoppingRef.current) return;
-    stoppingRef.current = true;
-    if (runningRef.current) serverStopRequestedRef.current = true;
-    devServerActiveRef.current = false;
-    setWaitingForWatch(false);
-    waitingForWatchRef.current = false;
-    serverStartRequestedRef.current = false;
-    setStarting(false);
-    try { await window.api.stopServer(sitePath); } catch {}
-    stopDebugTail();
-    stopListeningForMail();
-    setRunning(false);
-    runningRef.current = false;
-    setServerUrl('');
-    stoppingRef.current = false;
-    waitingForWatchRef.current = false;
-    terminalKillRef.current = null;
-    markTerminalRunning(false);
-    currentRunIdRef.current = null;
-    // The watcher is independent now (#247): stopping the dev server leaves it
-    // running, so a contributor can keep compiling on save without serving the
-    // site. It is stopped only by its own control (stopWatcher).
-  }, [currentRunIdRef, markTerminalRunning, setRunning, setServerUrl, setStarting, setWaitingForWatch, sitePath, stopDebugTail, stopListeningForMail, terminalKillRef]);
-
-  const startPhpServer = useCallback(async () => {
-    if (serverStartRequestedRef.current || stoppingRef.current || !devServerActiveRef.current) {
-      serverStartRequestedRef.current = false;
-      return;
-    }
-    serverStartRequestedRef.current = true;
-    serverStopRequestedRef.current = false;
-    setWaitingForWatch(false);
-    waitingForWatchRef.current = false;
-    ensureStick('runtime');
-    setStarting(true);
-    // Subscribe to SMTP events before starting to avoid missing early events
-    listenForMail();
-    try {
-      const res = await window.api.startServer(
-        sitePath,
-        (p)=>appendRuntime(p.data || ''),
-        (url)=>{
-          if (stoppingRef.current) {
-            serverStartRequestedRef.current = false;
-            return;
-          }
-          const u = url.replace(/\/$/,'/');
-          setServerUrl(u);
-          window.api.openExternal(u);
-          setRunning(true);
-          runningRef.current = true;
-          setStarting(false);
-          serverStartRequestedRef.current = false;
-        },
-        ()=>{
-          const requested = serverStopRequestedRef.current;
-          serverStopRequestedRef.current = false;
-          setRunning(false); runningRef.current = false; setServerUrl(''); serverStartRequestedRef.current = false;
-          // A stop the user did not ask for is a crash: say so, and tear the
-          // server session down instead of leaving the button spinning
-          // "Starting dev server…" forever (issue #73). The watcher is not
-          // part of that session (#247) and is left running.
-          if (!stoppingRef.current && !requested) {
-            appendRuntime('Dev server stopped unexpectedly (see Help → Open App Log for details).\n');
-            stopDevServer().catch(() => {});
-          }
-        }
-      );
-      // A failed start reports through the return value, not an exception.
-      // This also covers spawn failures that never produce a "stopped" event.
-      if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
-        appendRuntime(`Dev server failed to start: ${res.error || 'unknown error'}\n`);
-        stopDevServer().catch(() => {});
-        return;
-      }
-    } catch (error) {
-      appendRuntime(`Failed to start PHP server: ${error && error.message ? error.message : String(error)}\n`);
-      setStarting(false);
-      serverStartRequestedRef.current = false;
-      runningRef.current = false;
-      return;
-    }
-    await startDebugTail();
-    await loadMail();
-  }, [appendRuntime, ensureStick, listenForMail, loadMail, setRunning, setServerUrl, setStarting, sitePath, startDebugTail, stopDevServer]);
 
   // The build watch (#554): its state, its run and what can be done to it. It
   // is called here because it needs the script runner and the terminal's lock
@@ -1627,75 +1521,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     { name: 'debug', title: logs.debugUnread ? `debug.log (${logs.debugUnread})` : 'debug.log' }
   ]), [logs.debugUnread, watchState, watchExitCode, watchCompiling]);
 
-  const toggleDevServer = async ()=>{
-    if (!running) {
-      // A start is already queued behind the watch (or in flight): a second
-      // click must not queue a second server start (#488).
-      if (devServerActiveRef.current) return;
-      // eslint-disable-next-line no-alert -- see the note above onRename.
-      if (!skipInit && !hasBuilt) { alert('Please complete the full build before starting the dev server. You can also skip the wizard.'); return; }
-      serverStartRequestedRef.current = false;
-      devServerActiveRef.current = true;
-      setStarting(true);
-      // A built site whose watch would first remove build/ (Gutenberg's npm run
-      // dev, #488) has nothing to wait for: the server starts on the build/ it
-      // has, in seconds instead of the watch's rebuild (#499). The watch stays
-      // where the contributor left it; Start build watch, or an apply, brings
-      // it up when it is wanted. The rule, including what a watch already up
-      // or cut short means, is serveWithoutWatch's. "Built" is read afresh:
-      // the state copy is as old as the last status poll, and build/ may
-      // have gone since (a watch rebuild, a clean by hand).
-      let builtNow = hasBuilt;
-      try { const fresh = await window.api.getSiteStatus(sitePath); builtNow = Boolean(fresh?.hasBuilt); setHasBuilt(builtNow); } catch {}
-      if (serveWithoutWatch({ hasBuilt: builtNow, watchState: watchStateRef.current, buildInterrupted: buildInterruptedRef.current }, projectBuild)) {
-        appendRuntime('build/ is complete: starting the server without the build watch. Start build watch to compile edits on save.\n');
-        startPhpServer().catch(() => {});
-        return;
-      }
-      // The server needs build/ on disk, which the build watch guarantees. Start
-      // the watch first (automatically, if it is not already running) and hang
-      // the server start off its readiness — the watch stays independent after.
-      startBuildWatch({
-        onReady: () => { startPhpServer().catch(() => {}); },
-        // The watch never got to a complete build/: nothing to serve, so the
-        // button goes back to "Start dev server" instead of "Starting…" forever.
-        onFail: () => {
-          if (serverStartRequestedRef.current) return;
-          devServerActiveRef.current = false;
-          setStarting(false);
-          appendRuntime('Dev server start cancelled: the build watch stopped before build/ was complete. Start it again once the watch is running.\n');
-        }
-      });
-    } else {
-      // Only the server. The watch is independent (#247), and this branch
-      // used to kill it by accident: killCurrent with no tracked run falls
-      // back to the last script in the directory, which is the watcher. On
-      // Core that cost a cheap grunt restart nobody noticed; on Gutenberg
-      // it is the whole 20 s rebuild on every Stop/Start (#488).
-      await stopDevServer();
-    }
-  };
-  const isServerStarting = waitingForWatch || (starting && !serverUrl);
-  const isDevProcessActive = running || isServerStarting;
-  let devServerButtonLabel = 'Start dev server';
-  if (isDevProcessActive) devServerButtonLabel = isServerStarting ? 'Starting dev server...' : 'Stop dev server';
+  // The dev server (#554): its state, its guards and its one button. It is
+  // called here because starting it needs everything above: the build watch,
+  // the logs, the mail, the terminal's lock and the script runner.
+  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, devServerButtonLabel, startElapsed, toggleDevServer } = useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
   // The build watch has its own control and status dot beside the server's — it
   // runs independently of the server (#247). Green watching, amber building or
   // paused, red an unexpected exit, grey stopped.
   const watchActive = watchState === 'watching' || watchState === 'building';
   const watchDotColor = WATCH_DOT_COLORS[watchState] || '#8c8f94';
   const watchButtonLabel = watchActive ? 'Stop build watch' : 'Start build watch';
-  // Elapsed-seconds counter for the starting state, so a slow boot is
-  // distinguishable from a hang (issue #73).
-  const [startElapsed, setStartElapsed] = useState(0);
-  useEffect(() => {
-    if (!isServerStarting) {
-      setStartElapsed(0);
-      return undefined;
-    }
-    const id = setInterval(() => setStartElapsed((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [isServerStarting]);
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
