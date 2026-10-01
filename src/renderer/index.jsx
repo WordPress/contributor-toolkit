@@ -195,8 +195,9 @@ function App() {
   // React renders it and prevents two delete requests for one site.
   const deletingSitesRef = useRef(new Set());
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  // What the create-site dialog shows when it next opens: why the last setup
-  // failed, if one did. Its own complaints about a missing answer are its own.
+  // The one message under the create-site form: the dialog's complaint about
+  // a missing answer, or why the setup it started failed. Held here because
+  // the second is written here, possibly after the dialog has closed.
   const [createSiteError, setCreateSiteError] = useState('');
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
@@ -793,7 +794,7 @@ function App() {
         </div>
       </div>
       {createModalOpen ? (
-        <CreateSiteModal submitting={createSubmitting} initialError={createSiteError} onCreate={startSiteSetup} onClose={closeCreateModal} />
+        <CreateSiteModal submitting={createSubmitting} error={createSiteError} onError={setCreateSiteError} onCreate={startSiteSetup} onClose={closeCreateModal} />
       ) : null}
     </div>
     {/* One toast region for the window (#253). Anchored top-right and sized to

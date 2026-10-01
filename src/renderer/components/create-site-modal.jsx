@@ -18,21 +18,25 @@ const CREATE_SITE_MODAL_STYLE_ID = 'create-site-modal-theme';
 // The dialog a site is created from: its name, the project it is a checkout
 // of, and the folder it goes in. It owns those three answers and the sentence
 // that says one is missing, and is mounted while it is open and not otherwise,
-// so it opens empty every time, on Core, however the last one was left.
+// so its three fields are empty every time, on Core, however the last one was
+// left.
 //
 // It does not create anything. `onCreate({ name, dir, projectType })` is
 // called once every answer is there, with the name trimmed, and the caller
 // closes the dialog and runs the setup, which outlives it by minutes.
 // `submitting` is that setup still running: the dialog can be opened during
 // one, from the notice on a site the old engine made, and is then inert.
-// `initialError` is what it opens showing, which is how a setup that failed
-// after the dialog closed gets said in the dialog at all.
-export function CreateSiteModal({ submitting, initialError = '', onCreate, onClose }) {
+//
+// The one message under the form is the caller's, not the dialog's: `error` is
+// shown and `onError` sets it. The dialog's complaint about a missing answer
+// and the reason a setup failed are the same line, and the second can arrive
+// while the dialog is open, or after it has closed and before it opens again.
+// Two copies of it, one here and one there, lose one or the other.
+export function CreateSiteModal({ submitting, error: createSiteError, onError: setCreateSiteError, onCreate, onClose }) {
   const createDirInputRef = useRef(null);
   const [createSiteName, setCreateSiteName] = useState('');
   const [createSiteDir, setCreateSiteDir] = useState('');
   const [createSiteType, setCreateSiteType] = useState(DEFAULT_PROJECT_TYPE);
-  const [createSiteError, setCreateSiteError] = useState(initialError);
 
   useEffect(() => {
     let styleEl = document.getElementById(CREATE_SITE_MODAL_STYLE_ID);
@@ -64,7 +68,7 @@ export function CreateSiteModal({ submitting, initialError = '', onCreate, onClo
         setCreateSiteError('');
       }
     } catch {}
-  }, []);
+  }, [setCreateSiteError]);
 
   const handleCreateDirInputChange = useCallback((event) => {
     const inputEl = event.target;
@@ -94,7 +98,7 @@ export function CreateSiteModal({ submitting, initialError = '', onCreate, onClo
       return;
     }
     onCreate({ name: nameTrimmed, dir: createSiteDir, projectType: createSiteType });
-  }, [createSiteDir, createSiteName, createSiteType, onCreate]);
+  }, [createSiteDir, createSiteName, createSiteType, onCreate, setCreateSiteError]);
 
   const closeCreateModal = useCallback(() => {
     if (submitting) return;

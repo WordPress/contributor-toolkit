@@ -8,10 +8,14 @@
  * while an answer is missing.
  *
  * The setup itself is not run here. The handler that starts it is replaced by
- * one that records what it was asked for and never finishes, which is also
- * how the test sees the app while a setup is under way. The real thing, clone
- * and install and build, is `tests/e2e/real-setup/create-site.spec.js`, run by
- * hand.
+ * one that records what it was asked for and then waits to be told to fail,
+ * which is how the test sees the app while a setup is under way and when one
+ * goes wrong. The real thing, clone and install and build, is
+ * `tests/e2e/real-setup/create-site.spec.js`, run by hand.
+ *
+ * The site the app opens on is one the old engine made, for its notice: that
+ * notice has the dialog's other door, a "Create site" button that works while
+ * a setup is running, which the sidebar's does not.
  *
  * Assertions are marked INVARIANT or CHARACTERISATION; see
  * ticket-branches.spec.js for why.
@@ -22,19 +26,23 @@ const os = require( 'node:os' );
 const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
-const { sanitizeSiteFolder } = require( '../../../src/renderer/site-folder.cjs' );
+const { makeSite } = require( '../helpers/git-site.cjs' );
 
-test( 'the create-site dialog refuses a missing name or location, starts clean each time, and sends the setup what was chosen', async ( { session } ) => {
+test( 'the create-site dialog refuses a missing name or location, starts clean each time, sends the setup what was chosen, and says why a setup failed', async ( { session } ) => {
 	const parent = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-parent-' ) ) );
-	const { app, page } = await session.start();
+	const oldSite = await makeSite( session, { label: 'old-engine-site', legacy: true } );
+	const { app, page } = await session.start( oldSite.settings );
 	await app.evaluate( ( { ipcMain } ) => {
 		ipcMain.removeHandler( 'wordpress:setup' );
 		ipcMain.handle( 'wordpress:setup', ( event, dir, options ) => {
 			global.__e2eSetupCalls = ( global.__e2eSetupCalls || [] ).concat( [ { dir, options } ] );
-			return new Promise( () => {} );
+			return new Promise( ( resolve, reject ) => {
+				global.__e2eFailSetup = ( message ) => reject( new Error( message ) );
+			} );
 		} );
 	} );
 	const setupCalls = () => app.evaluate( () => global.__e2eSetupCalls || [] );
+	const failSetup = ( message ) => app.evaluate( ( electron, text ) => global.__e2eFailSetup( text ), message );
 	await session.answerFileDialog( [ parent ] );
 
 	const dialog = ui.createSiteDialog( page );
@@ -92,11 +100,23 @@ test( 'the create-site dialog refuses a missing name or location, starts clean e
 	await expect( dialog ).toHaveCount( 0 );
 	await expect.poll( setupCalls ).toEqual( [ {
 		dir: parent,
-		options: { siteName: sanitizeSiteFolder( 'My Gutenberg fix' ), siteLabel: 'My Gutenberg fix', projectType: 'gutenberg' },
+		options: { siteName: 'My-Gutenberg-fix', siteLabel: 'My Gutenberg fix', projectType: 'gutenberg' },
 	} ] );
 
 	// INVARIANT — while that setup runs the app shows that it is running and
-	// will not start a second one.
+	// will not start a second one: not from the sidebar, and not from the
+	// dialog's other door, which opens it with nothing in it to press.
 	await expect( page.getByText( 'Setting up new site…', { exact: true } ) ).toBeVisible();
 	await expect( ui.createSiteButton( page ) ).toBeDisabled();
+	await ui.sidebarEntry( page, 'old-engine-site' ).click();
+	await page.getByRole( 'button', { name: 'Create site', exact: true } ).click();
+	await expect( create ).toBeDisabled();
+	await expect( name ).toBeDisabled();
+
+	// INVARIANT — when the setup fails, the dialog that is open says why, and
+	// can be used again. It is the one place in the window that says it.
+	await failSetup( 'the clone could not reach the network' );
+	await expect( dialog.getByText( /the clone could not reach the network/ ) ).toBeVisible();
+	await expect( create ).toBeEnabled();
+	expect( await setupCalls() ).toHaveLength( 1 );
 } );
