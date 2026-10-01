@@ -167,9 +167,9 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	// INVARIANT — the next start shows the file once, from its first line to
 	// the one written while nothing was running. Two things have to have
 	// happened for that. The stop ended the tail in the main process: a tail
-	// left running is not started again, so the file would not be replayed
-	// and the line written while stopped would never be shown. And the start
-	// emptied the pane before the replay: the line already in it would
+	// left running is not started again, so the file would not be replayed,
+	// and neither the marker nor the earlier line would be there. And the
+	// start emptied the pane before the replay: the line already in it would
 	// otherwise be there twice.
 	wordpressWrites( 'PHP Notice: written while stopped\n' );
 	await ui.startDevServerButton( page ).click();

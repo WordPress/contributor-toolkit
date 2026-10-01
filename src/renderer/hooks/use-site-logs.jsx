@@ -135,8 +135,7 @@ export function useSiteLogs({ sitePath }) {
   }, [debugLogs]);
   useEffect(() => () => { if (debugCopyTimer.current) clearTimeout(debugCopyTimer.current); }, []);
   // A site's view can go without its dev server having been stopped, when the
-  // site is deleted or the window is torn down, so the listener has to come
-  // off here too.
+  // site is deleted, so the listener has to come off here too.
   useEffect(() => () => { try { if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; } } catch {} }, []);
   const revealDebugLog = useCallback(async () => {
     let revealed;
