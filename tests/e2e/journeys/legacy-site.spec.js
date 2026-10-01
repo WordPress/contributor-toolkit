@@ -39,6 +39,17 @@ test( 'a site the old engine made is read, refused on every write, and can still
 	// INVARIANT — the dialog offers both targets and defaults to Core (#251).
 	await expect( createDialog.getByRole( 'radio', { name: 'WordPress Core', exact: true } ) ).toBeChecked();
 	await expect( createDialog.getByRole( 'radio', { name: 'Gutenberg', exact: true } ) ).not.toBeChecked();
+	// INVARIANT — opened from here a second time, the dialog has kept nothing
+	// of the first: an abandoned name or project is not waiting in a form the
+	// contributor expects to be new (#553). The sidebar button always opened it
+	// empty; this button did not.
+	await createDialog.getByLabel( 'Site name', { exact: true } ).fill( 'Abandoned site' );
+	await createDialog.getByRole( 'radio', { name: 'Gutenberg', exact: true } ).click();
+	await page.keyboard.press( 'Escape' );
+	await expect( ui.createSiteDialog( page ) ).toHaveCount( 0 );
+	await page.getByRole( 'button', { name: 'Create site', exact: true } ).click();
+	await expect( createDialog.getByLabel( 'Site name', { exact: true } ) ).toHaveValue( '' );
+	await expect( createDialog.getByRole( 'radio', { name: 'WordPress Core', exact: true } ) ).toBeChecked();
 	await page.keyboard.press( 'Escape' );
 	await expect( ui.createSiteDialog( page ) ).toHaveCount( 0 );
 
