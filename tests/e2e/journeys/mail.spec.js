@@ -13,6 +13,11 @@
  * finish, the way the documentation screenshots do it. The mail itself is
  * seeded in the store, where the app keeps what it has caught.
  *
+ * The second journey is the list while the server runs (#554): mail arriving,
+ * where it lands, whose it is, and what stopping, starting again and clearing
+ * do to it. There is no mail server either, so the test says what the main
+ * process says when one catches a mail, on the channels it says it on.
+ *
  * Assertions are marked INVARIANT or CHARACTERISATION; see
  * ticket-branches.spec.js for why.
  */
@@ -108,4 +113,94 @@ test( 'a mail the site sent opens as the one that was clicked, in its rendered a
 	await expect( second.getByRole( 'tab', { name: 'Rendered', exact: true } ) ).toHaveAttribute( 'aria-selected', 'true' );
 	await expect( second.getByText( COMMENT.text, { exact: true } ) ).toBeVisible();
 	await expect( second.getByText( 'password reset' ) ).toHaveCount( 0 );
+} );
+
+test( 'mail that arrives while the dev server runs joins the list newest first, for this site only; the list hears nothing once the server stops, hears each mail once after a restart, and can be cleared', async ( { session } ) => {
+	const site = await makeSite( session );
+	const mailKey = `siteMail:${ site.dir }`;
+	const { app, page } = await session.start( { ...site.settings, [ mailKey ]: [ COMMENT ] } );
+	// The two processes the dev server starts never finish, as above, and the
+	// page the app opens when a server is up stays closed.
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'npm:run-script' );
+		ipcMain.handle( 'npm:run-script', async () => ( { runId: 'e2e-mail' } ) );
+		ipcMain.removeHandler( 'playground:start' );
+		ipcMain.handle( 'playground:start', async () => ( { ok: true } ) );
+		ipcMain.removeHandler( 'url:open' );
+		ipcMain.handle( 'url:open', () => true );
+	} );
+	// What the main process tells every window: that the mail server is up,
+	// that it caught a mail, that the dev server has an address.
+	const tell = ( channel, payload ) => app.evaluate( ( { BrowserWindow }, [ to, what ] ) => {
+		for ( const win of BrowserWindow.getAllWindows() ) {
+			win.webContents.send( to, what );
+		}
+	}, [ channel, payload ] );
+	const caught = ( sitePath, subject, sentAt ) => tell( 'smtp:new-email', {
+		sitePath,
+		message: { ...COMMENT, id: `e2e-${ subject }`, subject, sentAt, date: sentAt },
+	} );
+	// Told and heard: the reply to a question asked after the telling arrives
+	// after it, so by then the page has heard, whatever it did about it.
+	const heard = () => page.evaluate( () => window.api.getSitesWithMeta() );
+	const row = ( subject ) => page.getByRole( 'button', { name: new RegExp( ` ${ subject }$` ) } );
+	const commentRow = page.getByRole( 'button', { name: /\[Test Site\] Comment: "Hello world!"$/ } );
+	const notListening = page.getByText( 'SMTP will start with the dev server.', { exact: true } );
+
+	// CHARACTERISATION — before a server has run the list is empty, though
+	// the store holds a mail: starting the server is what loads it.
+	await expect( notListening ).toBeVisible( { timeout: 30_000 } );
+	await expect( page.getByText( 'No emails yet.', { exact: true } ) ).toBeVisible();
+
+	await ui.startDevServerButton( page ).click();
+	await expect( commentRow ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — the line above the list says where the mail server is
+	// listening, once the main process says it is.
+	await tell( 'smtp:started', { sitePath: site.dir, port: 2525 } );
+	await expect( page.getByText( 'SMTP listening on 127.0.0.1:2525', { exact: true } ) ).toBeVisible();
+
+	// INVARIANT — a mail caught for this site joins the list without anything
+	// being clicked, and one caught for another site does not.
+	await caught( `${ site.dir }-another`, 'Another site', '2026-08-10T11:00:00.000Z' );
+	await caught( site.dir, 'Newer mail', '2026-08-10T10:00:00.000Z' );
+	await expect( row( 'Newer mail' ) ).toBeVisible();
+	await expect( row( 'Another site' ) ).toHaveCount( 0 );
+
+	// INVARIANT — the list is ordered by when a mail was sent, newest first,
+	// and not by when it arrived: a mail that arrives late but was sent early
+	// goes to the bottom.
+	await caught( site.dir, 'Older mail', '2026-08-10T08:00:00.000Z' );
+	await expect( row( 'Older mail' ) ).toBeVisible();
+	expect( await ui.inDocumentOrder( page, [ row( 'Newer mail' ), commentRow, row( 'Older mail' ) ] ) ).toBe( true );
+
+	// INVARIANT — stopping the server stops the listening: the line says so,
+	// and a mail caught afterwards does not join the list.
+	await tell( 'playground:url', { sitePath: site.dir, url: 'http://127.0.0.1:9400/' } );
+	const stop = page.getByRole( 'button', { name: 'Stop dev server', exact: true } );
+	await stop.click();
+	await expect( notListening ).toBeVisible();
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+	await caught( site.dir, 'While stopped', '2026-08-10T12:00:00.000Z' );
+	await heard();
+	await expect( row( 'While stopped' ) ).toHaveCount( 0 );
+
+	// CHARACTERISATION — the next start loads the list from the store again,
+	// so what the test only said was caught is gone and what the store holds
+	// is back.
+	await ui.startDevServerButton( page ).click();
+	await expect( row( 'Newer mail' ) ).toHaveCount( 0, { timeout: 30_000 } );
+	await expect( commentRow ).toBeVisible();
+
+	// INVARIANT — after a restart the list hears each mail once. A listener
+	// left over from the first run would add it a second time.
+	await caught( site.dir, 'After restart', '2026-08-10T13:00:00.000Z' );
+	await expect( row( 'After restart' ) ).toHaveCount( 1 );
+	await heard();
+	await expect( row( 'After restart' ) ).toHaveCount( 1 );
+
+	// INVARIANT — clearing empties the list and what the store holds.
+	await page.getByRole( 'button', { name: 'Clear emails', exact: true } ).click();
+	await expect( page.getByText( 'No emails yet.', { exact: true } ) ).toBeVisible();
+	await expect.poll( () => session.readSettings()[ mailKey ] ).toEqual( [] );
 } );
