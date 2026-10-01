@@ -30,10 +30,11 @@ const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 // `writeToTerminal` prints, and `prefillTerminalCommand` puts a command at the
 // prompt without running it. Every function returned keeps its identity for
 // the life of the component. The effect that creates the xterm instance
-// depends on the help it prints and the prompt it shows, and through the help
-// on `writeToTerminal`; were any of those to change, it would dispose the
-// terminal and make another, scrollback and all. None of them depends on the
-// three runners, which may change as often as they like.
+// depends on `normalizeForTerminal`, on the help it prints and on the prompt
+// it shows, and through the help on `writeToTerminal`; were any of those to
+// change, it would dispose the terminal and make another, scrollback and all.
+// None of them depends on the three runners, which may change as often as
+// they like.
 export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCurrent }) {
   // Read through a ref by the terminal's command handlers rather than closed
   // over: the xterm instance is created by an effect that depends on

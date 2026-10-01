@@ -17,8 +17,8 @@
  * to the app's log as well, and ends by itself, with the code the process
  * gave; here a command runs until the test says it has ended, with a code
  * the test chose, including after Ctrl+C. A real install also records in the
- * store whether it failed, before it says it is done; here the store is not
- * written. A real command, started and stopped, is in `pr-checkout.spec.js`.
+ * store whether it failed, before it says it is done; here that is not
+ * recorded. A real command, started and stopped, is in `pr-checkout.spec.js`.
  *
  * The screen is read from the terminal's own rows, which is the markup of the
  * library that draws it: nothing with a role holds what a terminal shows. The
@@ -26,10 +26,14 @@
  * printed, so every sentence looked for is one that is printed for the first
  * time at its step.
  *
- * That it is one terminal from start to finish has no line of its own here,
- * and needs none. A terminal made anew opens on its banner with everything
- * before it gone, so one remade as a command started or ended would have lost
- * the line the next step looks for.
+ * That it is one terminal from start to finish is pinned in two ways, and
+ * not for every moment. A terminal made anew opens on its banner with
+ * everything before it gone. One remade as the lock is taken or released has
+ * lost the line the next step looks for. One remade while a build ends, when
+ * the site's status is read again and the view is drawn again, would be
+ * written to as if nothing had happened, so that step looks for the banner,
+ * which left the screen many lines before. A terminal remade on any other
+ * drawing of the view is not caught here.
  *
  * Assertions are marked INVARIANT or CHARACTERISATION; see
  * ticket-branches.spec.js for why.
@@ -143,6 +147,12 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	expect( ( await asked() ).scripts[ 1 ].name ).toBe( 'build' );
 	await tell( 'npm:run-script:done', { runId: 'e2e-run-2', code: 0 } );
 	await expect( screen ).toContainText( 'npm run build exited with code 0' );
+
+	// INVARIANT — it is still the terminal it was. A build that ends has the
+	// site's status read again and the view drawn again before this line is
+	// printed; a terminal made anew on the way would have opened on its
+	// banner, which this one showed at the start and scrolled away long ago.
+	await expect( screen ).not.toContainText( 'WordPress npm helper terminal.' );
 
 	// INVARIANT — the up arrow steps back through what was run: twice from an
 	// empty prompt is the command before the last.
