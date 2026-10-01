@@ -35,14 +35,21 @@ const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite, advanceOrigin, read, LOGIN } = require( '../helpers/git-site.cjs' );
 
+// What the fixture's trunk holds before the origin moves on.
+const OLD_LOGIN = '<?php // trunk\n';
 const NEWER_LOGIN = '<?php // newer trunk\n';
 const NEWEST_LOGIN = '<?php // newest trunk\n';
 
-// The stand-in for the runner, and what the test uses to speak for it.
-async function standInForRuns( app, page ) {
-	await app.evaluate( ( { ipcMain } ) => {
-		const asked = { scripts: [], installs: 0, kills: [] };
+// The stand-in for the runner, and what the test uses to speak for it. When a
+// run is stopped it also keeps what `watched`, a file in the checkout, held
+// at that moment: that is how a journey sees whether the tree had been
+// touched yet.
+async function standInForRuns( app, page, watched ) {
+	await app.evaluate( ( { ipcMain }, file ) => {
+		const asked = { scripts: [], installs: 0, kills: [], treeAtKill: [] };
 		global.__e2eUpdate = asked;
+		// The same way to Node's modules the packaged smoke test takes.
+		const { readFileSync } = process.mainModule.require( 'node:fs' );
 		const replace = ( channel, handler ) => {
 			ipcMain.removeHandler( channel );
 			ipcMain.handle( channel, handler );
@@ -57,9 +64,10 @@ async function standInForRuns( app, page ) {
 		} );
 		replace( 'npm:kill', ( event, params ) => {
 			asked.kills.push( params.runId );
+			asked.treeAtKill.push( readFileSync( file, 'utf8' ) );
 			return { ok: true };
 		} );
-	} );
+	}, watched );
 	const tell = ( channel, payload ) => app.evaluate( ( { BrowserWindow }, [ to, what ] ) => {
 		for ( const win of BrowserWindow.getAllWindows() ) {
 			win.webContents.send( to, what );
@@ -85,7 +93,7 @@ test( 'an update stops a running build watch for as long as it resets and builds
 	const site = await makeSite( session, { origin: true } );
 	advanceOrigin( site.origin, { 'src/wp-login.php': NEWER_LOGIN } );
 	const { app, page } = await session.start( site.settings );
-	const runs = await standInForRuns( app, page );
+	const runs = await standInForRuns( app, page, path.join( site.dir, LOGIN ) );
 	const incomplete = page.getByText( 'Update incomplete', { exact: true } );
 
 	// The watch is running before the update starts. The hint under the
@@ -94,12 +102,15 @@ test( 'an update stops a running build watch for as long as it resets and builds
 	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.startBuildWatchButton( page ).click();
 	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
-	expect( ( await runs.asked() ).scripts ).toEqual( [ 'grunt' ] );
+	await expect.poll( async () => ( await runs.asked() ).scripts ).toEqual( [ 'grunt' ] );
 
 	// INVARIANT — the update stops that watcher, by its run, before it
-	// touches the tree, and the watch's tab says it is paused.
+	// touches the tree: the file the update is about to replace still held
+	// the old trunk when the watcher was stopped. The watch's tab says it is
+	// paused.
 	await updateToLatestTrunk( page );
 	await expect.poll( async () => ( await runs.asked() ).kills ).toEqual( [ 'e2e-run-1' ] );
+	expect( ( await runs.asked() ).treeAtKill ).toEqual( [ OLD_LOGIN ] );
 	await expect( ui.logTab( page, 'Build watcher (paused)' ) ).toBeVisible();
 
 	// INVARIANT — the tree is reset to the new trunk and the update runs the
@@ -158,20 +169,26 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	fs.writeFileSync( built, '' );
 	advanceOrigin( site.origin, { 'src/wp-login.php': NEWER_LOGIN } );
 	const { app, page } = await session.start( site.settings );
-	const runs = await standInForRuns( app, page );
+	const runs = await standInForRuns( app, page, path.join( site.dir, LOGIN ) );
 	const incomplete = page.getByText( 'Update incomplete', { exact: true } );
 	const updated = page.getByText( 'Updated to the latest trunk' );
 	const card = page.getByText( 'Updating to latest trunk', { exact: true } );
 
-	// The watch is running, and ready, before the update starts.
+	// The watch is running, and ready, before the update starts. The test
+	// speaks for the watcher only once the main process has answered that it
+	// started: the page listens for a run's output from that answer on, and a
+	// line said sooner would be said to nobody. CHARACTERISATION — on
+	// Gutenberg the watcher is npm run dev, here and below.
 	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.startBuildWatchButton( page ).click();
 	await expect( ui.logTab( page, 'Build watcher (building)' ) ).toBeVisible();
+	await expect.poll( async () => ( await runs.asked() ).scripts ).toEqual( [ 'dev' ] );
 	await runs.scriptPrints( 1, 'Watching for changes\n' );
 	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
 
 	// INVARIANT — the update stops the watcher, resets the tree, and brings
-	// the watcher back without a build of its own (#507).
+	// the watcher back without a build of its own (#507): the watcher is
+	// asked for a second time, and no build is.
 	await updateToLatestTrunk( page );
 	await expect.poll( async () => ( await runs.asked() ).kills ).toEqual( [ 'e2e-run-1' ] );
 	await expect.poll( async () => ( await runs.asked() ).scripts, { timeout: 60_000 } ).toEqual( [ 'dev', 'dev' ] );
@@ -179,8 +196,9 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	await expect( ui.logTab( page, 'Build watcher (building)' ) ).toBeVisible();
 
 	// INVARIANT — the update is not complete while the watch is still
-	// rebuilding, and the one thing that can be pressed is the watch's own
-	// stop: it is the only way out of a watch that never gets there.
+	// rebuilding. The watch's own stop can be pressed, which is the way out
+	// of a watch that never gets there, while the update still holds its
+	// other gates: the dev server's button, for one, cannot.
 	await runs.scriptPrints( 2, 'webpack compiled 12 modules\n' );
 	await runs.heard();
 	await expect( card ).toBeVisible();
@@ -192,7 +210,6 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	await runs.scriptPrints( 2, 'Watching for changes\n' );
 	await expect( updated.first() ).toBeVisible();
 	await expect( card ).toHaveCount( 0 );
-	await expect( incomplete ).toHaveCount( 0 );
 	await expect.poll( () => Boolean( session.readSettings().siteMeta[ site.dir ].updateIncomplete ) ).toBe( false );
 	expect( ( await runs.asked() ).scripts ).toEqual( [ 'dev', 'dev' ] );
 
