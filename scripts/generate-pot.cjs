@@ -2,7 +2,9 @@
 //
 // `npm run i18n:pot` writes contributor-toolkit.pot at the repository root, the
 // file a translator (or translate.wordpress.org) starts from. It is generated,
-// never committed, so it cannot drift from the source.
+// never committed to trunk, so it cannot drift from the source;
+// .github/workflows/i18n-pot.yml publishes it to the `translations` branch for
+// translate.wordpress.org.
 //
 // The extraction is @wordpress/babel-plugin-makepot, the one WordPress itself
 // uses. That plugin skips a translation call whose string is not a literal
