@@ -209,9 +209,9 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	expect( ( await asked() ).scripts ).toHaveLength( 3 );
 } );
 
-// The longest line of the help the terminal prints as it starts: 75 of the
-// terminal's 80 columns, so it ends inside the terminal only when a character
-// takes one column.
+// The longest fixed line of the help the terminal prints as it starts: 74 of
+// the terminal's 80 columns, so it ends inside the terminal only when a
+// character takes one column.
 const LONGEST_HELP_LINE = 'The setup checklist runs npm install and npm run build once. Run them here';
 
 /**
@@ -255,8 +255,9 @@ test( 'the terminal of a site that was not on screen at launch fits its text in 
 	await expect( ui.siteHeading( page, 'opened-later' ) ).toBeVisible();
 	expect( await helpLineOverflow( page ) ).toBeLessThanOrEqual( 0 );
 
-	// INVARIANT — going back, the first site's terminal still fits: being
-	// hidden and shown again does not undo it.
+	// CHARACTERISATION — going back, the first site's terminal reads as it
+	// did. Nothing was written to it while it was hidden, so this is the rows
+	// it had already drawn, not ones drawn while hidden.
 	await ui.sidebarEntry( page, 'open-at-launch' ).click();
 	await expect( ui.siteHeading( page, 'open-at-launch' ) ).toBeVisible();
 	expect( await helpLineOverflow( page ) ).toBeLessThanOrEqual( 0 );
