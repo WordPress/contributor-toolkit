@@ -210,14 +210,16 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	// rebuilding. The watch's own stop can be pressed, which is the way out
 	// of a watch that never gets there, while the update still holds its
 	// other gates: the dev server's button, for one, cannot.
-	// What settles it is whether the app has asked for the update to be
-	// recorded as complete: it asks in the same turn as it hears the line, so
-	// the count is final once the line has been heard. What it says on screen
-	// comes only after that request is answered, so the look at the screen
-	// that follows catches an announcement made without completing and no
-	// more than that. It is one look and not a wait: the announcement goes
-	// away by itself, and a wait for it to be absent would pass once a wrong
-	// one had gone.
+	//
+	// CHARACTERISATION — how the test knows: the page asks the main process
+	// to record a completed update, here and in the count below. What settles
+	// it is whether that has been asked: the page asks in the same turn as it
+	// hears the line, so the count is final once the line has been heard.
+	// What it says on screen comes only after that request is answered, so
+	// the look at the screen that follows catches an announcement made
+	// without completing and no more than that. It is one look and not a
+	// wait: the announcement goes away by itself, and a wait for it to be
+	// absent would pass once a wrong one had gone.
 	await runs.scriptPrints( 2, 'webpack compiled 12 modules\n' );
 	await runs.heard();
 	expect( ( await runs.asked() ).completions ).toBe( 0 );
