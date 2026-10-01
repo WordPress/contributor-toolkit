@@ -245,6 +245,10 @@ test( 'an update asks before it resets edits in the tree: cancelling keeps them,
 	await expect( page.getByText( 'Updated to the latest trunk' ).first() ).toBeVisible( { timeout: 120_000 } );
 	await expect( dialog ).toHaveCount( 0 );
 	expect( fs.readFileSync( patchFile, 'utf8' ) ).toContain( '+<?php // an afternoon of work' );
+	// INVARIANT — and the notice that the update is done says where the edit
+	// went: it is the one place that still names the file once the dialog and
+	// the confirmation are gone.
+	await expect( page.getByText( `Your changes were saved to ${ patchFile } before the reset.` ) ).toBeVisible();
 	expect( read( site.dir, DOOMED ) ).toBe( '<?php // to be deleted\n' );
 	expect( read( site.dir, LOGIN ) ).toBe( NEWER_LOGIN );
 	expect( await confirmsAnswered() ).toBe( 0 );
