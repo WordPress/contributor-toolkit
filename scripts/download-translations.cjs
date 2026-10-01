@@ -5,6 +5,10 @@
 // MIN_COVERAGE percent translated, removes the file of any locale that has
 // fallen below it, and prints a table for the pull request description.
 //
+// Use `--status=current,waiting` to select translation statuses for the export
+// only. Explicit status or locale selection bypasses the coverage cut-off.
+// `--locales=de,fr` limits changes to those locales.
+//
 // Nothing in src/languages/ changes unless every download succeeded: the files are
 // written to a temporary directory first, and each one replaces its old copy by a
 // rename, which leaves either the old file or the new one, never a partial one.
@@ -16,7 +20,7 @@ const { reachableSlugs } = require('../src/i18n.cjs');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const DEFAULT_DIR = path.join(REPO_ROOT, 'src', 'languages');
-const DEFAULT_PROJECT = 'contributor-toolkit';
+const DEFAULT_PROJECT = 'meta/contributor-toolkit';
 const BASE_URL = 'https://translate.wordpress.org';
 const USER_AGENT = 'WordPress Contributor Toolkit (https://github.com/WordPress/contributor-toolkit)';
 
@@ -44,9 +48,11 @@ const RTL_LANGUAGES = new Set(['ar', 'arq', 'ary', 'azb', 'ckb', 'dv', 'fa', 'ha
  * Downloads every locale of `project` at or above `minCoverage` into `dir`.
  *
  * @param {Object}   [options]
- * @param {string}   [options.project]     The project under translate.wordpress.org's `meta/`.
+ * @param {string}   [options.project]     The full project path on translate.wordpress.org.
  * @param {string}   [options.dir]         Where the catalogs go.
  * @param {number}   [options.minCoverage] The percent a locale needs to ship.
+ * @param {string[]} [options.status]      Statuses to export: current, waiting, fuzzy.
+ * @param {string[]} [options.locales]     Limit changes to these locale slugs.
  * @param {Function} [options.fetch]       `fetch`, replaceable in tests.
  * @param {Function} [options.wait]        Waits the given milliseconds; replaceable in tests.
  * @return {Promise<{shipped: Object[], skipped: Object[], removed: string[]}>} What was written, what
@@ -56,9 +62,21 @@ async function downloadTranslations({
 	project = DEFAULT_PROJECT,
 	dir = DEFAULT_DIR,
 	minCoverage = MIN_COVERAGE,
+	status,
+	locales,
 	fetch = globalThis.fetch,
 	wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 } = {}) {
+	const explicitSelection = status !== undefined || locales !== undefined;
+	status ??= ['current'];
+	if (!Array.isArray(status) || !status.length || status.some((value) => !['current', 'waiting', 'fuzzy'].includes(value))) {
+		throw new Error('Status must be a non-empty list of current, waiting or fuzzy.');
+	}
+	status = [...new Set(status)];
+	if (locales !== undefined && (!Array.isArray(locales) || !locales.length || locales.some((locale) => !SLUG_PATTERN.test(locale)))) {
+		throw new Error('Locales must be a non-empty list of locale slugs.');
+	}
+	const currentOnly = status.length === 1 && status[0] === 'current';
 	const get = async (url) => {
 		let res;
 		// translate.wordpress.org answers 429 when asked too often, even one request
@@ -79,10 +97,10 @@ async function downloadTranslations({
 
 	let sets;
 	try {
-		({ translation_sets: sets } = await get(`${BASE_URL}/api/projects/meta/${project}/`));
+		({ translation_sets: sets } = await get(`${BASE_URL}/api/projects/${project}/`));
 	} catch (e) {
 		if (e.status === 404) {
-			throw new Error(`translate.wordpress.org has no project meta/${project} yet. The Meta team creates it on request; see "Translatable strings" in CONTRIBUTING.md.`);
+			throw new Error(`translate.wordpress.org has no project ${project} yet. The Meta team creates it on request; see "Translatable strings" in CONTRIBUTING.md.`);
 		}
 		throw e;
 	}
@@ -91,7 +109,8 @@ async function downloadTranslations({
 	// translated", which would remove every catalog and still exit cleanly.
 	const valid = Array.isArray(sets) && sets.length > 0 &&
 		sets.every((set) => typeof set?.locale === 'string' && typeof set.slug === 'string' && typeof set.percent_translated === 'number');
-	if (!valid) throw new Error(`translate.wordpress.org answered for meta/${project} in a shape this script does not know; nothing was changed.`);
+	if (!valid) throw new Error(`translate.wordpress.org answered for ${project} in a shape this script does not know; nothing was changed.`);
+
 
 	const reachable = reachableSlugs();
 	const shipped = [];
@@ -99,10 +118,15 @@ async function downloadTranslations({
 	for (const set of sets) {
 		// A variant, such as German (formal), shares its locale with the default
 		// set, but the export below is always the default set's.
-		if (set.slug !== 'default') continue;
-		if (set.locale === 'en' || set.percent_translated < minCoverage) continue;
+		if (set.slug !== 'default' || (locales && !locales.includes(set.locale))) continue;
+		if (!currentOnly && (!Number.isInteger(set.all_count) || set.all_count < 0 || status.some((value) => !Number.isInteger(set[`${value}_count`]) || set[`${value}_count`] < 0))) {
+			throw new Error(`translate.wordpress.org answered for ${project} without valid translation counts; nothing was changed.`);
+		}
+		const strings = status.reduce((sum, value) => sum + set[`${value}_count`], 0);
+		const percent = currentOnly ? set.percent_translated : (set.all_count ? Math.min(100, Math.floor(100 * strings / set.all_count)) : 0);
+		if (set.locale === 'en' || (!explicitSelection && percent < minCoverage)) continue;
 		if (!SLUG_PATTERN.test(set.locale)) throw new Error(`Refusing the locale slug ${JSON.stringify(set.locale)}: it is not a locale.`);
-		const row = { locale: set.locale, percent: set.percent_translated, strings: set.current_count };
+		const row = { locale: set.locale, percent, strings };
 		if (!reachable.has(set.locale)) skipped.push({ ...row, reason: 'the app never selects this locale' });
 		else if (RTL_LANGUAGES.has(set.locale.split('-')[0])) skipped.push({ ...row, reason: 'right-to-left, held back until the styles support it' });
 		else shipped.push(row);
@@ -115,7 +139,8 @@ async function downloadTranslations({
 	try {
 		for (const { locale } of shipped) {
 			// One at a time: a burst of requests is what translate.wordpress.org throttles.
-			const catalog = await get(`${BASE_URL}/projects/meta/${project}/${locale}/default/export-translations/?format=jed1x`);
+			const filters = currentOnly ? '' : `&filters[status]=${status.join('_or_')}`;
+			const catalog = await get(`${BASE_URL}/projects/${project}/${locale}/default/export-translations/?format=jed1x${filters}`);
 			// The same test resolveCatalog in src/i18n.cjs applies, so nothing ships that the app would skip.
 			const messages = catalog?.locale_data?.messages;
 			if (!messages || typeof messages !== 'object' || Array.isArray(messages)) throw new Error(`The ${locale} export has no locale_data.messages.`);
@@ -133,7 +158,7 @@ async function downloadTranslations({
 			throw e;
 		}
 		for (const name of keep) fs.renameSync(path.join(dir, `${name}.download`), path.join(dir, name));
-		const removed = fs.readdirSync(dir).filter((name) => name.endsWith('.json') && !keep.includes(name));
+		const removed = fs.readdirSync(dir).filter((name) => name.endsWith('.json') && !keep.includes(name) && (!locales || locales.includes(name.slice(0, -5))));
 		for (const name of removed) fs.rmSync(path.join(dir, name));
 		return { shipped, skipped, removed: removed.map((name) => name.replace(/\.json$/, '')) };
 	} finally {
@@ -155,14 +180,33 @@ function formatTable({ shipped, skipped = [], removed }) {
 	return parts.join('\n\n');
 }
 
-module.exports = { downloadTranslations, formatTable, MIN_COVERAGE };
+/**
+ * Parses CLI options, refusing unknown flags before any catalogs can change.
+ *
+ * @param {string[]} args Command-line arguments.
+ * @return {Object} Download options.
+ */
+function parseArgs(args) {
+	const options = {};
+	for (const arg of args) {
+		const match = /^--(project|status|locale|locales)=(.+)$/.exec(arg);
+		if (!match) throw new Error(`Unknown or invalid argument: ${arg}. Use --status=current,waiting and --locales=de,fr.`);
+		const key = match[1] === 'locale' ? 'locales' : match[1];
+		if (options[key] !== undefined) throw new Error(`Specify --${key} only once.`);
+		options[key] = key === 'project' ? match[2] : match[2].split(',').map((value) => value.trim());
+	}
+	return options;
+}
+
+module.exports = { downloadTranslations, formatTable, MIN_COVERAGE, parseArgs };
 
 if (require.main === module) {
-	const projectArg = process.argv.find((arg) => arg.startsWith('--project='));
-	const project = projectArg ? projectArg.slice('--project='.length) : DEFAULT_PROJECT;
-	downloadTranslations({ project }).then(
+	Promise.resolve().then(() => {
+		const options = parseArgs(process.argv.slice(2));
+		return downloadTranslations(options);
+	}).then(
 		(result) => {
-			console.log(result.shipped.length || result.skipped.length || result.removed.length ? formatTable(result) : `No locale of meta/${project} is at ${MIN_COVERAGE}% yet.`);
+			console.log(result.shipped.length || result.skipped.length || result.removed.length ? formatTable(result) : `No locales downloaded.`);
 		},
 		(e) => {
 			console.error(e.message);

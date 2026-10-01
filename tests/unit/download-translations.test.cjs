@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { downloadTranslations, formatTable } = require('../../scripts/download-translations.cjs');
+const { downloadTranslations, formatTable, parseArgs } = require('../../scripts/download-translations.cjs');
 
 function tempDir(t) {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'download-translations-'));
@@ -55,6 +55,50 @@ test('writes each locale at or above the cut-off, and only those', async (t) => 
 	assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, 'de.json'), 'utf8')).locale_data.messages['No sites yet.'], ['Noch keine Websites.']);
 	// Nothing is asked for below the cut-off.
 	assert.ok(!calls.includes(exportUrl('fr')));
+});
+
+test('uses the full project path without adding a meta prefix', async (t) => {
+	const dir = tempDir(t);
+	const project = 'plugins/example/stable';
+	const api = `https://translate.wordpress.org/api/projects/${project}/`;
+	const url = `https://translate.wordpress.org/projects/${project}/de/default/export-translations/?format=jed1x&filters[status]=current_or_waiting`;
+	const { fetch, calls } = fakeFetch({
+		[api]: { translation_sets: [{ locale: 'de', slug: 'default', percent_translated: 0, current_count: 0, waiting_count: 10, all_count: 10 }] },
+		[url]: catalog('de', 'x')
+	});
+	await downloadTranslations({ project, dir, fetch, status: ['current', 'waiting'] });
+	assert.deepEqual(calls, [api, url]);
+	assert.deepEqual(fs.readdirSync(dir), ['de.json']);
+});
+
+test('explicit statuses export waiting strings below the default cut-off', async (t) => {
+	const dir = tempDir(t);
+	const waitingUrl = `${exportUrl('de')}&filters[status]=current_or_waiting`;
+	const { fetch, calls } = fakeFetch({
+		[API]: { translation_sets: [
+			{ locale: 'de', slug: 'default', percent_translated: 20, current_count: 2, waiting_count: 6, all_count: 10 },
+			{ locale: 'fr', slug: 'default', percent_translated: 20, current_count: 2, waiting_count: 5, all_count: 10 }
+		] },
+		[waitingUrl]: catalog('de', 'Waiting translation'),
+		[`${exportUrl('fr')}&filters[status]=current_or_waiting`]: catalog('fr', 'waiting')
+	});
+
+	const approvedOnly = await downloadTranslations({ dir, fetch });
+	assert.deepEqual(approvedOnly.shipped, []);
+	const result = await downloadTranslations({ dir, fetch, status: ['current', 'waiting'] });
+	assert.deepEqual(result.shipped, [{ locale: 'de', percent: 80, strings: 8 }, { locale: 'fr', percent: 70, strings: 7 }]);
+	assert.deepEqual(fs.readdirSync(dir).sort(), ['de.json', 'fr.json']);
+	assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, 'de.json'), 'utf8')).locale_data.messages['No sites yet.'], ['Waiting translation']);
+	assert.ok(calls.includes(waitingUrl));
+	assert.ok(calls.includes(`${exportUrl('fr')}&filters[status]=current_or_waiting`));
+});
+
+test('including waiting refuses missing counts without removing existing catalogs', async (t) => {
+	const dir = tempDir(t);
+	fs.writeFileSync(path.join(dir, 'de.json'), 'old catalog');
+	const { fetch } = fakeFetch({ [API]: SETS });
+	await assert.rejects(downloadTranslations({ dir, fetch, status: ['current', 'waiting'] }), /without valid translation counts/);
+	assert.equal(fs.readFileSync(path.join(dir, 'de.json'), 'utf8'), 'old catalog');
 });
 
 test('removes the catalog of a locale that fell below the cut-off, and leaves other files alone', async (t) => {
@@ -236,4 +280,59 @@ test('the table lists each locale, what was held back and why, and what was remo
 	assert.match(table, /\| de \| 100% \| 26 \|/);
 	assert.match(table, /- ar \(90%\): right-to-left/);
 	assert.match(table, /Removed: fr/);
+});
+
+
+test('locale selection leaves unselected catalogs untouched, including below-cutoff ones', async (t) => {
+	const dir = tempDir(t);
+	fs.writeFileSync(path.join(dir, 'fr.json'), 'kept');
+	fs.writeFileSync(path.join(dir, 'pt-br.json'), 'removed');
+	const { fetch, calls } = fakeFetch({ [API]: SETS, [exportUrl('de')]: catalog('de', 'x'), [exportUrl('pt-br')]: catalog('pt-br', 'x') });
+	const result = await downloadTranslations({ dir, fetch, locales: ['de', 'pt-br'], minCoverage: 90 });
+	assert.deepEqual(result.removed, []);
+	assert.deepEqual(calls, [API, exportUrl('de'), exportUrl('pt-br')]);
+	assert.equal(fs.readFileSync(path.join(dir, 'fr.json'), 'utf8'), 'kept');
+});
+
+test('a waiting-only list exports and counts only waiting strings', async (t) => {
+	const dir = tempDir(t);
+	const url = `${exportUrl('de')}&filters[status]=waiting`;
+	const { fetch } = fakeFetch({
+		[API]: { translation_sets: [{ locale: 'de', slug: 'default', percent_translated: 100, current_count: 10, waiting_count: 8, all_count: 10 }] },
+		[url]: catalog('de', 'waiting')
+	});
+	const result = await downloadTranslations({ dir, fetch, status: ['waiting'] });
+	assert.deepEqual(result.shipped, [{ locale: 'de', percent: 80, strings: 8 }]);
+});
+
+test('invalid lists fail before fetching or changing catalogs', async (t) => {
+	const dir = tempDir(t);
+	fs.writeFileSync(path.join(dir, 'de.json'), 'kept');
+	const { fetch, calls } = fakeFetch({});
+	for (const options of [{ status: [] }, { status: ['typo'] }, { locales: [] }, { locales: ['../de'] }]) {
+		await assert.rejects(downloadTranslations({ dir, fetch, ...options }), /must be a non-empty list/);
+	}
+	assert.deepEqual(calls, []);
+	assert.equal(fs.readFileSync(path.join(dir, 'de.json'), 'utf8'), 'kept');
+});
+
+
+test('the reported singular locale command preserves other catalogs and ignores the threshold', async (t) => {
+	const dir = tempDir(t);
+	fs.writeFileSync(path.join(dir, 'en-gb.json'), 'existing English catalog');
+	const { fetch } = fakeFetch({
+		[API]: { translation_sets: [{ locale: 'de', slug: 'default', percent_translated: 0, current_count: 0, waiting_count: 1, all_count: 26 }] },
+		[`${exportUrl('de')}&filters[status]=waiting`]: catalog('de', 'waiting')
+	});
+	const result = await downloadTranslations({ ...parseArgs(['--status=waiting', '--locale=de']), dir, fetch });
+	assert.deepEqual(result.shipped.map(({ locale }) => locale), ['de']);
+	assert.deepEqual(result.removed, []);
+	assert.equal(fs.readFileSync(path.join(dir, 'en-gb.json'), 'utf8'), 'existing English catalog');
+});
+
+test('CLI accepts both locale spellings and rejects unknown or duplicate flags', () => {
+	assert.deepEqual(parseArgs(['--locale=de,fr']), { locales: ['de', 'fr'] });
+	assert.deepEqual(parseArgs(['--locales=de,fr']), { locales: ['de', 'fr'] });
+	assert.throws(() => parseArgs(['--lang=de']), /Unknown or invalid argument/);
+	assert.throws(() => parseArgs(['--locale=de', '--locales=fr']), /only once/);
 });
