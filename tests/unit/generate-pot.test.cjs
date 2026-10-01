@@ -28,6 +28,9 @@ test('the .pot holds the first-run screen and has no call it cannot extract', (t
 	}
 	// The header names the encoding, so the non-ASCII strings import intact.
 	assert.match(pot, /"Content-Type: text\/plain; charset=utf-8\\n"/i);
+	// The string a right-to-left locale translates to `rtl`, with its context, so
+	// translators for Arabic, Hebrew and Persian can set it.
+	assert.match(pot, /msgctxt "text direction"\nmsgid "ltr"/);
 	// References are relative to the repository, so the .pot reads the same on
 	// every machine that generates it.
 	assert.match(pot, /#: src\/renderer\/index\.jsx:\d+/);

@@ -15,7 +15,7 @@
   },
   "main": "src/main.js",
   "scripts": {
-    "start": "npm run build:once && concurrently -k \"npm:build:watch\" \"electron .\"",
+    "start": "npm run build:once && concurrently -k -P \"npm:build:watch\" \"electron . {@}\" --",
     "build:watch": "esbuild src/renderer/index.jsx --bundle --outdir=src/renderer --loader:.css=css --platform=browser --format=iife --jsx=automatic --alias:@wordpress/i18n=./node_modules/@wordpress/i18n/build-module/index.mjs --log-level=info --watch",
     "build:once": "esbuild src/renderer/index.jsx --bundle --outdir=src/renderer --loader:.css=css --platform=browser --format=iife --jsx=automatic --alias:@wordpress/i18n=./node_modules/@wordpress/i18n/build-module/index.mjs --log-level=info",
     "postinstall": "electron-builder install-app-deps && npm run build:once",
@@ -28,6 +28,7 @@
     "test:e2e": "playwright test --project=journeys",
     "test:e2e:packaged": "playwright test --project=packaged",
     "i18n:pot": "node scripts/generate-pot.cjs",
+    "i18n:download": "node scripts/download-translations.cjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "shots": "npm run build:once && node scripts/screenshots/capture.cjs",

@@ -1,7 +1,7 @@
 # Translation catalogs
 
-One JSON file per locale, named the way Chromium names the locale: `de.json`, `pt-BR.json`, `zh-TW.json`. The format is what `wp i18n make-json` writes from a `.po` file, and `src/i18n.cjs` reads its `locale_data.messages`.
+One JSON file per locale, written by `npm run i18n:download` from translate.wordpress.org's project `meta/contributor-toolkit`. Do not edit them by hand: the next download replaces them. See "Translatable strings" in CONTRIBUTING.md for when that runs.
 
-The app looks for the exact locale first and then the bare language, so `de.json` also serves `de-AT`. A locale with no file keeps the English source strings.
+Each file is named by translate.wordpress.org's locale slug, which is lowercase: `de.json`, `pt-br.json`, `zh-tw.json`. The format is the `jed1x` export, and `src/i18n.cjs` reads its `locale_data.messages`.
 
-There are none yet. The template to translate from is generated with `npm run i18n:pot`, from the repository root.
+The app lowercases the operating system's locale, tries the exact slug and then the bare language, so `de.json` also serves `de-AT`. Filipino is the one name that differs: Chromium's `fil` is translate.wordpress.org's `tl`. A locale with no file keeps the English source strings.

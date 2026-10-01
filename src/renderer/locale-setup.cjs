@@ -39,4 +39,19 @@ function applyLocale(reply, { setLocaleData, addFilter }) {
 	return 'en';
 }
 
-module.exports = { applyLocale };
+/**
+ * The page's text direction, `rtl` or `ltr`, as the loaded catalog says.
+ *
+ * WordPress's own convention: a right-to-left locale translates the string
+ * `ltr`, in the context `text direction`, to `rtl`. Calling `_x` with that
+ * literal here is also what puts the string in the .pot, so the translators
+ * for Arabic, Hebrew or Persian can set it.
+ *
+ * @param {Function} _x `@wordpress/i18n`'s `_x`, after the locale is applied.
+ * @return {string} The value for `<html dir>`.
+ */
+function textDirection(_x) {
+	return _x('ltr', 'text direction') === 'rtl' ? 'rtl' : 'ltr';
+}
+
+module.exports = { applyLocale, textDirection };

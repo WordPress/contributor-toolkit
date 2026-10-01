@@ -82,9 +82,9 @@ test( 'a mail the site sent opens as the one that was clicked, in its rendered a
 	await expect( dialog.getByText( `From: ${ RESET.from }`, { exact: true } ) ).toBeVisible();
 	await expect( dialog.getByText( `To: ${ RESET.to }`, { exact: true } ) ).toBeVisible();
 	await expect( dialog.getByText( `CC: ${ RESET.cc }`, { exact: true } ) ).toBeVisible();
-	// The journeys run in en-GB and UTC, so this is the whole string and not a
+	// The journeys run in en-US and UTC, so this is the whole string and not a
 	// pattern a raw timestamp would also fit.
-	await expect( dialog.getByText( 'Date: 10/08/2026, 09:30:00', { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByText( 'Date: 8/10/2026, 9:30:00 AM', { exact: true } ) ).toBeVisible();
 
 	// INVARIANT — it opens on the mail as a reader would see it: the HTML part,
 	// rendered rather than shown as markup, and not the text part beside it.
