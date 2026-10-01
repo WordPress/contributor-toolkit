@@ -20,6 +20,7 @@ const {
 	LOGIN,
 	DOOMED,
 } = require( '../helpers/git-site.cjs' );
+const { prSubmissionRefusal } = require( '../../../src/renderer/pr-checkout.cjs' );
 
 const TICKET = '60001';
 const PR = 7;
@@ -36,6 +37,14 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 		ipcMain.handle( 'git:list-ticket-patches', () => ( { ok: true, prs: { status: 'ok', items: [ { number: 7, title: 'Example pull request', state: 'open', url: 'https://github.com/WordPress/wordpress-develop/pull/7' } ] } } ) );
 		ipcMain.removeHandler( 'trac:list-attachments' );
 		ipcMain.handle( 'trac:list-attachments', () => ( { ok: true, status: 'ok', items: [ { filename: '60001.diff', url: 'https://core.trac.wordpress.org/attachment/ticket/60001/60001.diff', applyable: true } ] } ) );
+		// Signed in to GitHub, and counting being asked: signed out, the pull
+		// request card in the review has no form to offer whatever else is
+		// true, and its absence below would prove nothing.
+		ipcMain.removeHandler( 'github:account' );
+		ipcMain.handle( 'github:account', () => {
+			global.__e2eAccountAsked = ( global.__e2eAccountAsked || 0 ) + 1;
+			return { ok: true, login: 'janedoe', configured: true, testMode: null };
+		} );
 	} );
 	await ui.linkTicket( page, TICKET );
 	await expect( page.getByRole( 'button', { name: 'Apply…', exact: true } ) ).toHaveCount( 2 );
@@ -75,6 +84,26 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 	expect( read( site.dir, SUBSTRATE ) ).toBe( SUBSTRATE_CONTENT );
 
 	write( site.dir, LOGIN, PR_EDIT );
+
+	// INVARIANT — edits on top of a pull request are not the contributor's to
+	// submit, and the review says so twice: above the destinations, with the
+	// copy that can still be kept, and on the pull request card in place of
+	// the form it would otherwise offer someone signed in. The form's absence
+	// is read once the card knows the account; review-changes.spec.js says
+	// why, and how the wait works.
+	await ui.reviewChangesButton( page ).click();
+	const review = page.getByRole( 'dialog', { name: 'Review & submit changes' } );
+	const ownership = review.getByRole( 'alert' ).filter( { hasText: prSubmissionRefusal( PR ) } );
+	await expect( ownership ).toBeVisible( { timeout: 30_000 } );
+	await expect( ownership ).toContainText( 'You can still use Save to keep an unattributed copy of your edits.' );
+	await expect( review.getByText( prSubmissionRefusal( PR ), { exact: true } ) ).toBeVisible();
+	await expect.poll( () => app.evaluate( () => global.__e2eAccountAsked || 0 ) ).toBeGreaterThan( 0 );
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+	await expect( review.getByText( /Signed in as janedoe/ ) ).toHaveCount( 0 );
+	await expect( review.getByRole( 'button', { name: 'Open pull request', exact: true } ) ).toHaveCount( 0 );
+	await ui.closeDialogButton( review ).click();
+	await expect( review ).toHaveCount( 0 );
+
 	await ui.revertPrButton( page ).click();
 
 	// HEAD moves before the handler saves metadata. Wait for the UI to finish

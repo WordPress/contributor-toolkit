@@ -11,7 +11,6 @@ import {
   Icon,
   MenuGroup,
   MenuItem,
-  Modal,
   SnackbarList,
   TextControl,
   Spinner
@@ -56,7 +55,7 @@ import { ticketTrunkNotice, rebaseRefusal } from './ticket-trunk-notice.cjs';
 import { legacySiteNotice } from './legacy-site.cjs';
 import { deepLinkNotice } from './deep-link-notice.cjs';
 import { mergeInProgressNotice } from './merge-in-progress.cjs';
-import { describePrCheckout, describePrPreview, prCheckoutRefusal, prSubmissionRefusal, prSubmissionBlocked } from './pr-checkout.cjs';
+import { describePrCheckout, describePrPreview, prCheckoutRefusal, prSubmissionBlocked } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
@@ -75,6 +74,7 @@ import { PatchDiffPane } from './components/patch-diff-pane.jsx';
 import { MentorHandoff } from './components/mentor-handoff.jsx';
 import { TracDestination } from './components/trac-destination.jsx';
 import { PullRequestDestination } from './components/pull-request-destination.jsx';
+import { ReviewDialog } from './components/review-dialog.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
@@ -2728,7 +2728,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     when: appliedPatch?.appliedAt ? new Date(appliedPatch.appliedAt).toLocaleString() : ''
   });
   const appliedPatchLabel = appliedPatch?.label || 'The patch you applied';
-  const prOwnershipRefusal = pullRequest ? prSubmissionRefusal(pullRequest.number) : '';
   const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
   const prCheckout = pullRequest ? describePrCheckout({ ...pullRequest, noun: workItem.noun }) : null;
   // The banner's tone and headline follow the watch (#509): green only once
@@ -3724,25 +3723,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const saveForHandoff = async () => {
     if (!wporg?.handle) return;
     await savePatchFile({ handoff: true });
-  };
-
-  const renderOwnershipWarning = () => {
-    if (pullRequest) {
-      return (
-        <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
-          {prOwnershipRefusal} You can still use <strong>Save</strong> to keep an unattributed copy of your edits.
-        </div>
-      );
-    }
-    if (appliedPatch) {
-      return (
-        <div role="alert" style={{ padding:'10px 12px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:12, color:'#6e5406', lineHeight:1.5 }}>
-          <strong>{appliedPatchLabel} is part of this checkout.</strong>{' '}
-          The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.
-        </div>
-      );
-    }
-    return null;
   };
 
   const statusStyles = initialized
@@ -5031,133 +5011,75 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         <RenameSiteModal sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
       ) : null}
       {isPatchOpen && (
-        <Modal
-          title="Review & submit changes"
-          onRequestClose={()=>setIsPatchOpen(false)}
-          shouldCloseOnClickOutside
-          isFullScreen
-          headerClassName="patch-modal-header"
+        <ReviewDialog
+          onClose={()=>setIsPatchOpen(false)}
+          age={age}
+          loading={patchLoading}
+          loadFailed={patchLoadFailed}
+          hasChanges={patchHasChanges}
+          emptyMessage={reviewContext.empty}
+          pullRequest={pullRequest}
+          appliedPatch={appliedPatch}
+          appliedPatchLabel={appliedPatchLabel}
+          diff={
+            <PatchDiffPane
+              heading={reviewContext.heading}
+              description={reviewContext.description}
+              patchText={patchText}
+              patchLoading={patchLoading}
+              patchLoadFailed={patchLoadFailed}
+              patchSaved={patchSaved}
+              patchSaveError={patchSaveError}
+              copyLabel={COPY_BUTTON_LABELS[patchCopied] || COPY_BUTTON_LABELS.idle}
+              copied={patchCopied === 'copied'}
+              discardReason={modalDiscardReason}
+              discardError={discardError}
+              onSave={savePatch}
+              onCopy={copyPatch}
+              onDiscard={discardAllChanges}
+            />
+          }
         >
-          <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
-            {!patchLoading && age.stale && (
-              <div style={{ padding:'12px 16px', background:'#fcf9e8', border:'1px solid #dba617', borderRadius:6, fontSize:13, lineHeight:1.5, color:'#6e5406' }}>
-                This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
-              </div>
-            )}
-            {!patchLoading && patchLoadFailed ? (
-              <div role="alert" style={{ padding: '12px 16px', color: '#8a2424', background: '#fcf0f1', borderRadius: 6 }}>
-                Could not load your changes. Close this panel and try again. The error is shown below.
-              </div>
+          {/*
+            Alone in its own group, because it is the one destination
+            that acts for the contributor: it signs them in, forks, and
+            pushes. That is also where the signup cliff is (#167), named
+            here before anything happens rather than sprung after they
+            have left the venue.
+          */}
+          <DestinationGroup>
+            <PullRequestDestination
+              pr={prSubmission}
+              project={project}
+              workItem={workItem}
+              ticket={tracTicket}
+              refusal={prSubmissionBlocked({ pullRequest, appliedPatch, appliedPatchLabel })}
+              onSavePatch={savePatch}
+            />
+          </DestinationGroup>
+
+          <DestinationGroup>
+            {showTracCards ? (
+            <TracDestination
+              ticket={tracTicket}
+              saveDisabled={Boolean(appliedPatch || pullRequest)}
+              onSave={saveForTrac}
+              ticketInput={ticketInput}
+              onTicketInputChange={(value) => { setTicketInput(value); setTicketError(''); }}
+              onLinkTicket={linkTicket}
+              linking={ticketSaving}
+              linkReason={ticketActionsReason}
+              ticketError={ticketError}
+            >
+              {switchProgressLine}
+              {savedCleanNotice}
+              {blockedPanel}
+            </TracDestination>
             ) : null}
-            {!patchLoading && !patchLoadFailed && !patchHasChanges && (
-              <div style={{ padding:'12px 16px', background:'#f0f6fc', border:'1px solid #d0d7de', borderRadius:6, fontSize:14, lineHeight:1.5, color:'#24292f' }}>
-                {reviewContext.empty}
-              </div>
-            )}
-{/*
-              Diff on the left, destinations on the right (#186).
 
-              The patch used to sit under the destinations, which put the
-              choice above the thing being chosen for: a contributor scrolled
-              past three cards to read their own code, then scrolled back. The
-              code is what they came to look at and the largest thing on the
-              screen, so it takes the room, and where it can go stands beside
-              it — visible the whole time they are reading, rather than
-              something to scroll back to.
-
-              This is the shape of an earlier take on the same screen (#6),
-              revived here on top of the destinations this app has now.
-            */}
-            <div className="patch-columns">
-
-              {/*
-                The column widths, the stacking breakpoint and what scrolls in
-                each case are in index.html — a media query can express them and
-                an inline style cannot. `min-width: 0` there is load-bearing on
-                a flex child holding a <pre>: without it the diff's longest line
-                sets the column's floor and pushes the destinations off the
-                modal instead of scrolling.
-              */}
-              <PatchDiffPane
-                heading={reviewContext.heading}
-                description={reviewContext.description}
-                patchText={patchText}
-                patchLoading={patchLoading}
-                patchLoadFailed={patchLoadFailed}
-                patchSaved={patchSaved}
-                patchSaveError={patchSaveError}
-                copyLabel={COPY_BUTTON_LABELS[patchCopied] || COPY_BUTTON_LABELS.idle}
-                copied={patchCopied === 'copied'}
-                discardReason={modalDiscardReason}
-                discardError={discardError}
-                onSave={savePatch}
-                onCopy={copyPatch}
-                onDiscard={discardAllChanges}
-              />
-
-              {/*
-                Where the patch goes, named at the moment it exists (#166),
-                each destination with what it costs — a tool that emits a file
-                and stops leaves the contributor to work that out alone.
-
-                Grouped by who does the sending, and stacked rather than laid
-                side by side: in a column the grouping is what the shared card
-                says, and the sidebar can scroll on its own while the diff
-                stays put.
-              */}
-              {!patchLoading && patchHasChanges && (
-                <div className="patch-destinations">
-                  <div>
-                  <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>Where this patch goes</div>
-                  <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>The pull request is the one the app sends for you. The others save a file for you to send.</div>
-                  </div>
-
-                  {renderOwnershipWarning()}
-
-                  {/*
-                    Alone in its own group, because it is the one destination
-                    that acts for the contributor: it signs them in, forks, and
-                    pushes. That is also where the signup cliff is (#167), named
-                    here before anything happens rather than sprung after they
-                    have left the venue.
-                  */}
-                  <DestinationGroup>
-                    <PullRequestDestination
-                      pr={prSubmission}
-                      project={project}
-                      workItem={workItem}
-                      ticket={tracTicket}
-                      refusal={prSubmissionBlocked({ pullRequest, appliedPatch, appliedPatchLabel })}
-                      onSavePatch={savePatch}
-                    />
-                  </DestinationGroup>
-
-                  <DestinationGroup>
-                    {showTracCards ? (
-                    <TracDestination
-                      ticket={tracTicket}
-                      saveDisabled={Boolean(appliedPatch || pullRequest)}
-                      onSave={saveForTrac}
-                      ticketInput={ticketInput}
-                      onTicketInputChange={(value) => { setTicketInput(value); setTicketError(''); }}
-                      onLinkTicket={linkTicket}
-                      linking={ticketSaving}
-                      linkReason={ticketActionsReason}
-                      ticketError={ticketError}
-                    >
-                      {switchProgressLine}
-                      {savedCleanNotice}
-                      {blockedPanel}
-                    </TracDestination>
-                    ) : null}
-
-                    <MentorHandoff wporg={wporg} saveDisabled={Boolean(appliedPatch || pullRequest)} onSave={saveForHandoff} />
-                  </DestinationGroup>
-                  </div>
-              )}
-            </div>
-          </div>
-        </Modal>
+            <MentorHandoff wporg={wporg} saveDisabled={Boolean(appliedPatch || pullRequest)} onSave={saveForHandoff} />
+          </DestinationGroup>
+        </ReviewDialog>
       )}
       {activeEmail && (
         <EmailModal email={activeEmail} onClose={closeEmail} />
