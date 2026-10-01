@@ -88,6 +88,10 @@ const deleteSiteMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Dele
 const startDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Start dev server', exact: true } );
 // The same button once the server has an address; while it is still starting it reads neither.
 const stopDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Stop dev server', exact: true } );
+// The build watch's one button, by what it offers: it reads "Stop" while the
+// watch is building or watching, and "Start" the rest of the time.
+const startBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Start build watch', exact: true } );
+const stopBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Stop build watch', exact: true } );
 const reviewChangesButton = ( page ) => page.getByRole( 'button', { name: 'Review & submit changes', exact: true } );
 const retryInstallButton = ( page ) => page.getByRole( 'button', { name: 'Retry install & build', exact: true } );
 // Where keys go when the site's terminal is typed in. What the terminal shows
@@ -234,6 +238,8 @@ module.exports = {
 	deleteSiteMenuItem,
 	startDevServerButton,
 	stopDevServerButton,
+	startBuildWatchButton,
+	stopBuildWatchButton,
 	reviewChangesButton,
 	retryInstallButton,
 	terminalInput,

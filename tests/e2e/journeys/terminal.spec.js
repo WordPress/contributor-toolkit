@@ -84,12 +84,17 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	};
 	const terminalCard = ui.card( page, 'Terminal' );
 	const buildHint = terminalCard.getByRole( 'button', { name: 'npm run build', exact: true } );
+	// A button elsewhere on the site's view that waits for a build or an
+	// install to end, and for nothing the terminal's own lock knows: it is
+	// how the test sees that the rest of the view was told one is running.
+	const patchFile = ui.choosePatchFileButton( page );
 
 	// CHARACTERISATION — it opens on what it can do, with the scripts this
 	// project allows named in the help, and under it the hints are links.
 	await expect( screen ).toContainText( 'WordPress npm helper terminal.', { timeout: 30_000 } );
 	await expect( screen ).toContainText( 'Run one of: build, build:dev, dev, test, watch, grunt' );
 	await expect( buildHint ).toBeVisible();
+	await expect( patchFile ).toBeEnabled();
 
 	// INVARIANT — what it does not know it refuses by name, and it runs
 	// nothing. CHARACTERISATION — the scripts it names are Core's today.
@@ -145,8 +150,14 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	await terminal.press( 'Enter' );
 	await expect.poll( async () => ( await asked() ).scripts ).toHaveLength( 2 );
 	expect( ( await asked() ).scripts[ 1 ].name ).toBe( 'build' );
+
+	// INVARIANT — a build that is running is known to the rest of the site's
+	// view, which will not put a patch on a tree that is being built, and so
+	// is its ending.
+	await expect( patchFile ).toBeDisabled();
 	await tell( 'npm:run-script:done', { runId: 'e2e-run-2', code: 0 } );
 	await expect( screen ).toContainText( 'npm run build exited with code 0' );
+	await expect( patchFile ).toBeEnabled();
 
 	// INVARIANT — it is still the terminal it was. A build that ends has the
 	// site's status read again and the view drawn again before this line is
@@ -170,10 +181,13 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	await enter( 'npm install' );
 	await expect( screen ).toContainText( 'Running npm install…' );
 	await expect.poll( async () => ( await asked() ).installs ).toEqual( [ site.dir ] );
+	// INVARIANT — and so is an install that is running.
+	await expect( patchFile ).toBeDisabled();
 	await tell( 'npm:install:log', { installId: 'e2e-install-1', type: 'stdout', data: 'added 1 package\n' } );
 	await expect( screen ).toContainText( 'added 1 package' );
 	await tell( 'npm:install:done', { installId: 'e2e-install-1', code: 0 } );
 	await expect( screen ).toContainText( 'npm install exited with code 0' );
+	await expect( patchFile ).toBeEnabled();
 
 	// CHARACTERISATION — its short name runs it too. The third, a bare
 	// `install`, is not typed here.

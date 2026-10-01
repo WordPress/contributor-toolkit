@@ -28,9 +28,9 @@ import '@xterm/xterm/css/xterm.css';
 import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision, setupStepLabel } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
-import { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
-import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from './watch-waiters.cjs';
-import { createWatchActivity, compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState } from './watch-activity.cjs';
+import { serveWithoutWatch, formatElapsed, watchTabLabel } from './dev-server-command.cjs';
+import { watchOccupiesBuild } from './watch-waiters.cjs';
+import { compilingMessage, watchBusyMessage, applyFinishMessage, resumedWatchHandOff, appliedBannerState } from './watch-activity.cjs';
 import { planUpdateHandOff } from './update-handoff.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { applyLocale } from './locale-setup.cjs';
@@ -81,6 +81,8 @@ import { usePullRequest } from './hooks/use-pull-request.jsx';
 import { useSiteMail } from './hooks/use-site-mail.jsx';
 import { useSiteLogs } from './hooks/use-site-logs.jsx';
 import { useSiteTerminal, TERMINAL_FONT } from './hooks/use-site-terminal.jsx';
+import { useSiteScripts } from './hooks/use-site-scripts.jsx';
+import { useBuildWatch } from './hooks/use-build-watch.jsx';
 import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
 // Shared by every log pane so the tabs cannot drift apart visually. The line
@@ -824,83 +826,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const [serverUrl, setServerUrl] = useState('');
   const [starting, setStarting] = useState(false);
   const [running, setRunning] = useState(false);
-  const [installing, setInstalling] = useState(false);
   // What this site's processes have said (#554): the text of the Logs panel's
   // panes, which tab is open and the debug.log tail. Whoever runs a process
   // appends to its pane, so the functions those callbacks call are taken out
   // by name; each keeps its identity, which their dependency lists rely on.
   const logs = useSiteLogs({ sitePath });
   const { appendNpm, appendRuntime, appendWatch, ensureStick, selectTab: selectLogTab, startDebugTail, stopDebugTail } = logs;
-  // The build watcher (the target's, see project-type.cjs) runs decoupled from the PHP server (issue
-  // #247): its own output tab, its own lifecycle. `watchState` drives the tab
-  // title; `watchExitCode` is only read when the state is 'exited'.
-  const [watchState, setWatchState] = useState('idle');
-  const [watchExitCode, setWatchExitCode] = useState(null);
-  // Ref mirror for the inline reads (guards, callbacks) that must not wait for a
-  // re-render, the same split as terminalRunning/terminalStateRef below.
-  const watchStateRef = useRef('idle');
-  // Set while the watcher is (or was) live, so a pause knows whether a resume
-  // has anything to bring back. Survives the process being killed for a pause.
-  const watchWasActiveRef = useRef(false);
-  // True while the last thing to touch build/ was a watch rebuild that did not
-  // finish: stopped or crashed while 'building'. build/ may then be empty or
-  // half written whatever the status's marker file says, so the server does
-  // not start on it without a watch (#499, serveWithoutWatch). Cleared when a
-  // watch reaches watching or a one-shot npm run build exits 0.
-  // The ref is what the callbacks read; the state is what the applied banner
-  // reads (#509), so both move together.
-  const buildInterruptedRef = useRef(false);
-  const [buildInterrupted, setBuildInterrupted] = useState(false);
-  const markBuildInterrupted = useCallback((interrupted) => {
-    buildInterruptedRef.current = interrupted;
-    setBuildInterrupted(interrupted);
-  }, []);
-  const markWatchState = useCallback((state, code = null) => {
-    watchStateRef.current = state;
-    setWatchState(state);
-    if (state === 'exited') setWatchExitCode(Number.isFinite(code) ? code : null);
-  }, []);
-  // Whoever is waiting for the watch to be ready to serve behind — the dev
-  // server start, today. The queue and its settle-once rule live in
-  // watch-waiters.cjs; a ref because the watcher's output handler settles it
-  // from outside a render (#488).
-  const watchWaitersRef = useRef(createWatchWaiters());
-  // Which apply's hand-off to the resumed watch is current (#506). The waiters
-  // survive a pause (a queued dev-server start is meant to), so an apply's
-  // waiter left over from a rebuild that a later pause cut short, or that a
-  // later src-only apply overtook, would fire on the ready line and confirm an
-  // apply already reported. Every apply, switch and pause invalidates the
-  // generation; the callbacks check the token they were registered under. Same
-  // mechanism as the watch runs (createRunGeneration), for the same reason.
-  const applyHandOffRef = useRef(createRunGeneration());
   // The watch decision a saved-work restore made in begin, for its complete.
   const switchImpactRef = useRef(null);
-  const settleWatchWaiters = useCallback((ready) => { watchWaitersRef.current.settle(ready); }, []);
-  // Which watcher run is current. A stop returns before the process has
-  // exited, so a run started right after inherits the old run's late
-  // callbacks; each callback checks the token it was started with and leaves
-  // a replaced run's state alone (#488).
-  const watchGenerationRef = useRef(createRunGeneration());
-  // Whether the watch is still compiling a change just handed to it (#492).
-  // The ref keeps the timestamps; the state is what the banner and the tab
-  // title read. A 500 ms tick while compiling is what flips it back.
-  const watchActivityRef = useRef(createWatchActivity());
-  const [watchCompiling, setWatchCompiling] = useState(false);
-  useEffect(() => {
-    if (!watchCompiling) return undefined;
-    const tick = setInterval(() => {
-      if (!watchActivityRef.current.isCompiling(Date.now())) setWatchCompiling(false);
-    }, 500);
-    return () => clearInterval(tick);
-  }, [watchCompiling]);
-  const handOffToWatch = useCallback(() => {
-    watchActivityRef.current.handOff(Date.now());
-    setWatchCompiling(true);
-  }, []);
-  const clearWatchActivity = useCallback(() => {
-    watchActivityRef.current.clear();
-    setWatchCompiling(false);
-  }, []);
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [patchText, setPatchText] = useState('');
   const [patchLoading, setPatchLoading] = useState(false);
@@ -929,14 +862,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // identity, which the callbacks that list them as dependencies rely on.
   const mail = useSiteMail({ sitePath });
   const { listen: listenForMail, stopListening: stopListeningForMail, load: loadMail } = mail;
-  const [building, setBuilding] = useState(false);
   const [hasNodeModules, setHasNodeModules] = useState(false);
   const [installFailed, setInstallFailed] = useState(false);
-  // The build's counterpart to installFailed — session-local, because only the
-  // install outcome is persisted (main.js records it on the site's meta). After
-  // a restart a failed build reads "Ready" again, which is the honest fallback:
-  // the app knows there is no build on disk, just not that the last attempt lost.
-  const [buildFailed, setBuildFailed] = useState(false);
   const [hasBuilt, setHasBuilt] = useState(false);
   // Which target this site is a checkout of (#251): the site record's field,
   // carried by the placeholder from the moment the dialog closes, and Core
@@ -1067,19 +994,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const savedPatchPathRef = useRef(null);
   const setupLogsRef = useRef('');
 
-  const currentRunIdRef = useRef(null);
-  // The watcher's own run handle, kept apart from currentRunIdRef so it can be
-  // killed on its own (pause, dev-server stop) without disturbing whatever
-  // one-shot the terminal is tracking.
-  const watchRunIdRef = useRef(null);
-  // Independence has a cost: nothing else tears the watcher down now, so when
-  // this site view unmounts (site switch, window teardown) its process would be
-  // orphaned. Kill it on unmount / before switching sites.
-  useEffect(() => () => {
-    watchGenerationRef.current.invalidate();
-    const runId = watchRunIdRef.current;
-    if (runId) window.api.npmKill({ runId, directoryPath: sitePath }).catch(() => {});
-  }, [sitePath]);
   const siteName = pathBasename(sitePath);
   const displayName = (label && label.trim()) || siteName;
   // Whether the rename dialog is up. Everything else about it, the value being
@@ -1170,14 +1084,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
 
-  // The count is on the tab rather than beside it because the tab is what the
-  // contributor is not looking at: a notice landing while they read the server
-  // output is the case this panel exists for.
-  const logTabs = useMemo(() => ([
-    { name: 'runtime', title: 'Server' },
-    { name: 'watch', title: watchTabLabel(watchState, watchExitCode, watchCompiling) },
-    { name: 'debug', title: logs.debugUnread ? `debug.log (${logs.debugUnread})` : 'debug.log' }
-  ]), [logs.debugUnread, watchState, watchExitCode, watchCompiling]);
   const loadStatus = useCallback(async ()=>{
     try {
       setStatusLoading(true);
@@ -1554,90 +1460,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     }
   }, [sitePath, loadBranches, loadStatus, reprobeAfterBranchChange]);
 
-  const runInstall = useCallback((options = {}) => {
-    const { onLog, onDone } = options;
-    setInstalling(true);
-    ensureStick('npm');
-    window.api.runNpmInstall(sitePath, ({ data }) => {
-      appendNpm(data);
-      if (onLog) onLog(data);
-    }, async ({ code }) => {
-      appendNpm(`\ninstall exited with code ${code}\n`);
-      setInstalling(false);
-      // A failed install must not mark the site initialized (#42): the wizard
-      // would advance to a build that cannot work. Leaving the step incomplete
-      // keeps the install button available for a retry.
-      if (code === 0) { try { await window.api.markSiteInitialized(sitePath); } catch {} onInitialized(sitePath); }
-      try { await loadStatus(); } catch {}
-      if (onDone) onDone({ code });
-    }).catch((error) => {
-      // A start that never got as far as a run id, so no done event is coming
-      // for it (#43): without this the button stays spinning on a run that does
-      // not exist. Same shape as runScript's catch.
-      appendNpm(`\nFailed to start npm install: ${error && error.message ? error.message : String(error)}\n`);
-      setInstalling(false);
-      if (onDone) onDone({ code: -1 });
-    });
-  }, [appendNpm, ensureStick, loadStatus, onInitialized, sitePath]);
-
-  // `track` (default) records the run in currentRunIdRef so killCurrent/Ctrl+C
-  // reach it; the decoupled watcher passes track:false and takes its runId
-  // through onStart into its own ref instead. `mirrorToNpm` (default) copies the
-  // output into the shared npm buffer; the watcher passes false so its stream
-  // stays in its own tab (and does not grow that buffer without bound).
-  const runScript = useCallback((name, options = {}) => {
-    const { onLog, onDone, args = [], track = true, mirrorToNpm = true, onStart } = options;
-    ensureStick('npm');
-    // Clearing the failure here rather than on the next exit is what stops the
-    // step reading "Failed" while its own retry is streaming to the terminal.
-    if (name === 'build') { setBuilding(true); setBuildFailed(false); }
-    if (track) currentRunIdRef.current = null;
-    return window.api.runNpmScript(sitePath, name, args, ({ data }) => {
-      if (mirrorToNpm) appendNpm(data);
-      if (onLog) onLog(data);
-    }, async ({ code }) => {
-      if (mirrorToNpm) appendNpm(`\n${name} exited with code ${code}\n`);
-      if (name === 'build') {
-        setBuilding(false);
-        setBuildFailed(code !== 0);
-        if (code === 0) markBuildInterrupted(false);
-        try { await loadStatus(); } catch {}
-      }
-      if (track) currentRunIdRef.current = null;
-      if (onDone) onDone({ code });
-    }).then(({ runId }) => {
-      if (track) currentRunIdRef.current = runId;
-      if (onStart) onStart(runId);
-    }).catch((error) => {
-      if (track) currentRunIdRef.current = null;
-      if (mirrorToNpm) appendNpm(`\nFailed to start npm run ${name}: ${error && error.message ? error.message : String(error)}\n`);
-      if (name === 'build') setBuilding(false);
-      if (onDone) onDone({ code: -1 });
-    });
-  }, [appendNpm, ensureStick, loadStatus, markBuildInterrupted, sitePath]);
-
-  const killCurrent = useCallback(async () => {
-    const runId = currentRunIdRef.current;
-    try {
-      await window.api.npmKill({ runId, directoryPath: sitePath });
-    } finally {
-      currentRunIdRef.current = null;
-    }
-  }, [sitePath]);
-
-  // Kills only the watcher, by its own runId, so stopping or pausing it never
-  // reaches whatever one-shot currentRunIdRef is tracking. Kill by runId is
-  // exact: the watcher is always stopped before any other per-directory run
-  // starts, so main's one-per-directory fallback is never contended.
-  const killWatcher = useCallback(async () => {
-    const runId = watchRunIdRef.current;
-    if (!runId) return;
-    try {
-      await window.api.npmKill({ runId, directoryPath: sitePath });
-    } finally {
-      watchRunIdRef.current = null;
-    }
-  }, [sitePath]);
+  // The npm runs this view starts (#554): the install and the scripts, and the
+  // flags the rest of the view reads about them. Called here because it needs
+  // `loadStatus` above; the terminal and the build watch below run through it.
+  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized });
 
   // The site's terminal (#554): the xterm instance, what is typed in it and
   // the commands it runs through the three runners above. The lock, the kill
@@ -1724,7 +1550,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     // The watcher is independent now (#247): stopping the dev server leaves it
     // running, so a contributor can keep compiling on save without serving the
     // site. It is stopped only by its own control (stopWatcher).
-  }, [markTerminalRunning, setRunning, setServerUrl, setStarting, setWaitingForWatch, sitePath, stopDebugTail, stopListeningForMail, terminalKillRef]);
+  }, [currentRunIdRef, markTerminalRunning, setRunning, setServerUrl, setStarting, setWaitingForWatch, sitePath, stopDebugTail, stopListeningForMail, terminalKillRef]);
 
   const startPhpServer = useCallback(async () => {
     if (serverStartRequestedRef.current || stoppingRef.current || !devServerActiveRef.current) {
@@ -1788,172 +1614,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     await loadMail();
   }, [appendRuntime, ensureStick, listenForMail, loadMail, setRunning, setServerUrl, setStarting, sitePath, startDebugTail, stopDevServer]);
 
-  // The watcher process itself (the target's; grunt _watch on Core), streaming
-  // into its own tab. No terminal lock, no server coupling — that independence
-  // is the point of #247.
-  //
-  // When the watcher is ready to serve behind depends on the target (#488).
-  // Core's grunt _watch touches nothing on start, so it is ready at once.
-  // Gutenberg's npm run dev removes build/ and rebuilds it first, so the state
-  // stays 'building' until the watcher prints the registry's readyPattern; a
-  // server started before that line serves a plugin with no build/. The
-  // waiters (the dev-server start) are settled either way: ready when the
-  // watcher is, failed if it exits or is stopped first.
-  const startWatchProcess = useCallback(() => {
-    const plan = planDevServerStart({ hasBuilt: true }, projectBuild);
-    const readiness = createWatchReadyDetector(plan.watch.readyPattern);
-    const generation = watchGenerationRef.current;
-    const token = generation.next();
-    markWatchState(readiness.immediate ? 'watching' : 'building');
-    watchWasActiveRef.current = true;
-    appendWatch(`Running ${plan.watch.label}…\n`);
-    if (!readiness.immediate) appendWatch(`${plan.watch.label} rebuilds build/ before it watches. The dev server, if you started it, waits for "${plan.watch.readyPattern}".\n`);
-    if (readiness.immediate) settleWatchWaiters(true);
-    runScript(plan.watch.script, {
-      args: plan.watch.args,
-      track: false,
-      mirrorToNpm: false,
-      onStart: (runId) => {
-        // Stopped before the spawn resolved: this run must not be recorded as
-        // the live watcher, and its process would otherwise outlive the stop.
-        if (!generation.isCurrent(token)) { window.api.npmKill({ runId, directoryPath: sitePath }).catch(() => {}); return; }
-        watchRunIdRef.current = runId;
-      },
-      onLog: (chunk) => {
-        appendWatch(chunk);
-        if (!generation.isCurrent(token)) return;
-        // A line within the grace period can reopen a window the tick had
-        // already closed (#492); the state has to follow the ref, or the
-        // banner stays clear while the rebuild runs. The tick closes it.
-        const now = Date.now();
-        watchActivityRef.current.output(now);
-        if (watchActivityRef.current.isCompiling(now)) setWatchCompiling(true);
-        if (readiness.feed(chunk) && watchStateRef.current === 'building') {
-          markBuildInterrupted(false);
-          markWatchState('watching');
-          settleWatchWaiters(true);
-        }
-      },
-      onDone: ({ code }) => {
-        appendWatch(`\n${plan.watch.label} exited with code ${code}\n`);
-        // A replaced run's exit says nothing about the run that replaced it.
-        if (!generation.isCurrent(token)) return;
-        watchRunIdRef.current = null;
-        clearWatchActivity();
-        // A watcher exit never touches a running server (#247). Only an
-        // unexpected exit flips the tab to 'exited'; a stop/pause we asked for
-        // has already moved the state to 'idle'/'paused', so leave it be. A
-        // server still waiting to start behind it does not get to: without a
-        // completed build/ there is nothing to serve.
-        if (watchOccupiesBuild(watchStateRef.current)) {
-          if (watchStateRef.current === 'building') markBuildInterrupted(true);
-          markWatchState('exited', code);
-          watchWasActiveRef.current = false;
-        }
-        settleWatchWaiters(false);
-      }
-    });
-  }, [appendWatch, clearWatchActivity, markBuildInterrupted, markWatchState, projectBuild, runScript, settleWatchWaiters, sitePath]);
-
-  // Start the build watch, building first if the site has no completed build
-  // (the _watch task deliberately skips that full build). `onReady` fires once
-  // build/ is complete and the watch is watching — the server start hangs off
-  // it, but the watch stays independent afterwards. `onFail` fires instead if
-  // the watch never gets there: the build failed, the watcher exited or was
-  // stopped first. A start requested while a watch is already on its way
-  // queues behind that one rather than being dropped.
-  const startBuildWatch = useCallback(({ onReady, onFail } = {}) => {
-    const s = watchStateRef.current;
-    if (s === 'watching') { if (onReady) onReady(); return; }
-    watchWaitersRef.current.add(onReady, onFail);
-    if (s === 'building') return; // already on its way to watching
-    if (!hasBuilt) {
-      // Fresh / skip-the-wizard sites need one full build before anything can
-      // watch or serve. It is a one-shot, so it holds the terminal lock while
-      // it runs; the watch that follows does not. Reveal the tab so the build
-      // is visible.
-      const state = terminalStateRef.current;
-      if (state.running) { appendWatch('A command is already running in the terminal — stop it before starting the build watch.\n'); settleWatchWaiters(false); return; }
-      selectLogTab('watch');
-      markWatchState('building');
-      watchWasActiveRef.current = true;
-      markTerminalRunning(true);
-      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-      appendWatch('No completed build found — running npm run build first…\n');
-      runScript('build', {
-        mirrorToNpm: false,
-        onLog: (chunk) => { appendWatch(chunk); },
-        onDone: ({ code }) => {
-          markTerminalRunning(false);
-          terminalKillRef.current = null;
-          if (code !== 0 || watchStateRef.current !== 'building') {
-            if (code !== 0) { appendWatch(`\nnpm run build failed with code ${code} — build watch not started.\n`); markWatchState('exited', code); }
-            else markWatchState('idle');
-            watchWasActiveRef.current = false;
-            settleWatchWaiters(false);
-            return;
-          }
-          startWatchProcess();
-        }
-      });
-    } else {
-      startWatchProcess();
-    }
-  }, [appendWatch, hasBuilt, killCurrent, markTerminalRunning, markWatchState, runScript, selectLogTab, settleWatchWaiters, startWatchProcess, terminalKillRef, terminalStateRef]);
-
-  // User-initiated stop of the watch (its own button). Never touches the server.
-  const stopWatcher = useCallback(async () => {
-    const wasBuilding = watchStateRef.current === 'building';
-    if (wasBuilding) markBuildInterrupted(true);
-    markWatchState('idle');
-    watchWasActiveRef.current = false;
-    // From here the run being stopped is history: its late exit must not
-    // touch whatever starts next.
-    watchGenerationRef.current.invalidate();
-    clearWatchActivity();
-    // A server waiting to start behind this watch is not going to.
-    settleWatchWaiters(false);
-    if (watchRunIdRef.current) {
-      try { await killWatcher(); } catch {}
-    } else if (wasBuilding) {
-      // Still in the one-shot build phase — that run is the tracked one.
-      try { await killCurrent(); } catch {}
-      markTerminalRunning(false);
-      terminalKillRef.current = null;
-    }
-  }, [clearWatchActivity, killCurrent, killWatcher, markBuildInterrupted, markTerminalRunning, markWatchState, settleWatchWaiters, terminalKillRef]);
-
-  // Pause the watch for an operation that needs the build directory and
-  // node_modules to itself — an install, a full build, a trunk reset (#262).
-  // Returns whether it actually paused, so a caller can log accordingly; resume
-  // is safe to call unconditionally since it no-ops unless the state is 'paused'.
-  const pauseWatcher = useCallback(async () => {
-    if (watchStateRef.current !== 'watching' && watchStateRef.current !== 'building') return false;
-    markWatchState('paused');
-    watchGenerationRef.current.invalidate();
-    applyHandOffRef.current.invalidate();
-    clearWatchActivity();
-    appendWatch('\nPaused while another operation uses the build.\n');
-    try { await killWatcher(); } catch {}
-    return true;
-  }, [appendWatch, clearWatchActivity, killWatcher, markWatchState]);
-
-  // Bring the watch back after a pause. Guarded on 'paused' so a dev-server stop
-  // or a manual stop mid-operation (which sets 'idle') is never resurrected.
-  const resumeWatcher = useCallback(() => {
-    if (watchStateRef.current !== 'paused') return;
-    appendWatch('\nResumed.\n');
-    startWatchProcess();
-  }, [appendWatch, startWatchProcess]);
-
-  const toggleWatch = useCallback(() => {
-    const s = watchStateRef.current;
-    if (s === 'watching' || s === 'building') { stopWatcher(); return; }
-    // Starting it from its own button reveals the tab, whether or not a build
-    // runs first — that is where its output and state live.
-    selectLogTab('watch');
-    startBuildWatch();
-  }, [selectLogTab, startBuildWatch, stopWatcher]);
+  // The build watch (#554): its state, its run and what can be done to it. It
+  // is called here because it needs the script runner and the terminal's lock
+  // above. What the chains below use of it is taken out by name.
+  const { watchState, watchExitCode, watchCompiling, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, startBuildWatch, pauseWatcher, resumeWatcher, toggleWatch } = useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, terminalStateRef, terminalKillRef, markTerminalRunning });
+  // The count is on the tab rather than beside it because the tab is what the
+  // contributor is not looking at: a notice landing while they read the server
+  // output is the case this panel exists for.
+  const logTabs = useMemo(() => ([
+    { name: 'runtime', title: 'Server' },
+    { name: 'watch', title: watchTabLabel(watchState, watchExitCode, watchCompiling) },
+    { name: 'debug', title: logs.debugUnread ? `debug.log (${logs.debugUnread})` : 'debug.log' }
+  ]), [logs.debugUnread, watchState, watchExitCode, watchCompiling]);
 
   const toggleDevServer = async ()=>{
     if (!running) {
