@@ -154,3 +154,94 @@ test('the preload stays inert without the flag the shim sets', (t) => {
 
 	assert.equal(runtime.electron, process.versions.electron);
 });
+
+// SHAKE256 (#586). Electron's BoringSSL has none, and npm's isolated installer
+// names node_modules/.store with it, so a project on `install-strategy = linked`
+// (Gutenberg, since WordPress/gutenberg#83847) cannot install. The vectors are
+// from OpenSSL, so they pin the real hash on either runtime: the .store names
+// must match what plain Node produces, not merely be stable.
+const { provideShake256, Shake256 } = require('../../src/electron-node-compat.js');
+
+const SHAKE256_VECTORS = [
+	{ input: '', length: 32, hex: '46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762f' },
+	{ input: 'abc', length: 16, hex: '483366601360a8771c6863080cc4114d' },
+	// Longer than one 136-byte block, so absorbing crosses a permutation.
+	{ input: 'a'.repeat(200), length: 64, hex: 'e49647491c9d12d125a2f75826c96f6307d2fabebcbb9fb1616d76b09499380e8bcf60f72750879140e73fb7453a979b69d25efa8de613462f108ce7f2f1d7c5' }
+];
+
+test('Shake256 produces the real SHAKE256', () => {
+	for (const { input, length, hex } of SHAKE256_VECTORS) {
+		assert.equal(new Shake256({ outputLength: length }).update(input).digest('hex'), hex);
+	}
+	// Default length, and input split across update() calls.
+	assert.equal(
+		new Shake256().update('a'.repeat(150)).update('a'.repeat(50)).digest('hex'),
+		SHAKE256_VECTORS[2].hex.slice(0, 64)
+	);
+});
+
+// Where the runtime has its own SHAKE256 (plain Node), the two must agree at
+// every boundary: input and output either side of a 136-byte block.
+test('Shake256 agrees with the runtime at block boundaries', (t) => {
+	const crypto = require('node:crypto');
+	try {
+		crypto.createHash('shake256', { outputLength: 16 });
+	} catch {
+		return t.skip('needs a runtime with SHAKE256');
+	}
+	for (const inputLength of [0, 135, 136, 137, 1000]) {
+		const input = Buffer.alloc(inputLength).map((_, i) => (i * 31 + 7) % 256);
+		for (const outputLength of [0, 16, 136, 137, 300]) {
+			assert.equal(
+				new Shake256({ outputLength }).update(input).digest('hex'),
+				crypto.createHash('shake256', { outputLength }).update(input).digest('hex'),
+				`input ${inputLength}, output ${outputLength}`
+			);
+		}
+	}
+});
+
+// The call npm makes, on a crypto that throws the way Electron's does.
+test('provideShake256 fills in shake256 and leaves every other algorithm alone', () => {
+	const calls = [];
+	const electronLike = {
+		createHash(algorithm) {
+			calls.push(algorithm);
+			if (algorithm === 'shake256') throw new Error('Digest method not supported');
+			return { algorithm };
+		}
+	};
+
+	assert.equal(provideShake256(electronLike), true);
+	assert.equal(
+		electronLike.createHash('shake256', { outputLength: 16 }).update('abc').digest('hex'),
+		SHAKE256_VECTORS[1].hex
+	);
+	assert.deepEqual(electronLike.createHash('sha512'), { algorithm: 'sha512' });
+	assert.deepEqual(calls, ['shake256', 'sha512']);
+});
+
+test('provideShake256 changes nothing where the runtime already has it', () => {
+	const createHash = () => ({});
+	const plainNode = { createHash };
+
+	assert.equal(provideShake256(plainNode), false);
+	assert.equal(plainNode.createHash, createHash);
+});
+
+// The failure itself, end to end: the hash npm's isolated installer computes,
+// in a child started the way the shim starts one. Under `npm run test:electron`
+// this is red without the preload.
+test('a child started the way the shim starts one can hash with shake256', () => {
+	const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1', [COMPAT_FLAG]: '1' };
+	const script = "process.stdout.write(require('node:crypto').createHash('shake256', { outputLength: 16 }).update('abc').digest('hex'))";
+	const result = spawnSync(process.execPath, ['--require', COMPAT_PATH, '-e', script], {
+		env,
+		encoding: 'utf8',
+		shell: false,
+		windowsHide: true
+	});
+
+	assert.equal(result.status, 0, `child failed: ${result.stderr}`);
+	assert.equal(result.stdout, SHAKE256_VECTORS[1].hex);
+});
