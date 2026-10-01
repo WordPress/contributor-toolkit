@@ -1189,7 +1189,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // the commands it runs through the three runners above. The lock, the kill
   // handler and the writer are taken out by name because every chain below
   // holds the lock and writes its progress there, as it always has.
-  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent });
+  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent, isActive });
   // The scroll root for the next-action cue (#252): the whole detail section, so
   // the cue can find whichever block is the next step wherever it sits.
   const nextActionSectionRef = useRef(null);

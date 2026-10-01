@@ -26,6 +26,14 @@
  * printed, so every sentence looked for is one that is printed for the first
  * time at its step.
  *
+ * The second journey is about a site that was not on screen when the app
+ * opened. Every site's view is in the document from launch and only
+ * the selected one is shown, so a terminal that lays its text out before its
+ * site is on screen does it against a box with no size. It drew every letter
+ * a whole cell apart and cut each line in half, and stayed that way once the
+ * site was opened. Nothing below the window can see that: it is a matter of
+ * what was measured, and when.
+ *
  * That it is one terminal from start to finish is pinned in two ways, and
  * not for every moment. A terminal made anew opens on its banner with
  * everything before it gone. One remade as the lock is taken or released has
@@ -199,4 +207,57 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	await expect( screen ).toContainText( 'npm install exited with code 1' );
 	await heard();
 	expect( ( await asked() ).scripts ).toHaveLength( 3 );
+} );
+
+// The longest line of the help the terminal prints as it starts: 75 of the
+// terminal's 80 columns, so it ends inside the terminal only when a character
+// takes one column.
+const LONGEST_HELP_LINE = 'The setup checklist runs npm install and npm run build once. Run them here';
+
+/**
+ * How far the line's text runs past the end of the terminal row that holds
+ * it, in pixels: nothing or less when it fits. Read from where the text is
+ * laid out, not from what is painted: the row clips what runs past it, which
+ * is how a line drawn too wide loses its second half. xterm draws each row as
+ * a `div` as wide as its 80 columns, with the text in `span`s inside it.
+ *
+ * @param {Object} page
+ * @return {Promise<number>} The overflow of the visible terminal's row.
+ */
+async function helpLineOverflow( page ) {
+	const row = page.locator( '.xterm-rows > div' ).filter( { hasText: LONGEST_HELP_LINE } ).filter( { visible: true } );
+	await expect( row ).toBeVisible();
+	return row.evaluate( ( element ) => {
+		const text = document.createRange();
+		text.selectNodeContents( element );
+		return Math.round( text.getBoundingClientRect().right - element.getBoundingClientRect().right );
+	} );
+}
+
+test( 'the terminal of a site that was not on screen at launch fits its text in its own width, like the one that was', async ( { session } ) => {
+	const first = await makeSite( session, { label: 'open-at-launch' } );
+	const second = await makeSite( session, { label: 'opened-later' } );
+	// The app opens on the newest site, so the older one starts out hidden.
+	second.settings.siteMeta[ second.dir ].createdAt = new Date( Date.now() - 7 * 24 * 60 * 60 * 1000 ).toISOString();
+	const { page } = await session.start( {
+		sites: [ first.dir, second.dir ],
+		siteMeta: { ...first.settings.siteMeta, ...second.settings.siteMeta },
+		preferences: {},
+	} );
+
+	// INVARIANT — the site the app opens on draws a character to a column.
+	await expect( ui.siteHeading( page, 'open-at-launch' ) ).toBeVisible( { timeout: 30_000 } );
+	expect( await helpLineOverflow( page ) ).toBeLessThanOrEqual( 0 );
+
+	// INVARIANT — and so does a site opened afterwards, whose terminal was
+	// made while its view was hidden.
+	await ui.sidebarEntry( page, 'opened-later' ).click();
+	await expect( ui.siteHeading( page, 'opened-later' ) ).toBeVisible();
+	expect( await helpLineOverflow( page ) ).toBeLessThanOrEqual( 0 );
+
+	// INVARIANT — going back, the first site's terminal still fits: being
+	// hidden and shown again does not undo it.
+	await ui.sidebarEntry( page, 'open-at-launch' ).click();
+	await expect( ui.siteHeading( page, 'open-at-launch' ) ).toBeVisible();
+	expect( await helpLineOverflow( page ) ).toBeLessThanOrEqual( 0 );
 } );
