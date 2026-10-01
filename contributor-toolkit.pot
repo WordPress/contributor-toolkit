@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-01T15:30:58+00:00\n"
+"POT-Creation-Date: 2026-10-01T15:44:26+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -76,7 +76,7 @@ msgstr ""
 msgid "Please choose where to create the site."
 msgstr ""
 
-#: src/renderer/index.jsx:3181
+#: src/renderer/index.jsx:3182
 msgid "WordPress Contributor Toolkit"
 msgstr ""
 
@@ -124,4 +124,9 @@ msgstr ""
 
 #: src/renderer/index.jsx:776
 msgid "Use the sidebar to create your first site."
+msgstr ""
+
+#: src/renderer/locale-setup.cjs:54
+msgctxt "text direction"
+msgid "ltr"
 msgstr ""
