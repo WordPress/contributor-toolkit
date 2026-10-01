@@ -123,8 +123,9 @@ const card = ( page, heading ) =>
 
 /**
  * A tab of the Logs panel, by the whole of its name. The name says what is
- * behind the tab as well as which it is: the build watch's reads "Build
- * watcher (watching)" while it watches, and debug.log's carries a count.
+ * behind the tab as well as which it is: the build watch's says what the
+ * watch is doing, "Build watcher (watching)" for one, and debug.log's carries
+ * a count.
  *
  * @param {Object} page
  * @param {string} name The tab's name, exactly.

@@ -83,9 +83,9 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 		await terminal.press( 'Enter' );
 	};
 	const buildHint = ui.terminalHint( page, 'npm run build' );
-	// A button elsewhere on the site's view that waits for a build or an
-	// install to end, and not for the terminal's lock: it is how the test sees
-	// that the rest of the view was told one is running.
+	// A button elsewhere on the site's view that waits for a build, an install
+	// or a trunk update to end, and not for the terminal's lock: it is how the
+	// test sees that the rest of the view was told one is running.
 	const patchFile = ui.choosePatchFileButton( page );
 
 	// CHARACTERISATION — it opens on what it can do, with the scripts this

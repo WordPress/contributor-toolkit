@@ -24,9 +24,12 @@
  *
  * Pausing the watch for an operation that needs the build to itself,
  * bringing it back, and handing it a change to compile are not here, and
- * they are in no other journey either. An update, an applied patch and a
- * restored pull request do all three, but their journeys run with no watch
- * running, where pausing and resuming do nothing.
+ * they are in no other journey either. An update and a restored pull request
+ * pause it and bring it back; an applied patch does that or hands it the
+ * change, depending on what the patch touches; a ticket switch that leaves it
+ * running hands it the files that moved. Their journeys all run with no
+ * watch running, where pausing and resuming do nothing and nothing is handed
+ * over.
  *
  * The watch's button is meant to open the watch's tab, and does not: the tab
  * panel cannot be switched from outside it, so the app changes what it

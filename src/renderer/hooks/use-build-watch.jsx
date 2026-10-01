@@ -6,7 +6,8 @@ import { createWatchActivity } from '../watch-activity.cjs';
 // The build watch (#247, #554): the process that compiles a contributor's
 // edits as they save them. Its state, the run it is, who is waiting for it to
 // be ready, and what can be done to it: start it, toggle it from its button
-// (the only way it is stopped), pause it, resume it, and hand it a change to
+// (which is how a contributor stops it, apart from Ctrl+C while its first
+// build holds the terminal), pause it, resume it, and hand it a change to
 // compile.
 //
 // It runs apart from the dev server and holds no terminal lock. The one
@@ -83,7 +84,7 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
     setWatchCompiling(false);
   }, []);
   // The watcher's own run handle, kept apart from currentRunIdRef so it can be
-  // killed on its own (pause, dev-server stop) without disturbing whatever
+  // killed on its own (a pause, its own stop) without disturbing whatever
   // one-shot the terminal is tracking.
   const watchRunIdRef = useRef(null);
   // Independence has a cost: nothing else tears the watcher down now, so when
