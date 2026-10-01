@@ -240,7 +240,7 @@ test( 'switching tickets does not take over a running terminal command', async (
 	const { page } = await session.start( site.settings );
 	await ui.linkTicket( page, TICKET );
 	await expect( ui.unlinkButton( page ) ).toBeEnabled();
-	const terminal = page.getByRole( 'textbox', { name: 'Terminal input' } );
+	const terminal = ui.terminalInput( page );
 	await terminal.pressSequentially( 'npm run test', { delay: 30 } );
 	await terminal.press( 'Enter' );
 	await expect.poll( () => { try { return read( site.dir, 'build/terminal-started' ); } catch { return null; } } ).toBe( 'ready' );

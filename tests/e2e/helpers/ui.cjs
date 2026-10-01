@@ -90,6 +90,9 @@ const startDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Star
 const stopDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Stop dev server', exact: true } );
 const reviewChangesButton = ( page ) => page.getByRole( 'button', { name: 'Review & submit changes', exact: true } );
 const retryInstallButton = ( page ) => page.getByRole( 'button', { name: 'Retry install & build', exact: true } );
+// Where keys go when the site's terminal is typed in. What the terminal shows
+// is not here: it has no role, and the one journey that reads it says how.
+const terminalInput = ( page ) => page.getByRole( 'textbox', { name: 'Terminal input' } );
 
 /**
  * A card of the site's view, by its heading.
@@ -233,6 +236,7 @@ module.exports = {
 	stopDevServerButton,
 	reviewChangesButton,
 	retryInstallButton,
+	terminalInput,
 	card,
 	ticketField,
 	linkTicketButton,
