@@ -202,7 +202,9 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	await runs.scriptPrints( 2, 'webpack compiled 12 modules\n' );
 	await runs.heard();
 	await expect( card ).toBeVisible();
-	await expect( updated ).toHaveCount( 0 );
+	// Read once and not waited for: the announcement goes away by itself, and
+	// waiting for it to be absent would pass once a wrong one had gone.
+	expect( await updated.count() ).toBe( 0 );
 	await expect( ui.stopBuildWatchButton( page ) ).toBeEnabled();
 	await expect( ui.startDevServerButton( page ) ).toBeDisabled();
 
