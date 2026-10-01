@@ -80,6 +80,8 @@ const updateTrunkMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Upd
 const deleteSiteMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Delete this site', exact: true } );
 
 const startDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Start dev server', exact: true } );
+// The link to the running site's dashboard, shown once the server is up.
+const adminLink = ( page ) => page.getByRole( 'link', { name: 'wp-admin', exact: true } );
 const reviewChangesButton = ( page ) => page.getByRole( 'button', { name: 'Review & submit changes', exact: true } );
 const retryInstallButton = ( page ) => page.getByRole( 'button', { name: 'Retry install & build', exact: true } );
 
@@ -221,6 +223,7 @@ module.exports = {
 	updateTrunkMenuItem,
 	deleteSiteMenuItem,
 	startDevServerButton,
+	adminLink,
 	reviewChangesButton,
 	retryInstallButton,
 	card,

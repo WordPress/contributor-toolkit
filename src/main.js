@@ -38,6 +38,7 @@ const { resolveRef, changesAgainst, readBlobs, readCommitInfo, treeEntryMode, bl
 const { cloneSite } = require('./git-clone.cjs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
+const { pinToOwnPage } = require('./window-navigation');
 const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
 const { removeTree } = require('./remove-tree');
 const { removePersistentPlaygroundSite } = require('./playground-storage.cjs');
@@ -542,6 +543,18 @@ async function stopSmtpServerForSite(sitePath) {
 // cannot tell them apart.
 let mainWindow = null;
 
+// How an address leaves the app for the contributor's browser, for the
+// renderer's `url:open` and for a link the main window refused to follow. Only
+// the schemes the app actually uses reach the OS — see external-url.js for why.
+// A refusal is logged rather than dropped so a future caller that trips the
+// guard shows up in the log file instead of just doing nothing.
+function openInBrowser(url) {
+	return openExternalUrl(url, {
+		openExternal: (target) => shell.openExternal(target),
+		onRefused: (description) => logEvent('url', `refused to open ${description} — only ${ALLOWED_URL_SCHEMES.join(', ')} are allowed`)
+	});
+}
+
 function createWindow() {
 	// A new page has not subscribed yet, so anything queued waits for its
 	// `deep-link:ready` rather than being sent into a page that is still loading.
@@ -561,6 +574,15 @@ function createWindow() {
 	// a ticket waiting when one starts keeps waiting for the page that follows
 	// rather than being flushed into one that is still loading.
 	mainWindow.webContents.on('did-start-loading', () => deepLinkQueue.reset());
+
+	// This is the window with the preload bridge, so it stays on the app's own
+	// page and opens no other (window-navigation.js). Nothing awaits the events
+	// behind that: a browser that could not be opened is logged here or nowhere.
+	pinToOwnPage(mainWindow.webContents, {
+		openInBrowser: (url) => {
+			openInBrowser(url).catch((e) => logError('url', `could not open ${describeRefused(url)}: ${String(e && e.message ? e.message : e)}`));
+		}
+	});
 
 	mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 }
@@ -3204,13 +3226,7 @@ ipcMain.handle('branches:delete', async (_e, sitePath, targetRef) => withRegiste
 	return { ok: true, deleted: targetRef, current: wasActive ? TRUNK : current, movedToTrunk: wasActive };
 }));
 
-// Only the schemes the app actually uses reach the OS — see external-url.js for
-// why. A refusal is logged rather than dropped so a future caller that trips the
-// guard shows up in the log file instead of just doing nothing.
-ipcMain.handle('url:open', async (_e, url) => openExternalUrl(url, {
-	openExternal: (target) => shell.openExternal(target),
-	onRefused: (description) => logEvent('url', `refused to open ${description} — only ${ALLOWED_URL_SCHEMES.join(', ')} are allowed`)
-}));
+ipcMain.handle('url:open', async (_e, url) => openInBrowser(url));
 
 // --- opening a site's code -----------------------------------------------
 //
