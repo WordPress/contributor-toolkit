@@ -10,9 +10,10 @@ import { useCallback, useRef, useState } from 'react';
 // update, an applied patch, a ticket switch and the build watch. They pass
 // `onLog` and `onDone` for what they do with a run's output and its end; what
 // is common to every run is here. An install that ends well marks the site
-// initialised, a build that ends reloads the site's status, and both are
-// copied into the install log's buffer, which `appendNpm` and `ensureStick`
-// are for.
+// initialised, an install or a build that ends reloads the site's status,
+// and a run's output is copied into the install log's buffer unless its
+// caller says not to, as the build watch does; `appendNpm` and `ensureStick`
+// are for that buffer.
 //
 // `loadStatus` reloads what the view knows about the site, and `onInitialized`
 // tells the window that a site has its dependencies.

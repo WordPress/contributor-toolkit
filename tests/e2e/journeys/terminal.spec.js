@@ -82,11 +82,10 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 		await type( text );
 		await terminal.press( 'Enter' );
 	};
-	const terminalCard = ui.card( page, 'Terminal' );
-	const buildHint = terminalCard.getByRole( 'button', { name: 'npm run build', exact: true } );
+	const buildHint = ui.terminalHint( page, 'npm run build' );
 	// A button elsewhere on the site's view that waits for a build or an
-	// install to end, and for nothing the terminal's own lock knows: it is
-	// how the test sees that the rest of the view was told one is running.
+	// install to end, and not for the terminal's lock: it is how the test sees
+	// that the rest of the view was told one is running.
 	const patchFile = ui.choosePatchFileButton( page );
 
 	// CHARACTERISATION — it opens on what it can do, with the scripts this
@@ -122,6 +121,9 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	await tell( 'npm:run-script:log', { runId: 'e2e-run-1', type: 'stdout', data: 'running 42 tests\n' } );
 	await expect( screen ).toContainText( 'running 42 tests' );
 	await expect( buildHint ).toHaveCount( 0 );
+	// And the lock alone does not make the button that waits for a build
+	// wait: this script is not one.
+	await expect( patchFile ).toBeEnabled();
 	await enter( 'npm run watch' );
 	await heard();
 	expect( ( await asked() ).scripts ).toHaveLength( 1 );

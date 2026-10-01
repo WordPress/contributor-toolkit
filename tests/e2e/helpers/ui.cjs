@@ -94,6 +94,10 @@ const startBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Sta
 const stopBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Stop build watch', exact: true } );
 const reviewChangesButton = ( page ) => page.getByRole( 'button', { name: 'Review & submit changes', exact: true } );
 const retryInstallButton = ( page ) => page.getByRole( 'button', { name: 'Retry install & build', exact: true } );
+// A command offered in the hints under the terminal. It is a button only while
+// the site is built and nothing is running; the rest of the time it is plain
+// text, or not there.
+const terminalHint = ( page, command ) => card( page, 'Terminal' ).getByRole( 'button', { name: command, exact: true } );
 // Where keys go when the site's terminal is typed in. What the terminal shows
 // is not here: it has no role, and the one journey that reads it says how.
 const terminalInput = ( page ) => page.getByRole( 'textbox', { name: 'Terminal input' } );
@@ -116,6 +120,17 @@ const card = ( page, heading ) =>
 		.locator( `div:has(> div:text-is("${ heading }"))` )
 		.filter( { visible: true } )
 		.last();
+
+/**
+ * A tab of the Logs panel, by the whole of its name. The name says what is
+ * behind the tab as well as which it is: the build watch's reads "Build
+ * watcher (watching)" while it watches, and debug.log's carries a count.
+ *
+ * @param {Object} page
+ * @param {string} name The tab's name, exactly.
+ * @return {Object} The locator.
+ */
+const logTab = ( page, name ) => page.getByRole( 'tab', { name, exact: true } );
 
 // --- The ticket or issue the site is working on ------------------------------
 
@@ -243,6 +258,8 @@ module.exports = {
 	reviewChangesButton,
 	retryInstallButton,
 	terminalInput,
+	terminalHint,
+	logTab,
 	card,
 	ticketField,
 	linkTicketButton,

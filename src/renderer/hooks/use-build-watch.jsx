@@ -5,8 +5,9 @@ import { createWatchActivity } from '../watch-activity.cjs';
 
 // The build watch (#247, #554): the process that compiles a contributor's
 // edits as they save them. Its state, the run it is, who is waiting for it to
-// be ready, and the five things that can be done to it: start, stop, pause,
-// resume, and hand it a change to compile.
+// be ready, and what can be done to it: start it, toggle it from its button
+// (the only way it is stopped), pause it, resume it, and hand it a change to
+// compile.
 //
 // It runs apart from the dev server and holds no terminal lock. The one
 // exception is a site with no build: the watch cannot start on nothing, so a
@@ -31,7 +32,8 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
   const [watchState, setWatchState] = useState('idle');
   const [watchExitCode, setWatchExitCode] = useState(null);
   // Ref mirror for the inline reads (guards, callbacks) that must not wait for a
-  // re-render, the same split as terminalRunning/terminalStateRef below.
+  // re-render, the same split as the terminal's terminalRunning and
+  // terminalStateRef.
   const watchStateRef = useRef('idle');
   // Set while the watcher is (or was) live, so a pause knows whether a resume
   // has anything to bring back. Survives the process being killed for a pause.

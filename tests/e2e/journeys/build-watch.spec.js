@@ -22,9 +22,11 @@
  * also leaves a `build/` behind, and here none appears, so a site that was
  * not built stays not built.
  *
- * Pausing the watch for an operation that needs the build to itself, and
- * bringing it back, are not here: an update, an applied patch or a restored
- * pull request does that, and those have journeys of their own.
+ * Pausing the watch for an operation that needs the build to itself,
+ * bringing it back, and handing it a change to compile are not here, and
+ * they are in no other journey either. An update, an applied patch and a
+ * restored pull request do all three, but their journeys run with no watch
+ * running, where pausing and resuming do nothing.
  *
  * The watch's button is meant to open the watch's tab, and does not: the tab
  * panel cannot be switched from outside it, so the app changes what it
@@ -76,13 +78,17 @@ test( 'the build watch starts and stops by its own button, prints in its own tab
 	const scripts = await standInForScripts( app, page );
 
 	const logs = ui.card( page, 'Logs' );
-	const tab = ( label ) => logs.getByRole( 'tab', { name: label, exact: true } );
+	const tab = ( label ) => ui.logTab( page, label );
 	const line = ( text ) => logs.getByText( text, { exact: true } );
-	const buildHint = ui.card( page, 'Terminal' ).getByRole( 'button', { name: 'npm run build', exact: true } );
+	const buildHint = ui.terminalHint( page, 'npm run build' );
 
 	// CHARACTERISATION — nothing is watching until it is asked to.
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( tab( 'Build watcher' ) ).toBeVisible();
+	// The hint under the terminal is a link only once the site's status has
+	// been read and says the site is built. Waiting for it is what keeps the
+	// click below from landing on a site not yet known to be built, where the
+	// button would run a build first.
 	await expect( buildHint ).toBeVisible();
 
 	// INVARIANT — its button starts the watcher in this site's directory, and
@@ -139,7 +145,7 @@ test( 'a site with no build is built before it is watched, by a build that holds
 	const scripts = await standInForScripts( app, page );
 
 	const logs = ui.card( page, 'Logs' );
-	const tab = ( label ) => logs.getByRole( 'tab', { name: label, exact: true } );
+	const tab = ( label ) => ui.logTab( page, label );
 	const line = ( text ) => logs.getByText( text, { exact: true } );
 	const terminal = ui.terminalInput( page );
 	const typeAndEnter = async ( text ) => {

@@ -130,14 +130,14 @@ for ( const target of TARGETS ) {
 					// first, for nothing. The button still offers the watch and its
 					// tab never went "building". Core's watch starts with the server.
 					await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
-					await expect( page.getByRole( 'tab', { name: 'Build watcher', exact: true } ) ).toBeVisible();
+					await expect( ui.logTab( page, 'Build watcher' ) ).toBeVisible();
 					// Start it by hand so the stop below, and the process-tree check
 					// after it, still exercise the watch. `npm run dev` removes build/
 					// and redoes the whole build before it watches: as long as the
 					// wizard's own build, which has taken from 9 to over 13 minutes on
 					// the macOS runner.
 					await ui.startBuildWatchButton( page ).click();
-					await expect( page.getByRole( 'tab', { name: 'Build watcher (watching)', exact: true } ) ).toBeVisible( { timeout: 30 * 60_000 } );
+					await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible( { timeout: 30 * 60_000 } );
 				}
 				await ui.stopBuildWatchButton( page ).click();
 				await ui.stopDevServerButton( page ).click();
