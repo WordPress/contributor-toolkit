@@ -1,8 +1,8 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { __ } from '@wordpress/i18n';
 import { check } from '@wordpress/icons';
 import { Badge, Button, Card, CollapsibleCard, Dialog, Icon, InputControl, Notice, Spinner, Stack, Tabs, Text } from '@wordpress/ui';
-import { applyCardWords, applyFailureWords, applyStepRows, checkoutNoticeIntent, conflictFileRows, previewWords } from '../apply-card.cjs';
+import { applyCardWords, applyFailureWords, applyStepRows, cardFold, checkoutNoticeIntent, conflictFileRows, previewWords } from '../apply-card.cjs';
 import { pullRequestState } from '../ticket-card.cjs';
 import { ReasonedUiButton } from './reasoned-button.jsx';
 
@@ -133,16 +133,16 @@ function ConflictFile({ item }) {
     <Stack direction="column" gap="xs">
       <Text variant="body-sm" className="apply-conflict-file">{file.heading}</Text>
       {file.regions.map((region) => (
-        // By index and not by line: a patch made of several can carry two
-        // changes that start on the same line.
         <div key={region.key} className="apply-conflict-region">
           {/* A line to search for and not a line number, where the patch
               gave one: copied into the editor's search, it lands on the
-              place. */}
+              place. The words around it are one sentence, cut where the
+              line goes. */}
           {region.anchor ? (
             <Stack direction="row" align="baseline" gap="xs" wrap="wrap">
-              <Text variant="body-sm">{__('Near')}</Text>
+              {region.near.before ? <Text variant="body-sm">{region.near.before}</Text> : null}
               <code className="apply-break-all">{region.anchor}</code>
+              {region.near.after ? <Text variant="body-sm">{region.near.after}</Text> : null}
             </Stack>
           ) : <Text variant="body-sm">{region.where}</Text>}
           {region.reason ? <Text variant="body-sm">{region.reason}</Text> : null}
@@ -207,6 +207,7 @@ function Failure({ failure }) {
  * to say besides its two fields it stays open.
  *
  * @param {Object}  props
+ * @param {Object}  props.cardRef    Put on the card, for focus to come into when the preview closes with nowhere else to go.
  * @param {boolean} props.patchFiles Whether the project takes patch files as well as pull requests.
  * @param {?Object} props.entry      Asking for one: `{ value, onChange, onSubmit, onChooseFile, disabled }`. Null while there is nothing to ask.
  * @param {?Object} props.applied    A patch applied now: `{ layer, watchMessage, onRevert, revertDisabled, exits }`, the first from applied-layer.cjs.
@@ -214,22 +215,22 @@ function Failure({ failure }) {
  * @param {?Object} props.failure    An apply that failed: `{ error, kind, conflict, exits, onDismiss, onTryAnother, onOpen }`.
  * @param {?Object} props.notice     Something that was settled along the way: `{ text, onDismiss }`.
  */
-export function ApplyCard({ patchFiles, entry, applied, progress, failure, notice }) {
+export function ApplyCard({ cardRef, patchFiles, entry, applied, progress, failure, notice }) {
   const words = applyCardWords(patchFiles);
   const titleId = useId();
-  // Folded by whoever is using it, and only by them: with something to say
-  // the card is open whatever they chose, and goes back to their choice
-  // when it has been said.
+  // What the contributor last chose. Whether the card is open, and whether
+  // that is theirs to change just now, is cardFold's to say.
   const [folded, setFolded] = useState(false);
-  // Which way in is open is the card's to remember: the fields go while a
-  // patch is applied, and come back on the tab they were left on.
+  // Which way in is open is the card's to remember: the fields go while an
+  // apply is under way, and come back on the tab they were left on.
   const [tab, setTab] = useState('pr');
-  const speaking = Boolean(applied || progress || failure || notice);
+  const fold = cardFold({ folded, speaking: Boolean(applied || progress || failure || notice) });
   return (
     <CollapsibleCard.Root
+      ref={cardRef}
       className="apply-card"
-      open={speaking || !folded}
-      onOpenChange={(open) => { if (!speaking) setFolded(!open); }}
+      open={fold.open}
+      onOpenChange={(open) => { if (!fold.held) setFolded(!open); }}
       render={<section aria-labelledby={titleId} />}
     >
       <CollapsibleCard.Header>
@@ -274,10 +275,13 @@ export function ApplyCard({ patchFiles, entry, applied, progress, failure, notic
  * @param {string[]} props.warnings      Whose work the patch would land on, as sentences.
  * @param {string}   props.cueId         The next step this preview is, for the cue to find. A dialog needs no ring drawn round it.
  * @param {boolean}  props.applyDisabled Something else is working on the checkout.
+ * @param {string}   props.applyReason   Why the patch cannot be applied just now, to say on the button, or ''.
+ * @param {Object}   props.focusAfter    Where focus goes when the dialog closes and what opened it is gone.
  * @param {Function} props.onApply
  * @param {Function} props.onCancel
  */
-export function ApplyPreviewDialog({ preview, pr, warnings, cueId, applyDisabled, onApply, onCancel }) {
+export function ApplyPreviewDialog({ preview, pr, warnings, cueId, applyDisabled, applyReason, focusAfter, onApply, onCancel }) {
+  const pressedApply = useRef(false);
   const [last, setLast] = useState(null);
   if (preview && (!last || last.preview !== preview)) setLast({ preview, pr, warnings });
   const view = preview ? { preview, pr, warnings } : last;
@@ -285,7 +289,22 @@ export function ApplyPreviewDialog({ preview, pr, warnings, cueId, applyDisabled
   const state = view && view.pr && view.preview.prState ? pullRequestState(view.preview.prState) : null;
   return (
     <Dialog.Root open={Boolean(preview)} onOpenChange={(open) => { if (!open) onCancel(); }}>
-      <Dialog.Popup size="small" className="apply-preview-dialog">
+      <Dialog.Popup
+        size="small"
+        className="apply-preview-dialog"
+        // Closed, a dialog gives focus back to what opened it, and left by
+        // Cancel that is right. Applying takes the card's fields away while
+        // it runs, and what opened the dialog with them: focus would be left
+        // on nothing, and a keyboard would start again from the top of the
+        // window. After the button here was pressed it goes to the card,
+        // where the dialog puts it on the first thing that takes it: the
+        // card's header.
+        finalFocus={() => {
+          const card = pressedApply.current ? focusAfter.current : null;
+          pressedApply.current = false;
+          return card || true;
+        }}
+      >
         {words ? (
           <>
             <Dialog.Header>
@@ -320,7 +339,7 @@ export function ApplyPreviewDialog({ preview, pr, warnings, cueId, applyDisabled
             </Dialog.Content>
             <Dialog.Footer>
               <Dialog.Action variant="outline" tone="neutral">{__('Cancel')}</Dialog.Action>
-              <Button disabled={applyDisabled} onClick={onApply}>{words.action}</Button>
+              <ReasonedUiButton reason={applyReason} disabled={applyDisabled} onClick={() => { pressedApply.current = true; onApply(); }}>{words.action}</ReasonedUiButton>
             </Dialog.Footer>
           </>
         ) : null}

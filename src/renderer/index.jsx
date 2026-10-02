@@ -74,6 +74,7 @@ import { AppFooter } from './components/app-footer.jsx';
 import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
+import { applyHeldReason, previewShown } from './apply-card.cjs';
 import { TicketCard } from './components/ticket-card.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
@@ -813,6 +814,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // fails — three rows above, in the case that prompted this — so the way out
   // is a scroll, not a fetch.
   const ticketPatchesRef = useRef(null);
+  // The apply card, for focus to come to when its preview closes.
+  const applyCardRef = useRef(null);
   const setupLogsRef = useRef('');
 
   const siteName = pathBasename(sitePath);
@@ -1280,7 +1283,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         >{dirtyQuestion.discard}</ReasonedButton>
         {/* The way out that touches nothing — three consequential actions
             with no fourth door is its own trap (#234). */}
-        <ReasonedButton variant="link" reason={ticketActionsReason} onClick={() => { setBlockedByTrunkWork(null); setPatchSavedTo(''); }} style={{ fontSize: 12 }}>
+        {/* For a pull request it takes the preview with it: the preview is
+            a dialog, set aside while this is asked, and would otherwise come
+            back in front of whoever has just said "not now". */}
+        <ReasonedButton variant="link" reason={ticketActionsReason} onClick={() => { if (blockedByTrunkWork.kind === 'pr') setApplyPreview(null); setBlockedByTrunkWork(null); setPatchSavedTo(''); }} style={{ fontSize: 12 }}>
           {dirtyQuestion.cancel}
         </ReasonedButton>
       </div>
@@ -2227,6 +2233,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       ) : null}
       {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (
         <ApplyCard
+          cardRef={applyCardRef}
           patchFiles={Boolean(project.cards.patchFiles)}
           entry={!pullRequest && !isApplying ? {
             value: prUrlInput,
@@ -2259,14 +2266,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       ) : null}
       {skipInit ? (
         <ApplyPreviewDialog
-          // Set aside, and not dropped, while the app asks what should
-          // become of loose edits on trunk: the answer that goes on with
-          // the checkout needs it, and the question is on the page behind.
-          preview={applyPreview && !isApplying && !blockedByTrunkWork ? applyPreview : null}
+          preview={previewShown({ preview: applyPreview, active: isActive, applying: isApplying, asking: Boolean(blockedByTrunkWork) })}
           pr={prPreview}
           warnings={applyPreview && applyPreview.kind !== 'pr' ? previewAttribution.sentences : []}
           cueId="apply-preview"
           applyDisabled={isUpdating || installing || building}
+          applyReason={applyHeldReason({ terminalRunning })}
+          focusAfter={applyCardRef}
           onApply={() => runApply()}
           onCancel={() => { setApplyPreview(null); clearApplyError(); setApplyNotice(''); }}
         />

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { applyCardWords, previewWords, applyStepRows, applyFailureWords, conflictFileRows, checkoutNoticeIntent } = require('../../src/renderer/apply-card.cjs');
+const { applyCardWords, previewShown, applyHeldReason, cardFold, previewWords, applyStepRows, applyFailureWords, conflictFileRows, checkoutNoticeIntent } = require('../../src/renderer/apply-card.cjs');
 const { describePrPreview } = require('../../src/renderer/pr-checkout.cjs');
 
 test('a project that takes patch files is offered a pull request and a file, each under its own tab', () => {
@@ -18,7 +18,7 @@ test('a project that takes none is offered pull requests only, and no word about
 	const words = applyCardWords(false);
 	assert.equal(words.title, 'Check out a pull request');
 	assert.equal(words.prLabel, 'Pull request URL or number');
-	for (const key of ['prTab', 'fileTab', 'fileLabel', 'fileAction', 'fileHelp']) assert.equal(words[key], undefined, key);
+	for (const key of ['prTab', 'fileTab', 'fileAction', 'fileHelp']) assert.equal(words[key], undefined, key);
 	for (const text of Object.values(words)) assert.doesNotMatch(text, /patch|\.diff/i);
 });
 
@@ -27,6 +27,46 @@ test('both kinds of project say that a pull request is checked out, and that the
 		assert.match(words.prHelp, /checked out with its author’s commits/);
 		assert.match(words.description, /Your own changes are preserved\.$/);
 	}
+});
+
+test('a preview is shown by its own site, and only while there is something to decide', () => {
+	const preview = { kind: 'patch', label: 'p.diff', paths: [] };
+	assert.equal(previewShown({ preview, active: true }), preview);
+	// Nothing read, nothing shown.
+	assert.equal(previewShown({ preview: null, active: true }), null);
+	assert.equal(previewShown(), null);
+});
+
+test('a preview that arrives after the contributor went to another site waits for them to come back', () => {
+	const preview = { kind: 'pr', number: 7, paths: [] };
+	// A dialog is in front of the whole window, and its button would apply
+	// to a site that is not the one on screen.
+	assert.equal(previewShown({ preview, active: false }), null);
+	assert.equal(previewShown({ preview }), null);
+	assert.equal(previewShown({ preview, active: true }), preview);
+});
+
+test('a preview is not shown while its apply runs, nor in front of the question about loose edits', () => {
+	const preview = { kind: 'pr', number: 7, paths: [] };
+	assert.equal(previewShown({ preview, active: true, applying: true }), null);
+	assert.equal(previewShown({ preview, active: true, asking: true }), null);
+	assert.equal(previewShown({ preview, active: true, applying: false, asking: false }), preview);
+});
+
+test('the preview\'s button is held, with the reason, while a command runs in the terminal', () => {
+	assert.match(applyHeldReason({ terminalRunning: true }), /A command is running in the terminal\./);
+	assert.equal(applyHeldReason({ terminalRunning: false }), '');
+	assert.equal(applyHeldReason(), '');
+});
+
+test('the card is open unless it was folded, and open whatever was chosen while it has something to say', () => {
+	assert.deepEqual(cardFold(), { open: true, held: false });
+	assert.deepEqual(cardFold({ folded: true }), { open: false, held: false });
+	assert.deepEqual(cardFold({ folded: true, speaking: true }), { open: true, held: true });
+	assert.deepEqual(cardFold({ folded: false, speaking: true }), { open: true, held: true });
+	// What was chosen is not changed by it: with nothing left to say, a
+	// folded card is folded again.
+	assert.equal(cardFold({ folded: true, speaking: false }).open, false);
 });
 
 test('nothing to preview is nothing to say', () => {
@@ -106,20 +146,23 @@ test('a file of the breakdown says how many of its changes failed, and where eac
 		failed: 2,
 		total: 3,
 		regions: [
-			{ index: 0, anchor: 'function wp_login() {', line: 12, reason: 'the lines around it have changed', lines: ['-old', '+new'], more: 0 },
-			{ index: 1, anchor: '', line: 40, reason: 'already applied', lines: [], more: 4 }
+			{ anchor: 'function wp_login() {', line: 12, reason: 'the lines around it have changed', lines: ['-old', '+new'], more: 0 },
+			{ anchor: '', line: 40, reason: 'already applied', lines: [], more: 4 }
 		]
 	});
 	assert.equal(rows.heading, 'src/wp-login.php — 2 of 3 changes');
 	assert.deepEqual(rows.regions, [
-		{ key: 0, anchor: 'function wp_login() {', where: '', reason: 'the lines around it have changed', lines: '-old\n+new', more: '' },
-		{ key: 1, anchor: '', where: 'line 40 of the patch', reason: 'already applied', lines: '', more: '… 4 more lines' }
+		{ key: 0, anchor: 'function wp_login() {', near: { before: 'Near', after: '' }, where: '', reason: 'the lines around it have changed', lines: '-old\n+new', more: '' },
+		{ key: 1, anchor: '', near: { before: 'Near', after: '' }, where: 'line 40 of the patch', reason: 'already applied', lines: '', more: '… 4 more lines' }
 	]);
+	// A place is keyed by where it comes in the list: the breakdown gives it
+	// no name of its own, and two can start on the same line.
+	assert.deepEqual(rows.regions.map((region) => region.key), [0, 1]);
 });
 
 test('one change is "change" and one more line is "line"', () => {
 	assert.equal(conflictFileRows({ path: 'a.php', failed: 1, total: 1, regions: [] }).heading, 'a.php — 1 of 1 change');
-	assert.equal(conflictFileRows({ path: 'a.php', failed: 1, total: 1, regions: [{ index: 0, line: 1, more: 1 }] }).regions[0].more, '… 1 more line');
+	assert.equal(conflictFileRows({ path: 'a.php', failed: 1, total: 1, regions: [{ line: 1, more: 1 }] }).regions[0].more, '… 1 more line');
 	assert.deepEqual(conflictFileRows({ path: 'a.php', failed: 1, total: 2 }).regions, []);
 });
 

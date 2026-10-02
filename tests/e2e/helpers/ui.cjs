@@ -294,10 +294,12 @@ const applyPrButton = ( page ) => page.getByRole( 'button', { name: 'Apply PR', 
 const pullRequestTab = ( page ) => page.getByRole( 'tab', { name: 'Pull request', exact: true } );
 const patchFileTab = ( page ) => page.getByRole( 'tab', { name: 'Diff', exact: true } );
 const choosePatchFileButton = ( page ) => page.getByRole( 'button', { name: 'Choose a .diff or .patch file…', exact: true } );
-// Any way to a patch file, the tab or a button, whatever else its name says.
+// Any way to a patch file, a tab or a button, whatever else its name says.
 // For asserting there is none: held to the exact names above, that assertion
-// would pass the day the words around them changed.
-const anyPatchFileButton = ( page ) => patchFileTab( page ).or( page.getByRole( 'button', { name: /choose a \.diff/i } ) );
+// would pass the day the words around them changed. A button that only names
+// a file, as an attachment's row does, is not one.
+const anyPatchFileButton = ( page ) =>
+	page.getByRole( 'tab', { name: /diff|patch/i } ).or( page.getByRole( 'button', { name: /choose a|patch file/i } ) );
 
 /**
  * Opens the tab a patch file is chosen under and presses its button, which

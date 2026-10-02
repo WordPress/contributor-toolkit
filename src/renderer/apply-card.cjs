@@ -38,8 +38,8 @@ function applyCardWords(patchFiles) {
 		title: __('Apply a patch or PR'),
 		description: __('Test changes in this checkout. Your own changes are preserved.'),
 		prTab: __('Pull request'),
+		// translators: a noun, the name of a tab: a diff is a file of changes, also called a patch.
 		fileTab: __('Diff'),
-		fileLabel: __('Patch file'),
 		fileAction: __('Choose a .diff or .patch file…'),
 		fileHelp: __('A .diff or .patch file is applied to the current branch as a removable layer.')
 	};
@@ -89,6 +89,62 @@ function previewWords({ preview = null, pr = null } = {}) {
 		skipped,
 		installNote: preview.needsInstall ? __('It changes package-lock.json, so dependencies will be installed before the rebuild.') : ''
 	};
+}
+
+/**
+ * Which preview the dialog shows, if any. A patch that has been read is
+ * shown until it is applied or dropped, with three exceptions, in each of
+ * which it is kept and only not shown.
+ *
+ * A dialog is in front of the whole window, and every site's view is in the
+ * window at once, so a preview is its own site's to show: one that arrives
+ * after the contributor has gone to another site waits until they are back.
+ * While its apply is under way there is nothing left to decide. And while
+ * the app asks what should become of loose edits on trunk, the question is
+ * on the page behind, and the answer that goes on with the checkout needs
+ * the preview it was asked about.
+ *
+ * @param {Object}  root0
+ * @param {Object}  [root0.preview]  The patch that was read, or null.
+ * @param {boolean} [root0.active]   This site is the one on screen.
+ * @param {boolean} [root0.applying] An apply is under way.
+ * @param {boolean} [root0.asking]   The question about loose edits on trunk is on the page.
+ * @return {Object|null} The preview to show, or null.
+ */
+function previewShown({ preview = null, active = false, applying = false, asking = false } = {}) {
+	if (!preview || !active || applying || asking) return null;
+	return preview;
+}
+
+/**
+ * Why the preview's button cannot be pressed, or '' when it can.
+ *
+ * An apply runs through the terminal and is refused while a command is
+ * running there. The refusal is a line in the terminal, which a dialog is in
+ * front of, so the button is held and says it instead.
+ *
+ * @param {Object}  root0
+ * @param {boolean} [root0.terminalRunning] A command is running in the site's terminal.
+ * @return {string} The reason, or ''.
+ */
+function applyHeldReason({ terminalRunning = false } = {}) {
+	return terminalRunning ? __('A command is running in the terminal. Wait for it to finish, or stop it there with Ctrl+C.') : '';
+}
+
+/**
+ * Whether the card is open. Whoever is using it can fold it away, and only
+ * they can: with something to say besides its fields (a patch that is
+ * applied, the steps of an apply, a failure, a notice) it is open whatever
+ * they chose, and their choice is kept for when it has been said. `held`
+ * says the fold is not theirs to change just now.
+ *
+ * @param {Object}  root0
+ * @param {boolean} [root0.folded]   What the contributor last chose.
+ * @param {boolean} [root0.speaking] The card has something to say.
+ * @return {{open: boolean, held: boolean}} How the card stands.
+ */
+function cardFold({ folded = false, speaking = false } = {}) {
+	return { open: Boolean(speaking) || !folded, held: Boolean(speaking) };
 }
 
 /**
@@ -143,22 +199,32 @@ function applyFailureWords({ error = '', conflict = null, kind = '' } = {}) {
  * coordinates in the file as its author had it, and on an old patch they miss
  * by dozens. Text survives the drift.
  *
+ * A place found by its text is said as "Near" and the line, the line in a
+ * code font: `near` is that sentence cut at the line, so that the component
+ * can put the line in, and a translation can put it where its own word order
+ * wants it.
+ *
  * @param {Object} item One file of the breakdown: `{ path, failed, total, regions }`.
- * @return {{heading: string, regions: Array<{key: number, anchor: string, where: string, reason: string, lines: string, more: string}>}} The file's heading and its places.
+ * @return {{heading: string, regions: Array<{key: number, anchor: string, near: {before: string, after: string}, where: string, reason: string, lines: string, more: string}>}} The file's heading and its places.
  */
 function conflictFileRows(item) {
 	const regions = Array.isArray(item.regions) ? item.regions : [];
 	return {
 		// translators: 1: a file's path. 2: how many of its changes failed. 3: how many it has.
 		heading: sprintf(_n('%1$s — %2$d of %3$d change', '%1$s — %2$d of %3$d changes', item.total), item.path, item.failed, item.total),
-		regions: regions.map((region) => {
+		// By position: the breakdown gives a place no name of its own, and a
+		// patch made of several can carry two changes that start on one line.
+		regions: regions.map((region, position) => {
 			const lines = Array.isArray(region.lines) ? region.lines : [];
+			// translators: %s: a line of code from a file, which is shown in a code font. Keep the %s.
+			const [before = '', after = ''] = __('Near %s').split('%s');
 			let more = '';
 			// translators: %d: how many lines of a file are not shown.
 			if (region.more) more = sprintf(_n('… %d more line', '… %d more lines', region.more), region.more);
 			return {
-				key: region.index,
+				key: position,
 				anchor: region.anchor || '',
+				near: { before: before.trim(), after: after.trim() },
 				// translators: %d: a line number in a patch file.
 				where: region.anchor ? '' : sprintf(__('line %d of the patch'), region.line),
 				reason: region.reason || '',
@@ -184,4 +250,4 @@ function checkoutNoticeIntent(tone) {
 	return 'success';
 }
 
-module.exports = { applyCardWords, previewWords, applyStepRows, applyFailureWords, conflictFileRows, checkoutNoticeIntent };
+module.exports = { applyCardWords, previewShown, applyHeldReason, cardFold, previewWords, applyStepRows, applyFailureWords, conflictFileRows, checkoutNoticeIntent };
