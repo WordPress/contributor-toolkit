@@ -6,12 +6,13 @@ import { useCallback, useEffect, useState } from 'react';
 // a site the old engine made and a merge left unfinished outside the app.
 //
 // `loadStatus` reads all of it in one answer. It runs when the site's view
-// mounts, which for every listed site is as the app opens and not when the
-// site is first shown, and again when whoever calls it has changed what it
-// would say: an install or a build ending, a ticket linked, left, switched or
-// moved onto trunk, an apply ending however it ends, an update, the setup
-// chain, and the window coming back into focus while the site is the one on
-// screen.
+// mounts, which is when the site joins the list and not when it is first
+// shown: for the sites already listed, as the app opens. It runs again when
+// whoever calls it has changed what it would say: an install or a build
+// ending, a ticket linked, left, switched or moved onto trunk, a ticket's
+// work deleted when that leaves the checkout on trunk, an apply ending
+// however it ends, an update, the setup chain, and the window coming back
+// into focus while the site is the one on screen.
 //
 // `loadStatus` returns the status as well as storing it. The setup chain
 // re-probes when a clone finishes and decides from that read, which React has
@@ -23,8 +24,8 @@ import { useCallback, useEffect, useState } from 'react';
 // Not everything here comes from that one answer. Five setters are handed
 // out, and what they set can be newer than the rest until the next read:
 // linking or leaving a ticket sets `tracTicket` and `ticketBehindTrunk` and
-// then reads the status, so one render shows the new ticket beside the old
-// branch's applied patch; moving a ticket onto trunk clears
+// then reads the status, so until that read answers the screen shows the new
+// ticket beside the old branch's applied patch; moving a ticket onto trunk clears
 // `ticketBehindTrunk` the same way; the dev server's start asks the main
 // process itself whether the site is built and copies that into `hasBuilt`;
 // skipping the first-run checklist sets `skipInit`; and discarding every

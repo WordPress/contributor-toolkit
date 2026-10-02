@@ -7,7 +7,8 @@
  * trunk's date is whatever was true the last time anyone looked. So each
  * site's view reports what its status found to the window, and the list is
  * redrawn from that. Nothing else carries the answer across: the main process
- * writes the same date to the store, which the window does not read again.
+ * writes the same date to the store, which the window reads again only when
+ * a site is created or deleted.
  *
  * The checkout is real, made a moment ago, so its trunk is recent, and the
  * store is seeded to say otherwise.
