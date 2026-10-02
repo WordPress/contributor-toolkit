@@ -117,6 +117,10 @@ const stopDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Stop 
 // the rest of the time.
 const startBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Start build watch', exact: true } );
 const stopBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Stop build watch', exact: true } );
+// The header's menu for one of the open site's two processes, by what it says
+// the process is doing: "Server stopped", "Build watching". With little room
+// the header shows its dot alone; its name is the same.
+const processMenuButton = ( page, label ) => page.getByRole( 'button', { name: label, exact: true } );
 // In the page's header.
 const reviewChangesButton = ( page ) => page.getByRole( 'button', { name: 'Review & submit changes', exact: true } );
 const retryInstallButton = ( page ) => page.getByRole( 'button', { name: 'Retry install & build', exact: true } );
@@ -285,6 +289,7 @@ module.exports = {
 	stopDevServerButton,
 	startBuildWatchButton,
 	stopBuildWatchButton,
+	processMenuButton,
 	reviewChangesButton,
 	retryInstallButton,
 	terminalInput,

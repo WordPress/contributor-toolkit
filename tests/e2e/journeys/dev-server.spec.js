@@ -10,7 +10,8 @@
  * ready (#488). Then the server takes its time to boot, can fail to, and can
  * die later. Through all of it the button has to say what is true, a second
  * click must not start a second server, and a stop that was asked for must
- * not be taken for a crash.
+ * not be taken for a crash. Since #557 a second click has nothing to land
+ * on: while the server starts its button and its menu's item are held.
  *
  * Nothing is run. A journey does not start a server or a script: the
  * handlers that start and stop the server, start and stop a script, and open
@@ -60,26 +61,12 @@ const URL = 'http://127.0.0.1:9400/';
 // scripts.
 async function standIn( app, page, sitePath ) {
 	await app.evaluate( ( { ipcMain } ) => {
-		const asked = { starts: [], stops: [], scripts: [], kills: [], opened: [], startAnswer: { ok: true }, statusAsked: 0, statusAnswered: 0 };
+		const asked = { starts: [], stops: [], scripts: [], kills: [], opened: [], startAnswer: { ok: true } };
 		global.__e2eServer = asked;
 		const replace = ( channel, handler ) => {
 			ipcMain.removeHandler( channel );
 			ipcMain.handle( channel, handler );
 		};
-		// How the site is, is still answered by the app. The test only counts
-		// the question being asked and being answered: pressing the server's
-		// button asks it before it asks for a server, and the answer takes as
-		// long as reading the checkout takes. The handler is reached through
-		// the map Electron keeps them in, which is not part of its interface.
-		const siteStatus = ipcMain._invokeHandlers.get( 'site:status' );
-		replace( 'site:status', async ( ...args ) => {
-			asked.statusAsked += 1;
-			try {
-				return await siteStatus( ...args );
-			} finally {
-				asked.statusAnswered += 1;
-			}
-		} );
 		replace( 'playground:start', ( event, dir ) => {
 			asked.starts.push( dir );
 			return asked.startAnswer;
@@ -108,8 +95,8 @@ async function standIn( app, page, sitePath ) {
 	}, [ channel, payload ] );
 	return {
 		asked: () => app.evaluate( () => {
-			const { starts, stops, scripts, kills, opened, statusAsked, statusAnswered } = global.__e2eServer;
-			return { starts, stops, scripts, kills, opened, statusAsked, statusAnswered };
+			const { starts, stops, scripts, kills, opened } = global.__e2eServer;
+			return { starts, stops, scripts, kills, opened };
 		} ),
 		nextStartAnswers: ( answer ) => app.evaluate( ( electron, value ) => {
 			global.__e2eServer.startAnswer = value;
@@ -124,7 +111,7 @@ async function standIn( app, page, sitePath ) {
 	};
 }
 
-test( 'the dev server\'s button starts one server however often it is pressed, says when it is up, stops it without touching the watch, and tells a crash from a stop', async ( { session } ) => {
+test( 'the dev server\'s button starts one server and cannot be pressed while it starts, says when it is up, stops it without touching the watch, and tells a crash from a stop', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
 	const server = await standIn( app, page, site.dir );
@@ -140,37 +127,23 @@ test( 'the dev server\'s button starts one server however often it is pressed, s
 
 	// INVARIANT — the button asks for one server, for this site, and says it
 	// is starting, with how long it has been. CHARACTERISATION — on Core the
-	// build watch is started with it. The button is pressed twice in a row,
-	// the way a double click presses it, for the claim after this one.
-	await ui.startDevServerButton( page ).dblclick();
+	// build watch is started with it.
+	await ui.startDevServerButton( page ).click();
 	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir ] );
 	await expect.poll( async () => ( await server.asked() ).scripts ).toEqual( [ { name: 'grunt', args: [ '--', '_watch' ] } ] );
 	await expect( starting ).toBeVisible();
 	await expect( page.getByText( /^Dev server is starting… \(/ ) ).toBeVisible();
-	await expect( page.getByRole( 'button', { name: 'Server starting…', exact: true } ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Server starting…' ) ).toBeVisible();
 
-	// INVARIANT — while it starts there is nothing to press: the button is
-	// held, and so is the item of the header's menu.
+	// INVARIANT — while it starts there is nothing to press, here or in the
+	// header's menu, so a second press cannot start a second server (#488).
+	// That is what holds the claim now. The hook still refuses a second
+	// start by itself, which no press can reach any more: the button is held
+	// before a second press can land on it.
 	await expect( starting ).toBeDisabled();
-	await page.getByRole( 'button', { name: 'Server starting…', exact: true } ).click();
+	await ui.processMenuButton( page, 'Server starting…' ).click();
 	await expect( page.getByRole( 'menuitem', { name: 'Starting development server…', exact: true } ) ).toBeDisabled();
 	await page.keyboard.press( 'Escape' );
-
-	// INVARIANT — pressed twice, it started one server and no more (#488).
-	// A press that did start a server would first ask the main process how
-	// the site is, which takes as long as reading the checkout takes, and only
-	// then ask for the server. So the test waits in three steps before it
-	// counts: until anything the presses asked has reached the main process,
-	// until every question about the site has been answered, and until what
-	// a press would do with that answer has been asked for. The last step
-	// takes two round trips: one for the answer to have reached the page, and
-	// one for what the page then asks to have reached the main process.
-	await server.heard();
-	await expect.poll( async () => {
-		const { statusAsked, statusAnswered } = await server.asked();
-		return statusAsked === statusAnswered;
-	} ).toBe( true );
-	await server.heard();
 	await server.heard();
 	expect( ( await server.asked() ).starts ).toHaveLength( 1 );
 
@@ -179,7 +152,7 @@ test( 'the dev server\'s button starts one server however often it is pressed, s
 	await server.serverHasAddress();
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
 	await expect( siteLink ).toHaveAttribute( 'href', URL );
-	await expect( page.getByRole( 'button', { name: 'Server running', exact: true } ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Server running' ) ).toBeVisible();
 	await expect.poll( async () => ( await server.asked() ).opened ).toEqual( [ URL ] );
 	expect( ( await server.asked() ).starts ).toEqual( [ site.dir ] );
 
@@ -189,7 +162,7 @@ test( 'the dev server\'s button starts one server however often it is pressed, s
 	await expect.poll( async () => ( await server.asked() ).stops ).toEqual( [ site.dir ] );
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( siteLink ).toHaveCount( 0 );
-	await expect( page.getByRole( 'button', { name: 'Server stopped', exact: true } ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Server stopped' ) ).toBeVisible();
 	await expect( ui.stopBuildWatchButton( page ) ).toBeVisible();
 
 	// INVARIANT — the exit that follows a stop that was asked for is not a
@@ -295,7 +268,7 @@ test( 'the header\'s menu starts and stops the same server, and the server\'s se
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
 	const server = await standIn( app, page, site.dir );
-	const headerMenu = ( label ) => page.getByRole( 'button', { name: label, exact: true } );
+	const headerMenu = ( label ) => ui.processMenuButton( page, label );
 	const link = ( name ) => page.getByRole( 'link', { name, exact: true } );
 	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
 
@@ -305,8 +278,10 @@ test( 'the header\'s menu starts and stops the same server, and the server\'s se
 	await expect( page.getByText( 'Development server offline', { exact: true } ) ).toBeVisible();
 	await expect( link( 'View site' ) ).toHaveCount( 0 );
 
-	// INVARIANT — the header's menu starts this site's server, once.
+	// INVARIANT — the header's menu starts this site's server, once, and with
+	// no server there is nothing else in it.
 	await headerMenu( 'Server stopped' ).click();
+	await expect( page.getByRole( 'menuitem' ) ).toHaveText( [ 'Start development server' ] );
 	await page.getByRole( 'menuitem', { name: 'Start development server', exact: true } ).click();
 	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir ] );
 	await server.serverHasAddress();
@@ -322,11 +297,26 @@ test( 'the header\'s menu starts and stops the same server, and the server\'s se
 
 	// INVARIANT — a link is opened in the browser, by the main process, and
 	// the window stays on the app: it is the site that was opened as the
-	// server came up, and then the admin, and nothing else.
+	// server came up, and then the admin, and nothing else. Where the window
+	// is, is asked of the main process, after a question the page has
+	// answered: a window on its way somewhere else would not answer it.
+	const windowAddress = () => app.evaluate( ( { BrowserWindow } ) => BrowserWindow.getAllWindows()[ 0 ].webContents.getURL() );
+	const appAddress = await windowAddress();
 	await link( 'wp-admin' ).click();
 	await expect.poll( async () => ( await server.asked() ).opened ).toEqual( [ URL, `${ URL }wp-admin/` ] );
+	await server.heard();
 	await expect( ui.siteHeading( page, 'e2e-site' ) ).toBeVisible();
-	expect( page.url() ).toMatch( /index\.html$/ );
+	expect( await windowAddress() ).toBe( appAddress );
+
+	// INVARIANT — the header's menu goes to the site and its admin too, the
+	// same way, since the details can be put away. A stopped server's menu
+	// offers neither, which is how this journey opened it.
+	await headerMenu( 'Server running' ).click();
+	await expect( page.getByRole( 'menuitem' ) ).toHaveText( [ 'View site', 'wp-admin', 'Stop development server' ] );
+	await page.getByRole( 'menuitem', { name: 'View site', exact: true } ).click();
+	await expect.poll( async () => ( await server.asked() ).opened ).toEqual( [ URL, `${ URL }wp-admin/`, URL ] );
+	await server.heard();
+	expect( await windowAddress() ).toBe( appAddress );
 
 	// INVARIANT — it says what to log in with, and shows the password only
 	// when asked to.

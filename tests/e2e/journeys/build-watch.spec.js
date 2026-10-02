@@ -88,8 +88,7 @@ test( 'the build watch starts and stops by its own button, prints in its own tab
 	const line = ( text ) => logs.getByText( text, { exact: true } );
 	const buildHint = ui.terminalHint( page, 'npm run build' );
 
-	// The header's menu for the watch, by what it says the watch is doing.
-	const headerMenu = ( label ) => page.getByRole( 'button', { name: label, exact: true } );
+	const headerMenu = ( label ) => ui.processMenuButton( page, label );
 
 	// CHARACTERISATION — nothing is watching until it is asked to, and the
 	// header and the details both say so.
@@ -191,6 +190,9 @@ test( 'a site with no build is built before it is watched, by a build that holds
 	await scripts.ends( 1, 1 );
 	await expect( line( 'npm run build failed with code 1 — build watch not started.' ) ).toBeVisible();
 	await expect( tab( 'Build watcher (exited 1)' ) ).toBeVisible();
+	// INVARIANT — and the details say it of the build, not of a watch that
+	// never was.
+	await expect( page.getByText( 'The build that has to finish before the watch can start failed, with exit code 1, so the watch was not started. Its last lines are in the Logs.', { exact: true } ) ).toBeVisible();
 	await scripts.heard();
 	expect( ( await scripts.asked() ).scripts ).toHaveLength( 1 );
 

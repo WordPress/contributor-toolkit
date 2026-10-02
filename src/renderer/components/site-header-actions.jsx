@@ -39,9 +39,10 @@ export function ProcessStatus({ status }) {
 }
 
 // One of the site's two processes, in the header (#557): what it is doing, and
-// under it the one thing that can be done about that. What it says is decided
-// in site-processes.cjs.
-function ProcessMenu({ process, onToggle }) {
+// under it what can be done about that. For the server that is also where
+// the running site can be gone to, since the details, which say the same and
+// more, can be put away. What it says is decided in site-processes.cjs.
+function ProcessMenu({ process, onToggle, links = [], onOpenLink = null }) {
   return (
     <Menu.Root>
       <Menu.Trigger
@@ -56,6 +57,12 @@ function ProcessMenu({ process, onToggle }) {
         }
       />
       <Menu.Popup>
+        {links.map((link) => (
+          <Menu.Item key={link.id} onClick={() => onOpenLink(link.href)}>
+            <Menu.ItemLabel>{link.label}</Menu.ItemLabel>
+          </Menu.Item>
+        ))}
+        {links.length ? <Menu.Separator /> : null}
         <Menu.Item disabled={process.disabled} onClick={onToggle}>
           <Menu.ItemLabel>{process.action}</Menu.ItemLabel>
         </Menu.Item>
@@ -80,7 +87,7 @@ function ProcessMenu({ process, onToggle }) {
  * @param {Object}   props.menu            What `siteMenuItems` takes.
  * @param {Function} props.onMenuOpen      Called as the menu opens, to look for applications.
  * @param {Function} props.onAction        Called with the chosen item.
- * @param {Object}   [props.work]          The processes and the review, or null while the site's setup is not done: `{ server, watch, onToggleServer, onToggleWatch, onReview, reviewDisabled, serverCue, reviewCue }`.
+ * @param {Object}   [props.work]          The processes and the review, or null while the site's setup is not done: `{ server, watch, onToggleServer, onToggleWatch, serverLinks, onOpenLink, onReview, reviewDisabled, serverCue, reviewCue }`.
  */
 export function SiteHeaderActions({ detailsOpen, detailsId, onToggleDetails, menu, onMenuOpen, onAction, work = null }) {
   const items = siteMenuItems(menu);
@@ -89,7 +96,7 @@ export function SiteHeaderActions({ detailsOpen, detailsId, onToggleDetails, men
       {work ? (
         <>
           <span {...work.serverCue}>
-            <ProcessMenu process={work.server} onToggle={work.onToggleServer} />
+            <ProcessMenu process={work.server} onToggle={work.onToggleServer} links={work.serverLinks} onOpenLink={work.onOpenLink} />
           </span>
           <ProcessMenu process={work.watch} onToggle={work.onToggleWatch} />
           <span {...work.reviewCue}>

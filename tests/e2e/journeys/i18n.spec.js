@@ -16,6 +16,8 @@ const fs = require( 'node:fs' );
 const os = require( 'node:os' );
 const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
+const ui = require( '../helpers/ui.cjs' );
+const { makeSite } = require( '../helpers/git-site.cjs' );
 const { pseudoLocalize } = require( '../../../src/renderer/pseudo-locale.cjs' );
 
 // Names that stay as they are in every language.
@@ -147,4 +149,98 @@ test( 'the open site\'s details and its menu are fully translatable', async ( { 
 	await page.keyboard.press( 'Escape' );
 	await page.keyboard.press( 'Escape' );
 	await expect( page.getByRole( 'button', { name: pseudoLocalize( 'Hide details' ), exact: true } ) ).toBeVisible();
+} );
+
+test( 'the open site\'s two processes are fully translatable, in the header and in the details, stopped, starting and running', async ( { session } ) => {
+	// A Core site, built, so that its server starts as it is asked to and
+	// its build watch with it. Nothing is run: the server and the script are
+	// answered by stand-ins, as in dev-server.spec.js, and the test says what
+	// the main process would say.
+	const URL = 'http://127.0.0.1:9400/';
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+	await app.evaluate( ( { ipcMain } ) => {
+		const answers = {
+			'playground:start': () => ( { ok: true } ),
+			'playground:stop': () => ( { ok: true } ),
+			'npm:run-script': () => ( { runId: 'e2e-run-1' } ),
+			'npm:kill': () => ( { ok: true } ),
+			'url:open': () => true,
+		};
+		for ( const [ channel, answer ] of Object.entries( answers ) ) {
+			ipcMain.removeHandler( channel );
+			ipcMain.handle( channel, answer );
+		}
+	} );
+	const tell = ( channel, payload ) => app.evaluate( ( { BrowserWindow }, [ to, what ] ) => {
+		BrowserWindow.getAllWindows()[ 0 ].webContents.send( to, what );
+	}, [ channel, payload ] );
+
+	const menuButton = ( label ) => ui.processMenuButton( page, pseudoLocalize( label ) );
+	const item = ( label ) => page.getByRole( 'menuitem', { name: pseudoLocalize( label ), exact: true } );
+	const details = page.getByRole( 'complementary' ).filter( { visible: true } );
+	// What is the machine's, or the server's own, in the details: the
+	// folder, the dates, which are found by the year in them, the name the
+	// server's admin has, and the dots that stand for its password.
+	const year = String( new Date().getFullYear() );
+	const inDetails = async () => ( await unwrapped( details ) ).filter( ( text ) => text !== site.dir && ! text.includes( year ) && text !== 'admin' && ! /^•+$/.test( text ) );
+	// A sentence with something put into it: the sentence is translated and
+	// what is put in is not.
+	const said = ( sentence, value ) => pseudoLocalize( sentence ).replace( /%[sd]/, value );
+	// A menu of the header, open: there is one at a time.
+	const inMenu = () => unwrapped( page.getByRole( 'menu' ) );
+	// A menu that was closed has gone before the next thing is done. The
+	// design system's menu, opened again while it is still on its way out,
+	// can miss the Escape that follows: at the speed of a test, about one
+	// time in two, and a second Escape closes it.
+	const menuGone = () => expect( page.getByRole( 'menu' ) ).toHaveCount( 0 );
+
+	// Stopped. The header's two menus and its review button are found by
+	// their names in the pseudo-locale, which is the claim; the rest is
+	// scanned.
+	await expect( menuButton( 'Server stopped' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( menuButton( 'Build stopped' ) ).toBeVisible();
+	await expect( page.getByRole( 'button', { name: pseudoLocalize( 'Review & submit changes' ), exact: true } ) ).toBeVisible();
+	await expect( details.getByText( pseudoLocalize( 'Development server offline' ), { exact: true } ) ).toBeVisible();
+	expect( await inDetails() ).toEqual( [] );
+	await menuButton( 'Build stopped' ).click();
+	await expect( item( 'Start build watch' ) ).toBeVisible();
+	expect( await inMenu() ).toEqual( [] );
+	await page.keyboard.press( 'Escape' );
+	await menuGone();
+
+	// Starting: the section says how long it has been, the watch, which on
+	// Core starts with the server, says what it watches, and the menu's one
+	// item says what is happening.
+	await menuButton( 'Server stopped' ).click();
+	await item( 'Start development server' ).click();
+	await menuGone();
+	await expect( details.getByText( /^\[.*\(\d+s\)~+\]$/ ) ).toBeVisible();
+	await expect( details.getByText( said( 'Edits in %s are compiled as they are saved.', 'src/' ), { exact: true } ) ).toBeVisible();
+	expect( await inDetails() ).toEqual( [] );
+	await menuButton( 'Server starting…' ).click();
+	await expect( item( 'Starting development server…' ) ).toBeVisible();
+	expect( await inMenu() ).toEqual( [] );
+	await page.keyboard.press( 'Escape' );
+	await menuGone();
+
+	// Running, with the watch watching: the links, the credentials and the
+	// watch's sentence, and a menu with the links in it.
+	await tell( 'playground:url', { sitePath: site.dir, url: URL } );
+	await expect( details.getByRole( 'link', { name: pseudoLocalize( 'Database' ), exact: true } ) ).toBeVisible();
+	await expect( menuButton( 'Build watching' ) ).toBeVisible();
+	await details.getByRole( 'button', { name: pseudoLocalize( 'Show password' ), exact: true } ).click();
+	await expect( details.getByRole( 'button', { name: pseudoLocalize( 'Hide password' ), exact: true } ) ).toBeVisible();
+	expect( ( await inDetails() ).filter( ( text ) => text !== 'password' ) ).toEqual( [] );
+	await menuButton( 'Server running' ).click();
+	await expect( item( 'Stop development server' ) ).toBeVisible();
+	await expect( page.getByRole( 'menuitem' ) ).toHaveCount( 3 );
+	expect( await inMenu() ).toEqual( [] );
+	await page.keyboard.press( 'Escape' );
+	await menuGone();
+
+	// A watch that ended by itself says so in a sentence of its own.
+	await tell( 'npm:run-script:done', { runId: 'e2e-run-1', code: 3 } );
+	await expect( details.getByText( said( 'The build watch ended by itself, with exit code %d. Its last lines are in the Logs.', '3' ), { exact: true } ) ).toBeVisible();
+	expect( ( await inDetails() ).filter( ( text ) => text !== 'password' ) ).toEqual( [] );
 } );

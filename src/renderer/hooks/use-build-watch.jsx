@@ -32,6 +32,10 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
   // title; `watchExitCode` is only read when the state is 'exited'.
   const [watchState, setWatchState] = useState('idle');
   const [watchExitCode, setWatchExitCode] = useState(null);
+  // Which process an 'exited' state is about: the watcher, or the one-off
+  // build that has to end well before a watcher is started. The page says
+  // different things of the two, and only one of them was ever a watch.
+  const [watchExitOf, setWatchExitOf] = useState('watch');
   // Ref mirror for the inline reads (guards, callbacks) that must not wait for a
   // re-render, the same split as the terminal's terminalRunning and
   // terminalStateRef.
@@ -39,10 +43,13 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
   // Set while the watcher is (or was) live, so a pause knows whether a resume
   // has anything to bring back. Survives the process being killed for a pause.
   const watchWasActiveRef = useRef(false);
-  const markWatchState = useCallback((state, code = null) => {
+  const markWatchState = useCallback((state, code = null, of = 'watch') => {
     watchStateRef.current = state;
     setWatchState(state);
-    if (state === 'exited') setWatchExitCode(Number.isFinite(code) ? code : null);
+    if (state === 'exited') {
+      setWatchExitCode(Number.isFinite(code) ? code : null);
+      setWatchExitOf(of);
+    }
   }, []);
   // Whoever is waiting for the watch to be ready to serve behind — the dev
   // server start, today. The queue and its settle-once rule live in
@@ -208,7 +215,7 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
           markTerminalRunning(false);
           terminalKillRef.current = null;
           if (code !== 0 || watchStateRef.current !== 'building') {
-            if (code !== 0) { appendWatch(`\nnpm run build failed with code ${code} — build watch not started.\n`); markWatchState('exited', code); }
+            if (code !== 0) { appendWatch(`\nnpm run build failed with code ${code} — build watch not started.\n`); markWatchState('exited', code, 'build'); }
             else markWatchState('idle');
             watchWasActiveRef.current = false;
             settleWatchWaiters(false);
@@ -279,6 +286,7 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
   return {
     watchState,
     watchExitCode,
+    watchExitOf,
     watchCompiling,
     watchStateRef,
     watchWaitersRef,

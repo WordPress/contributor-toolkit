@@ -56,30 +56,33 @@ function ServerLink({ href, icon, onOpen, children }) {
   );
 }
 
+// Which picture goes with which of the server's links.
+const LINK_ICONS = { site: globe, admin: wordpress, database: table };
+
 // The development server (#557): where the site is, once it has an address,
-// and what to log in with.
+// and what to log in with. Which of the three things it shows is decided in
+// site-processes.cjs.
 function ServerSection({ server }) {
   const [showPassword, setShowPassword] = useState(false);
+  const { section } = server;
   return (
     <Stack direction="column" gap="md">
       <SectionHeading title={__('Server')} process={server.process} onToggle={server.onToggle} />
-      {server.url ? (
+      {section.state === 'online' ? (
         <Stack direction="column" gap="xl">
           <Stack direction="column" gap="sm">
-            <ServerLink href={server.url} icon={globe} onOpen={server.onOpen}>{__('View site')}</ServerLink>
-            <ServerLink href={server.adminUrl} icon={wordpress} onOpen={server.onOpen}>{__('wp-admin')}</ServerLink>
-            {server.databaseUrl ? (
-              <ServerLink href={server.databaseUrl} icon={table} onOpen={server.onOpen}>{__('Database')}</ServerLink>
-            ) : null}
+            {section.links.map((link) => (
+              <ServerLink key={link.id} href={link.href} icon={LINK_ICONS[link.id]} onOpen={server.onOpen}>{link.label}</ServerLink>
+            ))}
           </Stack>
           <Stack direction="column" gap="md">
             <Text variant="heading-sm" render={<h3 />}>{__('Admin credentials')}</Text>
             <div className="credential-list">
               <Text variant="body-md" className="muted-label">{__('Username')}</Text>
-              <Text variant="body-md">{server.username}</Text>
+              <Text variant="body-md">{section.credentials.username}</Text>
               <Text variant="body-md" className="muted-label">{__('Password')}</Text>
               <div className="credential-value">
-                <Text variant="body-md">{showPassword ? server.password : '••••••••'}</Text>
+                <Text variant="body-md">{showPassword ? section.credentials.password : '••••••••'}</Text>
                 <IconButton
                   icon={showPassword ? unseen : seen}
                   label={showPassword ? __('Hide password') : __('Show password')}
@@ -93,8 +96,8 @@ function ServerSection({ server }) {
           </Stack>
         </Stack>
       ) : null}
-      {!server.url && server.startingText ? <Text variant="body-md" className="muted-label">{server.startingText}</Text> : null}
-      {!server.url && !server.startingText ? <OfflinePlaceholder title={__('Development server offline')} /> : null}
+      {section.state === 'starting' ? <Text variant="body-md" className="muted-label">{section.text}</Text> : null}
+      {section.state === 'offline' ? <OfflinePlaceholder title={__('Development server offline')} /> : null}
     </Stack>
   );
 }
@@ -156,7 +159,7 @@ function useStickyWhileItFits(active) {
  * @param {Object}   props.facts      What `siteDetailsRows` takes.
  * @param {boolean}  props.pathCopied The path has just been copied with the button here.
  * @param {Function} props.onCopyPath
- * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, onToggle, url, adminUrl, databaseUrl, username, password, startingText, onOpen }`.
+ * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
  * @param {Object}   [props.watch]    The build watch's section, or null likewise: `{ process, onToggle }`.
  */
 export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null }) {

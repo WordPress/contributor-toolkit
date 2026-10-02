@@ -7,6 +7,8 @@
 'use strict';
 
 const { __, sprintf } = require('@wordpress/i18n');
+const { adminUrl, adminerUrl } = require('./site-urls.cjs');
+const { formatElapsed } = require('./dev-server-command.cjs');
 
 /**
  * The development server.
@@ -42,8 +44,10 @@ function serverProcess({ active = false, starting = false, isUpdating = false } 
  *
  * It is `online` while it is watching, and `busy` while it builds before it
  * can watch, while it compiles a change, and while a chain has paused it and
- * will bring it back. A watch that ended by itself with an error is `failed`,
- * and says with what.
+ * will bring it back. A watch that ended without being asked to is `failed`,
+ * whatever it ended with, and says what is known: the code, when it gave
+ * one. So is a watch that was never started because the build before it
+ * failed, and that is said as what it is, not as a watch that ended.
  *
  * It can be stopped whenever it is building or watching, and started the rest
  * of the time; paused, the button offers to start it, as it always has. An
@@ -58,12 +62,13 @@ function serverProcess({ active = false, starting = false, isUpdating = false } 
  * @param {string}  [root0.state]                'idle', 'building', 'watching', 'paused' or 'exited'.
  * @param {boolean} [root0.compiling]            Watching, and compiling a change now.
  * @param {number}  [root0.exitCode]             What an exited watch ended with.
+ * @param {string}  [root0.exitOf]               'watch', or 'build' when it was the build before the watch that ended.
  * @param {boolean} [root0.isUpdating]           An update of trunk is under way.
  * @param {boolean} [root0.updateWaitingOnWatch] And it is waiting for this watch.
  * @param {string}  [root0.sourceDir]            What the watch compiles, such as `src/`.
  * @return {{status: string, label: string, action: string, short: string, disabled: boolean, detail: string}}
  */
-function watchProcess({ state = 'idle', compiling = false, exitCode = null, isUpdating = false, updateWaitingOnWatch = false, sourceDir = '' } = {}) {
+function watchProcess({ state = 'idle', compiling = false, exitCode = null, exitOf = 'watch', isUpdating = false, updateWaitingOnWatch = false, sourceDir = '' } = {}) {
 	const running = state === 'watching' || state === 'building';
 	const press = running
 		? { action: __('Stop build watch'), short: __('Stop') }
@@ -82,11 +87,68 @@ function watchProcess({ state = 'idle', compiling = false, exitCode = null, isUp
 	if (state === 'paused') {
 		return { status: 'busy', label: __('Build paused'), ...press, disabled, detail: __('Paused while another operation builds the site. It comes back by itself.') };
 	}
-	if (state === 'exited' && Number.isFinite(exitCode) && exitCode !== 0) {
-		// translators: %d: the exit code of a process, a number.
-		return { status: 'failed', label: __('Build stopped'), ...press, disabled, detail: sprintf(__('The build watch ended by itself, with exit code %d. Its last lines are in the Logs.'), exitCode) };
+	if (state === 'exited') {
+		// The hook says 'exited' only of an end nobody asked for: a stop or a
+		// pause leaves the state 'idle' or 'paused'.
+		const coded = Number.isFinite(exitCode);
+		let detail = __('The build watch ended by itself. Its last lines are in the Logs.');
+		if (exitOf === 'build' && coded) {
+			// translators: %d: the exit code of a process, a number.
+			detail = sprintf(__('The build that has to finish before the watch can start failed, with exit code %d, so the watch was not started. Its last lines are in the Logs.'), exitCode);
+		} else if (exitOf === 'build') {
+			detail = __('The build that has to finish before the watch can start failed, so the watch was not started. Its last lines are in the Logs.');
+		} else if (coded && exitCode !== 0) {
+			// translators: %d: the exit code of a process, a number.
+			detail = sprintf(__('The build watch ended by itself, with exit code %d. Its last lines are in the Logs.'), exitCode);
+		}
+		return { status: 'failed', label: __('Build stopped'), ...press, disabled, detail };
 	}
 	return { status: 'offline', label: __('Build stopped'), ...press, disabled, detail: '' };
 }
 
-module.exports = { serverProcess, watchProcess };
+/**
+ * Where a running site can be gone to: the site, its admin, and its
+ * database, the last only once the server is running and not merely has an
+ * address, since the database's page is the server's own.
+ *
+ * @param {Object}  root0
+ * @param {string}  [root0.url]     The server's address, or '' while it has none.
+ * @param {boolean} [root0.running] The server is running.
+ * @return {Array<{id: string, label: string, href: string}>} None while there is no address.
+ */
+function serverLinks({ url = '', running = false } = {}) {
+	if (!url) return [];
+	const links = [
+		{ id: 'site', label: __('View site'), href: url },
+		{ id: 'admin', label: __('wp-admin'), href: adminUrl(url) }
+	];
+	if (running) links.push({ id: 'database', label: __('Database'), href: adminerUrl(url) });
+	return links;
+}
+
+// What the app's server is set up with. Fixed, and the same on every site.
+const ADMIN_CREDENTIALS = Object.freeze({ username: 'admin', password: 'password' });
+
+/**
+ * What the server's section of the details shows under its heading: where
+ * the site is and what to log in with, once it has an address; how long it
+ * has been starting, so that a slow start can be told from a hang (#73); or
+ * nothing, which the section draws as "offline".
+ *
+ * @param {Object}  root0
+ * @param {string}  [root0.url]      The server's address, or '' while it has none.
+ * @param {boolean} [root0.running]  The server is running.
+ * @param {boolean} [root0.starting] It is starting and has no address yet.
+ * @param {number}  [root0.elapsed]  Seconds since the start began.
+ * @return {{state: string, links: Array, credentials: (Object|null), text: string}}
+ */
+function serverSection({ url = '', running = false, starting = false, elapsed = 0 } = {}) {
+	if (url) return { state: 'online', links: serverLinks({ url, running }), credentials: ADMIN_CREDENTIALS, text: '' };
+	if (starting) {
+		// translators: %s: how long, such as "12s" or "1m 05s".
+		return { state: 'starting', links: [], credentials: null, text: sprintf(__('Dev server is starting… (%s)'), formatElapsed(elapsed)) };
+	}
+	return { state: 'offline', links: [], credentials: null, text: '' };
+}
+
+module.exports = { serverProcess, watchProcess, serverLinks, serverSection, ADMIN_CREDENTIALS };

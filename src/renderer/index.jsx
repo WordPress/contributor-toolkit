@@ -34,7 +34,7 @@ import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { sitesListRows, siteToOpen } from './sites-list.cjs';
-import { serverProcess, watchProcess } from './site-processes.cjs';
+import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
@@ -47,7 +47,7 @@ import { prStateBadge } from './pr-state.cjs';
 import { statusBadge } from '../trac-ticket-info.cjs';
 import { prDateLabel } from './pr-date-label.cjs';
 import { workItemProvider } from '../work-item.cjs';
-import { adminUrl, adminerUrl } from './site-urls.cjs';
+import { adminUrl } from './site-urls.cjs';
 import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
 import { ticketTrunkNotice } from './ticket-trunk-notice.cjs';
 import { legacySiteNotice } from './legacy-site.cjs';
@@ -1148,7 +1148,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The build watch (#554): its state, its run and what can be done to it. It
   // is called here because it needs the script runner and the terminal's lock
   // above. What the chains below use of it is taken out by name.
-  const { watchState, watchExitCode, watchCompiling, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, startBuildWatch, pauseWatcher, resumeWatcher, toggleWatch } = useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, terminalStateRef, terminalKillRef, markTerminalRunning });
+  const { watchState, watchExitCode, watchExitOf, watchCompiling, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, startBuildWatch, pauseWatcher, resumeWatcher, toggleWatch } = useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, terminalStateRef, terminalKillRef, markTerminalRunning });
   // The count is on the tab rather than beside it because the tab is what the
   // contributor is not looking at: a notice landing while they read the server
   // output is the case this panel exists for.
@@ -1178,7 +1178,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // and in the details alike. Decided in site-processes.cjs, and worked out
   // here because an update of trunk holds both.
   const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating });
-  const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
+  const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
+  const serverSectionState = serverSection({ url: serverUrl, running, starting: isServerStarting, elapsed: startElapsed });
+  // A link to the running site is opened in the browser by the main process.
+  const openSiteLink = (url) => window.api.openExternal(url);
 
   // What the site's menu does (#556). Which items it offers is decided in
   // site-menu.cjs; this is each one's function. Copying the path says so in a
@@ -1938,6 +1941,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             watch: watchProcessState,
             onToggleServer: toggleDevServer,
             onToggleWatch: toggleWatch,
+            // The site and its admin, while there is a server to go to: the
+            // details have them too, and can be put away.
+            serverLinks: serverSectionState.links.filter((link) => link.id !== 'database'),
+            onOpenLink: openSiteLink,
             onReview: openPatchModal,
             reviewDisabled: isUpdating,
             serverCue: cueProps('start-dev'),
@@ -2840,19 +2847,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         facts={{ initialized, created: createdLabel, trunk: age, path: sitePath, checkout: project.label }}
         pathCopied={pathCopied}
         onCopyPath={copyPath}
-        server={skipInit ? {
-          process: serverState,
-          onToggle: toggleDevServer,
-          url: serverUrl,
-          adminUrl: serverUrl ? adminUrl(serverUrl) : '',
-          // The database's page is the server's own, so it is offered only
-          // once the server is running and not merely has an address.
-          databaseUrl: serverUrl && running ? adminerUrl(serverUrl) : '',
-          username: 'admin',
-          password: 'password',
-          startingText: isServerStarting ? `Dev server is starting… (${formatElapsed(startElapsed)})` : '',
-          onOpen: (url) => window.api.openExternal(url)
-        } : null}
+        server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
       />
       </div>
