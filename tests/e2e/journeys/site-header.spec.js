@@ -51,8 +51,14 @@ const EDITOR = { name: 'Example Editor', path: path.join( os.tmpdir(), 'example-
 // mark says comes after the site's own name.
 const OLD_TRUNK_ENTRY = 'old-trunk (WordPress code is 30 days old — update to latest trunk)';
 // The applications are in a menu of their own, under the site's menu.
-const openInMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Open in', exact: true } );
 const applicationItem = ( page, name ) => page.getByRole( 'menuitem', { name, exact: true } );
+// Opens that menu the way a pointer does, by resting on "Open in", and waits
+// for it. Not by a click: the pointer arriving opens the menu a moment later
+// by itself, and a click that lands after that closes it again.
+async function openApplications( page ) {
+	await page.getByRole( 'menuitem', { name: 'Open in', exact: true } ).hover();
+	await applicationItem( page, 'Other application…' ).waitFor();
+}
 
 // The button that puts the details away and the one that brings them back:
 // one button, named by what pressing it does.
@@ -170,7 +176,7 @@ test( 'the header\'s menu acts on the site that is open: it copies that site\'s 
 	// screen the menu's own list is what it was, so nothing a contributor was
 	// about to press there has moved.
 	await ui.siteMenuButton( page ).click();
-	await openInMenuItem( page ).click();
+	await openApplications( page );
 	// CHARACTERISATION — the way to choose is first, where what arrives
 	// later cannot move it. That a row never moves is the module's, with a
 	// unit test that walks the lists before and after an answer.
@@ -183,7 +189,7 @@ test( 'the header\'s menu acts on the site that is open: it copies that site\'s 
 	await applicationItem( page, EDITOR.name ).click();
 	await expect.poll( async () => ( await applications.asked() ).opens ).toEqual( [ { sitePath: newerDir, editorPath: EDITOR.path } ] );
 	await ui.siteMenuButton( page ).click();
-	await openInMenuItem( page ).click();
+	await openApplications( page );
 	await applicationItem( page, 'Other application…' ).click();
 	await expect.poll( async () => ( await applications.asked() ).opens ).toEqual( [
 		{ sitePath: newerDir, editorPath: EDITOR.path },
@@ -222,7 +228,7 @@ test( 'an application that will not open the folder says why on the page, with t
 	// refusal is said on the page, where it can be seen, and it carries the
 	// way out with it.
 	await ui.siteMenuButton( page ).click();
-	await openInMenuItem( page ).click();
+	await openApplications( page );
 	await applicationItem( page, EDITOR.name ).click();
 	const refusal = page.getByRole( 'alert' ).filter( { hasText: 'That application is no longer where it was. Choose another.' } );
 	await expect( refusal ).toBeInViewport();
@@ -320,6 +326,13 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	const heading = ( label ) => details( page, label ).getByRole( 'heading', { name: 'Details', exact: true } );
 	const pageEnd = page.getByText( 'No emails yet.', { exact: true } ).filter( { visible: true } );
 
+	// INVARIANT — a site still in its setup has no server or build watch to
+	// offer, in the header or in its details: the checklist is what starts
+	// them the first time.
+	await expect( page.getByRole( 'button', { name: 'Server stopped', exact: true } ) ).toHaveCount( 0 );
+	await expect( ui.reviewChangesButton( page ) ).toHaveCount( 0 );
+	await expect( details( page, 'in-setup' ).getByRole( 'heading', { name: 'Server', exact: true } ) ).toHaveCount( 0 );
+
 	// INVARIANT — details that fit stay in view while the cards scroll: with
 	// the page at its end, where the first card is long gone, they are still
 	// there. CHARACTERISATION — the facts alone fit in this window.
@@ -335,7 +348,49 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	await ui.sidebarEntry( page, 'set-up' ).click();
 	await expect( ui.siteHeading( page, 'set-up' ) ).toBeVisible();
 	await page.getByRole( 'button', { name: 'Hide sites list', exact: true } ).click();
-	await pageEnd.scrollIntoViewIfNeeded();
-	await expect( ui.ticketField( page ).filter( { visible: true } ) ).not.toBeInViewport();
+	// Read part of the way down the page, from its top, and not at its end:
+	// held in place, a column taller than the page is pushed up out of view
+	// at the page's end too, and the two would look the same there.
+	await ui.ticketField( page ).filter( { visible: true } ).scrollIntoViewIfNeeded();
+	await expect( heading( 'set-up' ) ).toBeInViewport();
+	await ui.card( page, 'Terminal' ).scrollIntoViewIfNeeded();
+	await expect( pageEnd ).not.toBeInViewport();
 	await expect( heading( 'set-up' ) ).not.toBeInViewport();
+} );
+
+test( 'a header short of room keeps the site\'s name, and every action in it by its own name', async ( { session } ) => {
+	const { settings } = listedSites( session, [ { label: 'a-site-with-a-name-longer-than-most' } ] );
+	const { app, page } = await session.start( settings );
+	await expect( ui.siteHeading( page, 'a-site-with-a-name-longer-than-most' ) ).toBeVisible( { timeout: 30_000 } );
+
+	// Two widths, each with the sites list open: the width of the smallest
+	// screen the suite runs on, where the header is short of room for the
+	// processes' words, and the smallest the window can be made, where it is
+	// short of room for the review button's too.
+	const resizeTo = ( width ) => app.evaluate( ( { BrowserWindow }, wanted ) => {
+		const win = BrowserWindow.getAllWindows()[ 0 ];
+		const [ minWidth, minHeight ] = win.getMinimumSize();
+		win.setSize( Math.max( wanted, minWidth ), Math.max( win.getSize()[ 1 ], minHeight ) );
+	}, width );
+	for ( const width of [ 1024, 0 ] ) {
+		await resizeTo( width );
+		await expect.poll( () => page.evaluate( () => window.innerWidth ) ).toBeLessThanOrEqual( Math.max( width, 800 ) );
+
+		// INVARIANT — the site's name is still there. With two menus and a
+		// button beside it (#557) it was the name that gave way, to nothing.
+		await expect( ui.siteHeading( page, 'a-site-with-a-name-longer-than-most' ) ).toBeVisible();
+		// INVARIANT — and everything in the header is still there under the
+		// name it has with room: what gives way is clipped for the eye, and
+		// nothing is taken from a screen reader or from a journey.
+		const server = page.getByRole( 'button', { name: 'Server stopped', exact: true } );
+		await expect( server ).toBeVisible();
+		await expect( page.getByRole( 'button', { name: 'Build stopped', exact: true } ) ).toBeVisible();
+		await expect( ui.reviewChangesButton( page ) ).toBeVisible();
+		await expect( hideDetailsButton( page ) ).toBeVisible();
+		await expect( ui.siteMenuButton( page ) ).toBeVisible();
+		// INVARIANT — none of it has been pushed out of the window.
+		for ( const control of [ ui.reviewChangesButton( page ), ui.siteMenuButton( page ), server ] ) {
+			await expect( control ).toBeInViewport( { ratio: 1 } );
+		}
+	}
 } );

@@ -209,8 +209,9 @@ body {
 /* The header holds the site's name and, since #557, two menus and a button
    as well, in a page that is as narrow as 480px when the window is at its
    smallest and the sites list is open. The name must not be the thing that
-   gives way: it is squeezed to nothing otherwise, as it was. So the page's
-   width decides what the actions show. With room, everything; short of it,
+   gives way: it was squeezed to nothing. So the page's width decides what
+   the actions show, and the name, cut short with an ellipsis, has what is
+   left. With room, everything; short of it,
    the two processes are their dots and the review button is its first word.
    Each keeps its name for a screen reader, since what is put away is clipped
    and not removed. */
@@ -219,7 +220,6 @@ body {
 }
 
 .app-page h1 {
-  min-width: 4ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

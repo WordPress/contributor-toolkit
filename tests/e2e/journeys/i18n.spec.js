@@ -137,7 +137,8 @@ test( 'the open site\'s details and its menu are fully translatable', async ( { 
 	// The applications, under "Open in". Scanned once the one application
 	// has arrived, so that the list scanned is the whole list. Its name is its
 	// own and is left as it is; the row beside it is the app's.
-	await menu.getByRole( 'menuitem', { name: pseudoLocalize( 'Open in' ), exact: true } ).click();
+	// Rested on, as a pointer does, and not clicked: see site-header.spec.js.
+	await menu.getByRole( 'menuitem', { name: pseudoLocalize( 'Open in' ), exact: true } ).hover();
 	const application = page.getByRole( 'menuitem', { name: 'Example Editor', exact: true } );
 	await expect( application ).toBeVisible();
 	const applications = page.getByRole( 'menu' ).filter( { has: application } ).last();
