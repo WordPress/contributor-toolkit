@@ -40,13 +40,16 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 function trunkAgeInfo({ trunkDate, now = Date.now() } = {}) {
 	const ts = trunkDate ? Date.parse(trunkDate) : NaN;
 	if (!Number.isFinite(ts)) {
-		return { known: false, ageDays: null, stale: false, label: '' };
+		return { known: false, ageDays: null, stale: false, label: '', dateLabel: '' };
 	}
 	const ageDays = Math.max(0, Math.floor((now - ts) / DAY_MS));
-	const label = `trunk as of ${new Date(ts).toLocaleDateString(undefined, {
+	// The date by itself, for where the words around it are a label of their
+	// own (#556), and in the sentence the old header and the review use.
+	const dateLabel = new Date(ts).toLocaleDateString(undefined, {
 		year: 'numeric', month: 'short', day: 'numeric'
-	})}`;
-	return { known: true, ageDays, stale: ageDays > STALE_THRESHOLD_DAYS, label };
+	});
+	const label = `trunk as of ${dateLabel}`;
+	return { known: true, ageDays, stale: ageDays > STALE_THRESHOLD_DAYS, label, dateLabel };
 }
 
 const SKIP_INSTALL_MESSAGE = 'Dependencies unchanged — skipping npm install';

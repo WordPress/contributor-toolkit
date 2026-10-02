@@ -52,6 +52,14 @@ test('trunkAgeInfo: missing or invalid dates are never stale (issue #94)', () =>
 	}
 });
 
+test('trunkAgeInfo: the date is also given by itself, and the sentence is built on it (#556)', () => {
+	const info = trunkAgeInfo({ trunkDate: daysAgo(3), now: NOW });
+	assert.match(info.dateLabel, /\d{4}/);
+	assert.doesNotMatch(info.dateLabel, /trunk as of/);
+	assert.strictEqual(info.label, `trunk as of ${info.dateLabel}`);
+	assert.strictEqual(trunkAgeInfo({ now: NOW }).dateLabel, '');
+});
+
 test('trunkAgeInfo: label names the snapshot date (issue #94)', () => {
 	const info = trunkAgeInfo({ trunkDate: '2026-06-12T00:00:00Z', now: NOW });
 	assert.match(info.label, /^trunk as of /);
