@@ -1,4 +1,6 @@
+import { useId } from 'react';
 import { Button, Tooltip } from '@wordpress/components';
+import { Button as UiButton, Tooltip as UiTooltip, VisuallyHidden } from '@wordpress/ui';
 
 // A button that explains itself while disabled (#409). A reason disables it
 // the accessible way: still in the tab order, `aria-disabled` rather than
@@ -24,5 +26,32 @@ export function ReasonedButton({ reason, disabled, children, ...props }) {
         description={reason || undefined}
       >{children}</Button>
     </Tooltip>
+  );
+}
+
+// The same, for the design system's button (#557). `disabled` with
+// `focusableWhenDisabled` is its accessible way of being held: the button
+// stays in the tab order and says `aria-disabled`. The tooltip is for the
+// eye and the hidden sentence is the button's description, since a tooltip
+// of the design system describes nothing to a screen reader by itself. Both
+// are always rendered, for the reason above: the button must not be
+// remounted as the gate flips.
+export function ReasonedUiButton({ reason, disabled, children, ...props }) {
+  const reasonId = useId();
+  return (
+    <UiTooltip.Root disabled={!reason}>
+      <UiTooltip.Trigger
+        render={
+          <UiButton
+            {...props}
+            disabled={reason ? true : disabled}
+            focusableWhenDisabled={Boolean(reason)}
+            aria-describedby={reason ? reasonId : undefined}
+          />
+        }
+      >{children}</UiTooltip.Trigger>
+      <UiTooltip.Popup>{reason}</UiTooltip.Popup>
+      <VisuallyHidden id={reasonId}>{reason || ''}</VisuallyHidden>
+    </UiTooltip.Root>
   );
 }

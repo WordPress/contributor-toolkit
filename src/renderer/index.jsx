@@ -44,8 +44,6 @@ import { trunkAgeInfo, updateStepStatuses, planSetupSteps, SETUP_STATE_TO_STEP, 
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { prStateBadge } from './pr-state.cjs';
-import { statusBadge } from '../trac-ticket-info.cjs';
-import { prDateLabel } from './pr-date-label.cjs';
 import { workItemProvider } from '../work-item.cjs';
 import { adminUrl } from './site-urls.cjs';
 import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
@@ -77,6 +75,7 @@ import { SitesSidebar } from './components/sites-sidebar.jsx';
 import { AppFooter } from './components/app-footer.jsx';
 import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
+import { TicketCard } from './components/ticket-card.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
@@ -121,12 +120,6 @@ const COPY_BUTTON_LABELS = {
 const UPDATE_STEP_MARKS = {
   complete: { symbol: '✓', color: '#0f5132' },
   current: { symbol: '›', color: '#0b5d95' }
-};
-// Why the ticket's PR list could not be read, worded for the contributor.
-const TICKET_PATCH_STATUS_MESSAGE = {
-  'rate-limited': 'GitHub is rate-limiting this connection.',
-  offline: 'Could not reach GitHub.',
-  error: 'Could not read the pull requests from GitHub.'
 };
 
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
@@ -1250,7 +1243,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // One gate for every ticket action, and the sentence that goes with it
   // (#409): a control this disables says why, through ReasonedButton.
   const ticketActionsReason = ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun });
-  const ticketActionsBlocked = Boolean(ticketActionsReason);
 
   // The one question both paths now ask (#234). Picking a ticket while trunk
   // has uncommitted edits used to do opposite things — carry them silently
@@ -1531,17 +1523,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The ticket's own facts (#292), riding the same scrape as the attachments:
   // one Trac visit, one challenge, both answers.
   const tracInfo = showTracCards ? (tracAttachments?.ticket || null) : null;
-  const tracInfoBadge = statusBadge(tracInfo);
-  const tracAttachmentsRead = tracAttachments
-    && (tracAttachments.status === 'ok' || tracAttachments.status === 'no-attachments');
-  // One pill shape, two uses: the "Latest" marker on a patch row and a linked
-  // pull request's state. Only the words and the colours differ.
+  // The pill a pull request's state is shown in where the apply's preview
+  // still draws it. The work-item card has the design system's badge (#557).
   const pillStyle = { display: 'inline-flex', alignItems: 'center', flex: '0 0 auto', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' };
-  const latestPill = (isLatest) => (isLatest ? (
-    <span style={{ ...pillStyle, background: '#e7f1ff', color: '#0b5d95', marginLeft: 8 }}>
-      Latest
-    </span>
-  ) : null);
   const prStatePill = (state) => {
     const badge = prStateBadge(state);
     return (
@@ -1913,6 +1897,32 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     className: nextActionId === id ? 'next-action-cue' : undefined
   });
 
+  // What the work-item card is handed besides its own content: the banner of
+  // a checked-out pull request, the note about uncommitted changes when it
+  // belongs with the ticket, and whether a patch can be read now. Reading
+  // one is held by everything that would be working on the files it reads
+  // against, and by a preview that is already open.
+  const prCheckoutBanner = prCheckout && !isApplying ? (
+    <div {...cueProps('pr-checkout')} style={{ padding: '14px 16px', border: `1px solid ${prBannerColors.border}`, background: prBannerColors.background, borderRadius: 8 }}>
+      <div style={{ fontSize: 15, color: prBannerColors.text }}><strong>{prBanner.title}</strong></div>
+      {prBanner.body ? (
+        <div style={{ marginTop: 6, fontSize: 13, color: prBannerColors.text }}>{prBanner.body}</div>
+      ) : null}
+      <div style={{ marginTop: 6, fontSize: 13, color: '#3c434a' }}>{prCheckout.body} {prCheckout.edits}</div>
+      <div style={{ marginTop: 6, fontSize: 12 }}>Revert this PR before applying another PR or patch file.</div>
+      <ReasonedButton variant="secondary" onClick={() => runPrSwitch({ leaving: true })} reason={prBanner.revertReason} style={{ marginTop: 10 }}>
+        {prCheckout.backLabel}
+      </ReasonedButton>
+    </div>
+  ) : null;
+  const ticketChangesNote = changesNote && changesNote.placement === 'ticket' ? (
+    <div style={{ fontSize: 13, color: '#1d2327' }}>
+      {changesNoteBody}
+      <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>{changesNote.unlinkNote}</div>
+    </div>
+  ) : null;
+  const patchReadBlocked = isApplying || isUpdating || installing || building || Boolean(applyPreview);
+
   return (
     <section ref={nextActionSectionRef} style={{ paddingBottom: 48 }}>
       {/* The glow on the next-action block is purely visual, invisible to a
@@ -2182,302 +2192,51 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         </div>
       ) : null}
       {skipInit ? (
-      <div {...cueProps('link-ticket')} style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{tracTicket ? `Working on ${workItem.noun} #${tracTicket}` : project.workItem.label}</div>
-        {prCheckout && !isApplying ? (
-          <div {...cueProps('pr-checkout')} style={{ marginTop: 12, padding: '14px 16px', border: `1px solid ${prBannerColors.border}`, background: prBannerColors.background, borderRadius: 8 }}>
-            <div style={{ fontSize: 15, color: prBannerColors.text }}><strong>{prBanner.title}</strong></div>
-            {prBanner.body ? (
-              <div style={{ marginTop: 6, fontSize: 13, color: prBannerColors.text }}>{prBanner.body}</div>
-            ) : null}
-            <div style={{ marginTop: 6, fontSize: 13, color: '#3c434a' }}>{prCheckout.body} {prCheckout.edits}</div>
-            <div style={{ marginTop: 6, fontSize: 12 }}>Revert this PR before applying another PR or patch file.</div>
-            <ReasonedButton variant="secondary" onClick={() => runPrSwitch({ leaving: true })} reason={prBanner.revertReason} style={{ marginTop: 10 }}>
-              {prCheckout.backLabel}
-            </ReasonedButton>
-          </div>
-        ) : null}
-        {tracTicket ? (
-          <>
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              {/* The ticket number is what the site is *for* once one is linked
-                  — and under #108 it also names the branch you are on, so it
-                  answers "which of my tickets am I looking at" at a glance.
-                  Sized to read as the panel's subject rather than as a tag. */}
-              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: 999, fontSize: 18, fontWeight: 600, letterSpacing: '0.01em', background: '#f0f0f1', color: '#1d2327' }}>
-                #{tracTicket}
-              </span>
-              <Button variant="link" onClick={() => window.api.openExternal(workItem.urlFor(tracTicket))}>{workItem.openLabel}</Button>
-              {showTracCards && !tracInfo ? (
-                <Button variant="link" onClick={loadTracAttachments} disabled={tracAttachmentsLoading}>
-                  {tracAttachmentsLoading ? 'Reading ticket…' : 'Read details from Trac'}
-                </Button>
-              ) : null}
-              <ReasonedButton variant="link" isDestructive onClick={unlinkTicket} reason={ticketActionsReason}>Unlink</ReasonedButton>
-            </div>
-
-            {staleTicketNotice ? (
-              <div role="status" style={{ marginTop: 10, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
-                <div style={{ fontWeight: 600 }}>{staleTicketNotice.title}</div>
-                <div style={{ marginTop: 4 }}>{staleTicketNotice.body}</div>
-                <div style={{ marginTop: 8 }}>
-                  {/* Rewrites the tree when the ticket is checked out, so the
-                      same gate as a discard: nothing running over the files.
-                      Every branch of that gate has a sentence (#409). */}
-                  <ReasonedButton
-                    variant="secondary"
-                    isBusy={ticketSaving}
-                    reason={rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, devServerActive: isDevProcessActive, discarding, noun: workItem.noun })}
-                    onClick={rebaseTicket}
-                  >{staleTicketNotice.action}</ReasonedButton>
-                </div>
-              </div>
-            ) : null}
-            {ticketFeedback}
-
-            {tracInfo ? (
-              <div style={{ marginTop: 10 }}>
-                {tracInfo.summary ? (
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2327' }}>{tracInfo.summary}</div>
-                ) : null}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap', fontSize: 12, color: '#3c434a' }}>
-                  {tracInfoBadge ? (
-                    <span style={{ padding: '1px 8px', borderRadius: 999, fontWeight: 600, fontSize: 11,
-                      background: tracInfoBadge.tone === 'closed' ? '#fcf0f1' : '#edfaef',
-                      color: tracInfoBadge.tone === 'closed' ? '#8a1f21' : '#005c12' }}>
-                      {tracInfoBadge.label}
-                    </span>
-                  ) : null}
-                  {tracInfo.type ? (
-                    <span style={{ padding: '1px 8px', borderRadius: 999, fontSize: 11, background: '#f0f0f1', color: '#3c434a' }}>{tracInfo.type}</span>
-                  ) : null}
-                  {tracInfo.opened ? (
-                    <span title={tracInfo.opened.absolute}>opened {tracInfo.opened.relative}</span>
-                  ) : null}
-                  {tracInfo.milestone ? <span>milestone: {tracInfo.milestone}</span> : null}
-                </div>
-                {tracInfo.component || tracInfo.keywords.length ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap', fontSize: 12, color: '#6c6f72' }}>
-                    {tracInfo.component ? (
-                      <span>
-                        component:{' '}
-                        {tracInfo.component.url ? (
-                          <Button variant="link" style={{ fontSize: 12 }} onClick={() => window.api.openExternal(tracInfo.component.url)}>
-                            {tracInfo.component.label}
-                          </Button>
-                        ) : tracInfo.component.label}
-                      </span>
-                    ) : null}
-                    {tracInfo.keywords.length ? (
-                      <span>
-                        keywords:{' '}
-                        {tracInfo.keywords.map((kw, i) => (
-                          <span key={kw.label}>
-                            {i ? ' ' : ''}
-                            {kw.url ? (
-                              <Button variant="link" style={{ fontSize: 12 }} onClick={() => window.api.openExternal(kw.url)}>{kw.label}</Button>
-                            ) : kw.label}
-                          </span>
-                        ))}
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            {changesNote && changesNote.placement === 'ticket' ? (
-              <div style={{ marginTop: 8, fontSize: 13, color: '#1d2327' }}>
-                {changesNoteBody}
-                <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>{changesNote.unlinkNote}</div>
-              </div>
-            ) : null}
-
-            <div ref={ticketPatchesRef} style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Linked pull requests</div>
-                <Button variant="link" onClick={loadTicketPatches} disabled={ticketPatchesLoading} style={{ fontSize: 12 }}>
-                  {ticketPatchesLoading ? 'Checking…' : 'Refresh'}
-                </Button>
-              </div>
-              <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>
-                See the work that already exists on this {workItem.noun} before adding your own.
-              </div>
-
-              {ticketPatchesLoading && !ticketPatches ? (
-                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 13 }}><Spinner /> Checking GitHub…</div>
-              ) : null}
-
-              {ticketPatches && ticketPatches.status === 'ok' && ticketPatches.items.length === 0 ? (
-                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>No pull requests cite this {workItem.noun} yet.</div>
-              ) : null}
-
-              {ticketPatches && ticketPatches.status !== 'ok' && ticketPatches.status !== 'no-ticket' ? (
-                <div style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-                  {TICKET_PATCH_STATUS_MESSAGE[ticketPatches.status] || TICKET_PATCH_STATUS_MESSAGE.error}
-                  {ticketPatches.items && ticketPatches.items.length && ticketPatches.cachedAt
-                    ? ` Showing what was last seen ${new Date(ticketPatches.cachedAt).toLocaleString()}.`
-                    : ' No cached list to fall back on.'}
-                </div>
-              ) : null}
-
-              {ticketPatches && ticketPatches.items && ticketPatches.items.length ? (
-                <div style={{ marginTop: 10, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
-                  {ticketPatches.items.map((pr) => (
-                    <div key={pr.number} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
-                      <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                          <span style={{ flex: '0 1 auto', minWidth: 0, fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <Button variant="link" onClick={() => window.api.openExternal(pr.url)} style={{ fontSize: 13 }}>#{pr.number}</Button>
-                            {' '}{pr.title}
-                          </span>
-                          {latestPill(latestPatch?.kind === 'pr' && latestPatch.key === pr.number)}
-                          {pullRequest?.number === pr.number ? <span style={{ ...pillStyle, background: '#f4fbf4', color: '#0f5132', marginLeft: 8 }}>Applied</span> : null}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, fontSize: 11, color: '#6c6f72' }}>
-                          {prStatePill(pr.state)}
-                          {(() => {
-                            const dated = prDateLabel(pr);
-                            return dated ? <span>{dated.prefix} {new Date(dated.when).toLocaleDateString()}</span> : null;
-                          })()}
-                        </div>
-                      </div>
-                      {pullRequest ? null : (
-                        <Button
-                          variant="secondary"
-                          isBusy={fetchingPr === pr.number}
-                          disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingPr !== null}
-                          onClick={() => previewPr(pr)}
-                          style={{ flex: '0 0 auto' }}
-                        >Apply…</Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            {latestIsAttachment ? (
-              <div style={{ marginTop: 12, padding: '8px 10px', background: '#e7f1ff', border: '1px solid #9ec5f0', borderRadius: 6, fontSize: 12, color: '#0b5d95' }}>
-                The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.
-              </div>
-            ) : null}
-
-            {/* Trac's alone: a GitHub issue carries no attachments, its work
-                arrives as the pull requests listed above. */}
-            {showTracCards ? (
-            <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Trac attachments</div>
-                {tracAttachments ? (
-                  <Button variant="link" onClick={loadTracAttachments} disabled={tracAttachmentsLoading} style={{ fontSize: 12 }}>
-                    {tracAttachmentsLoading ? 'Checking…' : 'Refresh'}
-                  </Button>
-                ) : null}
-              </div>
-              <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>
-                Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.
-              </div>
-
-              {!tracAttachments && !tracAttachmentsLoading ? (
-                <div style={{ marginTop: 10 }}>
-                  <Button variant="secondary" onClick={loadTracAttachments} disabled={isApplying || isUpdating || installing || building} style={{ padding: '8px 14px', borderRadius: 10 }}>
-                    Show Trac attachments
-                  </Button>
-                </div>
-              ) : null}
-
-              {tracAttachmentsLoading ? (
-                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 13 }}><Spinner /> Opening the ticket on Trac…</div>
-              ) : null}
-
-              {tracAttachmentsRead && patchAttachments.length === 0 ? (
-                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>No patch files attached to this ticket.</div>
-              ) : null}
-
-              {tracAttachments && (tracAttachments.status === 'challenge-timeout' || tracAttachments.status === 'error' || tracAttachments.status === 'closed') ? (
-                <div style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-                  {(() => {
-                    if (tracAttachments.status === 'challenge-timeout') return 'Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.';
-                    if (tracAttachments.status === 'closed') return 'The Trac window was closed before the attachments finished loading. Click “Show Trac attachments” to try again.';
-                    return `Could not read the attachments from Trac.${tracAttachments.error ? ` (${tracAttachments.error})` : ''}`;
-                  })()}
-                </div>
-              ) : null}
-
-              {patchAttachments.length ? (
-                <div style={{ marginTop: 10, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
-                  {patchAttachments.map((att) => (
-                    <div key={att.url} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
-                      <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                          <span style={{ flex: '0 1 auto', minWidth: 0, fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <Button variant="link" onClick={() => window.api.openExternal(att.url)} style={{ fontSize: 13 }}>{att.filename}</Button>
-                          </span>
-                          {latestPill(latestPatch?.kind === 'attachment' && latestPatch.key === att.url)}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#6c6f72' }}>
-                          {[att.author && `by ${att.author}`, att.dateText, att.sizeText].filter(Boolean).join(' · ')}
-                        </div>
-                      </div>
-                      {!pullRequest ? (
-                      <Button
-                        variant="secondary"
-                        isBusy={fetchingAttachment === att.url}
-                        disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingAttachment !== null}
-                        onClick={() => previewAttachment(att)}
-                        style={{ flex: '0 0 auto' }}
-                      >Apply…</Button>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-              Tell the app which {workItem.noun} you are working on. It is stored with the site, so it survives restarts, and you can change or remove it at any time.
-            </div>
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-              <div style={{ minWidth: 260 }}>
-                <TextControl
-                  value={ticketInput}
-                  onChange={(value) => { setTicketInput(value); setTicketError(''); }}
-                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
-                  disabled={ticketActionsBlocked}
-                  placeholder={workItem.refPlaceholder}
-                  aria-label={workItem.refLabel}
-                />
-              </div>
-              <ReasonedButton
-                variant="secondary"
-                onClick={linkTicket}
-                isBusy={ticketSaving}
-                reason={ticketActionsReason}
-                disabled={!ticketInput.trim()}
-                style={{ padding: '10px 16px', borderRadius: 10 }}
-              >Link {workItem.noun}</ReasonedButton>
-            </div>
-            {/* Expectation-setting, not the warning itself: since #234 the
-                app asks before moving or discarding anything, so this only
-                has to be true, not load-bearing. Said without asking the
-                worktree, so it costs nothing. */}
-            <div style={{ marginTop: 6, fontSize: 12, color: '#6c6f72' }}>
-              If you have edited anything already, you will be asked what should happen to those edits.
-            </div>
-          </>
-        )}
-        {tracTicket ? null : ticketFeedback}
-        {tracTicket ? null : (
-          <div style={{ marginTop: 8 }}>
-            <Button variant="link" onClick={() => window.api.openExternal(project.workItem.browseUrl)} style={{ fontSize: 12 }}>
-              Not sure yet? {project.workItem.browseLabel}
-            </Button>
-          </div>
-        )}
-      </div>
+        <TicketCard
+          cue={cueProps('link-ticket')}
+          provider={project.workItem.provider}
+          ticketId={tracTicket || null}
+          ticketUrl={tracTicket ? workItem.urlFor(tracTicket) : ''}
+          onOpen={openSiteLink}
+          link={{
+            value: ticketInput,
+            onChange: (value) => { setTicketInput(value); setTicketError(''); },
+            onSubmit: linkTicket,
+            saving: ticketSaving,
+            reason: ticketActionsReason,
+            browseUrl: project.workItem.browseUrl
+          }}
+          unlink={{ onUnlink: unlinkTicket, reason: ticketActionsReason }}
+          details={showTracCards ? { info: tracInfo, loading: tracAttachmentsLoading, onRead: loadTracAttachments } : null}
+          staleNotice={staleTicketNotice ? {
+            ...staleTicketNotice,
+            busy: ticketSaving,
+            reason: rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, devServerActive: isDevProcessActive, discarding, noun: workItem.noun }),
+            onAction: rebaseTicket
+          } : null}
+          feedback={ticketFeedback}
+          changesNote={ticketChangesNote}
+          banner={prCheckoutBanner}
+          pullRequests={{
+            list: ticketPatches,
+            loading: ticketPatchesLoading,
+            onRefresh: loadTicketPatches,
+            latest: latestPatch,
+            appliedNumber: pullRequest ? pullRequest.number : null,
+            apply: { hidden: Boolean(pullRequest), disabled: patchReadBlocked, fetching: fetchingPr, onApply: previewPr }
+          }}
+          pullRequestsRef={ticketPatchesRef}
+          attachments={showTracCards ? {
+            result: tracAttachments,
+            loading: tracAttachmentsLoading,
+            items: patchAttachments,
+            latest: latestPatch,
+            onLoad: loadTracAttachments,
+            loadDisabled: isApplying || isUpdating || installing || building,
+            apply: { hidden: Boolean(pullRequest), disabled: patchReadBlocked, fetching: fetchingAttachment, onApply: previewAttachment }
+          } : null}
+          latestIsAttachment={latestIsAttachment}
+        />
       ) : null}
       {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>

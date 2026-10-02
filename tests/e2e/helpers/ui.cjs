@@ -165,20 +165,55 @@ const logTab = ( page, name ) => page.getByRole( 'tab', { name, exact: true } );
 
 // --- The ticket or issue the site is working on ------------------------------
 
-const ticketField = ( page ) => page.getByLabel( 'Trac ticket number or URL' );
+// The field a Trac ticket is linked in. There are two, with one helper for
+// both: the work-item card's, "Ticket number or URL", and the review's,
+// "Trac ticket number or URL", which is where a ticket is linked from when a
+// patch is about to be saved for one.
+const ticketField = ( page ) => page.getByLabel( 'ticket number or URL' );
 const linkTicketButton = ( page ) => page.getByRole( 'button', { name: 'Link ticket', exact: true } );
-const issueField = ( page ) => page.getByLabel( 'GitHub issue number or URL' );
+const issueField = ( page ) => page.getByLabel( 'Issue number or URL', { exact: true } );
 const linkIssueButton = ( page ) => page.getByRole( 'button', { name: 'Link issue', exact: true } );
 const unlinkButton = ( page ) => page.getByRole( 'button', { name: 'Unlink', exact: true } );
 
 /**
- * The number of the linked ticket or issue, as the card's subject.
+ * The number of the linked ticket or issue, as the card's subject. It is
+ * what says a site is working on one: the card's own title, "Trac ticket" or
+ * "GitHub issue", is the same with nothing linked.
  *
  * @param {Object}        page
  * @param {string|number} number
  * @return {Object} The locator.
  */
 const workItemNumber = ( page, number ) => page.getByText( `#${ number }`, { exact: true } );
+
+/**
+ * The work-item card's heading, which is what kind of work item the site's
+ * project has.
+ *
+ * @param {Object} page
+ * @param {string} title "Trac ticket" or "GitHub issue".
+ * @return {Object} The locator.
+ */
+const workItemHeading = ( page, title ) => page.getByRole( 'heading', { name: title, exact: true } );
+
+/**
+ * The work-item card itself.
+ *
+ * @param {Object} page
+ * @param {string} title "Trac ticket" or "GitHub issue".
+ * @return {Object} The locator.
+ */
+const workItemCard = ( page, title ) => page.getByRole( 'region', { name: title, exact: true } );
+
+/**
+ * The way from the card to the linked ticket or issue where it lives. It is
+ * named by the number, and says where it goes as its tooltip.
+ *
+ * @param {Object}        page
+ * @param {string|number} number
+ * @return {Object} The locator.
+ */
+const openWorkItemButton = ( page, number ) => page.getByRole( 'button', { name: `#${ number }`, exact: true } );
 
 // The way back to a parked ticket while another one is linked.
 const switchBackButton = ( page ) => page.getByRole( 'button', { name: 'switch', exact: true } );
@@ -301,6 +336,9 @@ module.exports = {
 	issueField,
 	linkIssueButton,
 	unlinkButton,
+	workItemHeading,
+	workItemCard,
+	openWorkItemButton,
 	workItemNumber,
 	switchBackButton,
 	continueWorkingButton,

@@ -60,7 +60,7 @@ test( 'a Gutenberg site opens its pull request against WordPress/gutenberg, word
 
 	await ui.issueField( page ).fill( ISSUE );
 	await ui.linkIssueButton( page ).click();
-	await expect( page.getByText( `Working on issue #${ ISSUE }`, { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( ui.workItemNumber( page, ISSUE ) ).toBeVisible( { timeout: 30_000 } );
 	write( site.dir, LOGIN, '<?php // my change\n' );
 
 	await stubGithub( app, { url: `https://github.com/WordPress/gutenberg/pull/9`, number: 9, branch: `fix/issue-${ ISSUE }` } );

@@ -255,3 +255,52 @@ test( 'the open site\'s two processes are fully translatable, in the header and 
 	await expect( details.getByText( said( 'The build watch ended by itself, with exit code %d. Its last lines are in the Logs.', '3' ), { exact: true } ) ).toBeVisible();
 	expect( ( await inDetails() ).filter( ( text ) => text !== 'password' ) ).toEqual( [] );
 } );
+
+test( 'the work-item card is fully translatable, with nothing linked and with a ticket and its lists', async ( { session } ) => {
+	// What GitHub and Trac say is theirs and stays as they wrote it: the
+	// ticket's summary and its facts, a pull request's title, a file's name,
+	// whoever uploaded it. They are answered by stand-ins, as in
+	// ticket-card.spec.js, and left out of the scan by name.
+	const THEIRS = [ '#60001', 'A summary from Trac', 'reviewing', 'defect (bug)', 'General', 'has-patch', '#7', 'A title from GitHub', '60001.diff', '·' ];
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+	await app.evaluate( ( { ipcMain } ) => {
+		const answers = {
+			'git:list-ticket-patches': () => ( { ok: true, prs: global.__e2ePrs || { status: 'ok', items: [ { number: 7, title: 'A title from GitHub', state: 'merged', url: 'https://github.com/WordPress/wordpress-develop/pull/7', commitDate: '2026-08-24T12:00:00Z' } ] } } ),
+			'trac:list-attachments': () => ( { ok: true, status: 'ok', ticket: { summary: 'A summary from Trac', status: 'reviewing', resolution: '', type: 'defect (bug)', milestone: '7.2', component: { label: 'General', url: '' }, keywords: [ { label: 'has-patch' } ], opened: { relative: '4 weeks ago', absolute: '' } }, items: [ { filename: '60001.diff', url: 'https://core.trac.wordpress.org/attachment/ticket/60001/60001.diff', applyable: true, author: 'janedoe' } ] } ),
+		};
+		for ( const [ channel, answer ] of Object.entries( answers ) ) {
+			ipcMain.removeHandler( channel );
+			ipcMain.handle( channel, answer );
+		}
+	} );
+	const card = ui.workItemCard( page, pseudoLocalize( 'Trac ticket' ) );
+	const inCard = async () => ( await unwrapped( card ) ).filter( ( text ) => ! THEIRS.includes( text ) );
+
+	// Nothing linked.
+	await expect( card ).toBeVisible( { timeout: 30_000 } );
+	await expect( card.getByRole( 'button', { name: pseudoLocalize( 'Browse good first bugs on Trac' ), exact: true } ) ).toBeVisible();
+	expect( await inCard() ).toEqual( [] );
+
+	// A ticket, with what Trac said of it, a pull request and an attachment.
+	await card.getByLabel( pseudoLocalize( 'Ticket number or URL' ), { exact: true } ).fill( '60001' );
+	await card.getByRole( 'button', { name: pseudoLocalize( 'Link ticket' ), exact: true } ).click();
+	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 2, { timeout: 30_000 } );
+	await expect( card.getByText( pseudoLocalize( 'Merged' ), { exact: true } ) ).toBeVisible();
+	await expect( card.getByRole( 'button', { name: pseudoLocalize( 'Refresh Trac attachments' ), exact: true } ) ).toBeVisible();
+	expect( await inCard() ).toEqual( [] );
+
+	// A list that could not be read, and one with nothing in it.
+	await app.evaluate( () => {
+		global.__e2ePrs = { status: 'offline', items: [], cachedAt: null };
+	} );
+	await card.getByRole( 'button', { name: pseudoLocalize( 'Refresh linked pull requests' ), exact: true } ).click();
+	await expect( card.getByText( pseudoLocalize( 'Could not reach GitHub.' ), { exact: false } ) ).toBeVisible();
+	expect( await inCard() ).toEqual( [] );
+	await app.evaluate( () => {
+		global.__e2ePrs = { status: 'ok', items: [] };
+	} );
+	await card.getByRole( 'button', { name: pseudoLocalize( 'Refresh linked pull requests' ), exact: true } ).click();
+	await expect( card.getByText( pseudoLocalize( 'No pull requests cite this ticket yet.' ), { exact: true } ) ).toBeVisible();
+	expect( await inCard() ).toEqual( [] );
+} );
