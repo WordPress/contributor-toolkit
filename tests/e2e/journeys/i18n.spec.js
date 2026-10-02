@@ -167,11 +167,21 @@ test( 'the open site\'s two processes are fully translatable, in the header and 
 			'npm:kill': () => ( { ok: true } ),
 			'url:open': () => true,
 		};
+		global.__e2eAsked = [];
 		for ( const [ channel, answer ] of Object.entries( answers ) ) {
 			ipcMain.removeHandler( channel );
-			ipcMain.handle( channel, answer );
+			ipcMain.handle( channel, () => {
+				global.__e2eAsked.push( channel );
+				return answer();
+			} );
 		}
 	} );
+	// Both have been asked for, and the page has had its answers: only then
+	// is it listening for what the test says of them.
+	const serverAndWatchAsked = async () => {
+		await expect.poll( () => app.evaluate( () => global.__e2eAsked ) ).toEqual( expect.arrayContaining( [ 'playground:start', 'npm:run-script' ] ) );
+		await page.evaluate( () => window.api.getSitesWithMeta() );
+	};
 	const tell = ( channel, payload ) => app.evaluate( ( { BrowserWindow }, [ to, what ] ) => {
 		BrowserWindow.getAllWindows()[ 0 ].webContents.send( to, what );
 	}, [ channel, payload ] );
@@ -215,6 +225,7 @@ test( 'the open site\'s two processes are fully translatable, in the header and 
 	await menuButton( 'Server stopped' ).click();
 	await item( 'Start development server' ).click();
 	await menuGone();
+	await serverAndWatchAsked();
 	await expect( details.getByText( /^\[.*\(\d+s\)~+\]$/ ) ).toBeVisible();
 	await expect( details.getByText( said( 'Edits in %s are compiled as they are saved.', 'src/' ), { exact: true } ) ).toBeVisible();
 	expect( await inDetails() ).toEqual( [] );

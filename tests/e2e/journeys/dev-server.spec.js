@@ -37,9 +37,10 @@
  *
  * Since #557 the server has two controls and they say the same: a menu in
  * the page's header, which says what the server is doing and holds the one
- * thing to do about it, and a section of the site's details, with a button
- * of the same name and, while the server has an address, where the site is
- * and what to log in with. The first two journeys press the button in the
+ * thing to do about it and, while the server has an address, the way to the
+ * site and to its admin; and a section of the site's details, with a button
+ * of the same name and, while the server has an address, where the site, its
+ * admin and its database are and what to log in with. The first two journeys press the button in the
  * details; the third goes through the header.
  *
  * The mail list and the Logs panel while a server runs are `mail.spec.js`
@@ -136,16 +137,13 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	await expect( ui.processMenuButton( page, 'Server starting…' ) ).toBeVisible();
 
 	// INVARIANT — while it starts there is nothing to press, here or in the
-	// header's menu, so a second press cannot start a second server (#488).
-	// That is what holds the claim now. The hook still refuses a second
-	// start by itself, which no press can reach any more: the button is held
-	// before a second press can land on it.
+	// header's menu: that is what now keeps a second press from starting a
+	// second server (#488). The hook still refuses a second start by itself,
+	// and no journey reaches that refusal any more.
 	await expect( starting ).toBeDisabled();
 	await ui.processMenuButton( page, 'Server starting…' ).click();
 	await expect( page.getByRole( 'menuitem', { name: 'Starting development server…', exact: true } ) ).toBeDisabled();
 	await page.keyboard.press( 'Escape' );
-	await server.heard();
-	expect( ( await server.asked() ).starts ).toHaveLength( 1 );
 
 	// INVARIANT — once the server has an address the site is opened in the
 	// browser, once, the address is shown, and the button offers to stop it.

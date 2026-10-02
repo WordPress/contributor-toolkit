@@ -125,6 +125,7 @@ test('the section of a server with an address shows where the site is and what t
 	assert.deepEqual(serverSection({ url: URL, running: true }), {
 		state: 'online',
 		links: serverLinks({ url: URL, running: true }),
+		menuLinks: serverLinks({ url: URL, running: true }).slice(0, 2),
 		credentials: ADMIN_CREDENTIALS,
 		text: ''
 	});
@@ -133,16 +134,24 @@ test('the section of a server with an address shows where the site is and what t
 	assert.equal(serverSection({ url: URL, starting: true }).state, 'online');
 });
 
+test('the header\'s menu is given the site and its admin, and never the database', () => {
+	assert.deepEqual(serverSection({ url: URL, running: true }).menuLinks.map((link) => link.id), ['site', 'admin']);
+	assert.deepEqual(serverSection({ url: URL }).menuLinks.map((link) => link.id), ['site', 'admin']);
+	assert.deepEqual(serverSection({ starting: true }).menuLinks, []);
+	assert.deepEqual(serverSection().menuLinks, []);
+});
+
 test('the section of a server that is starting says how long it has been', () => {
 	const section = serverSection({ starting: true, elapsed: 65 });
 	assert.equal(section.state, 'starting');
 	assert.deepEqual(section.links, []);
+	assert.deepEqual(section.menuLinks, []);
 	assert.equal(section.credentials, null);
 	assert.match(section.text, /^Dev server is starting… \(.+\)$/);
 	assert.notEqual(serverSection({ starting: true, elapsed: 5 }).text, section.text);
 });
 
 test('the section of a stopped server shows nothing, which is drawn as offline', () => {
-	assert.deepEqual(serverSection(), { state: 'offline', links: [], credentials: null, text: '' });
-	assert.deepEqual(serverSection({ running: true }), { state: 'offline', links: [], credentials: null, text: '' });
+	assert.deepEqual(serverSection(), { state: 'offline', links: [], menuLinks: [], credentials: null, text: '' });
+	assert.deepEqual(serverSection({ running: true }), { state: 'offline', links: [], menuLinks: [], credentials: null, text: '' });
 });

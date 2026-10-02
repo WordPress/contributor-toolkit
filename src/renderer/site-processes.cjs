@@ -88,8 +88,9 @@ function watchProcess({ state = 'idle', compiling = false, exitCode = null, exit
 		return { status: 'busy', label: __('Build paused'), ...press, disabled, detail: __('Paused while another operation builds the site. It comes back by itself.') };
 	}
 	if (state === 'exited') {
-		// The hook says 'exited' only of an end nobody asked for: a stop or a
-		// pause leaves the state 'idle' or 'paused'.
+		// The hook says 'exited' only of an end nobody asked for: a watch or
+		// a build that was stopped is 'idle', and a watch that was paused is
+		// 'paused'.
 		const coded = Number.isFinite(exitCode);
 		let detail = __('The build watch ended by itself. Its last lines are in the Logs.');
 		if (exitOf === 'build' && coded) {
@@ -135,20 +136,27 @@ const ADMIN_CREDENTIALS = Object.freeze({ username: 'admin', password: 'password
  * has been starting, so that a slow start can be told from a hang (#73); or
  * nothing, which the section draws as "offline".
  *
+ * `menuLinks` are the ones the header's menu has room for, the site and
+ * its admin: the details can be put away, and those two should not go with
+ * them. The database's page stays in the details.
+ *
  * @param {Object}  root0
  * @param {string}  [root0.url]      The server's address, or '' while it has none.
  * @param {boolean} [root0.running]  The server is running.
  * @param {boolean} [root0.starting] It is starting and has no address yet.
  * @param {number}  [root0.elapsed]  Seconds since the start began.
- * @return {{state: string, links: Array, credentials: (Object|null), text: string}}
+ * @return {{state: string, links: Array, menuLinks: Array, credentials: (Object|null), text: string}}
  */
 function serverSection({ url = '', running = false, starting = false, elapsed = 0 } = {}) {
-	if (url) return { state: 'online', links: serverLinks({ url, running }), credentials: ADMIN_CREDENTIALS, text: '' };
+	if (url) {
+		const links = serverLinks({ url, running });
+		return { state: 'online', links, menuLinks: links.filter((link) => link.id !== 'database'), credentials: ADMIN_CREDENTIALS, text: '' };
+	}
 	if (starting) {
 		// translators: %s: how long, such as "12s" or "1m 05s".
-		return { state: 'starting', links: [], credentials: null, text: sprintf(__('Dev server is starting… (%s)'), formatElapsed(elapsed)) };
+		return { state: 'starting', links: [], menuLinks: [], credentials: null, text: sprintf(__('Dev server is starting… (%s)'), formatElapsed(elapsed)) };
 	}
-	return { state: 'offline', links: [], credentials: null, text: '' };
+	return { state: 'offline', links: [], menuLinks: [], credentials: null, text: '' };
 }
 
 module.exports = { serverProcess, watchProcess, serverLinks, serverSection, ADMIN_CREDENTIALS };

@@ -219,3 +219,51 @@ test( 'a site with no build is built before it is watched, by a build that holds
 	await expect.poll( async () => ( await scripts.asked() ).scripts ).toHaveLength( 4 );
 	expect( ( await scripts.asked() ).scripts[ 3 ].name ).toBe( 'lint' );
 } );
+
+test( 'a build stopped before the watch could start is not a failure, stopped by the watch\'s button or by Ctrl+C in the terminal', async ( { session } ) => {
+	// A site with no build, as above: the watch's button runs the build
+	// first, and that build is what is stopped here.
+	const site = await makeSite( session );
+	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
+	const { app, page } = await session.start( site.settings );
+	const scripts = await standInForScripts( app, page );
+
+	const failure = page.getByText( /^The build that has to finish before the watch can start failed/ );
+	const offline = page.getByText( 'Build watch offline', { exact: true } );
+	// What the watch's tab says once the app has taken in the build's end.
+	// The app reads the site's status first, so this line is what says it
+	// has: what is read before it says nothing of what the end did.
+	const stopped = ui.card( page, 'Logs' ).getByText( 'npm run build was stopped — build watch not started.', { exact: true } );
+
+	await expect( ui.startBuildWatchButton( page ) ).toBeVisible( { timeout: 30_000 } );
+	await ui.startBuildWatchButton( page ).click();
+	await expect.poll( async () => ( await scripts.asked() ).scripts ).toHaveLength( 1 );
+	await expect( ui.processMenuButton( page, 'Build building' ) ).toBeVisible();
+	await ui.logTab( page, 'Build watcher (building)' ).click();
+
+	// INVARIANT — the watch's button stops the build, and a build that was
+	// stopped did not fail: the details go back to saying there is no watch,
+	// and do not say the build failed. A process that is killed ends with no
+	// code on macOS and Linux, which is what is said here.
+	await ui.stopBuildWatchButton( page ).click();
+	await expect.poll( async () => ( await scripts.asked() ).kills ).toEqual( [ { runId: 'e2e-run-1', directoryPath: site.dir } ] );
+	await scripts.ends( 1, null );
+	await expect( stopped ).toHaveCount( 1 );
+	await expect( offline ).toBeVisible();
+	await expect( failure ).toHaveCount( 0 );
+	await expect( ui.logTab( page, 'Build watcher' ) ).toBeVisible();
+
+	// INVARIANT — so does Ctrl+C in the terminal, which that build holds.
+	// On Windows a killed process ends with a code, which is what is said
+	// here: it is the asking that makes it a stop, not the code.
+	await ui.startBuildWatchButton( page ).click();
+	await expect.poll( async () => ( await scripts.asked() ).scripts ).toHaveLength( 2 );
+	await expect( ui.processMenuButton( page, 'Build building' ) ).toBeVisible();
+	await ui.terminalInput( page ).press( 'Control+c' );
+	await expect.poll( async () => ( await scripts.asked() ).kills ).toHaveLength( 2 );
+	await scripts.ends( 2, 1 );
+	await expect( stopped ).toHaveCount( 2 );
+	await expect( offline ).toBeVisible();
+	await expect( failure ).toHaveCount( 0 );
+	await expect( ui.logTab( page, 'Build watcher' ) ).toBeVisible();
+} );

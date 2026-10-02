@@ -206,7 +206,9 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
       markWatchState('building');
       watchWasActiveRef.current = true;
       markTerminalRunning(true);
-      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+      // Ctrl+C in the terminal stops this build as the watch's own button
+      // does: it says the watch is idle before it kills.
+      terminalKillRef.current = () => { markWatchState('idle'); killCurrent().catch(() => {}); };
       appendWatch('No completed build found — running npm run build first…\n');
       runScript('build', {
         mirrorToNpm: false,
@@ -214,6 +216,16 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
         onDone: ({ code }) => {
           markTerminalRunning(false);
           terminalKillRef.current = null;
+          // A stop that was asked for, by the watch's button or by Ctrl+C,
+          // has already said the watch is idle and killed this build to do
+          // it. Its end is not a failure, whatever the kill left it with: no
+          // code at all on macOS and Linux, a code of its own on Windows.
+          if (watchStateRef.current === 'idle') {
+            appendWatch('\nnpm run build was stopped — build watch not started.\n');
+            watchWasActiveRef.current = false;
+            settleWatchWaiters(false);
+            return;
+          }
           if (code !== 0 || watchStateRef.current !== 'building') {
             if (code !== 0) { appendWatch(`\nnpm run build failed with code ${code} — build watch not started.\n`); markWatchState('exited', code, 'build'); }
             else markWatchState('idle');
