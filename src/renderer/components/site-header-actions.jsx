@@ -18,6 +18,16 @@ export function SiteHeaderActionsSlot() {
   return <Slot bubblesVirtually className="site-header-actions" />;
 }
 
+// One thing the menu does. Its place in the list is its key, which holds as
+// long as site-menu.cjs keeps the list's order fixed, as it does.
+function MenuAction({ item, onAction }) {
+  return (
+    <Menu.Item disabled={item.disabled} onClick={() => onAction(item)}>
+      <Menu.ItemLabel>{item.label}</Menu.ItemLabel>
+    </Menu.Item>
+  );
+}
+
 /**
  * The open site's actions: the button that shows and hides its details, and
  * its menu. Rendered by the site's view, and only by the one that is open.
@@ -63,9 +73,20 @@ export function SiteHeaderActions({ detailsOpen, detailsId, onToggleDetails, men
         <Menu.Popup>
           {items.flatMap((item, index) => [
             item.separated ? <Menu.Separator key={`separator-${index}`} /> : null,
-            <Menu.Item key={`${item.id}-${item.path || index}`} disabled={item.disabled} onClick={() => onAction(item)}>
-              <Menu.ItemLabel>{item.label}</Menu.ItemLabel>
-            </Menu.Item>
+            item.items ? (
+              <Menu.SubmenuRoot key={item.id}>
+                <Menu.SubmenuTrigger>
+                  <Menu.ItemLabel>{item.label}</Menu.ItemLabel>
+                </Menu.SubmenuTrigger>
+                <Menu.Popup>
+                  {item.items.map((child, childIndex) => (
+                    <MenuAction key={`${child.id}-${child.path || childIndex}`} item={child} onAction={onAction} />
+                  ))}
+                </Menu.Popup>
+              </Menu.SubmenuRoot>
+            ) : (
+              <MenuAction key={item.id} item={item} onAction={onAction} />
+            )
           ])}
         </Menu.Popup>
       </Menu.Root>

@@ -237,7 +237,10 @@ body {
   min-width: 0;
 }
 
+/* The slot is as tall as the cards, so that the details, which are shorter,
+   have somewhere to stay put in. */
 .dashboard-sidebar-slot {
+  align-self: stretch;
   min-width: 0;
   overflow-x: clip;
 }
@@ -283,7 +286,7 @@ body {
   word-break: break-all;
 }
 
-.site-details-stale {
+.site-details-note {
   color: var(--wpds-color-foreground-content-warning-weak, #936300);
 }
 

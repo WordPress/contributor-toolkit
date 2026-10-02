@@ -21,11 +21,19 @@
  * Nothing is opened. The three handlers that look for applications, open the
  * folder in one and show it in the file manager are answered by stubs that
  * keep what they were asked, so the journey says the same on a machine with
- * no editor installed as on one with five. Copying is asked of a stand-in
- * too: the clipboard is the person's who runs the suite, so the page's write
- * to it is replaced by one that keeps the text. What that leaves out is the
- * clipboard itself refusing. The sites are folders with no checkout in them,
- * which is all the header and the details need of one.
+ * no editor installed as on one with five. What that leaves out is everything
+ * the main process does before it opens anything: checking the application
+ * it was named against a fresh look at the machine, which is what stops the
+ * page from naming any program at all; asking which application through the
+ * system's file dialog, and the answer when that is cancelled; and refusing a
+ * folder that is not a listed site, or one still being set up. Those are the
+ * main process's, with unit tests of their own.
+ *
+ * Copying is asked of a stand-in too: the clipboard is the person's who runs
+ * the suite, so the page's write to it is replaced by one that keeps the
+ * text. What that leaves out is the clipboard itself refusing. The sites are
+ * folders with no checkout in them, which is all the header and the details
+ * need of one.
  *
  * Assertions are marked INVARIANT or CHARACTERISATION; see
  * ticket-branches.spec.js for why.
@@ -39,6 +47,12 @@ const ui = require( '../helpers/ui.cjs' );
 
 const DAY = 24 * 60 * 60 * 1000;
 const EDITOR = { name: 'Example Editor', path: path.join( os.tmpdir(), 'example-editor' ) };
+// The name of the entry of a site whose trunk is thirty days old: what its
+// mark says comes after the site's own name.
+const OLD_TRUNK_ENTRY = 'old-trunk (WordPress code is 30 days old — update to latest trunk)';
+// The applications are in a menu of their own, under the site's menu.
+const openInMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Open in', exact: true } );
+const applicationItem = ( page, name ) => page.getByRole( 'menuitem', { name, exact: true } );
 
 // The button that puts the details away and the one that brings them back:
 // one button, named by what pressing it does.
@@ -77,7 +91,8 @@ function listedSites( session, sites ) {
 
 /**
  * Stands in for the three handlers that touch other applications, and keeps
- * what each was asked. `openAnswer` is what opening a folder answers.
+ * what each was asked. Opening a folder answers that it worked until
+ * `answerOpenWith` says otherwise.
  *
  * @param {Object} app
  * @return {Promise<{asked: Function, answerOpenWith: Function}>}
@@ -130,12 +145,13 @@ test( 'the header\'s menu acts on the site that is open: it copies that site\'s 
 	await expect( ui.siteHeading( page, 'newer-site' ) ).toBeVisible( { timeout: 30_000 } );
 	const menu = page.getByRole( 'menu', { name: 'Site actions' } );
 
-	// INVARIANT — the menu looks for applications as it opens, offers each by
-	// name, and always offers the way to choose another.
+	const OWN_ITEMS = [ 'Rename…', 'Copy path', /^Show in /, 'Update to latest trunk', 'Open in', 'Delete site' ];
+
+	// INVARIANT — the menu looks for applications as it opens, and its own
+	// list does not wait for the answer.
 	await ui.siteMenuButton( page ).click();
-	await expect( menu.getByRole( 'menuitem', { name: `Open in ${ EDITOR.name }`, exact: true } ) ).toBeVisible();
-	await expect( menu.getByRole( 'menuitem', { name: 'Open in other application…', exact: true } ) ).toBeVisible();
-	expect( ( await applications.asked() ).lists ).toBe( 1 );
+	await expect( menu.getByRole( 'menuitem' ) ).toHaveText( OWN_ITEMS );
+	await expect.poll( async () => ( await applications.asked() ).lists ).toBe( 1 );
 
 	// INVARIANT — copying the path puts the open site's path on the
 	// clipboard, and says so where it will be seen with the menu gone.
@@ -143,15 +159,30 @@ test( 'the header\'s menu acts on the site that is open: it copies that site\'s 
 	await expect( page.getByTestId( 'snackbar' ).filter( { hasText: 'Copied the path' } ) ).toBeVisible();
 	expect( await copied( page ) ).toEqual( [ newerDir ] );
 	await expect( menu ).toHaveCount( 0 );
+	// INVARIANT — and says so once: the button in the details, which says it
+	// on itself when it is the one pressed, has not changed. Read once and
+	// not waited for: a button that had changed would change back by itself
+	// a moment later, and it would have changed before the toast was raised.
+	expect( await details( page, 'newer-site' ).getByRole( 'button', { name: 'Copied', exact: true } ).count() ).toBe( 0 );
+
+	// INVARIANT — under "Open in" are each application by its name and,
+	// always, the way to choose another; and with them on screen the menu's
+	// own list is what it was, so nothing a contributor was about to press
+	// has moved.
+	await ui.siteMenuButton( page ).click();
+	await openInMenuItem( page ).click();
+	await expect( applicationItem( page, EDITOR.name ) ).toBeVisible();
+	await expect( applicationItem( page, 'Other application…' ) ).toBeVisible();
+	await expect( menu.getByRole( 'menuitem' ) ).toHaveText( OWN_ITEMS );
 
 	// INVARIANT — opening in a named application asks for this site's folder
 	// in that application; "other application" asks with none named, which is
 	// what makes the main process ask which.
-	await ui.siteMenuButton( page ).click();
-	await menu.getByRole( 'menuitem', { name: `Open in ${ EDITOR.name }`, exact: true } ).click();
+	await applicationItem( page, EDITOR.name ).click();
 	await expect.poll( async () => ( await applications.asked() ).opens ).toEqual( [ { sitePath: newerDir, editorPath: EDITOR.path } ] );
 	await ui.siteMenuButton( page ).click();
-	await menu.getByRole( 'menuitem', { name: 'Open in other application…', exact: true } ).click();
+	await openInMenuItem( page ).click();
+	await applicationItem( page, 'Other application…' ).click();
 	await expect.poll( async () => ( await applications.asked() ).opens ).toEqual( [
 		{ sitePath: newerDir, editorPath: EDITOR.path },
 		{ sitePath: newerDir, editorPath: null },
@@ -177,12 +208,22 @@ test( 'an application that will not open the folder says why on the page, with t
 	await expect( ui.siteHeading( page, 'only-site' ) ).toBeVisible( { timeout: 30_000 } );
 	await applications.answerOpenWith( { ok: false, reason: 'unlaunchable-editor' } );
 
+	// The header does not scroll, so its menu can be used from the bottom of
+	// the page, where the top of it, which is where a refusal is said, is out
+	// of sight.
+	await page.getByText( 'No emails yet.', { exact: true } ).scrollIntoViewIfNeeded();
+	await expect( ui.startDevServerButton( page ) ).not.toBeInViewport();
+	// INVARIANT — the details stay in view while the cards scroll past them.
+	await expect( details( page, 'only-site' ).getByRole( 'heading', { name: 'Details', exact: true } ) ).toBeInViewport();
+
 	// INVARIANT — the menu is gone by the time the answer comes, so the
-	// refusal is said on the page, and it carries the way out with it.
+	// refusal is said on the page, where it can be seen, and it carries the
+	// way out with it.
 	await ui.siteMenuButton( page ).click();
-	await page.getByRole( 'menuitem', { name: `Open in ${ EDITOR.name }`, exact: true } ).click();
+	await openInMenuItem( page ).click();
+	await applicationItem( page, EDITOR.name ).click();
 	const refusal = page.getByRole( 'alert' ).filter( { hasText: 'That application is no longer where it was. Choose another.' } );
-	await expect( refusal ).toBeVisible();
+	await expect( refusal ).toBeInViewport();
 	await applications.answerOpenWith( { ok: true } );
 	await refusal.getByRole( 'button', { name: 'Choose application…', exact: true } ).click();
 	await expect.poll( async () => ( await applications.asked() ).opens ).toEqual( [
@@ -221,7 +262,7 @@ test( 'the details say what the checkout is, copy its path, and can be put away 
 
 	// INVARIANT — another site's details are that site's, and an old trunk
 	// says how old.
-	await ui.sidebarEntry( page, 'old-trunk (WordPress code is 30 days old — update to latest trunk)' ).click();
+	await ui.sidebarEntry( page, OLD_TRUNK_ENTRY ).click();
 	await expect( ui.siteHeading( page, 'old-trunk' ) ).toBeVisible();
 	const old = details( page, 'old-trunk' );
 	await expect( old.getByText( oldDir, { exact: true } ) ).toBeVisible();
@@ -233,6 +274,8 @@ test( 'the details say what the checkout is, copy its path, and can be put away 
 	// the keyboard, the button says they are closed, and what it names is
 	// still there to be brought back.
 	await expect( hideDetailsButton( page ) ).toHaveAttribute( 'aria-expanded', 'true' );
+	// The element is found by its id because that is what the button names:
+	// the claim is about where `aria-controls` points.
 	const controlled = await hideDetailsButton( page ).getAttribute( 'aria-controls' );
 	expect( controlled ).toBeTruthy();
 	await expect( page.locator( `[id="${ controlled }"]` ).getByRole( 'complementary' ) ).toBeVisible();
@@ -252,6 +295,6 @@ test( 'the details say what the checkout is, copy its path, and can be put away 
 	await expect( fresh ).toHaveCount( 0 );
 	await showDetailsButton( page ).click();
 	await expect( fresh ).toBeVisible();
-	await ui.sidebarEntry( page, 'old-trunk (WordPress code is 30 days old — update to latest trunk)' ).click();
+	await ui.sidebarEntry( page, OLD_TRUNK_ENTRY ).click();
 	await expect( old ).toBeVisible();
 } );

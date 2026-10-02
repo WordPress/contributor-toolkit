@@ -38,7 +38,7 @@ test( 'the rename dialog changes the name in the sidebar and the heading, refuse
 	// Renaming is in the site's menu, in the page's header (#556).
 	const openDialog = { click: async () => {
 		await ui.siteMenuButton( page ).click();
-		await ui.renameSiteMenuItem( page ).click();
+		await page.getByRole( 'menuitem', { name: 'Rename…', exact: true } ).click();
 	} };
 	const dialog = page.getByRole( 'dialog', { name: 'Rename site' } );
 	const field = dialog.getByLabel( 'Site name' );

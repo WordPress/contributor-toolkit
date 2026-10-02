@@ -1,14 +1,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { siteMenuItems, fileManagerLabel } = require('../../src/renderer/site-menu.cjs');
+const { siteMenuItems, openInItems, fileManagerLabel } = require('../../src/renderer/site-menu.cjs');
 
 const ids = (items) => items.map((item) => item.id);
+const TOP = ['rename', 'copy-path', 'show-in-file-manager', 'update-trunk', 'open-in-menu', 'delete'];
 
 test('a site with nothing going on is offered everything, deleting last and set apart', () => {
 	const items = siteMenuItems({ platform: 'darwin' });
-	assert.deepEqual(ids(items), ['rename', 'copy-path', 'show-in-file-manager', 'update-trunk', 'open-in-other', 'delete']);
-	assert.deepEqual(items.map((item) => item.label), ['Rename…', 'Copy path', 'Show in Finder', 'Update to latest trunk', 'Open in other application…', 'Delete site']);
+	assert.deepEqual(ids(items), TOP);
+	assert.deepEqual(items.map((item) => item.label), ['Rename…', 'Copy path', 'Show in Finder', 'Update to latest trunk', 'Open in', 'Delete site']);
 	assert.equal(items.at(-1).separated, true);
 	assert.ok(items.slice(0, -1).every((item) => !item.separated));
 	assert.ok(items.every((item) => !item.disabled));
@@ -21,25 +22,41 @@ test('the file manager is named where it has a name, and called what it is elsew
 	assert.equal(fileManagerLabel(undefined), 'Show in file manager');
 });
 
-test('each application detection found is offered by name, before the way to choose another', () => {
-	const items = siteMenuItems({
-		platform: 'win32',
+test('the menu\'s own list is the same whatever detection finds and while it is still looking', () => {
+	// What a contributor is about to press must not move: "Delete site" is
+	// in this list, and detection answers after the menu is on screen.
+	const editors = [{ name: 'Visual Studio Code', path: 'C:\\Code.exe' }, { name: 'Zed', path: 'C:\\zed.exe' }];
+	for (const state of [{}, { detecting: true }, { editors }, { editors, detecting: true }, { editors: null }]) {
+		const items = siteMenuItems({ platform: 'win32', ...state });
+		assert.deepEqual(ids(items), TOP);
+		assert.deepEqual(items.map((item) => item.label), ['Rename…', 'Copy path', 'Show in Explorer', 'Update to latest trunk', 'Open in', 'Delete site']);
+	}
+});
+
+test('each application detection found is offered by its name, before the way to choose another', () => {
+	const items = openInItems({
 		editors: [{ name: 'Visual Studio Code', path: 'C:\\Code.exe' }, { name: 'Zed', path: 'C:\\zed.exe' }]
 	});
-	assert.deepEqual(ids(items), ['rename', 'copy-path', 'show-in-file-manager', 'update-trunk', 'open-in', 'open-in', 'open-in-other', 'delete']);
-	const offered = items.filter((item) => item.id === 'open-in');
-	assert.deepEqual(offered.map((item) => item.label), ['Open in Visual Studio Code', 'Open in Zed']);
-	assert.deepEqual(offered.map((item) => item.path), ['C:\\Code.exe', 'C:\\zed.exe']);
+	assert.deepEqual(items, [
+		{ id: 'open-in', label: 'Visual Studio Code', path: 'C:\\Code.exe' },
+		{ id: 'open-in', label: 'Zed', path: 'C:\\zed.exe' },
+		{ id: 'open-in-other', label: 'Other application…' }
+	]);
 });
 
 test('choosing another application is offered whatever detection found, and while it is still looking', () => {
-	assert.ok(ids(siteMenuItems({ editors: [] })).includes('open-in-other'));
-	assert.ok(ids(siteMenuItems({ editors: null })).includes('open-in-other'));
-	const looking = siteMenuItems({ detecting: true });
-	assert.deepEqual(ids(looking), ['rename', 'copy-path', 'show-in-file-manager', 'update-trunk', 'detecting', 'open-in-other', 'delete']);
-	const row = looking.find((item) => item.id === 'detecting');
-	assert.equal(row.label, 'Looking for applications…');
-	assert.equal(row.disabled, true);
+	assert.deepEqual(ids(openInItems({ editors: [] })), ['open-in-other']);
+	assert.deepEqual(ids(openInItems({ editors: null })), ['open-in-other']);
+	assert.deepEqual(ids(openInItems()), ['open-in-other']);
+	const looking = openInItems({ editors: [{ name: 'Zed', path: '/zed' }], detecting: true });
+	assert.deepEqual(ids(looking), ['open-in', 'detecting', 'open-in-other']);
+	assert.deepEqual(looking[1], { id: 'detecting', label: 'Looking for applications…', disabled: true });
+});
+
+test('the menu carries the applications under "Open in"', () => {
+	const editors = [{ name: 'Zed', path: '/zed' }];
+	const openIn = siteMenuItems({ editors, detecting: true }).find((item) => item.id === 'open-in-menu');
+	assert.deepEqual(openIn.items, openInItems({ editors, detecting: true }));
 });
 
 test('a site still being set up cannot be deleted from the menu', () => {
@@ -53,10 +70,9 @@ test('a site still being set up cannot be deleted from the menu', () => {
 test('a site being deleted says so where deleting was, and that cannot be pressed', () => {
 	const items = siteMenuItems({ isDeleting: true });
 	assert.ok(!ids(items).includes('delete'));
-	const row = items.at(-1);
-	assert.deepEqual(row, { id: 'deleting', label: 'Deleting…', disabled: true, separated: true });
+	assert.deepEqual(items.at(-1), { id: 'deleting', label: 'Deleting…', disabled: true, separated: true });
 });
 
 test('no arguments at all is the menu of an ordinary site', () => {
-	assert.deepEqual(ids(siteMenuItems()), ['rename', 'copy-path', 'show-in-file-manager', 'update-trunk', 'open-in-other', 'delete']);
+	assert.deepEqual(ids(siteMenuItems()), TOP);
 });

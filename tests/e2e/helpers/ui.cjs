@@ -103,7 +103,6 @@ const siteHeading = ( page, label ) => page.getByRole( 'heading', { name: label,
 // The open site's menu, in the page's header, and what is in it. An item is
 // there only while the menu is open.
 const siteMenuButton = ( page ) => page.getByRole( 'button', { name: 'Site actions', exact: true } );
-const renameSiteMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Rename…', exact: true } );
 const updateTrunkMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Update to latest trunk', exact: true } );
 const deleteSiteMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Delete site', exact: true } );
 
@@ -275,7 +274,6 @@ module.exports = {
 	renderedApp,
 	siteHeading,
 	siteMenuButton,
-	renameSiteMenuItem,
 	updateTrunkMenuItem,
 	deleteSiteMenuItem,
 	startDevServerButton,

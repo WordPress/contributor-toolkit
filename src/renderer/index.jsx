@@ -847,17 +847,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
   }, []);
 
-  // Resolves to whether the path was copied, for the caller that has its own
-  // way of saying so.
-  const copyPath = useCallback(async () => {
+  // Puts the path on the clipboard and resolves to whether it got there. Each
+  // of the two things that copy says so in its own way, and only in that way:
+  // said twice, a screen reader reads it twice.
+  const writePathToClipboard = useCallback(async () => {
     try {
       if (!navigator?.clipboard?.writeText) {
         throw new Error('Clipboard access is not available in this environment');
       }
       await navigator.clipboard.writeText(sitePath);
-      setPathCopied(true);
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-      copyTimeoutRef.current = setTimeout(() => setPathCopied(false), 1500);
       return true;
     } catch (err) {
       // eslint-disable-next-line no-alert -- see the note above onRename.
@@ -865,6 +863,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       return false;
     }
   }, [sitePath]);
+  // The details' button, which says "Copied" on itself for a moment.
+  const copyPath = useCallback(async () => {
+    if (!(await writePathToClipboard())) return;
+    setPathCopied(true);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setPathCopied(false), 1500);
+  }, [writePathToClipboard]);
 
   // --- opening the directory ------------------------------------------------
   //
@@ -872,17 +877,27 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // argument to the action rather than a setting configured first, so there is
   // nothing remembered, nothing to change later, and no first-run picker.
   //
-  // What the menu offers is what detection found (see editor-launch.js — a
+  // What is offered is what detection found (see editor-launch.js — a
   // convenience, not a claim about what is installed) plus the file manager and
   // "Other application…", which is what covers everything the table misses. No
-  // entry is ever drawn disabled: an application this app cannot find is not one
-  // it refuses to use, and the copy button above is the floor under all of it.
+  // application is ever drawn disabled: one this app cannot find is not one it
+  // refuses to use, and copying the path is the floor under all of it. Since
+  // #556 these are items of the site's menu, in the page's header; which ones
+  // and in what order is site-menu.cjs.
   const { detected: detectedEditors, loading: detectingEditors, loadDetected } = editor;
   // `{ message, offerPicker }` from open-failure.cjs, or null for nothing to
   // say. Both what it reads and whether "Choose application…" is a way out of
   // it are decided there, per reason — the two callers below deciding that
   // separately is what #180 was.
   const [editorNotice, setEditorNotice] = useState(null);
+  // The notice is drawn at the top of the site's cards, and the menu that
+  // caused it can be used from anywhere down the page: said out of sight, a
+  // refusal looks like a button that did nothing. A new notice object is a
+  // new refusal, so one that repeats is brought back into view too.
+  const editorNoticeRef = useRef(null);
+  useEffect(() => {
+    if (editorNotice && isActive && editorNoticeRef.current) editorNoticeRef.current.scrollIntoView({ block: 'nearest' });
+  }, [editorNotice, isActive]);
 
 
   // `editorPath` is one of the detected applications; null asks the main process
@@ -1161,12 +1176,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
 
   // What the site's menu does (#556). Which items it offers is decided in
   // site-menu.cjs; this is each one's function. Copying the path says so in a
-  // toast, since the menu is gone by then and the details, whose button says
-  // it too, may be put away.
+  // toast, since the menu is gone by then and the details, whose own button
+  // says it on itself, may be put away.
   const detailsId = useId();
   const runSiteMenuAction = async (item) => {
     if (item.id === 'rename') openRenameModal();
-    else if (item.id === 'copy-path') { if (await copyPath()) confirm(__('Copied the path')); }
+    else if (item.id === 'copy-path') { if (await writePathToClipboard()) confirm(__('Copied the path')); }
     else if (item.id === 'show-in-file-manager') await showInFileManager();
     else if (item.id === 'update-trunk') await startTrunkUpdate();
     else if (item.id === 'open-in') await openIn(item.path);
@@ -1918,9 +1933,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       <div className="dashboard-main">
     {/* With no modal in the way, this is the only place a failed open can
         speak — and it carries the way out with it, rather than leaving the
-        contributor to find the menu again. */}
+        contributor to find the menu again. The menu is in the header, which
+        does not scroll, so this is brought into view when it appears. */}
     {editorNotice ? (
-      <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
+      <div ref={editorNoticeRef} role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
         <span style={{ flex: '1 1 240px' }}>{editorNotice.message}</span>
         {editorNotice.offerPicker ? (
           <Button variant="tertiary" isSmall onClick={() => void openIn(null)}>Choose application…</Button>
@@ -2879,13 +2895,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         id={detailsId}
         open={detailsOpen}
         siteName={displayName}
-        initialized={initialized}
-        created={createdLabel}
-        trunk={age}
-        path={sitePath}
+        facts={{ initialized, created: createdLabel, trunk: age, path: sitePath, checkout: project.label }}
         pathCopied={pathCopied}
         onCopyPath={copyPath}
-        checkout={project.label}
       />
       </div>
       {dirtyModalOpen ? (

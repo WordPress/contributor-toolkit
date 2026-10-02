@@ -129,11 +129,21 @@ test( 'the open site\'s details and its menu are fully translatable', async ( { 
 	expect( ( await unwrapped( details ) ).filter( ( text ) => text !== dir && ! text.includes( year ) ) ).toEqual( [] );
 
 	await page.getByRole( 'button', { name: pseudoLocalize( 'Site actions' ), exact: true } ).click();
-	const menu = page.getByRole( 'menu' );
+	const menu = page.getByRole( 'menu', { name: pseudoLocalize( 'Site actions' ) } );
 	await expect( menu.getByRole( 'menuitem', { name: pseudoLocalize( 'Rename…' ), exact: true } ) ).toBeVisible();
-	await expect( menu.getByRole( 'menuitem' ) ).toHaveCount( 7 );
-	// The application's name is its own, inside a sentence that is translated.
+	await expect( menu.getByRole( 'menuitem' ) ).toHaveCount( 6 );
 	expect( await unwrapped( menu ) ).toEqual( [] );
+
+	// The applications, under "Open in". Scanned once the one application
+	// has arrived, so that the list scanned is the whole list. Its name is its
+	// own and is left as it is; the row beside it is the app's.
+	await menu.getByRole( 'menuitem', { name: pseudoLocalize( 'Open in' ), exact: true } ).click();
+	const application = page.getByRole( 'menuitem', { name: 'Example Editor', exact: true } );
+	await expect( application ).toBeVisible();
+	const applications = page.getByRole( 'menu' ).filter( { has: application } ).last();
+	await expect( applications.getByRole( 'menuitem', { name: pseudoLocalize( 'Other application…' ), exact: true } ) ).toBeVisible();
+	expect( ( await unwrapped( applications ) ).filter( ( text ) => text !== 'Example Editor' ) ).toEqual( [] );
+	await page.keyboard.press( 'Escape' );
 	await page.keyboard.press( 'Escape' );
 	await expect( page.getByRole( 'button', { name: pseudoLocalize( 'Hide details' ), exact: true } ) ).toBeVisible();
 } );

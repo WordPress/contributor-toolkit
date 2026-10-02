@@ -2,12 +2,19 @@
 // whole, in the header of its page.
 //
 // Opening the folder is here too. It used to be a menu of its own beside the
-// path, and the applications in it are still whatever detection found, each
-// named, with "other application" always offered: detection is a shortcut,
-// and an application it misses is not one this app refuses to use.
+// path, and it is still a menu of its own, under "Open in": the applications
+// in it are whatever detection found, each by its name, with "Other
+// application…" always offered. Detection is a shortcut, and an application it
+// misses is not one this app refuses to use.
+//
+// It is a menu under the menu for a second reason. Detection runs as the menu
+// opens and answers when it answers, so the rows it adds arrive after the
+// menu is on screen. In the menu's own list they would push "Delete site"
+// down under a pointer that was aiming at something else; in a list of their
+// own, nothing a contributor is about to press moves.
 'use strict';
 
-const { __, sprintf } = require('@wordpress/i18n');
+const { __ } = require('@wordpress/i18n');
 
 /**
  * What the file manager is called where the app is running. It has a name on
@@ -23,8 +30,33 @@ function fileManagerLabel(platform) {
 }
 
 /**
- * The menu's items, in order. `id` says what an item does; an `open-in` item
- * also carries the application's `path`. `separated` asks for a line above.
+ * The applications a folder can be opened in, in order: each one detection
+ * found, by its own name; a row that says detection is still running, which
+ * cannot be pressed; and the way to choose any other, which is always there.
+ *
+ * A list that is still counting is not an empty list, and the difference has
+ * to be visible: without the row, a slow sweep looks exactly like a machine
+ * with no editors on it.
+ *
+ * @param {Object}  root0
+ * @param {Array}   [root0.editors]   Detected applications, `{ name, path }`.
+ * @param {boolean} [root0.detecting] Detection is still running.
+ * @return {Array<{id: string, label: string, path?: string, disabled?: boolean}>}
+ */
+function openInItems({ editors = [], detecting = false } = {}) {
+	const items = (editors || []).map((editor) => ({ id: 'open-in', label: editor.name, path: editor.path }));
+	if (detecting) items.push({ id: 'detecting', label: __('Looking for applications…'), disabled: true });
+	items.push({ id: 'open-in-other', label: __('Other application…') });
+	return items;
+}
+
+/**
+ * The menu's items, in order. `id` says what an item does. The `open-in-menu`
+ * item opens a menu of its own, whose items are in `items`. `separated` asks
+ * for a line above.
+ *
+ * The list is the same whatever detection finds and however long it takes:
+ * what changes is inside "Open in".
  *
  * Deleting is not offered while the site is still being cloned: it would
  * remove a directory the app is writing into. The main process refuses it
@@ -38,7 +70,7 @@ function fileManagerLabel(platform) {
  * @param {boolean} [root0.detecting]  Detection is still running.
  * @param {boolean} [root0.isPending]  The site is still being set up.
  * @param {boolean} [root0.isDeleting] The site is being deleted.
- * @return {Array<{id: string, label: string, path?: string, disabled?: boolean, separated?: boolean}>}
+ * @return {Array<{id: string, label: string, items?: Array, disabled?: boolean, separated?: boolean}>}
  */
 function siteMenuItems({ platform, editors = [], detecting = false, isPending = false, isDeleting = false } = {}) {
 	const items = [
@@ -46,18 +78,8 @@ function siteMenuItems({ platform, editors = [], detecting = false, isPending = 
 		{ id: 'copy-path', label: __('Copy path') },
 		{ id: 'show-in-file-manager', label: fileManagerLabel(platform) },
 		{ id: 'update-trunk', label: __('Update to latest trunk') },
-		...(editors || []).map((editor) => ({
-			id: 'open-in',
-			// translators: %s: the name of an application, such as Visual Studio Code.
-			label: sprintf(__('Open in %s'), editor.name),
-			path: editor.path
-		}))
+		{ id: 'open-in-menu', label: __('Open in'), items: openInItems({ editors, detecting }) }
 	];
-	// A menu that is still counting is not an empty menu, and the difference
-	// has to be visible: without this, a slow sweep looks exactly like a
-	// machine with no editors on it.
-	if (detecting) items.push({ id: 'detecting', label: __('Looking for applications…'), disabled: true });
-	items.push({ id: 'open-in-other', label: __('Open in other application…') });
 	if (!isPending) {
 		items.push(isDeleting
 			? { id: 'deleting', label: __('Deleting…'), disabled: true, separated: true }
@@ -66,4 +88,4 @@ function siteMenuItems({ platform, editors = [], detecting = false, isPending = 
 	return items;
 }
 
-module.exports = { siteMenuItems, fileManagerLabel };
+module.exports = { siteMenuItems, openInItems, fileManagerLabel };
