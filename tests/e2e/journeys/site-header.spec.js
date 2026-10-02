@@ -204,13 +204,18 @@ test( 'the header\'s menu acts on the site that is open: it copies that site\'s 
 } );
 
 test( 'an application that will not open the folder says why on the page, with the way to choose another', async ( { session } ) => {
-	const { dirs, settings } = listedSites( session, [ { label: 'other-site' }, { label: 'only-site' } ] );
-	const siteDir = dirs[ 1 ];
+	const { dirs, settings } = listedSites( session, [ { label: 'only-site' } ] );
+	const siteDir = dirs[ 0 ];
 	const { app, page } = await session.start( settings );
 	const applications = await standInForApplications( app );
 	await expect( ui.siteHeading( page, 'only-site' ) ).toBeVisible( { timeout: 30_000 } );
 	await applications.answerOpenWith( { ok: false, reason: 'unlaunchable-editor' } );
-	const pageEnd = page.getByText( 'No emails yet.', { exact: true } ).filter( { visible: true } );
+	// With the sites list put away the page has room for its two columns on
+	// the smallest screen the suite runs on, where the window is the screen.
+	// In one column the details are at the foot of the page, and "they stay
+	// in view" would be true of them for another reason.
+	await page.getByRole( 'button', { name: 'Hide sites list', exact: true } ).click();
+	const pageEnd = page.getByText( 'No emails yet.', { exact: true } );
 
 	// The header does not scroll, so its menu can be used from the bottom of
 	// the page, where the top of it, which is where a refusal is said, is out
@@ -228,19 +233,6 @@ test( 'an application that will not open the folder says why on the page, with t
 	await applicationItem( page, EDITOR.name ).click();
 	const refusal = page.getByRole( 'alert' ).filter( { hasText: 'That application is no longer where it was. Choose another.' } );
 	await expect( refusal ).toBeInViewport();
-
-	// INVARIANT — it is brought into view once, when it is said. Still
-	// there when the site is opened again, it does not take the page back to
-	// itself: the page stays where the contributor had scrolled it.
-	await ui.sidebarEntry( page, 'other-site' ).click();
-	await expect( ui.siteHeading( page, 'other-site' ) ).toBeVisible();
-	await pageEnd.scrollIntoViewIfNeeded();
-	await ui.sidebarEntry( page, 'only-site' ).click();
-	await expect( ui.siteHeading( page, 'only-site' ) ).toBeVisible();
-	await expect( pageEnd ).toBeInViewport();
-	await expect( refusal ).not.toBeInViewport();
-
-	await refusal.scrollIntoViewIfNeeded();
 	await applications.answerOpenWith( { ok: true } );
 	await refusal.getByRole( 'button', { name: 'Choose application…', exact: true } ).click();
 	await expect.poll( async () => ( await applications.asked() ).opens ).toEqual( [

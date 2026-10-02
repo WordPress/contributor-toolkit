@@ -895,7 +895,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // refusal looks like a button that did nothing. Each refusal is brought
   // into view once. A new notice object is a new refusal, so one that repeats
   // is brought back; one that is merely still there when the site is opened
-  // again is not, or the page would jump to it on every return.
+  // again is not this effect's to move to. Where the page goes then is the
+  // next-action cue's (useNextActionCue), which centres the next step each
+  // time a site is opened, and two effects scrolling the same page in one
+  // commit would only be the second one's.
   const editorNoticeRef = useRef(null);
   const shownEditorNoticeRef = useRef(null);
   useEffect(() => {
