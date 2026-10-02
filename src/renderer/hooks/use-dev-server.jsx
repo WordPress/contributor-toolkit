@@ -24,9 +24,9 @@ import { serveWithoutWatch } from '../dev-server-command.cjs';
 // `hasBuilt`, `setHasBuilt` and `skipInit` are what the site's status says,
 // and `projectBuild` is the project's build plan.
 //
-// `toggleDevServer` is the button. `isServerStarting`, `isDevProcessActive`
-// and `devServerButtonLabel` are what it shows, and `startElapsed` how long a
-// start has been going.
+// `toggleDevServer` is the button. `isServerStarting` and `isDevProcessActive`
+// are what the page's words about the server are decided from, in
+// site-processes.cjs, and `startElapsed` is how long a start has been going.
 export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning }) {
   const [serverUrl, setServerUrl] = useState('');
   const [starting, setStarting] = useState(false);
@@ -187,8 +187,6 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
   };
   const isServerStarting = waitingForWatch || (starting && !serverUrl);
   const isDevProcessActive = running || isServerStarting;
-  let devServerButtonLabel = 'Start dev server';
-  if (isDevProcessActive) devServerButtonLabel = isServerStarting ? 'Starting dev server...' : 'Stop dev server';
   // Elapsed-seconds counter for the starting state, so a slow boot is
   // distinguishable from a hang (issue #73).
   const [startElapsed, setStartElapsed] = useState(0);
@@ -207,7 +205,6 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
     running,
     isServerStarting,
     isDevProcessActive,
-    devServerButtonLabel,
     startElapsed,
     toggleDevServer
   };
