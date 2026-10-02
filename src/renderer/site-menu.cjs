@@ -10,8 +10,9 @@
 // It is a menu under the menu for a second reason. Detection runs as the menu
 // opens and answers when it answers, so the rows it adds arrive after the
 // menu is on screen. In the menu's own list they would push "Delete site"
-// down under a pointer that was aiming at something else; in a list of their
-// own, nothing a contributor is about to press moves.
+// down under a pointer that was aiming at something else. In a list of their
+// own they are added at its end, under the one row that is always there, so
+// that row does not move either.
 'use strict';
 
 const { __ } = require('@wordpress/i18n');
@@ -30,9 +31,11 @@ function fileManagerLabel(platform) {
 }
 
 /**
- * The applications a folder can be opened in, in order: each one detection
- * found, by its own name; a row that says detection is still running, which
- * cannot be pressed; and the way to choose any other, which is always there.
+ * The applications a folder can be opened in, in order: the way to choose any
+ * application, which is always there and so is first, where nothing that
+ * arrives later can move it; each one detection found, by its own name; and
+ * a row that says detection is still running, which cannot be pressed and is
+ * last, so that its going moves nothing that can be.
  *
  * A list that is still counting is not an empty list, and the difference has
  * to be visible: without the row, a slow sweep looks exactly like a machine
@@ -44,9 +47,11 @@ function fileManagerLabel(platform) {
  * @return {Array<{id: string, label: string, path?: string, disabled?: boolean}>}
  */
 function openInItems({ editors = [], detecting = false } = {}) {
-	const items = (editors || []).map((editor) => ({ id: 'open-in', label: editor.name, path: editor.path }));
+	const items = [
+		{ id: 'open-in-other', label: __('Other application…') },
+		...(editors || []).map((editor) => ({ id: 'open-in', label: editor.name, path: editor.path }))
+	];
 	if (detecting) items.push({ id: 'detecting', label: __('Looking for applications…'), disabled: true });
-	items.push({ id: 'open-in-other', label: __('Other application…') });
 	return items;
 }
 
@@ -78,6 +83,7 @@ function siteMenuItems({ platform, editors = [], detecting = false, isPending = 
 		{ id: 'copy-path', label: __('Copy path') },
 		{ id: 'show-in-file-manager', label: fileManagerLabel(platform) },
 		{ id: 'update-trunk', label: __('Update to latest trunk') },
+		// translators: the label of a menu that lists applications, each by its name: "Open in" and then, in the menu, "Visual Studio Code".
 		{ id: 'open-in-menu', label: __('Open in'), items: openInItems({ editors, detecting }) }
 	];
 	if (!isPending) {

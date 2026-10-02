@@ -892,11 +892,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const [editorNotice, setEditorNotice] = useState(null);
   // The notice is drawn at the top of the site's cards, and the menu that
   // caused it can be used from anywhere down the page: said out of sight, a
-  // refusal looks like a button that did nothing. A new notice object is a
-  // new refusal, so one that repeats is brought back into view too.
+  // refusal looks like a button that did nothing. Each refusal is brought
+  // into view once. A new notice object is a new refusal, so one that repeats
+  // is brought back; one that is merely still there when the site is opened
+  // again is not, or the page would jump to it on every return.
   const editorNoticeRef = useRef(null);
+  const shownEditorNoticeRef = useRef(null);
   useEffect(() => {
-    if (editorNotice && isActive && editorNoticeRef.current) editorNoticeRef.current.scrollIntoView({ block: 'nearest' });
+    if (!editorNotice || !isActive || !editorNoticeRef.current) return;
+    if (shownEditorNoticeRef.current === editorNotice) return;
+    shownEditorNoticeRef.current = editorNotice;
+    editorNoticeRef.current.scrollIntoView({ block: 'nearest' });
   }, [editorNotice, isActive]);
 
 

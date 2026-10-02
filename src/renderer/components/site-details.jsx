@@ -1,5 +1,5 @@
 import { __, sprintf } from '@wordpress/i18n';
-import { Button, Stack, Text } from '@wordpress/ui';
+import { Button, Stack, Text, VisuallyHidden } from '@wordpress/ui';
 import { siteDetailsRows } from '../site-details.cjs';
 
 /**
@@ -37,14 +37,18 @@ export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath 
                 </Stack>
               );
               if (!row.copyable) return fact;
-              // The button says the copy worked on itself, and the region it
-              // is in is a live one, so that is announced.
+              // The button says the copy worked on itself, for the eye. For
+              // a screen reader it is said by the region beside it, which
+              // holds the word only while it is true: the button's name
+              // changing back a moment later is not news, and a live button
+              // would announce that too.
               return (
                 <Stack key={row.id} direction="row" align="end" justify="space-between" gap="sm">
                   {fact}
-                  <Button variant="minimal" tone="neutral" size="compact" aria-live="polite" onClick={() => onCopyPath()}>
+                  <Button variant="minimal" tone="neutral" size="compact" onClick={() => onCopyPath()}>
                     {pathCopied ? __('Copied') : __('Copy')}
                   </Button>
+                  <VisuallyHidden role="status" aria-live="polite">{pathCopied ? __('Copied') : ''}</VisuallyHidden>
                 </Stack>
               );
             })}

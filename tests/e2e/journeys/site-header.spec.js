@@ -165,14 +165,16 @@ test( 'the header\'s menu acts on the site that is open: it copies that site\'s 
 	// a moment later, and it would have changed before the toast was raised.
 	expect( await details( page, 'newer-site' ).getByRole( 'button', { name: 'Copied', exact: true } ).count() ).toBe( 0 );
 
-	// INVARIANT — under "Open in" are each application by its name and,
-	// always, the way to choose another; and with them on screen the menu's
-	// own list is what it was, so nothing a contributor was about to press
-	// has moved.
+	// INVARIANT — under "Open in" are the way to choose an application,
+	// always, and each one that was found, by its name; and with them on
+	// screen the menu's own list is what it was, so nothing a contributor was
+	// about to press there has moved.
 	await ui.siteMenuButton( page ).click();
 	await openInMenuItem( page ).click();
-	await expect( applicationItem( page, EDITOR.name ) ).toBeVisible();
-	await expect( applicationItem( page, 'Other application…' ) ).toBeVisible();
+	// CHARACTERISATION — the way to choose is first, where what arrives
+	// later cannot move it. That a row never moves is the module's, with a
+	// unit test that walks the lists before and after an answer.
+	await expect( page.getByRole( 'menu', { name: 'Open in' } ).getByRole( 'menuitem' ) ).toHaveText( [ 'Other application…', EDITOR.name ] );
 	await expect( menu.getByRole( 'menuitem' ) ).toHaveText( OWN_ITEMS );
 
 	// INVARIANT — opening in a named application asks for this site's folder
@@ -202,16 +204,18 @@ test( 'the header\'s menu acts on the site that is open: it copies that site\'s 
 } );
 
 test( 'an application that will not open the folder says why on the page, with the way to choose another', async ( { session } ) => {
-	const { dirs, settings } = listedSites( session, [ { label: 'only-site' } ] );
+	const { dirs, settings } = listedSites( session, [ { label: 'other-site' }, { label: 'only-site' } ] );
+	const siteDir = dirs[ 1 ];
 	const { app, page } = await session.start( settings );
 	const applications = await standInForApplications( app );
 	await expect( ui.siteHeading( page, 'only-site' ) ).toBeVisible( { timeout: 30_000 } );
 	await applications.answerOpenWith( { ok: false, reason: 'unlaunchable-editor' } );
+	const pageEnd = page.getByText( 'No emails yet.', { exact: true } ).filter( { visible: true } );
 
 	// The header does not scroll, so its menu can be used from the bottom of
 	// the page, where the top of it, which is where a refusal is said, is out
 	// of sight.
-	await page.getByText( 'No emails yet.', { exact: true } ).scrollIntoViewIfNeeded();
+	await pageEnd.scrollIntoViewIfNeeded();
 	await expect( ui.startDevServerButton( page ) ).not.toBeInViewport();
 	// INVARIANT — the details stay in view while the cards scroll past them.
 	await expect( details( page, 'only-site' ).getByRole( 'heading', { name: 'Details', exact: true } ) ).toBeInViewport();
@@ -224,11 +228,24 @@ test( 'an application that will not open the folder says why on the page, with t
 	await applicationItem( page, EDITOR.name ).click();
 	const refusal = page.getByRole( 'alert' ).filter( { hasText: 'That application is no longer where it was. Choose another.' } );
 	await expect( refusal ).toBeInViewport();
+
+	// INVARIANT — it is brought into view once, when it is said. Still
+	// there when the site is opened again, it does not take the page back to
+	// itself: the page stays where the contributor had scrolled it.
+	await ui.sidebarEntry( page, 'other-site' ).click();
+	await expect( ui.siteHeading( page, 'other-site' ) ).toBeVisible();
+	await pageEnd.scrollIntoViewIfNeeded();
+	await ui.sidebarEntry( page, 'only-site' ).click();
+	await expect( ui.siteHeading( page, 'only-site' ) ).toBeVisible();
+	await expect( pageEnd ).toBeInViewport();
+	await expect( refusal ).not.toBeInViewport();
+
+	await refusal.scrollIntoViewIfNeeded();
 	await applications.answerOpenWith( { ok: true } );
 	await refusal.getByRole( 'button', { name: 'Choose application…', exact: true } ).click();
 	await expect.poll( async () => ( await applications.asked() ).opens ).toEqual( [
-		{ sitePath: dirs[ 0 ], editorPath: EDITOR.path },
-		{ sitePath: dirs[ 0 ], editorPath: null },
+		{ sitePath: siteDir, editorPath: EDITOR.path },
+		{ sitePath: siteDir, editorPath: null },
 	] );
 	// INVARIANT — and once an open has worked, the refusal is gone.
 	await expect( refusal ).toHaveCount( 0 );
@@ -257,8 +274,12 @@ test( 'the details say what the checkout is, copy its path, and can be put away 
 	// moment it takes to notice.
 	await fresh.getByRole( 'button', { name: 'Copy', exact: true } ).click();
 	await expect( fresh.getByRole( 'button', { name: 'Copied', exact: true } ) ).toBeVisible();
+	await expect( fresh.getByRole( 'status' ) ).toHaveText( 'Copied' );
 	expect( await copied( page ) ).toEqual( [ freshDir ] );
 	await expect( fresh.getByRole( 'button', { name: 'Copy', exact: true } ) ).toBeVisible();
+	// INVARIANT — and the word is taken back, not replaced by another: a
+	// screen reader is told that the path was copied, and nothing after.
+	await expect( fresh.getByRole( 'status' ) ).toHaveText( '' );
 
 	// INVARIANT — another site's details are that site's, and an old trunk
 	// says how old.

@@ -18,8 +18,7 @@ export function SiteHeaderActionsSlot() {
   return <Slot bubblesVirtually className="site-header-actions" />;
 }
 
-// One thing the menu does. Its place in the list is its key, which holds as
-// long as site-menu.cjs keeps the list's order fixed, as it does.
+// One thing the menu does.
 function MenuAction({ item, onAction }) {
   return (
     <Menu.Item disabled={item.disabled} onClick={() => onAction(item)}>
@@ -79,8 +78,12 @@ export function SiteHeaderActions({ detailsOpen, detailsId, onToggleDetails, men
                   <Menu.ItemLabel>{item.label}</Menu.ItemLabel>
                 </Menu.SubmenuTrigger>
                 <Menu.Popup>
-                  {item.items.map((child, childIndex) => (
-                    <MenuAction key={`${child.id}-${child.path || childIndex}`} item={child} onAction={onAction} />
+                  {/* An application is keyed by where it is, and the two rows
+                      that are not applications by what they are, so a row
+                      keeps its identity, and the focus on it, when the list
+                      around it changes. */}
+                  {item.items.map((child) => (
+                    <MenuAction key={child.path || child.id} item={child} onAction={onAction} />
                   ))}
                 </Menu.Popup>
               </Menu.SubmenuRoot>
