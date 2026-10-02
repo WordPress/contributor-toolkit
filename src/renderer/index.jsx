@@ -89,6 +89,7 @@ import { useSiteScripts } from './hooks/use-site-scripts.jsx';
 import { useBuildWatch } from './hooks/use-build-watch.jsx';
 import { useDevServer } from './hooks/use-dev-server.jsx';
 import { useTrunkUpdate } from './hooks/use-trunk-update.jsx';
+import { useSiteStatus } from './hooks/use-site-status.jsx';
 import { useSiteTicket } from './hooks/use-site-ticket.jsx';
 import { useApplyPatch } from './hooks/use-apply-patch.jsx';
 import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
@@ -750,8 +751,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
   const confirm = useConfirmation();
-  // Kept in a ref so loadStatus's dependency list stays [sitePath] — a
-  // recreated callback prop must not retrigger the status-loading effect.
+  // Kept in a ref so that `loadStatus`, in useSiteStatus, keeps its identity:
+  // a recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
   useEffect(() => { metaPatchRef.current = onSiteMetaPatch; }, [onSiteMetaPatch]);
   // What this site's processes have said (#554): the text of the Logs panel's
@@ -788,9 +789,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // identity, which the callbacks that list them as dependencies rely on.
   const mail = useSiteMail({ sitePath });
   const { listen: listenForMail, stopListening: stopListeningForMail, load: loadMail } = mail;
-  const [hasNodeModules, setHasNodeModules] = useState(false);
-  const [installFailed, setInstallFailed] = useState(false);
-  const [hasBuilt, setHasBuilt] = useState(false);
+  // What the main process says about this site (#554): installed, built, the
+  // ticket, what is applied, the trunk's age, and the two states the app only
+  // reads. `loadStatus` reads it all again, and is what every chain below
+  // calls when it has changed what the answer would be.
+  const { hasNodeModules, installFailed, hasBuilt, setHasBuilt, skipInit, setSkipInit, statusLoading, tracTicket, setTracTicket, ticketBehindTrunk, setTicketBehindTrunk, legacy, mergeInProgress, trunkDate, updateIncomplete, appliedPatch, setAppliedPatch, pullRequest, loadStatus } = useSiteStatus({ sitePath, metaPatchRef });
   // Which target this site is a checkout of (#251): the site record's field,
   // carried by the placeholder from the moment the dialog closes, and Core
   // for any site made before the field existed. `build` is what the watcher
@@ -813,21 +816,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     () => workItemProvider(project.workItem.provider, `${project.upstream.owner}/${project.upstream.repo}`),
     [project]
   );
-  const [skipInit, setSkipInit] = useState(false);
-  const [statusLoading, setStatusLoading] = useState(true);
-  // Trac ticket association (#109)
-  const [tracTicket, setTracTicket] = useState(null);
-  const [ticketBehindTrunk, setTicketBehindTrunk] = useState(false);
-  // A site the old engine made (#385): read, never written.
-  const [legacy, setLegacy] = useState(false);
-  // A merge started outside the app and not finished (#352): read, and
-  // every checkout write refused until a terminal ends it.
-  const [mergeInProgress, setMergeInProgress] = useState(null);
-  // What the site's status says about its trunk (#94): the date of the commit
-  // it is on, and whether an update was left incomplete. The update itself is
-  // useTrunkUpdate, below.
-  const [trunkDate, setTrunkDate] = useState(null);
-  const [updateIncomplete, setUpdateIncomplete] = useState(false);
   // Initial setup chain (#246): install then build, started by the clone
   // finishing rather than by a click. Same shape as the two chains below.
   const [setupChainState, setSetupChainState] = useState('idle'); // idle | installing | building
@@ -837,8 +825,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // fails — three rows above, in the case that prompted this — so the way out
   // is a scroll, not a fetch.
   const ticketPatchesRef = useRef(null);
-  const [appliedPatch, setAppliedPatch] = useState(null);
-  const [pullRequest, setPullRequest] = useState(null);
   const setupLogsRef = useRef('');
 
   const siteName = pathBasename(sitePath);
@@ -930,39 +916,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     }
     setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
-
-  const loadStatus = useCallback(async ()=>{
-    try {
-      setStatusLoading(true);
-      const s = await window.api.getSiteStatus(sitePath);
-      setHasNodeModules(Boolean(s?.hasNodeModules));
-      setInstallFailed(Boolean(s?.installFailed));
-      setHasBuilt(Boolean(s?.hasBuilt));
-      setSkipInit(Boolean(s?.skipInitWizard));
-      setTrunkDate(s?.trunkDate || null);
-      setUpdateIncomplete(Boolean(s?.updateIncomplete));
-      setTracTicket(s?.tracTicket || null);
-      setTicketBehindTrunk(Boolean(s?.ticketBehindTrunk));
-      setLegacy(Boolean(s?.legacy));
-      setMergeInProgress(s?.mergeInProgress || null);
-      setAppliedPatch(s?.appliedPatch || null);
-      setPullRequest(s?.pullRequest || null);
-      if (metaPatchRef.current) {
-        // A null trunkDate here means the git read failed (e.g. clone still
-        // running) — keep whatever the sidebar already shows in that case.
-        const patch = { updateIncomplete: Boolean(s?.updateIncomplete), tracTicket: s?.tracTicket || null };
-        if (s?.trunkDate) patch.trunkDate = s.trunkDate;
-        metaPatchRef.current(sitePath, patch);
-      }
-      // Returned as well as stored: the setup chain (#246) re-probes when the
-      // clone finishes and has to decide from that read, not from state React
-      // has not committed yet.
-      return s;
-    } catch {}
-    finally { setStatusLoading(false); }
-    return null;
-  }, [sitePath]);
-  useEffect(()=>{ loadStatus(); }, [loadStatus]);
 
   // The note's probe. It asks the wide question — unsubmitted work measured
   // from the ticket's branch point, the same measurement the patch makes —
@@ -1189,7 +1142,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
-  }, [sitePath]);
+  }, [sitePath, setSkipInit]);
   // eslint-disable-next-line no-alert -- see the note above onRename.
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
 
