@@ -13,14 +13,17 @@ function OutLink({ url, onOpen, children, ...props }) {
 }
 
 // A section's heading, and the button that reads its list again where there
-// is one to read. The card has two of them, so each is named for its list;
-// what it shows is the one word.
+// is one to read. The card has two of them, so each is named for its list:
+// the word it shows and then its section's heading, the two as they are on
+// screen, so that the name begins with what is seen in any language.
 function SectionHead({ title, refresh = null }) {
+  const headingId = useId();
+  const buttonId = useId();
   return (
     <Stack direction="row" align="center" justify="space-between" gap="md">
-      <Text variant="heading-lg" render={<h3 />}>{title}</Text>
+      <Text id={headingId} variant="heading-lg" render={<h3 />}>{title}</Text>
       {refresh ? (
-        <Button variant="minimal" tone="neutral" size="compact" aria-label={refresh.label} loading={refresh.loading} loadingAnnouncement={refresh.announcement} onClick={refresh.onRefresh}>
+        <Button id={buttonId} aria-labelledby={`${buttonId} ${headingId}`} variant="minimal" tone="neutral" size="compact" loading={refresh.loading} loadingAnnouncement={refresh.announcement} onClick={refresh.onRefresh}>
           {__('Refresh')}
         </Button>
       ) : null}
@@ -90,14 +93,15 @@ function PullRequests({ words, pullRequests, sectionRef, onOpen }) {
     <Stack ref={sectionRef} direction="column" gap="sm">
       <SectionHead
         title={__('Linked pull requests')}
-        refresh={{ label: __('Refresh linked pull requests'), loading: pullRequests.loading, announcement: __('Checking GitHub'), onRefresh: pullRequests.onRefresh }}
+        refresh={{ loading: pullRequests.loading, announcement: __('Checking GitHub'), onRefresh: pullRequests.onRefresh }}
       />
       <Text variant="body-md" className="muted-label">{words.pullRequestsLead}</Text>
       {status.checking ? <Waiting>{__('Checking GitHub…')}</Waiting> : null}
       {status.empty ? <Text variant="body-md" className="muted-label">{words.noPullRequests}</Text> : null}
       {status.failure ? (
         <Notice.Root intent="warning">
-          <Notice.Description>{status.failure}</Notice.Description>
+          <Notice.Title>{status.failure.reason}</Notice.Title>
+          <Notice.Description>{status.failure.fallback}</Notice.Description>
         </Notice.Root>
       ) : null}
       {rows.length ? (
@@ -134,7 +138,7 @@ function Attachments({ attachments, onOpen }) {
     <Stack direction="column" gap="sm">
       <SectionHead
         title={__('Trac attachments')}
-        refresh={attachments.result ? { label: __('Refresh Trac attachments'), loading: attachments.loading, announcement: __('Opening the ticket on Trac'), onRefresh: attachments.onLoad } : null}
+        refresh={attachments.result ? { loading: attachments.loading, announcement: __('Opening the ticket on Trac'), onRefresh: attachments.onLoad } : null}
       />
       <Text variant="body-md" className="muted-label">
         {__('Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.')}
@@ -244,10 +248,14 @@ export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, u
         <footer className="card-footer">
           <hr className="card-divider" />
           <div className="card-footer-content">
-            <Text variant="body-md">
-              {__('Not sure yet?')}{' '}
-              <OutLink url={link.browseUrl} onOpen={onOpen}>{words.browse}</OutLink>
-            </Text>
+            {/* Two sentences side by side, set apart by the row and not by
+                a space typed between them. */}
+            <Stack direction="row" gap="xs" wrap="wrap">
+              <Text variant="body-md">{__('Not sure yet?')}</Text>
+              <Text variant="body-md">
+                <OutLink url={link.browseUrl} onOpen={onOpen}>{words.browse}</OutLink>
+              </Text>
+            </Stack>
           </div>
         </footer>
       </Card.Root>
@@ -285,7 +293,11 @@ export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, u
             </Stack>
           ) : null}
           {staleNotice ? (
-            <Notice.Root intent="warning">
+            // The notice is told what to say. Left to say what is in it, it
+            // would try to render its button outside the page to read it,
+            // fail, and say nothing: the button's tooltip has no meaning
+            // there.
+            <Notice.Root intent="warning" spokenMessage={`${staleNotice.title} ${staleNotice.body}`}>
               <Notice.Title>{staleNotice.title}</Notice.Title>
               <Notice.Description>{staleNotice.body}</Notice.Description>
               <Notice.Actions>

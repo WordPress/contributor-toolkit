@@ -19,6 +19,7 @@
 
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
+const { ticketTrunkNotice } = require( '../../../src/renderer/ticket-trunk-notice.cjs' );
 const { makeSite, advanceOrigin, read, write, currentBranch, SUBSTRATE, SUBSTRATE_CONTENT, LOGIN, DOOMED } = require( '../helpers/git-site.cjs' );
 
 const TICKET = '60001';
@@ -57,7 +58,25 @@ test( 'the notice moves the ticket onto the current trunk in one click, keeping 
 	const site = await makeSite( session, { origin: true } );
 	await session.start( site.settings );
 	const { page } = session;
+	// Everything said to a screen reader from here on, in order. The region
+	// that says it holds one message at a time and the next one replaces it,
+	// so what was said cannot be read off the page afterwards.
+	await page.evaluate( () => {
+		window.__e2eSpoken = [];
+		new window.MutationObserver( () => {
+			for ( const region of document.querySelectorAll( '[aria-live]' ) ) {
+				const text = region.textContent.trim();
+				if ( text && ! window.__e2eSpoken.includes( text ) ) window.__e2eSpoken.push( text );
+			}
+		} ).observe( document.body, { subtree: true, childList: true, characterData: true } );
+	} );
 	const newTip = await makeTicketBehindTrunk( session, site, { 'src/doomed.php': '<?php // trunk moved this\n' } );
+
+	// INVARIANT — the notice is said as it appears, the sentence and what
+	// can be done about it, and not only shown: it is the app telling a
+	// contributor their ticket needs something, which nobody asked it for.
+	const said = ticketTrunkNotice( { ticketId: TICKET, behind: true } );
+	await expect.poll( () => page.evaluate( () => window.__e2eSpoken ) ).toContain( `${ said.title } ${ said.body }` );
 
 	await page.getByRole( 'button', { name: BUTTON, exact: true } ).click();
 

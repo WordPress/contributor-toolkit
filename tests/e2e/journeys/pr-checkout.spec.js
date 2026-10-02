@@ -47,7 +47,7 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 		} );
 	} );
 	await ui.linkTicket( page, TICKET );
-	await expect( page.getByRole( 'button', { name: 'Apply…', exact: true } ) ).toHaveCount( 2 );
+	await expect( ui.readPatchButton( page ) ).toHaveCount( 2 );
 	await expect( ui.applyPrButton( page ) ).toHaveCount( 1 );
 
 	write( site.dir, DOOMED, TICKET_EDIT );
@@ -67,7 +67,7 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 	await expect( ui.prField( page ) ).toHaveCount( 0 );
 	await expect( ui.anyPatchFileButton( page ) ).toHaveCount( 0 );
 	await expect( ui.applyPrButton( page ) ).toHaveCount( 0 );
-	await expect( page.getByRole( 'button', { name: 'Apply…', exact: true } ) ).toHaveCount( 0 );
+	await expect( ui.readPatchButton( page ) ).toHaveCount( 0 );
 	// The banner sits under the card's heading and above the ticket's number
 	// and the linked pull requests. Asserted as document order, not as Y coordinates: the moment
 	// the banner appears the next-action cue smooth-scrolls it into view, and

@@ -49,7 +49,7 @@ test('a ticket\'s facts are its summary, its status, and a line of what Trac sai
 		status: { label: 'reviewing', intent: 'informational' },
 		facts: [
 			{ id: 'type', text: 'defect (bug)' },
-			{ id: 'component', text: 'General', url: 'https://core.trac.wordpress.org/query?component=General' },
+			{ id: 'component', text: 'Component: General', url: 'https://core.trac.wordpress.org/query?component=General' },
 			{ id: 'milestone', text: 'Milestone: 7.2' },
 			{ id: 'opened', text: 'Opened 4 weeks ago', title: '2026-09-01T10:00:00Z' }
 		],
@@ -66,8 +66,10 @@ test('a fact Trac did not give is left out, not shown empty', () => {
 	const bare = ticketFacts({ summary: '', status: '', type: '', milestone: '', component: null, keywords: [], opened: null });
 	assert.deepEqual(bare, { summary: '', status: null, facts: [], keywords: [] });
 	// A component with no page to go to is still said.
-	assert.deepEqual(ticketFacts({ ...INFO, component: { label: 'General' } }).facts[1], { id: 'component', text: 'General', url: '' });
+	assert.deepEqual(ticketFacts({ ...INFO, component: { label: 'General' } }).facts[1], { id: 'component', text: 'Component: General', url: '' });
 	assert.deepEqual(ticketFacts({ ...INFO, keywords: undefined }).keywords, []);
+	// A date Trac gave no words for is not said as "Opened" and nothing.
+	assert.equal(ticketFacts({ ...INFO, opened: { absolute: '2026-09-01T10:00:00Z' } }).facts.some((fact) => fact.id === 'opened'), false);
 });
 
 // The rule the three badges are chosen under (#227): the colour goes with
@@ -115,10 +117,10 @@ test('the latest patch being an attachment marks no pull request, and no checkou
 });
 
 test('a first read of the pull requests says it is asking, and a later one does not', () => {
-	assert.deepEqual(pullRequestsStatus({ loading: true }), { checking: true, empty: false, failure: '' });
+	assert.deepEqual(pullRequestsStatus({ loading: true }), { checking: true, empty: false, failure: null });
 	// A refresh keeps what it had on screen.
 	assert.equal(pullRequestsStatus({ loading: true, list: { status: 'ok', items: [] } }).checking, false);
-	assert.deepEqual(pullRequestsStatus(), { checking: false, empty: false, failure: '' });
+	assert.deepEqual(pullRequestsStatus(), { checking: false, empty: false, failure: null });
 });
 
 test('a list GitHub answered with nothing in it says so, and only then', () => {
@@ -130,18 +132,22 @@ test('a list GitHub answered with nothing in it says so, and only then', () => {
 test('a list that could not be read says why, and what is shown in its place', () => {
 	const at = () => 'yesterday at noon';
 	const cached = { items: [{ number: 1 }], cachedAt: 1790000000000 };
-	assert.equal(pullRequestsStatus({ list: { status: 'rate-limited', ...cached }, formatDateTime: at }).failure, 'GitHub is rate-limiting this connection. Showing what was last seen yesterday at noon.');
-	assert.equal(pullRequestsStatus({ list: { status: 'offline', ...cached }, formatDateTime: at }).failure, 'Could not reach GitHub. Showing what was last seen yesterday at noon.');
-	assert.equal(pullRequestsStatus({ list: { status: 'error', items: [] } }).failure, 'Could not read the pull requests from GitHub. No cached list to fall back on.');
+	const seen = 'Showing what was last seen yesterday at noon.';
+	const none = 'No cached list to fall back on.';
+	assert.deepEqual(pullRequestsStatus({ list: { status: 'rate-limited', ...cached }, formatDateTime: at }).failure, { reason: 'GitHub is rate-limiting this connection.', fallback: seen });
+	assert.deepEqual(pullRequestsStatus({ list: { status: 'offline', ...cached }, formatDateTime: at }).failure, { reason: 'Could not reach GitHub.', fallback: seen });
+	assert.deepEqual(pullRequestsStatus({ list: { status: 'error', items: [] } }).failure, { reason: 'Could not read the pull requests from GitHub.', fallback: none });
 	// An answer nobody has a sentence for is still said as a failure.
-	assert.equal(pullRequestsStatus({ list: { status: 'teapot' } }).failure, 'Could not read the pull requests from GitHub. No cached list to fall back on.');
-	// Rows with no time to say they are from is not a cache to name.
-	assert.match(pullRequestsStatus({ list: { status: 'offline', items: [{ number: 1 }] } }).failure, /No cached list to fall back on\.$/);
+	assert.deepEqual(pullRequestsStatus({ list: { status: 'teapot' } }).failure, { reason: 'Could not read the pull requests from GitHub.', fallback: none });
+	// Rows with no time to say they are from is not a cache to name, and
+	// neither is a time with no rows.
+	assert.equal(pullRequestsStatus({ list: { status: 'offline', items: [{ number: 1 }] } }).failure.fallback, none);
+	assert.equal(pullRequestsStatus({ list: { status: 'offline', items: [], cachedAt: 1790000000000 } }).failure.fallback, none);
 });
 
 test('a site with nothing linked, and a list that was read, are not failures', () => {
-	assert.equal(pullRequestsStatus({ list: { status: 'no-ticket' } }).failure, '');
-	assert.equal(pullRequestsStatus({ list: { status: 'ok', items: [] } }).failure, '');
+	assert.equal(pullRequestsStatus({ list: { status: 'no-ticket' } }).failure, null);
+	assert.equal(pullRequestsStatus({ list: { status: 'ok', items: [] } }).failure, null);
 });
 
 test('an attachment\'s row says who uploaded it, when and how large, as far as Trac said', () => {
@@ -181,4 +187,7 @@ test('each way the read can end without an answer has its own sentence', () => {
 	assert.equal(attachmentsStatus({ result: { status: 'error', error: 'net::ERR_FAILED' } }).failure, 'Could not read the attachments from Trac. (net::ERR_FAILED)');
 	assert.equal(new Set([timeout, closed, error]).size, 3);
 	assert.equal(attachmentsStatus({ result: { status: 'ok' } }).failure, '');
+	// An answer the card has no sentence for is not a failure it can name,
+	// and is not "none" either: nothing was read.
+	assert.deepEqual(attachmentsStatus({ result: { status: 'not-trac' } }), { unread: false, reading: false, none: false, failure: '' });
 });

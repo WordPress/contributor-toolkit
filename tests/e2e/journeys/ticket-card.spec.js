@@ -58,16 +58,22 @@ const FROM_TRAC = {
 // clock.
 const day = ( iso ) => new Date( iso ).toLocaleDateString( 'en-US' );
 
-// The stand-ins, and what the test uses to set their answers and read what
-// they were asked.
-async function standIn( app, page ) {
-	await app.evaluate( ( { ipcMain }, [ prs, trac ] ) => {
-		const state = { asked: { prs: 0, trac: 0, opened: [] }, prs, trac };
+// The stand-ins. Changing which ticket a site is on is left to the app, and
+// counted: the handler is reached through the map Electron keeps them in,
+// which is not part of its interface.
+function install( app ) {
+	return app.evaluate( ( { ipcMain }, [ prs, trac ] ) => {
+		const state = { asked: { prs: 0, trac: 0, opened: [], ticketChanges: 0 }, prs, trac };
 		global.__e2eTicket = state;
 		const replace = ( channel, handler ) => {
 			ipcMain.removeHandler( channel );
 			ipcMain.handle( channel, handler );
 		};
+		const setTicket = ipcMain._invokeHandlers.get( 'sites:set-ticket' );
+		replace( 'sites:set-ticket', ( ...args ) => {
+			state.asked.ticketChanges += 1;
+			return setTicket( ...args );
+		} );
 		replace( 'git:list-ticket-patches', () => {
 			state.asked.prs += 1;
 			return { ok: true, prs: state.prs };
@@ -81,6 +87,11 @@ async function standIn( app, page ) {
 			return true;
 		} );
 	}, [ { status: 'ok', items: PULL_REQUESTS }, FROM_TRAC ] );
+}
+
+// What the test uses to set the stand-ins' answers and read what they were
+// asked.
+function standIns( app, page ) {
 	return {
 		asked: () => app.evaluate( () => global.__e2eTicket.asked ),
 		gitHubAnswers: ( prs ) => app.evaluate( ( electron, value ) => {
@@ -93,6 +104,11 @@ async function standIn( app, page ) {
 		// gone out arrives after it.
 		heard: () => page.evaluate( () => window.api.getSitesWithMeta() ),
 	};
+}
+
+async function standIn( app, page ) {
+	await install( app );
+	return standIns( app, page );
 }
 
 test( 'the card links a ticket, says what Trac and GitHub say of it, and sends every way out through the main process', async ( { session } ) => {
@@ -139,11 +155,11 @@ test( 'the card links a ticket, says what Trac and GitHub say of it, and sends e
 	await expect( card.getByText( 'Milestone: 7.2' ) ).toBeVisible();
 	await expect( card.getByText( 'Opened 4 weeks ago' ) ).toHaveAttribute( 'title', 'Sep 1, 2026' );
 	await expect( button( 'has-patch' ) ).toBeVisible();
-	await button( 'General' ).click();
+	await button( 'Component: General' ).click();
 	await expect.poll( async () => ( await outside.asked() ).opened ).toHaveLength( 3 );
 	expect( ( await outside.asked() ).opened[ 2 ] ).toBe( COMPONENT_URL );
 	// Read, so there is nothing left to read.
-	await expect( button( 'Read details from Trac' ) ).toHaveCount( 0 );
+	await expect( ui.readTicketDetailsButton( card ) ).toHaveCount( 0 );
 	await expect( button( 'Show Trac attachments' ) ).toHaveCount( 0 );
 
 	// INVARIANT — each pull request says its number, its state in a word,
@@ -165,7 +181,7 @@ test( 'the card links a ticket, says what Trac and GitHub say of it, and sends e
 	await expect.poll( async () => ( await outside.asked() ).opened ).toHaveLength( 5 );
 	expect( ( await outside.asked() ).opened[ 4 ] ).toBe( ATTACHMENT_URL );
 	// INVARIANT — and each of the four can be read before it is applied.
-	await expect( button( 'Apply…' ) ).toHaveCount( 4 );
+	await expect( ui.readPatchButton( card ) ).toHaveCount( 4 );
 } );
 
 test( 'a list that could not be read says why and keeps what it had, and an empty one says it is empty', async ( { session } ) => {
@@ -181,22 +197,24 @@ test( 'a list that could not be read says why and keeps what it had, and an empt
 	// was read, and that list stays: it is what there is to go on.
 	const cachedAt = '2026-09-30T12:00:00Z';
 	await outside.gitHubAnswers( { status: 'offline', items: PULL_REQUESTS.slice( 0, 1 ), cachedAt } );
-	await button( 'Refresh linked pull requests' ).click();
-	await expect( card.getByText( /^Could not reach GitHub\. Showing what was last seen .+\.$/ ) ).toBeVisible();
+	await button( 'Refresh Linked pull requests' ).click();
+	await expect( card.getByText( 'Could not reach GitHub.', { exact: true } ) ).toBeVisible();
+	await expect( card.getByText( /^Showing what was last seen .+\.$/ ) ).toBeVisible();
 	await expect( card.getByRole( 'listitem' ).filter( { hasText: '#13245' } ) ).toHaveCount( 1 );
 	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 2 );
 
 	// INVARIANT — with nothing to fall back on, that is said instead, and
 	// no row is shown.
 	await outside.gitHubAnswers( { status: 'rate-limited', items: [], cachedAt: null } );
-	await button( 'Refresh linked pull requests' ).click();
-	await expect( card.getByText( 'GitHub is rate-limiting this connection. No cached list to fall back on.', { exact: true } ) ).toBeVisible();
+	await button( 'Refresh Linked pull requests' ).click();
+	await expect( card.getByText( 'GitHub is rate-limiting this connection.', { exact: true } ) ).toBeVisible();
+	await expect( card.getByText( 'No cached list to fall back on.', { exact: true } ) ).toBeVisible();
 	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 1 );
 
 	// INVARIANT — a ticket nobody has opened a pull request for says so,
 	// and what failed before is no longer said.
 	await outside.gitHubAnswers( { status: 'ok', items: [] } );
-	await button( 'Refresh linked pull requests' ).click();
+	await button( 'Refresh Linked pull requests' ).click();
 	await expect( card.getByText( 'No pull requests cite this ticket yet.', { exact: true } ) ).toBeVisible();
 	await expect( card.getByText( /rate-limiting/ ) ).toHaveCount( 0 );
 
@@ -222,26 +240,35 @@ test( 'a site opened with a ticket already linked waits to be asked before it go
 	await ui.linkTicket( first.page, TICKET );
 	await expect( ui.workItemCard( first.page, 'Trac ticket' ).getByRole( 'listitem' ) ).toHaveCount( 4 );
 
-	const { app, page } = await session.restart();
-	const outside = await standIn( app, page );
+	// This site reads its ticket's pull requests as it opens, so the
+	// stand-ins go in before its window is waited for.
+	const { app, page } = await session.restart( { beforeWindow: install } );
+	const outside = standIns( app, page );
 	const card = ui.workItemCard( page, 'Trac ticket' );
 	const button = ( name ) => card.getByRole( 'button', { name, exact: true } );
 
-	// INVARIANT — the ticket is still linked, and Trac has not been asked:
-	// reading it opens a window and may ask for a human, which is not
-	// something to do to someone who only opened the app. The card offers
-	// to, in both places where what Trac knows would be.
+	// INVARIANT — the ticket is still linked, and its pull requests are read
+	// again with nothing pressed. That read was answered here and not by
+	// GitHub: were the stand-ins late, the count would be none.
 	await expect( button( `#${ TICKET }` ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( button( 'Read details from Trac' ) ).toBeVisible();
+	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 3 );
+	expect( ( await outside.asked() ).prs ).toBe( 1 );
+
+	// INVARIANT — and Trac has not been asked: reading it opens a window and
+	// may ask for a human, which is not something to do to someone who only
+	// opened the app. The card offers to, in both places where what Trac
+	// knows would be. With the stand-ins there from the start, the count is
+	// of every question the page has asked.
+	await expect( ui.readTicketDetailsButton( card ) ).toBeVisible();
 	await expect( button( 'Show Trac attachments' ) ).toBeVisible();
 	await outside.heard();
 	expect( ( await outside.asked() ).trac ).toBe( 0 );
 
 	// INVARIANT — asked once, from either place, it fills in both.
-	await button( 'Read details from Trac' ).click();
+	await ui.readTicketDetailsButton( card ).click();
 	await expect( button( `#${ TICKET } ${ FROM_TRAC.ticket.summary }` ) ).toBeVisible();
 	await expect( card.getByRole( 'listitem' ).filter( { hasText: `${ TICKET }.diff` } ) ).toHaveCount( 1 );
-	await expect( button( 'Read details from Trac' ) ).toHaveCount( 0 );
+	await expect( ui.readTicketDetailsButton( card ) ).toHaveCount( 0 );
 	await expect( button( 'Show Trac attachments' ) ).toHaveCount( 0 );
 	expect( ( await outside.asked() ).trac ).toBe( 1 );
 } );
@@ -249,7 +276,7 @@ test( 'a site opened with a ticket already linked waits to be asked before it go
 test( 'while the site is being built the card\'s actions are held, say why, and come back', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
-	await standIn( app, page );
+	const outside = await standIn( app, page );
 	// A build that runs until the test says it has ended.
 	await app.evaluate( ( { ipcMain } ) => {
 		ipcMain.removeHandler( 'npm:run-script' );
@@ -267,14 +294,19 @@ test( 'while the site is being built the card\'s actions are held, say why, and 
 	// INVARIANT — unlinking moves the checkout to another branch, which a
 	// build must not have happen under it, so the button is held and its
 	// reason is its description (#409). Held the accessible way: it can
-	// still be reached and read, and pressing it does nothing.
+	// still be reached and read, and pressing it does nothing. A press that
+	// got through would be turned away at once, a command being under way,
+	// and the card would say so: that it says nothing is what shows the
+	// press went nowhere, and nothing was asked of the main process either.
 	const reason = ticketActionDisabledReason( { building: true } );
 	await expect( unlink ).toBeDisabled();
 	await expect( unlink ).toHaveAccessibleDescription( reason );
 	await unlink.focus();
 	await expect( unlink ).toBeFocused();
 	await unlink.click( { force: true } );
-	await page.evaluate( () => window.api.getSitesWithMeta() );
+	await outside.heard();
+	await expect( card.getByRole( 'alert' ) ).toHaveCount( 0 );
+	expect( ( await outside.asked() ).ticketChanges ).toBe( 1 );
 	expect( currentBranch( site.dir ) ).toBe( `ticket/${ TICKET }` );
 	await expect( ui.workItemNumber( card, TICKET ) ).toBeVisible();
 

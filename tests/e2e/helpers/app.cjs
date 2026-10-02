@@ -133,14 +133,23 @@ class Session {
 	 * merely holding it in memory, which is what a change to the storage layer
 	 * can break without any test noticing.
 	 *
+	 * `beforeWindow` is for a journey whose stand-ins have to be in place
+	 * before the page asks anything: a site that opens with a ticket linked
+	 * reads that ticket's pull requests as it mounts. It is called with the
+	 * app as soon as the main process answers, which is before the window's
+	 * page has loaded. That is an order and not a lock, so a journey that
+	 * leans on it should also check that its stand-in was what answered.
+	 *
+	 * @param {Object}   [options]
+	 * @param {Function} [options.beforeWindow] Called with the app before its first window is waited for.
 	 * @return {Promise<{app: Object, page: Object}>} The relaunched app and its first window.
 	 */
-	async restart() {
+	async restart( { beforeWindow } = {} ) {
 		await this.close();
-		return this.#launch();
+		return this.#launch( beforeWindow );
 	}
 
-	async #launch() {
+	async #launch( beforeWindow ) {
 		this.app = await electron.launch( {
 			// From plain Node, require('electron') resolves to the binary's path —
 			// the same trick scripts/run-tests-electron.cjs and the screenshot
@@ -164,6 +173,7 @@ class Session {
 				TOOLKIT_USER_DATA_DIR: this.userDataDir,
 			},
 		} );
+		if ( beforeWindow ) await beforeWindow( this.app );
 		this.page = await this.app.firstWindow();
 		if ( VIDEO_DIR ) {
 			const video = this.page.video();

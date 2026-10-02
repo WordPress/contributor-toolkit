@@ -12,10 +12,13 @@
  * had to change to gain the other.
  *
  * The split with project-type.cjs: the registry holds what is true of one
- * target (`workItem.label`, `browseUrl`, `browseLabel` — a site's own words),
- * this module holds what is true of one kind of work item (how to parse a
- * reference, where it lives, whether it takes attachments). A second Trac-based
- * target would reuse this provider and bring its own registry entry.
+ * target (`workItem.label`, which the next step's sentence names it by, and
+ * `browseUrl`, where a newcomer finds one), this module holds what is true of
+ * one kind of work item (how to parse a reference, where it lives, whether it
+ * takes attachments). A second Trac-based target would reuse this provider
+ * and bring its own registry entry. What the work-item card itself says is in
+ * renderer/ticket-card.cjs, by kind of work item, since #557: its sentences
+ * are translated whole, which a label handed in from here could not be.
  *
  * Pure and dependency-free (both parsers are too), so `node --test` requires it
  * directly and the renderer bundles it.

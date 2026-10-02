@@ -59,7 +59,7 @@ test( 'a Gutenberg site is tagged, works on a GitHub issue under issue/, and tur
 	await ui.linkIssueButton( page ).click();
 	await expect( ui.workItemNumber( page, 71234 ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( ui.openWorkItemButton( page, 71234 ) ).toHaveAttribute( 'title', 'Open on GitHub' );
-	await expect( page.getByRole( 'button', { name: 'Read details from Trac' } ) ).toHaveCount( 0 );
+	await expect( ui.readTicketDetailsButton( page ) ).toHaveCount( 0 );
 	await expect( page.getByText( 'Trac attachments', { exact: true } ) ).toHaveCount( 0 );
 	await expect( page.getByText( 'Attach to Trac', { exact: true } ) ).toHaveCount( 0 );
 	expect( branches( site.dir ) ).toContain( 'issue/71234' );

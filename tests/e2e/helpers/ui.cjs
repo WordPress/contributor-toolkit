@@ -169,7 +169,7 @@ const logTab = ( page, name ) => page.getByRole( 'tab', { name, exact: true } );
 // both: the work-item card's, "Ticket number or URL", and the review's,
 // "Trac ticket number or URL", which is where a ticket is linked from when a
 // patch is about to be saved for one.
-const ticketField = ( page ) => page.getByLabel( 'ticket number or URL' );
+const ticketField = ( page ) => page.getByLabel( /^(Trac ticket|Ticket) number or URL$/ );
 const linkTicketButton = ( page ) => page.getByRole( 'button', { name: 'Link ticket', exact: true } );
 const issueField = ( page ) => page.getByLabel( 'Issue number or URL', { exact: true } );
 const linkIssueButton = ( page ) => page.getByRole( 'button', { name: 'Link issue', exact: true } );
@@ -214,6 +214,14 @@ const workItemCard = ( page, title ) => page.getByRole( 'region', { name: title,
  * @return {Object} The locator.
  */
 const openWorkItemButton = ( page, number ) => page.getByRole( 'button', { name: `#${ number }`, exact: true } );
+
+// On a Trac ticket that has not been read yet: reads its facts and its
+// attachments, which opens Trac's own window.
+const readTicketDetailsButton = ( page ) => page.getByRole( 'button', { name: 'Read details from Trac', exact: true } );
+
+// On each pull request and each attachment of the linked ticket: reads that
+// patch before it is applied. Every row's button has this one name.
+const readPatchButton = ( page ) => page.getByRole( 'button', { name: 'Apply…', exact: true } );
 
 // The way back to a parked ticket while another one is linked.
 const switchBackButton = ( page ) => page.getByRole( 'button', { name: 'switch', exact: true } );
@@ -338,6 +346,8 @@ module.exports = {
 	unlinkButton,
 	workItemHeading,
 	workItemCard,
+	readTicketDetailsButton,
+	readPatchButton,
 	openWorkItemButton,
 	workItemNumber,
 	switchBackButton,

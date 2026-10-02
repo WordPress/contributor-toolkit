@@ -67,7 +67,8 @@ function ticketFacts(info) {
 	const badge = statusBadge(info);
 	const facts = [];
 	if (info.type) facts.push({ id: 'type', text: info.type });
-	if (info.component && info.component.label) facts.push({ id: 'component', text: info.component.label, url: info.component.url || '' });
+	// translators: %s: the part of WordPress a ticket is about, as Trac names it, such as "General" or "Editor".
+	if (info.component && info.component.label) facts.push({ id: 'component', text: sprintf(__('Component: %s'), info.component.label), url: info.component.url || '' });
 	// translators: %s: the milestone a ticket is set for, such as "7.2" or "Awaiting Review".
 	if (info.milestone) facts.push({ id: 'milestone', text: sprintf(__('Milestone: %s'), info.milestone) });
 	// translators: %s: how long ago, as Trac says it, such as "4 weeks ago".
@@ -144,17 +145,19 @@ const localDateTime = (when) => new Date(when).toLocaleString();
  *
  * A list that could not be read keeps the rows it was last read with, so
  * `failure` and rows can be on screen together. `no-ticket` is the answer for
- * a site with nothing linked, and is not a failure.
+ * a site with nothing linked, and is not a failure. A failure is two
+ * sentences, why and what is shown instead, kept apart so that the card
+ * places them and nothing joins them with a space a language may not use.
  *
  * @param {Object}   root0
  * @param {Object}   [root0.list]           What the main process answered, `{ status, items, cachedAt }`, or null before it has.
  * @param {boolean}  [root0.loading]        A read is under way.
  * @param {Function} [root0.formatDateTime] Writes a time the way the reader's locale does.
- * @return {{checking: boolean, empty: boolean, failure: string}} What to say.
+ * @return {{checking: boolean, empty: boolean, failure: ({reason: string, fallback: string}|null)}} What to say.
  */
 function pullRequestsStatus({ list = null, loading = false, formatDateTime = localDateTime } = {}) {
 	const items = list && Array.isArray(list.items) ? list.items : [];
-	let failure = '';
+	let failure = null;
 	if (list && list.status !== 'ok' && list.status !== 'no-ticket') {
 		let reason = __('Could not read the pull requests from GitHub.');
 		if (list.status === 'rate-limited') reason = __('GitHub is rate-limiting this connection.');
@@ -164,7 +167,7 @@ function pullRequestsStatus({ list = null, loading = false, formatDateTime = loc
 			// translators: %s: a date and a time.
 			fallback = sprintf(__('Showing what was last seen %s.'), formatDateTime(list.cachedAt));
 		}
-		failure = `${reason} ${fallback}`;
+		failure = { reason, fallback };
 	}
 	return {
 		checking: Boolean(loading && !list),
@@ -214,10 +217,12 @@ function attachmentsStatus({ result = null, loading = false, count = 0 } = {}) {
 	const read = Boolean(result && (result.status === 'ok' || result.status === 'no-attachments'));
 	let failure = '';
 	if (result && result.status === 'challenge-timeout') {
+		// translators: “I am human” is what Trac's own page calls its button, in English whatever the reader's language; leave it as it is.
 		failure = __('Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.');
 	} else if (result && result.status === 'closed') {
 		// The way to try again is the section's Refresh: once a read has
 		// answered, however it ended, "Show Trac attachments" is gone.
+		// translators: “Refresh” is the button beside the section's heading; use the word that button has in this language.
 		failure = __('The Trac window was closed before the attachments finished loading. Click “Refresh” to try again.');
 	} else if (result && result.status === 'error') {
 		failure = __('Could not read the attachments from Trac.');

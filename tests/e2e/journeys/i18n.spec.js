@@ -261,7 +261,7 @@ test( 'the work-item card is fully translatable, with nothing linked and with a 
 	// ticket's summary and its facts, a pull request's title, a file's name,
 	// whoever uploaded it. They are answered by stand-ins, as in
 	// ticket-card.spec.js, and left out of the scan by name.
-	const THEIRS = [ '#60001', 'A summary from Trac', 'reviewing', 'defect (bug)', 'General', 'has-patch', '#7', 'A title from GitHub', '60001.diff', '·' ];
+	const THEIRS = [ '#60001', 'A summary from Trac', 'reviewing', 'defect (bug)', 'has-patch', '#7', 'A title from GitHub', '60001.diff', '·' ];
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
 	await app.evaluate( ( { ipcMain } ) => {
@@ -287,20 +287,21 @@ test( 'the work-item card is fully translatable, with nothing linked and with a 
 	await card.getByRole( 'button', { name: pseudoLocalize( 'Link ticket' ), exact: true } ).click();
 	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 2, { timeout: 30_000 } );
 	await expect( card.getByText( pseudoLocalize( 'Merged' ), { exact: true } ) ).toBeVisible();
-	await expect( card.getByRole( 'button', { name: pseudoLocalize( 'Refresh Trac attachments' ), exact: true } ) ).toBeVisible();
+	await expect( card.getByRole( 'button', { name: `${ pseudoLocalize( 'Refresh' ) } ${ pseudoLocalize( 'Trac attachments' ) }`, exact: true } ) ).toBeVisible();
 	expect( await inCard() ).toEqual( [] );
 
 	// A list that could not be read, and one with nothing in it.
 	await app.evaluate( () => {
 		global.__e2ePrs = { status: 'offline', items: [], cachedAt: null };
 	} );
-	await card.getByRole( 'button', { name: pseudoLocalize( 'Refresh linked pull requests' ), exact: true } ).click();
-	await expect( card.getByText( pseudoLocalize( 'Could not reach GitHub.' ), { exact: false } ) ).toBeVisible();
+	await card.getByRole( 'button', { name: `${ pseudoLocalize( 'Refresh' ) } ${ pseudoLocalize( 'Linked pull requests' ) }`, exact: true } ).click();
+	await expect( card.getByText( pseudoLocalize( 'Could not reach GitHub.' ), { exact: true } ) ).toBeVisible();
+	await expect( card.getByText( pseudoLocalize( 'No cached list to fall back on.' ), { exact: true } ) ).toBeVisible();
 	expect( await inCard() ).toEqual( [] );
 	await app.evaluate( () => {
 		global.__e2ePrs = { status: 'ok', items: [] };
 	} );
-	await card.getByRole( 'button', { name: pseudoLocalize( 'Refresh linked pull requests' ), exact: true } ).click();
+	await card.getByRole( 'button', { name: `${ pseudoLocalize( 'Refresh' ) } ${ pseudoLocalize( 'Linked pull requests' ) }`, exact: true } ).click();
 	await expect( card.getByText( pseudoLocalize( 'No pull requests cite this ticket yet.' ), { exact: true } ) ).toBeVisible();
 	expect( await inCard() ).toEqual( [] );
 } );
