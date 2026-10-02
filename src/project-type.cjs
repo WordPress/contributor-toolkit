@@ -107,8 +107,6 @@ const PROJECT_TYPES = {
 				linkLabel: 'The handbook page on pull requests',
 				linkUrl: 'https://make.wordpress.org/core/handbook/contribute/git/github-pull-requests-for-code-review/'
 			},
-			applyHeading: 'Apply a patch or PR',
-			applyDescription: 'Pull requests are checked out with their author\u2019s commits. A .diff/.patch file is applied to the current branch as a removable layer.',
 			// Where a contributor edits, named by the hint under the terminal
 			// ("Edited files in src/? Run npm run build"). Core's source is
 			// src/; Gutenberg's is its packages (#490).
@@ -203,8 +201,6 @@ const PROJECT_TYPES = {
 				linkLabel: 'The Gutenberg contributing guide',
 				linkUrl: 'https://github.com/WordPress/gutenberg/blob/trunk/CONTRIBUTING.md'
 			},
-			applyHeading: 'Check out a pull request',
-			applyDescription: 'Pull requests are checked out with their author\u2019s commits.',
 			sourceDir: 'packages/',
 			patchFiles: false
 		},

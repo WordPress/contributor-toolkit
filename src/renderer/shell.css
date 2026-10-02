@@ -452,6 +452,8 @@ body {
 .dashboard-sidebar button,
 .page-body-center button,
 .ticket-card button,
+.apply-card button,
+.apply-preview-dialog button,
 .app-footer button {
   margin-right: 0;
 }
@@ -518,7 +520,8 @@ body {
 /* The work-item card (#557), and what the other cards will share with it. */
 
 .ticket-card h2,
-.ticket-card h3 {
+.ticket-card h3,
+.apply-card h2 {
   margin: 0;
 }
 
@@ -606,4 +609,106 @@ body {
 
 .ticket-pr-id {
   font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+}
+
+/* The apply card (#557). */
+
+/* Tabs across a card, with the card's rule under them: the list sits on the
+   rule, so the chosen tab's own line takes its place there. */
+.card-tabs-bar {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-tabs {
+  overflow: visible;
+  mask-image: none;
+  margin-block-end: -1px;
+}
+
+/* The steps of an apply, each with room before it for its mark. Framed, so
+   that the next-action ring has something to go round. */
+.apply-steps {
+  list-style: none;
+  margin: 0;
+  padding: var(--wpds-dimension-padding-md, 12px) var(--wpds-dimension-padding-lg, 16px);
+  border: 1px solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+  border-radius: var(--wpds-border-radius-md, 4px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-xs, 4px);
+}
+
+.apply-step {
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-sm, 8px);
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+.apply-step.is-complete,
+.apply-step.is-current {
+  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+}
+
+.apply-step.is-current {
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+}
+
+.apply-step-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.apply-step.is-complete .apply-step-mark {
+  color: var(--wpds-color-foreground-content-success-weak, #007f30);
+}
+
+/* Paths and lines of code are one word each to a browser, and longer than
+   the card. */
+.apply-break-all {
+  overflow-wrap: anywhere;
+}
+
+.apply-failed-text {
+  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
+}
+
+.apply-conflict-file {
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+  overflow-wrap: anywhere;
+}
+
+.apply-conflict-region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-xs, 4px);
+  padding-inline-start: var(--wpds-dimension-padding-md, 12px);
+  border-inline-start: 2px solid var(--wpds-color-stroke-surface-error, #cc1818);
+}
+
+.apply-conflict-lines {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--wpds-typography-font-size-xs, 11px);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* What a patch would change: its files, in the preview. Long lists scroll
+   inside the dialog and leave its button in reach. */
+.change-list {
+  margin: 0;
+  padding-inline-start: 1.2em;
+  max-height: 14em;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+.change-list li + li {
+  margin-block-start: var(--wpds-dimension-gap-xs, 4px);
 }

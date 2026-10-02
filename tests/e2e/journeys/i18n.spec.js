@@ -17,7 +17,7 @@ const os = require( 'node:os' );
 const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
-const { makeSite } = require( '../helpers/git-site.cjs' );
+const { makeSite, makePatchFile } = require( '../helpers/git-site.cjs' );
 const { pseudoLocalize } = require( '../../../src/renderer/pseudo-locale.cjs' );
 
 // Names that stay as they are in every language.
@@ -304,4 +304,33 @@ test( 'the work-item card is fully translatable, with nothing linked and with a 
 	await card.getByRole( 'button', { name: `${ pseudoLocalize( 'Refresh' ) } ${ pseudoLocalize( 'Linked pull requests' ) }`, exact: true } ).click();
 	await expect( card.getByText( pseudoLocalize( 'No pull requests cite this ticket yet.' ), { exact: true } ) ).toBeVisible();
 	expect( await inCard() ).toEqual( [] );
+} );
+
+test( 'the apply card and its preview are fully translatable', async ( { session } ) => {
+	// A Core site, which is offered both ways in. The patch's own name and
+	// the file it changes are the contributor's and the checkout's, and are
+	// left out of the scan.
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings, { lang: 'en-XA' } );
+	const patch = makePatchFile( session, 'a.patch', [ { file: 'wp-login.php', from: '<?php // trunk', to: '<?php // patched' } ] );
+	const card = ui.card( page, pseudoLocalize( 'Apply a patch or PR' ) );
+
+	// Each way in, under its tab.
+	await expect( card ).toBeVisible( { timeout: 30_000 } );
+	await expect( card.getByRole( 'button', { name: pseudoLocalize( 'Apply PR' ), exact: true } ) ).toBeVisible();
+	expect( await unwrapped( card ) ).toEqual( [] );
+	await card.getByRole( 'tab', { name: pseudoLocalize( 'Diff' ), exact: true } ).click();
+	const choose = card.getByRole( 'button', { name: pseudoLocalize( 'Choose a .diff or .patch file…' ), exact: true } );
+	await expect( choose ).toBeVisible();
+	expect( await unwrapped( card ) ).toEqual( [] );
+
+	// The preview of a patch file: its title, what it changes, and its two
+	// buttons. A sentence with the file's name in it is translated around
+	// the name.
+	await session.answerFileDialog( [ patch ] );
+	await choose.click();
+	const preview = page.getByRole( 'dialog' );
+	await expect( preview.getByRole( 'button', { name: pseudoLocalize( 'Apply and rebuild' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( preview.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ) ).toBeVisible();
+	expect( ( await unwrapped( preview ) ).filter( ( text ) => text !== 'src/wp-login.php' ) ).toEqual( [] );
 } );

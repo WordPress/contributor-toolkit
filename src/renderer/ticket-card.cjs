@@ -9,7 +9,6 @@
 const { __, sprintf } = require('@wordpress/i18n');
 const { statusBadge } = require('../trac-ticket-info.cjs');
 const { prDateLabel } = require('./pr-date-label.cjs');
-const { prStateBadge } = require('./pr-state.cjs');
 
 /**
  * The card's own words, for the kind of work item the site's project uses.
@@ -86,15 +85,16 @@ function ticketFacts(info) {
  *
  * The colour goes with the word and never stands in for it. A closed pull
  * request is not a failure, so it has no colour, where red in this window
- * means that something went wrong (#227). Which of the three a state is, an
- * unrecognised one included, is pr-state.cjs's to say: the apply's preview
- * still draws its pill from there, and the two must agree.
+ * means that something went wrong (#227). An unrecognised state reads as
+ * open, which is what the row has always done: a list cached by an older
+ * build carries only `open` and `closed`. The apply's preview shows the same
+ * badge, from here.
  *
  * @param {string} state 'open', 'merged' or 'closed', in any case.
  * @return {{label: string, intent: string}} The badge.
  */
 function pullRequestState(state) {
-	const key = prStateBadge(state).label;
+	const key = typeof state === 'string' ? state.toLowerCase() : '';
 	if (key === 'merged') return { label: __('Merged'), intent: 'informational' };
 	if (key === 'closed') return { label: __('Closed'), intent: 'none' };
 	return { label: __('Open'), intent: 'stable' };

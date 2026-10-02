@@ -60,7 +60,7 @@ test( 'an applied patch is still applied after a restart, and still revertable',
 		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
 	] );
 	await session.answerFileDialog( [ patch ] );
-	await ui.choosePatchFileButton( page ).click();
+	await ui.choosePatchFile( page );
 	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.applyAndRebuildButton( page ).click();
 	await expect( ui.revertPatchButton( page ) ).toBeVisible( {

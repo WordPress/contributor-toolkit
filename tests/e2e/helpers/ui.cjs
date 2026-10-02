@@ -135,11 +135,13 @@ const terminalInput = ( page ) => page.getByRole( 'textbox', { name: 'Terminal i
 /**
  * A card of the site's view, by its heading.
  *
- * The cards are styled `div`s with the heading as their first child, not
- * landmarks, so this reads the shape of the markup. Every site's view is in
- * the document at once and only the selected one is visible, so the visibility
- * filter is what picks the right card, and `.last()` the innermost `div` that
- * fits, should a wrapper around the card ever fit too.
+ * The cards redrawn with the design system (#557) are regions named by their
+ * heading. The ones not redrawn yet are styled `div`s with the heading as
+ * their first child, not landmarks, and for those this reads the shape of the
+ * markup. Every site's view is in the document at once and only the selected
+ * one is visible, so the visibility filter is what picks the right card, and
+ * `.last()` the innermost `div` that fits, should a wrapper around the card
+ * ever fit too.
  *
  * @param {Object} page
  * @param {string} heading The card's heading, exactly.
@@ -148,6 +150,7 @@ const terminalInput = ( page ) => page.getByRole( 'textbox', { name: 'Terminal i
 const card = ( page, heading ) =>
 	page
 		.locator( `div:has(> div:text-is("${ heading }"))` )
+		.or( page.getByRole( 'region', { name: heading, exact: true } ) )
 		.filter( { visible: true } )
 		.last();
 
@@ -284,11 +287,31 @@ async function linkTicket( page, ticket ) {
 
 const prField = ( page ) => page.getByLabel( 'Pull request URL or number' );
 const applyPrButton = ( page ) => page.getByRole( 'button', { name: 'Apply PR', exact: true } );
-const choosePatchFileButton = ( page ) => page.getByRole( 'button', { name: 'or choose a .diff / .patch file…', exact: true } );
-// Any button that offers to choose a patch file, whatever else its name says.
-// For asserting there is none: held to the exact name above, that assertion
-// would pass the day the sentence around those words changed.
-const anyPatchFileButton = ( page ) => page.getByRole( 'button', { name: 'choose a .diff / .patch file' } );
+// On a project that takes patch files the card has a tab for each way in,
+// and stays on the one it was left on: a journey that asks for a pull request
+// after choosing a file goes back to this tab first. A project that takes no
+// patch files has neither tab.
+const pullRequestTab = ( page ) => page.getByRole( 'tab', { name: 'Pull request', exact: true } );
+const patchFileTab = ( page ) => page.getByRole( 'tab', { name: 'Diff', exact: true } );
+const choosePatchFileButton = ( page ) => page.getByRole( 'button', { name: 'Choose a .diff or .patch file…', exact: true } );
+// Any way to a patch file, a tab or a button, whatever else its name says.
+// For asserting there is none: held to the exact names above, that assertion
+// would pass the day the words around them changed. A button that only names
+// a file, as an attachment's row does, is not one.
+const anyPatchFileButton = ( page ) =>
+	page.getByRole( 'tab', { name: /diff|patch/i } ).or( page.getByRole( 'button', { name: /^choose a\b.*(diff|patch)/i } ) );
+
+/**
+ * Opens the tab a patch file is chosen under and presses its button, which
+ * opens the system's file dialog: answer that first, with
+ * `session.answerFileDialog`.
+ *
+ * @param {Object} page
+ */
+async function choosePatchFile( page ) {
+	await patchFileTab( page ).click();
+	await choosePatchFileButton( page ).click();
+}
 const applyAndRebuildButton = ( page ) => page.getByRole( 'button', { name: 'Apply and rebuild', exact: true } );
 const revertPatchButton = ( page ) => page.getByRole( 'button', { name: 'Revert this patch', exact: true } );
 const revertPrButton = ( page ) => page.getByRole( 'button', { name: 'Revert this PR', exact: true } );
@@ -356,7 +379,10 @@ module.exports = {
 	linkTicket,
 	prField,
 	applyPrButton,
+	pullRequestTab,
+	patchFileTab,
 	choosePatchFileButton,
+	choosePatchFile,
 	anyPatchFileButton,
 	applyAndRebuildButton,
 	revertPatchButton,
