@@ -29,13 +29,13 @@ export function ReasonedButton({ reason, disabled, children, ...props }) {
   );
 }
 
-// The same, for the design system's button (#557). `disabled` with
-// `focusableWhenDisabled` is its accessible way of being held: the button
-// stays in the tab order and says `aria-disabled`. The tooltip is for the
-// eye and the hidden sentence is the button's description, since a tooltip
-// of the design system describes nothing to a screen reader by itself. Both
-// are always rendered, for the reason above: the button must not be
-// remounted as the gate flips.
+// The same, for the design system's button (#557). That button is held the
+// accessible way without being asked: disabled, it stays in the tab order and
+// says `aria-disabled`. What is added here is the reason. The tooltip is for
+// the eye and the hidden sentence is the button's description, since a
+// tooltip of the design system describes nothing to a screen reader by
+// itself. Both are always rendered, for the reason above: the button must
+// not be remounted as the gate flips.
 export function ReasonedUiButton({ reason, disabled, children, ...props }) {
   const reasonId = useId();
   return (
@@ -45,7 +45,6 @@ export function ReasonedUiButton({ reason, disabled, children, ...props }) {
           <UiButton
             {...props}
             disabled={reason ? true : disabled}
-            focusableWhenDisabled={Boolean(reason)}
             aria-describedby={reason ? reasonId : undefined}
           />
         }
