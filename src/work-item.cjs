@@ -12,8 +12,9 @@
  * had to change to gain the other.
  *
  * The split with project-type.cjs: the registry holds what is true of one
- * target (`workItem.label`, which the next step's sentence names it by, and
- * `browseUrl`, where a newcomer finds one), this module holds what is true of
+ * target (`workItem.label`, which the next step's sentence and the refusal
+ * to open a pull request with none linked name it by, and `browseUrl`, where
+ * a newcomer finds one), this module holds what is true of
  * one kind of work item (how to parse a reference, where it lives, whether it
  * takes attachments). A second Trac-based target would reuse this provider
  * and bring its own registry entry. What the work-item card itself says is in

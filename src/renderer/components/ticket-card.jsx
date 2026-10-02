@@ -153,7 +153,9 @@ function Attachments({ attachments, onOpen }) {
       {status.reading ? <Waiting>{__('Opening the ticket on Trac…')}</Waiting> : null}
       {status.none ? <Text variant="body-md" className="muted-label">{__('No patch files attached to this ticket.')}</Text> : null}
       {status.failure ? (
-        <Notice.Root intent="warning">
+        // Told what to say, as it is written: left to read it out of its
+        // own markup, the notice would say an "&" in an error as "&amp;".
+        <Notice.Root intent="warning" spokenMessage={status.failure}>
           <Notice.Description>{status.failure}</Notice.Description>
         </Notice.Root>
       ) : null}

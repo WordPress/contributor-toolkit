@@ -173,16 +173,11 @@ class Session {
 				TOOLKIT_USER_DATA_DIR: this.userDataDir,
 			},
 		} );
-		if ( beforeWindow ) await beforeWindow( this.app );
-		this.page = await this.app.firstWindow();
-		if ( VIDEO_DIR ) {
-			const video = this.page.video();
-			if ( video ) this.videos.push( video );
-		}
-
 		// Belt and braces over the env var above. If the redirect hook ever stops
 		// firing — it is guarded by `!app.isPackaged` — every journey would start
 		// editing the contributor's real site registry, silently and permanently.
+		// Asked of the main process before anything else is done to the app,
+		// a journey's own `beforeWindow` included.
 		const inUse = await this.app.evaluate( ( { app } ) => app.getPath( 'userData' ) );
 		if ( ! samePath( inUse, this.userDataDir ) ) {
 			await this.close();
@@ -190,6 +185,13 @@ class Session {
 				`The app is using ${ inUse } as its profile, not the throwaway ${ this.userDataDir }. ` +
 				'Refusing to run a test that would write to a real site registry.'
 			);
+		}
+
+		if ( beforeWindow ) await beforeWindow( this.app );
+		this.page = await this.app.firstWindow();
+		if ( VIDEO_DIR ) {
+			const video = this.page.video();
+			if ( video ) this.videos.push( video );
 		}
 
 		return { app: this.app, page: this.page };

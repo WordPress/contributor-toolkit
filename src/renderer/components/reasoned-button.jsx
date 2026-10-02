@@ -36,8 +36,8 @@ export function ReasonedButton({ reason, disabled, children, ...props }) {
 // tooltip of the design system describes nothing to a screen reader by
 // itself. Hidden outright, and not only from the eye: a description is read
 // from wherever it is, and a sentence left in the reading order would be
-// read a second time after the button. Both are always rendered, for the reason above: the button must
-// not be remounted as the gate flips.
+// read a second time after the button. Both are always rendered, for the
+// reason above: the button must not be remounted as the gate flips.
 export function ReasonedUiButton({ reason, disabled, children, ...props }) {
   const reasonId = useId();
   return (

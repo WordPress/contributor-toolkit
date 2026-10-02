@@ -130,8 +130,10 @@ const PROJECT_TYPES = {
 			// The local branch a work item gets its own namespace under. Core's
 			// is `ticket/`, unchanged since #108, so no existing site moves.
 			branchPrefix: 'ticket/',
-			// What the next step's sentence calls it, and where a newcomer goes
-			// to find one. The card's own words are in renderer/ticket-card.cjs.
+			// What the app calls it outside its card, in the next step's sentence
+			// and in the refusal to open a pull request with none linked, and
+			// where a newcomer goes to find one. The card's own words are in
+			// renderer/ticket-card.cjs.
 			label: 'Trac ticket',
 			browseUrl: 'https://core.trac.wordpress.org/tickets/good-first-bugs'
 		},

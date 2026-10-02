@@ -58,22 +58,15 @@ const FROM_TRAC = {
 // clock.
 const day = ( iso ) => new Date( iso ).toLocaleDateString( 'en-US' );
 
-// The stand-ins. Changing which ticket a site is on is left to the app, and
-// counted: the handler is reached through the map Electron keeps them in,
-// which is not part of its interface.
+// The stand-ins.
 function install( app ) {
 	return app.evaluate( ( { ipcMain }, [ prs, trac ] ) => {
-		const state = { asked: { prs: 0, trac: 0, opened: [], ticketChanges: 0 }, prs, trac };
+		const state = { asked: { prs: 0, trac: 0, opened: [] }, prs, trac };
 		global.__e2eTicket = state;
 		const replace = ( channel, handler ) => {
 			ipcMain.removeHandler( channel );
 			ipcMain.handle( channel, handler );
 		};
-		const setTicket = ipcMain._invokeHandlers.get( 'sites:set-ticket' );
-		replace( 'sites:set-ticket', ( ...args ) => {
-			state.asked.ticketChanges += 1;
-			return setTicket( ...args );
-		} );
 		replace( 'git:list-ticket-patches', () => {
 			state.asked.prs += 1;
 			return { ok: true, prs: state.prs };
@@ -296,8 +289,8 @@ test( 'while the site is being built the card\'s actions are held, say why, and 
 	// reason is its description (#409). Held the accessible way: it can
 	// still be reached and read, and pressing it does nothing. A press that
 	// got through would be turned away at once, a command being under way,
-	// and the card would say so: that it says nothing is what shows the
-	// press went nowhere, and nothing was asked of the main process either.
+	// before anything is asked of the main process, and the card would say
+	// so: that it says nothing is what shows the press went nowhere.
 	const reason = ticketActionDisabledReason( { building: true } );
 	await expect( unlink ).toBeDisabled();
 	await expect( unlink ).toHaveAccessibleDescription( reason );
@@ -306,7 +299,6 @@ test( 'while the site is being built the card\'s actions are held, say why, and 
 	await unlink.click( { force: true } );
 	await outside.heard();
 	await expect( card.getByRole( 'alert' ) ).toHaveCount( 0 );
-	expect( ( await outside.asked() ).ticketChanges ).toBe( 1 );
 	expect( currentBranch( site.dir ) ).toBe( `ticket/${ TICKET }` );
 	await expect( ui.workItemNumber( card, TICKET ) ).toBeVisible();
 

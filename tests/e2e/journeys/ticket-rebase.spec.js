@@ -58,17 +58,24 @@ test( 'the notice moves the ticket onto the current trunk in one click, keeping 
 	const site = await makeSite( session, { origin: true } );
 	await session.start( site.settings );
 	const { page } = session;
-	// Everything said to a screen reader from here on, in order. The region
-	// that says it holds one message at a time and the next one replaces it,
-	// so what was said cannot be read off the page afterwards.
+	// Everything said to a screen reader from here on. The region that says
+	// it holds one message at a time and the next one replaces it, so what
+	// was said cannot be read off the page afterwards; and two messages in
+	// one turn of the page leave only the second in the region, so what is
+	// kept is what was put there, taken from the record of each change, and
+	// not what the region holds when the observer is told.
 	await page.evaluate( () => {
 		window.__e2eSpoken = [];
-		new window.MutationObserver( () => {
-			for ( const region of document.querySelectorAll( '[aria-live]' ) ) {
-				const text = region.textContent.trim();
-				if ( text && ! window.__e2eSpoken.includes( text ) ) window.__e2eSpoken.push( text );
+		new window.MutationObserver( ( records ) => {
+			for ( const record of records ) {
+				const within = record.target.nodeType === 1 ? record.target : record.target.parentElement;
+				if ( ! within || ! within.closest( '[aria-live]' ) ) continue;
+				for ( const node of record.addedNodes ) {
+					const text = node.textContent.trim();
+					if ( text ) window.__e2eSpoken.push( text );
+				}
 			}
-		} ).observe( document.body, { subtree: true, childList: true, characterData: true } );
+		} ).observe( document.body, { subtree: true, childList: true } );
 	} );
 	const newTip = await makeTicketBehindTrunk( session, site, { 'src/doomed.php': '<?php // trunk moved this\n' } );
 
