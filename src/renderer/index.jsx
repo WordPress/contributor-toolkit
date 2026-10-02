@@ -985,7 +985,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
 
-
   // The note's probe. It asks the wide question — unsubmitted work measured
   // from the ticket's branch point, the same measurement the patch makes —
   // not whether the tree has uncommitted edits (#239): under the ticket-as-

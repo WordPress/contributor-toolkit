@@ -5,11 +5,13 @@ import { useCallback, useEffect, useState } from 'react';
 // trunk is, and the two states the app only reads and refuses to write over,
 // a site the old engine made and a merge left unfinished outside the app.
 //
-// It is one read, `loadStatus`, made when the site's view mounts and again by
-// whoever has just changed what it would say: the chains that install and
-// build, a ticket switch, an applied patch, an update, and the window coming
-// back into focus. Everything it sets is set from that one answer, so the
-// screen never shows half of an old status beside half of a new one.
+// `loadStatus` reads all of it in one answer. It runs when the site's view
+// mounts, which for every listed site is as the app opens and not when the
+// site is first shown, and again when whoever calls it has changed what it
+// would say: an install or a build ending, a ticket linked, left, switched or
+// moved onto trunk, an apply ending however it ends, an update, the setup
+// chain, and the window coming back into focus while the site is the one on
+// screen.
 //
 // `loadStatus` returns the status as well as storing it. The setup chain
 // re-probes when a clone finishes and decides from that read, which React has
@@ -18,11 +20,16 @@ import { useCallback, useEffect, useState } from 'react';
 // for the same reason, so that a parent handing down a new callback does not
 // read the status again.
 //
-// Five setters are handed out, to the callers that already know the answer
-// and do not need to ask: a finished build sets `hasBuilt`, skipping the
-// first-run checklist sets `skipInit`, linking or leaving a ticket sets
-// `tracTicket` and `ticketBehindTrunk`, and discarding every change clears
-// `appliedPatch`. The rest change only through `loadStatus`.
+// Not everything here comes from that one answer. Five setters are handed
+// out, and what they set can be newer than the rest until the next read:
+// linking or leaving a ticket sets `tracTicket` and `ticketBehindTrunk` and
+// then reads the status, so one render shows the new ticket beside the old
+// branch's applied patch; moving a ticket onto trunk clears
+// `ticketBehindTrunk` the same way; the dev server's start asks the main
+// process itself whether the site is built and copies that into `hasBuilt`;
+// skipping the first-run checklist sets `skipInit`; and discarding every
+// change clears `appliedPatch`, with no read after it. The other eight change
+// only through `loadStatus`.
 export function useSiteStatus({ sitePath, metaPatchRef }) {
   const [hasNodeModules, setHasNodeModules] = useState(false);
   const [installFailed, setInstallFailed] = useState(false);
