@@ -44,7 +44,7 @@ const PATCHED_LOGIN = '<?php // fixed by the patch';
 async function applyPatchFile( session, patchFile ) {
 	const { page } = session;
 	await session.answerFileDialog( [ patchFile ] );
-	await ui.choosePatchFileButton( page ).click();
+	await ui.choosePatchFile( page );
 
 	// The preview is a gate, not a formality: it is the app saying what it is
 	// about to write, before anything is written. It names `src/wp-login.php`
@@ -140,7 +140,7 @@ test( 'a patch that does not fit is refused, and writes nothing', async ( { sess
 		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
 	] );
 	await session.answerFileDialog( [ patch ] );
-	await ui.choosePatchFileButton( page ).click();
+	await ui.choosePatchFile( page );
 	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 
 	// INVARIANT — the app warns before writing, not after. A contributor about
@@ -200,7 +200,7 @@ new file mode 100644
 	const { page } = await session.start( site.settings );
 	await ui.linkTicket( page, '60001' );
 	await session.answerFileDialog( [ patch ] );
-	await ui.choosePatchFileButton( page ).click();
+	await ui.choosePatchFile( page );
 	await expect( page.getByText( 'src/link', { exact: true } ) ).toBeVisible();
 	await ui.applyAndRebuildButton( page ).click();
 

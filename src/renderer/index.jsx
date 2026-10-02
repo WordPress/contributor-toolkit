@@ -10,7 +10,6 @@ import {
   Icon,
   SlotFillProvider,
   SnackbarList,
-  TextControl,
   Spinner
 } from '@wordpress/components';
 import { Page } from '@wordpress/admin-ui';
@@ -43,7 +42,6 @@ import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './ap
 import { trunkAgeInfo, updateStepStatuses, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome, updateStepText } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
-import { prStateBadge } from './pr-state.cjs';
 import { workItemProvider } from '../work-item.cjs';
 import { adminUrl } from './site-urls.cjs';
 import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
@@ -75,6 +73,7 @@ import { SitesSidebar } from './components/sites-sidebar.jsx';
 import { AppFooter } from './components/app-footer.jsx';
 import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
+import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
 import { TicketCard } from './components/ticket-card.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
@@ -96,13 +95,6 @@ import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.j
 // Shared by every log pane so the tabs cannot drift apart visually. The line
 // height is looser than xterm's: this is wrapped text in a div, not painted rows.
 const LOG_PANE_STYLE = { ...TERMINAL_FONT, lineHeight: 1.4, whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 12, borderRadius: 6, height: 220, overflow: 'auto' };
-// The applied banner's colours by tone (#509): green for a built site, amber
-// while the watch rebuilds it, red when the rebuild was cut short.
-const APPLIED_BANNER_COLORS = {
-  ready: { border: '#94d3ae', background: '#f4fbf4', text: '#0f5132' },
-  building: { border: '#dba617', background: '#fcf9e8', text: '#6e5406' },
-  unbuilt: { border: '#d63638', background: '#fcf0f1', text: '#8a1f21' }
-};
 // What the Copy button says about the press just made. Keyed rather than
 // nested ternaries, so a fourth state is a line here instead of another branch
 // in the middle of the JSX.
@@ -1370,7 +1362,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The banner's tone and headline follow the watch (#509): green only once
   // the site is built around the checkout.
   const prBanner = pullRequest ? appliedBannerState({ number: pullRequest.number, watchState, compiling: watchCompiling, buildInterrupted, actionsReason: ticketActionsReason }) : null;
-  const prBannerColors = prBanner ? (APPLIED_BANNER_COLORS[prBanner.tone] || APPLIED_BANNER_COLORS.ready) : null;
   const prPreview = applyPreview?.kind === 'pr' ? describePrPreview({
     number: applyPreview.number,
     files: applyPreview.files,
@@ -1523,17 +1514,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The ticket's own facts (#292), riding the same scrape as the attachments:
   // one Trac visit, one challenge, both answers.
   const tracInfo = showTracCards ? (tracAttachments?.ticket || null) : null;
-  // The pill a pull request's state is shown in where the apply's preview
-  // still draws it. The work-item card has the design system's badge (#557).
-  const pillStyle = { display: 'inline-flex', alignItems: 'center', flex: '0 0 auto', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' };
-  const prStatePill = (state) => {
-    const badge = prStateBadge(state);
-    return (
-      <span style={{ ...pillStyle, background: badge.background, color: badge.color }}>
-        {badge.label}
-      </span>
-    );
-  };
 
   // The diff fetch, shared by opening the modal and by a discard that happens
   // while it is open — the pane has to show what the tree now holds, which
@@ -1903,17 +1883,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // one is held by everything that would be working on the files it reads
   // against, and by a preview that is already open.
   const prCheckoutBanner = prCheckout && !isApplying ? (
-    <div {...cueProps('pr-checkout')} style={{ padding: '14px 16px', border: `1px solid ${prBannerColors.border}`, background: prBannerColors.background, borderRadius: 8 }}>
-      <div style={{ fontSize: 15, color: prBannerColors.text }}><strong>{prBanner.title}</strong></div>
-      {prBanner.body ? (
-        <div style={{ marginTop: 6, fontSize: 13, color: prBannerColors.text }}>{prBanner.body}</div>
-      ) : null}
-      <div style={{ marginTop: 6, fontSize: 13, color: '#3c434a' }}>{prCheckout.body} {prCheckout.edits}</div>
-      <div style={{ marginTop: 6, fontSize: 12 }}>Revert this PR before applying another PR or patch file.</div>
-      <ReasonedButton variant="secondary" onClick={() => runPrSwitch({ leaving: true })} reason={prBanner.revertReason} style={{ marginTop: 10 }}>
-        {prCheckout.backLabel}
-      </ReasonedButton>
-    </div>
+    <PrCheckoutNotice cue={cueProps('pr-checkout')} banner={prBanner} checkout={prCheckout} onRevert={() => runPrSwitch({ leaving: true })} />
   ) : null;
   const ticketChangesNote = changesNote && changesNote.placement === 'ticket' ? (
     <div style={{ fontSize: 13, color: '#1d2327' }}>
@@ -1922,6 +1892,23 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     </div>
   ) : null;
   const patchReadBlocked = isApplying || isUpdating || installing || building || Boolean(applyPreview);
+  // The two ways out the apply card offers of a patch that cannot be lifted
+  // back out, or that would not go on: the same two the changes note has,
+  // behind the same guard, with what either said when it failed.
+  const layerExits = { blocked: layerExitBlocked, onSaveCopy: savePatch, onDiscard: discardAllChanges, message: layerExit.message };
+  // Choosing another patch is walking away from this one, so everything
+  // about it goes: the preview, whose presence holds the lists' Apply
+  // buttons, and the failure itself, which would otherwise sit above the new
+  // attempt as noise. The list is already on screen, so the way to it is a
+  // scroll.
+  const tryAnotherPatch = () => {
+    setApplyPreview(null);
+    clearApplyError();
+    ticketPatchesRef.current?.scrollIntoView({
+      block: 'center',
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    });
+  };
 
   return (
     <section ref={nextActionSectionRef} style={{ paddingBottom: 48 }}>
@@ -2239,254 +2226,50 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         />
       ) : null}
       {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (
-        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{project.cards.applyHeading}</div>
-          {!pullRequest && !applyPreview && !isApplying ? (
-            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{project.cards.applyDescription}</div>
-          ) : null}
-
-          {appliedLayer && !isApplying ? (
-            <div style={{ marginTop: 12, padding: '14px 16px', border: `1px solid ${appliedLayer.canRevert ? '#94d3ae' : '#dba617'}`, background: appliedLayer.canRevert ? '#f4fbf4' : '#fcf9e8', borderRadius: 8 }}>
-              <div style={{ fontSize: 13, color: appliedLayer.canRevert ? '#0f5132' : '#6e5406' }}>
-                <strong>{appliedLayer.label}</strong> {appliedLayer.summary}
-              </div>
-              <div style={{ marginTop: 8, fontSize: 12 }}>This patch is applied to your current work. Removing it may require undoing overlapping edits.</div>
-              {watchBusyMessage(watchState, watchCompiling) ? (
-                <div style={{ marginTop: 8, fontSize: 13, color: '#6e5406' }}>{watchBusyMessage(watchState, watchCompiling)}</div>
-              ) : null}
-              {appliedLayer.explanation ? (
-                <div style={{ marginTop: 8, fontSize: 12, color: '#6e5406' }}>{appliedLayer.explanation}</div>
-              ) : null}
-              {appliedLayer.detail.map((line) => (
-                <div key={line} style={{ marginTop: 4, fontSize: 12, color: '#6e5406', wordBreak: 'break-all' }}>{line}</div>
-              ))}
-              {appliedLayer.note ? (
-                <div style={{ marginTop: 8, fontSize: 12, color: '#6c6f72' }}>{appliedLayer.note}</div>
-              ) : null}
-              <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                {appliedLayer.canRevert ? (
-                  <Button variant="secondary" onClick={() => runApply({ reverse: true })} disabled={isUpdating || installing || building}>Revert this patch</Button>
-                ) : null}
-                {appliedLayer.offerCopy ? (
-                  <>
-                    <Button variant="secondary" onClick={savePatch} disabled={layerExitBlocked}>Save a copy of your work</Button>
-                    <Button variant="tertiary" onClick={discardAllChanges} disabled={layerExitBlocked}>Discard this ticket to its base</Button>
-                  </>
-                ) : null}
-              </div>
-              {/* Both exits report failure through state the changes note and the
-                  patch modal own, and neither is on screen here — so a save that
-                  could not write, or a discard that refused, would be a button
-                  that did nothing on the one way out this banner recommends. */}
-              {layerExit.message ? (
-                <div role="alert" style={{ marginTop: 8, fontSize: 12, color: '#d63638' }}>{layerExit.message}</div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {applyPreview && !isApplying ? (
-            <div {...cueProps('apply-preview')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
-              <div style={{ fontSize: 13, color: '#1d2327' }}>
-                {prPreview ? <strong>{prPreview.headline}</strong> : <><strong>{applyPreview.label}</strong> changes {applyPreview.paths.length} file{applyPreview.paths.length === 1 ? '' : 's'}:</>}
-              </div>
-              {applyPreview.kind === 'pr' && applyPreview.prState ? <div style={{ marginTop: 6 }}>{prStatePill(applyPreview.prState)}</div> : null}
-              {prPreview?.closedNote ? <div style={{ marginTop: 8, fontSize: 12, color: '#6e5406' }}>{prPreview.closedNote}</div> : null}
-              <div style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere', maxHeight: 140, overflowY: 'auto' }}>
-                {applyPreview.paths.map((p) => <div key={p}>{p}</div>)}
-              </div>
-              {/* Who the colliding work belongs to (#306) is the sentence. */}
-              {applyPreview.kind !== 'pr' && previewAttribution.sentences.length ? (
-                <div role="alert" style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-                  {previewAttribution.sentences.map((sentence) => <div key={sentence} style={{ marginTop: 2 }}>{sentence}</div>)}
-                </div>
-              ) : null}
-              {applyPreview.kind !== 'pr' && applyPreview.unsupported.length ? (
-                <div style={{ marginTop: 10, fontSize: 12, color: '#6e5406' }}>
-                  {applyPreview.unsupported.join(', ')} {applyPreview.unsupported.length === 1 ? 'is a binary file and will be skipped' : 'are binary files and will be skipped'}.
-                </div>
-              ) : null}
-              {prPreview?.installNote ? <div style={{ marginTop: 10, fontSize: 12, color: '#3c434a' }}>{prPreview.installNote}</div> : null}
-              {applyPreview.kind !== 'pr' && applyPreview.needsInstall ? <div style={{ marginTop: 10, fontSize: 12, color: '#3c434a' }}>It changes <code>package-lock.json</code>, so dependencies will be installed before the rebuild.</div> : null}
-              <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>
-                  {prPreview ? prPreview.actionLabel : 'Apply and rebuild'}
-                </Button>
-                <Button variant="tertiary" onClick={() => { setApplyPreview(null); clearApplyError(); setApplyNotice(''); }}>Cancel</Button>
-              </div>
-            </div>
-          ) : null}
-
-          {isApplying ? (
-            <div {...cueProps('applying-patch')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
-              {applyStepStates.map((state, i) => {
-                const step = applySteps[i];
-                const mark = UPDATE_STEP_MARKS[state.status];
-                const stepLabel = state.status === 'skipped' ? step.skipMessage : step.label;
-                return (
-                  <div key={step.key} style={{ display: 'flex', gap: 8, fontSize: 13, padding: '2px 0', color: mark ? mark.color : '#6c6f72', fontWeight: state.status === 'current' ? 600 : 400, opacity: state.status === 'pending' || state.status === 'skipped' ? 0.75 : 1 }}>
-                    <span aria-hidden="true" style={{ width: 12 }}>{mark ? mark.symbol : ''}</span>
-                    <span>{stepLabel}</span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-
-          {applyError ? (
-            <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                {/* The headline replaces the sentence when there is one: it says
-                    the same thing in counts, which is the part that decides
-                    whether the patch is worth rescuing. Without a breakdown the
-                    original sentence is still the whole story. */}
-                <span style={{ flex: '1 1 auto' }}>
-                  {applyConflict?.headline || (/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`)}{applyKind === 'patch' ? ' The checkout was not changed.' : ''}
-                </span>
-                <Button
-                  variant="tertiary"
-                  isSmall
-                  aria-label="Dismiss"
-                  onClick={() => clearApplyError()}
-                  style={{ color: '#8a1f21' }}
-                >✕</Button>
-              </div>
-
-              {applyConflict ? (
-                <div style={{ marginTop: 8 }}>
-                  {applyConflict.items.map((item, i) => (
-                    <div key={i} style={{ marginTop: i ? 8 : 0 }}>
-                      {item.kind === 'note' ? (
-                        <div>{item.text}</div>
-                      ) : (
-                        <>
-                          <div style={{ fontWeight: 600, wordBreak: 'break-all' }}>
-                            {item.path} — {item.failed} of {item.total} {item.total === 1 ? 'change' : 'changes'}
-                          </div>
-                          {item.regions.map((region) => (
-                            // index, not line: a concatenated patch can carry
-                            // two hunks whose oldStart coincides.
-                            <div key={region.index} style={{ marginTop: 4, paddingLeft: 10, borderLeft: '2px solid #d63638' }}>
-                              {/* A searchable line, not a line number: the patch's
-                                  numbers are coordinates in the file as its author
-                                  had it, and on an old patch they miss by dozens.
-                                  Text survives the drift — copy it into the
-                                  editor's search and land on the region. */}
-                              <div>
-                                {region.anchor
-                                  ? <>near <code style={{ fontSize: 11, wordBreak: 'break-all' }}>{region.anchor}</code></>
-                                  : `line ${region.line} of the patch`} · {region.reason}
-                              </div>
-                              {/* The lines themselves, because a location alone
-                                  cannot answer the question that decides the
-                                  next ten minutes: is this the change that
-                                  matters, or reformatting that came with it. */}
-                              {region.lines.length ? (
-                                <pre style={{ margin: '2px 0 0', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                                  {region.lines.join('\n')}{region.more ? `\n… ${region.more} more ${region.more === 1 ? 'line' : 'lines'}` : ''}
-                                </pre>
-                              ) : null}
-                            </div>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  ))}
-
-                  {applyConflict.advice ? (
-                    <div style={{ marginTop: 8 }}>{applyConflict.advice}</div>
-                  ) : null}
-
-                  {applyConflict.offerOtherPatches || applyConflict.prUrl || applyConflict.offerDiscardToBase ? (
-                    <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {applyConflict.offerDiscardToBase ? (
-                        <>
-                          <Button variant="secondary" isSmall onClick={savePatch} disabled={layerExitBlocked}>Save a copy of your work</Button>
-                          <Button variant="secondary" isSmall onClick={discardAllChanges} disabled={layerExitBlocked}>Discard this ticket to its base</Button>
-                        </>
-                      ) : null}
-                      {applyConflict.offerOtherPatches ? (
-                        <Button
-                          variant="secondary"
-                          isSmall
-                          onClick={() => {
-                            // Choosing another patch is walking away from this
-                            // one, so everything about it goes: the preview
-                            // (whose presence keeps the lists' Apply buttons
-                            // disabled) and the failure banner itself — an
-                            // error describing an abandoned attempt would sit
-                            // above the new one as noise.
-                            setApplyPreview(null);
-                            clearApplyError();
-                            ticketPatchesRef.current?.scrollIntoView({
-                              block: 'center',
-                              behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
-                            });
-                          }}
-                        >Try another patch on this ticket</Button>
-                      ) : null}
-                      {applyConflict.prUrl && applyConflict.prButton ? (
-                        <Button variant="secondary" isSmall onClick={() => window.api.openExternal(applyConflict.prUrl)}>
-                          {applyConflict.prButton}
-                        </Button>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  {applyConflict.offerDiscardToBase && layerExit.message ? (
-                    <div style={{ marginTop: 8 }}>{layerExit.message}</div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {applyNotice ? (
-            // Dismissible, like the update summary above: the notice reports
-            // something already resolved, so it outlives its usefulness the
-            // moment it has been read, and nothing else in this panel takes it
-            // down until the next patch.
-            <div role="status" style={{ marginTop: 12, padding: '8px 10px', background: '#f0f6fc', border: '1px solid #3582c4', borderRadius: 6, fontSize: 12, color: '#1d3a5f', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ flex: '1 1 auto' }}>{applyNotice}</span>
-              <Button
-                variant="tertiary"
-                isSmall
-                aria-label="Dismiss"
-                onClick={() => setApplyNotice('')}
-                style={{ color: '#1d3a5f' }}
-              >✕</Button>
-            </div>
-          ) : null}
-
-          {!pullRequest && !applyPreview && !isApplying ? (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-                <div style={{ minWidth: 280, flex: '1 1 280px' }}>
-                  <TextControl
-                    value={prUrlInput}
-                    onChange={(value) => { setPrUrlInput(value); clearApplyError(); setApplyNotice(''); }}
-                    onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); previewPrFromInput(); } }}
-                    disabled={isUpdating || installing || building}
-                    placeholder="Paste a pull request URL or number"
-                    aria-label="Pull request URL or number"
-                  />
-                </div>
-                <Button
-                  variant="secondary"
-                  onClick={previewPrFromInput}
-                  disabled={isUpdating || installing || building || !prUrlInput.trim()}
-                  style={{ padding: '10px 16px', borderRadius: 10 }}
-                >Apply PR</Button>
-              </div>
-              {project.cards.patchFiles ? (
-                <div style={{ marginTop: 10 }}>
-                  <Button variant="link" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ fontSize: 13 }}>
-                    or choose a .diff / .patch file…
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+        <ApplyCard
+          patchFiles={Boolean(project.cards.patchFiles)}
+          entry={!pullRequest && !isApplying ? {
+            value: prUrlInput,
+            onChange: (value) => { setPrUrlInput(value); clearApplyError(); setApplyNotice(''); },
+            onSubmit: previewPrFromInput,
+            onChooseFile: choosePatchFile,
+            // A patch already read is being looked at, or waits on a
+            // question: one at a time.
+            disabled: isUpdating || installing || building || Boolean(applyPreview)
+          } : null}
+          applied={appliedLayer && !isApplying ? {
+            layer: appliedLayer,
+            watchMessage: watchBusyMessage(watchState, watchCompiling),
+            onRevert: () => runApply({ reverse: true }),
+            revertDisabled: isUpdating || installing || building,
+            exits: layerExits
+          } : null}
+          progress={isApplying ? { steps: applySteps, states: applyStepStates, cue: cueProps('applying-patch') } : null}
+          failure={applyError ? {
+            error: applyError,
+            kind: applyKind,
+            conflict: applyConflict,
+            exits: layerExits,
+            onDismiss: () => clearApplyError(),
+            onTryAnother: tryAnotherPatch,
+            onOpen: openSiteLink
+          } : null}
+          notice={applyNotice ? { text: applyNotice, onDismiss: () => setApplyNotice('') } : null}
+        />
+      ) : null}
+      {skipInit ? (
+        <ApplyPreviewDialog
+          // Set aside, and not dropped, while the app asks what should
+          // become of loose edits on trunk: the answer that goes on with
+          // the checkout needs it, and the question is on the page behind.
+          preview={applyPreview && !isApplying && !blockedByTrunkWork ? applyPreview : null}
+          pr={prPreview}
+          warnings={applyPreview && applyPreview.kind !== 'pr' ? previewAttribution.sentences : []}
+          cueId="apply-preview"
+          applyDisabled={isUpdating || installing || building}
+          onApply={() => runApply()}
+          onCancel={() => { setApplyPreview(null); clearApplyError(); setApplyNotice(''); }}
+        />
       ) : null}
       {skipInit && ticketsCard ? (
         <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>

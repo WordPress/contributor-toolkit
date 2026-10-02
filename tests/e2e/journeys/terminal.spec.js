@@ -91,10 +91,12 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 		await terminal.press( 'Enter' );
 	};
 	const buildHint = ui.terminalHint( page, 'npm run build' );
-	// A button elsewhere on the site's view that waits for a build, an install
-	// or a trunk update to end, and not for the terminal's lock: it is how the
-	// test sees that the rest of the view was told one is running.
-	const patchFile = ui.choosePatchFileButton( page );
+	// A control elsewhere on the site's view that waits for a build, an
+	// install or a trunk update to end, and not for the terminal's lock: it is
+	// how the test sees that the rest of the view was told one is running.
+	// The field a pull request is asked for in is one, and is on the page
+	// whichever of the apply card's tabs is open.
+	const patchFile = ui.prField( page );
 
 	// CHARACTERISATION — it opens on what it can do, with the scripts this
 	// project allows named in the help, and under it the hints are links.

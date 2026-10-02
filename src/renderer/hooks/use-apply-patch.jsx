@@ -401,6 +401,11 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
         if (!leaving && res?.code === 'dirty-trunk') {
           setBlockedByTrunkWork({ kind: 'pr', number, ref: `pr/${number}`, canCarry: false, files: Number.isInteger(res.files) ? res.files : null, ticket: null });
         } else {
+          // The preview is a dialog (#557), and a refusal is said on the
+          // card behind it: the preview goes, so that the refusal can be
+          // read. The question above keeps it, for the answer that goes on
+          // with this same checkout.
+          setApplyPreview(null);
           setApplyError(prCheckoutRefusal({ ...res, number }));
         }
         finishApply();
@@ -416,6 +421,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     }
 
     run.catch((e) => {
+      setApplyPreview(null);
       setApplyError(String(e));
       finishApply();
     });
@@ -550,6 +556,10 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
             finishApply();
             return;
           }
+          // The preview goes with its failure, as a pull request's does:
+          // it is a dialog, and what went wrong is on the card behind it.
+          // What the breakdown needs of it was read before the apply began.
+          setApplyPreview(null);
           setApplyError(res?.error || 'The patch could not be applied.');
           // A conflict is where the panel used to stop: one file named, the
           // rest of the failures left in the terminal, and no sense of whether
@@ -589,6 +599,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     ).catch((e) => {
       // A rejected invoke never reaches onDone, so without this the terminal
       // stays wedged with `running` set and no way back short of a reload.
+      setApplyPreview(null);
       setApplyError(String(e));
       finishApply();
     });

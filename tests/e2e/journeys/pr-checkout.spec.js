@@ -147,6 +147,10 @@ test( 'discarding loose trunk edits continues into the requested PR checkout', a
 
 	const discard = page.getByRole( 'button', { name: `Discard them and check out PR #${ PR }`, exact: true } );
 	await expect( discard ).toBeVisible( { timeout: 30_000 } );
+	// INVARIANT — the question is asked on the page, where it can be
+	// answered: the preview, which is a dialog, is set aside for it and is
+	// not in front of it.
+	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
 	await discard.click();
 	await expect
 		.poll( () => currentBranch( site.dir ), { timeout: 60_000 } )
