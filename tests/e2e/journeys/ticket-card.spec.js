@@ -281,6 +281,8 @@ test( 'while the site is being built the card\'s actions are held, say why, and 
 	await expect( unlink ).toBeEnabled();
 
 	const terminal = ui.terminalInput( page );
+	const buildHint = ui.terminalHint( page, 'npm run build' );
+	await expect( buildHint ).toBeVisible();
 	await terminal.pressSequentially( 'npm run build', { delay: 10 } );
 	await terminal.press( 'Enter' );
 
@@ -310,12 +312,21 @@ test( 'while the site is being built the card\'s actions are held, say why, and 
 	await expect( unlink ).toBeEnabled();
 	await expect( unlink ).toHaveAccessibleDescription( '' );
 	await expect( unlink ).toBeFocused();
+	// The button comes back as the build ends, and the terminal a moment
+	// later, once the site's status has been read again: until then a press
+	// is turned away, a command still being under way. The hint under the
+	// terminal is a link again when that moment has passed. That the two do
+	// not come back together is the app's and is older than this card; the
+	// journey waits it out and does not pin it either way.
+	await expect( buildHint ).toBeVisible();
 	await unlink.click();
 	await expect.poll( () => currentBranch( site.dir ) ).toBe( 'trunk' );
 
 	// INVARIANT — and with nothing linked the field and its button are held
 	// by the same thing, with the same sentence.
 	await expect( ui.ticketField( card ) ).toBeEnabled();
+	// The switch holds the terminal too, and gives it back the same way.
+	await expect( buildHint ).toBeVisible();
 	await terminal.pressSequentially( 'npm run build', { delay: 10 } );
 	await terminal.press( 'Enter' );
 	await expect( ui.ticketField( card ) ).toBeDisabled();
