@@ -103,3 +103,47 @@ test( 'the sites list and the button that hides it are fully translatable', asyn
 	await page.getByRole( 'button', { name: pseudoLocalize( 'Hide sites list' ), exact: true } ).click();
 	await expect( page.getByRole( 'button', { name: pseudoLocalize( 'Show sites list' ), exact: true } ) ).toBeVisible();
 } );
+
+test( 'the open site\'s details and its menu are fully translatable', async ( { session } ) => {
+	// One site with an old trunk, so the details say its age. Its path and
+	// its two dates are the machine's, and are left out of the scan.
+	const dir = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-site-' ) ) );
+	fs.mkdirSync( path.join( dir, 'wp-content' ), { recursive: true } );
+	const created = new Date( Date.now() - 40 * 24 * 60 * 60 * 1000 );
+	const { app, page } = await session.start( {
+		sites: [ dir ],
+		siteMeta: { [ dir ]: { initialized: true, createdAt: created.toISOString(), label: 'my-site', projectType: 'gutenberg', trunkDate: created.toISOString(), skipInitWizard: true } },
+		preferences: {},
+	}, { lang: 'en-XA' } );
+	// No application is looked for, so the menu is the same on every machine.
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'editor:list' );
+		ipcMain.handle( 'editor:list', () => ( { detected: [ { name: 'Example Editor', path: '/example' } ] } ) );
+	} );
+
+	const details = page.getByRole( 'complementary' ).filter( { visible: true } );
+	await expect( details.getByRole( 'heading', { name: pseudoLocalize( 'Details' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	// What is the machine's: the folder, and two dates, written the way the
+	// app's own locale writes them, which is found here by the year in them.
+	const year = String( created.getFullYear() );
+	expect( ( await unwrapped( details ) ).filter( ( text ) => text !== dir && ! text.includes( year ) ) ).toEqual( [] );
+
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Site actions' ), exact: true } ).click();
+	const menu = page.getByRole( 'menu', { name: pseudoLocalize( 'Site actions' ) } );
+	await expect( menu.getByRole( 'menuitem', { name: pseudoLocalize( 'Rename…' ), exact: true } ) ).toBeVisible();
+	await expect( menu.getByRole( 'menuitem' ) ).toHaveCount( 6 );
+	expect( await unwrapped( menu ) ).toEqual( [] );
+
+	// The applications, under "Open in". Scanned once the one application
+	// has arrived, so that the list scanned is the whole list. Its name is its
+	// own and is left as it is; the row beside it is the app's.
+	await menu.getByRole( 'menuitem', { name: pseudoLocalize( 'Open in' ), exact: true } ).click();
+	const application = page.getByRole( 'menuitem', { name: 'Example Editor', exact: true } );
+	await expect( application ).toBeVisible();
+	const applications = page.getByRole( 'menu' ).filter( { has: application } ).last();
+	await expect( applications.getByRole( 'menuitem', { name: pseudoLocalize( 'Other application…' ), exact: true } ) ).toBeVisible();
+	expect( ( await unwrapped( applications ) ).filter( ( text ) => text !== 'Example Editor' ) ).toEqual( [] );
+	await page.keyboard.press( 'Escape' );
+	await page.keyboard.press( 'Escape' );
+	await expect( page.getByRole( 'button', { name: pseudoLocalize( 'Hide details' ), exact: true } ) ).toBeVisible();
+} );

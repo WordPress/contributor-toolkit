@@ -100,9 +100,11 @@ const renderedApp = ( page ) => page.locator( '#root > * > *' );
  */
 const siteHeading = ( page, label ) => page.getByRole( 'heading', { name: label, exact: true } );
 
-const siteMenuButton = ( page ) => page.getByRole( 'button', { name: 'More', exact: true } );
+// The open site's menu, in the page's header, and what is in it. An item is
+// there only while the menu is open.
+const siteMenuButton = ( page ) => page.getByRole( 'button', { name: 'Site actions', exact: true } );
 const updateTrunkMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Update to latest trunk', exact: true } );
-const deleteSiteMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Delete this site', exact: true } );
+const deleteSiteMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Delete site', exact: true } );
 
 const startDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Start dev server', exact: true } );
 // The same button once the server has an address; while it is still starting it reads neither.

@@ -76,7 +76,9 @@ test( 'the sites list opens a site without closing the others, and the open site
 	// its name and its project.
 	await expect( newer ).toHaveAttribute( 'aria-pressed', 'true' );
 	await expect( older ).toHaveAttribute( 'aria-pressed', 'false' );
-	await expect( page.getByRole( 'region', { name: 'newer-site' } ).getByText( 'Gutenberg', { exact: true } ) ).toBeVisible();
+	// The first of the two places the page says it: the header's badge comes
+	// before the site's details, which name the checkout too.
+	await expect( page.getByRole( 'region', { name: 'newer-site' } ).getByText( 'Gutenberg', { exact: true } ).first() ).toBeVisible();
 
 	// Something only this site's view holds: what is typed into its field.
 	const issue = ui.issueField( page ).filter( { visible: true } );

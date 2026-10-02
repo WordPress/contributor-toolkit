@@ -20,7 +20,7 @@ export function useDetectedEditors() {
       const result = await window.api.listEditors();
       setDetected(result?.detected || []);
     } catch (err) {
-      // The menu still offers the file manager and "Other application…", which
+      // The site's menu still offers the file manager and "Other application…", which
       // is enough to finish the job — but "detection failed" and "nothing is
       // installed" must not be the same event to whoever reads the log.
       // eslint-disable-next-line no-console -- reaches the log file: logging.js initializes electron-log with spyRendererConsole, so this is how the renderer records a diagnostic.

@@ -1,16 +1,13 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useReducer, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import {
   Button,
   TabPanel,
   Card,
   CardBody,
-  Dropdown,
   Flex,
-  DropdownMenu,
   Icon,
-  MenuGroup,
-  MenuItem,
   SlotFillProvider,
   SnackbarList,
   TextControl,
@@ -19,7 +16,7 @@ import {
 import { Page } from '@wordpress/admin-ui';
 import { __, _x, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
-import { chevronDown, copy as copyIcon, check as checkIcon, pencil, drawerLeft, globe } from '@wordpress/icons';
+import { check as checkIcon, drawerLeft, globe } from '@wordpress/icons';
 import { ThemeProvider } from '@wordpress/theme';
 import { Badge, Button as UiButton, EmptyState, IconButton, VisuallyHidden } from '@wordpress/ui';
 // The design system's tokens: every `--wpds-*` custom property, at its default,
@@ -77,6 +74,8 @@ import { PullRequestDestination } from './components/pull-request-destination.js
 import { ReviewDialog } from './components/review-dialog.jsx';
 import { SitesSidebar } from './components/sites-sidebar.jsx';
 import { AppFooter } from './components/app-footer.jsx';
+import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
+import { SiteDetails } from './components/site-details.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
@@ -125,14 +124,6 @@ const UPDATE_STEP_MARKS = {
   complete: { symbol: '✓', color: '#0f5132' },
   current: { symbol: '›', color: '#0b5d95' }
 };
-// The file manager has a name on the two platforms that have one; everywhere
-// else it is whatever the desktop provides, so it is called what it is.
-//
-// Two forms, because it appears in two places: an instruction in a list of
-// commands ("Show in Finder"), and an application named alongside the editors in
-// the "Open directory in" menu, where every other row is a bare name.
-const FILE_MANAGER_LABELS = { darwin: 'Show in Finder', win32: 'Show in Explorer' };
-const FILE_MANAGER_NAMES = { darwin: 'Finder', win32: 'File Explorer' };
 // Why the ticket's PR list could not be read, worded for the contributor.
 const TICKET_PATCH_STATUS_MESSAGE = {
   'rate-limited': 'GitHub is rate-limiting this connection.',
@@ -187,6 +178,11 @@ function App() {
   useEffect(() => { (async () => { try { setWebAvailable(Boolean(await window.api.playgroundWebAvailable())); } catch {} })(); }, []);
   // Whether the sites list is showing. Closed, it gives its width to the page.
   const [sitesListOpen, setSitesListOpen] = useState(true);
+  // Whether the open site's details are showing. One answer for the window,
+  // not one per site: it is how the contributor likes the page, and it should
+  // not change as they move between sites.
+  const [detailsOpen, setDetailsOpen] = useState(true);
+  const toggleDetails = useCallback(() => setDetailsOpen((open) => !open), []);
   const [activeSite, setActiveSite] = useState(null);
   const [deletingSites, setDeletingSites] = useState([]);
   // State paints the progress, while the ref closes the same-tick gap before
@@ -645,6 +641,7 @@ function App() {
               className="app-page"
               title={openRow ? openRow.name : ''}
               badges={openRow ? <Badge>{openRow.project}</Badge> : null}
+              actions={<SiteHeaderActionsSlot />}
               showSidebarToggle
               hasPadding={false}
               ariaLabel={openRow ? openRow.name : __('Site')}
@@ -700,6 +697,8 @@ function App() {
                         deepLink={activeSite === s ? deepLink : null}
                         onDeepLinkDone={clearDeepLink}
                         isActive={activeSite === s}
+                        detailsOpen={detailsOpen}
+                        onToggleDetails={toggleDetails}
                       />
                     </div>
                   ))}
@@ -724,7 +723,11 @@ function App() {
         (components-modal__screen-overlay is 100000, and a modal is a later body
         portal that would otherwise win the tie) so a confirmation for an action
         taken inside a modal — saving a patch, opening a PR — is still seen. It
-        stays below popovers/dropdowns (1000000), which should sit over it. */}
+        stays below popovers/dropdowns (1000000), which should sit over it.
+        It is drawn on `body`, outside the app's own element, because that
+        element is a stacking context of its own (see shell.css) and nothing
+        inside it can rise over a dialog. */}
+    {createPortal(
     <div className="toast-stack">
       <SnackbarList
         className="toolkit-snackbars"
@@ -741,12 +744,14 @@ function App() {
         }))}
         onRemove={removeConfirmation}
       />
-    </div>
+    </div>,
+    document.body
+    )}
     </ConfirmationContext.Provider>
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -842,20 +847,29 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
   }, []);
 
-  const copyPath = useCallback(async () => {
+  // Puts the path on the clipboard and resolves to whether it got there. Each
+  // of the two things that copy says so in its own way, and only in that way:
+  // said twice, a screen reader reads it twice.
+  const writePathToClipboard = useCallback(async () => {
     try {
       if (!navigator?.clipboard?.writeText) {
         throw new Error('Clipboard access is not available in this environment');
       }
       await navigator.clipboard.writeText(sitePath);
-      setPathCopied(true);
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-      copyTimeoutRef.current = setTimeout(() => setPathCopied(false), 1500);
+      return true;
     } catch (err) {
       // eslint-disable-next-line no-alert -- see the note above onRename.
       alert('Unable to copy path: ' + (err?.message ?? String(err)));
+      return false;
     }
   }, [sitePath]);
+  // The details' button, which says "Copied" on itself for a moment.
+  const copyPath = useCallback(async () => {
+    if (!(await writePathToClipboard())) return;
+    setPathCopied(true);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setPathCopied(false), 1500);
+  }, [writePathToClipboard]);
 
   // --- opening the directory ------------------------------------------------
   //
@@ -863,20 +877,37 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // argument to the action rather than a setting configured first, so there is
   // nothing remembered, nothing to change later, and no first-run picker.
   //
-  // What the menu offers is what detection found (see editor-launch.js — a
+  // What is offered is what detection found (see editor-launch.js — a
   // convenience, not a claim about what is installed) plus the file manager and
   // "Other application…", which is what covers everything the table misses. No
-  // entry is ever drawn disabled: an application this app cannot find is not one
-  // it refuses to use, and the copy button above is the floor under all of it.
+  // application is ever drawn disabled: one this app cannot find is not one it
+  // refuses to use, and copying the path is the floor under all of it. Since
+  // #556 these are items of the site's menu, in the page's header; which ones
+  // and in what order is site-menu.cjs.
   const { detected: detectedEditors, loading: detectingEditors, loadDetected } = editor;
   // `{ message, offerPicker }` from open-failure.cjs, or null for nothing to
   // say. Both what it reads and whether "Choose application…" is a way out of
   // it are decided there, per reason — the two callers below deciding that
   // separately is what #180 was.
   const [editorNotice, setEditorNotice] = useState(null);
+  // The notice is drawn at the top of the site's cards, and the menu that
+  // caused it can be used from anywhere down the page: said out of sight, a
+  // refusal looks like a button that did nothing. Each refusal is brought
+  // into view once. A new notice object is a new refusal, so one that repeats
+  // is brought back; one that is merely still there when the site is opened
+  // again is not this effect's to move to. Where the page goes then is the
+  // next-action cue's (useNextActionCue), which centres the next step each
+  // time a site is opened, and two effects scrolling the same page in one
+  // commit would only be the second one's.
+  const editorNoticeRef = useRef(null);
+  const shownEditorNoticeRef = useRef(null);
+  useEffect(() => {
+    if (!editorNotice || !isActive || !editorNoticeRef.current) return;
+    if (shownEditorNoticeRef.current === editorNotice) return;
+    shownEditorNoticeRef.current = editorNotice;
+    editorNoticeRef.current.scrollIntoView({ block: 'nearest' });
+  }, [editorNotice, isActive]);
 
-  const fileManagerLabel = FILE_MANAGER_LABELS[window.api?.platform] || 'Show in file manager';
-  const fileManagerName = FILE_MANAGER_NAMES[window.api?.platform] || 'File manager';
 
   // `editorPath` is one of the detected applications; null asks the main process
   // for the file dialog instead.
@@ -1151,6 +1182,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // through everything above, and because what follows reads whether an
   // update is under way.
   const { updateState, isUpdating, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+
+  // What the site's menu does (#556). Which items it offers is decided in
+  // site-menu.cjs; this is each one's function. Copying the path says so in a
+  // toast, since the menu is gone by then and the details, whose own button
+  // says it on itself, may be put away.
+  const detailsId = useId();
+  const runSiteMenuAction = async (item) => {
+    if (item.id === 'rename') openRenameModal();
+    else if (item.id === 'copy-path') { if (await writePathToClipboard()) confirm(__('Copied the path')); }
+    else if (item.id === 'show-in-file-manager') await showInFileManager();
+    else if (item.id === 'update-trunk') await startTrunkUpdate();
+    else if (item.id === 'open-in') await openIn(item.path);
+    else if (item.id === 'open-in-other') await openIn(null);
+    else if (item.id === 'delete') await confirmAnd('Delete this site from disk? This cannot be undone.', () => onDelete(sitePath));
+  };
 
   // Putting someone else's patch or pull request on this site (#554): what a
   // ticket offers, the preview, and the chain. Called here because it runs
@@ -1689,10 +1735,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     await savePatchFile({ handoff: true });
   };
 
-  const statusStyles = initialized
-    ? { background: '#e7f6e7', color: '#0f5132' }
-    : { background: '#fff4ce', color: '#8a6d1c' };
-
   // Colours and indicator per step status. The status *word* is not here — it
   // lives in `setupStepLabel`, the one place that distinguishes a step that is
   // merely next from one that is running (#257).
@@ -1872,7 +1914,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   });
 
   return (
-    <section ref={nextActionSectionRef} style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
+    <section ref={nextActionSectionRef} style={{ paddingBottom: 48 }}>
       {/* The glow on the next-action block is purely visual, invisible to a
           screen reader. This is its spoken equivalent: a polite live region that
           names the next step as the cue moves, so a non-sighted contributor gets
@@ -1884,140 +1926,32 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       <VisuallyHidden role="status" aria-live="polite">
         {isActive && nextAction ? `Next step: ${nextAction.reason}` : ''}
       </VisuallyHidden>
-      <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 440px', minWidth: 0 }}>
-          {/* The site's name and its project are in the page's header (#555),
-              which the window draws for whichever site is open. Renaming stays
-              here until the site's menu moves there too (#556). */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#3c434a', flexWrap: 'wrap' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', ...statusStyles }}>
-              {initialized ? 'Initialized' : 'Uninitialized'}
-            </span>
-            <Button
-              icon={pencil}
-              label="Rename site"
-              aria-label="Rename site"
-              onClick={openRenameModal}
-              variant="tertiary"
-              isSmall
-            />
-            {createdLabel ? <span>Created {createdLabel}</span> : null}
-            {age.known ? (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                {createdLabel ? <span aria-hidden="true">·</span> : null}
-                {age.stale ? (
-                  <span
-                    aria-hidden="true"
-                    title={`Trunk snapshot is ${age.ageDays} days old`}
-                    style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#dba617' }}
-                  />
-                ) : null}
-                <span>{age.label}</span>
-              </span>
-            ) : null}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
-            <code style={{ fontSize: 12, color: '#3c434a', background: '#f0f0f1', padding: '2px 6px', borderRadius: 4, overflowWrap: 'anywhere' }}>
-              {sitePath}
-            </code>
-            <Button
-              icon={pathCopied ? checkIcon : copyIcon}
-              label={pathCopied ? 'Copied!' : 'Copy path'}
-              aria-label={pathCopied ? 'Copied!' : 'Copy path'}
-              onClick={copyPath}
-              variant="tertiary"
-              isSmall
-            />
-          </div>
-          {/* One control for one intention, directly under the path it acts on.
-              Detection runs when the menu is opened rather than on load: it is a
-              filesystem sweep, and the answer is only needed once someone asks.
-              It is re-read on every open, so an application installed while this
-              app is running shows up the next time the menu is used. */}
-          <div style={{ marginTop: 4 }}>
-            <Dropdown
-              popoverProps={{ placement: 'bottom-start', offset: 4 }}
-              renderToggle={({ isOpen, onToggle }) => (
-                <Button
-                  variant="link"
-                  aria-expanded={isOpen}
-                  aria-haspopup="menu"
-                  onClick={() => {
-                    if (!isOpen) void loadDetected();
-                    onToggle();
-                  }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 12 }}
-                >
-                  Open directory in
-                  <Icon icon={chevronDown} size={18} />
-                </Button>
-              )}
-              renderContent={({ onClose }) => (
-                <MenuGroup>
-                  <MenuItem onClick={() => { onClose(); void showInFileManager(); }}>
-                    {fileManagerName}
-                  </MenuItem>
-                  {detectedEditors.map((candidate) => (
-                    <MenuItem key={candidate.path} onClick={() => { onClose(); void openIn(candidate.path); }}>
-                      {candidate.name}
-                    </MenuItem>
-                  ))}
-                  {/* A menu that is still counting is not an empty menu, and the
-                      difference has to be visible: without this, a slow sweep
-                      looks exactly like a machine with no editors on it. */}
-                  {detectingEditors ? (
-                    <MenuItem disabled>Looking for applications…</MenuItem>
-                  ) : null}
-                  {/* Always offered, never only as a fallback: detection is a
-                      shortcut, and an application it misses is not one this app
-                      refuses to use. */}
-                  <MenuItem onClick={() => { onClose(); void openIn(null); }}>
-                    Other application…
-                  </MenuItem>
-                </MenuGroup>
-              )}
-            />
-          </div>
-          {/* With no modal in the way, this is the only place a failed open can
-              speak — and it carries the way out with it, rather than leaving the
-              contributor to find the menu again. */}
-          {editorNotice ? (
-            <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-              <span style={{ flex: '1 1 240px' }}>{editorNotice.message}</span>
-              {editorNotice.offerPicker ? (
-                <Button variant="tertiary" isSmall onClick={() => void openIn(null)}>Choose application…</Button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-          <DropdownMenu
-            label="More"
-            text=""
-            controls={[
-              { title: 'Copy path', onClick: copyPath },
-              // Opening the folder lives in the header's "Open directory in"
-              // menu, next to the path it acts on. Repeating it here would be two
-              // menus answering the same question a few pixels apart.
-              { title: fileManagerLabel, onClick: showInFileManager },
-              // Also reachable when the site is not yet stale (the staleness
-              // notice is the primary entry point) — a fresh site just gets
-              // "Already up to date." in the terminal.
-              { title: 'Update to latest trunk', onClick: startTrunkUpdate },
-              // Not while the clone is running: deleting the site would be
-              // removing a directory the app is still writing into. The main
-              // process refuses it either way (see site-registry.js) — that is
-              // the backstop, and not offering a control that cannot work is
-              // the actual answer.
-              ...(isPending ? [] : [
-                isDeleting
-                  ? { title: 'Deleting…', isDisabled: true }
-                  : { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
-              ])
-            ]}
-          />
-        </div>
-      </Flex>
+      {/* What is done to the site as a whole is in the page's header (#556):
+          the window leaves a slot there, and the site that is open fills it. */}
+      {isActive ? (
+        <SiteHeaderActions
+          detailsOpen={detailsOpen}
+          detailsId={detailsId}
+          onToggleDetails={onToggleDetails}
+          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting }}
+          onMenuOpen={loadDetected}
+          onAction={runSiteMenuAction}
+        />
+      ) : null}
+      <div className={detailsOpen ? 'dashboard' : 'dashboard is-sidebar-collapsed'}>
+      <div className="dashboard-main">
+    {/* With no modal in the way, this is the only place a failed open can
+        speak — and it carries the way out with it, rather than leaving the
+        contributor to find the menu again. The menu is in the header, which
+        does not scroll, so this is brought into view when it appears. */}
+    {editorNotice ? (
+      <div ref={editorNoticeRef} role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
+        <span style={{ flex: '1 1 240px' }}>{editorNotice.message}</span>
+        {editorNotice.offerPicker ? (
+          <Button variant="tertiary" isSmall onClick={() => void openIn(null)}>Choose application…</Button>
+        ) : null}
+      </div>
+    ) : null}
       {legacyNotice && !isPending ? (
         <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
           <span style={{ flex: '1 1 320px' }}>
@@ -2866,11 +2800,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Terminal</div>
           <div
             ref={terminalContainerRef}
+            // The terminal is 80 columns wide, which is more than the column
+            // it sits in when the details are open and the window is at its
+            // default size. It scrolls sideways there, so that the end of a
+            // line can be reached, until it moves to the tray (#558).
             style={{
               height: 220,
               background: '#111',
               borderRadius: 6,
-              overflow: 'hidden',
+              overflowX: 'auto',
+              overflowY: 'hidden',
               border: '1px solid #1b1b1f'
             }}
           />
@@ -2959,6 +2898,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             )}
           </div>
         </div>
+      </div>
+      </div>
+      <SiteDetails
+        id={detailsId}
+        open={detailsOpen}
+        siteName={displayName}
+        facts={{ initialized, created: createdLabel, trunk: age, path: sitePath, checkout: project.label }}
+        pathCopied={pathCopied}
+        onCopyPath={copyPath}
+      />
       </div>
       {dirtyModalOpen ? (
         <DirtyTreeModal

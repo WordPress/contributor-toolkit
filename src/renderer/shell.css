@@ -24,6 +24,13 @@ body {
   line-height: var(--wpds-typography-line-height-sm, 20px);
 }
 
+/* The app paints as one layer, under what the design system's menus and
+   tooltips put on `body` after it: those have no z-index of their own, and
+   without this the page's header, which has one, would cover them. */
+#root {
+  isolation: isolate;
+}
+
 .app-root {
   display: flex;
   flex-direction: column;
@@ -191,6 +198,122 @@ body {
   margin-inline: auto;
 }
 
+/* The open site's actions, in the page's header (#556). The slot is one
+   element in the header's row, and lays its own buttons out. */
+.site-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-sm, 8px);
+}
+
+/* The site's view: its cards, and its details beside them. The details close
+   the way the sites list does, by their column going to no width. */
+.dashboard {
+  --dashboard-sidebar-width: var(--wpds-dimension-surface-width-sm, 320px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--dashboard-sidebar-width);
+  gap: var(--wpds-dimension-gap-2xl, 24px);
+  align-items: start;
+  width: 100%;
+  transition:
+    grid-template-columns var(--wpds-motion-duration-lg, 300ms)
+      var(--wpds-motion-easing-expressive, ease),
+    gap var(--wpds-motion-duration-lg, 300ms) var(--wpds-motion-easing-expressive, ease);
+}
+
+.dashboard.is-sidebar-collapsed {
+  grid-template-columns: minmax(0, 1fr) 0px;
+  gap: 0;
+}
+
+.dashboard > * {
+  min-width: 0;
+}
+
+.dashboard-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-2xl, 24px);
+  min-width: 0;
+}
+
+/* The slot is as tall as the cards, so that the details, which are shorter,
+   have somewhere to stay put in. */
+.dashboard-sidebar-slot {
+  align-self: stretch;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+.dashboard.is-sidebar-collapsed .dashboard-sidebar-slot {
+  pointer-events: none;
+}
+
+/* It stays in view while the cards scroll past it. */
+.dashboard-sidebar {
+  position: sticky;
+  top: 0;
+  width: var(--dashboard-sidebar-width);
+  min-width: 0;
+  box-sizing: border-box;
+  transform: translateX(0);
+  transition: transform var(--wpds-motion-duration-lg, 300ms)
+    var(--wpds-motion-easing-expressive, ease);
+}
+
+.dashboard-sidebar h2 {
+  margin: 0;
+}
+
+.dashboard.is-sidebar-collapsed .dashboard-sidebar {
+  transform: translateX(100%);
+}
+
+[dir="rtl"] .dashboard.is-sidebar-collapsed .dashboard-sidebar {
+  transform: translateX(-100%);
+}
+
+.muted-label {
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+.path-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.path-value {
+  word-break: break-all;
+}
+
+.site-details-note {
+  color: var(--wpds-color-foreground-content-warning-weak, #936300);
+}
+
+/* Where the page is too narrow for two columns, the details go under the
+   cards, at the page's width. Measured on the page and not on the window:
+   the sites list takes a share of the window that the page never sees. */
+.site-workspace-main {
+  container-type: inline-size;
+}
+
+@container (max-width: 720px) {
+  .dashboard,
+  .dashboard.is-sidebar-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-sidebar {
+    position: static;
+    width: 100%;
+  }
+
+  .dashboard.is-sidebar-collapsed .dashboard-sidebar-slot {
+    height: 0;
+    overflow: hidden;
+  }
+}
+
 /* `index.html` still gives every `button` an 8px right margin, which the old
    site view's rows of buttons lean on until that view is rebuilt (#557). The
    shell's own buttons are placed by what holds them, and the margin put each
@@ -198,6 +321,8 @@ body {
    button of an empty window sat off its centre. */
 .sites-sidebar button,
 .sites-list-toggle,
+.site-header-actions button,
+.dashboard-sidebar button,
 .page-body-center button,
 .app-footer button {
   margin-right: 0;
@@ -241,10 +366,10 @@ body {
 
 /* The window's toasts (#253): over everything but a popover, in the corner
    the page's actions are not in, and clear of the footer. The wrapper lets
-   clicks through, and a toast takes its own, which the library sees to.
-   `#root` is deliberately not made a stacking context of its own: this has to
-   rise over a dialog, which is drawn on `body`, so that what was done inside
-   one is still confirmed. */
+   clicks through, and a toast takes its own, which the library sees to. It
+   is drawn on `body` and not inside `#root`, which is a stacking context of
+   its own: this has to rise over a dialog, which is drawn on `body` too, so
+   that what was done inside one is still confirmed. */
 .toast-stack {
   position: fixed;
   inset-inline-end: var(--wpds-dimension-padding-2xl, 24px);
@@ -255,7 +380,9 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .site-shell,
-  .sites-sidebar {
+  .sites-sidebar,
+  .dashboard,
+  .dashboard-sidebar {
     transition-duration: 0s;
   }
 }
