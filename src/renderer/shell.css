@@ -206,6 +206,55 @@ body {
   gap: var(--wpds-dimension-gap-sm, 8px);
 }
 
+/* The header holds the site's name and, since #557, two menus and a button
+   as well, in a page that is as narrow as 480px when the window is at its
+   smallest and the sites list is open. The name must not be the thing that
+   gives way: it is squeezed to nothing otherwise, as it was. So the page's
+   width decides what the actions show. With room, everything; short of it,
+   the two processes are their dots and the review button is its first word.
+   Each keeps its name for a screen reader, since what is put away is clipped
+   and not removed. */
+.app-page {
+  container: app-page / inline-size;
+}
+
+.app-page h1 {
+  min-width: 4ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-narrow-only {
+  display: none;
+}
+
+@container app-page (max-width: 900px) {
+  .process-menu-trigger .header-wide-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@container app-page (max-width: 620px) {
+  .site-header-actions .header-wide-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .site-header-actions .header-narrow-only {
+    display: inline;
+  }
+}
+
 /* The site's view: its cards, and its details beside them. The details close
    the way the sites list does, by their column going to no width. */
 .dashboard {
@@ -249,7 +298,8 @@ body {
   pointer-events: none;
 }
 
-/* It stays in view while the cards scroll past it. */
+/* It stays in view while the cards scroll past it, as long as it fits in
+   what is in view; taller than that, the component lets it go. */
 .dashboard-sidebar {
   position: sticky;
   top: 0;
@@ -259,6 +309,10 @@ body {
   transform: translateX(0);
   transition: transform var(--wpds-motion-duration-lg, 300ms)
     var(--wpds-motion-easing-expressive, ease);
+}
+
+.dashboard-sidebar.is-unstuck {
+  position: static;
 }
 
 .dashboard-sidebar h2 {
@@ -271,6 +325,79 @@ body {
 
 [dir="rtl"] .dashboard.is-sidebar-collapsed .dashboard-sidebar {
   transform: translateX(-100%);
+}
+
+/* A process's dot: grey for stopped, green for running, amber while it is
+   getting there, red for one that ended with an error. */
+.process-status {
+  display: block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+.process-status.is-online {
+  background: var(--wpds-color-foreground-content-success-weak, #007f30);
+}
+
+.process-status.is-busy {
+  background: var(--wpds-color-stroke-surface-warning-strong, #936300);
+}
+
+.process-status.is-failed {
+  background: var(--wpds-color-stroke-surface-error-strong, #cc1818);
+}
+
+.process-menu-trigger {
+  font-weight: var(--wpds-typography-font-weight-default, 400);
+}
+
+.dashboard-sidebar h3 {
+  margin: 0;
+}
+
+.card-divider {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
+}
+
+.sidebar-link {
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+.sidebar-empty-state {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  padding-block: var(--wpds-dimension-padding-xl, 20px);
+  padding-inline: var(--wpds-dimension-padding-lg, 16px);
+  border: var(--wpds-border-width-xs, 1px) solid var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
+  border-radius: var(--wpds-border-radius-lg, 8px);
+}
+
+.credential-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: var(--wpds-dimension-gap-lg, 16px);
+  row-gap: var(--wpds-dimension-gap-xs, 4px);
+  align-items: center;
+}
+
+.credential-value {
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-xs, 4px);
+  min-width: 0;
+}
+
+.site-details-failed {
+  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
 }
 
 .muted-label {

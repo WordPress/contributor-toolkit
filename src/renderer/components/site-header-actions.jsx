@@ -1,7 +1,7 @@
 import { createSlotFill } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { drawerRight, moreVertical } from '@wordpress/icons';
-import { IconButton, Menu } from '@wordpress/ui';
+import { Icon, chevronDown, drawerRight, moreVertical } from '@wordpress/icons';
+import { Button, IconButton, Menu } from '@wordpress/ui';
 import { siteMenuItems } from '../site-menu.cjs';
 
 // The page's header belongs to the window, and what goes in it belongs to the
@@ -28,8 +28,50 @@ function MenuAction({ item, onAction }) {
 }
 
 /**
- * The open site's actions: the button that shows and hides its details, and
- * its menu. Rendered by the site's view, and only by the one that is open.
+ * A process's dot: what it is doing, as a colour. The words beside it say the
+ * same, so the dot is for the eye only.
+ *
+ * @param {Object} props
+ * @param {string} props.status 'online', 'busy', 'failed' or 'offline'.
+ */
+export function ProcessStatus({ status }) {
+  return <span className={`process-status is-${status}`} aria-hidden="true" />;
+}
+
+// One of the site's two processes, in the header (#557): what it is doing, and
+// under it the one thing that can be done about that. What it says is decided
+// in site-processes.cjs.
+function ProcessMenu({ process, onToggle }) {
+  return (
+    <Menu.Root>
+      <Menu.Trigger
+        render={
+          <Button className="process-menu-trigger" variant="minimal" tone="neutral" size="compact" title={process.label}>
+            <ProcessStatus status={process.status} />
+            {/* The words give way to the dot when the header is short of
+                room (shell.css); they are still the button's name. */}
+            <span className="header-wide-only">{process.label}</span>
+            <Icon icon={chevronDown} size={16} />
+          </Button>
+        }
+      />
+      <Menu.Popup>
+        <Menu.Item disabled={process.disabled} onClick={onToggle}>
+          <Menu.ItemLabel>{process.action}</Menu.ItemLabel>
+        </Menu.Item>
+      </Menu.Popup>
+    </Menu.Root>
+  );
+}
+
+/**
+ * The open site's actions: its two processes and the way to its changes, once
+ * its setup is done; the button that shows and hides its details; and its
+ * menu. Rendered by the site's view, and only by the one that is open.
+ *
+ * The next-action cue (#252) can point at the server's menu or at the review
+ * button. Each takes the props the site's view makes for the step it is, which
+ * put the glow on it when it is the next one.
  *
  * @param {Object}   props
  * @param {boolean}  props.detailsOpen     Whether the details are showing.
@@ -38,11 +80,28 @@ function MenuAction({ item, onAction }) {
  * @param {Object}   props.menu            What `siteMenuItems` takes.
  * @param {Function} props.onMenuOpen      Called as the menu opens, to look for applications.
  * @param {Function} props.onAction        Called with the chosen item.
+ * @param {Object}   [props.work]          The processes and the review, or null while the site's setup is not done: `{ server, watch, onToggleServer, onToggleWatch, onReview, reviewDisabled, serverCue, reviewCue }`.
  */
-export function SiteHeaderActions({ detailsOpen, detailsId, onToggleDetails, menu, onMenuOpen, onAction }) {
+export function SiteHeaderActions({ detailsOpen, detailsId, onToggleDetails, menu, onMenuOpen, onAction, work = null }) {
   const items = siteMenuItems(menu);
   return (
     <Fill>
+      {work ? (
+        <>
+          <span {...work.serverCue}>
+            <ProcessMenu process={work.server} onToggle={work.onToggleServer} />
+          </span>
+          <ProcessMenu process={work.watch} onToggle={work.onToggleWatch} />
+          <span {...work.reviewCue}>
+            {/* One name, of which the header shows the first word when it is
+                short of room. */}
+            <Button variant="solid" tone="brand" size="compact" disabled={work.reviewDisabled} onClick={work.onReview} aria-label={__('Review & submit changes')}>
+              <span className="header-narrow-only" aria-hidden="true">{__('Review')}</span>
+              <span className="header-wide-only" aria-hidden="true">{__('Review & submit changes')}</span>
+            </Button>
+          </span>
+        </>
+      ) : null}
       {/* It says what pressing it does, and that is the one place its state
           is said, as with the button that hides the sites list. */}
       <IconButton

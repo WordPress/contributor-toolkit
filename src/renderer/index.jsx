@@ -34,6 +34,7 @@ import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { sitesListRows, siteToOpen } from './sites-list.cjs';
+import { serverProcess, watchProcess } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
@@ -96,9 +97,6 @@ import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.j
 // Shared by every log pane so the tabs cannot drift apart visually. The line
 // height is looser than xterm's: this is wrapped text in a div, not painted rows.
 const LOG_PANE_STYLE = { ...TERMINAL_FONT, lineHeight: 1.4, whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 12, borderRadius: 6, height: 220, overflow: 'auto' };
-// The build-watch status dot, by state (#247). Keyed rather than nested
-// ternaries; an unknown state falls back to the grey "stopped" colour.
-const WATCH_DOT_COLORS = { watching: '#00a32a', building: '#dba617', paused: '#dba617', exited: '#d63638' };
 // The applied banner's colours by tone (#509): green for a built site, amber
 // while the watch rebuilds it, red when the rebuild was cut short.
 const APPLIED_BANNER_COLORS = {
@@ -1163,13 +1161,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The dev server (#554): its state, its guards and its one button. It is
   // called here because starting it needs everything above: the build watch,
   // the logs, the mail, the terminal's lock and the script runner.
-  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, devServerButtonLabel, startElapsed, toggleDevServer } = useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
-  // The build watch has its own control and status dot beside the server's — it
-  // runs independently of the server (#247). Green watching, amber building or
-  // paused, red an unexpected exit, grey stopped.
-  const watchActive = watchState === 'watching' || watchState === 'building';
-  const watchDotColor = WATCH_DOT_COLORS[watchState] || '#8c8f94';
-  const watchButtonLabel = watchActive ? 'Stop build watch' : 'Start build watch';
+  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, startElapsed, toggleDevServer } = useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
@@ -1182,6 +1174,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // through everything above, and because what follows reads whether an
   // update is under way.
   const { updateState, isUpdating, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+  // What the page says about the site's two processes (#557), in the header
+  // and in the details alike. Decided in site-processes.cjs, and worked out
+  // here because an update of trunk holds both.
+  const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating });
+  const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
 
   // What the site's menu does (#556). Which items it offers is decided in
   // site-menu.cjs; this is each one's function. Copying the path says so in a
@@ -1936,6 +1933,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting }}
           onMenuOpen={loadDetected}
           onAction={runSiteMenuAction}
+          work={skipInit ? {
+            server: serverState,
+            watch: watchProcessState,
+            onToggleServer: toggleDevServer,
+            onToggleWatch: toggleWatch,
+            onReview: openPatchModal,
+            reviewDisabled: isUpdating,
+            serverCue: cueProps('start-dev'),
+            reviewCue: cueProps('review-changes')
+          } : null}
         />
       ) : null}
       <div className={detailsOpen ? 'dashboard' : 'dashboard is-sidebar-collapsed'}>
@@ -2130,86 +2137,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       ) : (
         null
       )}
-      {skipInit ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, flexWrap: 'wrap' }}>
-            <span {...cueProps('start-dev')} style={{ display: 'inline-flex' }}>
-            <Button
-              isBusy={isServerStarting}
-              variant={isDevProcessActive ? 'secondary' : 'primary'}
-              onClick={toggleDevServer}
-              disabled={isUpdating}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 10, minWidth: 220, justifyContent: 'center', padding: '12px 20px', fontSize: 15, borderRadius: 12 }}
-            >
-              {isDevProcessActive ? (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    display: 'inline-block',
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    background: '#d63638',
-                    boxShadow: '0 0 0 4px rgba(214,54,56,0.15)',
-                    marginRight: 6
-                  }}
-                />
-              ) : null}
-              <span style={{ fontWeight: 600 }}>{devServerButtonLabel}</span>
-            </Button>
-            </span>
-            <Button
-              variant="secondary"
-              onClick={toggleWatch}
-              // The one control that can end an update waiting on the resumed
-              // watch (#507): a stop settles the waiters and leaves the update
-              // incomplete, with the retry banner. Everything else stays gated.
-              disabled={isUpdating && !updateWaitingOnWatch}
-              title={watchActive ? `The build watch compiles ${project.cards.sourceDir} edits automatically` : `Compile ${project.cards.sourceDir} edits on save (runs independently of the dev server)`}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', padding: '12px 16px', fontSize: 15, borderRadius: 12 }}
-            >
-              <span
-                aria-hidden="true"
-                style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: watchDotColor, flexShrink: 0 }}
-              />
-              <span style={{ fontWeight: 600 }}>{watchButtonLabel}</span>
-            </Button>
-            <span {...cueProps('review-changes')} style={{ display: 'inline-flex' }}>
-            <Button
-              variant="secondary"
-              onClick={openPatchModal}
-              disabled={isUpdating}
-              style={{ padding: '10px 16px', borderRadius: 10 }}
-            >Review & submit changes</Button>
-            </span>
-          </div>
-          {changesNote && changesNote.placement === 'buttons' ? (
-            <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2 }}>
-              {changesNoteBody}
-            </div>
-          ) : null}
-          {(isServerStarting || serverUrl) ? (
-            <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {serverUrl ? (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
-                    <span aria-hidden="true" style={{ color: '#8c8f94' }}>·</span>
-                    <a href={adminUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminUrl(serverUrl)); }}>wp-admin</a>
-                    {running ? (
-                      <>
-                        <span aria-hidden="true" style={{ color: '#8c8f94' }}>·</span>
-                        <a href={adminerUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminerUrl(serverUrl)); }}>DB inspect (Adminer)</a>
-                      </>
-                    ) : null}
-                  </div>
-                  <span style={{ fontSize: 12, color: '#3c434a' }}>Log in with <code>admin</code> / <code>password</code>.</span>
-                </>
-              ) : (
-                `Dev server is starting… (${formatElapsed(startElapsed)})`
-              )}
-            </div>
-          ) : null}
+      {/* The server, the build watch and the way to the changes are in the
+          page's header and in the details (#557). What the changes note says
+          when it has no card of its own to sit in stays here. */}
+      {skipInit && changesNote && changesNote.placement === 'buttons' ? (
+        <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2 }}>
+          {changesNoteBody}
         </div>
       ) : null}
       {/* Above the ticket panel rather than inside it, and outside the wizard
@@ -2907,6 +2840,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         facts={{ initialized, created: createdLabel, trunk: age, path: sitePath, checkout: project.label }}
         pathCopied={pathCopied}
         onCopyPath={copyPath}
+        server={skipInit ? {
+          process: serverState,
+          onToggle: toggleDevServer,
+          url: serverUrl,
+          adminUrl: serverUrl ? adminUrl(serverUrl) : '',
+          // The database's page is the server's own, so it is offered only
+          // once the server is running and not merely has an address.
+          databaseUrl: serverUrl && running ? adminerUrl(serverUrl) : '',
+          username: 'admin',
+          password: 'password',
+          startingText: isServerStarting ? `Dev server is starting… (${formatElapsed(startElapsed)})` : '',
+          onOpen: (url) => window.api.openExternal(url)
+        } : null}
+        watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
       />
       </div>
       {dirtyModalOpen ? (

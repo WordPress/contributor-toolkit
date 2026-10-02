@@ -106,13 +106,18 @@ const siteMenuButton = ( page ) => page.getByRole( 'button', { name: 'Site actio
 const updateTrunkMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Update to latest trunk', exact: true } );
 const deleteSiteMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Delete site', exact: true } );
 
-const startDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Start dev server', exact: true } );
+// The server's button, in the open site's details. It shows one word and is
+// named by what pressing it does. The header's menu has an item of the same
+// name, which is a menu item and not this.
+const startDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Start development server', exact: true } );
 // The same button once the server has an address; while it is still starting it reads neither.
-const stopDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Stop dev server', exact: true } );
-// The build watch's one button, by what it offers: it reads "Stop" while the
-// watch is building or watching, and "Start" the rest of the time.
+const stopDevServerButton = ( page ) => page.getByRole( 'button', { name: 'Stop development server', exact: true } );
+// The build watch's one button, likewise in the details, by what it offers:
+// it stops the watch while the watch is building or watching, and starts it
+// the rest of the time.
 const startBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Start build watch', exact: true } );
 const stopBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Stop build watch', exact: true } );
+// In the page's header.
 const reviewChangesButton = ( page ) => page.getByRole( 'button', { name: 'Review & submit changes', exact: true } );
 const retryInstallButton = ( page ) => page.getByRole( 'button', { name: 'Retry install & build', exact: true } );
 // A command offered in the hints under the terminal. It is a button only while

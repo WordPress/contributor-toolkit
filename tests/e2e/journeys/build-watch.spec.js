@@ -88,9 +88,15 @@ test( 'the build watch starts and stops by its own button, prints in its own tab
 	const line = ( text ) => logs.getByText( text, { exact: true } );
 	const buildHint = ui.terminalHint( page, 'npm run build' );
 
-	// CHARACTERISATION — nothing is watching until it is asked to.
+	// The header's menu for the watch, by what it says the watch is doing.
+	const headerMenu = ( label ) => page.getByRole( 'button', { name: label, exact: true } );
+
+	// CHARACTERISATION — nothing is watching until it is asked to, and the
+	// header and the details both say so.
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( tab( 'Build watcher' ) ).toBeVisible();
+	await expect( headerMenu( 'Build stopped' ) ).toBeVisible();
+	await expect( page.getByText( 'Build watch offline', { exact: true } ) ).toBeVisible();
 	// The hint under the terminal is a link only once the site's status has
 	// been read and says the site is built. Waiting for it is what keeps the
 	// click below from landing on a site not yet known to be built, where the
@@ -106,6 +112,11 @@ test( 'the build watch starts and stops by its own button, prints in its own tab
 	await tab( 'Build watcher (watching)' ).click();
 	await expect( line( 'Running npm run grunt -- _watch…' ) ).toBeVisible();
 	await expect( ui.stopBuildWatchButton( page ) ).toBeVisible();
+	// INVARIANT — the header says it is watching, and the details say what:
+	// the two are one watch (#557).
+	await expect( headerMenu( 'Build watching' ) ).toBeVisible();
+	await expect( page.getByText( 'Edits in src/ are compiled as they are saved.', { exact: true } ) ).toBeVisible();
+	await expect( page.getByText( 'Build watch offline', { exact: true } ) ).toHaveCount( 0 );
 
 	// INVARIANT — what it prints goes to its tab, and it does not hold the
 	// terminal: the hints under the terminal are still links.
@@ -113,12 +124,14 @@ test( 'the build watch starts and stops by its own button, prints in its own tab
 	await expect( line( 'Waiting for changes to the source' ) ).toBeVisible();
 	await expect( buildHint ).toBeVisible();
 
-	// INVARIANT — its button stops that run, by the run it was given, and the
-	// tab and the button say it has stopped.
-	await ui.stopBuildWatchButton( page ).click();
+	// INVARIANT — the header's menu stops that run, by the run it was given,
+	// and the tab, the button and the header say it has stopped.
+	await headerMenu( 'Build watching' ).click();
+	await page.getByRole( 'menuitem', { name: 'Stop build watch', exact: true } ).click();
 	await expect.poll( async () => ( await scripts.asked() ).kills ).toEqual( [ { runId: 'e2e-run-1', directoryPath: site.dir } ] );
 	await expect( tab( 'Build watcher' ) ).toBeVisible();
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
+	await expect( headerMenu( 'Build stopped' ) ).toBeVisible();
 
 	// INVARIANT — a run started straight after is not told it has exited when
 	// the stopped one finally goes (#488): the old run's last words are
@@ -137,6 +150,7 @@ test( 'the build watch starts and stops by its own button, prints in its own tab
 	await scripts.ends( 2, 2 );
 	await expect( tab( 'Build watcher (exited 2)' ) ).toBeVisible();
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
+	await expect( page.getByText( 'The build watch ended by itself, with exit code 2. Its last lines are in the Logs.', { exact: true } ) ).toBeVisible();
 	await scripts.heard();
 	expect( ( await scripts.asked() ).kills ).toHaveLength( 1 );
 } );

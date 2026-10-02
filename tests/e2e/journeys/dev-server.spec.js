@@ -34,6 +34,13 @@
  * here, so what the button and the Server tab say when an exit and a failure
  * arrive together is not pinned.
  *
+ * Since #557 the server has two controls and they say the same: a menu in
+ * the page's header, which says what the server is doing and holds the one
+ * thing to do about it, and a section of the site's details, with a button
+ * of the same name and, while the server has an address, where the site is
+ * and what to log in with. The first two journeys press the button in the
+ * details; the third goes through the header.
+ *
  * The mail list and the Logs panel while a server runs are `mail.spec.js`
  * and `logs.spec.js`; the watch by itself is `build-watch.spec.js`.
  *
@@ -122,9 +129,9 @@ test( 'the dev server\'s button starts one server however often it is pressed, s
 	const { app, page } = await session.start( site.settings );
 	const server = await standIn( app, page, site.dir );
 
-	const starting = page.getByRole( 'button', { name: 'Starting dev server...', exact: true } );
+	const starting = page.getByRole( 'button', { name: 'Starting development server…', exact: true } );
 	const line = ( text ) => ui.card( page, 'Logs' ).getByText( text, { exact: true } );
-	const siteLink = page.getByRole( 'link', { name: URL, exact: true } );
+	const siteLink = page.getByRole( 'link', { name: 'View site', exact: true } );
 
 	// The hint under the terminal is a link only once the site's status has
 	// been read and says the site is built: the server's button needs to know
@@ -133,23 +140,31 @@ test( 'the dev server\'s button starts one server however often it is pressed, s
 
 	// INVARIANT — the button asks for one server, for this site, and says it
 	// is starting, with how long it has been. CHARACTERISATION — on Core the
-	// build watch is started with it.
-	await ui.startDevServerButton( page ).click();
+	// build watch is started with it. The button is pressed twice in a row,
+	// the way a double click presses it, for the claim after this one.
+	await ui.startDevServerButton( page ).dblclick();
 	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir ] );
 	await expect.poll( async () => ( await server.asked() ).scripts ).toEqual( [ { name: 'grunt', args: [ '--', '_watch' ] } ] );
 	await expect( starting ).toBeVisible();
 	await expect( page.getByText( /^Dev server is starting… \(/ ) ).toBeVisible();
+	await expect( page.getByRole( 'button', { name: 'Server starting…', exact: true } ) ).toBeVisible();
 
-	// INVARIANT — pressed again while it starts, it starts nothing more (#488).
+	// INVARIANT — while it starts there is nothing to press: the button is
+	// held, and so is the item of the header's menu.
+	await expect( starting ).toBeDisabled();
+	await page.getByRole( 'button', { name: 'Server starting…', exact: true } ).click();
+	await expect( page.getByRole( 'menuitem', { name: 'Starting development server…', exact: true } ) ).toBeDisabled();
+	await page.keyboard.press( 'Escape' );
+
+	// INVARIANT — pressed twice, it started one server and no more (#488).
 	// A press that did start a server would first ask the main process how
 	// the site is, which takes as long as reading the checkout takes, and only
 	// then ask for the server. So the test waits in three steps before it
-	// counts: until anything the press asked has reached the main process,
+	// counts: until anything the presses asked has reached the main process,
 	// until every question about the site has been answered, and until what
-	// the press would do with that answer has been asked for. The last step
+	// a press would do with that answer has been asked for. The last step
 	// takes two round trips: one for the answer to have reached the page, and
 	// one for what the page then asks to have reached the main process.
-	await starting.click();
 	await server.heard();
 	await expect.poll( async () => {
 		const { statusAsked, statusAnswered } = await server.asked();
@@ -163,7 +178,8 @@ test( 'the dev server\'s button starts one server however often it is pressed, s
 	// browser, once, the address is shown, and the button offers to stop it.
 	await server.serverHasAddress();
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
-	await expect( siteLink ).toBeVisible();
+	await expect( siteLink ).toHaveAttribute( 'href', URL );
+	await expect( page.getByRole( 'button', { name: 'Server running', exact: true } ) ).toBeVisible();
 	await expect.poll( async () => ( await server.asked() ).opened ).toEqual( [ URL ] );
 	expect( ( await server.asked() ).starts ).toEqual( [ site.dir ] );
 
@@ -173,6 +189,7 @@ test( 'the dev server\'s button starts one server however often it is pressed, s
 	await expect.poll( async () => ( await server.asked() ).stops ).toEqual( [ site.dir ] );
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( siteLink ).toHaveCount( 0 );
+	await expect( page.getByRole( 'button', { name: 'Server stopped', exact: true } ) ).toBeVisible();
 	await expect( ui.stopBuildWatchButton( page ) ).toBeVisible();
 
 	// INVARIANT — the exit that follows a stop that was asked for is not a
@@ -214,7 +231,7 @@ test( 'on a project whose watcher rebuilds everything, the server waits for a fi
 	const { app, page } = await session.start( site.settings );
 	const server = await standIn( app, page, site.dir );
 
-	const starting = page.getByRole( 'button', { name: 'Starting dev server...', exact: true } );
+	const starting = page.getByRole( 'button', { name: 'Starting development server…', exact: true } );
 	const line = ( text ) => ui.card( page, 'Logs' ).getByText( text, { exact: true } );
 
 	// INVARIANT — with no build there is nothing to serve, so the button runs
@@ -272,4 +289,61 @@ test( 'on a project whose watcher rebuilds everything, the server waits for a fi
 	await server.heard();
 	expect( ( await server.asked() ).scripts ).toHaveLength( 3 );
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
+} );
+
+test( 'the header\'s menu starts and stops the same server, and the server\'s section says where the site is, opens it in the browser and not here, and says what to log in with', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	const server = await standIn( app, page, site.dir );
+	const headerMenu = ( label ) => page.getByRole( 'button', { name: label, exact: true } );
+	const link = ( name ) => page.getByRole( 'link', { name, exact: true } );
+	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — a stopped server says so in both places, and its section
+	// has nowhere to send anyone.
+	await expect( headerMenu( 'Server stopped' ) ).toBeVisible();
+	await expect( page.getByText( 'Development server offline', { exact: true } ) ).toBeVisible();
+	await expect( link( 'View site' ) ).toHaveCount( 0 );
+
+	// INVARIANT — the header's menu starts this site's server, once.
+	await headerMenu( 'Server stopped' ).click();
+	await page.getByRole( 'menuitem', { name: 'Start development server', exact: true } ).click();
+	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir ] );
+	await server.serverHasAddress();
+	await expect( headerMenu( 'Server running' ) ).toBeVisible();
+	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
+	await expect( page.getByText( 'Development server offline', { exact: true } ) ).toHaveCount( 0 );
+
+	// INVARIANT — the section says where the site, its admin and its
+	// database are.
+	await expect( link( 'View site' ) ).toHaveAttribute( 'href', URL );
+	await expect( link( 'wp-admin' ) ).toHaveAttribute( 'href', `${ URL }wp-admin/` );
+	await expect( link( 'Database' ) ).toHaveAttribute( 'href', `${ URL }adminer.php` );
+
+	// INVARIANT — a link is opened in the browser, by the main process, and
+	// the window stays on the app: it is the site that was opened as the
+	// server came up, and then the admin, and nothing else.
+	await link( 'wp-admin' ).click();
+	await expect.poll( async () => ( await server.asked() ).opened ).toEqual( [ URL, `${ URL }wp-admin/` ] );
+	await expect( ui.siteHeading( page, 'e2e-site' ) ).toBeVisible();
+	expect( page.url() ).toMatch( /index\.html$/ );
+
+	// INVARIANT — it says what to log in with, and shows the password only
+	// when asked to.
+	const credentials = page.getByRole( 'complementary' ).filter( { visible: true } );
+	await expect( credentials.getByText( 'admin', { exact: true } ) ).toBeVisible();
+	await expect( credentials.getByText( 'password', { exact: true } ) ).toHaveCount( 0 );
+	await credentials.getByRole( 'button', { name: 'Show password', exact: true } ).click();
+	await expect( credentials.getByText( 'password', { exact: true } ) ).toBeVisible();
+	await credentials.getByRole( 'button', { name: 'Hide password', exact: true } ).click();
+	await expect( credentials.getByText( 'password', { exact: true } ) ).toHaveCount( 0 );
+
+	// INVARIANT — the header's menu stops it, and both places say so.
+	await headerMenu( 'Server running' ).click();
+	await page.getByRole( 'menuitem', { name: 'Stop development server', exact: true } ).click();
+	await expect.poll( async () => ( await server.asked() ).stops ).toEqual( [ site.dir ] );
+	await expect( headerMenu( 'Server stopped' ) ).toBeVisible();
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+	await expect( link( 'View site' ) ).toHaveCount( 0 );
+	await expect( page.getByText( 'Development server offline', { exact: true } ) ).toBeVisible();
 } );

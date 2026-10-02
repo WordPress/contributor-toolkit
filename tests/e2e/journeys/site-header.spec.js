@@ -210,20 +210,13 @@ test( 'an application that will not open the folder says why on the page, with t
 	const applications = await standInForApplications( app );
 	await expect( ui.siteHeading( page, 'only-site' ) ).toBeVisible( { timeout: 30_000 } );
 	await applications.answerOpenWith( { ok: false, reason: 'unlaunchable-editor' } );
-	// With the sites list put away the page has room for its two columns on
-	// the smallest screen the suite runs on, where the window is the screen.
-	// In one column the details are at the foot of the page, and "they stay
-	// in view" would be true of them for another reason.
-	await page.getByRole( 'button', { name: 'Hide sites list', exact: true } ).click();
 	const pageEnd = page.getByText( 'No emails yet.', { exact: true } );
 
 	// The header does not scroll, so its menu can be used from the bottom of
 	// the page, where the top of it, which is where a refusal is said, is out
 	// of sight.
 	await pageEnd.scrollIntoViewIfNeeded();
-	await expect( ui.startDevServerButton( page ) ).not.toBeInViewport();
-	// INVARIANT — the details stay in view while the cards scroll past them.
-	await expect( details( page, 'only-site' ).getByRole( 'heading', { name: 'Details', exact: true } ) ).toBeInViewport();
+	await expect( ui.ticketField( page ) ).not.toBeInViewport();
 
 	// INVARIANT — the menu is gone by the time the answer comes, so the
 	// refusal is said on the page, where it can be seen, and it carries the
@@ -310,4 +303,39 @@ test( 'the details say what the checkout is, copy its path, and can be put away 
 	await expect( fresh ).toBeVisible();
 	await ui.sidebarEntry( page, OLD_TRUNK_ENTRY ).click();
 	await expect( old ).toBeVisible();
+} );
+
+test( 'the details stay in view while the cards scroll for as long as they fit there, and scroll with the cards when they do not', async ( { session } ) => {
+	// Two sites: one still in its setup, whose details are the facts alone,
+	// and one that is set up, whose details go on to the server and the build
+	// watch and are taller than the page has room for in this window.
+	const { settings } = listedSites( session, [ { label: 'set-up' }, { label: 'in-setup', skipInitWizard: false } ] );
+	const { page } = await session.start( settings );
+	await expect( ui.siteHeading( page, 'in-setup' ) ).toBeVisible( { timeout: 30_000 } );
+	// With the sites list put away the page has room for its two columns on
+	// the smallest screen the suite runs on, where the window is the screen.
+	// In one column the details are at the foot of the page, and none of
+	// this applies.
+	await page.getByRole( 'button', { name: 'Hide sites list', exact: true } ).click();
+	const heading = ( label ) => details( page, label ).getByRole( 'heading', { name: 'Details', exact: true } );
+	const pageEnd = page.getByText( 'No emails yet.', { exact: true } ).filter( { visible: true } );
+
+	// INVARIANT — details that fit stay in view while the cards scroll: with
+	// the page at its end, where the first card is long gone, they are still
+	// there. CHARACTERISATION — the facts alone fit in this window.
+	await pageEnd.scrollIntoViewIfNeeded();
+	await expect( page.getByText( 'Initial setup checklist', { exact: true } ) ).not.toBeInViewport();
+	await expect( heading( 'in-setup' ) ).toBeInViewport();
+
+	// INVARIANT — details taller than what is in view are let go: they move
+	// with the cards, so their end can be reached by scrolling to it.
+	// CHARACTERISATION — with the server and the build watch in them they
+	// are taller than this window has room for.
+	await page.getByRole( 'button', { name: 'Show sites list', exact: true } ).click();
+	await ui.sidebarEntry( page, 'set-up' ).click();
+	await expect( ui.siteHeading( page, 'set-up' ) ).toBeVisible();
+	await page.getByRole( 'button', { name: 'Hide sites list', exact: true } ).click();
+	await pageEnd.scrollIntoViewIfNeeded();
+	await expect( ui.ticketField( page ).filter( { visible: true } ) ).not.toBeInViewport();
+	await expect( heading( 'set-up' ) ).not.toBeInViewport();
 } );
