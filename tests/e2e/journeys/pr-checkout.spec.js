@@ -47,7 +47,7 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 		} );
 	} );
 	await ui.linkTicket( page, TICKET );
-	await expect( page.getByRole( 'button', { name: 'Apply…', exact: true } ) ).toHaveCount( 2 );
+	await expect( ui.readPatchButton( page ) ).toHaveCount( 2 );
 	await expect( ui.applyPrButton( page ) ).toHaveCount( 1 );
 
 	write( site.dir, DOOMED, TICKET_EDIT );
@@ -67,16 +67,17 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 	await expect( ui.prField( page ) ).toHaveCount( 0 );
 	await expect( ui.anyPatchFileButton( page ) ).toHaveCount( 0 );
 	await expect( ui.applyPrButton( page ) ).toHaveCount( 0 );
-	await expect( page.getByRole( 'button', { name: 'Apply…', exact: true } ) ).toHaveCount( 0 );
-	// The banner sits under the ticket heading and above the linked pull
-	// requests. Asserted as document order, not as Y coordinates: the moment
+	await expect( ui.readPatchButton( page ) ).toHaveCount( 0 );
+	// The banner sits under the card's heading and above the ticket's number
+	// and the linked pull requests. Asserted as document order, not as Y coordinates: the moment
 	// the banner appears the next-action cue smooth-scrolls it into view, and
 	// three bounding boxes read mid-glide can land in any order (the macOS
 	// runner did, twice in a day). The card lays these out in document order,
 	// so the order is the claim.
 	expect( await ui.inDocumentOrder( page, [
-		page.getByText( `Working on ticket #${ TICKET }`, { exact: true } ),
+		ui.workItemHeading( page, 'Trac ticket' ),
 		activeContext,
+		ui.workItemNumber( page, TICKET ),
 		page.getByText( 'Linked pull requests', { exact: true } ),
 	] ) ).toBe( true );
 	expect( read( site.dir, LOGIN ) ).toBe( PR_CONTENT );
@@ -207,7 +208,7 @@ test( 'resuming a ticket restores its applied PR until explicitly reverted', asy
 	await expect.poll( () => currentBranch( site.dir ) ).toBe( 'ticket/60002' );
 	await ui.switchBackButton( page ).click();
 	await expect.poll( () => currentBranch( site.dir ) ).toBe( `pr/${ PR }` );
-	await expect( page.getByText( `Working on ticket #${ TICKET }`, { exact: true } ) ).toBeVisible();
+	await expect( ui.workItemNumber( page, TICKET ) ).toBeVisible();
 	expect( read( site.dir, LOGIN ) ).toBe( PR_EDIT );
 	await expect.poll( () => read( site.dir, 'build/pr-version' ) ).toBe( PR_EDIT );
 	await ui.revertPrButton( page ).click();

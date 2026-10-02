@@ -135,7 +135,7 @@ test( 'unlinking parks a ticket, and the next one starts from trunk', async ( { 
 	// The row after its heading, so the card is the list and not a heading
 	// left behind by rows that went back into the ticket's card.
 	expect( await ui.inDocumentOrder( page, [
-		page.getByText( 'Working on ticket #60002', { exact: true } ),
+		ui.workItemNumber( page, 60002 ),
 		page.getByText( 'Apply a patch or PR', { exact: true } ),
 		otherTickets,
 		switchBack,

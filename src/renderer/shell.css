@@ -451,6 +451,7 @@ body {
 .site-header-actions button,
 .dashboard-sidebar button,
 .page-body-center button,
+.ticket-card button,
 .app-footer button {
   margin-right: 0;
 }
@@ -512,4 +513,97 @@ body {
   .dashboard-sidebar {
     transition-duration: 0s;
   }
+}
+
+/* The work-item card (#557), and what the other cards will share with it. */
+
+.ticket-card h2,
+.ticket-card h3 {
+  margin: 0;
+}
+
+/* A way out of the app, drawn as a link and made of a button: the main
+   process opens the page. */
+.link-button {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.inline-field {
+  display: flex;
+  gap: var(--wpds-dimension-gap-sm, 8px);
+  align-items: flex-end;
+}
+
+.inline-field > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-footer {
+  margin-block-start: auto;
+  padding-block-start: var(--wp-ui-card-padding, var(--wpds-dimension-padding-2xl, 24px));
+  padding-inline: var(--wp-ui-card-padding, var(--wpds-dimension-padding-2xl, 24px));
+}
+
+.card-footer-content {
+  padding-block: var(--wp-ui-card-padding, var(--wpds-dimension-padding-2xl, 24px));
+}
+
+/* The pull requests and the attachments of a ticket, as a tree hanging from
+   their section: a rule down the side and a tick to each row. */
+.ticket-pr-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-lg, 16px);
+}
+
+.ticket-pr {
+  position: relative;
+  padding-inline-start: var(--wpds-dimension-gap-lg, 16px);
+}
+
+.ticket-pr::before,
+.ticket-pr::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  pointer-events: none;
+}
+
+.ticket-pr::before {
+  top: calc(var(--wpds-typography-line-height-sm, 20px) / 2);
+  width: var(--wpds-dimension-padding-md, 12px);
+  border-top: 1px solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+}
+
+.ticket-pr:not(:last-child)::after {
+  top: calc(var(--wpds-typography-line-height-sm, 20px) / 2);
+  bottom: calc(-1 * var(--wpds-dimension-gap-lg, 16px));
+  border-inline-start: 1px solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+}
+
+.ticket-pr:last-child::before {
+  display: none;
+}
+
+.ticket-pr:last-child::after {
+  top: 0;
+  width: var(--wpds-dimension-padding-md, 12px);
+  height: calc(var(--wpds-typography-line-height-sm, 20px) / 2);
+  border-inline-start: 1px solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+  border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+  border-end-start-radius: var(--wpds-border-radius-md, 4px);
+}
+
+.ticket-pr-id {
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
 }
