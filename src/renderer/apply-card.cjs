@@ -119,16 +119,21 @@ function previewShown({ preview = null, active = false, applying = false, asking
 /**
  * Why the preview's button cannot be pressed, or '' when it can.
  *
- * An apply runs through the terminal and is refused while a command is
- * running there. The refusal is a line in the terminal, which a dialog is in
- * front of, so the button is held and says it instead.
+ * An apply runs through the terminal and is refused while anything else
+ * holds it. The refusal is a line in the terminal, which a dialog is in
+ * front of, so the button is held and says it instead. What holds the
+ * terminal is not always something typed there, or shown there: a build the
+ * watch runs before it starts prints in the watch's own tab, and a ticket
+ * switch says its progress in the work-item card. So the sentence does not
+ * say where to look, only that Ctrl+C in the terminal stops it, which is
+ * true of all of them.
  *
  * @param {Object}  root0
- * @param {boolean} [root0.terminalRunning] A command is running in the site's terminal.
+ * @param {boolean} [root0.terminalRunning] Something holds the site's terminal: a typed command, or a chain the app runs.
  * @return {string} The reason, or ''.
  */
 function applyHeldReason({ terminalRunning = false } = {}) {
-	return terminalRunning ? __('A command is running in the terminal. Wait for it to finish, or stop it there with Ctrl+C.') : '';
+	return terminalRunning ? __('Another command is running on this site. Wait for it to finish, or stop it with Ctrl+C in the terminal.') : '';
 }
 
 /**

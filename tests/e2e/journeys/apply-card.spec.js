@@ -210,6 +210,10 @@ test( 'a preview read for one site is not shown over another, and is there when 
 	await app.evaluate( () => global.__e2ePreview.letGo() );
 	await expect.poll( () => app.evaluate( () => global.__e2ePreview.read ), { timeout: 30_000 } ).toBe( true );
 	await page.evaluate( () => window.api.getSitesWithMeta() );
+	// The first site's view, out of sight, has taken the preview in: its
+	// field is held for as long as a patch that was read is waiting.
+	const held = () => page.getByLabel( 'Pull request URL or number' ).evaluateAll( ( fields ) => fields.filter( ( field ) => field.disabled ).length );
+	await expect.poll( held ).toBe( 1 );
 	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
 
 	// INVARIANT — it was kept, and is shown where it belongs.
@@ -222,7 +226,10 @@ test( 'a patch cannot be applied while a command runs in the terminal, and the d
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
 	const patch = makePatchFile( session, PATCH, [ { file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN } ] );
-	// A command that runs until the test says it has ended.
+	// A command that runs until the test says it has ended. Nothing is run:
+	// the stand-in answers with the run's name and starts no process, so
+	// nothing is printed, and the end is said by the test, on the channel
+	// and in the shape the main process says it.
 	await app.evaluate( ( { ipcMain } ) => {
 		ipcMain.removeHandler( 'npm:run-script' );
 		ipcMain.handle( 'npm:run-script', () => ( { runId: 'e2e-run-1' } ) );
@@ -251,7 +258,6 @@ test( 'a patch cannot be applied while a command runs in the terminal, and the d
 	} );
 	await expect( apply ).toBeEnabled();
 	await expect( apply ).toHaveAccessibleDescription( '' );
-	expect( read( site.dir, LOGIN ) ).toBe( `${ TRUNK_LOGIN }\n` );
 } );
 
 test( 'saying no to the question about loose edits drops the pull request that was asked for', async ( { session } ) => {

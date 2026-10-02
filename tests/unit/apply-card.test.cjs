@@ -53,8 +53,12 @@ test('a preview is not shown while its apply runs, nor in front of the question 
 	assert.equal(previewShown({ preview, active: true, applying: false, asking: false }), preview);
 });
 
-test('the preview\'s button is held, with the reason, while a command runs in the terminal', () => {
-	assert.match(applyHeldReason({ terminalRunning: true }), /A command is running in the terminal\./);
+test('the preview\'s button is held, with the reason, while something else holds the terminal', () => {
+	const reason = applyHeldReason({ terminalRunning: true });
+	assert.match(reason, /^Another command is running on this site\./);
+	// It says how to stop it, and not where to watch it: not everything that
+	// holds the terminal prints there.
+	assert.match(reason, /Ctrl\+C in the terminal\.$/);
 	assert.equal(applyHeldReason({ terminalRunning: false }), '');
 	assert.equal(applyHeldReason(), '');
 });

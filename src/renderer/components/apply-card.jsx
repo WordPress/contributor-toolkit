@@ -288,17 +288,27 @@ export function ApplyPreviewDialog({ preview, pr, warnings, cueId, applyDisabled
   const words = view ? previewWords({ preview: view.preview, pr: view.pr }) : null;
   const state = view && view.pr && view.preview.prState ? pullRequestState(view.preview.prState) : null;
   return (
-    <Dialog.Root open={Boolean(preview)} onOpenChange={(open) => { if (!open) onCancel(); }}>
+    <Dialog.Root
+      open={Boolean(preview)}
+      onOpenChange={(open) => {
+        if (open) return;
+        // Left without applying, whatever was pressed before: focus goes
+        // back to what opened the dialog.
+        pressedApply.current = false;
+        onCancel();
+      }}
+    >
       <Dialog.Popup
         size="small"
         className="apply-preview-dialog"
         // Closed, a dialog gives focus back to what opened it, and left by
         // Cancel that is right. Applying takes the card's fields away while
-        // it runs, and what opened the dialog with them: focus would be left
-        // on nothing, and a keyboard would start again from the top of the
-        // window. After the button here was pressed it goes to the card,
-        // where the dialog puts it on the first thing that takes it: the
-        // card's header.
+        // it runs, and with them what opened the dialog, when that was one
+        // of the card's own buttons: focus would be left on nothing, and a
+        // keyboard would start again from the top of the window. After the
+        // button here was pressed it goes to the card, where the steps of
+        // the apply are, and the dialog puts it on the first thing there
+        // that takes it: the card's header.
         finalFocus={() => {
           const card = pressedApply.current ? focusAfter.current : null;
           pressedApply.current = false;

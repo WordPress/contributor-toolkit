@@ -299,7 +299,7 @@ const choosePatchFileButton = ( page ) => page.getByRole( 'button', { name: 'Cho
 // would pass the day the words around them changed. A button that only names
 // a file, as an attachment's row does, is not one.
 const anyPatchFileButton = ( page ) =>
-	page.getByRole( 'tab', { name: /diff|patch/i } ).or( page.getByRole( 'button', { name: /choose a|patch file/i } ) );
+	page.getByRole( 'tab', { name: /diff|patch/i } ).or( page.getByRole( 'button', { name: /^choose a\b.*(diff|patch)/i } ) );
 
 /**
  * Opens the tab a patch file is chosen under and presses its button, which
