@@ -334,3 +334,48 @@ test( 'the apply card and its preview are fully translatable', async ( { session
 	await expect( preview.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ) ).toBeVisible();
 	expect( ( await unwrapped( preview ) ).filter( ( text ) => text !== 'src/wp-login.php' ) ).toEqual( [] );
 } );
+
+test( 'the list of a site\'s tickets is fully translatable, with a ticket linked and with none', async ( { session } ) => {
+	// What GitHub and Trac would say of a ticket is answered by stand-ins
+	// that say nothing: this is about the list, and no journey should wait on
+	// either. A ticket's number is the ticket's, and is left out of the scan.
+	const NUMBERS = [ '#60001', '#60002' ];
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+	await app.evaluate( ( { ipcMain } ) => {
+		const answers = {
+			'git:list-ticket-patches': () => ( { ok: true, prs: { status: 'ok', items: [] } } ),
+			'trac:list-attachments': () => ( { ok: true, status: 'ok', ticket: null, items: [] } ),
+		};
+		for ( const [ channel, answer ] of Object.entries( answers ) ) {
+			ipcMain.removeHandler( channel );
+			ipcMain.handle( channel, answer );
+		}
+	} );
+	const ticket = ui.workItemCard( page, pseudoLocalize( 'Trac ticket' ) );
+	const link = async ( number ) => {
+		await ticket.getByLabel( pseudoLocalize( 'Ticket number or URL' ), { exact: true } ).fill( number );
+		await ticket.getByRole( 'button', { name: pseudoLocalize( 'Link ticket' ), exact: true } ).click();
+		await expect( ticket.getByText( `#${ number }`, { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	};
+	const unlink = ticket.getByRole( 'button', { name: pseudoLocalize( 'Unlink' ), exact: true } );
+	const inList = async ( list ) => ( await unwrapped( list ) ).filter( ( text ) => ! NUMBERS.includes( text ) );
+
+	// One ticket parked and another linked: the other tickets.
+	await expect( ticket ).toBeVisible( { timeout: 30_000 } );
+	await link( '60001' );
+	await unlink.click();
+	await link( '60002' );
+	const others = page.getByRole( 'region', { name: pseudoLocalize( 'Other tickets on this site' ), exact: true } );
+	await expect( others.getByRole( 'button', { name: `${ pseudoLocalize( 'Switch' ) } #60001`, exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( others.getByRole( 'button', { name: `${ pseudoLocalize( 'Delete this ticket’s work' ) } #60001`, exact: true } ) ).toBeVisible();
+	await expect( others.getByText( pseudoLocalize( 'Edited just now' ), { exact: true } ) ).toBeVisible();
+	expect( await inList( others ) ).toEqual( [] );
+
+	// None linked: every ticket of the site.
+	await unlink.click();
+	const yours = page.getByRole( 'region', { name: pseudoLocalize( 'Your tickets on this site' ), exact: true } );
+	await expect( yours.getByRole( 'button', { name: `${ pseudoLocalize( 'Continue working' ) } #60002`, exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( yours.getByRole( 'listitem' ) ).toHaveCount( 2 );
+	expect( await inList( yours ) ).toEqual( [] );
+} );

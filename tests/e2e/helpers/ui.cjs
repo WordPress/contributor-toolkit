@@ -28,6 +28,10 @@
 // No `expect` in this file. The screenshot harness loads it with
 // `playwright-core` alone, and an assertion belongs in the test that makes it.
 
+// The words of the list of a site's tickets, which each of its rows' buttons
+// is named with.
+const { ticketListCard: ticketListWords } = require( '../../../src/renderer/ticket-branch-list.cjs' );
+
 // --- The sites list ----------------------------------------------------------
 
 /**
@@ -183,11 +187,16 @@ const unlinkButton = ( page ) => page.getByRole( 'button', { name: 'Unlink', exa
  * what says a site is working on one: the card's own title, "Trac ticket" or
  * "GitHub issue", is the same with nothing linked.
  *
+ * In a heading, which is where the card says it. The list of a site's other
+ * tickets says each of theirs too, in a row, and a journey that waits for
+ * this number to know a switch has ended must not be answered by the row it
+ * has just pressed: the row is there before the switch has begun.
+ *
  * @param {Object}        page
  * @param {string|number} number
  * @return {Object} The locator.
  */
-const workItemNumber = ( page, number ) => page.getByText( `#${ number }`, { exact: true } );
+const workItemNumber = ( page, number ) => page.getByRole( 'heading' ).getByText( `#${ number }`, { exact: true } );
 
 /**
  * The work-item card's heading, which is what kind of work item the site's
@@ -226,8 +235,34 @@ const readTicketDetailsButton = ( page ) => page.getByRole( 'button', { name: 'R
 // patch before it is applied. Every row's button has this one name.
 const readPatchButton = ( page ) => page.getByRole( 'button', { name: 'Apply…', exact: true } );
 
-// The way back to a parked ticket while another one is linked.
-const switchBackButton = ( page ) => page.getByRole( 'button', { name: 'switch', exact: true } );
+/**
+ * The card that lists a site's parked tickets, under either of its headings:
+ * the other tickets while one is linked, every ticket while none is.
+ *
+ * @param {Object} page
+ * @return {Object} The locator.
+ */
+const ticketListCard = ( page ) =>
+	page.getByRole( 'region', { name: /^(Other|Your) (tickets|issues) on this site$/ } );
+
+// A row's button is named by what it shows and then its ticket's number.
+// What it shows is asked of the module that words the card, so that the two
+// cannot part without a journey going red.
+const rowButton = ( page, words, ticket ) =>
+	ticketListCard( page ).getByRole( 'button', ticket === undefined
+		? { name: new RegExp( `^${ escapeRegExp( words ) } #\\d+$` ) }
+		: { name: `${ words } #${ ticket }`, exact: true } );
+const escapeRegExp = ( text ) => text.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' );
+const rowWords = ( linked, provider ) => ticketListWords( { rowCount: 1, linked, provider } );
+
+/**
+ * The way back to a parked ticket while another one is linked.
+ *
+ * @param {Object}        page
+ * @param {string|number} [ticket] Which ticket's; every parked ticket's when left out.
+ * @return {Object} The locator.
+ */
+const switchBackButton = ( page, ticket ) => rowButton( page, rowWords( true ).action, ticket );
 
 /**
  * The way back to a parked ticket while nothing is linked.
@@ -236,34 +271,36 @@ const switchBackButton = ( page ) => page.getByRole( 'button', { name: 'switch',
  * @param {string|number} [ticket] Which ticket's; every parked ticket's when left out.
  * @return {Object} The locator.
  */
-const continueWorkingButton = ( page, ticket ) =>
-	page.getByRole( 'button', ticket === undefined
-		? { name: /^Continue working on #\d+$/ }
-		: { name: `Continue working on #${ ticket }`, exact: true } );
+const continueWorkingButton = ( page, ticket ) => rowButton( page, rowWords( false ).action, ticket );
+
+/**
+ * What deletes a parked ticket's work. It asks first.
+ *
+ * @param {Object}        page
+ * @param {string|number} ticket     Which ticket's.
+ * @param {string}        [provider] What the site's work items are: Trac tickets unless told 'github-issue'.
+ * @return {Object} The locator.
+ */
+const deleteWorkButton = ( page, ticket, provider ) => rowButton( page, rowWords( false, provider ).remove, ticket );
 
 /**
  * The row for one parked ticket, in the list of a site's tickets.
  *
- * Addressed by the ticket it offers to continue rather than by position. Every
- * row carries an identically labelled delete control, and the list is ordered by
- * how recently each ticket was used, so `.first()` picks whichever ticket the
- * app most recently touched, which is a different one depending on how far the
- * render has got. That is a test that deletes the wrong branch and then fails
- * somewhere else entirely.
+ * Addressed by its ticket's number rather than by position. Every row carries
+ * the same two controls, and the list is ordered by how recently each ticket
+ * was used, so `.first()` picks whichever ticket the app most recently
+ * touched, which is a different one depending on how far the render has got.
+ * That is a test that deletes the wrong branch and then fails somewhere else
+ * entirely.
  *
- * The rows are `div`s, so this reads the shape of the markup: the innermost
- * `div` holding both of the row's controls.
- *
- * @param {Object} page
- * @param {string} ticket
+ * @param {Object}        page
+ * @param {string|number} ticket
  * @return {Object} The locator.
  */
 const ticketRow = ( page, ticket ) =>
-	page
-		.locator( 'div' )
-		.filter( { has: continueWorkingButton( page, ticket ) } )
-		.filter( { has: page.getByRole( 'button', { name: "Delete this ticket's work", exact: true } ) } )
-		.last();
+	ticketListCard( page )
+		.getByRole( 'listitem' )
+		.filter( { has: page.getByText( `#${ ticket }`, { exact: true } ) } );
 
 /**
  * Links a ticket through the card, the way a contributor does, and waits for
@@ -373,8 +410,10 @@ module.exports = {
 	readPatchButton,
 	openWorkItemButton,
 	workItemNumber,
+	ticketListCard,
 	switchBackButton,
 	continueWorkingButton,
+	deleteWorkButton,
 	ticketRow,
 	linkTicket,
 	prField,

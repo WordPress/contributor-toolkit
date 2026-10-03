@@ -452,6 +452,7 @@ body {
 .dashboard-sidebar button,
 .page-body-center button,
 .ticket-card button,
+.ticket-list-card button,
 .apply-card button,
 .apply-preview-dialog button,
 .app-footer button {
@@ -521,6 +522,7 @@ body {
 
 .ticket-card h2,
 .ticket-card h3,
+.ticket-list-card h2,
 .apply-card h2 {
   margin: 0;
 }
@@ -608,6 +610,40 @@ body {
 }
 
 .ticket-pr-id {
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+}
+
+/* The list of a site's tickets (#557): one row a ticket, a rule between
+   rows, and each row's buttons under its number where there is no room
+   beside it. */
+.ticket-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ticket-list-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wpds-dimension-gap-sm, 8px) var(--wpds-dimension-gap-lg, 16px);
+  padding-block: var(--wpds-dimension-padding-md, 12px);
+}
+
+.ticket-list-row:first-child {
+  padding-block-start: 0;
+}
+
+.ticket-list-row:last-child {
+  padding-block-end: 0;
+}
+
+.ticket-list-row + .ticket-list-row {
+  border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
+}
+
+.ticket-list-number {
   font-weight: var(--wpds-typography-font-weight-emphasis, 600);
 }
 

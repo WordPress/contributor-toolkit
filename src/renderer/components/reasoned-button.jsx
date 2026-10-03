@@ -38,11 +38,18 @@ export function ReasonedButton({ reason, disabled, children, ...props }) {
 // from wherever it is, and a sentence left in the reading order would be
 // read a second time after the button. Both are always rendered, for the
 // reason above: the button must not be remounted as the gate flips.
-export function ReasonedUiButton({ reason, disabled, children, ...props }) {
+//
+// An `id` is the trigger's and not the button's: the tooltip keeps its
+// trigger under an id, and gives it one of its own when it is given none.
+// Put on the button it would reach the page all the same, and the tooltip
+// would have its trigger under another. It worked, since the tooltip finds
+// the element by reference, and it leaned on that.
+export function ReasonedUiButton({ reason, disabled, id, children, ...props }) {
   const reasonId = useId();
   return (
     <UiTooltip.Root disabled={!reason}>
       <UiTooltip.Trigger
+        id={id}
         render={
           <UiButton
             {...props}

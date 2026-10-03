@@ -44,7 +44,7 @@ import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { workItemProvider } from '../work-item.cjs';
 import { adminUrl } from './site-urls.cjs';
-import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
+import { ticketBranchRows, ticketListCard, deleteWorkQuestion } from './ticket-branch-list.cjs';
 import { ticketTrunkNotice } from './ticket-trunk-notice.cjs';
 import { legacySiteNotice } from './legacy-site.cjs';
 import { deepLinkNotice } from './deep-link-notice.cjs';
@@ -76,6 +76,7 @@ import { SiteDetails } from './components/site-details.jsx';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
 import { applyHeldReason, previewShown } from './apply-card.cjs';
 import { TicketCard } from './components/ticket-card.jsx';
+import { TicketListCard } from './components/ticket-list.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
@@ -1205,7 +1206,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // operations as well as on each other — the same trio every destructive
   // control in the ticket panel guards on.
   const branchRows = ticketBranchRows({ branches: ticketBranches.branches, current: ticketBranches.current, tracTicket, now: Date.now() });
-  const ticketsCard = ticketListCard({ rowCount: branchRows.length, linked: Boolean(tracTicket), noun: workItem.noun });
+  const ticketsCard = ticketListCard({ rowCount: branchRows.length, linked: Boolean(tracTicket), provider: project.workItem.provider });
   // What the switch is doing, while it does it (#173). Gated on the busy flag
   // rather than merely cleared by it: the last sends can land after the invoke
   // has already answered, which would flash a sentence under an idle panel.
@@ -1310,34 +1311,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       {blockedPanel}
     </>
   );
-  const renderBranchRows = (linked) => (
-    <div style={{ marginTop: 8, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
-      {branchRows.map((row, i) => (
-        <div key={row.ref} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: i < branchRows.length - 1 ? '1px solid #f0f0f1' : 'none' }}>
-          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-            <span style={{ fontSize: 13, color: '#1d2327' }}>
-              {linked ? <>You also have work on #{row.ticketId}{' — '}</> : null}
-              <ReasonedButton variant="link" onClick={() => saveTicket(String(row.ticketId))} reason={ticketActionsReason} style={{ fontSize: 13 }}>
-                {linked ? 'switch' : `Continue working on #${row.ticketId}`}
-              </ReasonedButton>
-            </span>
-            {row.timeLabel ? (
-              <div style={{ marginTop: 2, fontSize: 11, color: '#6c6f72' }}>{row.timeLabel}</div>
-            ) : null}
-          </div>
-          <ReasonedButton
-            variant="link"
-            isDestructive
-            isBusy={deletingBranch === row.ref}
-            reason={ticketActionsReason}
-            onClick={() => confirmAnd(`Delete all work on #${row.ticketId} on this site? This cannot be undone.`, () => deleteTicketWork(row.ref))}
-            style={{ fontSize: 12, flex: '0 0 auto' }}
-          >Delete this {workItem.noun}&apos;s work</ReasonedButton>
-        </div>
-      ))}
-    </div>
-  );
-
   // How old the site's trunk is (#94), for the notice that offers an update.
   const age = trunkAgeInfo({ trunkDate });
   // Where the note goes moves with the ticket: a change that belongs to
@@ -2278,10 +2251,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         />
       ) : null}
       {skipInit && ticketsCard ? (
-        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{ticketsCard.heading}</div>
-          {renderBranchRows(Boolean(tracTicket))}
-        </div>
+        <TicketListCard
+          words={ticketsCard}
+          rows={branchRows}
+          reason={ticketActionsReason}
+          deleting={deletingBranch}
+          onSwitch={(row) => saveTicket(String(row.ticketId))}
+          onDelete={(row) => confirmAnd(deleteWorkQuestion(row.ticketId), () => deleteTicketWork(row.ref))}
+        />
       ) : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
