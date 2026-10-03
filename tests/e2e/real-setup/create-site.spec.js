@@ -79,7 +79,7 @@ for ( const target of TARGETS ) {
 			await test.step( 'Wait for the real clone, npm install and full build', async () => {
 				// INVARIANT: the app completes the automatic chain without retry clicks.
 				// WordPress mirrors the same success message in its live region.
-				await expect( page.getByText( 'This site is ready to work on', { exact: true } ).first() ).toBeVisible( {
+				await expect( ui.toast( page, 'This site is ready to work on' ) ).toBeVisible( {
 					// On the Windows runner `npm install` alone has taken over 40 minutes.
 					timeout: 75 * 60_000,
 				} );

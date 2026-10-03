@@ -212,7 +212,7 @@ test( 'a failed site deletion stays visible, reports the failure, and can be ret
 	} );
 
 	const failure = `The site is still listed because its folder could not be deleted (EBUSY). Close anything using it, then try again. Folder: ${ site.dir }`;
-	await expect( page.getByText( failure, { exact: true } ) ).toBeVisible();
+	await expect( ui.toast( page, failure ) ).toBeVisible();
 	await expect( ui.sidebarEntry( page, 'delete-retry' ) ).toBeVisible();
 	await expect( page.getByText( 'Deleting site…', { exact: true } ) ).toHaveCount( 0 );
 

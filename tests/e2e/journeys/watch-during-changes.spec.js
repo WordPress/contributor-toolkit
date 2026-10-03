@@ -109,7 +109,7 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );
 	const { app, page } = await session.start( site.settings );
 	const runs = await standIn( app, page );
-	const said = ( text ) => page.getByTestId( 'snackbar' ).filter( { hasText: text } );
+	const said = ( text ) => ui.toast( page, text );
 
 	// The watch is running before anything changes. The hint under the
 	// terminal is a link only once the site is known to be built.
@@ -197,7 +197,7 @@ test( 'where the watcher rebuilds everything as it starts, a pull request\'s che
 	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );
 	const { app, page } = await session.start( site.settings );
 	const runs = await standIn( app, page );
-	const said = ( text ) => page.getByTestId( 'snackbar' ).filter( { hasText: text } );
+	const said = ( text ) => ui.toast( page, text );
 
 	// The watch is running, and ready, before the checkout. The test speaks
 	// for the watcher only once the main process has answered that it

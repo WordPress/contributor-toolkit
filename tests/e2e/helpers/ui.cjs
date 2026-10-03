@@ -73,6 +73,27 @@ const createFirstSiteButton = ( page ) =>
 // What a window with no site in it says.
 const noSitesTitle = ( page ) => page.getByText( 'No sites', { exact: true } );
 const createSiteDialog = ( page ) => page.getByRole( 'dialog', { name: 'Create site', exact: true } );
+/**
+ * The window's confirmations, stacked in its corner.
+ *
+ * Found by its label and not by its role. A confirmation can be raised while
+ * a dialog is open, for something done inside it, and an open dialog hides
+ * everything else from the roles.
+ *
+ * @param {Object} page
+ * @return {Object} The locator.
+ */
+const toasts = ( page ) => page.getByLabel( 'Notifications', { exact: true } );
+
+/**
+ * One confirmation, by what it says.
+ *
+ * @param {Object}        page
+ * @param {string|RegExp} text The whole sentence, or a pattern for one that carries a path.
+ * @return {Object} The locator.
+ */
+const toast = ( page, text ) => toasts( page ).getByText( text, { exact: true } );
+
 // In the footer, whatever the window shows above it.
 const giveFeedbackButton = ( page ) => page.getByRole( 'button', { name: 'Give feedback', exact: true } );
 
@@ -394,6 +415,8 @@ module.exports = {
 	createFirstSiteButton,
 	noSitesTitle,
 	createSiteDialog,
+	toasts,
+	toast,
 	giveFeedbackButton,
 	closeDialogButton,
 	renderedApp,

@@ -86,7 +86,7 @@ test( 'a Gutenberg site opens its pull request against WordPress/gutenberg, word
 	// INVARIANT — the result links the pull request, the confirmation names
 	// where it landed, and the loop-back is GitHub's, not Trac's.
 	await expect( page.getByRole( 'button', { name: 'pull request #9', exact: true } ) ).toBeVisible( { timeout: 10_000 } );
-	await expect( page.getByTestId( 'snackbar' ).filter( { hasText: 'Opened pull request #9 on WordPress/gutenberg' } ) ).toBeVisible();
+	await expect( ui.toast( page, 'Opened pull request #9 on WordPress/gutenberg' ) ).toBeVisible();
 	await expect( page.getByText( /The Fixes line already lists it on the issue/ ) ).toBeVisible();
 	await expect( page.getByRole( 'button', { name: `Open #${ ISSUE } to comment`, exact: true } ) ).toBeVisible();
 	await expect( page.getByText( /Triage and props live on the ticket/ ) ).toHaveCount( 0 );
@@ -119,7 +119,7 @@ test( 'a Core site opens its pull request against wordpress-develop, worded for 
 	await expect( page.getByText( 'Creating your fork of WordPress/wordpress-develop…', { exact: true } ) ).toBeVisible();
 
 	await expect( page.getByRole( 'button', { name: 'pull request #9', exact: true } ) ).toBeVisible( { timeout: 10_000 } );
-	await expect( page.getByTestId( 'snackbar' ).filter( { hasText: 'Opened pull request #9 on WordPress/wordpress-develop' } ) ).toBeVisible();
+	await expect( ui.toast( page, 'Opened pull request #9 on WordPress/wordpress-develop' ) ).toBeVisible();
 	await expect( page.getByText( /Triage and props live on the ticket/ ) ).toBeVisible();
 	await expect( page.getByRole( 'button', { name: `Open #${ TICKET } to comment`, exact: true } ) ).toBeVisible();
 } );
