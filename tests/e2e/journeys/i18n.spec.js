@@ -67,10 +67,10 @@ test( 'the first-run screen and the create-site dialog are fully translatable', 
 	expect( await unwrapped( feedback ) ).toEqual( [] );
 	await page.keyboard.press( 'Escape' );
 
-	// The create-site dialog, including the parts @wordpress/components draws
+	// The create-site dialog, including the parts the design system draws
 	// itself, such as its Close button.
 	await createButton.click();
-	const dialog = page.getByRole( 'dialog', { name: pseudoLocalize( 'Create a site' ) } );
+	const dialog = page.getByRole( 'dialog', { name: pseudoLocalize( 'Create site' ), exact: true } );
 	await expect( dialog ).toBeVisible();
 	await expect( dialog.getByRole( 'button', { name: /^\[/ } ).first() ).toBeVisible();
 	expect( await unwrapped( dialog ) ).toEqual( [] );
