@@ -55,7 +55,7 @@ async function makeTicketBehindTrunk( session, site, originChange ) {
 
 	await ui.siteMenuButton( page ).click();
 	await ui.updateTrunkMenuItem( page ).click();
-	await expect( page.getByText( 'Updated to the latest trunk' ).first() ).toBeVisible( { timeout: 120_000 } );
+	await expect( ui.toast( page, 'Updated to the latest trunk' ) ).toBeVisible( { timeout: 120_000 } );
 	await expect( page.getByText( NOTICE ) ).toBeVisible( { timeout: 30_000 } );
 	return newTip;
 }

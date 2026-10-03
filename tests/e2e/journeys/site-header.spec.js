@@ -162,7 +162,7 @@ test( 'the header\'s menu acts on the site that is open: it copies that site\'s 
 	// INVARIANT — copying the path puts the open site's path on the
 	// clipboard, and says so where it will be seen with the menu gone.
 	await menu.getByRole( 'menuitem', { name: 'Copy path', exact: true } ).click();
-	await expect( page.getByTestId( 'snackbar' ).filter( { hasText: 'Copied the path' } ) ).toBeVisible();
+	await expect( ui.toast( page, 'Copied the path' ) ).toBeVisible();
 	expect( await copied( page ) ).toEqual( [ newerDir ] );
 	await expect( menu ).toHaveCount( 0 );
 	// INVARIANT — and says so once: the button in the details, which says it

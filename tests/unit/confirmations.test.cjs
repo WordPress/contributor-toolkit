@@ -8,7 +8,13 @@ const {
 	confirmationReducer,
 	prConfirmationMessage,
 	deleteFailureMessage,
-	MAX_NOTICES
+	setupFailureMessage,
+	applyDoneMessage,
+	patchSavedMessage,
+	savedAndResetMessage,
+	toastView,
+	MAX_NOTICES,
+	TOAST_LIFETIME_MS
 } = require('../../src/renderer/confirmations.cjs');
 
 test('a success confirmation speaks politely and clears itself (issue #253)', () => {
@@ -133,4 +139,78 @@ test('a clean deletion, a refusal, and a malformed result all stay silent (issue
 	assert.strictEqual(deleteFailureMessage({ ok: false, refused: true }), null);
 	assert.strictEqual(deleteFailureMessage({}), null);
 	assert.strictEqual(deleteFailureMessage(), null);
+});
+
+test('a site that could not be set up says so, and what went wrong as it was reported (#557)', () => {
+	assert.strictEqual(setupFailureMessage(new Error('the clone could not reach the network')), 'The site could not be created. Error: the clone could not reach the network');
+	assert.strictEqual(setupFailureMessage('ENOSPC'), 'The site could not be created. ENOSPC');
+	// A percent sign in what was reported is said as it is.
+	assert.strictEqual(setupFailureMessage('100% of the disk is used'), 'The site could not be created. 100% of the disk is used');
+});
+
+test('each thing the apply flow can have done is confirmed in a sentence of its own', () => {
+	assert.strictEqual(applyDoneMessage('Applied', 'patch'), 'Applied the patch');
+	assert.strictEqual(applyDoneMessage('Reverted', 'patch'), 'Reverted the patch');
+	assert.strictEqual(applyDoneMessage('Checked out', 'pull request'), 'Checked out the pull request');
+	assert.strictEqual(applyDoneMessage('Restored', 'previous branch'), 'Restored the previous branch');
+	assert.strictEqual(applyDoneMessage('Restored', 'saved work'), 'Restored the saved work');
+});
+
+test('a pair it has no sentence for is still said, as the flow words it', () => {
+	assert.strictEqual(applyDoneMessage('Rebuilt', 'site'), 'Rebuilt the site');
+});
+
+test('a saved patch and edits saved before an update are confirmed by the file\'s name', () => {
+	assert.strictEqual(patchSavedMessage('60001.diff'), 'Patch saved to 60001.diff');
+	assert.strictEqual(savedAndResetMessage('my-edits.patch'), 'Saved your changes to my-edits.patch and reset the working tree');
+	assert.strictEqual(patchSavedMessage('100%.diff'), 'Patch saved to 100%.diff');
+});
+
+test('a confirmation is a green toast that clears itself, and an error a red one that stays (#557)', () => {
+	const added = (tone) => confirmationReducer(initialConfirmations, { type: 'add', content: 'x', tone }).notices[0];
+	assert.deepStrictEqual(toastView(added('success')), { intent: 'success', lifetime: TOAST_LIFETIME_MS });
+	assert.deepStrictEqual(toastView(added('error')), { intent: 'error', lifetime: null });
+	assert.deepStrictEqual(toastView(added(undefined)), { intent: 'success', lifetime: TOAST_LIFETIME_MS });
+	// Long enough to be read, and not so long as to pile up.
+	assert.strictEqual(TOAST_LIFETIME_MS, 10000);
+});
+
+test('every sentence this module words goes through the translator, around what it names', (t) => {
+	const i18n = require('@wordpress/i18n');
+	t.after(() => i18n.resetLocaleData());
+	i18n.setLocaleData({
+		'Applied the patch': ['T applied'],
+		'Reverted the patch': ['T reverted'],
+		'Checked out the pull request': ['T checked out'],
+		'Restored the previous branch': ['T restored branch'],
+		'Restored the saved work': ['T restored work'],
+		'Patch saved to %s': ['T saved %s'],
+		'Saved your changes to %s and reset the working tree': ['T reset %s'],
+		'The site could not be created. %s': ['T not created: %s'],
+		'Dry run — branch created, no pull request opened': ['T dry run'],
+		'Opened pull request #%s': ['T opened %s'],
+		'Opened pull request #%1$s on %2$s': ['T opened %1$s at %2$s'],
+		'The site is still listed because its folder could not be deleted (%1$s). Close anything using it, then try again. Folder: %2$s': ['T kept %2$s (%1$s)'],
+		'The site is still listed because its folder could not be deleted. Close anything using it, then try again. Folder: %s': ['T kept %s']
+	});
+	assert.deepStrictEqual([
+		applyDoneMessage('Applied', 'patch'),
+		applyDoneMessage('Reverted', 'patch'),
+		applyDoneMessage('Checked out', 'pull request'),
+		applyDoneMessage('Restored', 'previous branch'),
+		applyDoneMessage('Restored', 'saved work'),
+		patchSavedMessage('a.diff'),
+		savedAndResetMessage('a.patch'),
+		setupFailureMessage('ENOSPC'),
+		prConfirmationMessage({ dryRun: true }),
+		prConfirmationMessage({ number: 9 }),
+		prConfirmationMessage({ number: 9, url: 'https://github.com/WordPress/gutenberg/pull/9' }),
+		deleteFailureMessage({ ok: false, reason: 'remove-failed', path: '/sites/demo', code: 'EBUSY' }),
+		deleteFailureMessage({ ok: false, reason: 'remove-failed', path: '/sites/demo' })
+	], [
+		'T applied', 'T reverted', 'T checked out', 'T restored branch', 'T restored work',
+		'T saved a.diff', 'T reset a.patch', 'T not created: ENOSPC',
+		'T dry run', 'T opened 9', 'T opened 9 at WordPress/gutenberg',
+		'T kept /sites/demo (EBUSY)', 'T kept /sites/demo'
+	]);
 });

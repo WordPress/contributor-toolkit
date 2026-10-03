@@ -6,13 +6,14 @@
  * Actions used to complete silently, or leave an inline sentence the
  * contributor may not be looking at, and none of the success notices reached a
  * screen reader. This is the one place a completed action is confirmed: a
- * transient message that `SnackbarList` renders and speaks. The reducer holds
- * the list; the renderer only dispatches and paints.
+ * transient message that the toast stack renders and speaks (#557). The
+ * reducer holds the list; the renderer only dispatches and paints. What the
+ * messages say is here too, where a branch or a value chooses it.
  *
- * Kept as a pure, dependency-free module so it can be unit tested without a
- * DOM: the renderer bundle imports it, `node --test` requires it directly. The
- * `id` comes from a running counter rather than a timestamp or random value so
- * the reducer stays deterministic under test.
+ * Kept as a pure module so it can be unit tested without a DOM: the renderer
+ * bundle imports it, `node --test` requires it directly. The `id` comes from a
+ * running counter rather than a timestamp or random value so the reducer
+ * stays deterministic under test.
  *
  * Tone drives accessibility, not just colour:
  *   - `success` speaks politely and clears itself on a timer — a confirmation
@@ -22,6 +23,8 @@
  *     one mechanism (#253). The first error emitter is the site deletion
  *     that half-happened (#381).
  */
+
+const { __, sprintf } = require('@wordpress/i18n');
 
 // At most this many confirmations are kept on screen at once. A burst — a
 // double-click, a chain of steps finishing together — collapses to the most
@@ -86,13 +89,16 @@ function confirmationReducer(state = initialConfirmations, action = {}) {
  * @param {{ ok?: boolean, dryRun?: boolean, number?: number, url?: string }} res The main process's result.
  */
 function prConfirmationMessage(res = {}) {
-	if (res.dryRun) return 'Dry run — branch created, no pull request opened';
+	if (res.dryRun) return __('Dry run — branch created, no pull request opened');
 	// Named because two repositories are possible now (#251): a number alone
 	// does not say whether it landed on wordpress-develop or gutenberg. Read
 	// from the pull request's own URL, not from the site's type: with the
 	// sandbox override set the two differ, and the URL is where it went.
 	const match = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/\d+/.exec(String(res.url || ''));
-	return `Opened pull request #${res.number}${match ? ` on ${match[1]}` : ''}`;
+	// translators: 1: the number of a pull request. 2: the repository it was opened on, such as WordPress/gutenberg.
+	if (match) return sprintf(__('Opened pull request #%1$s on %2$s'), res.number, match[1]);
+	// translators: %s: the number of a pull request.
+	return sprintf(__('Opened pull request #%s'), res.number);
 }
 
 /**
@@ -108,8 +114,87 @@ function prConfirmationMessage(res = {}) {
  */
 function deleteFailureMessage(res = {}) {
 	if (res.ok !== false || res.reason !== 'remove-failed') return null;
-	const code = res.code ? ` (${res.code})` : '';
-	return `The site is still listed because its folder could not be deleted${code}. Close anything using it, then try again. Folder: ${res.path}`;
+	if (res.code) {
+		// translators: 1: an error code of the system, such as EBUSY. 2: the path of a folder.
+		return sprintf(__('The site is still listed because its folder could not be deleted (%1$s). Close anything using it, then try again. Folder: %2$s'), res.code, res.path);
+	}
+	// translators: %s: the path of a folder.
+	return sprintf(__('The site is still listed because its folder could not be deleted. Close anything using it, then try again. Folder: %s'), res.path);
 }
 
-module.exports = { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage, MAX_NOTICES };
+/**
+ * The notice for a site that could not be set up (#557): that it could not,
+ * and what went wrong, as it was reported. The setup runs for minutes after
+ * the dialog that asked for it has closed, so this is the one place its
+ * failure is said.
+ *
+ * @param {*} error What the setup was rejected with.
+ * @return {string} The sentence.
+ */
+function setupFailureMessage(error) {
+	// translators: %s: what went wrong, as the system reported it.
+	return sprintf(__('The site could not be created. %s'), String(error));
+}
+
+/**
+ * The confirmation for a patch or a pull request that is in the checkout and
+ * built, or taken back out. The apply flow names what it did with a verb and
+ * a noun, which it also prints in the terminal; here each pair it has is a
+ * sentence of its own, so that it can be translated whole.
+ *
+ * @param {string} verb 'Applied', 'Reverted', 'Checked out' or 'Restored'.
+ * @param {string} noun 'patch', 'pull request', 'previous branch' or 'saved work'.
+ * @return {string} The sentence.
+ */
+function applyDoneMessage(verb, noun) {
+	const sentences = {
+		'Applied patch': __('Applied the patch'),
+		'Reverted patch': __('Reverted the patch'),
+		'Checked out pull request': __('Checked out the pull request'),
+		'Restored previous branch': __('Restored the previous branch'),
+		'Restored saved work': __('Restored the saved work')
+	};
+	return sentences[`${verb} ${noun}`] || `${verb} the ${noun}`;
+}
+
+/**
+ * The confirmation for a patch saved to a file.
+ *
+ * @param {string} fileName The file's name, without its folder.
+ * @return {string} The sentence.
+ */
+function patchSavedMessage(fileName) {
+	// translators: %s: the name of a file.
+	return sprintf(__('Patch saved to %s'), fileName);
+}
+
+/**
+ * The confirmation for edits saved to a file before trunk was updated over
+ * them.
+ *
+ * @param {string} fileName The file's name, without its folder.
+ * @return {string} The sentence.
+ */
+function savedAndResetMessage(fileName) {
+	// translators: %s: the name of a file.
+	return sprintf(__('Saved your changes to %s and reset the working tree'), fileName);
+}
+
+// How long a confirmation that clears itself is on screen.
+const TOAST_LIFETIME_MS = 10000;
+
+/**
+ * How a confirmation is drawn as a toast: the notice's colour, and how long
+ * it stays. One that has to be dismissed stays until it is.
+ *
+ * @param {Object} notice A notice of the queue: `{ tone, explicitDismiss }`.
+ * @return {{intent: string, lifetime: ?number}} The notice's intent, and its lifetime in milliseconds or null.
+ */
+function toastView(notice = {}) {
+	return {
+		intent: notice.tone === 'error' ? 'error' : 'success',
+		lifetime: notice.explicitDismiss ? null : TOAST_LIFETIME_MS
+	};
+}
+
+module.exports = { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage, setupFailureMessage, applyDoneMessage, patchSavedMessage, savedAndResetMessage, toastView, MAX_NOTICES, TOAST_LIFETIME_MS };

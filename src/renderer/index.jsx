@@ -7,15 +7,13 @@ import {
   Card,
   CardBody,
   Flex,
-  Icon,
   SlotFillProvider,
-  SnackbarList,
   Spinner
 } from '@wordpress/components';
 import { Page } from '@wordpress/admin-ui';
 import { __, _x, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
-import { check as checkIcon, drawerLeft, globe } from '@wordpress/icons';
+import { drawerLeft, globe } from '@wordpress/icons';
 import { ThemeProvider } from '@wordpress/theme';
 import { Badge, Button as UiButton, EmptyState, IconButton, VisuallyHidden } from '@wordpress/ui';
 // The design system's tokens: every `--wpds-*` custom property, at its default,
@@ -55,7 +53,7 @@ import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
-import { initialConfirmations, confirmationReducer, deleteFailureMessage } from './confirmations.cjs';
+import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage } from './confirmations.cjs';
 import { ReasonedButton } from './components/reasoned-button.jsx';
 import { DiscardChangesLink } from './components/discard-changes-link.jsx';
 import { LogText } from './components/log-text.jsx';
@@ -63,6 +61,7 @@ import { DestinationGroup } from './components/destination.jsx';
 import { TerminalCommandLink } from './components/terminal-command-link.jsx';
 import { RenameSiteDialog } from './components/rename-site-dialog.jsx';
 import { ConfirmDialog } from './components/confirm-dialog.jsx';
+import { ToastStack } from './components/toast-stack.jsx';
 import { EmailModal } from './components/email-modal.jsx';
 import { DirtyTreeModal } from './components/dirty-tree-modal.jsx';
 import { CreateSiteDialog } from './components/create-site-dialog.jsx';
@@ -176,10 +175,6 @@ function App() {
   // React renders it and prevents two delete requests for one site.
   const deletingSitesRef = useRef(new Set());
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  // The one message under the create-site form: the dialog's complaint about
-  // a missing answer, or why the setup it started failed. Held here because
-  // the second is written here, possibly after the dialog has closed.
-  const [createSiteError, setCreateSiteError] = useState('');
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
   const setupLogAliasRef = useRef({});
@@ -334,7 +329,6 @@ function App() {
   // shape.
   const chooseAndSetup = useCallback(() => {
     if (createSubmitting) return;
-    setCreateSiteError('');
     setCreateModalOpen(true);
   }, [createSubmitting]);
 
@@ -360,7 +354,6 @@ function App() {
 
     try {
       setCreateSubmitting(true);
-      setCreateSiteError('');
       setTerminalMsgs('');
       addPendingSite(targetDir);
       appendSetupLog(targetDir, 'Starting site setup…\n');
@@ -387,7 +380,10 @@ function App() {
       // once the clone reports its directory the guess no longer exists, and
       // discarding the guess here would strand a row for a setup that failed.
       const rowPath = setupRowPathRef.current || targetDir;
-      setCreateSiteError(String(e));
+      // Said in the window's corner, and until it is dismissed: the dialog
+      // that asked for the site closed minutes ago, and the row that showed
+      // the setup is about to go.
+      confirm(setupFailureMessage(e), { tone: 'error' });
       appendSetupLog(rowPath, `Setup failed: ${String(e)}\n`);
       applySetup((state) => discardSetup(state, rowPath));
     } finally {
@@ -398,7 +394,7 @@ function App() {
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, moveSetupLog, refresh]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, confirm, moveSetupLog, refresh]);
 
   const closeCreateModal = useCallback(() => setCreateModalOpen(false), []);
 
@@ -692,41 +688,21 @@ function App() {
           </div>
         </div>
       )}
-      <CreateSiteDialog open={createModalOpen} submitting={createSubmitting} error={createSiteError} onError={setCreateSiteError} onCreate={startSiteSetup} onClose={closeCreateModal} />
+      <CreateSiteDialog open={createModalOpen} submitting={createSubmitting} onCreate={startSiteSetup} onClose={closeCreateModal} />
     </div>
     </SlotFillProvider>
-    {/* One toast region for the window (#253). Anchored bottom-right, above
-        the footer, and sized to its content: the top-right corner is where the
-        open site's actions are (#555), and a toast that stays until dismissed
-        would sit on them. SnackbarList announces
-        each message via aria-live. The z-index clears the modal overlay
-        (components-modal__screen-overlay is 100000, and a modal is a later body
-        portal that would otherwise win the tie) so a confirmation for an action
-        taken inside a modal — saving a patch, opening a PR — is still seen. It
-        stays below popovers/dropdowns (1000000), which should sit over it.
-        It is drawn on `body`, outside the app's own element, because that
-        element is a stacking context of its own (see shell.css) and nothing
-        inside it can rise over a dialog. */}
-    {createPortal(
-    <div className="toast-stack">
-      <SnackbarList
-        className="toolkit-snackbars"
-        // The icon and the tone class are added here, at render, rather than in
-        // the reducer — an icon is a React element and the tone class is styling,
-        // neither of which belongs in the DOM-free confirmations module.
-        notices={confirmations.notices.map((n) => ({
-          ...n,
-          // Wrapped in <Icon> so it renders at a set size with the tone colour;
-          // Snackbar drops the raw icon element straight into the DOM, where the
-          // bare @wordpress/icons export has no dimensions of its own.
-          icon: n.tone === 'error' ? undefined : <Icon icon={checkIcon} size={20} />,
-          className: n.tone === 'error' ? 'toolkit-toast toolkit-toast--error' : 'toolkit-toast toolkit-toast--success'
-        }))}
-        onRemove={removeConfirmation}
-      />
-    </div>,
-    document.body
-    )}
+    {/* One toast region for the window (#253, #557). In the bottom corner,
+        above the footer: the top one is where the open site's actions are
+        (#555), and a toast that stays until dismissed would sit on them. Its
+        z-index clears the older library's modal overlay
+        (components-modal__screen-overlay is 100000, and a modal is a later
+        body portal that would otherwise win the tie) so a confirmation for
+        an action taken inside a modal — saving a patch, opening a PR — is
+        still seen. It stays below popovers/dropdowns (1000000), which should
+        sit over it. It is drawn on `body`, outside the app's own element,
+        because that element is a stacking context of its own (see shell.css)
+        and nothing inside it can rise over a dialog. */}
+    {createPortal(<ToastStack notices={confirmations.notices} onRemove={removeConfirmation} />, document.body)}
     </ConfirmationContext.Provider>
   );
 }
@@ -1395,7 +1371,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setSetupChainState('idle');
     setSetupChainEnd(outcome);
     writeToTerminal(SETUP_END_MESSAGES[outcome] || '');
-    if (outcome === 'done') confirm('This site is ready to work on');
+    if (outcome === 'done') confirm(__('This site is ready to work on'));
   };
 
   const stopSetupChain = () => {
@@ -1561,7 +1537,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       setApplyConflict(feedback.applyConflict);
       setApplyNotice(feedback.applyNotice);
       writeToTerminal('\nDiscarded local changes.\n');
-      confirm('All changes discarded.');
+      confirm(__('All changes discarded.'));
       if (isPatchOpen) await loadPatchText();
     } finally {
       setDiscarding(false);
@@ -1652,7 +1628,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         // The green line below is the record of where it went; this is the
         // announcement, for a contributor who saved from a menu and is no
         // longer looking at the pane (#253).
-        confirm(`Patch saved to ${pathBasename(res.filePath)}`);
+        confirm(patchSavedMessage(pathBasename(res.filePath)));
         return res.filePath;
       }
       if (res && res.canceled) return null;

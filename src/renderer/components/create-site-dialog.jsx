@@ -51,7 +51,9 @@ function FolderField({ value, disabled, onChoose, onFiles }) {
 // the dialog's popup, which is there while the dialog is open, and for the
 // moment it takes to fade once it is closed, and not otherwise. So the
 // answers are empty every time, on Core, however the last ones were left.
-function CreateSiteForm({ formId, submitting, error, onError, onCreate }) {
+function CreateSiteForm({ formId, submitting, onCreate }) {
+  // Which answer is missing, said under the form.
+  const [error, setError] = useState('');
   const [name, setName] = useState('');
   const [dir, setDir] = useState('');
   const [type, setType] = useState(DEFAULT_PROJECT_TYPE);
@@ -62,10 +64,10 @@ function CreateSiteForm({ formId, submitting, error, onError, onCreate }) {
       const chosen = await window.api.chooseDirectory();
       if (chosen) {
         setDir(chosen);
-        onError('');
+        setError('');
       }
     } catch {}
-  }, [onError]);
+  }, []);
 
   // Not reached by the intended route, which is the system's dialog above:
   // a folder dropped on the input arrives here.
@@ -77,16 +79,16 @@ function CreateSiteForm({ formId, submitting, error, onError, onCreate }) {
       setDir(resolved);
       // Clearing the error only when there is a directory: a selection that
       // resolved to nothing has not fixed anything the message was about.
-      if (resolved) onError('');
+      if (resolved) setError('');
     }
     input.value = '';
-  }, [onError]);
+  }, []);
 
   const submit = (event) => {
     event.preventDefault();
     const problem = createSiteProblem({ name, dir });
     if (problem) {
-      onError(problem);
+      setError(problem);
       return;
     }
     onCreate({ name: name.trim(), dir, projectType: type });
@@ -145,22 +147,17 @@ function CreateSiteForm({ formId, submitting, error, onError, onCreate }) {
  * one, from the notice on a site the old engine made, and is then inert and
  * stays until the setup has ended, as it did before it was redrawn.
  *
- * The one message under the form is the caller's, not the dialog's: `error`
- * is shown and `onError` sets it. The dialog's complaint about a missing
- * answer and the reason a setup failed are the same line, and the second can
- * arrive while the dialog is open, or after it has closed and before it
- * opens again. Two copies of it, one here and one there, lose one or the
- * other.
+ * The message under the form is the dialog's own complaint about a missing
+ * answer. Why a setup failed is not said here: by then the dialog has long
+ * closed, and the window says it in its corner (#557).
  *
  * @param {Object}   props
  * @param {boolean}  props.open       Whether the dialog is open.
  * @param {boolean}  props.submitting A setup is running.
- * @param {string}   props.error      The message under the form, or ''.
- * @param {Function} props.onError    Sets that message.
  * @param {Function} props.onCreate   Given `{ name, dir, projectType }` once every answer is there.
  * @param {Function} props.onClose    Asked for by the close button, Escape, or a press outside.
  */
-export function CreateSiteDialog({ open, submitting, error, onError, onCreate, onClose }) {
+export function CreateSiteDialog({ open, submitting, onCreate, onClose }) {
   const formId = useId();
   return (
     <Dialog.Root
@@ -181,7 +178,7 @@ export function CreateSiteDialog({ open, submitting, error, onError, onCreate, o
           <Dialog.Title>{__('Create site')}</Dialog.Title>
           {submitting ? null : <Dialog.CloseIcon />}
         </Dialog.Header>
-        <CreateSiteForm formId={formId} submitting={submitting} error={error} onError={onError} onCreate={onCreate} />
+        <CreateSiteForm formId={formId} submitting={submitting} onCreate={onCreate} />
       </Dialog.Popup>
     </Dialog.Root>
   );

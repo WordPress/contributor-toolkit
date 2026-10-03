@@ -155,16 +155,42 @@ test( 'the create-site dialog refuses a missing name or location, starts clean e
 	await page.evaluate( () => window.api.getSitesWithMeta() );
 	await expect( dialog ).toHaveAttribute( 'data-open', '' );
 
-	// INVARIANT — when the setup fails, the dialog that is open says why, and
-	// can be used again. It is the one place in the window that says it.
+	// INVARIANT — when the setup fails, the window says why in its corner,
+	// whether or not a dialog is open, and goes on saying it until it is
+	// dismissed (#557). The dialog says nothing of it, since it was not asked
+	// anything, and can be used again.
+	// The page's clock is the test's from here on, so that a minute can pass
+	// without being waited for.
+	await page.clock.install();
 	await failSetup( 'the clone could not reach the network' );
-	await expect( dialog.getByRole( 'alert' ) ).toHaveText( /the clone could not reach the network/ );
+	const failure = ui.toast( page, /^The site could not be created\. .*the clone could not reach the network$/ );
+	await expect( failure ).toBeVisible();
+	await page.clock.fastForward( 60_000 );
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+	await expect( failure ).toBeVisible();
+	await expect( dialog.getByRole( 'alert' ) ).toHaveCount( 0 );
 	await expect( create ).toBeEnabled();
 	await expect( name ).toBeEnabled();
 	expect( await setupCalls() ).toHaveLength( 1 );
 
-	// INVARIANT — and can be closed again, by Escape as by its button.
+	// INVARIANT — and can be closed again, by Escape as by its button. What
+	// went wrong is still said once it has.
 	await expect( ui.closeDialogButton( dialog ) ).toBeVisible();
 	await page.keyboard.press( 'Escape' );
 	await expect( dialog ).toHaveCount( 0 );
+	await expect( failure ).toBeVisible();
+
+	// INVARIANT — a setup that failed while no dialog was open is said the
+	// same way: the next one is asked for, fails, and the window says so.
+	await ui.toasts( page ).getByRole( 'button', { name: 'Dismiss', exact: true } ).click();
+	await expect( failure ).toHaveCount( 0 );
+	await session.answerFileDialog( [ parent ] );
+	await ui.createSiteButton( page ).click();
+	await name.fill( 'Second try' );
+	await location.press( 'Enter' );
+	await create.click();
+	await expect( dialog ).toHaveCount( 0 );
+	await expect.poll( setupCalls ).toHaveLength( 2 );
+	await failSetup( 'the disk is full' );
+	await expect( ui.toast( page, /^The site could not be created\. .*the disk is full$/ ) ).toBeVisible();
 } );

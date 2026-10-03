@@ -504,12 +504,30 @@ body {
    is drawn on `body` and not inside `#root`, which is a stacking context of
    its own: this has to rise over a dialog, which is drawn on `body` too, so
    that what was done inside one is still confirmed. */
+/* The window's confirmations (#557): notices stacked in the bottom corner,
+   above the footer, the newest nearest the corner. The stack lets a press
+   through where it has no notice. */
 .toast-stack {
   position: fixed;
   inset-inline-end: var(--wpds-dimension-padding-2xl, 24px);
   bottom: 64px;
   z-index: 100001;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--wpds-dimension-gap-sm, 8px);
+  width: min(360px, calc(100vw - 2 * var(--wpds-dimension-padding-2xl, 24px)));
   pointer-events: none;
+}
+
+.toast-stack > * {
+  pointer-events: auto;
+  overflow-wrap: anywhere;
+  box-shadow: var(--wpds-elevation-md, 0 4px 12px rgba(0, 0, 0, 0.16));
+}
+
+.toast-stack button {
+  margin-right: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

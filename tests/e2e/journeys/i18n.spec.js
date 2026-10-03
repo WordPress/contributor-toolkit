@@ -148,6 +148,15 @@ test( 'the open site\'s details and its menu are fully translatable', async ( { 
 	expect( ( await unwrapped( applications ) ).filter( ( text ) => text !== 'Example Editor' ) ).toEqual( [] );
 	await page.keyboard.press( 'Escape' );
 	await page.keyboard.press( 'Escape' );
+
+	// A confirmation in the window's corner, and the button that dismisses
+	// it: copying the path says it was copied.
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Site actions' ), exact: true } ).click();
+	await menu.getByRole( 'menuitem', { name: pseudoLocalize( 'Copy path' ), exact: true } ).click();
+	const toasts = page.getByLabel( pseudoLocalize( 'Notifications' ), { exact: true } );
+	await expect( toasts.getByText( pseudoLocalize( 'Copied the path' ), { exact: true } ) ).toBeVisible();
+	await expect( toasts.getByRole( 'button', { name: /^\[/ } ) ).toBeVisible();
+	expect( await unwrapped( toasts ) ).toEqual( [] );
 	await expect( page.getByRole( 'button', { name: pseudoLocalize( 'Hide details' ), exact: true } ) ).toBeVisible();
 } );
 

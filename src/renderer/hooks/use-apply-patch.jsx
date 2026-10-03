@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { parsePrRef } from '../../patch-sources.cjs';
 import { describeApplyFailure, otherPatchCount } from '../apply-conflict.cjs';
+import { applyDoneMessage } from '../confirmations.cjs';
 import { prCheckoutRefusal } from '../pr-checkout.cjs';
 import { savedPrForSwitch } from '../ticket-branch-list.cjs';
 import { planApplySteps, updateStepStatuses, planWatchImpact, planTicketSwitchImpact, SKIP_INSTALL_MESSAGE, APPLY_STATE_TO_STEP } from '../update-plan.cjs';
@@ -126,7 +127,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
           // site is rebuilt around it, so "open the site to try it out" is true
           // (#253). A failed build leaves stale assets and its own banner, so it
           // gets no success confirmation.
-          if (code === 0) confirm(`${verb} the ${noun}`);
+          if (code === 0) confirm(applyDoneMessage(verb, noun));
           finishApply(code === 0
             ? `\n${verb} — open the site to try it out.\n`
             : `\nThe ${noun} is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.\n`);
@@ -151,7 +152,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
       watchWaitersRef.current.add(
         () => {
           if (!applyHandOffRef.current.isCurrent(token)) return;
-          confirm(`${verb} the ${noun}`);
+          confirm(applyDoneMessage(verb, noun));
           writeToTerminal(handOff.ready);
         },
         () => {
@@ -165,7 +166,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     if (buildBy === 'live-watch') {
       // A running build watch recompiles the src/ change on its own, so there is
       // no install and no build of our own to run — just hand off to it (#262).
-      confirm(`${verb} the ${noun}`);
+      confirm(applyDoneMessage(verb, noun));
       handOffToWatch();
       finishApply(`\n${verb} — ${compilingMessage()}\n`);
       return;
