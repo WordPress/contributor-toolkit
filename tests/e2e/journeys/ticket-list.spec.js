@@ -161,6 +161,16 @@ test( 'a ticket\'s work is deleted only after a question that names it, and sayi
 		expect( branches( site.dir ) ).toContain( 'ticket/60001' );
 		expect( currentBranch( site.dir ) ).toBe( 'ticket/60002' );
 	};
+	// A deletion holds every button of the list as it begins, with what it
+	// is waiting for, and the branch goes some time after. So work that is
+	// not being deleted is work whose button says nothing, which shows as
+	// soon as one begins and can be read once the question is out of the
+	// way: the branch being there would be true of one on its way out as
+	// well.
+	const notBeingDeleted = async () => {
+		await expect( remove ).toBeEnabled();
+		await expect( remove ).toHaveAccessibleDescription( '' );
+	};
 
 	await remove.click();
 
@@ -183,12 +193,14 @@ test( 'a ticket\'s work is deleted only after a question that names it, and sayi
 	// asked. Cancel and Escape are both a no.
 	await ui.confirmNoButton( page ).click();
 	await expect( question ).toHaveCount( 0 );
-	await expect( remove ).toBeFocused();
+	await notBeingDeleted();
 	await untouched();
+	await expect( remove ).toBeFocused();
 	await remove.click();
 	await expect( question ).toBeVisible();
 	await page.keyboard.press( 'Escape' );
 	await expect( question ).toHaveCount( 0 );
+	await notBeingDeleted();
 	await untouched();
 	await expect( ui.switchBackButton( page, '60001' ) ).toBeEnabled();
 

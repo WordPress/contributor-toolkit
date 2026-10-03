@@ -10,9 +10,19 @@ import { renameProblem } from '../site-dialogs.cjs';
 function RenameSiteForm({ formId, sitePath, displayName, renaming, setRenaming, onRename, onClose }) {
   const [name, setName] = useState(displayName);
   const [error, setError] = useState('');
+  const errorId = useId();
   const field = useRef(null);
   // The whole name is selected, so that the first key pressed replaces it.
   useEffect(() => { if (field.current) field.current.select(); }, []);
+  // A complaint puts the focus on the name it is about, and is the field's
+  // description, so that it is read with the field as well as when it
+  // appears. A name sent with Enter leaves the field while it is held, and
+  // the field does not take the focus back by itself.
+  useEffect(() => { if (error && field.current) field.current.focus(); }, [error]);
+  // A rename that worked leaves the dialog held while it fades, so that it
+  // does not come back to life on its way out. It is let go when the popup
+  // has gone.
+  useEffect(() => () => setRenaming(false), [setRenaming]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -28,7 +38,6 @@ function RenameSiteForm({ formId, sitePath, displayName, renaming, setRenaming, 
       onClose();
     } catch (err) {
       setError(String(err));
-    } finally {
       setRenaming(false);
     }
   };
@@ -42,12 +51,14 @@ function RenameSiteForm({ formId, sitePath, displayName, renaming, setRenaming, 
             label={__('Site name')}
             value={name}
             disabled={renaming}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
             onChange={(event) => setName(event.currentTarget.value)}
           />
           {error ? (
             // An alert, which is said as it appears. The notice is told to
             // say nothing itself, or it would be said twice.
-            <Notice.Root intent="error" role="alert" spokenMessage="">
+            <Notice.Root id={errorId} intent="error" role="alert" spokenMessage="">
               <Notice.Description>{error}</Notice.Description>
             </Notice.Root>
           ) : null}

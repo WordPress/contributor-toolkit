@@ -146,6 +146,10 @@ test( 'while a name is being written the dialog waits for the answer, and a name
 	await expect( dialog.getByRole( 'alert' ) ).toHaveText( /the settings file could not be written/ );
 	await expect( field ).toHaveValue( '  second-name  ' );
 	await expect( field ).toBeEnabled();
+	// The focus is on the name the complaint is about, to be corrected, and
+	// the complaint is read with it.
+	await expect( field ).toBeFocused();
+	await expect( field ).toHaveAccessibleDescription( /the settings file could not be written/ );
 	await expect( ui.closeDialogButton( dialog ) ).toBeVisible();
 	expect( session.readSettings().siteMeta[ site.dir ].label ).toBe( 'first-name' );
 
@@ -153,7 +157,21 @@ test( 'while a name is being written the dialog waits for the answer, and a name
 	// complaint away and, once the write goes through, renames the site.
 	await rename.click();
 	await expect( dialog.getByRole( 'alert' ) ).toHaveCount( 0 );
+	await expect( field ).toHaveAccessibleDescription( '' );
+	// The dialog fades when it closes, and is slowed here so that it can be
+	// looked at on its way out.
+	await page.addStyleTag( { content: '[role="dialog"] { transition-duration: 3s !important; }' } );
 	await endRename( '' );
+
+	// INVARIANT — a rename that worked closes the dialog, and the dialog does
+	// not come back to life as it goes: its button stays held and no close
+	// button returns.
+	await expect( dialog ).not.toHaveAttribute( 'data-open', '' );
+	await expect( rename ).toBeDisabled();
+	// Read once, of the dialog that is still fading: asked until it were so,
+	// it would be so of a dialog that has gone.
+	expect( await ui.closeDialogButton( dialog ).count() ).toBe( 0 );
+	expect( await dialog.count() ).toBe( 1 );
 	await expect( dialog ).toHaveCount( 0 );
 	await expect( ui.siteHeading( page, 'second-name' ) ).toBeVisible();
 	expect( session.readSettings().siteMeta[ site.dir ].label ).toBe( 'second-name' );

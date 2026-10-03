@@ -29,8 +29,14 @@ test( 'a site is deleted only after a question that names it, and nothing but a 
 		await ui.deleteSiteMenuItem( page ).click();
 		await expect( question ).toBeVisible();
 	};
+	// A deletion says it has begun as it begins, in the sites list, and the
+	// folder goes some time after. So a site that is not being deleted is one
+	// whose entry does not say so, which shows as soon as one begins: its
+	// folder being there would be true of one on its way out as well. Read by its
+	// text, which can be found behind a question that is still open.
 	const untouched = async () => {
 		await page.evaluate( () => window.api.getSitesWithMeta() );
+		await expect( page.getByText( 'Deleting site…', { exact: true } ) ).toHaveCount( 0 );
 		expect( fs.existsSync( site.dir ) ).toBe( true );
 		expect( session.readSettings().sites ).toEqual( [ site.dir ] );
 	};
@@ -55,8 +61,8 @@ test( 'a site is deleted only after a question that names it, and nothing but a 
 	// to the menu's button. Cancel and Escape are both a no.
 	await ui.confirmNoButton( page ).click();
 	await expect( question ).toHaveCount( 0 );
-	await expect( ui.siteMenuButton( page ) ).toBeFocused();
 	await untouched();
+	await expect( ui.siteMenuButton( page ) ).toBeFocused();
 	await ask();
 	await page.keyboard.press( 'Escape' );
 	await expect( question ).toHaveCount( 0 );
