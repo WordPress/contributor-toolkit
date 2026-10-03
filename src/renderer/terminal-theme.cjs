@@ -1,27 +1,27 @@
 // What the site's terminal is painted with (#557). The terminal draws itself
 // and is told its colours and its font as values, not as CSS, so they are
 // read off the design system's tokens when it is made: which token each of
-// its colours is, is decided here.
+// its colours is, is decided here. They are read once: a terminal made under
+// one theme keeps it.
 //
-// It is a light surface with dark text, like the log panes beside it, and
-// follows the theme the tokens follow. The sixteen colours a command can ask
-// for by number are the design system's nearest: red is what an error is
-// said in, green a success, yellow a warning. A command's "white" is the
-// text's own colour and its "black" the same, since on this surface white
-// could not be read.
+// It is a light surface with dark text, like the log panes beside it. The
+// colours a command can ask for by number are the design system's nearest:
+// red is what an error is said in, green a success, yellow a warning. A
+// command's "black" and its bright "white" are the text's own colour, and
+// its "white" and bright "black" the quieter text's, since on this surface
+// white could not be read.
+//
+// The eight bright colours are the eight plain ones. The design system's
+// stronger colours are for text on a tinted notice, and on this surface are
+// all but black: an error asked for in bright red would lose its red.
 'use strict';
 
 const NEUTRAL = 'var(--wpds-color-foreground-content-neutral)';
 const NEUTRAL_WEAK = 'var(--wpds-color-foreground-content-neutral-weak)';
+const SURFACE = 'var(--wpds-color-background-surface-neutral-weak)';
 
-// The terminal's name for a colour, and the token it is. Each is written as
-// CSS would use it, `var(--…)`, which is how the build finds a token.
-const TERMINAL_COLOR_TOKENS = {
-	background: 'var(--wpds-color-background-surface-neutral-weak)',
-	foreground: NEUTRAL,
-	cursor: NEUTRAL,
-	cursorAccent: 'var(--wpds-color-background-surface-neutral-weak)',
-	selectionBackground: 'var(--wpds-color-background-interactive-brand-weak-active)',
+// The eight colours a command asks for by number.
+const NUMBERED = {
 	black: NEUTRAL,
 	red: 'var(--wpds-color-foreground-content-error-weak)',
 	green: 'var(--wpds-color-foreground-content-success-weak)',
@@ -29,15 +29,37 @@ const TERMINAL_COLOR_TOKENS = {
 	blue: 'var(--wpds-color-foreground-content-info-weak)',
 	magenta: 'var(--wpds-color-foreground-interactive-brand)',
 	cyan: 'var(--wpds-color-foreground-content-info-weak)',
-	white: NEUTRAL_WEAK,
+	white: NEUTRAL_WEAK
+};
+
+// The terminal's name for a colour, and the token it is. Each is written as
+// CSS would use it, `var(--…)`, which is how the build finds a token.
+const TERMINAL_COLOR_TOKENS = {
+	background: SURFACE,
+	foreground: NEUTRAL,
+	cursor: NEUTRAL,
+	cursorAccent: SURFACE,
+	// The terminal paints a selection at a third of its colour's strength,
+	// so the colour given is a strong one: a pale one would not be seen.
+	selectionBackground: 'var(--wpds-color-background-interactive-brand-strong)',
+	...NUMBERED,
 	brightBlack: NEUTRAL_WEAK,
-	brightRed: 'var(--wpds-color-foreground-content-error)',
-	brightGreen: 'var(--wpds-color-foreground-content-success)',
-	brightYellow: 'var(--wpds-color-foreground-content-caution-weak)',
-	brightBlue: 'var(--wpds-color-foreground-content-info)',
-	brightMagenta: 'var(--wpds-color-foreground-interactive-brand-active)',
-	brightCyan: 'var(--wpds-color-foreground-content-info)',
+	brightRed: NUMBERED.red,
+	brightGreen: NUMBERED.green,
+	brightYellow: NUMBERED.yellow,
+	brightBlue: NUMBERED.blue,
+	brightMagenta: NUMBERED.magenta,
+	brightCyan: NUMBERED.cyan,
 	brightWhite: NEUTRAL
+};
+
+// How the terminal keeps what it prints readable on this surface: a colour
+// a command asks for that would not be told from what is behind it, text on
+// a coloured background above all, is moved until it is. (Bold text, which
+// the terminal draws in the bright colour, needs nothing: the bright colours
+// are the plain ones.)
+const TERMINAL_READABILITY = {
+	minimumContrastRatio: 4.5
 };
 
 // The font it is set in, and what it is set in where the token cannot be
@@ -49,19 +71,23 @@ const TERMINAL_FONT_TOKENS = {
 const TERMINAL_FONT_FALLBACK = { fontFamily: 'Menlo, Consolas, monaco, monospace', fontSize: 13 };
 
 /**
- * The terminal's theme, from whatever reads a token's colour.
+ * The terminal's theme, from whatever reads the tokens.
  *
- * A colour that could not be read is left out, and the terminal keeps its
- * own for it: a wrong colour would be worse than a default one.
+ * A token that is not there, or whose colour could not be read, is left out,
+ * and the terminal keeps its own for it: a wrong colour would be worse than
+ * a default one.
  *
- * @param {Function} readColor Given a token as `var(--…)`, returns its colour as the terminal takes one (`#rrggbb`), or ''.
+ * @param {Object}   read
+ * @param {Function} read.value Given a token as `var(--…)`, returns its value as written, or '' where there is none.
+ * @param {Function} read.color Given a token as `var(--…)`, returns its colour as the terminal takes one (`#rrggbb`), or ''.
  * @return {Object} The theme, by the terminal's names.
  */
-function terminalTheme(readColor) {
+function terminalTheme({ value, color }) {
 	const theme = {};
 	for (const [name, token] of Object.entries(TERMINAL_COLOR_TOKENS)) {
-		const color = readColor(token);
-		if (color) theme[name] = color;
+		if (!String(value(token) || '').trim()) continue;
+		const read = color(token);
+		if (read) theme[name] = read;
 	}
 	return theme;
 }
@@ -94,4 +120,4 @@ function tokenName(expression) {
 	return found ? found[1] : '';
 }
 
-module.exports = { terminalTheme, terminalFont, tokenName, TERMINAL_COLOR_TOKENS, TERMINAL_FONT_TOKENS, TERMINAL_FONT_FALLBACK };
+module.exports = { terminalTheme, terminalFont, tokenName, TERMINAL_COLOR_TOKENS, TERMINAL_FONT_TOKENS, TERMINAL_FONT_FALLBACK, TERMINAL_READABILITY };

@@ -498,7 +498,7 @@ function App() {
   const windowNotices = (
     <>
       {webAvailable ? (
-        <Stack direction="row" align="center" justify="flex-end" gap="sm">
+        <Stack direction="row" align="center" justify="flex-end" gap="sm" className="window-notice">
           <UiButton
             loading={webStarting}
             loadingAnnouncement="Starting the Playground web server"
@@ -518,7 +518,7 @@ function App() {
 
       {/* Playground web server status + logs */}
       {(webStarting || webUrl || webError || webLogs) ? (
-        <UiCard.Root>
+        <UiCard.Root className="window-notice">
           <UiCard.Content render={<Stack direction="column" gap="sm" />}>
             <Stack direction="row" align="center" justify="space-between" gap="sm">
               <Text variant="heading-md">Playground web server</Text>
@@ -537,7 +537,7 @@ function App() {
       ) : null}
 
       {pendingSites.length > 0 && (
-        <UiCard.Root>
+        <UiCard.Root className="window-notice">
           <UiCard.Content render={<Stack direction="column" gap="sm" />}>
             <Text variant="heading-md">Setting up new site…</Text>
             {downloadPhase && <Text variant="body-sm" className="muted-label">{downloadPhase}</Text>}
@@ -556,7 +556,7 @@ function App() {
         const notice = deepLinkNotice({ ticket: deepLink.ticket });
         if (!notice) return null;
         return (
-          <Notice.Root intent="info" role="status" spokenMessage={SILENT}>
+          <Notice.Root className="window-notice" intent="info" role="status" spokenMessage={SILENT}>
             <Notice.Title>{notice.title}</Notice.Title>
             <Notice.Description>{notice.body}</Notice.Description>
             <Notice.Actions>

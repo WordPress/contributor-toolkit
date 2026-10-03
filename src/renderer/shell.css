@@ -569,10 +569,10 @@ body {
   }
 }
 
-/* The review dialog's title, in the text's own colour over the older
-   library's. */
-.components-modal__header.patch-modal-header .components-modal__header-heading {
-  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+/* What the window says that is about no one site, above the page: each
+   with room under it before the next thing. */
+.window-notice {
+  margin-block-end: var(--wpds-dimension-padding-2xl, 24px);
 }
 
 /* A site's view, with room under its last panel. */
@@ -660,8 +660,9 @@ body {
   user-select: text;
 }
 
-/* A command in a sentence, which types itself at the prompt when pressed. */
-.command-link {
+/* A command in a sentence, which types itself at the prompt when pressed.
+   Named with the link's own class, which says to take the sentence's font. */
+.link-button.command-link {
   font-family: var(--wpds-typography-font-family-mono, monospace);
 }
 
@@ -744,10 +745,6 @@ body {
   pointer-events: auto;
   overflow-wrap: anywhere;
   box-shadow: var(--wpds-elevation-md, 0 4px 12px rgba(0, 0, 0, 0.16));
-}
-
-.toast-stack button {
-  margin-right: 0;
 }
 
 /* The focus is put on the stack when a notice is dismissed, to keep it

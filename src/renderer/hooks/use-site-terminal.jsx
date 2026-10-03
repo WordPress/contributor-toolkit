@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
-import { terminalFont, terminalTheme, tokenName } from '../terminal-theme.cjs';
+import { terminalFont, terminalTheme, tokenName, TERMINAL_READABILITY } from '../terminal-theme.cjs';
 
 // What the terminal is painted with, read off the design system's tokens
 // where the terminal stands (#557). The terminal takes its colours and its
@@ -13,14 +13,13 @@ function readTerminalLook(host) {
   const probe = document.createElement('span');
   host.appendChild(probe);
   const canvas = document.createElement('canvas').getContext('2d');
-  const readValue = (token) => styles.getPropertyValue(tokenName(token)).trim();
-  const readColor = (token) => {
-    if (!readValue(token)) return '';
+  const value = (token) => styles.getPropertyValue(tokenName(token));
+  const color = (token) => {
     probe.style.color = token;
     canvas.fillStyle = window.getComputedStyle(probe).color;
     return canvas.fillStyle;
   };
-  const look = { theme: terminalTheme(readColor), ...terminalFont(readValue) };
+  const look = { theme: terminalTheme({ value, color }), ...terminalFont(value) };
   probe.remove();
   return look;
 }
@@ -307,6 +306,7 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
       cursorBlink: true,
       scrollback: 4000,
       convertEol: false,
+      ...TERMINAL_READABILITY,
       ...readTerminalLook(container)
     });
     terminalRef.current = term;

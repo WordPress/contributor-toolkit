@@ -98,6 +98,45 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	// whichever of the apply card's tabs is open.
 	const prField = ui.prField( page );
 
+	// INVARIANT — the terminal is a region of the page a screen reader can go
+	// to, named by its heading (#557).
+	await expect( buildHint ).toBeVisible( { timeout: 30_000 } );
+	const region = page.getByRole( 'region', { name: 'Terminal', exact: true } );
+	await expect( region.getByRole( 'heading', { level: 2, name: 'Terminal', exact: true } ) ).toBeVisible();
+
+	// INVARIANT — it is painted with the design system's colours and not
+	// with colours of its own: the weak surface the log panes have, with the
+	// text's own colour on it. Read where the terminal paints them, since it
+	// is told them as values and not by a stylesheet, and held to what the
+	// tokens are on this page.
+	const tokenColour = ( token ) => page.evaluate( ( expression ) => {
+		const probe = document.createElement( 'span' );
+		probe.style.color = expression;
+		document.body.appendChild( probe );
+		const colour = window.getComputedStyle( probe ).color;
+		probe.remove();
+		return colour;
+	}, token );
+	const surface = await tokenColour( 'var(--wpds-color-background-surface-neutral-weak)' );
+	const text = await tokenColour( 'var(--wpds-color-foreground-content-neutral)' );
+	expect( await region.locator( '.xterm-viewport' ).evaluate( ( viewport ) => ( {
+		surface: window.getComputedStyle( viewport ).backgroundColor,
+		text: window.getComputedStyle( viewport.parentElement.querySelector( '.xterm-rows' ) ).color,
+	} ) ) ).toEqual( { surface, text } );
+	expect( surface ).not.toBe( text );
+
+	// INVARIANT — a command named under the terminal is in the terminal's
+	// type, as it is when it cannot be pressed and is only named.
+	const monospace = await page.evaluate( ( expression ) => {
+		const probe = document.createElement( 'span' );
+		probe.style.fontFamily = expression;
+		document.body.appendChild( probe );
+		const family = window.getComputedStyle( probe ).fontFamily;
+		probe.remove();
+		return family;
+	}, 'var(--wpds-typography-font-family-mono)' );
+	expect( await buildHint.evaluate( ( link ) => window.getComputedStyle( link ).fontFamily ) ).toBe( monospace );
+
 	// CHARACTERISATION — it opens on what it can do, with the scripts this
 	// project allows named in the help, and under it the hints are links.
 	await expect( screen ).toContainText( 'WordPress npm helper terminal.', { timeout: 30_000 } );
@@ -131,6 +170,34 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	await tell( 'npm:run-script:log', { runId: 'e2e-run-1', type: 'stdout', data: 'running 42 tests\n' } );
 	await expect( screen ).toContainText( 'running 42 tests' );
 	await expect( buildHint ).toHaveCount( 0 );
+
+	// INVARIANT — what a script prints in red is red, in bold as in plain:
+	// the design system's colour for an error, which can be told from the
+	// text around it. The terminal's own habit is to draw bold text in a
+	// brighter colour, which on this surface would be all but black.
+	await tell( 'npm:run-script:log', { runId: 'e2e-run-1', type: 'stdout', data: '\u001b[1;31mFAILED-IN-BOLD\u001b[0m \u001b[31mfailed-in-plain\u001b[0m\n' } );
+	const red = await tokenColour( 'var(--wpds-color-foreground-content-error-weak)' );
+	// Asked until it is so: the terminal draws a row again as more is
+	// printed, and a word read off a row that has just been replaced has no
+	// colour at all.
+	const painted = ( words ) => screen.getByText( words, { exact: true } ).evaluate( ( span ) => ( {
+		text: window.getComputedStyle( span ).color,
+		behind: window.getComputedStyle( span ).backgroundColor,
+	} ) );
+	await expect.poll( async () => ( await painted( 'FAILED-IN-BOLD' ) ).text ).toBe( red );
+	await expect.poll( async () => ( await painted( 'failed-in-plain' ) ).text ).toBe( red );
+	expect( red ).not.toBe( text );
+
+	// INVARIANT — and what it prints on a background of its own can be read:
+	// text on the terminal's "black", which is the text's own colour here,
+	// is not left the colour of what is behind it.
+	await tell( 'npm:run-script:log', { runId: 'e2e-run-1', type: 'stdout', data: '\u001b[40mON-BLACK\u001b[0m\n' } );
+	// One look at a time, for the reason above: both colours are read
+	// together, off the same row.
+	await expect.poll( async () => {
+		const onBlack = await painted( 'ON-BLACK' );
+		return onBlack.behind === text && onBlack.text !== '' && onBlack.text !== onBlack.behind;
+	} ).toBe( true );
 	// And the lock alone does not make the button that waits for a build
 	// wait: this script is not one.
 	await expect( prField ).toBeEnabled();
