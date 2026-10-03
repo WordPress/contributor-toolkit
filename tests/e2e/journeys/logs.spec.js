@@ -129,6 +129,25 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	await heard( page );
 	await expect( debugTab() ).toBeVisible();
 
+	// INVARIANT — a line is coloured by what it is, in the design system's
+	// colours (#557): a warning in the warning's, the notice left by the
+	// earlier run in the caution's, and the two are not the same. The words
+	// say it too; the colour is a second telling.
+	const colourOf = ( locator ) => locator.evaluate( ( element ) => window.getComputedStyle( element ).color );
+	const tokenColour = ( token ) => page.evaluate( ( expression ) => {
+		const probe = document.createElement( 'span' );
+		probe.style.color = expression;
+		document.body.appendChild( probe );
+		const colour = window.getComputedStyle( probe ).color;
+		probe.remove();
+		return colour;
+	}, token );
+	const warning = await tokenColour( 'var(--wpds-color-foreground-content-warning-weak)' );
+	const caution = await tokenColour( 'var(--wpds-color-foreground-content-caution-weak)' );
+	expect( await colourOf( line( 'PHP Warning: seen as it arrives' ) ) ).toBe( warning );
+	expect( await colourOf( line( 'PHP Notice: left by an earlier run' ) ) ).toBe( caution );
+	expect( warning ).not.toBe( caution );
+
 	// INVARIANT — and two that arrive unseen are counted as two.
 	await serverTab.click();
 	wordpressWrites( 'PHP Deprecated: first unseen\nPHP Deprecated: second unseen\n' );

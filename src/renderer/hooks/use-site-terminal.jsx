@@ -1,11 +1,29 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
+import { terminalFont, terminalTheme, tokenName } from '../terminal-theme.cjs';
 
-// One face for everything that is process output: the terminal and every log
-// pane. Shared rather than repeated because the panes had drifted into the
-// app's sans-serif, which does not line up a stack trace and does not read as
-// a console even though that is exactly what it is.
-export const TERMINAL_FONT = { fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace', fontSize: 13 };
+// What the terminal is painted with, read off the design system's tokens
+// where the terminal stands (#557). The terminal takes its colours and its
+// font as values, not as CSS, so each token is resolved here: a colour
+// through an element that is given it and a canvas that writes it as the
+// terminal reads one, a font's as it is written. Which token is which colour
+// is terminal-theme.cjs's.
+function readTerminalLook(host) {
+  const styles = window.getComputedStyle(host);
+  const probe = document.createElement('span');
+  host.appendChild(probe);
+  const canvas = document.createElement('canvas').getContext('2d');
+  const readValue = (token) => styles.getPropertyValue(tokenName(token)).trim();
+  const readColor = (token) => {
+    if (!readValue(token)) return '';
+    probe.style.color = token;
+    canvas.fillStyle = window.getComputedStyle(probe).color;
+    return canvas.fillStyle;
+  };
+  const look = { theme: terminalTheme(readColor), ...terminalFont(readValue) };
+  probe.remove();
+  return look;
+}
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 
 // The site's terminal (#554): the xterm instance, the line being typed and its
@@ -289,8 +307,7 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
       cursorBlink: true,
       scrollback: 4000,
       convertEol: false,
-      theme: { background: '#111', foreground: '#f5f5f5' },
-      ...TERMINAL_FONT
+      ...readTerminalLook(container)
     });
     terminalRef.current = term;
     // Not opened here: see the effect below. Everything written before it
