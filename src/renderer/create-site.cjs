@@ -21,7 +21,8 @@ function projectChoices() {
 /**
  * What is said under the choice of project: what the chosen one is, and that
  * the choice is for good. The two are sentences of their own, and are drawn
- * as two.
+ * as two, one under the other: put side by side they would need a space
+ * between them, which not every language writes.
  *
  * The first is read off the registry each time, and not kept: it is
  * translated when it is read, which has to be after the locale has loaded.

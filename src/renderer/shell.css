@@ -617,7 +617,7 @@ body {
 /* The create-site dialog (#557). The folder is asked for with a file input,
    as wide as the dialog, and the folder that was chosen is said under it:
    a path has no spaces to break at. */
-.file-field-control {
+.create-site-dialog .file-field-control {
   width: 100%;
   min-height: var(--wpds-dimension-size-md, 32px);
   font: inherit;
@@ -626,12 +626,12 @@ body {
 
 /* The ring the design system's own controls have, where the browser would
    draw its own. */
-.file-field-control:focus-visible {
+.create-site-dialog .file-field-control:focus-visible {
   outline: var(--wpds-border-width-focus, 2px) solid var(--wpds-color-stroke-focus, #3858e9);
   outline-offset: var(--wpds-border-width-focus, 2px);
 }
 
-.file-field-value {
+.create-site-dialog .file-field-value {
   overflow-wrap: anywhere;
 }
 
@@ -643,6 +643,11 @@ body {
   font-size: var(--wpds-typography-font-size-sm, 12px);
   line-height: var(--wpds-typography-line-height-xs, 16px);
   color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+/* Its two sentences, one under the other. */
+.create-site-dialog .components-base-control__help > span {
+  display: block;
 }
 
 /* The list of a site's tickets (#557): one row a ticket, a rule between

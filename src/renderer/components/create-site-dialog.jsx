@@ -48,9 +48,9 @@ function FolderField({ value, disabled, onChoose, onFiles }) {
 }
 
 // The dialog's three answers and the button that sends them. It is inside
-// the dialog's popup, which is there while the dialog is open and not
-// otherwise, so the answers are empty every time, on Core, however the last
-// ones were left.
+// the dialog's popup, which is there while the dialog is open, and for the
+// moment it takes to fade once it is closed, and not otherwise. So the
+// answers are empty every time, on Core, however the last ones were left.
 function CreateSiteForm({ formId, submitting, error, onError, onCreate }) {
   const [name, setName] = useState('');
   const [dir, setDir] = useState('');
@@ -108,7 +108,7 @@ function CreateSiteForm({ formId, submitting, error, onError, onCreate }) {
             __next40pxDefaultSize
             isBlock
             label={__('Project')}
-            help={<><span>{help.about}</span> <span>{help.lasting}</span></>}
+            help={<><span>{help.about}</span><span>{help.lasting}</span></>}
             value={type}
             disabled={submitting}
             onChange={(value) => { if (value) setType(value); }}

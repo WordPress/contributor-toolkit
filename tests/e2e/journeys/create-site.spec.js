@@ -123,19 +123,27 @@ test( 'the create-site dialog refuses a missing name or location, starts clean e
 	await expect( core ).toBeDisabled();
 	await expect( location ).toBeDisabled();
 
-	// INVARIANT — a press on the held button asks for nothing.
+	// INVARIANT — a press on the held button does nothing. One that got
+	// through would be answered by the form, which has no name in it: that
+	// it has nothing to say, a round trip later, is what shows the press
+	// went nowhere.
 	await create.click( { force: true } );
 	await page.evaluate( () => window.api.getSitesWithMeta() );
+	await expect( dialog.getByRole( 'alert' ) ).toHaveCount( 0 );
 	expect( await setupCalls() ).toHaveLength( 1 );
 
 	// CHARACTERISATION — and it stays until the setup has ended, as it did
 	// before it was redrawn: it has no button that closes it, and neither
-	// Escape nor a press outside it does.
+	// Escape nor a press outside it does. A dialog that is closing is still
+	// on the page while it fades, so it is asked whether it is open, and
+	// not whether it can be seen.
 	await expect( ui.closeDialogButton( dialog ) ).toHaveCount( 0 );
 	await page.keyboard.press( 'Escape' );
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+	await expect( dialog ).toHaveAttribute( 'data-open', '' );
 	await page.mouse.click( 5, 5 );
 	await page.evaluate( () => window.api.getSitesWithMeta() );
-	await expect( dialog ).toBeVisible();
+	await expect( dialog ).toHaveAttribute( 'data-open', '' );
 
 	// INVARIANT — when the setup fails, the dialog that is open says why, and
 	// can be used again. It is the one place in the window that says it.
