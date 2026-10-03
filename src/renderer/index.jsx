@@ -7,15 +7,14 @@ import {
   Card,
   CardBody,
   Flex,
-  SlotFillProvider,
-  Spinner
+  SlotFillProvider
 } from '@wordpress/components';
 import { Page } from '@wordpress/admin-ui';
 import { __, _x, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
 import { drawerLeft, globe } from '@wordpress/icons';
 import { ThemeProvider } from '@wordpress/theme';
-import { Badge, Button as UiButton, EmptyState, IconButton, VisuallyHidden } from '@wordpress/ui';
+import { Badge, Button as UiButton, EmptyState, IconButton, Notice, Spinner as UiSpinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
 // The design system's tokens: every `--wpds-*` custom property, at its default,
 // on `:root`.
 import '@wordpress/theme/design-tokens.css';
@@ -24,7 +23,7 @@ import '@wordpress/dataviews/build-style/style.css';
 import '@xterm/xterm/css/xterm.css';
 // After the libraries' own, so the shell's rules are the later ones.
 import './shell.css';
-import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision, setupStepLabel } from './setup-steps.cjs';
+import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
@@ -54,7 +53,7 @@ import { hasDiffLines } from './diff-highlight.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage } from './confirmations.cjs';
-import { ReasonedButton } from './components/reasoned-button.jsx';
+import { ReasonedUiButton } from './components/reasoned-button.jsx';
 import { DiscardChangesLink } from './components/discard-changes-link.jsx';
 import { LogText } from './components/log-text.jsx';
 import { DestinationGroup } from './components/destination.jsx';
@@ -62,6 +61,8 @@ import { TerminalCommandLink } from './components/terminal-command-link.jsx';
 import { RenameSiteDialog } from './components/rename-site-dialog.jsx';
 import { ConfirmDialog } from './components/confirm-dialog.jsx';
 import { ToastStack } from './components/toast-stack.jsx';
+import { TrunkUpdateCard } from './components/trunk-update-card.jsx';
+import { SetupChecklist } from './components/setup-checklist.jsx';
 import { EmailModal } from './components/email-modal.jsx';
 import { DirtyTreeModal } from './components/dirty-tree-modal.jsx';
 import { CreateSiteDialog } from './components/create-site-dialog.jsx';
@@ -110,12 +111,10 @@ const COPY_BUTTON_LABELS = {
 // Per-status wording for the update chain card (#94), following the issue's
 // mockups: the skipped install step is named, never hidden, and the build
 // step points at the Terminal instead of opening a second log surface.
-// Checkmark/pointer and color per step status; pending/skipped fall back to
-// no symbol in muted gray.
-const UPDATE_STEP_MARKS = {
-  complete: { symbol: '✓', color: '#0f5132' },
-  current: { symbol: '›', color: '#0b5d95' }
-};
+// A notice that is on the page as the page is drawn, or that already says
+// itself through its role, is told to say nothing of its own: left to, it
+// would be read out each time its site is opened, or said twice.
+const SILENT = '';
 
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
@@ -564,13 +563,13 @@ function App() {
         const notice = deepLinkNotice({ ticket: deepLink.ticket });
         if (!notice) return null;
         return (
-          <div role="status" style={{ marginBottom: 24, padding: '12px 14px', background: '#f0f6fc', border: '1px solid #72aee6', borderRadius: 8, color: '#1d2327' }}>
-            <div style={{ fontWeight: 600 }}>{notice.title}</div>
-            <div style={{ marginTop: 4, fontSize: 13 }}>{notice.body}</div>
-            <div style={{ marginTop: 8 }}>
-              <Button variant="link" onClick={clearDeepLink} style={{ fontSize: 12 }}>Dismiss</Button>
-            </div>
-          </div>
+          <Notice.Root intent="info" role="status" spokenMessage={SILENT}>
+            <Notice.Title>{notice.title}</Notice.Title>
+            <Notice.Description>{notice.body}</Notice.Description>
+            <Notice.Actions>
+              <UiButton variant="outline" tone="neutral" size="compact" onClick={clearDeepLink}>Dismiss</UiButton>
+            </Notice.Actions>
+          </Notice.Root>
         );
       })()}
     </>
@@ -1194,9 +1193,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // panel below (#234), so this confirms an answered question rather than
   // announcing a move the app made on its own.
   const carriedNotice = carriedWork ? (
-    <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, color: '#1d2327', fontSize: 12 }}>
-      Your {carriedWork.files} uncommitted {carriedWork.files === 1 ? 'change' : 'changes'} came along into #{carriedWork.ticket}, and will go into its patch.
-    </div>
+    <Notice.Root intent="info" spokenMessage={SILENT}>
+      <Notice.Description>
+        Your {carriedWork.files} uncommitted {carriedWork.files === 1 ? 'change' : 'changes'} came along into #{carriedWork.ticket}, and will go into its patch.
+      </Notice.Description>
+    </Notice.Root>
   ) : null;
 
   // The counterpart for the other answer to the same question: the edits were
@@ -1204,16 +1205,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // asked could have been, because that panel — and the path it showed — is
   // gone once the switch completes.
   const savedCleanNotice = patchSavedNotice ? (
-    <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, color: '#1d2327', fontSize: 12 }}>
-      Your edits were saved to {patchSavedNotice} and are no longer in the working tree.
-    </div>
+    <Notice.Root intent="info" spokenMessage={SILENT}>
+      <Notice.Description>
+        Your edits were saved to {patchSavedNotice} and are no longer in the working tree.
+      </Notice.Description>
+    </Notice.Root>
   ) : null;
 
   const switchProgressLine = ticketSaving && switchProgress ? (
-    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 12 }}>
-      <Spinner />
-      <span>{describeSwitchProgress(switchProgress)}</span>
-    </div>
+    <Stack direction="row" align="center" gap="sm">
+      <UiSpinner />
+      <Text variant="body-md" className="muted-label">{describeSwitchProgress(switchProgress)}</Text>
+    </Stack>
   ) : null;
   // One gate for every ticket action, and the sentence that goes with it
   // (#409): a control this disables says why, through ReasonedButton.
@@ -1234,43 +1237,44 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     noun: workItem.noun
   }) : null;
   const blockedPanel = blockedByTrunkWork ? (
-    <div style={{ marginTop: 8, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
-      <div>{dirtyQuestion.question}</div>
+    <Notice.Root intent="warning" spokenMessage={SILENT}>
+      <Notice.Description>{dirtyQuestion.question}</Notice.Description>
       {patchSavedTo ? (
-        <div style={{ marginTop: 6, fontWeight: 600 }}>
+        <Notice.Title>
           Saved to {patchSavedTo}. The edits are still in the working tree.
-        </div>
+        </Notice.Title>
       ) : null}
-      <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <Notice.Actions>
         {dirtyQuestion.carry ? (
-          <ReasonedButton
-            variant="link"
-            isBusy={ticketSaving}
+          <ReasonedUiButton
+            variant="outline"
+            tone="neutral"
+            size="compact"
+            loading={ticketSaving}
             reason={ticketActionsReason}
             onClick={() => saveTicket(blockedByTrunkWork.ref, { carryTrunkWork: true })}
-            style={{ fontSize: 12 }}
-          >{dirtyQuestion.carry}</ReasonedButton>
+          >{dirtyQuestion.carry}</ReasonedUiButton>
         ) : null}
-        <ReasonedButton variant="link" reason={ticketActionsReason} onClick={() => saveTrunkWorkThenStartClean(blockedByTrunkWork)} style={{ fontSize: 12 }}>
+        <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={ticketActionsReason} onClick={() => saveTrunkWorkThenStartClean(blockedByTrunkWork)}>
           {dirtyQuestion.save}
-        </ReasonedButton>
-        <ReasonedButton
-          variant="link"
-          isDestructive
+        </ReasonedUiButton>
+        <ReasonedUiButton
+          variant="outline"
+          tone="neutral"
+          size="compact"
           reason={ticketActionsReason}
           onClick={() => confirmAnd('Discard the uncommitted edits on trunk? This cannot be undone.', () => discardTrunkWorkAndSwitch(blockedByTrunkWork))}
-          style={{ fontSize: 12 }}
-        >{dirtyQuestion.discard}</ReasonedButton>
+        >{dirtyQuestion.discard}</ReasonedUiButton>
         {/* The way out that touches nothing — three consequential actions
             with no fourth door is its own trap (#234). */}
         {/* For a pull request it takes the preview with it: the preview is
             a dialog, set aside while this is asked, and would otherwise come
             back in front of whoever has just said "not now". */}
-        <ReasonedButton variant="link" reason={ticketActionsReason} onClick={() => { if (blockedByTrunkWork.kind === 'pr') setApplyPreview(null); setBlockedByTrunkWork(null); setPatchSavedTo(''); }} style={{ fontSize: 12 }}>
+        <ReasonedUiButton variant="minimal" tone="neutral" size="compact" reason={ticketActionsReason} onClick={() => { if (blockedByTrunkWork.kind === 'pr') setApplyPreview(null); setBlockedByTrunkWork(null); setPatchSavedTo(''); }}>
           {dirtyQuestion.cancel}
-        </ReasonedButton>
-      </div>
-    </div>
+        </ReasonedUiButton>
+      </Notice.Actions>
+    </Notice.Root>
   ) : null;
 
   // What the panel says back after an action: the refusal, the switch's
@@ -1282,7 +1286,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const ticketFeedback = (
     <>
       {ticketError ? (
-        <div role="alert" style={{ marginTop: 8, color: '#d63638', fontSize: 12 }}>{ticketError}</div>
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{ticketError}</Notice.Description>
+        </Notice.Root>
       ) : null}
       {switchProgressLine}
       {carriedNotice}
@@ -1563,7 +1569,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         })}
       />
       {changesNote.end}
-      {discardError ? <div style={{ color: '#d63638', fontSize: 12, marginTop: 4 }}>{discardError}</div> : null}
+      {discardError ? <Text variant="body-sm" className="error-text" render={<span />}>{discardError}</Text> : null}
     </>
   ) : null;
 
@@ -1657,57 +1663,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     await savePatchFile({ handoff: true });
   };
 
-  // Colours and indicator per step status. The status *word* is not here — it
-  // lives in `setupStepLabel`, the one place that distinguishes a step that is
-  // merely next from one that is running (#257).
-  const checklistVisuals = {
-    complete: {
-      color: '#0f5132',
-      background: '#f4fbf4',
-      border: '#94d3ae',
-      indicatorBg: '#0f5132',
-      indicatorColor: '#fff',
-      indicatorBorder: 'none',
-      indicatorContent: '✓'
-    },
-    current: {
-      color: '#0b5d95',
-      background: '#e8f3ff',
-      border: '#66afe9',
-      indicatorBg: '#007cba',
-      indicatorColor: '#fff',
-      indicatorBorder: 'none',
-      indicatorContent: '•'
-    },
-    failed: {
-      color: '#8a1f21',
-      background: '#fcf0f1',
-      border: '#d63638',
-      indicatorBg: '#d63638',
-      indicatorColor: '#fff',
-      indicatorBorder: 'none',
-      indicatorContent: '✕'
-    },
-    pending: {
-      color: '#6c6f72',
-      background: '#f8f9f9',
-      border: '#dcdcde',
-      indicatorBg: '#6c6f72',
-      indicatorColor: '#fff',
-      indicatorBorder: 'none',
-      indicatorContent: '•'
-    },
-    locked: {
-      color: '#6c6f72',
-      background: '#f5f5f7',
-      border: '#dcdcde',
-      indicatorBg: 'transparent',
-      indicatorColor: '#6c6f72',
-      indicatorBorder: '2px solid #c3c4c7',
-      indicatorContent: '–'
-    }
-  };
-
   const setupFlags = {
     isPending,
     statusLoading,
@@ -1742,12 +1697,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       ...stepState.install,
       running: installing,
       action: (
-        <Button
-          isBusy={installing}
-          variant={stepState.install.done ? 'secondary' : 'primary'}
+        <UiButton
+          loading={installing}
+          variant={stepState.install.done ? 'outline' : 'solid'}
+          tone={stepState.install.done ? 'neutral' : 'brand'}
+          size="compact"
           onClick={runInstallWithTerminal}
-          disabled={stepState.install.disabled}
-        >{installLabel}</Button>
+          disabled={stepState.install.disabled || installing}
+        >{installLabel}</UiButton>
       )
     },
     {
@@ -1757,12 +1714,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       ...stepState.build,
       running: building,
       action: (
-        <Button
-          isBusy={building}
-          variant={stepState.build.done ? 'secondary' : 'primary'}
+        <UiButton
+          loading={building}
+          variant={stepState.build.done ? 'outline' : 'solid'}
+          tone={stepState.build.done ? 'neutral' : 'brand'}
+          size="compact"
           onClick={runBuildWithTerminal}
-          disabled={stepState.build.disabled}
-        >{buildLabel}</Button>
+          disabled={stepState.build.disabled || building}
+        >{buildLabel}</UiButton>
       )
     },
     {
@@ -1772,18 +1731,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       ...stepState.dev,
       running: starting,
       action: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Button
-            isBusy={starting}
-            variant={running ? 'secondary' : 'primary'}
+        <Stack direction="row" align="center" gap="sm" wrap="wrap">
+          <UiButton
+            loading={starting}
+            variant={running ? 'outline' : 'solid'}
+            tone={running ? 'neutral' : 'brand'}
+            size="compact"
             onClick={async () => {
               await markSkipWizard();
               await toggleDevServer();
             }}
-            disabled={stepState.dev.disabled}
-          >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
+            disabled={stepState.dev.disabled || starting}
+          >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</UiButton>
           {starting || serverUrl ? (
-            <span style={{ fontSize: 12 }}>
+            <Text variant="body-sm">
               {starting ? `Starting… (${formatElapsed(startElapsed)})` : null}
               {!starting && serverUrl ? (
                 <>
@@ -1792,9 +1753,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                   <a href={adminUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminUrl(serverUrl)); }}>wp-admin</a>
                 </>
               ) : null}
-            </span>
+            </Text>
           ) : null}
-        </div>
+        </Stack>
       )
     }
   ];
@@ -1844,10 +1805,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     <PrCheckoutNotice cue={cueProps('pr-checkout')} banner={prBanner} checkout={prCheckout} onRevert={() => runPrSwitch({ leaving: true })} />
   ) : null;
   const ticketChangesNote = changesNote && changesNote.placement === 'ticket' ? (
-    <div style={{ fontSize: 13, color: '#1d2327' }}>
-      {changesNoteBody}
-      <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>{changesNote.unlinkNote}</div>
-    </div>
+    <Stack direction="column" gap="xs">
+      <Text variant="body-md">{changesNoteBody}</Text>
+      <Text variant="body-sm" className="muted-label">{changesNote.unlinkNote}</Text>
+    </Stack>
   ) : null;
   const patchReadBlocked = isApplying || isUpdating || installing || building || Boolean(applyPreview);
   // The two ways out the apply card offers of a patch that cannot be lifted
@@ -1914,227 +1875,120 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         contributor to find the menu again. The menu is in the header, which
         does not scroll, so this is brought into view when it appears. */}
     {editorNotice ? (
-      <div ref={editorNoticeRef} role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-        <span style={{ flex: '1 1 240px' }}>{editorNotice.message}</span>
+      <Notice.Root ref={editorNoticeRef} intent="warning" role="alert" spokenMessage={SILENT}>
+        <Notice.Description>{editorNotice.message}</Notice.Description>
         {editorNotice.offerPicker ? (
-          <Button variant="tertiary" isSmall onClick={() => void openIn(null)}>Choose application…</Button>
+          <Notice.Actions>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => void openIn(null)}>Choose application…</UiButton>
+          </Notice.Actions>
         ) : null}
-      </div>
+      </Notice.Root>
     ) : null}
       {legacyNotice && !isPending ? (
-        <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
-          <span style={{ flex: '1 1 320px' }}>
-            <strong>{legacyNotice.title}</strong> {legacyNotice.body}
-          </span>
-          <Button variant="primary" onClick={onCreateSite}>Create site</Button>
-        </div>
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Title>{legacyNotice.title}</Notice.Title>
+          <Notice.Description>{legacyNotice.body}</Notice.Description>
+          <Notice.Actions>
+            <UiButton size="compact" onClick={onCreateSite}>Create site</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
       ) : null}
       {mergeNotice && !isPending ? (
-        <div role="alert" style={{ padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
-          <strong>{mergeNotice.title}</strong> {mergeNotice.body}
-        </div>
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Title>{mergeNotice.title}</Notice.Title>
+          <Notice.Description>{mergeNotice.body}</Notice.Description>
+        </Notice.Root>
       ) : null}
       {updateIncomplete && !isUpdating ? (
-        <div {...cueProps('retry-install-build')} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
-          <span style={{ flex: '1 1 320px' }}>
-            <strong>Update incomplete</strong> — the code is new but the built assets are old. The site may not run correctly until install and build succeed.
-          </span>
-          <Button
-            variant="secondary"
-            isDestructive
-            onClick={retryInstallAndBuild}
-            disabled={installing || building}
-          >Retry install &amp; build</Button>
-        </div>
+        <Notice.Root {...cueProps('retry-install-build')} intent="error" spokenMessage={SILENT}>
+          <Notice.Title>Update incomplete</Notice.Title>
+          <Notice.Description>The code is new but the built assets are old. The site may not run correctly until install and build succeed.</Notice.Description>
+          <Notice.Actions>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={retryInstallAndBuild} disabled={installing || building}>Retry install &amp; build</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
       ) : null}
       {age.stale && !updateIncomplete && !isUpdating ? (
-        <div {...cueProps('update-trunk')} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '14px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
-          <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <strong style={{ color: '#5c4400' }}>This site&apos;s WordPress code is {age.ageDays} days old</strong>
-            <span>Patches you create now may not apply on Trac. Updating takes a few minutes.</span>
-          </div>
-          <Button
-            variant="secondary"
-            onClick={startTrunkUpdate}
-            disabled={installing || building}
-          >Update to latest trunk</Button>
-        </div>
+        <Notice.Root {...cueProps('update-trunk')} intent="warning" spokenMessage={SILENT}>
+          <Notice.Title>This site&apos;s WordPress code is {age.ageDays} days old</Notice.Title>
+          <Notice.Description>Patches you create now may not apply on Trac. Updating takes a few minutes.</Notice.Description>
+          <Notice.Actions>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={startTrunkUpdate} disabled={installing || building}>Update to latest trunk</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
       ) : null}
       {isUpdating ? (
-        <div {...cueProps('updating')} style={{ padding: '14px 16px', background: '#fff', border: '1px solid #dcdcde', borderRadius: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 600, fontSize: 14, color: '#1d2327' }}>Updating to latest trunk</span>
-            <span style={{ fontSize: 12, color: '#6c6f72' }}>
-              step {Math.max(1, updateStepStates.filter((s) => s.status === 'complete' || s.status === 'skipped').length + 1)} of {updateSteps.length}
-            </span>
-          </div>
-          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
-            {updateStepStates.map((s) => {
-              const text = updateStepText(updateSteps, s);
-              const { symbol = '', color = '#6c6f72' } = UPDATE_STEP_MARKS[s.status] || {};
-              return (
-                <div key={s.key} style={{ display: 'flex', alignItems: 'baseline', gap: 8, color, opacity: s.status === 'pending' || s.status === 'skipped' ? 0.75 : 1 }}>
-                  <span aria-hidden="true" style={{ width: 12, display: 'inline-block', textAlign: 'center' }}>{symbol}</span>
-                  <span style={{ fontWeight: s.status === 'current' ? 600 : 400 }}>{text}</span>
-                </div>
-              );
-            })}
-          </div>
-          {updateState === 'installing' ? (
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f0f1', fontSize: 12, color: '#6c6f72' }}>
-              Most packages are already cached, so this is a download of the difference — not the whole tree.
-            </div>
-          ) : null}
-        </div>
+        <TrunkUpdateCard
+          cue={cueProps('updating')}
+          rows={updateStepStates.map((step) => ({ key: step.key, label: updateStepText(updateSteps, step), status: step.status }))}
+          count={`step ${Math.max(1, updateStepStates.filter((step) => step.status === 'complete' || step.status === 'skipped').length + 1)} of ${updateSteps.length}`}
+          note={updateState === 'installing' ? 'Most packages are already cached, so this is a download of the difference — not the whole tree.' : ''}
+        />
       ) : null}
       {lastUpdateSummary && !isUpdating && !updateIncomplete ? (
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', background: '#f4fbf4', border: '1px solid #94d3ae', borderRadius: 8, fontSize: 13, color: '#0f5132' }}>
-          <span aria-hidden="true" style={{ fontWeight: 700 }}>✓</span>
-          <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <strong>Up to date with trunk as of today.</strong>
-            <span>
-              {lastUpdateSummary.lockfileChanged ? 'Dependencies updated' : 'Dependencies unchanged'}
-              {typeof lastUpdateSummary.elapsedSeconds === 'number' ? `, rebuilt in ${formatElapsed(lastUpdateSummary.elapsedSeconds)}.` : ', rebuilt.'}
-              {lastUpdateSummary.savedPatchPath ? ` Your changes were saved to ${lastUpdateSummary.savedPatchPath} before the reset.` : ''}
-            </span>
-          </div>
-          <Button
-            variant="tertiary"
-            isSmall
-            aria-label="Dismiss"
-            onClick={() => setLastUpdateSummary(null)}
-            style={{ color: '#0f5132' }}
-          >✕</Button>
-        </div>
+        <Notice.Root intent="success" spokenMessage={SILENT}>
+          <Notice.Title>Up to date with trunk as of today.</Notice.Title>
+          <Notice.Description>
+            {lastUpdateSummary.lockfileChanged ? 'Dependencies updated' : 'Dependencies unchanged'}
+            {typeof lastUpdateSummary.elapsedSeconds === 'number' ? `, rebuilt in ${formatElapsed(lastUpdateSummary.elapsedSeconds)}.` : ', rebuilt.'}
+            {lastUpdateSummary.savedPatchPath ? ` Your changes were saved to ${lastUpdateSummary.savedPatchPath} before the reset.` : ''}
+          </Notice.Description>
+          <Notice.CloseIcon onClick={() => setLastUpdateSummary(null)} />
+        </Notice.Root>
       ) : null}
       {!skipInit ? (
-        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Initial setup checklist</div>
-          {/*
-            Nobody pressed a button to start this, so the banner has to say what
-            is happening, how far along it is and how to stop it — that is the
-            whole licence for running unattended. The step counter comes from
-            the same `updateStepStatuses` the update panel uses.
-          */}
-          {isSettingUp ? (
-            <div role="status" style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#e8f3ff', border: '1px solid #66afe9', borderRadius: 8, fontSize: 13, color: '#0b5d95' }}>
-              <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <strong style={{ color: '#0b5d95' }}>
-                  Setting this site up for you — step {setupStepStates.filter((s) => s.status === 'complete').length + 1} of {setupSteps.length}
-                </strong>
-                <span>
-                  {setupChainState === 'installing'
-                    ? 'Installing dependencies. You can leave this running — the build follows on its own.'
-                    : 'Running the full build. This can take up to half an hour on Windows; the Terminal below shows what it is doing.'}
-                </span>
-              </div>
-              <Button variant="secondary" onClick={stopSetupChain}>Stop setup</Button>
-            </div>
-          ) : null}
-          {!isSettingUp && setupChainEnd === 'stopped' ? (
-            <div style={{ marginTop: 12, padding: '12px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
-              <strong style={{ color: '#5c4400' }}>Setup stopped.</strong>{' '}
-              Nothing was lost — pick it back up with the buttons below whenever you want.
-            </div>
-          ) : null}
-          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>Complete each step to prepare this site for development.</div>
-          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {stepItems.map((step) => {
-              const visuals = checklistVisuals[step.status] || checklistVisuals.locked;
-              const cueId = `setup-${step.key}`;
-              return (
-                <div
-                  key={step.key}
-                  data-next-action={cueId}
-                  className={nextActionId === cueId ? 'next-action-cue' : undefined}
-                  style={{
-                    border: `1px solid ${visuals.border}`,
-                    background: visuals.background,
-                    borderRadius: 10,
-                    padding: '14px 16px',
-                    display: 'grid',
-                    gridTemplateColumns: 'auto 1fr auto',
-                    gridTemplateRows: 'auto auto',
-                    columnGap: 16,
-                    rowGap: 8,
-                    alignItems: 'center'
-                  }}
-                >
-                  <div style={{ gridRow: '1 / span 2', alignSelf: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28 }}>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        lineHeight: 1,
-                        background: visuals.indicatorBg,
-                        color: visuals.indicatorColor,
-                        border: visuals.indicatorBorder || 'none'
-                      }}
-                    >
-                      {visuals.indicatorContent}
-                    </span>
-                  </div>
-                  <div style={{ gridColumn: '2 / 3', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, minWidth: 0, flexWrap: 'wrap' }}>
-                    <div style={{ fontWeight: 600, color: '#1d2327', lineHeight: 1.4 }}>{step.label}</div>
-                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: visuals.color, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{setupStepLabel(step.status, step.running)}</div>
-                  </div>
-                  <div style={{ gridColumn: '2 / 3', fontSize: 12, color: '#3c434a', lineHeight: 1.5 }}>{step.description}</div>
-                  <div style={{ gridRow: '1 / span 2', gridColumn: '3 / 4', alignSelf: 'center', display: 'flex', alignItems: 'center' }}>
-                    {step.action}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <Button variant="link" onClick={markSkipWizard} style={{ textDecoration: 'underline' }}>Skip initialization wizard</Button>
-          </div>
-        </div>
-      ) : (
-        null
-      )}
+        <SetupChecklist
+          steps={stepItems}
+          cueId={nextActionId}
+          running={isSettingUp ? {
+            // The step counter comes from the same `updateStepStatuses` the
+            // update card uses.
+            title: `Setting this site up for you — step ${setupStepStates.filter((s) => s.status === 'complete').length + 1} of ${setupSteps.length}`,
+            body: setupChainState === 'installing'
+              ? 'Installing dependencies. You can leave this running — the build follows on its own.'
+              : 'Running the full build. This can take up to half an hour on Windows; the Terminal below shows what it is doing.',
+            onStop: stopSetupChain
+          } : null}
+          stopped={setupChainEnd === 'stopped'}
+          onSkip={markSkipWizard}
+        />
+      ) : null}
       {/* The server, the build watch and the way to the changes are in the
           page's header and in the details (#557). What the changes note says
           when it has no card of its own to sit in stays here. */}
       {skipInit && changesNote && changesNote.placement === 'buttons' ? (
-        <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2 }}>
-          {changesNoteBody}
-        </div>
+        <Text variant="body-md">{changesNoteBody}</Text>
       ) : null}
       {/* Above the ticket panel rather than inside it, and outside the wizard
           gate: a link can arrive whether or not this site already has a ticket,
           and a site still in the setup wizard shows no ticket panel at all —
           which is exactly when a ticket that vanished silently would be worst. */}
       {deepLinkNote ? (
-        <div role="status" style={{ padding: '14px 16px', border: '1px solid #dba617', background: '#fcf9e8', borderRadius: 8 }}>
-          <div style={{ fontWeight: 600, fontSize: 15, color: '#1d2327' }}>{deepLinkNote.title}</div>
-          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{deepLinkNote.body}</div>
-          <div style={{ marginTop: 10 }}><Button variant="link" onClick={() => setDeepLinkNoteHidden(true)}>Hide</Button></div>
-        </div>
+        <Notice.Root intent="warning" role="status" spokenMessage={SILENT}>
+          <Notice.Title>{deepLinkNote.title}</Notice.Title>
+          <Notice.Description>{deepLinkNote.body}</Notice.Description>
+          <Notice.Actions>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => setDeepLinkNoteHidden(true)}>Hide</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
       ) : null}
       {deepLinkPrompt ? (
-        <div role="status" style={{ padding: '12px 14px', background: '#f0f6fc', border: '1px solid #72aee6', borderRadius: 8, color: '#1d2327' }}>
-          <div style={{ fontWeight: 600 }}>{deepLinkPrompt.title}</div>
-          <div style={{ marginTop: 4, fontSize: 13 }}>{deepLinkPrompt.body}</div>
-          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {/* No `isBusy`: answering clears the App's deep-link value, so this
+        <Notice.Root intent="info" role="status" spokenMessage={SILENT}>
+          <Notice.Title>{deepLinkPrompt.title}</Notice.Title>
+          <Notice.Description>{deepLinkPrompt.body}</Notice.Description>
+          <Notice.Actions>
+            {/* No `loading`: answering clears the App's deep-link value, so this
                 button is gone in the same tick it is pressed. What the link
                 started is then reported where every other ticket link reports
                 it — the panel's own progress line and `ticketError`. */}
-            <ReasonedButton
-              variant="primary"
+            <ReasonedUiButton
+              size="compact"
               onClick={acceptDeepLink}
               reason={skipInit ? ticketActionsReason : 'Finish setting this site up first.'}
-            >{deepLinkPrompt.confirmLabel}</ReasonedButton>
-            <Button variant="link" onClick={dismissDeepLink}>Not now</Button>
-          </div>
-        </div>
+            >{deepLinkPrompt.confirmLabel}</ReasonedUiButton>
+            <UiButton variant="minimal" tone="neutral" size="compact" onClick={dismissDeepLink}>Not now</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
       ) : null}
       {skipInit ? (
         <TicketCard

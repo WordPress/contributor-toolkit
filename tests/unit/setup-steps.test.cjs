@@ -8,7 +8,8 @@ const {
 	setupStepStatuses,
 	setupStepCopy,
 	setupAutoStartDecision,
-	setupStepLabel
+	setupStepLabel,
+	setupStepBadge
 } = require('../../src/renderer/setup-steps.cjs');
 const { getProjectType } = require('../../src/project-type.cjs');
 
@@ -379,4 +380,15 @@ test('the build step describes the target it builds', () => {
 	const built = setupStepCopy({ hasNodeModules: true, hasBuilt: true }, getProjectType('gutenberg').setup);
 	assert.match(built.buildDescription, /^Built\./);
 	assert.doesNotMatch(built.buildDescription, /src\//);
+});
+
+test('a step\'s state has the colour of what it means: done, failed, next or under way, and not yet (#557)', () => {
+	assert.strictEqual(setupStepBadge('complete'), 'stable');
+	assert.strictEqual(setupStepBadge('failed'), 'high');
+	assert.strictEqual(setupStepBadge('current'), 'informational');
+	// One still waiting its turn, and one that cannot be started yet, are
+	// said without a colour of their own.
+	assert.strictEqual(setupStepBadge('pending'), 'draft');
+	assert.strictEqual(setupStepBadge('locked'), 'draft');
+	assert.strictEqual(setupStepBadge(undefined), 'draft');
 });

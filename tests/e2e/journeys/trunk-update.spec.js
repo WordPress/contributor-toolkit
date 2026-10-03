@@ -41,6 +41,14 @@ test( 'an update fetches from the site\'s origin, resets the checkout, rebuilds,
 	await expect( page.getByText( 'Dependencies unchanged', { exact: false } ).first() ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.getByText( 'Update incomplete', { exact: false } ) ).toHaveCount( 0 );
 
+	// INVARIANT — what the update did is said on the page until it is sent
+	// away, by the notice's own button.
+	const done = page.getByText( 'Up to date with trunk as of today.', { exact: true } );
+	await expect( done ).toBeVisible();
+	await done.locator( '..' ).getByRole( 'button', { name: 'Dismiss', exact: true } ).click();
+	await expect( done ).toHaveCount( 0 );
+	await expect( page.getByText( 'Dependencies unchanged', { exact: false } ) ).toHaveCount( 0 );
+
 	// INVARIANT — the checkout is the origin's trunk now, still on trunk, and
 	// the substrate survived the reset.
 	expect( read( site.dir, LOGIN ) ).toBe( NEWER_LOGIN );

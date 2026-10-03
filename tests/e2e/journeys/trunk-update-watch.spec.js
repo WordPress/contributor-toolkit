@@ -183,7 +183,7 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	const runs = await standInForRuns( app, page, path.join( site.dir, LOGIN ) );
 	const incomplete = page.getByText( 'Update incomplete', { exact: true } );
 	const updated = ui.toast( page, 'Updated to the latest trunk' );
-	const card = page.getByText( 'Updating to latest trunk', { exact: true } );
+	const card = page.getByRole( 'region', { name: 'Updating to latest trunk', exact: true } );
 
 	// The watch is running, and ready, before the update starts. The test
 	// speaks for the watcher only once the main process has answered that it
@@ -224,6 +224,11 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	await runs.heard();
 	expect( ( await runs.asked() ).completions ).toBe( 0 );
 	await expect( card ).toBeVisible();
+	// INVARIANT — the card lists the update's steps and says which one it is
+	// on, to the eye and to a screen reader: one of them is the current one.
+	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 3 );
+	await expect( card.locator( '[aria-current="step"]' ) ).toHaveCount( 1 );
+	await expect( card.getByText( /^step \d of 3$/ ) ).toBeVisible();
 	expect( await updated.count() ).toBe( 0 );
 	await expect( ui.stopBuildWatchButton( page ) ).toBeEnabled();
 	await expect( ui.startDevServerButton( page ) ).toBeDisabled();

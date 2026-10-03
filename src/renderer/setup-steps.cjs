@@ -158,6 +158,27 @@ function setupStepLabel(status, isRunning) {
 }
 
 /**
+ * The colour a step's state is said in, as a badge's intent (#557): green
+ * for one that is done, red for one that failed, blue for the one that is
+ * next or under way, and none of them for one still waiting its turn.
+ *
+ * @param {string} status One of complete|failed|current|pending|locked.
+ * @return {string} A badge's intent.
+ */
+function setupStepBadge(status) {
+	switch (status) {
+		case 'complete':
+			return 'stable';
+		case 'failed':
+			return 'high';
+		case 'current':
+			return 'informational';
+		default:
+			return 'draft';
+	}
+}
+
+/**
  * The button label and description on the install and build steps.
  *
  * Both read differently in four situations — not started, running, done, and
@@ -251,5 +272,6 @@ module.exports = {
 	setupStepStatuses,
 	setupStepCopy,
 	setupAutoStartDecision,
-	setupStepLabel
+	setupStepLabel,
+	setupStepBadge
 };

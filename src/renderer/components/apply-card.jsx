@@ -1,10 +1,10 @@
 import { useId, useRef, useState } from 'react';
 import { __ } from '@wordpress/i18n';
-import { check } from '@wordpress/icons';
-import { Badge, Button, Card, CollapsibleCard, Dialog, Icon, InputControl, Notice, Spinner, Stack, Tabs, Text } from '@wordpress/ui';
+import { Badge, Button, Card, CollapsibleCard, Dialog, InputControl, Notice, Stack, Tabs, Text } from '@wordpress/ui';
 import { applyCardWords, applyFailureWords, applyStepRows, cardFold, checkoutNoticeIntent, conflictFileRows, previewWords } from '../apply-card.cjs';
 import { pullRequestState } from '../ticket-card.cjs';
 import { ReasonedUiButton } from './reasoned-button.jsx';
+import { StepList } from './step-list.jsx';
 
 // Every notice here is told what to say, or told to say nothing. Left to
 // itself the design system's notice reads its own content out, and with a
@@ -64,24 +64,6 @@ function Entry({ words, entry, tab, onTab }) {
         </Stack>
       </Tabs.Panel>
     </Tabs.Root>
-  );
-}
-
-// The steps of an apply under way. The one being done has the spinner, and
-// is the one a screen reader is told is current.
-function Progress({ progress }) {
-  return (
-    <ol {...progress.cue} className={['apply-steps', progress.cue.className].filter(Boolean).join(' ')}>
-      {applyStepRows(progress.steps, progress.states).map((row) => (
-        <li key={row.key} className={`apply-step is-${row.status}`} aria-current={row.status === 'current' ? 'step' : undefined}>
-          <span className="apply-step-mark" aria-hidden="true">
-            {row.status === 'complete' ? <Icon icon={check} size={16} /> : null}
-            {row.status === 'current' ? <Spinner /> : null}
-          </span>
-          <Text variant="body-md">{row.label}</Text>
-        </li>
-      ))}
-    </ol>
   );
 }
 
@@ -242,7 +224,7 @@ export function ApplyCard({ cardRef, patchFiles, entry, applied, progress, failu
       <CollapsibleCard.Content>
         <Stack direction="column" gap="md">
           {applied ? <AppliedPatch applied={applied} /> : null}
-          {progress ? <Progress progress={progress} /> : null}
+          {progress ? <StepList cue={progress.cue} rows={applyStepRows(progress.steps, progress.states)} /> : null}
           {failure ? <Failure failure={failure} /> : null}
           {notice ? (
             // It reports something already settled, so it has outlived its

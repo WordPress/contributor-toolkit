@@ -247,7 +247,7 @@ const shots = [
 	{
 		slug: 'trunk-update-progress',
 		tier: 'live',
-		target: (page) => page.getByText('Updating to latest trunk', { exact: true }).locator('../..'),
+		target: (page) => ui.card(page, 'Updating to latest trunk'),
 		instructions:
 			'Start "Update to latest trunk" on a site and wait until the step list is mid-run.'
 	},
