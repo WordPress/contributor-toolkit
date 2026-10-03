@@ -50,10 +50,10 @@ test( 'a confirmation is shown in the corner and said once, goes by itself when 
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings );
 	await expect( ui.siteMenuButton( page ) ).toBeVisible( { timeout: 30_000 } );
-	// The page's clock can be moved by the test from here on, so that ten
-	// seconds can pass without being waited for. It still runs by itself as
-	// well, so what must not be the passing of time's doing is asked with
-	// less time to wait than a confirmation lasts.
+	// The page's clock can be moved by the test from here on, so that a
+	// confirmation's time can pass without being waited for. It still runs
+	// by itself as well, so what must not be the passing of time's doing is
+	// asked with less time to wait than a confirmation lasts.
 	await page.clock.install();
 	const spoken = await listen( page );
 	const copyPath = async () => {
@@ -70,26 +70,32 @@ test( 'a confirmation is shown in the corner and said once, goes by itself when 
 	await expect( stack.getByText( 'Copied the path', { exact: true } ) ).toBeVisible();
 	await expect.poll( spoken ).toContain( 'polite: Copied the path' );
 
-	// INVARIANT — the same thing done again while it is still said is not
-	// said twice.
-	await copyPath();
-	await page.evaluate( () => window.api.getSitesWithMeta() );
-	await expect( copied ).toHaveCount( 1, { timeout: QUICKLY } );
-
-	// INVARIANT — it stays for as long as it takes to read, and then goes by
-	// itself. Half its time on it is there, with seconds to spare for a
-	// slow machine; its whole time further on it is gone.
+	// INVARIANT — it stays for as long as it takes to read. Half its time
+	// on it is there: asked straight after it appeared, so that the time a
+	// slow machine takes over the steps in between is not counted with it.
 	await page.clock.fastForward( TOAST_LIFETIME_MS / 2 );
 	await expect( copied ).toBeVisible();
-	await page.clock.fastForward( TOAST_LIFETIME_MS );
-	await expect( copied ).toHaveCount( 0, { timeout: QUICKLY } );
+
+	// INVARIANT — the same thing done again while it is still said is not
+	// shown twice, nor said twice. A second one would be both as it
+	// appeared, so both are read at once, after a round trip.
+	await copyPath();
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+	expect( await copied.count() ).toBe( 1 );
 	expect( ( await spoken() ).filter( ( said ) => said.endsWith( 'Copied the path' ) ) ).toHaveLength( 1 );
 
-	// INVARIANT — and it can be dismissed before that, by its own button.
+	// INVARIANT — and then it goes by itself.
+	await page.clock.fastForward( TOAST_LIFETIME_MS );
+	await expect( copied ).toHaveCount( 0, { timeout: QUICKLY } );
+
+	// INVARIANT — and it can be dismissed before that, by its own button,
+	// which goes with it: the focus is left on the stack, and not at the top
+	// of the document.
 	await copyPath();
 	await expect( copied ).toBeVisible();
 	await stack.getByRole( 'button', { name: 'Dismiss', exact: true } ).click();
 	await expect( copied ).toHaveCount( 0, { timeout: QUICKLY } );
+	await expect( stack ).toBeFocused();
 } );
 
 test( 'what did not work is said at once, and stays until it is dismissed', async ( { session } ) => {
@@ -129,6 +135,23 @@ test( 'what did not work is said at once, and stays until it is dismissed', asyn
 	const copied = ui.toast( page, 'Copied the path' );
 	await expect( copied ).toBeVisible();
 	expect( await ui.inDocumentOrder( page, [ said, copied ] ) ).toBe( true );
+
+	// INVARIANT — what a notice's button is called, when the pointer rests
+	// on it, is over the notice above it and not under it: what is topmost
+	// where the tooltip is drawn is the tooltip, at each of its corners.
+	// Its middle would not say: it falls in the gap between two notices.
+	await ui.toasts( page ).getByRole( 'button', { name: 'Dismiss', exact: true } ).last().hover();
+	const tooltip = page.getByText( 'Dismiss', { exact: true } );
+	await expect( tooltip ).toBeVisible();
+	expect( await tooltip.evaluate( ( tip ) => {
+		const box = tip.getBoundingClientRect();
+		const corners = [ [ box.left + 1, box.top + 1 ], [ box.right - 1, box.top + 1 ], [ box.left + 1, box.bottom - 1 ], [ box.right - 1, box.bottom - 1 ] ];
+		return corners.map( ( [ x, y ] ) => {
+			const topmost = document.elementFromPoint( x, y );
+			return topmost === tip || tip.contains( topmost ) || topmost.contains( tip );
+		} );
+	} ) ).toEqual( [ true, true, true, true ] );
+	await page.mouse.move( 5, 5 );
 	await page.clock.fastForward( TOAST_LIFETIME_MS + 1000 );
 	await expect( copied ).toHaveCount( 0, { timeout: QUICKLY } );
 	await expect( said ).toBeVisible();

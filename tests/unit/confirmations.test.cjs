@@ -171,8 +171,9 @@ test('a confirmation is a green toast that clears itself, and an error a red one
 	assert.deepStrictEqual(toastView(added('success')), { intent: 'success', lifetime: TOAST_LIFETIME_MS });
 	assert.deepStrictEqual(toastView(added('error')), { intent: 'error', lifetime: null });
 	assert.deepStrictEqual(toastView(added(undefined)), { intent: 'success', lifetime: TOAST_LIFETIME_MS });
-	// Long enough to be read, and not so long as to pile up.
-	assert.strictEqual(TOAST_LIFETIME_MS, 10000);
+	// As long as the snackbars before it stayed: long enough to be read, and
+	// not so long as to pile up.
+	assert.strictEqual(TOAST_LIFETIME_MS, 6000);
 });
 
 test('every sentence this module words goes through the translator, around what it names', (t) => {

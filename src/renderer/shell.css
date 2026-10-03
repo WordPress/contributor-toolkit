@@ -498,15 +498,12 @@ body {
   margin: 0 0 var(--wpds-dimension-gap-md, 12px);
 }
 
-/* The window's toasts (#253): over everything but a popover, in the corner
-   the page's actions are not in, and clear of the footer. The wrapper lets
-   clicks through, and a toast takes its own, which the library sees to. It
-   is drawn on `body` and not inside `#root`, which is a stacking context of
-   its own: this has to rise over a dialog, which is drawn on `body` too, so
-   that what was done inside one is still confirmed. */
-/* The window's confirmations (#557): notices stacked in the bottom corner,
-   above the footer, the newest nearest the corner. The stack lets a press
-   through where it has no notice. */
+/* The window's confirmations (#253, #557): notices stacked in the bottom
+   corner, the one the page's actions are not in, above the footer, the
+   newest nearest the corner. The stack lets a press through where it has no
+   notice. It is drawn on `body` and not inside `#root`, which is a stacking
+   context of its own: this has to rise over a dialog, which is drawn on
+   `body` too, so that what was done inside one is still confirmed. */
 .toast-stack {
   position: fixed;
   inset-inline-end: var(--wpds-dimension-padding-2xl, 24px);
@@ -528,6 +525,18 @@ body {
 
 .toast-stack button {
   margin-right: 0;
+}
+
+/* The focus is put on the stack when a notice is dismissed, to keep it
+   from the top of the document, and not for the stack to be seen as chosen. */
+.toast-stack:focus {
+  outline: none;
+}
+
+/* A tooltip is over everything, a notice of the stack included: the one a
+   notice's own button has would otherwise be under the notice above it. */
+:root {
+  --wp-ui-tooltip-z-index: 1000000;
 }
 
 @media (prefers-reduced-motion: reduce) {

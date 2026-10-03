@@ -148,8 +148,9 @@ function CreateSiteForm({ formId, submitting, onCreate }) {
  * stays until the setup has ended, as it did before it was redrawn.
  *
  * The message under the form is the dialog's own complaint about a missing
- * answer. Why a setup failed is not said here: by then the dialog has long
- * closed, and the window says it in its corner (#557).
+ * answer. Why a setup failed is not said here: the dialog that asked for it
+ * closed as it began, and the window says it in its corner (#557), whether
+ * or not a dialog happens to be open by then.
  *
  * @param {Object}   props
  * @param {boolean}  props.open       Whether the dialog is open.

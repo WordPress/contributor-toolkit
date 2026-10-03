@@ -180,8 +180,9 @@ function savedAndResetMessage(fileName) {
 	return sprintf(__('Saved your changes to %s and reset the working tree'), fileName);
 }
 
-// How long a confirmation that clears itself is on screen.
-const TOAST_LIFETIME_MS = 10000;
+// How long a confirmation that clears itself is on screen: what the
+// snackbars before it had (#253).
+const TOAST_LIFETIME_MS = 6000;
 
 /**
  * How a confirmation is drawn as a toast: the notice's colour, and how long
