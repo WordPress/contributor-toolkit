@@ -199,7 +199,7 @@ test( "deleting a ticket's work removes only that ticket", async ( { session } )
 
 	const row = ui.ticketRow( page, '60002' );
 	await expect( row ).toBeVisible();
-	await row.getByRole( 'button', { name: "Delete this ticket's work", exact: true } ).click();
+	await ui.deleteWorkButton( page, '60002' ).click();
 
 	await expect
 		.poll( () => branches( site.dir ), { timeout: 30_000 } )

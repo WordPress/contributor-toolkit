@@ -1,22 +1,25 @@
 'use strict';
 
 /**
- * What the Trac ticket panel shows about the tickets that already have work on
- * a site (issue #108). The main process reports the branches on disk; this
- * module turns that report into the rows the panel renders — which branches
- * count, in what order, and with what "edited N days ago" note.
+ * What the site's view shows about the tickets that already have work on a
+ * site (issue #108). The main process reports the branches on disk; this
+ * module turns that report into the rows the list renders — which branches
+ * count, in what order, and with what "Edited 2 days ago" note — and holds
+ * what the list's card says (#557).
  *
- * Kept as a pure, dependency-free module so it can be unit tested without a
- * DOM: the renderer bundle imports it, `node --test` requires it directly
- * (same convention as trac-ticket.cjs and update-plan.cjs).
+ * Kept as a pure module so it can be unit tested without a DOM: the renderer
+ * bundle imports it, `node --test` requires it directly (same convention as
+ * trac-ticket.cjs and update-plan.cjs).
  */
+
+const { __, _n, sprintf } = require('@wordpress/i18n');
 
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
 
 /**
- * "edited 2 days ago", for a branch's lastUsedAt.
+ * "Edited 2 days ago", for a branch's lastUsedAt.
  *
  * Hand-rolled buckets rather than Intl.RelativeTimeFormat: the buckets are the
  * whole behaviour, and with an injected `now` they are testable to the
@@ -35,20 +38,24 @@ function relativeTimeLabel(iso, now) {
 	const then = Date.parse(iso);
 	if (Number.isNaN(then)) return null;
 	const elapsed = now - then;
-	if (elapsed < MINUTE_MS) return 'edited just now';
+	if (elapsed < MINUTE_MS) return __('Edited just now');
 	if (elapsed < HOUR_MS) {
 		const minutes = Math.floor(elapsed / MINUTE_MS);
-		return `edited ${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+		// translators: %d: a number of minutes.
+		return sprintf(_n('Edited %d minute ago', 'Edited %d minutes ago', minutes), minutes);
 	}
 	if (elapsed < DAY_MS) {
 		const hours = Math.floor(elapsed / HOUR_MS);
-		return `edited ${hours} hour${hours === 1 ? '' : 's'} ago`;
+		// translators: %d: a number of hours.
+		return sprintf(_n('Edited %d hour ago', 'Edited %d hours ago', hours), hours);
 	}
 	if (elapsed < 7 * DAY_MS) {
 		const days = Math.floor(elapsed / DAY_MS);
-		return `edited ${days} day${days === 1 ? '' : 's'} ago`;
+		// translators: %d: a number of days.
+		return sprintf(_n('Edited %d day ago', 'Edited %d days ago', days), days);
 	}
-	return `edited on ${new Date(then).toLocaleDateString()}`;
+	// translators: %s: a date, written the way the computer writes dates.
+	return sprintf(__('Edited on %s'), new Date(then).toLocaleDateString());
 }
 
 /**
@@ -62,7 +69,7 @@ function relativeTimeLabel(iso, now) {
  * disagree — `current` arrives with the branch list, which is loaded
  * asynchronously and can be stale for a moment after a switch, while the
  * linked ticket is what the panel is already showing. Seen in manual testing
- * as "You also have work on #59234" while linked to #59234. When the site is
+ * as a row for #59234 while linked to #59234. When the site is
  * on trunk with no ticket, neither matches and every ticket is offered —
  * which is exactly right for the unlinked state.
  *
@@ -75,7 +82,7 @@ function relativeTimeLabel(iso, now) {
  * @param {?string} input.current    The checked-out ref, or null.
  * @param {?number} input.tracTicket The ticket the panel is linked to, or null.
  * @param {number}  input.now        Epoch milliseconds, injected for tests.
- * @return {Array<{ref: string, ticketId: number, timeLabel: ?string}>}
+ * @return {Array<{ref: string, ticketId: number, number: string, timeLabel: ?string}>}
  */
 function ticketBranchRows({ branches, current, tracTicket, now }) {
 	return (Array.isArray(branches) ? branches : [])
@@ -92,6 +99,9 @@ function ticketBranchRows({ branches, current, tracTicket, now }) {
 		.map((b) => ({
 			ref: b.ref,
 			ticketId: b.ticketId,
+			// What the row is called on screen, and what its buttons are named
+			// after.
+			number: `#${b.ticketId}`,
 			timeLabel: relativeTimeLabel(b.lastUsedAt || null, now)
 		}));
 }
@@ -130,33 +140,66 @@ function savedPrForSwitch({ branches, ticketId, linkedTicket = null, currentPr =
 }
 
 /**
- * Whether the site's tickets get a card of their own, and under what heading
- * (#240). The list left the Trac ticket card because only one of its sections
- * described the ticket in front of you — this one lists everywhere else you
- * could be. Its heading still changes with the state: with a ticket linked the
- * rows are the *other* tickets, with none linked they are *your* tickets and
- * the primary way to start.
+ * Whether the site's tickets get a card of their own, and what it says
+ * (#240, #557). The list left the Trac ticket card because only one of its
+ * sections described the ticket in front of you — this one lists everywhere
+ * else you could be. Its heading changes with the state, and so does what a
+ * row offers: with a ticket linked the rows are the *other* tickets, and one
+ * is switched to; with none linked they are *your* tickets, the primary way
+ * to start, and one is gone on with.
+ *
+ * A row's buttons say what they do and not to which ticket: each is named by
+ * the component with its words and then its row's number, the two as they are
+ * on screen.
  *
  * Returns null when there are no rows — an empty card with nothing but a
  * heading is worse than no card, and unlike the input field it used to share a
  * card with, this card has nothing else to justify the space.
  *
  * @param {Object}  input
- * @param {number}  input.rowCount How many rows ticketBranchRows produced.
- * @param {boolean} input.linked   Whether a ticket is linked to the site.
- * @param {string}  [input.noun]   What the site calls its work item (#251): `ticket` unless told `issue`.
- * @return {?{heading: string}} What the card says, or null for no card.
+ * @param {number}  input.rowCount   How many rows ticketBranchRows produced.
+ * @param {boolean} input.linked     Whether a ticket is linked to the site.
+ * @param {string}  [input.provider] What the site's work items are (#251): Trac tickets unless told 'github-issue'.
+ * @return {?{heading: string, action: string, remove: string, removing: string}} What the card says, or null for no card.
  */
-function ticketListCard({ rowCount, linked, noun = 'ticket' }) {
+function ticketListCard({ rowCount, linked, provider = 'trac' }) {
 	if (!rowCount) return null;
-	return {
-		heading: linked ? `Other ${noun}s on this site` : `Your ${noun}s on this site`
+	const issues = provider === 'github-issue';
+	const shared = {
+		action: linked ? __('Switch') : __('Continue working'),
+		// What a busy button says to a screen reader, in place of its spinner.
+		removing: __('Deleting')
 	};
+	if (issues) {
+		return {
+			...shared,
+			heading: linked ? __('Other issues on this site') : __('Your issues on this site'),
+			remove: __('Delete this issue’s work')
+		};
+	}
+	return {
+		...shared,
+		heading: linked ? __('Other tickets on this site') : __('Your tickets on this site'),
+		remove: __('Delete this ticket’s work')
+	};
+}
+
+/**
+ * What is asked before a ticket's work is deleted. The branch and everything
+ * on it go, and nothing brings them back.
+ *
+ * @param {number} ticketId The ticket or the issue.
+ * @return {string} The question.
+ */
+function deleteWorkQuestion(ticketId) {
+	// translators: %d: the number of a Trac ticket or a GitHub issue.
+	return sprintf(__('Delete all work on #%d on this site? This cannot be undone.'), ticketId);
 }
 
 module.exports = {
 	relativeTimeLabel,
 	ticketBranchRows,
 	savedPrForSwitch,
-	ticketListCard
+	ticketListCard,
+	deleteWorkQuestion
 };

@@ -108,13 +108,10 @@ test( "a site's tickets survive a restart, with the base each patch is measured 
 	// A ticket that survives in Git but not in the app is work a contributor
 	// cannot reach from the interface.
 	await expect( ui.workItemNumber( reopened, '60002' ).first() ).toBeVisible( { timeout: 30_000 } );
-	// Matched on the sentence rather than on a button label: the row for another
-	// ticket reads "Continue working on #N" when nothing is linked and "You also
-	// have work on #N — switch" when something is, and after this restart
-	// something is.
-	await expect( reopened.getByText( /You also have work on #60001/ ).first() ).toBeVisible( {
-		timeout: 30_000,
-	} );
+	// The row for another ticket offers to continue it when nothing is linked
+	// and to switch to it when something is, and after this restart something
+	// is.
+	await expect( ui.switchBackButton( reopened, '60001' ) ).toBeVisible( { timeout: 30_000 } );
 
 	// CHARACTERISATION — and each branch keeps the commit its patch is measured
 	// from. Losing this is what #317 was: a ticket whose base is unknown can no
