@@ -404,6 +404,14 @@ body {
   color: var(--wpds-color-foreground-content-neutral-weak, #707070);
 }
 
+/* What went wrong, said in a line of its own where a notice would be too
+   much: under the sentence it follows, and not run on from it. */
+.error-text {
+  display: block;
+  margin-block-start: var(--wpds-dimension-gap-xs, 4px);
+  color: var(--wpds-color-foreground-content-error, #cc1818);
+}
+
 .path-meta {
   flex: 1;
   min-width: 0;
@@ -455,6 +463,9 @@ body {
 .ticket-list-card button,
 .apply-card button,
 .apply-preview-dialog button,
+.page-notice button,
+.setup-checklist button,
+.trunk-update-card button,
 .create-site-dialog button,
 .rename-site-dialog button,
 .confirm-dialog button,
@@ -553,6 +564,8 @@ body {
 .ticket-card h2,
 .ticket-card h3,
 .ticket-list-card h2,
+.setup-checklist h2,
+.trunk-update-card h2,
 .apply-card h2 {
   margin: 0;
 }
@@ -728,9 +741,10 @@ body {
   margin-block-end: -1px;
 }
 
-/* The steps of an apply, each with room before it for its mark. Framed, so
-   that the next-action ring has something to go round. */
-.apply-steps {
+/* The steps of an apply, or of an update of trunk, each with room before it
+   for its mark. Framed, so that the next-action ring has something to go
+   round. */
+.step-list {
   list-style: none;
   margin: 0;
   padding: var(--wpds-dimension-padding-md, 12px) var(--wpds-dimension-padding-lg, 16px);
@@ -741,23 +755,23 @@ body {
   gap: var(--wpds-dimension-gap-xs, 4px);
 }
 
-.apply-step {
+.step-list-step {
   display: flex;
   align-items: center;
   gap: var(--wpds-dimension-gap-sm, 8px);
   color: var(--wpds-color-foreground-content-neutral-weak, #707070);
 }
 
-.apply-step.is-complete,
-.apply-step.is-current {
+.step-list-step.is-complete,
+.step-list-step.is-current {
   color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
 }
 
-.apply-step.is-current {
+.step-list-step.is-current {
   font-weight: var(--wpds-typography-font-weight-emphasis, 600);
 }
 
-.apply-step-mark {
+.step-list-mark {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -766,8 +780,59 @@ body {
   height: 16px;
 }
 
-.apply-step.is-complete .apply-step-mark {
+.step-list-step.is-complete .step-list-mark {
   color: var(--wpds-color-foreground-content-success-weak, #007f30);
+}
+
+/* The checklist a new site is set up by (#557): one row a step, with what
+   stands for its state, what it is, and its button at the end. */
+.setup-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-sm, 8px);
+}
+
+.setup-step {
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-lg, 16px);
+  padding: var(--wpds-dimension-padding-md, 12px) var(--wpds-dimension-padding-lg, 16px);
+  border: var(--wpds-border-width-xs, 1px) solid var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
+  border-radius: var(--wpds-border-radius-lg, 8px);
+}
+
+.setup-step-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--wpds-dimension-size-sm, 24px);
+  height: var(--wpds-dimension-size-sm, 24px);
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+.setup-step.is-complete .setup-step-mark {
+  color: var(--wpds-color-foreground-content-success-weak, #007f30);
+}
+
+.setup-step.is-failed .setup-step-mark {
+  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
+}
+
+.setup-step-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.setup-step-label {
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+}
+
+.setup-step-action {
+  flex: 0 0 auto;
 }
 
 /* Paths and lines of code are one word each to a browser, and longer than
