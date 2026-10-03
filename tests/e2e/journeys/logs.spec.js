@@ -100,6 +100,20 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	// though the file does, and there is nothing to copy, reveal or clear.
 	await debugTab().click();
 	await expect( empty ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — the logs are a region of the page, named by its heading,
+	// and a pane is the design system's weak surface, the one the terminal
+	// above it has (#557).
+	await expect( page.getByRole( 'region', { name: 'Logs', exact: true } ).getByRole( 'heading', { level: 2, name: 'Logs', exact: true } ) ).toBeVisible();
+	const tokenColour = ( token ) => page.evaluate( ( expression ) => {
+		const probe = document.createElement( 'span' );
+		probe.style.color = expression;
+		document.body.appendChild( probe );
+		const colour = window.getComputedStyle( probe ).color;
+		probe.remove();
+		return colour;
+	}, token );
+	expect( await empty.locator( '..' ).evaluate( ( pane ) => window.getComputedStyle( pane ).backgroundColor ) ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral-weak)' ) );
 	await expect( logs.getByText( 'The log file appears once the dev server has run.', { exact: true } ) ).toBeVisible();
 	await expect( showInFolder ).toBeDisabled();
 	await expect( copy ).toBeDisabled();
@@ -128,6 +142,17 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	await expect( line( 'PHP Warning: seen as it arrives' ) ).toBeVisible();
 	await heard( page );
 	await expect( debugTab() ).toBeVisible();
+
+	// INVARIANT — a line is coloured by what it is, in the design system's
+	// colours (#557): a warning in the warning's, the notice left by the
+	// earlier run in the caution's, and the two are not the same. The words
+	// say it too; the colour is a second telling.
+	const colourOf = ( locator ) => locator.evaluate( ( element ) => window.getComputedStyle( element ).color );
+	const warning = await tokenColour( 'var(--wpds-color-foreground-content-warning-weak)' );
+	const caution = await tokenColour( 'var(--wpds-color-foreground-content-caution-weak)' );
+	expect( await colourOf( line( 'PHP Warning: seen as it arrives' ) ) ).toBe( warning );
+	expect( await colourOf( line( 'PHP Notice: left by an earlier run' ) ) ).toBe( caution );
+	expect( warning ).not.toBe( caution );
 
 	// INVARIANT — and two that arrive unseen are counted as two.
 	await serverTab.click();

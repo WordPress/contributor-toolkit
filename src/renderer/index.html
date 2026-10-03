@@ -4,68 +4,6 @@
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'"> 
   <title>WordPress Contributor Toolkit</title>
-  <style>
-    :root { color: #000; }
-    html, body { height: 100%; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
-      margin: 0;
-    }
-    button { margin-right: 8px; }
-    .row { margin-bottom: 12px; }
-    .site { border: 1px solid #ddd; padding: 8px; margin-bottom: 8px; border-radius: 6px; }
-    .path { font-family: Menlo, monospace; font-size: 12px; color: #333; word-break: break-all; }
-    #log { white-space: pre-wrap; background: #111; color: #eee; padding: 12px; border-radius: 6px; height: 220px; overflow: auto; }
-    .patch-modal-header .components-modal__header-heading { color: #1e1e1e !important; }
-    /*
-      The patch screen's two columns (#186): the diff takes the room and where
-      it can go stands beside it.
-
-      A media query rather than flex-wrap, which was tried first and cannot do
-      this. Wrapping keeps both columns on one flex line whose height is fixed
-      by the modal, so the wrapped sidebar had nowhere to go and the diff
-      overlapped it. Stacking has to change what scrolls as well as what sits
-      where: side by side the sidebar scrolls alone and the diff stays put;
-      stacked, the pair scrolls as one and the diff keeps a floor so it cannot
-      collapse to a sliver above the destinations.
-
-      The breakpoint is where a 300px sidebar starts squeezing the code rather
-      than sitting next to it, which is what the screen is for.
-    */
-    .patch-columns { display: flex; gap: 16px; flex: 1; min-height: 0; align-items: stretch; }
-    .patch-columns > .patch-diff { flex: 2 1 460px; min-width: 0; display: flex; flex-direction: column; min-height: 0; gap: 8px; }
-    .patch-columns > .patch-destinations { flex: 1 1 340px; min-width: 300px; max-width: 460px; display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; }
-    @media (max-width: 900px) {
-      .patch-columns { flex-direction: column; overflow-y: auto; }
-      /*
-        A definite height, not a minimum: the diff pane fills its column with
-        `height: 100%`, and a percentage against a parent whose own height is
-        content-derived resolves to nothing — the pane then grew past the
-        column and sat on top of the destinations below it.
-      */
-      .patch-columns > .patch-diff { flex: none; height: 340px; }
-      .patch-columns > .patch-destinations { flex: none; max-width: none; overflow-y: visible; }
-    }
-    .components-dropdown-menu__toggle { display: flex; flex-direction: row-reverse; gap: 4px; }
-    /*
-      The cue that points a contributor at the next thing to do (#252). The
-      render puts `.next-action-cue` on exactly one block — whichever the
-      resolver named — and the cue hook scrolls it into view. A soft amber glow
-      marks it: subtle, no motion, and it sits over the block's own background
-      rather than replacing it, so a coloured banner (the red "update
-      incomplete", say) keeps its meaning. The block's own status text names the
-      step, so the glow carries no label. No animation, so nothing here needs a
-      reduced-motion guard; the only movement is the scroll, gated in the hook.
-
-      `border-radius` here only rounds the glow around the wrapped action
-      buttons, which set none of their own. The blocks set their radius inline,
-      which the glow follows and this does not override.
-    */
-    .next-action-cue {
-      border-radius: 10px;
-      box-shadow: 0 0 0 3px rgba(240, 184, 73, 0.45), 0 0 14px 3px rgba(240, 184, 73, 0.30);
-    }
-  </style>
   <link rel="stylesheet" href="index.css" />
   <script defer src="index.js"></script>
   <script>window.addEventListener('error', e => { console.error(e.error || e.message) })</script>
@@ -78,8 +16,8 @@
   <meta http-equiv="Permissions-Policy" content="clipboard-read=(self), clipboard-write=(self)" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!--
-    `light`, not `light dark`: this window has no dark theme. Every surface in
-    it is painted light by hand — white cards, #1e1e1e text — and
+    `light`, not `light dark`: this window has no dark theme yet (#560). Its
+    surfaces take the design system's colours, which are the light theme's, and
     @wordpress/components ships light styles only. Declaring support for both
     let the browser paint the parts it owns, the native form controls, to match
     the OS instead. On a machine in dark mode that produced charcoal inputs on

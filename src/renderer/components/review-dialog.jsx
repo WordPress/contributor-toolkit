@@ -59,7 +59,6 @@ export function ReviewDialog({
       onRequestClose={onClose}
       shouldCloseOnClickOutside
       isFullScreen
-      headerClassName="patch-modal-header"
     >
       <div style={{ display:'flex', flexDirection:'column', height:'80vh', gap:12 }}>
         {!loading && age.stale && (
@@ -91,7 +90,7 @@ export function ReviewDialog({
           here on top of the destinations this app has now.
 
           The column widths, the stacking breakpoint and what scrolls in each
-          case are in index.html — a media query can express them and an inline
+          case are in shell.css — a media query can express them and an inline
           style cannot. `min-width: 0` there is load-bearing on a flex child
           holding a <pre>: without it the diff's longest line sets the column's
           floor and pushes the destinations off the modal instead of scrolling.

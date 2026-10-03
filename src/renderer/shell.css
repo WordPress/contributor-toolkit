@@ -449,28 +449,11 @@ body {
   }
 }
 
-/* `index.html` still gives every `button` an 8px right margin, which the old
-   site view's rows of buttons lean on until that view is rebuilt (#557). The
-   shell's own buttons are placed by what holds them, and the margin put each
-   of them 8px out: a row's click area stopped short of its edge, and the one
-   button of an empty window sat off its centre. */
-.sites-sidebar button,
-.sites-list-toggle,
-.site-header-actions button,
-.dashboard-sidebar button,
-.page-body-center button,
-.ticket-card button,
-.ticket-list-card button,
-.apply-card button,
-.apply-preview-dialog button,
-.page-notice button,
-.setup-checklist button,
-.trunk-update-card button,
-.create-site-dialog button,
-.rename-site-dialog button,
-.confirm-dialog button,
-.app-footer button {
-  margin-right: 0;
+/* The older library's dialogs still lean on a margin between their buttons,
+   which the page's own stylesheet used to give every `button` in the window.
+   It is theirs alone now, until they are redrawn (#557). */
+.components-modal__frame .components-button {
+  margin-right: var(--wpds-dimension-gap-sm, 8px);
 }
 
 .app-footer {
@@ -509,6 +492,242 @@ body {
   margin: 0 0 var(--wpds-dimension-gap-md, 12px);
 }
 
+/* The cue that points a contributor at the next thing to do (#252). The
+   render puts `.next-action-cue` on exactly one block, whichever the resolver
+   named, and the cue hook scrolls it into view. A soft amber ring marks it:
+   no motion, and over the block's own background, so a coloured notice keeps
+   its meaning. The block's own text names the step, so the ring carries no
+   label. The ring is the design system's warning stroke, and rounded as its
+   cards and notices are. */
+.next-action-cue {
+  border-radius: var(--wpds-border-radius-lg, 8px);
+  box-shadow:
+    0 0 0 3px var(--wpds-color-stroke-surface-warning, #e1bd7c),
+    0 0 14px 3px color-mix(in srgb, var(--wpds-color-stroke-surface-warning, #e1bd7c) 60%, transparent);
+}
+
+/* The review dialog's two columns (#186): the diff takes the room and where
+   it can go stands beside it.
+
+   A media query rather than flex-wrap, which was tried first and cannot do
+   this. Wrapping keeps both columns on one flex line whose height is fixed
+   by the modal, so the wrapped sidebar had nowhere to go and the diff
+   overlapped it. Stacking has to change what scrolls as well as what sits
+   where: side by side the sidebar scrolls alone and the diff stays put;
+   stacked, the pair scrolls as one and the diff keeps a floor so it cannot
+   collapse to a sliver above the destinations.
+
+   The breakpoint is where a 300px sidebar starts squeezing the code rather
+   than sitting next to it, which is what the screen is for. */
+.patch-columns {
+  display: flex;
+  gap: var(--wpds-dimension-gap-lg, 16px);
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.patch-columns > .patch-diff {
+  flex: 2 1 460px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: var(--wpds-dimension-gap-sm, 8px);
+}
+
+.patch-columns > .patch-destinations {
+  flex: 1 1 340px;
+  min-width: 300px;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-md, 12px);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .patch-columns {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  /* A definite height, not a minimum: the diff pane fills its column with
+     `height: 100%`, and a percentage against a parent whose own height is
+     content-derived resolves to nothing — the pane then grew past the
+     column and sat on top of the destinations below it. */
+  .patch-columns > .patch-diff {
+    flex: none;
+    height: 340px;
+  }
+
+  .patch-columns > .patch-destinations {
+    flex: none;
+    max-width: none;
+    overflow-y: visible;
+  }
+}
+
+/* What the window says that is about no one site, above the page: each
+   with room under it before the next thing. */
+.window-notice {
+  margin-block-end: var(--wpds-dimension-padding-2xl, 24px);
+}
+
+/* The last of them in a window with no site has the block's own padding
+   under it, and needs no more. */
+.page-body-notices > .window-notice:last-child {
+  margin-block-end: 0;
+}
+
+/* A site's view, with room under its last panel. */
+.site-view {
+  padding-block-end: var(--wpds-dimension-padding-3xl, 32px);
+}
+
+/* The terminal, the logs and the mail, under a site's cards (#557). They
+   move to the tray (#558); until then they are the design system's surface
+   and its type, as the tray will have them. */
+.site-panel-title {
+  margin: 0;
+}
+
+/* What a process printed: the design system's weak surface, in its
+   monospace, as tall as a dozen lines, and scrolled. */
+.log-pane,
+.terminal-pane {
+  height: 220px;
+  border-radius: var(--wpds-border-radius-md, 4px);
+  background: var(--wpds-color-background-surface-neutral-weak, #f4f4f4);
+  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+}
+
+.log-pane {
+  padding: var(--wpds-dimension-padding-md, 12px);
+  overflow: auto;
+  font-family: var(--wpds-typography-font-family-mono, monospace);
+  font-size: var(--wpds-typography-font-size-md, 13px);
+  line-height: var(--wpds-typography-line-height-sm, 20px);
+  white-space: pre-wrap;
+}
+
+.log-pane.is-short {
+  height: 140px;
+}
+
+/* The terminal draws its own rows, eighty columns of them, and scrolls
+   sideways where its column is narrower. */
+.terminal-pane {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* What an empty pane says of itself is the app speaking, not a process, and
+   is in the app's own type. */
+.log-pane-note {
+  font-family: var(--wpds-typography-font-family-body, sans-serif);
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+.log-line {
+  display: block;
+}
+
+.log-line.is-fatal {
+  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
+}
+
+.log-line.is-warning {
+  color: var(--wpds-color-foreground-content-warning-weak, #936300);
+}
+
+.log-line.is-deprecated,
+.log-line.is-notice {
+  color: var(--wpds-color-foreground-content-caution-weak, #836a00);
+}
+
+.log-line.is-trace,
+.log-stamp {
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+.log-line.is-ready {
+  color: var(--wpds-color-foreground-content-success-weak, #007f30);
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+}
+
+/* A path is one word to a browser, and is there to be copied. */
+.log-path {
+  flex: 1 1 240px;
+  font-size: var(--wpds-typography-font-size-xs, 11px);
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* A command in a sentence, which types itself at the prompt when pressed.
+   Named with the link's own class, which says to take the sentence's font. */
+.link-button.command-link {
+  font-family: var(--wpds-typography-font-family-mono, monospace);
+}
+
+/* The mail the site sent: a framed list, one row a message, each row a
+   button. */
+.mail-list {
+  max-height: 220px;
+  overflow: auto;
+  border: var(--wpds-border-width-xs, 1px) solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+  border-radius: var(--wpds-border-radius-md, 4px);
+}
+
+.mail-row {
+  display: flex;
+  gap: var(--wpds-dimension-gap-sm, 8px);
+  padding: var(--wpds-dimension-padding-sm, 8px) var(--wpds-dimension-padding-md, 12px);
+  cursor: var(--wpds-cursor-control, pointer);
+  font-size: var(--wpds-typography-font-size-sm, 12px);
+}
+
+.mail-row + .mail-row {
+  border-block-start: var(--wpds-border-width-xs, 1px) solid var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
+}
+
+.mail-row:hover {
+  background: var(--wpds-color-background-interactive-neutral-weak-active, #ededed);
+}
+
+.mail-row:focus-visible {
+  outline: var(--wpds-border-width-focus, 2px) solid var(--wpds-color-stroke-focus, #3858e9);
+  outline-offset: calc(-1 * var(--wpds-border-width-focus, 2px));
+}
+
+.mail-when {
+  flex: 0 0 180px;
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+.mail-from {
+  flex: 0 0 220px;
+}
+
+.mail-subject {
+  flex: 1 1 auto;
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+}
+
+.mail-from,
+.mail-subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mail-empty {
+  display: block;
+  padding: var(--wpds-dimension-padding-md, 12px);
+}
+
 /* The window's confirmations (#253, #557): notices stacked in the bottom
    corner, the one the page's actions are not in, above the footer, the
    newest nearest the corner. The stack lets a press through where it has no
@@ -532,10 +751,6 @@ body {
   pointer-events: auto;
   overflow-wrap: anywhere;
   box-shadow: var(--wpds-elevation-md, 0 4px 12px rgba(0, 0, 0, 0.16));
-}
-
-.toast-stack button {
-  margin-right: 0;
 }
 
 /* The focus is put on the stack when a notice is dismissed, to keep it

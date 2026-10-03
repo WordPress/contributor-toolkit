@@ -4,9 +4,6 @@ import { createRoot } from 'react-dom/client';
 import {
   Button,
   TabPanel,
-  Card,
-  CardBody,
-  Flex,
   SlotFillProvider
 } from '@wordpress/components';
 import { Page } from '@wordpress/admin-ui';
@@ -14,7 +11,7 @@ import { __, _x, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
 import { drawerLeft, globe } from '@wordpress/icons';
 import { ThemeProvider } from '@wordpress/theme';
-import { Badge, Button as UiButton, EmptyState, IconButton, Notice, Spinner as UiSpinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
+import { Badge, Button as UiButton, Card as UiCard, EmptyState, IconButton, Notice, Spinner as UiSpinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
 // The design system's tokens: every `--wpds-*` custom property, at its default,
 // on `:root`.
 import '@wordpress/theme/design-tokens.css';
@@ -86,7 +83,7 @@ import { useSites } from './hooks/use-sites.jsx';
 import { usePullRequest } from './hooks/use-pull-request.jsx';
 import { useSiteMail } from './hooks/use-site-mail.jsx';
 import { useSiteLogs } from './hooks/use-site-logs.jsx';
-import { useSiteTerminal, TERMINAL_FONT } from './hooks/use-site-terminal.jsx';
+import { useSiteTerminal } from './hooks/use-site-terminal.jsx';
 import { useSiteScripts } from './hooks/use-site-scripts.jsx';
 import { useBuildWatch } from './hooks/use-build-watch.jsx';
 import { useDevServer } from './hooks/use-dev-server.jsx';
@@ -96,9 +93,6 @@ import { useSiteTicket } from './hooks/use-site-ticket.jsx';
 import { useApplyPatch } from './hooks/use-apply-patch.jsx';
 import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
-// Shared by every log pane so the tabs cannot drift apart visually. The line
-// height is looser than xterm's: this is wrapped text in a div, not painted rows.
-const LOG_PANE_STYLE = { ...TERMINAL_FONT, lineHeight: 1.4, whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 12, borderRadius: 6, height: 220, overflow: 'auto' };
 // What the Copy button says about the press just made. Keyed rather than
 // nested ternaries, so a fourth state is a line here instead of another branch
 // in the middle of the JSX.
@@ -504,50 +498,52 @@ function App() {
   const windowNotices = (
     <>
       {webAvailable ? (
-        <Flex align="center" justify="flex-end" style={{ gap: 8, marginBottom: 24 }}>
-          <Button
-            isBusy={webStarting}
-            variant={webUrl ? 'secondary' : 'primary'}
+        <Stack direction="row" align="center" justify="flex-end" gap="sm" className="window-notice">
+          <UiButton
+            loading={webStarting}
+            loadingAnnouncement="Starting the Playground web server"
+            variant={webUrl ? 'outline' : 'solid'}
+            tone={webUrl ? 'neutral' : 'brand'}
             onClick={togglePlaygroundWeb}
-          >{webUrl ? 'Stop Playground web server' : 'Start Playground web server'}</Button>
+          >{webUrl ? 'Stop Playground web server' : 'Start Playground web server'}</UiButton>
           {webStarting || webUrl ? (
-            <span style={{ fontSize: 12 }}>
+            <Text variant="body-sm">
               {webStarting ? 'Starting…' : (
                 <a href={webUrl || 'http://127.0.0.1:39372/'} onClick={(e) => { e.preventDefault(); window.api.openExternal(webUrl || 'http://127.0.0.1:39372/'); }}>{webUrl || 'http://127.0.0.1:39372/'}</a>
               )}
-            </span>
+            </Text>
           ) : null}
-        </Flex>
+        </Stack>
       ) : null}
 
       {/* Playground web server status + logs */}
       {(webStarting || webUrl || webError || webLogs) ? (
-        <Card style={{ marginBottom: 24 }}>
-          <CardBody>
-            <div style={{ display:'flex', alignItems:'center', gap:8, justifyContent:'space-between' }}>
-              <div style={{ fontWeight: 600 }}>Playground web server</div>
-              <div style={{ fontSize:12, color:'#666' }}>
+        <UiCard.Root className="window-notice">
+          <UiCard.Content render={<Stack direction="column" gap="sm" />}>
+            <Stack direction="row" align="center" justify="space-between" gap="sm">
+              <Text variant="heading-md">Playground web server</Text>
+              <Text variant="body-sm" className="muted-label">
                 {webStarting ? 'Starting…' : null}
                 {!webStarting && webUrl ? (
                   <a href={webUrl} onClick={(e)=>{ e.preventDefault(); window.api.openExternal(webUrl); }}>{webUrl}</a>
                 ) : null}
                 {!webStarting && !webUrl ? 'Stopped' : null}
-              </div>
-            </div>
-            {webError ? (<div style={{ marginTop:6, color:'#C00', fontSize:12 }}>{webError}</div>) : null}
-            <div ref={webLogRef} style={{ ...LOG_PANE_STYLE, marginTop:8, padding:8, height:140 }}><LogText text={webLogs} /></div>
-          </CardBody>
-        </Card>
+              </Text>
+            </Stack>
+            {webError ? <Text variant="body-sm" className="error-text">{webError}</Text> : null}
+            <div ref={webLogRef} className="log-pane is-short"><LogText text={webLogs} /></div>
+          </UiCard.Content>
+        </UiCard.Root>
       ) : null}
 
       {pendingSites.length > 0 && (
-        <Card style={{ marginBottom: 24 }}>
-          <CardBody>
-            <div style={{ fontWeight: 600 }}>Setting up new site…</div>
-            {downloadPhase && <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>{downloadPhase}</div>}
-            <div ref={termRef} style={{ whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 8, borderRadius: 6, height: 140, overflow: 'auto' }}>{terminalMsgs}</div>
-          </CardBody>
-        </Card>
+        <UiCard.Root className="window-notice">
+          <UiCard.Content render={<Stack direction="column" gap="sm" />}>
+            <Text variant="heading-md">Setting up new site…</Text>
+            {downloadPhase && <Text variant="body-sm" className="muted-label">{downloadPhase}</Text>}
+            <div ref={termRef} className="log-pane is-short">{terminalMsgs}</div>
+          </UiCard.Content>
+        </UiCard.Root>
       )}
 
       {/* A ticket arrived from a link and there is no site to put it
@@ -560,7 +556,7 @@ function App() {
         const notice = deepLinkNotice({ ticket: deepLink.ticket });
         if (!notice) return null;
         return (
-          <Notice.Root className="page-notice" intent="info" role="status" spokenMessage={SILENT}>
+          <Notice.Root className="window-notice" intent="info" role="status" spokenMessage={SILENT}>
             <Notice.Title>{notice.title}</Notice.Title>
             <Notice.Description>{notice.body}</Notice.Description>
             <Notice.Actions>
@@ -646,7 +642,7 @@ function App() {
                     {sortedSites.map((s) => (
                     <div
                       key={s}
-                      style={{ display: activeSite === s ? 'block' : 'none' }}
+                      hidden={activeSite !== s}
                       aria-hidden={activeSite === s ? false : true}
                     >
                       <SiteRow
@@ -1152,6 +1148,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // toast, since the menu is gone by then and the details, whose own button
   // says it on itself, may be put away.
   const detailsId = useId();
+  // The headings of the three panels under the cards, which name them.
+  const terminalTitleId = useId();
+  const logsTitleId = useId();
+  const mailTitleId = useId();
   const runSiteMenuAction = async (item) => {
     if (item.id === 'rename') openRenameModal();
     else if (item.id === 'copy-path') { if (await writePathToClipboard()) confirm(__('Copied the path')); }
@@ -1233,10 +1233,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     pullRequest: blockedByTrunkWork.kind === 'pr' ? blockedByTrunkWork.number : null,
     noun: workItem.noun
   }) : null;
-  // With the page's notices' class: it is drawn in the ticket card, and
-  // also in the review dialog, which the card's own rule does not reach.
   const blockedPanel = blockedByTrunkWork ? (
-    <Notice.Root className="page-notice" intent="warning" spokenMessage={SILENT}>
+    <Notice.Root intent="warning" spokenMessage={SILENT}>
       <Notice.Description>{dirtyQuestion.question}</Notice.Description>
       {patchSavedTo ? (
         <Notice.Description>
@@ -1790,13 +1788,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     'data-next-action': id,
     className: nextActionId === id ? 'next-action-cue' : undefined
   });
-  // The same, for a notice of the page's own, above the cards: with the
-  // class that keeps its buttons clear of the page's older button rule, and
-  // the cue's where the notice is what the cue points at.
-  const pageNotice = (id) => {
-    const cue = id ? cueProps(id) : {};
-    return { ...cue, className: ['page-notice', cue.className].filter(Boolean).join(' ') };
-  };
 
   // What the work-item card is handed besides its own content: the banner of
   // a checked-out pull request, the note about uncommitted changes when it
@@ -1832,7 +1823,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   };
 
   return (
-    <section ref={nextActionSectionRef} style={{ paddingBottom: 48 }}>
+    <section ref={nextActionSectionRef} className="site-view">
       {/* The glow on the next-action block is purely visual, invisible to a
           screen reader. This is its spoken equivalent: a polite live region that
           names the next step as the cue moves, so a non-sighted contributor gets
@@ -1877,7 +1868,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         contributor to find the menu again. The menu is in the header, which
         does not scroll, so this is brought into view when it appears. */}
     {editorNotice ? (
-      <Notice.Root {...pageNotice()} ref={editorNoticeRef} intent="warning" role="alert" spokenMessage={SILENT}>
+      <Notice.Root ref={editorNoticeRef} intent="warning" role="alert" spokenMessage={SILENT}>
         <Notice.Description>{editorNotice.message}</Notice.Description>
         {editorNotice.offerPicker ? (
           <Notice.Actions>
@@ -1887,7 +1878,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       </Notice.Root>
     ) : null}
       {legacyNotice && !isPending ? (
-        <Notice.Root {...pageNotice()} intent="error" role="alert" spokenMessage={SILENT}>
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
           <Notice.Title>{legacyNotice.title}</Notice.Title>
           <Notice.Description>{legacyNotice.body}</Notice.Description>
           <Notice.Actions>
@@ -1896,13 +1887,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         </Notice.Root>
       ) : null}
       {mergeNotice && !isPending ? (
-        <Notice.Root {...pageNotice()} intent="error" role="alert" spokenMessage={SILENT}>
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
           <Notice.Title>{mergeNotice.title}</Notice.Title>
           <Notice.Description>{mergeNotice.body}</Notice.Description>
         </Notice.Root>
       ) : null}
       {updateIncomplete && !isUpdating ? (
-        <Notice.Root {...pageNotice('retry-install-build')} intent="error" spokenMessage={SILENT}>
+        <Notice.Root {...cueProps('retry-install-build')} intent="error" spokenMessage={SILENT}>
           <Notice.Title>Update incomplete</Notice.Title>
           <Notice.Description>The code is new but the built assets are old. The site may not run correctly until install and build succeed.</Notice.Description>
           <Notice.Actions>
@@ -1911,7 +1902,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         </Notice.Root>
       ) : null}
       {age.stale && !updateIncomplete && !isUpdating ? (
-        <Notice.Root {...pageNotice('update-trunk')} intent="warning" spokenMessage={SILENT}>
+        <Notice.Root {...cueProps('update-trunk')} intent="warning" spokenMessage={SILENT}>
           <Notice.Title>This site&apos;s WordPress code is {age.ageDays} days old</Notice.Title>
           <Notice.Description>Patches you create now may not apply on Trac. Updating takes a few minutes.</Notice.Description>
           <Notice.Actions>
@@ -1928,7 +1919,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         />
       ) : null}
       {lastUpdateSummary && !isUpdating && !updateIncomplete ? (
-        <Notice.Root {...pageNotice()} intent="success" spokenMessage={SILENT}>
+        <Notice.Root intent="success" spokenMessage={SILENT}>
           <Notice.Title>Up to date with trunk as of today.</Notice.Title>
           <Notice.Description>
             {lastUpdateSummary.lockfileChanged ? 'Dependencies updated' : 'Dependencies unchanged'}
@@ -1966,7 +1957,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           and a site still in the setup wizard shows no ticket panel at all —
           which is exactly when a ticket that vanished silently would be worst. */}
       {deepLinkNote ? (
-        <Notice.Root {...pageNotice()} intent="warning" role="status" spokenMessage={SILENT}>
+        <Notice.Root intent="warning" role="status" spokenMessage={SILENT}>
           <Notice.Title>{deepLinkNote.title}</Notice.Title>
           <Notice.Description>{deepLinkNote.body}</Notice.Description>
           <Notice.Actions>
@@ -1975,7 +1966,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         </Notice.Root>
       ) : null}
       {deepLinkPrompt ? (
-        <Notice.Root {...pageNotice()} intent="info" role="status" spokenMessage={SILENT}>
+        <Notice.Root intent="info" role="status" spokenMessage={SILENT}>
           <Notice.Title>{deepLinkPrompt.title}</Notice.Title>
           <Notice.Description>{deepLinkPrompt.body}</Notice.Description>
           <Notice.Actions>
@@ -2095,110 +2086,98 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           onDelete={(row) => askFirst(deleteWorkQuestion(row.ticketId, project.workItem.provider), () => deleteTicketWork(row.ref))}
         />
       ) : null}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Terminal</div>
-          <div
-            ref={terminalContainerRef}
-            // The terminal is 80 columns wide, which is more than the column
-            // it sits in when the details are open and the window is at its
-            // default size. It scrolls sideways there, so that the end of a
-            // line can be reached, until it moves to the tray (#558).
-            style={{
-              height: 220,
-              background: '#111',
-              borderRadius: 6,
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              border: '1px solid #1b1b1f'
-            }}
-          />
-          <div style={{ marginTop: 8, fontSize: 12, color: '#3c434a' }}>
-            {showTerminalHints ? (
-              <>
-                <div>Edited files in <code>{project.cards.sourceDir}</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</div>
-                <div style={{ marginTop: 2, marginBottom: 6 }}>Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
-              </>
-            ) : null}
-            <div>
-              Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
-            </div>
-          </div>
-        </div>
-        <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Logs</div>
-          <TabPanel className="log-tabs" activeClass="is-active" onSelect={selectLogTab} tabs={logTabs}>
-            {(tab) => {
-              if (tab.name === 'runtime') {
-                return <div ref={logs.runtimeRef} onScroll={logs.makeOnScroll('runtime')} style={LOG_PANE_STYLE}><LogText text={logs.runtimeLogs} /></div>;
-              }
-              if (tab.name === 'watch') {
-                return (
-                  <div ref={logs.watchRef} onScroll={logs.makeOnScroll('watch')} style={LOG_PANE_STYLE}>
-                    {logs.watchLogs ? <LogText text={logs.watchLogs} /> : (
-                      <span style={{ color:'#888', fontFamily:'-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>The build watch compiles <code>src/</code> edits into <code>build/</code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.</span>
-                    )}
-                  </div>
-                );
-              }
+      <Stack direction="column" gap="sm" render={<section aria-labelledby={terminalTitleId} />}>
+        <Text id={terminalTitleId} variant="heading-md" render={<h2 />} className="site-panel-title">Terminal</Text>
+        {/* The terminal is 80 columns wide, which is more than the column
+            it sits in when the details are open and the window is at its
+            default size. It scrolls sideways there, so that the end of a
+            line can be reached, until it moves to the tray (#558). */}
+        <div ref={terminalContainerRef} className="terminal-pane" />
+        <Stack direction="column" gap="xs">
+          {showTerminalHints ? (
+            <>
+              <Text variant="body-sm" className="muted-label">Edited files in <code>{project.cards.sourceDir}</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</Text>
+              <Text variant="body-sm" className="muted-label">Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</Text>
+            </>
+          ) : null}
+          <Text variant="body-sm" className="muted-label">
+            Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
+          </Text>
+        </Stack>
+      </Stack>
+      <Stack direction="column" gap="sm" render={<section aria-labelledby={logsTitleId} />}>
+        <Text id={logsTitleId} variant="heading-md" render={<h2 />} className="site-panel-title">Logs</Text>
+        <TabPanel className="log-tabs" activeClass="is-active" onSelect={selectLogTab} tabs={logTabs}>
+          {(tab) => {
+            if (tab.name === 'runtime') {
+              return <div ref={logs.runtimeRef} onScroll={logs.makeOnScroll('runtime')} className="log-pane"><LogText text={logs.runtimeLogs} /></div>;
+            }
+            if (tab.name === 'watch') {
               return (
-                <>
-                <div ref={logs.debugRef} onScroll={logs.makeOnScroll('debug')} style={LOG_PANE_STYLE}>
+                <div ref={logs.watchRef} onScroll={logs.makeOnScroll('watch')} className="log-pane">
+                  {logs.watchLogs ? <LogText text={logs.watchLogs} /> : (
+                    <span className="log-pane-note">The build watch compiles <code>src/</code> edits into <code>build/</code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.</span>
+                  )}
+                </div>
+              );
+            }
+            return (
+              <Stack direction="column" gap="sm">
+                <div ref={logs.debugRef} onScroll={logs.makeOnScroll('debug')} className="log-pane">
                   {logs.debugLogs ? <LogText text={logs.debugLogs} /> : (
                     // An empty pane reads as broken, which is what this one was
                     // for as long as WP_DEBUG_LOG was never set. Say what fills
                     // it instead. In the app's own font, not the terminal's:
                     // this is interface copy rather than log output, and it is
                     // what keeps the `<code>` bits in it distinguishable.
-                    <span style={{ color:'#888', fontFamily:'-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>No PHP notices or errors yet. Anything WordPress or your code writes — <code>error_log()</code>, notices, deprecations, fatals — appears here while the dev server runs.</span>
+                    <span className="log-pane-note">No PHP notices or errors yet. Anything WordPress or your code writes — <code>error_log()</code>, notices, deprecations, fatals — appears here while the dev server runs.</span>
                   )}
                 </div>
-                <div style={{ display:'flex', gap:8, marginTop:8, alignItems:'center', justifyContent:'space-between', flexWrap:'wrap' }}>
+                <Stack direction="row" align="center" justify="space-between" gap="sm" wrap="wrap">
                   {/* The file is under build/, while the file being edited when
                       it filled up is under src/ — so it cannot be guessed, and
                       it is what someone needs to tail it in a terminal or attach
                       it to a ticket. Selectable rather than truncated with an
                       ellipsis: a path you cannot copy is decoration. */}
-                  <code style={{ fontSize:11, color:'#666', userSelect:'text', wordBreak:'break-all', flex:'1 1 240px' }}>{logs.debugLogPath || 'The log file appears once the dev server has run.'}</code>
-                  <div style={{ display:'flex', gap:8 }}>
-                    <Button size="small" variant="secondary" onClick={logs.revealDebugLog} disabled={!logs.debugLogPath}>Show in folder</Button>
-                    <Button size="small" variant="secondary" onClick={logs.copyDebugLog} disabled={!logs.debugLogs}>{COPY_BUTTON_LABELS[logs.debugCopied] || COPY_BUTTON_LABELS.idle}</Button>
-                    <Button size="small" variant="secondary" onClick={logs.clearDebugLog} disabled={!logs.debugLogs}>Clear</Button>
-                  </div>
-                </div>
-                </>
-              );
-            }}
-          </TabPanel>
+                  <code className="log-path">{logs.debugLogPath || 'The log file appears once the dev server has run.'}</code>
+                  <Stack direction="row" gap="sm">
+                    <UiButton variant="outline" tone="neutral" size="compact" onClick={logs.revealDebugLog} disabled={!logs.debugLogPath}>Show in folder</UiButton>
+                    <UiButton variant="outline" tone="neutral" size="compact" onClick={logs.copyDebugLog} disabled={!logs.debugLogs}>{COPY_BUTTON_LABELS[logs.debugCopied] || COPY_BUTTON_LABELS.idle}</UiButton>
+                    <UiButton variant="outline" tone="neutral" size="compact" onClick={logs.clearDebugLog} disabled={!logs.debugLogs}>Clear</UiButton>
+                  </Stack>
+                </Stack>
+              </Stack>
+            );
+          }}
+        </TabPanel>
+      </Stack>
+      <Stack direction="column" gap="sm" render={<section aria-labelledby={mailTitleId} />}>
+        <Text id={mailTitleId} variant="heading-md" render={<h2 />} className="site-panel-title">Mail</Text>
+        <Stack direction="row" align="center" justify="space-between" gap="sm">
+          <Text variant="body-sm" className="muted-label">{mail.smtpPort ? `SMTP listening on 127.0.0.1:${mail.smtpPort}` : 'SMTP will start with the dev server.'}</Text>
+          <UiButton variant="outline" tone="neutral" size="compact" onClick={mail.clear}>Clear emails</UiButton>
+        </Stack>
+        <div className="mail-list">
+          {mail.emails && mail.emails.length ? mail.emails.map((m)=>{
+            const when = m.sentAt || m.date; const whenStr = when ? new Date(when).toLocaleString() : '';
+            return (
+              <div key={m.id}
+                className="mail-row"
+                role="button"
+                tabIndex={0}
+                onClick={()=>mail.open(m)}
+                onKeyDown={(e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mail.open(m); } }}
+              >
+                <span className="mail-when">{whenStr}</span>
+                <span className="mail-from">{m.from || ''}</span>
+                <span className="mail-subject">{m.subject || '(no subject)'}</span>
+              </div>
+            );
+          }) : (
+            <Text variant="body-md" className="muted-label mail-empty">No emails yet.</Text>
+          )}
         </div>
-        <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Mail</div>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-            <div style={{ fontSize:12, color:'#666' }}>{mail.smtpPort ? `SMTP listening on 127.0.0.1:${mail.smtpPort}` : 'SMTP will start with the dev server.'}</div>
-            <div><Button size="small" variant="secondary" onClick={mail.clear}>Clear emails</Button></div>
-          </div>
-          <div style={{ border:'1px solid #ddd', borderRadius:6, maxHeight:220, overflow:'auto' }}>
-            {mail.emails && mail.emails.length ? mail.emails.map((m)=>{
-              const when = m.sentAt || m.date; const whenStr = when ? new Date(when).toLocaleString() : '';
-              return (
-                <div key={m.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={()=>mail.open(m)}
-                  onKeyDown={(e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mail.open(m); } }}
-                  style={{ padding:'8px 10px', cursor:'pointer', borderBottom:'1px solid #eee', display:'flex', gap:8 }}
-                >
-                  <div style={{ flex:'0 0 180px', color:'#555', fontSize:12 }}>{whenStr}</div>
-                  <div style={{ flex:'0 0 220px', color:'#333', fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.from || ''}</div>
-                  <div style={{ flex:'1 1 auto', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.subject || '(no subject)'}</div>
-                </div>
-              );
-            }) : (
-              <div style={{ padding:12, color:'#666' }}>No emails yet.</div>
-            )}
-          </div>
-        </div>
-      </div>
+      </Stack>
       </div>
       <SiteDetails
         id={detailsId}

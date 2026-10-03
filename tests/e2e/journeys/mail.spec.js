@@ -72,6 +72,14 @@ test( 'a mail the site sent opens as the one that was clicked, in its rendered a
 	const resetRow = page.getByRole( 'button', { name: /\[Test Site\] Password Reset$/ } );
 	const commentRow = page.getByRole( 'button', { name: /\[Test Site\] Comment: "Hello world!"$/ } );
 	await expect( resetRow ).toBeVisible( { timeout: 30_000 } );
+	// INVARIANT — the mail is a region of the page, named by its heading,
+	// and its rows are in it (#557).
+	const mail = page.getByRole( 'region', { name: 'Mail', exact: true } );
+	await expect( mail.getByRole( 'heading', { level: 2, name: 'Mail', exact: true } ) ).toBeVisible();
+	await expect( mail.getByRole( 'button', { name: /\[Test Site\] Password Reset$/ } ) ).toBeVisible();
+	// INVARIANT — and it is the last of the three panels under the cards:
+	// the terminal, then the logs, then the mail.
+	expect( await ui.inDocumentOrder( page, [ 'Terminal', 'Logs', 'Mail' ].map( ( name ) => page.getByRole( 'region', { name, exact: true } ) ) ) ).toBe( true );
 	await expect( commentRow ).toBeVisible();
 
 	// INVARIANT — the dialog is the mail that was clicked: titled with its
