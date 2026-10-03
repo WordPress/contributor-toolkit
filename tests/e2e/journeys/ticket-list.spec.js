@@ -120,10 +120,10 @@ test( 'a row\'s buttons are held while the site builds, and say why', async ( { 
 
 	// INVARIANT — a held button does nothing when pressed. A press that got
 	// through would be turned away at once, a command being under way, and
-	// the ticket's card would say so; one that was not turned away would
-	// start a switch, and the list would say it is waiting for that. That
-	// neither is said, a round trip later, is what shows the press went
-	// nowhere, and the checkout is where it was.
+	// the ticket's card would say so. That it says nothing, a round trip
+	// later, is what shows the press went nowhere. The rest is for the day
+	// that refusal is gone: a switch that started would be what the list
+	// says it waits for, and one that ended would have moved the checkout.
 	await switchBack.click( { force: true } );
 	await page.evaluate( () => window.api.getSitesWithMeta() );
 	await expect( ui.workItemCard( page, 'Trac ticket' ).getByRole( 'alert' ) ).toHaveCount( 0 );

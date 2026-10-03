@@ -165,11 +165,11 @@ function savedPrForSwitch({ branches, ticketId, linkedTicket = null, currentPr =
 function ticketListCard({ rowCount, linked, provider = 'trac' }) {
 	if (!rowCount) return null;
 	const issues = provider === 'github-issue';
-	// translators: a verb, on a button beside a ticket's number: go to that ticket's work.
+	// translators: a verb, on a button beside the number of a ticket or an issue: go to the work on it.
 	const switchTo = __('Switch');
 	const shared = {
 		action: linked ? switchTo : __('Continue working'),
-		// translators: said to a screen reader, in place of a spinner, while a ticket's work is being deleted.
+		// translators: said to a screen reader, in place of a spinner, while the work on a ticket or an issue is being deleted.
 		removing: __('Deleting')
 	};
 	if (issues) {

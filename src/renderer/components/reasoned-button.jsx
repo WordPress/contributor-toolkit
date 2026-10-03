@@ -39,10 +39,11 @@ export function ReasonedButton({ reason, disabled, children, ...props }) {
 // read a second time after the button. Both are always rendered, for the
 // reason above: the button must not be remounted as the gate flips.
 //
-// An `id` is the trigger's and not the button's: the tooltip knows its
-// trigger by id, and gives it one of its own when it is given none. Put on
-// the button it would reach the page all the same, and the tooltip would be
-// looking for its trigger under another.
+// An `id` is the trigger's and not the button's: the tooltip keeps its
+// trigger under an id, and gives it one of its own when it is given none.
+// Put on the button it would reach the page all the same, and the tooltip
+// would have its trigger under another. It worked, since the tooltip finds
+// the element by reference, and it leaned on that.
 export function ReasonedUiButton({ reason, disabled, id, children, ...props }) {
   const reasonId = useId();
   return (
