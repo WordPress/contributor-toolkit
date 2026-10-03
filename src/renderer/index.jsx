@@ -1233,8 +1233,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     pullRequest: blockedByTrunkWork.kind === 'pr' ? blockedByTrunkWork.number : null,
     noun: workItem.noun
   }) : null;
+  // With the page's notices' class: it is drawn in the ticket card, and
+  // also in the review dialog, which the card's own rule does not reach.
   const blockedPanel = blockedByTrunkWork ? (
-    <Notice.Root intent="warning" spokenMessage={SILENT}>
+    <Notice.Root className="page-notice" intent="warning" spokenMessage={SILENT}>
       <Notice.Description>{dirtyQuestion.question}</Notice.Description>
       {patchSavedTo ? (
         <Notice.Description>
@@ -1565,7 +1567,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         })}
       />
       {changesNote.end}
-      {discardError ? <Text variant="body-sm" className="error-text" render={<span />}>{discardError}</Text> : null}
+      {discardError ? <Text variant="body-sm" className="error-text">{discardError}</Text> : null}
     </>
   ) : null;
 

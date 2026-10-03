@@ -21,8 +21,8 @@ test( 'a site the old engine made is read, refused on every write, and can still
 
 	// INVARIANT — the card says why the site cannot be used and where to go.
 	await expect( page.getByText( 'This site was created by an earlier version of the app.' ) ).toBeVisible( { timeout: 30_000 } );
-	// It is an alert, so that it is said when the site is opened, and the one
-	// alert on the page until something is refused.
+	// It is an alert, so that it is said when the site is opened, and as the
+	// page settles it is the only one: the refusal below is the second.
 	await expect( page.getByRole( 'alert' ).filter( { hasText: 'This site was created by an earlier version of the app.' } ) ).toHaveCount( 1 );
 	await expect( page.getByRole( 'alert' ) ).toHaveCount( 1 );
 

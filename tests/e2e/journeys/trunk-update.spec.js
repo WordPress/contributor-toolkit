@@ -38,7 +38,7 @@ test( 'an update fetches from the site\'s origin, resets the checkout, rebuilds,
 	// INVARIANT — the chain ends with the app saying so, and with the summary
 	// the guide describes: the install step was named as skipped.
 	await expect( ui.toast( page, 'Updated to the latest trunk' ) ).toBeVisible( { timeout: 120_000 } );
-	await expect( page.getByText( 'Dependencies unchanged', { exact: false } ).first() ).toBeVisible( { timeout: 30_000 } );
+	await expect( page.getByText( /^Dependencies unchanged, rebuilt/ ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.getByText( 'Update incomplete', { exact: false } ) ).toHaveCount( 0 );
 
 	// INVARIANT — what the update did is said on the page until it is sent
