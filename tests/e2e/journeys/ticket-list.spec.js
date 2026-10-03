@@ -12,6 +12,7 @@ const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite, branches, currentBranch } = require( '../helpers/git-site.cjs' );
 const { ticketActionDisabledReason } = require( '../../../src/renderer/ticket-actions.cjs' );
+const { deleteWorkQuestion } = require( '../../../src/renderer/ticket-branch-list.cjs' );
 
 /**
  * Answers for GitHub and Trac, which a linked ticket is looked up on: no pull
@@ -148,33 +149,68 @@ test( 'a row\'s buttons are held while the site builds, and say why', async ( { 
 	await expect( remove ).toHaveAccessibleDescription( '' );
 } );
 
-test( 'saying no to the question deletes nothing', async ( { session } ) => {
+test( 'a ticket\'s work is deleted only after a question that names it, and saying no deletes nothing', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
 	await standIns( app );
 	await parkOneLinkAnother( page );
-	// The question, as it is asked, and "Cancel" as its answer. Replaced in
-	// the page for the reason acceptConfirms() gives: Electron asks natively
-	// and Playwright never sees it.
-	await page.evaluate( () => {
-		window.__e2eAsked = [];
-		window.confirm = ( question ) => {
-			window.__e2eAsked.push( question );
-			return false;
-		};
-	} );
+	const question = ui.confirmDialog( page );
+	const remove = ui.deleteWorkButton( page, '60001' );
+	const untouched = async () => {
+		await page.evaluate( () => window.api.getSitesWithMeta() );
+		expect( branches( site.dir ) ).toContain( 'ticket/60001' );
+		expect( currentBranch( site.dir ) ).toBe( 'ticket/60002' );
+	};
+	// A deletion holds every button of the list as it begins, with what it
+	// is waiting for, and the branch goes some time after. So work that is
+	// not being deleted is work whose button says nothing, which shows as
+	// soon as one begins and can be read once the question is out of the
+	// way: the branch being there would be true of one on its way out as
+	// well.
+	const notBeingDeleted = async () => {
+		await expect( remove ).toBeEnabled();
+		await expect( remove ).toHaveAccessibleDescription( '' );
+	};
 
-	await ui.deleteWorkButton( page, '60001' ).click();
+	await remove.click();
 
-	// INVARIANT — it asked, by the ticket's number, and said it is final.
-	await expect.poll( () => page.evaluate( () => window.__e2eAsked ) ).toEqual( [ 'Delete all work on #60001 on this site? This cannot be undone.' ] );
+	// INVARIANT — it asks, by the ticket's number, says what would go and
+	// that it is for good, and opens on the answer that deletes nothing.
+	const asked = deleteWorkQuestion( 60001 );
+	await expect( question ).toHaveAccessibleName( 'Delete all work on ticket #60001?' );
+	await expect( question ).toHaveAccessibleDescription( asked.description );
+	expect( asked.description ).toMatch( /This can’t be undone\.$/ );
+	await expect( ui.confirmNoButton( page ) ).toBeFocused();
+	await untouched();
 
-	// INVARIANT — and on a no it left everything where it was: the branch,
-	// the checkout, and the row that offers the ticket.
+	// INVARIANT — a press outside the question is not an answer.
+	await page.mouse.click( 5, 5 );
 	await page.evaluate( () => window.api.getSitesWithMeta() );
-	expect( branches( site.dir ) ).toContain( 'ticket/60001' );
-	expect( currentBranch( site.dir ) ).toBe( 'ticket/60002' );
+	await expect( question ).toHaveAttribute( 'data-open', '' );
+
+	// INVARIANT — a no leaves everything where it was, the branch, the
+	// checkout and the row, and gives the focus back to the button that
+	// asked. Cancel and Escape are both a no.
+	await ui.confirmNoButton( page ).click();
+	await expect( question ).toHaveCount( 0 );
+	await notBeingDeleted();
+	await untouched();
+	await expect( remove ).toBeFocused();
+	await remove.click();
+	await expect( question ).toBeVisible();
+	await page.keyboard.press( 'Escape' );
+	await expect( question ).toHaveCount( 0 );
+	await notBeingDeleted();
+	await untouched();
 	await expect( ui.switchBackButton( page, '60001' ) ).toBeEnabled();
+
+	// INVARIANT — and a yes deletes that ticket's work and no other's.
+	await remove.click();
+	await ui.confirmYesButton( page, asked.confirm ).click();
+	await expect( question ).toHaveCount( 0 );
+	await expect.poll( () => branches( site.dir ), { timeout: 30_000 } ).not.toContain( 'ticket/60001' );
+	expect( branches( site.dir ) ).toContain( 'ticket/60002' );
+	await expect( ui.ticketListCard( page ) ).toHaveCount( 0 );
 } );
 
 test( 'while a ticket\'s work is being deleted its button says so, and the rest of the list waits for it', async ( { session } ) => {
@@ -184,7 +220,6 @@ test( 'while a ticket\'s work is being deleted its button says so, and the rest 
 	await parkOneLinkAnother( page );
 	await ui.unlinkButton( page ).click();
 	await expect( ui.continueWorkingButton( page ) ).toHaveCount( 2, { timeout: 30_000 } );
-	await session.acceptConfirms();
 	// The delete itself, held until the test lets it go: the real one, so
 	// that what it leaves behind is what the app would.
 	await app.evaluate( ( { ipcMain } ) => {
@@ -215,6 +250,8 @@ test( 'while a ticket\'s work is being deleted its button says so, and the rest 
 	} );
 
 	await ui.deleteWorkButton( page, '60001' ).click();
+	await ui.confirmYesButton( page, 'Delete this ticket’s work' ).click();
+	await expect( ui.confirmDialog( page ) ).toHaveCount( 0 );
 
 	// INVARIANT — the button that was pressed says it is at work, to the ear
 	// as to the eye, and every other button of the list waits and says what

@@ -110,6 +110,19 @@ const siteMenuButton = ( page ) => page.getByRole( 'button', { name: 'Site actio
 const updateTrunkMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Update to latest trunk', exact: true } );
 const deleteSiteMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Delete site', exact: true } );
 
+/**
+ * The question asked before something is deleted for good: a site, or a
+ * ticket's work. It is named by what it asks, and one is asked at a time.
+ *
+ * @param {Object} page
+ * @return {Object} The locator.
+ */
+const confirmDialog = ( page ) => page.getByRole( 'alertdialog' );
+// Its two answers. The yes is named for what it does, so it is asked for by
+// name; the no is the same everywhere.
+const confirmYesButton = ( page, name ) => confirmDialog( page ).getByRole( 'button', { name, exact: true } );
+const confirmNoButton = ( page ) => confirmDialog( page ).getByRole( 'button', { name: 'Cancel', exact: true } );
+
 // The server's button, in the open site's details. It shows one word and is
 // named by what pressing it does. The header's menu has an item of the same
 // name, which is a menu item and not this.
@@ -388,6 +401,9 @@ module.exports = {
 	siteMenuButton,
 	updateTrunkMenuItem,
 	deleteSiteMenuItem,
+	confirmDialog,
+	confirmYesButton,
+	confirmNoButton,
 	startDevServerButton,
 	stopDevServerButton,
 	startBuildWatchButton,

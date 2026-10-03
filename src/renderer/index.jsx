@@ -33,6 +33,7 @@ import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { sitesListRows, siteToOpen } from './sites-list.cjs';
+import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
@@ -60,7 +61,8 @@ import { DiscardChangesLink } from './components/discard-changes-link.jsx';
 import { LogText } from './components/log-text.jsx';
 import { DestinationGroup } from './components/destination.jsx';
 import { TerminalCommandLink } from './components/terminal-command-link.jsx';
-import { RenameSiteModal } from './components/rename-site-modal.jsx';
+import { RenameSiteDialog } from './components/rename-site-dialog.jsx';
+import { ConfirmDialog } from './components/confirm-dialog.jsx';
 import { EmailModal } from './components/email-modal.jsx';
 import { DirtyTreeModal } from './components/dirty-tree-modal.jsx';
 import { CreateSiteDialog } from './components/create-site-dialog.jsx';
@@ -462,19 +464,14 @@ function App() {
     }
   }, [refresh, removeSetupLog, confirm]);
 
+  // Rejects when the name could not be written, and the dialog that asked
+  // says why.
   const onRename = useCallback(async (sitePath, newLabel) => {
-    try {
-      await window.api.setSiteLabel(sitePath, newLabel);
-      setSiteMeta((meta) => ({
-        ...(meta || {}),
-        [sitePath]: { ...(meta?.[sitePath] || {}), label: newLabel }
-      }));
-    } catch (err) {
-      // Pre-existing UX convention in this file; replacing every alert()/confirm()
-      // with an in-app notice is a separate, larger UX change than a lint cleanup should make.
-      // eslint-disable-next-line no-alert
-      alert(String(err));
-    }
+    await window.api.setSiteLabel(sitePath, newLabel);
+    setSiteMeta((meta) => ({
+      ...(meta || {}),
+      [sitePath]: { ...(meta?.[sitePath] || {}), label: newLabel }
+    }));
   }, [setSiteMeta]);
 
   const sortedSites = useMemo(() => {
@@ -843,7 +840,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       await navigator.clipboard.writeText(sitePath);
       return true;
     } catch (err) {
-      // eslint-disable-next-line no-alert -- see the note above onRename.
+      // eslint-disable-next-line no-alert -- see the note above confirmAnd.
       alert('Unable to copy path: ' + (err?.message ?? String(err)));
       return false;
     }
@@ -1153,8 +1150,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
   }, [sitePath, setSkipInit]);
-  // eslint-disable-next-line no-alert -- see the note above onRename.
+  // The system's own alert and confirm are an older convention of this
+  // file. Each is replaced with the app's own as its part of the window is
+  // redrawn (#557), which is a larger change than a lint cleanup should make.
+  // eslint-disable-next-line no-alert
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
+  // The question asked before a site or a ticket's work is deleted (#557),
+  // in a dialog of the app's own: what is asked, and what a yes does. The
+  // discards above still ask through the system's.
+  const [asking, setAsking] = useState(null);
+  const askFirst = (question, action) => setAsking({ question, action });
 
   // Updating to the latest trunk (#94, #554): the chain, the question it asks
   // about edits in the tree, and the retry. Called here because it runs
@@ -1182,7 +1187,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     else if (item.id === 'update-trunk') await startTrunkUpdate();
     else if (item.id === 'open-in') await openIn(item.path);
     else if (item.id === 'open-in-other') await openIn(null);
-    else if (item.id === 'delete') await confirmAnd('Delete this site from disk? This cannot be undone.', () => onDelete(sitePath));
+    else if (item.id === 'delete') askFirst(deleteSiteQuestion(displayName), () => onDelete(sitePath));
   };
 
   // Putting someone else's patch or pull request on this site (#554): what a
@@ -2255,7 +2260,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           reason={ticketActionsReason}
           deleting={deletingBranch}
           onSwitch={(row) => saveTicket(String(row.ticketId))}
-          onDelete={(row) => confirmAnd(deleteWorkQuestion(row.ticketId), () => deleteTicketWork(row.ref))}
+          onDelete={(row) => askFirst(deleteWorkQuestion(row.ticketId, project.workItem.provider), () => deleteTicketWork(row.ref))}
         />
       ) : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -2384,9 +2389,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           onClose={() => setDirtyModalOpen(false)}
         />
       ) : null}
-      {renameModalOpen ? (
-        <RenameSiteModal sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
-      ) : null}
+      <RenameSiteDialog open={renameModalOpen} sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
+      <ConfirmDialog question={asking ? asking.question : null} onConfirm={() => asking.action()} onClose={() => setAsking(null)} />
       {isPatchOpen && (
         <ReviewDialog
           onClose={()=>setIsPatchOpen(false)}

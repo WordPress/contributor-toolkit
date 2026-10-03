@@ -185,7 +185,6 @@ test( 'switching back to a ticket restores its work byte for byte', async ( { se
 test( "deleting a ticket's work removes only that ticket", async ( { session } ) => {
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings );
-	const confirmsAnswered = await session.acceptConfirms();
 
 	await linkTicket( page, '60001' );
 	write( site.dir, LOGIN, MY_EDIT );
@@ -200,6 +199,14 @@ test( "deleting a ticket's work removes only that ticket", async ( { session } )
 	const row = ui.ticketRow( page, '60002' );
 	await expect( row ).toBeVisible();
 	await ui.deleteWorkButton( page, '60002' ).click();
+
+	// INVARIANT — it asks first, and deletes nothing until it is answered. A
+	// destructive action that skips the question is a bug even when it
+	// deletes the right thing.
+	await expect( ui.confirmDialog( page ) ).toBeVisible();
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+	expect( branches( site.dir ) ).toContain( 'ticket/60002' );
+	await ui.confirmYesButton( page, 'Delete this ticket’s work' ).click();
 
 	await expect
 		.poll( () => branches( site.dir ), { timeout: 30_000 } )
@@ -220,10 +227,6 @@ test( "deleting a ticket's work removes only that ticket", async ( { session } )
 	await expect(
 		ui.continueWorkingButton( page, '60001' )
 	).toBeVisible();
-
-	// INVARIANT — it asked first. A destructive action that skips the
-	// confirmation is a bug even when it deletes the right thing.
-	expect( await confirmsAnswered() ).toBe( 1 );
 
 	// CHARACTERISATION — the store drops the branch's record with it, and keeps
 	// the other one, including the base commit its patch is measured against.

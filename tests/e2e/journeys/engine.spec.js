@@ -182,7 +182,6 @@ test( 'a native file dialog can be answered from the test', async ( { session } 
 test( 'a failed site deletion stays visible, reports the failure, and can be retried (#414)', async ( { session } ) => {
 	const site = makeListedSite( session, 'delete-retry' );
 	const { app, page } = await session.start( site.settings );
-	const confirmsAnswered = await session.acceptConfirms();
 
 	// Hold the IPC reply in the main process. This keeps the UI operation pending
 	// without shipping a test-only delay or relying on filesystem timing.
@@ -195,6 +194,7 @@ test( 'a failed site deletion stays visible, reports the failure, and can be ret
 
 	await ui.siteMenuButton( page ).click();
 	await ui.deleteSiteMenuItem( page ).click();
+	await ui.confirmYesButton( page, 'Delete site' ).click();
 
 	// The row speaks while the call is outstanding, in place of its project,
 	// and the only delete action is disabled so a second request cannot race
@@ -218,6 +218,5 @@ test( 'a failed site deletion stays visible, reports the failure, and can be ret
 
 	await ui.siteMenuButton( page ).click();
 	await expect( ui.deleteSiteMenuItem( page ) ).toBeEnabled();
-	expect( await confirmsAnswered() ).toBe( 1 );
 	expect( session.readSettings().sites ).toEqual( [ site.dir ] );
 } );
