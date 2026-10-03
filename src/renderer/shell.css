@@ -405,8 +405,10 @@ body {
 }
 
 /* What went wrong, said in a line of its own where a notice would be too
-   much. */
+   much: under the sentence it follows, and not run on from it. */
 .error-text {
+  display: block;
+  margin-block-start: var(--wpds-dimension-gap-xs, 4px);
   color: var(--wpds-color-foreground-content-error, #cc1818);
 }
 
@@ -461,6 +463,7 @@ body {
 .ticket-list-card button,
 .apply-card button,
 .apply-preview-dialog button,
+.page-notice button,
 .setup-checklist button,
 .trunk-update-card button,
 .create-site-dialog button,
@@ -738,8 +741,9 @@ body {
   margin-block-end: -1px;
 }
 
-/* The steps of an apply, each with room before it for its mark. Framed, so
-   that the next-action ring has something to go round. */
+/* The steps of an apply, or of an update of trunk, each with room before it
+   for its mark. Framed, so that the next-action ring has something to go
+   round. */
 .step-list {
   list-style: none;
   margin: 0;

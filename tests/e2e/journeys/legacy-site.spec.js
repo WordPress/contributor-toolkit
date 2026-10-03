@@ -24,6 +24,7 @@ test( 'a site the old engine made is read, refused on every write, and can still
 	// It is an alert, so that it is said when the site is opened, and the one
 	// alert on the page until something is refused.
 	await expect( page.getByRole( 'alert' ).filter( { hasText: 'This site was created by an earlier version of the app.' } ) ).toHaveCount( 1 );
+	await expect( page.getByRole( 'alert' ) ).toHaveCount( 1 );
 
 	// INVARIANT — linking a ticket is refused with the same sentence, and the
 	// repository is left as it was: no branch, no checkout.

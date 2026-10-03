@@ -182,7 +182,7 @@ const shots = [
 		slug: 'update-incomplete',
 		tier: 'fixture',
 		variant: 'seeded',
-		target: (page) => page.getByText('Update incomplete', { exact: true }).locator('../..'),
+		target: (page) => page.getByText('Update incomplete', { exact: true }).locator('..'),
 		prepare: async (page) => {
 			await selectSite(page, 'needs-rebuild');
 			await ui.retryInstallButton(page).waitFor();

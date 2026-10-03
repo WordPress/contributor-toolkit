@@ -108,9 +108,6 @@ const COPY_BUTTON_LABELS = {
   failed: 'Could not copy'
 };
 
-// Per-status wording for the update chain card (#94), following the issue's
-// mockups: the skipped install step is named, never hidden, and the build
-// step points at the Terminal instead of opening a second log surface.
 // A notice that is on the page as the page is drawn, or that already says
 // itself through its role, is told to say nothing of its own: left to, it
 // would be read out each time its site is opened, or said twice.
@@ -563,7 +560,7 @@ function App() {
         const notice = deepLinkNotice({ ticket: deepLink.ticket });
         if (!notice) return null;
         return (
-          <Notice.Root intent="info" role="status" spokenMessage={SILENT}>
+          <Notice.Root className="page-notice" intent="info" role="status" spokenMessage={SILENT}>
             <Notice.Title>{notice.title}</Notice.Title>
             <Notice.Description>{notice.body}</Notice.Description>
             <Notice.Actions>
@@ -1240,9 +1237,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     <Notice.Root intent="warning" spokenMessage={SILENT}>
       <Notice.Description>{dirtyQuestion.question}</Notice.Description>
       {patchSavedTo ? (
-        <Notice.Title>
-          Saved to {patchSavedTo}. The edits are still in the working tree.
-        </Notice.Title>
+        <Notice.Description>
+          <strong>Saved to {patchSavedTo}. The edits are still in the working tree.</strong>
+        </Notice.Description>
       ) : null}
       <Notice.Actions>
         {dirtyQuestion.carry ? (
@@ -1250,7 +1247,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             variant="outline"
             tone="neutral"
             size="compact"
-            loading={ticketSaving}
             reason={ticketActionsReason}
             onClick={() => saveTicket(blockedByTrunkWork.ref, { carryTrunkWork: true })}
           >{dirtyQuestion.carry}</ReasonedUiButton>
@@ -1698,12 +1694,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       running: installing,
       action: (
         <UiButton
-          loading={installing}
           variant={stepState.install.done ? 'outline' : 'solid'}
           tone={stepState.install.done ? 'neutral' : 'brand'}
           size="compact"
           onClick={runInstallWithTerminal}
-          disabled={stepState.install.disabled || installing}
+          disabled={stepState.install.disabled}
         >{installLabel}</UiButton>
       )
     },
@@ -1715,12 +1710,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       running: building,
       action: (
         <UiButton
-          loading={building}
           variant={stepState.build.done ? 'outline' : 'solid'}
           tone={stepState.build.done ? 'neutral' : 'brand'}
           size="compact"
           onClick={runBuildWithTerminal}
-          disabled={stepState.build.disabled || building}
+          disabled={stepState.build.disabled}
         >{buildLabel}</UiButton>
       )
     },
@@ -1733,7 +1727,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       action: (
         <Stack direction="row" align="center" gap="sm" wrap="wrap">
           <UiButton
-            loading={starting}
             variant={running ? 'outline' : 'solid'}
             tone={running ? 'neutral' : 'brand'}
             size="compact"
@@ -1741,7 +1734,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               await markSkipWizard();
               await toggleDevServer();
             }}
-            disabled={stepState.dev.disabled || starting}
+            disabled={stepState.dev.disabled}
           >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</UiButton>
           {starting || serverUrl ? (
             <Text variant="body-sm">
@@ -1795,6 +1788,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     'data-next-action': id,
     className: nextActionId === id ? 'next-action-cue' : undefined
   });
+  // The same, for a notice of the page's own, above the cards: with the
+  // class that keeps its buttons clear of the page's older button rule, and
+  // the cue's where the notice is what the cue points at.
+  const pageNotice = (id) => {
+    const cue = id ? cueProps(id) : {};
+    return { ...cue, className: ['page-notice', cue.className].filter(Boolean).join(' ') };
+  };
 
   // What the work-item card is handed besides its own content: the banner of
   // a checked-out pull request, the note about uncommitted changes when it
@@ -1875,7 +1875,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         contributor to find the menu again. The menu is in the header, which
         does not scroll, so this is brought into view when it appears. */}
     {editorNotice ? (
-      <Notice.Root ref={editorNoticeRef} intent="warning" role="alert" spokenMessage={SILENT}>
+      <Notice.Root {...pageNotice()} ref={editorNoticeRef} intent="warning" role="alert" spokenMessage={SILENT}>
         <Notice.Description>{editorNotice.message}</Notice.Description>
         {editorNotice.offerPicker ? (
           <Notice.Actions>
@@ -1885,7 +1885,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       </Notice.Root>
     ) : null}
       {legacyNotice && !isPending ? (
-        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+        <Notice.Root {...pageNotice()} intent="error" role="alert" spokenMessage={SILENT}>
           <Notice.Title>{legacyNotice.title}</Notice.Title>
           <Notice.Description>{legacyNotice.body}</Notice.Description>
           <Notice.Actions>
@@ -1894,13 +1894,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         </Notice.Root>
       ) : null}
       {mergeNotice && !isPending ? (
-        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+        <Notice.Root {...pageNotice()} intent="error" role="alert" spokenMessage={SILENT}>
           <Notice.Title>{mergeNotice.title}</Notice.Title>
           <Notice.Description>{mergeNotice.body}</Notice.Description>
         </Notice.Root>
       ) : null}
       {updateIncomplete && !isUpdating ? (
-        <Notice.Root {...cueProps('retry-install-build')} intent="error" spokenMessage={SILENT}>
+        <Notice.Root {...pageNotice('retry-install-build')} intent="error" spokenMessage={SILENT}>
           <Notice.Title>Update incomplete</Notice.Title>
           <Notice.Description>The code is new but the built assets are old. The site may not run correctly until install and build succeed.</Notice.Description>
           <Notice.Actions>
@@ -1909,7 +1909,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         </Notice.Root>
       ) : null}
       {age.stale && !updateIncomplete && !isUpdating ? (
-        <Notice.Root {...cueProps('update-trunk')} intent="warning" spokenMessage={SILENT}>
+        <Notice.Root {...pageNotice('update-trunk')} intent="warning" spokenMessage={SILENT}>
           <Notice.Title>This site&apos;s WordPress code is {age.ageDays} days old</Notice.Title>
           <Notice.Description>Patches you create now may not apply on Trac. Updating takes a few minutes.</Notice.Description>
           <Notice.Actions>
@@ -1926,7 +1926,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         />
       ) : null}
       {lastUpdateSummary && !isUpdating && !updateIncomplete ? (
-        <Notice.Root intent="success" spokenMessage={SILENT}>
+        <Notice.Root {...pageNotice()} intent="success" spokenMessage={SILENT}>
           <Notice.Title>Up to date with trunk as of today.</Notice.Title>
           <Notice.Description>
             {lastUpdateSummary.lockfileChanged ? 'Dependencies updated' : 'Dependencies unchanged'}
@@ -1964,7 +1964,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           and a site still in the setup wizard shows no ticket panel at all —
           which is exactly when a ticket that vanished silently would be worst. */}
       {deepLinkNote ? (
-        <Notice.Root intent="warning" role="status" spokenMessage={SILENT}>
+        <Notice.Root {...pageNotice()} intent="warning" role="status" spokenMessage={SILENT}>
           <Notice.Title>{deepLinkNote.title}</Notice.Title>
           <Notice.Description>{deepLinkNote.body}</Notice.Description>
           <Notice.Actions>
@@ -1973,7 +1973,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         </Notice.Root>
       ) : null}
       {deepLinkPrompt ? (
-        <Notice.Root intent="info" role="status" spokenMessage={SILENT}>
+        <Notice.Root {...pageNotice()} intent="info" role="status" spokenMessage={SILENT}>
           <Notice.Title>{deepLinkPrompt.title}</Notice.Title>
           <Notice.Description>{deepLinkPrompt.body}</Notice.Description>
           <Notice.Actions>

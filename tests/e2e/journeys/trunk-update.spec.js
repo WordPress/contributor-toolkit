@@ -47,7 +47,9 @@ test( 'an update fetches from the site\'s origin, resets the checkout, rebuilds,
 	await expect( done ).toBeVisible();
 	await done.locator( '..' ).getByRole( 'button', { name: 'Dismiss', exact: true } ).click();
 	await expect( done ).toHaveCount( 0 );
-	await expect( page.getByText( 'Dependencies unchanged', { exact: false } ) ).toHaveCount( 0 );
+	// The notice's own sentence, and not the terminal's, which says the
+	// install was skipped in words that begin the same.
+	await expect( page.getByText( /^Dependencies unchanged, rebuilt/ ) ).toHaveCount( 0 );
 
 	// INVARIANT — the checkout is the origin's trunk now, still on trunk, and
 	// the substrate survived the reset.

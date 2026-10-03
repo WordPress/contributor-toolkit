@@ -76,11 +76,17 @@ test( 'a site whose code is old says so, why it matters, and has the way to upda
 	} );
 
 	// INVARIANT — the page says how old the code is and why that matters.
-	await expect( page.getByText( 'This site\'s WordPress code is 40 days old', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( page.getByText( 'Patches you create now may not apply on Trac. Updating takes a few minutes.', { exact: true } ) ).toBeVisible();
+	const old = page.getByText( 'This site\'s WordPress code is 40 days old', { exact: true } );
+	await expect( old ).toBeVisible( { timeout: 30_000 } );
+	const notice = old.locator( '..' );
+	await expect( notice.getByText( 'Patches you create now may not apply on Trac. Updating takes a few minutes.', { exact: true } ) ).toBeVisible();
 
-	// INVARIANT — and the button that updates it is on the page, with the
-	// menu closed: it is the notice's own, and it can be pressed.
-	await expect( page.getByRole( 'menu' ) ).toHaveCount( 0 );
-	await expect( page.getByRole( 'button', { name: 'Update to latest trunk', exact: true } ) ).toBeEnabled();
+	// INVARIANT — and the button that updates it is the notice's own, beside
+	// what it says, and can be pressed.
+	await expect( notice.getByRole( 'button', { name: 'Update to latest trunk', exact: true } ) ).toBeEnabled();
+
+	// INVARIANT — it is what the page points at as the next thing to do: the
+	// notice carries the mark the cue looks for, and is ringed.
+	await expect( notice ).toHaveAttribute( 'data-next-action', 'update-trunk' );
+	await expect( notice ).toHaveClass( /(^| )next-action-cue( |$)/ );
 } );
