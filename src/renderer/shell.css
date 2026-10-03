@@ -455,6 +455,7 @@ body {
 .ticket-list-card button,
 .apply-card button,
 .apply-preview-dialog button,
+.create-site-dialog button,
 .app-footer button {
   margin-right: 0;
 }
@@ -611,6 +612,42 @@ body {
 
 .ticket-pr-id {
   font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+}
+
+/* The create-site dialog (#557). The folder is asked for with a file input,
+   as wide as the dialog, and the folder that was chosen is said under it:
+   a path has no spaces to break at. */
+.create-site-dialog .file-field-control {
+  width: 100%;
+  min-height: var(--wpds-dimension-size-md, 32px);
+  font: inherit;
+  color: inherit;
+}
+
+/* The ring the design system's own controls have, where the browser would
+   draw its own. */
+.create-site-dialog .file-field-control:focus-visible {
+  outline: var(--wpds-border-width-focus, 2px) solid var(--wpds-color-stroke-focus, #3858e9);
+  outline-offset: var(--wpds-border-width-focus, 2px);
+}
+
+.create-site-dialog .file-field-value {
+  overflow-wrap: anywhere;
+}
+
+/* What is said under the choice of project is drawn by the older component
+   library, with its own type. It is given the type the description under
+   the folder has, a field away. */
+.create-site-dialog .components-base-control__help {
+  margin-block: var(--wpds-dimension-gap-sm, 8px) 0;
+  font-size: var(--wpds-typography-font-size-sm, 12px);
+  line-height: var(--wpds-typography-line-height-xs, 16px);
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+/* Its two sentences, one under the other. */
+.create-site-dialog .components-base-control__help > span {
+  display: block;
 }
 
 /* The list of a site's tickets (#557): one row a ticket, a rule between

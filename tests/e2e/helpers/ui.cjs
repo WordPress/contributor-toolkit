@@ -72,7 +72,7 @@ const createFirstSiteButton = ( page ) =>
 	page.locator( '#root' ).getByRole( 'button', { name: 'Create site', exact: true } );
 // What a window with no site in it says.
 const noSitesTitle = ( page ) => page.getByText( 'No sites', { exact: true } );
-const createSiteDialog = ( page ) => page.getByRole( 'dialog', { name: 'Create a site' } );
+const createSiteDialog = ( page ) => page.getByRole( 'dialog', { name: 'Create site', exact: true } );
 // In the footer, whatever the window shows above it.
 const giveFeedbackButton = ( page ) => page.getByRole( 'button', { name: 'Give feedback', exact: true } );
 

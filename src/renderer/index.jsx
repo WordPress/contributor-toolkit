@@ -63,7 +63,7 @@ import { TerminalCommandLink } from './components/terminal-command-link.jsx';
 import { RenameSiteModal } from './components/rename-site-modal.jsx';
 import { EmailModal } from './components/email-modal.jsx';
 import { DirtyTreeModal } from './components/dirty-tree-modal.jsx';
-import { CreateSiteModal } from './components/create-site-modal.jsx';
+import { CreateSiteDialog } from './components/create-site-dialog.jsx';
 import { PatchDiffPane } from './components/patch-diff-pane.jsx';
 import { MentorHandoff } from './components/mentor-handoff.jsx';
 import { TracDestination } from './components/trac-destination.jsx';
@@ -695,9 +695,7 @@ function App() {
           </div>
         </div>
       )}
-      {createModalOpen ? (
-        <CreateSiteModal submitting={createSubmitting} error={createSiteError} onError={setCreateSiteError} onCreate={startSiteSetup} onClose={closeCreateModal} />
-      ) : null}
+      <CreateSiteDialog open={createModalOpen} submitting={createSubmitting} error={createSiteError} onError={setCreateSiteError} onCreate={startSiteSetup} onClose={closeCreateModal} />
     </div>
     </SlotFillProvider>
     {/* One toast region for the window (#253). Anchored bottom-right, above
