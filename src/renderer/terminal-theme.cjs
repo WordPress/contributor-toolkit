@@ -39,9 +39,12 @@ const TERMINAL_COLOR_TOKENS = {
 	foreground: NEUTRAL,
 	cursor: NEUTRAL,
 	cursorAccent: SURFACE,
-	// The terminal paints a selection at a third of its colour's strength,
-	// so the colour given is a strong one: a pale one would not be seen.
+	// A selection is the design system's strong brand surface, with the
+	// colour it has for text on that surface: a pale one could not be told
+	// from the terminal's own, and the text's own colour could not be read
+	// on a strong one.
 	selectionBackground: 'var(--wpds-color-background-interactive-brand-strong)',
+	selectionForeground: 'var(--wpds-color-foreground-interactive-brand-strong)',
 	...NUMBERED,
 	brightBlack: NEUTRAL_WEAK,
 	brightRed: NUMBERED.red,

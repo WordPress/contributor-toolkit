@@ -575,6 +575,12 @@ body {
   margin-block-end: var(--wpds-dimension-padding-2xl, 24px);
 }
 
+/* The last of them in a window with no site has the block's own padding
+   under it, and needs no more. */
+.page-body-notices > .window-notice:last-child {
+  margin-block-end: 0;
+}
+
 /* A site's view, with room under its last panel. */
 .site-view {
   padding-block-end: var(--wpds-dimension-padding-3xl, 32px);

@@ -46,16 +46,18 @@ test('a bright colour is the plain one: the design system\'s stronger colours ar
 	}
 });
 
-test('the selection is given a strong colour, since the terminal paints it at a third of its strength', () => {
+test('a selection is the strong brand surface with the text that surface has, so that it is seen and can be read', () => {
 	assert.equal(TERMINAL_COLOR_TOKENS.selectionBackground, 'var(--wpds-color-background-interactive-brand-strong)');
+	assert.equal(TERMINAL_COLOR_TOKENS.selectionForeground, 'var(--wpds-color-foreground-interactive-brand-strong)');
 	assert.notEqual(TERMINAL_COLOR_TOKENS.selectionBackground, TERMINAL_COLOR_TOKENS.background);
+	assert.notEqual(TERMINAL_COLOR_TOKENS.selectionForeground, TERMINAL_COLOR_TOKENS.foreground);
 });
 
 test('a colour too close to what is behind it is moved until it can be read', () => {
 	assert.deepEqual(TERMINAL_READABILITY, { minimumContrastRatio: 4.5 });
 });
 
-test('all sixteen numbered colours are given, with the surface, the text, the cursor and the selection', () => {
+test('all sixteen numbered colours are given, with the surface, the text, the cursor and the selection and its text', () => {
 	const numbered = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
 	const names = Object.keys(TERMINAL_COLOR_TOKENS);
 	for (const name of numbered) {
@@ -63,8 +65,8 @@ test('all sixteen numbered colours are given, with the surface, the text, the cu
 		const bright = `bright${name[0].toUpperCase()}${name.slice(1)}`;
 		assert.ok(names.includes(bright), bright);
 	}
-	for (const name of ['background', 'foreground', 'cursor', 'cursorAccent', 'selectionBackground']) assert.ok(names.includes(name), name);
-	assert.equal(names.length, 21);
+	for (const name of ['background', 'foreground', 'cursor', 'cursorAccent', 'selectionBackground', 'selectionForeground']) assert.ok(names.includes(name), name);
+	assert.equal(names.length, 22);
 });
 
 test('the theme is each token\'s colour as it was read', () => {
