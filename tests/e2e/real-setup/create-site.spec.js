@@ -53,7 +53,7 @@ for ( const target of TARGETS ) {
 		try {
 			await test.step( 'Create a site in an isolated temporary directory', async () => {
 				await session.answerFileDialog( [ parent ] );
-				await ui.createSiteButton( page ).click();
+				await ui.createFirstSiteButton( page ).click();
 				const modal = ui.createSiteDialog( page );
 				const choice = modal.getByRole( 'radio', { name: target.choice, exact: true } );
 				await choice.click();
@@ -72,14 +72,14 @@ for ( const target of TARGETS ) {
 					await name.fill( 'real-setup' );
 					await expect( name ).toHaveValue( 'real-setup', { timeout: 2_000 } );
 				} ).toPass( { timeout: 30_000 } );
-				await modal.getByLabel( 'Site location', { exact: true } ).press( 'Enter' );
+				await modal.getByLabel( 'Location', { exact: true } ).press( 'Enter' );
 				await modal.getByRole( 'button', { name: 'Create site', exact: true } ).click();
 			} );
 
 			await test.step( 'Wait for the real clone, npm install and full build', async () => {
 				// INVARIANT: the app completes the automatic chain without retry clicks.
 				// WordPress mirrors the same success message in its live region.
-				await expect( page.getByText( 'This site is ready to work on', { exact: true } ).first() ).toBeVisible( {
+				await expect( ui.toast( page, 'This site is ready to work on' ) ).toBeVisible( {
 					// On the Windows runner `npm install` alone has taken over 40 minutes.
 					timeout: 75 * 60_000,
 				} );

@@ -374,7 +374,7 @@ test( 'a checkout carrying someone else\'s patch says so above the destinations,
 		{ file: 'wp-login.php', from: '<?php // trunk', to: '<?php // fixed by the patch' },
 	] );
 	await session.answerFileDialog( [ patch ] );
-	await ui.choosePatchFileButton( page ).click();
+	await ui.choosePatchFile( page );
 	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.applyAndRebuildButton( page ).click();
 	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );

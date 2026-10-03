@@ -1,36 +1,34 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useReducer, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import {
   Button,
   TabPanel,
-  Card,
-  CardBody,
-  Dropdown,
-  Flex,
-  DropdownMenu,
-  Icon,
-  MenuGroup,
-  MenuItem,
-  SnackbarList,
-  TextControl,
-  Spinner
+  SlotFillProvider
 } from '@wordpress/components';
+import { Page } from '@wordpress/admin-ui';
 import { __, _x, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
-import { plus, chevronLeft, chevronRight, chevronDown, copy as copyIcon, check as checkIcon, pencil, comment } from '@wordpress/icons';
+import { drawerLeft, globe } from '@wordpress/icons';
 import { ThemeProvider } from '@wordpress/theme';
-import { VisuallyHidden } from '@wordpress/ui';
+import { Badge, Button as UiButton, Card as UiCard, EmptyState, IconButton, Notice, Spinner as UiSpinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
 // The design system's tokens: every `--wpds-*` custom property, at its default,
 // on `:root`.
 import '@wordpress/theme/design-tokens.css';
 import '@wordpress/components/build-style/style.css';
+import '@wordpress/dataviews/build-style/style.css';
 import '@xterm/xterm/css/xterm.css';
-import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision, setupStepLabel } from './setup-steps.cjs';
+// After the libraries' own, so the shell's rules are the later ones.
+import './shell.css';
+import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
+import { sitesListRows, siteToOpen } from './sites-list.cjs';
+import { deleteSiteQuestion } from './site-dialogs.cjs';
+import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
@@ -39,12 +37,9 @@ import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './ap
 import { trunkAgeInfo, updateStepStatuses, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome, updateStepText } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
-import { prStateBadge } from './pr-state.cjs';
-import { statusBadge } from '../trac-ticket-info.cjs';
-import { prDateLabel } from './pr-date-label.cjs';
 import { workItemProvider } from '../work-item.cjs';
-import { adminUrl, adminerUrl } from './site-urls.cjs';
-import { ticketBranchRows, ticketListCard } from './ticket-branch-list.cjs';
+import { adminUrl } from './site-urls.cjs';
+import { ticketBranchRows, ticketListCard, deleteWorkQuestion } from './ticket-branch-list.cjs';
 import { ticketTrunkNotice } from './ticket-trunk-notice.cjs';
 import { legacySiteNotice } from './legacy-site.cjs';
 import { deepLinkNotice } from './deep-link-notice.cjs';
@@ -54,21 +49,33 @@ import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
-import { initialConfirmations, confirmationReducer, deleteFailureMessage } from './confirmations.cjs';
-import { ReasonedButton } from './components/reasoned-button.jsx';
+import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage } from './confirmations.cjs';
+import { ReasonedUiButton } from './components/reasoned-button.jsx';
 import { DiscardChangesLink } from './components/discard-changes-link.jsx';
 import { LogText } from './components/log-text.jsx';
 import { DestinationGroup } from './components/destination.jsx';
 import { TerminalCommandLink } from './components/terminal-command-link.jsx';
-import { RenameSiteModal } from './components/rename-site-modal.jsx';
+import { RenameSiteDialog } from './components/rename-site-dialog.jsx';
+import { ConfirmDialog } from './components/confirm-dialog.jsx';
+import { ToastStack } from './components/toast-stack.jsx';
+import { TrunkUpdateCard } from './components/trunk-update-card.jsx';
+import { SetupChecklist } from './components/setup-checklist.jsx';
 import { EmailModal } from './components/email-modal.jsx';
 import { DirtyTreeModal } from './components/dirty-tree-modal.jsx';
-import { CreateSiteModal } from './components/create-site-modal.jsx';
+import { CreateSiteDialog } from './components/create-site-dialog.jsx';
 import { PatchDiffPane } from './components/patch-diff-pane.jsx';
 import { MentorHandoff } from './components/mentor-handoff.jsx';
 import { TracDestination } from './components/trac-destination.jsx';
 import { PullRequestDestination } from './components/pull-request-destination.jsx';
 import { ReviewDialog } from './components/review-dialog.jsx';
+import { SitesSidebar } from './components/sites-sidebar.jsx';
+import { AppFooter } from './components/app-footer.jsx';
+import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
+import { SiteDetails } from './components/site-details.jsx';
+import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
+import { applyHeldReason, previewShown } from './apply-card.cjs';
+import { TicketCard } from './components/ticket-card.jsx';
+import { TicketListCard } from './components/ticket-list.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
@@ -76,7 +83,7 @@ import { useSites } from './hooks/use-sites.jsx';
 import { usePullRequest } from './hooks/use-pull-request.jsx';
 import { useSiteMail } from './hooks/use-site-mail.jsx';
 import { useSiteLogs } from './hooks/use-site-logs.jsx';
-import { useSiteTerminal, TERMINAL_FONT } from './hooks/use-site-terminal.jsx';
+import { useSiteTerminal } from './hooks/use-site-terminal.jsx';
 import { useSiteScripts } from './hooks/use-site-scripts.jsx';
 import { useBuildWatch } from './hooks/use-build-watch.jsx';
 import { useDevServer } from './hooks/use-dev-server.jsx';
@@ -86,19 +93,6 @@ import { useSiteTicket } from './hooks/use-site-ticket.jsx';
 import { useApplyPatch } from './hooks/use-apply-patch.jsx';
 import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
-// Shared by every log pane so the tabs cannot drift apart visually. The line
-// height is looser than xterm's: this is wrapped text in a div, not painted rows.
-const LOG_PANE_STYLE = { ...TERMINAL_FONT, lineHeight: 1.4, whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 12, borderRadius: 6, height: 220, overflow: 'auto' };
-// The build-watch status dot, by state (#247). Keyed rather than nested
-// ternaries; an unknown state falls back to the grey "stopped" colour.
-const WATCH_DOT_COLORS = { watching: '#00a32a', building: '#dba617', paused: '#dba617', exited: '#d63638' };
-// The applied banner's colours by tone (#509): green for a built site, amber
-// while the watch rebuilds it, red when the rebuild was cut short.
-const APPLIED_BANNER_COLORS = {
-  ready: { border: '#94d3ae', background: '#f4fbf4', text: '#0f5132' },
-  building: { border: '#dba617', background: '#fcf9e8', text: '#6e5406' },
-  unbuilt: { border: '#d63638', background: '#fcf0f1', text: '#8a1f21' }
-};
 // What the Copy button says about the press just made. Keyed rather than
 // nested ternaries, so a fourth state is a line here instead of another branch
 // in the middle of the JSX.
@@ -108,29 +102,10 @@ const COPY_BUTTON_LABELS = {
   failed: 'Could not copy'
 };
 
-// Per-status wording for the update chain card (#94), following the issue's
-// mockups: the skipped install step is named, never hidden, and the build
-// step points at the Terminal instead of opening a second log surface.
-// Checkmark/pointer and color per step status; pending/skipped fall back to
-// no symbol in muted gray.
-const UPDATE_STEP_MARKS = {
-  complete: { symbol: '✓', color: '#0f5132' },
-  current: { symbol: '›', color: '#0b5d95' }
-};
-// The file manager has a name on the two platforms that have one; everywhere
-// else it is whatever the desktop provides, so it is called what it is.
-//
-// Two forms, because it appears in two places: an instruction in a list of
-// commands ("Show in Finder"), and an application named alongside the editors in
-// the "Open directory in" menu, where every other row is a bare name.
-const FILE_MANAGER_LABELS = { darwin: 'Show in Finder', win32: 'Show in Explorer' };
-const FILE_MANAGER_NAMES = { darwin: 'Finder', win32: 'File Explorer' };
-// Why the ticket's PR list could not be read, worded for the contributor.
-const TICKET_PATCH_STATUS_MESSAGE = {
-  'rate-limited': 'GitHub is rate-limiting this connection.',
-  offline: 'Could not reach GitHub.',
-  error: 'Could not read the pull requests from GitHub.'
-};
+// A notice that is on the page as the page is drawn, or that already says
+// itself through its role, is told to say nothing of its own: left to, it
+// would be read out each time its site is opened, or said twice.
+const SILENT = '';
 
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
@@ -177,17 +152,19 @@ function App() {
   useEffect(() => { if (webLogRef.current) webLogRef.current.scrollTop = webLogRef.current.scrollHeight; }, [webLogs]);
   const [webAvailable, setWebAvailable] = useState(false);
   useEffect(() => { (async () => { try { setWebAvailable(Boolean(await window.api.playgroundWebAvailable())); } catch {} })(); }, []);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Whether the sites list is showing. Closed, it gives its width to the page.
+  const [sitesListOpen, setSitesListOpen] = useState(true);
+  // Whether the open site's details are showing. One answer for the window,
+  // not one per site: it is how the contributor likes the page, and it should
+  // not change as they move between sites.
+  const [detailsOpen, setDetailsOpen] = useState(true);
+  const toggleDetails = useCallback(() => setDetailsOpen((open) => !open), []);
   const [activeSite, setActiveSite] = useState(null);
   const [deletingSites, setDeletingSites] = useState([]);
   // State paints the progress, while the ref closes the same-tick gap before
   // React renders it and prevents two delete requests for one site.
   const deletingSitesRef = useRef(new Set());
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  // The one message under the create-site form: the dialog's complaint about
-  // a missing answer, or why the setup it started failed. Held here because
-  // the second is written here, possibly after the dialog has closed.
-  const [createSiteError, setCreateSiteError] = useState('');
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [setupLogsBySite, setSetupLogsBySite] = useState({});
   const setupLogAliasRef = useRef({});
@@ -342,7 +319,6 @@ function App() {
   // shape.
   const chooseAndSetup = useCallback(() => {
     if (createSubmitting) return;
-    setCreateSiteError('');
     setCreateModalOpen(true);
   }, [createSubmitting]);
 
@@ -368,7 +344,6 @@ function App() {
 
     try {
       setCreateSubmitting(true);
-      setCreateSiteError('');
       setTerminalMsgs('');
       addPendingSite(targetDir);
       appendSetupLog(targetDir, 'Starting site setup…\n');
@@ -395,7 +370,10 @@ function App() {
       // once the clone reports its directory the guess no longer exists, and
       // discarding the guess here would strand a row for a setup that failed.
       const rowPath = setupRowPathRef.current || targetDir;
-      setCreateSiteError(String(e));
+      // Said in the window's corner, and until it is dismissed: the dialog
+      // that asked for the site closed minutes ago, and the row that showed
+      // the setup is about to go.
+      confirm(setupFailureMessage(e), { tone: 'error' });
       appendSetupLog(rowPath, `Setup failed: ${String(e)}\n`);
       applySetup((state) => discardSetup(state, rowPath));
     } finally {
@@ -406,7 +384,7 @@ function App() {
       clearPendingSites();
       setCreateSubmitting(false);
     }
-  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, moveSetupLog, refresh]);
+  }, [addPendingSite, appendSetupLog, applySetup, clearPendingSites, confirm, moveSetupLog, refresh]);
 
   const closeCreateModal = useCallback(() => setCreateModalOpen(false), []);
 
@@ -472,19 +450,14 @@ function App() {
     }
   }, [refresh, removeSetupLog, confirm]);
 
+  // Rejects when the name could not be written, and the dialog that asked
+  // says why.
   const onRename = useCallback(async (sitePath, newLabel) => {
-    try {
-      await window.api.setSiteLabel(sitePath, newLabel);
-      setSiteMeta((meta) => ({
-        ...(meta || {}),
-        [sitePath]: { ...(meta?.[sitePath] || {}), label: newLabel }
-      }));
-    } catch (err) {
-      // Pre-existing UX convention in this file; replacing every alert()/confirm()
-      // with an in-app notice is a separate, larger UX change than a lint cleanup should make.
-      // eslint-disable-next-line no-alert
-      alert(String(err));
-    }
+    await window.api.setSiteLabel(sitePath, newLabel);
+    setSiteMeta((meta) => ({
+      ...(meta || {}),
+      [sitePath]: { ...(meta?.[sitePath] || {}), label: newLabel }
+    }));
   }, [setSiteMeta]);
 
   const sortedSites = useMemo(() => {
@@ -506,315 +479,227 @@ function App() {
     setActiveSite((current) => (current && sortedSites.includes(current) ? current : sortedSites[0]));
   }, [sortedSites]);
 
-  const handleSelectSite = useCallback((sitePath) => {
-    setActiveSite(sitePath);
-  }, []);
+  // The list reports its selection; which site that opens is decided in
+  // sites-list.cjs.
+  const sitesRows = useMemo(
+    () => sitesListRows({ sites: sortedSites, siteMeta, deleting: deletingSites }),
+    [sortedSites, siteMeta, deletingSites]
+  );
+  const openRow = sitesRows.find((row) => row.path === activeSite) || null;
+  const handleChangeSelection = useCallback((selection) => {
+    setActiveSite((current) => siteToOpen({ selection, current, rows: sitesRows }));
+  }, [sitesRows]);
+  const openFeedbackForm = useCallback(() => { window.api.openExternal(FEEDBACK_FORM_URL); }, []);
+
+  // What the window has to say that is about no one site: the Playground web
+  // server where a build ships one, a setup in flight, and a ticket that
+  // arrived from a link with no site to put it in. The prototype (#542) has no
+  // place for these yet, so they stay above whatever the page area shows.
+  const windowNotices = (
+    <>
+      {webAvailable ? (
+        <Stack direction="row" align="center" justify="flex-end" gap="sm" className="window-notice">
+          <UiButton
+            loading={webStarting}
+            loadingAnnouncement="Starting the Playground web server"
+            variant={webUrl ? 'outline' : 'solid'}
+            tone={webUrl ? 'neutral' : 'brand'}
+            onClick={togglePlaygroundWeb}
+          >{webUrl ? 'Stop Playground web server' : 'Start Playground web server'}</UiButton>
+          {webStarting || webUrl ? (
+            <Text variant="body-sm">
+              {webStarting ? 'Starting…' : (
+                <a href={webUrl || 'http://127.0.0.1:39372/'} onClick={(e) => { e.preventDefault(); window.api.openExternal(webUrl || 'http://127.0.0.1:39372/'); }}>{webUrl || 'http://127.0.0.1:39372/'}</a>
+              )}
+            </Text>
+          ) : null}
+        </Stack>
+      ) : null}
+
+      {/* Playground web server status + logs */}
+      {(webStarting || webUrl || webError || webLogs) ? (
+        <UiCard.Root className="window-notice">
+          <UiCard.Content render={<Stack direction="column" gap="sm" />}>
+            <Stack direction="row" align="center" justify="space-between" gap="sm">
+              <Text variant="heading-md">Playground web server</Text>
+              <Text variant="body-sm" className="muted-label">
+                {webStarting ? 'Starting…' : null}
+                {!webStarting && webUrl ? (
+                  <a href={webUrl} onClick={(e)=>{ e.preventDefault(); window.api.openExternal(webUrl); }}>{webUrl}</a>
+                ) : null}
+                {!webStarting && !webUrl ? 'Stopped' : null}
+              </Text>
+            </Stack>
+            {webError ? <Text variant="body-sm" className="error-text">{webError}</Text> : null}
+            <div ref={webLogRef} className="log-pane is-short"><LogText text={webLogs} /></div>
+          </UiCard.Content>
+        </UiCard.Root>
+      ) : null}
+
+      {pendingSites.length > 0 && (
+        <UiCard.Root className="window-notice">
+          <UiCard.Content render={<Stack direction="column" gap="sm" />}>
+            <Text variant="heading-md">Setting up new site…</Text>
+            {downloadPhase && <Text variant="body-sm" className="muted-label">{downloadPhase}</Text>}
+            <div ref={termRef} className="log-pane is-short">{terminalMsgs}</div>
+          </UiCard.Content>
+        </UiCard.Root>
+      )}
+
+      {/* A ticket arrived from a link and there is no site to put it
+          in. The site in front of the contributor gets its own
+          confirmation inside the ticket panel, where the ticket would
+          go; `activeSite` is null only when there are no sites at all,
+          so this is the one other case. */}
+      {(() => {
+        if (!deepLink || activeSite) return null;
+        const notice = deepLinkNotice({ ticket: deepLink.ticket });
+        if (!notice) return null;
+        return (
+          <Notice.Root className="window-notice" intent="info" role="status" spokenMessage={SILENT}>
+            <Notice.Title>{notice.title}</Notice.Title>
+            <Notice.Description>{notice.body}</Notice.Description>
+            <Notice.Actions>
+              <UiButton variant="outline" tone="neutral" size="compact" onClick={clearDeepLink}>Dismiss</UiButton>
+            </Notice.Actions>
+          </Notice.Root>
+        );
+      })()}
+    </>
+  );
 
   return (
     <ConfirmationContext.Provider value={confirm}>
-    <div style={{ display: 'flex', height: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>
-      <div style={{ width: sidebarCollapsed ? 56 : 280, background: '#1f1f1f', color: '#f7f7f7', display: 'flex', flexDirection: 'column', transition: 'width 0.2s ease', borderRight: '1px solid #2b2b2b' }}>
-        <div style={{ padding: sidebarCollapsed ? '12px 8px' : '16px', borderBottom: '1px solid #2b2b2b' }}>
-          <Flex align="center" justify="space-between">
-            {!sidebarCollapsed ? (<div style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{__('Contributor Toolkit')}</div>) : null}
-            <Button
-              icon={sidebarCollapsed ? chevronRight : chevronLeft}
-              onClick={() => setSidebarCollapsed((v) => !v)}
-              variant="tertiary"
-              aria-label={sidebarCollapsed ? __('Expand site list') : __('Collapse site list')}
-              isSmall
-              style={{ color: '#f7f7f7' }}
-            >
-              {!sidebarCollapsed ? __('Collapse') : null}
-            </Button>
-          </Flex>
-          <Dropdown
-            popoverProps={{
-              placement: sidebarCollapsed ? 'right-start' : 'bottom-start',
-              offset: 8
-            }}
-            renderToggle={({ isOpen, onToggle }) => (
-              <Button
-                variant="secondary"
-                onClick={onToggle}
-                aria-expanded={isOpen}
-                aria-haspopup="dialog"
-                aria-label={__('Share feedback')}
-                icon={comment}
-                isSmall
-                style={{
-                  width: '100%',
-                  justifyContent: 'center',
-                  marginTop: 12,
-                  background: '#e8e8e8',
-                  color: '#1e1e1e',
-                  borderColor: '#e8e8e8',
-                  padding: sidebarCollapsed ? '10px 0' : '10px 12px',
-                  borderRadius: 0
-                }}
-              >
-                {!sidebarCollapsed ? __('Share feedback') : null}
-              </Button>
-            )}
-            renderContent={({ onClose }) => (
-              <div style={{ width: 320, padding: 16, color: '#1d2327' }}>
-                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>{__('Share feedback')}</div>
-                <p style={{ margin: '0 0 12px', lineHeight: 1.5 }}>{__('Your feedback helps decide what to build next.')}</p>
-                <p style={{ margin: '0 0 16px', lineHeight: 1.5 }}>{__('Responses go into a shared form the team reviews regularly. Submissions are anonymous unless you add your email.')}</p>
-                <Button
-                  variant="link"
-                  onClick={() => {
-                    onClose();
-                    window.api.openExternal(FEEDBACK_FORM_URL);
-                  }}
-                  style={{ padding: 0, height: 'auto' }}
-                >
-                  {__('Open the feedback form ↗')}
-                </Button>
-              </div>
-            )}
-          />
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? '12px 8px' : '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {sortedSites.length === 0 && !sidebarCollapsed ? (
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{__('No sites yet.')}</div>
-          ) : null}
-          {sortedSites.map((sitePath) => {
-            const meta = siteMeta?.[sitePath] || {};
-            const siteName = (meta.label && meta.label.trim()) || pathBasename(sitePath);
-            // Every row says which project its site is (#251), so a list
-            // of mixed sites reads at a glance.
-            const projectTag = getProjectType(meta.projectType).tag;
-            const isActive = activeSite === sitePath;
-            const isDeleting = deletingSites.includes(sitePath);
-            let siteButtonMinHeight = 40;
-            if (sidebarCollapsed) siteButtonMinHeight = 36;
-            else if (isDeleting) siteButtonMinHeight = 58;
-            // Staleness surfaces in the sidebar before the site is even
-            // opened (#94): amber = old trunk snapshot, red = an update that
-            // moved trunk but never finished install/build.
-            const trunkAge = trunkAgeInfo({ trunkDate: meta.trunkDate });
-            let staleDotColor = null;
-            if (meta.updateIncomplete) staleDotColor = '#d63638';
-            else if (trunkAge.stale) staleDotColor = '#dba617';
-            const staleDotTitle = meta.updateIncomplete
-              ? 'Update incomplete — code is new, built assets are old'
-              : `WordPress code is ${trunkAge.ageDays} days old — update to latest trunk`;
-            const staleDot = staleDotColor ? (
-              <span
-                title={staleDotTitle}
-                style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: staleDotColor, flexShrink: 0 }}
-              />
-            ) : null;
-            return (
-              <Button
-                key={sitePath}
-                onClick={() => handleSelectSite(sitePath)}
-                aria-busy={isDeleting}
-                aria-label={isDeleting ? `${siteName}, Deleting` : undefined}
-                disabled={isDeleting}
-                accessibleWhenDisabled={isDeleting}
-                variant="tertiary"
-                isSmall
-                isPressed={isActive}
-                style={{
-                  width: '100%',
-                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                  background: isActive ? 'rgba(255,255,255,0.16)' : 'transparent',
-                  border: '1px solid rgba(255,255,255,0.18)',
-                  color: '#f7f7f7',
-                  padding: sidebarCollapsed ? '8px 0' : '10px 12px',
-                  borderRadius: 6,
-                  height: 'auto',
-                  minHeight: siteButtonMinHeight,
-                  opacity: 1,
-                }}
-              >
-                {sidebarCollapsed && !isDeleting ? (
-                  <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>{siteName.slice(0, 1).toUpperCase()}{staleDot}</span>
-                ) : null}
-                {sidebarCollapsed && isDeleting ? <Spinner style={{ width: 16, height: 16, margin: 0 }} /> : null}
-                {!sidebarCollapsed ? (
-                  <div style={{ width: '100%', minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3 }}>
-                      <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{siteName}{staleDot}</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '1px 6px', borderRadius: 999, background: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.85)' }}>{projectTag}</span>
-                      {isDeleting ? <span style={{ fontSize: 11, lineHeight: 1.3, color: 'rgba(255,255,255,0.72)' }}>Deleting site…</span> : null}
-                    </div>
-                    {isDeleting ? <Spinner style={{ width: 16, height: 16, margin: 0, flexShrink: 0 }} /> : null}
-                  </div>
-                ) : null}
-              </Button>
-            );
-          })}
-        </div>
-        <div
-          style={{
-            padding: sidebarCollapsed ? '12px 8px 20px' : '16px 16px 24px',
-            borderTop: '1px solid #2b2b2b'
-          }}
-        >
-          <Button
-            icon={plus}
-            variant="primary"
-            onClick={chooseAndSetup}
-            disabled={createSubmitting}
-            style={{ width: '100%', justifyContent: 'center' }}
-            aria-label={__('Create a site')}
-            label={createSubmitting ? __('Finish creating the current site first') : undefined}
-          >
-            {!sidebarCollapsed ? __('Create a site') : null}
-          </Button>
-        </div>
-      </div>
-      <div style={{ flex: 1, background: '#fff', color: '#1d2327', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 32px 48px' }}>
-          <div style={{ maxWidth: 1040, margin: '0 auto' }}>
-            {webAvailable ? (
-              <Flex align="center" justify="flex-end" style={{ gap: 8, marginBottom: 24 }}>
-                <Button
-                  isBusy={webStarting}
-                  variant={webUrl ? 'secondary' : 'primary'}
-                  onClick={togglePlaygroundWeb}
-                >{webUrl ? 'Stop Playground web server' : 'Start Playground web server'}</Button>
-                {webStarting || webUrl ? (
-                  <span style={{ fontSize: 12 }}>
-                    {webStarting ? 'Starting…' : (
-                      <a href={webUrl || 'http://127.0.0.1:39372/'} onClick={(e) => { e.preventDefault(); window.api.openExternal(webUrl || 'http://127.0.0.1:39372/'); }}>{webUrl || 'http://127.0.0.1:39372/'}</a>
-                    )}
-                  </span>
-                ) : null}
-              </Flex>
-            ) : null}
-
-            {/* Playground web server status + logs */}
-            {(webStarting || webUrl || webError || webLogs) ? (
-              <Card style={{ marginBottom: 24 }}>
-                <CardBody>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, justifyContent:'space-between' }}>
-                    <div style={{ fontWeight: 600 }}>Playground web server</div>
-                    <div style={{ fontSize:12, color:'#666' }}>
-                      {webStarting ? 'Starting…' : null}
-                      {!webStarting && webUrl ? (
-                        <a href={webUrl} onClick={(e)=>{ e.preventDefault(); window.api.openExternal(webUrl); }}>{webUrl}</a>
-                      ) : null}
-                      {!webStarting && !webUrl ? 'Stopped' : null}
-                    </div>
-                  </div>
-                  {webError ? (<div style={{ marginTop:6, color:'#C00', fontSize:12 }}>{webError}</div>) : null}
-                  <div ref={webLogRef} style={{ ...LOG_PANE_STYLE, marginTop:8, padding:8, height:140 }}><LogText text={webLogs} /></div>
-                </CardBody>
-              </Card>
-            ) : null}
-
-            <div id="sites">
-              {pendingSites.length > 0 && (
-                <Card style={{ marginBottom: 24 }}>
-                  <CardBody>
-                    <div style={{ fontWeight: 600 }}>Setting up new site…</div>
-                    {downloadPhase && <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>{downloadPhase}</div>}
-                    <div ref={termRef} style={{ whiteSpace: 'pre-wrap', background: '#111', color: '#eee', padding: 8, borderRadius: 6, height: 140, overflow: 'auto' }}>{terminalMsgs}</div>
-                  </CardBody>
-                </Card>
-              )}
-
-              {/* A ticket arrived from a link and there is no site to put it
-                  in. The site in front of the contributor gets its own
-                  confirmation inside the ticket panel, where the ticket would
-                  go; `activeSite` is null only when there are no sites at all,
-                  so this is the one other case. */}
-              {(() => {
-                if (!deepLink || activeSite) return null;
-                const notice = deepLinkNotice({ ticket: deepLink.ticket });
-                if (!notice) return null;
-                return (
-                  <div role="status" style={{ marginBottom: 24, padding: '12px 14px', background: '#f0f6fc', border: '1px solid #72aee6', borderRadius: 8, color: '#1d2327' }}>
-                    <div style={{ fontWeight: 600 }}>{notice.title}</div>
-                    <div style={{ marginTop: 4, fontSize: 13 }}>{notice.body}</div>
-                    <div style={{ marginTop: 8 }}>
-                      <Button variant="link" onClick={clearDeepLink} style={{ fontSize: 12 }}>Dismiss</Button>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {sortedSites.length > 0 ? (
-                sortedSites.map((s) => (
-                  <div
-                    key={s}
-                    style={{ display: activeSite === s ? 'block' : 'none' }}
-                    aria-hidden={activeSite === s ? false : true}
-                  >
-                    <SiteRow
-                      sitePath={s}
-                      initialized={Boolean(siteMeta?.[s]?.initialized)}
-                      createdAt={siteMeta?.[s]?.createdAt}
-                      label={siteMeta?.[s]?.label}
-                      projectType={siteMeta?.[s]?.projectType}
-                      onInitialized={onInitialized}
-                      onSiteMetaPatch={onSiteMetaPatch}
-                      onDelete={onDelete}
-                      onRename={onRename}
-                      onCreateSite={() => setCreateModalOpen(true)}
-                      editor={detectedApplications}
-                      wporg={wporg}
-                      isPending={pendingSites.includes(s)}
-                      isDeleting={deletingSites.includes(s)}
-                      setupLogs={setupLogsBySite[s] || ''}
-                      switchProgress={switchProgressBySite[s] || null}
-                      onClearSwitchNotices={clearSwitchNotices}
-                      carriedWork={carriedWorkBySite[s] || null}
-                      deepLink={activeSite === s ? deepLink : null}
-                      onDeepLinkDone={clearDeepLink}
-                      isActive={activeSite === s}
-                    />
-                  </div>
-                ))
-              ) : (
-                <Card>
-                  <CardBody>
-                    <div style={{ marginBottom: 8 }}>{__('No sites yet.')}</div>
-                    <div>{__('Use the sidebar to create your first site.')}</div>
-                  </CardBody>
-                </Card>
-              )}
+    <SlotFillProvider>
+    <div className="app-root">
+      {sortedSites.length === 0 ? (
+        // No site, so no list and no page: what there is to do is in the
+        // middle of the window. The footer stays, since what it holds is
+        // about the app and not about a site.
+        <>
+          <div className="page-body">
+            <div className="page-body-notices">{windowNotices}</div>
+            <div className="page-body-center">
+              <EmptyState.Root>
+                <EmptyState.Icon icon={globe} />
+                <EmptyState.Title>{__('No sites')}</EmptyState.Title>
+                <EmptyState.Description>{__('Create your first site to begin contributing')}</EmptyState.Description>
+                <EmptyState.Actions>
+                  <UiButton onClick={chooseAndSetup} disabled={createSubmitting}>{__('Create site')}</UiButton>
+                </EmptyState.Actions>
+              </EmptyState.Root>
             </div>
           </div>
+          <AppFooter onOpenFeedbackForm={openFeedbackForm} />
+        </>
+      ) : (
+        <div className={sitesListOpen ? 'site-shell' : 'site-shell is-sites-list-hidden'}>
+          {/* Hidden, the list is out of the tab order and out of the
+              accessibility tree as well as out of sight. `inert` is given as a
+              string: React 18 drops the boolean. */}
+          <div id="sites-list" className="sites-sidebar-slot" inert={sitesListOpen ? undefined : ''} aria-hidden={!sitesListOpen}>
+            <SitesSidebar
+              rows={sitesRows}
+              selectedId={openRow ? openRow.id : null}
+              onChangeSelection={handleChangeSelection}
+              onCreateSite={chooseAndSetup}
+              creating={createSubmitting}
+            />
+          </div>
+          <div className="site-shell-main">
+            <Page
+              className="app-page"
+              title={openRow ? openRow.name : ''}
+              badges={openRow ? <Badge>{openRow.project}</Badge> : null}
+              actions={<SiteHeaderActionsSlot />}
+              showSidebarToggle
+              hasPadding={false}
+              ariaLabel={openRow ? openRow.name : __('Site')}
+            >
+              {/* The button says what pressing it does, and that is the one
+                  place its state is said: a pressed state beside a name that
+                  changes would say it twice, and the two would disagree. */}
+              <Page.SidebarToggleFill>
+                <IconButton
+                  className="sites-list-toggle"
+                  icon={drawerLeft}
+                  label={sitesListOpen ? __('Hide sites list') : __('Show sites list')}
+                  variant="minimal"
+                  tone="neutral"
+                  size="compact"
+                  aria-expanded={sitesListOpen}
+                  aria-controls="sites-list"
+                  onClick={() => setSitesListOpen((open) => !open)}
+                />
+              </Page.SidebarToggleFill>
+              <div className="site-workspace-main">
+                <div className="site-workspace-content">
+                  {windowNotices}
+                  {/* Every site's view stays mounted, and only the open one is
+                      shown: a site's terminal, its server and its watch live in
+                      its view, and have to outlive the look at another site. */}
+                  <div id="sites">
+                    {sortedSites.map((s) => (
+                    <div
+                      key={s}
+                      hidden={activeSite !== s}
+                      aria-hidden={activeSite === s ? false : true}
+                    >
+                      <SiteRow
+                        sitePath={s}
+                        initialized={Boolean(siteMeta?.[s]?.initialized)}
+                        createdAt={siteMeta?.[s]?.createdAt}
+                        label={siteMeta?.[s]?.label}
+                        projectType={siteMeta?.[s]?.projectType}
+                        onInitialized={onInitialized}
+                        onSiteMetaPatch={onSiteMetaPatch}
+                        onDelete={onDelete}
+                        onRename={onRename}
+                        onCreateSite={() => setCreateModalOpen(true)}
+                        editor={detectedApplications}
+                        wporg={wporg}
+                        isPending={pendingSites.includes(s)}
+                        isDeleting={deletingSites.includes(s)}
+                        setupLogs={setupLogsBySite[s] || ''}
+                        switchProgress={switchProgressBySite[s] || null}
+                        onClearSwitchNotices={clearSwitchNotices}
+                        carriedWork={carriedWorkBySite[s] || null}
+                        deepLink={activeSite === s ? deepLink : null}
+                        onDeepLinkDone={clearDeepLink}
+                        isActive={activeSite === s}
+                        detailsOpen={detailsOpen}
+                        onToggleDetails={toggleDetails}
+                      />
+                    </div>
+                  ))}
+                  </div>
+                </div>
+              </div>
+            </Page>
+            <AppFooter onOpenFeedbackForm={openFeedbackForm} />
+          </div>
         </div>
-      </div>
-      {createModalOpen ? (
-        <CreateSiteModal submitting={createSubmitting} error={createSiteError} onError={setCreateSiteError} onCreate={startSiteSetup} onClose={closeCreateModal} />
-      ) : null}
+      )}
+      <CreateSiteDialog open={createModalOpen} submitting={createSubmitting} onCreate={startSiteSetup} onClose={closeCreateModal} />
     </div>
-    {/* One toast region for the window (#253). Anchored top-right and sized to
-        its content so it never covers the rest of the UI; SnackbarList announces
-        each message via aria-live. The z-index clears the modal overlay
-        (components-modal__screen-overlay is 100000, and a modal is a later body
-        portal that would otherwise win the tie) so a confirmation for an action
-        taken inside a modal — saving a patch, opening a PR — is still seen. It
-        stays below popovers/dropdowns (1000000), which should sit over it. */}
-    <div style={{ position: 'fixed', right: 24, top: 24, zIndex: 100001, pointerEvents: 'none' }}>
-      <SnackbarList
-        className="toolkit-snackbars"
-        // The icon and the tone class are added here, at render, rather than in
-        // the reducer — an icon is a React element and the tone class is styling,
-        // neither of which belongs in the DOM-free confirmations module.
-        notices={confirmations.notices.map((n) => ({
-          ...n,
-          // Wrapped in <Icon> so it renders at a set size with the tone colour;
-          // Snackbar drops the raw icon element straight into the DOM, where the
-          // bare @wordpress/icons export has no dimensions of its own.
-          icon: n.tone === 'error' ? undefined : <Icon icon={checkIcon} size={20} />,
-          className: n.tone === 'error' ? 'toolkit-toast toolkit-toast--error' : 'toolkit-toast toolkit-toast--success'
-        }))}
-        onRemove={removeConfirmation}
-      />
-    </div>
+    </SlotFillProvider>
+    {/* One toast region for the window (#253, #557). In the bottom corner,
+        above the footer: the top one is where the open site's actions are
+        (#555), and a toast that stays until dismissed would sit on them. Its
+        z-index clears the older library's modal overlay
+        (components-modal__screen-overlay is 100000, and a modal is a later
+        body portal that would otherwise win the tie) so a confirmation for
+        an action taken inside a modal — saving a patch, opening a PR — is
+        still seen. It stays below popovers/dropdowns (1000000), which should
+        sit over it. It is drawn on `body`, outside the app's own element,
+        because that element is a stacking context of its own (see shell.css)
+        and nothing inside it can rise over a dialog. */}
+    {createPortal(<ToastStack notices={confirmations.notices} onRemove={removeConfirmation} />, document.body)}
     </ConfirmationContext.Provider>
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -893,6 +778,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // fails — three rows above, in the case that prompted this — so the way out
   // is a scroll, not a fetch.
   const ticketPatchesRef = useRef(null);
+  // The apply card, for focus to come to when its preview closes.
+  const applyCardRef = useRef(null);
   const setupLogsRef = useRef('');
 
   const siteName = pathBasename(sitePath);
@@ -910,20 +797,29 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
   }, []);
 
-  const copyPath = useCallback(async () => {
+  // Puts the path on the clipboard and resolves to whether it got there. Each
+  // of the two things that copy says so in its own way, and only in that way:
+  // said twice, a screen reader reads it twice.
+  const writePathToClipboard = useCallback(async () => {
     try {
       if (!navigator?.clipboard?.writeText) {
         throw new Error('Clipboard access is not available in this environment');
       }
       await navigator.clipboard.writeText(sitePath);
-      setPathCopied(true);
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-      copyTimeoutRef.current = setTimeout(() => setPathCopied(false), 1500);
+      return true;
     } catch (err) {
-      // eslint-disable-next-line no-alert -- see the note above onRename.
+      // eslint-disable-next-line no-alert -- see the note above confirmAnd.
       alert('Unable to copy path: ' + (err?.message ?? String(err)));
+      return false;
     }
   }, [sitePath]);
+  // The details' button, which says "Copied" on itself for a moment.
+  const copyPath = useCallback(async () => {
+    if (!(await writePathToClipboard())) return;
+    setPathCopied(true);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setPathCopied(false), 1500);
+  }, [writePathToClipboard]);
 
   // --- opening the directory ------------------------------------------------
   //
@@ -931,20 +827,37 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // argument to the action rather than a setting configured first, so there is
   // nothing remembered, nothing to change later, and no first-run picker.
   //
-  // What the menu offers is what detection found (see editor-launch.js — a
+  // What is offered is what detection found (see editor-launch.js — a
   // convenience, not a claim about what is installed) plus the file manager and
   // "Other application…", which is what covers everything the table misses. No
-  // entry is ever drawn disabled: an application this app cannot find is not one
-  // it refuses to use, and the copy button above is the floor under all of it.
+  // application is ever drawn disabled: one this app cannot find is not one it
+  // refuses to use, and copying the path is the floor under all of it. Since
+  // #556 these are items of the site's menu, in the page's header; which ones
+  // and in what order is site-menu.cjs.
   const { detected: detectedEditors, loading: detectingEditors, loadDetected } = editor;
   // `{ message, offerPicker }` from open-failure.cjs, or null for nothing to
   // say. Both what it reads and whether "Choose application…" is a way out of
   // it are decided there, per reason — the two callers below deciding that
   // separately is what #180 was.
   const [editorNotice, setEditorNotice] = useState(null);
+  // The notice is drawn at the top of the site's cards, and the menu that
+  // caused it can be used from anywhere down the page: said out of sight, a
+  // refusal looks like a button that did nothing. Each refusal is brought
+  // into view once. A new notice object is a new refusal, so one that repeats
+  // is brought back; one that is merely still there when the site is opened
+  // again is not this effect's to move to. Where the page goes then is the
+  // next-action cue's (useNextActionCue), which centres the next step each
+  // time a site is opened, and two effects scrolling the same page in one
+  // commit would only be the second one's.
+  const editorNoticeRef = useRef(null);
+  const shownEditorNoticeRef = useRef(null);
+  useEffect(() => {
+    if (!editorNotice || !isActive || !editorNoticeRef.current) return;
+    if (shownEditorNoticeRef.current === editorNotice) return;
+    shownEditorNoticeRef.current = editorNotice;
+    editorNoticeRef.current.scrollIntoView({ block: 'nearest' });
+  }, [editorNotice, isActive]);
 
-  const fileManagerLabel = FILE_MANAGER_LABELS[window.api?.platform] || 'Show in file manager';
-  const fileManagerName = FILE_MANAGER_NAMES[window.api?.platform] || 'File manager';
 
   // `editorPath` is one of the detected applications; null asks the main process
   // for the file dialog instead.
@@ -1187,7 +1100,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The build watch (#554): its state, its run and what can be done to it. It
   // is called here because it needs the script runner and the terminal's lock
   // above. What the chains below use of it is taken out by name.
-  const { watchState, watchExitCode, watchCompiling, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, startBuildWatch, pauseWatcher, resumeWatcher, toggleWatch } = useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, terminalStateRef, terminalKillRef, markTerminalRunning });
+  const { watchState, watchExitCode, watchExitOf, watchCompiling, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, startBuildWatch, pauseWatcher, resumeWatcher, toggleWatch } = useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, terminalStateRef, terminalKillRef, markTerminalRunning });
   // The count is on the tab rather than beside it because the tab is what the
   // contributor is not looking at: a notice landing while they read the server
   // output is the case this panel exists for.
@@ -1200,25 +1113,54 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The dev server (#554): its state, its guards and its one button. It is
   // called here because starting it needs everything above: the build watch,
   // the logs, the mail, the terminal's lock and the script runner.
-  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, devServerButtonLabel, startElapsed, toggleDevServer } = useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
-  // The build watch has its own control and status dot beside the server's — it
-  // runs independently of the server (#247). Green watching, amber building or
-  // paused, red an unexpected exit, grey stopped.
-  const watchActive = watchState === 'watching' || watchState === 'building';
-  const watchDotColor = WATCH_DOT_COLORS[watchState] || '#8c8f94';
-  const watchButtonLabel = watchActive ? 'Stop build watch' : 'Start build watch';
+  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, startElapsed, toggleDevServer } = useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
   }, [sitePath, setSkipInit]);
-  // eslint-disable-next-line no-alert -- see the note above onRename.
+  // The system's own alert and confirm are an older convention of this
+  // file. Each is replaced with the app's own as its part of the window is
+  // redrawn (#557), which is a larger change than a lint cleanup should make.
+  // eslint-disable-next-line no-alert
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
+  // The question asked before a site or a ticket's work is deleted (#557),
+  // in a dialog of the app's own: what is asked, and what a yes does. The
+  // discards above still ask through the system's.
+  const [asking, setAsking] = useState(null);
+  const askFirst = (question, action) => setAsking({ question, action });
 
   // Updating to the latest trunk (#94, #554): the chain, the question it asks
   // about edits in the tree, and the retry. Called here because it runs
   // through everything above, and because what follows reads whether an
   // update is under way.
   const { updateState, isUpdating, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+  // What the page says about the site's two processes (#557), in the header
+  // and in the details alike. Decided in site-processes.cjs, and worked out
+  // here because an update of trunk holds both.
+  const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating });
+  const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
+  const serverSectionState = serverSection({ url: serverUrl, running, starting: isServerStarting, elapsed: startElapsed });
+  // A link to the running site is opened in the browser by the main process.
+  const openSiteLink = (url) => window.api.openExternal(url);
+
+  // What the site's menu does (#556). Which items it offers is decided in
+  // site-menu.cjs; this is each one's function. Copying the path says so in a
+  // toast, since the menu is gone by then and the details, whose own button
+  // says it on itself, may be put away.
+  const detailsId = useId();
+  // The headings of the three panels under the cards, which name them.
+  const terminalTitleId = useId();
+  const logsTitleId = useId();
+  const mailTitleId = useId();
+  const runSiteMenuAction = async (item) => {
+    if (item.id === 'rename') openRenameModal();
+    else if (item.id === 'copy-path') { if (await writePathToClipboard()) confirm(__('Copied the path')); }
+    else if (item.id === 'show-in-file-manager') await showInFileManager();
+    else if (item.id === 'update-trunk') await startTrunkUpdate();
+    else if (item.id === 'open-in') await openIn(item.path);
+    else if (item.id === 'open-in-other') await openIn(null);
+    else if (item.id === 'delete') askFirst(deleteSiteQuestion(displayName), () => onDelete(sitePath));
+  };
 
   // Putting someone else's patch or pull request on this site (#554): what a
   // ticket offers, the preview, and the chain. Called here because it runs
@@ -1239,7 +1181,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // operations as well as on each other — the same trio every destructive
   // control in the ticket panel guards on.
   const branchRows = ticketBranchRows({ branches: ticketBranches.branches, current: ticketBranches.current, tracTicket, now: Date.now() });
-  const ticketsCard = ticketListCard({ rowCount: branchRows.length, linked: Boolean(tracTicket), noun: workItem.noun });
+  const ticketsCard = ticketListCard({ rowCount: branchRows.length, linked: Boolean(tracTicket), provider: project.workItem.provider });
   // What the switch is doing, while it does it (#173). Gated on the busy flag
   // rather than merely cleared by it: the last sends can land after the invoke
   // has already answered, which would flash a sentence under an idle panel.
@@ -1248,9 +1190,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // panel below (#234), so this confirms an answered question rather than
   // announcing a move the app made on its own.
   const carriedNotice = carriedWork ? (
-    <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, color: '#1d2327', fontSize: 12 }}>
-      Your {carriedWork.files} uncommitted {carriedWork.files === 1 ? 'change' : 'changes'} came along into #{carriedWork.ticket}, and will go into its patch.
-    </div>
+    <Notice.Root intent="info" spokenMessage={SILENT}>
+      <Notice.Description>
+        Your {carriedWork.files} uncommitted {carriedWork.files === 1 ? 'change' : 'changes'} came along into #{carriedWork.ticket}, and will go into its patch.
+      </Notice.Description>
+    </Notice.Root>
   ) : null;
 
   // The counterpart for the other answer to the same question: the edits were
@@ -1258,21 +1202,22 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // asked could have been, because that panel — and the path it showed — is
   // gone once the switch completes.
   const savedCleanNotice = patchSavedNotice ? (
-    <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0f6fc', border: '1px solid #c5d9ed', borderRadius: 6, color: '#1d2327', fontSize: 12 }}>
-      Your edits were saved to {patchSavedNotice} and are no longer in the working tree.
-    </div>
+    <Notice.Root intent="info" spokenMessage={SILENT}>
+      <Notice.Description>
+        Your edits were saved to {patchSavedNotice} and are no longer in the working tree.
+      </Notice.Description>
+    </Notice.Root>
   ) : null;
 
   const switchProgressLine = ticketSaving && switchProgress ? (
-    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 12 }}>
-      <Spinner />
-      <span>{describeSwitchProgress(switchProgress)}</span>
-    </div>
+    <Stack direction="row" align="center" gap="sm">
+      <UiSpinner />
+      <Text variant="body-md" className="muted-label">{describeSwitchProgress(switchProgress)}</Text>
+    </Stack>
   ) : null;
   // One gate for every ticket action, and the sentence that goes with it
   // (#409): a control this disables says why, through ReasonedButton.
   const ticketActionsReason = ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun });
-  const ticketActionsBlocked = Boolean(ticketActionsReason);
 
   // The one question both paths now ask (#234). Picking a ticket while trunk
   // has uncommitted edits used to do opposite things — carry them silently
@@ -1289,40 +1234,43 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     noun: workItem.noun
   }) : null;
   const blockedPanel = blockedByTrunkWork ? (
-    <div style={{ marginTop: 8, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
-      <div>{dirtyQuestion.question}</div>
+    <Notice.Root intent="warning" spokenMessage={SILENT}>
+      <Notice.Description>{dirtyQuestion.question}</Notice.Description>
       {patchSavedTo ? (
-        <div style={{ marginTop: 6, fontWeight: 600 }}>
-          Saved to {patchSavedTo}. The edits are still in the working tree.
-        </div>
+        <Notice.Description>
+          <strong>Saved to {patchSavedTo}. The edits are still in the working tree.</strong>
+        </Notice.Description>
       ) : null}
-      <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <Notice.Actions>
         {dirtyQuestion.carry ? (
-          <ReasonedButton
-            variant="link"
-            isBusy={ticketSaving}
+          <ReasonedUiButton
+            variant="outline"
+            tone="neutral"
+            size="compact"
             reason={ticketActionsReason}
             onClick={() => saveTicket(blockedByTrunkWork.ref, { carryTrunkWork: true })}
-            style={{ fontSize: 12 }}
-          >{dirtyQuestion.carry}</ReasonedButton>
+          >{dirtyQuestion.carry}</ReasonedUiButton>
         ) : null}
-        <ReasonedButton variant="link" reason={ticketActionsReason} onClick={() => saveTrunkWorkThenStartClean(blockedByTrunkWork)} style={{ fontSize: 12 }}>
+        <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={ticketActionsReason} onClick={() => saveTrunkWorkThenStartClean(blockedByTrunkWork)}>
           {dirtyQuestion.save}
-        </ReasonedButton>
-        <ReasonedButton
-          variant="link"
-          isDestructive
+        </ReasonedUiButton>
+        <ReasonedUiButton
+          variant="outline"
+          tone="neutral"
+          size="compact"
           reason={ticketActionsReason}
           onClick={() => confirmAnd('Discard the uncommitted edits on trunk? This cannot be undone.', () => discardTrunkWorkAndSwitch(blockedByTrunkWork))}
-          style={{ fontSize: 12 }}
-        >{dirtyQuestion.discard}</ReasonedButton>
+        >{dirtyQuestion.discard}</ReasonedUiButton>
         {/* The way out that touches nothing — three consequential actions
             with no fourth door is its own trap (#234). */}
-        <ReasonedButton variant="link" reason={ticketActionsReason} onClick={() => { setBlockedByTrunkWork(null); setPatchSavedTo(''); }} style={{ fontSize: 12 }}>
+        {/* For a pull request it takes the preview with it: the preview is
+            a dialog, set aside while this is asked, and would otherwise come
+            back in front of whoever has just said "not now". */}
+        <ReasonedUiButton variant="minimal" tone="neutral" size="compact" reason={ticketActionsReason} onClick={() => { if (blockedByTrunkWork.kind === 'pr') setApplyPreview(null); setBlockedByTrunkWork(null); setPatchSavedTo(''); }}>
           {dirtyQuestion.cancel}
-        </ReasonedButton>
-      </div>
-    </div>
+        </ReasonedUiButton>
+      </Notice.Actions>
+    </Notice.Root>
   ) : null;
 
   // What the panel says back after an action: the refusal, the switch's
@@ -1334,7 +1282,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const ticketFeedback = (
     <>
       {ticketError ? (
-        <div role="alert" style={{ marginTop: 8, color: '#d63638', fontSize: 12 }}>{ticketError}</div>
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{ticketError}</Notice.Description>
+        </Notice.Root>
       ) : null}
       {switchProgressLine}
       {carriedNotice}
@@ -1342,34 +1292,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       {blockedPanel}
     </>
   );
-  const renderBranchRows = (linked) => (
-    <div style={{ marginTop: 8, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
-      {branchRows.map((row, i) => (
-        <div key={row.ref} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: i < branchRows.length - 1 ? '1px solid #f0f0f1' : 'none' }}>
-          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-            <span style={{ fontSize: 13, color: '#1d2327' }}>
-              {linked ? <>You also have work on #{row.ticketId}{' — '}</> : null}
-              <ReasonedButton variant="link" onClick={() => saveTicket(String(row.ticketId))} reason={ticketActionsReason} style={{ fontSize: 13 }}>
-                {linked ? 'switch' : `Continue working on #${row.ticketId}`}
-              </ReasonedButton>
-            </span>
-            {row.timeLabel ? (
-              <div style={{ marginTop: 2, fontSize: 11, color: '#6c6f72' }}>{row.timeLabel}</div>
-            ) : null}
-          </div>
-          <ReasonedButton
-            variant="link"
-            isDestructive
-            isBusy={deletingBranch === row.ref}
-            reason={ticketActionsReason}
-            onClick={() => confirmAnd(`Delete all work on #${row.ticketId} on this site? This cannot be undone.`, () => deleteTicketWork(row.ref))}
-            style={{ fontSize: 12, flex: '0 0 auto' }}
-          >Delete this {workItem.noun}&apos;s work</ReasonedButton>
-        </div>
-      ))}
-    </div>
-  );
-
   // How old the site's trunk is (#94), for the notice that offers an update.
   const age = trunkAgeInfo({ trunkDate });
   // Where the note goes moves with the ticket: a change that belongs to
@@ -1400,7 +1322,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The banner's tone and headline follow the watch (#509): green only once
   // the site is built around the checkout.
   const prBanner = pullRequest ? appliedBannerState({ number: pullRequest.number, watchState, compiling: watchCompiling, buildInterrupted, actionsReason: ticketActionsReason }) : null;
-  const prBannerColors = prBanner ? (APPLIED_BANNER_COLORS[prBanner.tone] || APPLIED_BANNER_COLORS.ready) : null;
   const prPreview = applyPreview?.kind === 'pr' ? describePrPreview({
     number: applyPreview.number,
     files: applyPreview.files,
@@ -1452,7 +1373,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setSetupChainState('idle');
     setSetupChainEnd(outcome);
     writeToTerminal(SETUP_END_MESSAGES[outcome] || '');
-    if (outcome === 'done') confirm('This site is ready to work on');
+    if (outcome === 'done') confirm(__('This site is ready to work on'));
   };
 
   const stopSetupChain = () => {
@@ -1553,25 +1474,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The ticket's own facts (#292), riding the same scrape as the attachments:
   // one Trac visit, one challenge, both answers.
   const tracInfo = showTracCards ? (tracAttachments?.ticket || null) : null;
-  const tracInfoBadge = statusBadge(tracInfo);
-  const tracAttachmentsRead = tracAttachments
-    && (tracAttachments.status === 'ok' || tracAttachments.status === 'no-attachments');
-  // One pill shape, two uses: the "Latest" marker on a patch row and a linked
-  // pull request's state. Only the words and the colours differ.
-  const pillStyle = { display: 'inline-flex', alignItems: 'center', flex: '0 0 auto', padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' };
-  const latestPill = (isLatest) => (isLatest ? (
-    <span style={{ ...pillStyle, background: '#e7f1ff', color: '#0b5d95', marginLeft: 8 }}>
-      Latest
-    </span>
-  ) : null);
-  const prStatePill = (state) => {
-    const badge = prStateBadge(state);
-    return (
-      <span style={{ ...pillStyle, background: badge.background, color: badge.color }}>
-        {badge.label}
-      </span>
-    );
-  };
 
   // The diff fetch, shared by opening the modal and by a discard that happens
   // while it is open — the pane has to show what the tree now holds, which
@@ -1637,7 +1539,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       setApplyConflict(feedback.applyConflict);
       setApplyNotice(feedback.applyNotice);
       writeToTerminal('\nDiscarded local changes.\n');
-      confirm('All changes discarded.');
+      confirm(__('All changes discarded.'));
       if (isPatchOpen) await loadPatchText();
     } finally {
       setDiscarding(false);
@@ -1663,7 +1565,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         })}
       />
       {changesNote.end}
-      {discardError ? <div style={{ color: '#d63638', fontSize: 12, marginTop: 4 }}>{discardError}</div> : null}
+      {discardError ? <Text variant="body-sm" className="error-text">{discardError}</Text> : null}
     </>
   ) : null;
 
@@ -1728,7 +1630,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         // The green line below is the record of where it went; this is the
         // announcement, for a contributor who saved from a menu and is no
         // longer looking at the pane (#253).
-        confirm(`Patch saved to ${pathBasename(res.filePath)}`);
+        confirm(patchSavedMessage(pathBasename(res.filePath)));
         return res.filePath;
       }
       if (res && res.canceled) return null;
@@ -1755,61 +1657,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const saveForHandoff = async () => {
     if (!wporg?.handle) return;
     await savePatchFile({ handoff: true });
-  };
-
-  const statusStyles = initialized
-    ? { background: '#e7f6e7', color: '#0f5132' }
-    : { background: '#fff4ce', color: '#8a6d1c' };
-
-  // Colours and indicator per step status. The status *word* is not here — it
-  // lives in `setupStepLabel`, the one place that distinguishes a step that is
-  // merely next from one that is running (#257).
-  const checklistVisuals = {
-    complete: {
-      color: '#0f5132',
-      background: '#f4fbf4',
-      border: '#94d3ae',
-      indicatorBg: '#0f5132',
-      indicatorColor: '#fff',
-      indicatorBorder: 'none',
-      indicatorContent: '✓'
-    },
-    current: {
-      color: '#0b5d95',
-      background: '#e8f3ff',
-      border: '#66afe9',
-      indicatorBg: '#007cba',
-      indicatorColor: '#fff',
-      indicatorBorder: 'none',
-      indicatorContent: '•'
-    },
-    failed: {
-      color: '#8a1f21',
-      background: '#fcf0f1',
-      border: '#d63638',
-      indicatorBg: '#d63638',
-      indicatorColor: '#fff',
-      indicatorBorder: 'none',
-      indicatorContent: '✕'
-    },
-    pending: {
-      color: '#6c6f72',
-      background: '#f8f9f9',
-      border: '#dcdcde',
-      indicatorBg: '#6c6f72',
-      indicatorColor: '#fff',
-      indicatorBorder: 'none',
-      indicatorContent: '•'
-    },
-    locked: {
-      color: '#6c6f72',
-      background: '#f5f5f7',
-      border: '#dcdcde',
-      indicatorBg: 'transparent',
-      indicatorColor: '#6c6f72',
-      indicatorBorder: '2px solid #c3c4c7',
-      indicatorContent: '–'
-    }
   };
 
   const setupFlags = {
@@ -1846,12 +1693,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       ...stepState.install,
       running: installing,
       action: (
-        <Button
-          isBusy={installing}
-          variant={stepState.install.done ? 'secondary' : 'primary'}
+        <UiButton
+          variant={stepState.install.done ? 'outline' : 'solid'}
+          tone={stepState.install.done ? 'neutral' : 'brand'}
+          size="compact"
           onClick={runInstallWithTerminal}
           disabled={stepState.install.disabled}
-        >{installLabel}</Button>
+        >{installLabel}</UiButton>
       )
     },
     {
@@ -1861,12 +1709,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       ...stepState.build,
       running: building,
       action: (
-        <Button
-          isBusy={building}
-          variant={stepState.build.done ? 'secondary' : 'primary'}
+        <UiButton
+          variant={stepState.build.done ? 'outline' : 'solid'}
+          tone={stepState.build.done ? 'neutral' : 'brand'}
+          size="compact"
           onClick={runBuildWithTerminal}
           disabled={stepState.build.disabled}
-        >{buildLabel}</Button>
+        >{buildLabel}</UiButton>
       )
     },
     {
@@ -1876,18 +1725,19 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       ...stepState.dev,
       running: starting,
       action: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Button
-            isBusy={starting}
-            variant={running ? 'secondary' : 'primary'}
+        <Stack direction="row" align="center" gap="sm" wrap="wrap">
+          <UiButton
+            variant={running ? 'outline' : 'solid'}
+            tone={running ? 'neutral' : 'brand'}
+            size="compact"
             onClick={async () => {
               await markSkipWizard();
               await toggleDevServer();
             }}
             disabled={stepState.dev.disabled}
-          >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</Button>
+          >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</UiButton>
           {starting || serverUrl ? (
-            <span style={{ fontSize: 12 }}>
+            <Text variant="body-sm">
               {starting ? `Starting… (${formatElapsed(startElapsed)})` : null}
               {!starting && serverUrl ? (
                 <>
@@ -1896,9 +1746,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
                   <a href={adminUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminUrl(serverUrl)); }}>wp-admin</a>
                 </>
               ) : null}
-            </span>
+            </Text>
           ) : null}
-        </div>
+        </Stack>
       )
     }
   ];
@@ -1939,8 +1789,41 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     className: nextActionId === id ? 'next-action-cue' : undefined
   });
 
+  // What the work-item card is handed besides its own content: the banner of
+  // a checked-out pull request, the note about uncommitted changes when it
+  // belongs with the ticket, and whether a patch can be read now. Reading
+  // one is held by everything that would be working on the files it reads
+  // against, and by a preview that is already open.
+  const prCheckoutBanner = prCheckout && !isApplying ? (
+    <PrCheckoutNotice cue={cueProps('pr-checkout')} banner={prBanner} checkout={prCheckout} onRevert={() => runPrSwitch({ leaving: true })} />
+  ) : null;
+  const ticketChangesNote = changesNote && changesNote.placement === 'ticket' ? (
+    <Stack direction="column" gap="xs">
+      <Text variant="body-md">{changesNoteBody}</Text>
+      <Text variant="body-sm" className="muted-label">{changesNote.unlinkNote}</Text>
+    </Stack>
+  ) : null;
+  const patchReadBlocked = isApplying || isUpdating || installing || building || Boolean(applyPreview);
+  // The two ways out the apply card offers of a patch that cannot be lifted
+  // back out, or that would not go on: the same two the changes note has,
+  // behind the same guard, with what either said when it failed.
+  const layerExits = { blocked: layerExitBlocked, onSaveCopy: savePatch, onDiscard: discardAllChanges, message: layerExit.message };
+  // Choosing another patch is walking away from this one, so everything
+  // about it goes: the preview, whose presence holds the lists' Apply
+  // buttons, and the failure itself, which would otherwise sit above the new
+  // attempt as noise. The list is already on screen, so the way to it is a
+  // scroll.
+  const tryAnotherPatch = () => {
+    setApplyPreview(null);
+    clearApplyError();
+    ticketPatchesRef.current?.scrollIntoView({
+      block: 'center',
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    });
+  };
+
   return (
-    <section ref={nextActionSectionRef} style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
+    <section ref={nextActionSectionRef} className="site-view">
       {/* The glow on the next-action block is purely visual, invisible to a
           screen reader. This is its spoken equivalent: a polite live region that
           names the next step as the cue moves, so a non-sighted contributor gets
@@ -1952,1082 +1835,360 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       <VisuallyHidden role="status" aria-live="polite">
         {isActive && nextAction ? `Next step: ${nextAction.reason}` : ''}
       </VisuallyHidden>
-      <Flex align="flex-start" justify="space-between" style={{ gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 440px', minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <h1 style={{ margin: 0, fontSize: 28, lineHeight: 1.2 }}>{displayName}</h1>
-            <Button
-              icon={pencil}
-              label="Rename site"
-              aria-label="Rename site"
-              onClick={openRenameModal}
-              variant="tertiary"
-              isSmall
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: '#3c434a', flexWrap: 'wrap' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', ...statusStyles }}>
-              {initialized ? 'Initialized' : 'Uninitialized'}
-            </span>
-            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '2px 8px', borderRadius: 999, background: '#f0f0f1', color: '#1d2327' }}>{project.tag}</span>
-            {createdLabel ? <span>Created {createdLabel}</span> : null}
-            {age.known ? (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                {createdLabel ? <span aria-hidden="true">·</span> : null}
-                {age.stale ? (
-                  <span
-                    aria-hidden="true"
-                    title={`Trunk snapshot is ${age.ageDays} days old`}
-                    style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#dba617' }}
-                  />
-                ) : null}
-                <span>{age.label}</span>
-              </span>
-            ) : null}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
-            <code style={{ fontSize: 12, color: '#3c434a', background: '#f0f0f1', padding: '2px 6px', borderRadius: 4, overflowWrap: 'anywhere' }}>
-              {sitePath}
-            </code>
-            <Button
-              icon={pathCopied ? checkIcon : copyIcon}
-              label={pathCopied ? 'Copied!' : 'Copy path'}
-              aria-label={pathCopied ? 'Copied!' : 'Copy path'}
-              onClick={copyPath}
-              variant="tertiary"
-              isSmall
-            />
-          </div>
-          {/* One control for one intention, directly under the path it acts on.
-              Detection runs when the menu is opened rather than on load: it is a
-              filesystem sweep, and the answer is only needed once someone asks.
-              It is re-read on every open, so an application installed while this
-              app is running shows up the next time the menu is used. */}
-          <div style={{ marginTop: 4 }}>
-            <Dropdown
-              popoverProps={{ placement: 'bottom-start', offset: 4 }}
-              renderToggle={({ isOpen, onToggle }) => (
-                <Button
-                  variant="link"
-                  aria-expanded={isOpen}
-                  aria-haspopup="menu"
-                  onClick={() => {
-                    if (!isOpen) void loadDetected();
-                    onToggle();
-                  }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 12 }}
-                >
-                  Open directory in
-                  <Icon icon={chevronDown} size={18} />
-                </Button>
-              )}
-              renderContent={({ onClose }) => (
-                <MenuGroup>
-                  <MenuItem onClick={() => { onClose(); void showInFileManager(); }}>
-                    {fileManagerName}
-                  </MenuItem>
-                  {detectedEditors.map((candidate) => (
-                    <MenuItem key={candidate.path} onClick={() => { onClose(); void openIn(candidate.path); }}>
-                      {candidate.name}
-                    </MenuItem>
-                  ))}
-                  {/* A menu that is still counting is not an empty menu, and the
-                      difference has to be visible: without this, a slow sweep
-                      looks exactly like a machine with no editors on it. */}
-                  {detectingEditors ? (
-                    <MenuItem disabled>Looking for applications…</MenuItem>
-                  ) : null}
-                  {/* Always offered, never only as a fallback: detection is a
-                      shortcut, and an application it misses is not one this app
-                      refuses to use. */}
-                  <MenuItem onClick={() => { onClose(); void openIn(null); }}>
-                    Other application…
-                  </MenuItem>
-                </MenuGroup>
-              )}
-            />
-          </div>
-          {/* With no modal in the way, this is the only place a failed open can
-              speak — and it carries the way out with it, rather than leaving the
-              contributor to find the menu again. */}
-          {editorNotice ? (
-            <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '8px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-              <span style={{ flex: '1 1 240px' }}>{editorNotice.message}</span>
-              {editorNotice.offerPicker ? (
-                <Button variant="tertiary" isSmall onClick={() => void openIn(null)}>Choose application…</Button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-          <DropdownMenu
-            label="More"
-            text=""
-            controls={[
-              { title: 'Copy path', onClick: copyPath },
-              // Opening the folder lives in the header's "Open directory in"
-              // menu, next to the path it acts on. Repeating it here would be two
-              // menus answering the same question a few pixels apart.
-              { title: fileManagerLabel, onClick: showInFileManager },
-              // Also reachable when the site is not yet stale (the staleness
-              // notice is the primary entry point) — a fresh site just gets
-              // "Already up to date." in the terminal.
-              { title: 'Update to latest trunk', onClick: startTrunkUpdate },
-              // Not while the clone is running: deleting the site would be
-              // removing a directory the app is still writing into. The main
-              // process refuses it either way (see site-registry.js) — that is
-              // the backstop, and not offering a control that cannot work is
-              // the actual answer.
-              ...(isPending ? [] : [
-                isDeleting
-                  ? { title: 'Deleting…', isDisabled: true }
-                  : { title:'Delete this site', onClick:()=>confirmAnd('Delete this site from disk? This cannot be undone.', ()=>onDelete(sitePath)) }
-              ])
-            ]}
-          />
-        </div>
-      </Flex>
+      {/* What is done to the site as a whole is in the page's header (#556):
+          the window leaves a slot there, and the site that is open fills it. */}
+      {isActive ? (
+        <SiteHeaderActions
+          detailsOpen={detailsOpen}
+          detailsId={detailsId}
+          onToggleDetails={onToggleDetails}
+          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting }}
+          onMenuOpen={loadDetected}
+          onAction={runSiteMenuAction}
+          work={skipInit ? {
+            server: serverState,
+            watch: watchProcessState,
+            onToggleServer: toggleDevServer,
+            onToggleWatch: toggleWatch,
+            // The site and its admin, while there is a server to go to: the
+            // details have them too, and can be put away.
+            serverLinks: serverSectionState.menuLinks,
+            onOpenLink: openSiteLink,
+            onReview: openPatchModal,
+            reviewDisabled: isUpdating,
+            serverCue: cueProps('start-dev'),
+            reviewCue: cueProps('review-changes')
+          } : null}
+        />
+      ) : null}
+      <div className={detailsOpen ? 'dashboard' : 'dashboard is-sidebar-collapsed'}>
+      <div className="dashboard-main">
+    {/* With no modal in the way, this is the only place a failed open can
+        speak — and it carries the way out with it, rather than leaving the
+        contributor to find the menu again. The menu is in the header, which
+        does not scroll, so this is brought into view when it appears. */}
+    {editorNotice ? (
+      <Notice.Root ref={editorNoticeRef} intent="warning" role="alert" spokenMessage={SILENT}>
+        <Notice.Description>{editorNotice.message}</Notice.Description>
+        {editorNotice.offerPicker ? (
+          <Notice.Actions>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => void openIn(null)}>Choose application…</UiButton>
+          </Notice.Actions>
+        ) : null}
+      </Notice.Root>
+    ) : null}
       {legacyNotice && !isPending ? (
-        <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
-          <span style={{ flex: '1 1 320px' }}>
-            <strong>{legacyNotice.title}</strong> {legacyNotice.body}
-          </span>
-          <Button variant="primary" onClick={onCreateSite}>Create site</Button>
-        </div>
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Title>{legacyNotice.title}</Notice.Title>
+          <Notice.Description>{legacyNotice.body}</Notice.Description>
+          <Notice.Actions>
+            <UiButton size="compact" onClick={onCreateSite}>Create site</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
       ) : null}
       {mergeNotice && !isPending ? (
-        <div role="alert" style={{ padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
-          <strong>{mergeNotice.title}</strong> {mergeNotice.body}
-        </div>
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Title>{mergeNotice.title}</Notice.Title>
+          <Notice.Description>{mergeNotice.body}</Notice.Description>
+        </Notice.Root>
       ) : null}
       {updateIncomplete && !isUpdating ? (
-        <div {...cueProps('retry-install-build')} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 8, fontSize: 13, color: '#8a1f21' }}>
-          <span style={{ flex: '1 1 320px' }}>
-            <strong>Update incomplete</strong> — the code is new but the built assets are old. The site may not run correctly until install and build succeed.
-          </span>
-          <Button
-            variant="secondary"
-            isDestructive
-            onClick={retryInstallAndBuild}
-            disabled={installing || building}
-          >Retry install &amp; build</Button>
-        </div>
+        <Notice.Root {...cueProps('retry-install-build')} intent="error" spokenMessage={SILENT}>
+          <Notice.Title>Update incomplete</Notice.Title>
+          <Notice.Description>The code is new but the built assets are old. The site may not run correctly until install and build succeed.</Notice.Description>
+          <Notice.Actions>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={retryInstallAndBuild} disabled={installing || building}>Retry install &amp; build</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
       ) : null}
       {age.stale && !updateIncomplete && !isUpdating ? (
-        <div {...cueProps('update-trunk')} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '14px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
-          <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <strong style={{ color: '#5c4400' }}>This site&apos;s WordPress code is {age.ageDays} days old</strong>
-            <span>Patches you create now may not apply on Trac. Updating takes a few minutes.</span>
-          </div>
-          <Button
-            variant="secondary"
-            onClick={startTrunkUpdate}
-            disabled={installing || building}
-          >Update to latest trunk</Button>
-        </div>
+        <Notice.Root {...cueProps('update-trunk')} intent="warning" spokenMessage={SILENT}>
+          <Notice.Title>This site&apos;s WordPress code is {age.ageDays} days old</Notice.Title>
+          <Notice.Description>Patches you create now may not apply on Trac. Updating takes a few minutes.</Notice.Description>
+          <Notice.Actions>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={startTrunkUpdate} disabled={installing || building}>Update to latest trunk</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
       ) : null}
       {isUpdating ? (
-        <div {...cueProps('updating')} style={{ padding: '14px 16px', background: '#fff', border: '1px solid #dcdcde', borderRadius: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 600, fontSize: 14, color: '#1d2327' }}>Updating to latest trunk</span>
-            <span style={{ fontSize: 12, color: '#6c6f72' }}>
-              step {Math.max(1, updateStepStates.filter((s) => s.status === 'complete' || s.status === 'skipped').length + 1)} of {updateSteps.length}
-            </span>
-          </div>
-          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
-            {updateStepStates.map((s) => {
-              const text = updateStepText(updateSteps, s);
-              const { symbol = '', color = '#6c6f72' } = UPDATE_STEP_MARKS[s.status] || {};
-              return (
-                <div key={s.key} style={{ display: 'flex', alignItems: 'baseline', gap: 8, color, opacity: s.status === 'pending' || s.status === 'skipped' ? 0.75 : 1 }}>
-                  <span aria-hidden="true" style={{ width: 12, display: 'inline-block', textAlign: 'center' }}>{symbol}</span>
-                  <span style={{ fontWeight: s.status === 'current' ? 600 : 400 }}>{text}</span>
-                </div>
-              );
-            })}
-          </div>
-          {updateState === 'installing' ? (
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f0f1', fontSize: 12, color: '#6c6f72' }}>
-              Most packages are already cached, so this is a download of the difference — not the whole tree.
-            </div>
-          ) : null}
-        </div>
+        <TrunkUpdateCard
+          cue={cueProps('updating')}
+          rows={updateStepStates.map((step) => ({ key: step.key, label: updateStepText(updateSteps, step), status: step.status }))}
+          count={`step ${Math.max(1, updateStepStates.filter((step) => step.status === 'complete' || step.status === 'skipped').length + 1)} of ${updateSteps.length}`}
+          note={updateState === 'installing' ? 'Most packages are already cached, so this is a download of the difference — not the whole tree.' : ''}
+        />
       ) : null}
       {lastUpdateSummary && !isUpdating && !updateIncomplete ? (
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', background: '#f4fbf4', border: '1px solid #94d3ae', borderRadius: 8, fontSize: 13, color: '#0f5132' }}>
-          <span aria-hidden="true" style={{ fontWeight: 700 }}>✓</span>
-          <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <strong>Up to date with trunk as of today.</strong>
-            <span>
-              {lastUpdateSummary.lockfileChanged ? 'Dependencies updated' : 'Dependencies unchanged'}
-              {typeof lastUpdateSummary.elapsedSeconds === 'number' ? `, rebuilt in ${formatElapsed(lastUpdateSummary.elapsedSeconds)}.` : ', rebuilt.'}
-              {lastUpdateSummary.savedPatchPath ? ` Your changes were saved to ${lastUpdateSummary.savedPatchPath} before the reset.` : ''}
-            </span>
-          </div>
-          <Button
-            variant="tertiary"
-            isSmall
-            aria-label="Dismiss"
-            onClick={() => setLastUpdateSummary(null)}
-            style={{ color: '#0f5132' }}
-          >✕</Button>
-        </div>
+        <Notice.Root intent="success" spokenMessage={SILENT}>
+          <Notice.Title>Up to date with trunk as of today.</Notice.Title>
+          <Notice.Description>
+            {lastUpdateSummary.lockfileChanged ? 'Dependencies updated' : 'Dependencies unchanged'}
+            {typeof lastUpdateSummary.elapsedSeconds === 'number' ? `, rebuilt in ${formatElapsed(lastUpdateSummary.elapsedSeconds)}.` : ', rebuilt.'}
+            {lastUpdateSummary.savedPatchPath ? ` Your changes were saved to ${lastUpdateSummary.savedPatchPath} before the reset.` : ''}
+          </Notice.Description>
+          <Notice.CloseIcon onClick={() => setLastUpdateSummary(null)} />
+        </Notice.Root>
       ) : null}
       {!skipInit ? (
-        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>Initial setup checklist</div>
-          {/*
-            Nobody pressed a button to start this, so the banner has to say what
-            is happening, how far along it is and how to stop it — that is the
-            whole licence for running unattended. The step counter comes from
-            the same `updateStepStatuses` the update panel uses.
-          */}
-          {isSettingUp ? (
-            <div role="status" style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '12px 16px', background: '#e8f3ff', border: '1px solid #66afe9', borderRadius: 8, fontSize: 13, color: '#0b5d95' }}>
-              <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <strong style={{ color: '#0b5d95' }}>
-                  Setting this site up for you — step {setupStepStates.filter((s) => s.status === 'complete').length + 1} of {setupSteps.length}
-                </strong>
-                <span>
-                  {setupChainState === 'installing'
-                    ? 'Installing dependencies. You can leave this running — the build follows on its own.'
-                    : 'Running the full build. This can take up to half an hour on Windows; the Terminal below shows what it is doing.'}
-                </span>
-              </div>
-              <Button variant="secondary" onClick={stopSetupChain}>Stop setup</Button>
-            </div>
-          ) : null}
-          {!isSettingUp && setupChainEnd === 'stopped' ? (
-            <div style={{ marginTop: 12, padding: '12px 16px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 8, fontSize: 13, color: '#6e5406' }}>
-              <strong style={{ color: '#5c4400' }}>Setup stopped.</strong>{' '}
-              Nothing was lost — pick it back up with the buttons below whenever you want.
-            </div>
-          ) : null}
-          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>Complete each step to prepare this site for development.</div>
-          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {stepItems.map((step) => {
-              const visuals = checklistVisuals[step.status] || checklistVisuals.locked;
-              const cueId = `setup-${step.key}`;
-              return (
-                <div
-                  key={step.key}
-                  data-next-action={cueId}
-                  className={nextActionId === cueId ? 'next-action-cue' : undefined}
-                  style={{
-                    border: `1px solid ${visuals.border}`,
-                    background: visuals.background,
-                    borderRadius: 10,
-                    padding: '14px 16px',
-                    display: 'grid',
-                    gridTemplateColumns: 'auto 1fr auto',
-                    gridTemplateRows: 'auto auto',
-                    columnGap: 16,
-                    rowGap: 8,
-                    alignItems: 'center'
-                  }}
-                >
-                  <div style={{ gridRow: '1 / span 2', alignSelf: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28 }}>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        lineHeight: 1,
-                        background: visuals.indicatorBg,
-                        color: visuals.indicatorColor,
-                        border: visuals.indicatorBorder || 'none'
-                      }}
-                    >
-                      {visuals.indicatorContent}
-                    </span>
-                  </div>
-                  <div style={{ gridColumn: '2 / 3', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, minWidth: 0, flexWrap: 'wrap' }}>
-                    <div style={{ fontWeight: 600, color: '#1d2327', lineHeight: 1.4 }}>{step.label}</div>
-                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: visuals.color, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{setupStepLabel(step.status, step.running)}</div>
-                  </div>
-                  <div style={{ gridColumn: '2 / 3', fontSize: 12, color: '#3c434a', lineHeight: 1.5 }}>{step.description}</div>
-                  <div style={{ gridRow: '1 / span 2', gridColumn: '3 / 4', alignSelf: 'center', display: 'flex', alignItems: 'center' }}>
-                    {step.action}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <Button variant="link" onClick={markSkipWizard} style={{ textDecoration: 'underline' }}>Skip initialization wizard</Button>
-          </div>
-        </div>
-      ) : (
-        null
-      )}
-      {skipInit ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, flexWrap: 'wrap' }}>
-            <span {...cueProps('start-dev')} style={{ display: 'inline-flex' }}>
-            <Button
-              isBusy={isServerStarting}
-              variant={isDevProcessActive ? 'secondary' : 'primary'}
-              onClick={toggleDevServer}
-              disabled={isUpdating}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 10, minWidth: 220, justifyContent: 'center', padding: '12px 20px', fontSize: 15, borderRadius: 12 }}
-            >
-              {isDevProcessActive ? (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    display: 'inline-block',
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    background: '#d63638',
-                    boxShadow: '0 0 0 4px rgba(214,54,56,0.15)',
-                    marginRight: 6
-                  }}
-                />
-              ) : null}
-              <span style={{ fontWeight: 600 }}>{devServerButtonLabel}</span>
-            </Button>
-            </span>
-            <Button
-              variant="secondary"
-              onClick={toggleWatch}
-              // The one control that can end an update waiting on the resumed
-              // watch (#507): a stop settles the waiters and leaves the update
-              // incomplete, with the retry banner. Everything else stays gated.
-              disabled={isUpdating && !updateWaitingOnWatch}
-              title={watchActive ? `The build watch compiles ${project.cards.sourceDir} edits automatically` : `Compile ${project.cards.sourceDir} edits on save (runs independently of the dev server)`}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', padding: '12px 16px', fontSize: 15, borderRadius: 12 }}
-            >
-              <span
-                aria-hidden="true"
-                style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: watchDotColor, flexShrink: 0 }}
-              />
-              <span style={{ fontWeight: 600 }}>{watchButtonLabel}</span>
-            </Button>
-            <span {...cueProps('review-changes')} style={{ display: 'inline-flex' }}>
-            <Button
-              variant="secondary"
-              onClick={openPatchModal}
-              disabled={isUpdating}
-              style={{ padding: '10px 16px', borderRadius: 10 }}
-            >Review & submit changes</Button>
-            </span>
-          </div>
-          {changesNote && changesNote.placement === 'buttons' ? (
-            <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2 }}>
-              {changesNoteBody}
-            </div>
-          ) : null}
-          {(isServerStarting || serverUrl) ? (
-            <div style={{ fontSize: 13, color: '#1d2327', paddingLeft: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {serverUrl ? (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
-                    <span aria-hidden="true" style={{ color: '#8c8f94' }}>·</span>
-                    <a href={adminUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminUrl(serverUrl)); }}>wp-admin</a>
-                    {running ? (
-                      <>
-                        <span aria-hidden="true" style={{ color: '#8c8f94' }}>·</span>
-                        <a href={adminerUrl(serverUrl)} onClick={(e) => { e.preventDefault(); window.api.openExternal(adminerUrl(serverUrl)); }}>DB inspect (Adminer)</a>
-                      </>
-                    ) : null}
-                  </div>
-                  <span style={{ fontSize: 12, color: '#3c434a' }}>Log in with <code>admin</code> / <code>password</code>.</span>
-                </>
-              ) : (
-                `Dev server is starting… (${formatElapsed(startElapsed)})`
-              )}
-            </div>
-          ) : null}
-        </div>
+        <SetupChecklist
+          steps={stepItems}
+          cueId={nextActionId}
+          running={isSettingUp ? {
+            // The step counter comes from the same `updateStepStatuses` the
+            // update card uses.
+            title: `Setting this site up for you — step ${setupStepStates.filter((s) => s.status === 'complete').length + 1} of ${setupSteps.length}`,
+            body: setupChainState === 'installing'
+              ? 'Installing dependencies. You can leave this running — the build follows on its own.'
+              : 'Running the full build. This can take up to half an hour on Windows; the Terminal below shows what it is doing.',
+            onStop: stopSetupChain
+          } : null}
+          stopped={setupChainEnd === 'stopped'}
+          onSkip={markSkipWizard}
+        />
+      ) : null}
+      {/* The server, the build watch and the way to the changes are in the
+          page's header and in the details (#557). What the changes note says
+          when it has no card of its own to sit in stays here. */}
+      {skipInit && changesNote && changesNote.placement === 'buttons' ? (
+        <Text variant="body-md">{changesNoteBody}</Text>
       ) : null}
       {/* Above the ticket panel rather than inside it, and outside the wizard
           gate: a link can arrive whether or not this site already has a ticket,
           and a site still in the setup wizard shows no ticket panel at all —
           which is exactly when a ticket that vanished silently would be worst. */}
       {deepLinkNote ? (
-        <div role="status" style={{ padding: '14px 16px', border: '1px solid #dba617', background: '#fcf9e8', borderRadius: 8 }}>
-          <div style={{ fontWeight: 600, fontSize: 15, color: '#1d2327' }}>{deepLinkNote.title}</div>
-          <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{deepLinkNote.body}</div>
-          <div style={{ marginTop: 10 }}><Button variant="link" onClick={() => setDeepLinkNoteHidden(true)}>Hide</Button></div>
-        </div>
+        <Notice.Root intent="warning" role="status" spokenMessage={SILENT}>
+          <Notice.Title>{deepLinkNote.title}</Notice.Title>
+          <Notice.Description>{deepLinkNote.body}</Notice.Description>
+          <Notice.Actions>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => setDeepLinkNoteHidden(true)}>Hide</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
       ) : null}
       {deepLinkPrompt ? (
-        <div role="status" style={{ padding: '12px 14px', background: '#f0f6fc', border: '1px solid #72aee6', borderRadius: 8, color: '#1d2327' }}>
-          <div style={{ fontWeight: 600 }}>{deepLinkPrompt.title}</div>
-          <div style={{ marginTop: 4, fontSize: 13 }}>{deepLinkPrompt.body}</div>
-          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {/* No `isBusy`: answering clears the App's deep-link value, so this
+        <Notice.Root intent="info" role="status" spokenMessage={SILENT}>
+          <Notice.Title>{deepLinkPrompt.title}</Notice.Title>
+          <Notice.Description>{deepLinkPrompt.body}</Notice.Description>
+          <Notice.Actions>
+            {/* No `loading`: answering clears the App's deep-link value, so this
                 button is gone in the same tick it is pressed. What the link
                 started is then reported where every other ticket link reports
                 it — the panel's own progress line and `ticketError`. */}
-            <ReasonedButton
-              variant="primary"
+            <ReasonedUiButton
+              size="compact"
               onClick={acceptDeepLink}
               reason={skipInit ? ticketActionsReason : 'Finish setting this site up first.'}
-            >{deepLinkPrompt.confirmLabel}</ReasonedButton>
-            <Button variant="link" onClick={dismissDeepLink}>Not now</Button>
-          </div>
-        </div>
+            >{deepLinkPrompt.confirmLabel}</ReasonedUiButton>
+            <UiButton variant="minimal" tone="neutral" size="compact" onClick={dismissDeepLink}>Not now</UiButton>
+          </Notice.Actions>
+        </Notice.Root>
       ) : null}
       {skipInit ? (
-      <div {...cueProps('link-ticket')} style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-        <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{tracTicket ? `Working on ${workItem.noun} #${tracTicket}` : project.workItem.label}</div>
-        {prCheckout && !isApplying ? (
-          <div {...cueProps('pr-checkout')} style={{ marginTop: 12, padding: '14px 16px', border: `1px solid ${prBannerColors.border}`, background: prBannerColors.background, borderRadius: 8 }}>
-            <div style={{ fontSize: 15, color: prBannerColors.text }}><strong>{prBanner.title}</strong></div>
-            {prBanner.body ? (
-              <div style={{ marginTop: 6, fontSize: 13, color: prBannerColors.text }}>{prBanner.body}</div>
-            ) : null}
-            <div style={{ marginTop: 6, fontSize: 13, color: '#3c434a' }}>{prCheckout.body} {prCheckout.edits}</div>
-            <div style={{ marginTop: 6, fontSize: 12 }}>Revert this PR before applying another PR or patch file.</div>
-            <ReasonedButton variant="secondary" onClick={() => runPrSwitch({ leaving: true })} reason={prBanner.revertReason} style={{ marginTop: 10 }}>
-              {prCheckout.backLabel}
-            </ReasonedButton>
-          </div>
-        ) : null}
-        {tracTicket ? (
-          <>
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              {/* The ticket number is what the site is *for* once one is linked
-                  — and under #108 it also names the branch you are on, so it
-                  answers "which of my tickets am I looking at" at a glance.
-                  Sized to read as the panel's subject rather than as a tag. */}
-              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 12px', borderRadius: 999, fontSize: 18, fontWeight: 600, letterSpacing: '0.01em', background: '#f0f0f1', color: '#1d2327' }}>
-                #{tracTicket}
-              </span>
-              <Button variant="link" onClick={() => window.api.openExternal(workItem.urlFor(tracTicket))}>{workItem.openLabel}</Button>
-              {showTracCards && !tracInfo ? (
-                <Button variant="link" onClick={loadTracAttachments} disabled={tracAttachmentsLoading}>
-                  {tracAttachmentsLoading ? 'Reading ticket…' : 'Read details from Trac'}
-                </Button>
-              ) : null}
-              <ReasonedButton variant="link" isDestructive onClick={unlinkTicket} reason={ticketActionsReason}>Unlink</ReasonedButton>
-            </div>
-
-            {staleTicketNotice ? (
-              <div role="status" style={{ marginTop: 10, padding: '10px 12px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, color: '#6e5406', fontSize: 12 }}>
-                <div style={{ fontWeight: 600 }}>{staleTicketNotice.title}</div>
-                <div style={{ marginTop: 4 }}>{staleTicketNotice.body}</div>
-                <div style={{ marginTop: 8 }}>
-                  {/* Rewrites the tree when the ticket is checked out, so the
-                      same gate as a discard: nothing running over the files.
-                      Every branch of that gate has a sentence (#409). */}
-                  <ReasonedButton
-                    variant="secondary"
-                    isBusy={ticketSaving}
-                    reason={rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, devServerActive: isDevProcessActive, discarding, noun: workItem.noun })}
-                    onClick={rebaseTicket}
-                  >{staleTicketNotice.action}</ReasonedButton>
-                </div>
-              </div>
-            ) : null}
-            {ticketFeedback}
-
-            {tracInfo ? (
-              <div style={{ marginTop: 10 }}>
-                {tracInfo.summary ? (
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2327' }}>{tracInfo.summary}</div>
-                ) : null}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap', fontSize: 12, color: '#3c434a' }}>
-                  {tracInfoBadge ? (
-                    <span style={{ padding: '1px 8px', borderRadius: 999, fontWeight: 600, fontSize: 11,
-                      background: tracInfoBadge.tone === 'closed' ? '#fcf0f1' : '#edfaef',
-                      color: tracInfoBadge.tone === 'closed' ? '#8a1f21' : '#005c12' }}>
-                      {tracInfoBadge.label}
-                    </span>
-                  ) : null}
-                  {tracInfo.type ? (
-                    <span style={{ padding: '1px 8px', borderRadius: 999, fontSize: 11, background: '#f0f0f1', color: '#3c434a' }}>{tracInfo.type}</span>
-                  ) : null}
-                  {tracInfo.opened ? (
-                    <span title={tracInfo.opened.absolute}>opened {tracInfo.opened.relative}</span>
-                  ) : null}
-                  {tracInfo.milestone ? <span>milestone: {tracInfo.milestone}</span> : null}
-                </div>
-                {tracInfo.component || tracInfo.keywords.length ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap', fontSize: 12, color: '#6c6f72' }}>
-                    {tracInfo.component ? (
-                      <span>
-                        component:{' '}
-                        {tracInfo.component.url ? (
-                          <Button variant="link" style={{ fontSize: 12 }} onClick={() => window.api.openExternal(tracInfo.component.url)}>
-                            {tracInfo.component.label}
-                          </Button>
-                        ) : tracInfo.component.label}
-                      </span>
-                    ) : null}
-                    {tracInfo.keywords.length ? (
-                      <span>
-                        keywords:{' '}
-                        {tracInfo.keywords.map((kw, i) => (
-                          <span key={kw.label}>
-                            {i ? ' ' : ''}
-                            {kw.url ? (
-                              <Button variant="link" style={{ fontSize: 12 }} onClick={() => window.api.openExternal(kw.url)}>{kw.label}</Button>
-                            ) : kw.label}
-                          </span>
-                        ))}
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            {changesNote && changesNote.placement === 'ticket' ? (
-              <div style={{ marginTop: 8, fontSize: 13, color: '#1d2327' }}>
-                {changesNoteBody}
-                <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>{changesNote.unlinkNote}</div>
-              </div>
-            ) : null}
-
-            <div ref={ticketPatchesRef} style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Linked pull requests</div>
-                <Button variant="link" onClick={loadTicketPatches} disabled={ticketPatchesLoading} style={{ fontSize: 12 }}>
-                  {ticketPatchesLoading ? 'Checking…' : 'Refresh'}
-                </Button>
-              </div>
-              <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>
-                See the work that already exists on this {workItem.noun} before adding your own.
-              </div>
-
-              {ticketPatchesLoading && !ticketPatches ? (
-                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 13 }}><Spinner /> Checking GitHub…</div>
-              ) : null}
-
-              {ticketPatches && ticketPatches.status === 'ok' && ticketPatches.items.length === 0 ? (
-                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>No pull requests cite this {workItem.noun} yet.</div>
-              ) : null}
-
-              {ticketPatches && ticketPatches.status !== 'ok' && ticketPatches.status !== 'no-ticket' ? (
-                <div style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-                  {TICKET_PATCH_STATUS_MESSAGE[ticketPatches.status] || TICKET_PATCH_STATUS_MESSAGE.error}
-                  {ticketPatches.items && ticketPatches.items.length && ticketPatches.cachedAt
-                    ? ` Showing what was last seen ${new Date(ticketPatches.cachedAt).toLocaleString()}.`
-                    : ' No cached list to fall back on.'}
-                </div>
-              ) : null}
-
-              {ticketPatches && ticketPatches.items && ticketPatches.items.length ? (
-                <div style={{ marginTop: 10, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
-                  {ticketPatches.items.map((pr) => (
-                    <div key={pr.number} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
-                      <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                          <span style={{ flex: '0 1 auto', minWidth: 0, fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <Button variant="link" onClick={() => window.api.openExternal(pr.url)} style={{ fontSize: 13 }}>#{pr.number}</Button>
-                            {' '}{pr.title}
-                          </span>
-                          {latestPill(latestPatch?.kind === 'pr' && latestPatch.key === pr.number)}
-                          {pullRequest?.number === pr.number ? <span style={{ ...pillStyle, background: '#f4fbf4', color: '#0f5132', marginLeft: 8 }}>Applied</span> : null}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, fontSize: 11, color: '#6c6f72' }}>
-                          {prStatePill(pr.state)}
-                          {(() => {
-                            const dated = prDateLabel(pr);
-                            return dated ? <span>{dated.prefix} {new Date(dated.when).toLocaleDateString()}</span> : null;
-                          })()}
-                        </div>
-                      </div>
-                      {pullRequest ? null : (
-                        <Button
-                          variant="secondary"
-                          isBusy={fetchingPr === pr.number}
-                          disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingPr !== null}
-                          onClick={() => previewPr(pr)}
-                          style={{ flex: '0 0 auto' }}
-                        >Apply…</Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            {latestIsAttachment ? (
-              <div style={{ marginTop: 12, padding: '8px 10px', background: '#e7f1ff', border: '1px solid #9ec5f0', borderRadius: 6, fontSize: 12, color: '#0b5d95' }}>
-                The most recent patch on this ticket is a file attachment, not a pull request — see Trac attachments below.
-              </div>
-            ) : null}
-
-            {/* Trac's alone: a GitHub issue carries no attachments, its work
-                arrives as the pull requests listed above. */}
-            {showTracCards ? (
-            <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f1', paddingTop: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>Trac attachments</div>
-                {tracAttachments ? (
-                  <Button variant="link" onClick={loadTracAttachments} disabled={tracAttachmentsLoading} style={{ fontSize: 12 }}>
-                    {tracAttachmentsLoading ? 'Checking…' : 'Refresh'}
-                  </Button>
-                ) : null}
-              </div>
-              <div style={{ marginTop: 4, fontSize: 12, color: '#6c6f72' }}>
-                Patch files are sometimes attached on Trac instead of a PR. Reading them opens the ticket so you can pass its human-check once.
-              </div>
-
-              {!tracAttachments && !tracAttachmentsLoading ? (
-                <div style={{ marginTop: 10 }}>
-                  <Button variant="secondary" onClick={loadTracAttachments} disabled={isApplying || isUpdating || installing || building} style={{ padding: '8px 14px', borderRadius: 10 }}>
-                    Show Trac attachments
-                  </Button>
-                </div>
-              ) : null}
-
-              {tracAttachmentsLoading ? (
-                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#3c434a', fontSize: 13 }}><Spinner /> Opening the ticket on Trac…</div>
-              ) : null}
-
-              {tracAttachmentsRead && patchAttachments.length === 0 ? (
-                <div style={{ marginTop: 10, fontSize: 13, color: '#6c6f72' }}>No patch files attached to this ticket.</div>
-              ) : null}
-
-              {tracAttachments && (tracAttachments.status === 'challenge-timeout' || tracAttachments.status === 'error' || tracAttachments.status === 'closed') ? (
-                <div style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-                  {(() => {
-                    if (tracAttachments.status === 'challenge-timeout') return 'Trac’s human-check did not complete in time. Try again, and click “I am human” if it appears.';
-                    if (tracAttachments.status === 'closed') return 'The Trac window was closed before the attachments finished loading. Click “Show Trac attachments” to try again.';
-                    return `Could not read the attachments from Trac.${tracAttachments.error ? ` (${tracAttachments.error})` : ''}`;
-                  })()}
-                </div>
-              ) : null}
-
-              {patchAttachments.length ? (
-                <div style={{ marginTop: 10, border: '1px solid #ddd', borderRadius: 6, overflow: 'hidden' }}>
-                  {patchAttachments.map((att) => (
-                    <div key={att.url} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #f0f0f1' }}>
-                      <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                          <span style={{ flex: '0 1 auto', minWidth: 0, fontSize: 13, color: '#1d2327', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <Button variant="link" onClick={() => window.api.openExternal(att.url)} style={{ fontSize: 13 }}>{att.filename}</Button>
-                          </span>
-                          {latestPill(latestPatch?.kind === 'attachment' && latestPatch.key === att.url)}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#6c6f72' }}>
-                          {[att.author && `by ${att.author}`, att.dateText, att.sizeText].filter(Boolean).join(' · ')}
-                        </div>
-                      </div>
-                      {!pullRequest ? (
-                      <Button
-                        variant="secondary"
-                        isBusy={fetchingAttachment === att.url}
-                        disabled={isApplying || isUpdating || installing || building || Boolean(applyPreview) || fetchingAttachment !== null}
-                        onClick={() => previewAttachment(att)}
-                        style={{ flex: '0 0 auto' }}
-                      >Apply…</Button>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>
-              Tell the app which {workItem.noun} you are working on. It is stored with the site, so it survives restarts, and you can change or remove it at any time.
-            </div>
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-              <div style={{ minWidth: 260 }}>
-                <TextControl
-                  value={ticketInput}
-                  onChange={(value) => { setTicketInput(value); setTicketError(''); }}
-                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); linkTicket(); } }}
-                  disabled={ticketActionsBlocked}
-                  placeholder={workItem.refPlaceholder}
-                  aria-label={workItem.refLabel}
-                />
-              </div>
-              <ReasonedButton
-                variant="secondary"
-                onClick={linkTicket}
-                isBusy={ticketSaving}
-                reason={ticketActionsReason}
-                disabled={!ticketInput.trim()}
-                style={{ padding: '10px 16px', borderRadius: 10 }}
-              >Link {workItem.noun}</ReasonedButton>
-            </div>
-            {/* Expectation-setting, not the warning itself: since #234 the
-                app asks before moving or discarding anything, so this only
-                has to be true, not load-bearing. Said without asking the
-                worktree, so it costs nothing. */}
-            <div style={{ marginTop: 6, fontSize: 12, color: '#6c6f72' }}>
-              If you have edited anything already, you will be asked what should happen to those edits.
-            </div>
-          </>
-        )}
-        {tracTicket ? null : ticketFeedback}
-        {tracTicket ? null : (
-          <div style={{ marginTop: 8 }}>
-            <Button variant="link" onClick={() => window.api.openExternal(project.workItem.browseUrl)} style={{ fontSize: 12 }}>
-              Not sure yet? {project.workItem.browseLabel}
-            </Button>
-          </div>
-        )}
-      </div>
+        <TicketCard
+          cue={cueProps('link-ticket')}
+          provider={project.workItem.provider}
+          ticketId={tracTicket || null}
+          ticketUrl={tracTicket ? workItem.urlFor(tracTicket) : ''}
+          onOpen={openSiteLink}
+          link={{
+            value: ticketInput,
+            onChange: (value) => { setTicketInput(value); setTicketError(''); },
+            onSubmit: linkTicket,
+            saving: ticketSaving,
+            reason: ticketActionsReason,
+            browseUrl: project.workItem.browseUrl
+          }}
+          unlink={{ onUnlink: unlinkTicket, reason: ticketActionsReason }}
+          details={showTracCards ? { info: tracInfo, loading: tracAttachmentsLoading, onRead: loadTracAttachments } : null}
+          staleNotice={staleTicketNotice ? {
+            ...staleTicketNotice,
+            busy: ticketSaving,
+            reason: rebaseDisabledReason({ ticketSaving, deletingBranch, updateState, installing, building, devServerActive: isDevProcessActive, discarding, noun: workItem.noun }),
+            onAction: rebaseTicket
+          } : null}
+          feedback={ticketFeedback}
+          changesNote={ticketChangesNote}
+          banner={prCheckoutBanner}
+          pullRequests={{
+            list: ticketPatches,
+            loading: ticketPatchesLoading,
+            onRefresh: loadTicketPatches,
+            latest: latestPatch,
+            appliedNumber: pullRequest ? pullRequest.number : null,
+            apply: { hidden: Boolean(pullRequest), disabled: patchReadBlocked, fetching: fetchingPr, onApply: previewPr }
+          }}
+          pullRequestsRef={ticketPatchesRef}
+          attachments={showTracCards ? {
+            result: tracAttachments,
+            loading: tracAttachmentsLoading,
+            items: patchAttachments,
+            latest: latestPatch,
+            onLoad: loadTracAttachments,
+            loadDisabled: isApplying || isUpdating || installing || building,
+            apply: { hidden: Boolean(pullRequest), disabled: patchReadBlocked, fetching: fetchingAttachment, onApply: previewAttachment }
+          } : null}
+          latestIsAttachment={latestIsAttachment}
+        />
       ) : null}
       {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (
-        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{project.cards.applyHeading}</div>
-          {!pullRequest && !applyPreview && !isApplying ? (
-            <div style={{ marginTop: 4, fontSize: 13, color: '#3c434a' }}>{project.cards.applyDescription}</div>
-          ) : null}
-
-          {appliedLayer && !isApplying ? (
-            <div style={{ marginTop: 12, padding: '14px 16px', border: `1px solid ${appliedLayer.canRevert ? '#94d3ae' : '#dba617'}`, background: appliedLayer.canRevert ? '#f4fbf4' : '#fcf9e8', borderRadius: 8 }}>
-              <div style={{ fontSize: 13, color: appliedLayer.canRevert ? '#0f5132' : '#6e5406' }}>
-                <strong>{appliedLayer.label}</strong> {appliedLayer.summary}
-              </div>
-              <div style={{ marginTop: 8, fontSize: 12 }}>This patch is applied to your current work. Removing it may require undoing overlapping edits.</div>
-              {watchBusyMessage(watchState, watchCompiling) ? (
-                <div style={{ marginTop: 8, fontSize: 13, color: '#6e5406' }}>{watchBusyMessage(watchState, watchCompiling)}</div>
-              ) : null}
-              {appliedLayer.explanation ? (
-                <div style={{ marginTop: 8, fontSize: 12, color: '#6e5406' }}>{appliedLayer.explanation}</div>
-              ) : null}
-              {appliedLayer.detail.map((line) => (
-                <div key={line} style={{ marginTop: 4, fontSize: 12, color: '#6e5406', wordBreak: 'break-all' }}>{line}</div>
-              ))}
-              {appliedLayer.note ? (
-                <div style={{ marginTop: 8, fontSize: 12, color: '#6c6f72' }}>{appliedLayer.note}</div>
-              ) : null}
-              <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                {appliedLayer.canRevert ? (
-                  <Button variant="secondary" onClick={() => runApply({ reverse: true })} disabled={isUpdating || installing || building}>Revert this patch</Button>
-                ) : null}
-                {appliedLayer.offerCopy ? (
-                  <>
-                    <Button variant="secondary" onClick={savePatch} disabled={layerExitBlocked}>Save a copy of your work</Button>
-                    <Button variant="tertiary" onClick={discardAllChanges} disabled={layerExitBlocked}>Discard this ticket to its base</Button>
-                  </>
-                ) : null}
-              </div>
-              {/* Both exits report failure through state the changes note and the
-                  patch modal own, and neither is on screen here — so a save that
-                  could not write, or a discard that refused, would be a button
-                  that did nothing on the one way out this banner recommends. */}
-              {layerExit.message ? (
-                <div role="alert" style={{ marginTop: 8, fontSize: 12, color: '#d63638' }}>{layerExit.message}</div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {applyPreview && !isApplying ? (
-            <div {...cueProps('apply-preview')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
-              <div style={{ fontSize: 13, color: '#1d2327' }}>
-                {prPreview ? <strong>{prPreview.headline}</strong> : <><strong>{applyPreview.label}</strong> changes {applyPreview.paths.length} file{applyPreview.paths.length === 1 ? '' : 's'}:</>}
-              </div>
-              {applyPreview.kind === 'pr' && applyPreview.prState ? <div style={{ marginTop: 6 }}>{prStatePill(applyPreview.prState)}</div> : null}
-              {prPreview?.closedNote ? <div style={{ marginTop: 8, fontSize: 12, color: '#6e5406' }}>{prPreview.closedNote}</div> : null}
-              <div style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12, color: '#3c434a', lineHeight: 1.7, overflowWrap: 'anywhere', maxHeight: 140, overflowY: 'auto' }}>
-                {applyPreview.paths.map((p) => <div key={p}>{p}</div>)}
-              </div>
-              {/* Who the colliding work belongs to (#306) is the sentence. */}
-              {applyPreview.kind !== 'pr' && previewAttribution.sentences.length ? (
-                <div role="alert" style={{ marginTop: 10, padding: '8px 10px', background: '#fcf9e8', border: '1px solid #dba617', borderRadius: 6, fontSize: 12, color: '#6e5406' }}>
-                  {previewAttribution.sentences.map((sentence) => <div key={sentence} style={{ marginTop: 2 }}>{sentence}</div>)}
-                </div>
-              ) : null}
-              {applyPreview.kind !== 'pr' && applyPreview.unsupported.length ? (
-                <div style={{ marginTop: 10, fontSize: 12, color: '#6e5406' }}>
-                  {applyPreview.unsupported.join(', ')} {applyPreview.unsupported.length === 1 ? 'is a binary file and will be skipped' : 'are binary files and will be skipped'}.
-                </div>
-              ) : null}
-              {prPreview?.installNote ? <div style={{ marginTop: 10, fontSize: 12, color: '#3c434a' }}>{prPreview.installNote}</div> : null}
-              {applyPreview.kind !== 'pr' && applyPreview.needsInstall ? <div style={{ marginTop: 10, fontSize: 12, color: '#3c434a' }}>It changes <code>package-lock.json</code>, so dependencies will be installed before the rebuild.</div> : null}
-              <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                <Button variant="primary" onClick={() => runApply()} disabled={isUpdating || installing || building}>
-                  {prPreview ? prPreview.actionLabel : 'Apply and rebuild'}
-                </Button>
-                <Button variant="tertiary" onClick={() => { setApplyPreview(null); clearApplyError(); setApplyNotice(''); }}>Cancel</Button>
-              </div>
-            </div>
-          ) : null}
-
-          {isApplying ? (
-            <div {...cueProps('applying-patch')} style={{ marginTop: 12, padding: '14px 16px', border: '1px solid #dcdcde', borderRadius: 8 }}>
-              {applyStepStates.map((state, i) => {
-                const step = applySteps[i];
-                const mark = UPDATE_STEP_MARKS[state.status];
-                const stepLabel = state.status === 'skipped' ? step.skipMessage : step.label;
-                return (
-                  <div key={step.key} style={{ display: 'flex', gap: 8, fontSize: 13, padding: '2px 0', color: mark ? mark.color : '#6c6f72', fontWeight: state.status === 'current' ? 600 : 400, opacity: state.status === 'pending' || state.status === 'skipped' ? 0.75 : 1 }}>
-                    <span aria-hidden="true" style={{ width: 12 }}>{mark ? mark.symbol : ''}</span>
-                    <span>{stepLabel}</span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-
-          {applyError ? (
-            <div role="alert" style={{ marginTop: 12, padding: '8px 10px', background: '#fcf0f1', border: '1px solid #d63638', borderRadius: 6, fontSize: 12, color: '#8a1f21' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                {/* The headline replaces the sentence when there is one: it says
-                    the same thing in counts, which is the part that decides
-                    whether the patch is worth rescuing. Without a breakdown the
-                    original sentence is still the whole story. */}
-                <span style={{ flex: '1 1 auto' }}>
-                  {applyConflict?.headline || (/[.!?]$/.test(applyError.trim()) ? applyError : `${applyError.trim()}.`)}{applyKind === 'patch' ? ' The checkout was not changed.' : ''}
-                </span>
-                <Button
-                  variant="tertiary"
-                  isSmall
-                  aria-label="Dismiss"
-                  onClick={() => clearApplyError()}
-                  style={{ color: '#8a1f21' }}
-                >✕</Button>
-              </div>
-
-              {applyConflict ? (
-                <div style={{ marginTop: 8 }}>
-                  {applyConflict.items.map((item, i) => (
-                    <div key={i} style={{ marginTop: i ? 8 : 0 }}>
-                      {item.kind === 'note' ? (
-                        <div>{item.text}</div>
-                      ) : (
-                        <>
-                          <div style={{ fontWeight: 600, wordBreak: 'break-all' }}>
-                            {item.path} — {item.failed} of {item.total} {item.total === 1 ? 'change' : 'changes'}
-                          </div>
-                          {item.regions.map((region) => (
-                            // index, not line: a concatenated patch can carry
-                            // two hunks whose oldStart coincides.
-                            <div key={region.index} style={{ marginTop: 4, paddingLeft: 10, borderLeft: '2px solid #d63638' }}>
-                              {/* A searchable line, not a line number: the patch's
-                                  numbers are coordinates in the file as its author
-                                  had it, and on an old patch they miss by dozens.
-                                  Text survives the drift — copy it into the
-                                  editor's search and land on the region. */}
-                              <div>
-                                {region.anchor
-                                  ? <>near <code style={{ fontSize: 11, wordBreak: 'break-all' }}>{region.anchor}</code></>
-                                  : `line ${region.line} of the patch`} · {region.reason}
-                              </div>
-                              {/* The lines themselves, because a location alone
-                                  cannot answer the question that decides the
-                                  next ten minutes: is this the change that
-                                  matters, or reformatting that came with it. */}
-                              {region.lines.length ? (
-                                <pre style={{ margin: '2px 0 0', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                                  {region.lines.join('\n')}{region.more ? `\n… ${region.more} more ${region.more === 1 ? 'line' : 'lines'}` : ''}
-                                </pre>
-                              ) : null}
-                            </div>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  ))}
-
-                  {applyConflict.advice ? (
-                    <div style={{ marginTop: 8 }}>{applyConflict.advice}</div>
-                  ) : null}
-
-                  {applyConflict.offerOtherPatches || applyConflict.prUrl || applyConflict.offerDiscardToBase ? (
-                    <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {applyConflict.offerDiscardToBase ? (
-                        <>
-                          <Button variant="secondary" isSmall onClick={savePatch} disabled={layerExitBlocked}>Save a copy of your work</Button>
-                          <Button variant="secondary" isSmall onClick={discardAllChanges} disabled={layerExitBlocked}>Discard this ticket to its base</Button>
-                        </>
-                      ) : null}
-                      {applyConflict.offerOtherPatches ? (
-                        <Button
-                          variant="secondary"
-                          isSmall
-                          onClick={() => {
-                            // Choosing another patch is walking away from this
-                            // one, so everything about it goes: the preview
-                            // (whose presence keeps the lists' Apply buttons
-                            // disabled) and the failure banner itself — an
-                            // error describing an abandoned attempt would sit
-                            // above the new one as noise.
-                            setApplyPreview(null);
-                            clearApplyError();
-                            ticketPatchesRef.current?.scrollIntoView({
-                              block: 'center',
-                              behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
-                            });
-                          }}
-                        >Try another patch on this ticket</Button>
-                      ) : null}
-                      {applyConflict.prUrl && applyConflict.prButton ? (
-                        <Button variant="secondary" isSmall onClick={() => window.api.openExternal(applyConflict.prUrl)}>
-                          {applyConflict.prButton}
-                        </Button>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  {applyConflict.offerDiscardToBase && layerExit.message ? (
-                    <div style={{ marginTop: 8 }}>{layerExit.message}</div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {applyNotice ? (
-            // Dismissible, like the update summary above: the notice reports
-            // something already resolved, so it outlives its usefulness the
-            // moment it has been read, and nothing else in this panel takes it
-            // down until the next patch.
-            <div role="status" style={{ marginTop: 12, padding: '8px 10px', background: '#f0f6fc', border: '1px solid #3582c4', borderRadius: 6, fontSize: 12, color: '#1d3a5f', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ flex: '1 1 auto' }}>{applyNotice}</span>
-              <Button
-                variant="tertiary"
-                isSmall
-                aria-label="Dismiss"
-                onClick={() => setApplyNotice('')}
-                style={{ color: '#1d3a5f' }}
-              >✕</Button>
-            </div>
-          ) : null}
-
-          {!pullRequest && !applyPreview && !isApplying ? (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-                <div style={{ minWidth: 280, flex: '1 1 280px' }}>
-                  <TextControl
-                    value={prUrlInput}
-                    onChange={(value) => { setPrUrlInput(value); clearApplyError(); setApplyNotice(''); }}
-                    onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); previewPrFromInput(); } }}
-                    disabled={isUpdating || installing || building}
-                    placeholder="Paste a pull request URL or number"
-                    aria-label="Pull request URL or number"
-                  />
-                </div>
-                <Button
-                  variant="secondary"
-                  onClick={previewPrFromInput}
-                  disabled={isUpdating || installing || building || !prUrlInput.trim()}
-                  style={{ padding: '10px 16px', borderRadius: 10 }}
-                >Apply PR</Button>
-              </div>
-              {project.cards.patchFiles ? (
-                <div style={{ marginTop: 10 }}>
-                  <Button variant="link" onClick={choosePatchFile} disabled={isUpdating || installing || building} style={{ fontSize: 13 }}>
-                    or choose a .diff / .patch file…
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+        <ApplyCard
+          cardRef={applyCardRef}
+          patchFiles={Boolean(project.cards.patchFiles)}
+          entry={!pullRequest && !isApplying ? {
+            value: prUrlInput,
+            onChange: (value) => { setPrUrlInput(value); clearApplyError(); setApplyNotice(''); },
+            onSubmit: previewPrFromInput,
+            onChooseFile: choosePatchFile,
+            // A patch already read is being looked at, or waits on a
+            // question: one at a time.
+            disabled: isUpdating || installing || building || Boolean(applyPreview)
+          } : null}
+          applied={appliedLayer && !isApplying ? {
+            layer: appliedLayer,
+            watchMessage: watchBusyMessage(watchState, watchCompiling),
+            onRevert: () => runApply({ reverse: true }),
+            revertDisabled: isUpdating || installing || building,
+            exits: layerExits
+          } : null}
+          progress={isApplying ? { steps: applySteps, states: applyStepStates, cue: cueProps('applying-patch') } : null}
+          failure={applyError ? {
+            error: applyError,
+            kind: applyKind,
+            conflict: applyConflict,
+            exits: layerExits,
+            onDismiss: () => clearApplyError(),
+            onTryAnother: tryAnotherPatch,
+            onOpen: openSiteLink
+          } : null}
+          notice={applyNotice ? { text: applyNotice, onDismiss: () => setApplyNotice('') } : null}
+        />
+      ) : null}
+      {skipInit ? (
+        <ApplyPreviewDialog
+          preview={previewShown({ preview: applyPreview, active: isActive, applying: isApplying, asking: Boolean(blockedByTrunkWork) })}
+          pr={prPreview}
+          warnings={applyPreview && applyPreview.kind !== 'pr' ? previewAttribution.sentences : []}
+          cueId="apply-preview"
+          applyDisabled={isUpdating || installing || building}
+          applyReason={applyHeldReason({ terminalRunning })}
+          focusAfter={applyCardRef}
+          onApply={() => runApply()}
+          onCancel={() => { setApplyPreview(null); clearApplyError(); setApplyNotice(''); }}
+        />
       ) : null}
       {skipInit && ticketsCard ? (
-        <div style={{ padding: 20, border: '1px solid #dcdcde', borderRadius: 12, background: '#fff' }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#1d2327' }}>{ticketsCard.heading}</div>
-          {renderBranchRows(Boolean(tracTicket))}
-        </div>
+        <TicketListCard
+          words={ticketsCard}
+          rows={branchRows}
+          reason={ticketActionsReason}
+          deleting={deletingBranch}
+          onSwitch={(row) => saveTicket(String(row.ticketId))}
+          onDelete={(row) => askFirst(deleteWorkQuestion(row.ticketId, project.workItem.provider), () => deleteTicketWork(row.ref))}
+        />
       ) : null}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Terminal</div>
-          <div
-            ref={terminalContainerRef}
-            style={{
-              height: 220,
-              background: '#111',
-              borderRadius: 6,
-              overflow: 'hidden',
-              border: '1px solid #1b1b1f'
-            }}
-          />
-          <div style={{ marginTop: 8, fontSize: 12, color: '#3c434a' }}>
-            {showTerminalHints ? (
-              <>
-                <div>Edited files in <code>{project.cards.sourceDir}</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</div>
-                <div style={{ marginTop: 2, marginBottom: 6 }}>Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</div>
-              </>
-            ) : null}
-            <div>
-              Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
-            </div>
-          </div>
-        </div>
-        <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Logs</div>
-          <TabPanel className="log-tabs" activeClass="is-active" onSelect={selectLogTab} tabs={logTabs}>
-            {(tab) => {
-              if (tab.name === 'runtime') {
-                return <div ref={logs.runtimeRef} onScroll={logs.makeOnScroll('runtime')} style={LOG_PANE_STYLE}><LogText text={logs.runtimeLogs} /></div>;
-              }
-              if (tab.name === 'watch') {
-                return (
-                  <div ref={logs.watchRef} onScroll={logs.makeOnScroll('watch')} style={LOG_PANE_STYLE}>
-                    {logs.watchLogs ? <LogText text={logs.watchLogs} /> : (
-                      <span style={{ color:'#888', fontFamily:'-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>The build watch compiles <code>src/</code> edits into <code>build/</code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.</span>
-                    )}
-                  </div>
-                );
-              }
+      <Stack direction="column" gap="sm" render={<section aria-labelledby={terminalTitleId} />}>
+        <Text id={terminalTitleId} variant="heading-md" render={<h2 />} className="site-panel-title">Terminal</Text>
+        {/* The terminal is 80 columns wide, which is more than the column
+            it sits in when the details are open and the window is at its
+            default size. It scrolls sideways there, so that the end of a
+            line can be reached, until it moves to the tray (#558). */}
+        <div ref={terminalContainerRef} className="terminal-pane" />
+        <Stack direction="column" gap="xs">
+          {showTerminalHints ? (
+            <>
+              <Text variant="body-sm" className="muted-label">Edited files in <code>{project.cards.sourceDir}</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</Text>
+              <Text variant="body-sm" className="muted-label">Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</Text>
+            </>
+          ) : null}
+          <Text variant="body-sm" className="muted-label">
+            Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
+          </Text>
+        </Stack>
+      </Stack>
+      <Stack direction="column" gap="sm" render={<section aria-labelledby={logsTitleId} />}>
+        <Text id={logsTitleId} variant="heading-md" render={<h2 />} className="site-panel-title">Logs</Text>
+        <TabPanel className="log-tabs" activeClass="is-active" onSelect={selectLogTab} tabs={logTabs}>
+          {(tab) => {
+            if (tab.name === 'runtime') {
+              return <div ref={logs.runtimeRef} onScroll={logs.makeOnScroll('runtime')} className="log-pane"><LogText text={logs.runtimeLogs} /></div>;
+            }
+            if (tab.name === 'watch') {
               return (
-                <>
-                <div ref={logs.debugRef} onScroll={logs.makeOnScroll('debug')} style={LOG_PANE_STYLE}>
+                <div ref={logs.watchRef} onScroll={logs.makeOnScroll('watch')} className="log-pane">
+                  {logs.watchLogs ? <LogText text={logs.watchLogs} /> : (
+                    <span className="log-pane-note">The build watch compiles <code>src/</code> edits into <code>build/</code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.</span>
+                  )}
+                </div>
+              );
+            }
+            return (
+              <Stack direction="column" gap="sm">
+                <div ref={logs.debugRef} onScroll={logs.makeOnScroll('debug')} className="log-pane">
                   {logs.debugLogs ? <LogText text={logs.debugLogs} /> : (
                     // An empty pane reads as broken, which is what this one was
                     // for as long as WP_DEBUG_LOG was never set. Say what fills
                     // it instead. In the app's own font, not the terminal's:
                     // this is interface copy rather than log output, and it is
                     // what keeps the `<code>` bits in it distinguishable.
-                    <span style={{ color:'#888', fontFamily:'-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>No PHP notices or errors yet. Anything WordPress or your code writes — <code>error_log()</code>, notices, deprecations, fatals — appears here while the dev server runs.</span>
+                    <span className="log-pane-note">No PHP notices or errors yet. Anything WordPress or your code writes — <code>error_log()</code>, notices, deprecations, fatals — appears here while the dev server runs.</span>
                   )}
                 </div>
-                <div style={{ display:'flex', gap:8, marginTop:8, alignItems:'center', justifyContent:'space-between', flexWrap:'wrap' }}>
+                <Stack direction="row" align="center" justify="space-between" gap="sm" wrap="wrap">
                   {/* The file is under build/, while the file being edited when
                       it filled up is under src/ — so it cannot be guessed, and
                       it is what someone needs to tail it in a terminal or attach
                       it to a ticket. Selectable rather than truncated with an
                       ellipsis: a path you cannot copy is decoration. */}
-                  <code style={{ fontSize:11, color:'#666', userSelect:'text', wordBreak:'break-all', flex:'1 1 240px' }}>{logs.debugLogPath || 'The log file appears once the dev server has run.'}</code>
-                  <div style={{ display:'flex', gap:8 }}>
-                    <Button size="small" variant="secondary" onClick={logs.revealDebugLog} disabled={!logs.debugLogPath}>Show in folder</Button>
-                    <Button size="small" variant="secondary" onClick={logs.copyDebugLog} disabled={!logs.debugLogs}>{COPY_BUTTON_LABELS[logs.debugCopied] || COPY_BUTTON_LABELS.idle}</Button>
-                    <Button size="small" variant="secondary" onClick={logs.clearDebugLog} disabled={!logs.debugLogs}>Clear</Button>
-                  </div>
-                </div>
-                </>
-              );
-            }}
-          </TabPanel>
+                  <code className="log-path">{logs.debugLogPath || 'The log file appears once the dev server has run.'}</code>
+                  <Stack direction="row" gap="sm">
+                    <UiButton variant="outline" tone="neutral" size="compact" onClick={logs.revealDebugLog} disabled={!logs.debugLogPath}>Show in folder</UiButton>
+                    <UiButton variant="outline" tone="neutral" size="compact" onClick={logs.copyDebugLog} disabled={!logs.debugLogs}>{COPY_BUTTON_LABELS[logs.debugCopied] || COPY_BUTTON_LABELS.idle}</UiButton>
+                    <UiButton variant="outline" tone="neutral" size="compact" onClick={logs.clearDebugLog} disabled={!logs.debugLogs}>Clear</UiButton>
+                  </Stack>
+                </Stack>
+              </Stack>
+            );
+          }}
+        </TabPanel>
+      </Stack>
+      <Stack direction="column" gap="sm" render={<section aria-labelledby={mailTitleId} />}>
+        <Text id={mailTitleId} variant="heading-md" render={<h2 />} className="site-panel-title">Mail</Text>
+        <Stack direction="row" align="center" justify="space-between" gap="sm">
+          <Text variant="body-sm" className="muted-label">{mail.smtpPort ? `SMTP listening on 127.0.0.1:${mail.smtpPort}` : 'SMTP will start with the dev server.'}</Text>
+          <UiButton variant="outline" tone="neutral" size="compact" onClick={mail.clear}>Clear emails</UiButton>
+        </Stack>
+        <div className="mail-list">
+          {mail.emails && mail.emails.length ? mail.emails.map((m)=>{
+            const when = m.sentAt || m.date; const whenStr = when ? new Date(when).toLocaleString() : '';
+            return (
+              <div key={m.id}
+                className="mail-row"
+                role="button"
+                tabIndex={0}
+                onClick={()=>mail.open(m)}
+                onKeyDown={(e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mail.open(m); } }}
+              >
+                <span className="mail-when">{whenStr}</span>
+                <span className="mail-from">{m.from || ''}</span>
+                <span className="mail-subject">{m.subject || '(no subject)'}</span>
+              </div>
+            );
+          }) : (
+            <Text variant="body-md" className="muted-label mail-empty">No emails yet.</Text>
+          )}
         </div>
-        <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Mail</div>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-            <div style={{ fontSize:12, color:'#666' }}>{mail.smtpPort ? `SMTP listening on 127.0.0.1:${mail.smtpPort}` : 'SMTP will start with the dev server.'}</div>
-            <div><Button size="small" variant="secondary" onClick={mail.clear}>Clear emails</Button></div>
-          </div>
-          <div style={{ border:'1px solid #ddd', borderRadius:6, maxHeight:220, overflow:'auto' }}>
-            {mail.emails && mail.emails.length ? mail.emails.map((m)=>{
-              const when = m.sentAt || m.date; const whenStr = when ? new Date(when).toLocaleString() : '';
-              return (
-                <div key={m.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={()=>mail.open(m)}
-                  onKeyDown={(e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mail.open(m); } }}
-                  style={{ padding:'8px 10px', cursor:'pointer', borderBottom:'1px solid #eee', display:'flex', gap:8 }}
-                >
-                  <div style={{ flex:'0 0 180px', color:'#555', fontSize:12 }}>{whenStr}</div>
-                  <div style={{ flex:'0 0 220px', color:'#333', fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.from || ''}</div>
-                  <div style={{ flex:'1 1 auto', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.subject || '(no subject)'}</div>
-                </div>
-              );
-            }) : (
-              <div style={{ padding:12, color:'#666' }}>No emails yet.</div>
-            )}
-          </div>
-        </div>
+      </Stack>
+      </div>
+      <SiteDetails
+        id={detailsId}
+        open={detailsOpen}
+        siteName={displayName}
+        facts={{ initialized, created: createdLabel, trunk: age, path: sitePath, checkout: project.label }}
+        pathCopied={pathCopied}
+        onCopyPath={copyPath}
+        server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
+        watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
+      />
       </div>
       {dirtyModalOpen ? (
         <DirtyTreeModal
@@ -3039,9 +2200,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           onClose={() => setDirtyModalOpen(false)}
         />
       ) : null}
-      {renameModalOpen ? (
-        <RenameSiteModal sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
-      ) : null}
+      <RenameSiteDialog open={renameModalOpen} sitePath={sitePath} displayName={displayName} onRename={onRename} onClose={closeRenameModal} />
+      <ConfirmDialog question={asking ? asking.question : null} onConfirm={() => asking.action()} onClose={() => setAsking(null)} />
       {isPatchOpen && (
         <ReviewDialog
           onClose={()=>setIsPatchOpen(false)}

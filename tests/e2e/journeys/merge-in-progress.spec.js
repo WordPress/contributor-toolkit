@@ -21,7 +21,7 @@ const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite, read, exists, branches, currentBranch, LOGIN, SUBSTRATE, SUBSTRATE_CONTENT } = require( '../helpers/git-site.cjs' );
 const { git, gitOk, commitFiles } = require( '../../unit/helpers/git.cjs' );
-const { mergeInProgressError } = require( '../../../src/renderer/merge-in-progress.cjs' );
+const { mergeInProgressError, mergeInProgressNotice } = require( '../../../src/renderer/merge-in-progress.cjs' );
 
 const TICKET = '60001';
 const BANNER = 'A merge started outside the app is in progress.';
@@ -34,6 +34,8 @@ const BANNER = 'A merge started outside the app is in progress.';
 // platform. `LOGIN` is the same file as the operating system spells it, which
 // on Windows is a backslash the app never shows.
 const SENTENCE = mergeInProgressError( { kind: 'merge', paths: [ 'src/wp-login.php' ] } );
+// The same, as the card says it: a title and what follows it.
+const NOTICE = mergeInProgressNotice( { mergeInProgress: { kind: 'merge', paths: [ 'src/wp-login.php' ] } } );
 const MENTOR_LOGIN = '<?php // the mentor\'s fix\n';
 
 /**
@@ -70,19 +72,23 @@ test( 'a merge left half done by a terminal is named on the card, refuses the ti
 	await expect( banner ).toBeVisible( { timeout: 30_000 } );
 	await expect( banner ).toContainText( 'conflicts in src/wp-login.php' );
 	await expect( banner ).toContainText( 'git merge --abort' );
-	// INVARIANT — and it is the module's sentence, nothing added or reworded.
-	await expect( banner ).toHaveText( SENTENCE );
+	// INVARIANT — and it is the module's sentence, nothing added or reworded:
+	// its title, what follows it, and no more than the two.
+	await expect( banner.getByText( NOTICE.title, { exact: true } ) ).toBeVisible();
+	await expect( banner.getByText( NOTICE.body, { exact: true } ) ).toBeVisible();
+	expect( await banner.evaluate( ( notice ) => notice.textContent ) ).toBe( `${ NOTICE.title }${ NOTICE.body }` );
+	expect( SENTENCE ).toBe( `${ NOTICE.title } ${ NOTICE.body }` );
 
 	// INVARIANT — linking a ticket is refused with the same sentence, and the
 	// merge is left exactly as the terminal left it: no branch, MERGE_HEAD
 	// still there, the markers still in the file.
 	await ui.ticketField( page ).first().fill( TICKET );
 	await ui.linkTicketButton( page ).first().click();
-	// The refusal under the field is a second alert with the same sentence,
-	// beside the banner: two on screen, where one is the banner alone. The
-	// whole sentence, so a refusal worded anywhere but in the module is one
-	// alert here and not two.
-	await expect( page.getByRole( 'alert' ).filter( { hasText: SENTENCE } ) ).toHaveCount( 2, { timeout: 30_000 } );
+	// The refusal under the field is a second alert, beside the banner, and
+	// it is the same sentence, whole: a refusal worded anywhere but in the
+	// module would not be found by it. What follows the title is in both.
+	await expect( page.getByRole( 'alert' ).filter( { hasText: SENTENCE } ) ).toHaveCount( 1, { timeout: 30_000 } );
+	await expect( page.getByRole( 'alert' ).filter( { hasText: NOTICE.body } ) ).toHaveCount( 2 );
 	expect( branches( site.dir ) ).not.toContain( `ticket/${ TICKET }` );
 	expect( mergeHead( site.dir ) ).toBe( true );
 	expect( read( site.dir, LOGIN ) ).toBe( markersBefore );

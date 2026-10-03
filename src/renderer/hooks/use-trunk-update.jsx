@@ -1,4 +1,6 @@
 import { useRef, useState } from 'react';
+import { __ } from '@wordpress/i18n';
+import { savedAndResetMessage } from '../confirmations.cjs';
 import { planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planWatchImpact } from '../update-plan.cjs';
 import { planUpdateHandOff } from '../update-handoff.cjs';
 import { watchOccupiesBuild } from '../watch-waiters.cjs';
@@ -82,7 +84,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
       try { await window.api.markUpdateComplete(sitePath); } catch {}
       const elapsedSeconds = updateStartRef.current ? Math.round((Date.now() - updateStartRef.current) / 1000) : null;
       setLastUpdateSummary({ lockfileChanged, elapsedSeconds, savedPatchPath: savedPatchPathRef.current });
-      confirm('Updated to the latest trunk');
+      confirm(__('Updated to the latest trunk'));
     };
     const runBuildStep = () => {
       setUpdateState('building');
@@ -203,7 +205,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
         // terminal left the contributor unsure the check had even run (#253).
         // The confirmation says so where it will be seen; there is no install
         // or build to follow.
-        confirm('Already up to date with trunk');
+        confirm(__('Already up to date with trunk'));
         finishUpdate();
         return;
       }
@@ -253,7 +255,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
       writeToTerminal(`\nSaved your changes to ${res.filePath} and reset the working tree.\n`);
       // This ran as the contributor closed the modal; the confirmation is the
       // only trace of it outside the terminal (#253).
-      confirm(`Saved your changes to ${pathBasename(res.filePath)} and reset the working tree`);
+      confirm(savedAndResetMessage(pathBasename(res.filePath)));
       beginTrunkUpdate();
     } finally {
       setDirtySaving(false);
@@ -270,7 +272,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
     applyDiscardToNote(discardOutcome(d));
     setDirtyModalOpen(false);
     writeToTerminal('\nDiscarded local changes.\n');
-    confirm('Local changes discarded.');
+    confirm(__('Local changes discarded.'));
     beginTrunkUpdate();
   });
 

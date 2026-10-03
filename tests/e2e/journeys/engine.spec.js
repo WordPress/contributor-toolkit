@@ -79,12 +79,10 @@ test( 'the app launches from source, styled, and lists the site it was seeded wi
 	// the app inside it rendered. What the app rendered is one level further down.
 	await expect( ui.renderedApp( page ) ).not.toHaveCount( 0 );
 
-	// `exact`, because the sidebar heading "Contributor Toolkit" is a substring of
-	// several button labels further down the page.
 	await expect( ui.sidebarEntry( page, 'engine-check' ) ).toBeVisible();
 	// The row wears its project (#251): a Core site says Core, not nothing.
-	await expect( ui.sidebarEntry( page, 'engine-check' ) ).toHaveAccessibleName( 'engine-check Core' );
-	await expect( page.getByText( 'No sites yet.', { exact: true } ) ).toHaveCount( 0 );
+	await expect( page.getByRole( 'row', { name: 'engine-check Core', exact: true } ) ).toBeVisible();
+	await expect( ui.noSitesTitle( page ) ).toHaveCount( 0 );
 
 	// The design system reaches the window (#549), asserted here because it needs
 	// a painted window and nothing else, and this test already has one.
@@ -184,7 +182,6 @@ test( 'a native file dialog can be answered from the test', async ( { session } 
 test( 'a failed site deletion stays visible, reports the failure, and can be retried (#414)', async ( { session } ) => {
 	const site = makeListedSite( session, 'delete-retry' );
 	const { app, page } = await session.start( site.settings );
-	const confirmsAnswered = await session.acceptConfirms();
 
 	// Hold the IPC reply in the main process. This keeps the UI operation pending
 	// without shipping a test-only delay or relying on filesystem timing.
@@ -197,15 +194,13 @@ test( 'a failed site deletion stays visible, reports the failure, and can be ret
 
 	await ui.siteMenuButton( page ).click();
 	await ui.deleteSiteMenuItem( page ).click();
+	await ui.confirmYesButton( page, 'Delete site' ).click();
 
-	// The row speaks while the call is outstanding, and the only delete action is
-	// disabled so a second request cannot race the first one.
-	const deletingEntry = page.getByRole( 'button', { name: 'delete-retry, Deleting', exact: true } );
-	await expect( deletingEntry ).toBeDisabled();
-	await expect( deletingEntry.getByText( 'Deleting site…', { exact: true } ) ).toBeVisible();
-	await page.getByRole( 'button', { name: 'Collapse site list', exact: true } ).click();
-	await expect( deletingEntry.locator( '.components-spinner' ) ).toBeVisible();
-	await page.getByRole( 'button', { name: 'Expand site list', exact: true } ).click();
+	// The row speaks while the call is outstanding, in place of its project,
+	// and the only delete action is disabled so a second request cannot race
+	// the first one.
+	await expect( page.getByRole( 'button', { name: 'delete-retry (Deleting)', exact: true } ) ).toBeVisible();
+	await expect( page.getByRole( 'row', { name: /^delete-retry/ } ).getByText( 'Deleting site…', { exact: true } ) ).toBeVisible();
 	await ui.siteMenuButton( page ).click();
 	await expect( page.getByRole( 'menuitem', { name: 'Deleting…', exact: true } ) ).toBeDisabled();
 	await ui.siteMenuButton( page ).click();
@@ -217,12 +212,11 @@ test( 'a failed site deletion stays visible, reports the failure, and can be ret
 	} );
 
 	const failure = `The site is still listed because its folder could not be deleted (EBUSY). Close anything using it, then try again. Folder: ${ site.dir }`;
-	await expect( page.getByText( failure, { exact: true } ) ).toBeVisible();
+	await expect( ui.toast( page, failure ) ).toBeVisible();
 	await expect( ui.sidebarEntry( page, 'delete-retry' ) ).toBeVisible();
 	await expect( page.getByText( 'Deleting site…', { exact: true } ) ).toHaveCount( 0 );
 
 	await ui.siteMenuButton( page ).click();
 	await expect( ui.deleteSiteMenuItem( page ) ).toBeEnabled();
-	expect( await confirmsAnswered() ).toBe( 1 );
 	expect( session.readSettings().sites ).toEqual( [ site.dir ] );
 } );

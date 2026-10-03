@@ -158,7 +158,7 @@ test( 'an update stops a running build watch for as long as it resets and builds
 	// so, the marker that it was incomplete is gone from the screen and from
 	// the store, and the watch is back.
 	await runs.scriptEnds( 4, 0 );
-	await expect( page.getByText( 'Updated to the latest trunk' ).first() ).toBeVisible();
+	await expect( ui.toast( page, 'Updated to the latest trunk' ) ).toBeVisible();
 	await expect( incomplete ).toHaveCount( 0 );
 	await expect.poll( async () => ( await runs.asked() ).scripts ).toEqual( [ 'grunt', 'build', 'grunt', 'build', 'grunt' ] );
 	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
@@ -182,8 +182,8 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	const { app, page } = await session.start( site.settings );
 	const runs = await standInForRuns( app, page, path.join( site.dir, LOGIN ) );
 	const incomplete = page.getByText( 'Update incomplete', { exact: true } );
-	const updated = page.getByText( 'Updated to the latest trunk' );
-	const card = page.getByText( 'Updating to latest trunk', { exact: true } );
+	const updated = ui.toast( page, 'Updated to the latest trunk' );
+	const card = page.getByRole( 'region', { name: 'Updating to latest trunk', exact: true } );
 
 	// The watch is running, and ready, before the update starts. The test
 	// speaks for the watcher only once the main process has answered that it
@@ -224,6 +224,11 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	await runs.heard();
 	expect( ( await runs.asked() ).completions ).toBe( 0 );
 	await expect( card ).toBeVisible();
+	// INVARIANT — the card lists the update's steps and says which one it is
+	// on, to the eye and to a screen reader: one of them is the current one.
+	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 3 );
+	await expect( card.locator( '[aria-current="step"]' ) ).toHaveCount( 1 );
+	await expect( card.getByText( /^step \d of 3$/ ) ).toBeVisible();
 	expect( await updated.count() ).toBe( 0 );
 	await expect( ui.stopBuildWatchButton( page ) ).toBeEnabled();
 	await expect( ui.startDevServerButton( page ) ).toBeDisabled();

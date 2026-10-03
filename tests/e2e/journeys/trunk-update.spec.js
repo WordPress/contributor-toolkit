@@ -37,9 +37,19 @@ test( 'an update fetches from the site\'s origin, resets the checkout, rebuilds,
 
 	// INVARIANT — the chain ends with the app saying so, and with the summary
 	// the guide describes: the install step was named as skipped.
-	await expect( page.getByText( 'Updated to the latest trunk' ).first() ).toBeVisible( { timeout: 120_000 } );
-	await expect( page.getByText( 'Dependencies unchanged', { exact: false } ).first() ).toBeVisible( { timeout: 30_000 } );
+	await expect( ui.toast( page, 'Updated to the latest trunk' ) ).toBeVisible( { timeout: 120_000 } );
+	await expect( page.getByText( /^Dependencies unchanged, rebuilt/ ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.getByText( 'Update incomplete', { exact: false } ) ).toHaveCount( 0 );
+
+	// INVARIANT — what the update did is said on the page until it is sent
+	// away, by the notice's own button.
+	const done = page.getByText( 'Up to date with trunk as of today.', { exact: true } );
+	await expect( done ).toBeVisible();
+	await done.locator( '..' ).getByRole( 'button', { name: 'Dismiss', exact: true } ).click();
+	await expect( done ).toHaveCount( 0 );
+	// The notice's own sentence, and not the terminal's, which says the
+	// install was skipped in words that begin the same.
+	await expect( page.getByText( /^Dependencies unchanged, rebuilt/ ) ).toHaveCount( 0 );
 
 	// INVARIANT — the checkout is the origin's trunk now, still on trunk, and
 	// the substrate survived the reset.
@@ -95,7 +105,7 @@ test( 'an update run from a linked ticket leaves no incomplete marker behind on 
 
 	// INVARIANT — the chain ends where it does from trunk, and it ends with the
 	// contributor back on their ticket rather than stranded on trunk.
-	await expect( page.getByText( 'Updated to the latest trunk' ).first() ).toBeVisible( { timeout: 120_000 } );
+	await expect( ui.toast( page, 'Updated to the latest trunk' ) ).toBeVisible( { timeout: 120_000 } );
 	await expect( page.getByText( 'Update incomplete', { exact: false } ) ).toHaveCount( 0 );
 	expect( currentBranch( site.dir ) ).toBe( 'ticket/60002' );
 	// And the ticket is still measured from where it started: the update moved
@@ -242,7 +252,7 @@ test( 'an update asks before it resets edits in the tree: cancelling keeps them,
 	// tree, it is in the patch, and the checkout is the newer trunk.
 	await answerSaveDialog( { canceled: false, filePath: patchFile } );
 	await saveAndUpdate.click();
-	await expect( page.getByText( 'Updated to the latest trunk' ).first() ).toBeVisible( { timeout: 120_000 } );
+	await expect( ui.toast( page, 'Updated to the latest trunk' ) ).toBeVisible( { timeout: 120_000 } );
 	await expect( dialog ).toHaveCount( 0 );
 	expect( fs.readFileSync( patchFile, 'utf8' ) ).toContain( '+<?php // an afternoon of work' );
 	// INVARIANT — and the notice that the update is done says where the edit

@@ -44,7 +44,8 @@ const ui = require('../../tests/e2e/helpers/ui.cjs');
  * @param {string}                         label
  */
 async function selectSite(page, label) {
-	await page.getByText(label, { exact: true }).first().click();
+	const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	await page.getByRole('button', { name: new RegExp(`^${escaped}( \\(.*\\))?$`) }).click();
 }
 
 const shots = [
@@ -53,7 +54,7 @@ const shots = [
 		tier: 'fixture',
 		variant: 'empty',
 		prepare: async (page) => {
-			await page.getByText('No sites yet.').first().waitFor();
+			await ui.noSitesTitle(page).waitFor();
 		}
 	},
 	{
@@ -61,7 +62,7 @@ const shots = [
 		tier: 'fixture',
 		variant: 'empty',
 		prepare: async (page) => {
-			await ui.createSiteButton(page).click();
+			await ui.createFirstSiteButton(page).click();
 			await ui.createSiteDialog(page).getByText('Site name').waitFor();
 		}
 	},
@@ -126,7 +127,7 @@ const shots = [
 		// protocolRegistration in src/deep-link.cjs.
 		prepare: async (page, app) => {
 			await selectSite(page, 'my-first-patch');
-			await ui.card(page, 'Working on ticket #60000').waitFor();
+			await ui.workItemNumber(page, '60000').waitFor();
 			await app.evaluate(({ app: electronApp }, url) => {
 				electronApp.emit('open-url', { preventDefault() {} }, url);
 			}, 'wpct://ticket/62281');
@@ -181,7 +182,7 @@ const shots = [
 		slug: 'update-incomplete',
 		tier: 'fixture',
 		variant: 'seeded',
-		target: (page) => page.getByText('Update incomplete', { exact: true }).locator('../..'),
+		target: (page) => page.getByText('Update incomplete', { exact: true }).locator('..'),
 		prepare: async (page) => {
 			await selectSite(page, 'needs-rebuild');
 			await ui.retryInstallButton(page).waitFor();
@@ -246,7 +247,7 @@ const shots = [
 	{
 		slug: 'trunk-update-progress',
 		tier: 'live',
-		target: (page) => page.getByText('Updating to latest trunk', { exact: true }).locator('../..'),
+		target: (page) => ui.card(page, 'Updating to latest trunk'),
 		instructions:
 			'Start "Update to latest trunk" on a site and wait until the step list is mid-run.'
 	},

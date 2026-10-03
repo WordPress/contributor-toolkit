@@ -109,7 +109,7 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );
 	const { app, page } = await session.start( site.settings );
 	const runs = await standIn( app, page );
-	const said = ( text ) => page.getByTestId( 'snackbar' ).filter( { hasText: text } );
+	const said = ( text ) => ui.toast( page, text );
 
 	// The watch is running before anything changes. The hint under the
 	// terminal is a link only once the site is known to be built.
@@ -144,7 +144,7 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 		{ file: 'wp-login.php', from: '<?php // trunk', to: PATCHED },
 	] );
 	await session.answerFileDialog( [ patch ] );
-	await ui.choosePatchFileButton( page ).click();
+	await ui.choosePatchFile( page );
 	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	// The tab is looked at first: it says so only for as long as the app's
 	// quiet period lasts, and the announcement stays longer than that.
@@ -166,6 +166,8 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 	// watcher is stopped for it (#506), the checkout lands, and the chain
 	// runs the build itself. The app does not say it is done while that
 	// build runs, and the watch is not brought back before it ends.
+	// The card was left on its other tab, by the patch file chosen above.
+	await ui.pullRequestTab( page ).click();
 	await checkOutPullRequest( page );
 	await expect.poll( async () => ( await runs.asked() ).kills ).toEqual( [ 'e2e-run-1' ] );
 	await expect.poll( () => currentBranch( site.dir ), { timeout: 30_000 } ).toBe( `pr/${ PR }` );
@@ -195,7 +197,7 @@ test( 'where the watcher rebuilds everything as it starts, a pull request\'s che
 	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );
 	const { app, page } = await session.start( site.settings );
 	const runs = await standIn( app, page );
-	const said = ( text ) => page.getByTestId( 'snackbar' ).filter( { hasText: text } );
+	const said = ( text ) => ui.toast( page, text );
 
 	// The watch is running, and ready, before the checkout. The test speaks
 	// for the watcher only once the main process has answered that it

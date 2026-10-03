@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell, screen } = require('electron');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
@@ -92,6 +92,7 @@ const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./pa
 const { describeRefused } = require('./safe-log');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
 const { handleDeepLink, pickDeepLinkArg, createDeepLinkQueue, protocolRegistration } = require('./deep-link.cjs');
+const { mainWindowSize } = require('./window-size.cjs');
 
 const LOCAL_EXCLUDES_MARKER = '# WordPress Contributor Toolkit local excludes';
 const LOCAL_EXCLUDES = [
@@ -546,9 +547,11 @@ function createWindow() {
 	// A new page has not subscribed yet, so anything queued waits for its
 	// `deep-link:ready` rather than being sent into a page that is still loading.
 	deepLinkQueue.reset();
+	// Sized for the shell, and no larger than the primary screen (#555).
+	// `screen` is only usable once the app is ready, which is the only time
+	// this runs.
     mainWindow = new BrowserWindow({
-		width: 1000,
-		height: 700,
+		...mainWindowSize(screen.getPrimaryDisplay().workAreaSize),
         icon: process.platform === 'linux' ? path.join(__dirname, '..', 'build', 'icon.png') : undefined,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
