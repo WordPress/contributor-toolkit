@@ -456,6 +456,8 @@ body {
 .apply-card button,
 .apply-preview-dialog button,
 .create-site-dialog button,
+.rename-site-dialog button,
+.confirm-dialog button,
 .app-footer button {
   margin-right: 0;
 }

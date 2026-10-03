@@ -248,7 +248,7 @@ class Session {
 	 * Replaces `window.confirm` in the page rather than handling Playwright's
 	 * `dialog` event. Electron implements the JavaScript dialogs natively and
 	 * blocks the renderer on them, so the `dialog` event a browser would emit
-	 * does not arrive — a test relying on it clicks "Delete this ticket’s work",
+	 * does not arrive — a test relying on it presses a discard,
 	 * watches nothing happen, and fails on an assertion that had nothing to do
 	 * with the bug. (Confirmed the hard way; the listener is kept alongside for
 	 * anything that does surface as a real dialog.)

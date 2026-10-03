@@ -190,12 +190,25 @@ function ticketListCard({ rowCount, linked, provider = 'trac' }) {
  * What is asked before a ticket's work is deleted. The branch and everything
  * on it go, and nothing brings them back.
  *
- * @param {number} ticketId The ticket or the issue.
- * @return {string} The question.
+ * @param {number} ticketId   The ticket or the issue.
+ * @param {string} [provider] What the site's work items are (#251): Trac tickets unless told 'github-issue'.
+ * @return {{title: string, description: string, confirm: string}} The question, and what its button says.
  */
-function deleteWorkQuestion(ticketId) {
-	// translators: %d: the number of a Trac ticket or a GitHub issue.
-	return sprintf(__('Delete all work on #%d on this site? This cannot be undone.'), ticketId);
+function deleteWorkQuestion(ticketId, provider = 'trac') {
+	if (provider === 'github-issue') {
+		return {
+			// translators: %d: the number of a GitHub issue.
+			title: sprintf(__('Delete all work on issue #%d?'), ticketId),
+			description: __('This will permanently delete every change made for this issue on this site, whether or not it was submitted. This can’t be undone.'),
+			confirm: __('Delete this issue’s work')
+		};
+	}
+	return {
+		// translators: %d: the number of a Trac ticket.
+		title: sprintf(__('Delete all work on ticket #%d?'), ticketId),
+		description: __('This will permanently delete every change made for this ticket on this site, whether or not it was submitted. This can’t be undone.'),
+		confirm: __('Delete this ticket’s work')
+	};
 }
 
 module.exports = {

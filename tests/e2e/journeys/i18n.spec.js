@@ -379,3 +379,54 @@ test( 'the list of a site\'s tickets is fully translatable, with a ticket linked
 	await expect( yours.getByRole( 'listitem' ) ).toHaveCount( 2 );
 	expect( await inList( yours ) ).toEqual( [] );
 } );
+
+test( 'the rename dialog and the questions asked before a deletion are fully translatable', async ( { session } ) => {
+	// The site's name is the contributor's and a ticket's number is the
+	// ticket's: each is in a sentence that is translated around it.
+	const site = await makeSite( session, { label: 'first-name' } );
+	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+	await app.evaluate( ( { ipcMain } ) => {
+		const answers = {
+			'git:list-ticket-patches': () => ( { ok: true, prs: { status: 'ok', items: [] } } ),
+			'trac:list-attachments': () => ( { ok: true, status: 'ok', ticket: null, items: [] } ),
+		};
+		for ( const [ channel, answer ] of Object.entries( answers ) ) {
+			ipcMain.removeHandler( channel );
+			ipcMain.handle( channel, answer );
+		}
+	} );
+	const siteMenu = page.getByRole( 'button', { name: pseudoLocalize( 'Site actions' ), exact: true } );
+	await expect( siteMenu ).toBeVisible( { timeout: 30_000 } );
+
+	// The rename dialog, and its complaint.
+	await siteMenu.click();
+	await page.getByRole( 'menuitem', { name: pseudoLocalize( 'Rename…' ), exact: true } ).click();
+	const rename = page.getByRole( 'dialog', { name: pseudoLocalize( 'Rename site' ), exact: true } );
+	await expect( rename ).toBeVisible();
+	expect( await unwrapped( rename ) ).toEqual( [] );
+	await rename.getByLabel( pseudoLocalize( 'Site name' ), { exact: true } ).fill( '' );
+	await rename.getByRole( 'button', { name: pseudoLocalize( 'Rename' ), exact: true } ).click();
+	await expect( rename.getByRole( 'alert' ) ).toHaveText( pseudoLocalize( 'Site name cannot be empty.' ) );
+	expect( await unwrapped( rename ) ).toEqual( [] );
+	await page.keyboard.press( 'Escape' );
+	await expect( rename ).toHaveCount( 0 );
+
+	// The question before a site is deleted.
+	const question = page.getByRole( 'alertdialog' );
+	await siteMenu.click();
+	await page.getByRole( 'menuitem', { name: pseudoLocalize( 'Delete site' ), exact: true } ).click();
+	await expect( question ).toHaveAccessibleName( pseudoLocalize( 'Delete %s?' ).replace( '%s', 'first-name' ) );
+	await expect( question.getByRole( 'button', { name: pseudoLocalize( 'Delete site' ), exact: true } ) ).toBeVisible();
+	expect( await unwrapped( question ) ).toEqual( [] );
+	await question.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ).click();
+	await expect( question ).toHaveCount( 0 );
+
+	// The question before a ticket's work is deleted.
+	const ticket = ui.workItemCard( page, pseudoLocalize( 'Trac ticket' ) );
+	await ticket.getByLabel( pseudoLocalize( 'Ticket number or URL' ), { exact: true } ).fill( '60001' );
+	await ticket.getByRole( 'button', { name: pseudoLocalize( 'Link ticket' ), exact: true } ).click();
+	await ticket.getByRole( 'button', { name: pseudoLocalize( 'Unlink' ), exact: true } ).click();
+	await page.getByRole( 'button', { name: `${ pseudoLocalize( 'Delete this ticket’s work' ) } #60001`, exact: true } ).click();
+	await expect( question ).toHaveAccessibleName( pseudoLocalize( 'Delete all work on ticket #%d?' ).replace( '%d', '60001' ) );
+	expect( await unwrapped( question ) ).toEqual( [] );
+} );

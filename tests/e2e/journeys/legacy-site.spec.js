@@ -18,7 +18,6 @@ const { makeSite, exists, branches, LOGIN } = require( '../helpers/git-site.cjs'
 test( 'a site the old engine made is read, refused on every write, and can still be deleted', async ( { session } ) => {
 	const site = await makeSite( session, { legacy: true } );
 	const { page } = await session.start( site.settings );
-	const confirmsAnswered = await session.acceptConfirms();
 
 	// INVARIANT — the card says why the site cannot be used and where to go.
 	await expect( page.getByText( 'This site was created by an earlier version of the app.' ) ).toBeVisible( { timeout: 30_000 } );
@@ -56,8 +55,8 @@ test( 'a site the old engine made is read, refused on every write, and can still
 	// INVARIANT — deleting is not behind the refusal.
 	await ui.siteMenuButton( page ).click();
 	await ui.deleteSiteMenuItem( page ).click();
+	await ui.confirmYesButton( page, 'Delete site' ).click();
 	await expect( ui.noSitesTitle( page ) ).toBeVisible( { timeout: 30_000 } );
-	expect( await confirmsAnswered() ).toBe( 1 );
 	// CHARACTERISATION — the registry forgot it.
 	expect( session.readSettings().sites ).toEqual( [] );
 } );

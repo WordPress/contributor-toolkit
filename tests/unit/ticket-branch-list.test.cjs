@@ -145,7 +145,21 @@ test('card: a row\'s work can be deleted in either state, and the button says wh
 });
 
 test('the question asked before a ticket\'s work is deleted names the ticket and says it is final', () => {
-	assert.equal(deleteWorkQuestion(59234), 'Delete all work on #59234 on this site? This cannot be undone.');
+	assert.deepStrictEqual(deleteWorkQuestion(59234), {
+		title: 'Delete all work on ticket #59234?',
+		description: 'This will permanently delete every change made for this ticket on this site, whether or not it was submitted. This can’t be undone.',
+		confirm: 'Delete this ticket’s work'
+	});
+	// On a site of issues it is an issue's, in each of the three.
+	assert.deepStrictEqual(deleteWorkQuestion(71234, 'github-issue'), {
+		title: 'Delete all work on issue #71234?',
+		description: 'This will permanently delete every change made for this issue on this site, whether or not it was submitted. This can’t be undone.',
+		confirm: 'Delete this issue’s work'
+	});
+	// What its button says is what the row's button says.
+	for (const provider of ['trac', 'github-issue']) {
+		assert.equal(deleteWorkQuestion(1, provider).confirm, ticketListCard({ rowCount: 1, linked: false, provider }).remove);
+	}
 });
 
 test('card: no rows means no card, not an empty one', () => {
