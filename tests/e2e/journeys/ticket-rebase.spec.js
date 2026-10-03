@@ -45,6 +45,12 @@ async function makeTicketBehindTrunk( session, site, originChange ) {
 	await ui.unlinkButton( page ).click();
 	await ui.continueWorkingButton( page, TICKET ).click( { timeout: 30_000 } );
 	await expect( ui.workItemNumber( page, TICKET ).first() ).toBeVisible( { timeout: 30_000 } );
+	// The card names the ticket as the switch ends, and the terminal is given
+	// back a moment later, once the site's status has been read again. An
+	// update asked for in between is turned away, a command still being
+	// under way. The hint under the terminal is a link again when that
+	// moment has passed.
+	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
 	const newTip = advanceOrigin( site.origin, originChange );
 
 	await ui.siteMenuButton( page ).click();

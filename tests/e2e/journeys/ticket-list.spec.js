@@ -64,6 +64,12 @@ test( 'the list is a card of its own, one row a ticket, and each row\'s buttons 
 	// and its two buttons are told apart from another row's by the number.
 	const row = ui.ticketRow( page, '60001' );
 	await expect( row.getByText( 'Edited just now', { exact: true } ) ).toBeVisible();
+	// The row's number is not the linked ticket's. Journeys wait for the
+	// linked ticket's number to know a switch has ended, and a row, which is
+	// there before its switch begins, must not be what answers them.
+	await expect( row.getByText( '#60001', { exact: true } ) ).toBeVisible();
+	await expect( ui.workItemNumber( page, '60001' ) ).toHaveCount( 0 );
+	await expect( ui.workItemNumber( page, '60002' ) ).toHaveCount( 1 );
 	await expect( row.getByRole( 'button' ) ).toHaveCount( 2 );
 	await expect( ui.switchBackButton( page, '60001' ) ).toBeEnabled();
 	await expect( ui.switchBackButton( page, '60001' ) ).toHaveText( 'Switch' );

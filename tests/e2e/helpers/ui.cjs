@@ -187,11 +187,16 @@ const unlinkButton = ( page ) => page.getByRole( 'button', { name: 'Unlink', exa
  * what says a site is working on one: the card's own title, "Trac ticket" or
  * "GitHub issue", is the same with nothing linked.
  *
+ * In a heading, which is where the card says it. The list of a site's other
+ * tickets says each of theirs too, in a row, and a journey that waits for
+ * this number to know a switch has ended must not be answered by the row it
+ * has just pressed: the row is there before the switch has begun.
+ *
  * @param {Object}        page
  * @param {string|number} number
  * @return {Object} The locator.
  */
-const workItemNumber = ( page, number ) => page.getByText( `#${ number }`, { exact: true } );
+const workItemNumber = ( page, number ) => page.getByRole( 'heading' ).getByText( `#${ number }`, { exact: true } );
 
 /**
  * The work-item card's heading, which is what kind of work item the site's
