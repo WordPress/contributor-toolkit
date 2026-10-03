@@ -28,6 +28,10 @@
 // No `expect` in this file. The screenshot harness loads it with
 // `playwright-core` alone, and an assertion belongs in the test that makes it.
 
+// The words of the list of a site's tickets, which each of its rows' buttons
+// is named with.
+const { ticketListCard: ticketListWords } = require( '../../../src/renderer/ticket-branch-list.cjs' );
+
 // --- The sites list ----------------------------------------------------------
 
 /**
@@ -237,10 +241,14 @@ const ticketListCard = ( page ) =>
 	page.getByRole( 'region', { name: /^(Other|Your) (tickets|issues) on this site$/ } );
 
 // A row's button is named by what it shows and then its ticket's number.
+// What it shows is asked of the module that words the card, so that the two
+// cannot part without a journey going red.
 const rowButton = ( page, words, ticket ) =>
 	ticketListCard( page ).getByRole( 'button', ticket === undefined
-		? { name: new RegExp( `^${ words } #\\d+$` ) }
+		? { name: new RegExp( `^${ escapeRegExp( words ) } #\\d+$` ) }
 		: { name: `${ words } #${ ticket }`, exact: true } );
+const escapeRegExp = ( text ) => text.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' );
+const rowWords = ( linked, provider ) => ticketListWords( { rowCount: 1, linked, provider } );
 
 /**
  * The way back to a parked ticket while another one is linked.
@@ -249,7 +257,7 @@ const rowButton = ( page, words, ticket ) =>
  * @param {string|number} [ticket] Which ticket's; every parked ticket's when left out.
  * @return {Object} The locator.
  */
-const switchBackButton = ( page, ticket ) => rowButton( page, 'Switch', ticket );
+const switchBackButton = ( page, ticket ) => rowButton( page, rowWords( true ).action, ticket );
 
 /**
  * The way back to a parked ticket while nothing is linked.
@@ -258,17 +266,17 @@ const switchBackButton = ( page, ticket ) => rowButton( page, 'Switch', ticket )
  * @param {string|number} [ticket] Which ticket's; every parked ticket's when left out.
  * @return {Object} The locator.
  */
-const continueWorkingButton = ( page, ticket ) => rowButton( page, 'Continue working', ticket );
+const continueWorkingButton = ( page, ticket ) => rowButton( page, rowWords( false ).action, ticket );
 
 /**
  * What deletes a parked ticket's work. It asks first.
  *
  * @param {Object}        page
- * @param {string|number} ticket Which ticket's.
- * @param {string}        [noun] What the site calls its work item: 'ticket' unless told 'issue'.
+ * @param {string|number} ticket     Which ticket's.
+ * @param {string}        [provider] What the site's work items are: Trac tickets unless told 'github-issue'.
  * @return {Object} The locator.
  */
-const deleteWorkButton = ( page, ticket, noun = 'ticket' ) => rowButton( page, `Delete this ${ noun }’s work`, ticket );
+const deleteWorkButton = ( page, ticket, provider ) => rowButton( page, rowWords( false, provider ).remove, ticket );
 
 /**
  * The row for one parked ticket, in the list of a site's tickets.

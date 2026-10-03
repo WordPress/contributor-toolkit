@@ -118,9 +118,17 @@ test( 'a row\'s buttons are held while the site builds, and say why', async ( { 
 	// Held, they are still what they were called.
 	await expect( switchBack ).toHaveAccessibleName( 'Switch #60001' );
 
-	// INVARIANT — a held button does nothing when pressed.
+	// INVARIANT — a held button does nothing when pressed. A press that got
+	// through would be turned away at once, a command being under way, and
+	// the ticket's card would say so; one that was not turned away would
+	// start a switch, and the list would say it is waiting for that. That
+	// neither is said, a round trip later, is what shows the press went
+	// nowhere, and the checkout is where it was.
 	await switchBack.click( { force: true } );
 	await page.evaluate( () => window.api.getSitesWithMeta() );
+	await expect( ui.workItemCard( page, 'Trac ticket' ).getByRole( 'alert' ) ).toHaveCount( 0 );
+	await expect( switchBack ).toHaveAccessibleDescription( reason );
+	await expect( ui.workItemNumber( page, '60002' ) ).toBeVisible();
 	expect( currentBranch( site.dir ) ).toBe( 'ticket/60002' );
 
 	// INVARIANT — the build over, both can be pressed again, and say nothing
@@ -244,14 +252,14 @@ test( 'on a site that works on GitHub issues the list says issues, in its headin
 	const yours = page.getByRole( 'region', { name: 'Your issues on this site', exact: true } );
 	await expect( yours.getByRole( 'listitem' ) ).toHaveCount( 1, { timeout: 30_000 } );
 	await expect( ui.continueWorkingButton( page, '71234' ) ).toBeEnabled();
-	await expect( ui.deleteWorkButton( page, '71234', 'issue' ) ).toHaveText( 'Delete this issue’s work' );
+	await expect( ui.deleteWorkButton( page, '71234', 'github-issue' ) ).toHaveText( 'Delete this issue’s work' );
 
 	// INVARIANT — with one linked: the other issues.
 	await link( '71235' );
 	const others = page.getByRole( 'region', { name: 'Other issues on this site', exact: true } );
 	await expect( others.getByRole( 'listitem' ) ).toHaveCount( 1, { timeout: 30_000 } );
 	await expect( ui.switchBackButton( page, '71234' ) ).toBeEnabled();
-	await expect( ui.deleteWorkButton( page, '71234', 'issue' ) ).toBeEnabled();
+	await expect( ui.deleteWorkButton( page, '71234', 'github-issue' ) ).toBeEnabled();
 
 	// INVARIANT — and nothing in the list calls an issue a ticket.
 	await expect( others.getByText( /ticket/i ) ).toHaveCount( 0 );
