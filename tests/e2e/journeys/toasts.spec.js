@@ -20,6 +20,9 @@ const { deleteFailureMessage, TOAST_LIFETIME_MS } = require( '../../../src/rende
 // Less time than a confirmation lasts, for what must not be answered by a
 // confirmation running out.
 const QUICKLY = 2_000;
+// What a slow machine may take between a confirmation appearing and the
+// clock being stopped under it.
+const SLACK = 2_000;
 
 /**
  * Records what is said to a screen reader from here on, with how it is said,
@@ -51,9 +54,7 @@ test( 'a confirmation is shown in the corner and said once, goes by itself when 
 	const { page } = await session.start( site.settings );
 	await expect( ui.siteMenuButton( page ) ).toBeVisible( { timeout: 30_000 } );
 	// The page's clock can be moved by the test from here on, so that a
-	// confirmation's time can pass without being waited for. It still runs
-	// by itself as well, so what must not be the passing of time's doing is
-	// asked with less time to wait than a confirmation lasts.
+	// confirmation's time can pass without being waited for.
 	await page.clock.install();
 	const spoken = await listen( page );
 	const copyPath = async () => {
@@ -62,40 +63,44 @@ test( 'a confirmation is shown in the corner and said once, goes by itself when 
 	};
 	const copied = ui.toast( page, 'Copied the path' );
 	const stack = page.getByRole( 'region', { name: 'Notifications', exact: true } );
+	const saidCopied = async () => ( await spoken() ).filter( ( said ) => said.endsWith( 'Copied the path' ) );
 
 	// INVARIANT — what worked is said in the window's corner, in a region a
-	// screen reader can go to, and to the ear politely, once.
+	// screen reader can go to, and to the ear politely.
 	await copyPath();
 	await expect( copied ).toBeVisible();
 	await expect( stack.getByText( 'Copied the path', { exact: true } ) ).toBeVisible();
-	await expect.poll( spoken ).toContain( 'polite: Copied the path' );
 
-	// INVARIANT — it stays for as long as it takes to read. Half its time
-	// on it is there: asked straight after it appeared, so that the time a
-	// slow machine takes over the steps in between is not counted with it.
-	await page.clock.fastForward( TOAST_LIFETIME_MS / 2 );
+	// INVARIANT — it stays for as long as it takes to read, and then goes by
+	// itself. The clock is stopped as soon as it has appeared, so that only
+	// the test moves it: short of its time by the two seconds a slow machine
+	// is allowed to have taken stopping it, it is there, and at its time it
+	// is gone. A stopped clock stops the app's menus too, so it is let go
+	// again before anything is pressed.
+	await page.clock.pauseAt( await page.evaluate( () => Date.now() ) );
+	await page.clock.fastForward( TOAST_LIFETIME_MS - SLACK );
 	await expect( copied ).toBeVisible();
+	await page.clock.fastForward( SLACK );
+	await expect( copied ).toHaveCount( 0 );
+	await page.clock.resume();
+	expect( await saidCopied() ).toEqual( [ 'polite: Copied the path' ] );
 
 	// INVARIANT — the same thing done again while it is still said is not
-	// shown twice, nor said twice. A second one would be both as it
-	// appeared, so both are read at once, after a round trip.
-	await copyPath();
-	await page.evaluate( () => window.api.getSitesWithMeta() );
-	expect( await copied.count() ).toBe( 1 );
-	expect( ( await spoken() ).filter( ( said ) => said.endsWith( 'Copied the path' ) ) ).toHaveLength( 1 );
-
-	// INVARIANT — and then it goes by itself.
-	await page.clock.fastForward( TOAST_LIFETIME_MS );
-	await expect( copied ).toHaveCount( 0, { timeout: QUICKLY } );
-
-	// INVARIANT — and it can be dismissed before that, by its own button,
-	// which goes with it: the focus is left on the stack, and not at the top
-	// of the document.
+	// shown twice: there is one to dismiss, by its own button, and
+	// dismissing it leaves none. It goes with its button, and the focus is
+	// left on the stack, not at the top of the document. A second one would
+	// be there for seconds more, which is longer than is waited.
 	await copyPath();
 	await expect( copied ).toBeVisible();
+	await copyPath();
+	await expect( page.getByRole( 'menu' ) ).toHaveCount( 0 );
 	await stack.getByRole( 'button', { name: 'Dismiss', exact: true } ).click();
 	await expect( copied ).toHaveCount( 0, { timeout: QUICKLY } );
 	await expect( stack ).toBeFocused();
+
+	// INVARIANT — nor was it said twice: once for the first confirmation,
+	// once for the one after it had gone, and not again for the repeat.
+	expect( await saidCopied() ).toEqual( [ 'polite: Copied the path', 'polite: Copied the path' ] );
 } );
 
 test( 'what did not work is said at once, and stays until it is dismissed', async ( { session } ) => {
@@ -143,6 +148,14 @@ test( 'what did not work is said at once, and stays until it is dismissed', asyn
 	await ui.toasts( page ).getByRole( 'button', { name: 'Dismiss', exact: true } ).last().hover();
 	const tooltip = page.getByText( 'Dismiss', { exact: true } );
 	await expect( tooltip ).toBeVisible();
+	// Once it is where it belongs: a tooltip is drawn in the window's corner
+	// first and moved to its button after, and it is over the notice above
+	// only when it reaches up to it.
+	const upper = ui.toasts( page ).locator( '> *' ).first();
+	await expect.poll( async () => {
+		const [ tip, notice ] = [ await tooltip.boundingBox(), await upper.boundingBox() ];
+		return Boolean( tip && notice ) && tip.y < notice.y + notice.height && tip.y + tip.height > notice.y && tip.x < notice.x + notice.width && tip.x + tip.width > notice.x;
+	} ).toBe( true );
 	expect( await tooltip.evaluate( ( tip ) => {
 		const box = tip.getBoundingClientRect();
 		const corners = [ [ box.left + 1, box.top + 1 ], [ box.right - 1, box.top + 1 ], [ box.left + 1, box.bottom - 1 ], [ box.right - 1, box.bottom - 1 ] ];
