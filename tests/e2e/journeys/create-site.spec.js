@@ -94,6 +94,16 @@ test( 'the create-site dialog refuses a missing name or location, starts clean e
 	expect( await setupCalls() ).toEqual( [] );
 	await ui.createSiteButton( page ).click();
 	await expect( name ).toHaveValue( '' );
+
+	// INVARIANT — nor is it there when the dialog is opened again at once,
+	// while the one that was closed is still fading: Escape, and Enter on
+	// the button the focus went back to.
+	await name.fill( 'Left behind' );
+	await page.keyboard.press( 'Escape' );
+	await expect( ui.createSiteButton( page ) ).toBeFocused();
+	await page.keyboard.press( 'Enter' );
+	await expect( dialog ).toHaveAttribute( 'data-open', '' );
+	await expect( name ).toHaveValue( '' );
 	await expect( core ).toBeChecked();
 	await expect( dialog.getByText( 'No folder selected yet.', { exact: true } ) ).toBeVisible();
 	await expect( dialog.getByText( parent, { exact: true } ) ).toHaveCount( 0 );
