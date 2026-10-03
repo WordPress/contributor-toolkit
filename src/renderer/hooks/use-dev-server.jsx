@@ -131,6 +131,7 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
       setStarting(false);
       serverStartRequestedRef.current = false;
       runningRef.current = false;
+      devServerActiveRef.current = false;
       return;
     }
     await startDebugTail();

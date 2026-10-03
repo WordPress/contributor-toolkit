@@ -53,7 +53,7 @@ const URL = 'http://127.0.0.1:9400/';
 // scripts.
 async function standIn( app, page, sitePath ) {
 	await app.evaluate( ( { ipcMain } ) => {
-		const asked = { starts: [], stops: [], scripts: [], kills: [], opened: [], startAnswer: { ok: true }, statusAsked: 0, statusAnswered: 0 };
+		const asked = { starts: [], stops: [], scripts: [], kills: [], opened: [], startAnswer: { ok: true }, startRejects: null, statusAsked: 0, statusAnswered: 0 };
 		global.__e2eServer = asked;
 		const replace = ( channel, handler ) => {
 			ipcMain.removeHandler( channel );
@@ -75,6 +75,11 @@ async function standIn( app, page, sitePath ) {
 		} );
 		replace( 'playground:start', ( event, dir ) => {
 			asked.starts.push( dir );
+			if ( asked.startRejects ) {
+				const msg = asked.startRejects;
+				asked.startRejects = null;
+				throw new Error( msg );
+			}
 			return asked.startAnswer;
 		} );
 		replace( 'playground:stop', ( event, dir ) => {
@@ -107,6 +112,9 @@ async function standIn( app, page, sitePath ) {
 		nextStartAnswers: ( answer ) => app.evaluate( ( electron, value ) => {
 			global.__e2eServer.startAnswer = value;
 		}, answer ),
+		nextStartRejects: ( message ) => app.evaluate( ( electron, value ) => {
+			global.__e2eServer.startRejects = value;
+		}, message ),
 		serverHasAddress: () => tell( 'playground:url', { sitePath, url: URL } ),
 		serverHasGone: ( code ) => tell( 'playground:stopped', { sitePath, code } ),
 		scriptPrints: ( run, text ) => tell( 'npm:run-script:log', { runId: `e2e-run-${ run }`, type: 'stdout', data: text } ),
@@ -273,3 +281,29 @@ test( 'on a project whose watcher rebuilds everything, the server waits for a fi
 	expect( ( await server.asked() ).scripts ).toHaveLength( 3 );
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
 } );
+
+test( 'a start that rejects (rather than answering ok: false) goes back to offering to start, and a second click tries again instead of going dead', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	const server = await standIn( app, page, site.dir );
+
+	const line = ( text ) => ui.card( page, 'Logs' ).getByText( text, { exact: true } );
+
+	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — a start that rejects is logged, and the button goes back to
+	// offering to start rather than staying stuck on "Starting dev server…".
+	await server.nextStartRejects( 'spawn EACCES' );
+	await ui.startDevServerButton( page ).click();
+	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir ] );
+	await expect( line( "Failed to start PHP server: Error invoking remote method 'playground:start': Error: spawn EACCES" ) ).toBeVisible();
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+
+	// INVARIANT — the second click actually tries again. Regression: a
+	// devServerActiveRef left stale by the rejection makes toggleDevServer's
+	// guard return early, so the button looks live but silently does nothing —
+	// this assertion is the one that catches that, not the button label above.
+	await ui.startDevServerButton( page ).click();
+	await expect.poll( async () => ( await server.asked() ).starts ).toEqual( [ site.dir, site.dir ] );
+} );
+
