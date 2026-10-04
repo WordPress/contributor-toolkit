@@ -817,9 +817,8 @@ body {
   color: var(--wpds-color-foreground-content-neutral);
 }
 
-/* On the page a pane is as tall as a dozen lines, rounded, and scrolled. */
+/* On the page a pane is rounded, and scrolled. */
 .log-pane {
-  height: 220px;
   border-radius: var(--wpds-border-radius-md);
 }
 
@@ -945,7 +944,6 @@ body {
 
 .tray-log-panel > .log-pane {
   flex: 1 1 auto;
-  height: auto;
   min-height: 0;
   padding-inline: var(--wpds-dimension-padding-2xl);
   border-radius: 0;

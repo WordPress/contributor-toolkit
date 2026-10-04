@@ -22,7 +22,7 @@ import './shell.css';
 import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
-import { toggleTray, trayList } from './tray.cjs';
+import { toggleTray, trayAfterReveal, trayList } from './tray.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
@@ -171,7 +171,7 @@ function App() {
   // when something failed or was refused and the only word of it is in the
   // terminal or in the logs. The page points there, and there has to be on
   // screen.
-  const showTray = useCallback((id) => setTray(id), []);
+  const showTray = useCallback((id) => setTray((current) => trayAfterReveal(current, id)), []);
   // Closed from inside itself, the tray takes the focused button with it. The
   // focus goes back to the button that opened it, and not to the top of the
   // document.
@@ -1078,19 +1078,21 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // printed there; and a build watch that ended by itself, whose last lines
   // are in the logs. The tray shows the open site's, so a site that is not
   // the open one waits until it is: its page will be saying where to look
-  // when it is looked at. A site being deleted is not the open one for this:
-  // its runs are ended as it goes, and the tray must not open, on whichever
-  // site is next, for a site that is gone.
-  const isActiveRef = useRef(isActive && !isDeleting);
+  // when it is looked at.
+  const siteRef = useRef({ active: isActive, deleting: isDeleting });
   const trayWantedRef = useRef(null);
   useLayoutEffect(() => {
-    isActiveRef.current = isActive && !isDeleting;
+    siteRef.current = { active: isActive, deleting: isDeleting };
     return () => {
-      isActiveRef.current = false;
+      siteRef.current = { active: false, deleting: true };
     };
   }, [isActive, isDeleting]);
   const revealTray = useCallback((id) => {
-    if (isActiveRef.current) onShowTray?.(id);
+    // Nothing is brought up, now or later, for a site on its way out: its
+    // processes are ended as it goes, and if it stays after all, because its
+    // folder could not be removed, their ending was the deletion's doing.
+    if (siteRef.current.deleting) return;
+    if (siteRef.current.active) onShowTray?.(id);
     else trayWantedRef.current = id;
   }, [onShowTray]);
   useEffect(() => {
@@ -1101,9 +1103,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   }, [isActive, onShowTray]);
   const revealTerminal = useCallback(() => revealTray('terminal'), [revealTray]);
   // The logs, on the build watch's tab: where the page says a watch's last
-  // lines are.
+  // lines are. And on the
+  // server's tab, for a server that could not start or went by itself, which
+  // is said there and nowhere on the page. The tab is selected whether or
+  // not the logs come up: they do not take the terminal's place (tray.cjs),
+  // and are then on the right tab when they are opened.
   const revealWatchLog = useCallback(() => {
     selectLogTab('watch');
+    revealTray('logs');
+  }, [revealTray, selectLogTab]);
+  const revealServerLog = useCallback(() => {
+    selectLogTab('runtime');
     revealTray('logs');
   }, [revealTray, selectLogTab]);
 
@@ -1168,7 +1178,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The build watch (#554): its state, its run and what can be done to it. It
   // is called here because it needs the script runner and the terminal's lock
   // above. What the chains below use of it is taken out by name.
-  const { watchState, watchExitCode, watchExitOf, watchCompiling, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, startBuildWatch, pauseWatcher, resumeWatcher, toggleWatch } = useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, terminalStateRef, terminalKillRef, markTerminalRunning });
+  const { watchState, watchExitCode, watchExitOf, watchCompiling, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, startBuildWatch, pauseWatcher, resumeWatcher, toggleWatch } = useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, refuseInTerminal, terminalStateRef, terminalKillRef, markTerminalRunning });
   // A watch that ended by itself, or was never started because the build
   // ahead of it failed, is said on the page with "Its last lines are in the
   // Logs." So the logs come up, on the watch's tab, when that happens. A
@@ -1190,7 +1200,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The dev server (#554): its state, its guards and its one button. It is
   // called here because starting it needs everything above: the build watch,
   // the logs, the mail, the terminal's lock and the script runner.
-  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, startElapsed, toggleDevServer } = useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
+  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, startElapsed, toggleDevServer } = useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
@@ -1225,7 +1235,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // toast, since the menu is gone by then and the details, whose own button
   // says it on itself, may be put away.
   const detailsId = useId();
-  // The headings of the three panels under the cards, which name them.
+  // The heading of the mail under the cards, which names it.
   const mailTitleId = useId();
   const runSiteMenuAction = async (item) => {
     if (item.id === 'rename') openRenameModal();
@@ -1937,9 +1947,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             hidden={tray !== 'logs'}
             tabs={logTabs}
             logs={logs}
-            runtimePane={logs.runtimePane}
-            watchPane={logs.watchPane}
-            debugPane={logs.debugPane}
             copyLabel={COPY_BUTTON_LABELS[logs.debugCopied] || COPY_BUTTON_LABELS.idle}
           />
         </div>

@@ -184,7 +184,15 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	await expect.poll( async () => ( await server.asked() ).starts ).toHaveLength( 2 );
 	await server.serverHasAddress();
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
+	// The logs are left on another tab and put away, as they are for someone
+	// working on the page: the crash is said in the server's tab and nowhere
+	// on the page, so it has to bring the logs up, on that tab (#558).
+	await ui.logTab( page, 'Debug.log' ).click();
+	await ui.trayToggle( page, 'Logs' ).click();
+	await expect( ui.tray( page, 'Logs' ) ).toHaveCount( 0 );
 	await server.serverHasGone( 1 );
+	await expect( ui.tray( page, 'Logs' ) ).toBeVisible();
+	await expect( ui.logTab( page, 'Server' ) ).toHaveAttribute( 'aria-selected', 'true' );
 	await expect( line( 'Dev server stopped unexpectedly (see Help → Open App Log for details).' ) ).toBeVisible();
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( ui.stopBuildWatchButton( page ) ).toBeVisible();
@@ -192,12 +200,21 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	expect( ( await server.asked() ).kills ).toEqual( [] );
 
 	// INVARIANT — a server that could not start says why, and the button
-	// goes back to offering to start it.
+	// goes back to offering to start it. The terminal is what the tray is
+	// showing this time, and the logs do not take its place: someone may be
+	// typing there. They are on the server's tab when they are asked for.
+	await ui.logTab( page, 'Debug.log' ).click();
+	await ui.openTray( page, 'Terminal' );
 	await server.nextStartAnswers( { ok: false, error: 'port 9400 is taken' } );
 	await ui.startDevServerButton( page ).click();
-	await expect( line( 'Dev server failed to start: port 9400 is taken' ) ).toBeVisible();
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( starting ).toHaveCount( 0 );
+	await server.heard();
+	await expect( ui.tray( page, 'Terminal' ) ).toBeVisible();
+	await expect( ui.tray( page, 'Logs' ) ).toHaveCount( 0 );
+	await ui.openTray( page, 'Logs' );
+	await expect( ui.logTab( page, 'Server' ) ).toHaveAttribute( 'aria-selected', 'true' );
+	await expect( line( 'Dev server failed to start: port 9400 is taken' ) ).toBeVisible();
 } );
 
 test( 'on a project whose watcher rebuilds everything, the server waits for a first build and for the watcher to be ready, gives up if the build fails, and starts at once on a build that is already there', async ( { session } ) => {

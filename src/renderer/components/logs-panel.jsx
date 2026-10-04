@@ -7,19 +7,20 @@ import { LogText } from './log-text.jsx';
 // what can be done with it.
 //
 // It holds no state. `logs` is the site's useSiteLogs: the text of each pane,
-// which tab is selected, what scrolling a pane means, and the three things
-// done to debug.log. `runtimePane`, `watchPane` and `debugPane` are where
-// each pane's element is handed to that hook. They come as props of their
-// own, and not inside `logs`: the lint rule that keeps refs out of a render
-// takes an object for a ref as soon as one of its members is given to `ref`,
-// and would then object to every other member being read. `tabs` names the tabs, since what the
+// which tab is selected, where each pane's element is handed over and what
+// scrolling it means, and the three things done to debug.log. `tabs` names the tabs, since what the
 // watch's tab says is the watch's state and the debug tab carries its count
 // of unseen lines. `copyLabel` is what the Copy button says of its last
 // press. `hidden` is the tray showing something else.
 //
 // Only the selected tab's pane is in the document, which is what the hook's
 // scrolling counts on: a pane switched back to is a new element.
-export function LogsPanel({ hidden, tabs, logs, runtimePane, watchPane, debugPane, copyLabel }) {
+export function LogsPanel({ hidden, tabs, logs, copyLabel }) {
+  // Taken out by name before anything else is read from `logs`: the lint
+  // rule that keeps refs out of a render takes an object for a ref as soon
+  // as one of its members is given to `ref`, and would then object to every
+  // other member being read.
+  const { runtimePane, watchPane, debugPane } = logs;
   return (
     <Tabs.Root value={logs.activeTab} onValueChange={logs.selectTab} render={<div className="tray-panel" hidden={hidden} />}>
       <Tabs.List variant="minimal" className="tray-tabs">

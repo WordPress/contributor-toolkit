@@ -17,7 +17,9 @@ import { serveWithoutWatch } from '../dev-server-command.cjs';
 // what it needs from the other domains comes in as arguments. `startBuildWatch`,
 // `watchStateRef` and `buildInterruptedRef` are the build watch and the state
 // of build/. `appendRuntime` and `ensureStick` are the Server pane of the Logs
-// panel, and `startDebugTail` and `stopDebugTail` its debug.log tail.
+// panel, `revealServerLog` brings that pane up for a server that could not
+// start or went by itself, which is said there and nowhere on the page
+// (#558), and `startDebugTail` and `stopDebugTail` are its debug.log tail.
 // `listenForMail`, `stopListeningForMail` and `loadMail` are the site's mail.
 // `terminalKillRef`, `markTerminalRunning` and `currentRunIdRef` are the
 // terminal's lock and the script runner's current run, which a stop clears.
@@ -27,7 +29,7 @@ import { serveWithoutWatch } from '../dev-server-command.cjs';
 // `toggleDevServer` is the button. `isServerStarting` and `isDevProcessActive`
 // are what the page's words about the server are decided from, in
 // site-processes.cjs, and `startElapsed` is how long a start has been going.
-export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning }) {
+export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning }) {
   const [serverUrl, setServerUrl] = useState('');
   const [starting, setStarting] = useState(false);
   const [running, setRunning] = useState(false);
@@ -115,6 +117,7 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
           // part of that session (#247) and is left running.
           if (!stoppingRef.current && !requested) {
             appendRuntime('Dev server stopped unexpectedly (see Help → Open App Log for details).\n');
+            revealServerLog();
             stopDevServer().catch(() => {});
           }
         }
@@ -123,11 +126,13 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
       // This also covers spawn failures that never produce a "stopped" event.
       if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
         appendRuntime(`Dev server failed to start: ${res.error || 'unknown error'}\n`);
+        revealServerLog();
         stopDevServer().catch(() => {});
         return;
       }
     } catch (error) {
       appendRuntime(`Failed to start PHP server: ${error && error.message ? error.message : String(error)}\n`);
+      revealServerLog();
       setStarting(false);
       serverStartRequestedRef.current = false;
       runningRef.current = false;
@@ -135,7 +140,7 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
     }
     await startDebugTail();
     await loadMail();
-  }, [appendRuntime, ensureStick, listenForMail, loadMail, setRunning, setServerUrl, setStarting, sitePath, startDebugTail, stopDevServer]);
+  }, [appendRuntime, ensureStick, listenForMail, loadMail, revealServerLog, setRunning, setServerUrl, setStarting, sitePath, startDebugTail, stopDevServer]);
 
   const toggleDevServer = async ()=>{
     if (!running) {

@@ -218,11 +218,11 @@ test( 'a site with no build is built before it is watched, by a build that holds
 	expect( ( await scripts.asked() ).scripts ).toHaveLength( 1 );
 
 	// INVARIANT — a build that fails starts no watcher, and says why. The
-	// terminal was what the tray showed, and the logs take its place by
-	// themselves, on the watch's tab: that is where the page says the
-	// build's last lines are (#558).
+	// terminal is what the tray is showing, having just been typed in, and
+	// the logs do not take its place (#558): they are asked for, and are on
+	// the watch's tab, where the page says the build's last lines are.
 	await scripts.ends( 1, 1 );
-	await expect( logs ).toBeVisible();
+	await ui.openTray( page, 'Logs' );
 	await expect( line( 'npm run build failed with code 1 — build watch not started.' ) ).toBeVisible();
 	await expect( tab( 'Build watch (exited 1)' ) ).toBeVisible();
 	// INVARIANT — and the details say it of the build, not of a watch that

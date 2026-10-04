@@ -50,6 +50,25 @@ function toggleTray( current, pressed ) {
 }
 
 /**
+ * Which tray is showing after the app itself asks for one, as it does when a
+ * failure's only word is in the terminal or in the logs.
+ *
+ * The terminal takes the tray whatever is in it: a refusal printed there and
+ * not shown is a button that did nothing. The logs do not take the
+ * terminal's place: someone may be typing in it, and the page already says
+ * where the lines are. They come up only in a tray that is closed, or is
+ * showing them already.
+ *
+ * @param {string|null} current The tray that is open, if any.
+ * @param {string}      wanted  The tray the app asks for.
+ * @return {string|null} The tray to show.
+ */
+function trayAfterReveal( current, wanted ) {
+	if ( wanted === 'logs' && current === 'terminal' ) return current;
+	return wanted;
+}
+
+/**
  * The shortest and the tallest the tray may be in a window of this height.
  * In a window too short for both, the share of the window wins.
  *
@@ -119,6 +138,7 @@ module.exports = {
 	TRAY_KEY_STEP,
 	trayList,
 	toggleTray,
+	trayAfterReveal,
 	trayHeightLimits,
 	clampTrayHeight,
 	trayHeightForKey,

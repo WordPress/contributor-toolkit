@@ -140,10 +140,10 @@ function formatElapsed(seconds) {
 }
 
 /**
- * The title for the build watch's log tab, from its lifecycle state. The tab is
- * always present, so its title is where the watcher's state is shown: a
- * contributor can tell at a glance whether `src/` edits are being compiled,
- * paused for another operation, or stopped — without opening the tab.
+ * The title for the build watch's log tab, from its lifecycle state. The tab's
+ * title says the watcher's state beside its output: whether `src/` edits are
+ * being compiled, paused for another operation, or stopped. The header says
+ * the same, for when the logs are not on screen.
  *
  * `exitCode` is only meaningful when `state` is 'exited'. `compiling` is
  * whether the watch is still compiling a change just handed to it (#492,

@@ -132,6 +132,9 @@ for ( const target of TARGETS ) {
 					// the server.
 					await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
 					await expect( ui.processMenuButton( page, 'Build stopped' ) ).toBeVisible();
+					// Stopped and never started, which the header's word alone does not
+					// say: it says the same of a watch that started and went.
+					await expect( page.getByText( 'Build watch offline', { exact: true } ) ).toBeVisible();
 					// Start it by hand so the stop below, and the process-tree check
 					// after it, still exercise the watch. `npm run dev` removes build/
 					// and redoes the whole build before it watches: as long as the

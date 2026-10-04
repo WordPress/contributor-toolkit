@@ -188,7 +188,7 @@ test('formatElapsed clamps negatives and non-numbers to 0s', () => {
 });
 
 // The watcher runs decoupled from the dev server (issue #247), so its tab title
-// is the only place its state is shown. Each lifecycle state gets its own label.
+// says its state beside its output. Each lifecycle state gets its own label.
 test('watchTabLabel names each watcher lifecycle state', () => {
 	assert.strictEqual(watchTabLabel('idle'), 'Build watch');
 	assert.strictEqual(watchTabLabel('watching'), 'Build watch (watching)');

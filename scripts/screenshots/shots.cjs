@@ -163,7 +163,7 @@ const shots = [
 				ipcMain.handle('playground:start', async () => ({ ok: true }));
 			});
 			await ui.startDevServerButton(page).click();
-			await page.getByRole('tab', { name: /debug\.log/ }).filter({ visible: true }).click();
+			await page.getByRole('tab', { name: /debug\.log/i }).filter({ visible: true }).click();
 			await page.getByText('Undefined variable $post', { exact: false }).filter({ visible: true }).first().waitFor();
 			await page.getByRole('tab', { name: /exited/i }).filter({ visible: true }).waitFor({ state: 'detached' });
 		}

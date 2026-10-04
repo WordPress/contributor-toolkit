@@ -66,7 +66,7 @@ function createWatchActivity({ quietMs = 3000, graceMs = 15000 } = {}) {
  * @return {string}
  */
 function compilingMessage() {
-	return 'The build watch is still compiling this change. Wait for the header to say Build watching before trying the site.';
+	return 'The build watch is still compiling this change. Wait for it to finish before trying the site.';
 }
 
 /**
@@ -85,7 +85,7 @@ function compilingMessage() {
  * @return {string|null}
  */
 function watchBusyMessage(watchState, compiling) {
-	if (watchState === 'building') return 'The build watch is rebuilding after this change. Wait for the header to say Build watching before trying the site.';
+	if (watchState === 'building') return 'The build watch is rebuilding after this change. Wait for it to finish before trying the site.';
 	if (watchState === 'watching' && compiling) return compilingMessage();
 	return null;
 }
