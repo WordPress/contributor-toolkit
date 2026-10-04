@@ -214,11 +214,13 @@ test( 'closing ends an app that has stopped answering', async ( { session } ) =>
 	} );
 	expect( isRunning( pid ) ).toBe( true );
 
-	// INVARIANT: by the time close() returns the app has gone. Left running, it
-	// is what Playwright waits on when the worker stops, and the run fails on
-	// "Worker teardown timeout" a minute after its last test passed.
+	// INVARIANT: close() ends the app. Left running, it is what Playwright waits
+	// on when the worker stops, and the run fails on "Worker teardown timeout" a
+	// minute after its last test passed. Polled for Windows, where what close()
+	// waits for is the shell the app was launched through, and the app itself
+	// can be a moment behind it.
 	await session.close();
-	expect( isRunning( pid ) ).toBe( false );
+	await expect.poll( () => isRunning( pid ) ).toBe( false );
 } );
 
 test( 'the main process says what a launch came to', async ( { session } ) => {

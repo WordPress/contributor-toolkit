@@ -118,17 +118,19 @@ function launchState( app ) {
 /**
  * Ends an app that did not end when asked.
  *
- * Not `proc.kill()`, which is what this used to be. That sends SIGTERM, and a
- * main process that has stopped answering was still there afterwards (the
- * engine's own test stages one). Playwright then waits for that process to
- * exit when the worker stops, with no limit of its own, so one launch that
- * gave no window on a macOS runner failed a whole run on "Worker teardown
- * timeout" after its test had passed on the retry. `proc.kill()` also marks
- * the process as killed whether or not it went, which is what Playwright reads
- * before its last forced kill, when the worker exits, and skips it.
+ * Not `proc.kill()`, which is what this used to be. On macOS and Linux that
+ * sends SIGTERM, which a main process that has stopped answering survives: put
+ * it back and the engine's own test of this fails. On Windows it ends the shell
+ * Playwright launched through and leaves the app. Playwright then waits for
+ * the process to exit when the worker stops, with no limit of its own, so one
+ * launch that gave no window on a macOS runner failed a whole run on "Worker
+ * teardown timeout" after its test had passed on the retry. `proc.kill()` also
+ * marks the process as killed whether or not it went, which is what Playwright
+ * reads before its last forced kill, when the worker exits, and skips it.
  *
- * This does not wait for a quit that is merely slow: an app still sweeping its
- * children at the limit is cut off part-way, where SIGTERM let it finish.
+ * This does not wait for a quit that is merely slow. An app still sweeping its
+ * children at the limit is ended mid-sweep, and a child it started as the
+ * leader of a group of its own is then left behind.
  *
  * @param {Object} proc The process Playwright started.
  */
@@ -254,7 +256,7 @@ class Session {
 			const state = await within(
 				launchState( this.app ).then(
 					( read ) => `reported ${ JSON.stringify( read ) }.`,
-					( refusal ) => `could not be asked for its state: ${ refusal.message }`
+					( refusal ) => `could not be asked for its state: ${ refusal?.message ?? refusal }.`
 				),
 				PATIENCE_MS
 			);
