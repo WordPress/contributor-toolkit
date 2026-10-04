@@ -6,6 +6,7 @@ import { planUpdateHandOff } from '../update-handoff.cjs';
 import { watchOccupiesBuild } from '../watch-waiters.cjs';
 import { discardOutcome, DISCARD_CONFIRM_MESSAGE } from '../changes-note.cjs';
 import { pathBasename } from '../path-basename.cjs';
+import { updateHeldReason } from '../site-menu.cjs';
 
 // Updating a site to the latest trunk (#94, #554): the chain that fetches and
 // resets the checkout, installs if the lockfile moved, and rebuilds; the
@@ -57,6 +58,9 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
   const updateStartRef = useRef(null);
   const savedPatchPathRef = useRef(null);
   const isUpdating = updateState !== 'idle';
+  // Why an update cannot start now, or '': asked by the guard below and said
+  // by the two controls that start one, so they cannot disagree.
+  const updateHeld = updateHeldReason({ isUpdating, installing, building });
   const updateSteps = planUpdateSteps({ lockfileChanged: updateLockfileChanged, buildByWatcher: updateBuildBy });
   const updateStepStates = updateStepStatuses(updateSteps, updateState);
 
@@ -217,8 +221,11 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
   const startTrunkUpdate = async () => {
     // The dev server no longer blocks an update: the watch is paused for the
     // reset and the PHP server stays up (#262). Only real in-progress work
-    // (an update, install or build already running) still blocks.
-    if (isUpdating || installing || building) return;
+    // (an update, install or build already running) still blocks. The two
+    // controls that start an update are held with the same answer, so this is
+    // not what a contributor meets: a click must not end here with nothing
+    // said.
+    if (updateHeld) return;
     savedPatchPathRef.current = null;
     try {
       const res = await window.api.isWorktreeDirty(sitePath);
@@ -303,6 +310,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
   return {
     updateState,
     isUpdating,
+    updateHeld,
     updateWaitingOnWatch,
     updateSteps,
     updateStepStates,
