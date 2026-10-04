@@ -17,6 +17,7 @@
 
 import globals from 'globals';
 import wordpress from '@wordpress/eslint-plugin';
+import toolkit from './eslint-rules/index.cjs';
 
 export default [
 	{
@@ -78,8 +79,17 @@ export default [
 		languageOptions: {
 			globals: { ...globals.browser, ...globals.node },
 		},
+		plugins: { toolkit },
 		rules: {
 			'react/react-in-jsx-scope': 'off',
+
+			// The window is painted with the design system's tokens, from classes
+			// in shell.css (#557). A colour or a style written into a component is
+			// one the theme cannot reach, and it is how the hand-written values
+			// would come back. No test can read a component to see one, so these
+			// two rules are the check.
+			'toolkit/no-hardcoded-colors': 'error',
+			'toolkit/no-inline-styles': 'error',
 
 			// A ref is written in an effect or a handler, never while rendering. A
 			// render can be thrown away, and a ref written during one then holds a
