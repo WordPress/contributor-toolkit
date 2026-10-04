@@ -4,21 +4,34 @@ const assert = require('node:assert/strict');
 const { serverProcess, watchProcess, serverLinks, serverSection, ADMIN_CREDENTIALS } = require('../../src/renderer/site-processes.cjs');
 
 test('a stopped server offers to start', () => {
-	assert.deepEqual(serverProcess(), { status: 'offline', label: 'Server stopped', action: 'Start development server', short: 'Start', pending: false, disabled: false });
+	assert.deepEqual(serverProcess(), { status: 'offline', label: 'Server stopped', action: 'Start development server', short: 'Start', pending: false, disabled: false, detail: '' });
 	assert.deepEqual(serverProcess({ active: false, starting: false }), serverProcess());
 });
 
 test('a running server offers to stop', () => {
-	assert.deepEqual(serverProcess({ active: true }), { status: 'online', label: 'Server running', action: 'Stop development server', short: 'Stop', pending: false, disabled: false });
+	assert.deepEqual(serverProcess({ active: true }), { status: 'online', label: 'Server running', action: 'Stop development server', short: 'Stop', pending: false, disabled: false, detail: '' });
 });
 
 test('a server that is starting cannot be pressed, and says what it is doing', () => {
 	// A second start would be a second server (#488), and there is nothing
 	// to stop yet.
 	const starting = serverProcess({ active: true, starting: true });
-	assert.deepEqual(starting, { status: 'busy', label: 'Server starting…', action: 'Starting development server…', short: 'Starting…', pending: true, disabled: true });
+	assert.deepEqual(starting, { status: 'busy', label: 'Server starting…', action: 'Starting development server…', short: 'Starting…', pending: true, disabled: true, detail: '' });
 	// Starting is what is said even when "active" has not caught up.
 	assert.deepEqual(serverProcess({ active: false, starting: true }), starting);
+});
+
+test('a server that went by itself, or could not start, says so and where its last lines are, and offers to start', () => {
+	const stopped = serverProcess({ failure: 'stopped' });
+	assert.deepEqual(stopped, { status: 'failed', label: 'Server stopped', action: 'Start development server', short: 'Start', pending: false, disabled: false, detail: 'The development server stopped by itself. Its last lines are in the Logs.' });
+	const start = serverProcess({ failure: 'start' });
+	assert.equal(start.status, 'failed');
+	assert.equal(start.detail, 'The development server could not start. Its last lines are in the Logs.');
+	// A failure is of the last run: one that is starting or running again
+	// has nothing to say of it.
+	assert.equal(serverProcess({ failure: 'stopped', starting: true }).detail, '');
+	assert.equal(serverProcess({ failure: 'start', active: true }).status, 'online');
+	assert.equal(serverProcess({ failure: 'bogus' }).status, 'offline');
 });
 
 test('an update of trunk holds the server\'s button, started or stopped', () => {

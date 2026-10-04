@@ -33,6 +33,7 @@ const TRAY_KEY_STEP = 24;
 function trayList() {
 	return [
 		{ id: 'terminal', title: __( 'Terminal' ), toggle: __( 'Toggle Terminal' ) },
+		{ id: 'logs', title: __( 'Logs' ), toggle: __( 'Toggle Logs' ) },
 	];
 }
 
@@ -46,6 +47,26 @@ function trayList() {
  */
 function toggleTray( current, pressed ) {
 	return current === pressed ? null : pressed;
+}
+
+/**
+ * Which tray is showing after the app itself asks for one, as it does when a
+ * failure's only word is in the terminal or in the logs.
+ *
+ * The terminal takes the tray whatever is in it: a refusal printed there and
+ * not shown is a button that did nothing. The logs do not take the
+ * terminal's place: someone may be typing in it, and the page says of every
+ * failure that would have brought them up that its last lines are in the
+ * Logs (site-processes.cjs). They come up only in a tray that is closed, or
+ * is showing them already.
+ *
+ * @param {string|null} current The tray that is open, if any.
+ * @param {string}      wanted  The tray the app asks for.
+ * @return {string|null} The tray to show.
+ */
+function trayAfterReveal( current, wanted ) {
+	if ( wanted === 'logs' && current === 'terminal' ) return current;
+	return wanted;
 }
 
 /**
@@ -118,6 +139,7 @@ module.exports = {
 	TRAY_KEY_STEP,
 	trayList,
 	toggleTray,
+	trayAfterReveal,
 	trayHeightLimits,
 	clampTrayHeight,
 	trayHeightForKey,

@@ -12,13 +12,19 @@
  * The second is the tray's edge: moved with the keyboard and with a pointer,
  * kept inside its limits, and the terminal fitted to the room it is given.
  *
- * The last two are the one time the tray opens without being asked. On the
- * page the terminal was always in view, and the page still says "its output
- * is in the Terminal" of a build that failed, and still refuses an action
- * with a line printed there. So either brings the terminal up, and a failure
- * whose output is somewhere else does not.
+ * Then the one time the tray opens without being asked. On the page the
+ * terminal and the logs were always in view, and the page still says "its
+ * output is in the Terminal" of a build that failed, still refuses an action
+ * with a line printed there, and still says "its last lines are in the Logs"
+ * of a build watch that ended by itself. So each brings up the one it points
+ * at, and not the other.
  *
- * What the terminal does with what is typed in it is `terminal.spec.js`.
+ * The last is the tray holding one thing at a time: the footer has a button
+ * for the terminal and one for the logs, and pressing one puts its own in
+ * the tray in the other's place.
+ *
+ * What the terminal does with what is typed in it is `terminal.spec.js`, and
+ * what the logs show is `logs.spec.js`.
  *
  * Assertions are marked INVARIANT or CHARACTERISATION; see
  * ticket-branches.spec.js for why.
@@ -487,22 +493,194 @@ test( 'an action refused because a command is running brings the terminal up to 
 	expect( await scripts.asked() ).toEqual( [ 'test' ] );
 } );
 
-test( 'a build that fails with its output in the logs leaves the tray closed', async ( { session } ) => {
+test( 'starting the build watch while a command is running is refused in the terminal, which comes up to say so', async ( { session } ) => {
+	// A site with no build, where the watch's button would run the build
+	// first, and that build needs the terminal a typed command is holding.
+	const site = await makeSite( session );
+	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
+	const { app, page } = await session.start( site.settings );
+	const scripts = await standInForScripts( app, page );
+	const tray = await ui.openTray( page, 'Terminal' );
+	await expect( ui.startBuildWatchButton( page ) ).toBeVisible( { timeout: 30_000 } );
+	await ui.terminalInput( page ).pressSequentially( 'npm run lint', { delay: 10 } );
+	await ui.terminalInput( page ).press( 'Enter' );
+	await expect.poll( scripts.asked ).toEqual( [ 'lint' ] );
+	await tray.getByRole( 'button', { name: 'Close', exact: true } ).click();
+	await expect( tray ).toHaveCount( 0 );
+
+	// INVARIANT — the watch is not started, no build is run, and the terminal
+	// comes up saying why: the button is not one that did nothing.
+	await ui.startBuildWatchButton( page ).click();
+	await expect( tray ).toBeVisible();
+	await expect( terminalScreen( page ) ).toContainText( 'A command is already running. Press Ctrl+C to stop it.' );
+	expect( await scripts.asked() ).toEqual( [ 'lint' ] );
+	await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
+} );
+
+test( 'a build that fails with its output in the logs brings the logs up, on the watch\'s tab, and not the terminal', async ( { session } ) => {
 	// A site with no build: the watch's button runs the build first, and
 	// that build prints in the watch's log, not in the terminal.
 	const site = await makeSite( session );
 	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
 	const { app, page } = await session.start( site.settings );
 	const scripts = await standInForScripts( app, page );
-	const tray = ui.tray( page, 'Terminal' );
+	const logs = ui.tray( page, 'Logs' );
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.startBuildWatchButton( page ).click();
 	await expect.poll( scripts.asked ).toEqual( [ 'build' ] );
 
+	// INVARIANT — while it builds, nothing has opened the tray.
+	await scripts.prints( 1, 'PRINTED-BEFORE-IT-FAILED\n' );
+	await scripts.heard();
+	await expect( logs ).toHaveCount( 0 );
+	await expect( ui.tray( page, 'Terminal' ) ).toHaveCount( 0 );
+
 	// INVARIANT — it fails, the page says so and says its last lines are in
-	// the logs, and the terminal, which has none of them, is not brought up.
+	// the logs, and the logs are on screen, on the watch's tab, with those
+	// lines. The terminal, which has none of them, is not what came up.
 	await scripts.ends( 1, 1 );
 	await expect( page.getByText( /^The build that has to finish before the watch can start failed.* Its last lines are in the Logs\.$/ ) ).toBeVisible();
+	await expect( logs ).toBeVisible();
+	await expect( ui.logTab( page, 'Build watch (exited 1)' ) ).toHaveAttribute( 'aria-selected', 'true' );
+	await expect( logs.getByText( 'PRINTED-BEFORE-IT-FAILED', { exact: true } ) ).toBeVisible();
+	await expect( logs.getByText( 'npm run build failed with code 1 — build watch not started.', { exact: true } ) ).toBeVisible();
+	await expect( ui.trayToggle( page, 'Logs' ) ).toHaveAttribute( 'aria-pressed', 'true' );
+	await expect( ui.trayToggle( page, 'Terminal' ) ).toHaveAttribute( 'aria-pressed', 'false' );
+
+	// INVARIANT — a watch stopped by its own button ended because it was
+	// asked to, and brings nothing up: the tray, put away, stays away.
+	await logs.getByRole( 'button', { name: 'Close', exact: true } ).click();
+	await expect( logs ).toHaveCount( 0 );
+	await ui.startBuildWatchButton( page ).click();
+	await expect.poll( scripts.asked ).toEqual( [ 'build', 'build' ] );
+	await ui.stopBuildWatchButton( page ).click();
+	await scripts.ends( 2, null );
+	// The line that says the stop has been taken in. It is in the logs, which
+	// are not on screen, so it is counted and not looked at.
+	await expect( page.getByText( 'npm run build was stopped — build watch not started.', { exact: true } ) ).toHaveCount( 1 );
+	// And once more round, for anything the stop set going to have had its
+	// turn: a tray asked for opens a render after what asked for it.
 	await scripts.heard();
-	await expect( tray ).toHaveCount( 0 );
+	await expect( logs ).toHaveCount( 0 );
+
+	// INVARIANT — the logs do not take the terminal's place: someone may be
+	// typing in it. With the terminal in the tray the same failure leaves it
+	// there, the page says where the lines are, and the logs are on the
+	// watch's tab when they are asked for.
+	await ui.startBuildWatchButton( page ).click();
+	await expect.poll( scripts.asked ).toEqual( [ 'build', 'build', 'build' ] );
+	// The logs are left on another tab than the watch's, which starting the
+	// watch selected, so that the tab they come back on is the failure's
+	// doing.
+	await ui.openTray( page, 'Logs' );
+	await ui.logTab( page, 'Server' ).click();
+	const terminal = await ui.openTray( page, 'Terminal' );
+	await scripts.ends( 3, 1 );
+	await expect( page.getByText( /^The build that has to finish before the watch can start failed.* Its last lines are in the Logs\.$/ ) ).toBeVisible();
+	await scripts.heard();
+	await expect( terminal ).toBeVisible();
+	await expect( logs ).toHaveCount( 0 );
+	await ui.openTray( page, 'Logs' );
+	await expect( ui.logTab( page, 'Build watch (exited 1)' ) ).toHaveAttribute( 'aria-selected', 'true' );
+} );
+
+test( 'a site that could not be deleted does not bring the logs up later for a watch its deletion ended', async ( { session } ) => {
+	const doomed = await makeSite( session, { label: 'doomed-site' } );
+	const other = await makeSite( session, { label: 'other-site' } );
+	// The app opens on the newest site.
+	other.settings.siteMeta[ other.dir ].createdAt = new Date( Date.now() - 7 * 24 * 60 * 60 * 1000 ).toISOString();
+	const { app, page } = await session.start( {
+		sites: [ doomed.dir, other.dir ],
+		siteMeta: { ...doomed.settings.siteMeta, ...other.settings.siteMeta },
+		preferences: {},
+	} );
+	const scripts = await standInForScripts( app, page );
+	// The deletion is held, and then answered as one that could not remove
+	// the folder, which is what a file open elsewhere does on Windows.
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'sites:delete' );
+		ipcMain.handle( 'sites:delete', ( event, sitePath ) => new Promise( ( resolve ) => {
+			global.__e2eTrayDelete = () => resolve( { ok: false, reason: 'remove-failed', path: sitePath, code: 'EBUSY' } );
+		} ) );
+	} );
+	const logs = ui.tray( page, 'Logs' );
+	await expect( ui.siteHeading( page, 'doomed-site' ) ).toBeVisible( { timeout: 30_000 } );
+	// The hint under the terminal is a link once the site is known to be
+	// built, which is what makes the watch's button start the watcher.
+	await ui.openTray( page, 'Terminal' );
+	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
+	await ui.trayToggle( page, 'Terminal' ).click();
+	await ui.startBuildWatchButton( page ).click();
+	await expect.poll( scripts.asked ).toEqual( [ 'grunt' ] );
+
+	// The site is being deleted when its watcher goes, as it does when the
+	// deletion ends the site's processes.
+	await ui.siteMenuButton( page ).click();
+	await ui.deleteSiteMenuItem( page ).click();
+	await ui.confirmYesButton( page, 'Delete site' ).click();
+	await expect( page.getByRole( 'button', { name: 'doomed-site (Deleting)', exact: true } ) ).toBeVisible();
+	await scripts.ends( 1, 1 );
+	await scripts.heard();
+	await app.evaluate( () => global.__e2eTrayDelete() );
+	await expect( ui.sidebarEntry( page, 'doomed-site' ) ).toBeVisible();
+
+	// INVARIANT — the watch's ending was the deletion's doing, and nothing is
+	// kept waiting for it: the tray is closed now, and is still closed after
+	// the site has been left and come back to.
+	await expect( logs ).toHaveCount( 0 );
+	await ui.sidebarEntry( page, 'other-site' ).click();
+	await expect( ui.siteHeading( page, 'other-site' ) ).toBeVisible();
+	await ui.sidebarEntry( page, 'doomed-site' ).click();
+	await expect( ui.siteHeading( page, 'doomed-site' ) ).toBeVisible();
+	await scripts.heard();
+	await expect( logs ).toHaveCount( 0 );
+	await expect( ui.tray( page, 'Terminal' ) ).toHaveCount( 0 );
+} );
+
+test( 'the tray holds one thing at a time: each footer button puts its own in it, in the other\'s place', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+	const terminal = ui.tray( page, 'Terminal' );
+	const logs = ui.tray( page, 'Logs' );
+	const pressed = async () => ( {
+		terminal: await ui.trayToggle( page, 'Terminal' ).getAttribute( 'aria-pressed' ),
+		logs: await ui.trayToggle( page, 'Logs' ).getAttribute( 'aria-pressed' ),
+	} );
+	await expect( ui.trayToggle( page, 'Logs' ) ).toBeVisible( { timeout: 30_000 } );
+	expect( await pressed() ).toEqual( { terminal: 'false', logs: 'false' } );
+
+	// INVARIANT — the logs' button opens the tray on the logs: named and
+	// headed for them, with their tabs, and the terminal's button not pressed.
+	await ui.trayToggle( page, 'Logs' ).click();
+	await expect( logs ).toBeVisible();
+	await expect( logs.getByRole( 'heading', { level: 2, name: 'Logs', exact: true } ) ).toBeVisible();
+	await expect( ui.logTab( page, 'Server' ) ).toBeVisible();
+	await expect( terminal ).toHaveCount( 0 );
+	expect( await pressed() ).toEqual( { terminal: 'false', logs: 'true' } );
+
+	// INVARIANT — the terminal's button, pressed while the logs show, puts
+	// the terminal there in their place: one tray, and one button pressed.
+	await ui.trayToggle( page, 'Terminal' ).click();
+	await expect( terminal ).toBeVisible();
+	await expect( terminalScreen( page ) ).toContainText( 'WordPress npm helper terminal.' );
+	await expect( logs ).toHaveCount( 0 );
+	await expect( ui.logTab( page, 'Server' ) ).toHaveCount( 0 );
+	expect( await pressed() ).toEqual( { terminal: 'true', logs: 'false' } );
+
+	// INVARIANT — and back, the tray is as tall as it was left: its height
+	// is the tray's, whichever it holds.
+	await trayEdge( page ).focus();
+	await page.keyboard.press( 'ArrowUp' );
+	const height = ( await terminal.boundingBox() ).height;
+	expect( height ).toBe( DEFAULT_TRAY_HEIGHT + TRAY_KEY_STEP );
+	await ui.trayToggle( page, 'Logs' ).click();
+	await expect( logs ).toBeVisible();
+	expect( ( await logs.boundingBox() ).height ).toBe( height );
+
+	// INVARIANT — closed from inside, the focus goes back to the button of
+	// what the tray was holding.
+	await logs.getByRole( 'button', { name: 'Close', exact: true } ).click();
+	await expect( logs ).toHaveCount( 0 );
+	await expect( ui.trayToggle( page, 'Logs' ) ).toBeFocused();
+	expect( await pressed() ).toEqual( { terminal: 'false', logs: 'false' } );
 } );

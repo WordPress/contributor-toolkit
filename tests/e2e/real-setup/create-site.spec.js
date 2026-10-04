@@ -127,17 +127,21 @@ for ( const target of TARGETS ) {
 				if ( target.servedAsPlugin ) {
 					// INVARIANT: a built Gutenberg site serves at once, without the
 					// watch (#499): `npm run dev` would remove build/ and rebuild it
-					// first, for nothing. The button still offers the watch and its
-					// tab never went "building". Core's watch starts with the server.
+					// first, for nothing. The button still offers the watch, and the
+					// header says it never went "building". Core's watch starts with
+					// the server.
 					await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
-					await expect( ui.logTab( page, 'Build watcher' ) ).toBeVisible();
+					await expect( ui.processMenuButton( page, 'Build stopped' ) ).toBeVisible();
+					// Stopped and never started, which the header's word alone does not
+					// say: it says the same of a watch that started and went.
+					await expect( page.getByText( 'Build watch offline', { exact: true } ) ).toBeVisible();
 					// Start it by hand so the stop below, and the process-tree check
 					// after it, still exercise the watch. `npm run dev` removes build/
 					// and redoes the whole build before it watches: as long as the
 					// wizard's own build, which has taken from 9 to over 13 minutes on
 					// the macOS runner.
 					await ui.startBuildWatchButton( page ).click();
-					await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible( { timeout: 30 * 60_000 } );
+					await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible( { timeout: 30 * 60_000 } );
 				}
 				await ui.stopBuildWatchButton( page ).click();
 				await ui.stopDevServerButton( page ).click();

@@ -50,7 +50,7 @@ function planUpdateHandOff(watchState) {
 		waiting: {
 			updateState: 'building',
 			waitingOnWatch: true,
-			message: '\nThe build watch rebuilds build/ from scratch as it resumes — output in the Build watcher tab. The update completes when it is watching again.\n'
+			message: '\nThe build watch rebuilds build/ from scratch as it resumes — output in the Logs, under Build watch. The update completes when it is watching again.\n'
 		},
 		ready: {
 			updateState: 'idle',

@@ -56,7 +56,7 @@ const SKIP_INSTALL_MESSAGE = 'Dependencies unchanged — skipping npm install';
 // The update's build step while a resumed watch does the rebuild (#507): the
 // step stays a real step, current until the watch's ready line, because the
 // update is not complete until build/ is back and the card is what says so.
-const UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE = 'The build watch is rebuilding — output in the Build watcher tab';
+const UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE = 'The build watch is rebuilding — output in the Logs, under Build watch';
 
 /**
  * The update chain always has the same three steps; the middle one is skipped

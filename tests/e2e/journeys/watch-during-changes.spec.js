@@ -8,7 +8,7 @@
  *
  * A change the watch can simply recompile is left to it: a ticket switch, and
  * a patch that touches only source files. Nothing is stopped, nothing is
- * built, and the watch's tab says it is compiling until it goes quiet. A
+ * built, and the header says the watch is compiling until it goes quiet. A
  * change of the whole tree, which a pull request's checkout is, stops the
  * watch first. Then on Core the chain builds and brings the watch back; on a
  * project whose watcher rebuilds everything as it starts, the chain builds
@@ -117,15 +117,15 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 	// terminal is a link only once the site is known to be built.
 	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.startBuildWatchButton( page ).click();
-	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible();
 	// CHARACTERISATION — on Core the watcher is grunt watch, here and below.
 	await expect.poll( async () => ( await runs.asked() ).scripts ).toEqual( [ 'grunt' ] );
 
 	// INVARIANT — linking a ticket moves the checkout under a watch that is
 	// left running (#510): nothing is stopped and nothing is built, and the
-	// watch's tab says it is compiling what moved.
+	// header says the watch is compiling what moved.
 	await ui.linkTicket( page, TICKET );
-	await expect( ui.logTab( page, 'Build watcher (compiling)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build compiling' ) ).toBeVisible();
 	await runs.heard();
 	expect( await runs.asked() ).toEqual( { scripts: [ 'grunt' ], installs: 0, kills: [] } );
 
@@ -135,9 +135,9 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 	await runs.heard();
 	expect( await runs.ticketPagesRead() ).toBe( 1 );
 
-	// The watch has gone quiet again before the next change, so that what its
-	// tab says after it is about that change and not this one.
-	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
+	// The watch has gone quiet again before the next change, so that what
+	// the header says after it is about that change and not this one.
+	await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible();
 
 	// INVARIANT — a patch that touches only source files is applied and left
 	// to the watch too (#262): the file is changed, the app says the patch is
@@ -148,10 +148,10 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 	await session.answerFileDialog( [ patch ] );
 	await ui.choosePatchFile( page );
 	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
-	// The tab is looked at first: it says so only for as long as the app's
+	// The header is looked at first: it says so only for as long as the app's
 	// quiet period lasts, and the announcement stays longer than that.
 	await ui.applyAndRebuildButton( page ).click();
-	await expect( ui.logTab( page, 'Build watcher (compiling)' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( ui.processMenuButton( page, 'Build compiling' ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( said( 'Applied the patch' ) ).toBeVisible();
 	expect( read( site.dir, LOGIN ) ).toBe( `${ PATCHED }\n` );
 	await runs.heard();
@@ -175,7 +175,7 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 	await expect.poll( () => currentBranch( site.dir ), { timeout: 30_000 } ).toBe( `pr/${ PR }` );
 	await expect.poll( async () => ( await runs.asked() ).scripts, { timeout: 30_000 } ).toEqual( [ 'grunt', 'build' ] );
 	expect( read( site.dir, LOGIN ) ).toBe( PR_CONTENT );
-	await expect( ui.logTab( page, 'Build watcher (paused)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build paused' ) ).toBeVisible();
 	await runs.heard();
 	expect( await said( 'Checked out the pull request' ).count() ).toBe( 0 );
 	expect( ( await runs.asked() ).scripts ).toHaveLength( 2 );
@@ -185,7 +185,7 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 	await runs.scriptEnds( 2, 0 );
 	await expect( said( 'Checked out the pull request' ) ).toBeVisible();
 	await expect.poll( async () => ( await runs.asked() ).scripts ).toEqual( [ 'grunt', 'build', 'grunt' ] );
-	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible();
 	expect( ( await runs.asked() ).installs ).toBe( 0 );
 } );
 
@@ -211,7 +211,7 @@ test( 'where the watcher rebuilds everything as it starts, a pull request\'s che
 	await ui.startBuildWatchButton( page ).click();
 	await expect.poll( async () => ( await runs.asked() ).scripts ).toEqual( [ 'dev' ] );
 	await runs.scriptPrints( 1, 'Watching for changes\n' );
-	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible();
 
 	// INVARIANT — the checkout stops the watcher and lands, and then the
 	// watcher is asked for again and no build is (#506).
@@ -220,7 +220,7 @@ test( 'where the watcher rebuilds everything as it starts, a pull request\'s che
 	await expect.poll( () => currentBranch( site.dir ), { timeout: 30_000 } ).toBe( `pr/${ PR }` );
 	await expect.poll( async () => ( await runs.asked() ).scripts, { timeout: 30_000 } ).toEqual( [ 'dev', 'dev' ] );
 	expect( read( site.dir, LOGIN ) ).toBe( PR_CONTENT );
-	await expect( ui.logTab( page, 'Build watcher (building)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build building' ) ).toBeVisible();
 
 	// INVARIANT — the app does not say the pull request is checked out while
 	// the watch is still rebuilding: until then the site has no build to try
@@ -232,6 +232,6 @@ test( 'where the watcher rebuilds everything as it starts, a pull request\'s che
 	// INVARIANT — the watch saying it is ready is what the app announces.
 	await runs.scriptPrints( 2, 'Watching for changes\n' );
 	await expect( said( 'Checked out the pull request' ) ).toBeVisible();
-	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible();
 	expect( await runs.asked() ).toEqual( { scripts: [ 'dev', 'dev' ], installs: 0, kills: [ 'e2e-run-1' ] } );
 } );

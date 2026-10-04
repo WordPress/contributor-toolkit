@@ -1,11 +1,11 @@
 import { Button as LinkButton, Dropdown } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { preformatted } from '@wordpress/icons';
+import { listView, preformatted } from '@wordpress/icons';
 import { Button, IconButton } from '@wordpress/ui';
 import { TRAY_ID } from './bottom-tray.jsx';
 
 // What each tray's button is drawn with.
-const TRAY_ICONS = { terminal: preformatted };
+const TRAY_ICONS = { terminal: preformatted, logs: listView };
 
 /**
  * The id of a tray's button, so that closing the tray from inside it can put

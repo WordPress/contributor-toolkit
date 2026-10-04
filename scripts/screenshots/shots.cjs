@@ -148,9 +148,10 @@ const shots = [
 		slug: 'debug-log',
 		tier: 'fixture',
 		variant: 'debug',
-		target: (page) => ui.card(page, 'Logs'),
+		target: (page) => ui.tray(page, 'Logs'),
 		prepare: async (page, app) => {
 			await selectSite(page, 'my-first-patch');
+			await ui.openTray(page, 'Logs');
 			// Starting a real dev session is what makes the renderer attach the
 			// debug-log tail, but this fixture deliberately is not a WordPress clone.
 			// Keep both long-running processes pending so the screenshot exercises
@@ -162,7 +163,7 @@ const shots = [
 				ipcMain.handle('playground:start', async () => ({ ok: true }));
 			});
 			await ui.startDevServerButton(page).click();
-			await page.getByRole('tab', { name: /debug\.log/ }).filter({ visible: true }).click();
+			await page.getByRole('tab', { name: /debug\.log/i }).filter({ visible: true }).click();
 			await page.getByText('Undefined variable $post', { exact: false }).filter({ visible: true }).first().waitFor();
 			await page.getByRole('tab', { name: /exited/i }).filter({ visible: true }).waitFor({ state: 'detached' });
 		}

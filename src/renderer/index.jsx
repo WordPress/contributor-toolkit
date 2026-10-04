@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import {
   Button,
-  TabPanel,
   SlotFillProvider
 } from '@wordpress/components';
 import { Page } from '@wordpress/admin-ui';
@@ -23,7 +22,7 @@ import './shell.css';
 import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
-import { toggleTray, trayList } from './tray.cjs';
+import { toggleTray, trayAfterReveal, trayList } from './tray.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
@@ -72,6 +71,7 @@ import { ReviewDialog } from './components/review-dialog.jsx';
 import { SitesSidebar } from './components/sites-sidebar.jsx';
 import { AppFooter, trayToggleId } from './components/app-footer.jsx';
 import { BottomTray, SiteTrayFill } from './components/bottom-tray.jsx';
+import { LogsPanel } from './components/logs-panel.jsx';
 import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
@@ -169,8 +169,9 @@ function App() {
   const pressTrayToggle = useCallback((id) => setTray((current) => toggleTray(current, id)), []);
   // The one time the tray opens without being asked: a site's view says so
   // when something failed or was refused and the only word of it is in the
-  // terminal. The page points there, and there has to be on screen.
-  const showTerminal = useCallback(() => setTray('terminal'), []);
+  // terminal or in the logs. The page points there, and there has to be on
+  // screen.
+  const showTray = useCallback((id) => setTray((current) => trayAfterReveal(current, id)), []);
   // Closed from inside itself, the tray takes the focused button with it. The
   // focus goes back to the button that opened it, and not to the top of the
   // document.
@@ -689,7 +690,7 @@ function App() {
                         detailsOpen={detailsOpen}
                         onToggleDetails={toggleDetails}
                         tray={tray}
-                        onShowTerminal={showTerminal}
+                        onShowTray={showTray}
                       />
                     </div>
                   ))}
@@ -724,7 +725,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTerminal = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -737,7 +738,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // panes, which tab is open and the debug.log tail. Whoever runs a process
   // appends to its pane, so the functions those callbacks call are taken out
   // by name; each keeps its identity, which their dependency lists rely on.
-  const logs = useSiteLogs({ sitePath });
+  const logs = useSiteLogs({ sitePath, shown: isActive && tray === 'logs' });
   const { appendNpm, appendRuntime, appendWatch, ensureStick, selectTab: selectLogTab, startDebugTail, stopDebugTail } = logs;
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [patchText, setPatchText] = useState('');
@@ -1071,31 +1072,54 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     if (onDeepLinkDone) onDeepLinkDone();
   }, [deepLinkTicket, onDeepLinkDone, saveTicket]);
 
-  // Brings this site's terminal up in the tray (#558), for the two things
-  // that are said nowhere else: an install or a build that failed, whose
-  // output is there, and an action that was refused because a command is
-  // running, which is a line printed there. The tray shows the open site's
-  // terminal, so a site that is not the open one waits until it is: its page
-  // will be saying where to look when it is looked at. A site being deleted
-  // is not the open one for this: its runs are ended as it goes, and the tray
-  // must not open, on whichever site is next, for a site that is gone.
-  const isActiveRef = useRef(isActive && !isDeleting);
-  const terminalWantedRef = useRef(false);
+  // Brings one of this site's trays up (#558), for what is said nowhere else:
+  // an install or a build that failed, whose output is in the terminal; an
+  // action that was refused because a command is running, which is a line
+  // printed there; and a build watch that ended by itself, whose last lines
+  // are in the logs. The tray shows the open site's, so a site that is not
+  // the open one waits until it is: its page will be saying where to look
+  // when it is looked at.
+  const siteRef = useRef({ active: isActive, deleting: isDeleting });
+  const trayWantedRef = useRef(null);
   useLayoutEffect(() => {
-    isActiveRef.current = isActive && !isDeleting;
+    siteRef.current = { active: isActive, deleting: isDeleting };
     return () => {
-      isActiveRef.current = false;
+      siteRef.current = { active: false, deleting: true };
     };
   }, [isActive, isDeleting]);
-  const revealTerminal = useCallback(() => {
-    if (isActiveRef.current) onShowTerminal?.();
-    else terminalWantedRef.current = true;
-  }, [onShowTerminal]);
+  const revealTray = useCallback((id) => {
+    // Nothing is brought up, now or later, for a site on its way out: its
+    // processes are ended as it goes, and if it stays after all, because its
+    // folder could not be removed, their ending was the deletion's doing. A
+    // process that takes longer to end than the deletion waits for is not
+    // caught by this, and ends as one that went by itself.
+    if (siteRef.current.deleting) return;
+    if (siteRef.current.active) onShowTray?.(id);
+    // Kept by the tray's own rule, so that the logs asked for after the
+    // terminal do not take its place here either.
+    else trayWantedRef.current = trayAfterReveal(trayWantedRef.current, id);
+  }, [onShowTray]);
   useEffect(() => {
-    if (!isActive || !terminalWantedRef.current) return;
-    terminalWantedRef.current = false;
-    onShowTerminal?.();
-  }, [isActive, onShowTerminal]);
+    if (!isActive || !trayWantedRef.current) return;
+    const wanted = trayWantedRef.current;
+    trayWantedRef.current = null;
+    onShowTray?.(wanted);
+  }, [isActive, onShowTray]);
+  const revealTerminal = useCallback(() => revealTray('terminal'), [revealTray]);
+  // The logs, on the build watch's tab: where the page says a watch's last
+  // lines are. And on the
+  // server's tab, for a server that could not start or went by itself, which
+  // is said there and nowhere on the page. The tab is selected whether or
+  // not the logs come up: they do not take the terminal's place (tray.cjs),
+  // and are then on the right tab when they are opened.
+  const revealWatchLog = useCallback(() => {
+    selectLogTab('watch');
+    revealTray('logs');
+  }, [revealTray, selectLogTab]);
+  const revealServerLog = useCallback(() => {
+    selectLogTab('runtime');
+    revealTray('logs');
+  }, [revealTray, selectLogTab]);
 
   // The npm runs this view starts (#554): the install and the scripts, and the
   // flags the rest of the view reads about them. Called here because it needs
@@ -1158,20 +1182,29 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The build watch (#554): its state, its run and what can be done to it. It
   // is called here because it needs the script runner and the terminal's lock
   // above. What the chains below use of it is taken out by name.
-  const { watchState, watchExitCode, watchExitOf, watchCompiling, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, startBuildWatch, pauseWatcher, resumeWatcher, toggleWatch } = useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, terminalStateRef, terminalKillRef, markTerminalRunning });
+  const { watchState, watchExitCode, watchExitOf, watchCompiling, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, startBuildWatch, pauseWatcher, resumeWatcher, toggleWatch } = useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, refuseInTerminal, terminalStateRef, terminalKillRef, markTerminalRunning });
+  // A watch that ended by itself, or was never started because the build
+  // ahead of it failed, is said on the page with "Its last lines are in the
+  // Logs." So the logs come up, on the watch's tab, when that happens. A
+  // watch stopped by its button goes to idle and not to this, and brings
+  // nothing up.
+  useEffect(() => {
+    if (watchState === 'exited') revealWatchLog();
+  }, [watchState, revealWatchLog]);
+
   // The count is on the tab rather than beside it because the tab is what the
   // contributor is not looking at: a notice landing while they read the server
   // output is the case this panel exists for.
   const logTabs = useMemo(() => ([
     { name: 'runtime', title: 'Server' },
     { name: 'watch', title: watchTabLabel(watchState, watchExitCode, watchCompiling) },
-    { name: 'debug', title: logs.debugUnread ? `debug.log (${logs.debugUnread})` : 'debug.log' }
+    { name: 'debug', title: logs.debugUnread ? `Debug.log (${logs.debugUnread})` : 'Debug.log' }
   ]), [logs.debugUnread, watchState, watchExitCode, watchCompiling]);
 
   // The dev server (#554): its state, its guards and its one button. It is
   // called here because starting it needs everything above: the build watch,
   // the logs, the mail, the terminal's lock and the script runner.
-  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, startElapsed, toggleDevServer } = useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
+  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, serverFailure, startElapsed, toggleDevServer } = useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
@@ -1195,7 +1228,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // What the page says about the site's two processes (#557), in the header
   // and in the details alike. Decided in site-processes.cjs, and worked out
   // here because an update of trunk holds both.
-  const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating });
+  const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating, failure: serverFailure });
   const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
   const serverSectionState = serverSection({ url: serverUrl, running, starting: isServerStarting, elapsed: startElapsed });
   // A link to the running site is opened in the browser by the main process.
@@ -1206,8 +1239,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // toast, since the menu is gone by then and the details, whose own button
   // says it on itself, may be put away.
   const detailsId = useId();
-  // The headings of the three panels under the cards, which name them.
-  const logsTitleId = useId();
+  // The heading of the mail under the cards, which names it.
   const mailTitleId = useId();
   const runSiteMenuAction = async (item) => {
     if (item.id === 'rename') openRenameModal();
@@ -1915,6 +1947,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               </Text>
             </Stack>
           </div>
+          <LogsPanel
+            hidden={tray !== 'logs'}
+            tabs={logTabs}
+            logs={logs}
+            copyLabel={COPY_BUTTON_LABELS[logs.debugCopied] || COPY_BUTTON_LABELS.idle}
+          />
         </div>
       </SiteTrayFill>
       {/* What is done to the site as a whole is in the page's header (#556):
@@ -2168,52 +2206,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           onDelete={(row) => askFirst(deleteWorkQuestion(row.ticketId, project.workItem.provider), () => deleteTicketWork(row.ref))}
         />
       ) : null}
-      <Stack direction="column" gap="sm" render={<section aria-labelledby={logsTitleId} />}>
-        <Text id={logsTitleId} variant="heading-md" render={<h2 />} className="site-panel-title">Logs</Text>
-        <TabPanel className="log-tabs" activeClass="is-active" onSelect={selectLogTab} tabs={logTabs}>
-          {(tab) => {
-            if (tab.name === 'runtime') {
-              return <div ref={logs.runtimeRef} onScroll={logs.makeOnScroll('runtime')} className="log-pane"><LogText text={logs.runtimeLogs} /></div>;
-            }
-            if (tab.name === 'watch') {
-              return (
-                <div ref={logs.watchRef} onScroll={logs.makeOnScroll('watch')} className="log-pane">
-                  {logs.watchLogs ? <LogText text={logs.watchLogs} /> : (
-                    <span className="log-pane-note">The build watch compiles <code>src/</code> edits into <code>build/</code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.</span>
-                  )}
-                </div>
-              );
-            }
-            return (
-              <Stack direction="column" gap="sm">
-                <div ref={logs.debugRef} onScroll={logs.makeOnScroll('debug')} className="log-pane">
-                  {logs.debugLogs ? <LogText text={logs.debugLogs} /> : (
-                    // An empty pane reads as broken, which is what this one was
-                    // for as long as WP_DEBUG_LOG was never set. Say what fills
-                    // it instead. In the app's own font, not the terminal's:
-                    // this is interface copy rather than log output, and it is
-                    // what keeps the `<code>` bits in it distinguishable.
-                    <span className="log-pane-note">No PHP notices or errors yet. Anything WordPress or your code writes — <code>error_log()</code>, notices, deprecations, fatals — appears here while the dev server runs.</span>
-                  )}
-                </div>
-                <Stack direction="row" align="center" justify="space-between" gap="sm" wrap="wrap">
-                  {/* The file is under build/, while the file being edited when
-                      it filled up is under src/ — so it cannot be guessed, and
-                      it is what someone needs to tail it in a terminal or attach
-                      it to a ticket. Selectable rather than truncated with an
-                      ellipsis: a path you cannot copy is decoration. */}
-                  <code className="log-path">{logs.debugLogPath || 'The log file appears once the dev server has run.'}</code>
-                  <Stack direction="row" gap="sm">
-                    <UiButton variant="outline" tone="neutral" size="compact" onClick={logs.revealDebugLog} disabled={!logs.debugLogPath}>Show in folder</UiButton>
-                    <UiButton variant="outline" tone="neutral" size="compact" onClick={logs.copyDebugLog} disabled={!logs.debugLogs}>{COPY_BUTTON_LABELS[logs.debugCopied] || COPY_BUTTON_LABELS.idle}</UiButton>
-                    <UiButton variant="outline" tone="neutral" size="compact" onClick={logs.clearDebugLog} disabled={!logs.debugLogs}>Clear</UiButton>
-                  </Stack>
-                </Stack>
-              </Stack>
-            );
-          }}
-        </TabPanel>
-      </Stack>
       <Stack direction="column" gap="sm" render={<section aria-labelledby={mailTitleId} />}>
         <Text id={mailTitleId} variant="heading-md" render={<h2 />} className="site-panel-title">Mail</Text>
         <Stack direction="row" align="center" justify="space-between" gap="sm">

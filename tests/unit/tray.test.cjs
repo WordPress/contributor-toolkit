@@ -12,6 +12,7 @@ const {
 	TRAY_KEY_STEP,
 	trayList,
 	toggleTray,
+	trayAfterReveal,
 	trayHeightLimits,
 	clampTrayHeight,
 	trayHeightForKey,
@@ -26,13 +27,26 @@ test( 'each tray has an id of its own, a heading and a name for its button', () 
 		assert.ok( tray.title );
 		assert.notEqual( tray.toggle, tray.title );
 	}
-	assert.deepEqual( trays.find( ( tray ) => tray.id === 'terminal' ), { id: 'terminal', title: 'Terminal', toggle: 'Toggle Terminal' } );
+	// In the order the footer offers them.
+	assert.deepEqual( trays, [
+		{ id: 'terminal', title: 'Terminal', toggle: 'Toggle Terminal' },
+		{ id: 'logs', title: 'Logs', toggle: 'Toggle Logs' },
+	] );
 } );
 
 test( 'a footer button opens its tray, swaps it for the open one, and closes it when it is the open one', () => {
 	assert.equal( toggleTray( null, 'terminal' ), 'terminal' );
 	assert.equal( toggleTray( 'logs', 'terminal' ), 'terminal' );
 	assert.equal( toggleTray( 'terminal', 'terminal' ), null );
+} );
+
+test( 'asked for by the app, the terminal takes the tray whatever is in it, and the logs do not take the terminal\'s place', () => {
+	assert.equal( trayAfterReveal( null, 'terminal' ), 'terminal' );
+	assert.equal( trayAfterReveal( 'logs', 'terminal' ), 'terminal' );
+	assert.equal( trayAfterReveal( 'terminal', 'terminal' ), 'terminal' );
+	assert.equal( trayAfterReveal( null, 'logs' ), 'logs' );
+	assert.equal( trayAfterReveal( 'logs', 'logs' ), 'logs' );
+	assert.equal( trayAfterReveal( 'terminal', 'logs' ), 'terminal' );
 } );
 
 test( 'the tray is never taller than half the window, and never shorter than its floor while the window has room', () => {
