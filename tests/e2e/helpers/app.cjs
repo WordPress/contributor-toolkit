@@ -11,14 +11,18 @@
 //      goes through TOOLKIT_USER_DATA_DIR — the `!app.isPackaged` hook in
 //      src/main.js:137 — and `start()` refuses to launch without one.
 //   2. Teardown always terminates. `close()` is known to hang on Windows in
-//      Electron apps that keep child processes alive, which this one does.
+//      Electron apps that keep child processes alive, which this one does, and
+//      on macOS in an app whose launch never finished. An app that does not end
+//      when asked is ended.
 //   3. A failure leaves evidence. The trace is Playwright's; the screenshot and
 //      the persisted settings.json are attached here, because the interesting
-//      half of a failure in this app is what ended up on disk.
+//      half of a failure in this app is what ended up on disk. A launch that
+//      opens no window says what the main process knew of itself.
 //
 // The packaged smoke test does not use this: it launches a different binary and
 // deliberately writes no state at all.
 
+const { spawnSync } = require( 'node:child_process' );
 const fs = require( 'node:fs' );
 const os = require( 'node:os' );
 const path = require( 'node:path' );
@@ -66,6 +70,79 @@ function samePath( a, b ) {
 }
 
 const EMPTY_SETTINGS = Object.freeze( { sites: [], siteMeta: {}, preferences: {} } );
+
+// How long an app gets to end by itself once asked, and how long anything asked
+// of an app that may no longer be answering is waited for.
+const PATIENCE_MS = 5_000;
+
+/**
+ * A promise, or nothing once `ms` have passed. The timer is cleared either way,
+ * so a call that answers at once does not keep the worker alive for the rest.
+ *
+ * @param {Promise<*>} promise
+ * @param {number}     ms
+ * @return {Promise<*>} What the promise settled with, or undefined.
+ */
+function within( promise, ms ) {
+	let timer;
+	const late = new Promise( ( resolve ) => {
+		timer = setTimeout( resolve, ms );
+	} );
+	return Promise.race( [ promise, late ] ).finally( () => clearTimeout( timer ) );
+}
+
+/**
+ * What the main process says of itself: whether Electron ever became ready, and
+ * the windows it has.
+ *
+ * For a launch that opens no window, where there is no screen to photograph and
+ * these are the only facts that tell the three ways it happens apart: the app
+ * never became ready, it became ready and made no window, or it made one whose
+ * page never started.
+ *
+ * @param {Object} app The Electron app.
+ * @return {Promise<{ready: boolean, windows: Object[]}>} The state, read in the main process.
+ */
+function launchState( app ) {
+	return app.evaluate( ( { app: electronApp, BrowserWindow } ) => ( {
+		ready: electronApp.isReady(),
+		windows: BrowserWindow.getAllWindows().map( ( win ) => ( {
+			visible: win.isVisible(),
+			url: win.webContents.getURL(),
+			loading: win.webContents.isLoading(),
+			crashed: win.webContents.isCrashed(),
+		} ) ),
+	} ) );
+}
+
+/**
+ * Ends an app that did not end when asked.
+ *
+ * Not `proc.kill()`, which is what this used to be. That sends SIGTERM, which
+ * a main process that has stopped answering does not act on either; and it
+ * marks the process as killed whether or not it went, which makes Playwright
+ * skip its own forced kill when the worker stops and then wait for an exit that
+ * never comes. One launch that opened no window on a macOS runner failed a
+ * whole run that way, on "Worker teardown timeout", after its test had passed
+ * on the retry.
+ *
+ * @param {Object} proc The process Playwright started.
+ */
+function forceKill( proc ) {
+	if ( process.platform === 'win32' ) {
+		// Playwright launches through a shell there, so this is cmd.exe and the
+		// app is its child: /T takes the tree.
+		spawnSync( 'taskkill', [ '/pid', String( proc.pid ), '/T', '/F' ], { windowsHide: true } );
+		return;
+	}
+	try {
+		// Playwright starts the app as the leader of its own process group, so
+		// this takes the app's helpers with it.
+		process.kill( -proc.pid, 'SIGKILL' );
+	} catch {
+		// Gone in the meantime.
+	}
+}
 
 /**
  * Where to record each journey, so a person can watch what the test did:
@@ -164,7 +241,18 @@ class Session {
 				TOOLKIT_USER_DATA_DIR: this.userDataDir,
 			},
 		} );
-		this.page = await this.app.firstWindow();
+		try {
+			this.page = await this.app.firstWindow();
+		} catch ( error ) {
+			// Nothing to photograph, so the evidence is what the main process
+			// knows. It may be the thing that is stuck, hence the limit.
+			const state = await within( launchState( this.app ).catch( () => undefined ), PATIENCE_MS );
+			throw new Error(
+				`${ error.message }\nThe launch gave the test no window. The app's main process ` +
+				( state ? `reported ${ JSON.stringify( state ) }.` : 'did not answer when asked for its state.' ),
+				{ cause: error }
+			);
+		}
 		if ( VIDEO_DIR ) {
 			const video = this.page.video();
 			if ( video ) this.videos.push( video );
@@ -265,11 +353,18 @@ class Session {
 		// Grab the handle before closing — `process()` throws once the connection
 		// to the app is gone.
 		const proc = app.process();
-		await Promise.race( [
-			app.close().catch( () => {} ),
-			new Promise( ( resolve ) => setTimeout( resolve, 5_000 ) ),
-		] );
-		if ( proc && proc.exitCode === null ) proc.kill();
+		const exited = new Promise( ( resolve ) => proc.once( 'exit', resolve ) );
+		const running = () => proc.exitCode === null && proc.signalCode === null;
+
+		// `close()` resolves once the process has gone, hence the limit: an app
+		// that will not quit would hold the teardown for good.
+		await within( app.close().catch( () => {} ), PATIENCE_MS );
+		if ( ! running() ) return;
+
+		forceKill( proc );
+		// Waited for, so that the directories the app had open are removed after
+		// it has let go of them, and with a limit, so that teardown ends anyway.
+		await within( exited, PATIENCE_MS );
 	}
 
 	/**
@@ -376,4 +471,4 @@ const test = base.extend( {
 
 const { expect } = base;
 
-module.exports = { test, expect, Session, EMPTY_SETTINGS, REPO_ROOT };
+module.exports = { test, expect, Session, launchState, EMPTY_SETTINGS, REPO_ROOT };
