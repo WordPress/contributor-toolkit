@@ -1,8 +1,13 @@
 /*
   The window's shell (#555): the sites list on the left, the open site's page
-  beside it, and a footer under the page. Every value is a design-system token,
-  with the token's default as the fallback, so the theme provider can change
-  them all from one place.
+  beside it, and a footer under the page. A colour here is a design-system
+  token, and so is a gap, a radius or a font wherever the design system has
+  one for it, so the theme provider can change them from one place. A token is
+  written bare, with no value beside it: a fallback is a second copy of the
+  token's value, and the ones this file used to carry had already drifted
+  from theirs. The tokens' stylesheet is in the same bundle, so there is
+  nothing for one to fall back from. Stylelint holds the colours and the
+  tokens to this (stylelint.config.mjs); a size that is not a token it lets by.
 */
 
 html,
@@ -16,12 +21,12 @@ body,
 body {
   margin: 0;
   position: relative;
-  background: var(--wpds-color-background-surface-neutral, #fcfcfc);
-  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+  background: var(--wpds-color-background-surface-neutral);
+  color: var(--wpds-color-foreground-content-neutral);
   font-family: var(--wpds-typography-font-family-body);
-  font-size: var(--wpds-typography-font-size-md, 13px);
-  font-weight: var(--wpds-typography-font-weight-default, 400);
-  line-height: var(--wpds-typography-line-height-sm, 20px);
+  font-size: var(--wpds-typography-font-size-md);
+  font-weight: var(--wpds-typography-font-weight-default);
+  line-height: var(--wpds-typography-line-height-sm);
 }
 
 /* The app paints as one layer, under what the design system's menus and
@@ -35,7 +40,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--wpds-color-background-surface-neutral, #fcfcfc);
+  background: var(--wpds-color-background-surface-neutral);
 }
 
 .app-root .app-page {
@@ -62,7 +67,7 @@ body {
 
 .page-body-notices {
   align-self: stretch;
-  padding: var(--wpds-dimension-padding-2xl, 24px);
+  padding: var(--wpds-dimension-padding-2xl);
 }
 
 .page-body-notices:empty {
@@ -71,13 +76,13 @@ body {
 
 /* Two columns, and the first one closes by going to no width at all. */
 .site-shell {
-  --sites-sidebar-width: var(--wpds-dimension-surface-width-sm, 320px);
+  --sites-sidebar-width: var(--wpds-dimension-surface-width-sm);
   display: grid;
   grid-template-columns: var(--sites-sidebar-width) minmax(0, 1fr);
   flex: 1;
   min-height: 0;
-  transition: grid-template-columns var(--wpds-motion-duration-lg, 300ms)
-    var(--wpds-motion-easing-expressive, ease);
+  transition: grid-template-columns var(--wpds-motion-duration-lg)
+    var(--wpds-motion-easing-expressive);
 }
 
 .site-shell.is-sites-list-hidden {
@@ -115,12 +120,12 @@ body {
   min-height: 0;
   flex: 1 1 auto;
   height: 100%;
-  border-inline-end: var(--wpds-border-width-xs, 1px) solid
-    var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
-  background: var(--wpds-color-background-surface-neutral, #fcfcfc);
+  border-inline-end: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
+  background: var(--wpds-color-background-surface-neutral);
   transform: translateX(0);
-  transition: transform var(--wpds-motion-duration-lg, 300ms)
-    var(--wpds-motion-easing-expressive, ease);
+  transition: transform var(--wpds-motion-duration-lg)
+    var(--wpds-motion-easing-expressive);
 }
 
 .site-shell.is-sites-list-hidden .sites-sidebar {
@@ -150,7 +155,7 @@ body {
 .sites-sidebar-name {
   display: flex;
   align-items: center;
-  gap: var(--wpds-dimension-gap-sm, 8px);
+  gap: var(--wpds-dimension-gap-sm);
   min-width: 0;
 }
 
@@ -162,8 +167,8 @@ body {
 }
 
 .sites-sidebar-description {
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
-  font-size: var(--wpds-typography-font-size-sm, 12px);
+  color: var(--wpds-color-foreground-content-neutral-weak);
+  font-size: var(--wpds-typography-font-size-sm);
 }
 
 /* What a site has to report before it is opened (#94). */
@@ -175,11 +180,11 @@ body {
 }
 
 .sites-sidebar-dot.is-stale {
-  background: var(--wpds-color-stroke-surface-warning-strong, #936300);
+  background: var(--wpds-color-stroke-surface-warning-strong);
 }
 
 .sites-sidebar-dot.is-incomplete {
-  background: var(--wpds-color-stroke-surface-error-strong, #cc1818);
+  background: var(--wpds-color-stroke-surface-error-strong);
 }
 
 /* The open site's page: it scrolls, and nothing else in the shell does. */
@@ -188,7 +193,7 @@ body {
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: var(--wpds-dimension-padding-2xl, 24px);
+  padding: var(--wpds-dimension-padding-2xl);
 }
 
 /* What the page holds stops growing with the window, and sits in the middle
@@ -203,7 +208,7 @@ body {
 .site-header-actions {
   display: flex;
   align-items: center;
-  gap: var(--wpds-dimension-gap-sm, 8px);
+  gap: var(--wpds-dimension-gap-sm);
 }
 
 /* The header holds the site's name and, since #557, two menus and a button
@@ -258,16 +263,16 @@ body {
 /* The site's view: its cards, and its details beside them. The details close
    the way the sites list does, by their column going to no width. */
 .dashboard {
-  --dashboard-sidebar-width: var(--wpds-dimension-surface-width-sm, 320px);
+  --dashboard-sidebar-width: var(--wpds-dimension-surface-width-sm);
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--dashboard-sidebar-width);
-  gap: var(--wpds-dimension-gap-2xl, 24px);
+  gap: var(--wpds-dimension-gap-2xl);
   align-items: start;
   width: 100%;
   transition:
-    grid-template-columns var(--wpds-motion-duration-lg, 300ms)
-      var(--wpds-motion-easing-expressive, ease),
-    gap var(--wpds-motion-duration-lg, 300ms) var(--wpds-motion-easing-expressive, ease);
+    grid-template-columns var(--wpds-motion-duration-lg)
+      var(--wpds-motion-easing-expressive),
+    gap var(--wpds-motion-duration-lg) var(--wpds-motion-easing-expressive);
 }
 
 .dashboard.is-sidebar-collapsed {
@@ -282,7 +287,7 @@ body {
 .dashboard-main {
   display: flex;
   flex-direction: column;
-  gap: var(--wpds-dimension-gap-2xl, 24px);
+  gap: var(--wpds-dimension-gap-2xl);
   min-width: 0;
 }
 
@@ -307,8 +312,8 @@ body {
   min-width: 0;
   box-sizing: border-box;
   transform: translateX(0);
-  transition: transform var(--wpds-motion-duration-lg, 300ms)
-    var(--wpds-motion-easing-expressive, ease);
+  transition: transform var(--wpds-motion-duration-lg)
+    var(--wpds-motion-easing-expressive);
 }
 
 .dashboard-sidebar.is-unstuck {
@@ -335,23 +340,23 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  background: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 .process-status.is-online {
-  background: var(--wpds-color-foreground-content-success-weak, #007f30);
+  background: var(--wpds-color-foreground-content-success-weak);
 }
 
 .process-status.is-busy {
-  background: var(--wpds-color-stroke-surface-warning-strong, #936300);
+  background: var(--wpds-color-stroke-surface-warning-strong);
 }
 
 .process-status.is-failed {
-  background: var(--wpds-color-stroke-surface-error-strong, #cc1818);
+  background: var(--wpds-color-stroke-surface-error-strong);
 }
 
 .process-menu-trigger {
-  font-weight: var(--wpds-typography-font-weight-default, 400);
+  font-weight: var(--wpds-typography-font-weight-default);
 }
 
 .dashboard-sidebar h3 {
@@ -362,11 +367,11 @@ body {
   width: 100%;
   margin: 0;
   border: 0;
-  border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
+  border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
 }
 
 .sidebar-link {
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 .sidebar-empty-state {
@@ -375,24 +380,24 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 140px;
-  padding-block: var(--wpds-dimension-padding-xl, 20px);
-  padding-inline: var(--wpds-dimension-padding-lg, 16px);
-  border: var(--wpds-border-width-xs, 1px) solid var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
-  border-radius: var(--wpds-border-radius-lg, 8px);
+  padding-block: var(--wpds-dimension-padding-xl);
+  padding-inline: var(--wpds-dimension-padding-lg);
+  border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+  border-radius: var(--wpds-border-radius-lg);
 }
 
 .credential-list {
   display: grid;
   grid-template-columns: max-content 1fr;
-  column-gap: var(--wpds-dimension-gap-lg, 16px);
-  row-gap: var(--wpds-dimension-gap-xs, 4px);
+  column-gap: var(--wpds-dimension-gap-lg);
+  row-gap: var(--wpds-dimension-gap-xs);
   align-items: center;
 }
 
 .credential-value {
   display: flex;
   align-items: center;
-  gap: var(--wpds-dimension-gap-xs, 4px);
+  gap: var(--wpds-dimension-gap-xs);
   min-width: 0;
 }
 
@@ -400,19 +405,19 @@ body {
    quietly, something that went well, something to mind, something that went
    wrong. One class each, for every card and dialog. */
 .muted-label {
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 .success-text {
-  color: var(--wpds-color-foreground-content-success-weak, #008030);
+  color: var(--wpds-color-foreground-content-success-weak);
 }
 
 .warning-text {
-  color: var(--wpds-color-foreground-content-warning-weak, #936300);
+  color: var(--wpds-color-foreground-content-warning-weak);
 }
 
 .problem-text {
-  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
+  color: var(--wpds-color-foreground-content-error-weak);
 }
 
 /* What went wrong, said in a line of its own where a notice would be too
@@ -420,8 +425,8 @@ body {
    is `.problem-text`'s. */
 .error-text {
   display: block;
-  margin-block-start: var(--wpds-dimension-gap-xs, 4px);
-  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
+  margin-block-start: var(--wpds-dimension-gap-xs);
+  color: var(--wpds-color-foreground-content-error-weak);
 }
 
 .path-meta {
@@ -461,36 +466,36 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--wpds-dimension-padding-sm, 8px)
-    var(--wpds-dimension-padding-2xl, 24px);
-  border-top: var(--wpds-border-width-xs, 1px) solid
-    var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
-  background: var(--wpds-color-background-surface-neutral, #fcfcfc);
+  padding: var(--wpds-dimension-padding-sm)
+    var(--wpds-dimension-padding-2xl);
+  border-top: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
+  background: var(--wpds-color-background-surface-neutral);
 }
 
 .app-footer-actions,
 .app-footer-meta {
   display: flex;
   align-items: center;
-  gap: var(--wpds-dimension-gap-xs, 4px);
+  gap: var(--wpds-dimension-gap-xs);
 }
 
 .app-footer-meta {
-  gap: var(--wpds-dimension-gap-md, 12px);
+  gap: var(--wpds-dimension-gap-md);
 }
 
 .app-footer-feedback {
   width: 320px;
-  padding: var(--wpds-dimension-padding-lg, 16px);
+  padding: var(--wpds-dimension-padding-lg);
 }
 
 .app-footer-feedback-title {
-  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
-  margin-bottom: var(--wpds-dimension-gap-sm, 8px);
+  font-weight: var(--wpds-typography-font-weight-emphasis);
+  margin-bottom: var(--wpds-dimension-gap-sm);
 }
 
 .app-footer-feedback p {
-  margin: 0 0 var(--wpds-dimension-gap-md, 12px);
+  margin: 0 0 var(--wpds-dimension-gap-md);
 }
 
 /* The cue that points a contributor at the next thing to do (#252). The
@@ -501,10 +506,10 @@ body {
    label. The ring is the design system's warning stroke, and rounded as its
    cards and notices are. */
 .next-action-cue {
-  border-radius: var(--wpds-border-radius-lg, 8px);
+  border-radius: var(--wpds-border-radius-lg);
   box-shadow:
-    0 0 0 3px var(--wpds-color-stroke-surface-warning, #e1bd7c),
-    0 0 14px 3px color-mix(in srgb, var(--wpds-color-stroke-surface-warning, #e1bd7c) 60%, transparent);
+    0 0 0 3px var(--wpds-color-stroke-surface-warning),
+    0 0 14px 3px color-mix(in srgb, var(--wpds-color-stroke-surface-warning) 60%, transparent);
 }
 
 /* The review dialog's two columns (#186): the diff takes the room and where
@@ -522,7 +527,7 @@ body {
    than sitting next to it, which is what the screen is for. */
 .patch-columns {
   display: flex;
-  gap: var(--wpds-dimension-gap-lg, 16px);
+  gap: var(--wpds-dimension-gap-lg);
   flex: 1;
   min-height: 0;
   align-items: stretch;
@@ -534,7 +539,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  gap: var(--wpds-dimension-gap-sm, 8px);
+  gap: var(--wpds-dimension-gap-sm);
 }
 
 .patch-columns > .patch-destinations {
@@ -543,7 +548,7 @@ body {
   max-width: 460px;
   display: flex;
   flex-direction: column;
-  gap: var(--wpds-dimension-gap-md, 12px);
+  gap: var(--wpds-dimension-gap-md);
   min-height: 0;
   overflow-y: auto;
 }
@@ -598,11 +603,11 @@ body {
   box-sizing: border-box;
   height: 100%;
   margin: 0;
-  border: var(--wpds-border-width-xs, 1px) solid
-    var(--wpds-color-stroke-surface-neutral, #dbdbdb);
-  border-radius: var(--wpds-border-radius-md, 4px);
-  background: var(--wpds-color-background-surface-neutral-strong, #fff);
-  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-md);
+  background: var(--wpds-color-background-surface-neutral-strong);
+  color: var(--wpds-color-foreground-content-neutral);
 }
 
 /* What each kind of patch line looks like (#166). An added and a removed
@@ -613,34 +618,34 @@ body {
 }
 
 .diff-line.is-add {
-  color: var(--wpds-color-foreground-content-success-weak, #008030);
-  background: var(--wpds-color-background-surface-success-weak, #ebffed);
+  color: var(--wpds-color-foreground-content-success-weak);
+  background: var(--wpds-color-background-surface-success-weak);
 }
 
 .diff-line.is-del {
-  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
-  background: var(--wpds-color-background-surface-error-weak, #fff6f5);
+  color: var(--wpds-color-foreground-content-error-weak);
+  background: var(--wpds-color-background-surface-error-weak);
 }
 
 .diff-line.is-hunk {
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
-  background: var(--wpds-color-background-surface-neutral-weak, #f4f4f4);
+  color: var(--wpds-color-foreground-content-neutral-weak);
+  background: var(--wpds-color-background-surface-neutral-weak);
 }
 
 .diff-line.is-meta {
-  color: var(--wpds-color-foreground-content-info-weak, #006bd7);
+  color: var(--wpds-color-foreground-content-info-weak);
 }
 
 .diff-line.is-header {
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  color: var(--wpds-color-foreground-content-neutral-weak);
   font-style: italic;
 }
 
 /* The destinations that ask the same thing of the contributor share a
    card, with a hairline between them. */
 .destination-group > * + * {
-  border-block-start: var(--wpds-border-width-xs, 1px) solid
-    var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
+  border-block-start: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
 }
 
 /* A destination's buttons are as wide as its column, and say what they do
@@ -657,69 +662,69 @@ body {
 
 /* What a first-timer cannot know about pull requests, behind its question. */
 .destination-how {
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
-  font-size: var(--wpds-typography-font-size-sm, 12px);
-  line-height: var(--wpds-typography-line-height-xs, 16px);
+  color: var(--wpds-color-foreground-content-neutral-weak);
+  font-size: var(--wpds-typography-font-size-sm);
+  line-height: var(--wpds-typography-line-height-xs);
 }
 
 .destination-how > summary {
-  color: var(--wpds-color-foreground-interactive-brand, #3858e9);
+  color: var(--wpds-color-foreground-interactive-brand);
   cursor: pointer;
 }
 
 .destination-how[open] > summary {
-  margin-block-end: var(--wpds-dimension-gap-sm, 8px);
+  margin-block-end: var(--wpds-dimension-gap-sm);
 }
 
 /* The code GitHub asks for: large, spaced and in monospace, since it is
    read off one screen and typed into another. */
 .device-code {
-  padding-block: var(--wpds-dimension-padding-sm, 8px);
-  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
-  font-family: var(--wpds-typography-font-family-mono, monospace);
-  font-size: var(--wpds-typography-font-size-xl, 20px);
-  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+  padding-block: var(--wpds-dimension-padding-sm);
+  color: var(--wpds-color-foreground-content-neutral);
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-xl);
+  font-weight: var(--wpds-typography-font-weight-emphasis);
   letter-spacing: 0.08em;
   text-align: center;
 }
 
 /* The question an update asks about loose edits. */
 .dirty-tree {
-  max-width: var(--wpds-dimension-surface-width-lg, 560px);
+  max-width: var(--wpds-dimension-surface-width-lg);
 }
 
 .dirty-tree-files {
   max-height: 140px;
-  padding: var(--wpds-dimension-padding-md, 12px);
+  padding: var(--wpds-dimension-padding-md);
   overflow-y: auto;
   overflow-wrap: anywhere;
-  border: var(--wpds-border-width-xs, 1px) solid
-    var(--wpds-color-stroke-surface-neutral, #dbdbdb);
-  border-radius: var(--wpds-border-radius-md, 4px);
-  font-family: var(--wpds-typography-font-family-mono, monospace);
-  font-size: var(--wpds-typography-font-size-sm, 12px);
-  line-height: var(--wpds-typography-line-height-sm, 20px);
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-md);
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-sm);
+  line-height: var(--wpds-typography-line-height-sm);
 }
 
 /* Its two answers: buttons, of which one is pressed. The pressed one is
    ringed inside its border, so choosing does not move the other. */
 .dirty-tree-choice {
-  padding: var(--wpds-dimension-padding-md, 12px);
-  border: var(--wpds-border-width-xs, 1px) solid
-    var(--wpds-color-stroke-surface-neutral, #dbdbdb);
-  border-radius: var(--wpds-border-radius-md, 4px);
-  background: var(--wpds-color-background-surface-neutral-strong, #fff);
-  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+  padding: var(--wpds-dimension-padding-md);
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-md);
+  background: var(--wpds-color-background-surface-neutral-strong);
+  color: var(--wpds-color-foreground-content-neutral);
   font: inherit;
   text-align: start;
   cursor: pointer;
 }
 
 .dirty-tree-choice[aria-pressed="true"] {
-  border-color: var(--wpds-color-stroke-surface-brand-strong, #3858e9);
-  box-shadow: inset 0 0 0 var(--wpds-border-width-xs, 1px)
-    var(--wpds-color-stroke-surface-brand-strong, #3858e9);
-  background: var(--wpds-color-background-surface-brand, #ecf0fa);
+  border-color: var(--wpds-color-stroke-surface-brand-strong);
+  box-shadow: inset 0 0 0 var(--wpds-border-width-xs)
+    var(--wpds-color-stroke-surface-brand-strong);
+  background: var(--wpds-color-background-surface-brand);
 }
 
 .dirty-tree-choice:disabled {
@@ -727,17 +732,17 @@ body {
 }
 
 .dirty-tree-choice-detail {
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 /* On the pressed answer's tint the quiet colour is too faint to read. */
 .dirty-tree-choice[aria-pressed="true"] .dirty-tree-choice-detail {
-  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+  color: var(--wpds-color-foreground-content-neutral);
 }
 
 .dirty-tree-choice.is-destructive,
 .dirty-tree-choice.is-destructive .dirty-tree-choice-detail {
-  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
+  color: var(--wpds-color-foreground-content-error-weak);
 }
 
 .dirty-tree-error {
@@ -747,27 +752,27 @@ body {
 /* One mail, opened: who it is between, then the message as a reader would
    see it, on the design system's strong surface, or as it was sent. */
 .email-view {
-  padding: var(--wpds-dimension-padding-sm, 8px);
+  padding: var(--wpds-dimension-padding-sm);
 }
 
 .email-view-headers {
-  margin-block-end: var(--wpds-dimension-gap-sm, 8px);
-  font-size: var(--wpds-typography-font-size-sm, 12px);
-  line-height: var(--wpds-typography-line-height-xs, 16px);
+  margin-block-end: var(--wpds-dimension-gap-sm);
+  font-size: var(--wpds-typography-font-size-sm);
+  line-height: var(--wpds-typography-line-height-xs);
 }
 
 .email-view-rendered,
 .email-view-raw {
   min-height: 60vh;
   margin: 0;
-  border-radius: var(--wpds-border-radius-md, 4px);
+  border-radius: var(--wpds-border-radius-md);
 }
 
 .email-view-rendered {
-  padding: var(--wpds-dimension-padding-md, 12px);
-  border: var(--wpds-border-width-xs, 1px) solid
-    var(--wpds-color-stroke-surface-neutral, #dbdbdb);
-  background: var(--wpds-color-background-surface-neutral-strong, #fff);
+  padding: var(--wpds-dimension-padding-md);
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral);
+  background: var(--wpds-color-background-surface-neutral-strong);
 }
 
 .email-view-rendered > pre {
@@ -776,14 +781,14 @@ body {
 }
 
 .email-view-raw {
-  background: var(--wpds-color-background-surface-neutral-weak, #f4f4f4);
-  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+  background: var(--wpds-color-background-surface-neutral-weak);
+  color: var(--wpds-color-foreground-content-neutral);
 }
 
 /* What the window says that is about no one site, above the page: each
    with room under it before the next thing. */
 .window-notice {
-  margin-block-end: var(--wpds-dimension-padding-2xl, 24px);
+  margin-block-end: var(--wpds-dimension-padding-2xl);
 }
 
 /* The last of them in a window with no site has the block's own padding
@@ -794,7 +799,7 @@ body {
 
 /* A site's view, with room under its last panel. */
 .site-view {
-  padding-block-end: var(--wpds-dimension-padding-3xl, 32px);
+  padding-block-end: var(--wpds-dimension-padding-3xl);
 }
 
 /* The terminal, the logs and the mail, under a site's cards (#557). They
@@ -809,9 +814,9 @@ body {
 .log-pane,
 .terminal-pane {
   height: 220px;
-  border-radius: var(--wpds-border-radius-md, 4px);
-  background: var(--wpds-color-background-surface-neutral-weak, #f4f4f4);
-  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+  border-radius: var(--wpds-border-radius-md);
+  background: var(--wpds-color-background-surface-neutral-weak);
+  color: var(--wpds-color-foreground-content-neutral);
 }
 
 /* The same type for everything that is read as code: what a process
@@ -819,11 +824,11 @@ body {
 .log-pane,
 .patch-diff-code,
 .email-view-raw {
-  padding: var(--wpds-dimension-padding-md, 12px);
+  padding: var(--wpds-dimension-padding-md);
   overflow: auto;
-  font-family: var(--wpds-typography-font-family-mono, monospace);
-  font-size: var(--wpds-typography-font-size-md, 13px);
-  line-height: var(--wpds-typography-line-height-sm, 20px);
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-md);
+  line-height: var(--wpds-typography-line-height-sm);
   white-space: pre-wrap;
 }
 
@@ -841,8 +846,8 @@ body {
 /* What an empty pane says of itself is the app speaking, not a process, and
    is in the app's own type. */
 .log-pane-note {
-  font-family: var(--wpds-typography-font-family-body, sans-serif);
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  font-family: var(--wpds-typography-font-family-body);
+  color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 .log-line {
@@ -850,33 +855,33 @@ body {
 }
 
 .log-line.is-fatal {
-  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
+  color: var(--wpds-color-foreground-content-error-weak);
 }
 
 .log-line.is-warning {
-  color: var(--wpds-color-foreground-content-warning-weak, #936300);
+  color: var(--wpds-color-foreground-content-warning-weak);
 }
 
 .log-line.is-deprecated,
 .log-line.is-notice {
-  color: var(--wpds-color-foreground-content-caution-weak, #836a00);
+  color: var(--wpds-color-foreground-content-caution-weak);
 }
 
 .log-line.is-trace,
 .log-stamp {
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 .log-line.is-ready {
-  color: var(--wpds-color-foreground-content-success-weak, #007f30);
-  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+  color: var(--wpds-color-foreground-content-success-weak);
+  font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
 /* A path is one word to a browser, and is there to be copied. */
 .log-path {
   flex: 1 1 240px;
-  font-size: var(--wpds-typography-font-size-xs, 11px);
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  font-size: var(--wpds-typography-font-size-xs);
+  color: var(--wpds-color-foreground-content-neutral-weak);
   overflow-wrap: anywhere;
   user-select: text;
 }
@@ -884,7 +889,7 @@ body {
 /* A command in a sentence, which types itself at the prompt when pressed.
    Named with the link's own class, which says to take the sentence's font. */
 .link-button.command-link {
-  font-family: var(--wpds-typography-font-family-mono, monospace);
+  font-family: var(--wpds-typography-font-family-mono);
 }
 
 /* The mail the site sent: a framed list, one row a message, each row a
@@ -892,34 +897,34 @@ body {
 .mail-list {
   max-height: 220px;
   overflow: auto;
-  border: var(--wpds-border-width-xs, 1px) solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
-  border-radius: var(--wpds-border-radius-md, 4px);
+  border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-md);
 }
 
 .mail-row {
   display: flex;
-  gap: var(--wpds-dimension-gap-sm, 8px);
-  padding: var(--wpds-dimension-padding-sm, 8px) var(--wpds-dimension-padding-md, 12px);
-  cursor: var(--wpds-cursor-control, pointer);
-  font-size: var(--wpds-typography-font-size-sm, 12px);
+  gap: var(--wpds-dimension-gap-sm);
+  padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+  cursor: var(--wpds-cursor-control);
+  font-size: var(--wpds-typography-font-size-sm);
 }
 
 .mail-row + .mail-row {
-  border-block-start: var(--wpds-border-width-xs, 1px) solid var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
+  border-block-start: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
 }
 
 .mail-row:hover {
-  background: var(--wpds-color-background-interactive-neutral-weak-active, #ededed);
+  background: var(--wpds-color-background-interactive-neutral-weak-active);
 }
 
 .mail-row:focus-visible {
-  outline: var(--wpds-border-width-focus, 2px) solid var(--wpds-color-stroke-focus, #3858e9);
-  outline-offset: calc(-1 * var(--wpds-border-width-focus, 2px));
+  outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+  outline-offset: calc(-1 * var(--wpds-border-width-focus));
 }
 
 .mail-when {
   flex: 0 0 180px;
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 .mail-from {
@@ -928,7 +933,7 @@ body {
 
 .mail-subject {
   flex: 1 1 auto;
-  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+  font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
 .mail-from,
@@ -940,7 +945,7 @@ body {
 
 .mail-empty {
   display: block;
-  padding: var(--wpds-dimension-padding-md, 12px);
+  padding: var(--wpds-dimension-padding-md);
 }
 
 /* The window's confirmations (#253, #557): notices stacked in the bottom
@@ -951,21 +956,20 @@ body {
    `body` too, so that what was done inside one is still confirmed. */
 .toast-stack {
   position: fixed;
-  inset-inline-end: var(--wpds-dimension-padding-2xl, 24px);
+  inset-inline-end: var(--wpds-dimension-padding-2xl);
   bottom: 64px;
   z-index: 100001;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: var(--wpds-dimension-gap-sm, 8px);
-  width: min(360px, calc(100vw - 2 * var(--wpds-dimension-padding-2xl, 24px)));
+  gap: var(--wpds-dimension-gap-sm);
+  width: min(360px, calc(100vw - 2 * var(--wpds-dimension-padding-2xl)));
   pointer-events: none;
 }
 
 .toast-stack > * {
   pointer-events: auto;
   overflow-wrap: anywhere;
-  box-shadow: var(--wpds-elevation-md, 0 4px 12px rgba(0, 0, 0, 0.16));
 }
 
 /* The focus is put on the stack when a notice is dismissed, to keep it
@@ -1014,7 +1018,7 @@ body {
 
 .inline-field {
   display: flex;
-  gap: var(--wpds-dimension-gap-sm, 8px);
+  gap: var(--wpds-dimension-gap-sm);
   align-items: flex-end;
 }
 
@@ -1025,12 +1029,12 @@ body {
 
 .card-footer {
   margin-block-start: auto;
-  padding-block-start: var(--wp-ui-card-padding, var(--wpds-dimension-padding-2xl, 24px));
-  padding-inline: var(--wp-ui-card-padding, var(--wpds-dimension-padding-2xl, 24px));
+  padding-block-start: var(--wp-ui-card-padding, var(--wpds-dimension-padding-2xl));
+  padding-inline: var(--wp-ui-card-padding, var(--wpds-dimension-padding-2xl));
 }
 
 .card-footer-content {
-  padding-block: var(--wp-ui-card-padding, var(--wpds-dimension-padding-2xl, 24px));
+  padding-block: var(--wp-ui-card-padding, var(--wpds-dimension-padding-2xl));
 }
 
 /* The pull requests and the attachments of a ticket, as a tree hanging from
@@ -1041,12 +1045,12 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--wpds-dimension-gap-lg, 16px);
+  gap: var(--wpds-dimension-gap-lg);
 }
 
 .ticket-pr {
   position: relative;
-  padding-inline-start: var(--wpds-dimension-gap-lg, 16px);
+  padding-inline-start: var(--wpds-dimension-gap-lg);
 }
 
 .ticket-pr::before,
@@ -1058,15 +1062,15 @@ body {
 }
 
 .ticket-pr::before {
-  top: calc(var(--wpds-typography-line-height-sm, 20px) / 2);
-  width: var(--wpds-dimension-padding-md, 12px);
-  border-top: 1px solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+  top: calc(var(--wpds-typography-line-height-sm) / 2);
+  width: var(--wpds-dimension-padding-md);
+  border-top: 1px solid var(--wpds-color-stroke-surface-neutral);
 }
 
 .ticket-pr:not(:last-child)::after {
-  top: calc(var(--wpds-typography-line-height-sm, 20px) / 2);
-  bottom: calc(-1 * var(--wpds-dimension-gap-lg, 16px));
-  border-inline-start: 1px solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+  top: calc(var(--wpds-typography-line-height-sm) / 2);
+  bottom: calc(-1 * var(--wpds-dimension-gap-lg));
+  border-inline-start: 1px solid var(--wpds-color-stroke-surface-neutral);
 }
 
 .ticket-pr:last-child::before {
@@ -1075,15 +1079,15 @@ body {
 
 .ticket-pr:last-child::after {
   top: 0;
-  width: var(--wpds-dimension-padding-md, 12px);
-  height: calc(var(--wpds-typography-line-height-sm, 20px) / 2);
-  border-inline-start: 1px solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
-  border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
-  border-end-start-radius: var(--wpds-border-radius-md, 4px);
+  width: var(--wpds-dimension-padding-md);
+  height: calc(var(--wpds-typography-line-height-sm) / 2);
+  border-inline-start: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border-end-start-radius: var(--wpds-border-radius-md);
 }
 
 .ticket-pr-id {
-  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+  font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
 /* The create-site dialog (#557). The folder is asked for with a file input,
@@ -1091,7 +1095,7 @@ body {
    a path has no spaces to break at. */
 .create-site-dialog .file-field-control {
   width: 100%;
-  min-height: var(--wpds-dimension-size-md, 32px);
+  min-height: var(--wpds-dimension-size-md);
   font: inherit;
   color: inherit;
 }
@@ -1099,8 +1103,8 @@ body {
 /* The ring the design system's own controls have, where the browser would
    draw its own. */
 .create-site-dialog .file-field-control:focus-visible {
-  outline: var(--wpds-border-width-focus, 2px) solid var(--wpds-color-stroke-focus, #3858e9);
-  outline-offset: var(--wpds-border-width-focus, 2px);
+  outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+  outline-offset: var(--wpds-border-width-focus);
 }
 
 .create-site-dialog .file-field-value {
@@ -1111,10 +1115,10 @@ body {
    library, with its own type. It is given the type the description under
    the folder has, a field away. */
 .create-site-dialog .components-base-control__help {
-  margin-block: var(--wpds-dimension-gap-sm, 8px) 0;
-  font-size: var(--wpds-typography-font-size-sm, 12px);
-  line-height: var(--wpds-typography-line-height-xs, 16px);
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  margin-block: var(--wpds-dimension-gap-sm) 0;
+  font-size: var(--wpds-typography-font-size-sm);
+  line-height: var(--wpds-typography-line-height-xs);
+  color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 /* Its two sentences, one under the other. */
@@ -1136,8 +1140,8 @@ body {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--wpds-dimension-gap-sm, 8px) var(--wpds-dimension-gap-lg, 16px);
-  padding-block: var(--wpds-dimension-padding-md, 12px);
+  gap: var(--wpds-dimension-gap-sm) var(--wpds-dimension-gap-lg);
+  padding-block: var(--wpds-dimension-padding-md);
 }
 
 .ticket-list-row:first-child {
@@ -1149,11 +1153,11 @@ body {
 }
 
 .ticket-list-row + .ticket-list-row {
-  border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
+  border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
 }
 
 .ticket-list-number {
-  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+  font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
 /* The apply card (#557). */
@@ -1177,28 +1181,28 @@ body {
 .step-list {
   list-style: none;
   margin: 0;
-  padding: var(--wpds-dimension-padding-md, 12px) var(--wpds-dimension-padding-lg, 16px);
-  border: 1px solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
-  border-radius: var(--wpds-border-radius-md, 4px);
+  padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+  border: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-md);
   display: flex;
   flex-direction: column;
-  gap: var(--wpds-dimension-gap-xs, 4px);
+  gap: var(--wpds-dimension-gap-xs);
 }
 
 .step-list-step {
   display: flex;
   align-items: center;
-  gap: var(--wpds-dimension-gap-sm, 8px);
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  gap: var(--wpds-dimension-gap-sm);
+  color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 .step-list-step.is-complete,
 .step-list-step.is-current {
-  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+  color: var(--wpds-color-foreground-content-neutral);
 }
 
 .step-list-step.is-current {
-  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+  font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
 .step-list-mark {
@@ -1211,7 +1215,7 @@ body {
 }
 
 .step-list-step.is-complete .step-list-mark {
-  color: var(--wpds-color-foreground-content-success-weak, #007f30);
+  color: var(--wpds-color-foreground-content-success-weak);
 }
 
 /* The checklist a new site is set up by (#557): one row a step, with what
@@ -1222,16 +1226,16 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--wpds-dimension-gap-sm, 8px);
+  gap: var(--wpds-dimension-gap-sm);
 }
 
 .setup-step {
   display: flex;
   align-items: center;
-  gap: var(--wpds-dimension-gap-lg, 16px);
-  padding: var(--wpds-dimension-padding-md, 12px) var(--wpds-dimension-padding-lg, 16px);
-  border: var(--wpds-border-width-xs, 1px) solid var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
-  border-radius: var(--wpds-border-radius-lg, 8px);
+  gap: var(--wpds-dimension-gap-lg);
+  padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+  border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+  border-radius: var(--wpds-border-radius-lg);
 }
 
 .setup-step-mark {
@@ -1239,17 +1243,17 @@ body {
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: var(--wpds-dimension-size-sm, 24px);
-  height: var(--wpds-dimension-size-sm, 24px);
-  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  width: var(--wpds-dimension-size-sm);
+  height: var(--wpds-dimension-size-sm);
+  color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 .setup-step.is-complete .setup-step-mark {
-  color: var(--wpds-color-foreground-content-success-weak, #007f30);
+  color: var(--wpds-color-foreground-content-success-weak);
 }
 
 .setup-step.is-failed .setup-step-mark {
-  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
+  color: var(--wpds-color-foreground-content-error-weak);
 }
 
 .setup-step-body {
@@ -1258,7 +1262,7 @@ body {
 }
 
 .setup-step-label {
-  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+  font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
 .setup-step-action {
@@ -1272,22 +1276,22 @@ body {
 }
 
 .apply-conflict-file {
-  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+  font-weight: var(--wpds-typography-font-weight-emphasis);
   overflow-wrap: anywhere;
 }
 
 .apply-conflict-region {
   display: flex;
   flex-direction: column;
-  gap: var(--wpds-dimension-gap-xs, 4px);
-  padding-inline-start: var(--wpds-dimension-padding-md, 12px);
-  border-inline-start: 2px solid var(--wpds-color-stroke-surface-error, #cc1818);
+  gap: var(--wpds-dimension-gap-xs);
+  padding-inline-start: var(--wpds-dimension-padding-md);
+  border-inline-start: 2px solid var(--wpds-color-stroke-surface-error);
 }
 
 .apply-conflict-lines {
   margin: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: var(--wpds-typography-font-size-xs, 11px);
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-xs);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -1303,5 +1307,5 @@ body {
 }
 
 .change-list li + li {
-  margin-block-start: var(--wpds-dimension-gap-xs, 4px);
+  margin-block-start: var(--wpds-dimension-gap-xs);
 }

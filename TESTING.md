@@ -7,7 +7,7 @@ Everything about tests in this repository: what to run, what the suite is made o
 ```
 npm test                    # the fast suite — layers 1–3, a few seconds
 npm run test:e2e            # the app, driven — layer 4, seconds
-npm run lint                # ESLint over the whole repo
+npm run lint                # ESLint over the whole repo, Stylelint over the window's stylesheet
 ```
 
 `npm test` is the one to run without thinking about it. It touches no network: every suite that needs a Git remote reaches a repository on disk over `file://`.
@@ -210,7 +210,7 @@ A launch that gives the test no window has no screen to attach, so its error car
 
 Three workflows, on every pull request and on push to `trunk`. None needs a secret.
 
-**[`lint.yml`](.github/workflows/lint.yml)** — `eslint . --max-warnings=0` over the whole repo. It installs with `npm ci --ignore-scripts`, so linting never executes the pull request's code.
+**[`lint.yml`](.github/workflows/lint.yml)** — `eslint . --max-warnings=0` over the whole repo, then `stylelint` over `src/renderer/shell.css`, where the rules are about tokens and colours and nothing else: a design-system token that is used has to exist, is not given a value here and is written with no fallback beside it, and a colour is never written by hand. A gap or a font that is not a token passes. `tests/unit/stylelint-config.test.cjs` runs the configuration over styles that must pass and styles that must not. It installs with `npm ci --ignore-scripts`, so linting never executes the pull request's code.
 
 **[`unit-tests.yml`](.github/workflows/unit-tests.yml)** — layers 1–3 on macOS and Windows, and on each platform **twice**: once on the system Node pinned in `.nvmrc`, once on the Node that Electron bundles. That second pass is not redundant. Child processes in this app run on Electron's own Node, and the two versions are set independently and have drifted before (#37/#46).
 

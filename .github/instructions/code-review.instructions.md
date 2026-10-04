@@ -55,7 +55,7 @@ Where the tool allows it, run this pass with fresh context — a subagent given 
 
 ## Scope
 
-Review **judgement**, not style. ESLint (`eslint.config.mjs`, `npm run lint`) already covers formatting, unused variables, JSDoc, React hooks and the rest of the mechanical layer. Repeating those here buries the findings that matter. When style and process nits share space with substantive findings, authors learn to skim past them — and the substantive findings go with them.
+Review **judgement**, not style. ESLint (`eslint.config.mjs`, `npm run lint`) already covers formatting, unused variables, JSDoc, React hooks and the rest of the mechanical layer, and Stylelint (`stylelint.config.mjs`, the same command) covers the window's stylesheet: tokens that exist, written bare, and no colour written by hand. Repeating those here buries the findings that matter. When style and process nits share space with substantive findings, authors learn to skim past them — and the substantive findings go with them.
 
 Five dimensions, in priority order: **architecture · security · performance · cross-platform · tests**.
 
