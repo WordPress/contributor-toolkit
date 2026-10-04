@@ -206,6 +206,10 @@ test( 'an update asks before it resets edits in the tree: cancelling keeps them,
 	expect( ( await ui.paintOf( saveChoice ) ).border ).toBe( brand );
 	expect( await ui.paintOf( discardChoice ) ).toMatchObject( { text: wrong } );
 	expect( ( await ui.paintOf( discardChoice ) ).border ).not.toBe( brand );
+	// INVARIANT — what the chosen answer goes on to say is in the full text
+	// colour: on the chosen answer's tint the quiet one is too faint to read.
+	expect( ( await ui.paintOf( saveChoice.getByText( /nothing is sent to Trac$/ ) ) ).text )
+		.toBe( await ui.tokenColour( page, 'var(--wpds-color-foreground-content-neutral)' ) );
 
 	// INVARIANT — the button says what the chosen answer will do, and
 	// dismissing the dialog does none of it: no confirmation asked, the edit

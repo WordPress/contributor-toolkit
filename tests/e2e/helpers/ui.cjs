@@ -415,17 +415,26 @@ async function inDocumentOrder( page, locators ) {
  * an assertion says "painted with this token" and holds whatever value the
  * design system gives it.
  *
+ * A token the window does not have is refused. Left alone it would compute
+ * to the colour the probe inherits, which is the page's text colour, and an
+ * assertion with a misspelled name would then pass against anything painted
+ * in that.
+ *
  * @param {Object} page
  * @param {string} expression The token, written `var(--wpds-…)`.
  * @return {Promise<string>} The colour, e.g. `rgb(0, 128, 48)`.
  */
 function tokenColour( page, expression ) {
 	return page.evaluate( ( value ) => {
+		const name = /^var\((--[\w-]+)\)$/.exec( value )?.[ 1 ];
 		const probe = document.createElement( 'span' );
 		probe.style.color = value;
 		document.body.appendChild( probe );
-		const colour = window.getComputedStyle( probe ).color;
+		const style = window.getComputedStyle( probe );
+		const known = Boolean( name && style.getPropertyValue( name ).trim() );
+		const colour = style.color;
 		probe.remove();
+		if ( ! known ) throw new Error( `This window has no token ${ value }.` );
 		return colour;
 	}, expression );
 }

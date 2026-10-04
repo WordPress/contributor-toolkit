@@ -416,11 +416,12 @@ body {
 }
 
 /* What went wrong, said in a line of its own where a notice would be too
-   much: under the sentence it follows, and not run on from it. */
+   much: under the sentence it follows, and not run on from it. The colour
+   is `.problem-text`'s. */
 .error-text {
   display: block;
   margin-block-start: var(--wpds-dimension-gap-xs, 4px);
-  color: var(--wpds-color-foreground-content-error, #cc1818);
+  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
 }
 
 .path-meta {
@@ -727,6 +728,11 @@ body {
 
 .dirty-tree-choice-detail {
   color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+/* On the pressed answer's tint the quiet colour is too faint to read. */
+.dirty-tree-choice[aria-pressed="true"] .dirty-tree-choice-detail {
+  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
 }
 
 .dirty-tree-choice.is-destructive,

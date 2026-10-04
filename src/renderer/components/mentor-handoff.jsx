@@ -70,15 +70,17 @@ export function MentorHandoff({ wporg, saveDisabled, onSave }) {
           <Text variant="body-sm" className="muted-label">
             {wporg.event ? <>The patch will say it was written at <strong>{wporg.event}</strong>.</> : 'No event on the patch.'}
           </Text>
-          <Button
-            variant="link"
-            onClick={() => {
-              setHandleInput(wporg.handle);
-              setEventInput(wporg.event || '');
-              setHandleError('');
-              setEditingHandle(true);
-            }}
-          >Change these</Button>
+          <Text variant="body-sm">
+            <Button
+              variant="link"
+              onClick={() => {
+                setHandleInput(wporg.handle);
+                setEventInput(wporg.event || '');
+                setHandleError('');
+                setEditingHandle(true);
+              }}
+            >Change these</Button>
+          </Text>
         </>
       ) : (
         <>

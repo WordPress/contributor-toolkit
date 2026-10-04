@@ -125,7 +125,7 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
             <Spinner />
             <Text variant="body-sm" className="muted-label">Waiting for you to finish in the browser…</Text>
           </Stack>
-          <Button variant="link" onClick={pr.cancelSignIn}>Cancel</Button>
+          <Text variant="body-sm"><Button variant="link" onClick={pr.cancelSignIn}>Cancel</Button></Text>
         </>
       );
     }
@@ -234,7 +234,7 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
           <Text variant="body-sm" className="muted-label">
             Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.
           </Text>
-          <Button variant="link" onClick={pr.askAgain}>Show this again</Button>
+          <Text variant="body-sm"><Button variant="link" onClick={pr.askAgain}>Show this again</Button></Text>
         </>
       );
     }
@@ -251,7 +251,7 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
         </Text>
         <Text variant="body-sm" className="muted-label">{project.cards.signInCannot}</Text>
         <Button variant="primary" onClick={pr.startSignIn}>Sign in with GitHub</Button>
-        <Button variant="link" onClick={pr.decline}>Not now</Button>
+        <Text variant="body-sm"><Button variant="link" onClick={pr.decline}>Not now</Button></Text>
       </>
     );
   };
