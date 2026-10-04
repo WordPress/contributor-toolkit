@@ -20,7 +20,10 @@ import { updateHeldReason } from '../site-menu.cjs';
 // the flags that keep a second chain from starting. `terminalStateRef`,
 // `terminalKillRef`, `markTerminalRunning` and `writeToTerminal` are the
 // terminal: the chain holds its lock, writes its progress there and leaves
-// there what Ctrl+C should stop. `watchStateRef`, `watchWaitersRef`,
+// there what Ctrl+C should stop. `refuseInTerminal` says there that a
+// command is already running, and brings the terminal up to be read (#558);
+// `revealTerminal` brings it up for a failure that is only printed there.
+// `watchStateRef`, `watchWaitersRef`,
 // `pauseWatcher`, `resumeWatcher` and `watchRebuildsOnStart` are the build
 // watch, which is paused for the reset and brought back after, and which on
 // some projects does the update's build (#507). `loadStatus` and
@@ -35,7 +38,7 @@ import { updateHeldReason } from '../site-menu.cjs';
 // Not here: the date of the site's trunk and the marker that an update is
 // incomplete. Both are read from the site's status with everything else the
 // status says, and this hook only asks for the status to be read again.
-export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote }) {
+export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote }) {
   const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
   // Who runs the update's build: null for the chain itself, 'resumed-watch'
   // when the watch paused for the reset rebuilds from scratch as it resumes and
@@ -179,7 +182,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
   const beginTrunkUpdate = async () => {
     const state = terminalStateRef.current;
     if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      refuseInTerminal();
       return;
     }
     // A trunk reset rewrites the whole tree at once; a live watch would try to
@@ -200,7 +203,11 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
     setUpdateState('fetching');
     window.api.updateTrunk(sitePath, ({ data }) => writeToTerminal(data), (res) => {
       if (!res || !res.ok) {
-        // The main process already wrote the failure message to the stream.
+        // The main process already wrote the failure message to the stream,
+        // and that is the only place it is: the terminal is brought up to be
+        // read, or an update that could not fetch looks like one that was
+        // never asked for.
+        revealTerminal();
         finishUpdate();
         return;
       }
@@ -289,7 +296,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
   const retryInstallAndBuild = async () => {
     const state = terminalStateRef.current;
     if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      refuseInTerminal();
       return;
     }
     // Same as beginTrunkUpdate: install + a full build need the tree to

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { terminalFont, terminalTheme, tokenName, TERMINAL_READABILITY } from '../terminal-theme.cjs';
+import { terminalGrid } from '../tray.cjs';
 
 // What the terminal is painted with, read off the design system's tokens
 // where the terminal stands (#557). The terminal takes its colours and its
@@ -44,9 +45,10 @@ const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 // where whoever holds the lock leaves the function Ctrl+C calls.
 //
 // `terminalContainerRef` goes on the element the terminal is drawn in, and
-// `isActive` says whether this site is the one on screen: the terminal is
-// made when the site's view mounts and put on the page the first time the
-// site is shown.
+// `shown` says whether that element is on screen, which it is while this
+// site is the open one and the tray is showing its terminal (#558): the
+// terminal is made when the site's view mounts, put on the page the first
+// time it is shown, and fitted to its element whenever that changes size.
 // `writeToTerminal` prints, and `prefillTerminalCommand` puts a command at the
 // prompt without running it. Every function returned keeps its identity for
 // the life of the component. The effect that creates the xterm instance
@@ -55,7 +57,7 @@ const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 // change, it would dispose the terminal and make another, scrollback and all.
 // None of them depends on the three runners, which may change as often as
 // they like.
-export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCurrent, isActive }) {
+export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCurrent, shown }) {
   // Read through a ref by the terminal's command handlers rather than closed
   // over: the xterm instance is created by an effect that depends on
   // `printHelp`, so a new array identity here would otherwise dispose and
@@ -66,7 +68,13 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
   useLayoutEffect(() => {
     allowedScriptsRef.current = allowedScripts;
   }, [allowedScripts]);
-  const terminalContainerRef = useRef(null);
+  // The element the terminal is drawn in, kept as state and not as a ref:
+  // it is in the tray (#558), which the window draws and this site's view
+  // fills, so it arrives a render after the view does. The effects that put
+  // the terminal on the page and watch its size have to run when it comes.
+  // The terminal itself does not wait for it: what a site prints as its view
+  // mounts has to have somewhere to go.
+  const [container, setContainer] = useState(null);
   const terminalRef = useRef(null);
   const terminalStickRef = useRef(true);
   const terminalInputHandlerRef = useRef(() => {});
@@ -299,19 +307,17 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
   }, [handleTerminalData]);
 
   useEffect(() => {
-    const container = terminalContainerRef.current;
-    if (!container) return undefined;
     const term = new Terminal({
       rows: 12,
       cursorBlink: true,
       scrollback: 4000,
       convertEol: false,
-      ...TERMINAL_READABILITY,
-      ...readTerminalLook(container)
+      ...TERMINAL_READABILITY
     });
     terminalRef.current = term;
-    // Not opened here: see the effect below. Everything written before it
-    // opens is kept in the terminal's buffer and drawn when it does.
+    // Not opened here, and not given its colours and font here: see the
+    // effect below. Everything written before it opens is kept in the
+    // terminal's buffer and drawn when it does.
     term.write(normalizeForTerminal('WordPress npm helper terminal.\n'));
     printHelp();
     showPrompt(false);
@@ -330,28 +336,64 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     };
   }, [normalizeForTerminal, printHelp, showPrompt]);
 
-  // The terminal is put on the page the first time its site is the one on
-  // screen, not when the view mounts. xterm sets the spacing between
-  // characters from the width of a glyph it measures in the document as it
-  // opens and as it draws a row, and every site's view mounts behind
-  // `display: none` (the selected site is only chosen by an effect after
-  // that), where a glyph measures zero: the spacing came out a whole cell
-  // wide, and any row drawn before the site was shown stayed that way, every
-  // letter a cell apart and each line cut in half.
+  // As many columns and rows as its element has room for (#558). The tray is
+  // as wide as the page and as tall as it is dragged, so the terminal is no
+  // longer the eighty columns by twelve rows it was on the page.
   //
-  // After every render, and not only when `isActive` changes: the effect
-  // above can make the terminal anew, and the new one has to be opened too.
-  // Once a terminal has an element there is nothing left to do here, and
-  // xterm would do nothing with a second call either.
+  // A cell is measured off what the terminal has drawn: a row's height, and
+  // the rows' width over the columns they hold. The scrollbar's width is
+  // taken off the room first, where the platform draws one beside the rows.
+  // Hidden, everything measures zero and the terminal is left as it is.
+  const fitTerminal = useCallback(() => {
+    const term = terminalRef.current;
+    if (!term || !term.element || !container) return;
+    const rows = container.querySelector('.xterm-rows');
+    const viewport = container.querySelector('.xterm-viewport');
+    if (!rows || !rows.firstElementChild || !viewport) return;
+    const grid = terminalGrid({
+      width: container.clientWidth - (viewport.offsetWidth - viewport.clientWidth),
+      height: container.clientHeight,
+      cellWidth: rows.getBoundingClientRect().width / term.cols,
+      cellHeight: rows.firstElementChild.getBoundingClientRect().height
+    });
+    if (grid && (grid.cols !== term.cols || grid.rows !== term.rows)) term.resize(grid.cols, grid.rows);
+  }, [container]);
+
+  // The terminal is put on the page the first time it is shown, not when the
+  // view mounts. xterm sets the spacing between characters from the width of
+  // a glyph it measures in the document as it opens and as it draws a row,
+  // and every site's view mounts behind `display: none` (the selected site is
+  // only chosen by an effect after that, and the tray starts closed), where a
+  // glyph measures zero: the spacing came out a whole cell wide, and any row
+  // drawn before the terminal was shown stayed that way, every letter a cell
+  // apart and each line cut in half.
+  //
+  // After every render, and not only when `shown` changes: the effect above
+  // can make the terminal anew, and the new one has to be opened too. Once a
+  // terminal has an element there is nothing left to do here, and xterm
+  // would do nothing with a second call either.
   useEffect(() => {
     const term = terminalRef.current;
-    const container = terminalContainerRef.current;
-    if (!isActive || !term || !container || term.element) return;
+    if (!shown || !term || !container || term.element) return;
+    // Its colours and font are read where it stands, just before it is drawn
+    // there, and given to it as the values it takes.
+    Object.assign(term.options, readTerminalLook(container));
     term.open(container);
+    fitTerminal();
   });
 
+  // Fitted again whenever its element changes size: the tray dragged, the
+  // window resized, and the element coming back on screen, which is a change
+  // from no size to one.
+  useEffect(() => {
+    if (!container) return undefined;
+    const observer = new ResizeObserver(() => fitTerminal());
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [container, fitTerminal]);
+
   return {
-    terminalContainerRef,
+    terminalContainerRef: setContainer,
     terminalStateRef,
     terminalKillRef,
     terminalRunning,

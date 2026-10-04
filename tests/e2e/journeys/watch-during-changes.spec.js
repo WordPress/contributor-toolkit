@@ -108,6 +108,8 @@ test( 'on Core a ticket switch and a patch of source files are left to the runni
 	const site = await makeSite( session, { origin: true } );
 	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const runs = await standIn( app, page );
 	const said = ( text ) => ui.toast( page, text );
 
@@ -196,6 +198,8 @@ test( 'where the watcher rebuilds everything as it starts, a pull request\'s che
 	fs.writeFileSync( built, '' );
 	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const runs = await standIn( app, page );
 	const said = ( text ) => ui.toast( page, text );
 

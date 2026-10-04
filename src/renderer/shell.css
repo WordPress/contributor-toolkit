@@ -802,21 +802,25 @@ body {
   padding-block-end: var(--wpds-dimension-padding-3xl);
 }
 
-/* The terminal, the logs and the mail, under a site's cards (#557). They
-   move to the tray (#558); until then they are the design system's surface
-   and its type, as the tray will have them. */
+/* The logs and the mail, under a site's cards (#557). They follow the
+   terminal to the tray (#558); until then they are the design system's
+   surface and its type, as the tray has them. */
 .site-panel-title {
   margin: 0;
 }
 
 /* What a process printed: the design system's weak surface, in its
-   monospace, as tall as a dozen lines, and scrolled. */
+   monospace. */
 .log-pane,
 .terminal-pane {
-  height: 220px;
-  border-radius: var(--wpds-border-radius-md);
   background: var(--wpds-color-background-surface-neutral-weak);
   color: var(--wpds-color-foreground-content-neutral);
+}
+
+/* On the page a pane is as tall as a dozen lines, rounded, and scrolled. */
+.log-pane {
+  height: 220px;
+  border-radius: var(--wpds-border-radius-md);
 }
 
 /* The same type for everything that is read as code: what a process
@@ -836,11 +840,94 @@ body {
   height: 140px;
 }
 
-/* The terminal draws its own rows, eighty columns of them, and scrolls
-   sideways where its column is narrower. */
+/* The tray along the bottom of the window (#558), between the page and the
+   footer. It takes its height from the page above it, which is the part that
+   scrolls, so nothing on the page is ever under it. How tall it is is the
+   component's to say, as a property of the tray's own.
+
+   Closed, it is hidden and not gone: every site's terminal is in it. A
+   `display` given here would outrank the `hidden` attribute, hence the rule
+   that says it again. */
+.app-tray {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  height: var(--app-tray-height);
+  min-height: 0;
+  overflow: hidden;
+  border-top: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
+  background: var(--wpds-color-background-surface-neutral-strong);
+}
+
+.app-tray[hidden],
+.tray-site[hidden],
+.tray-panel[hidden] {
+  display: none;
+}
+
+/* Its top edge, to drag: a strip along the top of the tray, above its
+   heading's own padding, so that it is tall enough to take hold of and
+   covers nothing that is pressed. */
+.app-tray-resize {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 1;
+  height: var(--wpds-dimension-gap-sm);
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.app-tray-resize:focus-visible {
+  outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+  outline-offset: calc(-1 * var(--wpds-border-width-focus));
+}
+
+.app-tray-header {
+  flex: none;
+  padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-2xl);
+}
+
+.app-tray-title {
+  margin: 0;
+}
+
+/* What the open site put in the tray fills what is left of it, and each
+   level down is a column that does the same. */
+.app-tray-body,
+.tray-site,
+.tray-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* The terminal takes the room, edge to edge, and draws its own rows in it:
+   as many columns and rows as fit (use-site-terminal.jsx). Its text starts
+   where the tray's heading does. */
 .terminal-pane {
-  overflow-x: auto;
-  overflow-y: hidden;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-block-start: var(--wpds-dimension-padding-sm);
+  padding-inline-start: var(--wpds-dimension-padding-2xl);
+}
+
+.terminal-screen {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* What the tray says under what it holds. */
+.tray-notes {
+  flex: none;
+  padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-2xl);
 }
 
 /* What an empty pane says of itself is the app speaking, not a process, and
@@ -957,7 +1044,7 @@ body {
 .toast-stack {
   position: fixed;
   inset-inline-end: var(--wpds-dimension-padding-2xl);
-  bottom: 64px;
+  bottom: calc(64px + var(--app-tray-inset));
   z-index: 100001;
   display: flex;
   flex-direction: column;
@@ -982,6 +1069,10 @@ body {
    notice's own button has would otherwise be under the notice above it. */
 :root {
   --wp-ui-tooltip-z-index: 1000000;
+
+  /* How much of the window's foot the open tray takes (#558). The tray says
+     so as it opens and as it is dragged; closed, it takes none. */
+  --app-tray-inset: 0px;
 }
 
 @media (prefers-reduced-motion: reduce) {

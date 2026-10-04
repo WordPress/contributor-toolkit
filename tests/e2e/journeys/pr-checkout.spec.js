@@ -243,6 +243,8 @@ test( 'switching tickets does not take over a running terminal command', async (
 	write( site.dir, 'package.json', JSON.stringify( { name: 'e2e-fixture-site', version: '1.0.0', scripts: { test: "node -e \"require('fs').writeFileSync('build/terminal-started', 'ready'); setTimeout(() => {}, 60000)\"" } } ) );
 	commitFiles( site.dir, [ 'package.json' ], 'terminal script fixture' );
 	const { page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	await ui.linkTicket( page, TICKET );
 	await expect( ui.unlinkButton( page ) ).toBeEnabled();
 	const terminal = ui.terminalInput( page );

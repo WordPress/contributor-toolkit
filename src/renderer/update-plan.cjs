@@ -100,7 +100,7 @@ const STATE_TO_STEP = { fetching: 'fetch', installing: 'install', building: 'bui
 const UPDATE_STEP_LABELS = {
 	fetch: { pending: 'Fetch and reset to trunk', current: 'Fetching and resetting to trunk…', complete: 'Fetched and reset to trunk' },
 	install: { pending: 'Install dependencies', current: 'Dependencies changed — installing the difference…', complete: 'Dependencies installed', skipped: SKIP_INSTALL_MESSAGE },
-	build: { pending: 'Rebuild', current: 'Rebuilding — output in the Terminal below', complete: 'Rebuilt' }
+	build: { pending: 'Rebuild', current: 'Rebuilding — output in the Terminal', complete: 'Rebuilt' }
 };
 
 /**

@@ -73,7 +73,7 @@ const PROJECT_TYPES = {
 			cloneLabel: 'Download WordPress development version',
 			cloneDescription: 'Clone the WordPress develop repository.',
 			buildDescription: 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
-			builtDescription: 'Built. Edited files in src/ since? Run npm run build in the Terminal below so the site picks them up — updates and applied patches rebuild on their own.',
+			builtDescription: 'Built. Edited files in src/ since? Run npm run build in the Terminal so the site picks them up — updates and applied patches rebuild on their own.',
 			serverDescription: 'Launch the development server once to complete the WordPress setup wizard.'
 		},
 
@@ -209,7 +209,7 @@ const PROJECT_TYPES = {
 			cloneLabel: 'Download Gutenberg',
 			cloneDescription: 'Clone the Gutenberg repository.',
 			buildDescription: 'Compile the Gutenberg packages. Later updates rebuild automatically.',
-			builtDescription: 'Built. Edited a package since? Run npm run build in the Terminal below so the site picks it up; updates rebuild on their own.',
+			builtDescription: 'Built. Edited a package since? Run npm run build in the Terminal so the site picks it up; updates rebuild on their own.',
 			serverDescription: 'Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.'
 		},
 

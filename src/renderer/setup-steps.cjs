@@ -208,11 +208,11 @@ function setupStepCopy(flags = {}, setup = getProjectType().setup) {
 	if (state.install.done) {
 		// Once done, this button never re-enables (#182), so the step says where a
 		// later install lives rather than leaving a dead control unexplained.
-		installDescription = 'Installed. Added a dependency to package.json since? Run npm install in the Terminal below.';
+		installDescription = 'Installed. Added a dependency to package.json since? Run npm install in the Terminal.';
 	} else if (state.install.failed) {
 		// A failure the contributor did not start (the chain runs install on its
 		// own now) has to say where the evidence is, or "Failed" is all they get.
-		installDescription = 'The install did not finish. Its output is in the Terminal below — retry when you have read it.';
+		installDescription = 'The install did not finish. Its output is in the Terminal — retry when you have read it.';
 	}
 
 	let buildLabel = 'Run full build';
@@ -223,7 +223,7 @@ function setupStepCopy(flags = {}, setup = getProjectType().setup) {
 	if (hasBuilt) {
 		buildDescription = setup.builtDescription;
 	} else if (state.build.failed) {
-		buildDescription = 'The build did not finish. Its output is in the Terminal below — retry when you have read it.';
+		buildDescription = 'The build did not finish. Its output is in the Terminal — retry when you have read it.';
 	}
 
 	return { installLabel, installDescription, buildLabel, buildDescription };

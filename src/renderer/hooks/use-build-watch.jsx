@@ -141,6 +141,8 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
       args: plan.watch.args,
       track: false,
       mirrorToNpm: false,
+      // The watcher prints in its own log, whatever its script is called.
+      outputInTerminal: false,
       onStart: (runId) => {
         // Stopped before the spawn resolved: this run must not be recorded as
         // the live watcher, and its process would otherwise outlive the stop.
@@ -212,6 +214,9 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
       appendWatch('No completed build found — running npm run build first…\n');
       runScript('build', {
         mirrorToNpm: false,
+        // It prints in the watch's log, and that is where its failure says
+        // to look: the terminal is not brought up for it.
+        outputInTerminal: false,
         onLog: (chunk) => { appendWatch(chunk); },
         onDone: ({ code }) => {
           markTerminalRunning(false);

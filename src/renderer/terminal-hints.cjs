@@ -48,4 +48,28 @@ function computeTerminalBusy(flags = {}) {
 	);
 }
 
-module.exports = { computeTerminalBusy };
+/**
+ * Whether the end of an install or a build should bring the terminal up
+ * (#558).
+ *
+ * The terminal is in a tray that is closed until it is asked for, and the
+ * page says of a run that failed that its output is in the Terminal. So a
+ * run that ended badly, and printed there, puts the terminal on screen.
+ *
+ * Not a run that was asked to stop, by Ctrl+C or by a button on the page:
+ * that is not a failure, whatever the kill left it with, which is no code at
+ * all on macOS and Linux and a code of its own on Windows. And not a run
+ * whose output is somewhere else, as the build that runs ahead of the watch
+ * prints in the watch's log.
+ *
+ * @param {Object}      run
+ * @param {number|null} run.code               What the run exited with; -1 for one that never started.
+ * @param {boolean}     [run.outputInTerminal] The run printed in the terminal.
+ * @param {boolean}     [run.stopRequested]    The run was asked to stop.
+ * @return {boolean} True when the terminal should be shown.
+ */
+function runFailedInTerminal({ code, outputInTerminal = true, stopRequested = false }) {
+	return code !== 0 && outputInTerminal && !stopRequested;
+}
+
+module.exports = { computeTerminalBusy, runFailedInTerminal };

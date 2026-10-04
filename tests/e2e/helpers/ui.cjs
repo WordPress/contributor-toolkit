@@ -162,10 +162,36 @@ const processMenuButton = ( page, label ) => page.getByRole( 'button', { name: l
 // In the page's header.
 const reviewChangesButton = ( page ) => page.getByRole( 'button', { name: 'Review & submit changes', exact: true } );
 const retryInstallButton = ( page ) => page.getByRole( 'button', { name: 'Retry install & build', exact: true } );
+// --- The tray along the bottom of the window -------------------------------
+//
+// The tray is the window's and holds one thing at a time, for the site that
+// is open (#558). The footer has a button for each thing it can hold, pressed
+// while that one is showing, and the tray is named for what it holds.
+const trayToggle = ( page, name ) => page.getByRole( 'button', { name: `Toggle ${ name }`, exact: true } );
+const tray = ( page, name ) => page.getByRole( 'complementary', { name, exact: true } );
+
+/**
+ * Opens a tray, unless it is the one already open, and waits for it.
+ *
+ * A journey that reads the site's terminal starts with this: the tray is
+ * closed when the window opens, and what is in a closed tray is not on screen.
+ *
+ * @param {Object} page
+ * @param {string} name The tray's heading, 'Terminal'.
+ * @return {Promise<Object>} The tray's locator.
+ */
+async function openTray( page, name ) {
+	const toggle = trayToggle( page, name );
+	if ( ( await toggle.getAttribute( 'aria-pressed' ) ) !== 'true' ) await toggle.click();
+	await tray( page, name ).waitFor();
+	return tray( page, name );
+}
+
 // A command offered in the hints under the terminal. It is a button only while
 // the site is built and nothing is running; the rest of the time it is plain
-// text, or not there.
-const terminalHint = ( page, command ) => card( page, 'Terminal' ).getByRole( 'button', { name: command, exact: true } );
+// text, or not there. Under the terminal means in the tray, so it is on screen
+// only while the tray shows the terminal.
+const terminalHint = ( page, command ) => tray( page, 'Terminal' ).getByRole( 'button', { name: command, exact: true } );
 // Where keys go when the site's terminal is typed in. What the terminal shows
 // is not here: it has no role, and the one journey that reads it says how.
 const terminalInput = ( page ) => page.getByRole( 'textbox', { name: 'Terminal input' } );
@@ -480,6 +506,9 @@ module.exports = {
 	retryInstallButton,
 	terminalInput,
 	terminalHint,
+	trayToggle,
+	tray,
+	openTray,
 	logTab,
 	card,
 	ticketField,

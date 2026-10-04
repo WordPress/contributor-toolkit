@@ -138,10 +138,10 @@ const shots = [
 		slug: 'terminal',
 		tier: 'fixture',
 		variant: 'seeded',
-		target: (page) => ui.card(page, 'Terminal'),
+		target: (page) => ui.tray(page, 'Terminal'),
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
-			await ui.card(page, 'Terminal').waitFor();
+			await ui.openTray(page, 'Terminal');
 		}
 	},
 	{
