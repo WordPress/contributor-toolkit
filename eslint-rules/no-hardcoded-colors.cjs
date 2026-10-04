@@ -9,17 +9,26 @@
 // `var()`, and may not spell a colour out.
 //
 // What it reads is strings: a literal, or the fixed parts of a template. It
-// sees the two ways CSS spells a colour that no English sentence does by
-// accident, a hex value and a colour function. A colour's name, `red` or
-// `white`, is a word like any other in a string and is not looked for.
+// sees the two ways CSS spells a colour out: a hex value and a function that
+// takes a colour's channels. It does not see a colour's name, `red` or
+// `white`, which is a word like any other in a string; a colour put together
+// from pieces; or one in the text between two tags, which paints nothing.
+//
+// A rule of its own and not a selector given to `no-restricted-syntax`, which
+// could find the same nodes: the message names what was found, and the two
+// patterns are tested where they are written.
 
 // `#` and then 3, 4, 6 or 8 hex digits, and no more of a word on either side.
-// The lengths are CSS's own, so a ticket reference of five digits is not one.
-// A `#` that follows a word or an `&` is a fragment or an entity.
-const HEX_COLOR = /(?<![\w&])#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})(?![\w-])/i;
+// The lengths are CSS's own, so a Trac ticket's five digits are not a colour.
+// A reference of three or four digits written out in a string is one, as far
+// as this can tell: `#607` is a grey. Those are put together from the number
+// (`#%d`), which is how a translated string has to be built anyway.
+// A `#` that follows a word, an `&` or a `/` is a fragment or an entity.
+const HEX_COLOR = /(?<![\w&/])#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})(?![\w-])/i;
 
-// The functions that take a colour's channels. `color-mix()` is not among
-// them: what it mixes is given to it, and can be tokens.
+// The functions that take a colour's channels, as part of no longer word.
+// `color-mix()` is not among them: what it mixes is given to it, and can be
+// tokens.
 const COLOR_FUNCTION = /(?<![\w-])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(/i;
 
 /**
@@ -40,16 +49,18 @@ module.exports = /** @type {import('eslint').Rule.RuleModule} */ ( {
 	meta: {
 		type: 'problem',
 		docs: {
-			description: 'Disallow a colour written as a value where the design system has a token',
+			description: 'Disallow a colour written out as a value in a string',
 		},
 		schema: [],
 		messages: {
 			hardcoded:
-				'{{ color }} is a colour written by hand. Paint with one of the design system\'s colour tokens, from a class in src/renderer/shell.css.',
+				'{{ color }} reads as a colour written by hand. Use one of the design system\'s colour tokens: from a class in src/renderer/shell.css, or as a `var()` string where a library is handed the value. If it is a number someone reads, build it from the number.',
 		},
 	},
 	create( context ) {
 		const check = ( node, text ) => {
+			// A number, a pattern, and a template's text that cannot be read as
+			// a string are not strings.
 			if ( typeof text !== 'string' ) return;
 			const color = hardcodedColor( text );
 			if ( color ) context.report( { node, messageId: 'hardcoded', data: { color } } );

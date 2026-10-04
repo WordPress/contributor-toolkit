@@ -39,17 +39,29 @@ tester.run( 'no-hardcoded-colors', rules[ 'no-hardcoded-colors' ], {
 		"const format = '#%d';",
 		// A fragment and an entity are not colours, whatever their letters.
 		"const link = 'https://example.org/page#fade';",
+		"const anchor = 'https://example.org/handbook/#add';",
 		"const entity = '&#128;';",
-		// A word that only starts like a function.
-		"const label = 'Calibrated(tm)';",
-		// A number is not a string, and a comment is not code.
+		// A word that only ends like a function.
+		"const label = 'Collab(tm)';",
+		"const mixed = 'color-mix(in oklab, var(--wpds-color-stroke-surface-warning), transparent)';",
+		// The text of a template that cannot be read as a string is not one.
+		'const raw = String.raw`\\unicode #fff`;',
+		// A number is not a string, a comment is not code, and a pattern that
+		// looks for a colour does not paint with one.
 		'const count = 0xfff; // #fff',
+		'const looksForOne = / #fff$/;',
 	],
 	invalid: [
 		{ code: "const text = '#1d2327';", errors: [ { messageId: 'hardcoded', data: { color: '#1d2327' } } ] },
 		{ code: "const border = '1px solid #ddd';", errors: [ { messageId: 'hardcoded', data: { color: '#ddd' } } ] },
 		{ code: "const faint = '#0000';", errors: [ { messageId: 'hardcoded', data: { color: '#0000' } } ] },
 		{ code: "const veil = '#11111180';", errors: [ { messageId: 'hardcoded', data: { color: '#11111180' } } ] },
+		{ code: "const loud = '#FFF';", errors: [ { messageId: 'hardcoded', data: { color: '#FFF' } } ] },
+		{ code: "const rule = 'color:#333';", errors: [ { messageId: 'hardcoded', data: { color: '#333' } } ] },
+		{ code: "const fade = 'linear-gradient(#fff,#000)';", errors: [ { messageId: 'hardcoded', data: { color: '#fff' } } ] },
+		// A reference of three or four digits, written out, cannot be told from
+		// a colour. It is put together from its number instead.
+		{ code: "const note = 'Fixed in #607';", errors: [ { messageId: 'hardcoded', data: { color: '#607' } } ] },
 		{ code: "const wash = 'rgba(46,160,67,0.18)';", errors: [ { messageId: 'hardcoded', data: { color: 'rgba(…)' } } ] },
 		{ code: "const tint = 'HSL(210 50% 40%)';", errors: [ { messageId: 'hardcoded', data: { color: 'HSL(…)' } } ] },
 		{ code: 'const edge = `2px solid #3858e9`;', errors: [ { messageId: 'hardcoded' } ] },
@@ -68,6 +80,8 @@ tester.run( 'no-inline-styles', rules[ 'no-inline-styles' ], {
 		'const node = <Terminal styleName="light" />;',
 		// A stylesheet is a `style` element, not a `style` on one.
 		'const node = <style>{ css }</style>;',
+		// An attribute in a namespace is another attribute.
+		'const node = <svg xml:style="x" />;',
 	],
 	invalid: [
 		{ code: 'const node = <div style={ { display: "flex", gap: 8 } } />;', errors: [ { messageId: 'inline' } ] },
