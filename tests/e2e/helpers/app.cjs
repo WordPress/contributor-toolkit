@@ -11,9 +11,9 @@
 //      goes through TOOLKIT_USER_DATA_DIR — the `!app.isPackaged` hook in
 //      src/main.js:137 — and `start()` refuses to launch without one.
 //   2. Teardown always terminates. `close()` is known to hang on Windows in
-//      Electron apps that keep child processes alive, which this one does, and
-//      on macOS in an app whose launch never finished. An app that does not end
-//      when asked is ended.
+//      Electron apps that keep child processes alive, which this one does, so
+//      it is given a limit; and an app still running at that limit is ended by
+//      force, because Playwright waits for it again when the worker stops.
 //   3. A failure leaves evidence. The trace is Playwright's; the screenshot and
 //      the persisted settings.json are attached here, because the interesting
 //      half of a failure in this app is what ended up on disk. A launch that
@@ -118,13 +118,17 @@ function launchState( app ) {
 /**
  * Ends an app that did not end when asked.
  *
- * Not `proc.kill()`, which is what this used to be. That sends SIGTERM, which
- * a main process that has stopped answering does not act on either; and it
- * marks the process as killed whether or not it went, which makes Playwright
- * skip its own forced kill when the worker stops and then wait for an exit that
- * never comes. One launch that opened no window on a macOS runner failed a
- * whole run that way, on "Worker teardown timeout", after its test had passed
- * on the retry.
+ * Not `proc.kill()`, which is what this used to be. That sends SIGTERM, and a
+ * main process that has stopped answering was still there afterwards (the
+ * engine's own test stages one). Playwright then waits for that process to
+ * exit when the worker stops, with no limit of its own, so one launch that
+ * gave no window on a macOS runner failed a whole run on "Worker teardown
+ * timeout" after its test had passed on the retry. `proc.kill()` also marks
+ * the process as killed whether or not it went, which is what Playwright reads
+ * before its last forced kill, when the worker exits, and skips it.
+ *
+ * This does not wait for a quit that is merely slow: an app still sweeping its
+ * children at the limit is cut off part-way, where SIGTERM let it finish.
  *
  * @param {Object} proc The process Playwright started.
  */
@@ -245,11 +249,18 @@ class Session {
 			this.page = await this.app.firstWindow();
 		} catch ( error ) {
 			// Nothing to photograph, so the evidence is what the main process
-			// knows. It may be the thing that is stuck, hence the limit.
-			const state = await within( launchState( this.app ).catch( () => undefined ), PATIENCE_MS );
+			// knows. It may be the thing that is stuck, hence the limit; and it
+			// may be gone, which is a different answer and is told apart.
+			const state = await within(
+				launchState( this.app ).then(
+					( read ) => `reported ${ JSON.stringify( read ) }.`,
+					( refusal ) => `could not be asked for its state: ${ refusal.message }`
+				),
+				PATIENCE_MS
+			);
 			throw new Error(
 				`${ error.message }\nThe launch gave the test no window. The app's main process ` +
-				( state ? `reported ${ JSON.stringify( state ) }.` : 'did not answer when asked for its state.' ),
+				( state || 'did not answer when asked for its state.' ),
 				{ cause: error }
 			);
 		}

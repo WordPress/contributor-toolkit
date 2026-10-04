@@ -218,7 +218,7 @@ test( 'closing ends an app that has stopped answering', async ( { session } ) =>
 	// is what Playwright waits on when the worker stops, and the run fails on
 	// "Worker teardown timeout" a minute after its last test passed.
 	await session.close();
-	await expect.poll( () => isRunning( pid ) ).toBe( false );
+	expect( isRunning( pid ) ).toBe( false );
 } );
 
 test( 'the main process says what a launch came to', async ( { session } ) => {

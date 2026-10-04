@@ -204,7 +204,7 @@ For an Electron test that trace is an action log rather than a replay: each step
 
 A failing journey also attaches the screen at the moment it failed and the state the app had persisted, because the interesting half of a failure in this app is usually on disk rather than on screen. In CI both come back as a workflow artifact.
 
-A launch that gives the test no window has no screen to attach, so its error carries what the main process said of itself instead: whether Electron became ready, and each window it had with its address and whether its page was still loading or had crashed. "did not answer" in its place means the main process itself was stuck. Either way the app is ended by force once it has had five seconds to quit, so one such launch costs its test a retry and not the run.
+A launch that gives the test no window has no screen to attach, so its error carries what the main process said of itself instead: whether Electron became ready, and each window it had with its address and whether its page was still loading or had crashed. "did not answer" in its place means the main process was still there and stuck; "could not be asked", with the reason, means it could not be reached at all, which is what an app that exited during its launch looks like. Whichever it is, an app still running five seconds after it was asked to quit is ended by force, so one such launch costs its test a retry and not the run.
 
 ## What CI runs
 
