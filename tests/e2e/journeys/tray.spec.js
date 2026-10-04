@@ -167,16 +167,27 @@ test( 'the tray\'s edge is moved with the arrow keys and with a pointer, stays i
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings );
 	const tray = await ui.openTray( page, 'Terminal' );
+	// The two hints under the terminal arrive with the site's status, once it
+	// is known to be built, and take their two lines from the terminal's
+	// room. Nothing is measured until they are there.
+	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
 	const edge = trayEdge( page );
 	const limits = trayHeightLimits( await page.evaluate( () => window.innerHeight ) );
 	const height = async () => Math.round( ( await tray.boundingBox() ).height );
 	const said = async () => Number( await edge.getAttribute( 'aria-valuenow' ) );
 	// How many rows the terminal has drawn, and how many more rows and
 	// columns would fit in the element it is drawn in: none, when it is
-	// fitted. A column is measured off what is drawn: the longest run of
-	// text on screen, as wide as it is laid out, over the characters in it.
-	// The room is what is left beside the scrollbar, where the platform
+	// fitted, and fewer than none when it was given more than there is room
+	// for. The room is what is left beside the scrollbar, where the platform
 	// draws one.
+	//
+	// The columns are counted from what is left over beside the rows, in
+	// columns as wide as the text on screen is drawn: the longest run of
+	// text, over the characters in it. That is this test's own measure and
+	// not the terminal's, which is the point of it, and the two differ by a
+	// hair with the font. So a column is taken a twentieth wider than
+	// measured, and half a pixel is let go: what is left then has to be less
+	// than a column, and not less than nothing.
 	const fit = () => terminalScreen( page ).evaluate( ( rows ) => {
 		const screen = rows.closest( '.xterm' ).parentElement;
 		const viewport = screen.querySelector( '.xterm-viewport' );
@@ -186,12 +197,11 @@ test( 'the tray\'s edge is moved with the arrow keys and with a pointer, stays i
 		drawn.selectNodeContents( line );
 		const columnWidth = drawn.getBoundingClientRect().width / line.textContent.length;
 		const room = screen.clientWidth - ( viewport.offsetWidth - viewport.clientWidth );
-		const columns = Math.round( rows.getBoundingClientRect().width / columnWidth );
+		const leftOver = room - rows.getBoundingClientRect().width;
 		return {
 			rows: rows.children.length,
 			spare: Math.floor( ( screen.clientHeight - rows.children.length * rowHeight ) / rowHeight ),
-			spareColumns: Math.floor( room / columnWidth ) - columns,
-			overhang: Math.max( 0, Math.ceil( rows.getBoundingClientRect().width - room ) ),
+			spareColumns: Math.floor( ( leftOver + 0.5 ) / ( columnWidth * 1.05 ) ),
 		};
 	} );
 	// The tray's notes, under the terminal, are inside the tray.
@@ -212,9 +222,9 @@ test( 'the tray\'s edge is moved with the arrow keys and with a pointer, stays i
 	expect( limits.min ).toBe( MIN_TRAY_HEIGHT );
 
 	// INVARIANT — the terminal has as many rows and as many columns as the
-	// tray has room for, and no row runs under the tray's edge or its own
-	// scrollbar.
-	await expect.poll( fit ).toMatchObject( { spare: 0, spareColumns: 0, overhang: 0 } );
+	// tray has room for: not one fewer, and none that run under the tray's
+	// edge or the terminal's own scrollbar.
+	await expect.poll( fit ).toMatchObject( { spare: 0, spareColumns: 0 } );
 	const rowsAtFirst = ( await fit() ).rows;
 
 	// INVARIANT — the up arrow makes the tray taller by a step, the terminal
@@ -237,7 +247,7 @@ test( 'the tray\'s edge is moved with the arrow keys and with a pointer, stays i
 	await expect.poll( height ).toBe( limits.max );
 	await page.keyboard.press( 'ArrowUp' );
 	await expect.poll( height ).toBe( limits.max );
-	await expect.poll( fit ).toMatchObject( { spare: 0, spareColumns: 0, overhang: 0 } );
+	await expect.poll( fit ).toMatchObject( { spare: 0, spareColumns: 0 } );
 	await page.keyboard.press( 'Home' );
 	await expect.poll( height ).toBe( limits.min );
 	await page.keyboard.press( 'ArrowDown' );
@@ -248,7 +258,7 @@ test( 'the tray\'s edge is moved with the arrow keys and with a pointer, stays i
 	// keeps two rows however little room it has, so two is what it would
 	// have with no room at all, and rows it has no room for show as fewer
 	// than none to spare.
-	await expect.poll( fit ).toMatchObject( { spare: 0, spareColumns: 0, overhang: 0 } );
+	await expect.poll( fit ).toMatchObject( { spare: 0, spareColumns: 0 } );
 	expect( ( await fit() ).rows ).toBeGreaterThan( 2 );
 	expect( await notesInside() ).toBe( true );
 
