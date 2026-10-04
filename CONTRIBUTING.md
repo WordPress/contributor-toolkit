@@ -12,6 +12,8 @@ Three GitHub Actions workflows run on every PR, and also on push to `trunk` so t
 
 ESLint over the **whole repo**: `eslint . --max-warnings=0`. A single warning fails the check. The backlog that once made a repo-wide run impractical was cleared (#117), so the check now covers every file rather than only the ones a PR touched.
 
+The same job then runs Stylelint over the window's stylesheet, `src/renderer/shell.css`. Its rules are only about design-system tokens: a token has to exist, is written bare with no fallback value beside it, and a colour is never written by hand (`stylelint.config.mjs` says why for each). `npm run lint` runs both locally.
+
 It installs with `npm ci --ignore-scripts`, which skips lifecycle scripts — so linting **never executes the PR's code** (this repo's `postinstall` would otherwise pull the Electron binary, which the linter does not need). If ESLint flags something mechanical, `npm run lint:fix` handles it; check what it rewrote before committing, since it too is repo-wide.
 
 ### Tests — [`unit-tests.yml`](.github/workflows/unit-tests.yml) and [`e2e.yml`](.github/workflows/e2e.yml)

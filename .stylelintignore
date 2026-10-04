@@ -1,0 +1,3 @@
+# esbuild output: the bundle of every stylesheet the window loads, its own and
+# the libraries'. Its source is src/renderer/shell.css, which is linted.
+src/renderer/index.css

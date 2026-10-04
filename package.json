@@ -29,8 +29,9 @@
     "test:e2e:packaged": "playwright test --project=packaged",
     "i18n:pot": "node scripts/generate-pot.cjs",
     "i18n:download": "node scripts/download-translations.cjs",
-    "lint": "eslint .",
+    "lint": "eslint . && stylelint \"src/renderer/**/*.css\"",
     "lint:fix": "eslint . --fix",
+    "lint:css": "stylelint \"src/renderer/**/*.css\"",
     "shots": "npm run build:once && node scripts/screenshots/capture.cjs",
     "docs:dev": "npm --prefix docs run dev",
     "docs:build": "npm --prefix docs run build",
@@ -167,7 +168,8 @@
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
-    "playwright-core": "^1.62.1"
+    "playwright-core": "^1.62.1",
+    "stylelint": "^17.16.0"
   },
   "allowScripts": {
     "dugite@3.2.3": true,
