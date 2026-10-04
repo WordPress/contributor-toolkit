@@ -26,14 +26,19 @@ import { serveWithoutWatch } from '../dev-server-command.cjs';
 // `hasBuilt`, `setHasBuilt` and `skipInit` are what the site's status says,
 // and `projectBuild` is the project's build plan.
 //
-// `toggleDevServer` is the button. `isServerStarting` and `isDevProcessActive`
-// are what the page's words about the server are decided from, in
-// site-processes.cjs, and `startElapsed` is how long a start has been going.
+// `toggleDevServer` is the button. `isServerStarting`, `isDevProcessActive`
+// and `serverFailure` are what the page's words about the server are decided
+// from, in site-processes.cjs, and `startElapsed` is how long a start has
+// been going.
 export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning }) {
   const [serverUrl, setServerUrl] = useState('');
   const [starting, setStarting] = useState(false);
   const [running, setRunning] = useState(false);
   const [waitingForWatch, setWaitingForWatch] = useState(false);
+  // How the last run ended, when it ended badly: 'stopped' for a server that
+  // went by itself, 'start' for one that could not start. The page says it
+  // until the server is started again.
+  const [serverFailure, setServerFailure] = useState('');
   const serverStartRequestedRef = useRef(false);
   const stoppingRef = useRef(false);
   // True from a Stop we asked for until the server reports it has exited.
@@ -117,6 +122,7 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
           // part of that session (#247) and is left running.
           if (!stoppingRef.current && !requested) {
             appendRuntime('Dev server stopped unexpectedly (see Help → Open App Log for details).\n');
+            setServerFailure('stopped');
             revealServerLog();
             stopDevServer().catch(() => {});
           }
@@ -126,12 +132,14 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
       // This also covers spawn failures that never produce a "stopped" event.
       if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
         appendRuntime(`Dev server failed to start: ${res.error || 'unknown error'}\n`);
+        setServerFailure('start');
         revealServerLog();
         stopDevServer().catch(() => {});
         return;
       }
     } catch (error) {
       appendRuntime(`Failed to start PHP server: ${error && error.message ? error.message : String(error)}\n`);
+      setServerFailure('start');
       revealServerLog();
       setStarting(false);
       serverStartRequestedRef.current = false;
@@ -151,6 +159,7 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
       if (!skipInit && !hasBuilt) { alert('Please complete the full build before starting the dev server. You can also skip the wizard.'); return; }
       serverStartRequestedRef.current = false;
       devServerActiveRef.current = true;
+      setServerFailure('');
       setStarting(true);
       // A built site whose watch would first remove build/ (Gutenberg's npm run
       // dev, #488) has nothing to wait for: the server starts on the build/ it
@@ -210,6 +219,7 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
     running,
     isServerStarting,
     isDevProcessActive,
+    serverFailure,
     startElapsed,
     toggleDevServer
   };

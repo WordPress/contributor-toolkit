@@ -567,9 +567,14 @@ test( 'a build that fails with its output in the logs brings the logs up, on the
 	// typing in it. With the terminal in the tray the same failure leaves it
 	// there, the page says where the lines are, and the logs are on the
 	// watch's tab when they are asked for.
-	const terminal = await ui.openTray( page, 'Terminal' );
 	await ui.startBuildWatchButton( page ).click();
 	await expect.poll( scripts.asked ).toEqual( [ 'build', 'build', 'build' ] );
+	// The logs are left on another tab than the watch's, which starting the
+	// watch selected, so that the tab they come back on is the failure's
+	// doing.
+	await ui.openTray( page, 'Logs' );
+	await ui.logTab( page, 'Server' ).click();
+	const terminal = await ui.openTray( page, 'Terminal' );
 	await scripts.ends( 3, 1 );
 	await expect( page.getByText( /^The build that has to finish before the watch can start failed.* Its last lines are in the Logs\.$/ ) ).toBeVisible();
 	await scripts.heard();

@@ -194,10 +194,27 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	await expect( ui.tray( page, 'Logs' ) ).toBeVisible();
 	await expect( ui.logTab( page, 'Server' ) ).toHaveAttribute( 'aria-selected', 'true' );
 	await expect( line( 'Dev server stopped unexpectedly (see Help → Open App Log for details).' ) ).toBeVisible();
+	// INVARIANT — and the page says it too, in the server's details, with
+	// where its last lines are.
+	const wentByItself = page.getByText( 'The development server stopped by itself. Its last lines are in the Logs.', { exact: true } );
+	await expect( wentByItself ).toBeVisible();
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( ui.stopBuildWatchButton( page ) ).toBeVisible();
 	await server.heard();
 	expect( ( await server.asked() ).kills ).toEqual( [] );
+
+	// INVARIANT — what the page says of a run that failed is of that run:
+	// started again, up and stopped as asked, the server is stopped and no
+	// more, and the sentence has not come back.
+	await ui.startDevServerButton( page ).click();
+	await expect.poll( async () => ( await server.asked() ).starts ).toHaveLength( 3 );
+	await server.serverHasAddress();
+	await ui.stopDevServerButton( page ).click();
+	await expect.poll( async () => ( await server.asked() ).stops ).toHaveLength( 3 );
+	await server.serverHasGone( 0 );
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+	await server.heard();
+	await expect( wentByItself ).toHaveCount( 0 );
 
 	// INVARIANT — a server that could not start says why, and the button
 	// goes back to offering to start it. The terminal is what the tray is
@@ -209,6 +226,12 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	await ui.startDevServerButton( page ).click();
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( starting ).toHaveCount( 0 );
+	// INVARIANT — with the logs kept out of the terminal's way the page is
+	// what says the start failed and where to look, so the button is not one
+	// that did nothing. What it said of the run before went with that run's
+	// being started again.
+	await expect( page.getByText( 'The development server could not start. Its last lines are in the Logs.', { exact: true } ) ).toBeVisible();
+	await expect( wentByItself ).toHaveCount( 0 );
 	await server.heard();
 	await expect( ui.tray( page, 'Terminal' ) ).toBeVisible();
 	await expect( ui.tray( page, 'Logs' ) ).toHaveCount( 0 );

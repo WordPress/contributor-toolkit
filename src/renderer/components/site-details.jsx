@@ -97,6 +97,7 @@ function ServerSection({ server }) {
         </Stack>
       ) : null}
       {section.state === 'starting' ? <Text variant="body-md" className="muted-label">{section.text}</Text> : null}
+      {server.process.detail ? <Text variant="body-md" className="problem-text">{server.process.detail}</Text> : null}
       {section.state === 'offline' ? <OfflinePlaceholder title={__('Development server offline')} /> : null}
     </Stack>
   );

@@ -23,20 +23,36 @@ const { formatElapsed } = require('./dev-server-command.cjs');
  * server. The button says it is starting, and `pending` asks for it to be
  * drawn as busy. An update of trunk holds everything (`disabled`).
  *
+ * A server that went by itself, or could not start, is `failed` until it is
+ * started again, and `detail` is the sentence the details say of it: what
+ * happened, and that its last lines are in the Logs. The lines are in the
+ * logs' Server tab and nowhere on the page, and the logs do not come up by
+ * themselves over a terminal that is being used (tray.cjs), so this sentence
+ * is what keeps the button from being one that did nothing. `detail` is ''
+ * the rest of the time.
+ *
  * @param {Object}  root0
  * @param {boolean} [root0.active]     The server is running or starting.
  * @param {boolean} [root0.starting]   It is starting and has no address yet.
  * @param {boolean} [root0.isUpdating] An update of trunk is under way.
- * @return {{status: string, label: string, action: string, short: string, pending: boolean, disabled: boolean}}
+ * @param {string}  [root0.failure]    'stopped' for a server that went by itself, 'start' for one that could not start, '' otherwise.
+ * @return {{status: string, label: string, action: string, short: string, pending: boolean, disabled: boolean, detail: string}}
  */
-function serverProcess({ active = false, starting = false, isUpdating = false } = {}) {
+function serverProcess({ active = false, starting = false, isUpdating = false, failure = '' } = {}) {
 	if (starting) {
-		return { status: 'busy', label: __('Server starting…'), action: __('Starting development server…'), short: __('Starting…'), pending: true, disabled: true };
+		return { status: 'busy', label: __('Server starting…'), action: __('Starting development server…'), short: __('Starting…'), pending: true, disabled: true, detail: '' };
 	}
 	if (active) {
-		return { status: 'online', label: __('Server running'), action: __('Stop development server'), short: __('Stop'), pending: false, disabled: isUpdating };
+		return { status: 'online', label: __('Server running'), action: __('Stop development server'), short: __('Stop'), pending: false, disabled: isUpdating, detail: '' };
 	}
-	return { status: 'offline', label: __('Server stopped'), action: __('Start development server'), short: __('Start'), pending: false, disabled: isUpdating };
+	const stopped = { label: __('Server stopped'), action: __('Start development server'), short: __('Start'), pending: false, disabled: isUpdating };
+	if (failure === 'stopped') {
+		return { status: 'failed', ...stopped, detail: __('The development server stopped by itself. Its last lines are in the Logs.') };
+	}
+	if (failure === 'start') {
+		return { status: 'failed', ...stopped, detail: __('The development server could not start. Its last lines are in the Logs.') };
+	}
+	return { status: 'offline', ...stopped, detail: '' };
 }
 
 /**

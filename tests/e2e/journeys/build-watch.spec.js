@@ -222,9 +222,15 @@ test( 'a site with no build is built before it is watched, by a build that holds
 	// the logs do not take its place (#558): they are asked for, and are on
 	// the watch's tab, where the page says the build's last lines are.
 	await scripts.ends( 1, 1 );
+	// The details say the build failed once its end has been taken in,
+	// which is after the logs were or were not asked for.
+	await expect( page.getByText( /^The build that has to finish before the watch can start failed, with exit code 1/ ) ).toBeVisible();
+	await scripts.heard();
+	await expect( ui.tray( page, 'Terminal' ) ).toBeVisible();
+	await expect( logs ).toHaveCount( 0 );
 	await ui.openTray( page, 'Logs' );
 	await expect( line( 'npm run build failed with code 1 — build watch not started.' ) ).toBeVisible();
-	await expect( tab( 'Build watch (exited 1)' ) ).toBeVisible();
+	await expect( tab( 'Build watch (exited 1)' ) ).toHaveAttribute( 'aria-selected', 'true' );
 	// INVARIANT — and the details say it of the build, not of a watch that
 	// never was.
 	await expect( page.getByText( 'The build that has to finish before the watch can start failed, with exit code 1, so the watch was not started. Its last lines are in the Logs.', { exact: true } ) ).toBeVisible();

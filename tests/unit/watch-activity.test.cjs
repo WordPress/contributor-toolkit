@@ -86,7 +86,7 @@ test('the default quiet window is three seconds', () => {
 });
 
 test('the banner line tells the contributor what to wait for', () => {
-	assert.match(compilingMessage(), /Wait for it to finish/);
+	assert.match(compilingMessage(), /Wait for it to go quiet/);
 	assert.match(compilingMessage(), /before trying the site/);
 });
 
@@ -130,7 +130,7 @@ test('output past the grace period still extends an open window', () => {
 test('the banner says rebuilding while the watch is building, whatever the hand-off', () => {
 	assert.match(watchBusyMessage('building', false), /rebuilding after this change/);
 	assert.match(watchBusyMessage('building', true), /rebuilding after this change/);
-	assert.match(watchBusyMessage('building', false), /Wait for it to finish/);
+	assert.match(watchBusyMessage('building', false), /Wait for it to be watching again/);
 });
 
 test('the banner says compiling only on a watching watch with a hand-off open', () => {

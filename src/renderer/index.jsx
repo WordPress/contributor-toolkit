@@ -1090,10 +1090,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const revealTray = useCallback((id) => {
     // Nothing is brought up, now or later, for a site on its way out: its
     // processes are ended as it goes, and if it stays after all, because its
-    // folder could not be removed, their ending was the deletion's doing.
+    // folder could not be removed, their ending was the deletion's doing. A
+    // process that takes longer to end than the deletion waits for is not
+    // caught by this, and ends as one that went by itself.
     if (siteRef.current.deleting) return;
     if (siteRef.current.active) onShowTray?.(id);
-    else trayWantedRef.current = id;
+    // Kept by the tray's own rule, so that the logs asked for after the
+    // terminal do not take its place here either.
+    else trayWantedRef.current = trayAfterReveal(trayWantedRef.current, id);
   }, [onShowTray]);
   useEffect(() => {
     if (!isActive || !trayWantedRef.current) return;
@@ -1200,7 +1204,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The dev server (#554): its state, its guards and its one button. It is
   // called here because starting it needs everything above: the build watch,
   // the logs, the mail, the terminal's lock and the script runner.
-  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, startElapsed, toggleDevServer } = useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
+  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, serverFailure, startElapsed, toggleDevServer } = useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
@@ -1224,7 +1228,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // What the page says about the site's two processes (#557), in the header
   // and in the details alike. Decided in site-processes.cjs, and worked out
   // here because an update of trunk holds both.
-  const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating });
+  const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating, failure: serverFailure });
   const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
   const serverSectionState = serverSection({ url: serverUrl, running, starting: isServerStarting, elapsed: startElapsed });
   // A link to the running site is opened in the browser by the main process.

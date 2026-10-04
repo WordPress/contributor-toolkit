@@ -317,6 +317,9 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	// watch and are taller than the page has room for in this window.
 	const { settings } = listedSites( session, [ { label: 'set-up' }, { label: 'in-setup', skipInitWizard: false } ] );
 	const { page } = await session.start( settings );
+	// Without the glide the app brings a site's next step into view with,
+	// which would still be moving the page while this reads where it is.
+	await page.emulateMedia( { reducedMotion: 'reduce' } );
 	await expect( ui.siteHeading( page, 'in-setup' ) ).toBeVisible( { timeout: 30_000 } );
 	// With the sites list put away the page has room for its two columns on
 	// the smallest screen the suite runs on, where the window is the screen.
@@ -353,7 +356,10 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	// there. CHARACTERISATION — the facts alone fit in the room they were
 	// given.
 	await pageEnd.scrollIntoViewIfNeeded();
-	await expect( page.getByText( 'Initial setup checklist', { exact: true } ) ).not.toBeInViewport();
+	// The open site's checklist: every site's view is in the document, and
+	// the other one's may have a checklist of its own to show until its
+	// status has been read.
+	await expect( page.getByText( 'Initial setup checklist', { exact: true } ).filter( { visible: true } ) ).not.toBeInViewport();
 	await expect( heading( 'in-setup' ) ).toBeInViewport();
 
 	// INVARIANT — details taller than what is in view are let go: they move
@@ -364,10 +370,15 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	await ui.sidebarEntry( page, 'set-up' ).click();
 	await expect( ui.siteHeading( page, 'set-up' ) ).toBeVisible();
 	await page.getByRole( 'button', { name: 'Hide sites list', exact: true } ).click();
+	// The site's own cards, and not the checklist it shows until its status
+	// has been read: opening a site brings its next step into view, and again
+	// when that step changes, so where the page is belongs to that until the
+	// status is in. The move is a jump here, and over by then.
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	// Read part of the way down the page, from its top, and not at its end:
 	// held in place, a column taller than the page is pushed up out of view
 	// at the page's end too, and the two would look the same there.
-	await ui.ticketField( page ).filter( { visible: true } ).scrollIntoViewIfNeeded();
+	await heading( 'set-up' ).scrollIntoViewIfNeeded();
 	await expect( heading( 'set-up' ) ).toBeInViewport();
 	// By the wheel, a part of the way: with the terminal gone to the tray
 	// (#558) there is no card to bring into view that leaves the page's end

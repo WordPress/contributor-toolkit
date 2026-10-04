@@ -55,9 +55,10 @@ function toggleTray( current, pressed ) {
  *
  * The terminal takes the tray whatever is in it: a refusal printed there and
  * not shown is a button that did nothing. The logs do not take the
- * terminal's place: someone may be typing in it, and the page already says
- * where the lines are. They come up only in a tray that is closed, or is
- * showing them already.
+ * terminal's place: someone may be typing in it, and the page says of every
+ * failure that would have brought them up that its last lines are in the
+ * Logs (site-processes.cjs). They come up only in a tray that is closed, or
+ * is showing them already.
  *
  * @param {string|null} current The tray that is open, if any.
  * @param {string}      wanted  The tray the app asks for.
