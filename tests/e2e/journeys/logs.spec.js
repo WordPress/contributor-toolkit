@@ -111,13 +111,26 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	expect( await empty.locator( '..' ).evaluate( ( pane ) => window.getComputedStyle( pane ).backgroundColor ) ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral-weak)' ) );
 	await expect( logs.getByText( 'The log file appears once the dev server has run.', { exact: true } ) ).toBeVisible();
 	// INVARIANT — a pane takes the room the tray has, and is not the fixed
-	// height it was on the page: the tray made taller by a step makes the
-	// pane taller by as much.
+	// height it was on the page: the tray made taller makes the pane taller
+	// by as much. How much taller is the window's to say, a step where there
+	// is room for one and less in a window whose half the tray has nearly
+	// reached, so the pane is read against the tray and not against a number.
+	// CHARACTERISATION — the tray is as tall as its edge says it is, which is
+	// what the pane's room is measured from.
+	const edge = page.getByRole( 'separator', { name: 'Resize tray', exact: true } );
+	const saidHeight = async () => Number( await edge.getAttribute( 'aria-valuenow' ) );
+	const trayHeight = async () => ( await logs.boundingBox() ).height;
 	const paneHeight = async () => ( await empty.locator( '..' ).boundingBox() ).height;
-	const heightAtFirst = await paneHeight();
-	await page.getByRole( 'separator', { name: 'Resize tray', exact: true } ).focus();
+	const saidAtFirst = await saidHeight();
+	await expect.poll( trayHeight, { message: `the Logs tray is as tall as its edge says, ${ saidAtFirst }px` } ).toBe( saidAtFirst );
+	const paneAtFirst = await paneHeight();
+	await edge.focus();
 	await page.keyboard.press( 'ArrowUp' );
-	await expect.poll( paneHeight ).toBe( heightAtFirst + TRAY_KEY_STEP );
+	await expect.poll( saidHeight ).toBeGreaterThan( saidAtFirst );
+	const grownBy = ( await saidHeight() ) - saidAtFirst;
+	expect( grownBy ).toBeLessThanOrEqual( TRAY_KEY_STEP );
+	await expect.poll( trayHeight ).toBe( saidAtFirst + grownBy );
+	await expect.poll( paneHeight, { message: `a pane ${ paneAtFirst }px tall in a tray of ${ saidAtFirst }px is taller by the ${ grownBy }px the tray was made taller by` } ).toBe( paneAtFirst + grownBy );
 	await expect( showInFolder ).toBeDisabled();
 	await expect( copy ).toBeDisabled();
 	await expect( clear ).toBeDisabled();
