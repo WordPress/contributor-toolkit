@@ -223,9 +223,12 @@ test( 'an update asks before it resets edits in the tree: cancelling keeps them,
 	await discardChoice.click();
 	await expect( discardAndUpdate ).toBeVisible();
 	await expect( saveAndUpdate ).toHaveCount( 0 );
-	// INVARIANT — and the ring has moved with the choice.
+	// INVARIANT — and the ring has moved with the choice. What the answer
+	// that loses work goes on to say stays in the colour of something going
+	// wrong when it is the chosen one: being chosen must not quieten it.
 	expect( ( await ui.paintOf( discardChoice ) ).border ).toBe( brand );
 	expect( ( await ui.paintOf( saveChoice ) ).border ).not.toBe( brand );
+	expect( ( await ui.paintOf( discardChoice.getByText( /this cannot be undone$/ ) ) ).text ).toBe( wrong );
 	await dialog.getByRole( 'button', { name: 'Cancel', exact: true } ).click();
 	await expect( dialog ).toHaveCount( 0 );
 	expect( await confirmsAnswered() ).toBe( 0 );
