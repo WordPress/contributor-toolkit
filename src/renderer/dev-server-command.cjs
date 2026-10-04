@@ -140,7 +140,7 @@ function formatElapsed(seconds) {
 }
 
 /**
- * The title for the build-watcher log tab, from its lifecycle state. The tab is
+ * The title for the build watch's log tab, from its lifecycle state. The tab is
  * always present, so its title is where the watcher's state is shown: a
  * contributor can tell at a glance whether `src/` edits are being compiled,
  * paused for another operation, or stopped — without opening the tab.
@@ -156,15 +156,15 @@ function formatElapsed(seconds) {
  */
 function watchTabLabel(state, exitCode, compiling = false) {
 	switch (state) {
-		case 'watching': return compiling ? 'Build watcher (compiling)' : 'Build watcher (watching)';
-		case 'building': return 'Build watcher (building)';
-		case 'paused': return 'Build watcher (paused)';
+		case 'watching': return compiling ? 'Build watch (compiling)' : 'Build watch (watching)';
+		case 'building': return 'Build watch (building)';
+		case 'paused': return 'Build watch (paused)';
 		case 'exited': {
 			const code = Number.isFinite(exitCode) ? exitCode : null;
-			return code === null ? 'Build watcher (stopped)' : `Build watcher (exited ${code})`;
+			return code === null ? 'Build watch (stopped)' : `Build watch (exited ${code})`;
 		}
 		case 'idle':
-		default: return 'Build watcher';
+		default: return 'Build watch';
 	}
 }
 

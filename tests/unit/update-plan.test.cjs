@@ -93,7 +93,7 @@ test('planUpdateSteps: the build step names the resumed watch while current, and
 	const steps = planUpdateSteps({ lockfileChanged: false, buildByWatcher: 'resumed-watch' });
 	assert.strictEqual(steps[2].skipped, false);
 	assert.strictEqual(steps[2].currentMessage, UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE);
-	assert.match(UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE, /Build watcher tab/);
+	assert.match(UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE, /in the Logs, under Build watch/);
 	const statuses = updateStepStatuses(steps, 'building');
 	assert.strictEqual(statuses[2].status, 'current');
 });

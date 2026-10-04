@@ -333,9 +333,25 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	await expect( ui.reviewChangesButton( page ) ).toHaveCount( 0 );
 	await expect( details( page, 'in-setup' ).getByRole( 'heading', { name: 'Server', exact: true } ) ).toHaveCount( 0 );
 
+	// The page is given a little more room than the details need, and no
+	// more, by the tray, which takes its room from the page (#558). With the
+	// terminal and the logs gone to the tray a site's cards are no longer
+	// taller than a whole window, and details that stay put while the cards
+	// scroll can only be seen where the cards are the taller of the two.
+	const tray = await ui.openTray( page, 'Terminal' );
+	const spareRoom = async () => {
+		const box = await details( page, 'in-setup' ).boundingBox();
+		return ( await tray.boundingBox() ).y - ( box.y + box.height );
+	};
+	await page.getByRole( 'separator', { name: 'Resize tray', exact: true } ).focus();
+	for ( let presses = 0; presses < 20 && ( await spareRoom() ) > 64; presses++ ) await page.keyboard.press( 'ArrowUp' );
+	for ( let presses = 0; presses < 20 && ( await spareRoom() ) < 40; presses++ ) await page.keyboard.press( 'ArrowDown' );
+	expect( await spareRoom() ).toBeGreaterThanOrEqual( 40 );
+
 	// INVARIANT — details that fit stay in view while the cards scroll: with
 	// the page at its end, where the first card is long gone, they are still
-	// there. CHARACTERISATION — the facts alone fit in this window.
+	// there. CHARACTERISATION — the facts alone fit in the room they were
+	// given.
 	await pageEnd.scrollIntoViewIfNeeded();
 	await expect( page.getByText( 'Initial setup checklist', { exact: true } ) ).not.toBeInViewport();
 	await expect( heading( 'in-setup' ) ).toBeInViewport();
@@ -343,7 +359,7 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	// INVARIANT — details taller than what is in view are let go: they move
 	// with the cards, so their end can be reached by scrolling to it.
 	// CHARACTERISATION — with the server and the build watch in them they
-	// are taller than this window has room for.
+	// are taller than the room the page has.
 	await page.getByRole( 'button', { name: 'Show sites list', exact: true } ).click();
 	await ui.sidebarEntry( page, 'set-up' ).click();
 	await expect( ui.siteHeading( page, 'set-up' ) ).toBeVisible();

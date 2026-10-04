@@ -148,9 +148,10 @@ const shots = [
 		slug: 'debug-log',
 		tier: 'fixture',
 		variant: 'debug',
-		target: (page) => ui.card(page, 'Logs'),
+		target: (page) => ui.tray(page, 'Logs'),
 		prepare: async (page, app) => {
 			await selectSite(page, 'my-first-patch');
+			await ui.openTray(page, 'Logs');
 			// Starting a real dev session is what makes the renderer attach the
 			// debug-log tail, but this fixture deliberately is not a WordPress clone.
 			// Keep both long-running processes pending so the screenshot exercises

@@ -120,13 +120,16 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	const server = await standIn( app, page, site.dir );
 
 	const starting = page.getByRole( 'button', { name: 'Starting development server…', exact: true } );
-	const line = ( text ) => ui.card( page, 'Logs' ).getByText( text, { exact: true } );
+	const line = ( text ) => ui.tray( page, 'Logs' ).getByText( text, { exact: true } );
 	const siteLink = page.getByRole( 'link', { name: 'View site', exact: true } );
 
 	// The hint under the terminal is a link only once the site's status has
 	// been read and says the site is built: the server's button needs to know
 	// that too.
 	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
+	// What the server says is in the logs, which the tray shows in the
+	// terminal's place.
+	await ui.openTray( page, 'Logs' );
 
 	// INVARIANT — the button asks for one server, for this site, and says it
 	// is starting, with how long it has been. CHARACTERISATION — on Core the
@@ -171,7 +174,7 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	await server.serverHasGone( 0 );
 	await server.heard();
 	await expect( line( 'Dev server stopped unexpectedly (see Help → Open App Log for details).' ) ).toHaveCount( 0 );
-	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible();
 	expect( ( await server.asked() ).kills ).toEqual( [] );
 
 	// INVARIANT — a server that goes without being asked is said to have
@@ -205,7 +208,9 @@ test( 'on a project whose watcher rebuilds everything, the server waits for a fi
 	const server = await standIn( app, page, site.dir );
 
 	const starting = page.getByRole( 'button', { name: 'Starting development server…', exact: true } );
-	const line = ( text ) => ui.card( page, 'Logs' ).getByText( text, { exact: true } );
+	const line = ( text ) => ui.tray( page, 'Logs' ).getByText( text, { exact: true } );
+	// What the server says is in the logs, in the tray.
+	await ui.openTray( page, 'Logs' );
 
 	// INVARIANT — with no build there is nothing to serve, so the button runs
 	// the build first and starts no server yet.
@@ -219,6 +224,12 @@ test( 'on a project whose watcher rebuilds everything, the server waits for a fi
 	// INVARIANT — a build that fails means no server: it says the start was
 	// cancelled, and the button goes back to offering to start it.
 	await server.scriptEnds( 1, 1 );
+	// The logs have gone to the watch's tab, where the failed build's last
+	// lines are (#558); what the server said of it is on its own. The watch's
+	// tab says the build has ended before the other is pressed, or the logs
+	// would go back to it after.
+	await expect( ui.logTab( page, 'Build watch (exited 1)' ) ).toHaveAttribute( 'aria-selected', 'true' );
+	await ui.logTab( page, 'Server' ).click();
 	await expect( line( 'Dev server start cancelled: the build watch stopped before build/ was complete. Start it again once the watch is running.' ) ).toBeVisible();
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await server.heard();
@@ -257,6 +268,9 @@ test( 'on a project whose watcher rebuilds everything, the server waits for a fi
 	// once, says why, and does not start the watcher that would remove that
 	// build to make it again (#499).
 	await ui.startDevServerButton( page ).click();
+	// The logs were left on the watch's tab, which the watch's own build
+	// selected; what the server says is on the server's.
+	await ui.logTab( page, 'Server' ).click();
 	await expect( line( 'build/ is complete: starting the server without the build watch. Start build watch to compile edits on save.' ) ).toBeVisible();
 	await expect.poll( async () => ( await server.asked() ).starts ).toHaveLength( 2 );
 	await server.heard();

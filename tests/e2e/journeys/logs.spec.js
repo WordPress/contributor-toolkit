@@ -33,6 +33,7 @@ const fs = require( 'node:fs' );
 const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
+const { TRAY_KEY_STEP } = require( '../../../src/renderer/tray.cjs' );
 const { makeSite } = require( '../helpers/git-site.cjs' );
 
 // The two processes the dev server starts never finish, the page it opens
@@ -87,9 +88,9 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 		};
 	} );
 
-	const logs = ui.card( page, 'Logs' );
+	const logs = await ui.openTray( page, 'Logs' );
 	const serverTab = ui.logTab( page, 'Server' );
-	const debugTab = ( unread ) => ui.logTab( page, unread ? `debug.log (${ unread })` : 'debug.log' );
+	const debugTab = ( unread ) => ui.logTab( page, unread ? `Debug.log (${ unread })` : 'Debug.log' );
 	const line = ( text ) => logs.getByText( text, { exact: true } );
 	const empty = logs.getByText( /^No PHP notices or errors yet\./ );
 	const showInFolder = logs.getByRole( 'button', { name: 'Show in folder', exact: true } );
@@ -101,13 +102,22 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	await debugTab().click();
 	await expect( empty ).toBeVisible( { timeout: 30_000 } );
 
-	// INVARIANT — the logs are a region of the page, named by its heading,
-	// and a pane is the design system's weak surface, the one the terminal
-	// above it has (#557).
-	await expect( page.getByRole( 'region', { name: 'Logs', exact: true } ).getByRole( 'heading', { level: 2, name: 'Logs', exact: true } ) ).toBeVisible();
+	// INVARIANT — the logs are in the tray (#558), which is named and headed
+	// for what it shows, and a pane is the design system's weak surface, the
+	// one the terminal has (#557).
+	await expect( logs.getByRole( 'heading', { level: 2, name: 'Logs', exact: true } ) ).toBeVisible();
+	await expect( ui.trayToggle( page, 'Logs' ) ).toHaveAttribute( 'aria-pressed', 'true' );
 	const tokenColour = ( token ) => ui.tokenColour( page, token );
 	expect( await empty.locator( '..' ).evaluate( ( pane ) => window.getComputedStyle( pane ).backgroundColor ) ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral-weak)' ) );
 	await expect( logs.getByText( 'The log file appears once the dev server has run.', { exact: true } ) ).toBeVisible();
+	// INVARIANT — a pane takes the room the tray has, and is not the fixed
+	// height it was on the page: the tray made taller by a step makes the
+	// pane taller by as much.
+	const paneHeight = async () => ( await empty.locator( '..' ).boundingBox() ).height;
+	const heightAtFirst = await paneHeight();
+	await page.getByRole( 'separator', { name: 'Resize tray', exact: true } ).focus();
+	await page.keyboard.press( 'ArrowUp' );
+	await expect.poll( paneHeight ).toBe( heightAtFirst + TRAY_KEY_STEP );
 	await expect( showInFolder ).toBeDisabled();
 	await expect( copy ).toBeDisabled();
 	await expect( clear ).toBeDisabled();
@@ -153,6 +163,33 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	await expect( debugTab( 2 ) ).toBeVisible();
 	await debugTab( 2 ).click();
 	await expect( line( 'PHP Deprecated: second unseen' ) ).toBeVisible();
+
+	// INVARIANT — a line that arrives while the tray is put away, or is
+	// showing the terminal, is in the pane when the logs come back, and the
+	// logs come back on the tab they were left on (#558).
+	await ui.trayToggle( page, 'Logs' ).click();
+	await expect( logs ).toHaveCount( 0 );
+	wordpressWrites( 'PHP Notice: written with the tray closed\n' );
+	await ui.openTray( page, 'Terminal' );
+	wordpressWrites( 'PHP Notice: written under the terminal\n' );
+	await heard( page );
+	await ui.openTray( page, 'Logs' );
+	await expect( debugTab() ).toHaveAttribute( 'aria-selected', 'true' );
+	await expect( line( 'PHP Notice: written with the tray closed' ) ).toBeVisible();
+	await expect( line( 'PHP Notice: written under the terminal' ) ).toBeVisible();
+	// INVARIANT — and lines that arrive on another tab's watch are still
+	// counted when the tray has been away and come back: putting the logs
+	// away is not reading them.
+	await serverTab.click();
+	wordpressWrites( 'PHP Notice: third unseen\nPHP Notice: fourth unseen\n' );
+	await expect( debugTab( 2 ) ).toBeVisible();
+	await ui.openTray( page, 'Terminal' );
+	wordpressWrites( 'PHP Notice: fifth unseen\n' );
+	await heard( page );
+	await ui.openTray( page, 'Logs' );
+	await expect( debugTab( 3 ) ).toBeVisible();
+	await debugTab( 3 ).click();
+	await expect( debugTab() ).toBeVisible();
 
 	// INVARIANT — Copy copies what the pane shows, and says it did.
 	await copy.click();
@@ -204,7 +241,7 @@ test( 'the Server tab follows the server\'s output to its last line, stops follo
 	await standInForTheServer( app );
 	const serverSays = ( text ) => tell( app, 'playground:log', { sitePath: site.dir, type: 'stdout', data: text } );
 
-	const logs = ui.card( page, 'Logs' );
+	const logs = await ui.openTray( page, 'Logs' );
 	const line = ( text ) => logs.getByText( text, { exact: true } );
 	// Where the pane a line is in has been scrolled to. A pane is the nearest
 	// box around the line that scrolls, so this reads the shape of the markup;
@@ -268,9 +305,20 @@ test( 'the Server tab follows the server\'s output to its last line, stops follo
 
 	// INVARIANT — a tab left and come back to is a new pane, and it opens at
 	// the last line too, not at the top.
-	await ui.logTab( page, 'debug.log' ).click();
+	await ui.logTab( page, 'Debug.log' ).click();
 	await expect( line( 'server line 100' ) ).toHaveCount( 0 );
 	await ui.logTab( page, 'Server' ).click();
 	await expect( line( 'server line 100' ) ).toHaveCount( 1 );
 	await expect.poll( async () => ( await paneOf( line( 'server line 100' ) ) ).atBottom ).toBe( true );
+
+	// INVARIANT — and so is a pane whose tray was put away while the server
+	// went on printing: brought back, it is at the last line, not where it
+	// was left and not at the top (#558).
+	await ui.trayToggle( page, 'Logs' ).click();
+	await expect( logs ).toHaveCount( 0 );
+	await serverSays( lines( 101, 160, 'server line' ) );
+	await heard( page );
+	await ui.openTray( page, 'Logs' );
+	await expect( line( 'server line 160' ) ).toHaveCount( 1 );
+	await expect.poll( async () => ( await paneOf( line( 'server line 160' ) ) ).atBottom ).toBe( true );
 } );

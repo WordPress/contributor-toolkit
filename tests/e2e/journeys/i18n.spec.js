@@ -123,7 +123,9 @@ test( 'the open site\'s details and its menu are fully translatable', async ( { 
 		ipcMain.handle( 'editor:list', () => ( { detected: [ { name: 'Example Editor', path: '/example' } ] } ) );
 	} );
 
-	const details = page.getByRole( 'complementary' ).filter( { visible: true } );
+	// By the site's name in its own, which is not translated: the tray is a
+	// part of the window of the same kind (#558).
+	const details = page.getByRole( 'complementary', { name: /my-site/ } ).filter( { visible: true } );
 	await expect( details.getByRole( 'heading', { name: pseudoLocalize( 'Details' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	// What is the machine's: the folder, and two dates, written the way the
 	// app's own locale writes them, which is found here by the year in them.
@@ -197,7 +199,9 @@ test( 'the open site\'s two processes are fully translatable, in the header and 
 
 	const menuButton = ( label ) => ui.processMenuButton( page, pseudoLocalize( label ) );
 	const item = ( label ) => page.getByRole( 'menuitem', { name: pseudoLocalize( label ), exact: true } );
-	const details = page.getByRole( 'complementary' ).filter( { visible: true } );
+	// By the site's name in its own, which is not translated: the tray is a
+	// part of the window of the same kind (#558).
+	const details = page.getByRole( 'complementary', { name: /e2e-site/ } ).filter( { visible: true } );
 	// What is the machine's, or the server's own, in the details: the
 	// folder, the dates, which are found by the year in them, the name the
 	// server's admin has, and the dots that stand for its password.

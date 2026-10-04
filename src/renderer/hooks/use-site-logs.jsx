@@ -23,12 +23,17 @@ const STICK_THRESHOLD = 8;
 // output goes to the terminal. It is here because its callers are, and it is
 // kept as it was.
 //
+// `shown` says whether the panel is on screen, which it is while the site is
+// the open one and the tray is showing its logs (#558). A pane that is not on
+// screen cannot be scrolled: one that was following its last line is put
+// back there when the panel comes back.
+//
 // Every function returned keeps its identity for as long as `sitePath` does,
 // except `copyDebugLog`, which changes with the text it copies. The callbacks
 // that run the dev server, the build watch and the installs list the `append`
 // functions as dependencies, and one that changed on every render would hand
 // those callbacks a new identity each time too.
-export function useSiteLogs({ sitePath }) {
+export function useSiteLogs({ sitePath, shown }) {
   const [npmLogs, setNpmLogs] = useState('');
   const [runtimeLogs, setRuntimeLogs] = useState('');
   // WordPress's own debug.log, kept apart from the server's output: one is what
@@ -60,23 +65,37 @@ export function useSiteLogs({ sitePath }) {
     setLogStick((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
   }, []);
   useEffect(() => { if (logStick.npm && npmRef.current) npmRef.current.scrollTop = npmRef.current.scrollHeight; }, [npmLogs, logStick.npm]);
-  // Both log effects watch `activeLogTab` because TabPanel renders only the
-  // selected tab: the pane is a fresh element every time it is switched back to,
+  // The log effects watch `activeLogTab` because only the selected tab's pane
+  // is rendered: the pane is a fresh element every time it is switched back to,
   // scrolled to the top, and the arriving-text dependency alone would not fire
   // to put it back at the bottom. The guard is not just for the dependency — the
-  // other tab's element is unmounted, so there is nothing to scroll.
+  // other tab's element is unmounted, so there is nothing to scroll. They
+  // watch `shown` for the same reason one level up: a pane in a panel that is
+  // not on screen has no height to scroll, and is put at its end when the
+  // panel comes back.
   useEffect(() => {
-    if (activeLogTab !== 'runtime') return;
+    if (!shown || activeLogTab !== 'runtime') return;
     if (logStick.runtime && runtimeRef.current) runtimeRef.current.scrollTop = runtimeRef.current.scrollHeight;
-  }, [runtimeLogs, logStick.runtime, activeLogTab]);
+  }, [runtimeLogs, logStick.runtime, activeLogTab, shown]);
   useEffect(() => {
-    if (activeLogTab !== 'debug') return;
+    if (!shown || activeLogTab !== 'debug') return;
     if (logStick.debug && debugRef.current) debugRef.current.scrollTop = debugRef.current.scrollHeight;
-  }, [debugLogs, logStick.debug, activeLogTab]);
+  }, [debugLogs, logStick.debug, activeLogTab, shown]);
   useEffect(() => {
-    if (activeLogTab !== 'watch') return;
+    if (!shown || activeLogTab !== 'watch') return;
     if (logStick.watch && watchRef.current) watchRef.current.scrollTop = watchRef.current.scrollHeight;
-  }, [watchLogs, logStick.watch, activeLogTab]);
+  }, [watchLogs, logStick.watch, activeLogTab, shown]);
+  // Where each pane's element is handed over, for the panel to give to its
+  // panes.
+  const runtimePane = useCallback((element) => {
+    runtimeRef.current = element;
+  }, []);
+  const watchPane = useCallback((element) => {
+    watchRef.current = element;
+  }, []);
+  const debugPane = useCallback((element) => {
+    debugRef.current = element;
+  }, []);
   const makeOnScroll = useCallback((key) => (e) => {
     const el = e.currentTarget;
     const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - STICK_THRESHOLD;
@@ -177,15 +196,16 @@ export function useSiteLogs({ sitePath }) {
   }, [sitePath]);
 
   return {
+    activeTab: activeLogTab,
     runtimeLogs,
     watchLogs,
     debugLogs,
     debugUnread,
     debugLogPath,
     debugCopied,
-    runtimeRef,
-    watchRef,
-    debugRef,
+    runtimePane,
+    watchPane,
+    debugPane,
     makeOnScroll,
     ensureStick,
     selectTab,

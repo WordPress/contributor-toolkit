@@ -33,6 +33,7 @@ const TRAY_KEY_STEP = 24;
 function trayList() {
 	return [
 		{ id: 'terminal', title: __( 'Terminal' ), toggle: __( 'Toggle Terminal' ) },
+		{ id: 'logs', title: __( 'Logs' ), toggle: __( 'Toggle Logs' ) },
 	];
 }
 
