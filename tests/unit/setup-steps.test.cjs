@@ -282,17 +282,17 @@ test('a failed step points at the terminal, since nobody clicked to start it (#2
 	// The chain runs install and build unattended, so a bare "Failed" would be
 	// the first a contributor heard of it with nowhere to look.
 	const install = setupStepCopy({ hasNodeModules: true, installFailed: true });
-	assert.match(install.installDescription, /Terminal below/);
+	assert.match(install.installDescription, /in the Terminal(?! below)/);
 	const build = setupStepCopy({ hasNodeModules: true, buildFailed: true });
 	assert.strictEqual(build.buildLabel, 'Retry the build');
-	assert.match(build.buildDescription, /Terminal below/);
+	assert.match(build.buildDescription, /in the Terminal(?! below)/);
 });
 
 test('a completed step says where a later install or build lives (#182)', () => {
 	const copy = setupStepCopy({ hasNodeModules: true, hasBuilt: true });
 	assert.strictEqual(copy.buildLabel, 'Build complete');
-	assert.match(copy.installDescription, /Terminal below/);
-	assert.match(copy.buildDescription, /Terminal below/);
+	assert.match(copy.installDescription, /in the Terminal(?! below)/);
+	assert.match(copy.buildDescription, /in the Terminal(?! below)/);
 });
 
 test('the copy and the button state cannot disagree about a failed install', () => {

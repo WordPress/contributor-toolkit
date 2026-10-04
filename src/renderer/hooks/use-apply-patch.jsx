@@ -49,8 +49,11 @@ import { watchOccupiesBuild } from '../watch-waiters.cjs';
 // for. `watchStateRef` and `watchRebuildsOnStart` are what those decisions
 // read.
 //
+// `refuseInTerminal` says in the terminal that a command is already running,
+// and brings the terminal up to be read (#558).
+//
 // None of the chain's functions is memoised, as none was.
-export function useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart }) {
+export function useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart }) {
   // Patches on the linked ticket (#11): { status, items, cachedAt } or null.
   const [ticketPatches, setTicketPatches] = useState(null);
   const [ticketPatchesLoading, setTicketPatchesLoading] = useState(false);
@@ -376,7 +379,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     if (!number) return;
     const state = terminalStateRef.current;
     if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      refuseInTerminal();
       return;
     }
     // A checkout rewrites far more than a src/ patch, so a live watch is always
@@ -509,7 +512,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
   const runApply = async ({ reverse = false } = {}) => {
     const state = terminalStateRef.current;
     if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      refuseInTerminal();
       return;
     }
     const preview = applyPreview;

@@ -104,7 +104,7 @@ test('updateStepText: the build step names the resumed watch only while current 
 	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'pending' }), 'Rebuild');
 	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'complete' }), 'Rebuilt');
 	const own = planUpdateSteps({ lockfileChanged: false });
-	assert.strictEqual(updateStepText(own, { key: 'build', status: 'current' }), 'Rebuilding — output in the Terminal below');
+	assert.strictEqual(updateStepText(own, { key: 'build', status: 'current' }), 'Rebuilding — output in the Terminal');
 });
 
 test('updateStepText: every step has a line for every status, and unknowns fall back rather than blank (#507)', () => {

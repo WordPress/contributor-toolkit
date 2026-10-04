@@ -169,8 +169,6 @@ const retryInstallButton = ( page ) => page.getByRole( 'button', { name: 'Retry 
 // while that one is showing, and the tray is named for what it holds.
 const trayToggle = ( page, name ) => page.getByRole( 'button', { name: `Toggle ${ name }`, exact: true } );
 const tray = ( page, name ) => page.getByRole( 'complementary', { name, exact: true } );
-// The tray's top edge, which is dragged or moved with the arrow keys.
-const trayEdge = ( page ) => page.getByRole( 'separator', { name: 'Resize tray', exact: true } );
 
 /**
  * Opens a tray, unless it is the one already open, and waits for it.
@@ -510,7 +508,6 @@ module.exports = {
 	terminalHint,
 	trayToggle,
 	tray,
-	trayEdge,
 	openTray,
 	logTab,
 	card,

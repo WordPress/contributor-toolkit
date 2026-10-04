@@ -62,6 +62,15 @@ export function BottomTray({ title, onClose }) {
     trayRef.current.style.setProperty('--app-tray-height', `${shown}px`);
   }, [shown]);
 
+  // And how much of the window's foot the tray takes is said to the whole
+  // document: the confirmations are drawn on `body`, in the corner the tray
+  // comes up into, and stand that much higher while it is open.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--app-tray-inset', open ? `${shown}px` : '0px');
+    return () => root.style.removeProperty('--app-tray-inset');
+  }, [open, shown]);
+
   const onPointerDown = (event) => {
     if (event.button !== 0) return;
     event.preventDefault();
@@ -70,13 +79,16 @@ export function BottomTray({ title, onClose }) {
     // it does at once: the edge is a few pixels tall.
     event.currentTarget.setPointerCapture(event.pointerId);
   };
+  // A drag ends when the button is let go, and also when the edge loses the
+  // pointer without that, as it does when the window is left mid-drag: the
+  // pointer coming back across the edge must not go on moving it.
+  const endDrag = () => {
+    dragRef.current = null;
+  };
   const onPointerMove = (event) => {
     const drag = dragRef.current;
     if (!drag) return;
     setHeight(drag.height + (drag.y - event.clientY));
-  };
-  const endDrag = () => {
-    dragRef.current = null;
   };
   const onKeyDown = (event) => {
     const next = trayHeightForKey(shown, event.key, limits);
@@ -89,14 +101,15 @@ export function BottomTray({ title, onClose }) {
     <aside id={TRAY_ID} ref={trayRef} className="app-tray" aria-label={title || undefined} hidden={!open}>
       {/* The top edge, as the splitter it is: dragged with a pointer, moved
           with the arrow keys, and saying how tall the tray is. A separator
-          that takes the focus is a control, which the lint rule does not
-          know of one. */}
+          that takes the focus is a control, and the lint rule takes every
+          separator for one that is not. */}
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className="app-tray-resize"
         role="separator"
         aria-orientation="horizontal"
         aria-label={__('Resize tray')}
+        aria-controls={TRAY_ID}
         aria-valuenow={shown}
         aria-valuemin={limits.min}
         aria-valuemax={limits.max}
@@ -105,6 +118,7 @@ export function BottomTray({ title, onClose }) {
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onLostPointerCapture={endDrag}
         onKeyDown={onKeyDown}
       />
       <Stack direction="row" align="center" justify="space-between" gap="sm" className="app-tray-header">

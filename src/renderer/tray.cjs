@@ -14,10 +14,12 @@ const { __ } = require( '@wordpress/i18n' );
 
 // As tall as it opens, before anyone has dragged it.
 const DEFAULT_TRAY_HEIGHT = 280;
-// Never so short that what it holds has no line to show under its heading.
-const MIN_TRAY_HEIGHT = 120;
+// Never so short that the terminal has no rows left: under its heading and
+// over the three lines it says beneath itself, this leaves it a few.
+const MIN_TRAY_HEIGHT = 180;
 // Never more than this share of the window: the page above it is where the
-// work is, and the tray must not be able to cover it.
+// work is, and it is left the other half, less its own header and the
+// footer.
 const MAX_TRAY_SHARE = 0.5;
 // What one press of an arrow key moves the edge by.
 const TRAY_KEY_STEP = 24;
@@ -48,8 +50,7 @@ function toggleTray( current, pressed ) {
 
 /**
  * The shortest and the tallest the tray may be in a window of this height.
- * In a window too short for both, the share of the window wins: the page
- * keeps its half.
+ * In a window too short for both, the share of the window wins.
  *
  * @param {number} windowHeight
  * @return {{min: number, max: number}} In pixels.
@@ -72,7 +73,8 @@ function clampTrayHeight( height, limits ) {
 
 /**
  * The height a key asks for, on the tray's top edge. Up makes the tray
- * taller, since its edge moves up; Home and End are the two ends. Any other
+ * taller, since its edge moves up. Home is the tray at its smallest and End
+ * at its largest, as a splitter's keys are for the pane it sizes. Any other
  * key asks for nothing.
  *
  * @param {number}                     height
@@ -83,8 +85,8 @@ function clampTrayHeight( height, limits ) {
 function trayHeightForKey( height, key, limits ) {
 	if ( key === 'ArrowUp' ) return clampTrayHeight( height + TRAY_KEY_STEP, limits );
 	if ( key === 'ArrowDown' ) return clampTrayHeight( height - TRAY_KEY_STEP, limits );
-	if ( key === 'Home' ) return limits.max;
-	if ( key === 'End' ) return limits.min;
+	if ( key === 'Home' ) return limits.min;
+	if ( key === 'End' ) return limits.max;
 	return null;
 }
 

@@ -212,6 +212,9 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
       appendWatch('No completed build found — running npm run build first…\n');
       runScript('build', {
         mirrorToNpm: false,
+        // It prints in the watch's log, and that is where its failure says
+        // to look: the terminal is not brought up for it.
+        outputInTerminal: false,
         onLog: (chunk) => { appendWatch(chunk); },
         onDone: ({ code }) => {
           markTerminalRunning(false);

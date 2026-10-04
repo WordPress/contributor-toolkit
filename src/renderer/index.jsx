@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import {
@@ -167,6 +167,10 @@ function App() {
   const [tray, setTray] = useState(null);
   const trays = trayList();
   const pressTrayToggle = useCallback((id) => setTray((current) => toggleTray(current, id)), []);
+  // The one time the tray opens without being asked: a site's view says so
+  // when something failed or was refused and the only word of it is in the
+  // terminal. The page points there, and there has to be on screen.
+  const showTerminal = useCallback(() => setTray('terminal'), []);
   // Closed from inside itself, the tray takes the focused button with it. The
   // focus goes back to the button that opened it, and not to the top of the
   // document.
@@ -685,6 +689,7 @@ function App() {
                         detailsOpen={detailsOpen}
                         onToggleDetails={toggleDetails}
                         tray={tray}
+                        onShowTerminal={showTerminal}
                       />
                     </div>
                   ))}
@@ -719,7 +724,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTerminal = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1066,16 +1071,44 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     if (onDeepLinkDone) onDeepLinkDone();
   }, [deepLinkTicket, onDeepLinkDone, saveTicket]);
 
+  // Brings this site's terminal up in the tray (#558), for the two things
+  // that are said nowhere else: an install or a build that failed, whose
+  // output is there, and an action that was refused because a command is
+  // running, which is a line printed there. The tray shows the open site's
+  // terminal, so a site that is not the open one waits until it is: its page
+  // will be saying where to look when it is looked at.
+  const isActiveRef = useRef(isActive);
+  const terminalWantedRef = useRef(false);
+  useLayoutEffect(() => {
+    isActiveRef.current = isActive;
+  }, [isActive]);
+  const revealTerminal = useCallback(() => {
+    if (isActiveRef.current) onShowTerminal?.();
+    else terminalWantedRef.current = true;
+  }, [onShowTerminal]);
+  useEffect(() => {
+    if (!isActive || !terminalWantedRef.current) return;
+    terminalWantedRef.current = false;
+    onShowTerminal?.();
+  }, [isActive, onShowTerminal]);
+
   // The npm runs this view starts (#554): the install and the scripts, and the
   // flags the rest of the view reads about them. Called here because it needs
   // `loadStatus` above; the terminal and the build watch below run through it.
-  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized });
+  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
 
   // The site's terminal (#554): the xterm instance, what is typed in it and
   // the commands it runs through the three runners above. The lock, the kill
   // handler and the writer are taken out by name because every chain below
   // holds the lock and writes its progress there, as it always has.
   const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent, shown: isActive && tray === 'terminal' });
+  // What a chain says when it is asked to start while a command holds the
+  // terminal. The line is printed there and nowhere else, so the terminal is
+  // brought up with it: a refusal nobody sees is a button that did nothing.
+  const refuseInTerminal = useCallback(() => {
+    writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+    revealTerminal();
+  }, [revealTerminal, writeToTerminal]);
   // The scroll root for the next-action cue (#252): the whole detail section, so
   // the cue can find whichever block is the next step wherever it sits.
   const nextActionSectionRef = useRef(null);
@@ -1153,7 +1186,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // about edits in the tree, and the retry. Called here because it runs
   // through everything above, and because what follows reads whether an
   // update is under way.
-  const { updateState, isUpdating, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+  const { updateState, isUpdating, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
   // What the page says about the site's two processes (#557), in the header
   // and in the details alike. Decided in site-processes.cjs, and worked out
   // here because an update of trunk holds both.
@@ -1185,7 +1218,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // ticket offers, the preview, and the chain. Called here because it runs
   // through everything above, and because what follows reads whether an
   // apply is under way.
-  const { applyState, isApplying, applyKind, applySteps, applyStepStates, applyPreview, setApplyPreview, applyError, setApplyError, applyConflict, setApplyConflict, applyNotice, setApplyNotice, clearApplyError, prUrlInput, setPrUrlInput, fetchingPr, fetchingAttachment, ticketPatches, ticketPatchesLoading, tracAttachments, tracAttachmentsLoading, patchAttachments, loadTicketPatches, loadTracAttachments, choosePatchFile, previewPr, previewAttachment, previewPrFromInput, runPrSwitch, runApply } = useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart });
+  const { applyState, isApplying, applyKind, applySteps, applyStepStates, applyPreview, setApplyPreview, applyError, setApplyError, applyConflict, setApplyConflict, applyNotice, setApplyNotice, clearApplyError, prUrlInput, setPrUrlInput, fetchingPr, fetchingAttachment, ticketPatches, ticketPatchesLoading, tracAttachments, tracAttachmentsLoading, patchAttachments, loadTicketPatches, loadTracAttachments, choosePatchFile, previewPr, previewAttachment, previewPrFromInput, runPrSwitch, runApply } = useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart });
 
   // The tickets with work on this site (#108), in a card of their own (#240)
   // below the Trac ticket card and the patch one — which ticket am I on, what
@@ -1983,7 +2016,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             title: `Setting this site up for you — step ${setupStepStates.filter((s) => s.status === 'complete').length + 1} of ${setupSteps.length}`,
             body: setupChainState === 'installing'
               ? 'Installing dependencies. You can leave this running — the build follows on its own.'
-              : 'Running the full build. This can take up to half an hour on Windows; the Terminal below shows what it is doing.',
+              : 'Running the full build. This can take up to half an hour on Windows; the Terminal shows what it is doing.',
             onStop: stopSetupChain
           } : null}
           stopped={setupChainEnd === 'stopped'}

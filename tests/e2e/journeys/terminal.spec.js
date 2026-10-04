@@ -275,9 +275,10 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	expect( ( await asked() ).scripts ).toHaveLength( 3 );
 } );
 
-// The longest fixed line of the help the terminal prints as it starts: 74 of
-// the terminal's 80 columns, so it ends inside the terminal only when a
-// character takes one column.
+// The longest fixed line of the help the terminal prints as it starts: 74
+// columns, which the terminal has in the tray of any window these journeys
+// run in, so it ends inside the terminal only when a character takes one
+// column.
 const LONGEST_HELP_LINE = 'The setup checklist runs npm install and npm run build once. Run them here';
 
 /**

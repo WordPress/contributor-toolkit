@@ -1,7 +1,7 @@
 'use strict';
 
 // What a site with an incomplete build/ is told, wherever it is told.
-const STALE_ASSETS = 'so the site still runs the old assets. Start the build watch, or run npm run build in the Terminal below.';
+const STALE_ASSETS = 'so the site still runs the old assets. Start the build watch, or run npm run build in the Terminal.';
 
 /**
  * Whether the build watch is still compiling a change that was just handed

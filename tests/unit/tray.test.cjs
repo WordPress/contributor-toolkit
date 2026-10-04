@@ -40,6 +40,7 @@ test( 'the tray is never taller than half the window, and never shorter than its
 	assert.deepEqual( trayHeightLimits( 729 ), { min: MIN_TRAY_HEIGHT, max: 364 } );
 	// A window too short for the floor: the page keeps its half.
 	assert.deepEqual( trayHeightLimits( 200 ), { min: 100, max: 100 } );
+	assert.deepEqual( trayHeightLimits( 300 ), { min: 150, max: 150 } );
 	assert.ok( DEFAULT_TRAY_HEIGHT > MIN_TRAY_HEIGHT );
 } );
 
@@ -51,14 +52,14 @@ test( 'a height is brought inside the limits, and to a whole pixel', () => {
 	assert.equal( clampTrayHeight( 280.6, limits ), 281 );
 } );
 
-test( 'the arrow keys move the edge a step, up for taller, and stop at the limits; Home and End are the two ends', () => {
+test( 'the arrow keys move the edge a step, up for taller, and stop at the limits; Home is the smallest and End the largest', () => {
 	const limits = { min: 120, max: 400 };
 	assert.equal( trayHeightForKey( 280, 'ArrowUp', limits ), 280 + TRAY_KEY_STEP );
 	assert.equal( trayHeightForKey( 280, 'ArrowDown', limits ), 280 - TRAY_KEY_STEP );
 	assert.equal( trayHeightForKey( 395, 'ArrowUp', limits ), 400 );
 	assert.equal( trayHeightForKey( 125, 'ArrowDown', limits ), 120 );
-	assert.equal( trayHeightForKey( 280, 'Home', limits ), 400 );
-	assert.equal( trayHeightForKey( 280, 'End', limits ), 120 );
+	assert.equal( trayHeightForKey( 280, 'Home', limits ), 120 );
+	assert.equal( trayHeightForKey( 280, 'End', limits ), 400 );
 	// Anything else is not the edge's to answer, Tab above all.
 	assert.equal( trayHeightForKey( 280, 'Tab', limits ), null );
 	assert.equal( trayHeightForKey( 280, 'ArrowLeft', limits ), null );
@@ -67,7 +68,7 @@ test( 'the arrow keys move the edge a step, up for taller, and stop at the limit
 test( 'a terminal is fitted in whole cells, and one that cannot be measured is left alone', () => {
 	assert.deepEqual( terminalGrid( { width: 800, height: 200, cellWidth: 8, cellHeight: 17 } ), { cols: 100, rows: 11 } );
 	assert.deepEqual( terminalGrid( { width: 807.9, height: 203.9, cellWidth: 8, cellHeight: 17 } ), { cols: 100, rows: 11 } );
-	// Too small to read in: it keeps a size that can be, and scrolls.
+	// Too small to read in: it keeps a size that can be, and is clipped.
 	assert.deepEqual( terminalGrid( { width: 40, height: 10, cellWidth: 8, cellHeight: 17 } ), { cols: 20, rows: 2 } );
 	// Not shown: every measure is zero.
 	assert.equal( terminalGrid( { width: 0, height: 0, cellWidth: 8, cellHeight: 17 } ), null );
