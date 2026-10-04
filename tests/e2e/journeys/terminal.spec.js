@@ -56,6 +56,8 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	// the terminal are shown.
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	await app.evaluate( ( { ipcMain } ) => {
 		const asked = { scripts: [], installs: [], kills: [] };
 		global.__e2eTerminal = asked;
@@ -98,11 +100,13 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	// whichever of the apply card's tabs is open.
 	const prField = ui.prField( page );
 
-	// INVARIANT — the terminal is a region of the page a screen reader can go
-	// to, named by its heading (#557).
+	// INVARIANT — the terminal is in the tray (#558), which is a part of the
+	// window a screen reader can go to, named for what it holds and headed by
+	// the same word. The footer's button for it is pressed while it shows.
 	await expect( buildHint ).toBeVisible( { timeout: 30_000 } );
-	const region = page.getByRole( 'region', { name: 'Terminal', exact: true } );
+	const region = ui.tray( page, 'Terminal' );
 	await expect( region.getByRole( 'heading', { level: 2, name: 'Terminal', exact: true } ) ).toBeVisible();
+	await expect( ui.trayToggle( page, 'Terminal' ) ).toHaveAttribute( 'aria-pressed', 'true' );
 
 	// INVARIANT — it is painted with the design system's colours and not
 	// with colours of its own: the weak surface the log panes have, with the
@@ -281,7 +285,7 @@ const LONGEST_HELP_LINE = 'The setup checklist runs npm install and npm run buil
  * it, in pixels: nothing or less when it fits. Read from where the text is
  * laid out, not from what is painted: the row clips what runs past it, which
  * is how a line drawn too wide loses its second half. xterm draws each row as
- * a `div` as wide as its 80 columns, with the text in `span`s inside it.
+ * a `div` as wide as its columns, with the text in `span`s inside it.
  *
  * @param {Object} page
  * @return {Promise<number>} The overflow of the visible terminal's row.
@@ -306,6 +310,10 @@ test( 'the terminal of a site that was not on screen at launch fits its text in 
 		siteMeta: { ...first.settings.siteMeta, ...second.settings.siteMeta },
 		preferences: {},
 	} );
+	// The tray is closed when the window opens, so both terminals are made out
+	// of sight; the first is drawn when the tray is opened, the second when
+	// its site is.
+	await ui.openTray( page, 'Terminal' );
 
 	// INVARIANT — the site the app opens on draws a character to a column.
 	await expect( ui.siteHeading( page, 'open-at-launch' ) ).toBeVisible( { timeout: 30_000 } );

@@ -95,6 +95,8 @@ test( 'the list is a card of its own, one row a ticket, and each row\'s buttons 
 test( 'a row\'s buttons are held while the site builds, and say why', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	await standIns( app );
 	await parkOneLinkAnother( page );
 	// A build that runs until the test says it has ended. Nothing is run:

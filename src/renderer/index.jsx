@@ -23,6 +23,7 @@ import './shell.css';
 import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStartDecision } from './setup-steps.cjs';
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
+import { toggleTray, trayList } from './tray.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
@@ -69,7 +70,8 @@ import { TracDestination } from './components/trac-destination.jsx';
 import { PullRequestDestination } from './components/pull-request-destination.jsx';
 import { ReviewDialog } from './components/review-dialog.jsx';
 import { SitesSidebar } from './components/sites-sidebar.jsx';
-import { AppFooter } from './components/app-footer.jsx';
+import { AppFooter, trayToggleId } from './components/app-footer.jsx';
+import { BottomTray, SiteTrayFill } from './components/bottom-tray.jsx';
 import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
@@ -159,6 +161,19 @@ function App() {
   // not change as they move between sites.
   const [detailsOpen, setDetailsOpen] = useState(true);
   const toggleDetails = useCallback(() => setDetailsOpen((open) => !open), []);
+  // Which tray is open along the bottom of the window, if any (#558). One
+  // answer for the window, like the details: it is how the contributor has the
+  // window arranged, and the tray shows the open site's whichever site that is.
+  const [tray, setTray] = useState(null);
+  const trays = trayList();
+  const pressTrayToggle = useCallback((id) => setTray((current) => toggleTray(current, id)), []);
+  // Closed from inside itself, the tray takes the focused button with it. The
+  // focus goes back to the button that opened it, and not to the top of the
+  // document.
+  const closeTray = () => {
+    if (tray) document.getElementById(trayToggleId(tray))?.focus();
+    setTray(null);
+  };
   const [activeSite, setActiveSite] = useState(null);
   const [deletingSites, setDeletingSites] = useState([]);
   // State paints the progress, while the ref closes the same-tick gap before
@@ -669,6 +684,7 @@ function App() {
                         isActive={activeSite === s}
                         detailsOpen={detailsOpen}
                         onToggleDetails={toggleDetails}
+                        tray={tray}
                       />
                     </div>
                   ))}
@@ -676,7 +692,11 @@ function App() {
                 </div>
               </div>
             </Page>
-            <AppFooter onOpenFeedbackForm={openFeedbackForm} />
+            {/* Between the page and the footer, and taking its height from
+                the page: the page is the part that scrolls, so nothing on it
+                is ever under the tray. */}
+            <BottomTray title={trays.find((entry) => entry.id === tray)?.title || null} onClose={closeTray} />
+            <AppFooter trays={trays} activeTray={tray} onToggleTray={pressTrayToggle} onOpenFeedbackForm={openFeedbackForm} />
           </div>
         </div>
       )}
@@ -699,7 +719,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1055,7 +1075,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // the commands it runs through the three runners above. The lock, the kill
   // handler and the writer are taken out by name because every chain below
   // holds the lock and writes its progress there, as it always has.
-  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent, isActive });
+  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent, shown: isActive && tray === 'terminal' });
   // The scroll root for the next-action cue (#252): the whole detail section, so
   // the cue can find whichever block is the next step wherever it sits.
   const nextActionSectionRef = useRef(null);
@@ -1149,7 +1169,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // says it on itself, may be put away.
   const detailsId = useId();
   // The headings of the three panels under the cards, which name them.
-  const terminalTitleId = useId();
   const logsTitleId = useId();
   const mailTitleId = useId();
   const runSiteMenuAction = async (item) => {
@@ -1835,6 +1854,31 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       <VisuallyHidden role="status" aria-live="polite">
         {isActive && nextAction ? `Next step: ${nextAction.reason}` : ''}
       </VisuallyHidden>
+      {/* What this site has in the tray along the bottom of the window (#558).
+          Every site's is there, and all but the open site's are hidden: a
+          terminal is drawn in one element for as long as it lives, and what a
+          site's commands print has to be there when the site is looked at
+          again. Inside it, the tray that is open is the one shown. */}
+      <SiteTrayFill>
+        <div className="tray-site" hidden={!isActive}>
+          <div className="tray-panel" hidden={tray !== 'terminal'}>
+            {/* The pane has the padding and the element inside it has none,
+                so that what the terminal is fitted to is the room it has. */}
+            <div className="terminal-pane"><div ref={terminalContainerRef} className="terminal-screen" /></div>
+            <Stack direction="column" gap="xs" className="tray-notes">
+              {showTerminalHints ? (
+                <>
+                  <Text variant="body-sm" className="muted-label">Edited files in <code>{project.cards.sourceDir}</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</Text>
+                  <Text variant="body-sm" className="muted-label">Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</Text>
+                </>
+              ) : null}
+              <Text variant="body-sm" className="muted-label">
+                Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
+              </Text>
+            </Stack>
+          </div>
+        </div>
+      </SiteTrayFill>
       {/* What is done to the site as a whole is in the page's header (#556):
           the window leaves a slot there, and the site that is open fills it. */}
       {isActive ? (
@@ -2086,25 +2130,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           onDelete={(row) => askFirst(deleteWorkQuestion(row.ticketId, project.workItem.provider), () => deleteTicketWork(row.ref))}
         />
       ) : null}
-      <Stack direction="column" gap="sm" render={<section aria-labelledby={terminalTitleId} />}>
-        <Text id={terminalTitleId} variant="heading-md" render={<h2 />} className="site-panel-title">Terminal</Text>
-        {/* The terminal is 80 columns wide, which is more than the column
-            it sits in when the details are open and the window is at its
-            default size. It scrolls sideways there, so that the end of a
-            line can be reached, until it moves to the tray (#558). */}
-        <div ref={terminalContainerRef} className="terminal-pane" />
-        <Stack direction="column" gap="xs">
-          {showTerminalHints ? (
-            <>
-              <Text variant="body-sm" className="muted-label">Edited files in <code>{project.cards.sourceDir}</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</Text>
-              <Text variant="body-sm" className="muted-label">Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</Text>
-            </>
-          ) : null}
-          <Text variant="body-sm" className="muted-label">
-            Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
-          </Text>
-        </Stack>
-      </Stack>
       <Stack direction="column" gap="sm" render={<section aria-labelledby={logsTitleId} />}>
         <Text id={logsTitleId} variant="heading-md" render={<h2 />} className="site-panel-title">Logs</Text>
         <TabPanel className="log-tabs" activeClass="is-active" onSelect={selectLogTab} tabs={logTabs}>

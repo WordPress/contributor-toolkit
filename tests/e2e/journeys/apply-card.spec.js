@@ -225,6 +225,8 @@ test( 'a preview read for one site is not shown over another, and is there when 
 test( 'a patch cannot be applied while a command runs in the terminal, and the dialog says why', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const patch = makePatchFile( session, PATCH, [ { file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN } ] );
 	// A command that runs until the test says it has ended. Nothing is run:
 	// the stand-in answers with the run's name and starts no process, so

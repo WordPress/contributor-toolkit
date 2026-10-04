@@ -104,6 +104,8 @@ test( 'an update stops a running build watch for as long as it resets and builds
 	const site = await makeSite( session, { origin: true } );
 	advanceOrigin( site.origin, { 'src/wp-login.php': NEWER_LOGIN } );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const runs = await standInForRuns( app, page, path.join( site.dir, LOGIN ) );
 	const incomplete = page.getByText( 'Update incomplete', { exact: true } );
 
@@ -180,6 +182,8 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	fs.writeFileSync( built, '' );
 	advanceOrigin( site.origin, { 'src/wp-login.php': NEWER_LOGIN } );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const runs = await standInForRuns( app, page, path.join( site.dir, LOGIN ) );
 	const incomplete = page.getByText( 'Update incomplete', { exact: true } );
 	const updated = ui.toast( page, 'Updated to the latest trunk' );

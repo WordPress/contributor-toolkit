@@ -115,6 +115,8 @@ async function standIn( app, page, sitePath ) {
 test( 'the dev server\'s button starts one server and cannot be pressed while it starts, says when it is up, stops it without touching the watch, and tells a crash from a stop', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const server = await standIn( app, page, site.dir );
 
 	const starting = page.getByRole( 'button', { name: 'Starting development server…', exact: true } );
@@ -265,6 +267,8 @@ test( 'on a project whose watcher rebuilds everything, the server waits for a fi
 test( 'the header\'s menu starts and stops the same server, and the server\'s section says where the site is, opens it in the browser and not here, and says what to log in with', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const server = await standIn( app, page, site.dir );
 	const headerMenu = ( label ) => ui.processMenuButton( page, label );
 	const link = ( name ) => page.getByRole( 'link', { name, exact: true } );

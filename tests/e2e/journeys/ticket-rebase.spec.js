@@ -37,6 +37,8 @@ const BUTTON = 'Update this ticket to the current trunk';
  */
 async function makeTicketBehindTrunk( session, site, originChange ) {
 	const { page } = session;
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	await ui.linkTicket( page, TICKET );
 	write( site.dir, LOGIN, MY_LOGIN );
 	// Park the edit on the ticket (unlink, then continue) so the update meets

@@ -81,6 +81,8 @@ async function standInForScripts( app, page ) {
 test( 'the build watch starts and stops by its own button, prints in its own tab, leaves the terminal free, and tells a stop it was asked for from an exit it was not', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const scripts = await standInForScripts( app, page );
 
 	const logs = ui.card( page, 'Logs' );
@@ -161,6 +163,8 @@ test( 'a site with no build is built before it is watched, by a build that holds
 	const site = await makeSite( session );
 	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const scripts = await standInForScripts( app, page );
 
 	const logs = ui.card( page, 'Logs' );
@@ -226,6 +230,8 @@ test( 'a build stopped before the watch could start is not a failure, stopped by
 	const site = await makeSite( session );
 	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const scripts = await standInForScripts( app, page );
 
 	const failure = page.getByText( /^The build that has to finish before the watch can start failed/ );

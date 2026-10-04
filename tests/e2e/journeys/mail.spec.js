@@ -77,9 +77,9 @@ test( 'a mail the site sent opens as the one that was clicked, in its rendered a
 	const mail = page.getByRole( 'region', { name: 'Mail', exact: true } );
 	await expect( mail.getByRole( 'heading', { level: 2, name: 'Mail', exact: true } ) ).toBeVisible();
 	await expect( mail.getByRole( 'button', { name: /\[Test Site\] Password Reset$/ } ) ).toBeVisible();
-	// INVARIANT — and it is the last of the three panels under the cards:
-	// the terminal, then the logs, then the mail.
-	expect( await ui.inDocumentOrder( page, [ 'Terminal', 'Logs', 'Mail' ].map( ( name ) => page.getByRole( 'region', { name, exact: true } ) ) ) ).toBe( true );
+	// INVARIANT — and it is the last of the panels under the cards: the logs,
+	// then the mail. The terminal is in the tray (#558).
+	expect( await ui.inDocumentOrder( page, [ 'Logs', 'Mail' ].map( ( name ) => page.getByRole( 'region', { name, exact: true } ) ) ) ).toBe( true );
 	await expect( commentRow ).toBeVisible();
 
 	// INVARIANT — the dialog is the mail that was clicked: titled with its

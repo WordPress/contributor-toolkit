@@ -353,7 +353,11 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	// at the page's end too, and the two would look the same there.
 	await ui.ticketField( page ).filter( { visible: true } ).scrollIntoViewIfNeeded();
 	await expect( heading( 'set-up' ) ).toBeInViewport();
-	await ui.card( page, 'Terminal' ).scrollIntoViewIfNeeded();
+	// By the wheel, a part of the way: with the terminal gone to the tray
+	// (#558) there is no card to bring into view that leaves the page's end
+	// out of it.
+	await ui.ticketField( page ).filter( { visible: true } ).hover();
+	await page.mouse.wheel( 0, 300 );
 	await expect( pageEnd ).not.toBeInViewport();
 	await expect( heading( 'set-up' ) ).not.toBeInViewport();
 } );

@@ -269,6 +269,8 @@ test( 'a site opened with a ticket already linked waits to be asked before it go
 test( 'while the site is being built the card\'s actions are held, say why, and come back', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const outside = await standIn( app, page );
 	// A build that runs until the test says it has ended.
 	await app.evaluate( ( { ipcMain } ) => {
