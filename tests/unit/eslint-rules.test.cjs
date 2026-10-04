@@ -40,13 +40,17 @@ tester.run( 'no-hardcoded-colors', rules[ 'no-hardcoded-colors' ], {
 		// A fragment and an entity are not colours, whatever their letters.
 		"const link = 'https://example.org/page#fade';",
 		"const anchor = 'https://example.org/handbook/#add';",
+		"const section = '#bad-request';",
 		"const entity = '&#128;';",
-		// A word that only ends like a function.
+		// A word that only ends like a function, and a name that goes on.
 		"const label = 'Collab(tm)';",
+		"const own = 'my-rgb(1, 2, 3)';",
+		// A function's name is one only in front of its bracket.
 		"const mixed = 'color-mix(in oklab, var(--wpds-color-stroke-surface-warning), transparent)';",
-		// The text of a template that cannot be read as a string is not one.
+		// A template is read as the program gets it, and where an escape
+		// cannot be read the program gets nothing.
 		'const raw = String.raw`\\unicode #fff`;',
-		// A number is not a string, a comment is not code, and a pattern that
+		// A comment is not code, and only a string is read: a pattern that
 		// looks for a colour does not paint with one.
 		'const count = 0xfff; // #fff',
 		'const looksForOne = / #fff$/;',
@@ -64,6 +68,8 @@ tester.run( 'no-hardcoded-colors', rules[ 'no-hardcoded-colors' ], {
 		{ code: "const note = 'Fixed in #607';", errors: [ { messageId: 'hardcoded', data: { color: '#607' } } ] },
 		{ code: "const wash = 'rgba(46,160,67,0.18)';", errors: [ { messageId: 'hardcoded', data: { color: 'rgba(…)' } } ] },
 		{ code: "const tint = 'HSL(210 50% 40%)';", errors: [ { messageId: 'hardcoded', data: { color: 'HSL(…)' } } ] },
+		{ code: "const wide = 'color(display-p3 1 0.5 0)';", errors: [ { messageId: 'hardcoded', data: { color: 'color(…)' } } ] },
+		{ code: "const ink = 'device-cmyk(0 0 0 1)';", errors: [ { messageId: 'hardcoded', data: { color: 'device-cmyk(…)' } } ] },
 		{ code: 'const edge = `2px solid #3858e9`;', errors: [ { messageId: 'hardcoded' } ] },
 		{ code: 'const edge = `${ width }px solid oklch(60% 0.2 250)`;', errors: [ { messageId: 'hardcoded' } ] },
 		{ code: 'const node = <p className="x" title="#fff">text</p>;', errors: [ { messageId: 'hardcoded' } ] },

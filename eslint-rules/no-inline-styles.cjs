@@ -13,10 +13,12 @@
 // It reads the attribute as written on a JSX element, and nothing else: not a
 // `style` handed over in a spread, and not one set on an element from an
 // effect. A selector given to `no-restricted-syntax` could find the same
-// attribute; this is a rule of its own so that it is tested beside the other
-// one, and says why in its own words. A value that can only
-// be known while the app runs, a width measured from something, has no class
-// to be; that one is disabled where it stands, with the reason beside it.
+// attribute and say the same thing; this is a rule of its own so that it is
+// tested beside the other one.
+//
+// A value that can only be known while the app runs, a width measured from
+// something, has no class to be; that one is disabled where it stands, with
+// the reason beside it.
 
 module.exports = /** @type {import('eslint').Rule.RuleModule} */ ( {
 	meta: {
@@ -33,7 +35,9 @@ module.exports = /** @type {import('eslint').Rule.RuleModule} */ ( {
 	create( context ) {
 		return {
 			JSXAttribute( node ) {
-				if ( node.name.type === 'JSXIdentifier' && node.name.name === 'style' ) {
+				// An attribute in a namespace has a name made of two; its `name`
+				// is not this string.
+				if ( node.name.name === 'style' ) {
 					context.report( { node, messageId: 'inline' } );
 				}
 			},

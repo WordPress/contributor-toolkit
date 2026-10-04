@@ -16,20 +16,21 @@
 //
 // A rule of its own and not a selector given to `no-restricted-syntax`, which
 // could find the same nodes: the message names what was found, and the two
-// patterns are tested where they are written.
+// patterns are tested by themselves, through `hardcodedColor`.
 
 // `#` and then 3, 4, 6 or 8 hex digits, and no more of a word on either side.
 // The lengths are CSS's own, so a Trac ticket's five digits are not a colour.
 // A reference of three or four digits written out in a string is one, as far
 // as this can tell: `#607` is a grey. Those are put together from the number
-// (`#%d`), which is how a translated string has to be built anyway.
+// (`#%d` in a translated string, `#${ n }` in a template), which is how the
+// renderer writes them already.
 // A `#` that follows a word, an `&` or a `/` is a fragment or an entity.
 const HEX_COLOR = /(?<![\w&/])#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})(?![\w-])/i;
 
 // The functions that take a colour's channels, as part of no longer word.
 // `color-mix()` is not among them: what it mixes is given to it, and can be
 // tokens.
-const COLOR_FUNCTION = /(?<![\w-])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(/i;
+const COLOR_FUNCTION = /(?<![\w-])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|device-cmyk)\(/i;
 
 /**
  * The colour a string spells out, if it spells one.
@@ -59,14 +60,15 @@ module.exports = /** @type {import('eslint').Rule.RuleModule} */ ( {
 	},
 	create( context ) {
 		const check = ( node, text ) => {
-			// A number, a pattern, and a template's text that cannot be read as
-			// a string are not strings.
+			// A number and a pattern are literals too, and are not strings.
 			if ( typeof text !== 'string' ) return;
 			const color = hardcodedColor( text );
 			if ( color ) context.report( { node, messageId: 'hardcoded', data: { color } } );
 		};
 		return {
 			Literal: ( node ) => check( node, node.value ),
+			// The text as the program gets it. Where an escape cannot be read
+			// there is none, and nothing to look in.
 			TemplateElement: ( node ) => check( node, node.value.cooked ),
 		};
 	},
