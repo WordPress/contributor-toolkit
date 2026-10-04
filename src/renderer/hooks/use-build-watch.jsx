@@ -141,6 +141,8 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
       args: plan.watch.args,
       track: false,
       mirrorToNpm: false,
+      // The watcher prints in its own log, whatever its script is called.
+      outputInTerminal: false,
       onStart: (runId) => {
         // Stopped before the spawn resolved: this run must not be recorded as
         // the live watcher, and its process would otherwise outlive the stop.

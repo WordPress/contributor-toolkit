@@ -50,10 +50,11 @@ import { watchOccupiesBuild } from '../watch-waiters.cjs';
 // read.
 //
 // `refuseInTerminal` says in the terminal that a command is already running,
-// and brings the terminal up to be read (#558).
+// and brings the terminal up to be read (#558); `revealTerminal` brings it up
+// for a failure that is only printed there.
 //
 // None of the chain's functions is memoised, as none was.
-export function useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart }) {
+export function useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart }) {
   // Patches on the linked ticket (#11): { status, items, cachedAt } or null.
   const [ticketPatches, setTicketPatches] = useState(null);
   const [ticketPatchesLoading, setTicketPatchesLoading] = useState(false);
@@ -160,7 +161,10 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
         },
         () => {
           if (!applyHandOffRef.current.isCurrent(token)) return;
+          // Said in the terminal and nowhere else, after the page has said
+          // the patch is applied: the terminal is brought up to be read.
           writeToTerminal(handOff.failed);
+          revealTerminal();
         }
       );
       finishApply(`\n${verb} — open the site to try it out.\n`);

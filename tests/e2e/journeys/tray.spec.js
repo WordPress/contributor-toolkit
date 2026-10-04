@@ -51,6 +51,12 @@ async function standInForScripts( app, page ) {
 			global.__e2eTrayScripts.push( name );
 			return { runId: `e2e-run-${ global.__e2eTrayScripts.length }` };
 		} );
+		global.__e2eTrayKills = [];
+		ipcMain.removeHandler( 'npm:kill' );
+		ipcMain.handle( 'npm:kill', ( event, params ) => {
+			global.__e2eTrayKills.push( params.runId );
+			return { ok: true };
+		} );
 	} );
 	const tell = ( channel, payload ) => app.evaluate( ( { BrowserWindow }, [ to, what ] ) => {
 		for ( const win of BrowserWindow.getAllWindows() ) {
@@ -59,6 +65,7 @@ async function standInForScripts( app, page ) {
 	}, [ channel, payload ] );
 	return {
 		asked: () => app.evaluate( () => global.__e2eTrayScripts ),
+		kills: () => app.evaluate( () => global.__e2eTrayKills ),
 		prints: ( run, text ) => tell( 'npm:run-script:log', { runId: `e2e-run-${ run }`, type: 'stdout', data: text } ),
 		ends: ( run, code ) => tell( 'npm:run-script:done', { runId: `e2e-run-${ run }`, code } ),
 		heard: () => page.evaluate( () => window.api.getSitesWithMeta() ),
@@ -166,15 +173,18 @@ test( 'the tray\'s edge is moved with the arrow keys and with a pointer, stays i
 	const said = async () => Number( await edge.getAttribute( 'aria-valuenow' ) );
 	// How many rows the terminal has drawn, and how many more rows and
 	// columns would fit in the element it is drawn in: none, when it is
-	// fitted. A column is as wide as the widest row drawn is long, over the
-	// characters it holds; the room is what is left beside the scrollbar,
-	// where the platform draws one.
+	// fitted. A column is measured off what is drawn: the longest run of
+	// text on screen, as wide as it is laid out, over the characters in it.
+	// The room is what is left beside the scrollbar, where the platform
+	// draws one.
 	const fit = () => terminalScreen( page ).evaluate( ( rows ) => {
 		const screen = rows.closest( '.xterm' ).parentElement;
 		const viewport = screen.querySelector( '.xterm-viewport' );
 		const rowHeight = rows.firstElementChild.getBoundingClientRect().height;
-		const measure = screen.querySelector( '.xterm-char-measure-element' );
-		const columnWidth = measure.getBoundingClientRect().width / measure.textContent.length;
+		const line = Array.from( rows.querySelectorAll( 'span' ) ).reduce( ( longest, span ) => ( span.textContent.length > longest.textContent.length ? span : longest ) );
+		const drawn = document.createRange();
+		drawn.selectNodeContents( line );
+		const columnWidth = drawn.getBoundingClientRect().width / line.textContent.length;
 		const room = screen.clientWidth - ( viewport.offsetWidth - viewport.clientWidth );
 		const columns = Math.round( rows.getBoundingClientRect().width / columnWidth );
 		return {
@@ -234,9 +244,12 @@ test( 'the tray\'s edge is moved with the arrow keys and with a pointer, stays i
 	await expect.poll( height ).toBe( limits.min );
 
 	// INVARIANT — at its smallest the tray still holds a terminal that can
-	// be read, fitted, with what it says beneath itself inside the tray.
+	// be read, with what it says beneath itself inside the tray. A terminal
+	// keeps two rows however little room it has, so two is what it would
+	// have with no room at all, and rows it has no room for show as fewer
+	// than none to spare.
 	await expect.poll( fit ).toMatchObject( { spare: 0, spareColumns: 0, overhang: 0 } );
-	expect( ( await fit() ).rows ).toBeGreaterThanOrEqual( 2 );
+	expect( ( await fit() ).rows ).toBeGreaterThan( 2 );
 	expect( await notesInside() ).toBe( true );
 
 	// INVARIANT — dragged, the edge follows the pointer: up by this much
@@ -317,6 +330,50 @@ test( 'a build that fails with its output in the terminal brings the terminal up
 	await expect( terminalScreen( page ) ).toContainText( 'Update incomplete — the build failed.' );
 } );
 
+test( 'an update that cannot fetch says why in the terminal, and brings the terminal up', async ( { session } ) => {
+	// A site with nowhere to fetch from: the update is given up before it
+	// touches anything, and the reason is a line the main process prints.
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+	const tray = ui.tray( page, 'Terminal' );
+	await expect( ui.siteMenuButton( page ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( tray ).toHaveCount( 0 );
+	await ui.siteMenuButton( page ).click();
+	await ui.updateTrunkMenuItem( page ).click();
+
+	// INVARIANT — the reason is on screen. It is printed in the terminal and
+	// nowhere else, and no run ended to show it: without the terminal the
+	// update would look like one that was never asked for.
+	await expect( tray ).toBeVisible( { timeout: 30_000 } );
+	await expect( terminalScreen( page ) ).toContainText( 'This site has no origin remote to fetch from, so it cannot be updated.' );
+} );
+
+test( 'a build that was asked to stop does not bring the terminal back', async ( { session } ) => {
+	const site = await makeSite( session, { origin: true } );
+	advanceOrigin( site.origin, { 'src/wp-login.php': '<?php // newer trunk\n' } );
+	const { app, page } = await session.start( site.settings );
+	const scripts = await standInForScripts( app, page );
+	await expect( ui.siteMenuButton( page ) ).toBeVisible( { timeout: 30_000 } );
+	await ui.siteMenuButton( page ).click();
+	await ui.updateTrunkMenuItem( page ).click();
+	await expect.poll( scripts.asked, { timeout: 60_000 } ).toEqual( [ 'build' ] );
+
+	// The build is stopped from the terminal, and the tray is then put away
+	// before the build has ended.
+	const tray = await ui.openTray( page, 'Terminal' );
+	await ui.terminalInput( page ).press( 'Control+c' );
+	await expect.poll( scripts.kills ).toEqual( [ 'e2e-run-1' ] );
+	await tray.getByRole( 'button', { name: 'Close', exact: true } ).click();
+	await expect( tray ).toHaveCount( 0 );
+
+	// INVARIANT — a run that was asked to stop did not fail: it ends as a
+	// killed process does, with no code, the page says where the update
+	// stands, and the tray stays where it was put.
+	await scripts.ends( 1, null );
+	await expect( page.getByText( 'Update incomplete', { exact: true } ) ).toBeVisible();
+	await expect( tray ).toHaveCount( 0 );
+} );
+
 test( 'a failure on a site that is not the open one waits for that site to be opened', async ( { session } ) => {
 	const updating = await makeSite( session, { label: 'updating-site', origin: true } );
 	const other = await makeSite( session, { label: 'other-site' } );
@@ -354,6 +411,43 @@ test( 'a failure on a site that is not the open one waits for that site to be op
 	await expect( ui.siteHeading( page, 'updating-site' ) ).toBeVisible();
 	await expect( tray ).toBeVisible();
 	await expect( terminalScreen( page ) ).toContainText( 'Update incomplete — the build failed.' );
+} );
+
+test( 'a site deleted while it builds does not open the tray on the site that is left', async ( { session } ) => {
+	const doomed = await makeSite( session, { label: 'doomed-site', origin: true } );
+	const kept = await makeSite( session, { label: 'kept-site' } );
+	advanceOrigin( doomed.origin, { 'src/wp-login.php': '<?php // newer trunk\n' } );
+	// The app opens on the newest site.
+	kept.settings.siteMeta[ kept.dir ].createdAt = new Date( Date.now() - 7 * 24 * 60 * 60 * 1000 ).toISOString();
+	const { app, page } = await session.start( {
+		sites: [ doomed.dir, kept.dir ],
+		siteMeta: { ...doomed.settings.siteMeta, ...kept.settings.siteMeta },
+		preferences: {},
+	} );
+	const scripts = await standInForScripts( app, page );
+	const tray = ui.tray( page, 'Terminal' );
+	await expect( ui.siteHeading( page, 'doomed-site' ) ).toBeVisible( { timeout: 30_000 } );
+	await ui.siteMenuButton( page ).click();
+	await ui.updateTrunkMenuItem( page ).click();
+	await expect.poll( scripts.asked, { timeout: 60_000 } ).toEqual( [ 'build' ] );
+
+	// The site is deleted with its build under way, and the build then ends
+	// as a run does whose site was taken from under it.
+	await ui.siteMenuButton( page ).click();
+	await ui.deleteSiteMenuItem( page ).click();
+	await ui.confirmYesButton( page, 'Delete site' ).click();
+	await expect( ui.siteHeading( page, 'kept-site' ) ).toBeVisible( { timeout: 30_000 } );
+	await scripts.ends( 1, 1 );
+
+	// INVARIANT — the tray stays closed: the site that is left has had no
+	// failure, and its terminal has nothing to show for one. Nothing on
+	// screen changes when the build's end is taken in, so the page is asked
+	// what the end itself asks, the gone site's status, and then once more:
+	// by the second answer the first asking has been answered and acted on.
+	await page.evaluate( ( dir ) => window.api.getSiteStatus( dir ), doomed.dir );
+	await scripts.heard();
+	await expect( tray ).toHaveCount( 0 );
+	await expect( ui.trayToggle( page, 'Terminal' ) ).toHaveAttribute( 'aria-pressed', 'false' );
 } );
 
 test( 'an action refused because a command is running brings the terminal up to say so', async ( { session } ) => {

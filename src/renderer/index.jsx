@@ -1076,12 +1076,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // output is there, and an action that was refused because a command is
   // running, which is a line printed there. The tray shows the open site's
   // terminal, so a site that is not the open one waits until it is: its page
-  // will be saying where to look when it is looked at.
-  const isActiveRef = useRef(isActive);
+  // will be saying where to look when it is looked at. A site being deleted
+  // is not the open one for this: its runs are ended as it goes, and the tray
+  // must not open, on whichever site is next, for a site that is gone.
+  const isActiveRef = useRef(isActive && !isDeleting);
   const terminalWantedRef = useRef(false);
   useLayoutEffect(() => {
-    isActiveRef.current = isActive;
-  }, [isActive]);
+    isActiveRef.current = isActive && !isDeleting;
+    return () => {
+      isActiveRef.current = false;
+    };
+  }, [isActive, isDeleting]);
   const revealTerminal = useCallback(() => {
     if (isActiveRef.current) onShowTerminal?.();
     else terminalWantedRef.current = true;
@@ -1186,7 +1191,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // about edits in the tree, and the retry. Called here because it runs
   // through everything above, and because what follows reads whether an
   // update is under way.
-  const { updateState, isUpdating, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+  const { updateState, isUpdating, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
   // What the page says about the site's two processes (#557), in the header
   // and in the details alike. Decided in site-processes.cjs, and worked out
   // here because an update of trunk holds both.
@@ -1218,7 +1223,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // ticket offers, the preview, and the chain. Called here because it runs
   // through everything above, and because what follows reads whether an
   // apply is under way.
-  const { applyState, isApplying, applyKind, applySteps, applyStepStates, applyPreview, setApplyPreview, applyError, setApplyError, applyConflict, setApplyConflict, applyNotice, setApplyNotice, clearApplyError, prUrlInput, setPrUrlInput, fetchingPr, fetchingAttachment, ticketPatches, ticketPatchesLoading, tracAttachments, tracAttachmentsLoading, patchAttachments, loadTicketPatches, loadTracAttachments, choosePatchFile, previewPr, previewAttachment, previewPrFromInput, runPrSwitch, runApply } = useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart });
+  const { applyState, isApplying, applyKind, applySteps, applyStepStates, applyPreview, setApplyPreview, applyError, setApplyError, applyConflict, setApplyConflict, applyNotice, setApplyNotice, clearApplyError, prUrlInput, setPrUrlInput, fetchingPr, fetchingAttachment, ticketPatches, ticketPatchesLoading, tracAttachments, tracAttachmentsLoading, patchAttachments, loadTicketPatches, loadTracAttachments, choosePatchFile, previewPr, previewAttachment, previewPrFromInput, runPrSwitch, runApply } = useApplyPatch({ sitePath, project, workItem, showTracCards, isActive, tracTicket, appliedPatch, pullRequest, ticketBranches, setTicketError, setBlockedByTrunkWork, retryPrSwitchRef, ticketSwitchLifecycleRef, autoReadTicketRef, confirm, loadStatus, refreshDirty, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, applyHandOffRef, handOffToWatch, pauseWatcher, resumeWatcher, watchRebuildsOnStart });
 
   // The tickets with work on this site (#108), in a card of their own (#240)
   // below the Trac ticket card and the patch one — which ticket am I on, what

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { runFailedInTerminal } from '../terminal-hints.cjs';
 
 // The npm runs a site's view starts (#554): npm install and the site's npm
 // scripts, with what the rest of the view needs to know about them. Whether an
@@ -17,12 +18,11 @@ import { useCallback, useRef, useState } from 'react';
 //
 // `loadStatus` reloads what the view knows about the site, and `onInitialized`
 // tells the window that a site has its dependencies. `onRunFailed` is told
-// when an install or a build ends badly and its output is in the terminal,
-// which is where a run's output goes unless its caller says otherwise
-// (`outputInTerminal: false`, as the build that runs ahead of the watch
-// does: it prints in the watch's log). A run stopped with Ctrl+C ends badly
-// too, and is told the same: Ctrl+C is pressed in the terminal, so the
-// terminal is already what is on screen.
+// when an install or a build fails with its output in the terminal, which is
+// where a run's output goes unless its caller says otherwise
+// (`outputInTerminal: false`, as the build watch does: it prints in its own
+// log). What counts as failing is `runFailedInTerminal`'s to say; a run that
+// was asked to stop, through `killCurrent`, did not.
 //
 // `buildInterrupted` is here and not with the build watch, though the watch is
 // what sets it, because a build that ends well is what clears it, and the
@@ -52,10 +52,15 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
     setBuildInterrupted(interrupted);
   }, []);
   const currentRunIdRef = useRef(null);
+  // Whether the run under way was asked to stop: by Ctrl+C in the terminal,
+  // or by a button on the page, as a setup is. Set by `killCurrent`, and put
+  // back when the next run starts.
+  const stopRequestedRef = useRef(false);
 
   const runInstall = useCallback((options = {}) => {
     const { onLog, onDone, outputInTerminal = true } = options;
     setInstalling(true);
+    stopRequestedRef.current = false;
     ensureStick('npm');
     window.api.runNpmInstall(sitePath, ({ data }) => {
       appendNpm(data);
@@ -68,7 +73,7 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
       // keeps the install button available for a retry.
       if (code === 0) { try { await window.api.markSiteInitialized(sitePath); } catch {} onInitialized(sitePath); }
       try { await loadStatus(); } catch {}
-      if (outputInTerminal && code !== 0) onRunFailed();
+      if (runFailedInTerminal({ code, outputInTerminal, stopRequested: stopRequestedRef.current })) onRunFailed();
       if (onDone) onDone({ code });
     }).catch((error) => {
       // A start that never got as far as a run id, so no done event is coming
@@ -76,7 +81,7 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
       // not exist. Same shape as runScript's catch.
       appendNpm(`\nFailed to start npm install: ${error && error.message ? error.message : String(error)}\n`);
       setInstalling(false);
-      if (outputInTerminal) onRunFailed();
+      if (runFailedInTerminal({ code: -1, outputInTerminal })) onRunFailed();
       if (onDone) onDone({ code: -1 });
     });
   }, [appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed, sitePath]);
@@ -92,7 +97,7 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
     // Clearing the failure here rather than on the next exit is what stops the
     // step reading "Failed" while its own retry is streaming to the terminal.
     if (name === 'build') { setBuilding(true); setBuildFailed(false); }
-    if (track) currentRunIdRef.current = null;
+    if (track) { currentRunIdRef.current = null; stopRequestedRef.current = false; }
     return window.api.runNpmScript(sitePath, name, args, ({ data }) => {
       if (mirrorToNpm) appendNpm(data);
       if (onLog) onLog(data);
@@ -103,7 +108,7 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
         setBuildFailed(code !== 0);
         if (code === 0) markBuildInterrupted(false);
         try { await loadStatus(); } catch {}
-        if (outputInTerminal && code !== 0) onRunFailed();
+        if (runFailedInTerminal({ code, outputInTerminal, stopRequested: stopRequestedRef.current })) onRunFailed();
       }
       if (track) currentRunIdRef.current = null;
       if (onDone) onDone({ code });
@@ -115,7 +120,7 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
       if (mirrorToNpm) appendNpm(`\nFailed to start npm run ${name}: ${error && error.message ? error.message : String(error)}\n`);
       if (name === 'build') {
         setBuilding(false);
-        if (outputInTerminal) onRunFailed();
+        if (runFailedInTerminal({ code: -1, outputInTerminal })) onRunFailed();
       }
       if (onDone) onDone({ code: -1 });
     });
@@ -123,6 +128,7 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
 
   const killCurrent = useCallback(async () => {
     const runId = currentRunIdRef.current;
+    stopRequestedRef.current = true;
     try {
       await window.api.npmKill({ runId, directoryPath: sitePath });
     } finally {

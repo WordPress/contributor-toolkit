@@ -15,8 +15,8 @@ const { __ } = require( '@wordpress/i18n' );
 // As tall as it opens, before anyone has dragged it.
 const DEFAULT_TRAY_HEIGHT = 280;
 // Never so short that the terminal has no rows left: under its heading and
-// over the three lines it says beneath itself, this leaves it a few.
-const MIN_TRAY_HEIGHT = 180;
+// over the three lines it says beneath itself, this leaves it three or four.
+const MIN_TRAY_HEIGHT = 200;
 // Never more than this share of the window: the page above it is where the
 // work is, and it is left the other half, less its own header and the
 // footer.
