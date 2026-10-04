@@ -105,6 +105,11 @@ test( 'a mail the site sent opens as the one that was clicked, in its rendered a
 	// INVARIANT — and the other tab is the mail as it was sent, headers and all.
 	await dialog.getByRole( 'tab', { name: 'Raw', exact: true } ).click();
 	await expect( dialog.getByText( 'X-Mailer: PHPMailer' ) ).toBeVisible();
+	// INVARIANT — on the surface the logs and the terminal are on: one look
+	// for everything read as code (#557). The text's colour is not asked for,
+	// since it is the one the dialog would give it anyway.
+	expect( ( await ui.paintOf( dialog.getByText( 'X-Mailer: PHPMailer' ) ) ).behind )
+		.toBe( await ui.tokenColour( page, 'var(--wpds-color-background-surface-neutral-weak)' ) );
 
 	// INVARIANT — closing gives the list back, with both mails still in it.
 	await page.keyboard.press( 'Escape' );

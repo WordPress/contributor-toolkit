@@ -95,7 +95,7 @@ function AppliedPatch({ applied }) {
               the review own, and neither is on screen here, so a save that
               could not write, or a discard that refused, would be a button
               that did nothing on the one way out this notice recommends. */}
-          {applied.exits.message ? <span role="alert" className="apply-failed-text">{applied.exits.message}</span> : null}
+          {applied.exits.message ? <span role="alert" className="problem-text">{applied.exits.message}</span> : null}
         </Stack>
       </Notice.Description>
       <Notice.Actions>

@@ -197,6 +197,19 @@ test( 'an update asks before it resets edits in the tree: cancelling keeps them,
 	await expect( saveChoice ).toHaveAttribute( 'aria-pressed', 'true' );
 	await expect( discardChoice ).toHaveAttribute( 'aria-pressed', 'false' );
 	await expect( saveAndUpdate ).toBeVisible();
+	// INVARIANT — which answer is chosen is on screen as well as said to a
+	// screen reader: the chosen one is ringed in the design system's brand
+	// colour and the other is not. And the answer that loses work is in the
+	// colour of something going wrong, chosen or not (#557).
+	const brand = await ui.tokenColour( page, 'var(--wpds-color-stroke-surface-brand-strong)' );
+	const wrong = await ui.tokenColour( page, 'var(--wpds-color-foreground-content-error-weak)' );
+	expect( ( await ui.paintOf( saveChoice ) ).border ).toBe( brand );
+	expect( await ui.paintOf( discardChoice ) ).toMatchObject( { text: wrong } );
+	expect( ( await ui.paintOf( discardChoice ) ).border ).not.toBe( brand );
+	// INVARIANT — what the chosen answer goes on to say is in the full text
+	// colour: on the chosen answer's tint the quiet one is too faint to read.
+	expect( ( await ui.paintOf( saveChoice.getByText( /nothing is sent to Trac$/ ) ) ).text )
+		.toBe( await ui.tokenColour( page, 'var(--wpds-color-foreground-content-neutral)' ) );
 
 	// INVARIANT — the button says what the chosen answer will do, and
 	// dismissing the dialog does none of it: no confirmation asked, the edit
@@ -210,6 +223,12 @@ test( 'an update asks before it resets edits in the tree: cancelling keeps them,
 	await discardChoice.click();
 	await expect( discardAndUpdate ).toBeVisible();
 	await expect( saveAndUpdate ).toHaveCount( 0 );
+	// INVARIANT — and the ring has moved with the choice. What the answer
+	// that loses work goes on to say stays in the colour of something going
+	// wrong when it is the chosen one: being chosen must not quieten it.
+	expect( ( await ui.paintOf( discardChoice ) ).border ).toBe( brand );
+	expect( ( await ui.paintOf( saveChoice ) ).border ).not.toBe( brand );
+	expect( ( await ui.paintOf( discardChoice.getByText( /this cannot be undone$/ ) ) ).text ).toBe( wrong );
 	await dialog.getByRole( 'button', { name: 'Cancel', exact: true } ).click();
 	await expect( dialog ).toHaveCount( 0 );
 	expect( await confirmsAnswered() ).toBe( 0 );

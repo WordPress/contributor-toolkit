@@ -409,6 +409,50 @@ async function inDocumentOrder( page, locators ) {
 	}, handles );
 }
 
+/**
+ * The colour a design-system token comes to in this window, as the browser
+ * writes a computed colour. Asked of the page and not written down here, so
+ * an assertion says "painted with this token" and holds whatever value the
+ * design system gives it.
+ *
+ * A token the window does not have is refused. Left alone it would compute
+ * to the colour the probe inherits, which is the page's text colour, and an
+ * assertion with a misspelled name would then pass against anything painted
+ * in that.
+ *
+ * @param {Object} page
+ * @param {string} expression The token, written `var(--wpds-…)`.
+ * @return {Promise<string>} The colour, e.g. `rgb(0, 128, 48)`.
+ */
+function tokenColour( page, expression ) {
+	return page.evaluate( ( value ) => {
+		const name = /^var\((--[\w-]+)\)$/.exec( value )?.[ 1 ];
+		const probe = document.createElement( 'span' );
+		probe.style.color = value;
+		document.body.appendChild( probe );
+		const style = window.getComputedStyle( probe );
+		const known = Boolean( name && style.getPropertyValue( name ).trim() );
+		const colour = style.color;
+		probe.remove();
+		if ( ! known ) throw new Error( `This window has no token ${ value }.` );
+		return colour;
+	}, expression );
+}
+
+/**
+ * What an element is painted with: its text, what is behind it, and its
+ * border.
+ *
+ * @param {Object} locator Matching exactly one element.
+ * @return {Promise<{text: string, behind: string, border: string}>} Computed colours.
+ */
+function paintOf( locator ) {
+	return locator.evaluate( ( element ) => {
+		const style = window.getComputedStyle( element );
+		return { text: style.color, behind: style.backgroundColor, border: style.borderTopColor };
+	} );
+}
+
 module.exports = {
 	sidebarEntry,
 	createSiteButton,
@@ -466,4 +510,6 @@ module.exports = {
 	revertPatchButton,
 	revertPrButton,
 	inDocumentOrder,
+	tokenColour,
+	paintOf,
 };

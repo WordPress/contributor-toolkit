@@ -105,14 +105,7 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	// and a pane is the design system's weak surface, the one the terminal
 	// above it has (#557).
 	await expect( page.getByRole( 'region', { name: 'Logs', exact: true } ).getByRole( 'heading', { level: 2, name: 'Logs', exact: true } ) ).toBeVisible();
-	const tokenColour = ( token ) => page.evaluate( ( expression ) => {
-		const probe = document.createElement( 'span' );
-		probe.style.color = expression;
-		document.body.appendChild( probe );
-		const colour = window.getComputedStyle( probe ).color;
-		probe.remove();
-		return colour;
-	}, token );
+	const tokenColour = ( token ) => ui.tokenColour( page, token );
 	expect( await empty.locator( '..' ).evaluate( ( pane ) => window.getComputedStyle( pane ).backgroundColor ) ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral-weak)' ) );
 	await expect( logs.getByText( 'The log file appears once the dev server has run.', { exact: true } ) ).toBeVisible();
 	await expect( showInFolder ).toBeDisabled();
