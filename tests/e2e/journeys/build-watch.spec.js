@@ -46,6 +46,7 @@
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite } = require( '../helpers/git-site.cjs' );
+const { updateHeldReason } = require( '../../../src/renderer/site-menu.cjs' );
 
 // The stand-in for the script runner, and what the test uses to speak for it.
 async function standInForScripts( app, page ) {
@@ -184,6 +185,17 @@ test( 'a site with no build is built before it is watched, by a build that holds
 	await tab( 'Build watcher (building)' ).click();
 	await expect( line( 'No completed build found — running npm run build first…' ) ).toBeVisible();
 
+	// INVARIANT — that build holds the update to the latest trunk as well,
+	// which rewrites the tree the build is reading: the site's menu does not
+	// offer it, and says why on the item. Chosen, it used to do nothing and
+	// say nothing.
+	await ui.siteMenuButton( page ).click();
+	await expect( ui.updateTrunkMenuItem( page ) ).toBeDisabled();
+	await expect( ui.updateTrunkMenuItem( page ) ).toHaveAccessibleDescription( updateHeldReason( { building: true } ) );
+	await expect( ui.updateTrunkMenuItem( page ).getByText( updateHeldReason( { building: true } ), { exact: true } ) ).toBeVisible();
+	await page.keyboard.press( 'Escape' );
+	await expect( ui.updateTrunkMenuItem( page ) ).toHaveCount( 0 );
+
 	// INVARIANT — that build holds the terminal: a command typed while it
 	// runs starts nothing.
 	await typeAndEnter( 'npm run lint' );
@@ -199,6 +211,13 @@ test( 'a site with no build is built before it is watched, by a build that holds
 	await expect( page.getByText( 'The build that has to finish before the watch can start failed, with exit code 1, so the watch was not started. Its last lines are in the Logs.', { exact: true } ) ).toBeVisible();
 	await scripts.heard();
 	expect( ( await scripts.asked() ).scripts ).toHaveLength( 1 );
+	// INVARIANT — with the build over, the update is offered again, and the
+	// item has nothing left to explain.
+	await ui.siteMenuButton( page ).click();
+	await expect( ui.updateTrunkMenuItem( page ) ).toBeEnabled();
+	await expect( ui.updateTrunkMenuItem( page ) ).toHaveAccessibleDescription( '' );
+	await page.keyboard.press( 'Escape' );
+	await expect( ui.updateTrunkMenuItem( page ) ).toHaveCount( 0 );
 
 	// INVARIANT — a build that ends well is followed by the watcher, with
 	// nothing clicked. CHARACTERISATION — on Gutenberg that is npm run dev.

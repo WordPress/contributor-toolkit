@@ -18,11 +18,14 @@ export function SiteHeaderActionsSlot() {
   return <Slot bubblesVirtually className="site-header-actions" />;
 }
 
-// One thing the menu does.
+// One thing the menu does. An item that is held for a reason says it under
+// its name, where it is read with the item: the menu wires it as the item's
+// description, and a held item can still be reached with the keyboard.
 function MenuAction({ item, onAction }) {
   return (
     <Menu.Item disabled={item.disabled} onClick={() => onAction(item)}>
       <Menu.ItemLabel>{item.label}</Menu.ItemLabel>
+      {item.description ? <Menu.ItemDescription>{item.description}</Menu.ItemDescription> : null}
     </Menu.Item>
   );
 }

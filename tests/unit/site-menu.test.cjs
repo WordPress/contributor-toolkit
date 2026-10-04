@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { siteMenuItems, openInItems, fileManagerLabel } = require('../../src/renderer/site-menu.cjs');
+const { siteMenuItems, openInItems, fileManagerLabel, updateHeldReason } = require('../../src/renderer/site-menu.cjs');
 
 const ids = (items) => items.map((item) => item.id);
 const TOP = ['rename', 'copy-path', 'show-in-file-manager', 'update-trunk', 'open-in-menu', 'delete'];
@@ -92,6 +92,42 @@ test('a site being deleted says so where deleting was, and that cannot be presse
 	const items = siteMenuItems({ isDeleting: true });
 	assert.ok(!ids(items).includes('delete'));
 	assert.deepEqual(items.at(-1), { id: 'deleting', label: 'Deleting…', disabled: true, separated: true });
+});
+
+test('an update can start when no update, install or build is running', () => {
+	assert.equal(updateHeldReason(), '');
+	assert.equal(updateHeldReason({}), '');
+	assert.equal(updateHeldReason({ isUpdating: false, installing: false, building: false }), '');
+});
+
+test('an update is held by an update, an install or a build, and the reason names which', () => {
+	assert.equal(updateHeldReason({ isUpdating: true }), 'Wait for the trunk update to finish.');
+	assert.equal(updateHeldReason({ installing: true }), 'Wait for the installation to finish.');
+	assert.equal(updateHeldReason({ building: true }), 'Wait for the build to finish.');
+});
+
+test('an update that is installing or building is named as the update, not as its step', () => {
+	// The chain runs its own install and build, so their flags are up while
+	// it is: the reason must not send the contributor to wait for a build
+	// when what is in the way is the whole update.
+	assert.equal(updateHeldReason({ isUpdating: true, installing: true }), 'Wait for the trunk update to finish.');
+	assert.equal(updateHeldReason({ isUpdating: true, building: true }), 'Wait for the trunk update to finish.');
+	assert.equal(updateHeldReason({ installing: true, building: true }), 'Wait for the installation to finish.');
+});
+
+test('a held update keeps its place and its name in the menu, cannot be pressed, and says why', () => {
+	const reason = updateHeldReason({ building: true });
+	const items = siteMenuItems({ platform: 'darwin', updateHeld: reason });
+	assert.deepEqual(ids(items), TOP);
+	assert.deepEqual(items.find((item) => item.id === 'update-trunk'), { id: 'update-trunk', label: 'Update to latest trunk', disabled: true, description: reason });
+	// Nothing else is held with it.
+	assert.ok(items.filter((item) => item.id !== 'update-trunk').every((item) => !item.disabled && !item.description));
+});
+
+test('an update that is not held carries no reason', () => {
+	for (const updateHeld of ['', undefined]) {
+		assert.deepEqual(siteMenuItems({ updateHeld }).find((item) => item.id === 'update-trunk'), { id: 'update-trunk', label: 'Update to latest trunk' });
+	}
 });
 
 test('no arguments at all is the menu of an ordinary site', () => {
