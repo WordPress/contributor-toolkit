@@ -210,7 +210,7 @@ A launch that gives the test no window has no screen to attach, so its error car
 
 Three workflows, on every pull request and on push to `trunk`. None needs a secret.
 
-**[`lint.yml`](.github/workflows/lint.yml)** — `eslint . --max-warnings=0` over the whole repo, then `stylelint` over `src/renderer/shell.css`, where the rules are about one thing: every colour, gap and font is a design-system token that exists, written with no fallback beside it, and no colour is written by hand. It installs with `npm ci --ignore-scripts`, so linting never executes the pull request's code.
+**[`lint.yml`](.github/workflows/lint.yml)** — `eslint . --max-warnings=0` over the whole repo, then `stylelint` over `src/renderer/shell.css`, where the rules are about one thing: a design-system token that is used has to exist and is written with no fallback beside it, and a colour is never written by hand. A gap or a font that is not a token passes. It installs with `npm ci --ignore-scripts`, so linting never executes the pull request's code.
 
 **[`unit-tests.yml`](.github/workflows/unit-tests.yml)** — layers 1–3 on macOS and Windows, and on each platform **twice**: once on the system Node pinned in `.nvmrc`, once on the Node that Electron bundles. That second pass is not redundant. Child processes in this app run on Electron's own Node, and the two versions are set independently and have drifted before (#37/#46).
 
