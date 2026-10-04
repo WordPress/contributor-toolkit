@@ -1133,7 +1133,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // about edits in the tree, and the retry. Called here because it runs
   // through everything above, and because what follows reads whether an
   // update is under way.
-  const { updateState, isUpdating, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+  const { updateState, isUpdating, updateHeld, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
   // What the page says about the site's two processes (#557), in the header
   // and in the details alike. Decided in site-processes.cjs, and worked out
   // here because an update of trunk holds both.
@@ -1842,7 +1842,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           detailsOpen={detailsOpen}
           detailsId={detailsId}
           onToggleDetails={onToggleDetails}
-          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting }}
+          menu={{ platform: window.api?.platform, editors: detectedEditors, detecting: detectingEditors, isPending, isDeleting, updateHeld }}
           onMenuOpen={loadDetected}
           onAction={runSiteMenuAction}
           work={skipInit ? {
@@ -1906,7 +1906,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           <Notice.Title>This site&apos;s WordPress code is {age.ageDays} days old</Notice.Title>
           <Notice.Description>Patches you create now may not apply on Trac. Updating takes a few minutes.</Notice.Description>
           <Notice.Actions>
-            <UiButton variant="outline" tone="neutral" size="compact" onClick={startTrunkUpdate} disabled={installing || building}>Update to latest trunk</UiButton>
+            <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={updateHeld} onClick={startTrunkUpdate}>Update to latest trunk</ReasonedUiButton>
           </Notice.Actions>
         </Notice.Root>
       ) : null}

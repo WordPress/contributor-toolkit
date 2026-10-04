@@ -56,6 +56,37 @@ function openInItems({ editors = [], detecting = false } = {}) {
 }
 
 /**
+ * Why an update to the latest trunk cannot start, or '' when it can.
+ *
+ * An update rewrites the whole checkout, then installs and builds, so it does
+ * not start under an update, an install or a build that is already running.
+ * This is the one answer to that: the update's own guard asks it, and the
+ * menu's item and the button of the notice on an old site are held with it
+ * as their reason.
+ *
+ * The update leads, since its own install and build are running too while it
+ * is, and naming one of those would name a step of the thing that is really
+ * in the way. Then the two the contributor can wait out, as in
+ * `ticketActionDisabledReason`.
+ *
+ * A terminal held by anything else, a command typed there for one, is not
+ * here: the update is refused then where it starts, in `beginTrunkUpdate`,
+ * with a line in the terminal.
+ *
+ * @param {Object}  root0
+ * @param {boolean} [root0.isUpdating] An update is under way.
+ * @param {boolean} [root0.installing] An install is running.
+ * @param {boolean} [root0.building]   A build is running.
+ * @return {string} The reason, or ''.
+ */
+function updateHeldReason({ isUpdating = false, installing = false, building = false } = {}) {
+	if (isUpdating) return __('Wait for the trunk update to finish.');
+	if (installing) return __('Wait for the installation to finish.');
+	if (building) return __('Wait for the build to finish.');
+	return '';
+}
+
+/**
  * The menu's items, in order. `id` says what an item does. The `open-in-menu`
  * item opens a menu of its own, whose items are in `items`. `separated` asks
  * for a line above.
@@ -69,20 +100,27 @@ function openInItems({ editors = [], detecting = false } = {}) {
  * contributor sees. While a deletion runs, the item says so and cannot be
  * pressed again, so a second request cannot race the first.
  *
+ * Updating is held while an update, an install or a build is running, and
+ * the item says which under its name, in `description`: the update's own
+ * guard refuses it then, and an item that could be chosen and did nothing
+ * would say nothing either.
+ *
  * @param {Object}  root0
  * @param {string}  [root0.platform]   For the file manager's name.
  * @param {Array}   [root0.editors]    Detected applications, `{ name, path }`.
  * @param {boolean} [root0.detecting]  Detection is still running.
  * @param {boolean} [root0.isPending]  The site is still being set up.
  * @param {boolean} [root0.isDeleting] The site is being deleted.
- * @return {Array<{id: string, label: string, items?: Array, disabled?: boolean, separated?: boolean}>}
+ * @param {string}  [root0.updateHeld] Why an update cannot start, as `updateHeldReason` says it, or '' when it can.
+ * @return {Array<{id: string, label: string, items?: Array, disabled?: boolean, description?: string, separated?: boolean}>}
  */
-function siteMenuItems({ platform, editors = [], detecting = false, isPending = false, isDeleting = false } = {}) {
+function siteMenuItems({ platform, editors = [], detecting = false, isPending = false, isDeleting = false, updateHeld = '' } = {}) {
+	const update = { id: 'update-trunk', label: __('Update to latest trunk') };
 	const items = [
 		{ id: 'rename', label: __('Rename…') },
 		{ id: 'copy-path', label: __('Copy path') },
 		{ id: 'show-in-file-manager', label: fileManagerLabel(platform) },
-		{ id: 'update-trunk', label: __('Update to latest trunk') },
+		updateHeld ? { ...update, disabled: true, description: updateHeld } : update,
 		// translators: the label of a menu that lists applications, each by its name: "Open in" and then, in the menu, "Visual Studio Code".
 		{ id: 'open-in-menu', label: __('Open in'), items: openInItems({ editors, detecting }) }
 	];
@@ -94,4 +132,4 @@ function siteMenuItems({ platform, editors = [], detecting = false, isPending = 
 	return items;
 }
 
-module.exports = { siteMenuItems, openInItems, fileManagerLabel };
+module.exports = { siteMenuItems, openInItems, fileManagerLabel, updateHeldReason };
