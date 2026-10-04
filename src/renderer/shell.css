@@ -1,12 +1,13 @@
 /*
   The window's shell (#555): the sites list on the left, the open site's page
-  beside it, and a footer under the page. A colour, a gap, a radius and a font
-  here is a design-system token, so the theme provider can change them all
-  from one place. A token is written bare, with no value beside it: a
-  fallback is a second copy of the token's value, and the ones this file used
-  to carry had already drifted from theirs. The tokens' stylesheet is in the
-  same bundle, so there is nothing for one to fall back from. Stylelint holds
-  both of these (stylelint.config.mjs).
+  beside it, and a footer under the page. A colour here is a design-system
+  token, and so is a gap, a radius or a font wherever the design system has
+  one for it, so the theme provider can change them from one place. A token is
+  written bare, with no value beside it: a fallback is a second copy of the
+  token's value, and the ones this file used to carry had already drifted
+  from theirs. The tokens' stylesheet is in the same bundle, so there is
+  nothing for one to fall back from. Stylelint holds the colours and the
+  tokens to this (stylelint.config.mjs); a size that is not a token it lets by.
 */
 
 html,
@@ -1289,7 +1290,7 @@ body {
 
 .apply-conflict-lines {
   margin: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--wpds-typography-font-family-mono);
   font-size: var(--wpds-typography-font-size-xs);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
