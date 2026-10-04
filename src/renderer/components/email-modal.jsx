@@ -19,8 +19,8 @@ export function EmailModal({ email, onClose }) {
       shouldCloseOnClickOutside
       isFullScreen
     >
-      <div style={{ padding: 8 }}>
-        <div style={{ marginBottom: 8, fontSize:12, color:'#444' }}>
+      <div className="email-view">
+        <div className="email-view-headers">
           <div><strong>From:</strong> {email.from || ''}</div>
           <div><strong>To:</strong> {email.to || ''}</div>
           {email.cc ? (<div><strong>CC:</strong> {email.cc}</div>) : null}
@@ -28,15 +28,15 @@ export function EmailModal({ email, onClose }) {
         </div>
         <TabPanel className="email-tabs" activeClass="is-active" tabs={[{name:'rendered',title:'Rendered'},{name:'raw',title:'Raw'}]}>
           {(tab)=> tab.name==='rendered' ? (
-            <div style={{ border:'1px solid #ddd', borderRadius:6, padding:12, minHeight:'60vh', background:'#fff' }}>
+            <div className="email-view-rendered">
               {email.html ? (
                 <div dangerouslySetInnerHTML={{ __html: String(email.html) }} />
               ) : (
-                <pre style={{ whiteSpace:'pre-wrap', margin:0 }}>{email.text || ''}</pre>
+                <pre>{email.text || ''}</pre>
               )}
             </div>
           ) : (
-            <pre style={{ whiteSpace:'pre-wrap', margin:0, background:'#111', color:'#eee', padding:12, borderRadius:6, minHeight:'60vh', overflow:'auto' }}>{email.raw || email.text || ''}</pre>
+            <pre className="email-view-raw">{email.raw || email.text || ''}</pre>
           )}
         </TabPanel>
       </div>

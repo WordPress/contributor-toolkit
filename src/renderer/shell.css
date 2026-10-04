@@ -396,12 +396,23 @@ body {
   min-width: 0;
 }
 
-.site-details-failed {
-  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
-}
-
+/* What a line of text is about, where a notice would be too much: said
+   quietly, something that went well, something to mind, something that went
+   wrong. One class each, for every card and dialog. */
 .muted-label {
   color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+.success-text {
+  color: var(--wpds-color-foreground-content-success-weak, #008030);
+}
+
+.warning-text {
+  color: var(--wpds-color-foreground-content-warning-weak, #936300);
+}
+
+.problem-text {
+  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
 }
 
 /* What went wrong, said in a line of its own where a notice would be too
@@ -419,10 +430,6 @@ body {
 
 .path-value {
   word-break: break-all;
-}
-
-.site-details-note {
-  color: var(--wpds-color-foreground-content-warning-weak, #936300);
 }
 
 /* Where the page is too narrow for two columns, the details go under the
@@ -447,13 +454,6 @@ body {
     height: 0;
     overflow: hidden;
   }
-}
-
-/* The older library's dialogs still lean on a margin between their buttons,
-   which the page's own stylesheet used to give every `button` in the window.
-   It is theirs alone now, until they are redrawn (#557). */
-.components-modal__frame .components-button {
-  margin-right: var(--wpds-dimension-gap-sm, 8px);
 }
 
 .app-footer {
@@ -569,6 +569,211 @@ body {
   }
 }
 
+/* The review dialog is as tall as the window lets it be, so the diff has
+   the room and the columns something to fill. */
+.review-dialog-body {
+  height: 80vh;
+}
+
+/* The diff's own box, under its heading: what is left of the column. */
+.patch-diff-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.patch-diff-loading {
+  height: 100%;
+}
+
+/* The patch: the design system's strong surface inside a hairline, so the
+   washes on its added and removed lines have something to stand on.
+
+   `box-sizing: border-box` with `height: 100%` and a padding: without it
+   the pane is its container plus its padding, and it overflows by exactly
+   that. Invisible while the diff spanned the dialog and the overflow fell
+   off the bottom; beside the destinations it sits on top of them. */
+.patch-diff-code {
+  box-sizing: border-box;
+  height: 100%;
+  margin: 0;
+  border: var(--wpds-border-width-xs, 1px) solid
+    var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+  border-radius: var(--wpds-border-radius-md, 4px);
+  background: var(--wpds-color-background-surface-neutral-strong, #fff);
+  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+}
+
+/* What each kind of patch line looks like (#166). An added and a removed
+   line carry a wash as well as a colour, so the two are told apart without
+   colour vision; the sign in the first column is the other half of that. */
+.diff-line {
+  display: block;
+}
+
+.diff-line.is-add {
+  color: var(--wpds-color-foreground-content-success-weak, #008030);
+  background: var(--wpds-color-background-surface-success-weak, #ebffed);
+}
+
+.diff-line.is-del {
+  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
+  background: var(--wpds-color-background-surface-error-weak, #fff6f5);
+}
+
+.diff-line.is-hunk {
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  background: var(--wpds-color-background-surface-neutral-weak, #f4f4f4);
+}
+
+.diff-line.is-meta {
+  color: var(--wpds-color-foreground-content-info-weak, #006bd7);
+}
+
+.diff-line.is-header {
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  font-style: italic;
+}
+
+/* The destinations that ask the same thing of the contributor share a
+   card, with a hairline between them. */
+.destination-group > * + * {
+  border-block-start: var(--wpds-border-width-xs, 1px) solid
+    var(--wpds-color-stroke-surface-neutral-weak, #f0f0f0);
+}
+
+/* A destination's buttons are as wide as its column, and say what they do
+   in the middle of it. */
+.destination-actions .components-button:not(.is-link) {
+  justify-content: center;
+}
+
+/* A link said inside a sentence is the sentence's size, in every dialog of
+   the older library. */
+.components-modal__frame .components-button.is-link {
+  font-size: inherit;
+}
+
+/* What a first-timer cannot know about pull requests, behind its question. */
+.destination-how {
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+  font-size: var(--wpds-typography-font-size-sm, 12px);
+  line-height: var(--wpds-typography-line-height-xs, 16px);
+}
+
+.destination-how > summary {
+  color: var(--wpds-color-foreground-interactive-brand, #3858e9);
+  cursor: pointer;
+}
+
+.destination-how[open] > summary {
+  margin-block-end: var(--wpds-dimension-gap-sm, 8px);
+}
+
+/* The code GitHub asks for: large, spaced and in monospace, since it is
+   read off one screen and typed into another. */
+.device-code {
+  padding-block: var(--wpds-dimension-padding-sm, 8px);
+  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+  font-family: var(--wpds-typography-font-family-mono, monospace);
+  font-size: var(--wpds-typography-font-size-xl, 20px);
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+/* The question an update asks about loose edits. */
+.dirty-tree {
+  max-width: var(--wpds-dimension-surface-width-lg, 560px);
+}
+
+.dirty-tree-files {
+  max-height: 140px;
+  padding: var(--wpds-dimension-padding-md, 12px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  border: var(--wpds-border-width-xs, 1px) solid
+    var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+  border-radius: var(--wpds-border-radius-md, 4px);
+  font-family: var(--wpds-typography-font-family-mono, monospace);
+  font-size: var(--wpds-typography-font-size-sm, 12px);
+  line-height: var(--wpds-typography-line-height-sm, 20px);
+}
+
+/* Its two answers: buttons, of which one is pressed. The pressed one is
+   ringed inside its border, so choosing does not move the other. */
+.dirty-tree-choice {
+  padding: var(--wpds-dimension-padding-md, 12px);
+  border: var(--wpds-border-width-xs, 1px) solid
+    var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+  border-radius: var(--wpds-border-radius-md, 4px);
+  background: var(--wpds-color-background-surface-neutral-strong, #fff);
+  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.dirty-tree-choice[aria-pressed="true"] {
+  border-color: var(--wpds-color-stroke-surface-brand-strong, #3858e9);
+  box-shadow: inset 0 0 0 var(--wpds-border-width-xs, 1px)
+    var(--wpds-color-stroke-surface-brand-strong, #3858e9);
+  background: var(--wpds-color-background-surface-brand, #ecf0fa);
+}
+
+.dirty-tree-choice:disabled {
+  cursor: default;
+}
+
+.dirty-tree-choice-detail {
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+.dirty-tree-choice.is-destructive,
+.dirty-tree-choice.is-destructive .dirty-tree-choice-detail {
+  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
+}
+
+.dirty-tree-error {
+  overflow-wrap: anywhere;
+}
+
+/* One mail, opened: who it is between, then the message as a reader would
+   see it, on the design system's strong surface, or as it was sent. */
+.email-view {
+  padding: var(--wpds-dimension-padding-sm, 8px);
+}
+
+.email-view-headers {
+  margin-block-end: var(--wpds-dimension-gap-sm, 8px);
+  font-size: var(--wpds-typography-font-size-sm, 12px);
+  line-height: var(--wpds-typography-line-height-xs, 16px);
+}
+
+.email-view-rendered,
+.email-view-raw {
+  min-height: 60vh;
+  margin: 0;
+  border-radius: var(--wpds-border-radius-md, 4px);
+}
+
+.email-view-rendered {
+  padding: var(--wpds-dimension-padding-md, 12px);
+  border: var(--wpds-border-width-xs, 1px) solid
+    var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+  background: var(--wpds-color-background-surface-neutral-strong, #fff);
+}
+
+.email-view-rendered > pre {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.email-view-raw {
+  background: var(--wpds-color-background-surface-neutral-weak, #f4f4f4);
+  color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
+}
+
 /* What the window says that is about no one site, above the page: each
    with room under it before the next thing. */
 .window-notice {
@@ -603,7 +808,11 @@ body {
   color: var(--wpds-color-foreground-content-neutral, #1e1e1e);
 }
 
-.log-pane {
+/* The same type for everything that is read as code: what a process
+   printed, a patch, and a mail as it was sent. */
+.log-pane,
+.patch-diff-code,
+.email-view-raw {
   padding: var(--wpds-dimension-padding-md, 12px);
   overflow: auto;
   font-family: var(--wpds-typography-font-family-mono, monospace);
@@ -1054,10 +1263,6 @@ body {
    the card. */
 .apply-break-all {
   overflow-wrap: anywhere;
-}
-
-.apply-failed-text {
-  color: var(--wpds-color-foreground-content-error-weak, #cc1818);
 }
 
 .apply-conflict-file {

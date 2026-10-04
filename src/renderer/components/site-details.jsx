@@ -108,7 +108,7 @@ function WatchSection({ watch }) {
   return (
     <Stack direction="column" gap="md">
       <SectionHeading title={__('Build watch')} process={watch.process} onToggle={watch.onToggle} />
-      {watch.process.detail ? <Text variant="body-md" className={watch.process.status === 'failed' ? 'site-details-failed' : 'muted-label'}>{watch.process.detail}</Text> : null}
+      {watch.process.detail ? <Text variant="body-md" className={watch.process.status === 'failed' ? 'problem-text' : 'muted-label'}>{watch.process.detail}</Text> : null}
       {watch.process.status === 'offline' ? <OfflinePlaceholder title={__('Build watch offline')} /> : null}
     </Stack>
   );
@@ -182,7 +182,7 @@ export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath,
                   <Stack key={row.id} direction="column" className={row.copyable ? 'path-meta' : undefined}>
                     <Text variant="body-md" className="muted-label">{row.label}</Text>
                     <Text variant="body-md" className={row.copyable ? 'path-value' : undefined}>{row.value}</Text>
-                    {row.note ? <Text variant="body-sm" className="site-details-note">{row.note}</Text> : null}
+                    {row.note ? <Text variant="body-sm" className="warning-text">{row.note}</Text> : null}
                   </Stack>
                 );
                 if (!row.copyable) return fact;

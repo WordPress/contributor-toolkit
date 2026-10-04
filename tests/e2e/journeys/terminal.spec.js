@@ -109,14 +109,7 @@ test( 'the terminal runs the commands it knows one at a time, refuses the rest b
 	// text's own colour on it. Read where the terminal paints them, since it
 	// is told them as values and not by a stylesheet, and held to what the
 	// tokens are on this page.
-	const tokenColour = ( token ) => page.evaluate( ( expression ) => {
-		const probe = document.createElement( 'span' );
-		probe.style.color = expression;
-		document.body.appendChild( probe );
-		const colour = window.getComputedStyle( probe ).color;
-		probe.remove();
-		return colour;
-	}, token );
+	const tokenColour = ( token ) => ui.tokenColour( page, token );
 	const surface = await tokenColour( 'var(--wpds-color-background-surface-neutral-weak)' );
 	const text = await tokenColour( 'var(--wpds-color-foreground-content-neutral)' );
 	expect( await region.locator( '.xterm-viewport' ).evaluate( ( viewport ) => ( {

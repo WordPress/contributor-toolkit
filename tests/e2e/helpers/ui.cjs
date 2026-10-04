@@ -409,6 +409,41 @@ async function inDocumentOrder( page, locators ) {
 	}, handles );
 }
 
+/**
+ * The colour a design-system token comes to in this window, as the browser
+ * writes a computed colour. Asked of the page and not written down here, so
+ * an assertion says "painted with this token" and holds whatever value the
+ * design system gives it.
+ *
+ * @param {Object} page
+ * @param {string} expression The token, written `var(--wpds-…)`.
+ * @return {Promise<string>} The colour, e.g. `rgb(0, 128, 48)`.
+ */
+function tokenColour( page, expression ) {
+	return page.evaluate( ( value ) => {
+		const probe = document.createElement( 'span' );
+		probe.style.color = value;
+		document.body.appendChild( probe );
+		const colour = window.getComputedStyle( probe ).color;
+		probe.remove();
+		return colour;
+	}, expression );
+}
+
+/**
+ * What an element is painted with: its text, what is behind it, and its
+ * border.
+ *
+ * @param {Object} locator Matching exactly one element.
+ * @return {Promise<{text: string, behind: string, border: string}>} Computed colours.
+ */
+function paintOf( locator ) {
+	return locator.evaluate( ( element ) => {
+		const style = window.getComputedStyle( element );
+		return { text: style.color, behind: style.backgroundColor, border: style.borderTopColor };
+	} );
+}
+
 module.exports = {
 	sidebarEntry,
 	createSiteButton,
@@ -466,4 +501,6 @@ module.exports = {
 	revertPatchButton,
 	revertPrButton,
 	inDocumentOrder,
+	tokenColour,
+	paintOf,
 };
