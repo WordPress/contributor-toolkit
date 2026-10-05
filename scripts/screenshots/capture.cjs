@@ -166,8 +166,14 @@ async function runFixtureTier(selected) {
 			}
 		} finally {
 			await app.close();
-			// The launch's profile is the harness's own, made for it.
-			fs.rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+			// The launch's profile is the harness's own, made for it. One that
+			// will not go is said and left: it must not take the place of a
+			// shot's own failure, nor end a run whose pictures are taken.
+			try {
+				fs.rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+			} catch (err) {
+				console.warn(`  (could not remove ${userDataDir}: ${err.message})`);
+			}
 		}
 	}
 	cleanFixtureSites();
