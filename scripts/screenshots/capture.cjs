@@ -32,7 +32,7 @@ const os = require('os');
 const path = require('path');
 const readline = require('readline');
 const { _electron } = require('playwright-core');
-const { buildFixture, cleanFixtureSites } = require('./fixtures.cjs');
+const { buildFixture, cleanFixtureSites, standInForTheNetwork } = require('./fixtures.cjs');
 const { shots } = require('./shots.cjs');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
@@ -114,6 +114,12 @@ async function runFixtureTier(selected) {
 		const { userDataDir } = buildFixture(variant);
 		const { app, page } = await launchApp({ TOOLKIT_USER_DATA_DIR: userDataDir });
 		try {
+			// A picture is of where things come to rest: a tab's underline
+			// caught half way to its tab, or a menu half open, is of neither
+			// state. With motion reduced the design system jumps.
+			await page.emulateMedia({ reducedMotion: 'reduce' });
+			// And of the app, not of the network that day.
+			await standInForTheNetwork(app);
 			for (const shot of selected.filter((s) => s.variant === variant)) {
 				// Fresh renderer per shot: open menus and modals from the
 				// previous shot cannot leak into this one.

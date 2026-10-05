@@ -24,6 +24,45 @@ const FIXTURE_ROOT =
 		? path.join(os.tmpdir(), 'wpct-docs-fixture')
 		: '/tmp/wpct-docs-fixture';
 
+// When the fixture's sites were made and how old their code is, counted back
+// from the day the shots are taken and not written down: a date written down
+// is fresh for a fortnight and then every site in every picture wears the
+// notice that its code is old. The amber dot needs `staleSite` more than 14
+// days behind and the others well inside that. The hour is fixed, so two
+// runs on one day draw the same pixels.
+const DAY_MS = 24 * 60 * 60 * 1000;
+function daysAgo(days, hour) {
+	const day = new Date(Date.now() - days * DAY_MS);
+	day.setUTCHours(hour, 0, 0, 0);
+	return day.toISOString();
+}
+const FRESH = { createdAt: daysAgo(2, 10), trunkDate: daysAgo(2, 9) };
+const STALE = { createdAt: daysAgo(126, 10), trunkDate: daysAgo(126, 9) };
+
+// What GitHub is said to answer when a ticket's card asks which pull requests
+// cite it. The fixture's ticket is linked as the window opens, so the card
+// asks at once; left to the network, a shot would show whatever GitHub says
+// that day, or the card still asking.
+const LINKED_PULL_REQUESTS = [
+	{ number: 13245, url: 'https://github.com/WordPress/wordpress-develop/pull/13245', title: 'Docs: correct the default', state: 'open', commitDate: daysAgo(6, 12) },
+	{ number: 13012, url: 'https://github.com/WordPress/wordpress-develop/pull/13012', title: 'Docs: list the values', state: 'closed', updatedAt: daysAgo(40, 12) }
+];
+
+/**
+ * Answers for the app what would otherwise be asked of the network, so that
+ * a fixture shot is the same picture whatever the network says. Installed in
+ * the main process once per launch, before the window is reloaded for the
+ * first shot.
+ *
+ * @param {import('playwright-core').ElectronApplication} app
+ */
+async function standInForTheNetwork(app) {
+	await app.evaluate(({ ipcMain }, prs) => {
+		ipcMain.removeHandler('git:list-ticket-patches');
+		ipcMain.handle('git:list-ticket-patches', () => ({ ok: true, prs: { status: 'ok', items: prs } }));
+	}, LINKED_PULL_REQUESTS);
+}
+
 const DEBUG_LOG_LINES = [
 	'[10-Aug-2026 09:12:44 UTC] PHP Notice:  Undefined variable $post in /wordpress/wp-content/themes/twentytwentyfive/functions.php on line 112',
 	'[10-Aug-2026 09:12:45 UTC] PHP Deprecated:  Function get_page_by_title is deprecated since version 6.2.0! Use WP_Query instead.',
@@ -56,11 +95,10 @@ function buildFixture(variant) {
 			siteMeta: {
 				[gutenbergSite]: {
 					initialized: true,
-					createdAt: '2026-09-16T10:00:00.000Z',
+					...FRESH,
 					label: 'my-gutenberg-fix',
 					projectType: 'gutenberg',
-					skipInitWizard: true,
-					trunkDate: '2026-09-16T09:00:00.000Z'
+					skipInitWizard: true
 				}
 			},
 			preferences: {}
@@ -80,39 +118,31 @@ function buildFixture(variant) {
 	fs.mkdirSync(path.join(readySite, 'build', 'wp-content'), { recursive: true });
 	fs.writeFileSync(path.join(readySite, 'build', 'wp-content', 'debug.log'), DEBUG_LOG_LINES);
 
-	// Dates are fixed, not computed from "now": the amber staleness dot needs
-	// staleSite to be more than 14 days behind, and the other two to be fresh
-	// enough not to be flagged. Retaking the screenshots years from now flips
-	// the fresh sites amber too — bump these dates when that happens.
 	writeSettings(userDataDir, {
 		sites: [wizardSite, readySite, staleSite, incompleteSite],
 		siteMeta: {
 			[wizardSite]: {
 				initialized: true,
-				createdAt: '2026-09-16T10:00:00.000Z',
-				label: 'wordpress-develop',
-				trunkDate: '2026-09-16T09:00:00.000Z'
+				...FRESH,
+				label: 'wordpress-develop'
 			},
 			[readySite]: {
 				initialized: true,
-				createdAt: '2026-09-16T10:00:00.000Z',
+				...FRESH,
 				label: 'my-first-patch',
-				trunkDate: '2026-09-16T09:00:00.000Z',
 				skipInitWizard: true,
 				tracTicket: '60000'
 			},
 			[staleSite]: {
 				initialized: true,
-				createdAt: '2026-06-01T10:00:00.000Z',
+				...STALE,
 				label: 'older-site',
-				trunkDate: '2026-06-01T09:00:00.000Z',
 				skipInitWizard: true
 			},
 			[incompleteSite]: {
 				initialized: true,
-				createdAt: '2026-09-16T10:00:00.000Z',
+				...FRESH,
 				label: 'needs-rebuild',
-				trunkDate: '2026-09-16T09:00:00.000Z',
 				skipInitWizard: true,
 				updateIncomplete: true
 			}
@@ -152,4 +182,4 @@ function cleanFixtureSites() {
 	fs.rmSync(FIXTURE_ROOT, { recursive: true, force: true });
 }
 
-module.exports = { buildFixture, cleanFixtureSites, FIXTURE_ROOT };
+module.exports = { standInForTheNetwork, buildFixture, cleanFixtureSites, FIXTURE_ROOT };

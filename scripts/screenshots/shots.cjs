@@ -91,6 +91,9 @@ const shots = [
 		variant: 'seeded',
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
+			// The card under the menu has asked which pull requests cite the
+			// ticket; the picture is taken with the answer in it.
+			await page.getByText('Docs: correct the default').waitFor();
 			await ui.siteMenuButton(page).click();
 			await ui.updateTrunkMenuItem(page).waitFor();
 		}
@@ -152,6 +155,10 @@ const shots = [
 		prepare: async (page, app) => {
 			await selectSite(page, 'my-first-patch');
 			await ui.openTray(page, 'Logs');
+			// Taller than it opens, so that the file's lines are all in the
+			// picture and the first is not cut by the tabs.
+			await page.getByRole('separator', { name: 'Resize tray', exact: true }).focus();
+			for (let presses = 0; presses < 3; presses++) await page.keyboard.press('ArrowUp');
 			// Starting a real dev session is what makes the renderer attach the
 			// debug-log tail, but this fixture deliberately is not a WordPress clone.
 			// Keep both long-running processes pending so the screenshot exercises
