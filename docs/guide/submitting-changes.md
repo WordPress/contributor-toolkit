@@ -6,7 +6,7 @@ When your change works and you want to contribute it, open the **Review & submit
 
 The left side of the screen is the diff, titled **Your changes**. This is exactly what will be submitted, so read it before choosing a destination.
 
-![The Your changes pane showing a new PHP file as a highlighted diff, with Save and Copy controls above it](/screenshots/submit-changes-diff.png)
+![The Your changes for ticket #60000 pane, with a Discard all changes link and Save and Copy buttons above a highlighted diff: one line changed in a PHP file, and a new test file](/screenshots/submit-changes-diff.png)
 
 What it contains is the work on the ticket or issue you are on, and only that: everything its branch has gained since it was created, including whatever was parked the last time you switched away from it. Another work item's changes are never in it, and neither is a change that arrived from a [trunk update](trunk-updates). On a site with no work item linked, it is simply everything the checkout has that its copy of trunk does not.
 
@@ -46,7 +46,7 @@ The one gap left: adding or deleting an empty file is still not represented in t
 
 The right side lists the destinations available for this project. The pull request is the one the app sends for you; the other destinations save a file for you to send. Each card states what it costs to use and what happens afterwards, so you can choose with the trade-offs in front of you.
 
-![The destinations on a WordPress Core site: Open a pull request, Attach to Trac, and Hand it to a mentor](/screenshots/submit-destinations.png)
+![Where this patch goes, on a WordPress Core site: Open a pull request with a Sign in with GitHub button, Attach to Trac with Save, then open #60000, and Hand it to a mentor with Save patch as contributor](/screenshots/submit-destinations.png)
 
 - **Open a pull request** — needs a GitHub account. The app forks the site's repository (`wordpress-develop` or `gutenberg`) to your account, pushes your change to a branch, and opens the pull request. Automated checks run on it. [Opening a pull request](submit-github-pr)
 - **Attach to Trac** — Core sites only. It needs a WordPress.org account, which you need anyway for props and to comment. The app saves the patch file and opens the ticket's attach page; you upload it yourself. No automated checks run. [Attaching a patch to Trac](submit-trac)
