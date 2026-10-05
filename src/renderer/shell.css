@@ -486,11 +486,12 @@ body {
 
 /* A tray's button, and on the Logs button's corner the count of lines not
    yet seen (#558). The count is over the button's corner and not beside the
-   button, so that its coming and going moves nothing. It sits in the room
-   the footer leaves above its buttons, as tall as that room and no taller,
-   so that however wide it is it is clear of what the icons draw, this
-   button's and the next one's. It takes no press of its own: a press on it
-   is a press on what is under it. */
+   button, so that its coming and going moves nothing. It starts at the
+   footer's top edge and is one line of text tall, which ends it where the
+   icons' drawing begins: however wide it is, it is clear of what they draw,
+   this button's and the next one's. It is drawn over the buttons, the next
+   one too, whose ground when pressed would otherwise cover it. It takes no
+   press of its own: a press on it is a press on what is under it. */
 .app-footer-tray {
   position: relative;
   display: flex;
@@ -500,6 +501,7 @@ body {
   position: absolute;
   inset-block-start: calc(-1 * var(--wpds-dimension-padding-sm));
   inset-inline-start: calc(100% - var(--wpds-dimension-padding-md));
+  z-index: 1;
   display: flex;
   pointer-events: none;
 }
@@ -826,13 +828,6 @@ body {
   padding-block-end: var(--wpds-dimension-padding-3xl);
 }
 
-/* The mail, under a site's cards (#557). It follows the terminal and the
-   logs to the tray (#558); until then it is the design system's surface and
-   its type, as the tray has them. */
-.site-panel-title {
-  margin: 0;
-}
-
 /* What a process printed: the design system's weak surface, in its
    monospace. */
 .log-pane,
@@ -1040,8 +1035,8 @@ body {
   font-family: var(--wpds-typography-font-family-mono);
 }
 
-/* The mail the site sent: a framed list, one row a message, each row a
-   button. */
+/* The mail the site sent, in the tray: a list that fills it, one row a
+   message, each row a button. */
 .mail-list {
   flex: 1 1 auto;
   min-height: 0;
@@ -1087,12 +1082,16 @@ body {
   color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
+/* Who it is from gives way long before the subject does, in a window too
+   narrow for both: the subject is what a row is known by, and is never
+   narrower than a few words. */
 .mail-from {
-  flex: 0 0 220px;
+  flex: 0 100 220px;
 }
 
 .mail-subject {
   flex: 1 1 auto;
+  min-width: 12ch;
   font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 

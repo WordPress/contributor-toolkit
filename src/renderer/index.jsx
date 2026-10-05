@@ -1108,10 +1108,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   }, [isActive, onShowTray]);
   const revealTerminal = useCallback(() => revealTray('terminal'), [revealTray]);
   // The logs, on the build watch's tab: where the page says a watch's last
-  // lines are. And on the
-  // server's tab, for a server that could not start or went by itself, which
-  // is said there and nowhere on the page. The tab is selected whether or
-  // not the logs come up: they do not take the terminal's place (tray.cjs),
+  // lines are. And on the server's tab, for a server that could not start
+  // or went by itself. The tab is selected whether or not the logs come up:
+  // they do not take the place of the terminal or of the mail (tray.cjs),
   // and are then on the right tab when they are opened.
   const revealWatchLog = useCallback(() => {
     selectLogTab('watch');

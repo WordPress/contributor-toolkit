@@ -8,7 +8,7 @@ import { mailRow, noMailNote, smtpNote } from '../site-mail.cjs';
 // the site's view's to draw.
 //
 // It holds no state: `mail` is what use-site-mail.jsx returns. `hidden` is
-// the tray showing something else.
+// the tray closed, or showing something else.
 export function MailPanel({ hidden, mail }) {
   const emails = mail.emails || [];
   return (

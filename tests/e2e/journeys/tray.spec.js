@@ -110,10 +110,21 @@ test( 'the tray is closed until the footer opens it, shows the open site\'s own 
 	await expect( terminalScreen( page ) ).toContainText( 'WordPress npm helper terminal.' );
 
 	// INVARIANT — the tray takes its room from the page and covers none of
-	// it: the last thing in the cards can still be brought wholly into view,
-	// above the tray. The last line of the last card, and not the card: on a
-	// small screen the page above an open tray is shorter than a card.
+	// it: the end of the page can still be brought wholly into view, above
+	// the tray. The page ends with whichever of its two columns is the
+	// taller, so both are asked. Of the cards, the last line of the last
+	// one, which this site, with no ticket ever linked, has no list of
+	// tickets after; the line and not the card, since on a small screen the
+	// page above an open tray is shorter than a card. Of the details, their
+	// foot.
 	// Asked until it is so: the page moves as its cards arrive.
+	const siteDetails = page.getByRole( 'complementary', { name: 'Details of first-site', exact: true } );
+	await expect.poll( async () => {
+		await siteDetails.evaluate( ( element ) => element.scrollIntoView( { block: 'end' } ) );
+		const detailsBox = await siteDetails.boundingBox();
+		const trayBox = await tray.boundingBox();
+		return trayBox.y - ( detailsBox.y + detailsBox.height );
+	} ).toBeGreaterThanOrEqual( 0 );
 	const lastLine = ui.card( page, 'Apply a patch or PR' ).getByText( applyCardWords( true ).prHelp, { exact: true } );
 	await lastLine.scrollIntoViewIfNeeded();
 	await expect( lastLine ).toBeInViewport( { ratio: 1 } );
@@ -598,6 +609,8 @@ test( 'a build that fails with its output in the logs brings the logs up, on the
 	const email = await ui.openTray( page, 'Email' );
 	await scripts.ends( 4, 1 );
 	await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
+	// The page saying where the lines are is what lets the logs stay away.
+	await expect( page.getByText( /^The build that has to finish before the watch can start failed.* Its last lines are in the Logs\.$/ ) ).toBeVisible();
 	await scripts.heard();
 	await expect( email ).toBeVisible();
 	await expect( logs ).toHaveCount( 0 );

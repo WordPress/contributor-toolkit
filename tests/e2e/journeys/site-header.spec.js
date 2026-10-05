@@ -222,8 +222,10 @@ test( 'an application that will not open the folder says why on the page, with t
 	// of sight. With the terminal, the logs and the mail in the tray (#558)
 	// a page is not much taller than a window, and the tray, which takes its
 	// room from the page, is what makes this one long enough to scroll that
-	// far.
+	// far: at its largest, half the window, on a screen of any height.
 	await ui.openTray( page, 'Terminal' );
+	await page.getByRole( 'separator', { name: 'Resize tray', exact: true } ).focus();
+	await page.keyboard.press( 'End' );
 	await ui.ticketField( page ).hover();
 	await page.mouse.wheel( 0, 2000 );
 	await expect( ui.ticketField( page ) ).not.toBeInViewport();
@@ -372,12 +374,16 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 
 	// INVARIANT — details that fit stay in view while the cards scroll: the
 	// first card has gone and they are still there. CHARACTERISATION — the
-	// facts alone fit over the tray at its smallest on the smallest screen
-	// the suite runs on, the macOS runner's, with a few pixels to spare; a
-	// dozen short of that they would still fit.
+	// facts alone fit over the tray at its smallest on the smallest screens
+	// the suite runs on, the runners', with a few pixels to spare. The room
+	// is read with the page at its top, where the details are where the page
+	// puts them. The tray is made smaller for as long as there is none to
+	// spare, which is more than is asked: they fit until the page's own
+	// padding above them, 24px, is what they are short of.
+	await fromTheTop();
 	await edge.focus();
 	for ( let presses = 0; presses < 20 && ( await spareRoom() ) < 0; presses++ ) await page.keyboard.press( 'ArrowDown' );
-	expect( await spareRoom() ).toBeGreaterThanOrEqual( -12 );
+	expect( await spareRoom() ).toBeGreaterThanOrEqual( -24 );
 	await fromTheTop();
 	await scrollTheCards();
 	await expect( heading ).toBeInViewport();

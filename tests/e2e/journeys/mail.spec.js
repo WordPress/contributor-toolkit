@@ -3,10 +3,10 @@
  *
  * A local WordPress sends its mail to the app instead of to the world: a
  * password reset, a comment notification. The list in the Email tray (#558)
- * is where they arrive and the dialog is where one is read, so this is the only place a
- * contributor can check what their change made WordPress send. The dialog has
- * to show the mail that was clicked, in both of its forms, and give the list
- * back when it closes.
+ * is where they arrive and the dialog is where one is read, so this is the
+ * only place a contributor can check what their change made WordPress send.
+ * The dialog has to show the mail that was clicked, in both of its forms, and
+ * give the list back when it closes.
  *
  * The dev server is what loads the list, and a journey does not run one: the
  * two long-running processes it starts are answered by stubs that never
@@ -72,14 +72,19 @@ test( 'a mail the site sent opens as the one that was clicked, in its rendered a
 	const resetRow = page.getByRole( 'button', { name: /\[Test Site\] Password Reset$/ } );
 	const commentRow = page.getByRole( 'button', { name: /\[Test Site\] Comment: "Hello world!"$/ } );
 	// INVARIANT — the mail is in the tray along the bottom of the window
-	// (#558), which is named and headed for it, and is not on the page: until
-	// the footer's button is pressed there is no row to see.
-	await page.evaluate( () => window.api.getSitesWithMeta() );
-	await expect( resetRow ).toHaveCount( 0 );
+	// (#558), which is named and headed for it, and its rows are in it.
 	const mail = await ui.openTray( page, 'Email' );
 	await expect( mail.getByRole( 'heading', { level: 2, name: 'Email', exact: true } ) ).toBeVisible();
 	await expect( mail.getByRole( 'button', { name: /\[Test Site\] Password Reset$/ } ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( commentRow ).toBeVisible();
+	// INVARIANT — and it is nowhere else: with the list loaded and the tray
+	// put away there is no row on screen, on the page or anywhere.
+	await ui.trayToggle( page, 'Email' ).click();
+	await expect( mail ).toHaveCount( 0 );
+	await expect( resetRow ).toBeHidden();
+	await expect( commentRow ).toBeHidden();
+	await ui.openTray( page, 'Email' );
+	await expect( resetRow ).toBeVisible();
 
 	// INVARIANT — the dialog is the mail that was clicked: titled with its
 	// subject, with who sent it, who it went to and who was copied in.

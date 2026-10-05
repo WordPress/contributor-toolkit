@@ -41,7 +41,7 @@ test( 'a footer button opens its tray, swaps it for the open one, and closes it 
 	assert.equal( toggleTray( 'terminal', 'terminal' ), null );
 } );
 
-test( 'asked for by the app, the terminal takes the tray whatever is in it, and the logs do not take the terminal\'s place', () => {
+test( 'asked for by the app, the terminal takes the tray whatever is in it, and the logs take nothing\'s place', () => {
 	assert.equal( trayAfterReveal( null, 'terminal' ), 'terminal' );
 	assert.equal( trayAfterReveal( 'logs', 'terminal' ), 'terminal' );
 	assert.equal( trayAfterReveal( 'terminal', 'terminal' ), 'terminal' );
