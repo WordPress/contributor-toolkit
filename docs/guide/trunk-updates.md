@@ -26,7 +26,7 @@ The update always shows the same three steps in a progress card, with a "step N 
 2. **Install dependencies** — runs only if `package-lock.json` changed between the old and new trunk; otherwise the step is shown as "Dependencies unchanged — skipping npm install". When it does run, most packages are already cached, so it downloads the difference, not the whole tree.
 3. **Rebuild** — rebuild the `build/` directory so it matches the new source. On WordPress Core the update runs this build itself before the watch resumes. On a Gutenberg site with the watch running, the resumed watch rebuilds `build/` from scratch anyway, so the update leaves the one build to it: the step reads *The build watch is rebuilding*, its output goes to the **Build watcher** tab rather than the terminal, and the update completes when the tab reads *(watching)* again. The site answers with Gutenberg's *requires files to be built* notice until then. If you stop the watch before it finishes, the update stays incomplete and the red notice below offers the retry.
 
-![The Updating to latest trunk card at step 1 of 3, fetching and resetting to trunk before install and rebuild](/screenshots/trunk-update-progress.png)
+![The Updating to latest trunk card at step 3 of 3: Fetched and reset to trunk is done, the install was skipped because the dependencies are unchanged, and Rebuilding is under way, with its output in the Terminal](/screenshots/trunk-update-progress.png)
 
 When the chain finishes, a green summary reads **Up to date with trunk as of today.**, along with whether dependencies changed, how long the rebuild took, and the path of any saved patch. Updating typically takes a few minutes.
 

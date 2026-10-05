@@ -1,13 +1,13 @@
 // The declarative list of documentation screenshots.
 //
-// Each entry is { slug, tier, variant, prepare, target, clip, instructions }:
+// Each entry is { slug, tier, variant, prepare, target, clip, viewport, instructions }:
 //   - slug: the output filename, docs/public/screenshots/<slug>.png — docs pages
 //     reference these names, so renaming one is a docs change too;
 //   - tier 'fixture': captured fully automatically against seeded state;
 //     tier 'live': needs a real, initialized site and a maintainer at the
 //     keyboard (the harness pauses and says what to set up);
 //   - variant: which fixture the shot needs ('seeded', isolated 'debug',
-//     'gutenberg' or 'empty');
+//     'gutenberg', 'empty', or 'repo:<slug>' for a real checkout of its own);
 //   - prepare(page): drives the UI to the state worth photographing. Selectors
 //     go by the words on screen, same as the repo's hand-testing convention —
 //     if a label changes, the shot fails loudly instead of photographing the
@@ -16,6 +16,8 @@
 //     whole window. Panels read better cropped; whole-window shots orient;
 //   - clip (optional): for a part of the window that is no one element, the
 //     rectangle to cut out of it, read off the page once `prepare` is done;
+//   - viewport (optional): the size of window the page is laid out for,
+//     for something taller than the window the harness opens;
 //   - instructions (live tier): what the harness tells the maintainer to set
 //     up before it takes the picture.
 //
@@ -28,16 +30,28 @@
 // fixture's. What is photographed is the app in a state it does reach, with
 // nothing behind it.
 //
+// The shots that need a checkout, with edits in it, a ticket's branch or an
+// origin to fetch from, have one: the `repo:` variants are a real repository
+// (buildRepoFixture in fixtures.cjs), and the shot does the rest through the
+// app. Each has a variant, and so a repository and a launch, of its own,
+// since it writes to both.
+//
 // What is still live-tier needs what no stand-in gives yet: setup-wizard,
 // since the self-setup chain arms on the clone-finished edge and a site that
-// was already in the registry when the app started never runs it; and the
-// shots further down, which need a real checkout with edits in it, an origin
-// to fetch from, or GitHub.
+// was already in the registry when the app started never runs it.
 
 // Where the app's controls and cards are is written down once, for the journeys
 // and for these shots alike.
+const fs = require('fs');
+const path = require('path');
 const ui = require('../../tests/e2e/helpers/ui.cjs');
-const { TICKET_FROM_TRAC, LINKED_PULL_REQUESTS } = require('./fixtures.cjs');
+const {
+	FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS, LINKED_TICKET,
+	EXCERPT_FILE, EXCERPT_FIXED, EXCERPT_TEST_FILE, EXCERPT_TEST
+} = require('./fixtures.cjs');
+
+// The fixture's site that is a real checkout (the `repo:` variants).
+const REPO_SITE = path.join(FIXTURE_ROOT, 'my-first-patch');
 
 /**
  * Clicks a site in the sidebar and waits for its view to render.
@@ -95,6 +109,43 @@ async function readTicketFromTrac(page) {
 	await ui.readTicketDetailsButton(page).click();
 	await page.getByText(TICKET_FROM_TRAC.ticket.summary).filter({ visible: true }).first().waitFor();
 	await page.getByText(TICKET_FROM_TRAC.items[0].filename).filter({ visible: true }).first().waitFor();
+}
+
+/**
+ * Links the fixture's ticket on the checkout, through the app, and waits for
+ * what the card then reads of it from Trac and GitHub without being asked.
+ *
+ * @param {import('playwright-core').Page} page
+ */
+async function linkTheTicket(page) {
+	await ui.linkTicket(page, LINKED_TICKET);
+	await page.getByText(TICKET_FROM_TRAC.ticket.summary).filter({ visible: true }).first().waitFor();
+	await page.getByText(LINKED_PULL_REQUESTS[0].title).filter({ visible: true }).first().waitFor();
+}
+
+/**
+ * Does the contributor's work in the checkout, from outside the app as an
+ * editor would: the fix to the file the ticket is about, and a test for it
+ * in a file trunk does not have.
+ */
+function editTheCheckout() {
+	fs.writeFileSync(path.join(REPO_SITE, EXCERPT_FILE), EXCERPT_FIXED);
+	fs.mkdirSync(path.dirname(path.join(REPO_SITE, EXCERPT_TEST_FILE)), { recursive: true });
+	fs.writeFileSync(path.join(REPO_SITE, EXCERPT_TEST_FILE), EXCERPT_TEST);
+}
+
+/**
+ * Opens the review of the checkout's changes and waits for the diff, which
+ * the dialog works out when it opens.
+ *
+ * @param {import('playwright-core').Page} page
+ * @return {Promise<import('playwright-core').Locator>} The dialog.
+ */
+async function openTheReview(page) {
+	await ui.reviewChangesButton(page).click();
+	const dialog = page.getByRole('dialog', { name: 'Review & submit changes' });
+	await dialog.getByText('Default 55.', { exact: false }).first().waitFor();
+	return dialog;
 }
 
 const shots = [
@@ -313,6 +364,88 @@ const shots = [
 			await ui.card(page, 'Trac ticket').evaluate((card) => card.scrollIntoView({ block: 'end' }));
 		}
 	},
+	{
+		slug: 'submit-changes-diff',
+		tier: 'fixture',
+		variant: 'repo:submit-changes-diff',
+		target: (page) => page.locator('.patch-diff'),
+		prepare: async (page) => {
+			await linkTheTicket(page);
+			editTheCheckout();
+			await openTheReview(page);
+		}
+	},
+	{
+		slug: 'submit-destinations',
+		tier: 'fixture',
+		variant: 'repo:submit-destinations',
+		// The three destinations are one under another and taller than the
+		// window, where the dialog scrolls to reach the last. The column is
+		// as tall as the dialog; the picture is of it down to its last card.
+		viewport: { width: 1200, height: 1400 },
+		clip: async (page) => {
+			const column = await page.locator('.patch-destinations').boundingBox();
+			const last = await page.locator('.patch-destinations > :last-child').boundingBox();
+			return { x: column.x, y: column.y, width: column.width, height: last.y + last.height - column.y + 8 };
+		},
+		prepare: async (page) => {
+			await linkTheTicket(page);
+			editTheCheckout();
+			const dialog = await openTheReview(page);
+			for (const destination of ['Open a pull request', 'Attach to Trac', 'Hand it to a mentor']) {
+				await dialog.getByText(destination, { exact: true }).first().waitFor();
+			}
+		}
+	},
+	{
+		slug: 'github-sign-in',
+		tier: 'fixture',
+		variant: 'repo:github-sign-in',
+		target: (page) => page.getByText('Open a pull request', { exact: true }).locator('../..'),
+		prepare: async (page) => {
+			await linkTheTicket(page);
+			editTheCheckout();
+			const dialog = await openTheReview(page);
+			// The sign-in is stood in for: it gets as far as its code and
+			// waits there, as a real one does until GitHub is told the code.
+			await dialog.getByRole('button', { name: 'Sign in with GitHub', exact: true }).click();
+			await dialog.getByText('WDJB-MJHT').waitFor();
+		}
+	},
+	{
+		slug: 'apply-patch-conflict',
+		tier: 'fixture',
+		variant: 'repo:apply-patch-conflict',
+		target: (page) => ui.card(page, 'Apply a patch or PR'),
+		prepare: async (page) => {
+			await linkTheTicket(page);
+			// The contributor has already changed the line the ticket's patch
+			// expects to find, so the patch does not fit.
+			editTheCheckout();
+			const attachment = page.getByRole('listitem').filter({ hasText: TICKET_FROM_TRAC.items[0].filename, visible: true });
+			await attachment.getByRole('button', { name: 'Apply…', exact: true }).click();
+			const preview = page.getByRole('dialog', { name: `Apply ${TICKET_FROM_TRAC.items[0].filename}`, exact: true });
+			await ui.applyAndRebuildButton(preview).click();
+			const card = ui.card(page, 'Apply a patch or PR');
+			await card.getByRole('alert').filter({ hasText: 'The checkout was not changed.' }).waitFor();
+			await card.scrollIntoViewIfNeeded();
+		}
+	},
+	{
+		slug: 'trunk-update-progress',
+		tier: 'fixture',
+		variant: 'repo:trunk-update-progress',
+		target: (page) => ui.card(page, 'Updating to latest trunk'),
+		prepare: async (page) => {
+			// The fixture's origin is a commit ahead, so there is something to
+			// fetch; what the update runs after it is stood in for and never
+			// ends, so the card stays part of the way through.
+			await ui.siteMenuButton(page).click();
+			await ui.updateTrunkMenuItem(page).click();
+			await ui.card(page, 'Updating to latest trunk').waitFor();
+			await page.waitForTimeout(1500);
+		}
+	},
 
 	// ---- Live tier: real site, maintainer present. `instructions` is what the
 	// harness prints before pausing.
@@ -327,41 +460,6 @@ const shots = [
 		instructions:
 			'Create a site and leave it alone. Shoot while the "Setting this site up for you — step N of 3" banner is up, with a step still to go, so the checklist shows a done step, a running one and a locked one.'
 	},
-	{
-		slug: 'submit-changes-diff',
-		tier: 'live',
-		target: (page) => page.locator('.patch-diff'),
-		instructions:
-			'On a site with edited files, click "Review & submit changes" and wait for the diff to finish generating.'
-	},
-	{
-		slug: 'submit-destinations',
-		tier: 'live',
-		target: (page) => page.locator('.patch-destinations'),
-		instructions:
-			'In the "Review & submit changes" modal, wait until the three destination cards (pull request / Trac / mentor) are visible.'
-	},
-	{
-		slug: 'github-sign-in',
-		tier: 'live',
-		target: (page) => page.getByText('Open a pull request', { exact: true }).locator('../..'),
-		instructions:
-			'In the "Open a pull request" destination, click "Sign in with GitHub" while signed out. Capture the card while it shows the device code; do not authorize it.'
-	},
-	{
-		slug: 'trunk-update-progress',
-		tier: 'live',
-		target: (page) => ui.card(page, 'Updating to latest trunk'),
-		instructions:
-			'Start "Update to latest trunk" on a site and wait until the step list is mid-run.'
-	},
-	{
-		slug: 'apply-patch-conflict',
-		tier: 'live',
-		target: (page) => ui.card(page, 'Apply a patch or PR'),
-		instructions:
-			'On an isolated site, preview a patch or pull request that does not fit the checkout, click "Apply and rebuild", and wait until the panel confirms that the checkout was not changed.'
-	}
 ];
 
 module.exports = { shots };

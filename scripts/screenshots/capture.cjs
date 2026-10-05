@@ -130,18 +130,24 @@ async function runFixtureTier(selected) {
 			// And of the app, not of the network that day, with no server
 			// started in a folder that holds no WordPress.
 			await standInForTheOutside(app);
+			const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
 			for (const shot of selected.filter((s) => s.variant === variant)) {
 				// Fresh renderer per shot: open menus and modals from the
 				// previous shot cannot leak into this one.
 				await page.reload();
+				// A shot of something taller than the window says how tall a
+				// window it needs, and the page is laid out for that one. The
+				// window on screen stays as it is.
+				await page.setViewportSize(shot.viewport || viewport);
 				// `app` as well as `page`: a shot of something the main process
 				// pushes to the renderer — a `wpct://` link (#464) — cannot be
 				// reached by driving the UI. Existing shots ignore it.
 				await shot.prepare(page, app);
-				// A field that has the focus has a caret, which blinks: the
-				// picture would have it in one run and not in the next. The
-				// field keeps its focus ring, which does not.
-				await page.addStyleTag({ content: '* { caret-color: transparent !important; }' });
+				// A field that has the focus has a caret, which blinks, and
+				// something that is waiting has a spinner, which turns: the
+				// picture would be a different one in every run. The field
+				// keeps its focus ring and the spinner is drawn, standing still.
+				await page.addStyleTag({ content: '* { caret-color: transparent !important; } *, *::before, *::after { animation: none !important; }' });
 				// Let @wordpress/components' open/close animations settle.
 				await page.waitForTimeout(300);
 				await captureShot(page, shot);

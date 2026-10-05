@@ -18,6 +18,10 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { pathToFileURL } = require('url');
+// The fixture layer the journeys build their sites with: the app's own Git
+// binary, so a repository made here is one the app reads as it reads a clone.
+const { gitOk, initRepo, commitFiles } = require('../../tests/unit/helpers/git.cjs');
 
 // /tmp, not os.tmpdir(): on macOS os.tmpdir() is a /var/folders/... maze that
 // reads as noise in a screenshot. Windows has no /tmp, so fall back there.
@@ -104,13 +108,21 @@ const SERVER_URL = 'http://127.0.0.1:9400/';
  * @param {import('playwright-core').ElectronApplication} app
  */
 async function standInForTheOutside(app) {
-	await app.evaluate(({ ipcMain }, [ticket, prs, trac, smtpPort, serverUrl]) => {
+	await app.evaluate(({ ipcMain }, [ticket, prs, trac, smtpPort, serverUrl, patch]) => {
 		const replace = (channel, handler) => {
 			ipcMain.removeHandler(channel);
 			ipcMain.handle(channel, handler);
 		};
 		replace('git:list-ticket-patches', () => ({ ok: true, ticket, prs: { status: 'ok', items: prs, rankComplete: true } }));
 		replace('trac:list-attachments', () => trac);
+		replace('trac:fetch-attachment', () => ({ ok: true, text: patch }));
+		// Nobody is signed in to GitHub, and a sign-in gets as far as its
+		// code and stays there: nothing is asked of GitHub.
+		replace('github:account', () => ({ ok: true, login: null, configured: true, testMode: null }));
+		replace('github:sign-in', () => ({ ok: true, userCode: 'WDJB-MJHT', verificationUri: 'https://github.com/login/device' }));
+		replace('github:sign-in-cancel', () => ({ ok: true }));
+		// An install is "started" and never ends, like the script.
+		replace('npm:install', async () => ({ installId: 'docs-fixture' }));
 		replace('npm:run-script', async () => ({ runId: 'docs-fixture' }));
 		// A start says where the mail server is listening and where the site
 		// is served before it answers, as the real one does.
@@ -120,7 +132,7 @@ async function standInForTheOutside(app) {
 			return { ok: true, url: serverUrl };
 		});
 		replace('url:open', () => true);
-	}, [LINKED_TICKET, LINKED_PULL_REQUESTS, TICKET_FROM_TRAC, SMTP_PORT, SERVER_URL]);
+	}, [LINKED_TICKET, LINKED_PULL_REQUESTS, TICKET_FROM_TRAC, SMTP_PORT, SERVER_URL, TICKET_PATCH]);
 }
 
 // What an earlier run left in debug.log, stamped the way PHP stamps it and
@@ -146,6 +158,13 @@ const DEBUG_LOG_LINES = [
  */
 function buildFixture(variant) {
 	const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wpct-userdata-'));
+	// From nothing, every time: a variant with a repository in it leaves one
+	// behind in a folder the next variant names as well.
+	cleanFixtureSites();
+
+	if (variant.startsWith('repo')) {
+		return buildRepoFixture(userDataDir, variant);
+	}
 
 	if (variant === 'empty') {
 		writeSettings(userDataDir, { sites: [], siteMeta: {}, preferences: {} });
@@ -245,9 +264,117 @@ function writeSettings(userDataDir, settings) {
 	);
 }
 
+// The file the fixture's ticket is about, as trunk has it, and what the
+// contributor makes of it. The ticket says a filter's documentation is
+// inconsistent; the code passes 55 and the comment says 50.
+const EXCERPT_FILE = 'src/wp-includes/excerpt-length.php';
+const EXCERPT_ON_TRUNK = [
+	'<?php',
+	'/**',
+	' * How long an excerpt may be.',
+	' *',
+	' * @package WordPress',
+	' */',
+	'',
+	'/**',
+	' * Filters the number of words in an excerpt.',
+	' *',
+	' * @since 2.7.0',
+	' *',
+	' * @param int $number The maximum number of words. Default 50.',
+	' */',
+	'function example_excerpt_length() {',
+	"	return (int) apply_filters( 'example_excerpt_length', 55 );",
+	'}',
+	''
+].join('\n');
+const EXCERPT_FIXED = EXCERPT_ON_TRUNK.replace('Default 50.', 'Default 55.');
+// And a test the contributor adds beside the fix: a file trunk does not have.
+const EXCERPT_TEST_FILE = 'tests/phpunit/tests/formatting/exampleExcerptLength.php';
+const EXCERPT_TEST = [
+	'<?php',
+	'',
+	'class Tests_Formatting_ExampleExcerptLength extends WP_UnitTestCase {',
+	'	public function test_default_is_55_words() {',
+	'		$this->assertSame( 55, example_excerpt_length() );',
+	'	}',
+	'}',
+	''
+].join('\n');
+
+// The patch attached to the ticket on Trac: someone else's fix for the same
+// line, written against trunk. It fits a checkout that still says 50, and
+// not one where the contributor has already changed that line.
+const TICKET_PATCH = [
+	`--- a/${EXCERPT_FILE.replace(/^src\//, '')}`,
+	`+++ b/${EXCERPT_FILE.replace(/^src\//, '')}`,
+	'@@ -11,3 +11,3 @@',
+	' *',
+	'- * @param int $number The maximum number of words. Default 50.',
+	'+ * @param int $number The maximum number of words. Default is 55.',
+	' */',
+	''
+].join('\n');
+
+/**
+ * A site that is a real checkout: one commit on trunk, what `site:status`
+ * reads as installed and built, and nothing linked. The shots that need a
+ * diff, a ticket's branch or an update start from it and do the rest through
+ * the app, so what is photographed is what the app made of it.
+ *
+ * Each such shot has a variant of its own (`repo:<slug>`), and so a
+ * repository of its own: these shots write to the checkout and to the
+ * registry, and one must not start from what another left.
+ *
+ * `repo:trunk-update-progress` also gets an origin to fetch from, a clone
+ * beside the site that is one commit ahead of it.
+ *
+ * @param {string} userDataDir
+ * @param {string} variant
+ * @return {{userDataDir: string, sites: Object<string,string>}} As buildFixture.
+ */
+function buildRepoFixture(userDataDir, variant) {
+	const readySite = path.join(FIXTURE_ROOT, 'my-first-patch');
+	fs.mkdirSync(path.dirname(path.join(readySite, EXCERPT_FILE)), { recursive: true });
+	initRepo(readySite, { branch: 'trunk' });
+	const tracked = {
+		'.gitignore': 'node_modules/\nbuild/\n',
+		'package.json': JSON.stringify({ name: 'wordpress-develop', version: '7.2.0', private: true, scripts: { build: 'node -e ""' } }, null, 2) + '\n',
+		[EXCERPT_FILE]: EXCERPT_ON_TRUNK
+	};
+	for (const [file, content] of Object.entries(tracked)) {
+		fs.writeFileSync(path.join(readySite, file), content);
+	}
+	commitFiles(readySite, Object.keys(tracked), 'trunk');
+
+	if (variant === 'repo:trunk-update-progress') {
+		// A working clone and not a bare one, so the commit that moves trunk
+		// on can be made in it with the same binary.
+		const origin = path.join(FIXTURE_ROOT, '.origin-of-my-first-patch');
+		gitOk(['clone', '-q', '--config', 'core.autocrlf=false', '--', readySite, origin], FIXTURE_ROOT);
+		gitOk(['remote', 'add', 'origin', pathToFileURL(origin).href], readySite);
+		fs.writeFileSync(path.join(origin, 'src', 'wp-includes', 'version.php'), "<?php\n$wp_version = '7.3-alpha';\n");
+		commitFiles(origin, ['src/wp-includes/version.php'], 'trunk moves on');
+	}
+
+	// What `site:status` reads to decide the site is installed and built. The
+	// folders are what is checked, not what is in them.
+	fs.mkdirSync(path.join(readySite, 'node_modules', 'react'), { recursive: true });
+	fs.mkdirSync(path.join(readySite, 'build', 'wp-includes', 'js', 'dist'), { recursive: true });
+
+	writeSettings(userDataDir, {
+		sites: [readySite],
+		siteMeta: {
+			[readySite]: { ...FRESH, label: 'my-first-patch', skipInitWizard: true }
+		},
+		preferences: { wporgHandle: 'contributor', contributionEvent: 'WordCamp Example 2026' }
+	});
+	return { userDataDir, sites: { readySite } };
+}
+
 /** Removes the fixture site directories. userData dirs live under os.tmpdir() and are left to the OS. */
 function cleanFixtureSites() {
 	fs.rmSync(FIXTURE_ROOT, { recursive: true, force: true });
 }
 
-module.exports = { standInForTheOutside, buildFixture, cleanFixtureSites, FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS };
+module.exports = { standInForTheOutside, buildFixture, cleanFixtureSites, FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS, LINKED_TICKET, EXCERPT_FILE, EXCERPT_FIXED, EXCERPT_TEST_FILE, EXCERPT_TEST };
