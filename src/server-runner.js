@@ -115,6 +115,9 @@ async function main() {
 			await playgroundWriteFiles(result.playground, '/wordpress', {
 				'adminer.php': `<?php
 
+				// Playground records the active database after WordPress initializes.
+				$wp_env = require '/internal/shared/wp-env.php';
+
 				// PHP defaults session.save_path to /home/web_user, which doesn't exist in
 				// the Playground VFS (we mount the build dir and skip WordPress setup), so
 				// Adminer's session_start() emits warnings and its later header() calls die.
@@ -128,10 +131,10 @@ async function main() {
 				if ($_SERVER['QUERY_STRING'] === '' || empty($_COOKIE['adminer_permanent'])) {
 					$_POST['auth'] = [
 						'driver'    => 'sqlite',
-						'server'    => '/wordpress/wp-content/database/.ht.sqlite',
+						'server'    => $wp_env['db']['path'],
 						'username'  => '',
 						'password'  => '',
-						'db'        => '/wordpress/wp-content/database/.ht.sqlite',
+						'db'        => $wp_env['db']['path'],
 						'permanent' => 1,
 					];
 				}
@@ -152,7 +155,8 @@ async function main() {
 						}
 						
 						function database() {
-							return '/wordpress/wp-content/database/.ht.sqlite';
+							global $wp_env;
+							return $wp_env['db']['path'];
 						}
 						
 						function login($login, $password) {
