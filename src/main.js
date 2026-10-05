@@ -86,6 +86,9 @@ const { workItemProvider } = require('./work-item.cjs');
 const { LEGACY_SITE_ERROR } = require('./renderer/legacy-site.cjs');
 const { resolveCatalog } = require('./i18n.cjs');
 const { isPseudoLocale } = require('./renderer/pseudo-locale.cjs');
+const { applyLocale } = require('./renderer/locale-setup.cjs');
+const { __, setLocaleData } = require('@wordpress/i18n');
+const { addFilter } = require('@wordpress/hooks');
 const { mergeInProgressError, mergeCheckFailedError } = require('./renderer/merge-in-progress.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
@@ -649,13 +652,25 @@ ipcMain.handle('deep-link:ready', () => {
 // es-419, Galician as English) (#584). A `--lang` switch replaces the OS list,
 // read off the switch itself so `--lang=es-MX` is not folded either; it is how
 // the journeys pick a locale, the pseudo-locale included.
-ipcMain.handle('i18n:locale', async () => {
-	const requested = app.commandLine.getSwitchValue('lang');
-	if (isPseudoLocale(requested)) return { locale: requested, data: null };
-	const locales = requested ? [requested] : [...app.getPreferredSystemLanguages(), app.getLocale()];
-	const found = await resolveCatalog(locales, path.join(__dirname, 'languages'), (message) => logEvent('i18n', message));
-	return found ? { locale: found.locale, data: found.messages } : { locale: 'en', data: null };
-});
+//
+// Resolved once: main applies it at startup for its own strings (the menu, the
+// native dialogs, the sentences it sends), and the window gets the same reply,
+// so the two cannot end up in different languages.
+let localeReplyPromise = null;
+function localeReply() {
+	if (!localeReplyPromise) {
+		localeReplyPromise = (async () => {
+			const requested = app.commandLine.getSwitchValue('lang');
+			if (isPseudoLocale(requested)) return { locale: requested, data: null };
+			const locales = requested ? [requested] : [...app.getPreferredSystemLanguages(), app.getLocale()];
+			const found = await resolveCatalog(locales, path.join(__dirname, 'languages'), (message) => logEvent('i18n', message));
+			return found ? { locale: found.locale, data: found.messages } : { locale: 'en', data: null };
+		})();
+	}
+	return localeReplyPromise;
+}
+
+ipcMain.handle('i18n:locale', () => localeReply());
 
 // Without the lock, a link clicked while the app is running starts a second copy
 // — which on Windows and Linux is the only way the address arrives at all, and
@@ -1033,11 +1048,11 @@ ipcMain.handle('git:save-patch', async (_e, sitePath, options) => {
         }
 
         const { filePath, canceled } = await dialog.showSaveDialog({
-            title: handoff ? 'Save Patch for Handoff' : 'Save Diff File',
+            title: handoff ? __('Save Patch for Handoff') : __('Save Diff File'),
             defaultPath: path.join(os.homedir(), name),
             filters: [
-                { name: 'Patch Files', extensions: ['patch', 'diff'] },
-                { name: 'All Files', extensions: ['*'] }
+                { name: __('Patch Files'), extensions: ['patch', 'diff'] },
+                { name: __('All Files'), extensions: ['*'] }
             ]
         });
 
@@ -2390,11 +2405,11 @@ ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
 
 ipcMain.handle('dialog:choose-patch-file', async () => {
     const result = await dialog.showOpenDialog({
-        title: 'Choose a patch file',
+        title: __('Choose a patch file'),
         properties: ['openFile'],
         filters: [
-            { name: 'Patch Files', extensions: ['patch', 'diff'] },
-            { name: 'All Files', extensions: ['*'] }
+            { name: __('Patch Files'), extensions: ['patch', 'diff'] },
+            { name: __('All Files'), extensions: ['*'] }
         ]
     });
     if (result.canceled || result.filePaths.length === 0) return null;
@@ -2521,7 +2536,7 @@ ipcMain.handle('sites:mark-update-complete', async (_e, sitePath) => {
     return true;
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
 	// The second copy this one refused (see the lock above) is on its way out;
 	// it must not build a window or take the store with it on the way.
 	if (!gotSingleInstanceLock) return;
@@ -2543,12 +2558,16 @@ app.whenReady().then(() => {
 	// renderer output into the log file, which only applies to windows created
 	// afterwards.
 	initLogging();
+	// Before the menu and the window: both build their labels from `__()`.
+	applyLocale(await localeReply(), { setLocaleData, addFilter });
 	Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
 		onOpenLog: () => shell.openPath(getLogFilePath()),
 		onShowLogsFolder: () => shell.showItemInFolder(getLogFilePath())
 	})));
 
-	createWindow();
+	// A `wpct://` link that arrived while the locale was being read has already
+	// opened the window.
+	if (BrowserWindow.getAllWindows().length === 0) createWindow();
 
 	// Windows and Linux, cold start: the address that launched the app is in
 	// this process's own argv. macOS does not use argv for this — it sends
@@ -3292,14 +3311,14 @@ ipcMain.handle('editor:open', async (_e, sitePath, editorPath) => {
 		target = detected.path;
 	} else {
 		const filtersByPlatform = {
-			darwin: [{ name: 'Applications', extensions: ['app'] }],
-			win32: [{ name: 'Programs', extensions: ['exe'] }]
+			darwin: [{ name: __('Applications'), extensions: ['app'] }],
+			win32: [{ name: __('Programs'), extensions: ['exe'] }]
 		};
 		// Everywhere else an application is just a file, so the dialog does not
 		// narrow what can be picked.
 		const filters = filtersByPlatform[process.platform] || [];
 		const result = await dialog.showOpenDialog({
-			title: 'Choose the application to open this folder in',
+			title: __('Choose the application to open this folder in'),
 			properties: ['openFile'],
 			defaultPath: process.platform === 'darwin' ? '/Applications' : undefined,
 			filters

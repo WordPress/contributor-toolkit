@@ -7,7 +7,10 @@
 // a contributor gets at the log file without knowing where their OS keeps it.
 //
 // Kept free of Electron imports and of the log module: the caller supplies the
-// click handlers, so this file is a plain data structure.
+// click handlers, so this file is a plain data structure. Its labels are
+// translated when the template is built, so main applies the locale first.
+
+const { __ } = require('@wordpress/i18n');
 
 const isMac = (platform = process.platform) => platform === 'darwin';
 
@@ -28,11 +31,11 @@ function buildMenuTemplate({ onOpenLog, onShowLogsFolder, platform = process.pla
 					// "App Log" rather than "Log": the app also tails each site's
 					// WordPress debug.log, and confusing the two would send people
 					// to the wrong file.
-					label: 'Open App Log',
+					label: __('Open App Log'),
 					click: () => onOpenLog?.()
 				},
 				{
-					label: 'Show Logs Folder',
+					label: __('Show Logs Folder'),
 					click: () => onShowLogsFolder?.()
 				},
 				{ type: 'separator' },
