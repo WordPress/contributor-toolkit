@@ -255,14 +255,16 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
       const res = await window.api.savePatch(sitePath);
       if (res && res.canceled) return; // stay in the modal
       if (!res || !res.ok || !res.filePath) {
+        const why = res && res.error ? res.error : __('Unknown error');
         // translators: %s: why the diff could not be saved.
-        setDirtyError(sprintf(__('Error saving diff: %s'), res && res.error ? res.error : __('Unknown error')));
+        setDirtyError(sprintf(__('Error saving diff: %s'), why));
         return;
       }
       const d = await window.api.discardChanges(sitePath);
       if (!d || !d.ok) {
+        const why = d && d.error ? d.error : __('Unknown error');
         // translators: 1: the path of the saved patch file. 2: why the reset failed.
-        setDirtyError(sprintf(__('Saved your changes to %1$s, but resetting the working tree failed: %2$s'), res.filePath, d && d.error ? d.error : __('Unknown error')));
+        setDirtyError(sprintf(__('Saved your changes to %1$s, but resetting the working tree failed: %2$s'), res.filePath, why));
         return;
       }
       savedPatchPathRef.current = res.filePath;
@@ -282,8 +284,9 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
     setDirtyError(null);
     const d = await window.api.discardChanges(sitePath);
     if (!d || !d.ok) {
+      const why = d && d.error ? d.error : __('Unknown error');
       // translators: %s: why the changes could not be discarded.
-      setDirtyError(sprintf(__('Failed to discard changes: %s'), d && d.error ? d.error : __('Unknown error')));
+      setDirtyError(sprintf(__('Failed to discard changes: %s'), why));
       return;
     }
     applyDiscardToNote(discardOutcome(d));

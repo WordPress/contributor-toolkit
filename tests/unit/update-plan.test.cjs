@@ -12,6 +12,7 @@ const {
 	planUpdateSteps,
 	updateStepText,
 	planSetupSteps,
+	planApplySteps,
 	updateStepStatuses,
 	setupOutcome,
 	updateOutcome
@@ -239,8 +240,38 @@ test('setupOutcome: Stop is not a failure, whatever exit code the kill produced 
 });
 
 test('updateSummarySentence: one whole sentence for each outcome, not one built from parts', () => {
-	assert.strictEqual(updateSummarySentence({ lockfileChanged: true, elapsed: '2m 5s' }), 'Dependencies updated, rebuilt in 2m 5s.');
+	assert.strictEqual(updateSummarySentence({ lockfileChanged: true, elapsed: '2m 05s' }), 'Dependencies updated, rebuilt in 2m 05s.');
 	assert.strictEqual(updateSummarySentence({ lockfileChanged: false, elapsed: '40s' }), 'Dependencies unchanged, rebuilt in 40s.');
 	assert.strictEqual(updateSummarySentence({ lockfileChanged: true }), 'Dependencies updated, rebuilt.');
 	assert.strictEqual(updateSummarySentence({ lockfileChanged: false, elapsed: null }), 'Dependencies unchanged, rebuilt.');
+});
+
+// Translated when they are said, not once in English when the module loads:
+// the catalog is set after the require above, as the renderer's is.
+test('the steps and messages go through the translator when they are asked for', (t) => {
+	const i18n = require('@wordpress/i18n');
+	t.after(() => i18n.resetLocaleData());
+	i18n.setLocaleData({
+		'Fetch latest trunk': ['T fetch'],
+		'Dependencies unchanged — skipping %s': ['T skipping %s'],
+		'The build watch is rebuilding — output in the Logs, under Build watch': ['T watch rebuilding'],
+		'The build watch will recompile the change': ['T watch recompiles'],
+		'The build watch rebuilds when it resumes': ['T watch resumes'],
+		'Apply the patch': ['T apply'],
+		'Download WordPress': ['T download'],
+		'Fetching and resetting to trunk…': ['T fetching'],
+		'Dependencies unchanged, rebuilt.': ['T unchanged']
+	});
+	const update = planUpdateSteps({ lockfileChanged: false, buildByWatcher: 'resumed-watch' });
+	assert.strictEqual(update[0].label, 'T fetch');
+	assert.strictEqual(update[1].skipMessage, 'T skipping npm install');
+	assert.strictEqual(update[2].currentMessage, 'T watch rebuilding');
+	assert.strictEqual(updateStepText(update, { key: 'fetch', status: 'current' }), 'T fetching');
+	assert.strictEqual(updateStepText(update, { key: 'install', status: 'skipped' }), 'T skipping npm install');
+	const apply = planApplySteps({ buildByWatcher: 'live-watch' });
+	assert.strictEqual(apply[0].label, 'T apply');
+	assert.strictEqual(apply[2].skipMessage, 'T watch recompiles');
+	assert.strictEqual(planApplySteps({ buildByWatcher: 'resumed-watch' })[2].skipMessage, 'T watch resumes');
+	assert.strictEqual(planSetupSteps()[0].label, 'T download');
+	assert.strictEqual(updateSummarySentence({ lockfileChanged: false }), 'T unchanged');
 });

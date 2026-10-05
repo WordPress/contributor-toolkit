@@ -44,10 +44,19 @@ export function DirtyTreeModal({ files, saving, error, onSave, onDiscard, onClos
         ) : null}
         {[
           // Each detail carries its own dash: punctuation is the translator's.
-          // translators: Said after "Save them as a patch first (as a local file)", on the same line.
-          { key: 'save', label: __('Save them as a patch first (as a local file)'), detail: __('— a .diff on your machine — nothing is sent to Trac') },
-          // translators: Said after "Discard them", on the same line.
-          { key: 'discard', label: __('Discard them'), detail: __('— your changes are lost; this cannot be undone'), destructive: true }
+          {
+            key: 'save',
+            label: __('Save them as a patch first (as a local file)'),
+            // translators: Said after "Save them as a patch first (as a local file)", on the same line.
+            detail: __('— a .diff on your machine — nothing is sent to Trac')
+          },
+          {
+            key: 'discard',
+            label: __('Discard them'),
+            // translators: Said after "Discard them", on the same line.
+            detail: __('— your changes are lost; this cannot be undone'),
+            destructive: true
+          }
         ].map((opt) => {
           const selected = dirtyChoice === opt.key;
           return (

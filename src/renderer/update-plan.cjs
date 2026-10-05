@@ -368,16 +368,16 @@ function setupOutcome({ stopped, installCode, buildCode } = {}) {
  *
  * @param {Object}  summary
  * @param {boolean} summary.lockfileChanged Whether package-lock.json changed.
- * @param {?string} [summary.elapsed]       The rebuild's time, already formatted (such as 2m 5s), or null.
+ * @param {?string} [summary.elapsed]       The rebuild's time, already formatted (such as 2m 05s), or null.
  * @return {string}
  */
 function updateSummarySentence({ lockfileChanged, elapsed = null }) {
 	if (elapsed && lockfileChanged) {
-		// translators: %s: how long the rebuild took, such as 2m 5s.
+		// translators: %s: how long the rebuild took, such as 2m 05s.
 		return sprintf(__('Dependencies updated, rebuilt in %s.'), elapsed);
 	}
 	if (elapsed) {
-		// translators: %s: how long the rebuild took, such as 2m 5s.
+		// translators: %s: how long the rebuild took, such as 2m 05s.
 		return sprintf(__('Dependencies unchanged, rebuilt in %s.'), elapsed);
 	}
 	return lockfileChanged ? __('Dependencies updated, rebuilt.') : __('Dependencies unchanged, rebuilt.');
