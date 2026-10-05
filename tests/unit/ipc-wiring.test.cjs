@@ -136,7 +136,9 @@ function createElectronStub({ ready = false } = {}) {
 		app: {
 			// Never settles: whatever the ready path does, it is not what these
 			// tests are about, and leaving it unrun keeps the load side-effect-free.
-			// `ready` is for the few that are about it.
+			// `ready` is for the few that are about it. The ready path runs after
+			// loadMain has removed its require hook, so a `require` added there
+			// would get the real modules, `electron` included, not the stubs.
 			whenReady: () => (ready ? Promise.resolve() : new Promise(() => {})),
 			on(event, listener) {
 				if (!appEvents.has(event)) appEvents.set(event, []);
