@@ -34,6 +34,7 @@ function trayList() {
 	return [
 		{ id: 'terminal', title: __( 'Terminal' ), toggle: __( 'Toggle Terminal' ) },
 		{ id: 'logs', title: __( 'Logs' ), toggle: __( 'Toggle Logs' ) },
+		{ id: 'email', title: __( 'Email' ), toggle: __( 'Toggle Email' ) },
 	];
 }
 
@@ -54,18 +55,19 @@ function toggleTray( current, pressed ) {
  * failure's only word is in the terminal or in the logs.
  *
  * The terminal takes the tray whatever is in it: a refusal printed there and
- * not shown is a button that did nothing. The logs do not take the
- * terminal's place: someone may be typing in it, and the page says of every
- * failure that would have brought them up that its last lines are in the
- * Logs (site-processes.cjs). They come up only in a tray that is closed, or
- * is showing them already.
+ * not shown is a button that did nothing. The logs take nothing's place:
+ * someone may be typing in the terminal, or about to open a mail, and the
+ * page says of every failure that would have brought them up that its last
+ * lines are in the Logs (site-processes.cjs). They come up only in a tray
+ * that is closed, or is showing them already. Nothing brings the mail up
+ * but its own button.
  *
  * @param {string|null} current The tray that is open, if any.
  * @param {string}      wanted  The tray the app asks for.
  * @return {string|null} The tray to show.
  */
 function trayAfterReveal( current, wanted ) {
-	if ( wanted === 'logs' && current === 'terminal' ) return current;
+	if ( wanted === 'logs' && current && current !== 'logs' ) return current;
 	return wanted;
 }
 

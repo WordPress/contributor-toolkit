@@ -15,11 +15,20 @@ import { DEFAULT_TRAY_HEIGHT, clampTrayHeight, trayHeightForKey, trayHeightLimit
 // site. For the same reason the tray is never taken off the page. Closed, it
 // is hidden, with everything in it still there.
 const { Fill, Slot } = createSlotFill('SiteTray');
+// And beside the button that closes it, what is done to the whole of what
+// the tray shows: the open site's too, and only for the tray that is open.
+const { Fill: ActionsFill, Slot: ActionsSlot } = createSlotFill('SiteTrayActions');
 
 /**
  * What a site puts in the tray.
  */
 export const SiteTrayFill = Fill;
+
+/**
+ * What the open site puts in the tray's heading, beside the button that
+ * closes it.
+ */
+export const SiteTrayActionsFill = ActionsFill;
 
 // The id the footer's buttons name as what they control.
 export const TRAY_ID = 'app-tray';
@@ -123,7 +132,10 @@ export function BottomTray({ title, onClose }) {
       />
       <Stack direction="row" align="center" justify="space-between" gap="sm" className="app-tray-header">
         <Text variant="heading-lg" render={<h2 />} className="app-tray-title">{title}</Text>
-        <IconButton icon={closeSmall} label={__('Close')} variant="minimal" tone="neutral" size="compact" onClick={onClose} />
+        <Stack direction="row" align="center" gap="xs">
+          <ActionsSlot bubblesVirtually className="app-tray-actions" />
+          <IconButton icon={closeSmall} label={__('Close')} variant="minimal" tone="neutral" size="compact" onClick={onClose} />
+        </Stack>
       </Stack>
       <Slot bubblesVirtually className="app-tray-body" />
     </aside>

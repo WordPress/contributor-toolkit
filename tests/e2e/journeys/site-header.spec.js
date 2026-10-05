@@ -216,12 +216,18 @@ test( 'an application that will not open the folder says why on the page, with t
 	const applications = await standInForApplications( app );
 	await expect( ui.siteHeading( page, 'only-site' ) ).toBeVisible( { timeout: 30_000 } );
 	await applications.answerOpenWith( { ok: false, reason: 'unlaunchable-editor' } );
-	const pageEnd = page.getByText( 'No emails yet.', { exact: true } );
 
 	// The header does not scroll, so its menu can be used from the bottom of
 	// the page, where the top of it, which is where a refusal is said, is out
-	// of sight.
-	await pageEnd.scrollIntoViewIfNeeded();
+	// of sight. With the terminal, the logs and the mail in the tray (#558)
+	// a page is not much taller than a window, and the tray, which takes its
+	// room from the page, is what makes this one long enough to scroll that
+	// far: at its largest, half the window, on a screen of any height.
+	await ui.openTray( page, 'Terminal' );
+	await page.getByRole( 'separator', { name: 'Resize tray', exact: true } ).focus();
+	await page.keyboard.press( 'End' );
+	await ui.ticketField( page ).hover();
+	await page.mouse.wheel( 0, 2000 );
 	await expect( ui.ticketField( page ) ).not.toBeInViewport();
 
 	// INVARIANT — the menu is gone by the time the answer comes, so the
@@ -315,8 +321,8 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	// A site still in its setup, whose details are the facts alone and whose
 	// cards are the taller of the two columns: details that stay put while
 	// the cards scroll can only be told from details that go with them where
-	// the cards are the taller. With the terminal and the logs gone to the
-	// tray (#558) a site that is set up has it the other way round.
+	// the cards are the taller. With the terminal, the logs and the mail gone
+	// to the tray (#558) a site that is set up has it the other way round.
 	const { settings } = listedSites( session, [ { label: 'in-setup', skipInitWizard: false } ] );
 	const { page } = await session.start( settings );
 	// Without the glide the app brings a site's next step into view with,
@@ -330,7 +336,6 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	await page.getByRole( 'button', { name: 'Hide sites list', exact: true } ).click();
 	const heading = details( page, 'in-setup' ).getByRole( 'heading', { name: 'Details', exact: true } );
 	const firstCard = page.getByText( 'Initial setup checklist', { exact: true } );
-	const pageEnd = page.getByText( 'No emails yet.', { exact: true } );
 
 	// INVARIANT — a site still in its setup has no server or build watch to
 	// offer, in the header or in its details: the checklist is what starts
@@ -340,58 +345,58 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	await expect( details( page, 'in-setup' ).getByRole( 'heading', { name: 'Server', exact: true } ) ).toHaveCount( 0 );
 
 	// The room the page has is the tray's to give: it takes its own from the
-	// page. First a little more than the details need, and no more, so that
-	// the cards are taller than the page and scroll.
+	// page, and with it the cards are taller than the page and scroll. What
+	// is to spare is read from the page's top, as what is between the foot
+	// of the details and the tray. The details start a little way down the
+	// page, by its own padding of 24px, and fit for as long as they are no
+	// taller than the page, so they fit until there is less than that
+	// padding to spare the other way.
 	const tray = await ui.openTray( page, 'Terminal' );
 	const edge = page.getByRole( 'separator', { name: 'Resize tray', exact: true } );
-	const spareRoom = async ( under ) => {
+	const spareRoom = async () => {
 		const box = await details( page, 'in-setup' ).boundingBox();
-		return ( await under.boundingBox() ).y - ( box.y + box.height );
+		return ( await tray.boundingBox() ).y - ( box.y + box.height );
 	};
-	await edge.focus();
-	for ( let presses = 0; presses < 20 && ( await spareRoom( tray ) ) > 64; presses++ ) await page.keyboard.press( 'ArrowUp' );
-	for ( let presses = 0; presses < 20 && ( await spareRoom( tray ) ) < 40; presses++ ) await page.keyboard.press( 'ArrowDown' );
-	// Room to spare, and not only a fit: the cards end some way short of the
-	// page's end, and details with less than that to spare are pushed up by
-	// the difference there, their heading first. On a screen that has no
-	// such room above the tray at its smallest, the Windows runner's, the
-	// page is short enough with the tray put away, and what is under the
-	// page is the footer.
-	let underThePage = tray;
-	if ( ( await spareRoom( tray ) ) < 40 ) {
-		await ui.trayToggle( page, 'Terminal' ).click();
-		await expect( tray ).toHaveCount( 0 );
-		underThePage = page.getByRole( 'contentinfo' );
-	}
-	expect( await spareRoom( underThePage ) ).toBeGreaterThanOrEqual( 40 );
+	// Read part of the way down the page, from its top, and not at its end,
+	// both times: at its end a column that is held is pushed up by whatever
+	// it lacks of the room under the cards, and one too tall to hold is
+	// pushed out of view like one that was let go.
+	const fromTheTop = async () => {
+		await firstCard.scrollIntoViewIfNeeded();
+		await heading.scrollIntoViewIfNeeded();
+		await expect( heading ).toBeInViewport();
+	};
+	const scrollTheCards = async () => {
+		await firstCard.hover();
+		await page.mouse.wheel( 0, 100 );
+		await expect( firstCard ).not.toBeInViewport();
+	};
 
-	// INVARIANT — details that fit stay in view while the cards scroll: with
-	// the page at its end, where the first card is long gone, they are still
-	// there.
-	await pageEnd.scrollIntoViewIfNeeded();
-	await expect( firstCard ).not.toBeInViewport();
+	// INVARIANT — details that fit stay in view while the cards scroll: the
+	// first card has gone and they are still there. CHARACTERISATION — the
+	// facts alone fit over the tray at its smallest on the smallest screens
+	// the suite runs on, the runners', with a few pixels to spare. The room
+	// is read with the page at its top, where the details are where the page
+	// puts them. The tray is made smaller for as long as there is none to
+	// spare, which is more than is asked: they fit until the page's own
+	// padding above them, 24px, is what they are short of.
+	await fromTheTop();
+	await edge.focus();
+	for ( let presses = 0; presses < 20 && ( await spareRoom() ) < 0; presses++ ) await page.keyboard.press( 'ArrowDown' );
+	expect( await spareRoom() ).toBeGreaterThanOrEqual( -24 );
+	await fromTheTop();
+	await scrollTheCards();
 	await expect( heading ).toBeInViewport();
 
 	// INVARIANT — details taller than what is in view are let go: they move
 	// with the cards, so their end can be reached by scrolling to it.
 	// CHARACTERISATION — the tray at its largest, half the window, leaves
 	// the page less room than these details need.
-	if ( ! ( await tray.count() ) ) await ui.openTray( page, 'Terminal' );
 	await edge.focus();
 	await page.keyboard.press( 'End' );
-	// Read part of the way down the page, from its top, and not at its end:
-	// held in place, a column taller than the page is pushed up out of view
-	// at the page's end too, and the two would look the same there. The
-	// room is measured from the top as well, where the details are where
-	// the page puts them.
-	await firstCard.scrollIntoViewIfNeeded();
-	await heading.scrollIntoViewIfNeeded();
-	await expect( heading ).toBeInViewport();
-	await expect.poll( () => spareRoom( tray ) ).toBeLessThan( 0 );
-	await firstCard.hover();
-	await page.mouse.wheel( 0, 150 );
-	await expect( firstCard ).not.toBeInViewport();
-	await expect( pageEnd ).not.toBeInViewport();
+	await fromTheTop();
+	await expect.poll( spareRoom ).toBeLessThan( -24 );
+	await scrollTheCards();
 	await expect( heading ).not.toBeInViewport();
 } );
 

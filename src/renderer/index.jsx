@@ -70,8 +70,9 @@ import { PullRequestDestination } from './components/pull-request-destination.js
 import { ReviewDialog } from './components/review-dialog.jsx';
 import { SitesSidebar } from './components/sites-sidebar.jsx';
 import { AppFooter, LogsToggleNote, trayToggleId } from './components/app-footer.jsx';
-import { BottomTray, SiteTrayFill } from './components/bottom-tray.jsx';
+import { BottomTray, SiteTrayActionsFill, SiteTrayFill } from './components/bottom-tray.jsx';
 import { LogsPanel } from './components/logs-panel.jsx';
+import { MailPanel, MailTrayActions } from './components/mail-panel.jsx';
 import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
@@ -1107,10 +1108,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   }, [isActive, onShowTray]);
   const revealTerminal = useCallback(() => revealTray('terminal'), [revealTray]);
   // The logs, on the build watch's tab: where the page says a watch's last
-  // lines are. And on the
-  // server's tab, for a server that could not start or went by itself, which
-  // is said there and nowhere on the page. The tab is selected whether or
-  // not the logs come up: they do not take the terminal's place (tray.cjs),
+  // lines are. And on the server's tab, for a server that could not start
+  // or went by itself. The tab is selected whether or not the logs come up:
+  // they do not take the place of the terminal or of the mail (tray.cjs),
   // and are then on the right tab when they are opened.
   const revealWatchLog = useCallback(() => {
     selectLogTab('watch');
@@ -1239,8 +1239,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // toast, since the menu is gone by then and the details, whose own button
   // says it on itself, may be put away.
   const detailsId = useId();
-  // The heading of the mail under the cards, which names it.
-  const mailTitleId = useId();
   const runSiteMenuAction = async (item) => {
     if (item.id === 'rename') openRenameModal();
     else if (item.id === 'copy-path') { if (await writePathToClipboard()) confirm(__('Copied the path')); }
@@ -1953,8 +1951,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             logs={logs}
             copyLabel={COPY_BUTTON_LABELS[logs.debugCopied] || COPY_BUTTON_LABELS.idle}
           />
+          <MailPanel hidden={tray !== 'email'} mail={mail} />
         </div>
       </SiteTrayFill>
+      {/* What is done to the whole of the mail is in the tray's heading,
+          while the mail is what the tray shows and this is the open site. */}
+      {isActive && tray === 'email' ? <SiteTrayActionsFill><MailTrayActions mail={mail} /></SiteTrayActionsFill> : null}
       {/* And on the footer's Logs button, how many lines of this site's
           debug.log arrived unseen, while this is the site that is open. */}
       {isActive ? <LogsToggleNote count={logs.debugUnread} /> : null}
@@ -2209,33 +2211,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           onDelete={(row) => askFirst(deleteWorkQuestion(row.ticketId, project.workItem.provider), () => deleteTicketWork(row.ref))}
         />
       ) : null}
-      <Stack direction="column" gap="sm" render={<section aria-labelledby={mailTitleId} />}>
-        <Text id={mailTitleId} variant="heading-md" render={<h2 />} className="site-panel-title">Mail</Text>
-        <Stack direction="row" align="center" justify="space-between" gap="sm">
-          <Text variant="body-sm" className="muted-label">{mail.smtpPort ? `SMTP listening on 127.0.0.1:${mail.smtpPort}` : 'SMTP will start with the dev server.'}</Text>
-          <UiButton variant="outline" tone="neutral" size="compact" onClick={mail.clear}>Clear emails</UiButton>
-        </Stack>
-        <div className="mail-list">
-          {mail.emails && mail.emails.length ? mail.emails.map((m)=>{
-            const when = m.sentAt || m.date; const whenStr = when ? new Date(when).toLocaleString() : '';
-            return (
-              <div key={m.id}
-                className="mail-row"
-                role="button"
-                tabIndex={0}
-                onClick={()=>mail.open(m)}
-                onKeyDown={(e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mail.open(m); } }}
-              >
-                <span className="mail-when">{whenStr}</span>
-                <span className="mail-from">{m.from || ''}</span>
-                <span className="mail-subject">{m.subject || '(no subject)'}</span>
-              </div>
-            );
-          }) : (
-            <Text variant="body-md" className="muted-label mail-empty">No emails yet.</Text>
-          )}
-        </div>
-      </Stack>
       </div>
       <SiteDetails
         id={detailsId}

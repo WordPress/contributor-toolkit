@@ -2,11 +2,11 @@
  * Reading a mail the site sent, through the dialog a contributor uses (#553).
  *
  * A local WordPress sends its mail to the app instead of to the world: a
- * password reset, a comment notification. The list under "Mail" is where they
- * arrive and the dialog is where one is read, so this is the only place a
- * contributor can check what their change made WordPress send. The dialog has
- * to show the mail that was clicked, in both of its forms, and give the list
- * back when it closes.
+ * password reset, a comment notification. The list in the Email tray (#558)
+ * is where they arrive and the dialog is where one is read, so this is the
+ * only place a contributor can check what their change made WordPress send.
+ * The dialog has to show the mail that was clicked, in both of its forms, and
+ * give the list back when it closes.
  *
  * The dev server is what loads the list, and a journey does not run one: the
  * two long-running processes it starts are answered by stubs that never
@@ -71,13 +71,20 @@ test( 'a mail the site sent opens as the one that was clicked, in its rendered a
 
 	const resetRow = page.getByRole( 'button', { name: /\[Test Site\] Password Reset$/ } );
 	const commentRow = page.getByRole( 'button', { name: /\[Test Site\] Comment: "Hello world!"$/ } );
-	await expect( resetRow ).toBeVisible( { timeout: 30_000 } );
-	// INVARIANT — the mail is a region of the page, named by its heading,
-	// and its rows are in it (#557).
-	const mail = page.getByRole( 'region', { name: 'Mail', exact: true } );
-	await expect( mail.getByRole( 'heading', { level: 2, name: 'Mail', exact: true } ) ).toBeVisible();
-	await expect( mail.getByRole( 'button', { name: /\[Test Site\] Password Reset$/ } ) ).toBeVisible();
+	// INVARIANT — the mail is in the tray along the bottom of the window
+	// (#558), which is named and headed for it, and its rows are in it.
+	const mail = await ui.openTray( page, 'Email' );
+	await expect( mail.getByRole( 'heading', { level: 2, name: 'Email', exact: true } ) ).toBeVisible();
+	await expect( mail.getByRole( 'button', { name: /\[Test Site\] Password Reset$/ } ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( commentRow ).toBeVisible();
+	// INVARIANT — and it is nowhere else: with the list loaded and the tray
+	// put away there is no row on screen, on the page or anywhere.
+	await ui.trayToggle( page, 'Email' ).click();
+	await expect( mail ).toHaveCount( 0 );
+	await expect( resetRow ).toBeHidden();
+	await expect( commentRow ).toBeHidden();
+	await ui.openTray( page, 'Email' );
+	await expect( resetRow ).toBeVisible();
 
 	// INVARIANT — the dialog is the mail that was clicked: titled with its
 	// subject, with who sent it, who it went to and who was copied in.
@@ -158,11 +165,17 @@ test( 'mail that arrives while the dev server runs joins the list newest first, 
 	const row = ( subject ) => page.getByRole( 'button', { name: new RegExp( ` ${ subject }$` ) } );
 	const commentRow = page.getByRole( 'button', { name: /\[Test Site\] Comment: "Hello world!"$/ } );
 	const notListening = page.getByText( 'SMTP will start with the dev server.', { exact: true } );
+	const noMail = page.getByText( 'No mail yet. WordPress transactional email will appear here once the site sends any.', { exact: true } );
+	const clearEmails = page.getByRole( 'button', { name: 'Clear emails', exact: true } );
+	// The mail is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Email' );
 
 	// CHARACTERISATION — before a server has run the list is empty, though
-	// the store holds a mail: starting the server is what loads it.
+	// the store holds a mail: starting the server is what loads it. With
+	// nothing in the list there is nothing to clear.
 	await expect( notListening ).toBeVisible( { timeout: 30_000 } );
-	await expect( page.getByText( 'No emails yet.', { exact: true } ) ).toBeVisible();
+	await expect( noMail ).toBeVisible();
+	await expect( clearEmails ).toBeDisabled();
 
 	await ui.startDevServerButton( page ).click();
 	await expect( commentRow ).toBeVisible( { timeout: 30_000 } );
@@ -213,8 +226,10 @@ test( 'mail that arrives while the dev server runs joins the list newest first, 
 	await heard();
 	await expect( row( 'After restart' ) ).toHaveCount( 1 );
 
-	// INVARIANT — clearing empties the list and what the store holds.
-	await page.getByRole( 'button', { name: 'Clear emails', exact: true } ).click();
-	await expect( page.getByText( 'No emails yet.', { exact: true } ) ).toBeVisible();
+	// INVARIANT — clearing empties the list and what the store holds, and
+	// leaves nothing to clear.
+	await clearEmails.click();
+	await expect( noMail ).toBeVisible();
 	await expect.poll( () => session.readSettings()[ mailKey ] ).toEqual( [] );
+	await expect( clearEmails ).toBeDisabled();
 } );
