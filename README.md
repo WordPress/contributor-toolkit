@@ -11,7 +11,7 @@ Make WordPress posts:
 
 The [WordPress Contributor Toolkit](https://make.wordpress.org/core/2026/09/25/wordpress-contributor-toolkit-1-2-one-app-for-your-first-core-or-gutenberg-contribution/) is a desktop Electron application (macOS on Apple Silicon, Windows, and Linux) that takes a contributor from nothing to a working development environment for WordPress Core or Gutenberg, lets them try the work that already exists on a Trac ticket or a GitHub issue, and lets them send their own change back: as a pull request, a Trac attachment, or a patch for a mentor. No Git, Node.js, npm or Docker on the host, and no push credential written to disk.
 
-![A site ready for work: Start dev server, Start build watch, Review & submit changes, the Trac ticket panel and the patch panel](https://wordpress.github.io/contributor-toolkit/screenshots/site-view.png)
+![A site ready for work: the sites list, the page's header with the server's and the build watch's menus and Review & submit changes, the Trac ticket card with a ticket linked and the pull requests that cite it, and the site's details with its server and build watch](https://wordpress.github.io/contributor-toolkit/screenshots/site-view.png)
 
 ### Why
 

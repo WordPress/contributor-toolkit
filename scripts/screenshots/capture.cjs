@@ -100,7 +100,10 @@ async function launchApp(env) {
 
 async function captureShot(page, shot) {
 	const file = path.join(outDir, `${shot.slug}.png`);
-	if (shot.target) {
+	if (shot.clip) {
+		// A part of the window that is no one element: the shot says where.
+		await page.screenshot({ path: file, clip: await shot.clip(page) });
+	} else if (shot.target) {
 		await shot.target(page).screenshot({ path: file });
 	} else {
 		await page.screenshot({ path: file });

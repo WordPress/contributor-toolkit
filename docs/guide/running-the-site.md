@@ -2,7 +2,7 @@
 
 Once the [setup wizard](./setup-wizard) is complete, the site view shows a **Start dev server** button. This starts a local WordPress that runs your site's code, so you can see your changes running: for a WordPress Core site, the WordPress built into its `build/` directory; for a Gutenberg site, a stock WordPress with your checkout as its Gutenberg plugin.
 
-![The site view with Start dev server, Start build watch and Review & submit changes](/screenshots/site-view.png)
+![The site view, with the server's and the build watch's menus and Review & submit changes in the page's header, and a Start button beside Server and beside Build watch in the details](/screenshots/site-view.png)
 
 ## Start and stop
 
@@ -14,7 +14,7 @@ Click **Start dev server**. The button cycles through three states:
 
 When the server is ready, its URL appears below the button, for example `http://127.0.0.1:<port>/`, with a **wp-admin** link beside it. Click either to open the site in your default browser.
 
-![The site view with the dev server running: the site URL, the wp-admin link and the admin / password credentials below the buttons](/screenshots/dev-server-running.png)
+![The site view with the dev server running: in the details, under Server, a Stop button, the View site, wp-admin and Database links, and the admin credentials with the password hidden](/screenshots/dev-server-running.png)
 
 The button is disabled while a trunk update is running. The reverse is no longer true: an update can run with the server up, because it pauses the build watch for the rebuild and leaves the server serving — see [Applying patches and PRs](./applying-patches) and [Staying up to date with trunk](./trunk-updates).
 

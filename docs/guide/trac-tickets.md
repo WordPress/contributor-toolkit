@@ -6,7 +6,7 @@ The Trac ticket card is on WordPress Core sites. A Gutenberg site works on a [Gi
 
 Every WordPress core change starts life on a [Trac](https://core.trac.wordpress.org/) ticket. The **Trac ticket** panel on the site view links your site to the ticket you are working on, and then shows you the work that already exists on it — pull requests on GitHub and patch files attached on Trac — so you can test it before adding your own.
 
-![The Trac ticket panel, showing a linked ticket with its summary, status, type, milestone and component read from Trac, and the pull request that cites it](/screenshots/trac-ticket-panel.png)
+![The Trac ticket card, showing a linked ticket with its summary, status, type, component, milestone and keywords read from Trac, and the two pull requests that cite it](/screenshots/trac-ticket-panel.png)
 
 ## Link a ticket
 
@@ -60,7 +60,7 @@ The count is the ticket's whole work, including everything parked when you last 
 
 The panel searches GitHub for pull requests on `WordPress/wordpress-develop` that cite the ticket number, and lists them newest first. Each row shows the PR number (click it to open the PR in your browser), its title, its state, and a date labelled with what it is: **last commit** when the newest commit's date could be resolved, **updated** only as a fallback when it could not. Click **Refresh** to search again.
 
-![The ticket panel with an open linked pull request and a patch attachment, each with a preview action](/screenshots/linked-pull-requests.png)
+![The ticket card's two lists: an open and a closed linked pull request, and a patch attached on Trac, each with an Apply… button](/screenshots/linked-pull-requests.png)
 
 The state is a coloured pill, in GitHub's own three colours: green **OPEN**, purple **MERGED**, red **CLOSED**. Red here is a label and not a warning — a closed pull request is an outcome, not a failure. Merged is rare on `wordpress-develop`, where a pull request is opened for review and the change usually lands as a commit instead.
 
