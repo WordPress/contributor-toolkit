@@ -149,6 +149,7 @@ function createElectronStub() {
 			setName() {},
 			getVersion: () => '0.0.0-test',
 			getLocale: () => 'en-GB',
+			getPreferredSystemLanguages: () => ['en-GB'],
 			commandLine: { getSwitchValue: () => '' },
 			isPackaged: false,
 			// The `wpct://` registration (#464). The lock runs at module scope, so
@@ -6178,19 +6179,32 @@ test('a second instance with an address delivers it, without one it only shows t
 	assert.deepEqual(main.windows[0].sent.length, 1, 'and nothing more to deliver');
 });
 
-test('i18n:locale asks i18n.cjs for the catalog of the locale Electron reports', async () => {
-	const resolveCatalog = spy(async () => ({ 'No sites yet.': ['Aucun site.'] }));
+test('i18n:locale asks i18n.cjs for the catalog of the OS languages, then of the one Electron reports', async () => {
+	const resolveCatalog = spy(async () => ({ locale: 'es-MX', messages: { 'No sites yet.': ['Aún no hay sitios.'] } }));
 	const main = loadMain({ stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog } } });
+	// Chromium folds Spanish (Mexico) into es-419; the OS list does not (#584).
+	main.electron.app.getPreferredSystemLanguages = () => ['es-MX', 'en-US'];
+	main.electron.app.getLocale = () => 'es-419';
 
 	const reply = await main.invoke('i18n:locale');
 
 	assert.equal(resolveCatalog.calls.length, 1);
-	const [locale, dir, log] = resolveCatalog.calls[0];
-	assert.equal(locale, 'en-GB');
+	const [locales, dir, log] = resolveCatalog.calls[0];
+	assert.deepEqual(locales, ['es-MX', 'en-US', 'es-419']);
 	assert.equal(dir, path.join(SRC_DIR, 'languages'));
 	// A catalog it skips is reported to the app log, not dropped.
 	assert.equal(typeof log, 'function');
-	assert.deepEqual(reply, { locale: 'en-GB', data: { 'No sites yet.': ['Aucun site.'] } });
+	assert.deepEqual(reply, { locale: 'es-MX', data: { 'No sites yet.': ['Aún no hay sitios.'] } });
+});
+
+test('i18n:locale takes --lang in place of the OS languages, unfolded', async () => {
+	const resolveCatalog = spy(async () => null);
+	const main = loadMain({ stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog } } });
+	main.electron.app.commandLine.getSwitchValue = (name) => (name === 'lang' ? 'es-MX' : '');
+	main.electron.app.getPreferredSystemLanguages = () => ['de-DE'];
+
+	assert.deepEqual(await main.invoke('i18n:locale'), { locale: 'en', data: null });
+	assert.deepEqual(resolveCatalog.calls[0][0], ['es-MX']);
 });
 
 test('i18n:locale takes the pseudo-locale from --lang, which Chromium does not report', async () => {

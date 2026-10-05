@@ -643,15 +643,18 @@ ipcMain.handle('deep-link:ready', () => {
 	return true;
 });
 
-// The language the window shows. `app.getLocale()` follows the OS, or Chromium's
-// `--lang` switch when one is passed, which is how the journeys pick a locale.
-// Chromium only accepts a language it ships resources for, so `--lang=en-XA`
-// reaches `getLocale()` as en-GB; the pseudo-locale is read off the switch itself.
+// The language the window shows: the first of the OS's languages that has a
+// catalog. `app.getLocale()` is only the fallback, since it is Chromium's UI
+// language, folded into the 55 Chromium ships (Spanish (Mexico) arrives as
+// es-419, Galician as English) (#584). A `--lang` switch replaces the OS list,
+// read off the switch itself so `--lang=es-MX` is not folded either; it is how
+// the journeys pick a locale, the pseudo-locale included.
 ipcMain.handle('i18n:locale', async () => {
 	const requested = app.commandLine.getSwitchValue('lang');
-	const locale = isPseudoLocale(requested) ? requested : app.getLocale();
-	const data = await resolveCatalog(locale, path.join(__dirname, 'languages'), (message) => logEvent('i18n', message));
-	return { locale, data };
+	if (isPseudoLocale(requested)) return { locale: requested, data: null };
+	const locales = requested ? [requested] : [...app.getPreferredSystemLanguages(), app.getLocale()];
+	const found = await resolveCatalog(locales, path.join(__dirname, 'languages'), (message) => logEvent('i18n', message));
+	return found ? { locale: found.locale, data: found.messages } : { locale: 'en', data: null };
 });
 
 // Without the lock, a link clicked while the app is running starts a second copy
