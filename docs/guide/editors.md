@@ -2,7 +2,7 @@
 
 The app is not an editor. To change WordPress code you open the site's directory in whatever editor you already use, and the site header gives you one control for that.
 
-![The site view, with the site path and the Open directory in menu in the header](/screenshots/site-view.png)
+![The site view, with the site's path under Local path in the details and the site's menu button at the end of the page's header](/screenshots/site-view.png)
 
 ## The Open directory in menu
 

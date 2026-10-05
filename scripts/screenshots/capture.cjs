@@ -43,8 +43,14 @@ const outDir = path.join(repoRoot, 'docs', 'public', 'screenshots');
 // screenshots and the docs pages render them inconsistently.
 const WINDOW = { width: 1200, height: 800 };
 // en-US: the source language, so the docs show the strings as written, never a
-// translation catalog's.
-const ELECTRON_SWITCHES = ['--force-device-scale-factor=1', '--lang=en-US'];
+// translation catalog's. And drawn in software: a curved edge is drawn a
+// little differently from one run to the next, depending on what was redrawn
+// before it, and a picture then differs from the last by a few pixels on a
+// corner, which a retake shows as a changed image. With the graphics card
+// that was one picture in every two or three runs of the tier; in software
+// it is about one in ten. It is not never: a retake that changes one image
+// by a handful of pixels has changed nothing.
+const ELECTRON_SWITCHES = ['--force-device-scale-factor=1', '--lang=en-US', '--disable-gpu'];
 
 function parseArgs(argv) {
 	const args = { tier: 'fixture', only: null, userData: null };
@@ -100,7 +106,10 @@ async function launchApp(env) {
 
 async function captureShot(page, shot) {
 	const file = path.join(outDir, `${shot.slug}.png`);
-	if (shot.target) {
+	if (shot.clip) {
+		// A part of the window that is no one element: the shot says where.
+		await page.screenshot({ path: file, clip: await shot.clip(page) });
+	} else if (shot.target) {
 		await shot.target(page).screenshot({ path: file });
 	} else {
 		await page.screenshot({ path: file });
@@ -111,7 +120,7 @@ async function captureShot(page, shot) {
 async function runFixtureTier(selected) {
 	const variants = [...new Set(selected.map((s) => s.variant))];
 	for (const variant of variants) {
-		const { userDataDir } = buildFixture(variant);
+		const { userDataDir, sites } = buildFixture(variant);
 		const { app, page } = await launchApp({ TOOLKIT_USER_DATA_DIR: userDataDir });
 		try {
 			// A picture is of where things come to rest: a tab's underline
@@ -129,9 +138,19 @@ async function runFixtureTier(selected) {
 				// pushes to the renderer — a `wpct://` link (#464) — cannot be
 				// reached by driving the UI. Existing shots ignore it.
 				await shot.prepare(page, app);
+				// A field that has the focus has a caret, which blinks: the
+				// picture would have it in one run and not in the next. The
+				// field keeps its focus ring, which does not.
+				await page.addStyleTag({ content: '* { caret-color: transparent !important; }' });
 				// Let @wordpress/components' open/close animations settle.
 				await page.waitForTimeout(300);
 				await captureShot(page, shot);
+				// What a shot started in the main process is ended before the
+				// next: a server that was started tails its site's debug.log,
+				// the tail outlives the window's reload, and a second start
+				// would find it running and replay nothing of the file. Here,
+				// and not before the reload: the page is certainly loaded.
+				await page.evaluate((dirs) => Promise.all(dirs.map((dir) => window.api.stopWpDebug(dir))), Object.values(sites));
 			}
 		} finally {
 			await app.close();

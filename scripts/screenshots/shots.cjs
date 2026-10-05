@@ -1,6 +1,6 @@
 // The declarative list of documentation screenshots.
 //
-// Each entry is { slug, tier, variant, prepare, target }:
+// Each entry is { slug, tier, variant, prepare, target, clip, instructions }:
 //   - slug: the output filename, docs/public/screenshots/<slug>.png — docs pages
 //     reference these names, so renaming one is a docs change too;
 //   - tier 'fixture': captured fully automatically against seeded state;
@@ -13,27 +13,31 @@
 //     if a label changes, the shot fails loudly instead of photographing the
 //     wrong thing;
 //   - target (optional): a locator for an element screenshot instead of the
-//     whole window. Panels read better cropped; whole-window shots orient.
+//     whole window. Panels read better cropped; whole-window shots orient;
+//   - clip (optional): for a part of the window that is no one element, the
+//     rectangle to cut out of it, read off the page once `prepare` is done;
+//   - instructions (live tier): what the harness tells the maintainer to set
+//     up before it takes the picture.
 //
-// Three shots that used to be fixture-tier are live-tier now, joining
-// dev-server-running, and moving them back would photograph a screen the 1.0
-// app never shows (#298). Each depends on state a seeded settings.json cannot
-// express:
-//   - dev-server-running: the site URL and the wp-admin link render only while
-//     a dev server is serving, and fixture sites are empty directories;
-//   - setup-wizard: the self-setup chain arms on the clone-finished edge, so a
-//     site that was already in the registry when the app started never runs it;
-//   - trac-ticket-panel, and site-view with it: a ticket's own facts come from
-//     a live visit to its Trac page and are held in memory, never written to
-//     the site's metadata.
-// The price is that these four need a maintainer and a real site; the fixture
-// tier still covers everything else.
+// A seeded settings.json cannot express every state worth a picture (#298):
+// a server that is serving, a ticket's facts, which come from a visit to its
+// Trac page and are held in memory. Shots of those were live-tier for a
+// while. They are fixture-tier again, with the outside answered for the app
+// the way the journeys answer it (standInForTheOutside in fixtures.cjs): the
+// server's start says where the site is served, and Trac's answer is the
+// fixture's. What is photographed is the app in a state it does reach, with
+// nothing behind it.
+//
+// What is still live-tier needs what no stand-in gives yet: setup-wizard,
+// since the self-setup chain arms on the clone-finished edge and a site that
+// was already in the registry when the app started never runs it; and the
+// shots further down, which need a real checkout with edits in it, an origin
+// to fetch from, or GitHub.
 
 // Where the app's controls and cards are is written down once, for the journeys
 // and for these shots alike.
 const ui = require('../../tests/e2e/helpers/ui.cjs');
-const path = require('path');
-const { FIXTURE_ROOT, sayMailServerStarted } = require('./fixtures.cjs');
+const { TICKET_FROM_TRAC, LINKED_PULL_REQUESTS } = require('./fixtures.cjs');
 
 /**
  * Clicks a site in the sidebar and waits for its view to render.
@@ -48,6 +52,49 @@ const { FIXTURE_ROOT, sayMailServerStarted } = require('./fixtures.cjs');
 async function selectSite(page, label) {
 	const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	await page.getByRole('button', { name: new RegExp(`^${escaped}( \\(.*\\))?$`) }).click();
+}
+
+/**
+ * Opens the fixture's ready site and waits for its ticket's pull requests,
+ * which the card asks for as the site is opened.
+ *
+ * @param {import('playwright-core').Page} page
+ */
+async function openReadySite(page) {
+	await selectSite(page, 'my-first-patch');
+	await page.getByText(LINKED_PULL_REQUESTS[0].title).waitFor();
+}
+
+/**
+ * A rectangle to cut out of the window, refused if any of it is outside the
+ * part of the window the page is in. A card that has grown taller than the
+ * page would otherwise be photographed with the header or the footer's
+ * buttons across it, and nothing would say so.
+ *
+ * @param {import('playwright-core').Page}                        page
+ * @param {{x: number, y: number, width: number, height: number}} clip
+ * @return {Promise<{x: number, y: number, width: number, height: number}>} The same rectangle.
+ */
+async function insideThePage(page, clip) {
+	const area = await page.locator('.site-workspace-main').boundingBox();
+	// A pixel's grace: a part scrolled to the page's very foot can come out
+	// a fraction of a pixel past it, where heights are not whole numbers.
+	if (clip.y < area.y - 1 || clip.y + clip.height > area.y + area.height + 1) {
+		throw new Error(`The part to photograph (${Math.round(clip.y)} to ${Math.round(clip.y + clip.height)}) does not fit in the page (${Math.round(area.y)} to ${Math.round(area.y + area.height)}). Cut less, or scroll the page first.`);
+	}
+	return clip;
+}
+
+/**
+ * Has the ticket's card read the ticket from Trac, which the fixture answers
+ * for, and waits for what it reads.
+ *
+ * @param {import('playwright-core').Page} page
+ */
+async function readTicketFromTrac(page) {
+	await ui.readTicketDetailsButton(page).click();
+	await page.getByText(TICKET_FROM_TRAC.ticket.summary).filter({ visible: true }).first().waitFor();
+	await page.getByText(TICKET_FROM_TRAC.items[0].filename).filter({ visible: true }).first().waitFor();
 }
 
 const shots = [
@@ -95,7 +142,7 @@ const shots = [
 			await selectSite(page, 'my-first-patch');
 			// The card under the menu has asked which pull requests cite the
 			// ticket; the picture is taken with the answer in it.
-			await page.getByText('Docs: correct the default').waitFor();
+			await page.getByText(LINKED_PULL_REQUESTS[0].title).waitFor();
 			await ui.siteMenuButton(page).click();
 			await ui.updateTrunkMenuItem(page).waitFor();
 		}
@@ -178,16 +225,15 @@ const shots = [
 		tier: 'fixture',
 		variant: 'seeded',
 		target: (page) => ui.tray(page, 'Email'),
-		prepare: async (page, app) => {
+		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
-			// Starting the server is what loads the list. The server is
-			// stood in for, so the mail server it would bring up is said to
-			// have started, where a real one listens on a port of its own
-			// choosing that is different in every picture.
+			// Starting the server is what loads the list and brings the mail
+			// server up. Both are stood in for (see standInForTheOutside), on
+			// a port that is the same in every picture, where a real mail
+			// server listens on one of its own choosing.
 			await ui.startDevServerButton(page).click();
 			await ui.openTray(page, 'Email');
 			await page.getByText('Welcome to WordPress Contributor Day').filter({ visible: true }).waitFor();
-			await sayMailServerStarted(app, path.join(FIXTURE_ROOT, 'my-first-patch'));
 			await page.getByText(/^SMTP listening on /).filter({ visible: true }).waitFor();
 		}
 	},
@@ -201,40 +247,85 @@ const shots = [
 			await ui.retryInstallButton(page).waitFor();
 		}
 	},
+	{
+		slug: 'dev-server-running',
+		tier: 'fixture',
+		variant: 'seeded',
+		prepare: async (page) => {
+			await openReadySite(page);
+			// The server is stood in for (see standInForTheOutside): its start
+			// says where the site is served, and the window then has a
+			// running server, with the ways to the site and what to log in
+			// with.
+			await ui.startDevServerButton(page).click();
+			await ui.stopDevServerButton(page).waitFor();
+			await page.getByText('wp-admin', { exact: true }).filter({ visible: true }).first().waitFor();
+			// The button just pressed keeps the focus and has the pointer over
+			// it, and is drawn with a ring and as if about to be pressed again,
+			// which is not what the picture is of.
+			await ui.stopDevServerButton(page).blur();
+			await page.mouse.move(0, 0);
+		}
+	},
+	{
+		slug: 'site-view',
+		tier: 'fixture',
+		variant: 'seeded',
+		prepare: async (page) => {
+			await openReadySite(page);
+			await readTicketFromTrac(page);
+		}
+	},
+	{
+		slug: 'trac-ticket-panel',
+		tier: 'fixture',
+		variant: 'seeded',
+		// The ticket's facts and the pull requests that cite it: the card
+		// from its top to the foot of that list. The whole card is taller
+		// than the page has room for, and linked-pull-requests has the rest.
+		clip: async (page) => {
+			const card = await ui.card(page, 'Trac ticket').boundingBox();
+			const next = await page.getByText('Trac attachments', { exact: true }).filter({ visible: true }).boundingBox();
+			return insideThePage(page, { x: card.x, y: card.y, width: card.width, height: next.y - 32 - card.y });
+		},
+		prepare: async (page) => {
+			await openReadySite(page);
+			await readTicketFromTrac(page);
+		}
+	},
+	{
+		slug: 'linked-pull-requests',
+		tier: 'fixture',
+		variant: 'seeded',
+		// The card's two lists and not its facts: from the first list's
+		// heading to the card's foot.
+		clip: async (page) => {
+			const card = await ui.card(page, 'Trac ticket').boundingBox();
+			const lists = await page.getByText('Linked pull requests', { exact: true }).filter({ visible: true }).boundingBox();
+			const top = lists.y - 16;
+			return insideThePage(page, { x: card.x, y: top, width: card.width, height: card.y + card.height - top });
+		},
+		prepare: async (page) => {
+			await openReadySite(page);
+			await readTicketFromTrac(page);
+			// The page is put where the lists are whole, above the tray's
+			// buttons, before the picture is cut out of it.
+			await ui.card(page, 'Trac ticket').evaluate((card) => card.scrollIntoView({ block: 'end' }));
+		}
+	},
 
 	// ---- Live tier: real site, maintainer present. `instructions` is what the
 	// harness prints before pausing.
 	//
-	// The first four are in the order one site passes through them, so a single
-	// session — create the site, let it set itself up, run it, link a ticket —
-	// takes all four without ever going backwards. Every path in these images is
-	// published, so create the site somewhere with no username in it
-	// (/private/tmp/wpct-docs/my-first-patch is what the committed ones show),
-	// and name it to match the fixture-tier shots so the guide reads as one site.
+	// Every path in these images is published, so create the site somewhere
+	// with no username in it (/private/tmp/wpct-docs/my-first-patch is what the
+	// committed ones show), and name it to match the fixture-tier shots so the
+	// guide reads as one site.
 	{
 		slug: 'setup-wizard',
 		tier: 'live',
 		instructions:
 			'Create a site and leave it alone. Shoot while the "Setting this site up for you — step N of 3" banner is up, with a step still to go, so the checklist shows a done step, a running one and a locked one.'
-	},
-	{
-		slug: 'dev-server-running',
-		tier: 'live',
-		instructions:
-			'When the build has finished, click "Start dev server and finish the wizard". Wait until the site URL, the wp-admin link and "Log in with admin / password" are visible.'
-	},
-	{
-		slug: 'site-view',
-		tier: 'live',
-		instructions:
-			'Stop the dev server, then link an open ticket that a pull request cites (65856 in the committed shot) and click "Read details from Trac", clearing the human-check once. Shoot the whole window: the header, with the server\'s and the build watch\'s menus and Review & submit changes, the ticket card under it, and the details beside it.'
-	},
-	{
-		slug: 'trac-ticket-panel',
-		tier: 'live',
-		target: (page) => ui.card(page, 'Trac ticket'),
-		instructions:
-			'Same screen as site-view — the ticket facts read and the linked pull requests listed. This one is cropped to the Trac ticket card.'
 	},
 	{
 		slug: 'submit-changes-diff',

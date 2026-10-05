@@ -41,7 +41,7 @@ That's it — you've contributed to WordPress.
 When a site has something pending — a setup step to run, a warning to act on, work in flight — that one block is ringed in amber and scrolls itself into view, and is announced to screen readers as *Next step: …*. A site that is set up, running and clean has nothing pending, so nothing is ringed. And when an action finishes — a patch saved, trunk updated, a pull request opened — a brief notice says so out loud rather than leaving you to check.
 :::
 
-![A site ready for work: Start dev server, Start build watch, Review & submit changes, the Trac ticket panel and the patch panel](/screenshots/site-view.png)
+![A site ready for work: the sites list, the page's header with the server's and the build watch's menus and Review & submit changes, the Trac ticket card with a ticket linked and the pull requests that cite it, and the site's details with its server and build watch](/screenshots/site-view.png)
 
 The rest of this guide walks through each of these screens in detail, starting with [creating a site](./creating-a-site).
 

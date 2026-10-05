@@ -55,8 +55,33 @@ const LINKED_PULL_REQUESTS = [
 	{ number: 13012, url: 'https://github.com/WordPress/wordpress-develop/pull/13012', title: 'Docs: list the values', state: 'closed', updatedAt: daysAgo(40, 12) }
 ];
 
-// Where the mail server is said to be listening, when a shot says it is.
+// What Trac is said to answer when the card asks for the ticket itself: its
+// facts, and the patch attached to it. The real answer is read off the
+// ticket's page in a window of its own, past Trac's human-check, which is
+// why this was a picture only a person could set up.
+const TICKET_FROM_TRAC = {
+	ok: true,
+	status: 'ok',
+	ticket: {
+		summary: 'Inconsistent documentation for a filter',
+		status: 'reviewing',
+		resolution: '',
+		type: 'defect (bug)',
+		milestone: '7.2',
+		component: { label: 'General', url: 'https://core.trac.wordpress.org/query?component=General' },
+		keywords: [{ label: 'has-patch', url: 'https://core.trac.wordpress.org/query?keywords=~has-patch' }],
+		// Older than the pull requests that cite it and the patch attached to it.
+		opened: { relative: '8 weeks ago', absolute: new Date(daysAgo(56, 12)).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }) }
+	},
+	items: [
+		{ filename: `${LINKED_TICKET}.diff`, url: `https://core.trac.wordpress.org/raw-attachment/ticket/${LINKED_TICKET}/${LINKED_TICKET}.diff`, applyable: true, author: 'janedoe', dateText: '6 weeks ago', sizeText: '3.2 KB' }
+	]
+};
+
+// Where the mail server is said to be listening and the dev server to be
+// serving, once a shot has started the server.
 const SMTP_PORT = 1025;
+const SERVER_URL = 'http://127.0.0.1:9400/';
 
 /**
  * Answers for the app what would otherwise be asked of the network or start
@@ -66,38 +91,36 @@ const SMTP_PORT = 1025;
  * reloaded for the first shot.
  *
  * The dev server and what it runs first are answered and never run: the
- * script is "started" and never ends, and the server's start is accepted
- * and never gives an address, so the window stays at starting. Of what
- * comes with a server, debug.log's tail is real, and its shot counts on it:
- * the window starts the tail itself, before the server. The mail server is
- * not, since the server's start is what brings it up: see
- * `sayMailServerStarted`.
+ * script is "started" and never ends, and the server's start says where the
+ * mail server listens and where the site is served, as a real start does,
+ * and answers. The window then has a running server, of which nothing is
+ * running. Of what comes with a server, debug.log's tail is real, and its
+ * shot counts on it: the window starts the tail itself, before the server.
+ *
+ * Trac is answered too, and nothing is opened in the browser: a server that
+ * comes up opens its site there, and a shot must not open a tab on the
+ * machine of whoever takes it.
  *
  * @param {import('playwright-core').ElectronApplication} app
  */
 async function standInForTheOutside(app) {
-	await app.evaluate(({ ipcMain }, [ticket, prs]) => {
+	await app.evaluate(({ ipcMain }, [ticket, prs, trac, smtpPort, serverUrl]) => {
 		const replace = (channel, handler) => {
 			ipcMain.removeHandler(channel);
 			ipcMain.handle(channel, handler);
 		};
 		replace('git:list-ticket-patches', () => ({ ok: true, ticket, prs: { status: 'ok', items: prs, rankComplete: true } }));
+		replace('trac:list-attachments', () => trac);
 		replace('npm:run-script', async () => ({ runId: 'docs-fixture' }));
-		replace('playground:start', async () => ({ ok: true }));
-	}, [LINKED_TICKET, LINKED_PULL_REQUESTS]);
-}
-
-/**
- * Says to the window what the main process says when a site's mail server
- * has started, which the stood-in dev server never makes it say.
- *
- * @param {import('playwright-core').ElectronApplication} app
- * @param {string}                                        sitePath
- */
-async function sayMailServerStarted(app, sitePath) {
-	await app.evaluate(({ BrowserWindow }, payload) => {
-		for (const win of BrowserWindow.getAllWindows()) win.webContents.send('smtp:started', payload);
-	}, { sitePath, port: SMTP_PORT });
+		// A start says where the mail server is listening and where the site
+		// is served before it answers, as the real one does.
+		replace('playground:start', async (event, sitePath) => {
+			event.sender.send('smtp:started', { sitePath, port: smtpPort });
+			event.sender.send('playground:url', { sitePath, url: serverUrl });
+			return { ok: true, url: serverUrl };
+		});
+		replace('url:open', () => true);
+	}, [LINKED_TICKET, LINKED_PULL_REQUESTS, TICKET_FROM_TRAC, SMTP_PORT, SERVER_URL]);
 }
 
 // What an earlier run left in debug.log, stamped the way PHP stamps it and
@@ -227,4 +250,4 @@ function cleanFixtureSites() {
 	fs.rmSync(FIXTURE_ROOT, { recursive: true, force: true });
 }
 
-module.exports = { standInForTheOutside, sayMailServerStarted, buildFixture, cleanFixtureSites, FIXTURE_ROOT };
+module.exports = { standInForTheOutside, buildFixture, cleanFixtureSites, FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS };
