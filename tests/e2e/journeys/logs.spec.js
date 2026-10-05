@@ -1,14 +1,14 @@
 /**
- * The Logs panel: what the dev server said, and what WordPress wrote to its
- * debug.log while it ran (#554).
+ * The logs, in the tray along the bottom of the window (#558): what the dev
+ * server said, and what WordPress wrote to its debug.log while it ran (#554).
  *
  * A contributor's change shows up here before it shows up anywhere else: a
- * notice, a deprecation, a fatal. The panel has to show what the file holds,
- * say that something arrived while they were reading the other tab, and keep
- * its three buttons honest: Copy copies what is on screen, Show in folder
- * reveals the file the path names, and Clear empties that file and not only
- * the pane, because the pane is refilled from the file the next time a server
- * starts.
+ * notice, a deprecation, a fatal. The logs have to show what the file holds,
+ * say that something arrived while nobody was reading it, on the tab and on
+ * the footer's button, and keep debug.log's three buttons honest: Copy
+ * copies what is on screen, Show in folder reveals the file the path names,
+ * and Clear empties that file and not only the pane, because the pane is
+ * refilled from the file the next time a server starts.
  *
  * The debug.log half is real. The app tails a file under the site, and the
  * test writes to that file the way WordPress does. The dev server is not
@@ -18,12 +18,11 @@
  * stand-ins.
  *
  * What the stand-in for the server leaves out. The real start answers only
- * once the server has an address; the stub answers at once, so here the
- * debug.log tail attaches while the button still reads "Starting dev
- * server...", which a real run never shows, and the test has to say the
- * address itself before there is a server to stop. The real server's output
- * goes to the window that asked for it and into the app's log; the test's
- * goes to every window, of which there is one, and into no log.
+ * once the server has an address; the stub answers at once, or when a test
+ * that holds it says so, and the test has to say the address itself before
+ * there is a server to stop. The real server's output goes to the window
+ * that asked for it and into the app's log; the test's goes to every window,
+ * of which there is one, and into no log.
  *
  * Assertions are marked INVARIANT or CHARACTERISATION; see
  * ticket-branches.spec.js for why.

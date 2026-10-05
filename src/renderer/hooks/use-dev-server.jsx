@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { serveWithoutWatch } from '../dev-server-command.cjs';
 
 // The site's dev server (#554): whether it is starting or up, its address, and
-// the one button that starts and stops it.
+// what starts and stops it, which the header's menu and the details each
+// have a control for (#557), as the setup checklist has before them.
 //
-// Starting is a sequence. The server serves build/, so the button first makes
+// Starting is a sequence. The server serves build/, so a start first makes
 // sure there is one: it starts the build watch and hangs the server's start
 // off the watch being ready, or, on a project whose watcher would remove a
 // build that is already there, starts the server at once. Then the server
@@ -16,20 +17,21 @@ import { serveWithoutWatch } from '../dev-server-command.cjs';
 // The server is the thing that brings the rest of a running site to life, so
 // what it needs from the other domains comes in as arguments. `startBuildWatch`,
 // `watchStateRef` and `buildInterruptedRef` are the build watch and the state
-// of build/. `appendRuntime` and `ensureStick` are the Server pane of the Logs
-// panel, `revealServerLog` brings that pane up for a server that could not
-// start or went by itself, which is said there and nowhere on the page
-// (#558), and `startDebugTail` and `stopDebugTail` are its debug.log tail.
+// of build/. `appendRuntime` and `ensureStick` are the Server tab of the
+// logs, `revealServerLog` brings that tab up for a server that could not
+// start or went by itself, which the details say in a line that points
+// there (#558), and `startDebugTail` and `stopDebugTail` are its debug.log
+// tail.
 // `listenForMail`, `stopListeningForMail` and `loadMail` are the site's mail.
 // `terminalKillRef`, `markTerminalRunning` and `currentRunIdRef` are the
 // terminal's lock and the script runner's current run, which a stop clears.
 // `hasBuilt`, `setHasBuilt` and `skipInit` are what the site's status says,
 // and `projectBuild` is the project's build plan.
 //
-// `toggleDevServer` is the button. `isServerStarting`, `isDevProcessActive`
-// and `serverFailure` are what the page's words about the server are decided
-// from, in site-processes.cjs, and `startElapsed` is how long a start has
-// been going.
+// `toggleDevServer` is what each of them does. `isServerStarting`,
+// `isDevProcessActive` and `serverFailure` are what the page's words about
+// the server are decided from, in site-processes.cjs, and `startElapsed` is
+// how long a start has been going.
 export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning }) {
   const [serverUrl, setServerUrl] = useState('');
   const [starting, setStarting] = useState(false);
@@ -79,7 +81,7 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
     currentRunIdRef.current = null;
     // The watcher is independent now (#247): stopping the dev server leaves it
     // running, so a contributor can keep compiling on save without serving the
-    // site. Stopping it is its own button's business.
+    // site. Stopping it is its own control's business.
   }, [currentRunIdRef, markTerminalRunning, setRunning, setServerUrl, setStarting, setWaitingForWatch, sitePath, stopDebugTail, stopListeningForMail, terminalKillRef]);
 
   const startPhpServer = useCallback(async () => {
@@ -123,9 +125,9 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
           serverStopRequestedRef.current = false;
           setRunning(false); runningRef.current = false; setServerUrl(''); serverStartRequestedRef.current = false;
           // A stop the user did not ask for is a crash: say so, and tear the
-          // server session down instead of leaving the button spinning
-          // "Starting dev server…" forever (issue #73). The watcher is not
-          // part of that session (#247) and is left running.
+          // server session down instead of leaving its controls at
+          // "Starting development server…" forever (issue #73). The watcher
+          // is not part of that session (#247) and is left running.
           if (!stoppingRef.current && !requested) {
             appendRuntime('Dev server stopped unexpectedly (see Help → Open App Log for details).\n');
             setServerFailure('stopped');
@@ -190,7 +192,7 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
       startBuildWatch({
         onReady: () => { startPhpServer().catch(() => {}); },
         // The watch never got to a complete build/: nothing to serve, so the
-        // button goes back to "Start dev server" instead of "Starting…" forever.
+        // server goes back to offering a start instead of starting forever.
         onFail: () => {
           if (serverStartRequestedRef.current) return;
           devServerActiveRef.current = false;

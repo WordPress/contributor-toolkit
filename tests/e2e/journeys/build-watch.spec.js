@@ -34,10 +34,10 @@
  * one and a patch the watch has to be paused for still run only with no
  * watch running, where pausing and resuming do nothing.
  *
- * The watch's button is meant to open the watch's tab, and does not: the tab
- * panel cannot be switched from outside it, so the app changes what it
- * believes is open and the screen stays where it was. That is a bug of its
- * own, and nothing here pins it either way. The test opens the tab itself.
+ * The watch's button selects the watch's tab in the logs, which are in the
+ * tray along the bottom of the window (#558). The tray is the test's to
+ * open: starting a watch brings nothing up, and a watch that ends by itself
+ * does.
  *
  * Assertions are marked INVARIANT or CHARACTERISATION; see
  * ticket-branches.spec.js for why.

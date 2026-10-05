@@ -515,7 +515,7 @@ function App() {
   // What the window has to say that is about no one site: the Playground web
   // server where a build ships one, a setup in flight, and a ticket that
   // arrived from a link with no site to put it in. The prototype (#542) has no
-  // place for these yet, so they stay above whatever the page area shows.
+  // place for these, so they are above whatever the page area shows.
   const windowNotices = (
     <>
       {webAvailable ? (
@@ -735,7 +735,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // a recreated callback prop must not retrigger the status-loading effect.
   const metaPatchRef = useRef(onSiteMetaPatch);
   useEffect(() => { metaPatchRef.current = onSiteMetaPatch; }, [onSiteMetaPatch]);
-  // What this site's processes have said (#554): the text of the Logs panel's
+  // What this site's processes have said (#554): the text of the logs'
   // panes, which tab is open and the debug.log tail. Whoever runs a process
   // appends to its pane, so the functions those callbacks call are taken out
   // by name; each keeps its identity, which their dependency lists rely on.
@@ -1210,13 +1210,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setSkipInit(true);
   }, [sitePath, setSkipInit]);
   // The system's own alert and confirm are an older convention of this
-  // file. Each is replaced with the app's own as its part of the window is
-  // redrawn (#557), which is a larger change than a lint cleanup should make.
-  // eslint-disable-next-line no-alert
+  // file, and what is left of it is three questions and two failures: the
+  // discards ask through `confirmAnd`, and a path that could not be copied
+  // and a server started before there is a build say so in an alert. A
+  // deletion asks in the app's own dialog, below. Moving the rest there
+  // changes what a contributor is shown, which is a change of its own and
+  // not a lint cleanup's.
+  // eslint-disable-next-line no-alert -- see the note above.
   const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
   // The question asked before a site or a ticket's work is deleted (#557),
   // in a dialog of the app's own: what is asked, and what a yes does. The
-  // discards above still ask through the system's.
+  // discards still ask through the system's, above.
   const [asking, setAsking] = useState(null);
   const askFirst = (question, action) => setAsking({ question, action });
 
@@ -2329,8 +2333,8 @@ async function loadLocale() {
 }
 
 // The design system's provider, at its defaults: the tokens stylesheet already
-// holds every value, so this changes nothing on screen yet. It is here so the
-// redesign (#542) has one place to set colour and corner radius from. `isRoot`
+// holds every value, so this changes nothing on screen. It is the one place
+// to set colour and corner radius from, for whatever comes to set them. `isRoot`
 // puts whatever it overrides on the document rather than on its own wrapper,
 // which is what reaches a modal or a popover: those are portalled to `body`,
 // outside this tree.

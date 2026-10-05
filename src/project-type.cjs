@@ -28,9 +28,10 @@ const PROJECT_TYPES = {
 	core: {
 		id: 'core',
 		label: 'WordPress Core',
-		// The pill on a site's sidebar row and header. Short, because the row
-		// is narrow and the CSS upper-cases it; every site wears one, so a
-		// list of mixed sites reads at a glance.
+		// The badge beside a site's name in the page's header, and the line
+		// under its name in the sites list. Short, because the list is
+		// narrow; every site wears one, so a list of mixed sites reads at a
+		// glance.
 		tag: 'Core',
 		// The option label shown in the create-site wizard picker, and the
 		// line under it. They say what the app does with the site today, not

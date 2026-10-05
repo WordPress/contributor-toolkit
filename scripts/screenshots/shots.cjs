@@ -216,7 +216,7 @@ const shots = [
 		slug: 'site-view',
 		tier: 'live',
 		instructions:
-			'Stop the dev server, then link an open ticket that a pull request cites (65856 in the committed shot) and click "Read details from Trac", clearing the human-check once. Shoot the whole window: Start dev server, Start build watch, Review & submit changes, and the ticket panel below them.'
+			'Stop the dev server, then link an open ticket that a pull request cites (65856 in the committed shot) and click "Read details from Trac", clearing the human-check once. Shoot the whole window: the header, with the server\'s and the build watch\'s menus and Review & submit changes, the ticket card under it, and the details beside it.'
 	},
 	{
 		slug: 'trac-ticket-panel',
