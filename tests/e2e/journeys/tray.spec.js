@@ -20,8 +20,8 @@
  * at, and not the other.
  *
  * The last is the tray holding one thing at a time: the footer has a button
- * for the terminal and one for the logs, and pressing one puts its own in
- * the tray in the other's place.
+ * for the terminal, one for the logs and one for the mail, and pressing one
+ * puts its own in the tray in the others' place.
  *
  * What the terminal does with what is typed in it is `terminal.spec.js`, and
  * what the logs show is `logs.spec.js`.
