@@ -32,6 +32,8 @@
 // Where the app's controls and cards are is written down once, for the journeys
 // and for these shots alike.
 const ui = require('../../tests/e2e/helpers/ui.cjs');
+const path = require('path');
+const { FIXTURE_ROOT, sayMailServerStarted } = require('./fixtures.cjs');
 
 /**
  * Clicks a site in the sidebar and waits for its view to render.
@@ -152,7 +154,7 @@ const shots = [
 		tier: 'fixture',
 		variant: 'debug',
 		target: (page) => ui.tray(page, 'Logs'),
-		prepare: async (page, app) => {
+		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
 			await ui.openTray(page, 'Logs');
 			// Taller than it opens, so that the file's lines are all in the
@@ -161,14 +163,9 @@ const shots = [
 			for (let presses = 0; presses < 3; presses++) await page.keyboard.press('ArrowUp');
 			// Starting a real dev session is what makes the renderer attach the
 			// debug-log tail, but this fixture deliberately is not a WordPress clone.
-			// Keep both long-running processes pending so the screenshot exercises
-			// the real tail without publishing their inevitable fixture failures.
-			await app.evaluate(({ ipcMain }) => {
-				ipcMain.removeHandler('npm:run-script');
-				ipcMain.handle('npm:run-script', async () => ({ runId: 'docs-debug-log' }));
-				ipcMain.removeHandler('playground:start');
-				ipcMain.handle('playground:start', async () => ({ ok: true }));
-			});
+			// Both long-running processes are answered and never run (see
+			// standInForTheOutside), so the screenshot exercises the real tail
+			// without publishing their inevitable fixture failures.
 			await ui.startDevServerButton(page).click();
 			await page.getByRole('tab', { name: /debug\.log/i }).filter({ visible: true }).click();
 			await page.getByText('Undefined variable $post', { exact: false }).filter({ visible: true }).first().waitFor();
@@ -180,11 +177,17 @@ const shots = [
 		tier: 'fixture',
 		variant: 'seeded',
 		target: (page) => ui.tray(page, 'Email'),
-		prepare: async (page) => {
+		prepare: async (page, app) => {
 			await selectSite(page, 'my-first-patch');
+			// Starting the server is what loads the list. The server is
+			// stood in for, so the mail server it would bring up is said to
+			// have started, where a real one listens on a port of its own
+			// choosing that is different in every picture.
 			await ui.startDevServerButton(page).click();
 			await ui.openTray(page, 'Email');
 			await page.getByText('Welcome to WordPress Contributor Day').filter({ visible: true }).waitFor();
+			await sayMailServerStarted(app, path.join(FIXTURE_ROOT, 'my-first-patch'));
+			await page.getByText(/^SMTP listening on /).filter({ visible: true }).waitFor();
 		}
 	},
 	{

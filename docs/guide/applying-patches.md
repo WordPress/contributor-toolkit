@@ -6,7 +6,7 @@ On a WordPress Core site, the panel accepts pull requests, local `.diff` / `.pat
 
 The **Apply a patch or PR** panel lets you test someone else's work before adding your own. Pull requests and patch files take different paths: a PR becomes its own checkout with the author's commits, while a `.diff`/`.patch` file is applied on top of the branch you are already using. Your own changes are kept with their branch.
 
-![The Apply a patch or PR panel on a Core site, with a field for a pull request URL and a link to choose a patch file](/screenshots/apply-patch-panel.png)
+![The Apply a patch or PR card on a Core site, with two tabs, Pull request and Diff, and under the first a field for a pull request URL or number and an Apply PR button](/screenshots/apply-patch-panel.png)
 
 On a Gutenberg site, the corresponding card is focused on pull requests:
 
