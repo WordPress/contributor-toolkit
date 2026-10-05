@@ -34,8 +34,9 @@
 // origin to fetch from, have one: the `repo:` variants are a real repository
 // (buildRepoFixture in fixtures.cjs), and the shot does the rest through the
 // app. Each has a variant, and so a repository and a launch, of its own,
-// since it writes to both. The one thing a shot does not do through the app
-// is leave a ticket some hours ago: the tickets a site was left with are the
+// since it writes to both. Two things a shot does not do through the app:
+// edit the checkout, which it does from outside as an editor would, and
+// leave a ticket some hours ago. The tickets a site was left with are the
 // fixture's (PARKED_TICKETS), written as the app writes them.
 //
 // What is still live-tier needs what no stand-in gives yet: setup-wizard,
@@ -123,6 +124,22 @@ async function linkTheTicket(page) {
 	await ui.linkTicket(page, LINKED_TICKET);
 	await page.getByText(TICKET_FROM_TRAC.ticket.summary).filter({ visible: true }).first().waitFor();
 	await page.getByText(LINKED_PULL_REQUESTS[0].title).filter({ visible: true }).first().waitFor();
+}
+
+/**
+ * Waits for a button that can be pressed, and presses nothing. A ticket's
+ * buttons cannot be until whatever the site is doing has wholly ended, which
+ * for a link is after the card has read the ticket; one that is only on the
+ * page may still be drawn as held. A trial click is the wait. It leaves the
+ * pointer over the button, which is then drawn as about to be pressed, so the
+ * pointer is taken away again.
+ *
+ * @param {import('playwright-core').Page}    page
+ * @param {import('playwright-core').Locator} button
+ */
+async function waitUntilPressable(page, button) {
+	await button.click({ trial: true });
+	await page.mouse.move(0, 0);
 }
 
 /**
@@ -486,6 +503,7 @@ const shots = [
 		prepare: async (page) => {
 			await linkTheTicket(page);
 			await ui.ticketRow(page, OTHER_TICKET).waitFor();
+			await waitUntilPressable(page, ui.switchBackButton(page, OTHER_TICKET));
 			// The picture is of both cards. A page grown past this window
 			// would leave the second out of it, and nothing would say so.
 			await insideThePage(page, await ui.ticketListCard(page).boundingBox());
@@ -498,8 +516,8 @@ const shots = [
 		target: (page) => ui.ticketListCard(page),
 		prepare: async (page) => {
 			await linkTheTicket(page);
-			await ui.switchBackButton(page, OTHER_TICKET).waitFor({ state: 'attached' });
 			await ui.ticketListCard(page).scrollIntoViewIfNeeded();
+			await waitUntilPressable(page, ui.switchBackButton(page, OTHER_TICKET));
 		}
 	},
 	{
@@ -508,9 +526,9 @@ const shots = [
 		variant: 'repo:ticket-list-unlinked',
 		target: (page) => ui.ticketListCard(page),
 		prepare: async (page) => {
-			await ui.continueWorkingButton(page, OTHER_TICKET).waitFor({ state: 'attached' });
-			await ui.continueWorkingButton(page, LINKED_TICKET).waitFor({ state: 'attached' });
 			await ui.ticketListCard(page).scrollIntoViewIfNeeded();
+			await waitUntilPressable(page, ui.continueWorkingButton(page, OTHER_TICKET));
+			await waitUntilPressable(page, ui.continueWorkingButton(page, LINKED_TICKET));
 		}
 	},
 	{
@@ -546,6 +564,10 @@ const shots = [
 			await page.getByText(`came along into #${LINKED_TICKET}`, { exact: false }).filter({ visible: true }).first().waitFor();
 			await page.getByText(TICKET_FROM_TRAC.ticket.summary).filter({ visible: true }).first().waitFor();
 			await page.getByText(LINKED_PULL_REQUESTS[0].title).filter({ visible: true }).first().waitFor();
+			// What the card says of the change is read after the link has
+			// ended, by a read of its own, and is the last thing in the
+			// picture to arrive.
+			await page.getByText(`You have 1 unsubmitted change for ticket #${LINKED_TICKET}`, { exact: false }).filter({ visible: true }).first().waitFor();
 		}
 	},
 
