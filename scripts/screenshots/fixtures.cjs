@@ -52,6 +52,23 @@ const STALE = { createdAt: daysAgo(126, 10), trunkDate: daysAgo(126, 0) };
 // The ticket the fixture's ready site is linked to.
 const LINKED_TICKET = '60000';
 
+// Another ticket the site has work on, for the pictures of a site's tickets.
+const OTHER_TICKET = '61002';
+
+// The tickets a `repo:` variant's site has work on before the app opens, and
+// how many hours ago each was last worked on. The app could be driven to
+// start and leave each, and every row would then say "Edited just now"; a
+// list of tickets come back to is one whose rows have ages. The hours are
+// well inside the row's wording for them ("Edited 3 hours ago", "Edited 1
+// day ago"), so a picture is the same at any time of day, and the older is
+// younger than the site.
+const PARKED_TICKETS = {
+	'repo:site-with-tickets': { [OTHER_TICKET]: 30 },
+	'repo:ticket-list-card': { [OTHER_TICKET]: 30 },
+	'repo:ticket-list-unlinked': { [LINKED_TICKET]: 3.5, [OTHER_TICKET]: 30 }
+};
+const hoursAgo = (hours) => new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
 // What GitHub is said to answer when a ticket's card asks which pull requests
 // cite it, as the main process hands it on. The card asks as soon as its site
 // is opened; left to the network, a shot would show whatever GitHub says that
@@ -339,7 +356,8 @@ function writeSettings(userDataDir, settings) {
  * registry, and one must not start from what another left.
  *
  * `repo:trunk-update-progress` also gets an origin to fetch from, a clone
- * beside the site that is one commit ahead of it.
+ * beside the site that is one commit ahead of it. The variants in
+ * PARKED_TICKETS get tickets that were started and left.
  *
  * @param {string} userDataDir
  * @param {string} variant
@@ -359,6 +377,16 @@ function buildRepoFixture(userDataDir, variant) {
 	}
 	commitFiles(readySite, Object.keys(tracked), 'trunk');
 
+	// A ticket started and left with nothing done on it is a branch where
+	// trunk was, and the record the app keeps of it: which ticket, where it
+	// branched, and when it was last worked on.
+	const trunkOid = gitOk(['rev-parse', 'HEAD'], readySite);
+	const branches = {};
+	for (const [ticket, hours] of Object.entries(PARKED_TICKETS[variant] || {})) {
+		gitOk(['branch', `ticket/${ticket}`], readySite);
+		branches[`ticket/${ticket}`] = { tracTicket: Number(ticket), baseOid: trunkOid, lastUsedAt: hoursAgo(hours) };
+	}
+
 	if (variant === 'repo:trunk-update-progress') {
 		// A working clone and not a bare one, so the commit that moves trunk
 		// on can be made in it with the same binary.
@@ -377,7 +405,7 @@ function buildRepoFixture(userDataDir, variant) {
 	writeSettings(userDataDir, {
 		sites: [readySite],
 		siteMeta: {
-			[readySite]: { ...FRESH, initialized: true, label: 'my-first-patch', skipInitWizard: true }
+			[readySite]: { ...FRESH, initialized: true, label: 'my-first-patch', skipInitWizard: true, branches }
 		},
 		preferences: { wporgHandle: 'contributor', contributionEvent: 'WordCamp Example 2026' }
 	});
@@ -393,4 +421,4 @@ function cleanFixtureSites() {
 	removeRepo(FIXTURE_ROOT);
 }
 
-module.exports = { standInForTheOutside, buildFixture, cleanFixtureSites, FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS, LINKED_TICKET, SUMMARY_FILE, SUMMARY_FIXED, FIXED_LINE, SUMMARY_TEST_FILE, SUMMARY_TEST };
+module.exports = { standInForTheOutside, buildFixture, cleanFixtureSites, FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS, LINKED_TICKET, OTHER_TICKET, SUMMARY_FILE, SUMMARY_FIXED, FIXED_LINE, SUMMARY_TEST_FILE, SUMMARY_TEST };

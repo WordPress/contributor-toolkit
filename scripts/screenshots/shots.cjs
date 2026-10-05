@@ -34,7 +34,9 @@
 // origin to fetch from, have one: the `repo:` variants are a real repository
 // (buildRepoFixture in fixtures.cjs), and the shot does the rest through the
 // app. Each has a variant, and so a repository and a launch, of its own,
-// since it writes to both.
+// since it writes to both. The one thing a shot does not do through the app
+// is leave a ticket some hours ago: the tickets a site was left with are the
+// fixture's (PARKED_TICKETS), written as the app writes them.
 //
 // What is still live-tier needs what no stand-in gives yet: setup-wizard,
 // since the self-setup chain arms on the clone-finished edge and a site that
@@ -46,7 +48,7 @@ const fs = require('fs');
 const path = require('path');
 const ui = require('../../tests/e2e/helpers/ui.cjs');
 const {
-	FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS, LINKED_TICKET,
+	FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS, LINKED_TICKET, OTHER_TICKET,
 	SUMMARY_FILE, SUMMARY_FIXED, FIXED_LINE, SUMMARY_TEST_FILE, SUMMARY_TEST
 } = require('./fixtures.cjs');
 
@@ -124,12 +126,36 @@ async function linkTheTicket(page) {
 }
 
 /**
+ * Makes one change in the checkout, from outside the app as an editor would:
+ * the fix to the file the ticket is about.
+ */
+function fixTheLine() {
+	fs.writeFileSync(path.join(REPO_SITE, SUMMARY_FILE), SUMMARY_FIXED);
+}
+
+/**
+ * Asks for the fixture's ticket to be linked while there is an edit on trunk,
+ * and waits for the question the app asks about the edit in place of linking.
+ *
+ * @param {import('playwright-core').Page} page
+ * @return {Promise<import('playwright-core').Locator>} The answer that takes the edit along.
+ */
+async function askToLinkOverAnEdit(page) {
+	fixTheLine();
+	await ui.ticketField(page).first().fill(LINKED_TICKET);
+	await ui.linkTicketButton(page).first().click();
+	const carry = page.getByRole('button', { name: `Take these edits into #${LINKED_TICKET}`, exact: true });
+	await carry.waitFor();
+	return carry;
+}
+
+/**
  * Does the contributor's work in the checkout, from outside the app as an
  * editor would: the fix to the file the ticket is about, and a test for it
  * in a file trunk does not have.
  */
 function editTheCheckout() {
-	fs.writeFileSync(path.join(REPO_SITE, SUMMARY_FILE), SUMMARY_FIXED);
+	fixTheLine();
 	fs.mkdirSync(path.dirname(path.join(REPO_SITE, SUMMARY_TEST_FILE)), { recursive: true });
 	fs.writeFileSync(path.join(REPO_SITE, SUMMARY_TEST_FILE), SUMMARY_TEST);
 }
@@ -448,6 +474,78 @@ const shots = [
 			await ui.siteMenuButton(page).click();
 			await ui.updateTrunkMenuItem(page).click();
 			await ui.card(page, 'Updating to latest trunk').getByText('Rebuilding — output in the Terminal', { exact: true }).waitFor();
+		}
+	},
+	{
+		slug: 'site-with-tickets',
+		tier: 'fixture',
+		variant: 'repo:site-with-tickets',
+		// The ticket in hand and the card of the others under it: a page
+		// taller than the window the harness opens, so a taller window.
+		viewport: { width: 1200, height: 1480 },
+		prepare: async (page) => {
+			await linkTheTicket(page);
+			await ui.ticketRow(page, OTHER_TICKET).waitFor();
+			// The picture is of both cards. A page grown past this window
+			// would leave the second out of it, and nothing would say so.
+			await insideThePage(page, await ui.ticketListCard(page).boundingBox());
+		}
+	},
+	{
+		slug: 'ticket-list-card',
+		tier: 'fixture',
+		variant: 'repo:ticket-list-card',
+		target: (page) => ui.ticketListCard(page),
+		prepare: async (page) => {
+			await linkTheTicket(page);
+			await ui.switchBackButton(page, OTHER_TICKET).waitFor({ state: 'attached' });
+			await ui.ticketListCard(page).scrollIntoViewIfNeeded();
+		}
+	},
+	{
+		slug: 'ticket-list-unlinked',
+		tier: 'fixture',
+		variant: 'repo:ticket-list-unlinked',
+		target: (page) => ui.ticketListCard(page),
+		prepare: async (page) => {
+			await ui.continueWorkingButton(page, OTHER_TICKET).waitFor({ state: 'attached' });
+			await ui.continueWorkingButton(page, LINKED_TICKET).waitFor({ state: 'attached' });
+			await ui.ticketListCard(page).scrollIntoViewIfNeeded();
+		}
+	},
+	{
+		slug: 'trunk-work-question',
+		tier: 'fixture',
+		variant: 'repo:trunk-work-question',
+		target: (page) => ui.card(page, 'Trac ticket'),
+		prepare: async (page) => {
+			const carry = await askToLinkOverAnEdit(page);
+			// The button just pressed keeps the focus, and is drawn with a
+			// ring the picture is not of.
+			await ui.linkTicketButton(page).first().blur();
+			await page.mouse.move(0, 0);
+			await carry.scrollIntoViewIfNeeded();
+		}
+	},
+	{
+		slug: 'carried-work-notice',
+		tier: 'fixture',
+		variant: 'repo:carried-work-notice',
+		// The card from its top to the line over the pull requests: the
+		// ticket, the notice and what the card says of the change. The
+		// whole card is taller than the page has room for.
+		clip: async (page) => {
+			const card = await ui.card(page, 'Trac ticket').boundingBox();
+			const lists = await page.getByText('Linked pull requests', { exact: true }).filter({ visible: true }).boundingBox();
+			return insideThePage(page, { x: card.x, y: card.y, width: card.width, height: lists.y - 32 - card.y });
+		},
+		prepare: async (page) => {
+			const carry = await askToLinkOverAnEdit(page);
+			await carry.click();
+			await ui.workItemNumber(page, LINKED_TICKET).first().waitFor();
+			await page.getByText(`came along into #${LINKED_TICKET}`, { exact: false }).filter({ visible: true }).first().waitFor();
+			await page.getByText(TICKET_FROM_TRAC.ticket.summary).filter({ visible: true }).first().waitFor();
+			await page.getByText(LINKED_PULL_REQUESTS[0].title).filter({ visible: true }).first().waitFor();
 		}
 	},
 
