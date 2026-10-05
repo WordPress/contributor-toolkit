@@ -534,19 +534,24 @@ test( 'the Help menu and the native file dialogs are translated in main', async 
  * A site with an edit to review, started in the pseudo-locale, with what Trac
  * and GitHub would say of a ticket answered by stand-ins that say nothing.
  *
- * @param {Object} session
- * @param {Object} [options]
- * @param {string} [options.trunkDate] When the site's trunk commit was made.
- * @param {string} [options.branch]    A branch to switch to before the app starts, recorded as starting at trunk.
+ * @param {Object}  session
+ * @param {Object}  [options]
+ * @param {string}  [options.trunkDate]   When the site's trunk commit was made.
+ * @param {string}  [options.branch]      A branch to switch to before the app starts, recorded as starting at trunk.
+ * @param {boolean} [options.edit]        Whether to leave an edit to review; true by default.
+ * @param {Object}  [options.meta]        More of the site's record.
+ * @param {Object}  [options.preferences] The app's preferences, such as a remembered WordPress.org username.
  * @return {Promise<Object>} The site, the app and the page.
  */
-async function siteWithEdit( session, { trunkDate, branch } = {} ) {
+async function siteWithEdit( session, { trunkDate, branch, edit = true, meta = {}, preferences = {} } = {} ) {
 	const site = await makeSite( session, { trunkDate } );
 	if ( branch ) {
 		gitOk( [ 'switch', '-q', '-c', branch ], site.dir );
 		site.settings.siteMeta[ site.dir ].branches = { [ branch ]: { baseOid: site.baseOid, headOid: site.baseOid, returnTo: 'trunk' } };
 	}
-	write( site.dir, LOGIN, MY_EDIT );
+	Object.assign( site.settings.siteMeta[ site.dir ], meta );
+	Object.assign( site.settings.preferences, preferences );
+	if ( edit ) write( site.dir, LOGIN, MY_EDIT );
 	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
 	await app.evaluate( ( { ipcMain } ) => {
 		const answers = {
@@ -564,15 +569,16 @@ async function siteWithEdit( session, { trunkDate, branch } = {} ) {
 const MY_EDIT = '<?php // my fix\n';
 
 /**
- * Opens "Review & submit changes" and waits for its destinations.
+ * Opens "Review & submit changes" and waits for what it says first.
  *
  * @param {Object} page
+ * @param {string} [first] The text to wait for: the destinations' heading by default.
  * @return {Promise<Object>} The dialog.
  */
-async function openReview( page ) {
+async function openReview( page, first = 'Where this patch goes' ) {
 	await page.getByRole( 'button', { name: pseudoLocalize( 'Review & submit changes' ), exact: true } ).click();
 	const dialog = page.getByRole( 'dialog', { name: pseudoLocalize( 'Review & submit changes' ), exact: true } );
-	await expect( dialog.getByText( pseudoLocalize( 'Where this patch goes' ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( dialog.getByText( pseudoLocalize( first ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	return dialog;
 }
 
@@ -629,3 +635,38 @@ test( 'the Review & submit dialog is fully translatable over someone else\'s pul
 	await expect( dialog.getByText( pseudoLocalize( 'Your changes on top of PR #%d' ).replace( '%d', '7' ), { exact: true } ) ).toBeVisible();
 	expect( await unwrappedInReview( dialog ) ).toEqual( [] );
 } );
+
+test( 'the Review & submit dialog is fully translatable with nothing to send, the diff pane included', async ( { session } ) => {
+	const { page } = await siteWithEdit( session, { edit: false } );
+	const dialog = await openReview( page, 'There is nothing to send yet — this site has no changes against its copy of trunk.' );
+	await expect( dialog.locator( '.patch-diff-code' ) ).toHaveText( pseudoLocalize( 'No changes.' ) );
+	// The whole dialog, the pane's box included: with no diff in it, there
+	// is nothing in the box that is the checkout's.
+	expect( ( await unwrapped( dialog ) ).filter( ( text ) => text !== 'Copy' ) ).toEqual( [] );
+} );
+
+test( 'the mentor card is fully translatable once the contributor\'s name and event are remembered', async ( { session } ) => {
+	// An event name with markup in it is the contributor's own text, and
+	// goes into the sentence as it is.
+	const EVENT = 'WordCamp <Test> & Co';
+	const { page } = await siteWithEdit( session, { preferences: { wporgHandle: 'janedoe', contributionEvent: EVENT } } );
+	const dialog = await openReview( page );
+	await expect( dialog.getByRole( 'button', { name: pseudoLocalize( 'Save patch as %s' ).replace( '%s', 'janedoe' ), exact: true } ) ).toBeVisible();
+	await expect( dialog.locator( 'strong', { hasText: EVENT } ) ).toHaveText( EVENT );
+	await expect( dialog.getByRole( 'button', { name: pseudoLocalize( 'Change these' ), exact: true } ) ).toBeVisible();
+	expect( await unwrappedInReview( dialog ) ).toEqual( [] );
+} );
+
+for ( const [ named, label ] of [ [ 'by its name', '60001.diff' ], [ 'with no name on record', undefined ] ] ) {
+	test( `the Review & submit dialog is fully translatable over someone else's applied patch, ${ named }`, async ( { session } ) => {
+		const appliedPatch = { appliedAt: new Date().toISOString(), files: [ 'src/wp-login.php' ], text: 'x', ...( label ? { label } : {} ) };
+		const { page } = await siteWithEdit( session, { meta: { appliedPatch } } );
+		const dialog = await openReview( page );
+		// What is in bold: the sentence without the brackets the pseudo-locale
+		// puts around the whole string, outside the bold.
+		const sentence = label ? '<strong><label /> is part of this checkout.</strong>' : '<strong>The patch you applied is part of this checkout.</strong>';
+		const bold = pseudoLocalize( sentence ).replace( /^\[<strong>|<\/strong>~*\]$/g, '' ).replace( '<label />', label );
+		await expect( dialog.getByRole( 'alert' ).locator( 'strong' ).first() ).toHaveText( bold );
+		expect( await unwrappedInReview( dialog ) ).toEqual( [] );
+	} );
+}

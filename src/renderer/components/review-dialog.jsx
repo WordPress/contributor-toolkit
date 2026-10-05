@@ -43,7 +43,7 @@ function OwnershipWarning({ pullRequest, appliedPatch, appliedPatchLabel }) {
     return (
       <Notice.Root intent="warning" role="alert" spokenMessage={SILENT}>
         <Notice.Description>
-          {headline}{' '}
+          <span>{headline}</span>{' '}
           <span>
             {createInterpolateElement(
               // translators: <strong>Save</strong> is the name of the Save button.
