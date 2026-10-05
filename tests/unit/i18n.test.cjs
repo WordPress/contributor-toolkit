@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { resolveCatalog, catalogCandidates, slugTag } = require('../../src/i18n.cjs');
+const { resolveCatalog, catalogCandidates, catalogsFromNames, slugTag } = require('../../src/i18n.cjs');
 const { isPseudoLocale, pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 const { createI18n } = require('@wordpress/i18n');
 
@@ -51,6 +51,9 @@ test('a locale tries itself, then its language and region, then its language', (
 	assert.deepEqual(catalogCandidates('pt-BR'), ['pt-br', 'pt']);
 	assert.deepEqual(catalogCandidates('es-419'), ['es-419', 'es']);
 	assert.deepEqual(catalogCandidates('zh-Hant-TW'), ['zh-hant-tw', 'zh-tw', 'zh']);
+	// macOS adds the user's region: Chinese in the US still reaches its catalog.
+	assert.deepEqual(catalogCandidates('zh-Hans-US'), ['zh-hans-us', 'zh-us', 'zh-cn', 'zh']);
+	assert.deepEqual(catalogCandidates('zh-Hant-US'), ['zh-hant-us', 'zh-us', 'zh-tw', 'zh']);
 	assert.deepEqual(catalogCandidates('ca-ES-valencia'), ['ca-es-valencia', 'ca-es', 'ca']);
 	assert.deepEqual(catalogCandidates('de'), ['de']);
 	assert.deepEqual(catalogCandidates('../etc'), []);
@@ -85,8 +88,24 @@ test('a slug with a three-letter code, and Valencian, load from the tag the OS r
 	assert.equal(await loaded('ca-ES', dir), 'ca');
 });
 
-test('a slug that is its own tag wins over one that canonicalizes to it', async (t) => {
-	assert.equal(await loaded('bal', catalogDir(t, ['bcc', 'bal'])), 'bal');
+test('a slug that is its own tag wins over one that canonicalizes to it, in either order', () => {
+	// The order readdir lists them in depends on the file system.
+	assert.equal(catalogsFromNames(['bcc.json', 'bal.json']).get('bal'), 'bal');
+	assert.equal(catalogsFromNames(['bal.json', 'bcc.json']).get('bal'), 'bal');
+	assert.equal(catalogsFromNames(['bcc.json', 'README.md']).get('bal'), 'bcc');
+});
+
+test('Chinese with the user\'s region added loads the catalog for its script', async (t) => {
+	const dir = catalogDir(t, ['zh-cn', 'zh-tw']);
+	assert.equal(await loaded(['zh-Hans-US', 'en-US'], dir), 'zh-cn');
+	assert.equal(await loaded(['zh-Hant-US', 'en-US'], dir), 'zh-tw');
+});
+
+test('resolveCatalog logs a catalog directory it cannot read', async () => {
+	const logged = [];
+	assert.equal(await resolveCatalog('xx', path.join(FIXTURES, 'missing'), (message) => logged.push(message)), null);
+	assert.equal(logged.length, 1);
+	assert.match(logged[0], /^no catalogs read: .*ENOENT/);
 });
 
 test('the OS languages are tried in order, past any with no catalog', async (t) => {

@@ -46,7 +46,10 @@ function slugTag(slug) {
 
 /**
  * The tags a locale tries, in order: itself, then its language and region,
- * then its bare language (`zh-Hant-TW` tries `zh-hant-tw`, `zh-tw`, `zh`).
+ * then for a tag with a script its script's usual region, then its bare
+ * language. macOS adds the user's region to a language that names none, so
+ * Simplified Chinese in the US is `zh-Hans-US`, and translate.wordpress.org has
+ * no bare `zh`: `zh-Hans-US` tries `zh-hans-us`, `zh-us`, `zh-cn`, `zh`.
  *
  * @param {string} locale A language tag, from the OS or `--lang`.
  * @return {string[]} Lowercase canonical tags; empty for anything that is not a tag.
@@ -54,13 +57,13 @@ function slugTag(slug) {
 function catalogCandidates(locale) {
 	const tag = typeof locale === 'string' && canonicalTag(locale);
 	if (!tag) return [];
-	const { language, region } = new Intl.Locale(tag);
-	const candidates = [tag, region ? `${language}-${region}`.toLowerCase() : null, language];
-	return [...new Set(candidates.filter(Boolean))];
+	const { language, script, region } = new Intl.Locale(tag);
+	const scriptRegion = script && new Intl.Locale(`${language}-${script}`).maximize().region;
+	const candidates = [tag, region && `${language}-${region}`, scriptRegion && `${language}-${scriptRegion}`, language];
+	return [...new Set(candidates.filter(Boolean).map((candidate) => candidate.toLowerCase()))];
 }
 
-// Each catalog in `dir` by the tag that selects it. A slug that is its own tag
-// wins a tie: `bcc` and `bal` both canonicalize to `bal`.
+// Each catalog in `dir` by the tag that selects it.
 async function catalogsByTag(dir, log) {
 	let names;
 	try {
@@ -69,6 +72,18 @@ async function catalogsByTag(dir, log) {
 		log(`no catalogs read: ${e.message}`);
 		return new Map();
 	}
+	return catalogsFromNames(names);
+}
+
+/**
+ * Each catalog among `names` by the tag that selects it. A slug that is its
+ * own tag wins a tie, whichever order the names come in: `bcc` and `bal` both
+ * canonicalize to `bal`.
+ *
+ * @param {string[]} names File names in the catalog directory.
+ * @return {Map<string, string>} Lowercase tag to slug.
+ */
+function catalogsFromNames(names) {
 	const byTag = new Map();
 	for (const name of names) {
 		if (!name.endsWith('.json')) continue;
@@ -125,4 +140,4 @@ async function resolveCatalog(locales, dir, log = () => {}) {
 	return null;
 }
 
-module.exports = { resolveCatalog, catalogCandidates, slugTag };
+module.exports = { resolveCatalog, catalogCandidates, catalogsFromNames, slugTag };
