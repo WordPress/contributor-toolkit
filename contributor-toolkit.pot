@@ -5,13 +5,53 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-05T16:26:59+00:00\n"
+"POT-Creation-Date: 2026-10-05T19:21:44+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
+
+#: src/main.js:1051
+msgid "Save Patch for Handoff"
+msgstr ""
+
+#: src/main.js:1051
+msgid "Save Diff File"
+msgstr ""
+
+#: src/main.js:2408
+msgid "Choose a patch file"
+msgstr ""
+
+#: src/main.js:2411
+msgid "Patch Files"
+msgstr ""
+
+#: src/main.js:2412
+msgid "All Files"
+msgstr ""
+
+#: src/main.js:3314
+msgid "Applications"
+msgstr ""
+
+#: src/main.js:3315
+msgid "Programs"
+msgstr ""
+
+#: src/main.js:3321
+msgid "Choose the application to open this folder in"
+msgstr ""
+
+#: src/menu.js:34
+msgid "Open App Log"
+msgstr ""
+
+#: src/menu.js:38
+msgid "Show Logs Folder"
+msgstr ""
 
 #: src/project-type.cjs:153
 msgid ""
