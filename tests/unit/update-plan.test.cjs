@@ -4,8 +4,9 @@ const test = require('node:test');
 const assert = require('node:assert');
 const {
 	STALE_THRESHOLD_DAYS,
-	SKIP_INSTALL_MESSAGE,
-	UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE,
+	skipInstallMessage,
+	updateSummarySentence,
+	updateBuildByResumedWatchMessage,
 	SETUP_STATE_TO_STEP,
 	trunkAgeInfo,
 	planUpdateSteps,
@@ -79,8 +80,8 @@ test('planUpdateSteps: install runs when the lockfile changed (issue #94)', () =
 test('planUpdateSteps: install is skipped, with the exact message, when the lockfile did not change (issue #94)', () => {
 	const steps = planUpdateSteps({ lockfileChanged: false });
 	assert.strictEqual(steps[1].skipped, true);
-	assert.strictEqual(steps[1].skipMessage, SKIP_INSTALL_MESSAGE);
-	assert.strictEqual(SKIP_INSTALL_MESSAGE, 'Dependencies unchanged — skipping npm install');
+	assert.strictEqual(steps[1].skipMessage, skipInstallMessage());
+	assert.strictEqual(skipInstallMessage(), 'Dependencies unchanged — skipping npm install');
 });
 
 // #507: on a Gutenberg site the watch paused for the reset rebuilds from
@@ -90,15 +91,15 @@ test('planUpdateSteps: install is skipped, with the exact message, when the lock
 test('planUpdateSteps: the build step names the resumed watch while current, and is never skipped (#507)', () => {
 	const steps = planUpdateSteps({ lockfileChanged: false, buildByWatcher: 'resumed-watch' });
 	assert.strictEqual(steps[2].skipped, false);
-	assert.strictEqual(steps[2].currentMessage, UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE);
-	assert.match(UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE, /in the Logs, under Build watch/);
+	assert.strictEqual(steps[2].currentMessage, updateBuildByResumedWatchMessage());
+	assert.match(updateBuildByResumedWatchMessage(), /in the Logs, under Build watch/);
 	const statuses = updateStepStatuses(steps, 'building');
 	assert.strictEqual(statuses[2].status, 'current');
 });
 
 test('updateStepText: the build step names the resumed watch only while current (#507)', () => {
 	const steps = planUpdateSteps({ lockfileChanged: false, buildByWatcher: 'resumed-watch' });
-	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'current' }), UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE);
+	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'current' }), updateBuildByResumedWatchMessage());
 	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'pending' }), 'Rebuild');
 	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'complete' }), 'Rebuilt');
 	const own = planUpdateSteps({ lockfileChanged: false });
@@ -112,7 +113,7 @@ test('updateStepText: every step has a line for every status, and unknowns fall 
 			assert.ok(updateStepText(steps, { key, status }).length > 0, `${key}/${status}`);
 		}
 	}
-	assert.strictEqual(updateStepText(steps, { key: 'install', status: 'skipped' }), SKIP_INSTALL_MESSAGE);
+	assert.strictEqual(updateStepText(steps, { key: 'install', status: 'skipped' }), skipInstallMessage());
 	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'skipped' }), 'Rebuild');
 	assert.strictEqual(updateStepText(steps, { key: 'nope', status: 'current' }), 'nope');
 });
@@ -235,4 +236,11 @@ test('setupOutcome: Stop is not a failure, whatever exit code the kill produced 
 	// install "failed" when they pressed Stop is how a tool loses their trust.
 	assert.strictEqual(setupOutcome({ stopped: true, installCode: 1 }), 'stopped');
 	assert.strictEqual(setupOutcome({ stopped: true, installCode: 0, buildCode: 143 }), 'stopped');
+});
+
+test('updateSummarySentence: one whole sentence for each outcome, not one built from parts', () => {
+	assert.strictEqual(updateSummarySentence({ lockfileChanged: true, elapsed: '2m 5s' }), 'Dependencies updated, rebuilt in 2m 5s.');
+	assert.strictEqual(updateSummarySentence({ lockfileChanged: false, elapsed: '40s' }), 'Dependencies unchanged, rebuilt in 40s.');
+	assert.strictEqual(updateSummarySentence({ lockfileChanged: true }), 'Dependencies updated, rebuilt.');
+	assert.strictEqual(updateSummarySentence({ lockfileChanged: false, elapsed: null }), 'Dependencies unchanged, rebuilt.');
 });

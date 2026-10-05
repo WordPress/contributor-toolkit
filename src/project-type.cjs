@@ -17,7 +17,7 @@
 // to Core. A site created before this field existed has no `projectType`, so it
 // keeps Core behavior with no migration and no store write.
 
-const { __ } = require('@wordpress/i18n');
+const { __, sprintf } = require('@wordpress/i18n');
 
 const WORDPRESS_DEVELOP_GIT_URL = 'https://github.com/WordPress/wordpress-develop.git';
 const GUTENBERG_GIT_URL = 'https://github.com/WordPress/gutenberg.git';
@@ -70,12 +70,16 @@ const PROJECT_TYPES = {
 		},
 
 		// What the setup checklist says about the steps that differ per target.
+		// Getters, like `description`, so each is translated when it is read.
 		setup: {
-			cloneLabel: 'Download WordPress development version',
-			cloneDescription: 'Clone the WordPress develop repository.',
-			buildDescription: 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
-			builtDescription: 'Built. Edited files in src/ since? Run npm run build in the Terminal so the site picks them up — updates and applied patches rebuild on their own.',
-			serverDescription: 'Launch the development server once to complete the WordPress setup wizard.'
+			get cloneLabel() { return __('Download WordPress development version'); },
+			get cloneDescription() { return __('Clone the WordPress develop repository.'); },
+			get buildDescription() { return __('Compile WordPress Core to generate the dist files. Later updates rebuild automatically.'); },
+			get builtDescription() {
+				// translators: 1: a folder, src/. 2: the build command, npm run build.
+				return sprintf(__('Built. Edited files in %1$s since? Run %2$s in the Terminal so the site picks them up — updates and applied patches rebuild on their own.'), 'src/', 'npm run build');
+			},
+			get serverDescription() { return __('Launch the development server once to complete the WordPress setup wizard.'); }
 		},
 
 		// What the site page's cards say where the two targets differ. The
@@ -207,11 +211,14 @@ const PROJECT_TYPES = {
 		},
 
 		setup: {
-			cloneLabel: 'Download Gutenberg',
-			cloneDescription: 'Clone the Gutenberg repository.',
-			buildDescription: 'Compile the Gutenberg packages. Later updates rebuild automatically.',
-			builtDescription: 'Built. Edited a package since? Run npm run build in the Terminal so the site picks it up; updates rebuild on their own.',
-			serverDescription: 'Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.'
+			get cloneLabel() { return __('Download Gutenberg'); },
+			get cloneDescription() { return __('Clone the Gutenberg repository.'); },
+			get buildDescription() { return __('Compile the Gutenberg packages. Later updates rebuild automatically.'); },
+			get builtDescription() {
+				// translators: %s: the build command, npm run build.
+				return sprintf(__('Built. Edited a package since? Run %s in the Terminal so the site picks it up; updates rebuild on their own.'), 'npm run build');
+			},
+			get serverDescription() { return __('Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.'); }
 		},
 
 		// 'plugin-mount', Gutenberg is a plugin, so Playground boots a stock

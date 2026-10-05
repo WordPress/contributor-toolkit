@@ -185,5 +185,5 @@ test('missing state is treated as nothing pending, not a crash', () => {
 test('link-ticket names the work item the site takes', () => {
 	const base = { skipInit: true, currentSetupStep: null, running: true, ticketLinked: false };
 	assert.equal(deriveNextAction(base).reason, 'Link a Trac ticket to give your work a home.');
-	assert.equal(deriveNextAction({ ...base, workItemLabel: 'GitHub issue' }).reason, 'Link a GitHub issue to give your work a home.');
+	assert.equal(deriveNextAction({ ...base, workItemNoun: 'issue' }).reason, 'Link a GitHub issue to give your work a home.');
 });

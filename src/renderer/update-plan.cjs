@@ -13,11 +13,15 @@
  *
  * Kept free of the DOM so it can be unit tested without one: the renderer
  * bundle imports it, `node --test` requires it directly (same convention as
- * setup-steps.cjs and dev-server-command.cjs). Its one import is
- * `watchOccupiesBuild`, which is the single definition of when the watch owns
- * build/ and belongs beside the waiters that settle on it.
+ * setup-steps.cjs and dev-server-command.cjs). Besides `@wordpress/i18n`, its
+ * one import is `watchOccupiesBuild`, which is the single definition of when
+ * the watch owns build/ and belongs beside the waiters that settle on it.
+ *
+ * What the steps say are functions, not constants, so they are translated when
+ * they are shown rather than once, in English, when this module loads.
  */
 
+const { __, sprintf } = require('@wordpress/i18n');
 const { watchOccupiesBuild } = require('./watch-waiters.cjs');
 
 // A site older than this shows the staleness dot and notice. Local-only:
@@ -51,11 +55,12 @@ function trunkAgeInfo({ trunkDate, now = Date.now() } = {}) {
 	return { known: true, ageDays, stale: ageDays > STALE_THRESHOLD_DAYS, dateLabel };
 }
 
-const SKIP_INSTALL_MESSAGE = 'Dependencies unchanged — skipping npm install';
+// translators: %s: the command that installs dependencies, npm install.
+const skipInstallMessage = () => sprintf(__('Dependencies unchanged — skipping %s'), 'npm install');
 // The update's build step while a resumed watch does the rebuild (#507): the
 // step stays a real step, current until the watch's ready line, because the
 // update is not complete until build/ is back and the card is what says so.
-const UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE = 'The build watch is rebuilding — output in the Logs, under Build watch';
+const updateBuildByResumedWatchMessage = () => __('The build watch is rebuilding — output in the Logs, under Build watch');
 
 /**
  * The update chain always has the same three steps; the middle one is skipped
@@ -76,18 +81,18 @@ const UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE = 'The build watch is rebuilding —
  */
 function planUpdateSteps({ lockfileChanged, buildByWatcher = null } = {}) {
 	return [
-		{ key: 'fetch', label: 'Fetch latest trunk', skipped: false },
+		{ key: 'fetch', label: __('Fetch latest trunk'), skipped: false },
 		{
 			key: 'install',
-			label: 'Install dependencies',
+			label: __('Install dependencies'),
 			skipped: !lockfileChanged,
-			skipMessage: SKIP_INSTALL_MESSAGE
+			skipMessage: skipInstallMessage()
 		},
 		{
 			key: 'build',
-			label: 'Rebuild',
+			label: __('Rebuild'),
 			skipped: false,
-			...(buildByWatcher === 'resumed-watch' ? { currentMessage: UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE } : {})
+			...(buildByWatcher === 'resumed-watch' ? { currentMessage: updateBuildByResumedWatchMessage() } : {})
 		}
 	];
 }
@@ -96,11 +101,11 @@ function planUpdateSteps({ lockfileChanged, buildByWatcher = null } = {}) {
 const STATE_TO_STEP = { fetching: 'fetch', installing: 'install', building: 'build' };
 
 // What the update card says for each step in each status.
-const UPDATE_STEP_LABELS = {
-	fetch: { pending: 'Fetch and reset to trunk', current: 'Fetching and resetting to trunk…', complete: 'Fetched and reset to trunk' },
-	install: { pending: 'Install dependencies', current: 'Dependencies changed — installing the difference…', complete: 'Dependencies installed', skipped: SKIP_INSTALL_MESSAGE },
-	build: { pending: 'Rebuild', current: 'Rebuilding — output in the Terminal', complete: 'Rebuilt' }
-};
+const updateStepLabels = () => ({
+	fetch: { pending: __('Fetch and reset to trunk'), current: __('Fetching and resetting to trunk…'), complete: __('Fetched and reset to trunk') },
+	install: { pending: __('Install dependencies'), current: __('Dependencies changed — installing the difference…'), complete: __('Dependencies installed'), skipped: skipInstallMessage() },
+	build: { pending: __('Rebuild'), current: __('Rebuilding — output in the Terminal'), complete: __('Rebuilt') }
+});
 
 /**
  * The line the update card shows for one step. The status labels are the
@@ -116,7 +121,7 @@ const UPDATE_STEP_LABELS = {
  * @return {string}
  */
 function updateStepText(steps, { key, status } = {}) {
-	const labels = UPDATE_STEP_LABELS[key] || {};
+	const labels = updateStepLabels()[key] || {};
 	const planned = (steps || []).find((step) => step.key === key);
 	if (status === 'current' && planned && planned.currentMessage) return planned.currentMessage;
 	return labels[status] || labels.pending || key;
@@ -129,8 +134,8 @@ function updateStepText(steps, { key, status } = {}) {
 // would drag the `diff` package in for two constants.
 const APPLY_STATE_TO_STEP = { applying: 'apply', installing: 'install', building: 'build' };
 
-const BUILD_BY_WATCHER_MESSAGE = 'The build watch will recompile the change';
-const BUILD_BY_RESUMED_WATCH_MESSAGE = 'The build watch rebuilds when it resumes';
+const buildByWatcherMessage = () => __('The build watch will recompile the change');
+const buildByResumedWatchMessage = () => __('The build watch rebuilds when it resumes');
 
 /**
  * The chain applying a patch runs. Like the update chain, the install step is
@@ -148,12 +153,12 @@ const BUILD_BY_RESUMED_WATCH_MESSAGE = 'The build watch rebuilds when it resumes
  * @return {Array}
  */
 function planApplySteps({ needsInstall, buildByWatcher, kind = 'patch' } = {}) {
-	const firstLabels = { pr: 'Apply the pull request', 'leave-pr': 'Revert the pull request' };
-	const buildSkipMessage = buildByWatcher === 'resumed-watch' ? BUILD_BY_RESUMED_WATCH_MESSAGE : BUILD_BY_WATCHER_MESSAGE;
+	const firstLabels = { pr: __('Apply the pull request'), 'leave-pr': __('Revert the pull request') };
+	const buildSkipMessage = buildByWatcher === 'resumed-watch' ? buildByResumedWatchMessage() : buildByWatcherMessage();
 	return [
-		{ key: 'apply', label: firstLabels[kind] || 'Apply the patch', skipped: false },
-		{ key: 'install', label: 'Install dependencies', skipped: !needsInstall, skipMessage: SKIP_INSTALL_MESSAGE },
-		{ key: 'build', label: 'Rebuild', skipped: Boolean(buildByWatcher), skipMessage: buildSkipMessage }
+		{ key: 'apply', label: firstLabels[kind] || __('Apply the patch'), skipped: false },
+		{ key: 'install', label: __('Install dependencies'), skipped: !needsInstall, skipMessage: skipInstallMessage() },
+		{ key: 'build', label: __('Rebuild'), skipped: Boolean(buildByWatcher), skipMessage: buildSkipMessage }
 	];
 }
 
@@ -177,9 +182,9 @@ const SETUP_STATE_TO_STEP = { cloning: 'download', installing: 'install', buildi
  */
 function planSetupSteps() {
 	return [
-		{ key: 'download', label: 'Download WordPress', skipped: false },
-		{ key: 'install', label: 'Install dependencies', skipped: false },
-		{ key: 'build', label: 'Run full build', skipped: false }
+		{ key: 'download', label: __('Download WordPress'), skipped: false },
+		{ key: 'install', label: __('Install dependencies'), skipped: false },
+		{ key: 'build', label: __('Run full build'), skipped: false }
 	];
 }
 
@@ -356,12 +361,34 @@ function setupOutcome({ stopped, installCode, buildCode } = {}) {
 	return 'done';
 }
 
+/**
+ * The first sentence of the notice after a finished update: whether the
+ * dependencies changed, and how long the rebuild took when that is known. One
+ * whole sentence for each, so no language has to follow English word order.
+ *
+ * @param {Object}  summary
+ * @param {boolean} summary.lockfileChanged Whether package-lock.json changed.
+ * @param {?string} [summary.elapsed]       The rebuild's time, already formatted (such as 2m 5s), or null.
+ * @return {string}
+ */
+function updateSummarySentence({ lockfileChanged, elapsed = null }) {
+	if (elapsed && lockfileChanged) {
+		// translators: %s: how long the rebuild took, such as 2m 5s.
+		return sprintf(__('Dependencies updated, rebuilt in %s.'), elapsed);
+	}
+	if (elapsed) {
+		// translators: %s: how long the rebuild took, such as 2m 5s.
+		return sprintf(__('Dependencies unchanged, rebuilt in %s.'), elapsed);
+	}
+	return lockfileChanged ? __('Dependencies updated, rebuilt.') : __('Dependencies unchanged, rebuilt.');
+}
+
 module.exports = {
 	STALE_THRESHOLD_DAYS,
-	SKIP_INSTALL_MESSAGE,
-	BUILD_BY_WATCHER_MESSAGE,
-	BUILD_BY_RESUMED_WATCH_MESSAGE,
-	UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE,
+	skipInstallMessage,
+	buildByWatcherMessage,
+	buildByResumedWatchMessage,
+	updateBuildByResumedWatchMessage,
 	STATE_TO_STEP,
 	APPLY_STATE_TO_STEP,
 	SETUP_STATE_TO_STEP,
@@ -373,6 +400,7 @@ module.exports = {
 	planUpdateSteps,
 	updateStepStatuses,
 	updateStepText,
+	updateSummarySentence,
 	setupOutcome,
 	updateOutcome
 };

@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { __ } from '@wordpress/i18n';
 import { Card, Stack, Text } from '@wordpress/ui';
 import { StepList } from './step-list.jsx';
 
@@ -21,7 +22,7 @@ export function TrunkUpdateCard({ cue, rows, count, note = '' }) {
     <Card.Root {...cue} className={['trunk-update-card', cue.className].filter(Boolean).join(' ')} render={<section aria-labelledby={titleId} />}>
       <Card.Header>
         <Stack direction="row" align="baseline" justify="space-between" gap="md" wrap="wrap">
-          <Card.Title id={titleId} render={<h2 />}>Updating to latest trunk</Card.Title>
+          <Card.Title id={titleId} render={<h2 />}>{__('Updating to latest trunk')}</Card.Title>
           <Text variant="body-sm" className="muted-label">{count}</Text>
         </Stack>
       </Card.Header>
