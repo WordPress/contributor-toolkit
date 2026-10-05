@@ -66,9 +66,12 @@ const SMTP_PORT = 1025;
  * reloaded for the first shot.
  *
  * The dev server and what it runs first are answered and never run: the
- * script is "started" and never ends, and the server is "up". What the app
- * does by itself as a server starts is real, and the debug.log shot counts
- * on it: the file is tailed.
+ * script is "started" and never ends, and the server's start is accepted
+ * and never gives an address, so the window stays at starting. Of what
+ * comes with a server, debug.log's tail is real, and its shot counts on it:
+ * the window starts the tail itself, before the server. The mail server is
+ * not, since the server's start is what brings it up: see
+ * `sayMailServerStarted`.
  *
  * @param {import('playwright-core').ElectronApplication} app
  */
@@ -97,9 +100,16 @@ async function sayMailServerStarted(app, sitePath) {
 	}, { sitePath, port: SMTP_PORT });
 }
 
+// What an earlier run left in debug.log, stamped the way PHP stamps it and
+// dated the day before the shots: after its site was made, like the mail.
+function phpStamp(iso) {
+	const [, year, month, day, time] = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2}:\d{2})/.exec(iso);
+	const name = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(month) - 1];
+	return `[${day}-${name}-${year} ${time} UTC]`;
+}
 const DEBUG_LOG_LINES = [
-	'[10-Aug-2026 09:12:44 UTC] PHP Notice:  Undefined variable $post in /wordpress/wp-content/themes/twentytwentyfive/functions.php on line 112',
-	'[10-Aug-2026 09:12:45 UTC] PHP Deprecated:  Function get_page_by_title is deprecated since version 6.2.0! Use WP_Query instead.',
+	`${phpStamp(daysAgo(1, 9).replace('09:00:00', '09:12:44'))} PHP Notice:  Undefined variable $post in /wordpress/wp-content/themes/twentytwentyfive/functions.php on line 112`,
+	`${phpStamp(daysAgo(1, 9).replace('09:00:00', '09:12:45'))} PHP Deprecated:  Function get_page_by_title is deprecated since version 6.2.0! Use WP_Query instead.`,
 	''
 ].join('\n');
 

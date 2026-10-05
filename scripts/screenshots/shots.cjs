@@ -161,11 +161,12 @@ const shots = [
 			// picture and the first is not cut by the tabs.
 			await page.getByRole('separator', { name: 'Resize tray', exact: true }).focus();
 			for (let presses = 0; presses < 3; presses++) await page.keyboard.press('ArrowUp');
-			// Starting a real dev session is what makes the renderer attach the
-			// debug-log tail, but this fixture deliberately is not a WordPress clone.
-			// Both long-running processes are answered and never run (see
-			// standInForTheOutside), so the screenshot exercises the real tail
-			// without publishing their inevitable fixture failures.
+			// Starting the dev server is what makes the renderer attach the
+			// debug-log tail, which it does before it asks for the server, and
+			// the tail is not stood in for. The server and the script it runs
+			// first are (see standInForTheOutside): this fixture deliberately
+			// is not a WordPress clone, and the picture is of the real tail
+			// without their inevitable failures in it.
 			await ui.startDevServerButton(page).click();
 			await page.getByRole('tab', { name: /debug\.log/i }).filter({ visible: true }).click();
 			await page.getByText('Undefined variable $post', { exact: false }).filter({ visible: true }).first().waitFor();
