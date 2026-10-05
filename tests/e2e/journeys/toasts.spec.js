@@ -23,6 +23,14 @@ const QUICKLY = 2_000;
 // What a slow machine may take between a confirmation appearing and the
 // clock being stopped under it.
 const SLACK = 2_000;
+// How far ahead of the time just read the clock is stopped. The page's
+// clock catches up with real time whenever the page reads it, and at least
+// every tenth of a second by itself, but not as it is stopped; so by the time
+// the stop arrives the clock may be past the time read, and a stop behind it
+// is refused ("Cannot fast-forward to the past"). It is stopped this far
+// ahead, more than a slow machine takes between the two, and moved that much
+// less after.
+const AHEAD = 1_000;
 
 /**
  * Records what is said to a screen reader from here on, with how it is said,
@@ -77,8 +85,8 @@ test( 'a confirmation is shown in the corner and said once, goes by itself when 
 	// is allowed to have taken stopping it, it is there, and at its time it
 	// is gone. A stopped clock stops the app's menus too, so it is let go
 	// again before anything is pressed.
-	await page.clock.pauseAt( await page.evaluate( () => Date.now() ) );
-	await page.clock.fastForward( TOAST_LIFETIME_MS - SLACK );
+	await page.clock.pauseAt( ( await page.evaluate( () => Date.now() ) ) + AHEAD );
+	await page.clock.fastForward( TOAST_LIFETIME_MS - SLACK - AHEAD );
 	await expect( copied ).toBeVisible();
 	await page.clock.fastForward( SLACK );
 	await expect( copied ).toHaveCount( 0 );
