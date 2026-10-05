@@ -38,9 +38,10 @@ const GIT_VERSION = /^git version 2\.53\.0(?:$|[.\s])/;
  *
  * @param {string[]} args
  * @param {string}   cwd
+ * @param {Object}   [env] The environment, for the one command that needs a variable more than the app's.
  */
-function git(args, cwd) {
-	const result = spawnSync(BINARY, [...BASE_ARGS, ...args], { ...SPAWN_OPTIONS, cwd, env: ENV, encoding: 'utf8' });
+function git(args, cwd, env = ENV) {
+	const result = spawnSync(BINARY, [...BASE_ARGS, ...args], { ...SPAWN_OPTIONS, cwd, env, encoding: 'utf8' });
 	return {
 		status: result.status,
 		stdout: (result.stdout || '').trim(),
@@ -56,10 +57,11 @@ function git(args, cwd) {
  *
  * @param {string[]} args
  * @param {string}   cwd
+ * @param {Object}   [env] As `git`.
  * @return {string} Trimmed stdout.
  */
-function gitOk(args, cwd) {
-	const result = git(args, cwd);
+function gitOk(args, cwd, env) {
+	const result = git(args, cwd, env);
 	if (result.status !== 0) {
 		const why = result.error || result.stderr || `exited ${result.status}`;
 		throw new Error(`git ${args.join(' ')} in ${cwd}: ${why}`);
@@ -100,18 +102,30 @@ function initRepo(dir, { branch = 'trunk', autocrlf = 'false' } = {}) {
  * identity on the command line, nothing read from a config the test did not
  * write. Deletions count as paths, `add` records them.
  *
+ * `date` is for a fixture whose commit has to be of another day than the one
+ * it is made on: the app reads how old a site's code is off the committer's
+ * date. Git takes the author's date as an argument and the committer's only
+ * from the environment, so that one command runs with the variable added the
+ * way git-binary.cjs has one added.
+ *
  * @param {string}          dir
  * @param {string|string[]} paths
  * @param {string}          message
  * @param {Object}          [options]
  * @param {Object}          [options.author]
  * @param {boolean}         [options.allowEmpty] For a commit that changes nothing on purpose.
+ * @param {string}          [options.date]       When the commit says it was made, as an ISO date. Now, unless given.
  * @return {string} The new commit's oid.
  */
-function commitFiles(dir, paths, message, { author = FIXTURE_AUTHOR, allowEmpty = false } = {}) {
+function commitFiles(dir, paths, message, { author = FIXTURE_AUTHOR, allowEmpty = false, date = null } = {}) {
 	const files = Array.isArray(paths) ? paths : [paths];
 	if (files.length) gitOk(['add', '--', ...files], dir);
-	gitOk([...identityArgs(author), 'commit', ...(allowEmpty ? ['--allow-empty'] : []), '-m', message], dir);
+	const when = date ? `@${Math.floor(Date.parse(date) / 1000)} +0000` : null;
+	gitOk(
+		[...identityArgs(author), 'commit', ...(allowEmpty ? ['--allow-empty'] : []), ...(when ? [`--date=${when}`] : []), '-m', message],
+		dir,
+		when ? buildGitEnv({ extraEnv: { GIT_COMMITTER_DATE: when } }) : undefined
+	);
 	return resolveRef(dir, 'HEAD');
 }
 
