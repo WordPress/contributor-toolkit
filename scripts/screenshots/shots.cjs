@@ -77,7 +77,9 @@ async function openReadySite(page) {
  */
 async function insideThePage(page, clip) {
 	const area = await page.locator('.site-workspace-main').boundingBox();
-	if (clip.y < area.y || clip.y + clip.height > area.y + area.height) {
+	// A pixel's grace: a part scrolled to the page's very foot can come out
+	// a fraction of a pixel past it, where heights are not whole numbers.
+	if (clip.y < area.y - 1 || clip.y + clip.height > area.y + area.height + 1) {
 		throw new Error(`The part to photograph (${Math.round(clip.y)} to ${Math.round(clip.y + clip.height)}) does not fit in the page (${Math.round(area.y)} to ${Math.round(area.y + area.height)}). Cut less, or scroll the page first.`);
 	}
 	return clip;
