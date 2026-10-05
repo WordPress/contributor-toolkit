@@ -1,4 +1,5 @@
 import React from 'react';
+import { Card, Stack, Text } from '@wordpress/ui';
 
 // One destination for a finished patch (#166): what it is, what it costs to
 // use, and what happens afterwards. The costs are the point — they are what the
@@ -7,18 +8,18 @@ import React from 'react';
 // cheap one being presented as the obvious choice.
 export function Destination({ title, cost, after, children }) {
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-      <div style={{ fontWeight:600, fontSize:14, color:'#1d2327' }}>{title}</div>
-      <div style={{ fontSize:12, color:'#3c434a', lineHeight:1.5 }}>{cost}</div>
-      <div style={{ fontSize:12, color:'#6c6f72', lineHeight:1.5 }}>{after}</div>
+    <Stack direction="column" gap="sm">
+      <Text variant="heading-md">{title}</Text>
+      <Text variant="body-sm">{cost}</Text>
+      <Text variant="body-sm" className="muted-label">{after}</Text>
       {/*
         The actions follow the prose rather than being pushed to the bottom of
         the row: the destinations carry different numbers of controls, so
         bottom-aligning them lines up nothing and leaves a hole above the
         shorter one's button.
       */}
-      <div style={{ paddingTop:4, display:'flex', flexDirection:'column', gap:8 }}>{children}</div>
-    </div>
+      <Stack direction="column" gap="sm" className="destination-actions">{children}</Stack>
+    </Stack>
   );
 }
 
@@ -40,14 +41,12 @@ export function DestinationGroup({ children }) {
   // section would draw a divider with nothing under it.
   const destinations = React.Children.toArray(children).filter(Boolean);
   return (
-    <div style={{ display:'flex', flexDirection:'column', border:'1px solid #dcdcde', borderRadius:10, background:'#fff' }}>
+    <Card.Root className="destination-group">
       {destinations.map((destination, index) => (
         // Position is the only identity a destination in a fixed list has, and
         // the list is rebuilt whole when it changes.
-        <div key={index} style={{ padding:'14px 16px', borderTop: index === 0 ? 'none' : '1px solid #dcdcde' }}>
-          {destination}
-        </div>
+        <Card.Content key={index}>{destination}</Card.Content>
       ))}
-    </div>
+    </Card.Root>
   );
 }

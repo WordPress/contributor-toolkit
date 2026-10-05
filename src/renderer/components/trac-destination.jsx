@@ -1,4 +1,5 @@
 import { Button, TextControl } from '@wordpress/components';
+import { Text } from '@wordpress/ui';
 import { Destination } from './destination.jsx';
 import { ReasonedButton } from './reasoned-button.jsx';
 
@@ -31,14 +32,14 @@ export function TracDestination({
       after="No automated checks. Often followed by a request to open a pull request."
     >
       {ticket ? (
-        <Button variant="primary" onClick={onSave} disabled={saveDisabled} style={{ justifyContent:'center' }}>
+        <Button variant="primary" onClick={onSave} disabled={saveDisabled}>
           Save, then open #{ticket}
         </Button>
       ) : (
         <>
-          <div style={{ fontSize:12, color:'#6c6f72' }}>
+          <Text variant="body-sm" className="muted-label">
             No ticket is linked to this site, so there is nowhere to attach it yet.
-          </div>
+          </Text>
           <TextControl
             value={ticketInput}
             onChange={onTicketInputChange}
@@ -53,9 +54,8 @@ export function TracDestination({
             isBusy={linking}
             reason={linkReason}
             disabled={!ticketInput.trim()}
-            style={{ justifyContent:'center' }}
           >Link ticket</ReasonedButton>
-          {ticketError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{ticketError}</div> : null}
+          {ticketError ? <Text variant="body-sm" className="problem-text" role="alert">{ticketError}</Text> : null}
           {children}
         </>
       )}

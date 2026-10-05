@@ -288,7 +288,7 @@ contextBridge.exposeInMainWorld('api', {
 	// path, and only the main process can compose it correctly on both platforms.
 	startWpDebug: async (sitePath, onData) => {
 		const handler = (_e, payload) => {
-			if (payload.sitePath === sitePath && onData) onData(payload.data);
+			if (payload.sitePath === sitePath && onData) onData(payload.data, { backlog: Boolean(payload.backlog) });
 		};
 		ipcRenderer.on('wp:debug-log:data', handler);
 		const started = await ipcRenderer.invoke('wp-debug:start', sitePath);

@@ -40,20 +40,22 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 function trunkAgeInfo({ trunkDate, now = Date.now() } = {}) {
 	const ts = trunkDate ? Date.parse(trunkDate) : NaN;
 	if (!Number.isFinite(ts)) {
-		return { known: false, ageDays: null, stale: false, label: '' };
+		return { known: false, ageDays: null, stale: false, dateLabel: '' };
 	}
 	const ageDays = Math.max(0, Math.floor((now - ts) / DAY_MS));
-	const label = `trunk as of ${new Date(ts).toLocaleDateString(undefined, {
+	// The date by itself: the words around it are a label of their own, in
+	// the details (#556).
+	const dateLabel = new Date(ts).toLocaleDateString(undefined, {
 		year: 'numeric', month: 'short', day: 'numeric'
-	})}`;
-	return { known: true, ageDays, stale: ageDays > STALE_THRESHOLD_DAYS, label };
+	});
+	return { known: true, ageDays, stale: ageDays > STALE_THRESHOLD_DAYS, dateLabel };
 }
 
 const SKIP_INSTALL_MESSAGE = 'Dependencies unchanged — skipping npm install';
 // The update's build step while a resumed watch does the rebuild (#507): the
 // step stays a real step, current until the watch's ready line, because the
 // update is not complete until build/ is back and the card is what says so.
-const UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE = 'The build watch is rebuilding — output in the Build watcher tab';
+const UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE = 'The build watch is rebuilding — output in the Logs, under Build watch';
 
 /**
  * The update chain always has the same three steps; the middle one is skipped
@@ -97,7 +99,7 @@ const STATE_TO_STEP = { fetching: 'fetch', installing: 'install', building: 'bui
 const UPDATE_STEP_LABELS = {
 	fetch: { pending: 'Fetch and reset to trunk', current: 'Fetching and resetting to trunk…', complete: 'Fetched and reset to trunk' },
 	install: { pending: 'Install dependencies', current: 'Dependencies changed — installing the difference…', complete: 'Dependencies installed', skipped: SKIP_INSTALL_MESSAGE },
-	build: { pending: 'Rebuild', current: 'Rebuilding — output in the Terminal below', complete: 'Rebuilt' }
+	build: { pending: 'Rebuild', current: 'Rebuilding — output in the Terminal', complete: 'Rebuilt' }
 };
 
 /**

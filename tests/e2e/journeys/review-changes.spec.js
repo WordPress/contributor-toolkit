@@ -71,6 +71,17 @@ test( 'the review pane shows the tree\'s diff, saves it to the file chosen, says
 	await expect( dialog.getByText( '+++ b/src/wp-login.php', { exact: true } ) ).toBeVisible();
 	await expect( dialog.getByText( '-<?php // trunk', { exact: true } ) ).toBeVisible();
 	await expect( dialog.getByText( '+<?php // my fix', { exact: true } ) ).toBeVisible();
+	// INVARIANT — the two are told apart by more than their sign: each is in
+	// the design system's colour for it, on that colour's wash (#557).
+	const token = ( name ) => ui.tokenColour( page, name );
+	expect( await ui.paintOf( dialog.getByText( '+<?php // my fix', { exact: true } ) ) ).toMatchObject( {
+		text: await token( 'var(--wpds-color-foreground-content-success-weak)' ),
+		behind: await token( 'var(--wpds-color-background-surface-success-weak)' ),
+	} );
+	expect( await ui.paintOf( dialog.getByText( '-<?php // trunk', { exact: true } ) ) ).toMatchObject( {
+		text: await token( 'var(--wpds-color-foreground-content-error-weak)' ),
+		behind: await token( 'var(--wpds-color-background-surface-error-weak)' ),
+	} );
 
 	// INVARIANT — backing out of the save dialog reports nothing: no "Saved
 	// to", and no error for a save that was never attempted.
@@ -91,17 +102,24 @@ test( 'the review pane shows the tree\'s diff, saves it to the file chosen, says
 	// claims no file.
 	await answerSaveDialog( { canceled: false, filePath: path.join( saveDir, 'no-such-folder', 'my-fix.diff' ) } );
 	await save.click();
-	await expect( dialog.getByRole( 'alert' ).filter( { hasText: /^Could not save the patch: .*ENOENT/ } ) ).toBeVisible();
+	const saveFailure = dialog.getByRole( 'alert' ).filter( { hasText: /^Could not save the patch: .*ENOENT/ } );
+	await expect( saveFailure ).toBeVisible();
 	await expect( dialog.getByText( /^Saved to / ) ).toHaveCount( 0 );
+	// INVARIANT — and it is in the colour of something that went wrong (#557).
+	expect( ( await ui.paintOf( saveFailure ) ).text ).toBe( await token( 'var(--wpds-color-foreground-content-error-weak)' ) );
 
 	// INVARIANT — a save that works writes the diff on screen to the file that
 	// was chosen, names that file in the pane, and takes the earlier failure
 	// away.
 	await answerSaveDialog( { canceled: false, filePath: savedFile } );
 	await save.click();
-	await expect( dialog.getByText( `Saved to ${ savedFile }`, { exact: true } ) ).toBeVisible();
+	const saved = dialog.getByText( `Saved to ${ savedFile }`, { exact: true } );
+	await expect( saved ).toBeVisible();
 	await expect( dialog.getByRole( 'alert' ) ).toHaveCount( 0 );
 	expect( fs.readFileSync( savedFile, 'utf8' ) ).toContain( '+<?php // my fix' );
+	// INVARIANT — the line that names the file is in the colour of something
+	// that went well (#557).
+	expect( ( await ui.paintOf( saved ) ).text ).toBe( await token( 'var(--wpds-color-foreground-content-success-weak)' ) );
 
 	// INVARIANT — the button that copies says how the copy went, on itself:
 	// the diff on screen is what was copied, and a copy that failed is not
@@ -374,7 +392,7 @@ test( 'a checkout carrying someone else\'s patch says so above the destinations,
 		{ file: 'wp-login.php', from: '<?php // trunk', to: '<?php // fixed by the patch' },
 	] );
 	await session.answerFileDialog( [ patch ] );
-	await ui.choosePatchFileButton( page ).click();
+	await ui.choosePatchFile( page );
 	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.applyAndRebuildButton( page ).click();
 	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );

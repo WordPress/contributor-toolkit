@@ -53,7 +53,7 @@ for ( const target of TARGETS ) {
 		try {
 			await test.step( 'Create a site in an isolated temporary directory', async () => {
 				await session.answerFileDialog( [ parent ] );
-				await ui.createSiteButton( page ).click();
+				await ui.createFirstSiteButton( page ).click();
 				const modal = ui.createSiteDialog( page );
 				const choice = modal.getByRole( 'radio', { name: target.choice, exact: true } );
 				await choice.click();
@@ -72,14 +72,14 @@ for ( const target of TARGETS ) {
 					await name.fill( 'real-setup' );
 					await expect( name ).toHaveValue( 'real-setup', { timeout: 2_000 } );
 				} ).toPass( { timeout: 30_000 } );
-				await modal.getByLabel( 'Site location', { exact: true } ).press( 'Enter' );
+				await modal.getByLabel( 'Location', { exact: true } ).press( 'Enter' );
 				await modal.getByRole( 'button', { name: 'Create site', exact: true } ).click();
 			} );
 
 			await test.step( 'Wait for the real clone, npm install and full build', async () => {
 				// INVARIANT: the app completes the automatic chain without retry clicks.
 				// WordPress mirrors the same success message in its live region.
-				await expect( page.getByText( 'This site is ready to work on', { exact: true } ).first() ).toBeVisible( {
+				await expect( ui.toast( page, 'This site is ready to work on' ) ).toBeVisible( {
 					// On the Windows runner `npm install` alone has taken over 40 minutes.
 					timeout: 75 * 60_000,
 				} );
@@ -127,17 +127,21 @@ for ( const target of TARGETS ) {
 				if ( target.servedAsPlugin ) {
 					// INVARIANT: a built Gutenberg site serves at once, without the
 					// watch (#499): `npm run dev` would remove build/ and rebuild it
-					// first, for nothing. The button still offers the watch and its
-					// tab never went "building". Core's watch starts with the server.
+					// first, for nothing. The button still offers the watch, and the
+					// header says it never went "building". Core's watch starts with
+					// the server.
 					await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
-					await expect( ui.logTab( page, 'Build watcher' ) ).toBeVisible();
+					await expect( ui.processMenuButton( page, 'Build stopped' ) ).toBeVisible();
+					// Stopped and never started, which the header's word alone does not
+					// say: it says the same of a watch that started and went.
+					await expect( page.getByText( 'Build watch offline', { exact: true } ) ).toBeVisible();
 					// Start it by hand so the stop below, and the process-tree check
 					// after it, still exercise the watch. `npm run dev` removes build/
 					// and redoes the whole build before it watches: as long as the
 					// wizard's own build, which has taken from 9 to over 13 minutes on
 					// the macOS runner.
 					await ui.startBuildWatchButton( page ).click();
-					await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible( { timeout: 30 * 60_000 } );
+					await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible( { timeout: 30 * 60_000 } );
 				}
 				await ui.stopBuildWatchButton( page ).click();
 				await ui.stopDevServerButton( page ).click();

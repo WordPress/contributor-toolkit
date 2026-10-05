@@ -1,0 +1,1474 @@
+/*
+  The window's shell (#555): the sites list on the left, the open site's page
+  beside it, and a footer under the page. A colour here is a design-system
+  token, and so is a gap, a radius or a font wherever the design system has
+  one for it, so the theme provider can change them from one place. A token is
+  written bare, with no value beside it: a fallback is a second copy of the
+  token's value, and the ones this file used to carry had already drifted
+  from theirs. The tokens' stylesheet is in the same bundle, so there is
+  nothing for one to fall back from. Stylelint holds the colours and the
+  tokens to this (stylelint.config.mjs); a size that is not a token it lets by.
+*/
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* The design system's body text, so that what inherits its type (links, fields,
+   buttons) is not the browser's 16px. */
+body {
+  margin: 0;
+  position: relative;
+  background: var(--wpds-color-background-surface-neutral);
+  color: var(--wpds-color-foreground-content-neutral);
+  font-family: var(--wpds-typography-font-family-body);
+  font-size: var(--wpds-typography-font-size-md);
+  font-weight: var(--wpds-typography-font-weight-default);
+  line-height: var(--wpds-typography-line-height-sm);
+}
+
+/* The app paints as one layer, under what the design system's menus and
+   tooltips put on `body` after it: those have no z-index of their own, and
+   without this the page's header, which has one, would cover them. */
+#root {
+  isolation: isolate;
+}
+
+.app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--wpds-color-background-surface-neutral);
+}
+
+.app-root .app-page {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+}
+
+/* The window with no site in it: what there is to say sits in the middle. */
+.page-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.page-body-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-body-notices {
+  align-self: stretch;
+  padding: var(--wpds-dimension-padding-2xl);
+}
+
+.page-body-notices:empty {
+  display: none;
+}
+
+/* Two columns, and the first one closes by going to no width at all. */
+.site-shell {
+  --sites-sidebar-width: var(--wpds-dimension-surface-width-sm);
+  display: grid;
+  grid-template-columns: var(--sites-sidebar-width) minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  transition: grid-template-columns var(--wpds-motion-duration-lg)
+    var(--wpds-motion-easing-expressive);
+}
+
+.site-shell.is-sites-list-hidden {
+  grid-template-columns: 0px minmax(0, 1fr);
+}
+
+.site-shell > * {
+  min-width: 0;
+}
+
+.site-shell-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sites-sidebar-slot {
+  overflow-x: clip;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.site-shell.is-sites-list-hidden .sites-sidebar-slot {
+  pointer-events: none;
+}
+
+.sites-sidebar {
+  box-sizing: border-box;
+  width: var(--sites-sidebar-width);
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  height: 100%;
+  border-inline-end: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
+  background: var(--wpds-color-background-surface-neutral);
+  transform: translateX(0);
+  transition: transform var(--wpds-motion-duration-lg)
+    var(--wpds-motion-easing-expressive);
+}
+
+.site-shell.is-sites-list-hidden .sites-sidebar {
+  transform: translateX(-100%);
+}
+
+/* Out by the side it sits on, whichever that is in the reader's language. */
+[dir="rtl"] .site-shell.is-sites-list-hidden .sites-sidebar {
+  transform: translateX(100%);
+}
+
+.sites-sidebar-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.sites-sidebar-list .dataviews-wrapper {
+  --wp-dataviews-color-background: transparent;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
+}
+
+.sites-sidebar-name {
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-sm);
+  min-width: 0;
+}
+
+.sites-sidebar-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sites-sidebar-description {
+  color: var(--wpds-color-foreground-content-neutral-weak);
+  font-size: var(--wpds-typography-font-size-sm);
+}
+
+/* What a site has to report before it is opened (#94). */
+.sites-sidebar-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.sites-sidebar-dot.is-stale {
+  background: var(--wpds-color-stroke-surface-warning-strong);
+}
+
+.sites-sidebar-dot.is-incomplete {
+  background: var(--wpds-color-stroke-surface-error-strong);
+}
+
+/* The open site's page: it scrolls, and nothing else in the shell does. */
+.site-workspace-main {
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: var(--wpds-dimension-padding-2xl);
+}
+
+/* What the page holds stops growing with the window, and sits in the middle
+   of what is left over: a log pane two thousand pixels wide reads no better. */
+.site-workspace-content {
+  max-width: 1080px;
+  margin-inline: auto;
+}
+
+/* The open site's actions, in the page's header (#556). The slot is one
+   element in the header's row, and lays its own buttons out. */
+.site-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-sm);
+}
+
+/* The header holds the site's name and, since #557, two menus and a button
+   as well, in a page that is as narrow as 480px when the window is at its
+   smallest and the sites list is open. The name must not be the thing that
+   gives way: it was squeezed to nothing. So the page's width decides what
+   the actions show, and the name, cut short with an ellipsis, has what is
+   left. With room, everything; short of it,
+   the two processes are their dots and the review button is its first word.
+   Each keeps its name for a screen reader, since what is put away is clipped
+   and not removed. */
+.app-page {
+  container: app-page / inline-size;
+}
+
+.app-page h1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-narrow-only {
+  display: none;
+}
+
+@container app-page (max-width: 900px) {
+  .process-menu-trigger .header-wide-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@container app-page (max-width: 620px) {
+  .site-header-actions .header-wide-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .site-header-actions .header-narrow-only {
+    display: inline;
+  }
+}
+
+/* The site's view: its cards, and its details beside them. The details close
+   the way the sites list does, by their column going to no width. */
+.dashboard {
+  --dashboard-sidebar-width: var(--wpds-dimension-surface-width-sm);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--dashboard-sidebar-width);
+  gap: var(--wpds-dimension-gap-2xl);
+  align-items: start;
+  width: 100%;
+  transition:
+    grid-template-columns var(--wpds-motion-duration-lg)
+      var(--wpds-motion-easing-expressive),
+    gap var(--wpds-motion-duration-lg) var(--wpds-motion-easing-expressive);
+}
+
+.dashboard.is-sidebar-collapsed {
+  grid-template-columns: minmax(0, 1fr) 0px;
+  gap: 0;
+}
+
+.dashboard > * {
+  min-width: 0;
+}
+
+.dashboard-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-2xl);
+  min-width: 0;
+}
+
+/* The slot is as tall as the cards, so that the details, which are shorter,
+   have somewhere to stay put in. */
+.dashboard-sidebar-slot {
+  align-self: stretch;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+.dashboard.is-sidebar-collapsed .dashboard-sidebar-slot {
+  pointer-events: none;
+}
+
+/* It stays in view while the cards scroll past it, as long as it fits in
+   what is in view; taller than that, the component lets it go. */
+.dashboard-sidebar {
+  position: sticky;
+  top: 0;
+  width: var(--dashboard-sidebar-width);
+  min-width: 0;
+  box-sizing: border-box;
+  transform: translateX(0);
+  transition: transform var(--wpds-motion-duration-lg)
+    var(--wpds-motion-easing-expressive);
+}
+
+.dashboard-sidebar.is-unstuck {
+  position: static;
+}
+
+.dashboard-sidebar h2 {
+  margin: 0;
+}
+
+.dashboard.is-sidebar-collapsed .dashboard-sidebar {
+  transform: translateX(100%);
+}
+
+[dir="rtl"] .dashboard.is-sidebar-collapsed .dashboard-sidebar {
+  transform: translateX(-100%);
+}
+
+/* A process's dot: grey for stopped, green for running, amber while it is
+   getting there, red for one that ended with an error. */
+.process-status {
+  display: block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.process-status.is-online {
+  background: var(--wpds-color-foreground-content-success-weak);
+}
+
+.process-status.is-busy {
+  background: var(--wpds-color-stroke-surface-warning-strong);
+}
+
+.process-status.is-failed {
+  background: var(--wpds-color-stroke-surface-error-strong);
+}
+
+.process-menu-trigger {
+  font-weight: var(--wpds-typography-font-weight-default);
+}
+
+.dashboard-sidebar h3 {
+  margin: 0;
+}
+
+.card-divider {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+.sidebar-link {
+  color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.sidebar-empty-state {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  padding-block: var(--wpds-dimension-padding-xl);
+  padding-inline: var(--wpds-dimension-padding-lg);
+  border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+  border-radius: var(--wpds-border-radius-lg);
+}
+
+.credential-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: var(--wpds-dimension-gap-lg);
+  row-gap: var(--wpds-dimension-gap-xs);
+  align-items: center;
+}
+
+.credential-value {
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-xs);
+  min-width: 0;
+}
+
+/* What a line of text is about, where a notice would be too much: said
+   quietly, something that went well, something to mind, something that went
+   wrong. One class each, for every card and dialog. */
+.muted-label {
+  color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.success-text {
+  color: var(--wpds-color-foreground-content-success-weak);
+}
+
+.warning-text {
+  color: var(--wpds-color-foreground-content-warning-weak);
+}
+
+.problem-text {
+  color: var(--wpds-color-foreground-content-error-weak);
+}
+
+/* What went wrong, said in a line of its own where a notice would be too
+   much: under the sentence it follows, and not run on from it. The colour
+   is `.problem-text`'s. */
+.error-text {
+  display: block;
+  margin-block-start: var(--wpds-dimension-gap-xs);
+  color: var(--wpds-color-foreground-content-error-weak);
+}
+
+.path-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.path-value {
+  word-break: break-all;
+}
+
+/* Where the page is too narrow for two columns, the details go under the
+   cards, at the page's width. Measured on the page and not on the window:
+   the sites list takes a share of the window that the page never sees. */
+.site-workspace-main {
+  container-type: inline-size;
+}
+
+@container (max-width: 720px) {
+  .dashboard,
+  .dashboard.is-sidebar-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-sidebar {
+    position: static;
+    width: 100%;
+  }
+
+  .dashboard.is-sidebar-collapsed .dashboard-sidebar-slot {
+    height: 0;
+    overflow: hidden;
+  }
+}
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--wpds-dimension-padding-sm)
+    var(--wpds-dimension-padding-2xl);
+  border-top: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
+  background: var(--wpds-color-background-surface-neutral);
+}
+
+.app-footer-actions,
+.app-footer-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-xs);
+}
+
+.app-footer-meta {
+  gap: var(--wpds-dimension-gap-md);
+}
+
+/* A tray's button, and on the Logs button's corner the count of lines not
+   yet seen (#558). The count is over the button's corner and not beside the
+   button, so that its coming and going moves nothing. It starts at the
+   footer's top edge and is one line of text tall, which ends it where the
+   icons' drawing begins: however wide it is, it is clear of what they draw,
+   this button's and the next one's. It is drawn over the buttons, the next
+   one too, whose ground when pressed would otherwise cover it. It takes no
+   press of its own: a press on it is a press on what is under it. */
+.app-footer-tray {
+  position: relative;
+  display: flex;
+}
+
+.app-footer-tray-note {
+  position: absolute;
+  inset-block-start: calc(-1 * var(--wpds-dimension-padding-sm));
+  inset-inline-start: calc(100% - var(--wpds-dimension-padding-md));
+  z-index: 1;
+  display: flex;
+  pointer-events: none;
+}
+
+.app-footer-count {
+  padding-block: 0;
+}
+
+.app-footer-feedback {
+  width: 320px;
+  padding: var(--wpds-dimension-padding-lg);
+}
+
+.app-footer-feedback-title {
+  font-weight: var(--wpds-typography-font-weight-emphasis);
+  margin-bottom: var(--wpds-dimension-gap-sm);
+}
+
+.app-footer-feedback p {
+  margin: 0 0 var(--wpds-dimension-gap-md);
+}
+
+/* The cue that points a contributor at the next thing to do (#252). The
+   render puts `.next-action-cue` on exactly one block, whichever the resolver
+   named, and the cue hook scrolls it into view. A soft amber ring marks it:
+   no motion, and over the block's own background, so a coloured notice keeps
+   its meaning. The block's own text names the step, so the ring carries no
+   label. The ring is the design system's warning stroke, and rounded as its
+   cards and notices are. */
+.next-action-cue {
+  border-radius: var(--wpds-border-radius-lg);
+  box-shadow:
+    0 0 0 3px var(--wpds-color-stroke-surface-warning),
+    0 0 14px 3px color-mix(in srgb, var(--wpds-color-stroke-surface-warning) 60%, transparent);
+}
+
+/* The review dialog's two columns (#186): the diff takes the room and where
+   it can go stands beside it.
+
+   A media query rather than flex-wrap, which was tried first and cannot do
+   this. Wrapping keeps both columns on one flex line whose height is fixed
+   by the modal, so the wrapped sidebar had nowhere to go and the diff
+   overlapped it. Stacking has to change what scrolls as well as what sits
+   where: side by side the sidebar scrolls alone and the diff stays put;
+   stacked, the pair scrolls as one and the diff keeps a floor so it cannot
+   collapse to a sliver above the destinations.
+
+   The breakpoint is where a 300px sidebar starts squeezing the code rather
+   than sitting next to it, which is what the screen is for. */
+.patch-columns {
+  display: flex;
+  gap: var(--wpds-dimension-gap-lg);
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.patch-columns > .patch-diff {
+  flex: 2 1 460px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: var(--wpds-dimension-gap-sm);
+}
+
+.patch-columns > .patch-destinations {
+  flex: 1 1 340px;
+  min-width: 300px;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-md);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .patch-columns {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  /* A definite height, not a minimum: the diff pane fills its column with
+     `height: 100%`, and a percentage against a parent whose own height is
+     content-derived resolves to nothing — the pane then grew past the
+     column and sat on top of the destinations below it. */
+  .patch-columns > .patch-diff {
+    flex: none;
+    height: 340px;
+  }
+
+  .patch-columns > .patch-destinations {
+    flex: none;
+    max-width: none;
+    overflow-y: visible;
+  }
+}
+
+/* The review dialog is as tall as the window lets it be, so the diff has
+   the room and the columns something to fill. */
+.review-dialog-body {
+  height: 80vh;
+}
+
+/* The diff's own box, under its heading: what is left of the column. */
+.patch-diff-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.patch-diff-loading {
+  height: 100%;
+}
+
+/* The patch: the design system's strong surface inside a hairline, so the
+   washes on its added and removed lines have something to stand on.
+
+   `box-sizing: border-box` with `height: 100%` and a padding: without it
+   the pane is its container plus its padding, and it overflows by exactly
+   that. Invisible while the diff spanned the dialog and the overflow fell
+   off the bottom; beside the destinations it sits on top of them. */
+.patch-diff-code {
+  box-sizing: border-box;
+  height: 100%;
+  margin: 0;
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-md);
+  background: var(--wpds-color-background-surface-neutral-strong);
+  color: var(--wpds-color-foreground-content-neutral);
+}
+
+/* What each kind of patch line looks like (#166). An added and a removed
+   line carry a wash as well as a colour, so the two are told apart without
+   colour vision; the sign in the first column is the other half of that. */
+.diff-line {
+  display: block;
+}
+
+.diff-line.is-add {
+  color: var(--wpds-color-foreground-content-success-weak);
+  background: var(--wpds-color-background-surface-success-weak);
+}
+
+.diff-line.is-del {
+  color: var(--wpds-color-foreground-content-error-weak);
+  background: var(--wpds-color-background-surface-error-weak);
+}
+
+.diff-line.is-hunk {
+  color: var(--wpds-color-foreground-content-neutral-weak);
+  background: var(--wpds-color-background-surface-neutral-weak);
+}
+
+.diff-line.is-meta {
+  color: var(--wpds-color-foreground-content-info-weak);
+}
+
+.diff-line.is-header {
+  color: var(--wpds-color-foreground-content-neutral-weak);
+  font-style: italic;
+}
+
+/* The destinations that ask the same thing of the contributor share a
+   card, with a hairline between them. */
+.destination-group > * + * {
+  border-block-start: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+/* A destination's buttons are as wide as its column, and say what they do
+   in the middle of it. */
+.destination-actions .components-button:not(.is-link) {
+  justify-content: center;
+}
+
+/* A link said inside a sentence is the sentence's size, in every dialog of
+   the older library. */
+.components-modal__frame .components-button.is-link {
+  font-size: inherit;
+}
+
+/* What a first-timer cannot know about pull requests, behind its question. */
+.destination-how {
+  color: var(--wpds-color-foreground-content-neutral-weak);
+  font-size: var(--wpds-typography-font-size-sm);
+  line-height: var(--wpds-typography-line-height-xs);
+}
+
+.destination-how > summary {
+  color: var(--wpds-color-foreground-interactive-brand);
+  cursor: pointer;
+}
+
+.destination-how[open] > summary {
+  margin-block-end: var(--wpds-dimension-gap-sm);
+}
+
+/* The code GitHub asks for: large, spaced and in monospace, since it is
+   read off one screen and typed into another. */
+.device-code {
+  padding-block: var(--wpds-dimension-padding-sm);
+  color: var(--wpds-color-foreground-content-neutral);
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-xl);
+  font-weight: var(--wpds-typography-font-weight-emphasis);
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+/* The question an update asks about loose edits. */
+.dirty-tree {
+  max-width: var(--wpds-dimension-surface-width-lg);
+}
+
+.dirty-tree-files {
+  max-height: 140px;
+  padding: var(--wpds-dimension-padding-md);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-md);
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-sm);
+  line-height: var(--wpds-typography-line-height-sm);
+}
+
+/* Its two answers: buttons, of which one is pressed. The pressed one is
+   ringed inside its border, so choosing does not move the other. */
+.dirty-tree-choice {
+  padding: var(--wpds-dimension-padding-md);
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-md);
+  background: var(--wpds-color-background-surface-neutral-strong);
+  color: var(--wpds-color-foreground-content-neutral);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.dirty-tree-choice[aria-pressed="true"] {
+  border-color: var(--wpds-color-stroke-surface-brand-strong);
+  box-shadow: inset 0 0 0 var(--wpds-border-width-xs)
+    var(--wpds-color-stroke-surface-brand-strong);
+  background: var(--wpds-color-background-surface-brand);
+}
+
+.dirty-tree-choice:disabled {
+  cursor: default;
+}
+
+.dirty-tree-choice-detail {
+  color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+/* On the pressed answer's tint the quiet colour is too faint to read. */
+.dirty-tree-choice[aria-pressed="true"] .dirty-tree-choice-detail {
+  color: var(--wpds-color-foreground-content-neutral);
+}
+
+.dirty-tree-choice.is-destructive,
+.dirty-tree-choice.is-destructive .dirty-tree-choice-detail {
+  color: var(--wpds-color-foreground-content-error-weak);
+}
+
+.dirty-tree-error {
+  overflow-wrap: anywhere;
+}
+
+/* One mail, opened: who it is between, then the message as a reader would
+   see it, on the design system's strong surface, or as it was sent. */
+.email-view {
+  padding: var(--wpds-dimension-padding-sm);
+}
+
+.email-view-headers {
+  margin-block-end: var(--wpds-dimension-gap-sm);
+  font-size: var(--wpds-typography-font-size-sm);
+  line-height: var(--wpds-typography-line-height-xs);
+}
+
+.email-view-rendered,
+.email-view-raw {
+  min-height: 60vh;
+  margin: 0;
+  border-radius: var(--wpds-border-radius-md);
+}
+
+.email-view-rendered {
+  padding: var(--wpds-dimension-padding-md);
+  border: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral);
+  background: var(--wpds-color-background-surface-neutral-strong);
+}
+
+.email-view-rendered > pre {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.email-view-raw {
+  background: var(--wpds-color-background-surface-neutral-weak);
+  color: var(--wpds-color-foreground-content-neutral);
+}
+
+/* What the window says that is about no one site, above the page: each
+   with room under it before the next thing. */
+.window-notice {
+  margin-block-end: var(--wpds-dimension-padding-2xl);
+}
+
+/* The last of them in a window with no site has the block's own padding
+   under it, and needs no more. */
+.page-body-notices > .window-notice:last-child {
+  margin-block-end: 0;
+}
+
+/* A site's view, with room under its last panel. */
+.site-view {
+  padding-block-end: var(--wpds-dimension-padding-3xl);
+}
+
+/* What a process printed: the design system's weak surface, in its
+   monospace. */
+.log-pane,
+.terminal-pane {
+  background: var(--wpds-color-background-surface-neutral-weak);
+  color: var(--wpds-color-foreground-content-neutral);
+}
+
+/* On the page a pane is rounded, and scrolled. */
+.log-pane {
+  border-radius: var(--wpds-border-radius-md);
+}
+
+/* The same type for everything that is read as code: what a process
+   printed, a patch, and a mail as it was sent. */
+.log-pane,
+.patch-diff-code,
+.email-view-raw {
+  padding: var(--wpds-dimension-padding-md);
+  overflow: auto;
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-md);
+  line-height: var(--wpds-typography-line-height-sm);
+  white-space: pre-wrap;
+}
+
+.log-pane.is-short {
+  height: 140px;
+}
+
+/* A panel whose tab is not the selected one takes no room, in the tray's
+   logs and on a card alike. The design system's tabs keep the panel that is
+   leaving in the document until the next frame, for a transition it does not
+   have, and for that long it would share the room with the panel coming in:
+   on a machine slow to draw, a log that opens short and then grows, and a
+   card that is two cards tall and then one. `inert` is what the tabs put on
+   every panel but the selected one. Their mark for a panel that is leaving
+   is not used: a panel gone back to before that frame still has it. */
+[role="tabpanel"][inert] {
+  display: none;
+}
+
+/* The tray along the bottom of the window (#558), between the page and the
+   footer. It takes its height from the page above it, which is the part that
+   scrolls, so nothing on the page is ever under it. How tall it is is the
+   component's to say, as a property of the tray's own.
+
+   Closed, it is hidden and not gone: every site's terminal is in it. A
+   `display` given here would outrank the `hidden` attribute, hence the rule
+   that says it again. */
+.app-tray {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  height: var(--app-tray-height);
+  min-height: 0;
+  overflow: hidden;
+  border-top: var(--wpds-border-width-xs) solid
+    var(--wpds-color-stroke-surface-neutral-weak);
+  background: var(--wpds-color-background-surface-neutral-strong);
+}
+
+.app-tray[hidden],
+.tray-site[hidden],
+.tray-panel[hidden] {
+  display: none;
+}
+
+/* Its top edge, to drag: a strip along the top of the tray, above its
+   heading's own padding, so that it is tall enough to take hold of and
+   covers nothing that is pressed. */
+.app-tray-resize {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 1;
+  height: var(--wpds-dimension-gap-sm);
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.app-tray-resize:focus-visible {
+  outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+  outline-offset: calc(-1 * var(--wpds-border-width-focus));
+}
+
+.app-tray-header {
+  flex: none;
+  padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-2xl);
+}
+
+.app-tray-title {
+  margin: 0;
+}
+
+/* What the open site put in the tray fills what is left of it, and each
+   level down is a column that does the same. */
+.app-tray-body,
+.tray-site,
+.tray-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* The terminal takes the room, edge to edge, and draws its own rows in it:
+   as many columns and rows as fit (use-site-terminal.jsx). Its text starts
+   where the tray's heading does. */
+.terminal-pane {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-block-start: var(--wpds-dimension-padding-sm);
+  padding-inline-start: var(--wpds-dimension-padding-2xl);
+}
+
+.terminal-screen {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The logs in the tray: the tabs under the tray's heading, and under them
+   the selected tab's pane, which takes the room that is left and scrolls. A
+   pane here has the tray's edges and not a card's corners. */
+.tray-tabs {
+  flex: none;
+  padding-inline: var(--wpds-dimension-padding-2xl);
+}
+
+.tray-log-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tray-log-panel[hidden] {
+  display: none;
+}
+
+.tray-log-panel > .log-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-inline: var(--wpds-dimension-padding-2xl);
+  border-radius: 0;
+}
+
+/* What the tray says under what it holds. */
+.tray-notes {
+  flex: none;
+  padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-2xl);
+}
+
+/* What an empty pane says of itself is the app speaking, not a process, and
+   is in the app's own type. */
+.log-pane-note {
+  font-family: var(--wpds-typography-font-family-body);
+  color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.log-line {
+  display: block;
+}
+
+.log-line.is-fatal {
+  color: var(--wpds-color-foreground-content-error-weak);
+}
+
+.log-line.is-warning {
+  color: var(--wpds-color-foreground-content-warning-weak);
+}
+
+.log-line.is-deprecated,
+.log-line.is-notice {
+  color: var(--wpds-color-foreground-content-caution-weak);
+}
+
+.log-line.is-trace,
+.log-stamp {
+  color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.log-line.is-ready {
+  color: var(--wpds-color-foreground-content-success-weak);
+  font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+/* A path is one word to a browser, and is there to be copied. */
+.log-path {
+  flex: 1 1 240px;
+  font-size: var(--wpds-typography-font-size-xs);
+  color: var(--wpds-color-foreground-content-neutral-weak);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* A command in a sentence, which types itself at the prompt when pressed.
+   Named with the link's own class, which says to take the sentence's font. */
+.link-button.command-link {
+  font-family: var(--wpds-typography-font-family-mono);
+}
+
+/* The mail the site sent, in the tray: a list that fills it, one row a
+   message, each row a button. */
+.mail-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  background: var(--wpds-color-background-surface-neutral-weak);
+}
+
+/* A mail's row is a button, drawn as a row of a list and not as a button:
+   when it was sent, who from, and its subject, which is what it is known
+   by. It starts where the tray's heading does. */
+.mail-row {
+  display: flex;
+  gap: var(--wpds-dimension-gap-sm);
+  width: 100%;
+  padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-2xl);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--wpds-typography-font-size-sm);
+  text-align: start;
+  cursor: var(--wpds-cursor-control);
+}
+
+.mail-list > li + li {
+  border-block-start: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+.mail-row:hover {
+  background: var(--wpds-color-background-interactive-neutral-weak-active);
+}
+
+.mail-row:focus-visible {
+  outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+  outline-offset: calc(-1 * var(--wpds-border-width-focus));
+}
+
+.mail-when {
+  flex: 0 0 180px;
+  color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+/* Who it is from gives way long before the subject does, in a window too
+   narrow for both: the subject is what a row is known by, and is never
+   narrower than a few words. */
+.mail-from {
+  flex: 0 100 220px;
+}
+
+.mail-subject {
+  flex: 1 1 auto;
+  min-width: 12ch;
+  font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.mail-from,
+.mail-subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mail-empty {
+  display: block;
+  padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-2xl);
+}
+
+/* The window's confirmations (#253, #557): notices stacked in the bottom
+   corner, the one the page's actions are not in, above the footer, the
+   newest nearest the corner. The stack lets a press through where it has no
+   notice. It is drawn on `body` and not inside `#root`, which is a stacking
+   context of its own: this has to rise over a dialog, which is drawn on
+   `body` too, so that what was done inside one is still confirmed. */
+.toast-stack {
+  position: fixed;
+  inset-inline-end: var(--wpds-dimension-padding-2xl);
+  bottom: calc(64px + var(--app-tray-inset));
+  z-index: 100001;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--wpds-dimension-gap-sm);
+  width: min(360px, calc(100vw - 2 * var(--wpds-dimension-padding-2xl)));
+  pointer-events: none;
+}
+
+.toast-stack > * {
+  pointer-events: auto;
+  overflow-wrap: anywhere;
+}
+
+/* The focus is put on the stack when a notice is dismissed, to keep it
+   from the top of the document, and not for the stack to be seen as chosen. */
+.toast-stack:focus {
+  outline: none;
+}
+
+/* A tooltip is over everything, a notice of the stack included: the one a
+   notice's own button has would otherwise be under the notice above it. */
+:root {
+  --wp-ui-tooltip-z-index: 1000000;
+
+  /* How much of the window's foot the open tray takes (#558). The tray says
+     so as it opens and as it is dragged; closed, it takes none. */
+  --app-tray-inset: 0px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-shell,
+  .sites-sidebar,
+  .dashboard,
+  .dashboard-sidebar {
+    transition-duration: 0s;
+  }
+}
+
+/* The work-item card (#557), and what the other cards will share with it. */
+
+.ticket-card h2,
+.ticket-card h3,
+.ticket-list-card h2,
+.setup-checklist h2,
+.trunk-update-card h2,
+.apply-card h2 {
+  margin: 0;
+}
+
+/* A way out of the app, drawn as a link and made of a button: the main
+   process opens the page. */
+.link-button {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.inline-field {
+  display: flex;
+  gap: var(--wpds-dimension-gap-sm);
+  align-items: flex-end;
+}
+
+.inline-field > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-footer {
+  margin-block-start: auto;
+  padding-block-start: var(--wp-ui-card-padding, var(--wpds-dimension-padding-2xl));
+  padding-inline: var(--wp-ui-card-padding, var(--wpds-dimension-padding-2xl));
+}
+
+.card-footer-content {
+  padding-block: var(--wp-ui-card-padding, var(--wpds-dimension-padding-2xl));
+}
+
+/* The pull requests and the attachments of a ticket, as a tree hanging from
+   their section: a rule down the side and a tick to each row. */
+.ticket-pr-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-lg);
+}
+
+.ticket-pr {
+  position: relative;
+  padding-inline-start: var(--wpds-dimension-gap-lg);
+}
+
+.ticket-pr::before,
+.ticket-pr::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  pointer-events: none;
+}
+
+.ticket-pr::before {
+  top: calc(var(--wpds-typography-line-height-sm) / 2);
+  width: var(--wpds-dimension-padding-md);
+  border-top: 1px solid var(--wpds-color-stroke-surface-neutral);
+}
+
+.ticket-pr:not(:last-child)::after {
+  top: calc(var(--wpds-typography-line-height-sm) / 2);
+  bottom: calc(-1 * var(--wpds-dimension-gap-lg));
+  border-inline-start: 1px solid var(--wpds-color-stroke-surface-neutral);
+}
+
+.ticket-pr:last-child::before {
+  display: none;
+}
+
+.ticket-pr:last-child::after {
+  top: 0;
+  width: var(--wpds-dimension-padding-md);
+  height: calc(var(--wpds-typography-line-height-sm) / 2);
+  border-inline-start: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border-end-start-radius: var(--wpds-border-radius-md);
+}
+
+.ticket-pr-id {
+  font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+/* The create-site dialog (#557). The folder is asked for with a file input,
+   as wide as the dialog, and the folder that was chosen is said under it:
+   a path has no spaces to break at. */
+.create-site-dialog .file-field-control {
+  width: 100%;
+  min-height: var(--wpds-dimension-size-md);
+  font: inherit;
+  color: inherit;
+}
+
+/* The ring the design system's own controls have, where the browser would
+   draw its own. */
+.create-site-dialog .file-field-control:focus-visible {
+  outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+  outline-offset: var(--wpds-border-width-focus);
+}
+
+.create-site-dialog .file-field-value {
+  overflow-wrap: anywhere;
+}
+
+/* What is said under the choice of project is drawn by the older component
+   library, with its own type. It is given the type the description under
+   the folder has, a field away. */
+.create-site-dialog .components-base-control__help {
+  margin-block: var(--wpds-dimension-gap-sm) 0;
+  font-size: var(--wpds-typography-font-size-sm);
+  line-height: var(--wpds-typography-line-height-xs);
+  color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+/* Its two sentences, one under the other. */
+.create-site-dialog .components-base-control__help > span {
+  display: block;
+}
+
+/* The list of a site's tickets (#557): one row a ticket, a rule between
+   rows, and each row's buttons under its number where there is no room
+   beside it. */
+.ticket-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ticket-list-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wpds-dimension-gap-sm) var(--wpds-dimension-gap-lg);
+  padding-block: var(--wpds-dimension-padding-md);
+}
+
+.ticket-list-row:first-child {
+  padding-block-start: 0;
+}
+
+.ticket-list-row:last-child {
+  padding-block-end: 0;
+}
+
+.ticket-list-row + .ticket-list-row {
+  border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+.ticket-list-number {
+  font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+/* The apply card (#557). */
+
+/* Tabs across a card, with the card's rule under them: the list sits on the
+   rule, so the chosen tab's own line takes its place there. */
+.card-tabs-bar {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-tabs {
+  overflow: visible;
+  mask-image: none;
+  margin-block-end: -1px;
+}
+
+/* The steps of an apply, or of an update of trunk, each with room before it
+   for its mark. Framed, so that the next-action ring has something to go
+   round. */
+.step-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+  border: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-xs);
+}
+
+.step-list-step {
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-sm);
+  color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.step-list-step.is-complete,
+.step-list-step.is-current {
+  color: var(--wpds-color-foreground-content-neutral);
+}
+
+.step-list-step.is-current {
+  font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.step-list-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.step-list-step.is-complete .step-list-mark {
+  color: var(--wpds-color-foreground-content-success-weak);
+}
+
+/* The checklist a new site is set up by (#557): one row a step, with what
+   stands for its state, what it is, and its button at the end. */
+.setup-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-sm);
+}
+
+.setup-step {
+  display: flex;
+  align-items: center;
+  gap: var(--wpds-dimension-gap-lg);
+  padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+  border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+  border-radius: var(--wpds-border-radius-lg);
+}
+
+.setup-step-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--wpds-dimension-size-sm);
+  height: var(--wpds-dimension-size-sm);
+  color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.setup-step.is-complete .setup-step-mark {
+  color: var(--wpds-color-foreground-content-success-weak);
+}
+
+.setup-step.is-failed .setup-step-mark {
+  color: var(--wpds-color-foreground-content-error-weak);
+}
+
+.setup-step-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.setup-step-label {
+  font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.setup-step-action {
+  flex: 0 0 auto;
+}
+
+/* Paths and lines of code are one word each to a browser, and longer than
+   the card. */
+.apply-break-all {
+  overflow-wrap: anywhere;
+}
+
+.apply-conflict-file {
+  font-weight: var(--wpds-typography-font-weight-emphasis);
+  overflow-wrap: anywhere;
+}
+
+.apply-conflict-region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wpds-dimension-gap-xs);
+  padding-inline-start: var(--wpds-dimension-padding-md);
+  border-inline-start: 2px solid var(--wpds-color-stroke-surface-error);
+}
+
+.apply-conflict-lines {
+  margin: 0;
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* What a patch would change: its files, in the preview. Long lists scroll
+   inside the dialog and leave its button in reach. */
+.change-list {
+  margin: 0;
+  padding-inline-start: 1.2em;
+  max-height: 14em;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+.change-list li + li {
+  margin-block-start: var(--wpds-dimension-gap-xs);
+}

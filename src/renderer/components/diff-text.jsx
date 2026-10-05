@@ -1,19 +1,12 @@
 import { useMemo } from 'react';
 import { highlightDiff } from '../diff-highlight.cjs';
 
-// What each kind of patch line looks like (#166). The classification is in
-// diff-highlight.cjs; the colours are here because they are a property of this
-// pane, not of a diff. Added and removed lines carry a wash as well as a
-// foreground colour so the two are still distinguishable without colour vision
-// — the sign in column 0 is the other half of that, and it is never hidden.
-const DIFF_LINE_STYLES = {
-  add: { color: '#7ee787', background: 'rgba(46,160,67,0.18)' },
-  del: { color: '#ffa198', background: 'rgba(248,81,73,0.18)' },
-  hunk: { color: '#d2a8ff' },
-  meta: { color: '#79c0ff' },
-  header: { color: '#8b949e', fontStyle: 'italic' },
-  context: {}
-};
+// What each kind of patch line looks like (#166) is in shell.css, under
+// `.diff-line`, in the design system's colours. The classification is in
+// diff-highlight.cjs, and the kind is the class. Added and removed lines carry
+// a wash as well as a foreground colour so the two are still distinguishable
+// without colour vision — the sign in column 0 is the other half of that, and
+// it is never hidden.
 
 // The patch, painted. An empty line still needs to occupy one: `\n` is appended
 // per line rather than joining, so the last line of a patch that ends in a
@@ -30,7 +23,7 @@ export function DiffText({ text }) {
   return lines.map((line, index) => (
     // A diff line has no identity beyond its position, and the whole pane is
     // replaced when the patch changes.
-    <span key={index} style={{ display: 'block', ...DIFF_LINE_STYLES[line.kind] }}>
+    <span key={index} className={`diff-line is-${line.kind}`}>
       {line.text || ' '}
     </span>
   ));

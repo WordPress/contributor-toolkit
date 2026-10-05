@@ -104,6 +104,8 @@ test( 'an update stops a running build watch for as long as it resets and builds
 	const site = await makeSite( session, { origin: true } );
 	advanceOrigin( site.origin, { 'src/wp-login.php': NEWER_LOGIN } );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const runs = await standInForRuns( app, page, path.join( site.dir, LOGIN ) );
 	const incomplete = page.getByText( 'Update incomplete', { exact: true } );
 
@@ -112,17 +114,17 @@ test( 'an update stops a running build watch for as long as it resets and builds
 	// what makes the watch's button start the watcher and not a build.
 	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.startBuildWatchButton( page ).click();
-	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible();
 	await expect.poll( async () => ( await runs.asked() ).scripts ).toEqual( [ 'grunt' ] );
 
 	// INVARIANT — the update stops that watcher, by its run, before it
 	// touches the tree: the file the update is about to replace still held
-	// the old trunk when the watcher was stopped. The watch's tab says it is
-	// paused.
+	// the old trunk when the watcher was stopped. The header says the watch
+	// is paused.
 	await updateToLatestTrunk( page );
 	await expect.poll( async () => ( await runs.asked() ).kills ).toEqual( [ 'e2e-run-1' ] );
 	expect( ( await runs.asked() ).treeAtKill ).toEqual( [ OLD_LOGIN ] );
-	await expect( ui.logTab( page, 'Build watcher (paused)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build paused' ) ).toBeVisible();
 
 	// INVARIANT — the tree is reset to the new trunk and the update runs the
 	// build itself. CHARACTERISATION — on Core; with the lockfile unchanged
@@ -133,7 +135,7 @@ test( 'an update stops a running build watch for as long as it resets and builds
 
 	// INVARIANT — the watch is not brought back while the build runs.
 	await runs.heard();
-	await expect( ui.logTab( page, 'Build watcher (paused)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build paused' ) ).toBeVisible();
 	expect( ( await runs.asked() ).scripts ).toHaveLength( 2 );
 
 	// INVARIANT — a build that fails leaves the update incomplete and says
@@ -141,13 +143,13 @@ test( 'an update stops a running build watch for as long as it resets and builds
 	await runs.scriptEnds( 2, 1 );
 	await expect( incomplete ).toBeVisible();
 	await expect.poll( async () => ( await runs.asked() ).scripts ).toEqual( [ 'grunt', 'build', 'grunt' ] );
-	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible();
 
 	// INVARIANT — retrying stops the watch again, installs, since what
 	// changed is no longer known, and then builds.
 	await ui.retryInstallButton( page ).click();
 	await expect.poll( async () => ( await runs.asked() ).kills ).toEqual( [ 'e2e-run-1', 'e2e-run-3' ] );
-	await expect( ui.logTab( page, 'Build watcher (paused)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build paused' ) ).toBeVisible();
 	await expect.poll( async () => ( await runs.asked() ).installs ).toBe( 1 );
 	await runs.heard();
 	expect( ( await runs.asked() ).scripts ).toHaveLength( 3 );
@@ -158,17 +160,17 @@ test( 'an update stops a running build watch for as long as it resets and builds
 	// so, the marker that it was incomplete is gone from the screen and from
 	// the store, and the watch is back.
 	await runs.scriptEnds( 4, 0 );
-	await expect( page.getByText( 'Updated to the latest trunk' ).first() ).toBeVisible();
+	await expect( ui.toast( page, 'Updated to the latest trunk' ) ).toBeVisible();
 	await expect( incomplete ).toHaveCount( 0 );
 	await expect.poll( async () => ( await runs.asked() ).scripts ).toEqual( [ 'grunt', 'build', 'grunt', 'build', 'grunt' ] );
-	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible();
 	await expect.poll( () => Boolean( session.readSettings().siteMeta[ site.dir ].updateIncomplete ) ).toBe( false );
 
 	// INVARIANT — a watcher the update stopped, going at last, is not taken
 	// for the one that is running now.
 	await runs.scriptEnds( 1, 143 );
 	await runs.heard();
-	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible();
 } );
 
 test( 'where the watcher rebuilds everything as it starts, the update builds nothing itself: it brings the watch back and is complete when the watch is ready, incomplete if the watch is stopped first', async ( { session } ) => {
@@ -180,10 +182,12 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	fs.writeFileSync( built, '' );
 	advanceOrigin( site.origin, { 'src/wp-login.php': NEWER_LOGIN } );
 	const { app, page } = await session.start( site.settings );
+	// The terminal is in the tray, which is closed when the window opens.
+	await ui.openTray( page, 'Terminal' );
 	const runs = await standInForRuns( app, page, path.join( site.dir, LOGIN ) );
 	const incomplete = page.getByText( 'Update incomplete', { exact: true } );
-	const updated = page.getByText( 'Updated to the latest trunk' );
-	const card = page.getByText( 'Updating to latest trunk', { exact: true } );
+	const updated = ui.toast( page, 'Updated to the latest trunk' );
+	const card = page.getByRole( 'region', { name: 'Updating to latest trunk', exact: true } );
 
 	// The watch is running, and ready, before the update starts. The test
 	// speaks for the watcher only once the main process has answered that it
@@ -192,10 +196,10 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	// Gutenberg the watcher is npm run dev, here and below.
 	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.startBuildWatchButton( page ).click();
-	await expect( ui.logTab( page, 'Build watcher (building)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build building' ) ).toBeVisible();
 	await expect.poll( async () => ( await runs.asked() ).scripts ).toEqual( [ 'dev' ] );
 	await runs.scriptPrints( 1, 'Watching for changes\n' );
-	await expect( ui.logTab( page, 'Build watcher (watching)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build watching' ) ).toBeVisible();
 
 	// INVARIANT — the update stops the watcher, resets the tree, and brings
 	// the watcher back without a build of its own (#507): the watcher is
@@ -204,7 +208,7 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	await expect.poll( async () => ( await runs.asked() ).kills ).toEqual( [ 'e2e-run-1' ] );
 	await expect.poll( async () => ( await runs.asked() ).scripts, { timeout: 60_000 } ).toEqual( [ 'dev', 'dev' ] );
 	expect( read( site.dir, LOGIN ) ).toBe( NEWER_LOGIN );
-	await expect( ui.logTab( page, 'Build watcher (building)' ) ).toBeVisible();
+	await expect( ui.processMenuButton( page, 'Build building' ) ).toBeVisible();
 
 	// INVARIANT — the update is not complete while the watch is still
 	// rebuilding. The watch's own stop can be pressed, which is the way out
@@ -224,6 +228,11 @@ test( 'where the watcher rebuilds everything as it starts, the update builds not
 	await runs.heard();
 	expect( ( await runs.asked() ).completions ).toBe( 0 );
 	await expect( card ).toBeVisible();
+	// INVARIANT — the card lists the update's steps and says which one it is
+	// on, to the eye and to a screen reader: one of them is the current one.
+	await expect( card.getByRole( 'listitem' ) ).toHaveCount( 3 );
+	await expect( card.locator( '[aria-current="step"]' ) ).toHaveCount( 1 );
+	await expect( card.getByText( /^step \d of 3$/ ) ).toBeVisible();
 	expect( await updated.count() ).toBe( 0 );
 	await expect( ui.stopBuildWatchButton( page ) ).toBeEnabled();
 	await expect( ui.startDevServerButton( page ) ).toBeDisabled();

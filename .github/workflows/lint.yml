@@ -1,4 +1,4 @@
-# ESLint over the whole repo.
+# ESLint over the whole repo, and Stylelint over the window's stylesheet.
 #
 # This used to lint only the files a PR touched, because the linter arrived on top of a
 # backlog of pre-existing findings and running it repo-wide would have failed every PR for
@@ -51,3 +51,8 @@ jobs:
 
       - name: ESLint
         run: npx eslint . --max-warnings=0
+
+      # The window's stylesheet: tokens that exist, written bare, and no
+      # colour written by hand. See stylelint.config.mjs.
+      - name: Stylelint
+        run: npx stylelint "src/renderer/**/*.css" --max-warnings=0

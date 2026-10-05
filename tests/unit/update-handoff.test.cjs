@@ -15,7 +15,7 @@ test('the hand-off waits on the watch, keeping the card on the build step and re
 	assert.strictEqual(plan.waits, true);
 	assert.strictEqual(plan.waiting.updateState, 'building');
 	assert.strictEqual(plan.waiting.waitingOnWatch, true);
-	assert.match(plan.waiting.message, /Build watcher tab/);
+	assert.match(plan.waiting.message, /in the Logs, under Build watch/);
 	assert.match(plan.waiting.message, /completes when it is watching again/);
 	assert.strictEqual(plan.finish, undefined);
 });

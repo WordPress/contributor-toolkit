@@ -16,7 +16,7 @@ The update fetches from the site's own `origin` remote. A site the app created p
 
 You no longer have to stop the dev server first. The update pauses the [build watch](./running-the-site#the-build-watch) for the reset and resumes it afterwards, and the PHP server keeps serving throughout.
 
-What it will not run alongside is another install or build. The **Update to latest trunk** button in the staleness notice is disabled while one is running — but the ☰ menu entry is not, and clicking it in that state simply does nothing, with no message to say why.
+What it will not run alongside is another update, install or build. While one is running, the ☰ menu entry is greyed out and says which under its name ("Wait for the build to finish."), and it comes back as soon as that ends. The **Update to latest trunk** button in the staleness notice is held the same way during an install or a build, with the same sentence as its tooltip; during an update the notice gives way to the progress card.
 
 ## What an update runs
 
