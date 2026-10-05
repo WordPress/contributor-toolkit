@@ -114,7 +114,7 @@ async function captureShot(page, shot) {
 async function runFixtureTier(selected) {
 	const variants = [...new Set(selected.map((s) => s.variant))];
 	for (const variant of variants) {
-		const { userDataDir } = buildFixture(variant);
+		const { userDataDir, sites } = buildFixture(variant);
 		const { app, page } = await launchApp({ TOOLKIT_USER_DATA_DIR: userDataDir });
 		try {
 			// A picture is of where things come to rest: a tab's underline
@@ -125,6 +125,11 @@ async function runFixtureTier(selected) {
 			// started in a folder that holds no WordPress.
 			await standInForTheOutside(app);
 			for (const shot of selected.filter((s) => s.variant === variant)) {
+				// What a shot started in the main process is ended before the
+				// next: a server that was started tails its site's debug.log,
+				// the tail outlives the window's reload, and a second start
+				// would find it running and be handed no file.
+				await page.evaluate((dirs) => Promise.all(dirs.map((dir) => window.api.stopWpDebug(dir))), Object.values(sites));
 				// Fresh renderer per shot: open menus and modals from the
 				// previous shot cannot leak into this one.
 				await page.reload();

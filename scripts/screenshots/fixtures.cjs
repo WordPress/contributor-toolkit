@@ -70,10 +70,11 @@ const TICKET_FROM_TRAC = {
 		milestone: '7.2',
 		component: { label: 'General', url: 'https://core.trac.wordpress.org/query?component=General' },
 		keywords: [{ label: 'has-patch', url: 'https://core.trac.wordpress.org/query?keywords=~has-patch' }],
-		opened: { relative: '4 weeks ago', absolute: new Date(daysAgo(28, 12)).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }) }
+		// Older than the pull requests that cite it and the patch attached to it.
+		opened: { relative: '8 weeks ago', absolute: new Date(daysAgo(56, 12)).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }) }
 	},
 	items: [
-		{ filename: `${LINKED_TICKET}.diff`, url: `https://core.trac.wordpress.org/attachment/ticket/${LINKED_TICKET}/${LINKED_TICKET}.diff`, applyable: true, author: 'janedoe', dateText: '6 weeks ago', sizeText: '3.2 KB' }
+		{ filename: `${LINKED_TICKET}.diff`, url: `https://core.trac.wordpress.org/raw-attachment/ticket/${LINKED_TICKET}/${LINKED_TICKET}.diff`, applyable: true, author: 'janedoe', dateText: '6 weeks ago', sizeText: '3.2 KB' }
 	]
 };
 
@@ -249,4 +250,4 @@ function cleanFixtureSites() {
 	fs.rmSync(FIXTURE_ROOT, { recursive: true, force: true });
 }
 
-module.exports = { standInForTheOutside, buildFixture, cleanFixtureSites, FIXTURE_ROOT, TICKET_FROM_TRAC };
+module.exports = { standInForTheOutside, buildFixture, cleanFixtureSites, FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS };

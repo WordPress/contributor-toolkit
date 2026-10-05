@@ -1,6 +1,6 @@
 // The declarative list of documentation screenshots.
 //
-// Each entry is { slug, tier, variant, prepare, target }:
+// Each entry is { slug, tier, variant, prepare, target, clip, instructions }:
 //   - slug: the output filename, docs/public/screenshots/<slug>.png — docs pages
 //     reference these names, so renaming one is a docs change too;
 //   - tier 'fixture': captured fully automatically against seeded state;
@@ -13,7 +13,11 @@
 //     if a label changes, the shot fails loudly instead of photographing the
 //     wrong thing;
 //   - target (optional): a locator for an element screenshot instead of the
-//     whole window. Panels read better cropped; whole-window shots orient.
+//     whole window. Panels read better cropped; whole-window shots orient;
+//   - clip (optional): for a part of the window that is no one element, the
+//     rectangle to cut out of it, read off the page once `prepare` is done;
+//   - instructions (live tier): what the harness tells the maintainer to set
+//     up before it takes the picture.
 //
 // A seeded settings.json cannot express every state worth a picture (#298):
 // a server that is serving, a ticket's facts, which come from a visit to its
@@ -27,12 +31,13 @@
 // What is still live-tier needs what no stand-in gives yet: setup-wizard,
 // since the self-setup chain arms on the clone-finished edge and a site that
 // was already in the registry when the app started never runs it; and the
-// shots further down that need a checkout with history in it.
+// shots further down, which need a real checkout with edits in it, an origin
+// to fetch from, or GitHub.
 
 // Where the app's controls and cards are is written down once, for the journeys
 // and for these shots alike.
 const ui = require('../../tests/e2e/helpers/ui.cjs');
-const { TICKET_FROM_TRAC } = require('./fixtures.cjs');
+const { TICKET_FROM_TRAC, LINKED_PULL_REQUESTS } = require('./fixtures.cjs');
 
 /**
  * Clicks a site in the sidebar and waits for its view to render.
@@ -57,7 +62,25 @@ async function selectSite(page, label) {
  */
 async function openReadySite(page) {
 	await selectSite(page, 'my-first-patch');
-	await page.getByText('Docs: correct the default').waitFor();
+	await page.getByText(LINKED_PULL_REQUESTS[0].title).waitFor();
+}
+
+/**
+ * A rectangle to cut out of the window, refused if any of it is outside the
+ * part of the window the page is in. A card that has grown taller than the
+ * page would otherwise be photographed with the header or the footer's
+ * buttons across it, and nothing would say so.
+ *
+ * @param {import('playwright-core').Page}                        page
+ * @param {{x: number, y: number, width: number, height: number}} clip
+ * @return {Promise<{x: number, y: number, width: number, height: number}>} The same rectangle.
+ */
+async function insideThePage(page, clip) {
+	const area = await page.locator('.site-workspace-main').boundingBox();
+	if (clip.y < area.y || clip.y + clip.height > area.y + area.height) {
+		throw new Error(`The part to photograph (${Math.round(clip.y)} to ${Math.round(clip.y + clip.height)}) does not fit in the page (${Math.round(area.y)} to ${Math.round(area.y + area.height)}). Cut less, or scroll the page first.`);
+	}
+	return clip;
 }
 
 /**
@@ -117,7 +140,7 @@ const shots = [
 			await selectSite(page, 'my-first-patch');
 			// The card under the menu has asked which pull requests cite the
 			// ticket; the picture is taken with the answer in it.
-			await page.getByText('Docs: correct the default').waitFor();
+			await page.getByText(LINKED_PULL_REQUESTS[0].title).waitFor();
 			await ui.siteMenuButton(page).click();
 			await ui.updateTrunkMenuItem(page).waitFor();
 		}
@@ -235,9 +258,11 @@ const shots = [
 			await ui.startDevServerButton(page).click();
 			await ui.stopDevServerButton(page).waitFor();
 			await page.getByText('wp-admin', { exact: true }).filter({ visible: true }).first().waitFor();
-			// The button just pressed keeps the focus, and its ring with it,
+			// The button just pressed keeps the focus and has the pointer over
+			// it, and is drawn with a ring and as if about to be pressed again,
 			// which is not what the picture is of.
 			await ui.stopDevServerButton(page).blur();
+			await page.mouse.move(0, 0);
 		}
 	},
 	{
@@ -259,7 +284,7 @@ const shots = [
 		clip: async (page) => {
 			const card = await ui.card(page, 'Trac ticket').boundingBox();
 			const next = await page.getByText('Trac attachments', { exact: true }).filter({ visible: true }).boundingBox();
-			return { x: card.x, y: card.y, width: card.width, height: next.y - 32 - card.y };
+			return insideThePage(page, { x: card.x, y: card.y, width: card.width, height: next.y - 32 - card.y });
 		},
 		prepare: async (page) => {
 			await openReadySite(page);
@@ -276,14 +301,13 @@ const shots = [
 			const card = await ui.card(page, 'Trac ticket').boundingBox();
 			const lists = await page.getByText('Linked pull requests', { exact: true }).filter({ visible: true }).boundingBox();
 			const top = lists.y - 16;
-			return { x: card.x, y: top, width: card.width, height: card.y + card.height - top };
+			return insideThePage(page, { x: card.x, y: top, width: card.width, height: card.y + card.height - top });
 		},
 		prepare: async (page) => {
 			await openReadySite(page);
 			await readTicketFromTrac(page);
 			// The page is put where the lists are whole, above the tray's
 			// buttons, before the picture is cut out of it.
-			await page.getByText('Trac attachments', { exact: true }).filter({ visible: true }).scrollIntoViewIfNeeded();
 			await ui.card(page, 'Trac ticket').evaluate((card) => card.scrollIntoView({ block: 'end' }));
 		}
 	},
