@@ -1,5 +1,7 @@
 'use strict';
 
+const { __, sprintf } = require('@wordpress/i18n');
+
 // Shared by the IPC refusals and the Apply panel; no Electron or Git imports.
 //
 // `returnTo` is a work-item branch under either namespace (#251,
@@ -21,7 +23,8 @@ function describePrCheckout({ returnTo, hasEdits = false, noun = 'ticket' }) {
 }
 
 function prSubmissionRefusal(number) {
-	return `PR #${number} is applied. Its author's commits are this checkout's history, so it cannot be submitted as your work. Revert this PR first.`;
+	// translators: %d: a pull request number.
+	return sprintf(__("PR #%d is applied. Its author's commits are this checkout's history, so it cannot be submitted as your work. Revert this PR first."), number);
 }
 
 /**
@@ -33,14 +36,18 @@ function prSubmissionRefusal(number) {
  * the way out of both.
  *
  * @param {Object}  state
- * @param {?Object} state.pullRequest       The pull request checked out, if one is.
- * @param {?Object} state.appliedPatch      The patch applied to the checkout, if one is.
- * @param {string}  state.appliedPatchLabel What the app calls that patch.
+ * @param {?Object} state.pullRequest         The pull request checked out, if one is.
+ * @param {?Object} state.appliedPatch        The patch applied to the checkout, if one is.
+ * @param {string}  [state.appliedPatchLabel] What the app calls that patch, if it has a name.
  * @return {string}
  */
 function prSubmissionBlocked({ pullRequest, appliedPatch, appliedPatchLabel }) {
 	if (pullRequest) return prSubmissionRefusal(pullRequest.number);
-	if (appliedPatch) return `Revert ${appliedPatchLabel} before opening a pull request from this checkout.`;
+	if (appliedPatch && appliedPatchLabel) {
+		// translators: %s: the name of an applied patch, such as a file name.
+		return sprintf(__('Revert %s before opening a pull request from this checkout.'), appliedPatchLabel);
+	}
+	if (appliedPatch) return __('Revert the patch you applied before opening a pull request from this checkout.');
 	return '';
 }
 

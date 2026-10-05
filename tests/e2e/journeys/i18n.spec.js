@@ -17,7 +17,8 @@ const os = require( 'node:os' );
 const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
-const { makeSite, makePatchFile } = require( '../helpers/git-site.cjs' );
+const { makeSite, makePatchFile, write, LOGIN } = require( '../helpers/git-site.cjs' );
+const { gitOk } = require( '../../unit/helpers/git.cjs' );
 const { pseudoLocalize } = require( '../../../src/renderer/pseudo-locale.cjs' );
 
 // Names that stay as they are in every language.
@@ -29,16 +30,37 @@ const CONSTANT_NAMES = /^(WP_DEBUG|SCRIPT_DEBUG)( · (WP_DEBUG|SCRIPT_DEBUG))*$/
  * Every visible text node, aria-label and placeholder inside `root` that is not
  * in the pseudo-locale.
  *
+ * A sentence with an element in it (`createInterpolateElement`: a link, or a
+ * word in bold) is several text nodes, and only the whole is bracketed. So a
+ * text node counts as translated when the element around it, past any bold,
+ * italic or code, holds one bracketed string from its first character to its
+ * last. "[Foo] bar [Baz]" is two strings with English between, and is not.
+ *
  * @param {Object} locator The region to scan.
  * @return {Promise<string[]>} The unwrapped strings.
  */
 async function unwrapped( locator ) {
 	const found = await locator.evaluate( ( root ) => {
 		const visible = ( el ) => el && el.getClientRects().length > 0 && window.getComputedStyle( el ).visibility !== 'hidden';
+		const wholeBracketed = ( text ) => {
+			if ( ! text.startsWith( '[' ) || ! text.endsWith( ']' ) ) return false;
+			let depth = 0;
+			for ( let i = 0; i < text.length; i++ ) {
+				if ( text[ i ] === '[' ) depth++;
+				else if ( text[ i ] === ']' && --depth === 0 ) return i === text.length - 1;
+			}
+			return false;
+		};
+		const sentence = ( el ) => {
+			while ( el !== root && [ 'STRONG', 'EM', 'B', 'I', 'CODE' ].includes( el.tagName ) ) el = el.parentElement;
+			return el;
+		};
 		const texts = [];
 		const walker = document.createTreeWalker( root, window.NodeFilter.SHOW_TEXT );
 		for ( let node = walker.nextNode(); node; node = walker.nextNode() ) {
-			if ( visible( node.parentElement ) ) texts.push( node.textContent.trim() );
+			if ( ! visible( node.parentElement ) ) continue;
+			if ( wholeBracketed( sentence( node.parentElement ).textContent.trim() ) ) continue;
+			texts.push( node.textContent.trim() );
 		}
 		for ( const el of root.querySelectorAll( '[aria-label], [placeholder]' ) ) {
 			if ( ! visible( el ) ) continue;
@@ -506,4 +528,104 @@ test( 'the Help menu and the native file dialogs are translated in main', async 
 		title: pseudoLocalize( 'Choose a patch file' ),
 		filters: [ { name: pseudoLocalize( 'Patch Files' ) }, { name: pseudoLocalize( 'All Files' ) } ],
 	} );
+} );
+
+/**
+ * A site with an edit to review, started in the pseudo-locale, with what Trac
+ * and GitHub would say of a ticket answered by stand-ins that say nothing.
+ *
+ * @param {Object} session
+ * @param {Object} [options]
+ * @param {string} [options.trunkDate] When the site's trunk commit was made.
+ * @param {string} [options.branch]    A branch to switch to before the app starts, recorded as starting at trunk.
+ * @return {Promise<Object>} The site, the app and the page.
+ */
+async function siteWithEdit( session, { trunkDate, branch } = {} ) {
+	const site = await makeSite( session, { trunkDate } );
+	if ( branch ) {
+		gitOk( [ 'switch', '-q', '-c', branch ], site.dir );
+		site.settings.siteMeta[ site.dir ].branches = { [ branch ]: { baseOid: site.baseOid, headOid: site.baseOid, returnTo: 'trunk' } };
+	}
+	write( site.dir, LOGIN, MY_EDIT );
+	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+	await app.evaluate( ( { ipcMain } ) => {
+		const answers = {
+			'git:list-ticket-patches': () => ( { ok: true, prs: { status: 'ok', items: [] } } ),
+			'trac:list-attachments': () => ( { ok: true, status: 'ok', ticket: null, items: [] } ),
+		};
+		for ( const [ channel, answer ] of Object.entries( answers ) ) {
+			ipcMain.removeHandler( channel );
+			ipcMain.handle( channel, answer );
+		}
+	} );
+	return { site, app, page };
+}
+
+const MY_EDIT = '<?php // my fix\n';
+
+/**
+ * Opens "Review & submit changes" and waits for its destinations.
+ *
+ * @param {Object} page
+ * @return {Promise<Object>} The dialog.
+ */
+async function openReview( page ) {
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Review & submit changes' ), exact: true } ).click();
+	const dialog = page.getByRole( 'dialog', { name: pseudoLocalize( 'Review & submit changes' ), exact: true } );
+	await expect( dialog.getByText( pseudoLocalize( 'Where this patch goes' ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	return dialog;
+}
+
+/**
+ * What is not translated in the dialog, leaving out what is not this batch's:
+ * the diff's own lines, which are the checkout's, the pull request card, which
+ * is #625's, and the Copy button, whose labels are #630's.
+ *
+ * @param {Object} dialog
+ * @return {Promise<string[]>}
+ */
+async function unwrappedInReview( dialog ) {
+	const notOurs = [
+		...await unwrapped( dialog.locator( '.patch-diff-code' ) ),
+		...await unwrapped( dialog.locator( '.destination-group' ).first() ),
+		'Copy',
+	];
+	return ( await unwrapped( dialog ) ).filter( ( text ) => ! notOurs.includes( text ) );
+}
+
+test( 'the Review & submit dialog is fully translatable: an old trunk, the diff, the mentor form, and Trac without and with a ticket', async ( { session } ) => {
+	// A trunk 30 days old, so the dialog warns about it.
+	const { site, page } = await siteWithEdit( session, { trunkDate: new Date( Date.now() - 30 * 24 * 60 * 60 * 1000 ).toISOString() } );
+
+	// No ticket linked: the Trac card asks for one.
+	let dialog = await openReview( page );
+	await expect( dialog.getByText( pseudoLocalize( "This site's WordPress code is %d days old — this patch may not apply on Trac. Consider updating to the latest trunk first." ).replace( '%d', '30' ), { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByLabel( pseudoLocalize( 'Trac ticket number or URL' ), { exact: true } ) ).toBeVisible();
+	await expect( dialog.getByRole( 'button', { name: pseudoLocalize( 'Remember this' ), exact: true } ) ).toBeVisible();
+	expect( await unwrappedInReview( dialog ) ).toEqual( [] );
+	await page.keyboard.press( 'Escape' );
+	await expect( dialog ).toHaveCount( 0 );
+
+	// A ticket linked. The edit is put back first: linking over edits asks
+	// what to do with them, and that question is #629's.
+	gitOk( [ 'checkout', '-q', '--', LOGIN ], site.dir );
+	const ticket = ui.workItemCard( page, pseudoLocalize( 'Trac ticket' ) );
+	await ticket.getByLabel( pseudoLocalize( 'Ticket number or URL' ), { exact: true } ).fill( '60001' );
+	await ticket.getByRole( 'button', { name: pseudoLocalize( 'Link ticket' ), exact: true } ).click();
+	await expect( ticket.getByRole( 'button', { name: pseudoLocalize( 'Unlink' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	write( site.dir, LOGIN, MY_EDIT );
+	dialog = await openReview( page );
+	await expect( dialog.getByRole( 'button', { name: pseudoLocalize( 'Save, then open #%d' ).replace( '%d', '60001' ), exact: true } ) ).toBeVisible();
+	await expect( dialog.getByText( pseudoLocalize( 'Your changes for ticket #%d' ).replace( '%d', '60001' ), { exact: true } ) ).toBeVisible();
+	expect( await unwrappedInReview( dialog ) ).toEqual( [] );
+} );
+
+test( 'the Review & submit dialog is fully translatable over someone else\'s pull request', async ( { session } ) => {
+	// The app reads a checked-out pull request from the branch's name.
+	const { page } = await siteWithEdit( session, { branch: 'pr/7' } );
+	const dialog = await openReview( page );
+	// The refusal and what is still allowed, one alert.
+	await expect( dialog.getByRole( 'alert' ) ).toContainText( pseudoLocalize( 'You can still use <strong>Save</strong> to keep an unattributed copy of your edits.' ).replace( /<\/?strong>/g, '' ) );
+	await expect( dialog.getByText( pseudoLocalize( 'Your changes on top of PR #%d' ).replace( '%d', '7' ), { exact: true } ) ).toBeVisible();
+	expect( await unwrappedInReview( dialog ) ).toEqual( [] );
 } );

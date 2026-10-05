@@ -1471,7 +1471,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const appliedLayer = describeAppliedLayer(appliedPatch, {
     when: appliedPatch?.appliedAt ? new Date(appliedPatch.appliedAt).toLocaleString() : ''
   });
-  const appliedPatchLabel = appliedPatch?.label || 'The patch you applied';
+  // Empty when the record has no name: each sentence has a version without one.
+  const appliedPatchLabel = appliedPatch?.label || '';
   const previewAttribution = attributeConflicts({ conflicts: applyPreview?.conflicts, appliedPatch });
   const prCheckout = pullRequest ? describePrCheckout({ ...pullRequest, noun: workItem.noun }) : null;
   // The banner's tone and headline follow the watch (#509): green only once
@@ -1638,14 +1639,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     setPatchLoadFailed(false);
     try {
       const res = await window.api.getPatch(sitePath);
-      if (res && res.ok) setPatchText((res.patch && res.patch.trim().length) ? res.patch : 'No changes.');
+      // On a failure the text is the error, which the pane words around.
+      if (res && res.ok) setPatchText(res.patch || '');
       else {
         setPatchLoadFailed(true);
-        setPatchText(res && res.error ? `Error: ${res.error}` : 'Failed to generate patch');
+        setPatchText(res && res.error ? res.error : '');
       }
     } catch (e) {
       setPatchLoadFailed(true);
-      setPatchText(`Error: ${e && e.message ? e.message : String(e)}`);
+      setPatchText(e && e.message ? e.message : String(e));
     } finally {
       setPatchLoading(false);
     }
@@ -1750,14 +1752,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
 
   // Naming destinations for a patch that does not exist would be noise, and
   // both of the states that produce one are already spelled out in the pane
-  // below: `getPatch` returns the literal 'No changes.', and its failures are
-  // put in the same box prefixed with 'Error'. The sentinel can arrive under
-  // `#` lines naming binaries that could not be carried (#85), so the test is
-  // "is there a diff under the commentary" rather than a string comparison.
+  // below: an empty patch, and a failure (`patchLoadFailed`). An empty patch
+  // can still carry `#` lines naming binaries that could not be carried (#85),
+  // so the test is "is there a diff under the commentary".
   const reviewContext = patchReviewContext({ pullRequest, tracTicket, workItemNoun: workItem.noun });
-  const patchHasChanges = Boolean(patchText)
-    && hasDiffLines(patchText)
-    && !patchText.startsWith('Error');
+  const patchHasChanges = !patchLoadFailed && hasDiffLines(patchText);
   const modalDiscardReason = discardDisabledReason({
     patchLoading,
     patchLoadFailed,
@@ -1789,7 +1788,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         return res.filePath;
       }
       if (res && res.canceled) return null;
-      setPatchSaveError(res && res.error ? res.error : 'Unknown error');
+      setPatchSaveError(res && res.error ? res.error : __('Unknown error'));
     } catch (e) {
       setPatchSaveError(e && e.message ? e.message : String(e));
     }

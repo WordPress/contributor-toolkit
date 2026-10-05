@@ -1483,7 +1483,9 @@ test('a file that differs only in line endings is still no change (#311, #85)', 
 	const { patch } = await main.invoke('git:get-patch', dir);
 	const wide = await main.invoke('git:unsubmitted-work', dir);
 
-	assert.ok(patch.endsWith('No changes.'), JSON.stringify(patch));
+	// Empty, not a sentence: the pane says "No changes." in the contributor's
+	// language (#624).
+	assert.equal(patch, '');
 	assert.deepEqual(wide.files, []);
 	assert.equal(wide.changedCount, 0);
 });
@@ -1522,7 +1524,7 @@ test('a tree whose only change is binary still reports no changes (#85)', async 
 	// What the panel actually asks before offering Trac and the other
 	// destinations — the sentinel is how it is spelled, not what is meant.
 	assert.equal(require('../../src/renderer/diff-highlight.cjs').hasDiffLines(patch), false);
-	assert.ok(patch.endsWith('No changes.'), JSON.stringify(patch));
+	assert.ok(!patch.includes('No changes.'), JSON.stringify(patch));
 });
 
 // The other two entry points into the same patch path. They differ only in what

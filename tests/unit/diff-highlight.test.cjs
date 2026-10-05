@@ -93,12 +93,10 @@ test('hasDiffLines: commentary above an empty patch is not a change (issue #85)'
 	const binaryOnly = [
 		'# 1 binary file is not in this patch — a text diff cannot carry it:',
 		'#   src/wp-includes/images/logo.png',
-		'',
-		'No changes.'
+		''
 	].join('\n');
 
 	assert.strictEqual(hasDiffLines(binaryOnly), false);
-	assert.strictEqual(hasDiffLines('No changes.'), false);
 	assert.strictEqual(hasDiffLines(''), false);
 	assert.strictEqual(hasDiffLines(null), false);
 });
