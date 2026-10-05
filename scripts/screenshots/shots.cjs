@@ -47,7 +47,7 @@ const path = require('path');
 const ui = require('../../tests/e2e/helpers/ui.cjs');
 const {
 	FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS, LINKED_TICKET,
-	EXCERPT_FILE, EXCERPT_FIXED, EXCERPT_TEST_FILE, EXCERPT_TEST
+	SUMMARY_FILE, SUMMARY_FIXED, FIXED_LINE, SUMMARY_TEST_FILE, SUMMARY_TEST
 } = require('./fixtures.cjs');
 
 // The fixture's site that is a real checkout (the `repo:` variants).
@@ -129,9 +129,9 @@ async function linkTheTicket(page) {
  * in a file trunk does not have.
  */
 function editTheCheckout() {
-	fs.writeFileSync(path.join(REPO_SITE, EXCERPT_FILE), EXCERPT_FIXED);
-	fs.mkdirSync(path.dirname(path.join(REPO_SITE, EXCERPT_TEST_FILE)), { recursive: true });
-	fs.writeFileSync(path.join(REPO_SITE, EXCERPT_TEST_FILE), EXCERPT_TEST);
+	fs.writeFileSync(path.join(REPO_SITE, SUMMARY_FILE), SUMMARY_FIXED);
+	fs.mkdirSync(path.dirname(path.join(REPO_SITE, SUMMARY_TEST_FILE)), { recursive: true });
+	fs.writeFileSync(path.join(REPO_SITE, SUMMARY_TEST_FILE), SUMMARY_TEST);
 }
 
 /**
@@ -144,7 +144,7 @@ function editTheCheckout() {
 async function openTheReview(page) {
 	await ui.reviewChangesButton(page).click();
 	const dialog = page.getByRole('dialog', { name: 'Review & submit changes' });
-	await dialog.getByText('Default 55.', { exact: false }).first().waitFor();
+	await dialog.getByText(FIXED_LINE.trim(), { exact: false }).first().waitFor();
 	return dialog;
 }
 
@@ -386,7 +386,12 @@ const shots = [
 		clip: async (page) => {
 			const column = await page.locator('.patch-destinations').boundingBox();
 			const last = await page.locator('.patch-destinations > :last-child').boundingBox();
-			return { x: column.x, y: column.y, width: column.width, height: last.y + last.height - column.y + 8 };
+			// The column scrolls where it is shorter than what is in it, and
+			// would then be photographed cut off, with nothing to say so.
+			if (last.y + last.height > column.y + column.height + 1) {
+				throw new Error(`The destinations (to ${Math.round(last.y + last.height)}) do not fit in their column (to ${Math.round(column.y + column.height)}). Ask for a taller window.`);
+			}
+			return { x: column.x, y: column.y - 8, width: column.width, height: last.y + last.height - column.y + 16 };
 		},
 		prepare: async (page) => {
 			await linkTheTicket(page);
@@ -442,8 +447,7 @@ const shots = [
 			// ends, so the card stays part of the way through.
 			await ui.siteMenuButton(page).click();
 			await ui.updateTrunkMenuItem(page).click();
-			await ui.card(page, 'Updating to latest trunk').waitFor();
-			await page.waitForTimeout(1500);
+			await ui.card(page, 'Updating to latest trunk').getByText('Rebuilding — output in the Terminal', { exact: true }).waitFor();
 		}
 	},
 

@@ -130,7 +130,12 @@ async function runFixtureTier(selected) {
 			// And of the app, not of the network that day, with no server
 			// started in a folder that holds no WordPress.
 			await standInForTheOutside(app);
-			const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+			// The size the window's page has, asked of the window and not of the
+			// page: the page hears of a resize a moment after it is made.
+			const viewport = await app.evaluate(({ BrowserWindow }) => {
+				const [width, height] = BrowserWindow.getAllWindows()[0].getContentSize();
+				return { width, height };
+			});
 			for (const shot of selected.filter((s) => s.variant === variant)) {
 				// Fresh renderer per shot: open menus and modals from the
 				// previous shot cannot leak into this one.
@@ -148,7 +153,8 @@ async function runFixtureTier(selected) {
 				// picture would be a different one in every run. The field
 				// keeps its focus ring and the spinner is drawn, standing still.
 				await page.addStyleTag({ content: '* { caret-color: transparent !important; } *, *::before, *::after { animation: none !important; }' });
-				// Let @wordpress/components' open/close animations settle.
+				// Let what the last press set going come to rest: a transition,
+				// a line of text arriving.
 				await page.waitForTimeout(300);
 				await captureShot(page, shot);
 				// What a shot started in the main process is ended before the
@@ -160,6 +166,8 @@ async function runFixtureTier(selected) {
 			}
 		} finally {
 			await app.close();
+			// The launch's profile is the harness's own, made for it.
+			fs.rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 		}
 	}
 	cleanFixtureSites();

@@ -9,11 +9,13 @@
 //     redacts logs; nothing redacts a screenshot, so the fixture path is the
 //     mitigation.
 //
-// The fake sites are empty directories (plus a canned debug.log or build
-// marker): the renderer tolerates a site whose git metadata cannot be read,
-// and what it shows of a site's age comes from the seeded settings, so no
-// real clone is needed. Nothing a shot does reaches the network or starts a
-// process in them: see standInForTheOutside.
+// Most of the fake sites are empty directories (plus a canned debug.log or
+// build marker): the renderer tolerates a site whose git metadata cannot be
+// read, and what it shows of a site's age comes from the seeded settings, so
+// no real clone is needed. The `repo:` variants' site is a real repository,
+// made here and never cloned from anywhere, for the shots that need Git to
+// have something to say. Nothing a shot does reaches the network or starts
+// a server, an install or a build: see standInForTheOutside.
 
 const fs = require('fs');
 const os = require('os');
@@ -21,7 +23,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 // The fixture layer the journeys build their sites with: the app's own Git
 // binary, so a repository made here is one the app reads as it reads a clone.
-const { gitOk, initRepo, commitFiles } = require('../../tests/unit/helpers/git.cjs');
+const { gitOk, initRepo, commitFiles, removeRepo } = require('../../tests/unit/helpers/git.cjs');
 
 // /tmp, not os.tmpdir(): on macOS os.tmpdir() is a /var/folders/... maze that
 // reads as noise in a screenshot. Windows has no /tmp, so fall back there.
@@ -59,6 +61,67 @@ const LINKED_PULL_REQUESTS = [
 	{ number: 13012, url: 'https://github.com/WordPress/wordpress-develop/pull/13012', title: 'Docs: list the values', state: 'closed', updatedAt: daysAgo(40, 12) }
 ];
 
+// The file the fixture's ticket is about, as trunk has it, and what the
+// contributor makes of it. The ticket says a filter's documentation is
+// inconsistent: the code passes 45 and the comment says 40. Written for the
+// fixture: no function or filter of WordPress's is called this.
+const SUMMARY_FILE = 'src/wp-includes/summary-length.php';
+const SUMMARY_LINES = [
+	'<?php',
+	'/**',
+	' * How long a summary may be.',
+	' *',
+	' * @package WordPress',
+	' */',
+	'',
+	'/**',
+	' * Filters how many words a summary is cut to.',
+	' *',
+	' * @since 6.9.0',
+	' *',
+	' * @param int $words How many words, at most. Default 40.',
+	' */',
+	'function example_summary_length() {',
+	"	return (int) apply_filters( 'example_summary_length', 45 );",
+	'}'
+];
+// The one line that is wrong, where it is, and the two ways of putting it
+// right: the contributor's, and the one in the patch on the ticket.
+const WRONG_LINE = SUMMARY_LINES.findIndex((line) => line.includes('Default 40.'));
+const FIXED_LINE = SUMMARY_LINES[WRONG_LINE].replace('Default 40.', 'Default 45.');
+const PATCHED_LINE = SUMMARY_LINES[WRONG_LINE].replace('Default 40.', 'Default is 45.');
+const SUMMARY_ON_TRUNK = `${SUMMARY_LINES.join('\n')}\n`;
+const SUMMARY_FIXED = `${SUMMARY_LINES.map((line, index) => (index === WRONG_LINE ? FIXED_LINE : line)).join('\n')}\n`;
+// And a test the contributor adds beside the fix: a file trunk does not have.
+const SUMMARY_TEST_FILE = 'tests/phpunit/tests/formatting/exampleSummaryLength.php';
+const SUMMARY_TEST = [
+	'<?php',
+	'',
+	'class Tests_Formatting_ExampleSummaryLength extends WP_UnitTestCase {',
+	'	public function test_default_is_45_words() {',
+	'		$this->assertSame( 45, example_summary_length() );',
+	'	}',
+	'}',
+	''
+].join('\n');
+
+// The patch attached to the ticket on Trac: someone else's fix for the same
+// line, written against trunk, with the three lines either side a patch
+// usually carries. It fits a checkout that still says 40, and not one where
+// the contributor has already changed that line. Its paths have no `src/`,
+// as a patch from Trac's days before the folder does not.
+const CONTEXT = 3;
+const TICKET_PATCH = [
+	`--- a/${SUMMARY_FILE.replace(/^src\//, '')}`,
+	`+++ b/${SUMMARY_FILE.replace(/^src\//, '')}`,
+	`@@ -${WRONG_LINE + 1 - CONTEXT},${2 * CONTEXT + 1} +${WRONG_LINE + 1 - CONTEXT},${2 * CONTEXT + 1} @@`,
+	...SUMMARY_LINES.slice(WRONG_LINE - CONTEXT, WRONG_LINE).map((line) => ` ${line}`),
+	`-${SUMMARY_LINES[WRONG_LINE]}`,
+	`+${PATCHED_LINE}`,
+	...SUMMARY_LINES.slice(WRONG_LINE + 1, WRONG_LINE + 1 + CONTEXT).map((line) => ` ${line}`),
+	''
+].join('\n');
+
 // What Trac is said to answer when the card asks for the ticket itself: its
 // facts, and the patch attached to it. The real answer is read off the
 // ticket's page in a window of its own, past Trac's human-check, which is
@@ -78,7 +141,7 @@ const TICKET_FROM_TRAC = {
 		opened: { relative: '8 weeks ago', absolute: new Date(daysAgo(56, 12)).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }) }
 	},
 	items: [
-		{ filename: `${LINKED_TICKET}.diff`, url: `https://core.trac.wordpress.org/raw-attachment/ticket/${LINKED_TICKET}/${LINKED_TICKET}.diff`, applyable: true, author: 'janedoe', dateText: '6 weeks ago', sizeText: '3.2 KB' }
+		{ filename: `${LINKED_TICKET}.diff`, url: `https://core.trac.wordpress.org/raw-attachment/ticket/${LINKED_TICKET}/${LINKED_TICKET}.diff`, applyable: true, author: 'janedoe', dateText: '6 weeks ago', sizeText: `${Buffer.byteLength(TICKET_PATCH)} bytes` }
 	]
 };
 
@@ -152,7 +215,8 @@ const DEBUG_LOG_LINES = [
  * Creates the fixture site directories and a seeded userData dir.
  *
  * @param {string} variant 'seeded' or 'debug' for a populated Core site list,
- *                         'gutenberg' for a ready Gutenberg site, or 'empty' for a first-launch app.
+ *                         'gutenberg' for a ready Gutenberg site, 'empty' for a first-launch app,
+ *                         or 'repo:<slug>' for one site that is a real checkout.
  * @return {{userDataDir: string, sites: Object<string,string>}} Paths the
  *         harness needs: where the app's state lives and where each fake site is.
  */
@@ -264,58 +328,6 @@ function writeSettings(userDataDir, settings) {
 	);
 }
 
-// The file the fixture's ticket is about, as trunk has it, and what the
-// contributor makes of it. The ticket says a filter's documentation is
-// inconsistent; the code passes 55 and the comment says 50.
-const EXCERPT_FILE = 'src/wp-includes/excerpt-length.php';
-const EXCERPT_ON_TRUNK = [
-	'<?php',
-	'/**',
-	' * How long an excerpt may be.',
-	' *',
-	' * @package WordPress',
-	' */',
-	'',
-	'/**',
-	' * Filters the number of words in an excerpt.',
-	' *',
-	' * @since 2.7.0',
-	' *',
-	' * @param int $number The maximum number of words. Default 50.',
-	' */',
-	'function example_excerpt_length() {',
-	"	return (int) apply_filters( 'example_excerpt_length', 55 );",
-	'}',
-	''
-].join('\n');
-const EXCERPT_FIXED = EXCERPT_ON_TRUNK.replace('Default 50.', 'Default 55.');
-// And a test the contributor adds beside the fix: a file trunk does not have.
-const EXCERPT_TEST_FILE = 'tests/phpunit/tests/formatting/exampleExcerptLength.php';
-const EXCERPT_TEST = [
-	'<?php',
-	'',
-	'class Tests_Formatting_ExampleExcerptLength extends WP_UnitTestCase {',
-	'	public function test_default_is_55_words() {',
-	'		$this->assertSame( 55, example_excerpt_length() );',
-	'	}',
-	'}',
-	''
-].join('\n');
-
-// The patch attached to the ticket on Trac: someone else's fix for the same
-// line, written against trunk. It fits a checkout that still says 50, and
-// not one where the contributor has already changed that line.
-const TICKET_PATCH = [
-	`--- a/${EXCERPT_FILE.replace(/^src\//, '')}`,
-	`+++ b/${EXCERPT_FILE.replace(/^src\//, '')}`,
-	'@@ -11,3 +11,3 @@',
-	' *',
-	'- * @param int $number The maximum number of words. Default 50.',
-	'+ * @param int $number The maximum number of words. Default is 55.',
-	' */',
-	''
-].join('\n');
-
 /**
  * A site that is a real checkout: one commit on trunk, what `site:status`
  * reads as installed and built, and nothing linked. The shots that need a
@@ -335,12 +347,12 @@ const TICKET_PATCH = [
  */
 function buildRepoFixture(userDataDir, variant) {
 	const readySite = path.join(FIXTURE_ROOT, 'my-first-patch');
-	fs.mkdirSync(path.dirname(path.join(readySite, EXCERPT_FILE)), { recursive: true });
+	fs.mkdirSync(path.dirname(path.join(readySite, SUMMARY_FILE)), { recursive: true });
 	initRepo(readySite, { branch: 'trunk' });
 	const tracked = {
 		'.gitignore': 'node_modules/\nbuild/\n',
 		'package.json': JSON.stringify({ name: 'wordpress-develop', version: '7.2.0', private: true, scripts: { build: 'node -e ""' } }, null, 2) + '\n',
-		[EXCERPT_FILE]: EXCERPT_ON_TRUNK
+		[SUMMARY_FILE]: SUMMARY_ON_TRUNK
 	};
 	for (const [file, content] of Object.entries(tracked)) {
 		fs.writeFileSync(path.join(readySite, file), content);
@@ -365,16 +377,20 @@ function buildRepoFixture(userDataDir, variant) {
 	writeSettings(userDataDir, {
 		sites: [readySite],
 		siteMeta: {
-			[readySite]: { ...FRESH, label: 'my-first-patch', skipInitWizard: true }
+			[readySite]: { ...FRESH, initialized: true, label: 'my-first-patch', skipInitWizard: true }
 		},
 		preferences: { wporgHandle: 'contributor', contributionEvent: 'WordCamp Example 2026' }
 	});
 	return { userDataDir, sites: { readySite } };
 }
 
-/** Removes the fixture site directories. userData dirs live under os.tmpdir() and are left to the OS. */
+/**
+ * Removes the fixture site directories. With `removeRepo`: some of them are
+ * repositories, whose objects Git writes read-only, and a plain removal is
+ * refused on Windows (#381).
+ */
 function cleanFixtureSites() {
-	fs.rmSync(FIXTURE_ROOT, { recursive: true, force: true });
+	removeRepo(FIXTURE_ROOT);
 }
 
-module.exports = { standInForTheOutside, buildFixture, cleanFixtureSites, FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS, LINKED_TICKET, EXCERPT_FILE, EXCERPT_FIXED, EXCERPT_TEST_FILE, EXCERPT_TEST };
+module.exports = { standInForTheOutside, buildFixture, cleanFixtureSites, FIXTURE_ROOT, TICKET_FROM_TRAC, LINKED_PULL_REQUESTS, LINKED_TICKET, SUMMARY_FILE, SUMMARY_FIXED, FIXED_LINE, SUMMARY_TEST_FILE, SUMMARY_TEST };
