@@ -486,9 +486,11 @@ body {
 
 /* A tray's button, and on the Logs button's corner the count of lines not
    yet seen (#558). The count is over the button's corner and not beside the
-   button, so that its coming and going moves nothing, and it is clear of
-   what the icon draws. It takes no press of its own: a press on it is a
-   press on what is under it. */
+   button, so that its coming and going moves nothing. It sits in the room
+   the footer leaves above its buttons, as tall as that room and no taller,
+   so that however wide it is it is clear of what the icons draw, this
+   button's and the next one's. It takes no press of its own: a press on it
+   is a press on what is under it. */
 .app-footer-tray {
   position: relative;
   display: flex;
@@ -496,10 +498,14 @@ body {
 
 .app-footer-tray-note {
   position: absolute;
-  inset-block-start: -6px;
-  inset-inline-start: calc(100% - 10px);
+  inset-block-start: calc(-1 * var(--wpds-dimension-padding-sm));
+  inset-inline-start: calc(100% - var(--wpds-dimension-padding-md));
   display: flex;
   pointer-events: none;
+}
+
+.app-footer-count {
+  padding-block: 0;
 }
 
 .app-footer-feedback {
@@ -1037,21 +1043,33 @@ body {
 /* The mail the site sent: a framed list, one row a message, each row a
    button. */
 .mail-list {
-  max-height: 220px;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
   overflow: auto;
-  border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
-  border-radius: var(--wpds-border-radius-md);
+  list-style: none;
+  background: var(--wpds-color-background-surface-neutral-weak);
 }
 
+/* A mail's row is a button, drawn as a row of a list and not as a button:
+   when it was sent, who from, and its subject, which is what it is known
+   by. It starts where the tray's heading does. */
 .mail-row {
   display: flex;
   gap: var(--wpds-dimension-gap-sm);
-  padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
-  cursor: var(--wpds-cursor-control);
+  width: 100%;
+  padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-2xl);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
   font-size: var(--wpds-typography-font-size-sm);
+  text-align: start;
+  cursor: var(--wpds-cursor-control);
 }
 
-.mail-row + .mail-row {
+.mail-list > li + li {
   border-block-start: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
 }
 
@@ -1087,7 +1105,7 @@ body {
 
 .mail-empty {
   display: block;
-  padding: var(--wpds-dimension-padding-md);
+  padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-2xl);
 }
 
 /* The window's confirmations (#253, #557): notices stacked in the bottom

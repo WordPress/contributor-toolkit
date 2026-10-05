@@ -1,12 +1,12 @@
 import { Button as LinkButton, Dropdown, createSlotFill } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { listView, preformatted } from '@wordpress/icons';
+import { envelope, listView, preformatted } from '@wordpress/icons';
 import { Badge, Button, IconButton, VisuallyHidden } from '@wordpress/ui';
 import { unseenLinesNote } from '../debug-log.cjs';
 import { TRAY_ID } from './bottom-tray.jsx';
 
 // What each tray's button is drawn with.
-const TRAY_ICONS = { terminal: preformatted, logs: listView };
+const TRAY_ICONS = { terminal: preformatted, logs: listView, email: envelope };
 
 // The footer is the window's and what the Logs button has to say is a site's,
 // the same split as the tray's (#558): the footer leaves a slot on the button
@@ -31,7 +31,7 @@ export function LogsToggleNote({ count }) {
   if (!note) return null;
   return (
     <Fill>
-      <Badge intent="informational" aria-hidden="true">{note.badge}</Badge>
+      <Badge intent="informational" className="app-footer-count" aria-hidden="true">{note.badge}</Badge>
       <VisuallyHidden render={<span />}>{note.note}</VisuallyHidden>
     </Fill>
   );

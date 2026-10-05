@@ -31,6 +31,7 @@ test( 'each tray has an id of its own, a heading and a name for its button', () 
 	assert.deepEqual( trays, [
 		{ id: 'terminal', title: 'Terminal', toggle: 'Toggle Terminal' },
 		{ id: 'logs', title: 'Logs', toggle: 'Toggle Logs' },
+		{ id: 'email', title: 'Email', toggle: 'Toggle Email' },
 	] );
 } );
 
@@ -47,6 +48,10 @@ test( 'asked for by the app, the terminal takes the tray whatever is in it, and 
 	assert.equal( trayAfterReveal( null, 'logs' ), 'logs' );
 	assert.equal( trayAfterReveal( 'logs', 'logs' ), 'logs' );
 	assert.equal( trayAfterReveal( 'terminal', 'logs' ), 'terminal' );
+	// Nor the mail's, where someone may be about to open one; and the
+	// terminal takes the mail's place as it takes the logs'.
+	assert.equal( trayAfterReveal( 'email', 'logs' ), 'email' );
+	assert.equal( trayAfterReveal( 'email', 'terminal' ), 'terminal' );
 } );
 
 test( 'the tray is never taller than half the window, and never shorter than its floor while the window has room', () => {

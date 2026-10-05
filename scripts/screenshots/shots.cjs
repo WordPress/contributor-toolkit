@@ -172,10 +172,11 @@ const shots = [
 		slug: 'mail-panel',
 		tier: 'fixture',
 		variant: 'seeded',
-		target: (page) => page.getByText('Welcome to WordPress Contributor Day').locator('../..'),
+		target: (page) => ui.tray(page, 'Email'),
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
 			await ui.startDevServerButton(page).click();
+			await ui.openTray(page, 'Email');
 			await page.getByText('Welcome to WordPress Contributor Day').filter({ visible: true }).waitFor();
 		}
 	},

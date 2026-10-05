@@ -34,6 +34,8 @@ const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite, advanceOrigin } = require( '../helpers/git-site.cjs' );
 const { DEFAULT_TRAY_HEIGHT, MIN_TRAY_HEIGHT, TRAY_KEY_STEP, trayHeightLimits } = require( '../../../src/renderer/tray.cjs' );
+const { applyCardWords } = require( '../../../src/renderer/apply-card.cjs' );
+const { noMailNote } = require( '../../../src/renderer/site-mail.cjs' );
 
 // What the terminal has drawn. It has no role of its own, so it is found by
 // the element xterm draws its rows in, inside the tray.
@@ -108,16 +110,17 @@ test( 'the tray is closed until the footer opens it, shows the open site\'s own 
 	await expect( terminalScreen( page ) ).toContainText( 'WordPress npm helper terminal.' );
 
 	// INVARIANT — the tray takes its room from the page and covers none of
-	// it: the last thing on the page can still be brought wholly into view,
-	// above the tray.
+	// it: the last thing in the cards can still be brought wholly into view,
+	// above the tray. The last line of the last card, and not the card: on a
+	// small screen the page above an open tray is shorter than a card.
 	// Asked until it is so: the page moves as its cards arrive.
-	const lastCard = ui.card( page, 'Mail' );
-	await lastCard.scrollIntoViewIfNeeded();
-	await expect( lastCard ).toBeInViewport( { ratio: 1 } );
+	const lastLine = ui.card( page, 'Apply a patch or PR' ).getByText( applyCardWords( true ).prHelp, { exact: true } );
+	await lastLine.scrollIntoViewIfNeeded();
+	await expect( lastLine ).toBeInViewport( { ratio: 1 } );
 	await expect.poll( async () => {
-		const cardBox = await lastCard.boundingBox();
+		const lineBox = await lastLine.boundingBox();
 		const trayBox = await tray.boundingBox();
-		return trayBox.y - ( cardBox.y + cardBox.height );
+		return trayBox.y - ( lineBox.y + lineBox.height );
 	} ).toBeGreaterThanOrEqual( 0 );
 
 	// INVARIANT — a confirmation, which is drawn in the corner the tray
@@ -167,6 +170,11 @@ test( 'the tray is closed until the footer opens it, shows the open site\'s own 
 	await toggle.click();
 	await expect( tray ).toHaveCount( 0 );
 	await expect( toggle ).toHaveAttribute( 'aria-pressed', 'false' );
+
+	// INVARIANT — what a tray has in its heading is the open site's as well:
+	// with two sites in the window the mail has one button to empty it.
+	const email = await ui.openTray( page, 'Email' );
+	await expect( email.getByRole( 'button', { name: 'Clear emails', exact: true } ) ).toHaveCount( 1 );
 } );
 
 test( 'the tray\'s edge is moved with the arrow keys and with a pointer, stays inside its limits, and the terminal is fitted to the room', async ( { session } ) => {
@@ -582,6 +590,17 @@ test( 'a build that fails with its output in the logs brings the logs up, on the
 	await expect( logs ).toHaveCount( 0 );
 	await ui.openTray( page, 'Logs' );
 	await expect( ui.logTab( page, 'Build watch (exited 1)' ) ).toHaveAttribute( 'aria-selected', 'true' );
+
+	// INVARIANT — nor the mail's, where someone may be about to open one:
+	// the logs come up only in a tray that is closed or already theirs.
+	await ui.startBuildWatchButton( page ).click();
+	await expect.poll( scripts.asked ).toEqual( [ 'build', 'build', 'build', 'build' ] );
+	const email = await ui.openTray( page, 'Email' );
+	await scripts.ends( 4, 1 );
+	await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
+	await scripts.heard();
+	await expect( email ).toBeVisible();
+	await expect( logs ).toHaveCount( 0 );
 } );
 
 test( 'a site that could not be deleted does not bring the logs up later for a watch its deletion ended', async ( { session } ) => {
@@ -637,17 +656,25 @@ test( 'a site that could not be deleted does not bring the logs up later for a w
 	await expect( ui.tray( page, 'Terminal' ) ).toHaveCount( 0 );
 } );
 
-test( 'the tray holds one thing at a time: each footer button puts its own in it, in the other\'s place', async ( { session } ) => {
+test( 'the tray holds one thing at a time: each footer button puts its own in it, in the others\' place', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings );
 	const terminal = ui.tray( page, 'Terminal' );
 	const logs = ui.tray( page, 'Logs' );
+	const email = ui.tray( page, 'Email' );
+	// What is the mail's alone: what its list says while it is empty, and
+	// the button in the tray's heading that empties it. The list is in the
+	// document while the tray shows something else, as each site's terminal
+	// is, and is not on screen; the button is there only with the mail.
+	const noMail = page.getByText( noMailNote(), { exact: true } );
+	const clearEmails = page.getByRole( 'button', { name: 'Clear emails', exact: true } );
 	const pressed = async () => ( {
 		terminal: await ui.trayToggle( page, 'Terminal' ).getAttribute( 'aria-pressed' ),
 		logs: await ui.trayToggle( page, 'Logs' ).getAttribute( 'aria-pressed' ),
+		email: await ui.trayToggle( page, 'Email' ).getAttribute( 'aria-pressed' ),
 	} );
 	await expect( ui.trayToggle( page, 'Logs' ) ).toBeVisible( { timeout: 30_000 } );
-	expect( await pressed() ).toEqual( { terminal: 'false', logs: 'false' } );
+	expect( await pressed() ).toEqual( { terminal: 'false', logs: 'false', email: 'false' } );
 
 	// INVARIANT — the logs' button opens the tray on the logs: named and
 	// headed for them, with their tabs, and the terminal's button not pressed.
@@ -656,7 +683,9 @@ test( 'the tray holds one thing at a time: each footer button puts its own in it
 	await expect( logs.getByRole( 'heading', { level: 2, name: 'Logs', exact: true } ) ).toBeVisible();
 	await expect( ui.logTab( page, 'Server' ) ).toBeVisible();
 	await expect( terminal ).toHaveCount( 0 );
-	expect( await pressed() ).toEqual( { terminal: 'false', logs: 'true' } );
+	await expect( noMail ).toBeHidden();
+	await expect( clearEmails ).toHaveCount( 0 );
+	expect( await pressed() ).toEqual( { terminal: 'false', logs: 'true', email: 'false' } );
 
 	// INVARIANT — the terminal's button, pressed while the logs show, puts
 	// the terminal there in their place: one tray, and one button pressed.
@@ -665,7 +694,24 @@ test( 'the tray holds one thing at a time: each footer button puts its own in it
 	await expect( terminalScreen( page ) ).toContainText( 'WordPress npm helper terminal.' );
 	await expect( logs ).toHaveCount( 0 );
 	await expect( ui.logTab( page, 'Server' ) ).toHaveCount( 0 );
-	expect( await pressed() ).toEqual( { terminal: 'true', logs: 'false' } );
+	await expect( noMail ).toBeHidden();
+	await expect( clearEmails ).toHaveCount( 0 );
+	expect( await pressed() ).toEqual( { terminal: 'true', logs: 'false', email: 'false' } );
+
+	// INVARIANT — and the mail's button puts the mail there: named and
+	// headed for it, with what is done to the whole of it in the tray's
+	// heading, and neither the terminal nor the logs' tabs with it.
+	await ui.trayToggle( page, 'Email' ).click();
+	await expect( email ).toBeVisible();
+	await expect( email.getByRole( 'heading', { level: 2, name: 'Email', exact: true } ) ).toBeVisible();
+	await expect( noMail ).toBeVisible();
+	await expect( email.getByRole( 'button', { name: 'Clear emails', exact: true } ) ).toBeVisible();
+	await expect( terminal ).toHaveCount( 0 );
+	await expect( terminalScreen( page ) ).toHaveCount( 0 );
+	await expect( ui.logTab( page, 'Server' ) ).toHaveCount( 0 );
+	expect( await pressed() ).toEqual( { terminal: 'false', logs: 'false', email: 'true' } );
+	await ui.trayToggle( page, 'Terminal' ).click();
+	await expect( terminal ).toBeVisible();
 
 	// INVARIANT — and back, the tray is as tall as it was left: its height
 	// is the tray's, whichever it holds.
@@ -682,5 +728,5 @@ test( 'the tray holds one thing at a time: each footer button puts its own in it
 	await logs.getByRole( 'button', { name: 'Close', exact: true } ).click();
 	await expect( logs ).toHaveCount( 0 );
 	await expect( ui.trayToggle( page, 'Logs' ) ).toBeFocused();
-	expect( await pressed() ).toEqual( { terminal: 'false', logs: 'false' } );
+	expect( await pressed() ).toEqual( { terminal: 'false', logs: 'false', email: 'false' } );
 } );
