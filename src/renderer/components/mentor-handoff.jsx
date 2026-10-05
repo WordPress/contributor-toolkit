@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button, TextControl } from '@wordpress/components';
+import { Text } from '@wordpress/ui';
 import { Destination } from './destination.jsx';
 
 // "Hand it to a mentor": the one destination for a patch that needs no account
@@ -58,7 +59,7 @@ export function MentorHandoff({ wporg, saveDisabled, onSave }) {
     >
       {wporg?.handle && !editingHandle ? (
         <>
-          <Button variant="primary" onClick={onSave} disabled={saveDisabled} style={{ justifyContent:'center' }}>
+          <Button variant="primary" onClick={onSave} disabled={saveDisabled}>
             Save patch as {wporg.handle}
           </Button>
           {/*
@@ -66,25 +67,26 @@ export function MentorHandoff({ wporg, saveDisabled, onSave }) {
             it is set: a remembered WordCamp from last year would
             otherwise keep stamping patches with nobody seeing it.
           */}
-          <div style={{ fontSize:12, color:'#6c6f72' }}>
+          <Text variant="body-sm" className="muted-label">
             {wporg.event ? <>The patch will say it was written at <strong>{wporg.event}</strong>.</> : 'No event on the patch.'}
-          </div>
-          <Button
-            variant="link"
-            onClick={() => {
-              setHandleInput(wporg.handle);
-              setEventInput(wporg.event || '');
-              setHandleError('');
-              setEditingHandle(true);
-            }}
-            style={{ fontSize:12 }}
-          >Change these</Button>
+          </Text>
+          <Text variant="body-sm">
+            <Button
+              variant="link"
+              onClick={() => {
+                setHandleInput(wporg.handle);
+                setEventInput(wporg.event || '');
+                setHandleError('');
+                setEditingHandle(true);
+              }}
+            >Change these</Button>
+          </Text>
         </>
       ) : (
         <>
-          <div style={{ fontSize:12, color:'#6c6f72' }}>
+          <Text variant="body-sm" className="muted-label">
             Asked once and remembered for every site — these are facts about you, not about this checkout.
-          </div>
+          </Text>
           <TextControl
             value={handleInput}
             onChange={(value) => { setHandleInput(value); setHandleError(''); }}
@@ -111,9 +113,8 @@ export function MentorHandoff({ wporg, saveDisabled, onSave }) {
             // Before the first answer it would just be a button
             // that does nothing.
             disabled={handleSaving || (!handleInput.trim() && !wporg?.handle)}
-            style={{ justifyContent:'center' }}
           >Remember this</Button>
-          {handleError ? <div role="alert" style={{ color:'#d63638', fontSize:12 }}>{handleError}</div> : null}
+          {handleError ? <Text variant="body-sm" className="problem-text" role="alert">{handleError}</Text> : null}
         </>
       )}
     </Destination>

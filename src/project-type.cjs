@@ -28,9 +28,10 @@ const PROJECT_TYPES = {
 	core: {
 		id: 'core',
 		label: 'WordPress Core',
-		// The pill on a site's sidebar row and header. Short, because the row
-		// is narrow and the CSS upper-cases it; every site wears one, so a
-		// list of mixed sites reads at a glance.
+		// The badge beside a site's name in the page's header, and the line
+		// under its name in the sites list. Short, because the list is
+		// narrow; every site wears one, so a list of mixed sites reads at a
+		// glance.
 		tag: 'Core',
 		// The option label shown in the create-site wizard picker, and the
 		// line under it. They say what the app does with the site today, not
@@ -73,7 +74,7 @@ const PROJECT_TYPES = {
 			cloneLabel: 'Download WordPress development version',
 			cloneDescription: 'Clone the WordPress develop repository.',
 			buildDescription: 'Compile WordPress Core to generate the dist files. Later updates rebuild automatically.',
-			builtDescription: 'Built. Edited files in src/ since? Run npm run build in the Terminal below so the site picks them up — updates and applied patches rebuild on their own.',
+			builtDescription: 'Built. Edited files in src/ since? Run npm run build in the Terminal so the site picks them up — updates and applied patches rebuild on their own.',
 			serverDescription: 'Launch the development server once to complete the WordPress setup wizard.'
 		},
 
@@ -107,8 +108,6 @@ const PROJECT_TYPES = {
 				linkLabel: 'The handbook page on pull requests',
 				linkUrl: 'https://make.wordpress.org/core/handbook/contribute/git/github-pull-requests-for-code-review/'
 			},
-			applyHeading: 'Apply a patch or PR',
-			applyDescription: 'Pull requests are checked out with their author\u2019s commits. A .diff/.patch file is applied to the current branch as a removable layer.',
 			// Where a contributor edits, named by the hint under the terminal
 			// ("Edited files in src/? Run npm run build"). Core's source is
 			// src/; Gutenberg's is its packages (#490).
@@ -130,10 +129,12 @@ const PROJECT_TYPES = {
 			// The local branch a work item gets its own namespace under. Core's
 			// is `ticket/`, unchanged since #108, so no existing site moves.
 			branchPrefix: 'ticket/',
-			// What the panel calls it, and where a newcomer goes to find one.
+			// What the app calls it outside its card, in the next step's sentence
+			// and in the refusal to open a pull request with none linked, and
+			// where a newcomer goes to find one. The card's own words are in
+			// renderer/ticket-card.cjs.
 			label: 'Trac ticket',
-			browseUrl: 'https://core.trac.wordpress.org/tickets/good-first-bugs',
-			browseLabel: 'Browse good first bugs on Trac'
+			browseUrl: 'https://core.trac.wordpress.org/tickets/good-first-bugs'
 		},
 
 		pr: {
@@ -201,8 +202,6 @@ const PROJECT_TYPES = {
 				linkLabel: 'The Gutenberg contributing guide',
 				linkUrl: 'https://github.com/WordPress/gutenberg/blob/trunk/CONTRIBUTING.md'
 			},
-			applyHeading: 'Check out a pull request',
-			applyDescription: 'Pull requests are checked out with their author\u2019s commits.',
 			sourceDir: 'packages/',
 			patchFiles: false
 		},
@@ -211,7 +210,7 @@ const PROJECT_TYPES = {
 			cloneLabel: 'Download Gutenberg',
 			cloneDescription: 'Clone the Gutenberg repository.',
 			buildDescription: 'Compile the Gutenberg packages. Later updates rebuild automatically.',
-			builtDescription: 'Built. Edited a package since? Run npm run build in the Terminal below so the site picks it up; updates rebuild on their own.',
+			builtDescription: 'Built. Edited a package since? Run npm run build in the Terminal so the site picks it up; updates rebuild on their own.',
 			serverDescription: 'Launch a WordPress with this checkout as its Gutenberg plugin, once, to finish the setup.'
 		},
 
@@ -231,8 +230,7 @@ const PROJECT_TYPES = {
 			// cannot end up with two namespaces meaning the same thing.
 			branchPrefix: 'issue/',
 			label: 'GitHub issue',
-			browseUrl: 'https://github.com/WordPress/gutenberg/issues?q=is%3Aissue+is%3Aopen+label%3A%22Good+First+Issue%22',
-			browseLabel: 'Browse good first issues on GitHub'
+			browseUrl: 'https://github.com/WordPress/gutenberg/issues?q=is%3Aissue+is%3Aopen+label%3A%22Good+First+Issue%22'
 		},
 
 		pr: {

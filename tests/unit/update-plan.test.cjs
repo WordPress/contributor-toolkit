@@ -48,14 +48,20 @@ test('trunkAgeInfo: missing or invalid dates are never stale (issue #94)', () =>
 		assert.strictEqual(info.known, false, `trunkDate=${String(trunkDate)}`);
 		assert.strictEqual(info.stale, false);
 		assert.strictEqual(info.ageDays, null);
-		assert.strictEqual(info.label, '');
+		assert.strictEqual(info.dateLabel, '');
 	}
 });
 
-test('trunkAgeInfo: label names the snapshot date (issue #94)', () => {
+test('trunkAgeInfo: the date is given by itself, for the label the details put before it (#556)', () => {
+	const info = trunkAgeInfo({ trunkDate: daysAgo(3), now: NOW });
+	assert.match(info.dateLabel, /\d{4}/);
+	assert.doesNotMatch(info.dateLabel, /trunk as of/);
+	assert.strictEqual(trunkAgeInfo({ now: NOW }).dateLabel, '');
+});
+
+test('trunkAgeInfo: the date is the snapshot\'s (issue #94)', () => {
 	const info = trunkAgeInfo({ trunkDate: '2026-06-12T00:00:00Z', now: NOW });
-	assert.match(info.label, /^trunk as of /);
-	assert.match(info.label, /2026/);
+	assert.match(info.dateLabel, /2026/);
 });
 
 test('trunkAgeInfo: a future date clamps to age 0, not negative (issue #94)', () => {
@@ -85,7 +91,7 @@ test('planUpdateSteps: the build step names the resumed watch while current, and
 	const steps = planUpdateSteps({ lockfileChanged: false, buildByWatcher: 'resumed-watch' });
 	assert.strictEqual(steps[2].skipped, false);
 	assert.strictEqual(steps[2].currentMessage, UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE);
-	assert.match(UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE, /Build watcher tab/);
+	assert.match(UPDATE_BUILD_BY_RESUMED_WATCH_MESSAGE, /in the Logs, under Build watch/);
 	const statuses = updateStepStatuses(steps, 'building');
 	assert.strictEqual(statuses[2].status, 'current');
 });
@@ -96,7 +102,7 @@ test('updateStepText: the build step names the resumed watch only while current 
 	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'pending' }), 'Rebuild');
 	assert.strictEqual(updateStepText(steps, { key: 'build', status: 'complete' }), 'Rebuilt');
 	const own = planUpdateSteps({ lockfileChanged: false });
-	assert.strictEqual(updateStepText(own, { key: 'build', status: 'current' }), 'Rebuilding — output in the Terminal below');
+	assert.strictEqual(updateStepText(own, { key: 'build', status: 'current' }), 'Rebuilding — output in the Terminal');
 });
 
 test('updateStepText: every step has a line for every status, and unknowns fall back rather than blank (#507)', () => {

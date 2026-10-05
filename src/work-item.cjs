@@ -12,10 +12,14 @@
  * had to change to gain the other.
  *
  * The split with project-type.cjs: the registry holds what is true of one
- * target (`workItem.label`, `browseUrl`, `browseLabel` — a site's own words),
- * this module holds what is true of one kind of work item (how to parse a
- * reference, where it lives, whether it takes attachments). A second Trac-based
- * target would reuse this provider and bring its own registry entry.
+ * target (`workItem.label`, which the next step's sentence and the refusal
+ * to open a pull request with none linked name it by, and `browseUrl`, where
+ * a newcomer finds one), this module holds what is true of
+ * one kind of work item (how to parse a reference, where it lives, whether it
+ * takes attachments). A second Trac-based target would reuse this provider
+ * and bring its own registry entry. What the work-item card itself says is in
+ * renderer/ticket-card.cjs, by kind of work item, since #557: its sentences
+ * are translated whole, which a label handed in from here could not be.
  *
  * Pure and dependency-free (both parsers are too), so `node --test` requires it
  * directly and the renderer bundles it.
@@ -33,18 +37,13 @@ const { parseIssueRef, issueUrl } = require('./renderer/github-issue.cjs');
  *
  * @param {string} provider   'trac' (default) or 'github-issue'.
  * @param {string} [repoPath] `owner/repo`, for the GitHub provider.
- * @return {{kind: string, noun: string, refPlaceholder: string, refLabel: string, openLabel: string, defaultPrTitle: Function, parseRef: Function, urlFor: Function, attachUrlFor: (Function|null)}}
+ * @return {{kind: string, noun: string, defaultPrTitle: Function, parseRef: Function, urlFor: Function, attachUrlFor: (Function|null)}}
  */
 function workItemProvider(provider, repoPath) {
 	if (provider === 'github-issue') {
 		return {
 			kind: 'github-issue',
 			noun: 'issue',
-			refPlaceholder: 'Issue number or URL, e.g. 71234',
-			// The field's accessible name; the journeys find the field by it.
-			refLabel: 'GitHub issue number or URL',
-			// The card's link to the work item itself, worded for where it is.
-			openLabel: 'Open on GitHub',
 			// The pull request's title when the contributor leaves the field
 			// empty. It lives on the provider because the handler that sends it
 			// and the hint that promises it need the same string: written apart,
@@ -63,9 +62,6 @@ function workItemProvider(provider, repoPath) {
 	return {
 		kind: 'trac',
 		noun: 'ticket',
-		refPlaceholder: 'Ticket number or URL, e.g. 62281',
-		refLabel: 'Trac ticket number or URL',
-		openLabel: 'Open in Trac',
 		defaultPrTitle: (id) => `Ticket #${id}`,
 		parseRef: parseTicketRef,
 		urlFor: ticketUrl,

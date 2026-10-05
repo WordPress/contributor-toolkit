@@ -23,7 +23,7 @@ test('the .pot holds the first-run screen and has no call it cannot extract', (t
 	const { output, problems } = generatePot({ output: path.join(tempDir(t), 'toolkit.pot') });
 	assert.deepEqual(problems, []);
 	const pot = fs.readFileSync(output, 'utf8');
-	for (const msgid of ['No sites yet.', 'Create a site', 'Use the sidebar to create your first site.']) {
+	for (const msgid of ['No sites', 'Create site', 'Create your first site to begin contributing']) {
 		assert.ok(pot.includes(`msgid "${msgid}"`), `${msgid} is in the .pot`);
 	}
 	// The header names the encoding, so the non-ASCII strings import intact.

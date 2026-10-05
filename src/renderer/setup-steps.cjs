@@ -158,6 +158,27 @@ function setupStepLabel(status, isRunning) {
 }
 
 /**
+ * The colour a step's state is said in, as a badge's intent (#557): green
+ * for one that is done, red for one that failed, blue for the one that is
+ * next or under way, and none of them for one still waiting its turn.
+ *
+ * @param {string} status One of complete|failed|current|pending|locked.
+ * @return {string} A badge's intent.
+ */
+function setupStepBadge(status) {
+	switch (status) {
+		case 'complete':
+			return 'stable';
+		case 'failed':
+			return 'high';
+		case 'current':
+			return 'informational';
+		default:
+			return 'draft';
+	}
+}
+
+/**
  * The button label and description on the install and build steps.
  *
  * Both read differently in four situations — not started, running, done, and
@@ -187,11 +208,11 @@ function setupStepCopy(flags = {}, setup = getProjectType().setup) {
 	if (state.install.done) {
 		// Once done, this button never re-enables (#182), so the step says where a
 		// later install lives rather than leaving a dead control unexplained.
-		installDescription = 'Installed. Added a dependency to package.json since? Run npm install in the Terminal below.';
+		installDescription = 'Installed. Added a dependency to package.json since? Run npm install in the Terminal.';
 	} else if (state.install.failed) {
 		// A failure the contributor did not start (the chain runs install on its
 		// own now) has to say where the evidence is, or "Failed" is all they get.
-		installDescription = 'The install did not finish. Its output is in the Terminal below — retry when you have read it.';
+		installDescription = 'The install did not finish. Its output is in the Terminal — retry when you have read it.';
 	}
 
 	let buildLabel = 'Run full build';
@@ -202,7 +223,7 @@ function setupStepCopy(flags = {}, setup = getProjectType().setup) {
 	if (hasBuilt) {
 		buildDescription = setup.builtDescription;
 	} else if (state.build.failed) {
-		buildDescription = 'The build did not finish. Its output is in the Terminal below — retry when you have read it.';
+		buildDescription = 'The build did not finish. Its output is in the Terminal — retry when you have read it.';
 	}
 
 	return { installLabel, installDescription, buildLabel, buildDescription };
@@ -251,5 +272,6 @@ module.exports = {
 	setupStepStatuses,
 	setupStepCopy,
 	setupAutoStartDecision,
-	setupStepLabel
+	setupStepLabel,
+	setupStepBadge
 };

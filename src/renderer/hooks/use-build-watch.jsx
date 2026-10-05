@@ -16,8 +16,10 @@ import { createWatchActivity } from '../watch-activity.cjs';
 // terminal's lock, its kill handler and the function that moves it are
 // arguments. `runScript` and `killCurrent` are the site's script runner,
 // `markBuildInterrupted` records that a rebuild was cut short, `appendWatch`
-// and `selectLogTab` are the watch's pane in the Logs panel, `projectBuild` is
-// the project's build plan and `hasBuilt` whether the site has a build.
+// and `selectLogTab` are the watch's pane in the Logs panel, `refuseInTerminal`
+// says in the terminal that a command is already running and brings the
+// terminal up (#558), `projectBuild` is the project's build plan and
+// `hasBuilt` whether the site has a build.
 //
 // Three refs are handed out as they are, for the chains that decide from
 // outside a render: `watchStateRef`, the state without waiting for a render;
@@ -26,12 +28,16 @@ import { createWatchActivity } from '../watch-activity.cjs';
 // That last one is the apply's, and is here because pausing the watch is what
 // invalidates it. Every function returned keeps its identity for as long as
 // its arguments do.
-export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, terminalStateRef, terminalKillRef, markTerminalRunning }) {
+export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, killCurrent, markBuildInterrupted, appendWatch, selectLogTab, refuseInTerminal, terminalStateRef, terminalKillRef, markTerminalRunning }) {
   // The build watcher (the target's, see project-type.cjs) runs decoupled from the PHP server (issue
   // #247): its own output tab, its own lifecycle. `watchState` drives the tab
   // title; `watchExitCode` is only read when the state is 'exited'.
   const [watchState, setWatchState] = useState('idle');
   const [watchExitCode, setWatchExitCode] = useState(null);
+  // Which process an 'exited' state is about: the watcher, or the one-off
+  // build that has to end well before a watcher is started. The page says
+  // different things of the two, and only one of them was ever a watch.
+  const [watchExitOf, setWatchExitOf] = useState('watch');
   // Ref mirror for the inline reads (guards, callbacks) that must not wait for a
   // re-render, the same split as the terminal's terminalRunning and
   // terminalStateRef.
@@ -39,10 +45,13 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
   // Set while the watcher is (or was) live, so a pause knows whether a resume
   // has anything to bring back. Survives the process being killed for a pause.
   const watchWasActiveRef = useRef(false);
-  const markWatchState = useCallback((state, code = null) => {
+  const markWatchState = useCallback((state, code = null, of = 'watch') => {
     watchStateRef.current = state;
     setWatchState(state);
-    if (state === 'exited') setWatchExitCode(Number.isFinite(code) ? code : null);
+    if (state === 'exited') {
+      setWatchExitCode(Number.isFinite(code) ? code : null);
+      setWatchExitOf(of);
+    }
   }, []);
   // Whoever is waiting for the watch to be ready to serve behind — the dev
   // server start, today. The queue and its settle-once rule live in
@@ -134,6 +143,8 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
       args: plan.watch.args,
       track: false,
       mirrorToNpm: false,
+      // The watcher prints in its own log, whatever its script is called.
+      outputInTerminal: false,
       onStart: (runId) => {
         // Stopped before the spawn resolved: this run must not be recorded as
         // the live watcher, and its process would otherwise outlive the stop.
@@ -191,24 +202,48 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
     if (!hasBuilt) {
       // Fresh / skip-the-wizard sites need one full build before anything can
       // watch or serve. It is a one-shot, so it holds the terminal lock while
-      // it runs; the watch that follows does not. Reveal the tab so the build
-      // is visible.
+      // it runs; the watch that follows does not. Its tab is selected, so
+      // that the build is what the logs show when they are looked at.
       const state = terminalStateRef.current;
-      if (state.running) { appendWatch('A command is already running in the terminal — stop it before starting the build watch.\n'); settleWatchWaiters(false); return; }
+      if (state.running) {
+        // Said in the watch's log, and in the terminal, which is brought up
+        // with it as it is for every action a running command turns away: a
+        // refusal nobody sees is a button that did nothing, and the terminal
+        // is where the command to stop is.
+        appendWatch('A command is already running in the terminal — stop it before starting the build watch.\n');
+        refuseInTerminal();
+        settleWatchWaiters(false);
+        return;
+      }
       selectLogTab('watch');
       markWatchState('building');
       watchWasActiveRef.current = true;
       markTerminalRunning(true);
-      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+      // Ctrl+C in the terminal stops this build as the watch's own button
+      // does: it says the watch is idle before it kills.
+      terminalKillRef.current = () => { markWatchState('idle'); killCurrent().catch(() => {}); };
       appendWatch('No completed build found — running npm run build first…\n');
       runScript('build', {
         mirrorToNpm: false,
+        // It prints in the watch's log, and that is where its failure says
+        // to look: the terminal is not brought up for it.
+        outputInTerminal: false,
         onLog: (chunk) => { appendWatch(chunk); },
         onDone: ({ code }) => {
           markTerminalRunning(false);
           terminalKillRef.current = null;
+          // A stop that was asked for, by the watch's button or by Ctrl+C,
+          // has already said the watch is idle and killed this build to do
+          // it. Its end is not a failure, whatever the kill left it with: no
+          // code at all on macOS and Linux, a code of its own on Windows.
+          if (watchStateRef.current === 'idle') {
+            appendWatch('\nnpm run build was stopped — build watch not started.\n');
+            watchWasActiveRef.current = false;
+            settleWatchWaiters(false);
+            return;
+          }
           if (code !== 0 || watchStateRef.current !== 'building') {
-            if (code !== 0) { appendWatch(`\nnpm run build failed with code ${code} — build watch not started.\n`); markWatchState('exited', code); }
+            if (code !== 0) { appendWatch(`\nnpm run build failed with code ${code} — build watch not started.\n`); markWatchState('exited', code, 'build'); }
             else markWatchState('idle');
             watchWasActiveRef.current = false;
             settleWatchWaiters(false);
@@ -220,7 +255,7 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
     } else {
       startWatchProcess();
     }
-  }, [appendWatch, hasBuilt, killCurrent, markTerminalRunning, markWatchState, runScript, selectLogTab, settleWatchWaiters, startWatchProcess, terminalKillRef, terminalStateRef]);
+  }, [appendWatch, hasBuilt, killCurrent, markTerminalRunning, markWatchState, refuseInTerminal, runScript, selectLogTab, settleWatchWaiters, startWatchProcess, terminalKillRef, terminalStateRef]);
 
   // User-initiated stop of the watch (its own button). Never touches the server.
   const stopWatcher = useCallback(async () => {
@@ -279,6 +314,7 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
   return {
     watchState,
     watchExitCode,
+    watchExitOf,
     watchCompiling,
     watchStateRef,
     watchWaitersRef,

@@ -90,7 +90,6 @@ test('every project type carries the full shape consumers depend on', () => {
 		for (const key of ['cloneLabel', 'cloneDescription', 'buildDescription', 'builtDescription', 'serverDescription']) {
 			assert.equal(typeof cfg.setup[key], 'string', `${id}: setup.${key}`);
 		}
-		assert.equal(typeof cfg.cards.applyHeading, 'string', `${id}: cards.applyHeading`);
 		// Every target opens pull requests (#251), so every target carries the
 		// whole destination's copy.
 		for (const key of ['prBlockedNote', 'prCost', 'prAfter', 'signInCannot', 'prNotesHelp', 'prLoopBack']) {
@@ -107,7 +106,6 @@ test('every project type carries the full shape consumers depend on', () => {
 				.concat(cfg.cards.prHow.summary, cfg.cards.prHow.lines, cfg.cards.prHow.linkLabel);
 			for (const value of strings) assert.doesNotMatch(value, /trac|ticket/i, `${id}: "${value}" speaks of Trac`);
 		}
-		assert.equal(typeof cfg.cards.applyDescription, 'string', `${id}: cards.applyDescription`);
 		assert.match(cfg.cards.sourceDir, /^[a-z]+\/$/, `${id}: cards.sourceDir is a directory under the checkout`);
 		assert.equal(typeof cfg.cards.patchFiles, 'boolean', `${id}: cards.patchFiles`);
 		assert.equal(cfg.cards.patchFiles, cfg.workItem.provider === 'trac', `${id}: patch files go with Trac`);

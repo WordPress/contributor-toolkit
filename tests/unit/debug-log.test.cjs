@@ -7,7 +7,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { appendBounded, countLines, MAX_LOG_CHARACTERS } = require('../../src/renderer/debug-log.cjs');
+const { appendBounded, countLines, debugLogOnScreen, unseenIn, unseenLinesNote, MAX_BADGE_COUNT, MAX_LOG_CHARACTERS } = require('../../src/renderer/debug-log.cjs');
 
 test('text under the limit is appended unchanged', () => {
 	assert.strictEqual(appendBounded('one\n', 'two\n', 100), 'one\ntwo\n');
@@ -87,4 +87,43 @@ test('countLines counts terminators, so a split line is counted once', () => {
 	assert.strictEqual(countLines('o\n'), 1);
 	assert.strictEqual(countLines(''), 0);
 	assert.strictEqual(countLines(undefined), 0);
+});
+
+// Which lines count as not yet seen (#558). The pane is in the tray, and a
+// tab left selected in a tray nobody is looking at is not being read.
+
+test('debug.log is in front of someone only while the Logs are on screen with its tab selected', () => {
+	assert.strictEqual(debugLogOnScreen({ shown: true, activeTab: 'debug' }), true);
+	assert.strictEqual(debugLogOnScreen({ shown: true, activeTab: 'runtime' }), false);
+	assert.strictEqual(debugLogOnScreen({ shown: true, activeTab: 'watch' }), false);
+	assert.strictEqual(debugLogOnScreen({ shown: false, activeTab: 'debug' }), false);
+	assert.strictEqual(debugLogOnScreen(), false);
+});
+
+test('a chunk adds its lines to the unseen count unless it is being read or is what the file already held', () => {
+	const chunk = 'PHP Notice: one\nPHP Notice: two\n';
+	assert.strictEqual(unseenIn(chunk, { backlog: false, onScreen: false }), 2);
+	assert.strictEqual(unseenIn(chunk), 2);
+	assert.strictEqual(unseenIn(chunk, { backlog: false, onScreen: true }), 0);
+	assert.strictEqual(unseenIn(chunk, { backlog: true, onScreen: false }), 0);
+	assert.strictEqual(unseenIn(chunk, { backlog: true, onScreen: true }), 0);
+	assert.strictEqual(unseenIn('', { backlog: false, onScreen: false }), 0);
+});
+
+test('unseen lines are a number for the footer and words that say what it counts', () => {
+	assert.deepStrictEqual(unseenLinesNote(1), { badge: '1', note: '1 unseen line in Debug.log' });
+	assert.deepStrictEqual(unseenLinesNote(3), { badge: '3', note: '3 unseen lines in Debug.log' });
+});
+
+test('past what the badge counts to it says there are more, and the words still say how many', () => {
+	assert.deepStrictEqual(unseenLinesNote(MAX_BADGE_COUNT), { badge: '99', note: '99 unseen lines in Debug.log' });
+	assert.deepStrictEqual(unseenLinesNote(MAX_BADGE_COUNT + 1), { badge: '99+', note: '100 unseen lines in Debug.log' });
+	assert.deepStrictEqual(unseenLinesNote(4096), { badge: '99+', note: '4096 unseen lines in Debug.log' });
+});
+
+test('with every line seen there is nothing to say', () => {
+	assert.strictEqual(unseenLinesNote(0), null);
+	assert.strictEqual(unseenLinesNote(-1), null);
+	assert.strictEqual(unseenLinesNote(undefined), null);
+	assert.strictEqual(unseenLinesNote(1.5), null);
 });

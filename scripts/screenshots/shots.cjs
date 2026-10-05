@@ -44,7 +44,8 @@ const ui = require('../../tests/e2e/helpers/ui.cjs');
  * @param {string}                         label
  */
 async function selectSite(page, label) {
-	await page.getByText(label, { exact: true }).first().click();
+	const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	await page.getByRole('button', { name: new RegExp(`^${escaped}( \\(.*\\))?$`) }).click();
 }
 
 const shots = [
@@ -53,7 +54,7 @@ const shots = [
 		tier: 'fixture',
 		variant: 'empty',
 		prepare: async (page) => {
-			await page.getByText('No sites yet.').first().waitFor();
+			await ui.noSitesTitle(page).waitFor();
 		}
 	},
 	{
@@ -61,7 +62,7 @@ const shots = [
 		tier: 'fixture',
 		variant: 'empty',
 		prepare: async (page) => {
-			await ui.createSiteButton(page).click();
+			await ui.createFirstSiteButton(page).click();
 			await ui.createSiteDialog(page).getByText('Site name').waitFor();
 		}
 	},
@@ -126,7 +127,7 @@ const shots = [
 		// protocolRegistration in src/deep-link.cjs.
 		prepare: async (page, app) => {
 			await selectSite(page, 'my-first-patch');
-			await ui.card(page, 'Working on ticket #60000').waitFor();
+			await ui.workItemNumber(page, '60000').waitFor();
 			await app.evaluate(({ app: electronApp }, url) => {
 				electronApp.emit('open-url', { preventDefault() {} }, url);
 			}, 'wpct://ticket/62281');
@@ -137,19 +138,20 @@ const shots = [
 		slug: 'terminal',
 		tier: 'fixture',
 		variant: 'seeded',
-		target: (page) => ui.card(page, 'Terminal'),
+		target: (page) => ui.tray(page, 'Terminal'),
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
-			await ui.card(page, 'Terminal').waitFor();
+			await ui.openTray(page, 'Terminal');
 		}
 	},
 	{
 		slug: 'debug-log',
 		tier: 'fixture',
 		variant: 'debug',
-		target: (page) => ui.card(page, 'Logs'),
+		target: (page) => ui.tray(page, 'Logs'),
 		prepare: async (page, app) => {
 			await selectSite(page, 'my-first-patch');
+			await ui.openTray(page, 'Logs');
 			// Starting a real dev session is what makes the renderer attach the
 			// debug-log tail, but this fixture deliberately is not a WordPress clone.
 			// Keep both long-running processes pending so the screenshot exercises
@@ -161,7 +163,7 @@ const shots = [
 				ipcMain.handle('playground:start', async () => ({ ok: true }));
 			});
 			await ui.startDevServerButton(page).click();
-			await page.getByRole('tab', { name: /debug\.log/ }).filter({ visible: true }).click();
+			await page.getByRole('tab', { name: /debug\.log/i }).filter({ visible: true }).click();
 			await page.getByText('Undefined variable $post', { exact: false }).filter({ visible: true }).first().waitFor();
 			await page.getByRole('tab', { name: /exited/i }).filter({ visible: true }).waitFor({ state: 'detached' });
 		}
@@ -170,10 +172,11 @@ const shots = [
 		slug: 'mail-panel',
 		tier: 'fixture',
 		variant: 'seeded',
-		target: (page) => page.getByText('Welcome to WordPress Contributor Day').locator('../..'),
+		target: (page) => ui.tray(page, 'Email'),
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
 			await ui.startDevServerButton(page).click();
+			await ui.openTray(page, 'Email');
 			await page.getByText('Welcome to WordPress Contributor Day').filter({ visible: true }).waitFor();
 		}
 	},
@@ -181,7 +184,7 @@ const shots = [
 		slug: 'update-incomplete',
 		tier: 'fixture',
 		variant: 'seeded',
-		target: (page) => page.getByText('Update incomplete', { exact: true }).locator('../..'),
+		target: (page) => page.getByText('Update incomplete', { exact: true }).locator('..'),
 		prepare: async (page) => {
 			await selectSite(page, 'needs-rebuild');
 			await ui.retryInstallButton(page).waitFor();
@@ -213,7 +216,7 @@ const shots = [
 		slug: 'site-view',
 		tier: 'live',
 		instructions:
-			'Stop the dev server, then link an open ticket that a pull request cites (65856 in the committed shot) and click "Read details from Trac", clearing the human-check once. Shoot the whole window: Start dev server, Start build watch, Review & submit changes, and the ticket panel below them.'
+			'Stop the dev server, then link an open ticket that a pull request cites (65856 in the committed shot) and click "Read details from Trac", clearing the human-check once. Shoot the whole window: the header, with the server\'s and the build watch\'s menus and Review & submit changes, the ticket card under it, and the details beside it.'
 	},
 	{
 		slug: 'trac-ticket-panel',
@@ -246,7 +249,7 @@ const shots = [
 	{
 		slug: 'trunk-update-progress',
 		tier: 'live',
-		target: (page) => page.getByText('Updating to latest trunk', { exact: true }).locator('../..'),
+		target: (page) => ui.card(page, 'Updating to latest trunk'),
 		instructions:
 			'Start "Update to latest trunk" on a site and wait until the step list is mid-run.'
 	},

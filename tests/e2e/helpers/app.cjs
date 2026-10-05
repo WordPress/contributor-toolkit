@@ -216,14 +216,23 @@ class Session {
 	 * merely holding it in memory, which is what a change to the storage layer
 	 * can break without any test noticing.
 	 *
+	 * `beforeWindow` is for a journey whose stand-ins have to be in place
+	 * before the page asks anything: a site that opens with a ticket linked
+	 * reads that ticket's pull requests as it mounts. It is called with the
+	 * app as soon as the main process answers, which is before the window's
+	 * page has loaded. That is an order and not a lock, so a journey that
+	 * leans on it should also check that its stand-in was what answered.
+	 *
+	 * @param {Object}   [options]
+	 * @param {Function} [options.beforeWindow] Called with the app before its first window is waited for.
 	 * @return {Promise<{app: Object, page: Object}>} The relaunched app and its first window.
 	 */
-	async restart() {
+	async restart( { beforeWindow } = {} ) {
 		await this.close();
-		return this.#launch();
+		return this.#launch( beforeWindow );
 	}
 
-	async #launch() {
+	async #launch( beforeWindow ) {
 		this.app = await electron.launch( {
 			// From plain Node, require('electron') resolves to the binary's path —
 			// the same trick scripts/run-tests-electron.cjs and the screenshot
@@ -247,6 +256,21 @@ class Session {
 				TOOLKIT_USER_DATA_DIR: this.userDataDir,
 			},
 		} );
+		// Belt and braces over the env var above. If the redirect hook ever stops
+		// firing — it is guarded by `!app.isPackaged` — every journey would start
+		// editing the contributor's real site registry, silently and permanently.
+		// Asked of the main process before anything else is done to the app,
+		// a journey's own `beforeWindow` included.
+		const inUse = await this.app.evaluate( ( { app } ) => app.getPath( 'userData' ) );
+		if ( ! samePath( inUse, this.userDataDir ) ) {
+			await this.close();
+			throw new Error(
+				`The app is using ${ inUse } as its profile, not the throwaway ${ this.userDataDir }. ` +
+				'Refusing to run a test that would write to a real site registry.'
+			);
+		}
+
+		if ( beforeWindow ) await beforeWindow( this.app );
 		try {
 			this.page = await this.app.firstWindow();
 		} catch ( error ) {
@@ -269,18 +293,6 @@ class Session {
 		if ( VIDEO_DIR ) {
 			const video = this.page.video();
 			if ( video ) this.videos.push( video );
-		}
-
-		// Belt and braces over the env var above. If the redirect hook ever stops
-		// firing — it is guarded by `!app.isPackaged` — every journey would start
-		// editing the contributor's real site registry, silently and permanently.
-		const inUse = await this.app.evaluate( ( { app } ) => app.getPath( 'userData' ) );
-		if ( ! samePath( inUse, this.userDataDir ) ) {
-			await this.close();
-			throw new Error(
-				`The app is using ${ inUse } as its profile, not the throwaway ${ this.userDataDir }. ` +
-				'Refusing to run a test that would write to a real site registry.'
-			);
 		}
 
 		return { app: this.app, page: this.page };
@@ -337,7 +349,7 @@ class Session {
 	 * Replaces `window.confirm` in the page rather than handling Playwright's
 	 * `dialog` event. Electron implements the JavaScript dialogs natively and
 	 * blocks the renderer on them, so the `dialog` event a browser would emit
-	 * does not arrive — a test relying on it clicks "Delete this ticket's work",
+	 * does not arrive — a test relying on it presses a discard,
 	 * watches nothing happen, and fails on an assertion that had nothing to do
 	 * with the bug. (Confirmed the hard way; the listener is kept alongside for
 	 * anything that does surface as a real dialog.)
