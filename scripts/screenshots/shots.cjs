@@ -128,9 +128,9 @@ async function linkTheTicket(page) {
 
 /**
  * Waits for a button that can be pressed, and presses nothing. A ticket's
- * buttons cannot be until whatever the site is doing has wholly ended, which
- * for a link is after the card has read the ticket; one that is only on the
- * page may still be drawn as held. A trial click is the wait. It leaves the
+ * buttons cannot be until the site has wholly ended what it was doing, which
+ * for a link can be after the card has read the ticket; one that is only on
+ * the page may still be disabled. A trial click is the wait. It leaves the
  * pointer over the button, which is then drawn as about to be pressed, so the
  * pointer is taken away again.
  *
@@ -502,7 +502,6 @@ const shots = [
 		viewport: { width: 1200, height: 1480 },
 		prepare: async (page) => {
 			await linkTheTicket(page);
-			await ui.ticketRow(page, OTHER_TICKET).waitFor();
 			await waitUntilPressable(page, ui.switchBackButton(page, OTHER_TICKET));
 			// The picture is of both cards. A page grown past this window
 			// would leave the second out of it, and nothing would say so.

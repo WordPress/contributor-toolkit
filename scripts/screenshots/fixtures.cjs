@@ -23,9 +23,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 // The fixture layer the journeys build their sites with: the app's own Git
 // binary, so a repository made here is one the app reads as it reads a clone.
-const { gitOk, initRepo, commitFiles, removeRepo, BINARY, ENV, FIXTURE_AUTHOR } = require('../../tests/unit/helpers/git.cjs');
-const { BASE_ARGS, SPAWN_OPTIONS } = require('../../src/git-binary.cjs');
-const { spawnSync } = require('child_process');
+const { gitOk, initRepo, commitFiles, removeRepo } = require('../../tests/unit/helpers/git.cjs');
 
 // /tmp, not os.tmpdir(): on macOS os.tmpdir() is a /var/folders/... maze that
 // reads as noise in a screenshot. Windows has no /tmp, so fall back there.
@@ -340,28 +338,6 @@ function buildFixture(variant) {
 	return { userDataDir, sites: { wizardSite, readySite, staleSite, incompleteSite } };
 }
 
-/**
- * Dates the commit the checkout is on. A commit is dated when it is made,
- * and the app reads how old a site's code is off its trunk's commit: left
- * alone, a `repo:` site's code would be of the day of the run and newer than
- * the site, and a ticket left yesterday would have branched from today's
- * trunk. The fixture layer's commits take no date, so this one command is
- * run here, with the same binary and the same environment.
- *
- * @param {string} dir
- * @param {string} iso The date, as the seeded settings write one.
- */
-function dateTheCommit(dir, iso) {
-	const date = `@${Math.floor(Date.parse(iso) / 1000)} +0000`;
-	const identity = ['-c', `user.name=${FIXTURE_AUTHOR.name}`, '-c', `user.email=${FIXTURE_AUTHOR.email}`];
-	const result = spawnSync(BINARY, [...BASE_ARGS, ...identity, 'commit', '--amend', '--no-edit', `--date=${date}`], {
-		...SPAWN_OPTIONS, cwd: dir, env: { ...ENV, GIT_COMMITTER_DATE: date }, encoding: 'utf8'
-	});
-	if (result.status !== 0) {
-		throw new Error(`Could not date the fixture's commit in ${dir}: ${result.error ? result.error.message : result.stderr}`);
-	}
-}
-
 function writeSettings(userDataDir, settings) {
 	fs.writeFileSync(
 		path.join(userDataDir, 'settings.json'),
@@ -399,8 +375,11 @@ function buildRepoFixture(userDataDir, variant) {
 	for (const [file, content] of Object.entries(tracked)) {
 		fs.writeFileSync(path.join(readySite, file), content);
 	}
-	commitFiles(readySite, Object.keys(tracked), 'trunk');
-	dateTheCommit(readySite, FRESH.trunkDate);
+	// Dated as the seeded sites' code is. A commit is otherwise of the moment
+	// it is made, and the app reads how old a site's code is off its trunk's
+	// commit: the site's code would be newer than the site, and a ticket left
+	// yesterday would have branched from today's trunk.
+	commitFiles(readySite, Object.keys(tracked), 'trunk', { date: FRESH.trunkDate });
 
 	// A ticket started and left with nothing done on it is a branch where
 	// trunk was, and the record the app keeps of it: which ticket, where it
