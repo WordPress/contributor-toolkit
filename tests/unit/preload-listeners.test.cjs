@@ -408,6 +408,26 @@ test('startWpDebug hands back an unsubscribe that drops only its own listener', 
 	assert.equal(ipcRenderer.listenerCount('wp:debug-log:data'), 1);
 });
 
+// What the file already held when the tail started is shown and not counted as
+// unseen (#558). Only the main process knows which lines those are, so the
+// bridge has to carry its word for it with each chunk, and say "no" for a main
+// process that said nothing.
+test('startWpDebug says of each chunk whether it is the file\'s backlog', async () => {
+	const { api, ipcRenderer } = loadPreload();
+	const got = [];
+
+	await api.startWpDebug('/sites/wp', (data, about) => got.push([data, about]));
+	ipcRenderer.emit('wp:debug-log:data', { sitePath: '/sites/wp', data: 'old\n', backlog: true });
+	ipcRenderer.emit('wp:debug-log:data', { sitePath: '/sites/wp', data: 'new\n', backlog: false });
+	ipcRenderer.emit('wp:debug-log:data', { sitePath: '/sites/wp', data: 'unsaid\n' });
+
+	assert.deepEqual(got, [
+		['old\n', { backlog: true }],
+		['new\n', { backlog: false }],
+		['unsaid\n', { backlog: false }]
+	]);
+});
+
 // The panel shows the path so it can be tailed in a terminal or attached to a
 // ticket. Composed in the main process — the renderer would have to join it with
 // '/' and be wrong on Windows — so the bridge has to carry it back out.

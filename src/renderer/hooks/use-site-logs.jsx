@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { appendBounded, countLines } from '../debug-log.cjs';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { appendBounded, debugLogOnScreen, unseenIn } from '../debug-log.cjs';
 import { pathBasename } from '../path-basename.cjs';
 
 // How near its end a pane has to be scrolled to count as following it, in
@@ -17,6 +17,8 @@ const STICK_THRESHOLD = 8;
 // `appendWatch`. The debug.log tail is the exception, because only this panel
 // reads it: `startDebugTail` and `stopDebugTail` are called where the dev
 // server starts and stops, since WordPress writes the file only while it runs.
+// The tail starts first, so that what the file holds then is what earlier
+// runs left and nothing this run logs is taken for it.
 //
 // `appendNpm` and the buffer behind it are what is left of an install log that
 // had a pane of its own. Nothing shows the buffer any more: the install's
@@ -26,7 +28,10 @@ const STICK_THRESHOLD = 8;
 // `shown` says whether the panel is on screen, which it is while the site is
 // the open one and the tray is showing its logs (#558). A pane that is not on
 // screen cannot be scrolled: one that was following its last line is put
-// back there when the panel comes back.
+// back there when the panel comes back. And a line that arrives in a pane
+// that is not on screen has not been seen: debug.log's are counted until its
+// pane is in front of someone again (`debugLogOnScreen`), which is what the
+// tab's label and the footer's button show.
 //
 // Every function returned keeps its identity for as long as `sitePath` does,
 // except `copyDebugLog`, which changes with the text it copies. The callbacks
@@ -45,7 +50,15 @@ export function useSiteLogs({ sitePath, shown }) {
   // reason someone wants the path.
   const [debugLogPath, setDebugLogPath] = useState('');
   const [activeLogTab, setActiveLogTab] = useState('runtime');
-  const activeLogTabRef = useRef('runtime');
+  // Whether debug.log's pane is in front of someone, for the lines that
+  // arrive from the tail, which is no render's doing.
+  const debugOnScreen = debugLogOnScreen({ shown, activeTab: activeLogTab });
+  const debugOnScreenRef = useRef(debugOnScreen);
+  useLayoutEffect(() => {
+    debugOnScreenRef.current = debugOnScreen;
+    // Coming in front of someone is the lines being seen.
+    if (debugOnScreen) setDebugUnread(0);
+  }, [debugOnScreen]);
   const [watchLogs, setWatchLogs] = useState('');
   // '' | 'copied' | 'failed', on the debug.log Copy button for two seconds.
   const [debugCopied, setDebugCopied] = useState('');
@@ -104,13 +117,15 @@ export function useSiteLogs({ sitePath, shown }) {
 
   const appendNpm = useCallback((s)=>setNpmLogs((v)=>v+s),[]);
   const appendRuntime = useCallback((s)=>setRuntimeLogs((v)=>v + String(s ?? '')),[]);
-  const appendDebug = useCallback((s) => {
+  const appendDebug = useCallback((s, { backlog = false } = {}) => {
     const chunk = String(s ?? '');
     if (!chunk) return;
     setDebugLogs((v) => appendBounded(v, chunk));
-    // Counted only while the tab is not the one being read. Selecting it zeroes
-    // the badge, so incrementing there would flicker it straight back on.
-    if (activeLogTabRef.current !== 'debug') setDebugUnread((n) => n + countLines(chunk));
+    // Counted only while the pane is not the one being read, and only what
+    // is news (`unseenIn`). The pane's coming on screen zeroes the count, so
+    // incrementing there would flicker it straight back on.
+    const unseen = unseenIn(chunk, { backlog, onScreen: debugOnScreenRef.current });
+    if (unseen) setDebugUnread((n) => n + unseen);
   }, []);
   // Bounded like the debug pane: the watcher is long-lived and chatty, so its
   // pane cannot grow without limit the way an unrendered buffer quietly could.
@@ -120,9 +135,12 @@ export function useSiteLogs({ sitePath, shown }) {
     setWatchLogs((v) => appendBounded(v, chunk));
   }, []);
   const selectTab = useCallback((name) => {
-    activeLogTabRef.current = name;
+    // Leaving debug.log's pane is at once, and not when the render that
+    // follows has been drawn: the app selects a tab itself when a watch or a
+    // server fails, from a callback, and a line arriving before that render
+    // would go uncounted. Coming to the pane is the effect's to say.
+    if (name !== 'debug') debugOnScreenRef.current = false;
     setActiveLogTab(name);
-    if (name === 'debug') setDebugUnread(0);
   }, []);
   const clearDebugLog = useCallback(async () => {
     setDebugLogs('');
@@ -168,7 +186,7 @@ export function useSiteLogs({ sitePath, shown }) {
     if (!revealed?.ok) appendDebug(`Could not show the log file: ${revealed?.error || revealed?.reason || 'unknown error'}\n`);
   }, [appendDebug, sitePath]);
 
-  // For the moment a dev server has started. Reset before subscribing: the
+  // For the moment a dev server is about to start. Reset before subscribing: the
   // tail replays the tail of the file when it attaches (up to 256KB,
   // startWpDebugTail in main.js), so a restart would otherwise show the
   // previous session's log a second time below itself. Stopping the server
@@ -179,7 +197,7 @@ export function useSiteLogs({ sitePath, shown }) {
     setDebugUnread(0);
     try {
       if (wpDebugUnsubRef.current) { wpDebugUnsubRef.current(); wpDebugUnsubRef.current = null; }
-      const tail = await window.api.startWpDebug(sitePath,(d)=>appendDebug(d || ''));
+      const tail = await window.api.startWpDebug(sitePath,(d, about)=>appendDebug(d || '', about));
       wpDebugUnsubRef.current = tail?.unsubscribe || null;
       if (tail?.filePath) setDebugLogPath(tail.filePath);
     } catch {}

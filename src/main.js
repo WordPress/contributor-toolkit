@@ -4006,11 +4006,20 @@ function startWpDebugTail(sitePath, webContents) {
 	wpDebugWatchers[sitePath] = { filePath, lastSize: 0 };
 	const state = wpDebugWatchers[sitePath];
 
-	function send(data) {
-		webContents.send('wp:debug-log:data', { sitePath, data });
+	// `backlog` says the lines are not news: what the file already held when
+	// the tail started, and the app's own line that marks where that ends.
+	// The panel shows them like any others and does not count them as unseen.
+	// The tail is started before the server is (use-dev-server.jsx), so what
+	// the file holds then is what earlier runs left.
+	function send(data, backlog = false) {
+		webContents.send('wp:debug-log:data', { sitePath, data, backlog });
 	}
 
-	function attachFileWatcher() {
+	// `fromBefore` is true for the one attempt made as the tail starts: a file
+	// found then was left by earlier runs. One that appears later, or comes
+	// back after being removed, was written while this run was being watched:
+	// its lines are news, and nothing is said under them about earlier runs.
+	function attachFileWatcher(fromBefore = false) {
 		try {
 			const stat = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
 			if (!stat) return false;
@@ -4018,13 +4027,13 @@ function startWpDebugTail(sitePath, webContents) {
 			state.lastSize = initial.lastSize;
 			if (initial.read) {
 				const rs = fs.createReadStream(filePath, initial.read);
-				rs.on('data', (chunk) => send(chunk.toString()));
+				rs.on('data', (chunk) => send(chunk.toString(), fromBefore));
 				// The file outlives the dev server, so what was just replayed is
 				// whatever previous runs left behind — with WordPress's own
 				// timestamps on it, which is exactly what makes it read as
 				// something that happened just now. The marker is the app saying
 				// where the backlog ends.
-				rs.on('end', () => send(`${WP_DEBUG_SESSION_MARKER}\n`));
+				if (fromBefore) rs.on('end', () => send(`${WP_DEBUG_SESSION_MARKER}\n`, true));
 			}
 			state.fileWatcher = fs.watch(filePath, (evt) => {
 				// 'rename' is the file being replaced or removed under the
@@ -4054,8 +4063,8 @@ function startWpDebugTail(sitePath, webContents) {
 	// Watch the directory for the file appearing. Used both before it exists at
 	// all — the common case, since nothing writes it until WordPress logs
 	// something — and again if it is later removed.
-	function watchForFile() {
-		if (attachFileWatcher()) return;
+	function watchForFile(fromBefore = false) {
+		if (attachFileWatcher(fromBefore)) return;
 		try {
 			state.dirWatcher = fs.watch(wpContentDir, () => {
 				if (attachFileWatcher() && state.dirWatcher) {
@@ -4073,7 +4082,7 @@ function startWpDebugTail(sitePath, webContents) {
 		watchForFile();
 	}
 
-	watchForFile();
+	watchForFile(true);
 	return true;
 }
 
