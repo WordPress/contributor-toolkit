@@ -69,6 +69,11 @@ test( 'a patch is shown in a dialog before it is applied, which can be left with
 	await expect( ui.pullRequestTab( card ) ).toHaveAttribute( 'aria-selected', 'true' );
 	await expect( ui.patchFileTab( card ) ).toHaveAttribute( 'aria-selected', 'false' );
 	await expect( ui.applyPrButton( card ) ).toBeDisabled();
+	// INVARIANT — a tab's fields have the card to themselves from the moment
+	// the tab is selected, and the card is not two tabs tall for a frame.
+	const oneAtATime = { selected: true, panels: 1 };
+	expect( await ui.panelsTakingRoom( card, 'Diff', 'Pull request' ) ).toEqual( [ oneAtATime, oneAtATime ] );
+	await expect( ui.pullRequestTab( card ) ).toHaveAttribute( 'aria-selected', 'true' );
 
 	// INVARIANT — a patch that was chosen is shown, not applied: the dialog
 	// names it, says how much it changes and which files, and nothing has

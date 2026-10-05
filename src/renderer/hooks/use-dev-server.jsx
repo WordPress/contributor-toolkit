@@ -95,6 +95,12 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
     setStarting(true);
     // Subscribe to SMTP events before starting to avoid missing early events
     listenForMail();
+    // And debug.log is tailed from before the server starts, for the same
+    // reason and one more: what the file holds when the tail starts is what
+    // earlier runs left, shown and not counted as unseen (#558). Started
+    // after the server was up, the tail took whatever WordPress had logged
+    // while it booted for an earlier run's as well.
+    await startDebugTail();
     try {
       const res = await window.api.startServer(
         sitePath,
@@ -144,11 +150,13 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
       setStarting(false);
       serverStartRequestedRef.current = false;
       runningRef.current = false;
+      // This way out does not go through stopDevServer, which is what ends
+      // the tail everywhere else.
+      stopDebugTail();
       return;
     }
-    await startDebugTail();
     await loadMail();
-  }, [appendRuntime, ensureStick, listenForMail, loadMail, revealServerLog, setRunning, setServerUrl, setStarting, sitePath, startDebugTail, stopDevServer]);
+  }, [appendRuntime, ensureStick, listenForMail, loadMail, revealServerLog, setRunning, setServerUrl, setStarting, sitePath, startDebugTail, stopDebugTail, stopDevServer]);
 
   const toggleDevServer = async ()=>{
     if (!running) {

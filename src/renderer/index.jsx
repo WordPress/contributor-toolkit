@@ -69,7 +69,7 @@ import { TracDestination } from './components/trac-destination.jsx';
 import { PullRequestDestination } from './components/pull-request-destination.jsx';
 import { ReviewDialog } from './components/review-dialog.jsx';
 import { SitesSidebar } from './components/sites-sidebar.jsx';
-import { AppFooter, trayToggleId } from './components/app-footer.jsx';
+import { AppFooter, LogsToggleNote, trayToggleId } from './components/app-footer.jsx';
 import { BottomTray, SiteTrayFill } from './components/bottom-tray.jsx';
 import { LogsPanel } from './components/logs-panel.jsx';
 import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
@@ -1955,6 +1955,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           />
         </div>
       </SiteTrayFill>
+      {/* And on the footer's Logs button, how many lines of this site's
+          debug.log arrived unseen, while this is the site that is open. */}
+      {isActive ? <LogsToggleNote count={logs.debugUnread} /> : null}
       {/* What is done to the site as a whole is in the page's header (#556):
           the window leaves a slot there, and the site that is open fills it. */}
       {isActive ? (

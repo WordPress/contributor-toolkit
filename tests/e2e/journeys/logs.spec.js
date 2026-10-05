@@ -40,18 +40,42 @@ const { makeSite } = require( '../helpers/git-site.cjs' );
 // when it is up stays closed, and the file manager is asked nothing: the test
 // keeps what it would have been shown.
 async function standInForTheServer( app ) {
-	await app.evaluate( ( { ipcMain, shell } ) => {
+	await app.evaluate( ( { BrowserWindow, ipcMain, shell } ) => {
 		ipcMain.removeHandler( 'npm:run-script' );
 		ipcMain.handle( 'npm:run-script', async () => ( { runId: 'e2e-logs' } ) );
+		// A server that is up at once, unless the test has asked for it to be
+		// kept starting until it says: `__e2eHoldStart` before the button is
+		// pressed, and `__e2eLetServerStart()` to let it finish.
 		ipcMain.removeHandler( 'playground:start' );
-		ipcMain.handle( 'playground:start', async () => ( { ok: true } ) );
+		ipcMain.handle( 'playground:start', async () => {
+			if ( global.__e2eHoldStart ) {
+				await new Promise( ( finish ) => {
+					global.__e2eLetServerStart = finish;
+				} );
+			}
+			return { ok: true };
+		} );
 		ipcMain.removeHandler( 'url:open' );
 		ipcMain.handle( 'url:open', () => true );
 		shell.showItemInFolder = ( filePath ) => {
 			global.__e2eRevealed = ( global.__e2eRevealed || [] ).concat( [ filePath ] );
 		};
+		// And what the window is told of debug.log is kept as well as told:
+		// a pane that is not on screen cannot say that a line has arrived.
+		global.__e2eDebugTold = [];
+		for ( const win of BrowserWindow.getAllWindows() ) {
+			const send = win.webContents.send.bind( win.webContents );
+			win.webContents.send = ( channel, ...args ) => {
+				if ( channel === 'wp:debug-log:data' ) global.__e2eDebugTold.push( args[ 0 ].data );
+				return send( channel, ...args );
+			};
+		}
 	} );
 }
+
+// Everything the window has been told of debug.log so far, as one text.
+const debugTold = ( app ) => app.evaluate( () => ( global.__e2eDebugTold || [] ).join( '' ) );
+const MARKER = '—— tail attached; everything above is from an earlier run ——';
 
 // What the main process tells the window while a server runs.
 const tell = ( app, channel, payload ) => app.evaluate( ( { BrowserWindow }, [ to, what ] ) => {
@@ -72,21 +96,33 @@ const lines = ( from, to, word ) => {
 	return text;
 };
 
-test( 'debug.log shows what the file holds, counts what arrived unseen, and copies, reveals and clears the file it tails', async ( { session } ) => {
-	const site = await makeSite( session );
+test( 'debug.log shows what the file holds, counts what arrived unseen on its tab and on the footer, and copies, reveals and clears the file it tails', async ( { session } ) => {
+	const site = await makeSite( session, { label: 'logs-site' } );
+	// And a site with nothing in its log, older, so that the first is the one
+	// the window opens on: what the footer counts is the open site's.
+	const other = await makeSite( session, { label: 'other-site' } );
+	other.settings.siteMeta[ other.dir ].createdAt = new Date( Date.now() - 7 * 24 * 60 * 60 * 1000 ).toISOString();
+	const settings = { ...site.settings, sites: [ site.dir, other.dir ], siteMeta: { ...site.settings.siteMeta, ...other.settings.siteMeta } };
 	// Where WordPress writes it. A line is already there, from an earlier run.
 	const logFile = path.join( site.dir, 'build', 'wp-content', 'debug.log' );
 	fs.mkdirSync( path.dirname( logFile ), { recursive: true } );
 	fs.writeFileSync( logFile, 'PHP Notice: left by an earlier run\n' );
 	const wordpressWrites = ( text ) => fs.appendFileSync( logFile, text );
 
-	const { app, page } = await session.start( site.settings );
+	const { app, page } = await session.start( settings );
 	await standInForTheServer( app );
 	await page.evaluate( () => {
 		navigator.clipboard.writeText = async ( text ) => {
 			window.__e2eCopied = text;
 		};
 	} );
+	await expect( ui.siteHeading( page, 'logs-site' ) ).toBeVisible( { timeout: 30_000 } );
+
+	// What the footer's Logs button says of lines not yet seen: a number on
+	// it, and the words that say what the number counts, which are the
+	// button's description.
+	const logsToggle = ui.trayToggle( page, 'Logs' );
+	const countOnFooter = ( count ) => page.getByRole( 'contentinfo' ).getByText( String( count ), { exact: true } );
 
 	const logs = await ui.openTray( page, 'Logs' );
 	const serverTab = ui.logTab( page, 'Server' );
@@ -134,22 +170,48 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	await expect( showInFolder ).toBeDisabled();
 	await expect( copy ).toBeDisabled();
 	await expect( clear ).toBeDisabled();
+	// INVARIANT — and it has that room from the moment its tab is selected.
+	// The tabs keep the panel that is leaving in the document until the next
+	// frame is drawn, and it must not hold a share of the tray for that
+	// long: asked before any frame has passed, one panel is taking room,
+	// and one still is when the tab just left is gone back to at once.
+	// The macOS runner, slow to draw, measured a pane 42.5px short here.
+	const oneAtATime = { selected: true, panels: 1 };
+	expect( await ui.panelsTakingRoom( logs, 'Server', 'Debug.log' ) ).toEqual( [ oneAtATime, oneAtATime ] );
+	await expect( debugTab() ).toHaveAttribute( 'aria-selected', 'true' );
 
-	// INVARIANT — what arrives while the other tab is being read is counted
-	// on this one. CHARACTERISATION — the count is two: the line the file
-	// held, and the line the app adds to say where the earlier run ends, which
-	// counts as unseen like any other.
+	// INVARIANT — what the file already held when the server started is
+	// shown and is not news (#558): told to the window, with the app's line
+	// that says where the earlier run ends, it is counted on the tab and on
+	// the footer as nothing, or every start would report the last run's
+	// notices as unseen.
+	await expect( logsToggle ).toHaveAccessibleDescription( '' );
 	await serverTab.click();
 	await ui.startDevServerButton( page ).click();
-	await expect( debugTab( 2 ) ).toBeVisible( { timeout: 30_000 } );
+	await expect.poll( () => debugTold( app ), { timeout: 30_000 } ).toContain( MARKER );
+	expect( await debugTold( app ) ).toContain( 'PHP Notice: left by an earlier run' );
+	await heard( page );
+	await expect( debugTab() ).toBeVisible();
+	await expect( logsToggle ).toHaveAccessibleDescription( '' );
+	// INVARIANT — what is written from then on, while the other tab is being
+	// read, is counted on this one, and the footer's button counts the same
+	// lines, in a number on it and in words with it.
+	wordpressWrites( 'PHP Notice: first since the start\nPHP Notice: second since the start\n' );
+	await expect( debugTab( 2 ) ).toBeVisible();
+	await expect( logsToggle ).toHaveAccessibleDescription( '2 unseen lines in Debug.log' );
+	await expect( countOnFooter( 2 ) ).toBeVisible();
 
-	// INVARIANT — opening the tab shows them, says where the file is, and
-	// takes the count away.
+	// INVARIANT — opening the tab shows them under what the file held, says
+	// where the file is, and takes the count away, from the tab and from the
+	// footer.
 	await debugTab( 2 ).click();
 	await expect( line( 'PHP Notice: left by an earlier run' ) ).toBeVisible();
-	await expect( line( '—— tail attached; everything above is from an earlier run ——' ) ).toBeVisible();
+	await expect( line( MARKER ) ).toBeVisible();
+	await expect( line( 'PHP Notice: second since the start' ) ).toBeVisible();
 	await expect( logs.getByText( logFile, { exact: true } ) ).toBeVisible();
 	await expect( debugTab() ).toBeVisible();
+	await expect( logsToggle ).toHaveAccessibleDescription( '' );
+	await expect( countOnFooter( 2 ) ).toHaveCount( 0 );
 
 	// INVARIANT — a line WordPress writes arrives without anything being
 	// clicked, and one that arrives while the tab is open is not counted as
@@ -158,6 +220,7 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	await expect( line( 'PHP Warning: seen as it arrives' ) ).toBeVisible();
 	await heard( page );
 	await expect( debugTab() ).toBeVisible();
+	await expect( logsToggle ).toHaveAccessibleDescription( '' );
 
 	// INVARIANT — a line is coloured by what it is, in the design system's
 	// colours (#557): a warning in the warning's, the notice left by the
@@ -179,17 +242,40 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 
 	// INVARIANT — a line that arrives while the tray is put away, or is
 	// showing the terminal, is in the pane when the logs come back, and the
-	// logs come back on the tab they were left on (#558).
-	await ui.trayToggle( page, 'Logs' ).click();
+	// logs come back on the tab they were left on (#558). Until they do the
+	// line has not been seen, though its tab is the one that was left
+	// selected, and the footer's button is what says so: one line, and then
+	// two.
+	await logsToggle.click();
 	await expect( logs ).toHaveCount( 0 );
 	wordpressWrites( 'PHP Notice: written with the tray closed\n' );
+	await expect( logsToggle ).toHaveAccessibleDescription( '1 unseen line in Debug.log' );
+	await expect( countOnFooter( 1 ) ).toBeVisible();
 	await ui.openTray( page, 'Terminal' );
 	wordpressWrites( 'PHP Notice: written under the terminal\n' );
-	await heard( page );
+	await expect( logsToggle ).toHaveAccessibleDescription( '2 unseen lines in Debug.log' );
+	await expect( countOnFooter( 2 ) ).toBeVisible();
+	// INVARIANT — the count is the open site's: another site's page has
+	// none, and coming back has cost the first site nothing.
+	await ui.sidebarEntry( page, 'other-site' ).click();
+	await expect( ui.siteHeading( page, 'other-site' ) ).toBeVisible();
+	await expect( logsToggle ).toHaveAccessibleDescription( '' );
+	await expect( countOnFooter( 2 ) ).toHaveCount( 0 );
+	// INVARIANT — and a line that arrives while another site is the open
+	// one has not been seen either: it is in the count when its site is
+	// come back to.
+	wordpressWrites( 'PHP Notice: written while another site was open\n' );
+	await ui.sidebarEntry( page, 'logs-site' ).click();
+	await expect( ui.siteHeading( page, 'logs-site' ) ).toBeVisible();
+	await expect( logsToggle ).toHaveAccessibleDescription( '3 unseen lines in Debug.log' );
+	// INVARIANT — the logs coming back on the tab is the lines being seen.
 	await ui.openTray( page, 'Logs' );
 	await expect( debugTab() ).toHaveAttribute( 'aria-selected', 'true' );
 	await expect( line( 'PHP Notice: written with the tray closed' ) ).toBeVisible();
 	await expect( line( 'PHP Notice: written under the terminal' ) ).toBeVisible();
+	await expect( line( 'PHP Notice: written while another site was open' ) ).toBeVisible();
+	await expect( logsToggle ).toHaveAccessibleDescription( '' );
+	await expect( countOnFooter( 3 ) ).toHaveCount( 0 );
 	// INVARIANT — and lines that arrive on another tab's watch are still
 	// counted when the tray has been away and come back: putting the logs
 	// away is not reading them.
@@ -201,8 +287,12 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	await heard( page );
 	await ui.openTray( page, 'Logs' );
 	await expect( debugTab( 3 ) ).toBeVisible();
+	// INVARIANT — with the logs open on another tab the tab and the footer
+	// say the same number.
+	await expect( logsToggle ).toHaveAccessibleDescription( '3 unseen lines in Debug.log' );
 	await debugTab( 3 ).click();
 	await expect( debugTab() ).toBeVisible();
+	await expect( logsToggle ).toHaveAccessibleDescription( '' );
 
 	// INVARIANT — Copy copies what the pane shows, and says it did.
 	await copy.click();
@@ -242,10 +332,77 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	wordpressWrites( 'PHP Notice: written while stopped\n' );
 	await ui.startDevServerButton( page ).click();
 	await expect( line( 'PHP Notice: written while stopped' ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( line( '—— tail attached; everything above is from an earlier run ——' ) ).toBeVisible();
+	await expect( line( MARKER ) ).toBeVisible();
 	await heard( page );
 	await expect( line( 'PHP Notice: after the clear' ) ).toHaveCount( 1 );
 	await expect( line( 'PHP Notice: written while stopped' ) ).toHaveCount( 1 );
+} );
+
+test( 'a debug.log that first appears while the server runs is news from its first line', async ( { session } ) => {
+	// The common case: nothing writes the file until WordPress has something
+	// to log. Its folder is there and the file is not.
+	const site = await makeSite( session );
+	const logFile = path.join( site.dir, 'build', 'wp-content', 'debug.log' );
+	fs.mkdirSync( path.dirname( logFile ), { recursive: true } );
+	const { app, page } = await session.start( site.settings );
+	await standInForTheServer( app );
+
+	const logs = await ui.openTray( page, 'Logs' );
+	const logsToggle = ui.trayToggle( page, 'Logs' );
+	await ui.logTab( page, 'Debug.log' ).click();
+	await ui.startDevServerButton( page ).click();
+	// The panel says where the file is once the tail has been started, which
+	// is when the file's folder is being watched for it.
+	await expect( logs.getByText( logFile, { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+
+	// INVARIANT — written while the tray is put away, the file's first lines
+	// are counted: they were not there when the server started, and are not
+	// what an earlier run left. The file arrives whole, by a rename, so that
+	// what the app finds when it looks is the two lines and not a file that
+	// has been made and not yet written.
+	await logsToggle.click();
+	await expect( logs ).toHaveCount( 0 );
+	fs.writeFileSync( `${ logFile }.writing`, 'PHP Fatal error: the first thing this run logged\nPHP Notice: and the second\n' );
+	fs.renameSync( `${ logFile }.writing`, logFile );
+	await expect( logsToggle ).toHaveAccessibleDescription( '2 unseen lines in Debug.log' );
+	// INVARIANT — and nothing is said under them about an earlier run: the
+	// app's line for that is for what the file held before the server
+	// started. The window was told the two lines and no more.
+	await heard( page );
+	expect( await debugTold( app ) ).toBe( 'PHP Fatal error: the first thing this run logged\nPHP Notice: and the second\n' );
+	await expect( logsToggle ).toHaveAccessibleDescription( '2 unseen lines in Debug.log' );
+	await ui.openTray( page, 'Logs' );
+	await expect( logs.getByText( 'PHP Notice: and the second', { exact: true } ) ).toBeVisible();
+	await expect( logs.getByText( MARKER, { exact: true } ) ).toHaveCount( 0 );
+	await expect( logsToggle ).toHaveAccessibleDescription( '' );
+} );
+
+test( 'what WordPress logs while the server is starting is news, and not what an earlier run left', async ( { session } ) => {
+	const site = await makeSite( session );
+	const logFile = path.join( site.dir, 'build', 'wp-content', 'debug.log' );
+	fs.mkdirSync( path.dirname( logFile ), { recursive: true } );
+	fs.writeFileSync( logFile, 'PHP Notice: left by an earlier run\n' );
+	const { app, page } = await session.start( site.settings );
+	await standInForTheServer( app );
+	await app.evaluate( () => {
+		global.__e2eHoldStart = true;
+	} );
+	const logsToggle = ui.trayToggle( page, 'Logs' );
+
+	// INVARIANT — the file is watched from before the server starts, so a
+	// line WordPress logs as it boots is one the contributor has not seen,
+	// and the footer counts it. Watched only once the server was up, the
+	// line would be taken for the earlier run's and counted as nothing.
+	await ui.startDevServerButton( page ).click( { timeout: 30_000 } );
+	await expect.poll( () => app.evaluate( () => typeof global.__e2eLetServerStart ), { timeout: 30_000 } ).toBe( 'function' );
+	fs.appendFileSync( logFile, 'PHP Deprecated: logged while the server was starting\n' );
+	await app.evaluate( () => global.__e2eLetServerStart() );
+	await expect( logsToggle ).toHaveAccessibleDescription( '1 unseen line in Debug.log' );
+	// INVARIANT — and the earlier run's line, told to the window with the
+	// app's line under it, has added nothing to that.
+	await expect.poll( () => debugTold( app ) ).toContain( MARKER );
+	await heard( page );
+	await expect( logsToggle ).toHaveAccessibleDescription( '1 unseen line in Debug.log' );
 } );
 
 test( 'the Server tab follows the server\'s output to its last line, stops following when scrolled away from it, and follows again from the bottom', async ( { session } ) => {

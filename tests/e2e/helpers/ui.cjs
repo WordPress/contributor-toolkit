@@ -466,6 +466,38 @@ function tokenColour( page, expression ) {
 }
 
 /**
+ * Selects each of the named tabs in turn and says, of each, how many panels
+ * were taking room once it was selected and before the window had drawn a
+ * frame. The design system's tabs keep the panel that is leaving in the
+ * document until the next frame, and it must not hold a share of the room
+ * for that long: one panel is the answer, every time.
+ *
+ * It is asked inside the page, in one turn, because a frame is exactly what
+ * must not come between the press and the reading. A tab that is in the
+ * document and not on screen, as another site's are, is not one of these.
+ *
+ * @param {Object}    within   A locator around one set of tabs and their panels.
+ * @param {...string} tabNames The tabs to select, by what they say.
+ * @return {Promise<{selected: boolean, panels: number}[]>} For each tab, whether it took the selection and how many panels had room.
+ */
+function panelsTakingRoom( within, ...tabNames ) {
+	return within.evaluate( async ( root, names ) => {
+		const seen = [];
+		for ( const name of names ) {
+			const tab = [ ...root.querySelectorAll( '[role="tab"]' ) ].find( ( candidate ) => candidate.checkVisibility() && candidate.textContent === name );
+			tab.click();
+			// Drawn by React, and no frame drawn by the window.
+			await Promise.resolve();
+			seen.push( {
+				selected: tab.getAttribute( 'aria-selected' ) === 'true',
+				panels: [ ...root.querySelectorAll( '[role="tabpanel"]' ) ].filter( ( panel ) => panel.getBoundingClientRect().height > 0 ).length,
+			} );
+		}
+		return seen;
+	}, tabNames );
+}
+
+/**
  * What an element is painted with: its text, what is behind it, and its
  * border.
  *
@@ -541,4 +573,5 @@ module.exports = {
 	inDocumentOrder,
 	tokenColour,
 	paintOf,
+	panelsTakingRoom,
 };

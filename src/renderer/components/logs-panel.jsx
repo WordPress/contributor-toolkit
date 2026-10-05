@@ -13,8 +13,9 @@ import { LogText } from './log-text.jsx';
 // of unseen lines. `copyLabel` is what the Copy button says of its last
 // press. `hidden` is the tray showing something else.
 //
-// Only the selected tab's pane is in the document, which is what the hook's
-// scrolling counts on: a pane switched back to is a new element.
+// Only the selected tab's pane is drawn, which is what the hook's scrolling
+// counts on: a pane switched back to is a new element. The one just left is
+// in the document for a frame more, and takes no room there (shell.css).
 export function LogsPanel({ hidden, tabs, logs, copyLabel }) {
   // Taken out by name before anything else is read from `logs`: the lint
   // rule that keeps refs out of a render takes an object for a ref as soon
