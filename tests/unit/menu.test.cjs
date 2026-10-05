@@ -1,7 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+const { addFilter, removeFilter } = require('@wordpress/hooks');
 const { buildMenuTemplate } = require('../../src/menu.js');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 const roles = (template) => template.map((item) => item.role);
 const helpItems = (template) => template.find((item) => item.role === 'help').submenu;
@@ -52,4 +54,15 @@ test('clicking without handlers does not throw', () => {
 	// a click must not take the whole main process down with it.
 	const items = helpItems(buildMenuTemplate());
 	assert.doesNotThrow(() => items.find((i) => i.label === 'Open App Log').click());
+});
+
+test('Help labels are translated when the template is built, not when the module loads', (t) => {
+	// main applies the locale before it builds the menu, so a label read at
+	// require time would stay English.
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	assert.deepEqual(
+		helpItems(buildMenuTemplate({})).filter((i) => i.label).map((i) => i.label),
+		[pseudoLocalize('Open App Log'), pseudoLocalize('Show Logs Folder')]
+	);
 });

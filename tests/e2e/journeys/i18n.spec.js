@@ -443,3 +443,33 @@ test( 'the rename dialog and the questions asked before a deletion are fully tra
 	await expect( question ).toHaveAccessibleName( pseudoLocalize( 'Delete all work on ticket #%d?' ).replace( '%d', '60001' ) );
 	expect( await unwrapped( question ) ).toEqual( [] );
 } );
+
+test( 'the Help menu and the native file dialogs are translated in main', async ( { session } ) => {
+	// Main's own strings, which the window never renders: they are only
+	// translated if main applied the locale before it built them.
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+
+	const help = await app.evaluate( ( { Menu } ) => Menu.getApplicationMenu().items
+		.find( ( item ) => item.role === 'help' ).submenu.items
+		.filter( ( item ) => item.type === 'normal' && ! item.role )
+		.map( ( item ) => item.label ) );
+	expect( help ).toEqual( [ pseudoLocalize( 'Open App Log' ), pseudoLocalize( 'Show Logs Folder' ) ] );
+
+	// The dialog is answered the way answerFileDialog does, and says what it
+	// was asked with. Cancelled, so the card is left as it was.
+	await app.evaluate( ( { dialog } ) => {
+		dialog.showOpenDialog = async ( ...args ) => {
+			global.__e2eDialog = args.at( -1 );
+			return { canceled: true, filePaths: [] };
+		};
+	} );
+	const card = ui.card( page, pseudoLocalize( 'Apply a patch or PR' ) );
+	await expect( card ).toBeVisible( { timeout: 30_000 } );
+	await card.getByRole( 'tab', { name: pseudoLocalize( 'Diff' ), exact: true } ).click();
+	await card.getByRole( 'button', { name: pseudoLocalize( 'Choose a .diff or .patch file…' ), exact: true } ).click();
+	await expect.poll( () => app.evaluate( () => global.__e2eDialog ) ).toMatchObject( {
+		title: pseudoLocalize( 'Choose a patch file' ),
+		filters: [ { name: pseudoLocalize( 'Patch Files' ) }, { name: pseudoLocalize( 'All Files' ) } ],
+	} );
+} );

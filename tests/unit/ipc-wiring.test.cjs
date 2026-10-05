@@ -86,7 +86,7 @@ const statusScan = (dir) => gitOk(['status', '--porcelain=v2', '-z', '--untracke
 // A recording stand-in for the parts of `electron` main.js destructures. Every
 // method a handler can reach has to exist here, because a missing one would
 // throw inside the handler and read as a wiring failure.
-function createElectronStub() {
+function createElectronStub({ ready = false } = {}) {
 	const handlers = new Map();
 	const oneWay = new Map();
 	const appEvents = new Map();
@@ -136,7 +136,10 @@ function createElectronStub() {
 		app: {
 			// Never settles: whatever the ready path does, it is not what these
 			// tests are about, and leaving it unrun keeps the load side-effect-free.
-			whenReady: () => new Promise(() => {}),
+			// `ready` is for the few that are about it. The ready path runs after
+			// loadMain has removed its require hook, so a `require` added there
+			// would get the real modules, `electron` included, not the stubs.
+			whenReady: () => (ready ? Promise.resolve() : new Promise(() => {})),
 			on(event, listener) {
 				if (!appEvents.has(event)) appEvents.set(event, []);
 				appEvents.get(event).push(listener);
@@ -284,8 +287,8 @@ function spy(implementation = () => undefined) {
 
 // Returns the recorders plus `invoke`, which calls a handler the way ipcMain
 // would.
-function loadMain({ stubs = {} } = {}) {
-	const recorder = createElectronStub();
+function loadMain({ stubs = {}, ready = false } = {}) {
+	const recorder = createElectronStub({ ready });
 	const stubbed = new Map();
 
 	const originalLoad = Module._load;
@@ -6213,6 +6216,34 @@ test('i18n:locale takes the pseudo-locale from --lang, which Chromium does not r
 	main.electron.app.commandLine.getSwitchValue = (name) => (name === 'lang' ? 'en-XA' : '');
 
 	assert.deepEqual(await main.invoke('i18n:locale'), { locale: 'en-XA', data: null });
+});
+
+test('main applies the locale reply the window gets, once resolved, before it builds the menu and the window', async () => {
+	const resolveCatalog = spy(async () => ({ locale: 'de', messages: { 'Open App Log': ['App-Protokoll öffnen'] } }));
+	// What had been built when main applied the locale. The ready path runs on
+	// a later turn than loadMain, so `main` is assigned by then.
+	const applied = [];
+	const applyLocale = spy((reply) => {
+		applied.push({ menus: main.calls.applicationMenu.length, windows: main.windows.length });
+		return reply.locale;
+	});
+	const main = loadMain({
+		ready: true,
+		stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog }, './renderer/locale-setup.cjs': { applyLocale } }
+	});
+	for (let i = 0; i < 50 && main.windows.length === 0; i++) await new Promise(setImmediate);
+
+	assert.deepEqual(applied, [{ menus: 0, windows: 0 }]);
+	assert.equal(main.calls.applicationMenu.length, 1);
+	assert.equal(main.windows.length, 1);
+	const [reply, deps] = applyLocale.calls[0];
+	assert.equal(typeof deps.setLocaleData, 'function');
+	assert.equal(typeof deps.addFilter, 'function');
+	// The window's reply is the one main applied, and the catalog was read
+	// once for both.
+	assert.equal(await main.invoke('i18n:locale'), reply);
+	assert.deepEqual(reply, { locale: 'de', data: { 'Open App Log': ['App-Protokoll öffnen'] } });
+	assert.equal(resolveCatalog.calls.length, 1);
 });
 
 // --- coverage guard ------------------------------------------------------
