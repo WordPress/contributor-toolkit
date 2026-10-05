@@ -9,9 +9,11 @@
 //     redacts logs; nothing redacts a screenshot, so the fixture path is the
 //     mitigation.
 //
-// The fake sites are empty directories (plus a canned debug.log or build marker): the renderer
-// tolerates a site whose git metadata cannot be read — it shows the site with
-// no snapshot date rather than crashing — so no real clone is needed.
+// The fake sites are empty directories (plus a canned debug.log or build
+// marker): the renderer tolerates a site whose git metadata cannot be read,
+// and what it shows of a site's age comes from the seeded settings, so no
+// real clone is needed. Nothing a shot does reaches the network or starts a
+// process in them: see standInForTheOutside.
 
 const fs = require('fs');
 const os = require('os');
@@ -24,9 +26,90 @@ const FIXTURE_ROOT =
 		? path.join(os.tmpdir(), 'wpct-docs-fixture')
 		: '/tmp/wpct-docs-fixture';
 
+// When the fixture's sites were made and how old their code is, counted back
+// from the day the shots are taken and not written down: a date written down
+// is fresh for a fortnight and then every site in every picture wears the
+// notice that its code is old. The amber dot needs `staleSite` more than 14
+// days behind and the others well inside that. The hour is fixed, so two
+// runs on one UTC day draw the same pixels; the code's date is at midnight,
+// since the app counts its age in whole days from it, and a later hour would
+// make "126 days old" a day less for part of every day.
+const DAY_MS = 24 * 60 * 60 * 1000;
+function daysAgo(days, hour) {
+	const day = new Date(Date.now() - days * DAY_MS);
+	day.setUTCHours(hour, 0, 0, 0);
+	return day.toISOString();
+}
+const FRESH = { createdAt: daysAgo(2, 10), trunkDate: daysAgo(2, 0) };
+const STALE = { createdAt: daysAgo(126, 10), trunkDate: daysAgo(126, 0) };
+
+// The ticket the fixture's ready site is linked to.
+const LINKED_TICKET = '60000';
+
+// What GitHub is said to answer when a ticket's card asks which pull requests
+// cite it, as the main process hands it on. The card asks as soon as its site
+// is opened; left to the network, a shot would show whatever GitHub says that
+// day, or the card still asking.
+const LINKED_PULL_REQUESTS = [
+	{ number: 13245, url: 'https://github.com/WordPress/wordpress-develop/pull/13245', title: 'Docs: correct the default', state: 'open', commitDate: daysAgo(6, 12), updatedAt: daysAgo(5, 15) },
+	{ number: 13012, url: 'https://github.com/WordPress/wordpress-develop/pull/13012', title: 'Docs: list the values', state: 'closed', updatedAt: daysAgo(40, 12) }
+];
+
+// Where the mail server is said to be listening, when a shot says it is.
+const SMTP_PORT = 1025;
+
+/**
+ * Answers for the app what would otherwise be asked of the network or start
+ * a process, so that a fixture shot is the same picture whatever the network
+ * says, and no shot starts a server in a folder that holds no WordPress.
+ * Installed in the main process once per launch, before the window is
+ * reloaded for the first shot.
+ *
+ * The dev server and what it runs first are answered and never run: the
+ * script is "started" and never ends, and the server's start is accepted
+ * and never gives an address, so the window stays at starting. Of what
+ * comes with a server, debug.log's tail is real, and its shot counts on it:
+ * the window starts the tail itself, before the server. The mail server is
+ * not, since the server's start is what brings it up: see
+ * `sayMailServerStarted`.
+ *
+ * @param {import('playwright-core').ElectronApplication} app
+ */
+async function standInForTheOutside(app) {
+	await app.evaluate(({ ipcMain }, [ticket, prs]) => {
+		const replace = (channel, handler) => {
+			ipcMain.removeHandler(channel);
+			ipcMain.handle(channel, handler);
+		};
+		replace('git:list-ticket-patches', () => ({ ok: true, ticket, prs: { status: 'ok', items: prs, rankComplete: true } }));
+		replace('npm:run-script', async () => ({ runId: 'docs-fixture' }));
+		replace('playground:start', async () => ({ ok: true }));
+	}, [LINKED_TICKET, LINKED_PULL_REQUESTS]);
+}
+
+/**
+ * Says to the window what the main process says when a site's mail server
+ * has started, which the stood-in dev server never makes it say.
+ *
+ * @param {import('playwright-core').ElectronApplication} app
+ * @param {string}                                        sitePath
+ */
+async function sayMailServerStarted(app, sitePath) {
+	await app.evaluate(({ BrowserWindow }, payload) => {
+		for (const win of BrowserWindow.getAllWindows()) win.webContents.send('smtp:started', payload);
+	}, { sitePath, port: SMTP_PORT });
+}
+
+// What an earlier run left in debug.log, stamped the way PHP stamps it and
+// dated the day before the shots: after its site was made, like the mail.
+function phpStamp(iso) {
+	const [, year, month, day, time] = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2}:\d{2})/.exec(iso);
+	const name = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(month) - 1];
+	return `[${day}-${name}-${year} ${time} UTC]`;
+}
 const DEBUG_LOG_LINES = [
-	'[10-Aug-2026 09:12:44 UTC] PHP Notice:  Undefined variable $post in /wordpress/wp-content/themes/twentytwentyfive/functions.php on line 112',
-	'[10-Aug-2026 09:12:45 UTC] PHP Deprecated:  Function get_page_by_title is deprecated since version 6.2.0! Use WP_Query instead.',
+	`${phpStamp(daysAgo(1, 9).replace('09:00:00', '09:12:44'))} PHP Notice:  Undefined variable $post in /wordpress/wp-content/themes/twentytwentyfive/functions.php on line 112`,
+	`${phpStamp(daysAgo(1, 9).replace('09:00:00', '09:12:45'))} PHP Deprecated:  Function get_page_by_title is deprecated since version 6.2.0! Use WP_Query instead.`,
 	''
 ].join('\n');
 
@@ -56,11 +139,10 @@ function buildFixture(variant) {
 			siteMeta: {
 				[gutenbergSite]: {
 					initialized: true,
-					createdAt: '2026-09-16T10:00:00.000Z',
+					...FRESH,
 					label: 'my-gutenberg-fix',
 					projectType: 'gutenberg',
-					skipInitWizard: true,
-					trunkDate: '2026-09-16T09:00:00.000Z'
+					skipInitWizard: true
 				}
 			},
 			preferences: {}
@@ -80,39 +162,31 @@ function buildFixture(variant) {
 	fs.mkdirSync(path.join(readySite, 'build', 'wp-content'), { recursive: true });
 	fs.writeFileSync(path.join(readySite, 'build', 'wp-content', 'debug.log'), DEBUG_LOG_LINES);
 
-	// Dates are fixed, not computed from "now": the amber staleness dot needs
-	// staleSite to be more than 14 days behind, and the other two to be fresh
-	// enough not to be flagged. Retaking the screenshots years from now flips
-	// the fresh sites amber too — bump these dates when that happens.
 	writeSettings(userDataDir, {
 		sites: [wizardSite, readySite, staleSite, incompleteSite],
 		siteMeta: {
 			[wizardSite]: {
 				initialized: true,
-				createdAt: '2026-09-16T10:00:00.000Z',
-				label: 'wordpress-develop',
-				trunkDate: '2026-09-16T09:00:00.000Z'
+				...FRESH,
+				label: 'wordpress-develop'
 			},
 			[readySite]: {
 				initialized: true,
-				createdAt: '2026-09-16T10:00:00.000Z',
+				...FRESH,
 				label: 'my-first-patch',
-				trunkDate: '2026-09-16T09:00:00.000Z',
 				skipInitWizard: true,
-				tracTicket: '60000'
+				tracTicket: LINKED_TICKET
 			},
 			[staleSite]: {
 				initialized: true,
-				createdAt: '2026-06-01T10:00:00.000Z',
+				...STALE,
 				label: 'older-site',
-				trunkDate: '2026-06-01T09:00:00.000Z',
 				skipInitWizard: true
 			},
 			[incompleteSite]: {
 				initialized: true,
-				createdAt: '2026-09-16T10:00:00.000Z',
+				...FRESH,
 				label: 'needs-rebuild',
-				trunkDate: '2026-09-16T09:00:00.000Z',
 				skipInitWizard: true,
 				updateIncomplete: true
 			}
@@ -123,8 +197,9 @@ function buildFixture(variant) {
 				subject: 'Welcome to WordPress Contributor Day',
 				from: 'WordPress <wordpress@example.test>',
 				to: 'contributor@example.test',
-				date: '2026-08-10T09:30:00.000Z',
-				sentAt: '2026-08-10T09:30:00.000Z',
+				// After the site it came from was made.
+				date: daysAgo(1, 9),
+				sentAt: daysAgo(1, 9),
 				text: 'Your local WordPress site can send mail safely.',
 				html: '<p>Your local WordPress site can send mail safely.</p>',
 				headers: {},
@@ -152,4 +227,4 @@ function cleanFixtureSites() {
 	fs.rmSync(FIXTURE_ROOT, { recursive: true, force: true });
 }
 
-module.exports = { buildFixture, cleanFixtureSites, FIXTURE_ROOT };
+module.exports = { standInForTheOutside, sayMailServerStarted, buildFixture, cleanFixtureSites, FIXTURE_ROOT };
