@@ -857,6 +857,18 @@ body {
   min-height: 0;
   overflow: hidden;
   border-top: var(--wpds-border-width-xs) solid
+/* A panel whose tab is not the selected one takes no room, in the tray's
+   logs and on a card alike. The design system's tabs keep the panel that is
+   leaving in the document until the next frame, for a transition it does not
+   have, and for that long it would share the room with the panel coming in:
+   on a machine slow to draw, a log that opens short and then grows, and a
+   card that is two cards tall and then one. `inert` is what the tabs put on
+   every panel but the selected one. Their mark for a panel that is leaving
+   is not used: a panel gone back to before that frame still has it. */
+[role="tabpanel"][inert] {
+  display: none;
+}
+
     var(--wpds-color-stroke-surface-neutral-weak);
   background: var(--wpds-color-background-surface-neutral-strong);
 }

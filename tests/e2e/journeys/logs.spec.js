@@ -160,6 +160,15 @@ test( 'debug.log shows what the file holds, counts what arrived unseen, and copi
 	await expect( debugTab() ).toBeVisible();
 
 	// INVARIANT — a line is coloured by what it is, in the design system's
+	// INVARIANT — and it has that room from the moment its tab is selected.
+	// The tabs keep the panel that is leaving in the document until the next
+	// frame is drawn, and it must not hold a share of the tray for that
+	// long: asked before any frame has passed, one panel is taking room,
+	// and one still is when the tab just left is gone back to at once.
+	// The macOS runner, slow to draw, measured a pane 42.5px short here.
+	const oneAtATime = { selected: true, panels: 1 };
+	expect( await ui.panelsTakingRoom( logs, 'Server', 'Debug.log' ) ).toEqual( [ oneAtATime, oneAtATime ] );
+	await expect( debugTab() ).toHaveAttribute( 'aria-selected', 'true' );
 	// colours (#557): a warning in the warning's, the notice left by the
 	// earlier run in the caution's, and the two are not the same. The words
 	// say it too; the colour is a second telling.
