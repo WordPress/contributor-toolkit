@@ -6,7 +6,7 @@ A site is the expensive part: a clone, an `npm install`, and a first build — m
 
 Each work item keeps its own changes. What you edited for one is not in the tree while you are on another, and what you submit contains only the current work item's changes.
 
-![A Core site with two tickets: the Trac ticket card for the one in hand, and an Other tickets on this site card lower down the page](/screenshots/site-with-tickets.png)
+![A Core site with two tickets: the Trac ticket card for #60000, the one in hand, at the top of the page, and at its foot, under the Apply a patch or PR card, an Other tickets on this site card with #61002 in it](/screenshots/site-with-tickets.png)
 
 ## Starting a second work item
 
@@ -27,11 +27,11 @@ The site's saved work items get their own card, below the current work-item card
 
 With an item linked, the card is headed **Other tickets on this site** or **Other issues on this site**, and each row offers to **switch**. The following screenshots use a Core site:
 
-![The Other tickets on this site card: "You also have work on #61002 — switch", with "Delete this ticket's work" beside it](/screenshots/ticket-list-card.png)
+![The Other tickets on this site card with one row: #61002, Edited 1 day ago, a Switch button and Delete this ticket’s work](/screenshots/ticket-list-card.png)
 
 With no item linked, the same card is headed **Your tickets on this site** or **Your issues on this site**, and each row is a **Continue working on #NNNNN** link. This is how you come back without having to remember the number:
 
-![The Your tickets on this site card, listing two tickets to continue working on, most recently used first](/screenshots/ticket-list-unlinked.png)
+![The Your tickets on this site card with two rows, most recently used first: #60000, Edited 3 hours ago, and #61002, Edited 1 day ago, each with a Continue working button and Delete this ticket’s work](/screenshots/ticket-list-unlinked.png)
 
 Rows are listed most recently used first, with **edited 2 days ago** underneath — and after a week, the date itself. Every control on the card is disabled while an install, a build or a [trunk update](./trunk-updates) is running, because all three are writing to the same working directory a switch would swap.
 
@@ -68,7 +68,7 @@ Deleting is deliberately a different gesture from switching, and from unlinking.
 
 If you started editing before you linked a ticket or issue, those edits are on trunk, which the app never commits to. When you link a work item, the app stops and asks what should happen to them. The screenshot below shows the Core wording; a Gutenberg site says *issue* in the same places.
 
-![The question panel: "You have 1 uncommitted change on this site, not on any ticket yet. What should happen to them?" with four choices](/screenshots/trunk-work-question.png)
+![The Trac ticket card with 60000 in its field and the question under it: "You have 1 uncommitted change on this site, not on any ticket yet. What should happen to them?" with four answers: Take these edits into #60000, Save them as a patch, then start clean…, Discard them and start clean, and Cancel](/screenshots/trunk-work-question.png)
 
 - **Take these edits into #NNNNN** — the edits come along and become part of that work item. This is the answer for *I started editing, then realised which issue or ticket this is*.
 - **Save them as a patch, then start clean…** — the app asks where to save a `.diff`, then discards the edits and links the work item. Cancelling the save dialog cancels the whole option and leaves everything as it was.
@@ -79,7 +79,7 @@ If you started editing before you linked a ticket or issue, those edits are on t
 
 When the edits do come along, the panel says where they went: *Your 1 uncommitted change came along into #62281, and will go into its patch.*
 
-![The Trac ticket card after the carry, with a blue notice confirming the edits came along into the ticket](/screenshots/carried-work-notice.png)
+![The top of the Trac ticket card after the carry: under the ticket's facts, a blue notice reading "Your 1 uncommitted change came along into #60000, and will go into its patch.", and then that there is 1 unsubmitted change for ticket #60000](/screenshots/carried-work-notice.png)
 
 If you saved them instead, the confirmation names the file — *Your edits were saved to … and are no longer in the working tree* — and stays on screen after the switch, so the path does not vanish with the panel that offered it.
 
