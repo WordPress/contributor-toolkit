@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-02T07:55:36+00:00\n"
+"POT-Creation-Date: 2026-10-05T12:59:45+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -13,117 +13,1107 @@ msgstr ""
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 
-#: src/project-type.cjs:152
+#: src/project-type.cjs:153
 msgid ""
 "The block editor, built and run as a plugin in a stock WordPress: GitHub "
 "issues, and pull requests by checkout."
 msgstr ""
 
-#: src/project-type.cjs:41
+#: src/project-type.cjs:42
 msgid "The wordpress-develop repository: Trac tickets, patches and pull requests."
 msgstr ""
 
-#: src/renderer/components/create-site-modal.jsx:129
-#: src/renderer/index.jsx:666
-msgid "Create a site"
-msgstr ""
-
-#: src/renderer/components/create-site-modal.jsx:141
-msgid "Site name"
-msgstr ""
-
-#: src/renderer/components/create-site-modal.jsx:145
-msgid "My WordPress site"
-msgstr ""
-
-#: src/renderer/components/create-site-modal.jsx:150
-msgid "Contribute to"
-msgstr ""
-
-#: src/renderer/components/create-site-modal.jsx:151
+#: src/renderer/apply-card.cjs:136
 msgid ""
-"What this site is a checkout of: which repository it clones, and how it "
-"builds and runs. It cannot be changed later."
+"Another command is running on this site. Wait for it to finish, or stop it "
+"with Ctrl+C in the terminal."
 msgstr ""
 
-#: src/renderer/components/create-site-modal.jsx:157
-msgid "Site location"
+#: src/renderer/apply-card.cjs:194
+msgid "The checkout was not changed."
 msgstr ""
 
-#: src/renderer/components/create-site-modal.jsx:179
-msgid "No folder selected yet."
+#: src/renderer/apply-card.cjs:219
+#. 1: a file's path. 2: how many of its changes failed. 3: how many it has.
+msgid "%1$s — %2$d of %3$d change"
+msgid_plural "%1$s — %2$d of %3$d changes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/apply-card.cjs:225
+#. %s: a line of code from a file, which is shown in a code font. Keep the %s.
+msgid "Near %s"
 msgstr ""
 
-#: src/renderer/components/create-site-modal.jsx:182
+#: src/renderer/apply-card.cjs:228
+#. %d: how many lines of a file are not shown.
+msgid "… %d more line"
+msgid_plural "… %d more lines"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/apply-card.cjs:234
+#. %d: a line number in a patch file.
+msgid "line %d of the patch"
+msgstr ""
+
+#: src/renderer/apply-card.cjs:25
+msgid "Pull request URL or number"
+msgstr ""
+
+#: src/renderer/apply-card.cjs:26
+msgid "Apply PR"
+msgstr ""
+
+#: src/renderer/apply-card.cjs:27
+msgid "A pull request is checked out with its author’s commits."
+msgstr ""
+
+#: src/renderer/apply-card.cjs:32
+msgid "Check out a pull request"
+msgstr ""
+
+#: src/renderer/apply-card.cjs:33
+msgid "Test a pull request in this checkout. Your own changes are preserved."
+msgstr ""
+
+#: src/renderer/apply-card.cjs:38
+msgid "Apply a patch or PR"
+msgstr ""
+
+#: src/renderer/apply-card.cjs:39
+msgid "Test changes in this checkout. Your own changes are preserved."
+msgstr ""
+
+#: src/renderer/apply-card.cjs:40
+msgid "Pull request"
+msgstr ""
+
+#: src/renderer/apply-card.cjs:42
+#. a noun, the name of a tab: a diff is a file of changes, also called a patch.
+msgid "Diff"
+msgstr ""
+
+#: src/renderer/apply-card.cjs:43
+msgid "Choose a .diff or .patch file…"
+msgstr ""
+
+#: src/renderer/apply-card.cjs:44
 msgid ""
-"Choose the parent folder where you want this new site created. We'll add a "
-"new directory inside it for the project."
+"A .diff or .patch file is applied to the current branch as a removable "
+"layer."
 msgstr ""
 
-#: src/renderer/components/create-site-modal.jsx:188
-msgid "Cancel"
+#: src/renderer/apply-card.cjs:68
+#. %d: the number of a pull request.
+msgid "Apply PR #%d"
 msgstr ""
 
-#: src/renderer/components/create-site-modal.jsx:189
-msgid "Create site"
+#: src/renderer/apply-card.cjs:80
+#. %s: the name of a file, or several separated by commas.
+msgid "%s is a binary file and will be skipped."
+msgid_plural "%s are binary files and will be skipped."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/apply-card.cjs:84
+#. %s: the name of a patch file, such as 65933.diff.
+msgid "Apply %s"
 msgstr ""
 
-#: src/renderer/components/create-site-modal.jsx:93
-msgid "Please provide a site name."
+#: src/renderer/apply-card.cjs:86
+#. 1: the name of a patch file. 2: how many files it changes.
+msgid "%1$s changes %2$d file."
+msgid_plural "%1$s changes %2$d files."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/apply-card.cjs:87
+msgid "Apply and rebuild"
 msgstr ""
 
-#: src/renderer/components/create-site-modal.jsx:97
-msgid "Please choose where to create the site."
+#: src/renderer/apply-card.cjs:90
+msgid ""
+"It changes package-lock.json, so dependencies will be installed before the "
+"rebuild."
 msgstr ""
 
-#: src/renderer/index.jsx:3135
-msgid "WordPress Contributor Toolkit"
+#: src/renderer/components/app-footer.jsx:110
+msgid "Give feedback"
 msgstr ""
 
-#: src/renderer/index.jsx:519
-msgid "Contributor Toolkit"
-msgstr ""
-
-#: src/renderer/index.jsx:524
-msgid "Expand site list"
-msgstr ""
-
-#: src/renderer/index.jsx:524
-msgid "Collapse site list"
-msgstr ""
-
-#: src/renderer/index.jsx:528
-msgid "Collapse"
-msgstr ""
-
-#: src/renderer/index.jsx:561
-msgid "Share feedback"
-msgstr ""
-
-#: src/renderer/index.jsx:562
+#: src/renderer/components/app-footer.jsx:111
 msgid "Your feedback helps decide what to build next."
 msgstr ""
 
-#: src/renderer/index.jsx:563
+#: src/renderer/components/app-footer.jsx:112
 msgid ""
 "Responses go into a shared form the team reviews regularly. Submissions are "
 "anonymous unless you add your email."
 msgstr ""
 
-#: src/renderer/index.jsx:572
+#: src/renderer/components/app-footer.jsx:120
 msgid "Open the feedback form ↗"
 msgstr ""
 
-#: src/renderer/index.jsx:664
+#: src/renderer/components/apply-card.jsx:103
+msgid "Revert this patch"
+msgstr ""
+
+#: src/renderer/components/apply-card.jsx:169
+msgid "Try another patch on this ticket"
+msgstr ""
+
+#: src/renderer/components/apply-card.jsx:333
+#: src/renderer/components/confirm-dialog.jsx:40
+msgid "Cancel"
+msgstr ""
+
+#: src/renderer/components/apply-card.jsx:362
+msgid "Revert this PR before applying another PR or patch file."
+msgstr ""
+
+#: src/renderer/components/apply-card.jsx:75
+msgid "Save a copy of your work"
+msgstr ""
+
+#: src/renderer/components/apply-card.jsx:76
+msgid "Discard this ticket to its base"
+msgstr ""
+
+#: src/renderer/components/apply-card.jsx:89
+msgid ""
+"This patch is applied to your current work. Removing it may require undoing "
+"overlapping edits."
+msgstr ""
+
+#: src/renderer/components/bottom-tray.jsx:120
+msgid "Resize tray"
+msgstr ""
+
+#: src/renderer/components/bottom-tray.jsx:137
+msgid "Close"
+msgstr ""
+
+#: src/renderer/components/create-site-dialog.jsx:102
+#: src/renderer/components/rename-site-dialog.jsx:51
+msgid "Site name"
+msgstr ""
+
+#: src/renderer/components/create-site-dialog.jsx:103
+msgid "My WordPress site"
+msgstr ""
+
+#: src/renderer/components/create-site-dialog.jsx:112
+#: src/renderer/components/sites-sidebar.jsx:40
+msgid "Project"
+msgstr ""
+
+#: src/renderer/components/create-site-dialog.jsx:133
+msgid "Setting up a site"
+msgstr ""
+
+#: src/renderer/components/create-site-dialog.jsx:179
+#: src/renderer/index.jsx:609
+msgid "Create site"
+msgstr ""
+
+#: src/renderer/components/create-site-dialog.jsx:20
+msgid "Location"
+msgstr ""
+
+#: src/renderer/components/create-site-dialog.jsx:42
+msgid "No folder selected yet."
+msgstr ""
+
+#: src/renderer/components/create-site-dialog.jsx:44
+msgid ""
+"Choose the parent folder where you want this new site created. A new "
+"subdirectory will be created for the site."
+msgstr ""
+
+#: src/renderer/components/mail-panel.jsx:49
+msgid "Clear emails"
+msgstr ""
+
+#: src/renderer/components/rename-site-dialog.jsx:107
+msgid "Rename site"
+msgstr ""
+
+#: src/renderer/components/rename-site-dialog.jsx:68
+msgid "Renaming the site"
+msgstr ""
+
+#: src/renderer/components/rename-site-dialog.jsx:68
+msgid "Rename"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:101
+msgid "Development server offline"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:111
+msgid "Build watch"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:113
+msgid "Build watch offline"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:175
+#. %s: the name of a site.
+msgid "Details of %s"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:179
+msgid "Details"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:199
+msgid "Copy"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:201
+msgid "Copied"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:70
+msgid "Server"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:79
+msgid "Admin credentials"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:81
+msgid "Username"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:83
+msgid "Password"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:88
+msgid "Hide password"
+msgstr ""
+
+#: src/renderer/components/site-details.jsx:88
+msgid "Show password"
+msgstr ""
+
+#: src/renderer/components/site-header-actions.jsx:109
+msgid "Review"
+msgstr ""
+
+#: src/renderer/components/site-header-actions.jsx:110
+msgid "Review & submit changes"
+msgstr ""
+
+#: src/renderer/components/site-header-actions.jsx:120
+msgid "Hide details"
+msgstr ""
+
+#: src/renderer/components/site-header-actions.jsx:120
+msgid "Show details"
+msgstr ""
+
+#: src/renderer/components/site-header-actions.jsx:134
+msgid "Site actions"
+msgstr ""
+
+#: src/renderer/components/sites-sidebar.jsx:19
+msgid "Name"
+msgstr ""
+
+#: src/renderer/components/sites-sidebar.jsx:29
+#. %s: what a site has to report, such as that its update is incomplete. It follows the site's name.
+msgid "(%s)"
+msgstr ""
+
+#: src/renderer/components/sites-sidebar.jsx:33
+msgid "(Deleting)"
+msgstr ""
+
+#: src/renderer/components/sites-sidebar.jsx:89
 msgid "Finish creating the current site first"
 msgstr ""
 
-#: src/renderer/index.jsx:776
-msgid "No sites yet."
+#: src/renderer/components/sites-sidebar.jsx:91
+msgid "Create new site"
 msgstr ""
 
-#: src/renderer/index.jsx:777
-msgid "Use the sidebar to create your first site."
+#: src/renderer/components/sites-sidebar.jsx:96
+msgid "My sites"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:116
+msgid "Applied"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:140
+msgid "Trac attachments"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:141
+msgid "Opening the ticket on Trac"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:144
+msgid ""
+"Patch files are sometimes attached on Trac instead of a PR. Reading them "
+"opens the ticket so you can pass its human-check once."
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:149
+msgid "Show Trac attachments"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:153
+msgid "Opening the ticket on Trac…"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:154
+msgid "No patch files attached to this ticket."
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:171
+msgid "Latest"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:246
+msgid ""
+"If you have edited anything already, you will be asked what should happen "
+"to those edits."
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:256
+msgid "Not sure yet?"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:27
+msgid "Refresh"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:274
+msgid "Unlink"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:292
+msgid "Reading the ticket on Trac"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:293
+msgid "Read details from Trac"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:325
+msgid ""
+"The most recent patch on this ticket is a file attachment, not a pull "
+"request — see Trac attachments below."
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:50
+msgid "Apply…"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:75
+msgid "Keywords:"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:95
+msgid "Linked pull requests"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:96
+msgid "Checking GitHub"
+msgstr ""
+
+#: src/renderer/components/ticket-card.jsx:99
+msgid "Checking GitHub…"
+msgstr ""
+
+#: src/renderer/components/toast-stack.jsx:47
+msgid "Notifications"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:101
+#. %s: the number of a pull request.
+msgid "Opened pull request #%s"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:119
+#. 1: an error code of the system, such as EBUSY. 2: the path of a folder.
+msgid ""
+"The site is still listed because its folder could not be deleted (%1$s). "
+"Close anything using it, then try again. Folder: %2$s"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:122
+#. %s: the path of a folder.
+msgid ""
+"The site is still listed because its folder could not be deleted. Close "
+"anything using it, then try again. Folder: %s"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:136
+#. %s: what went wrong, as the system reported it.
+msgid "The site could not be created. %s"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:151
+msgid "Applied the patch"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:152
+msgid "Reverted the patch"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:153
+msgid "Checked out the pull request"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:154
+msgid "Restored the previous branch"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:155
+msgid "Restored the saved work"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:168
+#. %s: the name of a file.
+msgid "Patch saved to %s"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:180
+#. %s: the name of a file.
+msgid "Saved your changes to %s and reset the working tree"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:92
+msgid "Dry run — branch created, no pull request opened"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:99
+#. 1: the number of a pull request. 2: the repository it was opened on, such as WordPress/gutenberg.
+msgid "Opened pull request #%1$s on %2$s"
+msgstr ""
+
+#: src/renderer/create-site.cjs:37
+msgid "A site’s project cannot be changed later."
+msgstr ""
+
+#: src/renderer/create-site.cjs:51
+msgid "Please provide a site name."
+msgstr ""
+
+#: src/renderer/create-site.cjs:52
+msgid "Please choose where to create the site."
+msgstr ""
+
+#: src/renderer/debug-log.cjs:135
+#. %d: a number of lines. "Debug.log" is the name of a tab and of the file it shows, and stays as it is.
+msgid "%d unseen line in Debug.log"
+msgid_plural "%d unseen lines in Debug.log"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/hooks/use-trunk-update.jsx:219
+msgid "Already up to date with trunk"
+msgstr ""
+
+#: src/renderer/hooks/use-trunk-update.jsx:289
+msgid "Local changes discarded."
+msgstr ""
+
+#: src/renderer/hooks/use-trunk-update.jsx:94
+msgid "Updated to the latest trunk"
+msgstr ""
+
+#: src/renderer/index.jsx:1248
+msgid "Copied the path"
+msgstr ""
+
+#: src/renderer/index.jsx:1467
+msgid "This site is ready to work on"
+msgstr ""
+
+#: src/renderer/index.jsx:1633
+msgid "All changes discarded."
+msgstr ""
+
+#: src/renderer/index.jsx:2332
+msgid "WordPress Contributor Toolkit"
+msgstr ""
+
+#: src/renderer/index.jsx:606
+msgid "No sites"
+msgstr ""
+
+#: src/renderer/index.jsx:607
+msgid "Create your first site to begin contributing"
+msgstr ""
+
+#: src/renderer/index.jsx:638
+msgid "Site"
+msgstr ""
+
+#: src/renderer/index.jsx:647
+msgid "Hide sites list"
+msgstr ""
+
+#: src/renderer/index.jsx:647
+msgid "Show sites list"
+msgstr ""
+
+#: src/renderer/site-details.cjs:29
+msgid "Setup"
+msgstr ""
+
+#: src/renderer/site-details.cjs:29
+msgid "Initialized"
+msgstr ""
+
+#: src/renderer/site-details.cjs:29
+msgid "Uninitialized"
+msgstr ""
+
+#: src/renderer/site-details.cjs:31
+msgid "Created"
+msgstr ""
+
+#: src/renderer/site-details.cjs:33
+msgid "Trunk as of"
+msgstr ""
+
+#: src/renderer/site-details.cjs:36
+#. %d: how many days old the site's copy of the WordPress code is.
+msgid "%d day old"
+msgid_plural "%d days old"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/site-details.cjs:40
+msgid "Local path"
+msgstr ""
+
+#: src/renderer/site-details.cjs:41
+msgid "Checkout"
+msgstr ""
+
+#: src/renderer/site-dialogs.cjs:15
+msgid "Site name cannot be empty."
+msgstr ""
+
+#: src/renderer/site-dialogs.cjs:29
+#. %s: the name a site was given.
+msgid "Delete %s?"
+msgstr ""
+
+#: src/renderer/site-dialogs.cjs:30
+msgid ""
+"This will permanently delete the site and all of its files from your "
+"computer. This can’t be undone."
+msgstr ""
+
+#: src/renderer/site-dialogs.cjs:31
+#: src/renderer/site-menu.cjs:130
+msgid "Delete site"
+msgstr ""
+
+#: src/renderer/site-mail.cjs:21
+msgid "SMTP will start with the dev server."
+msgstr ""
+
+#: src/renderer/site-mail.cjs:23
+#. %d: a port number. "127.0.0.1" is an address and stays as it is.
+msgid "SMTP listening on 127.0.0.1:%d"
+msgstr ""
+
+#: src/renderer/site-mail.cjs:32
+msgid ""
+"No mail yet. WordPress transactional email will appear here once the site "
+"sends any."
+msgstr ""
+
+#: src/renderer/site-mail.cjs:50
+msgid "(no subject)"
+msgstr ""
+
+#: src/renderer/site-menu.cjs:118
+msgid "Update to latest trunk"
+msgstr ""
+
+#: src/renderer/site-menu.cjs:120
+msgid "Rename…"
+msgstr ""
+
+#: src/renderer/site-menu.cjs:121
+msgid "Copy path"
+msgstr ""
+
+#: src/renderer/site-menu.cjs:125
+#. the label of a menu that lists applications, each by its name: "Open in" and then, in the menu, "Visual Studio Code".
+msgid "Open in"
+msgstr ""
+
+#: src/renderer/site-menu.cjs:129
+msgid "Deleting…"
+msgstr ""
+
+#: src/renderer/site-menu.cjs:28
+msgid "Show in Finder"
+msgstr ""
+
+#: src/renderer/site-menu.cjs:29
+msgid "Show in Explorer"
+msgstr ""
+
+#: src/renderer/site-menu.cjs:30
+msgid "Show in file manager"
+msgstr ""
+
+#: src/renderer/site-menu.cjs:51
+msgid "Other application…"
+msgstr ""
+
+#: src/renderer/site-menu.cjs:54
+msgid "Looking for applications…"
+msgstr ""
+
+#: src/renderer/site-menu.cjs:83
+msgid "Wait for the trunk update to finish."
+msgstr ""
+
+#: src/renderer/site-menu.cjs:84
+msgid "Wait for the installation to finish."
+msgstr ""
+
+#: src/renderer/site-menu.cjs:85
+msgid "Wait for the build to finish."
+msgstr ""
+
+#: src/renderer/site-processes.cjs:101
+msgid "Build building"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:101
+msgid "Building the site before watching it."
+msgstr ""
+
+#: src/renderer/site-processes.cjs:104
+msgid "Build paused"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:104
+msgid "Paused while another operation builds the site. It comes back by itself."
+msgstr ""
+
+#: src/renderer/site-processes.cjs:111
+msgid "The build watch ended by itself. Its last lines are in the Logs."
+msgstr ""
+
+#: src/renderer/site-processes.cjs:114
+#. %d: the exit code of a process, a number.
+msgid ""
+"The build that has to finish before the watch can start failed, with exit "
+"code %d, so the watch was not started. Its last lines are in the Logs."
+msgstr ""
+
+#: src/renderer/site-processes.cjs:116
+msgid ""
+"The build that has to finish before the watch can start failed, so the "
+"watch was not started. Its last lines are in the Logs."
+msgstr ""
+
+#: src/renderer/site-processes.cjs:119
+#. %d: the exit code of a process, a number.
+msgid ""
+"The build watch ended by itself, with exit code %d. Its last lines are in "
+"the Logs."
+msgstr ""
+
+#: src/renderer/site-processes.cjs:123
+msgid "Build stopped"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:139
+msgid "View site"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:140
+msgid "wp-admin"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:142
+msgid "Database"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:173
+#. %s: how long, such as "12s" or "1m 05s".
+msgid "Dev server is starting… (%s)"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:43
+msgid "Server starting…"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:43
+msgid "Starting development server…"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:43
+msgid "Starting…"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:46
+msgid "Server running"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:46
+msgid "Stop development server"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:48
+msgid "Server stopped"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:48
+msgid "Start development server"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:50
+msgid "The development server stopped by itself. Its last lines are in the Logs."
+msgstr ""
+
+#: src/renderer/site-processes.cjs:53
+msgid "The development server could not start. Its last lines are in the Logs."
+msgstr ""
+
+#: src/renderer/site-processes.cjs:90
+msgid "Stop"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:90
+msgid "Stop build watch"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:91
+msgid "Start"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:91
+msgid "Start build watch"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:94
+#. %s: a folder of the checkout, such as src/.
+msgid "Edits in %s are compiled as they are saved."
+msgstr ""
+
+#: src/renderer/site-processes.cjs:97
+msgid "Build compiling"
+msgstr ""
+
+#: src/renderer/site-processes.cjs:98
+msgid "Build watching"
+msgstr ""
+
+#: src/renderer/sites-list.cjs:28
+msgid "Update incomplete — code is new, built assets are old"
+msgstr ""
+
+#: src/renderer/sites-list.cjs:35
+#. %d: how many days old the site's copy of the WordPress code is.
+msgid "WordPress code is %d day old — update to latest trunk"
+msgid_plural "WordPress code is %d days old — update to latest trunk"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/sites-list.cjs:78
+msgid "Deleting site…"
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:169
+#. a verb, on a button beside the number of a ticket or an issue: go to the work on it.
+msgid "Switch"
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:171
+msgid "Continue working"
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:173
+#. said to a screen reader, in place of a spinner, while the work on a ticket or an issue is being deleted.
+msgid "Deleting"
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:178
+msgid "Other issues on this site"
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:178
+msgid "Your issues on this site"
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:184
+msgid "Other tickets on this site"
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:184
+msgid "Your tickets on this site"
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:201
+#. %d: the number of a GitHub issue.
+msgid "Delete all work on issue #%d?"
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:202
+msgid ""
+"This will permanently delete every change made for this issue on this site, "
+"whether or not it was submitted. This can’t be undone."
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:203
+msgid "Delete this issue’s work"
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:208
+#. %d: the number of a Trac ticket.
+msgid "Delete all work on ticket #%d?"
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:209
+msgid ""
+"This will permanently delete every change made for this ticket on this "
+"site, whether or not it was submitted. This can’t be undone."
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:210
+msgid "Delete this ticket’s work"
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:41
+msgid "Edited just now"
+msgstr ""
+
+#: src/renderer/ticket-branch-list.cjs:45
+#. %d: a number of minutes.
+msgid "Edited %d minute ago"
+msgid_plural "Edited %d minutes ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/ticket-branch-list.cjs:50
+#. %d: a number of hours.
+msgid "Edited %d hour ago"
+msgid_plural "Edited %d hours ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/ticket-branch-list.cjs:55
+#. %d: a number of days.
+msgid "Edited %d day ago"
+msgid_plural "Edited %d days ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/ticket-branch-list.cjs:58
+#. %s: a date, written the way the computer writes dates.
+msgid "Edited on %s"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:100
+msgid "Open"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:121
+#. %s: a date.
+msgid "Last commit %s"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:124
+#. %s: a date.
+msgid "Updated %s"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:162
+msgid "Could not read the pull requests from GitHub."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:163
+msgid "GitHub is rate-limiting this connection."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:164
+msgid "Could not reach GitHub."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:165
+msgid "No cached list to fall back on."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:168
+#. %s: a date and a time.
+msgid "Showing what was last seen %s."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:191
+#. %s: the WordPress.org username of whoever uploaded a file.
+msgid "by %s"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:221
+#. “I am human” is what Trac's own page calls its button, in English whatever the reader's language; leave it as it is.
+msgid ""
+"Trac’s human-check did not complete in time. Try again, and click “I am "
+"human” if it appears."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:226
+#. “Refresh” is the button beside the section's heading; use the word that button has in this language.
+msgid ""
+"The Trac window was closed before the attachments finished loading. Click "
+"“Refresh” to try again."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:228
+msgid "Could not read the attachments from Trac."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:231
+#. %s: an error message, as the system gave it.
+msgid "Could not read the attachments from Trac. (%s)"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:24
+msgid "GitHub issue"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:25
+msgid "Link the issue you’re working on."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:26
+msgid "Issue number or URL"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:28
+#. an example of what to type; the number stays as it is.
+msgid "e.g. 71234"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:29
+msgid "Link issue"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:30
+msgid "Linking issue"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:31
+msgid "Browse good first issues on GitHub"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:32
+msgid "Open on GitHub"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:33
+msgid "See the work that already exists on this issue before adding your own."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:34
+msgid "No pull requests cite this issue yet."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:38
+msgid "Trac ticket"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:39
+msgid "Link the ticket you’re working on."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:40
+msgid "Ticket number or URL"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:42
+#. an example of what to type; the number stays as it is.
+msgid "e.g. 62281"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:43
+msgid "Link ticket"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:44
+msgid "Linking ticket"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:45
+msgid "Browse good first bugs on Trac"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:46
+msgid "Open in Trac"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:47
+msgid "See the work that already exists on this ticket before adding your own."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:48
+msgid "No pull requests cite this ticket yet."
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:70
+#. %s: the part of WordPress a ticket is about, as Trac names it, such as "General" or "Editor".
+msgid "Component: %s"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:72
+#. %s: the milestone a ticket is set for, such as "7.2" or "Awaiting Review".
+msgid "Milestone: %s"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:74
+#. %s: how long ago, as Trac says it, such as "4 weeks ago".
+msgid "Opened %s"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:98
+msgid "Merged"
+msgstr ""
+
+#: src/renderer/ticket-card.cjs:99
+msgid "Closed"
+msgstr ""
+
+#: src/renderer/tray.cjs:35
+msgid "Terminal"
+msgstr ""
+
+#: src/renderer/tray.cjs:35
+msgid "Toggle Terminal"
+msgstr ""
+
+#: src/renderer/tray.cjs:36
+msgid "Logs"
+msgstr ""
+
+#: src/renderer/tray.cjs:36
+msgid "Toggle Logs"
+msgstr ""
+
+#: src/renderer/tray.cjs:37
+msgid "Email"
+msgstr ""
+
+#: src/renderer/tray.cjs:37
+msgid "Toggle Email"
 msgstr ""
 
 #: src/renderer/locale-setup.cjs:54
