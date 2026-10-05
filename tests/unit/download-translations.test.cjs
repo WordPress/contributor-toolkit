@@ -208,21 +208,21 @@ test('an answer in an unexpected shape is refused and changes nothing', async (t
 	}
 });
 
-test('a locale the app cannot select yet still ships, and is marked as such', async (t) => {
+test('a locale no OS language selects still ships, and is marked as such', async (t) => {
 	const dir = tempDir(t);
 	const { fetch } = fakeFetch({
 		[API]: { translation_sets: [
 			{ locale: 'de', slug: 'default', percent_translated: 100, current_count: 26 },
-			{ locale: 'es-cl', slug: 'default', percent_translated: 100, current_count: 26 }
+			{ locale: 'pirate', slug: 'default', percent_translated: 100, current_count: 26 }
 		] },
 		[exportUrl('de')]: catalog('de', 'x'),
-		[exportUrl('es-cl')]: catalog('es-cl', 'x')
+		[exportUrl('pirate')]: catalog('pirate', 'x')
 	});
 
 	const result = await downloadTranslations({ dir, fetch });
 
-	assert.deepEqual(fs.readdirSync(dir).sort(), ['de.json', 'es-cl.json']);
-	assert.deepEqual(result.shipped.map(({ locale, selectable }) => [locale, selectable]), [['de', true], ['es-cl', false]]);
+	assert.deepEqual(fs.readdirSync(dir).sort(), ['de.json', 'pirate.json']);
+	assert.deepEqual(result.shipped.map(({ locale, selectable }) => [locale, selectable]), [['de', true], ['pirate', false]]);
 	assert.deepEqual(result.skipped, []);
 });
 
@@ -272,15 +272,15 @@ test('a request still throttled after three tries fails, and changes nothing', a
 	assert.deepEqual(fs.readdirSync(dir), []);
 });
 
-test('the table lists each locale, what the app cannot select yet, what was held back and why, and what was removed', () => {
+test('the table lists each locale, what no OS language selects, what was held back and why, and what was removed', () => {
 	const table = formatTable({
-		shipped: [{ locale: 'de', percent: 100, strings: 26, selectable: true }, { locale: 'es-mx', percent: 100, strings: 26, selectable: false }],
+		shipped: [{ locale: 'de', percent: 100, strings: 26, selectable: true }, { locale: 'pirate', percent: 100, strings: 26, selectable: false }],
 		skipped: [{ locale: 'ar', percent: 90, reason: 'right-to-left, held back until the styles support it' }],
 		removed: ['fr']
 	});
 	assert.match(table, /\| de \| 100% \| 26 \|/);
-	assert.match(table, /\| es-mx \| 100% \| 26 \|/);
-	assert.match(table, /cannot select it yet \(#584\): es-mx$/m);
+	assert.match(table, /\| pirate \| 100% \| 26 \|/);
+	assert.match(table, /no OS language selects it: pirate$/m);
 	assert.match(table, /- ar \(90%\): right-to-left/);
 	assert.match(table, /Removed: fr/);
 });
