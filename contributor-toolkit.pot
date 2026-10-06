@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-06T07:39:49+00:00\n"
+"POT-Creation-Date: 2026-10-06T09:29:00+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -13,44 +13,61 @@ msgstr ""
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 
-#: src/main.js:1051
+#: src/main.js:1071
 msgid "Save Patch for Handoff"
 msgstr ""
 
-#: src/main.js:1051
+#: src/main.js:1071
 msgid "Save Diff File"
 msgstr ""
 
-#: src/main.js:2408
+#: src/main.js:2428
 msgid "Choose a patch file"
 msgstr ""
 
-#: src/main.js:2411
+#: src/main.js:2431
 msgid "Patch Files"
 msgstr ""
 
-#: src/main.js:2412
+#: src/main.js:2432
 msgid "All Files"
 msgstr ""
 
-#: src/main.js:3314
+#: src/main.js:3335
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3315
+#: src/main.js:3336
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3321
+#: src/main.js:3342
 msgid "Choose the application to open this folder in"
 msgstr ""
 
-#: src/menu.js:34
+#: src/menu.js:26
+msgid "Settings…"
+msgstr ""
+
+#: src/menu.js:63
 msgid "Open App Log"
 msgstr ""
 
-#: src/menu.js:38
+#: src/menu.js:67
 msgid "Show Logs Folder"
+msgstr ""
+
+#: src/patch-provenance.cjs:102
+#. %d: a number of characters.
+msgid "Keep the event name under %d characters."
+msgstr ""
+
+#: src/patch-provenance.cjs:92
+msgid "Enter the event name, or leave it empty."
+msgstr ""
+
+#: src/patch-provenance.cjs:97
+msgid "The event name has to fit on one line."
 msgstr ""
 
 #: src/project-type.cjs:153
@@ -178,22 +195,27 @@ msgid ""
 "rebuild."
 msgstr ""
 
-#: src/renderer/components/app-footer.jsx:110
+#: src/renderer/components/app-footer.jsx:111
 msgid "Give feedback"
 msgstr ""
 
-#: src/renderer/components/app-footer.jsx:111
+#: src/renderer/components/app-footer.jsx:112
 msgid "Your feedback helps decide what to build next."
 msgstr ""
 
-#: src/renderer/components/app-footer.jsx:112
+#: src/renderer/components/app-footer.jsx:113
 msgid ""
 "Responses go into a shared form the team reviews regularly. Submissions are "
 "anonymous unless you add your email."
 msgstr ""
 
-#: src/renderer/components/app-footer.jsx:120
+#: src/renderer/components/app-footer.jsx:121
 msgid "Open the feedback form ↗"
+msgstr ""
+
+#: src/renderer/components/app-footer.jsx:128
+#: src/renderer/components/settings-dialog.jsx:215
+msgid "Settings"
 msgstr ""
 
 #: src/renderer/components/apply-card.jsx:103
@@ -235,41 +257,41 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: src/renderer/components/create-site-dialog.jsx:102
+#: src/renderer/components/create-site-dialog.jsx:106
+msgid "Setting up a site"
+msgstr ""
+
+#: src/renderer/components/create-site-dialog.jsx:153
+#: src/renderer/index.jsx:621
+msgid "Create site"
+msgstr ""
+
+#: src/renderer/components/create-site-dialog.jsx:68
 #: src/renderer/components/rename-site-dialog.jsx:51
 msgid "Site name"
 msgstr ""
 
-#: src/renderer/components/create-site-dialog.jsx:103
+#: src/renderer/components/create-site-dialog.jsx:69
 msgid "My WordPress site"
 msgstr ""
 
-#: src/renderer/components/create-site-dialog.jsx:112
+#: src/renderer/components/create-site-dialog.jsx:78
 #: src/renderer/components/sites-sidebar.jsx:40
 msgid "Project"
 msgstr ""
 
-#: src/renderer/components/create-site-dialog.jsx:133
-msgid "Setting up a site"
-msgstr ""
-
-#: src/renderer/components/create-site-dialog.jsx:179
-#: src/renderer/index.jsx:609
-msgid "Create site"
-msgstr ""
-
-#: src/renderer/components/create-site-dialog.jsx:20
+#: src/renderer/components/create-site-dialog.jsx:89
 msgid "Location"
 msgstr ""
 
-#: src/renderer/components/create-site-dialog.jsx:42
-msgid "No folder selected yet."
-msgstr ""
-
-#: src/renderer/components/create-site-dialog.jsx:44
+#: src/renderer/components/create-site-dialog.jsx:90
 msgid ""
 "Choose the parent folder where you want this new site created. A new "
 "subdirectory will be created for the site."
+msgstr ""
+
+#: src/renderer/components/folder-field.jsx:47
+msgid "No folder selected yet."
 msgstr ""
 
 #: src/renderer/components/mail-panel.jsx:49
@@ -286,6 +308,84 @@ msgstr ""
 
 #: src/renderer/components/rename-site-dialog.jsx:68
 msgid "Rename"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:124
+msgid "How you contribute"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:126
+msgid "WordPress.org username"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:127
+msgid "Goes on a patch you hand to a mentor, so the props land on you."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:133
+msgid "Event"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:134
+msgid ""
+"Where you are contributing from, if you are at an event. Leave it empty "
+"otherwise."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:146
+msgid "Saved."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:150
+msgid "Saving"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:150
+msgid "Save"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:155
+msgid "GitHub"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:159
+msgid "Sign out"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:177
+msgid "General"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:178
+msgid "Account"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:20
+msgid "Could not keep that folder."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:34
+msgid "New sites"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:36
+msgid "New sites go here"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:37
+msgid "Each new site is created in a subfolder of this location."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:45
+msgid "Forget this folder"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:89
+msgid "Could not save that username."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:94
+msgid "Could not save that event."
 msgstr ""
 
 #: src/renderer/components/site-details.jsx:101
@@ -570,40 +670,61 @@ msgstr ""
 msgid "Updated to the latest trunk"
 msgstr ""
 
-#: src/renderer/index.jsx:1248
+#: src/renderer/index.jsx:1261
 msgid "Copied the path"
 msgstr ""
 
-#: src/renderer/index.jsx:1467
+#: src/renderer/index.jsx:1480
 msgid "This site is ready to work on"
 msgstr ""
 
-#: src/renderer/index.jsx:1633
+#: src/renderer/index.jsx:1646
 msgid "All changes discarded."
 msgstr ""
 
-#: src/renderer/index.jsx:2332
+#: src/renderer/index.jsx:2345
 msgid "WordPress Contributor Toolkit"
 msgstr ""
 
-#: src/renderer/index.jsx:606
+#: src/renderer/index.jsx:618
 msgid "No sites"
 msgstr ""
 
-#: src/renderer/index.jsx:607
+#: src/renderer/index.jsx:619
 msgid "Create your first site to begin contributing"
 msgstr ""
 
-#: src/renderer/index.jsx:638
+#: src/renderer/index.jsx:650
 msgid "Site"
 msgstr ""
 
-#: src/renderer/index.jsx:647
+#: src/renderer/index.jsx:659
 msgid "Hide sites list"
 msgstr ""
 
-#: src/renderer/index.jsx:647
+#: src/renderer/index.jsx:659
 msgid "Show sites list"
+msgstr ""
+
+#: src/renderer/settings-view.cjs:25
+msgid "Sign-in is not set up in this build."
+msgstr ""
+
+#: src/renderer/settings-view.cjs:28
+#. %s: a GitHub username.
+msgid "Signed in as %s."
+msgstr ""
+
+#: src/renderer/settings-view.cjs:30
+msgid "Not signed in. The app asks you to sign in when you open a pull request."
+msgstr ""
+
+#: src/renderer/settings-view.cjs:41
+msgid "Reading…"
+msgstr ""
+
+#: src/renderer/settings-view.cjs:42
+msgid "Not set: the create-site dialog asks each time."
 msgstr ""
 
 #: src/renderer/site-details.cjs:29
@@ -1154,6 +1275,37 @@ msgstr ""
 
 #: src/renderer/tray.cjs:37
 msgid "Toggle Email"
+msgstr ""
+
+#: src/settings.cjs:36
+msgid "Choose a folder."
+msgstr ""
+
+#: src/settings.cjs:38
+msgid "Choose a folder by its full path."
+msgstr ""
+
+#: src/settings.cjs:39
+msgid "That folder does not exist."
+msgstr ""
+
+#: src/settings.cjs:76
+msgid "There is no such setting."
+msgstr ""
+
+#: src/wporg-handle.cjs:106
+#. %s: the host of WordPress.org profiles, profiles.wordpress.org.
+msgid "Only %s profile links are supported."
+msgstr ""
+
+#: src/wporg-handle.cjs:39
+msgid ""
+"Enter your WordPress.org username, like janedoe, or your "
+"profiles.wordpress.org URL."
+msgstr ""
+
+#: src/wporg-handle.cjs:85
+msgid "Enter your WordPress.org username."
 msgstr ""
 
 #: src/renderer/locale-setup.cjs:54
