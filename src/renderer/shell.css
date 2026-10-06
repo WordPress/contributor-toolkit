@@ -1253,10 +1253,11 @@ body {
   font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
-/* The create-site dialog (#557). The folder is asked for with a file input,
-   as wide as the dialog, and the folder that was chosen is said under it:
-   a path has no spaces to break at. */
-.create-site-dialog .file-field-control {
+/* A folder field (#557, #559), in the create-site dialog and the settings.
+   The folder is asked for with a file input, as wide as the dialog, and the
+   folder that was chosen is said under it: a path has no spaces to break
+   at. */
+.folder-field .file-field-control {
   width: 100%;
   min-height: var(--wpds-dimension-size-md);
   font: inherit;
@@ -1265,13 +1266,19 @@ body {
 
 /* The ring the design system's own controls have, where the browser would
    draw its own. */
-.create-site-dialog .file-field-control:focus-visible {
+.folder-field .file-field-control:focus-visible {
   outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
   outline-offset: var(--wpds-border-width-focus);
 }
 
-.create-site-dialog .file-field-value {
+.folder-field .file-field-value {
   overflow-wrap: anywhere;
+}
+
+/* The settings dialog (#559): its tabs under its title, and each tab's
+   sections one under another. */
+.settings-dialog .settings-panel {
+  padding-block-start: var(--wpds-dimension-padding-lg);
 }
 
 /* What is said under the choice of project is drawn by the older component
@@ -1325,14 +1332,17 @@ body {
 
 /* The apply card (#557). */
 
-/* Tabs across a card, with the card's rule under them: the list sits on the
-   rule, so the chosen tab's own line takes its place there. */
-.card-tabs-bar {
+/* Tabs across a card, or across the settings dialog, with the rule under
+   them: the list sits on the rule, so the chosen tab's own line takes its
+   place there. */
+.card-tabs-bar,
+.settings-tabs-bar {
   display: flex;
   flex-direction: column;
 }
 
-.card-tabs {
+.card-tabs,
+.settings-tabs {
   overflow: visible;
   mask-image: none;
   margin-block-end: -1px;

@@ -81,6 +81,27 @@ test( 'the first-run screen and the create-site dialog are fully translatable', 
 	expect( await unwrapped( dialog ) ).toEqual( [] );
 } );
 
+test( 'the settings dialog is fully translatable, on both of its tabs', async ( { session } ) => {
+	const { page } = await session.start( undefined, { lang: 'en-XA' } );
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Settings' ), exact: true } ).click();
+	const dialog = page.getByRole( 'dialog', { name: pseudoLocalize( 'Settings' ), exact: true } );
+	await expect( dialog ).toBeVisible();
+	await expect( dialog.getByText( pseudoLocalize( 'Not set: the create-site dialog asks each time.' ), { exact: true } ) ).toBeVisible();
+	expect( await unwrapped( dialog ) ).toEqual( [] );
+
+	// The Account tab, once it has read the GitHub account: the line about it
+	// is main's answer put into words here.
+	await dialog.getByRole( 'tab', { name: pseudoLocalize( 'Account' ), exact: true } ).click();
+	await expect( dialog.getByText( pseudoLocalize( 'Reading…' ), { exact: true } ) ).toHaveCount( 0 );
+	expect( await unwrapped( dialog ) ).toEqual( [] );
+
+	// A refusal is wrapped too.
+	await dialog.getByLabel( pseudoLocalize( 'WordPress.org username' ), { exact: true } ).fill( 'jane doe' );
+	await dialog.getByRole( 'button', { name: pseudoLocalize( 'Save' ), exact: true } ).click();
+	await expect( dialog.getByRole( 'alert' ) ).toBeVisible();
+	expect( await unwrapped( dialog ) ).toEqual( [] );
+} );
+
 test( 'the sites list and the button that hides it are fully translatable', async ( { session } ) => {
 	// One Gutenberg site whose update was left unfinished: its entry carries
 	// the words of its dot, and the line under its name is a product's name,
@@ -455,6 +476,7 @@ test( 'the Help menu and the native file dialogs are translated in main', async 
 		.filter( ( item ) => item.type === 'normal' && ! item.role )
 		.map( ( item ) => item.label ) );
 	expect( help ).toEqual( [ pseudoLocalize( 'Open App Log' ), pseudoLocalize( 'Show Logs Folder' ) ] );
+	expect( await app.evaluate( ( { Menu } ) => Menu.getApplicationMenu().getMenuItemById( 'settings' ).label ) ).toBe( pseudoLocalize( 'Settings…' ) );
 
 	// The dialog is answered the way answerFileDialog does, and says what it
 	// was asked with. Cancelled, so the card is left as it was.

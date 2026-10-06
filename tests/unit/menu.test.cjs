@@ -27,6 +27,35 @@ test('the app menu is macOS-only', () => {
 	assert.ok(!roles(buildMenuTemplate({ platform: 'linux' })).includes('appMenu'));
 });
 
+// Where each platform keeps its settings (#559): the app menu on macOS, File
+// elsewhere. The default items of the menu that holds it are still there,
+// since giving a role a submenu replaces the role's own.
+test('Settings… is in the app menu on macOS and under File elsewhere, with the platform shortcut', () => {
+	const mac = buildMenuTemplate({ platform: 'darwin' });
+	const appMenu = mac.find((item) => item.role === 'appMenu').submenu;
+	assert.deepEqual(appMenu.filter((i) => i.id).map((i) => i.label), ['Settings…']);
+	assert.deepEqual(appMenu.filter((i) => i.role).map((i) => i.role), ['about', 'services', 'hide', 'hideOthers', 'unhide', 'quit']);
+	assert.equal(mac.find((item) => item.role === 'fileMenu').submenu, undefined, 'File keeps its default items on macOS');
+
+	for (const platform of ['win32', 'linux']) {
+		const file = buildMenuTemplate({ platform }).find((item) => item.role === 'fileMenu').submenu;
+		assert.deepEqual(file.filter((i) => i.id).map((i) => i.label), ['Settings…'], platform);
+		assert.deepEqual(file.filter((i) => i.role).map((i) => i.role), ['quit'], platform);
+	}
+
+	const item = appMenu.find((i) => i.id === 'settings');
+	assert.equal(item.accelerator, 'CmdOrCtrl+,');
+});
+
+test('Settings… invokes the handler it was given, and does not throw without one', () => {
+	let opened = 0;
+	const item = buildMenuTemplate({ platform: 'linux', onOpenSettings: () => { opened++; } })
+		.find((i) => i.role === 'fileMenu').submenu.find((i) => i.id === 'settings');
+	item.click();
+	assert.equal(opened, 1);
+	assert.doesNotThrow(() => buildMenuTemplate({ platform: 'darwin' }).find((i) => i.role === 'appMenu').submenu.find((i) => i.id === 'settings').click());
+});
+
 test('Help exposes both log entries plus DevTools', () => {
 	const items = helpItems(buildMenuTemplate({}));
 	assert.deepEqual(
@@ -64,5 +93,9 @@ test('Help labels are translated when the template is built, not when the module
 	assert.deepEqual(
 		helpItems(buildMenuTemplate({})).filter((i) => i.label).map((i) => i.label),
 		[pseudoLocalize('Open App Log'), pseudoLocalize('Show Logs Folder')]
+	);
+	assert.equal(
+		buildMenuTemplate({ platform: 'win32' }).find((i) => i.role === 'fileMenu').submenu.find((i) => i.id === 'settings').label,
+		pseudoLocalize('Settings…')
 	);
 });

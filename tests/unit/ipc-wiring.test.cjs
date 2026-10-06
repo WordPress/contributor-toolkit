@@ -1809,6 +1809,75 @@ test('provenance:get reads the remembered handle and event', async () => {
 	});
 });
 
+// --- settings:* -> src/settings.cjs (#559) --------------------------------
+
+// What a setting is and what it accepts is the module's; the handler is the
+// store and the disk. A read goes through the module too, so a value of the
+// wrong kind in the store is answered with the fallback and not sent as is.
+test('settings:get reads the store through settings.cjs', async () => {
+	const readSettings = spy(() => ({ newSiteLocation: '/sites' }));
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ preferences: { newSiteLocation: '/sites', wporgHandle: 'janedoe' } }).stubs,
+			'./settings.cjs': { readSettings, acceptSetting: () => { throw new Error('not asked'); } }
+		}
+	});
+
+	assert.deepEqual(await main.invoke('settings:get'), { ok: true, settings: { newSiteLocation: '/sites' } });
+	assert.deepEqual(readSettings.calls, [[{ newSiteLocation: '/sites', wporgHandle: 'janedoe' }]]);
+});
+
+test('settings:set asks settings.cjs before writing, writes what it returned, and answers with every setting', async () => {
+	const acceptSetting = spy(() => ({ ok: true, value: '/sites' }));
+	const readSettings = spy((preferences) => ({ newSiteLocation: preferences.newSiteLocation }));
+	const settings = fakeSettingsStore({ preferences: { wporgHandle: 'janedoe' } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './settings.cjs': { readSettings, acceptSetting } }
+	});
+
+	const result = await main.invoke('settings:set', 'newSiteLocation', ' /sites ');
+
+	assert.deepEqual(result, { ok: true, settings: { newSiteLocation: '/sites' } });
+	assert.equal(acceptSetting.calls.length, 1);
+	const [key, value, deps] = acceptSetting.calls[0];
+	assert.equal(key, 'newSiteLocation');
+	assert.equal(value, ' /sites ');
+	assert.equal(typeof deps.isAbsolute, 'function');
+	assert.equal(typeof deps.isDirectory, 'function');
+	// What the module returned, not what was sent; and the field beside it kept.
+	assert.deepEqual(settings.values.preferences, { wporgHandle: 'janedoe', newSiteLocation: '/sites' });
+});
+
+test('settings:set writes nothing on a refusal, and passes the refusal on', async () => {
+	const acceptSetting = spy(() => ({ ok: false, error: 'nope' }));
+	const settings = fakeSettingsStore();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './settings.cjs': { readSettings: () => ({}), acceptSetting } }
+	});
+
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', '/gone'), { ok: false, error: 'nope' });
+	assert.equal(settings.values.preferences, undefined, 'a refused setting must not be written');
+});
+
+// The disk, as the handler asks it on the module's behalf: a folder that is
+// there is kept, one that is not is refused. The real module, on a real
+// folder.
+test('settings:set asks the disk whether the folder is there', async (t) => {
+	const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'wpct-settings-'));
+	t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+	const settings = fakeSettingsStore();
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { newSiteLocation: folder } });
+	const gone = await main.invoke('settings:set', 'newSiteLocation', path.join(folder, 'gone'));
+	assert.equal(gone.ok, false);
+	assert.equal(settings.values.preferences.newSiteLocation, folder);
+	const file = path.join(folder, 'a-file');
+	fs.writeFileSync(file, '');
+	assert.equal((await main.invoke('settings:set', 'newSiteLocation', file)).ok, false, 'a file is not a folder');
+});
+
 // --- main must not take the windowsHide patch (#181) ---------------------
 //
 // The inverse of tests/unit/runner-wiring.test.cjs, which pins that the four runners
@@ -6291,6 +6360,8 @@ const WIRED = new Set([
 	'wp-debug:reveal',
 	'provenance:set-handle',
 	'provenance:set-event',
+	'settings:get',
+	'settings:set',
 	'github:account',
 	'github:sign-in',
 	'github:open-pr'

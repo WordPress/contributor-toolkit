@@ -1,6 +1,6 @@
 import { Button as LinkButton, Dropdown, createSlotFill } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { envelope, listView, preformatted } from '@wordpress/icons';
+import { cog, envelope, listView, preformatted } from '@wordpress/icons';
 import { Badge, Button, IconButton, VisuallyHidden } from '@wordpress/ui';
 import { unseenLinesNote } from '../debug-log.cjs';
 import { TRAY_ID } from './bottom-tray.jsx';
@@ -54,10 +54,10 @@ export function trayToggleId(tray) {
  * Its left half holds a button for each tray (#558), pressed while its tray
  * is the open one; the Logs button also says how many lines of the open
  * site's debug.log have not been seen. Its right half holds what is about
- * the app rather than about a site. For now that is the way to give
- * feedback. The button says what the form is and who reads it before
- * anything leaves the app, since the form is on the web and a contributor
- * should know that before they are sent there.
+ * the app rather than about a site: the way to give feedback, and the
+ * settings (#559). The feedback button says what the form is and who reads
+ * it before anything leaves the app, since the form is on the web and a
+ * contributor should know that before they are sent there.
  *
  * `trays` is what the tray can hold (tray.cjs), and is empty in a window
  * with no site, where there is nothing to put in one.
@@ -67,8 +67,9 @@ export function trayToggleId(tray) {
  * @param {string|null} [props.activeTray]       The tray that is open, if any.
  * @param {Function}    [props.onToggleTray]     Called with a tray's id when its button is pressed.
  * @param {Function}    props.onOpenFeedbackForm Opens the form in the browser.
+ * @param {Function}    props.onOpenSettings     Opens the settings dialog.
  */
-export function AppFooter({ trays = [], activeTray = null, onToggleTray, onOpenFeedbackForm }) {
+export function AppFooter({ trays = [], activeTray = null, onToggleTray, onOpenFeedbackForm, onOpenSettings }) {
   return (
     <footer className="app-footer">
       <div className="app-footer-actions">
@@ -121,6 +122,14 @@ export function AppFooter({ trays = [], activeTray = null, onToggleTray, onOpenF
               </LinkButton>
             </div>
           )}
+        />
+        <IconButton
+          icon={cog}
+          label={__('Settings')}
+          variant="minimal"
+          tone="neutral"
+          size="compact"
+          onClick={onOpenSettings}
         />
       </div>
     </footer>

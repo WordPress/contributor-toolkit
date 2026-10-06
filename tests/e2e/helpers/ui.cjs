@@ -96,6 +96,10 @@ const toast = ( page, text ) => toasts( page ).getByText( text, { exact: true } 
 
 // In the footer, whatever the window shows above it.
 const giveFeedbackButton = ( page ) => page.getByRole( 'button', { name: 'Give feedback', exact: true } );
+const settingsButton = ( page ) => page.getByRole( 'button', { name: 'Settings', exact: true } );
+// The settings dialog (#559), and its tabs by name.
+const settingsDialog = ( page ) => page.getByRole( 'dialog', { name: 'Settings', exact: true } );
+const settingsTab = ( page, name ) => settingsDialog( page ).getByRole( 'tab', { name, exact: true } );
 
 // --- A dialog ----------------------------------------------------------------
 
@@ -520,6 +524,9 @@ module.exports = {
 	toasts,
 	toast,
 	giveFeedbackButton,
+	settingsButton,
+	settingsDialog,
+	settingsTab,
 	closeDialogButton,
 	renderedApp,
 	siteHeading,
