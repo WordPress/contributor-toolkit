@@ -19,6 +19,16 @@
 
 const { __ } = require('@wordpress/i18n');
 
+// What the quit setting can be.
+const QUIT_BEHAVIOURS = ['stop', 'restart'];
+
+// A switch: on or off, and nothing for the fallback.
+function acceptSwitch(value) {
+	if (value === null || value === undefined) return { ok: true, value: null };
+	if (typeof value !== 'boolean') return { ok: false, error: __('Choose on or off.') };
+	return { ok: true, value };
+}
+
 /**
  * Each setting by the key it is stored under: what it falls back to, and
  * `accept(value, deps)`, which gives back the value to store or a refusal
@@ -34,6 +44,38 @@ const SETTINGS = {
 			if (value === null || value === undefined || value === '') return { ok: true, value: null };
 			if (typeof value !== 'string') return { ok: false, error: __('Choose a language.') };
 			if (!isLanguage(value)) return { ok: false, error: __('The app has no translation for that language.') };
+			return { ok: true, value };
+		}
+	},
+	// The PHP a site's development server runs on, one of the versions the
+	// bundled Playground has; applied at the next start of a server.
+	phpVersion: {
+		fallback: '8.3',
+		accept(value, { isPhpVersion }) {
+			if (value === null || value === undefined || value === '') return { ok: true, value: null };
+			if (typeof value !== 'string' || !isPhpVersion(value)) return { ok: false, error: __('The app does not have that PHP version.') };
+			return { ok: true, value };
+		}
+	},
+	// WP_DEBUG and SCRIPT_DEBUG, on unless turned off here; the rest of the
+	// constants a server is booted with are wp-debug-constants.js's and not
+	// anyone's to change.
+	wpDebug: { fallback: true, accept: acceptSwitch },
+	scriptDebug: { fallback: true, accept: acceptSwitch },
+	// What starts when a site is opened: its development server, its build
+	// watch, both or neither. Off unless turned on: a server is minutes of
+	// CPU on a laptop at a Contributor Day.
+	autoStartServer: { fallback: false, accept: acceptSwitch },
+	autoStartWatch: { fallback: false, accept: acceptSwitch },
+	// What happens to running servers and watches when the app quits: they
+	// are stopped either way, since the quit sweep ends every child the app
+	// started; 'restart' remembers which sites had one and starts them
+	// again at the next launch.
+	quitBehavior: {
+		fallback: 'stop',
+		accept(value) {
+			if (value === null || value === undefined || value === '') return { ok: true, value: null };
+			if (!QUIT_BEHAVIOURS.includes(value)) return { ok: false, error: __('Choose what happens when the app quits.') };
 			return { ok: true, value };
 		}
 	},
@@ -69,8 +111,15 @@ const SETTINGS = {
 function readSettings(preferences = {}) {
 	const stored = preferences && typeof preferences === 'object' ? preferences : {};
 	const text = (key) => (typeof stored[key] === 'string' && stored[key] ? stored[key] : SETTINGS[key].fallback);
+	const flag = (key) => (typeof stored[key] === 'boolean' ? stored[key] : SETTINGS[key].fallback);
 	return {
 		locale: text('locale'),
+		phpVersion: text('phpVersion'),
+		wpDebug: flag('wpDebug'),
+		scriptDebug: flag('scriptDebug'),
+		autoStartServer: flag('autoStartServer'),
+		autoStartWatch: flag('autoStartWatch'),
+		quitBehavior: QUIT_BEHAVIOURS.includes(stored.quitBehavior) ? stored.quitBehavior : SETTINGS.quitBehavior.fallback,
 		newSiteLocation: text('newSiteLocation')
 	};
 }
@@ -81,9 +130,10 @@ function readSettings(preferences = {}) {
  * @param {string}   key
  * @param {*}        value
  * @param {Object}   deps
- * @param {Function} deps.isAbsolute  Whether a path is a full one on this platform.
- * @param {Function} deps.isDirectory Whether a path is a folder on this machine.
- * @param {Function} deps.isLanguage  Whether a tag is one of the languages the app can show.
+ * @param {Function} deps.isAbsolute   Whether a path is a full one on this platform.
+ * @param {Function} deps.isDirectory  Whether a path is a folder on this machine.
+ * @param {Function} deps.isLanguage   Whether a tag is one of the languages the app can show.
+ * @param {Function} deps.isPhpVersion Whether a version is one the bundled Playground has.
  * @return {{ok: true, value: *}|{ok: false, error: string}} The value to store, or why not.
  */
 function acceptSetting(key, value, deps) {

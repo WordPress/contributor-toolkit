@@ -36,4 +36,15 @@ async function getStore() {
 	return store;
 }
 
-module.exports = { getStore };
+/**
+ * The store, where it has already been made, or null: for the one caller
+ * that cannot wait, the quit, which runs in a handler that is not awaited
+ * (#559). By then the store has been read for the locale at startup.
+ *
+ * @return {?Object}
+ */
+function peekStore() {
+	return store || null;
+}
+
+module.exports = { getStore, peekStore };

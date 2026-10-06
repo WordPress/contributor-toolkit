@@ -416,7 +416,7 @@ function fakeSettingsStore(initial = {}) {
 		get: (key) => structuredClone(values[key]),
 		set: (key, value) => { values[key] = value; }
 	};
-	return { values, stubs: { './settings-store': { getStore: async () => store } } };
+	return { values, stubs: { './settings-store': { getStore: async () => store, peekStore: () => store } } };
 }
 
 // --- sites:delete -> src/site-registry.js --------------------------------
@@ -1872,7 +1872,7 @@ test('settings:set asks the disk whether the folder is there', async (t) => {
 	const settings = fakeSettingsStore();
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, newSiteLocation: folder } });
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', newSiteLocation: folder } });
 	const gone = await main.invoke('settings:set', 'newSiteLocation', path.join(folder, 'gone'));
 	assert.equal(gone.ok, false);
 	assert.equal(settings.values.preferences.newSiteLocation, folder);
@@ -2545,6 +2545,103 @@ test('quitting sweeps every kind of running child through kill-tree', async (t) 
 	}
 });
 
+// --- the quit remembers what to start again -> src/resume-sites.cjs (#559) ---
+
+// With the quit setting on 'restart', what is running is written down before
+// the sweep: the sites with a server, and those running their project's
+// watch. The decision of which script is a watch is the module's; what is
+// here is that the handler hands it what main tracks, and writes the answer.
+test('before-quit writes the sites to start again when the quit setting says restart, and nothing otherwise', async (t) => {
+	for (const quitBehavior of ['restart', 'stop']) {
+		const cp = stubbedSpawn();
+		const settings = fakeSettingsStore({
+			sites: ['/sites/wp', '/sites/gb'],
+			siteMeta: { '/sites/wp': {}, '/sites/gb': { projectType: 'gutenberg' } },
+			preferences: { quitBehavior, wporgHandle: 'janedoe' }
+		});
+		const main = loadMain({
+			stubs: {
+				...silentLogging(),
+				...noSmtpServer(),
+				...settings.stubs,
+				'child_process': { spawn: cp.spawn },
+				'./npm-runner': { buildChildEnv: () => ({}) },
+				'./kill-tree': { killChildTree: () => {} }
+			}
+		});
+		// A Gutenberg site running its watch, a Core site running a build, and
+		// a Core site's server.
+		await main.invoke('npm:run-script', '/sites/gb', 'dev');
+		await main.invoke('npm:run-script', '/sites/wp', 'build');
+		const pendingServer = main.invoke('playground:start', '/sites/wp');
+		await waitForSpawnCount(cp, 3);
+		t.after(async () => {
+			cp.children[2].emit('close', 0, null);
+			await pendingServer;
+		});
+
+		await main.emitAppEvent('before-quit');
+
+		if (quitBehavior === 'restart') {
+			assert.deepEqual(settings.values.preferences.resume, { servers: ['/sites/wp'], watches: ['/sites/gb'] });
+			assert.equal(settings.values.preferences.wporgHandle, 'janedoe', 'the rest of the preferences are kept');
+		} else {
+			assert.equal('resume' in settings.values.preferences, false);
+		}
+	}
+});
+
+test('before-quit sweeps every child even when what is running cannot be written down, and says so in the log', async (t) => {
+	const cp = stubbedSpawn();
+	const killChildTree = spy(() => {});
+	const logError = spy();
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} }, preferences: { quitBehavior: 'restart' } });
+	const store = settings.stubs['./settings-store'];
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'./logging': { ...silentLogging()['./logging'], logError },
+			...noSmtpServer(),
+			'./settings-store': {
+				getStore: store.getStore,
+				peekStore: () => ({ get: (key) => structuredClone(settings.values[key]), set: () => { throw new Error('EPERM: settings.json is locked'); } })
+			},
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { buildChildEnv: () => ({}) },
+			'./kill-tree': { killChildTree }
+		}
+	});
+	await main.invoke('npm:run-script', '/sites/wp', 'build');
+	const pendingServer = main.invoke('playground:start', '/sites/wp');
+	await waitForSpawnCount(cp, 2);
+	t.after(async () => {
+		cp.children[1].emit('close', 0, null);
+		await pendingServer;
+	});
+
+	await main.emitAppEvent('before-quit');
+
+	assert.equal(killChildTree.calls.length, cp.children.length, 'the sweep reached every child');
+	assert.equal(logError.calls.length, 1);
+	assert.equal(logError.calls[0][0], 'quit');
+	assert.match(logError.calls[0][1], /settings\.json is locked/);
+});
+
+test('sites:resume hands the window the list once, and forgets it, only while the setting still says restart', async () => {
+	const settings = fakeSettingsStore({ preferences: { quitBehavior: 'restart', resume: { servers: ['/sites/wp'], watches: ['/sites/gb'] }, locale: 'de' } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.deepEqual(await main.invoke('sites:resume'), { ok: true, servers: ['/sites/wp'], watches: ['/sites/gb'] });
+	assert.equal('resume' in settings.values.preferences, false, 'read once');
+	assert.equal(settings.values.preferences.locale, 'de');
+	assert.deepEqual(await main.invoke('sites:resume'), { ok: true, servers: [], watches: [] });
+
+	const stopped = fakeSettingsStore({ preferences: { quitBehavior: 'stop', resume: { servers: ['/sites/wp'], watches: [] } } });
+	const other = loadMain({ stubs: { ...silentLogging(), ...stopped.stubs } });
+	assert.deepEqual(await other.invoke('sites:resume'), { ok: true, servers: [], watches: [] });
+	assert.equal('resume' in stopped.values.preferences, false, 'a list left under restart is forgotten under stop');
+});
+
 // --- playground:* / playground-web:* -> the same two modules --------------
 
 // Starting the per-site SMTP server ends by writing its port to electron-store,
@@ -2628,9 +2725,10 @@ test('playground:start spawns the server runner with the environment npm-runner 
 	assert.equal(buildChildEnv.calls[0][0].extraEnv.WP_MAIL_SMTP_PORT, '25');
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'playground:start');
 	// The runner is told what to serve as one JSON argument: a Core site's
-	// build/ as the docroot, run from that directory as before (#251).
+	// build/ as the docroot, run from that directory as before (#251), and
+	// what the settings hold for a server, at their fallbacks here (#559).
 	const serve = JSON.parse(cp.spawned[0].args[1]);
-	assert.deepEqual(serve, { strategy: 'docroot', docroot: path.join('/sites/wp', 'build') });
+	assert.deepEqual(serve, { strategy: 'docroot', docroot: path.join('/sites/wp', 'build'), phpVersion: '8.3', debug: { wpDebug: true, scriptDebug: true } });
 	assert.equal(cp.spawned[0].options.cwd, path.join('/sites/wp', 'build'));
 });
 
@@ -2651,9 +2749,51 @@ test('playground:start serves a Gutenberg site as a plugin mounted from the chec
 
 	assert.equal(path.basename(cp.spawned[0].args[0]), 'server-runner.js');
 	const serve = JSON.parse(cp.spawned[0].args[1]);
-	assert.deepEqual(serve, { strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: 'gutenberg' });
+	assert.deepEqual(serve, { strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: 'gutenberg', phpVersion: '8.3', debug: { wpDebug: true, scriptDebug: true } });
 	// There is no build/ docroot to run from: the checkout is the plugin.
 	assert.equal(cp.spawned[0].options.cwd, '/sites/gb');
+});
+
+// The settings reach the server through the config the runner is handed
+// (#559), read at each start; a version the bundled Playground does not have,
+// left in the store by a bump, is passed over for the fallback.
+test('playground:start hands the runner the PHP version and the debug flags from the settings', async (t) => {
+	const settings = fakeSettingsStore({ preferences: { phpVersion: '8.4', wpDebug: false } });
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) } }
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground:start', '/sites/wp'));
+
+	const serve = JSON.parse(cp.spawned[0].args[1]);
+	assert.equal(serve.phpVersion, '8.4');
+	assert.deepEqual(serve.debug, { wpDebug: false, scriptDebug: true });
+});
+
+test('playground:start passes over a stored PHP version the bundled Playground no longer has', async (t) => {
+	const settings = fakeSettingsStore({ preferences: { phpVersion: '5.6' } });
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) } }
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground:start', '/sites/wp'));
+
+	assert.equal(JSON.parse(cp.spawned[0].args[1]).phpVersion, '8.3');
+});
+
+test('playground:php-versions lists what the bundled Playground has, and settings:set keeps only one of those (#559)', async () => {
+	const settings = fakeSettingsStore();
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const { versions } = await main.invoke('playground:php-versions');
+	assert.ok(versions.includes('8.3'), 'the fallback is one the bundle has');
+	assert.deepEqual(await main.invoke('settings:set', 'phpVersion', versions[0]), { ok: true, settings: { ...(await main.invoke('settings:get')).settings, phpVersion: versions[0] } });
+	assert.equal((await main.invoke('settings:set', 'phpVersion', '5.6')).ok, false);
+	assert.equal(settings.values.preferences.phpVersion, versions[0]);
+	assert.deepEqual(await main.invoke('settings:set', 'wpDebug', false), { ok: true, settings: { ...(await main.invoke('settings:get')).settings, wpDebug: false } });
+	assert.equal((await main.invoke('settings:set', 'wpDebug', 'off')).ok, false);
 });
 
 test('playground-web:start spawns its runner through npm-runner too', async (t) => {
@@ -6514,10 +6654,10 @@ test('settings:set keeps a language the build has, and refuses one it has not (#
 		stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null, languageChoices: () => [{ tag: 'de', label: 'Deutsch' }, { tag: 'en', label: 'English' }] } }
 	});
 
-	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', newSiteLocation: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', newSiteLocation: null } });
 	assert.equal((await main.invoke('settings:set', 'locale', 'fr')).ok, false);
 	assert.equal(settings.values.preferences.locale, 'de');
-	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, newSiteLocation: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', newSiteLocation: null } });
 });
 
 test('app:relaunch relaunches through a quit, so the child sweep runs, without the launch\'s link or --lang (#559)', async (t) => {
@@ -6626,6 +6766,7 @@ const WIRED = new Set([
 	'provenance:set-event',
 	'settings:get',
 	'settings:set',
+	'sites:resume',
 	'i18n:languages',
 	'github:account',
 	'github:sign-in',
@@ -6647,6 +6788,7 @@ const NO_DELEGATION = new Map([
 	['dialog:choose-dir', 'opens the directory dialog'],
 	['dialog:choose-patch-file', 'opens the file-open dialog and reads the chosen file'],
 	['playground-web:available', 'checks a path on disk'],
+	['playground:php-versions', 'reads the list the bundled Playground publishes; asserted with settings:set above'],
 	['provenance:get', 'electron-store read'],
 	['smtp:get', 'electron-store read'],
 	['smtp:clear', 'electron-store write'],

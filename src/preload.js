@@ -111,6 +111,13 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	relaunch: () => ipcRenderer.invoke('app:relaunch')
 ,
+	// The PHP versions a site's server can run on, for the settings.
+	listPhpVersions: () => ipcRenderer.invoke('playground:php-versions')
+,
+	// The sites whose server or watch the last quit stopped and is to start
+	// again (#559). Read once: the list is forgotten as it is read.
+	takeResumeList: () => ipcRenderer.invoke('sites:resume')
+,
 	// The menu's "Settings…" asked for the dialog.
 	subscribeSettingsOpen: (handler) => {
 		const h = () => handler && handler();

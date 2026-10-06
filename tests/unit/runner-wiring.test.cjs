@@ -173,6 +173,25 @@ test('server-runner passes the WordPress debug constants to Playground', () => {
 	}
 });
 
+// The two constants the settings reach (#559) ride in the serve config, and
+// the PHP version with them; a config that names none of them boots the site
+// as it always was.
+test('server-runner turns the debug flags in the config off in the blueprint, and passes the PHP version to the CLI', () => {
+	const { cliOptions } = loadRunner(SERVER_RUNNER, [JSON.stringify({ strategy: 'docroot', docroot: CORE_DOCROOT, phpVersion: '8.4', debug: { wpDebug: false, scriptDebug: false } })]);
+
+	assert.equal(cliOptions.php, '8.4');
+	assert.strictEqual(cliOptions.blueprint.constants.WP_DEBUG, false);
+	assert.strictEqual(cliOptions.blueprint.constants.SCRIPT_DEBUG, false);
+	// The rest of the set is what it was.
+	assert.strictEqual(cliOptions.blueprint.constants.WP_DISABLE_FATAL_ERROR_HANDLER, true);
+	assert.strictEqual(cliOptions.blueprint.constants.AUTOMATIC_UPDATER_DISABLED, true);
+});
+
+test('a config that names no PHP version leaves the CLI to its own default', () => {
+	const { cliOptions } = loadRunner(SERVER_RUNNER, [CORE_SERVE]);
+	assert.equal('php' in cliOptions, false);
+});
+
 // Spreading the debug constants in ahead of the mail ones must not have taken
 // the mail ones out: this is how a site's outgoing mail reaches the app's SMTP
 // catcher, and losing it is silent — mail simply stops arriving.

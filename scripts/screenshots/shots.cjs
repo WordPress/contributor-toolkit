@@ -212,6 +212,9 @@ const shots = [
 	{
 		slug: 'gutenberg-site-view',
 		tier: 'fixture',
+		// The details have grown a row (#559): tall enough for their Build
+		// watch section to be whole.
+		viewport: { width: 1200, height: 900 },
 		variant: 'gutenberg',
 		prepare: async (page) => {
 			await selectSite(page, 'my-gutenberg-fix');
@@ -231,6 +234,9 @@ const shots = [
 	{
 		slug: 'site-menu',
 		tier: 'fixture',
+		// The details have grown a row (#559): tall enough for their Build
+		// watch section to be whole.
+		viewport: { width: 1200, height: 900 },
 		variant: 'seeded',
 		prepare: async (page) => {
 			await selectSite(page, 'my-first-patch');
@@ -364,6 +370,9 @@ const shots = [
 	{
 		slug: 'site-view',
 		tier: 'fixture',
+		// The details have grown a row (#559): tall enough for their Build
+		// watch section to be whole.
+		viewport: { width: 1200, height: 900 },
 		variant: 'seeded',
 		prepare: async (page) => {
 			await openReadySite(page);

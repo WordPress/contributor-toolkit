@@ -3,7 +3,7 @@ const fs = require('fs');
 const { hideChildWindows } = require('./hide-child-windows');
 const { bindLoopbackOnly } = require('./bind-loopback');
 const { formatErrorChain } = require('./error-chain');
-const { WP_DEBUG_CONSTANTS } = require('./wp-debug-constants');
+const { debugConstants } = require('./wp-debug-constants');
 const { planPlaygroundLaunch, planServeConstants } = require('./playground-plan.cjs');
 
 // Must run before the Playground CLI is required, so anything it spawns is
@@ -23,7 +23,8 @@ async function main() {
 	// the strategy into the runCLI mount, install-mode and blueprint-step
 	// options, and says which extra constants the strategy needs; the debug and
 	// SMTP constants are added here because they come from this process's
-	// environment.
+	// environment, and the PHP version and the two debug flags the settings
+	// hold (#559) ride in the config.
 	const raw = process.argv[2];
 	// The `return`s after each exit are for the test harness, which replaces
 	// process.exit with a recorder: without them main() would carry on into
@@ -71,13 +72,16 @@ async function main() {
 			// WordPress, and the checkout is mounted under wp-content/plugins
 			// and activated.
 			...launch,
+			// The PHP the site runs on, from the settings; the CLI's own default
+			// when the config names none, as it did before there was a setting.
+			...(serveConfig.phpVersion ? { php: serveConfig.phpVersion } : {}),
 			verbosity: 'debug',
 			blueprint: {
 				constants: {
 					// Debug first, mail second. This is the only point at which
 					// constants can be set: Playground generates the wp-config.php
 					// itself, and these have to be defined before WordPress loads.
-					...WP_DEBUG_CONSTANTS,
+					...debugConstants(serveConfig.debug),
 					'WP_MAIL_SMTP_HOST': process.env.WP_MAIL_SMTP_HOST || '127.0.0.1',
 					'WP_MAIL_SMTP_PORT': Number(process.env.WP_MAIL_SMTP_PORT || 25),
 					'WP_MAIL_SMTP_AUTH': String(process.env.WP_MAIL_SMTP_AUTH || 'false') === 'true',

@@ -61,7 +61,8 @@ const {
 const { fetchPullRequestHead, describePullRequestHead, pullRequestBranchState, checkoutPullRequest, leavePullRequest } = require('./pr-checkout');
 const { prSubmissionRefusal, prCheckoutRefusal } = require('./renderer/pr-checkout.cjs');
 const { createProgressThrottle, describeSwitchProgress } = require('./switch-progress.cjs');
-const { getStore } = require('./settings-store');
+const { getStore, peekStore } = require('./settings-store');
+const { sitesToResume, readResume } = require('./resume-sites.cjs');
 
 // One name for the send-only progress channel (#173), shared with preload.js
 // through the tests rather than by import — the renderer bundle and the main
@@ -362,6 +363,9 @@ const runningScripts = {};
 const cancelledChildren = new WeakSet();
 /** @type {Record<string, string>} */
 const runIdByDirectory = {};
+// What each running script is, by run (#559): the quit reads which of them
+// are a site's build watch, to start those again at the next launch.
+const scriptByRunId = {};
 // The same directory index for installs. The renderer knows a script's runId
 // (`npm:run-script` returns it before the first log line) but never an
 // installId — `runNpmInstall` keeps that correlation id to itself in the
@@ -721,6 +725,22 @@ function languages() {
 }
 
 ipcMain.handle('i18n:languages', async () => ({ ok: true, languages: await languages() }));
+
+// The PHP versions the bundled Playground can run a site on (#559): what
+// its own module says, read once it is asked for. The module is the server
+// runner's and not otherwise main's, so it is loaded then and not at start.
+let phpVersionsList = null;
+function phpVersions() {
+	if (!phpVersionsList) {
+		// Not a declared dependency: it is @wp-playground/cli's, at whatever
+		// version that package pins, which is the one the runner serves with.
+		const { SupportedPHPVersions } = require('@php-wasm/universal');
+		phpVersionsList = [...SupportedPHPVersions];
+	}
+	return phpVersionsList;
+}
+
+ipcMain.handle('playground:php-versions', () => ({ ok: true, versions: phpVersions(), fallback: SETTINGS.phpVersion.fallback }));
 
 // What the settings dialog offers after the language is changed. `quit`, not
 // `exit`: the quit sweep ends every child the app started, as it does on any
@@ -2665,7 +2685,50 @@ app.on('window-all-closed', function () {
 // Known residual gap on Windows: taskkill /T walks parent links at kill time,
 // so a grandchild whose intermediate parent is already gone can survive
 // (observed with grunt _watch) — tracked in #83.
+// With the quit setting on 'restart' (#559), what is running is written down
+// before it is swept, for the next launch to start again. Written through
+// the store's synchronous accessor: this handler is not awaited, and the
+// store has been made by now, at startup, for the locale. A store not yet
+// made is a launch that read nothing, with nothing running to remember.
+function rememberRunningSites() {
+	const s = peekStore();
+	if (!s) return;
+	const preferences = s.get('preferences') || {};
+	if (readSettings(preferences).quitBehavior !== 'restart') return;
+	const resume = sitesToResume({
+		servers: Object.keys(playgroundServers).filter((sitePath) => playgroundServers[sitePath]?.child),
+		scripts: Object.keys(runningScripts).map((runId) => scriptByRunId[runId]).filter(Boolean),
+		watchFor: (sitePath) => {
+			const meta = (s.get('siteMeta') || {})[sitePath];
+			return meta ? projectTypeForSite(meta).build.watch : null;
+		}
+	});
+	logEvent('quit', `remembering ${resume.servers.length} server(s) and ${resume.watches.length} watch(es) to start again`);
+	s.set('preferences', { ...preferences, resume });
+}
+
+// The list the quit left, read once by the window as it opens and then
+// forgotten, so a launch that ends badly does not start it all again twice.
+ipcMain.handle('sites:resume', async () => {
+	const s = await getStore();
+	const preferences = s.get('preferences') || {};
+	const resume = readResume(preferences);
+	if ('resume' in preferences) {
+		const { resume: _taken, ...rest } = preferences;
+		s.set('preferences', rest);
+	}
+	return { ok: true, ...resume };
+});
+
 app.on('before-quit', () => {
+	// Before the sweep, since it reads what is running; and unable to stop
+	// the sweep, since a store that cannot be written is no reason to leave
+	// every server and watch running.
+	try {
+		rememberRunningSites();
+	} catch (e) {
+		logError('quit', `could not remember what is running: ${String(e && e.message ? e.message : e)}`);
+	}
 	logEvent('quit', 'sweeping child processes');
 	const children = [
 		...Object.values(runningInstalls),
@@ -3501,7 +3564,8 @@ ipcMain.handle('settings:set', async (_e, key, value) => {
 	const accepted = acceptSetting(key, value, {
 		isAbsolute: path.isAbsolute,
 		isDirectory: () => directory,
-		isLanguage: (tag) => known.some((language) => language.tag === tag)
+		isLanguage: (tag) => known.some((language) => language.tag === tag),
+		isPhpVersion: (version) => phpVersions().includes(version)
 	});
 	if (!accepted.ok) return { ok: false, error: accepted.error };
 	await setPreference(key, accepted.value);
@@ -3741,6 +3805,7 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 		relaxEnginesFromStart: true,
 		register: (child) => {
 			runningScripts[runId] = child;
+			scriptByRunId[runId] = { directoryPath, scriptName, scriptArgs };
 			runIdByDirectory[directoryPath] = runId;
 			trackDirectoryChild(directoryPath, child);
 		},
@@ -3751,6 +3816,7 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 			event.sender.send('npm:run-script:done', { runId, code });
 			untrackDirectoryChild(directoryPath, runningScripts[runId]);
 			delete runningScripts[runId];
+			delete scriptByRunId[runId];
 			if (runIdByDirectory[directoryPath] === runId) {
 				delete runIdByDirectory[directoryPath];
 			}
@@ -3834,13 +3900,25 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	const serve = projectTypeForSite(await readSiteMeta(sitePath)).serve;
 	const isPluginMount = serve.strategy === 'plugin-mount';
 	const buildDir = path.join(sitePath, 'build');
-	const serveConfig = isPluginMount
-		? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
-		: { strategy: 'docroot', docroot: buildDir };
+	// The PHP version and the debug flags the settings hold (#559), read at
+	// each start so a change applies to the next. A version the bundled
+	// Playground no longer has, after a bump, is passed over for the fallback.
+	const logScope = playgroundLogScope(sitePath);
+	const settings = readSettings((await getStore()).get('preferences'));
+	const phpVersion = phpVersions().includes(settings.phpVersion) ? settings.phpVersion : SETTINGS.phpVersion.fallback;
+	if (phpVersion !== settings.phpVersion) {
+		logEvent(logScope, `PHP ${settings.phpVersion} is set but this build does not have it; starting on PHP ${phpVersion}`);
+	}
+	const serveConfig = {
+		...(isPluginMount
+			? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
+			: { strategy: 'docroot', docroot: buildDir }),
+		phpVersion,
+		debug: { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug }
+	};
 	const serveCwd = isPluginMount ? sitePath : buildDir;
 	const runnerPath = path.join(__dirname, 'server-runner.js');
-	const logScope = playgroundLogScope(sitePath);
-	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
+	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} on PHP ${phpVersion}, WP_DEBUG ${settings.wpDebug ? 'on' : 'off'}, SCRIPT_DEBUG ${settings.scriptDebug ? 'on' : 'off'} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
 	const child = spawnRunner(runnerPath, [JSON.stringify(serveConfig)], {
 		cwd: serveCwd,
 		extraEnv: {

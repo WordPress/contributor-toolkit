@@ -86,4 +86,56 @@ function languageChanged(settings, loaded) {
 	return (settings.locale || null) !== (loaded.locale || null);
 }
 
-module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, SYSTEM_LANGUAGE };
+/**
+ * Which PHP version the control shows as chosen, and what it says of one
+ * that is set but not among the versions the build has: a release can bump
+ * the bundled Playground past a version a contributor chose. The server
+ * then starts on the fallback, and the control shows that and says why,
+ * rather than showing a choice that is not what runs.
+ *
+ * @param {Object}  root0
+ * @param {?Array}  root0.versions What the build has, or null while it has not answered.
+ * @param {?string} root0.fallback What a server starts on when nothing is chosen, or null likewise.
+ * @param {?string} root0.stored   What is set, or null for the fallback.
+ * @return {{value: ?string, note: string}} The version to show as chosen, and a note or ''.
+ */
+function phpVersionChoice({ versions, fallback, stored }) {
+	if (!versions || !fallback) return { value: null, note: '' };
+	if (!stored || versions.includes(stored)) return { value: stored || fallback, note: '' };
+	return {
+		value: fallback,
+		// translators: %1$s: a PHP version that was chosen; %2$s: the PHP version used instead.
+		note: sprintf(__('PHP %1$s was chosen, but this version of the app does not have it; servers start on PHP %2$s.'), stored, fallback)
+	};
+}
+
+/**
+ * The entries of the control for what happens on quit (#559). Two and not
+ * the prototype's three: its "keep sites running" would leave children past
+ * the quit, which the quit sweep exists to end.
+ *
+ * @return {Array<{value: string, label: string}>}
+ */
+function quitItems() {
+	return [
+		{ value: 'stop', label: __('Stop them') },
+		{ value: 'restart', label: __('Stop them, and start them again next time') }
+	];
+}
+
+/**
+ * What the next launch starts for a site, from the list the last quit left:
+ * its server, its watch, both, or nothing.
+ *
+ * @param {?{servers: string[], watches: string[]}} resume   The list, or null while it has not been read.
+ * @param {string}                                  sitePath
+ * @return {?{server: boolean, watch: boolean}} What to start, or null for nothing.
+ */
+function resumeFor(resume, sitePath) {
+	if (!resume) return null;
+	const server = (resume.servers || []).includes(sitePath);
+	const watch = (resume.watches || []).includes(sitePath);
+	return server || watch ? { server, watch } : null;
+}
+
+module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, resumeFor, SYSTEM_LANGUAGE };

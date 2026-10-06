@@ -206,3 +206,46 @@ test( 'the language set in the settings is the one the app starts in, and a chan
 	await expect( after.getByRole( 'combobox', { name: 'Language', exact: true } ) ).toHaveText( 'English' );
 	await expect( after.getByRole( 'button', { name: 'Relaunch now', exact: true } ) ).toHaveCount( 0 );
 } );
+
+test( 'the Sites tab keeps the PHP version and the debug flags the next server start is given', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+
+	await ui.settingsButton( page ).click();
+	const dialog = ui.settingsDialog( page );
+	await ui.settingsTab( page, 'Sites' ).click();
+	const versions = dialog.getByRole( 'radiogroup', { name: 'PHP version', exact: true } );
+	const wpDebug = dialog.getByRole( 'switch', { name: 'Report notices and deprecations (WP_DEBUG)', exact: true } );
+	const scriptDebug = dialog.getByRole( 'switch', { name: 'Use unminified scripts (SCRIPT_DEBUG)', exact: true } );
+
+	// INVARIANT — the fallbacks: 8.3, both constants on.
+	await expect( versions.getByRole( 'radio', { name: '8.3', exact: true } ) ).toBeChecked();
+	await expect( wpDebug ).toBeChecked();
+	await expect( scriptDebug ).toBeChecked();
+
+	// INVARIANT — a version the bundle has is kept, and so is a flag turned
+	// off; the other flag is left as it was.
+	await versions.getByRole( 'radio', { name: '8.4', exact: true } ).click();
+	await expect( versions.getByRole( 'radio', { name: '8.4', exact: true } ) ).toBeChecked();
+	await expect.poll( () => session.readSettings().preferences?.phpVersion ).toBe( '8.4' );
+	await wpDebug.click();
+	await expect( wpDebug ).not.toBeChecked();
+	await expect.poll( () => session.readSettings().preferences?.wpDebug ).toBe( false );
+	expect( session.readSettings().preferences.scriptDebug ).toBeUndefined();
+
+	// INVARIANT — the open site's details say what the next start is given.
+	await ui.closeDialogButton( dialog ).click();
+	await expect( dialog ).toHaveCount( 0 );
+	await expect( page.getByText( 'WordPress Core · PHP 8.4', { exact: true } ) ).toBeVisible();
+	await expect( page.getByText( 'SCRIPT_DEBUG', { exact: true } ) ).toBeVisible();
+	await expect( page.getByText( 'WP_DEBUG · SCRIPT_DEBUG', { exact: true } ) ).toHaveCount( 0 );
+
+	// INVARIANT — opened again after a restart, the tab shows what was kept.
+	const again = await session.restart();
+	await ui.settingsButton( again.page ).click();
+	await ui.settingsTab( again.page, 'Sites' ).click();
+	const kept = ui.settingsDialog( again.page );
+	await expect( kept.getByRole( 'radio', { name: '8.4', exact: true } ) ).toBeChecked();
+	await expect( kept.getByRole( 'switch', { name: 'Report notices and deprecations (WP_DEBUG)', exact: true } ) ).not.toBeChecked();
+	await expect( kept.getByRole( 'switch', { name: 'Use unminified scripts (SCRIPT_DEBUG)', exact: true } ) ).toBeChecked();
+} );

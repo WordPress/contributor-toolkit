@@ -83,6 +83,8 @@ import { TicketListCard } from './components/ticket-list.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useSettings } from './hooks/use-settings.jsx';
+import { phpVersionChoice, resumeFor } from './settings-view.cjs';
+import { autoStartPlan } from './auto-start.cjs';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
 import { useSites } from './hooks/use-sites.jsx';
 import { usePullRequest } from './hooks/use-pull-request.jsx';
@@ -132,7 +134,20 @@ function App() {
   const wporg = useContributorProvenance();
   // The app's settings (#559), and the dialog they are changed in. The menu
   // asks for the dialog too, over a subscription the whole window holds.
-  const { settings, loaded: loadedSettings, change: changeSetting } = useSettings();
+  const { settings, loaded: loadedSettings, php: phpVersions, change: changeSetting } = useSettings();
+  // The PHP a server starts on: the one set where the bundle has it, and
+  // the fallback where it does not, decided where the dialog decides it.
+  const startingPhp = settings ? phpVersionChoice({ versions: phpVersions?.versions, fallback: phpVersions?.fallback, stored: settings.phpVersion }).value : null;
+  // What the last quit stopped and is to start again (#559), read once as
+  // the window opens; main forgets it as it is read.
+  const [resume, setResume] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    window.api.takeResumeList()
+      .then((res) => { if (!cancelled) setResume(res?.ok ? { servers: res.servers, watches: res.watches } : { servers: [], watches: [] }); })
+      .catch(() => { if (!cancelled) setResume({ servers: [], watches: [] }); });
+    return () => { cancelled = true; };
+  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
@@ -684,6 +699,9 @@ function App() {
                         createdAt={siteMeta?.[s]?.createdAt}
                         label={siteMeta?.[s]?.label}
                         projectType={siteMeta?.[s]?.projectType}
+                        settings={settings}
+                        startingPhp={startingPhp}
+                        resume={resumeFor(resume, s)}
                         onInitialized={onInitialized}
                         onSiteMetaPatch={onSiteMetaPatch}
                         onDelete={onDelete}
@@ -720,7 +738,7 @@ function App() {
         </div>
       )}
       <CreateSiteDialog open={createModalOpen} submitting={createSubmitting} defaultDir={settings ? settings.newSiteLocation : null} onCreate={startSiteSetup} onClose={closeCreateModal} />
-      <SettingsDialog open={settingsOpen} settings={settings} loaded={loadedSettings} onChange={changeSetting} wporg={wporg} onClose={closeSettings} />
+      <SettingsDialog open={settingsOpen} settings={settings} loaded={loadedSettings} php={phpVersions} onChange={changeSetting} wporg={wporg} onClose={closeSettings} />
     </div>
     </SlotFillProvider>
     {/* One toast region for the window (#253, #557). In the bottom corner,
@@ -739,7 +757,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1242,6 +1260,39 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // through everything above, and because what follows reads whether an
   // update is under way.
   const { updateState, isUpdating, updateHeld, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+  // What opening the site starts (#559): the server, the watch, as the
+  // settings say, and what the last quit left for this site to start again.
+  // Which edge to consume and what to start is auto-start.cjs's; what is
+  // here is the gates and the calls. What an edge asks for waits until the
+  // site is ready for it, its status read and its setup done, and is
+  // dropped by a deactivation first. Nothing starts under an update, a
+  // setup or a deletion, and nothing that is already running or starting is
+  // started again: the watch is started after the server's start has
+  // answered, and only where that start did not bring it up.
+  const autoStart = useRef({ open: false, resumed: false });
+  useEffect(() => { autoStart.current.open = isActive; }, [isActive]);
+  const starters = useRef({ toggleDevServer, startBuildWatch });
+  useEffect(() => { starters.current = { toggleDevServer, startBuildWatch }; });
+  useEffect(() => {
+    if (statusLoading || !skipInit || !settings) return;
+    if (isPending || isDeleting || isUpdating || setupChainState !== 'idle') return;
+    const plan = autoStartPlan({ open: autoStart.current.open, isActive, resumed: autoStart.current.resumed, resume, settings });
+    if (plan.consumeOpen) autoStart.current.open = false;
+    if (plan.consumeResume) autoStart.current.resumed = true;
+    if (!plan.server && !plan.watch) return;
+    const watchUp = () => ['watching', 'building'].includes(watchStateRef.current);
+    const serverTried = plan.server && !isDevProcessActive;
+    (async () => {
+      if (serverTried) await starters.current.toggleDevServer();
+      // A server's start that found the terminal held has already been
+      // refused the watch, and said so; the watch is not asked for again.
+      if (plan.watch && !watchUp() && !(serverTried && terminalStateRef.current.running)) starters.current.startBuildWatch();
+    })().catch((err) => {
+      // eslint-disable-next-line no-console -- reaches the log file, see the note in useDetectedEditors.
+      console.error('Could not start what opening the site asks for:', err);
+    });
+  }, [isActive, resume, settings, statusLoading, skipInit, isPending, isDeleting, isUpdating, setupChainState, isDevProcessActive, watchStateRef, terminalStateRef]);
+
   // What the page says about the site's two processes (#557), in the header
   // and in the details alike. Decided in site-processes.cjs, and worked out
   // here because an update of trunk holds both.
@@ -2233,7 +2284,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         id={detailsId}
         open={detailsOpen}
         siteName={displayName}
-        facts={{ initialized, created: createdLabel, trunk: age, path: sitePath, checkout: project.label }}
+        facts={{
+          initialized,
+          created: createdLabel,
+          trunk: age,
+          path: sitePath,
+          checkout: project.label,
+          // What every site's server starts with (#559), from the settings:
+          // the PHP it will start on, which is not always the one set.
+          phpVersion: startingPhp,
+          debug: settings ? { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug } : null
+        }}
         pathCopied={pathCopied}
         onCopyPath={copyPath}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}

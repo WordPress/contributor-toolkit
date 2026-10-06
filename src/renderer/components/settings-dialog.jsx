@@ -1,7 +1,12 @@
 import { useEffect, useId, useMemo, useState } from 'react';
+// The segmented control the design has for a choice of a few. The design
+// system has no other, and documents this one under these names: it is
+// stable in use and has not been given its final export yet.
+// eslint-disable-next-line @wordpress/no-unsafe-wp-apis -- see above.
+import { __experimentalToggleGroupControl as ToggleGroupControl, __experimentalToggleGroupControlOption as ToggleGroupControlOption } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { Button, Dialog, InputControl, Notice, SelectControl, Stack, Tabs, Text } from '@wordpress/ui';
-import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, SYSTEM_LANGUAGE } from '../settings-view.cjs';
+import { Button, Dialog, InputControl, Notice, SelectControl, Stack, SwitchControl, Tabs, Text } from '@wordpress/ui';
+import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, SYSTEM_LANGUAGE } from '../settings-view.cjs';
 import { FolderField } from './folder-field.jsx';
 
 // A notice here is read by its role, and is not also spoken: the dialog it
@@ -76,6 +81,56 @@ function LanguageControl({ settings, loaded, onChange }) {
   );
 }
 
+// What a site opened starts, and what the quit does with what is running.
+// The quit stops servers and watches either way: the one choice is whether
+// the next launch starts them again.
+function OpeningAndQuitting({ settings, onChange }) {
+  const [error, setError] = useState('');
+  const keep = async (key, value) => {
+    const result = await onChange(key, value);
+    setError(result?.ok ? '' : (result?.error || __('Could not keep that.')));
+  };
+  const items = quitItems();
+  return (
+    <Stack direction="column" gap="xl">
+      <Text variant="heading-lg" render={<h3 />}>{__('Opening and quitting')}</Text>
+      <SwitchControl
+        label={__('Start the server when I open a site')}
+        description={__('So the site and wp-admin are ready without a press. On WordPress Core the build watch starts with it.')}
+        checked={settings ? settings.autoStartServer : false}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('autoStartServer', checked)}
+      />
+      <SwitchControl
+        label={__('Start the build watch when I open a site')}
+        description={__('So edits are compiled as they are saved.')}
+        checked={settings ? settings.autoStartWatch : false}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('autoStartWatch', checked)}
+      />
+      <SelectControl
+        label={__('When I quit, running servers and build watches')}
+        description={__('Quitting always stops them; they can be started again when the app next opens.')}
+        items={items}
+        value={settings ? settings.quitBehavior : 'stop'}
+        disabled={!settings}
+        onValueChange={(value) => keep('quitBehavior', value)}
+      >
+        {items.map((item) => (
+          <SelectControl.Item key={item.value} value={item.value} label={item.label}>
+            <SelectControl.ItemLabel>{item.label}</SelectControl.ItemLabel>
+          </SelectControl.Item>
+        ))}
+      </SelectControl>
+      {error ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{error}</Notice.Description>
+        </Notice.Root>
+      ) : null}
+    </Stack>
+  );
+}
+
 // The folder new sites go in. The system's dialog chooses it, main checks
 // it, and what main then holds is what is shown: a folder it refused is
 // said under the field and nothing changes.
@@ -103,6 +158,7 @@ function GeneralTab({ settings, loaded, onChange }) {
         <Text variant="heading-lg" render={<h3 />}>{__('Appearance')}</Text>
         <LanguageControl settings={settings} loaded={loaded} onChange={onChange} />
       </Stack>
+      <OpeningAndQuitting settings={settings} onChange={onChange} />
       <Stack direction="column" gap="xl">
         <Text variant="heading-lg" render={<h3 />}>{__('New sites')}</Text>
         <FolderField
@@ -124,6 +180,63 @@ function GeneralTab({ settings, loaded, onChange }) {
           </Notice.Root>
         ) : null}
       </Stack>
+    </Stack>
+  );
+}
+
+// What a site's development server runs with: the PHP it runs on, from the
+// versions the bundled Playground has, and the two debug constants that can
+// be turned off. Applied the next time a server starts; one that is running
+// keeps what it started with until it is started again.
+function SitesTab({ settings, php, onChange }) {
+  const [error, setError] = useState('');
+
+  const keep = async (key, value) => {
+    const result = await onChange(key, value);
+    setError(result?.ok ? '' : (result?.error || __('Could not keep that.')));
+  };
+  const choice = phpVersionChoice({ versions: php?.versions, fallback: php?.fallback, stored: settings ? settings.phpVersion : null });
+  // The versions could not be read: said in place of a control with nothing
+  // on it, and the version stays as it is.
+  const unread = php?.error ? __('The PHP versions could not be read. Quit the app and open it again.') : '';
+
+  return (
+    <Stack direction="column" gap="xl">
+      <Text variant="heading-lg" render={<h3 />}>{__('Development server')}</Text>
+      <Text variant="body-sm">{__('Applies the next time a site’s server starts. A server that is running keeps what it started with.')}</Text>
+      <ToggleGroupControl
+        __nextHasNoMarginBottom
+        __next40pxDefaultSize
+        isBlock
+        label={__('PHP version')}
+        help={unread || choice.note || undefined}
+        value={choice.value || undefined}
+        disabled={!settings || !php?.fallback}
+        onChange={(value) => { if (value) keep('phpVersion', value); }}
+      >
+        {(php?.versions || []).map((version) => (
+          <ToggleGroupControlOption key={version} value={version} label={version} />
+        ))}
+      </ToggleGroupControl>
+      <SwitchControl
+        label={__('Report notices and deprecations (WP_DEBUG)')}
+        description={__('Off, notices and deprecations are not reported. Warnings and errors still reach debug.log and the browser, and error_log() calls still reach debug.log.')}
+        checked={settings ? settings.wpDebug : true}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('wpDebug', checked)}
+      />
+      <SwitchControl
+        label={__('Use unminified scripts (SCRIPT_DEBUG)')}
+        description={__('Core serves its JavaScript and CSS unminified, so they can be read and stepped through in the browser.')}
+        checked={settings ? settings.scriptDebug : true}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('scriptDebug', checked)}
+      />
+      {error ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{error}</Notice.Description>
+        </Notice.Root>
+      ) : null}
     </Stack>
   );
 }
@@ -241,7 +354,7 @@ function AccountTab({ wporg }) {
 // The tabs and what is on each. Inside the dialog's popup, which is there
 // while the dialog is open and not otherwise, so every opening starts on
 // General with nothing typed and not yet saved.
-function SettingsPanels({ settings, loaded, onChange, wporg }) {
+function SettingsPanels({ settings, loaded, php, onChange, wporg }) {
   const [tab, setTab] = useState('general');
   return (
     <Dialog.Content>
@@ -249,12 +362,16 @@ function SettingsPanels({ settings, loaded, onChange, wporg }) {
         <div className="settings-tabs-bar">
           <Tabs.List variant="minimal" className="settings-tabs">
             <Tabs.Tab value="general">{__('General')}</Tabs.Tab>
+            <Tabs.Tab value="sites">{__('Sites')}</Tabs.Tab>
             <Tabs.Tab value="account">{__('Account')}</Tabs.Tab>
           </Tabs.List>
           <hr className="card-divider" />
         </div>
         <Tabs.Panel value="general" tabIndex={-1} className="settings-panel">
           <GeneralTab settings={settings} loaded={loaded} onChange={onChange} />
+        </Tabs.Panel>
+        <Tabs.Panel value="sites" tabIndex={-1} className="settings-panel">
+          <SitesTab settings={settings} php={php} onChange={onChange} />
         </Tabs.Panel>
         <Tabs.Panel value="account" tabIndex={-1} className="settings-panel">
           <AccountTab wporg={wporg} />
@@ -278,11 +395,12 @@ function SettingsPanels({ settings, loaded, onChange, wporg }) {
  * @param {boolean}  props.open     Whether the dialog is open.
  * @param {?Object}  props.settings The settings, or null while they are read.
  * @param {?Object}  props.loaded   The settings as the window first read them, for what takes a relaunch.
+ * @param {?Object}  props.php      The PHP versions the bundle has and the fallback (useSettings), null while unread, `{ error }` when it could not be.
  * @param {Function} props.onChange Changes one setting; resolves to `{ ok, settings }` or `{ ok: false, error }`.
  * @param {Object}   props.wporg    The contributor's details and how to change them.
  * @param {Function} props.onClose  Asked for by the close button, Escape, or a press outside.
  */
-export function SettingsDialog({ open, settings, loaded, onChange, wporg, onClose }) {
+export function SettingsDialog({ open, settings, loaded, php, onChange, wporg, onClose }) {
   return (
     <Dialog.Root open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
       <Dialog.Popup size="medium" className="settings-dialog">
@@ -290,7 +408,7 @@ export function SettingsDialog({ open, settings, loaded, onChange, wporg, onClos
           <Dialog.Title>{__('Settings')}</Dialog.Title>
           <Dialog.CloseIcon />
         </Dialog.Header>
-        <SettingsPanels settings={settings} loaded={loaded} onChange={onChange} wporg={wporg} />
+        <SettingsPanels settings={settings} loaded={loaded} php={php} onChange={onChange} wporg={wporg} />
       </Dialog.Popup>
     </Dialog.Root>
   );
