@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { resolveCatalog, catalogCandidates, catalogsFromNames, slugTag } = require('../../src/i18n.cjs');
+const { resolveCatalog, catalogCandidates, catalogsFromNames, slugTag, languageChoices } = require('../../src/i18n.cjs');
 const { isPseudoLocale, pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 const { createI18n } = require('@wordpress/i18n');
 
@@ -187,4 +187,20 @@ test('pseudoLocalize leaves placeholders and markup readable by code', () => {
 
 test('pseudoLocalize passes an empty string through', () => {
 	assert.equal(pseudoLocalize(''), '');
+});
+
+test('the languages offered are English and each catalog, named in itself and sorted by that name', () => {
+	const choices = languageChoices(['pt-br.json', 'de.json', 'README.md', 'zh-cn.json']);
+	// The names are ICU's, which can differ a character between Node
+	// versions; what is pinned is each language's tag, that it is named and
+	// not merely tagged, written as a list's entry is, and the order.
+	assert.deepEqual(choices.map((choice) => choice.tag), ['de', 'en', 'pt-br', 'zh-cn']);
+	assert.deepEqual(choices.slice(0, 2), [{ tag: 'de', label: 'Deutsch' }, { tag: 'en', label: 'English' }]);
+	assert.match(choices[2].label, /^Portugu/);
+	assert.match(choices[3].label, /^中文/);
+});
+
+test('the languages offered leave out a slug no OS reports, and English is offered once', () => {
+	assert.deepEqual(languageChoices(['pirate.json', 'art-xemoji.json', 'en.json']), [{ tag: 'en', label: 'English' }]);
+	assert.deepEqual(languageChoices([]), [{ tag: 'en', label: 'English' }]);
 });

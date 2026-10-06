@@ -19,6 +19,7 @@ const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite } = require( '../helpers/git-site.cjs' );
+const { pseudoLocalize } = require( '../../../src/renderer/pseudo-locale.cjs' );
 
 const openFromMenu = ( app ) => app.evaluate( ( { Menu } ) => Menu.getApplicationMenu().getMenuItemById( 'settings' ).click() );
 
@@ -147,4 +148,61 @@ test( 'the Account tab remembers who the contributor is the way the mentor hando
 	await ui.settingsTab( page, 'Account' ).click();
 	await expect( username ).toHaveValue( 'janedoe' );
 	await expect( event ).toHaveValue( '' );
+} );
+
+test( 'the language set in the settings is the one the app starts in, and a change offers the relaunch that applies it', async ( { session } ) => {
+	// The pseudo-locale, set as a contributor would set a language: in the
+	// store, with no --lang to override it. It needs no catalog, so the build
+	// under test need not ship one.
+	const site = await makeSite( session );
+	const { app, page } = await session.start( { ...site.settings, preferences: { locale: 'en-XA' } }, { lang: false } );
+	await expect( page.locator( 'html' ) ).toHaveAttribute( 'lang', 'en-XA', { timeout: 30_000 } );
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'app:relaunch' );
+		ipcMain.handle( 'app:relaunch', () => { global.__e2eRelaunches = ( global.__e2eRelaunches || 0 ) + 1; return { ok: true }; } );
+	} );
+
+	// INVARIANT — the control shows the language that is set, even one the
+	// build has no catalog for, and offers no relaunch while nothing changed.
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Settings' ), exact: true } ).click();
+	const dialog = page.getByRole( 'dialog', { name: pseudoLocalize( 'Settings' ), exact: true } );
+	const language = dialog.getByRole( 'combobox', { name: pseudoLocalize( 'Language' ), exact: true } );
+	await expect( language ).toHaveText( 'en-XA' );
+	await expect( dialog.getByRole( 'button', { name: pseudoLocalize( 'Relaunch now' ), exact: true } ) ).toHaveCount( 0 );
+
+	// INVARIANT — a language chosen is kept at once, and the dialog says the
+	// window is not in it yet and offers the relaunch, which asks main.
+	await language.click();
+	await page.getByRole( 'option', { name: 'English', exact: true } ).click();
+	await expect( language ).toHaveText( 'English' );
+	await expect.poll( () => session.readSettings().preferences?.locale ).toBe( 'en' );
+	await expect( dialog.getByRole( 'status' ) ).toContainText( pseudoLocalize( 'The app shows the new language once it has relaunched. Running servers and builds stop, as they do when the app quits.' ) );
+	await dialog.getByRole( 'button', { name: pseudoLocalize( 'Relaunch now' ), exact: true } ).click();
+	await expect.poll( () => app.evaluate( () => global.__e2eRelaunches ) ).toBe( 1 );
+
+	// INVARIANT — the system's language is a choice like the others: kept as
+	// none, and still not what the window started in, so the offer stays.
+	// The language the window started in is still listed, and choosing it
+	// is refused where it was chosen, since the build has no catalog for
+	// it: what is kept stays as it was.
+	await language.click();
+	await page.getByRole( 'option', { name: pseudoLocalize( 'Your system’s language' ), exact: true } ).click();
+	await expect.poll( () => session.readSettings().preferences?.locale ).toBe( null );
+	await expect( dialog.getByRole( 'button', { name: pseudoLocalize( 'Relaunch now' ), exact: true } ) ).toBeVisible();
+	await language.click();
+	await page.getByRole( 'option', { name: 'en-XA', exact: true } ).click();
+	await expect( dialog.getByRole( 'alert' ) ).toHaveText( pseudoLocalize( 'The app has no translation for that language.' ) );
+	expect( session.readSettings().preferences.locale ).toBe( null );
+
+	// INVARIANT — started again, as the relaunch would start it, the app is
+	// in the language kept, and the control says so with no offer.
+	await language.click();
+	await page.getByRole( 'option', { name: 'English', exact: true } ).click();
+	await expect.poll( () => session.readSettings().preferences?.locale ).toBe( 'en' );
+	const relaunched = await session.restart();
+	await expect( relaunched.page.locator( 'html' ) ).toHaveAttribute( 'lang', 'en', { timeout: 30_000 } );
+	await ui.settingsButton( relaunched.page ).click();
+	const after = ui.settingsDialog( relaunched.page );
+	await expect( after.getByRole( 'combobox', { name: 'Language', exact: true } ) ).toHaveText( 'English' );
+	await expect( after.getByRole( 'button', { name: 'Relaunch now', exact: true } ) ).toHaveCount( 0 );
 } );

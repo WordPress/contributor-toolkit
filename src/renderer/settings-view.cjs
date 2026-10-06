@@ -42,4 +42,48 @@ function newSiteLocationNote(settings) {
 	return __('Not set: the create-site dialog asks each time.');
 }
 
-module.exports = { githubAccountLine, newSiteLocationNote };
+// What the language control's entry for no choice is called.
+const SYSTEM_LANGUAGE = 'system';
+
+/**
+ * The entries of the language control: the system's language first, then
+ * the languages the app has, and the one the window started in where it is
+ * none of them (a catalog that is gone since, or a locale typed into the
+ * store), so that the control shows what is set rather than nothing.
+ *
+ * @param {?Array<{tag: string, label: string}>} languages What main offers, or null while it has not answered.
+ * @param {?string}                              locale    The language the window started in, or null for the system's.
+ * @return {Array<{value: string, label: string}>}
+ */
+function languageItems(languages, locale) {
+	const items = [{ value: SYSTEM_LANGUAGE, label: __('Your system’s language') }];
+	for (const language of languages || []) items.push({ value: language.tag, label: language.label });
+	if (locale && !items.some((item) => item.value === locale)) items.push({ value: locale, label: locale });
+	return items;
+}
+
+/**
+ * What a choice in the language control is kept as: the system's entry is
+ * kept as no choice.
+ *
+ * @param {string} choice The value of the entry chosen.
+ * @return {?string}
+ */
+function languageValue(choice) {
+	return choice === SYSTEM_LANGUAGE ? null : choice;
+}
+
+/**
+ * Whether the language the window is in is no longer the one set, so that
+ * the dialog offers the relaunch that applies it.
+ *
+ * @param {?Object} settings What main holds now.
+ * @param {?Object} loaded   What main held when the window read the settings.
+ * @return {boolean}
+ */
+function languageChanged(settings, loaded) {
+	if (!settings || !loaded) return false;
+	return (settings.locale || null) !== (loaded.locale || null);
+}
+
+module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, SYSTEM_LANGUAGE };

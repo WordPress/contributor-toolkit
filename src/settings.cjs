@@ -25,6 +25,18 @@ const { __ } = require('@wordpress/i18n');
  * for the contributor, not for a log.
  */
 const SETTINGS = {
+	// The language the app shows: one it has a catalog for, English, or
+	// nothing for the operating system's. The window shows a change after a
+	// relaunch, since main applies the catalog as it starts.
+	locale: {
+		fallback: null,
+		accept(value, { isLanguage }) {
+			if (value === null || value === undefined || value === '') return { ok: true, value: null };
+			if (typeof value !== 'string') return { ok: false, error: __('Choose a language.') };
+			if (!isLanguage(value)) return { ok: false, error: __('The app has no translation for that language.') };
+			return { ok: true, value };
+		}
+	},
 	// The folder new sites are made in, each in a subfolder of its own. Unset,
 	// the create-site dialog asks for one every time, as it did before. The
 	// path is kept as the system's dialog gave it: a folder's name can end in
@@ -56,8 +68,10 @@ const SETTINGS = {
  */
 function readSettings(preferences = {}) {
 	const stored = preferences && typeof preferences === 'object' ? preferences : {};
+	const text = (key) => (typeof stored[key] === 'string' && stored[key] ? stored[key] : SETTINGS[key].fallback);
 	return {
-		newSiteLocation: typeof stored.newSiteLocation === 'string' && stored.newSiteLocation ? stored.newSiteLocation : SETTINGS.newSiteLocation.fallback
+		locale: text('locale'),
+		newSiteLocation: text('newSiteLocation')
 	};
 }
 
@@ -69,6 +83,7 @@ function readSettings(preferences = {}) {
  * @param {Object}   deps
  * @param {Function} deps.isAbsolute  Whether a path is a full one on this platform.
  * @param {Function} deps.isDirectory Whether a path is a folder on this machine.
+ * @param {Function} deps.isLanguage  Whether a tag is one of the languages the app can show.
  * @return {{ok: true, value: *}|{ok: false, error: string}} The value to store, or why not.
  */
 function acceptSetting(key, value, deps) {

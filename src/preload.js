@@ -105,6 +105,12 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	setSetting: (key, value) => ipcRenderer.invoke('settings:set', key, value)
 ,
+	// The languages the app can show, for the settings; and the relaunch a
+	// change of language takes.
+	listLanguages: () => ipcRenderer.invoke('i18n:languages')
+,
+	relaunch: () => ipcRenderer.invoke('app:relaunch')
+,
 	// The menu's "Settings…" asked for the dialog.
 	subscribeSettingsOpen: (handler) => {
 		const h = () => handler && handler();

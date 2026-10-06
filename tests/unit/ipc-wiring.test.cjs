@@ -97,7 +97,9 @@ function createElectronStub({ ready = false } = {}) {
 		showItemInFolder: [],
 		showSaveDialog: [],
 		showOpenDialog: [],
-		applicationMenu: []
+		applicationMenu: [],
+		quit: [],
+		relaunch: []
 	};
 
 	// What `dialog` returns is per-test: git:save-patch branches on `canceled`.
@@ -144,7 +146,8 @@ function createElectronStub({ ready = false } = {}) {
 				if (!appEvents.has(event)) appEvents.set(event, []);
 				appEvents.get(event).push(listener);
 			},
-			quit() {},
+			quit() { calls.quit.push(true); },
+			relaunch(options) { calls.relaunch.push(options); },
 			exit() {},
 			getPath: () => os.tmpdir(),
 			getAppPath: () => path.join(SRC_DIR, '..'),
@@ -1869,7 +1872,7 @@ test('settings:set asks the disk whether the folder is there', async (t) => {
 	const settings = fakeSettingsStore();
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { newSiteLocation: folder } });
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, newSiteLocation: folder } });
 	const gone = await main.invoke('settings:set', 'newSiteLocation', path.join(folder, 'gone'));
 	assert.equal(gone.ok, false);
 	assert.equal(settings.values.preferences.newSiteLocation, folder);
@@ -1905,7 +1908,7 @@ async function menuBuilt(main) {
 }
 
 test('the menu\'s Settings… opens the dialog in the main window, listed first or not (#559)', async () => {
-	const main = loadMain({ ready: true, stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog: async () => null } } });
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
 	const settings = await menuBuilt(main);
 	assert.equal(main.windows.length, 1, 'the ready path opened the main window');
 	const [mainWindow] = main.windows;
@@ -1926,7 +1929,7 @@ test('the menu\'s Settings… opens the dialog in the main window, listed first 
 });
 
 test('the menu\'s Settings… with the main window closed opens one and sends nothing into it (#559)', async () => {
-	const main = loadMain({ ready: true, stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog: async () => null } } });
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
 	const settings = await menuBuilt(main);
 	const [closed] = main.windows;
 	closed.isDestroyed = () => true;
@@ -6313,7 +6316,8 @@ test('a second instance with an address delivers it, without one it only shows t
 
 test('i18n:locale asks i18n.cjs for the catalog of the OS languages, then of the one Electron reports', async () => {
 	const resolveCatalog = spy(async () => ({ locale: 'es-MX', messages: { 'No sites yet.': ['Aún no hay sitios.'] } }));
-	const main = loadMain({ stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog } } });
+	// With no language set in the settings (#559), the OS's are asked.
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './i18n.cjs': { resolveCatalog } } });
 	// Chromium folds Spanish (Mexico) into es-419; the OS list does not (#584).
 	main.electron.app.getPreferredSystemLanguages = () => ['es-MX', 'en-US'];
 	main.electron.app.getLocale = () => 'es-419';
@@ -6339,6 +6343,96 @@ test('i18n:locale takes --lang in place of the OS languages, unfolded', async ()
 	assert.deepEqual(resolveCatalog.calls[0][0], ['es-MX']);
 });
 
+test('i18n:locale puts the language set in the settings before the OS languages, and --lang in place of both (#559)', async () => {
+	const resolveCatalog = spy(async () => null);
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { locale: 'de' } }).stubs, './i18n.cjs': { resolveCatalog, languageChoices: () => [] } }
+	});
+	main.electron.app.getPreferredSystemLanguages = () => ['fr-FR'];
+
+	assert.deepEqual(await main.invoke('i18n:locale'), { locale: 'en', data: null });
+	// Before and not instead: a chosen language whose catalog a release has
+	// dropped falls back to the OS's language, not to English.
+	assert.deepEqual(resolveCatalog.calls[0][0], ['de', 'fr-FR', 'en-GB']);
+
+	const flagged = loadMain({
+		stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { locale: 'de' } }).stubs, './i18n.cjs': { resolveCatalog, languageChoices: () => [] } }
+	});
+	flagged.electron.app.commandLine.getSwitchValue = (name) => (name === 'lang' ? 'es-MX' : '');
+	await flagged.invoke('i18n:locale');
+	assert.deepEqual(resolveCatalog.calls[1][0], ['es-MX']);
+});
+
+test('i18n:locale counts a store it cannot read as no language chosen, and the app still opens (#559)', async () => {
+	const resolveCatalog = spy(async () => null);
+	const logError = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'./logging': { ...silentLogging()['./logging'], logError },
+			'./settings-store': { getStore: async () => { throw new Error('settings.json is not JSON'); } },
+			'./i18n.cjs': { resolveCatalog, languageChoices: () => [] }
+		}
+	});
+	main.electron.app.getPreferredSystemLanguages = () => ['fr-FR'];
+
+	assert.deepEqual(await main.invoke('i18n:locale'), { locale: 'en', data: null });
+	assert.deepEqual(resolveCatalog.calls[0][0], ['fr-FR', 'en-GB']);
+	assert.equal(logError.calls.length, 1);
+	assert.match(logError.calls[0][1], /settings\.json is not JSON/);
+});
+
+test('i18n:locale takes the pseudo-locale from the settings as from --lang (#559)', async () => {
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { locale: 'en-XA' } }).stubs } });
+	assert.deepEqual(await main.invoke('i18n:locale'), { locale: 'en-XA', data: null });
+});
+
+test('i18n:languages lists what the catalog directory holds through i18n.cjs, once (#559)', async () => {
+	const languageChoices = spy(() => [{ tag: 'en', label: 'English' }]);
+	const main = loadMain({ stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog: async () => null, languageChoices } } });
+
+	assert.deepEqual(await main.invoke('i18n:languages'), { ok: true, languages: [{ tag: 'en', label: 'English' }] });
+	await main.invoke('i18n:languages');
+	assert.equal(languageChoices.calls.length, 1);
+	// The names of the directory the app ships its catalogs in.
+	assert.ok(languageChoices.calls[0][0].includes('README.md'));
+});
+
+test('settings:set keeps a language the build has, and refuses one it has not (#559)', async () => {
+	const settings = fakeSettingsStore();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null, languageChoices: () => [{ tag: 'de', label: 'Deutsch' }, { tag: 'en', label: 'English' }] } }
+	});
+
+	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', newSiteLocation: null } });
+	assert.equal((await main.invoke('settings:set', 'locale', 'fr')).ok, false);
+	assert.equal(settings.values.preferences.locale, 'de');
+	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, newSiteLocation: null } });
+});
+
+test('app:relaunch relaunches through a quit, so the child sweep runs, without the launch\'s link or --lang (#559)', async (t) => {
+	const main = loadMain({ stubs: silentLogging() });
+	const argv = process.argv;
+	process.argv = ['/app/electron', '--no-sandbox', 'wpct://ticket/62281', '--lang=en-XA', '--inspect'];
+	t.after(() => { process.argv = argv; });
+
+	assert.deepEqual(await main.invoke('app:relaunch'), { ok: true });
+	// A cold start's address is not a second request for its ticket, and the
+	// switch would outrank the language just chosen.
+	assert.deepEqual(main.calls.relaunch, [{ args: ['--no-sandbox', '--inspect'] }]);
+	assert.deepEqual(main.calls.quit, [true]);
+});
+
+test('app:relaunch starts the new instance from the AppImage on Linux, where the mounted one is gone once this quits (#559)', async (t) => {
+	const main = loadMain({ stubs: silentLogging() });
+	const had = process.env.APPIMAGE;
+	process.env.APPIMAGE = '/home/jane/Downloads/WordPress-Contributor-Toolkit.AppImage';
+	t.after(() => { if (had === undefined) delete process.env.APPIMAGE; else process.env.APPIMAGE = had; });
+
+	await main.invoke('app:relaunch');
+	assert.equal(main.calls.relaunch[0].execPath, '/home/jane/Downloads/WordPress-Contributor-Toolkit.AppImage');
+});
+
 test('i18n:locale takes the pseudo-locale from --lang, which Chromium does not report', async () => {
 	const resolveCatalog = spy(async () => null);
 	const main = loadMain({ stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog } } });
@@ -6358,7 +6452,7 @@ test('main applies the locale reply the window gets, once resolved, before it bu
 	});
 	const main = loadMain({
 		ready: true,
-		stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog }, './renderer/locale-setup.cjs': { applyLocale } }
+		stubs: { ...silentLogging(), ...fakeSettingsStore().stubs, './i18n.cjs': { resolveCatalog }, './renderer/locale-setup.cjs': { applyLocale } }
 	});
 	for (let i = 0; i < 50 && main.windows.length === 0; i++) await new Promise(setImmediate);
 
@@ -6422,6 +6516,7 @@ const WIRED = new Set([
 	'provenance:set-event',
 	'settings:get',
 	'settings:set',
+	'i18n:languages',
 	'github:account',
 	'github:sign-in',
 	'github:open-pr'
@@ -6450,7 +6545,8 @@ const NO_DELEGATION = new Map([
 	['wp-debug:start', 'tails a file'],
 	['wp-debug:stop', 'stops a tail'],
 	['github:sign-out', 'clears the in-memory token; asserted through github:account above'],
-	['github:sign-in-cancel', 'sets a flag the in-flight poll reads']
+	['github:sign-in-cancel', 'sets a flag the in-flight poll reads'],
+	['app:relaunch', 'relaunches the app; asserted directly above']
 ]);
 
 // There used to be a third list here, UNWIRED_INVARIANTS: the Playground and
