@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { __ } from '@wordpress/i18n';
 import { Button, Dialog, InputControl, Notice, Stack, Tabs, Text } from '@wordpress/ui';
-import { githubAccountLine } from '../settings-view.cjs';
+import { githubAccountLine, newSiteLocationNote } from '../settings-view.cjs';
 import { FolderField } from './folder-field.jsx';
 
 // A notice here is read by its role, and is not also spoken: the dialog it
@@ -31,12 +31,12 @@ function GeneralTab({ settings, onChange }) {
 
   return (
     <Stack direction="column" gap="xl">
-      <Text variant="heading-lg" render={<h3 />}>{__('Your tools')}</Text>
+      <Text variant="heading-lg" render={<h3 />}>{__('New sites')}</Text>
       <FolderField
         label={__('New sites go here')}
         description={__('Each new site is created in a subfolder of this location.')}
         value={location}
-        empty={__('Not set: the create-site dialog asks each time.')}
+        empty={newSiteLocationNote(settings)}
         disabled={!settings}
         onChoose={choose}
       />

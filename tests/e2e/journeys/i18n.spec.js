@@ -92,7 +92,11 @@ test( 'the settings dialog is fully translatable, on both of its tabs', async ( 
 	// The Account tab, once it has read the GitHub account: the line about it
 	// is main's answer put into words here.
 	await dialog.getByRole( 'tab', { name: pseudoLocalize( 'Account' ), exact: true } ).click();
-	await expect( dialog.getByText( pseudoLocalize( 'Reading…' ), { exact: true } ) ).toHaveCount( 0 );
+	// Which line depends on whether this build has a GitHub client id.
+	await expect(
+		dialog.getByText( pseudoLocalize( 'Sign-in is not set up in this build.' ), { exact: true } )
+			.or( dialog.getByText( pseudoLocalize( 'Not signed in. The app asks you to sign in when you open a pull request.' ), { exact: true } ) )
+	).toBeVisible();
 	expect( await unwrapped( dialog ) ).toEqual( [] );
 
 	// A refusal is wrapped too.

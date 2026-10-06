@@ -7,14 +7,14 @@
  * They are app-wide, under `preferences` in the one electron-store beside the
  * contributor's WordPress.org handle and the event they are at: a setting is
  * a fact about the person or their machine, not a property of a checkout.
- * Main reads a setting at the moment it is used, so a change applies to the
- * next thing that reads it.
+ * The window reads them once and holds what main last answered, so a change
+ * applies to the next thing that asks the window for one.
  *
  * A value is checked here and not only in the window, because the window is
- * not the only thing that writes the store, and because some of these values
- * become a path the app creates in or a line in a file it writes. The module
- * is pure: it is handed what it has to ask the disk, so `node --test` covers
- * it without one (same convention as wporg-handle.cjs).
+ * not the only thing that writes the store, and because a setting becomes
+ * something the app does: the folder is where it makes a site. The module is
+ * pure: it is handed what the disk says, so `node --test` covers it without
+ * one (same convention as wporg-handle.cjs).
  */
 
 const { __ } = require('@wordpress/i18n');
@@ -26,17 +26,18 @@ const { __ } = require('@wordpress/i18n');
  */
 const SETTINGS = {
 	// The folder new sites are made in, each in a subfolder of its own. Unset,
-	// the create-site dialog asks for one every time, as it did before.
+	// the create-site dialog asks for one every time, as it did before. The
+	// path is kept as the system's dialog gave it: a folder's name can end in
+	// a space, and trimmed it would be another folder's.
 	newSiteLocation: {
 		fallback: null,
 		accept(value, { isAbsolute, isDirectory }) {
 			if (value === null || value === undefined) return { ok: true, value: null };
 			if (typeof value !== 'string') return { ok: false, error: __('Choose a folder.') };
-			const folder = value.trim();
-			if (!folder) return { ok: true, value: null };
-			if (!isAbsolute(folder)) return { ok: false, error: __('Choose a folder by its full path.') };
-			if (!isDirectory(folder)) return { ok: false, error: __('That folder does not exist.') };
-			return { ok: true, value: folder };
+			if (!value.trim()) return { ok: true, value: null };
+			if (!isAbsolute(value)) return { ok: false, error: __('Choose a folder by its full path.') };
+			if (!isDirectory(value)) return { ok: false, error: __('That folder does not exist.') };
+			return { ok: true, value };
 		}
 	}
 };

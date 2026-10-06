@@ -30,4 +30,16 @@ function githubAccountLine(account) {
 	return { text: __('Not signed in. The app asks you to sign in when you open a pull request.'), canSignOut: false };
 }
 
-module.exports = { githubAccountLine };
+/**
+ * What stands in place of the folder new sites go in, when there is none to
+ * show: that the settings have not been read yet, or that none is set.
+ *
+ * @param {?Object} settings What main answered, or null while it has not.
+ * @return {string}
+ */
+function newSiteLocationNote(settings) {
+	if (!settings) return __('Reading…');
+	return __('Not set: the create-site dialog asks each time.');
+}
+
+module.exports = { githubAccountLine, newSiteLocationNote };

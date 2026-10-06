@@ -26,8 +26,11 @@ test('readSettings answers for every setting there is', () => {
 	assert.deepEqual(Object.keys(readSettings({})).sort(), Object.keys(SETTINGS).sort());
 });
 
-test('a folder that exists is stored by its full path, trimmed', () => {
-	assert.deepEqual(acceptSetting('newSiteLocation', ' /Users/jane/sites ', disk(['/Users/jane/sites'])), { ok: true, value: '/Users/jane/sites' });
+test('a folder that exists is stored by its full path, as it was given', () => {
+	assert.deepEqual(acceptSetting('newSiteLocation', '/Users/jane/sites', disk(['/Users/jane/sites'])), { ok: true, value: '/Users/jane/sites' });
+	// A name that ends in a space is that folder's, and is not another's.
+	assert.deepEqual(acceptSetting('newSiteLocation', '/Users/jane/sites ', disk(['/Users/jane/sites '])), { ok: true, value: '/Users/jane/sites ' });
+	assert.equal(acceptSetting('newSiteLocation', '/Users/jane/sites ', disk(['/Users/jane/sites'])).ok, false);
 });
 
 test('nothing, or an empty string, forgets the folder', () => {

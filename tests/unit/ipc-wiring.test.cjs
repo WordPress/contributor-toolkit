@@ -1836,13 +1836,13 @@ test('settings:set asks settings.cjs before writing, writes what it returned, an
 		stubs: { ...silentLogging(), ...settings.stubs, './settings.cjs': { readSettings, acceptSetting } }
 	});
 
-	const result = await main.invoke('settings:set', 'newSiteLocation', ' /sites ');
+	const result = await main.invoke('settings:set', 'newSiteLocation', '/sites/');
 
 	assert.deepEqual(result, { ok: true, settings: { newSiteLocation: '/sites' } });
 	assert.equal(acceptSetting.calls.length, 1);
 	const [key, value, deps] = acceptSetting.calls[0];
 	assert.equal(key, 'newSiteLocation');
-	assert.equal(value, ' /sites ');
+	assert.equal(value, '/sites/');
 	assert.equal(typeof deps.isAbsolute, 'function');
 	assert.equal(typeof deps.isDirectory, 'function');
 	// What the module returned, not what was sent; and the field beside it kept.

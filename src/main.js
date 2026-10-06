@@ -572,17 +572,23 @@ function createWindow() {
 	mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 }
 
-// The menu's "Settings…" (#559): the window opens the dialog. On macOS the
-// menu is there with no window, and the item then only opens one: the page
-// it loads has not subscribed yet, and a request sent into it would be lost.
-// Pressed again once the window is there, it opens the dialog.
+// The menu's "Settings…" (#559): the main window opens the dialog, and is
+// brought forward first, as it is for a deep link: the item can be pressed
+// with the window minimised or behind a patch window. On macOS the menu is
+// there with no window, and the item then only opens one: the page it loads
+// has not subscribed yet, and a request sent into it would be lost. Pressed
+// again once the window is there, it opens the dialog.
 function openSettingsFromMenu() {
-	const win = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed?.());
-	if (!win) {
+	if (!mainWindow || mainWindow.isDestroyed?.()) {
 		createWindow();
 		return;
 	}
-	win.webContents.send('settings:open');
+	try {
+		if (mainWindow.isMinimized?.()) mainWindow.restore();
+		mainWindow.show();
+		mainWindow.focus();
+	} catch {}
+	mainWindow.webContents.send('settings:open');
 }
 
 // --- wpct:// deep links (#464) -------------------------------------------
@@ -3414,16 +3420,16 @@ ipcMain.handle('provenance:set-event', async (_e, ref) => {
 // reason: app-wide. What each setting is and what it accepts is settings.cjs's;
 // what is here is the store, and what the disk is asked.
 
-const settingsDeps = () => ({
-	isAbsolute: path.isAbsolute,
-	isDirectory: (target) => {
-		try {
-			return fs.statSync(target).isDirectory();
-		} catch {
-			return false;
-		}
+// Whether a path is a folder, asked before the pure check and not inside it:
+// a folder on a network drive that has gone can take the whole of its
+// timeout to answer, and the main process is not held for it.
+async function isDirectory(target) {
+	try {
+		return (await fs.promises.stat(target)).isDirectory();
+	} catch {
+		return false;
 	}
-});
+}
 
 ipcMain.handle('settings:get', async () => {
 	const s = await getStore();
@@ -3434,7 +3440,8 @@ ipcMain.handle('settings:get', async () => {
 // window holds the whole and replaces it, so what it shows is what was
 // written and not what it sent.
 ipcMain.handle('settings:set', async (_e, key, value) => {
-	const accepted = acceptSetting(key, value, settingsDeps());
+	const directory = typeof value === 'string' && await isDirectory(value);
+	const accepted = acceptSetting(key, value, { isAbsolute: path.isAbsolute, isDirectory: () => directory });
 	if (!accepted.ok) return { ok: false, error: accepted.error };
 	await setPreference(key, accepted.value);
 	const s = await getStore();

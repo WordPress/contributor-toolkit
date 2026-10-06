@@ -10,5 +10,3 @@ The app's settings are in one dialog, opened from the cog at the bottom right of
 
 - **WordPress.org username** and **Event** — who a patch you [hand to a mentor](./submit-mentor) says it is from, and where it was written. The same two answers the handoff asks for, so changing them here changes them there. Leave the event empty when you are not at one. A profile link pasted as the username is kept as the username it names.
 - **GitHub** — the account the app opens pull requests with, if you have signed in. Signing in happens where it is needed, in [Opening a pull request](./submit-github-pr); here you can see which account it is and sign out of it.
-
-More settings — the PHP version a site runs on, the debug constants, what starts when a site opens and what happens to running servers when you quit — are on the way.

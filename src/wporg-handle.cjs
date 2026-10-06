@@ -14,8 +14,9 @@
  * profile URL or an `@handle` copied out of Slack as it is the bare handle.
  *
  * Kept as a pure module, with nothing but the translation functions behind
- * it, so it can be unit tested without a DOM or an Electron process: the renderer bundle imports it, main.js requires
- * it, `node --test` requires it directly (same convention as trac-ticket.cjs).
+ * it, so it can be unit tested without a DOM or an Electron process: the
+ * renderer bundle imports it, main.js requires it, `node --test` requires it
+ * directly (same convention as trac-ticket.cjs).
  */
 
 const { __, sprintf } = require('@wordpress/i18n');
