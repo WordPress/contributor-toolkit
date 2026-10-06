@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-06T17:58:42+00:00\n"
+"POT-Creation-Date: 2026-10-06T20:08:21+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -13,12 +13,144 @@ msgstr ""
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 
+#: src/github-auth.cjs:116
+msgid ""
+"GitHub does not recognise this application, or device flow is not enabled "
+"on it."
+msgstr ""
+
+#: src/github-auth.cjs:171
+msgid "Sign-in was canceled."
+msgstr ""
+
+#: src/github-auth.cjs:204
+msgid "The code expired before it was entered."
+msgstr ""
+
+#: src/github-auth.cjs:206
+msgid "The authorization was declined on GitHub."
+msgstr ""
+
+#: src/github-auth.cjs:259
+msgid "That sign-in is no longer valid."
+msgstr ""
+
+#: src/github-auth.cjs:263
+#: src/github-pr.cjs:166
+#. %s: an HTTP status code, such as 500.
+msgid "GitHub returned %s"
+msgstr ""
+
+#: src/github-auth.cjs:275
+#. 1: the name of this app's GitHub application, WordPress Contributor Toolkit. 2: where to revoke it, github.com → Settings → Applications.
+msgid ""
+"GitHub granted this sign-in less access than opening a pull request needs — "
+"an older authorization of this app was likely reused. Revoke \"%1$s\" under "
+"%2$s, then sign in here again."
+msgstr ""
+
+#: src/github-auth.cjs:98
+msgid "This build has no GitHub application configured, so it cannot sign you in."
+msgstr ""
+
+#: src/github-pr.cjs:173
+#. 1: what failed, such as "Could not create the branch". 2: GitHub's reason, which is in English. 3: technical details in square brackets, for GitHub support.
+msgid "%1$s: %2$s%3$s"
+msgstr ""
+
+#: src/github-pr.cjs:296
+#. 1: a repository name, such as wordpress-develop. 2: the repository it should be a fork of, such as WordPress/wordpress-develop.
+msgid ""
+"You already have a repository named %1$s that is not a fork of %2$s, so "
+"there is nowhere to push this. The patch file still works."
+msgstr ""
+
+#: src/github-pr.cjs:318
+msgid "Could not check for your fork"
+msgstr ""
+
+#: src/github-pr.cjs:330
+#. %s: a repository name, such as wordpress-develop.
+msgid "Could not fork %s"
+msgstr ""
+
+#: src/github-pr.cjs:346
+msgid "Could not read your fork"
+msgstr ""
+
+#: src/github-pr.cjs:356
+msgid ""
+"Your fork is still being set up on GitHub — for a repository this size that "
+"can take a few minutes. Try again shortly; the patch file still works."
+msgstr ""
+
+#: src/github-pr.cjs:403
+#. %s: a branch name, such as trunk.
+msgid "Could not read your fork’s %s"
+msgstr ""
+
+#: src/github-pr.cjs:508
+#. %s: the path of a file in the change.
+msgid "Could not upload %s"
+msgstr ""
+
+#: src/github-pr.cjs:516
+msgid "Could not assemble the change"
+msgstr ""
+
+#: src/github-pr.cjs:549
+msgid "Could not create the commit"
+msgstr ""
+
+#: src/github-pr.cjs:567
+#. %s: technical details in square brackets, for GitHub support.
+msgid ""
+"Your fork is still being set up on GitHub. Try again in a minute — the "
+"patch file still works.%s"
+msgstr ""
+
+#: src/github-pr.cjs:575
+msgid "Could not create the branch"
+msgstr ""
+
+#: src/github-pr.cjs:578
+msgid "Could not find an unused branch name"
+msgstr ""
+
+#: src/github-pr.cjs:607
+msgid "Could not open the pull request"
+msgstr ""
+
+#: src/github-pr.cjs:648
+#: src/renderer/components/pull-request-destination.jsx:18
+msgid "There are no changes to open a pull request with."
+msgstr ""
+
+#: src/github-pr.cjs:674
+#. %s: up to three file paths, separated by commas.
+msgid ""
+"Trunk has moved under a file you edited (%s). Update this site to the "
+"latest trunk, check your changes still apply, and try again."
+msgid_plural ""
+"Trunk has moved under files you edited (%s). Update this site to the latest "
+"trunk, check your changes still apply, and try again."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/github-pr.cjs:696
+msgid "Could not read the base commit"
+msgstr ""
+
 #: src/main.js:1174
 msgid "Save Patch for Handoff"
 msgstr ""
 
 #: src/main.js:1174
 msgid "Save Diff File"
+msgstr ""
+
+#: src/main.js:1294
+msgid "Sign in to GitHub first."
 msgstr ""
 
 #: src/main.js:2531
@@ -70,14 +202,124 @@ msgstr ""
 msgid "The event name has to fit on one line."
 msgstr ""
 
-#: src/project-type.cjs:153
+#: src/project-type.cjs:104
+msgid "How pull requests work in core"
+msgstr ""
+
+#: src/project-type.cjs:106
+msgid ""
+"Nobody watches the pull request list. Yours is seen because its link is on "
+"the ticket — which is why this flow ends by sending you back there."
+msgstr ""
+
+#: src/project-type.cjs:107
+msgid ""
+"Nothing is merged on GitHub either. A committer applies the change "
+"themselves, and the ticket is where they decide to."
+msgstr ""
+
+#: src/project-type.cjs:109
+msgid "The handbook page on pull requests"
+msgstr ""
+
+#: src/project-type.cjs:115
+msgid "Link a Trac ticket to this site first. A pull request has to cite one."
+msgstr ""
+
+#: src/project-type.cjs:158
 msgid ""
 "The block editor, built and run as a plugin in a stock WordPress: GitHub "
 "issues, and pull requests by checkout."
 msgstr ""
 
+#: src/project-type.cjs:192
+msgid ""
+"No issue is linked to this site. A pull request has to cite one: link it in "
+"the GitHub issue card."
+msgstr ""
+
+#: src/project-type.cjs:193
+msgid ""
+"A GitHub account. The fork is made for you; no password is typed into this "
+"app and no credential is written to disk."
+msgstr ""
+
+#: src/project-type.cjs:194
+msgid ""
+"Automated checks run on it, and it is reviewed and merged right there: on "
+"Gutenberg the pull request is the venue."
+msgstr ""
+
+#: src/project-type.cjs:195
+msgid "It cannot create the GitHub account for you."
+msgstr ""
+
+#: src/project-type.cjs:196
+msgid ""
+"Goes at the top of the description. The Fixes line that links the issue and "
+"your WordPress.org username are added underneath."
+msgstr ""
+
+#: src/project-type.cjs:197
+msgid ""
+"The Fixes line already lists it on the issue. A comment there still tells "
+"the people watching it."
+msgstr ""
+
+#: src/project-type.cjs:203
+msgid "How pull requests work in Gutenberg"
+msgstr ""
+
+#: src/project-type.cjs:205
+msgid ""
+"The pull request is where the change is reviewed and, once approved, "
+"merged. Nothing has to be posted anywhere else for it to be seen."
+msgstr ""
+
+#: src/project-type.cjs:206
+msgid ""
+"Reviewers ask for testing steps. Put them in the notes: what to open, what "
+"to click, what should happen."
+msgstr ""
+
+#: src/project-type.cjs:208
+msgid "The Gutenberg contributing guide"
+msgstr ""
+
+#: src/project-type.cjs:212
+msgid "Link a GitHub issue to this site first. A pull request has to cite one."
+msgstr ""
+
 #: src/project-type.cjs:42
 msgid "The wordpress-develop repository: Trac tickets, patches and pull requests."
+msgstr ""
+
+#: src/project-type.cjs:87
+msgid ""
+"No ticket is linked to this site. A pull request has to cite one — link it "
+"in the Trac card."
+msgstr ""
+
+#: src/project-type.cjs:94
+msgid ""
+"Automated checks run on it. Nobody watches GitHub, though — posting the "
+"link on the ticket is what gets it seen."
+msgstr ""
+
+#: src/project-type.cjs:95
+msgid ""
+"It cannot create the GitHub account for you, and it cannot post to Trac on "
+"your behalf."
+msgstr ""
+
+#: src/project-type.cjs:96
+msgid ""
+"Goes at the top of the description. The ticket link and your WordPress.org "
+"username are added underneath."
+msgstr ""
+
+#: src/project-type.cjs:97
+msgid "Triage and props live on the ticket, so the link belongs there too."
 msgstr ""
 
 #: src/renderer/apply-card.cjs:136
@@ -298,6 +540,7 @@ msgstr ""
 
 #: src/renderer/components/apply-card.jsx:333
 #: src/renderer/components/confirm-dialog.jsx:40
+#: src/renderer/components/pull-request-destination.jsx:154
 msgid "Cancel"
 msgstr ""
 
@@ -477,6 +720,180 @@ msgstr ""
 #: src/renderer/components/patch-diff-pane.jsx:96
 #. %s: the path of the saved patch file.
 msgid "Saved to %s"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:105
+msgid "Link copied"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:105
+msgid "Copy the link"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:111
+#. %s: the number of the ticket or issue the pull request is for.
+msgid "Open #%s to comment"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:125
+msgid "Checking…"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:131
+msgid ""
+"This build has no GitHub application configured, so it cannot open a pull "
+"request. The other destinations still work."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:142
+#. <address /> is GitHub's sign-in page, github.com/login/device.
+msgid ""
+"Enter this code at <strong><address /></strong>, which has been opened in "
+"your browser."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:148
+msgid "Code copied"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:148
+msgid "Copy the code"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:15
+msgid ""
+"That GitHub sign-in is no longer valid. Sign in again, or save the patch "
+"file instead."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:152
+msgid "Waiting for you to finish in the browser…"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:16
+msgid "GitHub is rate-limiting this connection. It usually clears within the hour."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:17
+msgid "No connection to GitHub."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:176
+msgid "Reject a theme zip in the plugin installer"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:177
+msgid "Title"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:178
+msgid "What the change does, in one line. Reviewers scan these."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:184
+#. <title /> is the title an untitled pull request gets, such as "Ticket #60001".
+msgid "Left empty, it will be titled <strong><title /></strong>."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:200
+msgid "Notes for reviewers (optional)"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:202
+msgid "What the change does, and why."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:203
+msgid "How to see it working — the steps you used."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:204
+msgid "Anything you are unsure about."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:234
+msgid "Push branch (dry run)"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:234
+msgid "Open pull request"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:256
+#. <login /> is the contributor's GitHub username. <fork /> is their fork, such as janedoe/wordpress-develop, as a link.
+msgid "Signed in as <login /> — the fork and branch go to <fork />."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:268
+#: src/renderer/components/settings-dialog.jsx:382
+msgid "Sign out"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:279
+msgid ""
+"Nothing was signed in and nothing was sent. The patch file is still yours "
+"to save, and the other destinations are unchanged."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:281
+msgid "Show this again"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:296
+#. %s: the repository the app forks, such as wordpress-develop.
+msgid ""
+"Signing in lets the app fork %s to your account, push this patch to a "
+"branch there, and open the pull request. It signs you in through your "
+"browser, never asks for your password, and forgets the authorization when "
+"you quit."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:301
+msgid "Sign in with GitHub"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:302
+msgid "Not now"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:309
+msgid "Open a pull request"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:322
+msgid "Test mode"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:325
+msgid "Dry run — a branch is pushed to your fork, no pull request is opened."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:328
+#. <target /> is the sandbox repository pull requests are redirected to. <upstream /> is the repository they would otherwise go to, such as WordPress/wordpress-develop.
+msgid "Pull requests go to <target />, not to <upstream />."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:345
+msgid "Save the patch file instead"
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:63
+#. <branch /> is the name of the branch pushed to the contributor's fork, as a link.
+msgid ""
+"Dry run — branch <branch /> was created on your fork; no pull request was "
+"opened."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:72
+#. %s: the number of the pull request, inside a link to it. <branch /> is the name of the branch it was opened from.
+msgid "Opened <link>pull request #%s</link> from <branch />."
+msgstr ""
+
+#: src/renderer/components/pull-request-destination.jsx:91
+msgid ""
+"Your checkout was behind trunk, so the branch was based on today's trunk. "
+"None of your files were changed upstream in between — the pull request "
+"shows only your work."
 msgstr ""
 
 #: src/renderer/components/rename-site-dialog.jsx:107
@@ -683,10 +1100,6 @@ msgstr ""
 
 #: src/renderer/components/settings-dialog.jsx:378
 msgid "GitHub"
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:382
-msgid "Sign out"
 msgstr ""
 
 #: src/renderer/components/settings-dialog.jsx:400
@@ -1027,6 +1440,22 @@ msgid_plural "%d unseen lines in Debug.log"
 msgstr[0] ""
 msgstr[1] ""
 
+#: src/renderer/hooks/use-pull-request.jsx:144
+msgid "The pull request could not be opened."
+msgstr ""
+
+#: src/renderer/hooks/use-pull-request.jsx:79
+msgid "The authorization was declined on GitHub. Nothing was changed."
+msgstr ""
+
+#: src/renderer/hooks/use-pull-request.jsx:80
+msgid "Sign-in did not complete."
+msgstr ""
+
+#: src/renderer/hooks/use-pull-request.jsx:87
+msgid "Could not start sign-in."
+msgstr ""
+
 #: src/renderer/hooks/use-trunk-update.jsx:219
 msgid "Already up to date with trunk"
 msgstr ""
@@ -1095,6 +1524,27 @@ msgstr ""
 msgid ""
 "Revert the patch you applied before opening a pull request from this "
 "checkout."
+msgstr ""
+
+#: src/renderer/pr-stage.cjs:25
+#. %s: the repository being forked, such as WordPress/gutenberg.
+msgid "Creating your fork of %s…"
+msgstr ""
+
+#: src/renderer/pr-stage.cjs:26
+msgid "Bringing your fork up to date…"
+msgstr ""
+
+#: src/renderer/pr-stage.cjs:27
+msgid "Uploading your changes…"
+msgstr ""
+
+#: src/renderer/pr-stage.cjs:28
+msgid "Opening the pull request…"
+msgstr ""
+
+#: src/renderer/pr-stage.cjs:29
+msgid "Working…"
 msgstr ""
 
 #: src/renderer/settings-view.cjs:108
