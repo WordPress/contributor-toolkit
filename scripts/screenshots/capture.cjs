@@ -91,6 +91,11 @@ async function launchApp(env) {
 		// From plain Node, require('electron') resolves to the binary's path —
 		// the same trick scripts/run-tests-electron.cjs uses.
 		executablePath: require('electron'),
+		// Playwright holds a page to the light scheme unless told not to. The
+		// pictures are of the theme the fixture's profile sets (#560), light
+		// unless SHOTS_THEME says dark, which the app reads from its own
+		// setting; so the page is left to follow the app.
+		colorScheme: null,
 		args: [...ELECTRON_SWITCHES, repoRoot],
 		// Dates rendered by the app must not rewrite screenshots according to the
 		// maintainer's locale or timezone.

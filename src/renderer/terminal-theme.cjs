@@ -1,19 +1,22 @@
 // What the site's terminal is painted with (#557). The terminal draws itself
 // and is told its colours and its font as values, not as CSS, so they are
-// read off the design system's tokens when it is made: which token each of
-// its colours is, is decided here. They are read once: a terminal made under
-// one theme keeps it.
+// read off the design system's tokens when it is made, and again when the
+// window's theme changes (#560): which token each of its colours is, is
+// decided here.
 //
-// It is a light surface with dark text, like the log panes beside it. The
+// It is the surface the log panes beside it have, with the text's own colour
+// on it: light with dark text in the light theme, dark with light text in
+// the dark one, since every token below follows the theme. The
 // colours a command can ask for by number are the design system's nearest:
 // red is what an error is said in, green a success, yellow a warning. A
 // command's "black" and its bright "white" are the text's own colour, and
-// its "white" and bright "black" the quieter text's, since on this surface
-// white could not be read.
+// its "white" and bright "black" the quieter text's, since on the light
+// surface white could not be read.
 //
 // The eight bright colours are the eight plain ones. The design system's
 // stronger colours are for text on a tinted notice, and on this surface are
-// all but black: an error asked for in bright red would lose its red.
+// all but black in the light theme: an error asked for in bright red would
+// lose its red.
 'use strict';
 
 const NEUTRAL = 'var(--wpds-color-foreground-content-neutral)';

@@ -18,6 +18,7 @@
  */
 
 const { __ } = require('@wordpress/i18n');
+const { THEMES } = require('./theme.cjs');
 
 // What the quit setting can be.
 const QUIT_BEHAVIOURS = ['stop', 'restart'];
@@ -79,6 +80,17 @@ const SETTINGS = {
 			return { ok: true, value };
 		}
 	},
+	// The window's theme (#560): light, dark, or the operating system's,
+	// which is the fallback. Main applies it to Electron's native theme, and
+	// the window follows what Chromium then says of the colour scheme.
+	theme: {
+		fallback: 'system',
+		accept(value) {
+			if (value === null || value === undefined || value === '') return { ok: true, value: null };
+			if (!THEMES.includes(value)) return { ok: false, error: __('Choose light, dark, or your system’s theme.') };
+			return { ok: true, value };
+		}
+	},
 	// The folder new sites are made in, each in a subfolder of its own. Unset,
 	// the create-site dialog asks for one every time, as it did before. The
 	// path is kept as the system's dialog gave it: a folder's name can end in
@@ -120,6 +132,7 @@ function readSettings(preferences = {}) {
 		autoStartServer: flag('autoStartServer'),
 		autoStartWatch: flag('autoStartWatch'),
 		quitBehavior: QUIT_BEHAVIOURS.includes(stored.quitBehavior) ? stored.quitBehavior : SETTINGS.quitBehavior.fallback,
+		theme: THEMES.includes(stored.theme) ? stored.theme : SETTINGS.theme.fallback,
 		newSiteLocation: text('newSiteLocation')
 	};
 }
