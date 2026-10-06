@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-06T09:29:00+00:00\n"
+"POT-Creation-Date: 2026-10-06T10:35:46+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -13,35 +13,35 @@ msgstr ""
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 
-#: src/main.js:1071
+#: src/main.js:1125
 msgid "Save Patch for Handoff"
 msgstr ""
 
-#: src/main.js:1071
+#: src/main.js:1125
 msgid "Save Diff File"
 msgstr ""
 
-#: src/main.js:2428
+#: src/main.js:2482
 msgid "Choose a patch file"
 msgstr ""
 
-#: src/main.js:2431
+#: src/main.js:2485
 msgid "Patch Files"
 msgstr ""
 
-#: src/main.js:2432
+#: src/main.js:2486
 msgid "All Files"
 msgstr ""
 
-#: src/main.js:3335
+#: src/main.js:3389
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3336
+#: src/main.js:3390
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3342
+#: src/main.js:3396
 msgid "Choose the application to open this folder in"
 msgstr ""
 
@@ -214,7 +214,7 @@ msgid "Open the feedback form ↗"
 msgstr ""
 
 #: src/renderer/components/app-footer.jsx:128
-#: src/renderer/components/settings-dialog.jsx:215
+#: src/renderer/components/settings-dialog.jsx:290
 msgid "Settings"
 msgstr ""
 
@@ -310,82 +310,112 @@ msgstr ""
 msgid "Rename"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:124
+#: src/renderer/components/settings-dialog.jsx:103
+msgid "Appearance"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:107
+msgid "New sites"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:109
+msgid "New sites go here"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:110
+msgid "Each new site is created in a subfolder of this location."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:118
+msgid "Forget this folder"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:163
+msgid "Could not save that username."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:168
+msgid "Could not save that event."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:198
 msgid "How you contribute"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:126
+#: src/renderer/components/settings-dialog.jsx:200
 msgid "WordPress.org username"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:127
+#: src/renderer/components/settings-dialog.jsx:201
 msgid "Goes on a patch you hand to a mentor, so the props land on you."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:133
+#: src/renderer/components/settings-dialog.jsx:207
 msgid "Event"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:134
+#: src/renderer/components/settings-dialog.jsx:208
 msgid ""
 "Where you are contributing from, if you are at an event. Leave it empty "
 "otherwise."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:146
+#: src/renderer/components/settings-dialog.jsx:220
 msgid "Saved."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:150
+#: src/renderer/components/settings-dialog.jsx:224
 msgid "Saving"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:150
+#: src/renderer/components/settings-dialog.jsx:224
 msgid "Save"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:155
+#: src/renderer/components/settings-dialog.jsx:229
 msgid "GitHub"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:159
+#: src/renderer/components/settings-dialog.jsx:233
 msgid "Sign out"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:177
+#: src/renderer/components/settings-dialog.jsx:251
 msgid "General"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:178
+#: src/renderer/components/settings-dialog.jsx:252
 msgid "Account"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:20
+#: src/renderer/components/settings-dialog.jsx:40
+msgid "Could not keep that language."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:43
+msgid "The app could not relaunch. Quit it and open it again."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:49
+msgid "Language"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:50
+msgid "Which language the app is shown in. A change applies after a relaunch."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:69
+msgid ""
+"The app shows the new language once it has relaunched. Running servers and "
+"builds stop, as they do when the app quits."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:71
+msgid "Relaunch now"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:88
 msgid "Could not keep that folder."
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:34
-msgid "New sites"
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:36
-msgid "New sites go here"
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:37
-msgid "Each new site is created in a subfolder of this location."
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:45
-msgid "Forget this folder"
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:89
-msgid "Could not save that username."
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:94
-msgid "Could not save that event."
 msgstr ""
 
 #: src/renderer/components/site-details.jsx:101
@@ -725,6 +755,10 @@ msgstr ""
 
 #: src/renderer/settings-view.cjs:42
 msgid "Not set: the create-site dialog asks each time."
+msgstr ""
+
+#: src/renderer/settings-view.cjs:59
+msgid "Your system’s language"
 msgstr ""
 
 #: src/renderer/site-details.cjs:29
@@ -1277,19 +1311,27 @@ msgstr ""
 msgid "Toggle Email"
 msgstr ""
 
+#: src/settings.cjs:35
+msgid "Choose a language."
+msgstr ""
+
 #: src/settings.cjs:36
+msgid "The app has no translation for that language."
+msgstr ""
+
+#: src/settings.cjs:48
 msgid "Choose a folder."
 msgstr ""
 
-#: src/settings.cjs:38
+#: src/settings.cjs:50
 msgid "Choose a folder by its full path."
 msgstr ""
 
-#: src/settings.cjs:39
+#: src/settings.cjs:51
 msgid "That folder does not exist."
 msgstr ""
 
-#: src/settings.cjs:76
+#: src/settings.cjs:91
 msgid "There is no such setting."
 msgstr ""
 
