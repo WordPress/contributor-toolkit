@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-06T16:21:14+00:00\n"
+"POT-Creation-Date: 2026-10-06T17:58:42+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -195,6 +195,76 @@ msgid ""
 "rebuild."
 msgstr ""
 
+#: src/renderer/changes-note.cjs:191
+msgid "Changes are already being discarded."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:192
+msgid "Wait for your changes to finish loading."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:193
+msgid "Changes could not be loaded."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:194
+msgid "There are no changes to discard."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:195
+msgid "Wait for the trunk update to finish before discarding changes."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:196
+msgid "Wait for the installation to finish before discarding changes."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:197
+msgid "Wait for the build to finish before discarding changes."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:198
+msgid "Stop the dev server before discarding changes."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:206
+#. %d: a GitHub issue number.
+msgid "Your changes for issue #%d"
+msgstr ""
+
+#: src/renderer/changes-note.cjs:208
+#. %d: a Trac ticket number.
+msgid "Your changes for ticket #%d"
+msgstr ""
+
+#: src/renderer/changes-note.cjs:215
+#. %d: a pull request number.
+msgid "Your changes on top of PR #%d"
+msgstr ""
+
+#: src/renderer/changes-note.cjs:216
+msgid "Edits to this local copy, compared with the original PR commits."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:218
+#. %d: a pull request number.
+msgid "There are no changes on top of PR #%d."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:221
+msgid "Your changes"
+msgstr ""
+
+#: src/renderer/changes-note.cjs:222
+msgid "Everything this site has that its copy of trunk does not."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:223
+msgid ""
+"There is nothing to send yet — this site has no changes against its copy of "
+"trunk."
+msgstr ""
+
 #: src/renderer/components/app-footer.jsx:111
 msgid "Give feedback"
 msgstr ""
@@ -298,6 +368,117 @@ msgstr ""
 msgid "Clear emails"
 msgstr ""
 
+#: src/renderer/components/mentor-handoff.jsx:101
+msgid ""
+"Asked once and remembered for every site — these are facts about you, not "
+"about this checkout."
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:108
+msgid "WordPress.org username, e.g. janedoe"
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:109
+#: src/renderer/components/settings-dialog.jsx:349
+msgid "WordPress.org username"
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:116
+msgid "Event, e.g. WordCamp Europe 2026 (optional)"
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:117
+msgid "Event this patch was written at"
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:129
+msgid "Remember this"
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:40
+#: src/renderer/components/settings-dialog.jsx:312
+msgid "Could not save that username."
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:45
+#: src/renderer/components/settings-dialog.jsx:317
+msgid "Could not save that event."
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:58
+msgid "Hand it to a mentor"
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:59
+msgid ""
+"No accounts at all. The patch carries your WordPress.org username, and the "
+"event you are at."
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:60
+msgid "Someone else pushes it; the props still land on you."
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:67
+#. %s: the contributor's WordPress.org username.
+msgid "Save patch as %s"
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:79
+#. <event /> is the name of the event the contributor is at, such as WordCamp Europe 2026.
+msgid "The patch will say it was written at <strong><event /></strong>."
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:84
+msgid "No event on the patch."
+msgstr ""
+
+#: src/renderer/components/mentor-handoff.jsx:95
+msgid "Change these"
+msgstr ""
+
+#: src/renderer/components/patch-diff-pane.jsx:102
+#. %s: why the patch could not be saved.
+msgid "Could not save the patch: %s"
+msgstr ""
+
+#: src/renderer/components/patch-diff-pane.jsx:109
+msgid "Generating patch…"
+msgstr ""
+
+#: src/renderer/components/patch-diff-pane.jsx:119
+msgid "No changes."
+msgstr ""
+
+#: src/renderer/components/patch-diff-pane.jsx:13
+#. %s: the error from generating the patch.
+msgid "Error: %s"
+msgstr ""
+
+#: src/renderer/components/patch-diff-pane.jsx:13
+#. %s: the error from generating the patch.
+msgid "Failed to generate patch"
+msgstr ""
+
+#: src/renderer/components/patch-diff-pane.jsx:50
+#. <discard /> is the "Discard all changes" link, beside the heading.
+msgid "(<discard />)"
+msgstr ""
+
+#: src/renderer/components/patch-diff-pane.jsx:54
+msgid "Discard all changes"
+msgstr ""
+
+#: src/renderer/components/patch-diff-pane.jsx:73
+#: src/renderer/components/settings-dialog.jsx:373
+msgid "Save"
+msgstr ""
+
+#: src/renderer/components/patch-diff-pane.jsx:96
+#. %s: the path of the saved patch file.
+msgid "Saved to %s"
+msgstr ""
+
 #: src/renderer/components/rename-site-dialog.jsx:107
 msgid "Rename site"
 msgstr ""
@@ -308,6 +489,63 @@ msgstr ""
 
 #: src/renderer/components/rename-site-dialog.jsx:68
 msgid "Rename"
+msgstr ""
+
+#: src/renderer/components/review-dialog.jsx:103
+#. %d: how many days old the site's copy of WordPress is.
+msgid ""
+"This site's WordPress code is %d day old — this patch may not apply on "
+"Trac. Consider updating to the latest trunk first."
+msgid_plural ""
+"This site's WordPress code is %d days old — this patch may not apply on "
+"Trac. Consider updating to the latest trunk first."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/components/review-dialog.jsx:116
+msgid ""
+"Could not load your changes. Close this panel and try again. The error is "
+"shown below."
+msgstr ""
+
+#: src/renderer/components/review-dialog.jsx:159
+msgid "Where this patch goes"
+msgstr ""
+
+#: src/renderer/components/review-dialog.jsx:160
+msgid ""
+"The pull request is the one the app sends for you. The others save a file "
+"for you to send."
+msgstr ""
+
+#: src/renderer/components/review-dialog.jsx:24
+#. <strong>Save</strong> is the name of the Save button.
+msgid ""
+"You can still use <strong>Save</strong> to keep an unattributed copy of "
+"your edits."
+msgstr ""
+
+#: src/renderer/components/review-dialog.jsx:39
+#. <label /> is the name of an applied patch, such as a file name.
+msgid "<strong><label /> is part of this checkout.</strong>"
+msgstr ""
+
+#: src/renderer/components/review-dialog.jsx:42
+msgid "<strong>The patch you applied is part of this checkout.</strong>"
+msgstr ""
+
+#: src/renderer/components/review-dialog.jsx:50
+#. <strong>Save</strong> is the name of the Save button.
+msgid ""
+"The app cannot safely separate its author’s changes from edits made "
+"afterward, so this combined patch cannot be submitted as your work. You can "
+"still use <strong>Save</strong> to keep an unattributed copy; revert the "
+"applied patch before submitting."
+msgstr ""
+
+#: src/renderer/components/review-dialog.jsx:92
+#: src/renderer/components/site-header-actions.jsx:110
+msgid "Review & submit changes"
 msgstr ""
 
 #: src/renderer/components/settings-dialog.jsx:100
@@ -417,20 +655,8 @@ msgid ""
 "stepped through in the browser."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:312
-msgid "Could not save that username."
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:317
-msgid "Could not save that event."
-msgstr ""
-
 #: src/renderer/components/settings-dialog.jsx:347
 msgid "How you contribute"
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:349
-msgid "WordPress.org username"
 msgstr ""
 
 #: src/renderer/components/settings-dialog.jsx:350
@@ -453,10 +679,6 @@ msgstr ""
 
 #: src/renderer/components/settings-dialog.jsx:373
 msgid "Saving"
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:373
-msgid "Save"
 msgstr ""
 
 #: src/renderer/components/settings-dialog.jsx:378
@@ -560,10 +782,6 @@ msgstr ""
 
 #: src/renderer/components/site-header-actions.jsx:109
 msgid "Review"
-msgstr ""
-
-#: src/renderer/components/site-header-actions.jsx:110
-msgid "Review & submit changes"
 msgstr ""
 
 #: src/renderer/components/site-header-actions.jsx:120
@@ -693,6 +911,40 @@ msgstr ""
 msgid "Notifications"
 msgstr ""
 
+#: src/renderer/components/trac-destination.jsx:31
+msgid "Attach to Trac"
+msgstr ""
+
+#: src/renderer/components/trac-destination.jsx:32
+msgid "A WordPress.org account — needed anyway, for props and to comment."
+msgstr ""
+
+#: src/renderer/components/trac-destination.jsx:33
+msgid "No automated checks. Often followed by a request to open a pull request."
+msgstr ""
+
+#: src/renderer/components/trac-destination.jsx:39
+#. %d: a Trac ticket number.
+msgid "Save, then open #%d"
+msgstr ""
+
+#: src/renderer/components/trac-destination.jsx:45
+msgid "No ticket is linked to this site, so there is nowhere to attach it yet."
+msgstr ""
+
+#: src/renderer/components/trac-destination.jsx:52
+msgid "Ticket number or URL, e.g. 62281"
+msgstr ""
+
+#: src/renderer/components/trac-destination.jsx:53
+msgid "Trac ticket number or URL"
+msgstr ""
+
+#: src/renderer/components/trac-destination.jsx:61
+#: src/renderer/ticket-card.cjs:43
+msgid "Link ticket"
+msgstr ""
+
 #: src/renderer/confirmations.cjs:101
 #. %s: the number of a pull request.
 msgid "Opened pull request #%s"
@@ -791,15 +1043,19 @@ msgstr ""
 msgid "Copied the path"
 msgstr ""
 
-#: src/renderer/index.jsx:1531
+#: src/renderer/index.jsx:1532
 msgid "This site is ready to work on"
 msgstr ""
 
-#: src/renderer/index.jsx:1697
+#: src/renderer/index.jsx:1699
 msgid "All changes discarded."
 msgstr ""
 
-#: src/renderer/index.jsx:2406
+#: src/renderer/index.jsx:1791
+msgid "Unknown error"
+msgstr ""
+
+#: src/renderer/index.jsx:2405
 msgid "WordPress Contributor Toolkit"
 msgstr ""
 
@@ -821,6 +1077,24 @@ msgstr ""
 
 #: src/renderer/index.jsx:674
 msgid "Show sites list"
+msgstr ""
+
+#: src/renderer/pr-checkout.cjs:27
+#. %d: a pull request number.
+msgid ""
+"PR #%d is applied. Its author's commits are this checkout's history, so it "
+"cannot be submitted as your work. Revert this PR first."
+msgstr ""
+
+#: src/renderer/pr-checkout.cjs:48
+#. %s: the name of an applied patch, such as a file name.
+msgid "Revert %s before opening a pull request from this checkout."
+msgstr ""
+
+#: src/renderer/pr-checkout.cjs:50
+msgid ""
+"Revert the patch you applied before opening a pull request from this "
+"checkout."
 msgstr ""
 
 #: src/renderer/settings-view.cjs:108
@@ -1353,10 +1627,6 @@ msgstr ""
 #: src/renderer/ticket-card.cjs:42
 #. an example of what to type; the number stays as it is.
 msgid "e.g. 62281"
-msgstr ""
-
-#: src/renderer/ticket-card.cjs:43
-msgid "Link ticket"
 msgstr ""
 
 #: src/renderer/ticket-card.cjs:44
