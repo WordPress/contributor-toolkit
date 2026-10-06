@@ -732,8 +732,14 @@ function relaunchArgs(argv) {
 	return argv.slice(1).filter((arg) => !pickDeepLinkArg([arg]) && !arg.startsWith('--lang='));
 }
 
+// On Linux the app is an AppImage, mounted while it runs at the path the
+// process was started from and gone once it quits: the new instance is
+// started from the image itself.
 ipcMain.handle('app:relaunch', () => {
-	app.relaunch({ args: relaunchArgs(process.argv) });
+	app.relaunch({
+		args: relaunchArgs(process.argv),
+		...(process.env.APPIMAGE ? { execPath: process.env.APPIMAGE } : {})
+	});
 	app.quit();
 	return { ok: true };
 });

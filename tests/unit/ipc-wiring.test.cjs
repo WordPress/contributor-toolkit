@@ -6423,6 +6423,16 @@ test('app:relaunch relaunches through a quit, so the child sweep runs, without t
 	assert.deepEqual(main.calls.quit, [true]);
 });
 
+test('app:relaunch starts the new instance from the AppImage on Linux, where the mounted one is gone once this quits (#559)', async (t) => {
+	const main = loadMain({ stubs: silentLogging() });
+	const had = process.env.APPIMAGE;
+	process.env.APPIMAGE = '/home/jane/Downloads/WordPress-Contributor-Toolkit.AppImage';
+	t.after(() => { if (had === undefined) delete process.env.APPIMAGE; else process.env.APPIMAGE = had; });
+
+	await main.invoke('app:relaunch');
+	assert.equal(main.calls.relaunch[0].execPath, '/home/jane/Downloads/WordPress-Contributor-Toolkit.AppImage');
+});
+
 test('i18n:locale takes the pseudo-locale from --lang, which Chromium does not report', async () => {
 	const resolveCatalog = spy(async () => null);
 	const main = loadMain({ stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog } } });
