@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, SYSTEM_LANGUAGE } = require('../../src/renderer/settings-view.cjs');
+const { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, resumeFor, SYSTEM_LANGUAGE } = require('../../src/renderer/settings-view.cjs');
 
 test('the GitHub line says the account is still being read, and offers no sign-out, until it is', () => {
 	assert.deepEqual(githubAccountLine(null), { text: 'Reading…', canSignOut: false });
@@ -67,4 +67,19 @@ test('a version set that the build no longer has shows the fallback as chosen, a
 		value: '8.3',
 		note: 'PHP 7.4 was chosen, but this version of the app does not have it; servers start on PHP 8.3.'
 	});
+});
+
+test('the quit control offers stop and restart, and not the prototype\'s leaving them running', () => {
+	assert.deepEqual(quitItems().map((item) => item.value), ['stop', 'restart']);
+	assert.ok(quitItems().every((item) => item.label));
+});
+
+test('what the next launch starts for a site comes from the list the quit left', () => {
+	const resume = { servers: ['/a', '/both'], watches: ['/w', '/both'] };
+	assert.deepEqual(resumeFor(resume, '/a'), { server: true, watch: false });
+	assert.deepEqual(resumeFor(resume, '/w'), { server: false, watch: true });
+	assert.deepEqual(resumeFor(resume, '/both'), { server: true, watch: true });
+	assert.equal(resumeFor(resume, '/other'), null);
+	assert.equal(resumeFor(null, '/a'), null);
+	assert.equal(resumeFor({}, '/a'), null);
 });

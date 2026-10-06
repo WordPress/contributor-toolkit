@@ -6,7 +6,7 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { __experimentalToggleGroupControl as ToggleGroupControl, __experimentalToggleGroupControlOption as ToggleGroupControlOption } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 import { Button, Dialog, InputControl, Notice, SelectControl, Stack, SwitchControl, Tabs, Text } from '@wordpress/ui';
-import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, SYSTEM_LANGUAGE } from '../settings-view.cjs';
+import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, SYSTEM_LANGUAGE } from '../settings-view.cjs';
 import { FolderField } from './folder-field.jsx';
 
 // A notice here is read by its role, and is not also spoken: the dialog it
@@ -81,6 +81,56 @@ function LanguageControl({ settings, loaded, onChange }) {
   );
 }
 
+// What a site opened starts, and what the quit does with what is running.
+// The quit stops servers and watches either way: the one choice is whether
+// the next launch starts them again.
+function OpeningAndQuitting({ settings, onChange }) {
+  const [error, setError] = useState('');
+  const keep = async (key, value) => {
+    const result = await onChange(key, value);
+    setError(result?.ok ? '' : (result?.error || __('Could not keep that.')));
+  };
+  const items = quitItems();
+  return (
+    <Stack direction="column" gap="xl">
+      <Text variant="heading-lg" render={<h3 />}>{__('Opening and quitting')}</Text>
+      <SwitchControl
+        label={__('Start the server when I open a site')}
+        description={__('So the site and wp-admin are ready without a press. On WordPress Core the build watch starts with it.')}
+        checked={settings ? settings.autoStartServer : false}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('autoStartServer', checked)}
+      />
+      <SwitchControl
+        label={__('Start the build watch when I open a site')}
+        description={__('So edits are compiled as they are saved.')}
+        checked={settings ? settings.autoStartWatch : false}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('autoStartWatch', checked)}
+      />
+      <SelectControl
+        label={__('When I quit, running servers and build watches')}
+        description={__('Quitting always stops them; they can be started again when the app next opens.')}
+        items={items}
+        value={settings ? settings.quitBehavior : 'stop'}
+        disabled={!settings}
+        onValueChange={(value) => keep('quitBehavior', value)}
+      >
+        {items.map((item) => (
+          <SelectControl.Item key={item.value} value={item.value} label={item.label}>
+            <SelectControl.ItemLabel>{item.label}</SelectControl.ItemLabel>
+          </SelectControl.Item>
+        ))}
+      </SelectControl>
+      {error ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{error}</Notice.Description>
+        </Notice.Root>
+      ) : null}
+    </Stack>
+  );
+}
+
 // The folder new sites go in. The system's dialog chooses it, main checks
 // it, and what main then holds is what is shown: a folder it refused is
 // said under the field and nothing changes.
@@ -108,6 +158,7 @@ function GeneralTab({ settings, loaded, onChange }) {
         <Text variant="heading-lg" render={<h3 />}>{__('Appearance')}</Text>
         <LanguageControl settings={settings} loaded={loaded} onChange={onChange} />
       </Stack>
+      <OpeningAndQuitting settings={settings} onChange={onChange} />
       <Stack direction="column" gap="xl">
         <Text variant="heading-lg" render={<h3 />}>{__('New sites')}</Text>
         <FolderField

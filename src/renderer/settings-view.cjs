@@ -109,4 +109,33 @@ function phpVersionChoice({ versions, fallback, stored }) {
 	};
 }
 
-module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, SYSTEM_LANGUAGE };
+/**
+ * The entries of the control for what happens on quit (#559). Two and not
+ * the prototype's three: its "keep sites running" would leave children past
+ * the quit, which the quit sweep exists to end.
+ *
+ * @return {Array<{value: string, label: string}>}
+ */
+function quitItems() {
+	return [
+		{ value: 'stop', label: __('Stop them') },
+		{ value: 'restart', label: __('Stop them, and start them again next time') }
+	];
+}
+
+/**
+ * What the next launch starts for a site, from the list the last quit left:
+ * its server, its watch, both, or nothing.
+ *
+ * @param {?{servers: string[], watches: string[]}} resume   The list, or null while it has not been read.
+ * @param {string}                                  sitePath
+ * @return {?{server: boolean, watch: boolean}} What to start, or null for nothing.
+ */
+function resumeFor(resume, sitePath) {
+	if (!resume) return null;
+	const server = (resume.servers || []).includes(sitePath);
+	const watch = (resume.watches || []).includes(sitePath);
+	return server || watch ? { server, watch } : null;
+}
+
+module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, resumeFor, SYSTEM_LANGUAGE };
