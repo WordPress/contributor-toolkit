@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { __ } from '@wordpress/i18n';
 import { Button, Dialog, InputControl, Notice, SelectControl, Stack, Tabs, Text } from '@wordpress/ui';
-import { githubAccountLine, newSiteLocationNote, languageItems, languageChanged, SYSTEM_LANGUAGE } from '../settings-view.cjs';
+import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, SYSTEM_LANGUAGE } from '../settings-view.cjs';
 import { FolderField } from './folder-field.jsx';
 
 // A notice here is read by its role, and is not also spoken: the dialog it
@@ -36,8 +36,11 @@ function LanguageControl({ settings, loaded, onChange }) {
   const items = useMemo(() => languageItems(languages, started), [languages, started]);
 
   const choose = async (value) => {
-    const result = await onChange('locale', value === SYSTEM_LANGUAGE ? null : value);
+    const result = await onChange('locale', languageValue(value));
     setError(result?.ok ? '' : (result?.error || __('Could not keep that language.')));
+  };
+  const relaunch = () => {
+    window.api.relaunch().catch(() => setError(__('The app could not relaunch. Quit it and open it again.')));
   };
 
   return (
@@ -65,7 +68,7 @@ function LanguageControl({ settings, loaded, onChange }) {
         <Notice.Root intent="info" role="status" spokenMessage={SILENT}>
           <Notice.Description>{__('The app shows the new language once it has relaunched. Running servers and builds stop, as they do when the app quits.')}</Notice.Description>
           <Notice.Actions>
-            <Button variant="outline" size="compact" onClick={() => { window.api.relaunch().catch(() => {}); }}>{__('Relaunch now')}</Button>
+            <Button variant="outline" size="compact" onClick={relaunch}>{__('Relaunch now')}</Button>
           </Notice.Actions>
         </Notice.Root>
       ) : null}

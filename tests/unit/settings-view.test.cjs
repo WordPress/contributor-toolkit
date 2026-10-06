@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { githubAccountLine, newSiteLocationNote, languageItems, languageChanged, SYSTEM_LANGUAGE } = require('../../src/renderer/settings-view.cjs');
+const { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, SYSTEM_LANGUAGE } = require('../../src/renderer/settings-view.cjs');
 
 test('the GitHub line says the account is still being read, and offers no sign-out, until it is', () => {
 	assert.deepEqual(githubAccountLine(null), { text: 'Reading…', canSignOut: false });
@@ -47,4 +47,10 @@ test('the language has changed when what is set is no longer what the window sta
 	assert.equal(languageChanged({ locale: 'de' }, { locale: 'de' }), false);
 	assert.equal(languageChanged({ locale: 'de' }, { locale: null }), true);
 	assert.equal(languageChanged({ locale: null }, { locale: 'de' }), true);
+});
+
+test('the system\'s entry is kept as no choice, and a language as itself', () => {
+	assert.equal(languageValue(SYSTEM_LANGUAGE), null);
+	assert.equal(languageValue('de'), 'de');
+	assert.equal(languageValue('en'), 'en');
 });

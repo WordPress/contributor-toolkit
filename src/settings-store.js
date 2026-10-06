@@ -8,9 +8,9 @@
 // the harness replaces this file instead of trying to intercept the ESM loader.
 //
 // The import starts on first use rather than at require time. Deferring it costs
-// nothing — no handler can run before a window exists — and it keeps a rejected
-// promise nobody is awaiting yet out of module load, where the app has no way to
-// report it. It also keeps the ESM loader from pulling in `electron` behind
+// nothing — the first use is after the app is ready, when main reads the
+// language chosen (#559) — and it keeps a rejected promise nobody is awaiting
+// yet out of module load, where the app has no way to report it. It also keeps the ESM loader from pulling in `electron` behind
 // `Module._load`'s back, which is what lets that suite require main.js outside an
 // Electron process at all.
 

@@ -63,6 +63,17 @@ function languageItems(languages, locale) {
 }
 
 /**
+ * What a choice in the language control is kept as: the system's entry is
+ * kept as no choice.
+ *
+ * @param {string} choice The value of the entry chosen.
+ * @return {?string}
+ */
+function languageValue(choice) {
+	return choice === SYSTEM_LANGUAGE ? null : choice;
+}
+
+/**
  * Whether the language the window is in is no longer the one set, so that
  * the dialog offers the relaunch that applies it.
  *
@@ -75,4 +86,4 @@ function languageChanged(settings, loaded) {
 	return (settings.locale || null) !== (loaded.locale || null);
 }
 
-module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageChanged, SYSTEM_LANGUAGE };
+module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, SYSTEM_LANGUAGE };

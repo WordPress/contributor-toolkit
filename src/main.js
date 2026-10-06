@@ -666,27 +666,39 @@ ipcMain.handle('deep-link:ready', () => {
 	return true;
 });
 
-// The language the window shows: the one chosen in the settings (#559), or
-// else the first of the OS's languages that has a catalog. `app.getLocale()`
-// is only the fallback, since it is Chromium's UI language, folded into the
-// 55 Chromium ships (Spanish (Mexico) arrives as es-419, Galician as English)
-// (#584). A `--lang` switch replaces both, read off the switch itself so
-// `--lang=es-MX` is not folded either; it is how the journeys pick a locale,
-// the pseudo-locale included, and a flag typed at launch is a decision.
+// The language the window shows: the one chosen in the settings (#559), put
+// before the OS's languages and not in their place, so that a chosen language
+// whose catalog a release has since dropped falls back to the OS's and not
+// to English; or else the first of the OS's languages that has a catalog.
+// `app.getLocale()` is only the fallback, since it is Chromium's UI language,
+// folded into the 55 Chromium ships (Spanish (Mexico) arrives as es-419,
+// Galician as English) (#584). A `--lang` switch replaces the whole list,
+// read off the switch itself so `--lang=es-MX` is not folded either; it is
+// how the journeys pick a locale, the pseudo-locale included, and a flag
+// typed at launch is a decision.
 //
 // Resolved once: main applies it at startup for its own strings (the menu, the
 // native dialogs, the sentences it sends), and the window gets the same reply,
 // so the two cannot end up in different languages. That is also why a change
-// in the settings shows after a relaunch and not before.
+// in the settings shows after a relaunch and not before. This is the first
+// read of the store, before there is a window: a store that cannot be read
+// is logged and counts as no choice, since the window has to open to say so.
 const LANGUAGES_DIR = path.join(__dirname, 'languages');
 let localeReplyPromise = null;
 function localeReply() {
 	if (!localeReplyPromise) {
 		localeReplyPromise = (async () => {
 			const flag = app.commandLine.getSwitchValue('lang');
-			const requested = flag || readSettings((await getStore()).get('preferences')).locale || '';
+			let chosen = null;
+			try {
+				chosen = readSettings((await getStore()).get('preferences')).locale;
+			} catch (e) {
+				logError('i18n', `the settings could not be read, so no language is chosen: ${String(e && e.message ? e.message : e)}`);
+			}
+			const requested = flag || chosen || '';
 			if (isPseudoLocale(requested)) return { locale: requested, data: null };
-			const locales = requested ? [requested] : [...app.getPreferredSystemLanguages(), app.getLocale()];
+			const system = [...app.getPreferredSystemLanguages(), app.getLocale()];
+			const locales = flag ? [flag] : [...(chosen ? [chosen] : []), ...system];
 			const found = await resolveCatalog(locales, LANGUAGES_DIR, (message) => logEvent('i18n', message));
 			return found ? { locale: found.locale, data: found.messages } : { locale: 'en', data: null };
 		})();
@@ -712,9 +724,16 @@ ipcMain.handle('i18n:languages', async () => ({ ok: true, languages: await langu
 
 // What the settings dialog offers after the language is changed. `quit`, not
 // `exit`: the quit sweep ends every child the app started, as it does on any
-// quit, and the relaunch is a quit.
+// quit, and the relaunch is a quit. The new instance gets this one's
+// arguments less two: a `wpct://` address a cold start was given, which is
+// not a second request for its ticket, and a `--lang` switch, which would
+// outrank the language just chosen.
+function relaunchArgs(argv) {
+	return argv.slice(1).filter((arg) => !pickDeepLinkArg([arg]) && !arg.startsWith('--lang='));
+}
+
 ipcMain.handle('app:relaunch', () => {
-	app.relaunch();
+	app.relaunch({ args: relaunchArgs(process.argv) });
 	app.quit();
 	return { ok: true };
 });

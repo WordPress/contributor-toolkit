@@ -194,8 +194,8 @@ test( 'the language set in the settings is the one the app starts in, and a chan
 	await expect( dialog.getByRole( 'alert' ) ).toHaveText( pseudoLocalize( 'The app has no translation for that language.' ) );
 	expect( session.readSettings().preferences.locale ).toBe( null );
 
-	// INVARIANT — relaunched for real, the app is in the language kept, and
-	// the control says so with no offer.
+	// INVARIANT — started again, as the relaunch would start it, the app is
+	// in the language kept, and the control says so with no offer.
 	await language.click();
 	await page.getByRole( 'option', { name: 'English', exact: true } ).click();
 	await expect.poll( () => session.readSettings().preferences?.locale ).toBe( 'en' );

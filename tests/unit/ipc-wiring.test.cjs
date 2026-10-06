@@ -147,7 +147,7 @@ function createElectronStub({ ready = false } = {}) {
 				appEvents.get(event).push(listener);
 			},
 			quit() { calls.quit.push(true); },
-			relaunch() { calls.relaunch.push(true); },
+			relaunch(options) { calls.relaunch.push(options); },
 			exit() {},
 			getPath: () => os.tmpdir(),
 			getAppPath: () => path.join(SRC_DIR, '..'),
@@ -6343,7 +6343,7 @@ test('i18n:locale takes --lang in place of the OS languages, unfolded', async ()
 	assert.deepEqual(resolveCatalog.calls[0][0], ['es-MX']);
 });
 
-test('i18n:locale takes the language set in the settings in place of the OS languages, and --lang over both (#559)', async () => {
+test('i18n:locale puts the language set in the settings before the OS languages, and --lang in place of both (#559)', async () => {
 	const resolveCatalog = spy(async () => null);
 	const main = loadMain({
 		stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { locale: 'de' } }).stubs, './i18n.cjs': { resolveCatalog, languageChoices: () => [] } }
@@ -6351,7 +6351,9 @@ test('i18n:locale takes the language set in the settings in place of the OS lang
 	main.electron.app.getPreferredSystemLanguages = () => ['fr-FR'];
 
 	assert.deepEqual(await main.invoke('i18n:locale'), { locale: 'en', data: null });
-	assert.deepEqual(resolveCatalog.calls[0][0], ['de']);
+	// Before and not instead: a chosen language whose catalog a release has
+	// dropped falls back to the OS's language, not to English.
+	assert.deepEqual(resolveCatalog.calls[0][0], ['de', 'fr-FR', 'en-GB']);
 
 	const flagged = loadMain({
 		stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { locale: 'de' } }).stubs, './i18n.cjs': { resolveCatalog, languageChoices: () => [] } }
@@ -6359,6 +6361,25 @@ test('i18n:locale takes the language set in the settings in place of the OS lang
 	flagged.electron.app.commandLine.getSwitchValue = (name) => (name === 'lang' ? 'es-MX' : '');
 	await flagged.invoke('i18n:locale');
 	assert.deepEqual(resolveCatalog.calls[1][0], ['es-MX']);
+});
+
+test('i18n:locale counts a store it cannot read as no language chosen, and the app still opens (#559)', async () => {
+	const resolveCatalog = spy(async () => null);
+	const logError = spy();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'./logging': { ...silentLogging()['./logging'], logError },
+			'./settings-store': { getStore: async () => { throw new Error('settings.json is not JSON'); } },
+			'./i18n.cjs': { resolveCatalog, languageChoices: () => [] }
+		}
+	});
+	main.electron.app.getPreferredSystemLanguages = () => ['fr-FR'];
+
+	assert.deepEqual(await main.invoke('i18n:locale'), { locale: 'en', data: null });
+	assert.deepEqual(resolveCatalog.calls[0][0], ['fr-FR', 'en-GB']);
+	assert.equal(logError.calls.length, 1);
+	assert.match(logError.calls[0][1], /settings\.json is not JSON/);
 });
 
 test('i18n:locale takes the pseudo-locale from the settings as from --lang (#559)', async () => {
@@ -6389,10 +6410,16 @@ test('settings:set keeps a language the build has, and refuses one it has not (#
 	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, newSiteLocation: null } });
 });
 
-test('app:relaunch relaunches through a quit, so the child sweep runs (#559)', async () => {
+test('app:relaunch relaunches through a quit, so the child sweep runs, without the launch\'s link or --lang (#559)', async (t) => {
 	const main = loadMain({ stubs: silentLogging() });
+	const argv = process.argv;
+	process.argv = ['/app/electron', '--no-sandbox', 'wpct://ticket/62281', '--lang=en-XA', '--inspect'];
+	t.after(() => { process.argv = argv; });
+
 	assert.deepEqual(await main.invoke('app:relaunch'), { ok: true });
-	assert.deepEqual(main.calls.relaunch, [true]);
+	// A cold start's address is not a second request for its ticket, and the
+	// switch would outrank the language just chosen.
+	assert.deepEqual(main.calls.relaunch, [{ args: ['--no-sandbox', '--inspect'] }]);
 	assert.deepEqual(main.calls.quit, [true]);
 });
 
