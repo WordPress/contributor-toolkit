@@ -5,6 +5,8 @@ const assert = require('node:assert');
 
 const { planDevServerStart, serveWithoutWatch, createWatchReadyDetector, formatElapsed, watchTabLabel } = require('../../src/renderer/dev-server-command.cjs');
 const { getProjectType } = require('../../src/project-type.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 test('a built site skips the build and goes straight to the watcher (issue #72)', () => {
 	const plan = planDevServerStart({ hasBuilt: true });
@@ -223,4 +225,11 @@ test('watchTabLabel falls back to "stopped" when the exit code is unknown', () =
 test('watchTabLabel falls back to the bare name for unknown states', () => {
 	assert.strictEqual(watchTabLabel(undefined), 'Build watch');
 	assert.strictEqual(watchTabLabel('bogus'), 'Build watch');
+});
+
+test('watchTabLabel is translated when it is read, the exit code put into it (#627)', (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	assert.strictEqual(watchTabLabel('paused'), pseudoLocalize('Build watch (paused)'));
+	assert.strictEqual(watchTabLabel('exited', 2), pseudoLocalize('Build watch (exited %d)').replace('%d', '2'));
 });

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { __, sprintf } from '@wordpress/i18n';
 import { serveWithoutWatch } from '../dev-server-command.cjs';
 
 // The site's dev server (#554): whether it is starting or up, its address, and
@@ -129,7 +130,12 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
           // "Starting development server…" forever (issue #73). The watcher
           // is not part of that session (#247) and is left running.
           if (!stoppingRef.current && !requested) {
-            appendRuntime('Dev server stopped unexpectedly (see Help → Open App Log for details).\n');
+            // The menu item by the words the menu shows it with.
+            appendRuntime(`${sprintf(
+              // translators: %s: the item in the Help menu that opens the app's log, "Open App Log".
+              __('Dev server stopped unexpectedly (see Help → %s for details).'),
+              __('Open App Log')
+            )}\n`);
             setServerFailure('stopped');
             revealServerLog();
             stopDevServer().catch(() => {});
@@ -139,14 +145,16 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
       // A failed start reports through the return value, not an exception.
       // This also covers spawn failures that never produce a "stopped" event.
       if (res && res.ok === false && !stoppingRef.current && !runningRef.current) {
-        appendRuntime(`Dev server failed to start: ${res.error || 'unknown error'}\n`);
+        // translators: %s: why the server did not start.
+        appendRuntime(`${sprintf(__('Dev server failed to start: %s'), res.error || __('unknown error'))}\n`);
         setServerFailure('start');
         revealServerLog();
         stopDevServer().catch(() => {});
         return;
       }
     } catch (error) {
-      appendRuntime(`Failed to start PHP server: ${error && error.message ? error.message : String(error)}\n`);
+      // translators: %s: why the server did not start.
+      appendRuntime(`${sprintf(__('Failed to start PHP server: %s'), error && error.message ? error.message : String(error))}\n`);
       setServerFailure('start');
       revealServerLog();
       setStarting(false);
@@ -182,7 +190,8 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
       let builtNow = hasBuilt;
       try { const fresh = await window.api.getSiteStatus(sitePath); builtNow = Boolean(fresh?.hasBuilt); setHasBuilt(builtNow); } catch {}
       if (serveWithoutWatch({ hasBuilt: builtNow, watchState: watchStateRef.current, buildInterrupted: buildInterruptedRef.current }, projectBuild)) {
-        appendRuntime('build/ is complete: starting the server without the build watch. Start build watch to compile edits on save.\n');
+        // translators: %s: the folder the site is served from, build/.
+        appendRuntime(`${sprintf(__('%s is complete: starting the server without the build watch. Start build watch to compile edits on save.'), 'build/')}\n`);
         startPhpServer().catch(() => {});
         return;
       }
@@ -197,7 +206,8 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
           if (serverStartRequestedRef.current) return;
           devServerActiveRef.current = false;
           setStarting(false);
-          appendRuntime('Dev server start cancelled: the build watch stopped before build/ was complete. Start it again once the watch is running.\n');
+          // translators: %s: the folder the site is served from, build/.
+          appendRuntime(`${sprintf(__('Dev server start cancelled: the build watch stopped before %s was complete. Start it again once the watch is running.'), 'build/')}\n`);
         }
       });
     } else {

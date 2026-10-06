@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import { savedAndResetMessage } from '../confirmations.cjs';
 import { planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planWatchImpact } from '../update-plan.cjs';
 import { planUpdateHandOff } from '../update-handoff.cjs';
@@ -95,15 +95,16 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
     };
     const runBuildStep = () => {
       setUpdateState('building');
-      writeToTerminal('\nRunning npm run build…\n');
+      // translators: %s: the command being run, such as npm run build.
+      writeToTerminal(`\n${sprintf(__('Running %s…'), 'npm run build')}\n`);
       runScript('build', {
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: async ({ code }) => {
           if (code === 0) {
             await completeUpdate();
-            finishUpdate('\nUpdate complete — this site is now on the latest trunk.\n');
+            finishUpdate(`\n${__('Update complete — this site is now on the latest trunk.')}\n`);
           } else {
-            finishUpdate('\nUpdate incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.\n');
+            finishUpdate(`\n${__('Update incomplete — the build failed. The code is new but the built assets are old; retry install & build from the banner above.')}\n`);
           }
         }
       });
@@ -160,12 +161,14 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
     const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
     if (lockfileChanged) {
       setUpdateState('installing');
-      writeToTerminal('\npackage-lock.json changed — running npm install (only the changed packages are downloaded)…\n');
+      // translators: 1: the file dependencies are locked in, package-lock.json. 2: the command that installs them, npm install.
+      writeToTerminal(`\n${sprintf(__('%1$s changed — running %2$s (only the changed packages are downloaded)…'), 'package-lock.json', 'npm install')}\n`);
       runInstall({
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
           if (code !== 0) {
-            finishUpdate('\nUpdate incomplete — npm install failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.\n');
+            // translators: %s: the command that installs dependencies, npm install.
+            finishUpdate(`\n${sprintf(__('Update incomplete — %s failed. The code is new but dependencies and built assets are old; retry install & build from the banner above.'), 'npm install')}\n`);
             return;
           }
           afterInstall();
@@ -266,7 +269,8 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
       savedPatchPathRef.current = res.filePath;
       applyDiscardToNote(discardOutcome(d));
       setDirtyModalOpen(false);
-      writeToTerminal(`\nSaved your changes to ${res.filePath} and reset the working tree.\n`);
+      // translators: %s: the path of the patch file the changes were saved to.
+      writeToTerminal(`\n${sprintf(__('Saved your changes to %s and reset the working tree.'), res.filePath)}\n`);
       // This ran as the contributor closed the modal; the confirmation is the
       // only trace of it outside the terminal (#253).
       confirm(savedAndResetMessage(pathBasename(res.filePath)));
@@ -285,7 +289,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
     }
     applyDiscardToNote(discardOutcome(d));
     setDirtyModalOpen(false);
-    writeToTerminal('\nDiscarded local changes.\n');
+    writeToTerminal(`\n${__('Discarded local changes.')}\n`);
     confirm(__('Local changes discarded.'));
     beginTrunkUpdate();
   });

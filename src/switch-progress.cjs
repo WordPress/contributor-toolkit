@@ -12,9 +12,12 @@
  *
  * Two jobs, kept together because they are two ends of one contract: the
  * throttle that decides which events are worth sending, and the sentence the
- * panel shows for one. Pure and dependency-free, so `node --test` drives it
- * directly while both the main process and the renderer bundle require it.
+ * panel shows for one. Pure, with `@wordpress/i18n` its one dependency, so
+ * `node --test` drives it directly while both the main process and the
+ * renderer bundle require it.
  */
+
+const { __, _n, sprintf } = require('@wordpress/i18n');
 
 // A checkout of ~1500 files calls back about 4400 times in 143ms. At 100ms
 // between frames a switch produces a couple of dozen sends — enough for the
@@ -160,39 +163,68 @@ function nameOf(ref) {
  * @return {string} A sentence, never empty, for any stage including a new one.
  */
 function describeSwitchProgress({ stage, loaded, total, from, to } = {}) {
+	// What is being saved: the work on a ticket, the edits on a pull request,
+	// or the work, leaving trunk. A whole sentence for each, so that no
+	// translation has to fit one phrase into another's word order.
+	const leaving = nameOf(from);
 	const saving = () => {
-		const leaving = nameOf(from);
-		if (!leaving) return 'your work';
-		return prOf(from) ? `your edits on ${leaving}` : `your work on ${leaving}`;
+		if (!leaving) return __('Saving your work…');
+		if (prOf(from)) {
+			// translators: %s: the pull request being left, such as PR #7701.
+			return sprintf(__('Saving your edits on %s…'), leaving);
+		}
+		// translators: %s: the ticket or issue being left, such as #59234.
+		return sprintf(__('Saving your work on %s…'), leaving);
 	};
-	const entering = () => {
+	const moving = () => {
+		if (!leaving) return __('Moving your work onto the current trunk…');
+		if (prOf(from)) {
+			// translators: %s: the pull request whose edits move, such as PR #7701.
+			return sprintf(__('Moving your edits on %s onto the current trunk…'), leaving);
+		}
+		// translators: %s: the ticket or issue whose work moves, such as #59234.
+		return sprintf(__('Moving your work on %s onto the current trunk…'), leaving);
+	};
+	const swapping = () => {
 		const name = nameOf(to);
-		return name ? ` for ${name}` : '';
+		if (!name) return __('Swapping files…');
+		// translators: %s: the ticket, issue or pull request being switched to, such as #59234 or PR #7701.
+		return sprintf(__('Swapping files for %s…'), name);
+	};
+	// The sentence, then how far it has got, when that is knowable.
+	const counted = (sentence) => {
+		const count = withCount(loaded, total);
+		return count ? `${sentence} ${count}` : sentence;
 	};
 
 	switch (stage) {
 		case 'scan':
-			return `Saving ${saving()}…`;
+			return saving();
 		case 'stage':
-			return `Saving ${saving()}… ${withCount(loaded, total)}`;
+			return counted(saving());
 		case 'commit':
-			return `Saving ${saving()}…`;
+			return saving();
 		case 'rebase':
-			return `Moving ${saving()} onto the current trunk…`;
+			return moving();
 		case 'analyze':
-			return 'Checking which files change…';
+			return __('Checking which files change…');
 		case 'apply':
-			return `Swapping files${entering()}… ${withCount(loaded, total)}`;
+			return counted(swapping());
 		case 'done': {
-			if (prOf(to)) return `Ready to try ${nameOf(to)}`;
-			const ticket = nameOf(to);
-			return ticket ? `Ready to work on ${ticket}` : 'Ready';
+			const name = nameOf(to);
+			if (prOf(to)) {
+				// translators: %s: the pull request now checked out, such as PR #7701.
+				return sprintf(__('Ready to try %s'), name);
+			}
+			if (!name) return __('Ready');
+			// translators: %s: the ticket or issue now checked out, such as #59234.
+			return sprintf(__('Ready to work on %s'), name);
 		}
 		default:
 			// A stage this version does not know — a newer Git, or a caller
 			// ahead of this module. Saying something true and vague beats
 			// rendering nothing where a sentence was.
-			return 'Working…';
+			return __('Working…');
 	}
 }
 
@@ -206,7 +238,10 @@ function withCount(loaded, total) {
 	if (Number.isFinite(total) && total > 0 && Number.isFinite(loaded)) {
 		return `${Math.min(100, Math.round((loaded / total) * 100))}%`;
 	}
-	if (Number.isFinite(loaded)) return `${loaded.toLocaleString()} files`;
+	if (Number.isFinite(loaded)) {
+		// translators: %s: a number of files, such as 1,200.
+		return sprintf(_n('%s file', '%s files', loaded), loaded.toLocaleString());
+	}
 	return '';
 }
 
