@@ -98,6 +98,26 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	setContributionEvent: (ref) => ipcRenderer.invoke('provenance:set-event', ref)
 ,
+	// The app's settings (#559), app-wide like the two above. `setSetting`
+	// writes one, checked by main, and answers with all of them as they
+	// then are, or with why not.
+	getSettings: () => ipcRenderer.invoke('settings:get')
+,
+	setSetting: (key, value) => ipcRenderer.invoke('settings:set', key, value)
+,
+	// The languages the app can show, for the settings; and the relaunch a
+	// change of language takes.
+	listLanguages: () => ipcRenderer.invoke('i18n:languages')
+,
+	relaunch: () => ipcRenderer.invoke('app:relaunch')
+,
+	// The menu's "Settings…" asked for the dialog.
+	subscribeSettingsOpen: (handler) => {
+		const h = () => handler && handler();
+		ipcRenderer.on('settings:open', h);
+		return () => ipcRenderer.removeListener('settings:open', h);
+	}
+,
 	showSiteInFileManager: (sitePath) => ipcRenderer.invoke('dir:show', sitePath)
 ,
 	markSiteInitialized: (sitePath) => ipcRenderer.invoke('sites:mark-initialized', sitePath)

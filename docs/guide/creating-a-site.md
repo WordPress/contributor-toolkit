@@ -16,7 +16,7 @@ Click **Create site** in the middle of the window when there are no sites yet, o
 
 - **Site name** — the label shown in the sidebar. It also determines the folder name: spaces and characters that are not valid in file names become hyphens, so a site named `My WordPress site` lives in a folder called `My-WordPress-site`.
 - **Project** — which project this site is a checkout of. **WordPress Core** clones `wordpress-develop` and works from [Trac tickets](./trac-tickets), patches and pull requests; **Gutenberg** clones the block editor's repository, builds it and runs it as a plugin in a stock WordPress, and works from [GitHub issues](./gutenberg-issues) and pull requests. The choice decides what the site clones and how it builds and runs, and it cannot be changed afterwards: create another site for the other project.
-- **Location** — the parent folder where the site will be created. The app adds a new directory inside it for the project; it does not clone into the folder you pick directly.
+- **Location** — the parent folder where the site will be created. The app adds a new directory inside it for the project; it does not clone into the folder you pick directly. With a folder set under **New sites go here** in [Settings](./settings), the dialog starts on it, and you can still pick another for this site.
 
 Click **Create site** (or press Enter) to start. The close button or Escape closes the dialog without creating anything.
 

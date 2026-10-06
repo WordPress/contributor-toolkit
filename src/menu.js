@@ -9,18 +9,47 @@
 // Kept free of Electron imports and of the log module: the caller supplies the
 // click handlers, so this file is a plain data structure. Its labels are
 // translated when the template is built, so main applies the locale first.
+//
+// "Settings…" (#559) is where each platform keeps it: in the app menu on
+// macOS and under File elsewhere, with the shortcut each has for it. A role
+// given a submenu of its own keeps its label and loses its default items, so
+// the two menus that hold it are written out, item by item as Electron's
+// defaults have them, with the one addition.
 
 const { __ } = require('@wordpress/i18n');
 
 const isMac = (platform = process.platform) => platform === 'darwin';
 
-function buildMenuTemplate({ onOpenLog, onShowLogsFolder, platform = process.platform } = {}) {
+function buildMenuTemplate({ onOpenLog, onShowLogsFolder, onOpenSettings, platform = process.platform } = {}) {
+	const settings = {
+		id: 'settings',
+		label: __('Settings…'),
+		accelerator: 'CmdOrCtrl+,',
+		click: () => onOpenSettings?.()
+	};
 	return [
 		// On macOS the first submenu is the app menu (About/Quit/Services). On
 		// Windows and Linux those items live under File instead, which `fileMenu`
 		// already handles, so this entry is omitted entirely.
-		...(isMac(platform) ? [{ role: 'appMenu' }] : []),
-		{ role: 'fileMenu' },
+		...(isMac(platform) ? [{
+			role: 'appMenu',
+			submenu: [
+				{ role: 'about' },
+				{ type: 'separator' },
+				settings,
+				{ type: 'separator' },
+				{ role: 'services' },
+				{ type: 'separator' },
+				{ role: 'hide' },
+				{ role: 'hideOthers' },
+				{ role: 'unhide' },
+				{ type: 'separator' },
+				{ role: 'quit' }
+			]
+		}] : []),
+		isMac(platform)
+			? { role: 'fileMenu' }
+			: { role: 'fileMenu', submenu: [settings, { type: 'separator' }, { role: 'quit' }] },
 		{ role: 'editMenu' },
 		{ role: 'viewMenu' },
 		{ role: 'windowMenu' },

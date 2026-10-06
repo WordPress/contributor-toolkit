@@ -195,11 +195,14 @@ class Session {
 	/**
 	 * Seeds settings.json and launches the app.
 	 *
-	 * @param {Object} settings       Initial electron-store contents. Defaults to a
-	 *                                first-launch app with no sites.
-	 * @param {Object} [options]
-	 * @param {string} [options.lang] The locale to launch in, in place of en-US. It
-	 *                                holds across restart().
+	 * @param {Object}       settings       Initial electron-store contents. Defaults to a
+	 *                                      first-launch app with no sites.
+	 * @param {Object}       [options]
+	 * @param {string|false} [options.lang] The locale to launch in, in place of en-US,
+	 *                                      or `false` for no `--lang` at all: the
+	 *                                      app then picks its language as it does
+	 *                                      for a contributor, from the settings
+	 *                                      and the OS. It holds across restart().
 	 * @return {Promise<{app: Object, page: Object}>} The Electron app and its first window.
 	 */
 	async start( settings = EMPTY_SETTINGS, { lang } = {} ) {
@@ -239,7 +242,9 @@ class Session {
 			// harness use.
 			executablePath: require( 'electron' ),
 			args: [
-				...ELECTRON_SWITCHES.map( ( s ) => ( this.lang && s.startsWith( '--lang=' ) ? `--lang=${ this.lang }` : s ) ),
+				...ELECTRON_SWITCHES
+					.filter( ( s ) => ! ( this.lang === false && s.startsWith( '--lang=' ) ) )
+					.map( ( s ) => ( this.lang && s.startsWith( '--lang=' ) ? `--lang=${ this.lang }` : s ) ),
 				REPO_ROOT,
 			],
 			// Watching a run is only ever a question of recording it. `_electron.launch`

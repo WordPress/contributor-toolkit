@@ -5,57 +5,23 @@ import { useCallback, useId, useState } from 'react';
 // eslint-disable-next-line @wordpress/no-unsafe-wp-apis -- see above.
 import { __experimentalToggleGroupControl as ToggleGroupControl, __experimentalToggleGroupControlOption as ToggleGroupControlOption } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { Button, Dialog, Field, InputControl, Notice, Stack, Text } from '@wordpress/ui';
+import { Button, Dialog, InputControl, Notice, Stack } from '@wordpress/ui';
 import { DEFAULT_PROJECT_TYPE } from '../../project-type.cjs';
 import { createSiteProblem, projectChoices, projectHelp } from '../create-site.cjs';
 import { directoryFromFileEntry } from '../site-folder.cjs';
-
-// The folder a site goes in. The field is a file input, which is what says
-// "choose a folder" without a word, and the folder it shows is said under it:
-// the app asks the system for a folder itself, since a page is not told
-// where one is, and the input is never left holding a selection.
-function FolderField({ value, disabled, onChoose, onFiles }) {
-  return (
-    <Field.Root disabled={disabled}>
-      <Field.Label>{__('Location')}</Field.Label>
-      <Field.Control
-        className="file-field-control"
-        render={
-          <input
-            type="file"
-            webkitdirectory=""
-            // eslint-disable-next-line react/no-unknown-property -- non-standard but required alongside webkitdirectory for cross-browser directory pickers.
-            directory=""
-            multiple
-          />
-        }
-        disabled={disabled}
-        onChange={onFiles}
-        onClick={(event) => { event.preventDefault(); onChoose(); }}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            onChoose();
-          }
-        }}
-      />
-      <Text variant="body-sm" className="file-field-value">{value || __('No folder selected yet.')}</Text>
-      <Field.Description>
-        {__('Choose the parent folder where you want this new site created. A new subdirectory will be created for the site.')}
-      </Field.Description>
-    </Field.Root>
-  );
-}
+import { FolderField } from './folder-field.jsx';
 
 // The dialog's three answers and the button that sends them. It is inside
 // the dialog's popup, which is there while the dialog is open, and for the
 // moment it takes to fade once it is closed, and not otherwise. So the
-// answers are empty every time, on Core, however the last ones were left.
-function CreateSiteForm({ formId, submitting, onCreate }) {
+// answers are empty every time, on Core, however the last ones were left;
+// the folder starts as the one the settings name, where they name one
+// (#559), and is still the contributor's to change.
+function CreateSiteForm({ formId, submitting, defaultDir, onCreate }) {
   // Which answer is missing, said under the form.
   const [error, setError] = useState('');
   const [name, setName] = useState('');
-  const [dir, setDir] = useState('');
+  const [dir, setDir] = useState(defaultDir || '');
   const [type, setType] = useState(DEFAULT_PROJECT_TYPE);
   const help = projectHelp(type);
 
@@ -119,7 +85,14 @@ function CreateSiteForm({ formId, submitting, onCreate }) {
               <ToggleGroupControlOption key={project.value} value={project.value} label={project.label} />
             ))}
           </ToggleGroupControl>
-          <FolderField value={dir} disabled={submitting} onChoose={chooseFolder} onFiles={takeFiles} />
+          <FolderField
+            label={__('Location')}
+            description={__('Choose the parent folder where you want this new site created. A new subdirectory will be created for the site.')}
+            value={dir}
+            disabled={submitting}
+            onChoose={chooseFolder}
+            onFiles={takeFiles}
+          />
           {error ? (
             // An alert, which is said as it appears. The notice is told to
             // say nothing itself, or it would be said twice.
@@ -153,12 +126,13 @@ function CreateSiteForm({ formId, submitting, onCreate }) {
  * or not a dialog happens to be open by then.
  *
  * @param {Object}   props
- * @param {boolean}  props.open       Whether the dialog is open.
- * @param {boolean}  props.submitting A setup is running.
- * @param {Function} props.onCreate   Given `{ name, dir, projectType }` once every answer is there.
- * @param {Function} props.onClose    Asked for by the close button, Escape, or a press outside.
+ * @param {boolean}  props.open         Whether the dialog is open.
+ * @param {boolean}  props.submitting   A setup is running.
+ * @param {?string}  [props.defaultDir] The folder the settings say new sites go in, if any.
+ * @param {Function} props.onCreate     Given `{ name, dir, projectType }` once every answer is there.
+ * @param {Function} props.onClose      Asked for by the close button, Escape, or a press outside.
  */
-export function CreateSiteDialog({ open, submitting, onCreate, onClose }) {
+export function CreateSiteDialog({ open, submitting, defaultDir = null, onCreate, onClose }) {
   const formId = useId();
   return (
     <Dialog.Root
@@ -179,7 +153,7 @@ export function CreateSiteDialog({ open, submitting, onCreate, onClose }) {
           <Dialog.Title>{__('Create site')}</Dialog.Title>
           {submitting ? null : <Dialog.CloseIcon />}
         </Dialog.Header>
-        <CreateSiteForm formId={formId} submitting={submitting} onCreate={onCreate} />
+        <CreateSiteForm formId={formId} submitting={submitting} defaultDir={defaultDir} onCreate={onCreate} />
       </Dialog.Popup>
     </Dialog.Root>
   );

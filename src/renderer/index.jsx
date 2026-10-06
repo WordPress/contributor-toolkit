@@ -63,6 +63,7 @@ import { SetupChecklist } from './components/setup-checklist.jsx';
 import { EmailModal } from './components/email-modal.jsx';
 import { DirtyTreeModal } from './components/dirty-tree-modal.jsx';
 import { CreateSiteDialog } from './components/create-site-dialog.jsx';
+import { SettingsDialog } from './components/settings-dialog.jsx';
 import { PatchDiffPane } from './components/patch-diff-pane.jsx';
 import { MentorHandoff } from './components/mentor-handoff.jsx';
 import { TracDestination } from './components/trac-destination.jsx';
@@ -81,6 +82,7 @@ import { TicketCard } from './components/ticket-card.jsx';
 import { TicketListCard } from './components/ticket-list.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
+import { useSettings } from './hooks/use-settings.jsx';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
 import { useSites } from './hooks/use-sites.jsx';
 import { usePullRequest } from './hooks/use-pull-request.jsx';
@@ -128,6 +130,16 @@ function App() {
   // machine has is a fact about the machine, not about a site.
   const detectedApplications = useDetectedEditors();
   const wporg = useContributorProvenance();
+  // The app's settings (#559), and the dialog they are changed in. The menu
+  // asks for the dialog too, over a subscription the whole window holds.
+  const { settings, loaded: loadedSettings, change: changeSetting } = useSettings();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const openSettings = useCallback(() => setSettingsOpen(true), []);
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
+  useEffect(() => {
+    const unsub = window.api.subscribeSettingsOpen(() => setSettingsOpen(true));
+    return () => { if (unsub) unsub(); };
+  }, []);
   const [downloadPhase, setDownloadPhase] = useState('');
   // Where the row for the setup in flight currently lives. It starts as the
   // window's guess and becomes the directory the main process reports, and it
@@ -611,7 +623,7 @@ function App() {
               </EmptyState.Root>
             </div>
           </div>
-          <AppFooter onOpenFeedbackForm={openFeedbackForm} />
+          <AppFooter onOpenFeedbackForm={openFeedbackForm} onOpenSettings={openSettings} />
         </>
       ) : (
         <div className={sitesListOpen ? 'site-shell' : 'site-shell is-sites-list-hidden'}>
@@ -703,11 +715,12 @@ function App() {
                 the page: the page is the part that scrolls, so nothing on it
                 is ever under the tray. */}
             <BottomTray title={trays.find((entry) => entry.id === tray)?.title || null} onClose={closeTray} />
-            <AppFooter trays={trays} activeTray={tray} onToggleTray={pressTrayToggle} onOpenFeedbackForm={openFeedbackForm} />
+            <AppFooter trays={trays} activeTray={tray} onToggleTray={pressTrayToggle} onOpenFeedbackForm={openFeedbackForm} onOpenSettings={openSettings} />
           </div>
         </div>
       )}
-      <CreateSiteDialog open={createModalOpen} submitting={createSubmitting} onCreate={startSiteSetup} onClose={closeCreateModal} />
+      <CreateSiteDialog open={createModalOpen} submitting={createSubmitting} defaultDir={settings ? settings.newSiteLocation : null} onCreate={startSiteSetup} onClose={closeCreateModal} />
+      <SettingsDialog open={settingsOpen} settings={settings} loaded={loadedSettings} onChange={changeSetting} wporg={wporg} onClose={closeSettings} />
     </div>
     </SlotFillProvider>
     {/* One toast region for the window (#253, #557). In the bottom corner,

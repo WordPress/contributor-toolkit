@@ -89,6 +89,7 @@ export default defineConfig( {
 				text: 'Reference',
 				items: [
 					{ text: 'Managing sites', link: '/guide/managing-sites' },
+					{ text: 'Settings', link: '/guide/settings' },
 					{ text: 'Troubleshooting', link: '/guide/troubleshooting' },
 				],
 			},

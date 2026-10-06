@@ -21,10 +21,11 @@
  * only to `diff --git` and `Index:` lines. `#` is the comment marker Trac and
  * Subversion patches already use, so nothing downstream has to learn a new one.
  *
- * Pure and dependency-free apart from the ticket URL helper, so `node --test`
- * can require it directly.
+ * Pure, with nothing behind it but the ticket URL helper and the translation
+ * functions, so `node --test` can require it directly.
  */
 
+const { __, sprintf } = require('@wordpress/i18n');
 const { ticketUrl } = require('./renderer/trac-ticket.cjs');
 const { isHandle } = require('./wporg-handle.cjs');
 
@@ -88,16 +89,17 @@ function day(iso) {
  */
 function parseEventName(input) {
 	const raw = typeof input === 'string' ? input.trim() : '';
-	if (!raw) return { ok: false, error: 'Enter the event name, or leave it empty.' };
+	if (!raw) return { ok: false, error: __('Enter the event name, or leave it empty.') };
 	if (CONTROL_CHARACTERS.test(raw)) {
 		// `test` on a /g regex advances lastIndex; reset it so the next call
 		// does not start reading from where this one stopped.
 		CONTROL_CHARACTERS.lastIndex = 0;
-		return { ok: false, error: 'The event name has to fit on one line.' };
+		return { ok: false, error: __('The event name has to fit on one line.') };
 	}
 	CONTROL_CHARACTERS.lastIndex = 0;
 	if (raw.length > MAX_EVENT_LENGTH) {
-		return { ok: false, error: `Keep the event name under ${MAX_EVENT_LENGTH} characters.` };
+		// translators: %d: a number of characters.
+		return { ok: false, error: sprintf(__('Keep the event name under %d characters.'), MAX_EVENT_LENGTH) };
 	}
 	return { ok: true, name: raw };
 }
