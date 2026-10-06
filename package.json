@@ -139,6 +139,7 @@
     "@wordpress/admin-ui": "^2.11.0",
     "@wordpress/components": "^41.0.0",
     "@wordpress/dataviews": "^19.1.0",
+    "@wordpress/element": "^8.8.0",
     "@wordpress/hooks": "^4.56.0",
     "@wordpress/i18n": "^6.29.0",
     "@wordpress/icons": "^17.0.0",

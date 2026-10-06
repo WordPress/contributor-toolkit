@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { __ } from '@wordpress/i18n';
 import { carryTestMode } from '../github-account.cjs';
 import { prConfirmationMessage } from '../confirmations.cjs';
 
@@ -75,15 +76,15 @@ export function usePullRequest({ sitePath, confirm }) {
         }
         // Declining is a choice, not a fault, so it reads as one.
         setSignInError(done && done.reason === 'denied'
-          ? 'The authorization was declined on GitHub. Nothing was changed.'
-          : (done && done.error) || 'Sign-in did not complete.');
+          ? __('The authorization was declined on GitHub. Nothing was changed.')
+          : (done && done.error) || __('Sign-in did not complete.'));
       });
     } catch (e) {
       setSignInError(e && e.message ? e.message : String(e));
       return;
     }
     if (!started || !started.ok) {
-      setSignInError((started && started.error) || 'Could not start sign-in.');
+      setSignInError((started && started.error) || __('Could not start sign-in.'));
       return;
     }
     setDeviceCode({ userCode: started.userCode, verificationUri: started.verificationUri });
@@ -140,7 +141,7 @@ export function usePullRequest({ sitePath, confirm }) {
         // contributor who looked away during the slow fork step (#253).
         confirm(prConfirmationMessage(res));
       } else {
-        setError(res || { reason: 'error', error: 'The pull request could not be opened.' });
+        setError(res || { reason: 'error', error: __('The pull request could not be opened.') });
         // A revoked authorization is forgotten in the main process, so the card
         // has to stop claiming an account it no longer has.
         if (res && res.reason === 'unauthorized') setAccount((prev) => carryTestMode(prev, { login: null, configured: true }));

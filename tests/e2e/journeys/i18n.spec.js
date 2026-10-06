@@ -17,7 +17,7 @@ const os = require( 'node:os' );
 const path = require( 'node:path' );
 const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
-const { makeSite, makePatchFile } = require( '../helpers/git-site.cjs' );
+const { makeSite, makePatchFile, write, LOGIN } = require( '../helpers/git-site.cjs' );
 const { pseudoLocalize } = require( '../../../src/renderer/pseudo-locale.cjs' );
 
 // Names that stay as they are in every language.
@@ -29,16 +29,37 @@ const CONSTANT_NAMES = /^(WP_DEBUG|SCRIPT_DEBUG)( · (WP_DEBUG|SCRIPT_DEBUG))*$/
  * Every visible text node, aria-label and placeholder inside `root` that is not
  * in the pseudo-locale.
  *
+ * A sentence with an element in it (`createInterpolateElement`: a link, or a
+ * word in bold) is several text nodes, and only the whole is bracketed. So a
+ * text node counts as translated when the element around it, past any bold,
+ * italic or code, holds one bracketed string from its first character to its
+ * last. "[Foo] bar [Baz]" is two strings with English between, and is not.
+ *
  * @param {Object} locator The region to scan.
  * @return {Promise<string[]>} The unwrapped strings.
  */
 async function unwrapped( locator ) {
 	const found = await locator.evaluate( ( root ) => {
 		const visible = ( el ) => el && el.getClientRects().length > 0 && window.getComputedStyle( el ).visibility !== 'hidden';
+		const wholeBracketed = ( text ) => {
+			if ( ! text.startsWith( '[' ) || ! text.endsWith( ']' ) ) return false;
+			let depth = 0;
+			for ( let i = 0; i < text.length; i++ ) {
+				if ( text[ i ] === '[' ) depth++;
+				else if ( text[ i ] === ']' && --depth === 0 ) return i === text.length - 1;
+			}
+			return false;
+		};
+		const sentence = ( el ) => {
+			while ( el !== root && [ 'STRONG', 'EM', 'B', 'I', 'CODE' ].includes( el.tagName ) ) el = el.parentElement;
+			return el;
+		};
 		const texts = [];
 		const walker = document.createTreeWalker( root, window.NodeFilter.SHOW_TEXT );
 		for ( let node = walker.nextNode(); node; node = walker.nextNode() ) {
-			if ( visible( node.parentElement ) ) texts.push( node.textContent.trim() );
+			if ( ! visible( node.parentElement ) ) continue;
+			if ( wholeBracketed( sentence( node.parentElement ).textContent.trim() ) ) continue;
+			texts.push( node.textContent.trim() );
 		}
 		for ( const el of root.querySelectorAll( '[aria-label], [placeholder]' ) ) {
 			if ( ! visible( el ) ) continue;
@@ -506,4 +527,128 @@ test( 'the Help menu and the native file dialogs are translated in main', async 
 		title: pseudoLocalize( 'Choose a patch file' ),
 		filters: [ { name: pseudoLocalize( 'Patch Files' ) }, { name: pseudoLocalize( 'All Files' ) } ],
 	} );
+} );
+
+test( 'the Open a pull request card is fully translatable, from signing in to the pull request it opened', async ( { session } ) => {
+	// GitHub is answered at the IPC seam, as in open-pull-request.spec.js.
+	// What is GitHub's or the checkout's stays as it is and is left out of
+	// the scan: the code to type, the login, the fork, the branch, the title
+	// an untitled pull request gets, and the number of the ticket.
+	const CODE = 'ABCD-1234';
+	const BRANCH = 'trac-60001';
+	const THEIRS = [ CODE, 'janedoe', 'janedoe/wordpress-develop', BRANCH, 'Ticket #60001', 'github.com/login/device' ];
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+	await app.evaluate( ( { ipcMain } ) => {
+		global.__e2eLogin = null;
+		global.__e2ePr = null;
+		const answers = {
+			'git:list-ticket-patches': () => ( { ok: true, prs: { status: 'ok', items: [] } } ),
+			'trac:list-attachments': () => ( { ok: true, status: 'ok', ticket: null, items: [] } ),
+			'url:open': () => true,
+			'github:account': () => ( { ok: true, login: global.__e2eLogin, configured: true, testMode: null } ),
+			'github:sign-in': () => ( { ok: true, userCode: 'ABCD-1234', verificationUri: 'https://github.com/login/device' } ),
+			'github:open-pr': () => global.__e2ePr,
+		};
+		for ( const [ channel, answer ] of Object.entries( answers ) ) {
+			ipcMain.removeHandler( channel );
+			ipcMain.handle( channel, answer );
+		}
+	} );
+	const answerPr = ( result ) => app.evaluate( ( _, value ) => {
+		global.__e2ePr = value;
+	}, result );
+
+	// A ticket, so the signed-in card offers its form.
+	const ticket = ui.workItemCard( page, pseudoLocalize( 'Trac ticket' ) );
+	await ticket.getByLabel( pseudoLocalize( 'Ticket number or URL' ), { exact: true } ).fill( '60001' );
+	await ticket.getByRole( 'button', { name: pseudoLocalize( 'Link ticket' ), exact: true } ).click();
+	await expect( ticket.getByRole( 'button', { name: pseudoLocalize( 'Unlink' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	write( site.dir, LOGIN, '<?php // my fix\n' );
+
+	// The rest of the dialog is #624's: only the card is scanned, found by
+	// its heading.
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Review & submit changes' ), exact: true } ).click();
+	const card = page.getByRole( 'dialog' ).getByText( pseudoLocalize( 'Open a pull request' ), { exact: true } ).locator( '..' );
+	const inCard = async () => ( await unwrapped( card ) ).filter( ( text ) => ! THEIRS.includes( text ) );
+	const button = ( label ) => card.getByRole( 'button', { name: pseudoLocalize( label ), exact: true } );
+
+	// Signed out: the ask, then declining it, then asked again.
+	await expect( button( 'Sign in with GitHub' ) ).toBeVisible( { timeout: 30_000 } );
+	expect( await inCard() ).toEqual( [] );
+	await button( 'Not now' ).click();
+	await expect( button( 'Show this again' ) ).toBeVisible();
+	expect( await inCard() ).toEqual( [] );
+	await button( 'Show this again' ).click();
+
+	// The code to type in the browser, and the wait for it.
+	await button( 'Sign in with GitHub' ).click();
+	await expect( card.getByText( CODE, { exact: true } ) ).toBeVisible();
+	await expect( card.getByText( pseudoLocalize( 'Waiting for you to finish in the browser…' ), { exact: true } ) ).toBeVisible();
+	expect( await inCard() ).toEqual( [] );
+
+	// GitHub's answer arrives: signed in, with the form.
+	await app.evaluate( ( { BrowserWindow } ) => {
+		global.__e2eLogin = 'janedoe';
+		BrowserWindow.getAllWindows()[ 0 ].webContents.send( 'github:sign-in:done', { ok: true, login: 'janedoe' } );
+	} );
+	await expect( button( 'Open pull request' ) ).toBeVisible();
+	await expect( card.getByRole( 'button', { name: 'janedoe/wordpress-develop', exact: true } ) ).toBeVisible();
+	await card.locator( 'summary' ).click();
+	expect( await inCard() ).toEqual( [] );
+
+	// A failure the card words itself.
+	await answerPr( { ok: false, reason: 'rate-limited', error: 'not shown' } );
+	await button( 'Open pull request' ).click();
+	await expect( card.getByText( pseudoLocalize( 'GitHub is rate-limiting this connection. It usually clears within the hour.' ), { exact: true } ) ).toBeVisible();
+	await expect( button( 'Save the patch file instead' ) ).toBeVisible();
+	expect( await inCard() ).toEqual( [] );
+
+	// A dry run's result.
+	await answerPr( { ok: true, dryRun: true, url: `https://github.com/janedoe/wordpress-develop/tree/${ BRANCH }`, branch: BRANCH } );
+	await button( 'Open pull request' ).click();
+	await expect( card.getByRole( 'button', { name: BRANCH, exact: true } ) ).toBeVisible();
+	expect( await inCard() ).toEqual( [] );
+
+	// A pull request opened from a checkout that was behind trunk. A result
+	// stays until the dialog opens again, so it is closed and opened first:
+	// by its Close button, since the button pressed is gone and took the
+	// focus with it.
+	await page.getByRole( 'dialog' ).getByRole( 'button', { name: pseudoLocalize( 'Close' ), exact: true } ).click();
+	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Review & submit changes' ), exact: true } ).click();
+	await answerPr( { ok: true, url: 'https://github.com/WordPress/wordpress-develop/pull/9', number: 9, branch: BRANCH, exactBase: false } );
+	await button( 'Open pull request' ).click();
+	await expect( button( 'Copy the link' ) ).toBeVisible();
+	await expect( card.getByRole( 'button', { name: pseudoLocalize( 'Open #%s to comment' ).replace( '%s', '60001' ), exact: true } ) ).toBeVisible();
+	// The link in the sentence is part of it: the scan stops at the link, so
+	// the sentence around it is checked whole and the link left out.
+	const opened = card.locator( '.success-text' );
+	await expect( opened ).toHaveText( /^\[.*\]$/ );
+	const link = ( await opened.getByRole( 'button' ).textContent() ).trim();
+	expect( ( await inCard() ).filter( ( text ) => text !== link ) ).toEqual( [] );
+} );
+
+test( 'the Open a pull request card on a Gutenberg site is fully translatable, signed in', async ( { session } ) => {
+	// The card's words that are the project's own. The issue is linked in
+	// the record rather than through its card, which is the Core test's.
+	const site = await makeSite( session );
+	Object.assign( site.settings.siteMeta[ site.dir ], { projectType: 'gutenberg' } );
+	write( site.dir, LOGIN, '<?php // my fix\n' );
+	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+	await app.evaluate( ( { ipcMain } ) => {
+		const answers = {
+			'git:list-ticket-patches': () => ( { ok: true, prs: { status: 'ok', items: [] } } ),
+			'github:account': () => ( { ok: true, login: 'janedoe', configured: true, testMode: null } ),
+		};
+		for ( const [ channel, answer ] of Object.entries( answers ) ) {
+			ipcMain.removeHandler( channel );
+			ipcMain.handle( channel, answer );
+		}
+	} );
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Review & submit changes' ), exact: true } ).click();
+	const card = page.getByRole( 'dialog' ).getByText( pseudoLocalize( 'Open a pull request' ), { exact: true } ).locator( '..' );
+	await expect( card.getByRole( 'button', { name: 'janedoe/gutenberg', exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( card.getByText( pseudoLocalize( 'No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.' ), { exact: true } ) ).toBeVisible();
+	expect( ( await unwrapped( card ) ).filter( ( text ) => ! [ 'janedoe', 'janedoe/gutenberg' ].includes( text ) ) ).toEqual( [] );
 } );
