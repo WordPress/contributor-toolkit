@@ -670,3 +670,79 @@ for ( const [ named, label ] of [ [ 'by its name', '60001.diff' ], [ 'with no na
 		expect( await unwrappedInReview( dialog ) ).toEqual( [] );
 	} );
 }
+
+test( 'a mail the site sent is fully translatable, on its Rendered and its Raw tab', async ( { session } ) => {
+	// One mail in the store, loaded when the server starts, which is answered
+	// by stand-ins as in mail.spec.js. What the mail says is the site's, and
+	// is left out of the scan.
+	const MAIL = {
+		id: 'e2e-reset',
+		subject: '[Test Site] Password Reset',
+		from: 'WordPress <wordpress@example.test>',
+		to: 'admin@example.test',
+		cc: 'auditor@example.test',
+		date: '2026-08-10T09:30:00.000Z',
+		sentAt: '2026-08-10T09:30:00.000Z',
+		text: 'A password reset was requested.',
+		html: '<p>Someone has requested a <strong>password reset</strong>.</p>',
+		headers: {},
+		raw: 'Subject: [Test Site] Password Reset\nX-Mailer: PHPMailer\n\nA password reset was requested.',
+	};
+	const theMails = ( text ) => [ MAIL.subject, MAIL.from, MAIL.to, MAIL.cc, MAIL.raw, 'Someone has requested a password reset.' ].some( ( part ) => part.includes( text ) ) || text.includes( '2026' );
+	const site = await makeSite( session );
+	const { app, page } = await session.start( { ...site.settings, [ `siteMail:${ site.dir }` ]: [ MAIL ] }, { lang: 'en-XA' } );
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'npm:run-script' );
+		ipcMain.handle( 'npm:run-script', async () => ( { runId: 'e2e-mail' } ) );
+		ipcMain.removeHandler( 'playground:start' );
+		ipcMain.handle( 'playground:start', async () => ( { ok: true } ) );
+	} );
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Start development server' ), exact: true } ).click( { timeout: 30_000 } );
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Toggle Email' ), exact: true } ).click();
+	await page.getByRole( 'button', { name: /\[Test Site\] Password Reset$/ } ).click( { timeout: 30_000 } );
+
+	const dialog = page.getByRole( 'dialog', { name: MAIL.subject } );
+	await expect( dialog.getByRole( 'tab', { name: pseudoLocalize( 'Rendered' ), exact: true } ) ).toHaveAttribute( 'aria-selected', 'true' );
+	await expect( dialog.getByText( pseudoLocalize( 'CC:' ), { exact: true } ) ).toBeVisible();
+	expect( ( await unwrapped( dialog ) ).filter( ( text ) => ! theMails( text ) ) ).toEqual( [] );
+
+	await dialog.getByRole( 'tab', { name: pseudoLocalize( 'Raw' ), exact: true } ).click();
+	await expect( dialog.getByText( 'X-Mailer: PHPMailer' ) ).toBeVisible();
+	expect( ( await unwrapped( dialog ) ).filter( ( text ) => ! theMails( text ) ) ).toEqual( [] );
+} );
+
+test( 'the Playground web server is fully translatable, stopped, starting, running and after it exits', async ( { session } ) => {
+	// The server is offered only where a build ships it, which a checkout
+	// does not, and the page asks as it mounts: so the stand-ins are in
+	// place before the window is. Starting is never answered; the test says
+	// what the main process would say instead. With no site, the server is
+	// above the middle of the window, and that is what is scanned.
+	const URL = 'http://127.0.0.1:39372/';
+	await session.start( undefined, { lang: 'en-XA' } );
+	const { app, page } = await session.restart( { beforeWindow: ( launched ) => launched.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'playground-web:available' );
+		ipcMain.handle( 'playground-web:available', () => true );
+		ipcMain.removeHandler( 'playground-web:start' );
+		ipcMain.handle( 'playground-web:start', () => new Promise( () => {} ) );
+	} ) } );
+	const tell = ( channel, payload ) => app.evaluate( ( { BrowserWindow }, [ to, what ] ) => {
+		BrowserWindow.getAllWindows()[ 0 ].webContents.send( to, what );
+	}, [ channel, payload ] );
+	const notices = page.locator( '.page-body-notices' );
+	const SERVER_OUTPUT = 'listening for requests';
+
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Start Playground web server' ), exact: true } ).click( { timeout: 30_000 } );
+	await expect( page.getByText( pseudoLocalize( 'Playground web server' ), { exact: true } ) ).toBeVisible();
+	await expect( page.getByText( pseudoLocalize( 'Starting…' ), { exact: true } ).first() ).toBeVisible();
+	expect( await unwrapped( notices ) ).toEqual( [] );
+
+	await tell( 'playground-web:log', { type: 'stdout', data: `${ SERVER_OUTPUT }\n` } );
+	await tell( 'playground-web:url', { url: URL } );
+	await expect( page.getByRole( 'button', { name: pseudoLocalize( 'Stop Playground web server' ), exact: true } ) ).toBeVisible();
+	expect( ( await unwrapped( notices ) ).filter( ( text ) => text !== URL && text !== SERVER_OUTPUT ) ).toEqual( [] );
+
+	await tell( 'playground-web:stopped', { code: 1 } );
+	await expect( page.getByText( pseudoLocalize( 'Stopped' ), { exact: true } ) ).toBeVisible();
+	await expect( page.getByText( pseudoLocalize( 'Server exited with code %d' ).replace( '%d', '1' ), { exact: true } ) ).toBeVisible();
+	expect( ( await unwrapped( notices ) ).filter( ( text ) => text !== SERVER_OUTPUT ) ).toEqual( [] );
+} );

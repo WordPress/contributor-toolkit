@@ -156,8 +156,8 @@ test('each thing the apply flow can have done is confirmed in a sentence of its 
 	assert.strictEqual(applyDoneMessage('Restored', 'saved work'), 'Restored the saved work');
 });
 
-test('a pair it has no sentence for is still said, as the flow words it', () => {
-	assert.strictEqual(applyDoneMessage('Rebuilt', 'site'), 'Rebuilt the site');
+test('a pair it has no sentence for is still confirmed, in a word that splices nothing in', () => {
+	assert.strictEqual(applyDoneMessage('Rebuilt', 'site'), 'Done');
 });
 
 test('a saved patch and edits saved before an update are confirmed by the file\'s name', () => {

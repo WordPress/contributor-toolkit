@@ -6,7 +6,7 @@ import {
   SlotFillProvider
 } from '@wordpress/components';
 import { Page } from '@wordpress/admin-ui';
-import { __, _x, setLocaleData } from '@wordpress/i18n';
+import { __, _x, sprintf, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
 import { drawerLeft, globe } from '@wordpress/icons';
 import { Badge, Button as UiButton, Card as UiCard, EmptyState, IconButton, Notice, Spinner as UiSpinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
@@ -445,7 +445,8 @@ function App() {
         const res = await window.api.startPlaygroundWeb(
           ({ data }) => setWebLogs((v) => v + String(data)),
           (url) => { const u = (url || 'http://127.0.0.1:39372/').replace(/\/$/,'/'); setWebUrl(u); setWebStarting(false); },
-          (payload) => { setWebUrl(''); if (payload && typeof payload.code === 'number' && payload.code !== 0) setWebError(`Server exited with code ${payload.code}`); }
+          // translators: %d: the code the server exited with, a number.
+          (payload) => { setWebUrl(''); if (payload && typeof payload.code === 'number' && payload.code !== 0) setWebError(sprintf(__('Server exited with code %d'), payload.code)); }
         );
         if (res && res.ok && res.url) {
           const u = String(res.url).replace(/\/$/,'/');
@@ -549,14 +550,14 @@ function App() {
         <Stack direction="row" align="center" justify="flex-end" gap="sm" className="window-notice">
           <UiButton
             loading={webStarting}
-            loadingAnnouncement="Starting the Playground web server"
+            loadingAnnouncement={__('Starting the Playground web server')}
             variant={webUrl ? 'outline' : 'solid'}
             tone={webUrl ? 'neutral' : 'brand'}
             onClick={togglePlaygroundWeb}
-          >{webUrl ? 'Stop Playground web server' : 'Start Playground web server'}</UiButton>
+          >{webUrl ? __('Stop Playground web server') : __('Start Playground web server')}</UiButton>
           {webStarting || webUrl ? (
             <Text variant="body-sm">
-              {webStarting ? 'Starting…' : (
+              {webStarting ? __('Starting…') : (
                 <a href={webUrl || 'http://127.0.0.1:39372/'} onClick={(e) => { e.preventDefault(); window.api.openExternal(webUrl || 'http://127.0.0.1:39372/'); }}>{webUrl || 'http://127.0.0.1:39372/'}</a>
               )}
             </Text>
@@ -569,13 +570,13 @@ function App() {
         <UiCard.Root className="window-notice">
           <UiCard.Content render={<Stack direction="column" gap="sm" />}>
             <Stack direction="row" align="center" justify="space-between" gap="sm">
-              <Text variant="heading-md">Playground web server</Text>
+              <Text variant="heading-md">{__('Playground web server')}</Text>
               <Text variant="body-sm" className="muted-label">
-                {webStarting ? 'Starting…' : null}
+                {webStarting ? __('Starting…') : null}
                 {!webStarting && webUrl ? (
                   <a href={webUrl} onClick={(e)=>{ e.preventDefault(); window.api.openExternal(webUrl); }}>{webUrl}</a>
                 ) : null}
-                {!webStarting && !webUrl ? 'Stopped' : null}
+                {!webStarting && !webUrl ? __('Stopped') : null}
               </Text>
             </Stack>
             {webError ? <Text variant="body-sm" className="error-text">{webError}</Text> : null}
@@ -861,13 +862,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const writePathToClipboard = useCallback(async () => {
     try {
       if (!navigator?.clipboard?.writeText) {
-        throw new Error('Clipboard access is not available in this environment');
+        throw new Error(__('Clipboard access is not available in this environment'));
       }
       await navigator.clipboard.writeText(sitePath);
       return true;
     } catch (err) {
       // eslint-disable-next-line no-alert -- see the note above confirmAnd.
-      alert('Unable to copy path: ' + (err?.message ?? String(err)));
+      alert(sprintf(
+        // translators: %s: why the path could not be copied, a sentence.
+        __('Unable to copy path: %s'),
+        err?.message ?? String(err)
+      ));
       return false;
     }
   }, [sitePath]);

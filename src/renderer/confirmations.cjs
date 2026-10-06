@@ -154,7 +154,9 @@ function applyDoneMessage(verb, noun) {
 		'Restored previous branch': __('Restored the previous branch'),
 		'Restored saved work': __('Restored the saved work')
 	};
-	return sentences[`${verb} ${noun}`] || `${verb} the ${noun}`;
+	// A pair with no sentence of its own is still confirmed, without English
+	// words spliced into it.
+	return sentences[`${verb} ${noun}`] || __('Done');
 }
 
 /**
