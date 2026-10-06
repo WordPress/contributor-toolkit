@@ -5954,6 +5954,116 @@ test('wp-debug:start answers with the log path', async () => {
 	assert.equal(started.filePath, path.join(SITE, 'build', 'wp-content', 'debug.log'));
 });
 
+// The file the tail reads, with the watchers it attaches and the streams it
+// opens stood in for, so a watcher's event can be delivered with the file in
+// whatever state the test says. A real fs.watch would make the order of the
+// events the platform's business; here it is the test's.
+function fakeTailedFile(logPath, size) {
+	const file = { size, exists: true, watchers: [], ranges: [] };
+	const stubs = {
+		'fs': {
+			existsSync: (p) => (p === logPath ? file.exists : fs.existsSync(p)),
+			statSync: (p, ...rest) => {
+				if (p !== logPath) return fs.statSync(p, ...rest);
+				if (!file.exists) throw Object.assign(new Error(`ENOENT: ${logPath}`), { code: 'ENOENT' });
+				return { size: file.size };
+			},
+			createReadStream: (p, range) => {
+				if (p !== logPath) return fs.createReadStream(p, range);
+				file.ranges.push(range);
+				const stream = new EventEmitter();
+				setImmediate(() => {
+					stream.emit('data', Buffer.alloc(range.end - range.start + 1, 'x'));
+					stream.emit('end');
+				});
+				return stream;
+			},
+			watch: (p, listener) => {
+				const watcher = { path: p, listener, closed: false, close() { this.closed = true; } };
+				file.watchers.push(watcher);
+				return watcher;
+			}
+		}
+	};
+	// The one watcher still open on a path, which is where the next event goes.
+	const watcherOn = (p) => file.watchers.filter((w) => w.path === p && !w.closed);
+	return { file, stubs, watcherOn };
+}
+
+const toldOf = (event) => event.sent.filter((s) => s.channel === 'wp:debug-log:data').map((s) => s.payload);
+const bytesTold = (event) => toldOf(event).filter((p) => !p.backlog || !p.data.startsWith('——')).reduce((n, p) => n + p.data.length, 0);
+const turn = () => new Promise((resolve) => setImmediate(resolve));
+
+// An editor saving debug.log writes a new file at the old path, and the watcher
+// on the old one reports 'rename' with the file still there. The lines it
+// already had were shown once; only what the save added is news. Replaying the
+// file from the start showed every line twice and counted them all as unseen.
+test('wp-debug:start carries a debug.log replaced under the tail on from where it stopped, not from its start', async () => {
+	const logPath = path.join(SITE, 'build', 'wp-content', 'debug.log');
+	const { file, stubs, watcherOn } = fakeTailedFile(logPath, 20);
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, ...stubs } });
+	const event = createIpcEvent();
+
+	await main.invokeWith('wp-debug:start', event, SITE);
+	await turn();
+	assert.deepEqual(file.ranges, [{ start: 0, end: 19 }], 'the file as found is replayed whole, to the size it had');
+	assert.equal(watcherOn(logPath).length, 1);
+
+	// Saved over with one more line, which is what the watcher on the old file
+	// sees as a rename.
+	file.size = 27;
+	const [before] = watcherOn(logPath);
+	before.listener('rename');
+	await turn();
+
+	assert.deepEqual(file.ranges.at(-1), { start: 20, end: 26 }, 'the replaced file was read from its start again');
+	assert.equal(bytesTold(event), 27, 'a byte of the file was told twice');
+	assert.equal(before.closed, true, 'the watcher on the old file was left open');
+	assert.equal(watcherOn(logPath).length, 1, 'the new file is not watched, or is watched twice');
+	// And what the new file's lines are: news, without the line that says an
+	// earlier run ends, which was said once under the replay.
+	const told = toldOf(event);
+	assert.equal(told.at(-1).backlog, false);
+	assert.equal(told.filter((p) => p.backlog && p.data.startsWith('——')).length, 1);
+
+	// Saved again without a change: nothing to show.
+	watcherOn(logPath)[0].listener('rename');
+	await turn();
+	assert.equal(file.ranges.length, 2, 'an unchanged file was read again');
+	assert.equal(bytesTold(event), 27);
+});
+
+// `grunt clean` removes the file; what appears at the path later is a new file,
+// read whole — the earlier offset would skip its first lines. The new file is
+// longer than the old one on purpose: a shorter one is read from its start by
+// either rule, and the test would be green without the offset being forgotten.
+test('wp-debug:start reads a debug.log removed under the tail whole when a file comes back', async () => {
+	const logPath = path.join(SITE, 'build', 'wp-content', 'debug.log');
+	const { file, stubs, watcherOn } = fakeTailedFile(logPath, 20);
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [SITE] }).stubs, ...stubs } });
+	const event = createIpcEvent();
+
+	await main.invokeWith('wp-debug:start', event, SITE);
+	await turn();
+
+	file.exists = false;
+	watcherOn(logPath)[0].listener('rename');
+	await turn();
+	assert.equal(watcherOn(logPath).length, 0, 'a file that is gone is still watched');
+	assert.equal(watcherOn(path.dirname(logPath)).length, 1, 'the folder is not watched for the file to come back');
+	assert.equal(file.ranges.length, 1, 'a file that is gone was read');
+
+	file.exists = true;
+	file.size = 25;
+	watcherOn(path.dirname(logPath))[0].listener('rename', 'debug.log');
+	await turn();
+
+	assert.deepEqual(file.ranges.at(-1), { start: 0, end: 24 }, 'the new file was read from the old offset');
+	assert.equal(toldOf(event).at(-1).backlog, false, 'the new file\'s lines were told as an earlier run\'s');
+	assert.equal(watcherOn(logPath).length, 1);
+	assert.equal(watcherOn(path.dirname(logPath)).length, 0, 'the folder is still watched with the file back');
+});
+
 // --- opening a pull request (#167) ---------------------------------------
 
 // Sign-in is two-legged: the handler returns as soon as there is a code to

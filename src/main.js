@@ -4239,10 +4239,17 @@ function startWpDebugTail(sitePath, webContents) {
 		try {
 			const stat = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
 			if (!stat) return false;
-			const initial = planInitialRead(stat.size);
-			state.lastSize = initial.lastSize;
-			if (initial.read) {
-				const rs = fs.createReadStream(filePath, initial.read);
+			// A file found again after a 'rename' is taken for the one the tail
+			// was reading, carried on from where it stopped, until its size says
+			// otherwise: an editor saving debug.log writes a new file at the old
+			// path, and replaying that would show every line a second time and
+			// count them all as unseen. With no offset — the first attach, a file
+			// that was gone when the app looked (watchForFile), or one that was
+			// empty or cleared — the file is new and read whole, up to the cap.
+			const plan = state.lastSize > 0 ? planTailRead(state.lastSize, stat.size) : planInitialRead(stat.size);
+			state.lastSize = plan.lastSize;
+			if (plan.read) {
+				const rs = fs.createReadStream(filePath, plan.read);
 				rs.on('data', (chunk) => send(chunk.toString(), fromBefore));
 				// The file outlives the dev server, so what was just replayed is
 				// whatever previous runs left behind — with WordPress's own
@@ -4255,7 +4262,7 @@ function startWpDebugTail(sitePath, webContents) {
 				// 'rename' is the file being replaced or removed under the
 				// watcher, which stays bound to the old inode and would never
 				// fire again. Re-attaching is what keeps the panel alive across a
-				// `grunt clean` or a manual delete.
+				// `grunt clean`, a manual delete or an editor's save.
 				if (evt === 'rename') { reattachAfterLoss(); return; }
 				if (evt !== 'change') return;
 				try {
@@ -4281,6 +4288,8 @@ function startWpDebugTail(sitePath, webContents) {
 	// something — and again if it is later removed.
 	function watchForFile(fromBefore = false) {
 		if (attachFileWatcher(fromBefore)) return;
+		// Not there: whatever appears at the path is a new file, read whole.
+		state.lastSize = 0;
 		try {
 			state.dirWatcher = fs.watch(wpContentDir, () => {
 				if (attachFileWatcher() && state.dirWatcher) {
@@ -4294,7 +4303,6 @@ function startWpDebugTail(sitePath, webContents) {
 	function reattachAfterLoss() {
 		try { state.fileWatcher?.close(); } catch {}
 		state.fileWatcher = undefined;
-		state.lastSize = 0;
 		watchForFile();
 	}
 
