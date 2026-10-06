@@ -332,7 +332,18 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	// smallest on the runners' screens, which the first half below needs
 	// them to, with a few pixels to spare and no more.
 	const { settings } = listedSites( session, [ { label: 'in-setup', skipInitWizard: false, createdAt: null, trunkDate: null } ] );
-	const { page } = await session.start( settings );
+	const { app, page } = await session.start( settings );
+	// The window opens up to 1280×800, less on a smaller screen, and on a
+	// screen that gives it all of that the tray at its largest still leaves
+	// the page room for these details, which the second half needs it not
+	// to. Sized here as the smallest screens the suite runs on size it, so
+	// that both halves hold wherever the suite runs.
+	await app.evaluate( ( { BrowserWindow } ) => {
+		const win = BrowserWindow.getAllWindows()[ 0 ];
+		const [ minWidth, minHeight ] = win.getMinimumSize();
+		win.setSize( Math.max( 1024, minWidth ), Math.max( 700, minHeight ) );
+	} );
+	await expect.poll( () => page.evaluate( () => window.innerHeight ) ).toBeLessThanOrEqual( 700 );
 	// Without the glide the app brings a site's next step into view with,
 	// which would still be moving the page while this reads where it is.
 	await page.emulateMedia( { reducedMotion: 'reduce' } );

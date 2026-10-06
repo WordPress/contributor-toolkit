@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell, screen } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell, screen, nativeTheme } = require('electron');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
@@ -61,7 +61,8 @@ const {
 const { fetchPullRequestHead, describePullRequestHead, pullRequestBranchState, checkoutPullRequest, leavePullRequest } = require('./pr-checkout');
 const { prSubmissionRefusal, prCheckoutRefusal } = require('./renderer/pr-checkout.cjs');
 const { createProgressThrottle, describeSwitchProgress } = require('./switch-progress.cjs');
-const { getStore } = require('./settings-store');
+const { getStore, peekStore } = require('./settings-store');
+const { sitesToResume, readResume } = require('./resume-sites.cjs');
 
 // One name for the send-only progress channel (#173), shared with preload.js
 // through the tests rather than by import — the renderer bundle and the main
@@ -92,6 +93,7 @@ const { addFilter } = require('@wordpress/hooks');
 const { mergeInProgressError, mergeCheckFailedError } = require('./renderer/merge-in-progress.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
 const { SETTINGS, readSettings, acceptSetting } = require('./settings.cjs');
+const { windowBackground } = require('./theme.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
@@ -362,6 +364,9 @@ const runningScripts = {};
 const cancelledChildren = new WeakSet();
 /** @type {Record<string, string>} */
 const runIdByDirectory = {};
+// What each running script is, by run (#559): the quit reads which of them
+// are a site's build watch, to start those again at the next launch.
+const scriptByRunId = {};
 // The same directory index for installs. The renderer knows a script's runId
 // (`npm:run-script` returns it before the first log line) but never an
 // installId — `runNpmInstall` keeps that correlation id to itself in the
@@ -557,6 +562,9 @@ function createWindow() {
     mainWindow = new BrowserWindow({
 		...mainWindowSize(screen.getPrimaryDisplay().workAreaSize),
         icon: process.platform === 'linux' ? path.join(__dirname, '..', 'build', 'icon.png') : undefined,
+		// The colour of the theme the window is made in (#560), so that a dark
+		// window is not white for the moment before its page has painted.
+		backgroundColor: windowBackground(nativeTheme.shouldUseDarkColors),
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
 			contextIsolation: true,
@@ -680,9 +688,9 @@ ipcMain.handle('deep-link:ready', () => {
 // Resolved once: main applies it at startup for its own strings (the menu, the
 // native dialogs, the sentences it sends), and the window gets the same reply,
 // so the two cannot end up in different languages. That is also why a change
-// in the settings shows after a relaunch and not before. This is the first
-// read of the store, before there is a window: a store that cannot be read
-// is logged and counts as no choice, since the window has to open to say so.
+// in the settings shows after a relaunch and not before. Read before there
+// is a window: a store that cannot be read is logged and counts as no
+// choice, since the window has to open to say so.
 const LANGUAGES_DIR = path.join(__dirname, 'languages');
 let localeReplyPromise = null;
 function localeReply() {
@@ -704,6 +712,31 @@ function localeReply() {
 		})();
 	}
 	return localeReplyPromise;
+}
+
+// The theme (#560), given to Electron. `nativeTheme` is the one place the
+// choice is made: Chromium answers the page's `prefers-color-scheme` from it,
+// and paints the window's chrome and the native form controls to match, so
+// the page only has to follow what it is told, as it would the operating
+// system's. Read from the store before the window is made, so the window is
+// made in it; a store that cannot be read leaves the system's theme, with a
+// line in the log, as it leaves the system's language.
+async function applyStoredTheme() {
+	try {
+		nativeTheme.themeSource = readSettings((await getStore()).get('preferences')).theme;
+	} catch (e) {
+		logError('theme', `the settings could not be read, so the theme is the system's: ${String(e && e.message ? e.message : e)}`);
+	}
+	// A deep link can have opened the window while the store was read.
+	paintWindowForTheme();
+}
+
+// The colour the window was made with shows wherever the page has not
+// painted yet (a live resize, a reload), so it is given again whenever the
+// theme is: by the setting, here and in `settings:set`, and by Electron's
+// `updated`, which is how the system's theme reaches it under 'system'.
+function paintWindowForTheme() {
+	if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(windowBackground(nativeTheme.shouldUseDarkColors));
 }
 
 // The languages the settings offer: what the build ships, read once.
@@ -2648,6 +2681,10 @@ app.whenReady().then(async () => {
 	// renderer output into the log file, which only applies to windows created
 	// afterwards.
 	initLogging();
+	// Before the window: it is made in the theme, and kept in it when the
+	// system's theme changes under 'system'.
+	nativeTheme.on('updated', paintWindowForTheme);
+	await applyStoredTheme();
 	// Before the menu and the window: both build their labels from `__()`.
 	applyLocale(await localeReply(), { setLocaleData, addFilter });
 	Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
@@ -2681,7 +2718,50 @@ app.on('window-all-closed', function () {
 // Known residual gap on Windows: taskkill /T walks parent links at kill time,
 // so a grandchild whose intermediate parent is already gone can survive
 // (observed with grunt _watch) — tracked in #83.
+// With the quit setting on 'restart' (#559), what is running is written down
+// before it is swept, for the next launch to start again. Written through
+// the store's synchronous accessor: this handler is not awaited, and the
+// store has been made by now, at startup, for the locale. A store not yet
+// made is a launch that read nothing, with nothing running to remember.
+function rememberRunningSites() {
+	const s = peekStore();
+	if (!s) return;
+	const preferences = s.get('preferences') || {};
+	if (readSettings(preferences).quitBehavior !== 'restart') return;
+	const resume = sitesToResume({
+		servers: Object.keys(playgroundServers).filter((sitePath) => playgroundServers[sitePath]?.child),
+		scripts: Object.keys(runningScripts).map((runId) => scriptByRunId[runId]).filter(Boolean),
+		watchFor: (sitePath) => {
+			const meta = (s.get('siteMeta') || {})[sitePath];
+			return meta ? projectTypeForSite(meta).build.watch : null;
+		}
+	});
+	logEvent('quit', `remembering ${resume.servers.length} server(s) and ${resume.watches.length} watch(es) to start again`);
+	s.set('preferences', { ...preferences, resume });
+}
+
+// The list the quit left, read once by the window as it opens and then
+// forgotten, so a launch that ends badly does not start it all again twice.
+ipcMain.handle('sites:resume', async () => {
+	const s = await getStore();
+	const preferences = s.get('preferences') || {};
+	const resume = readResume(preferences);
+	if ('resume' in preferences) {
+		const { resume: _taken, ...rest } = preferences;
+		s.set('preferences', rest);
+	}
+	return { ok: true, ...resume };
+});
+
 app.on('before-quit', () => {
+	// Before the sweep, since it reads what is running; and unable to stop
+	// the sweep, since a store that cannot be written is no reason to leave
+	// every server and watch running.
+	try {
+		rememberRunningSites();
+	} catch (e) {
+		logError('quit', `could not remember what is running: ${String(e && e.message ? e.message : e)}`);
+	}
 	logEvent('quit', 'sweeping child processes');
 	const children = [
 		...Object.values(runningInstalls),
@@ -3523,7 +3603,15 @@ ipcMain.handle('settings:set', async (_e, key, value) => {
 	if (!accepted.ok) return { ok: false, error: accepted.error };
 	await setPreference(key, accepted.value);
 	const s = await getStore();
-	return { ok: true, settings: readSettings(s.get('preferences')) };
+	const settings = readSettings(s.get('preferences'));
+	// The theme applies at once (#560): Electron tells the page, and the
+	// window's own colour is set here rather than left to Electron's
+	// `updated`, which is not promised for a change to 'system'.
+	if (key === 'theme') {
+		nativeTheme.themeSource = settings.theme;
+		paintWindowForTheme();
+	}
+	return { ok: true, settings };
 });
 
 // The fallback that needs no configuration at all — see site-registry.js for why
@@ -3758,6 +3846,7 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 		relaxEnginesFromStart: true,
 		register: (child) => {
 			runningScripts[runId] = child;
+			scriptByRunId[runId] = { directoryPath, scriptName, scriptArgs };
 			runIdByDirectory[directoryPath] = runId;
 			trackDirectoryChild(directoryPath, child);
 		},
@@ -3768,6 +3857,7 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 			event.sender.send('npm:run-script:done', { runId, code });
 			untrackDirectoryChild(directoryPath, runningScripts[runId]);
 			delete runningScripts[runId];
+			delete scriptByRunId[runId];
 			if (runIdByDirectory[directoryPath] === runId) {
 				delete runIdByDirectory[directoryPath];
 			}
@@ -4190,10 +4280,17 @@ function startWpDebugTail(sitePath, webContents) {
 		try {
 			const stat = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
 			if (!stat) return false;
-			const initial = planInitialRead(stat.size);
-			state.lastSize = initial.lastSize;
-			if (initial.read) {
-				const rs = fs.createReadStream(filePath, initial.read);
+			// A file found again after a 'rename' is taken for the one the tail
+			// was reading, carried on from where it stopped, until its size says
+			// otherwise: an editor saving debug.log writes a new file at the old
+			// path, and replaying that would show every line a second time and
+			// count them all as unseen. With no offset — the first attach, a file
+			// that was gone when the app looked (watchForFile), or one that was
+			// empty or cleared — the file is new and read whole, up to the cap.
+			const plan = state.lastSize > 0 ? planTailRead(state.lastSize, stat.size) : planInitialRead(stat.size);
+			state.lastSize = plan.lastSize;
+			if (plan.read) {
+				const rs = fs.createReadStream(filePath, plan.read);
 				rs.on('data', (chunk) => send(chunk.toString(), fromBefore));
 				// The file outlives the dev server, so what was just replayed is
 				// whatever previous runs left behind — with WordPress's own
@@ -4206,7 +4303,7 @@ function startWpDebugTail(sitePath, webContents) {
 				// 'rename' is the file being replaced or removed under the
 				// watcher, which stays bound to the old inode and would never
 				// fire again. Re-attaching is what keeps the panel alive across a
-				// `grunt clean` or a manual delete.
+				// `grunt clean`, a manual delete or an editor's save.
 				if (evt === 'rename') { reattachAfterLoss(); return; }
 				if (evt !== 'change') return;
 				try {
@@ -4232,6 +4329,8 @@ function startWpDebugTail(sitePath, webContents) {
 	// something — and again if it is later removed.
 	function watchForFile(fromBefore = false) {
 		if (attachFileWatcher(fromBefore)) return;
+		// Not there: whatever appears at the path is a new file, read whole.
+		state.lastSize = 0;
 		try {
 			state.dirWatcher = fs.watch(wpContentDir, () => {
 				if (attachFileWatcher() && state.dirWatcher) {
@@ -4245,7 +4344,6 @@ function startWpDebugTail(sitePath, webContents) {
 	function reattachAfterLoss() {
 		try { state.fileWatcher?.close(); } catch {}
 		state.fileWatcher = undefined;
-		state.lastSize = 0;
 		watchForFile();
 	}
 

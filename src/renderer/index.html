@@ -16,19 +16,25 @@
   <meta http-equiv="Permissions-Policy" content="clipboard-read=(self), clipboard-write=(self)" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!--
-    `light`, not `light dark`: this window has no dark theme yet (#560). Its
-    surfaces take the design system's colours, which are the light theme's, and
-    @wordpress/components ships light styles only. Declaring support for both
-    let the browser paint the parts it owns, the native form controls, to match
-    the OS instead. On a machine in dark mode that produced charcoal inputs on
-    white cards, with placeholder text at dark-on-dark contrast: unreadable,
-    and the guidance this app puts in placeholders is exactly what a first-timer
-    needs to read.
-
-    This was a promise the app could not keep, so it stops making it. The day a
-    real dark theme exists, this goes back to `light dark` along with it.
+    Both schemes, since #560: the page paints each one. Which the window is in
+    is Electron's `nativeTheme`, which main sets from the theme setting and
+    Chromium answers `prefers-color-scheme` from. Declaring both lets the
+    browser paint the parts it owns, the native form controls, in the scheme
+    the page is in; declaring `light` alone would paint them light inside a
+    dark window. tests/unit/color-scheme.test.cjs holds the declaration and
+    the colour below to the theme module.
   -->
-  <meta name="color-scheme" content="light" />
+  <meta name="color-scheme" content="light dark" />
+  <!--
+    The page's first paint is before its script runs, and the tokens
+    stylesheet it paints with holds the light theme's values; the dark ones
+    are set on the document once the app has mounted. Without this, a dark
+    window shows a light page for that moment. Until the design system's
+    provider has mounted, which it marks on the document, and no longer: the
+    colour is the dark seed in src/theme.cjs, the one colour the window has
+    that is not a token, and after that moment the tokens are the theme.
+  -->
+  <style>@media (prefers-color-scheme: dark) { html:not([data-wpds-root-provider]) body { background: #1e1e1e; } }</style>
   <meta name="robots" content="noindex, nofollow" />
   <meta name="referrer" content="no-referrer" />
 </head>

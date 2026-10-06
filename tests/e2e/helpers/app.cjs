@@ -195,19 +195,27 @@ class Session {
 	/**
 	 * Seeds settings.json and launches the app.
 	 *
-	 * @param {Object}       settings       Initial electron-store contents. Defaults to a
-	 *                                      first-launch app with no sites.
+	 * @param {Object}       settings              Initial electron-store contents. Defaults to a
+	 *                                             first-launch app with no sites.
 	 * @param {Object}       [options]
-	 * @param {string|false} [options.lang] The locale to launch in, in place of en-US,
-	 *                                      or `false` for no `--lang` at all: the
-	 *                                      app then picks its language as it does
-	 *                                      for a contributor, from the settings
-	 *                                      and the OS. It holds across restart().
+	 * @param {string|false} [options.lang]        The locale to launch in, in place of en-US,
+	 *                                             or `false` for no `--lang` at all: the
+	 *                                             app then picks its language as it does
+	 *                                             for a contributor, from the settings
+	 *                                             and the OS. It holds across restart().
+	 * @param {?string}      [options.colorScheme] Left out, Playwright holds the page
+	 *                                             to the light scheme whatever the machine
+	 *                                             and the theme setting say, so a journey
+	 *                                             is the same on every machine. `null`
+	 *                                             lets the page follow the app's own theme
+	 *                                             (#560), for a journey about it. It holds
+	 *                                             across restart().
 	 * @return {Promise<{app: Object, page: Object}>} The Electron app and its first window.
 	 */
-	async start( settings = EMPTY_SETTINGS, { lang } = {} ) {
+	async start( settings = EMPTY_SETTINGS, { lang, colorScheme } = {} ) {
 		if ( this.app ) throw new Error( 'This session already has an app running; call restart() instead.' );
 		this.lang = lang;
+		this.colorScheme = colorScheme;
 		this.writeSettings( settings );
 		return this.#launch();
 	}
@@ -252,6 +260,7 @@ class Session {
 			// does not recognise without a word — so a `slowMo` added here would leave the
 			// tests passing at full speed and look like it had worked.
 			...( VIDEO_DIR ? { recordVideo: { dir: VIDEO_DIR } } : {} ),
+			...( this.colorScheme === undefined ? {} : { colorScheme: this.colorScheme } ),
 			env: {
 				...process.env,
 				TZ: 'UTC',

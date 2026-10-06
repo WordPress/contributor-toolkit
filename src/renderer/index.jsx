@@ -9,7 +9,6 @@ import { Page } from '@wordpress/admin-ui';
 import { __, _x, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
 import { drawerLeft, globe } from '@wordpress/icons';
-import { ThemeProvider } from '@wordpress/theme';
 import { Badge, Button as UiButton, Card as UiCard, EmptyState, IconButton, Notice, Spinner as UiSpinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
 // The design system's tokens: every `--wpds-*` custom property, at its default,
 // on `:root`.
@@ -80,10 +79,12 @@ import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/ap
 import { applyHeldReason, previewShown } from './apply-card.cjs';
 import { TicketCard } from './components/ticket-card.jsx';
 import { TicketListCard } from './components/ticket-list.jsx';
+import { AppTheme } from './components/app-theme.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useSettings } from './hooks/use-settings.jsx';
-import { phpVersionChoice } from './settings-view.cjs';
+import { phpVersionChoice, resumeFor } from './settings-view.cjs';
+import { autoStartPlan } from './auto-start.cjs';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
 import { useSites } from './hooks/use-sites.jsx';
 import { usePullRequest } from './hooks/use-pull-request.jsx';
@@ -137,6 +138,16 @@ function App() {
   // The PHP a server starts on: the one set where the bundle has it, and
   // the fallback where it does not, decided where the dialog decides it.
   const startingPhp = settings ? phpVersionChoice({ versions: phpVersions?.versions, fallback: phpVersions?.fallback, stored: settings.phpVersion }).value : null;
+  // What the last quit stopped and is to start again (#559), read once as
+  // the window opens; main forgets it as it is read.
+  const [resume, setResume] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    window.api.takeResumeList()
+      .then((res) => { if (!cancelled) setResume(res?.ok ? { servers: res.servers, watches: res.watches } : { servers: [], watches: [] }); })
+      .catch(() => { if (!cancelled) setResume({ servers: [], watches: [] }); });
+    return () => { cancelled = true; };
+  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
@@ -690,6 +701,7 @@ function App() {
                         projectType={siteMeta?.[s]?.projectType}
                         settings={settings}
                         startingPhp={startingPhp}
+                        resume={resumeFor(resume, s)}
                         onInitialized={onInitialized}
                         onSiteMetaPatch={onSiteMetaPatch}
                         onDelete={onDelete}
@@ -745,7 +757,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1248,6 +1260,39 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // through everything above, and because what follows reads whether an
   // update is under way.
   const { updateState, isUpdating, updateHeld, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+  // What opening the site starts (#559): the server, the watch, as the
+  // settings say, and what the last quit left for this site to start again.
+  // Which edge to consume and what to start is auto-start.cjs's; what is
+  // here is the gates and the calls. What an edge asks for waits until the
+  // site is ready for it, its status read and its setup done, and is
+  // dropped by a deactivation first. Nothing starts under an update, a
+  // setup or a deletion, and nothing that is already running or starting is
+  // started again: the watch is started after the server's start has
+  // answered, and only where that start did not bring it up.
+  const autoStart = useRef({ open: false, resumed: false });
+  useEffect(() => { autoStart.current.open = isActive; }, [isActive]);
+  const starters = useRef({ toggleDevServer, startBuildWatch });
+  useEffect(() => { starters.current = { toggleDevServer, startBuildWatch }; });
+  useEffect(() => {
+    if (statusLoading || !skipInit || !settings) return;
+    if (isPending || isDeleting || isUpdating || setupChainState !== 'idle') return;
+    const plan = autoStartPlan({ open: autoStart.current.open, isActive, resumed: autoStart.current.resumed, resume, settings });
+    if (plan.consumeOpen) autoStart.current.open = false;
+    if (plan.consumeResume) autoStart.current.resumed = true;
+    if (!plan.server && !plan.watch) return;
+    const watchUp = () => ['watching', 'building'].includes(watchStateRef.current);
+    const serverTried = plan.server && !isDevProcessActive;
+    (async () => {
+      if (serverTried) await starters.current.toggleDevServer();
+      // A server's start that found the terminal held has already been
+      // refused the watch, and said so; the watch is not asked for again.
+      if (plan.watch && !watchUp() && !(serverTried && terminalStateRef.current.running)) starters.current.startBuildWatch();
+    })().catch((err) => {
+      // eslint-disable-next-line no-console -- reaches the log file, see the note in useDetectedEditors.
+      console.error('Could not start what opening the site asks for:', err);
+    });
+  }, [isActive, resume, settings, statusLoading, skipInit, isPending, isDeleting, isUpdating, setupChainState, isDevProcessActive, watchStateRef, terminalStateRef]);
+
   // What the page says about the site's two processes (#557), in the header
   // and in the details alike. Decided in site-processes.cjs, and worked out
   // here because an update of trunk holds both.
@@ -2361,13 +2406,9 @@ async function loadLocale() {
   document.title = __('WordPress Contributor Toolkit');
 }
 
-// The design system's provider, at its defaults: the tokens stylesheet already
-// holds every value, so this changes nothing on screen. It is the one place
-// to set colour and corner radius from, for whatever comes to set them. `isRoot`
-// puts whatever it overrides on the document rather than on its own wrapper,
-// which is what reaches a modal or a popover: those are portalled to `body`,
-// outside this tree.
+// Under the design system's provider, in the theme the window is in (#560):
+// see app-theme.jsx.
 loadLocale().then(() => {
   const root = createRoot(document.getElementById('root'));
-  root.render(<ThemeProvider isRoot><App /></ThemeProvider>);
+  root.render(<AppTheme><App /></AppTheme>);
 });
