@@ -31,6 +31,8 @@ const {
 	openPullRequest
 } = require('../../src/github-pr.cjs');
 const { citesWorkItemFor } = require('../../src/patch-sources.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 const TOKEN = 'gho_test';
 const LOGIN = 'janedoe';
@@ -834,4 +836,40 @@ test('openPullRequest refuses an empty change before it touches GitHub', async (
 
 	assert.strictEqual(res.reason, 'empty');
 	assert.deepStrictEqual(api.calls, []);
+});
+
+test('main’s failures are said in the locale it applied: the step, the plural and the sentence around GitHub’s words', async (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	addFilter('i18n.ngettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => {
+		removeFilter('i18n.gettext', 'test/pseudo-locale');
+		removeFilter('i18n.ngettext', 'test/pseudo-locale');
+	});
+
+	// A step that failed, composed with GitHub's reason, which stays as
+	// GitHub wrote it.
+	const branch = await commitAndBranch({ token: TOKEN, login: LOGIN, ticketId: 1, message: 'm', treeSha: 't', parentSha: 'p' }, router({
+		'POST git/commits': { status: 201, json: { sha: 'commit1' } },
+		'POST git/refs': { status: 403, headers: { 'x-ratelimit-remaining': '0' }, json: { message: 'API rate limit exceeded' } }
+	}));
+	assert.match(branch.error, /^\[/);
+	assert.ok(branch.error.includes(pseudoLocalize('Could not create the branch')), branch.error);
+	assert.ok(branch.error.includes('API rate limit exceeded'), branch.error);
+
+	// Two files under a moved trunk take the plural.
+	const stale = await openPullRequest({
+		token: TOKEN, login: LOGIN, ticketId: 1, baseSha: 'abc123',
+		files: [
+			{ path: 'a.php', kind: 'modify', content: Buffer.from('x'), mode: '100644', baseBlobSha: 'blob-old' },
+			{ path: 'b.php', kind: 'modify', content: Buffer.from('y'), mode: '100644', baseBlobSha: 'blob-old' }
+		],
+		title: 't', body: 'b'
+	}, router({
+		...happyPathRoutes(),
+		[`GET ${FORK_URL}/git/ref/heads/trunk`]: { status: 200, json: { object: { sha: 'newer-tip' } } },
+		'GET contents/a.php?ref=newer-tip': { status: 200, json: { sha: 'blob-upstream' } },
+		'GET contents/b.php?ref=newer-tip': { status: 200, json: { sha: 'blob-upstream' } }
+	}));
+	assert.strictEqual(stale.reason, 'stale');
+	assert.strictEqual(stale.error, pseudoLocalize('Trunk has moved under files you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.').replace('%s', 'a.php, b.php'));
 });

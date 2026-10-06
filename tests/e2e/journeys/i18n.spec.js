@@ -531,12 +531,11 @@ test( 'the Help menu and the native file dialogs are translated in main', async 
 
 test( 'the Open a pull request card is fully translatable, from signing in to the pull request it opened', async ( { session } ) => {
 	// GitHub is answered at the IPC seam, as in open-pull-request.spec.js.
-	// What is GitHub's or the checkout's stays as it is and is left out of
-	// the scan: the code to type, the login, the fork, the branch, the title
-	// an untitled pull request gets, and the number of the ticket.
+	// What is GitHub's stays as it is and is left out of the scan: the code
+	// to type, the fork and the branch, each of which is its own element.
 	const CODE = 'ABCD-1234';
 	const BRANCH = 'trac-60001';
-	const THEIRS = [ CODE, 'janedoe', 'janedoe/wordpress-develop', BRANCH, 'Ticket #60001', 'github.com/login/device' ];
+	const THEIRS = [ CODE, 'janedoe/wordpress-develop', BRANCH ];
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
 	await app.evaluate( ( { ipcMain } ) => {
@@ -629,17 +628,26 @@ test( 'the Open a pull request card is fully translatable, from signing in to th
 	expect( ( await inCard() ).filter( ( text ) => text !== link ) ).toEqual( [] );
 } );
 
-test( 'the Open a pull request card on a Gutenberg site is fully translatable, signed in', async ( { session } ) => {
-	// The card's words that are the project's own. The issue is linked in
-	// the record rather than through its card, which is the Core test's.
+test( 'the Open a pull request card on a Gutenberg site is fully translatable, in the words that are Gutenberg\'s own', async ( { session } ) => {
+	// The card's words that differ by project: the ask when signed out, the
+	// notes help and the fold with the form, and the loop-back once the pull
+	// request exists. The issue is linked in the site's record rather than
+	// through its card, which is the Core test's.
+	const ISSUE = '71234';
+	const BRANCH = `fix/issue-${ ISSUE }`;
+	const THEIRS = [ 'janedoe/gutenberg', BRANCH ];
 	const site = await makeSite( session );
-	Object.assign( site.settings.siteMeta[ site.dir ], { projectType: 'gutenberg' } );
+	Object.assign( site.settings.siteMeta[ site.dir ], { projectType: 'gutenberg', tracTicket: ISSUE } );
 	write( site.dir, LOGIN, '<?php // my fix\n' );
 	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
 	await app.evaluate( ( { ipcMain } ) => {
+		global.__e2eLogin = null;
 		const answers = {
 			'git:list-ticket-patches': () => ( { ok: true, prs: { status: 'ok', items: [] } } ),
-			'github:account': () => ( { ok: true, login: 'janedoe', configured: true, testMode: null } ),
+			'url:open': () => true,
+			'github:account': () => ( { ok: true, login: global.__e2eLogin, configured: true, testMode: null } ),
+			'github:sign-in': () => ( { ok: true, userCode: 'ABCD-1234', verificationUri: 'https://github.com/login/device' } ),
+			'github:open-pr': () => ( { ok: true, url: 'https://github.com/WordPress/gutenberg/pull/9', number: 9, branch: 'fix/issue-71234', exactBase: true } ),
 		};
 		for ( const [ channel, answer ] of Object.entries( answers ) ) {
 			ipcMain.removeHandler( channel );
@@ -648,7 +656,31 @@ test( 'the Open a pull request card on a Gutenberg site is fully translatable, s
 	} );
 	await page.getByRole( 'button', { name: pseudoLocalize( 'Review & submit changes' ), exact: true } ).click();
 	const card = page.getByRole( 'dialog' ).getByText( pseudoLocalize( 'Open a pull request' ), { exact: true } ).locator( '..' );
-	await expect( card.getByRole( 'button', { name: 'janedoe/gutenberg', exact: true } ) ).toBeVisible( { timeout: 30_000 } );
-	await expect( card.getByText( pseudoLocalize( 'No issue is linked to this site. A pull request has to cite one: link it in the GitHub issue card.' ), { exact: true } ) ).toBeVisible();
-	expect( ( await unwrapped( card ) ).filter( ( text ) => ! [ 'janedoe', 'janedoe/gutenberg' ].includes( text ) ) ).toEqual( [] );
+	const inCard = async () => ( await unwrapped( card ) ).filter( ( text ) => ! THEIRS.includes( text ) );
+	const button = ( label ) => card.getByRole( 'button', { name: pseudoLocalize( label ), exact: true } );
+
+	// Signed out: what the app cannot do for a contributor on GitHub.
+	await expect( card.getByText( pseudoLocalize( 'It cannot create the GitHub account for you.' ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	expect( await inCard() ).toEqual( [] );
+
+	// Signed in, with the form and its fold open.
+	await button( 'Sign in with GitHub' ).click();
+	await expect( card.getByText( 'ABCD-1234', { exact: true } ) ).toBeVisible();
+	await app.evaluate( ( { BrowserWindow } ) => {
+		global.__e2eLogin = 'janedoe';
+		BrowserWindow.getAllWindows()[ 0 ].webContents.send( 'github:sign-in:done', { ok: true, login: 'janedoe' } );
+	} );
+	await expect( button( 'Open pull request' ) ).toBeVisible();
+	await card.locator( 'summary' ).click();
+	await expect( card.getByText( pseudoLocalize( 'How pull requests work in Gutenberg' ), { exact: true } ) ).toBeVisible();
+	await expect( card.getByText( pseudoLocalize( 'Goes at the top of the description. The Fixes line that links the issue and your WordPress.org username are added underneath.' ), { exact: true } ) ).toBeVisible();
+	expect( await inCard() ).toEqual( [] );
+
+	// The pull request it opened, and the line back to the issue.
+	await button( 'Open pull request' ).click();
+	await expect( card.getByText( pseudoLocalize( 'The Fixes line already lists it on the issue. A comment there still tells the people watching it.' ), { exact: true } ) ).toBeVisible();
+	const opened = card.locator( '.success-text' );
+	await expect( opened ).toHaveText( /^\[.*\]$/ );
+	const link = ( await opened.getByRole( 'button' ).textContent() ).trim();
+	expect( ( await inCard() ).filter( ( text ) => text !== link ) ).toEqual( [] );
 } );

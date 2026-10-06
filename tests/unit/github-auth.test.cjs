@@ -12,6 +12,8 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { requestDeviceCode, pollForToken, fetchViewer, getClientId } = require('../../src/github-auth.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 const CLIENT_ID = 'Ov23liTEST';
 
@@ -227,4 +229,15 @@ test('fetchViewer refuses a token whose granted scopes cannot push', async () =>
 
 	// No header is no evidence — some token types omit it entirely.
 	assert.strictEqual((await viewer(undefined)).ok, true);
+});
+
+test('a refused scope is said in the locale main applied, around the names it keeps', async (t) => {
+	// main applies the locale at startup; a message built at require time
+	// would stay English.
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	const res = await fetchViewer('gho_test', { get: async () => ({ status: 200, headers: { 'x-oauth-scopes': '' }, json: { login: 'janedoe' } }) });
+	assert.match(res.error, /^\[.*\]$/);
+	assert.ok(res.error.includes('"WordPress Contributor Toolkit"'), res.error);
+	assert.ok(res.error.includes('github.com → Settings → Applications'), res.error);
 });
