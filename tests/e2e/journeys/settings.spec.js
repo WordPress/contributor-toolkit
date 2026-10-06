@@ -20,6 +20,7 @@ const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite } = require( '../helpers/git-site.cjs' );
 const { pseudoLocalize } = require( '../../../src/renderer/pseudo-locale.cjs' );
+const { DARK_BACKGROUND } = require( '../../../src/theme.cjs' );
 
 const openFromMenu = ( app ) => app.evaluate( ( { Menu } ) => Menu.getApplicationMenu().getMenuItemById( 'settings' ).click() );
 
@@ -295,9 +296,10 @@ test( 'the theme set in the settings is the one the window is painted in, and a 
 	await expect.poll( () => session.readSettings().preferences?.theme ).toBe( 'light' );
 	await expect.poll( () => themeSource( app ) ).toBe( 'light' );
 	await expect.poll( () => prefersDark( page ) ).toBe( false );
-	const lightBody = await bodyColour();
-	expect( lightBody ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral)' ) );
-	expect( lightBody ).not.toBe( darkBody );
+	// The scheme flips before the app has repainted for it, so the body is
+	// read once it has: until then the token is the dark one too.
+	await expect.poll( bodyColour ).not.toBe( darkBody );
+	expect( await bodyColour() ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral)' ) );
 	await expect.poll( terminalSurface ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral-weak)' ) );
 	expect( await terminalSurface() ).not.toBe( darkTerminal );
 
@@ -309,11 +311,12 @@ test( 'the theme set in the settings is the one the window is painted in, and a 
 
 	// INVARIANT — started again with dark kept, the window is made dark, so
 	// it is not white before its page paints, and the control says so.
+	// CHARACTERISATION — the colour it is made in is the dark seed.
 	await themes.getByRole( 'radio', { name: 'Dark', exact: true } ).click();
 	await expect.poll( () => session.readSettings().preferences?.theme ).toBe( 'dark' );
 	const again = await session.restart();
 	expect( await themeSource( again.app ) ).toBe( 'dark' );
-	expect( ( await again.app.evaluate( ( { BrowserWindow } ) => BrowserWindow.getAllWindows()[ 0 ].getBackgroundColor() ) ).toLowerCase() ).toBe( '#1e1e1e' );
+	expect( ( await again.app.evaluate( ( { BrowserWindow } ) => BrowserWindow.getAllWindows()[ 0 ].getBackgroundColor() ) ).toLowerCase() ).toBe( DARK_BACKGROUND );
 	await expect.poll( () => prefersDark( again.page ) ).toBe( true );
 	await ui.settingsButton( again.page ).click();
 	await expect( ui.settingsDialog( again.page ).getByRole( 'radio', { name: 'Dark', exact: true } ) ).toBeChecked();

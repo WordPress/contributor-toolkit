@@ -692,8 +692,10 @@ body {
    with the tokens the design system's own dialogs use, so they follow the
    theme as everything else does. Their shadows stay as the library draws
    them: a shadow is black under either theme, as the design system's own
-   are. The ring the popover draws in the same property is restated as the
-   hairline, since it was a light grey of its own. */
+   are. The ring the popover draws in the same property as its shadow is a
+   light grey of its own, so in the dark theme, and only there, the two are
+   restated as the hairline and one soft layer; in the light theme the
+   popover is as the library draws it. */
 .components-modal__frame,
 .components-popover__content {
   background: var(--wpds-color-background-surface-neutral-strong);
@@ -706,14 +708,12 @@ body {
   color: var(--wpds-color-foreground-content-neutral);
 }
 
-.components-popover__content {
-  box-shadow:
-    0 0 0 var(--wpds-border-width-xs) var(--wpds-color-stroke-surface-neutral),
-    0 4px 12px color-mix(in srgb, var(--wpds-color-foreground-content-neutral) 10%, transparent);
-}
-
-.components-dropdown__content .components-menu-group + .components-menu-group {
-  border-top-color: var(--wpds-color-stroke-surface-neutral);
+@media (prefers-color-scheme: dark) {
+  .components-popover__content {
+    box-shadow:
+      0 0 0 var(--wpds-border-width-xs) var(--wpds-color-stroke-surface-neutral),
+      0 4px 12px color-mix(in srgb, var(--wpds-color-foreground-content-neutral) 10%, transparent);
+  }
 }
 
 /* What a first-timer cannot know about pull requests, behind its question. */

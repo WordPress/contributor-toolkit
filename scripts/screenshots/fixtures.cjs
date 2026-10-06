@@ -21,6 +21,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const { THEMES } = require('../../src/theme.cjs');
 // The fixture layer the journeys build their sites with: the app's own Git
 // binary, so a repository made here is one the app reads as it reads a clone.
 const { gitOk, initRepo, commitFiles, removeRepo } = require('../../tests/unit/helpers/git.cjs');
@@ -339,8 +340,13 @@ function buildFixture(variant) {
 }
 
 // The pictures are of the light theme whatever the maintainer's machine is
-// set to (#560), unless a dark one is asked for: `SHOTS_THEME=dark`.
+// set to (#560), unless a dark one is asked for: `SHOTS_THEME=dark`. Anything
+// else is refused here: the app would fall back to the system's theme, which
+// is the one thing the pin exists to keep out of the pictures.
 const SHOTS_THEME = process.env.SHOTS_THEME || 'light';
+if (!THEMES.includes(SHOTS_THEME)) {
+	throw new Error(`SHOTS_THEME must be one of ${THEMES.join(', ')}, got "${SHOTS_THEME}"`);
+}
 
 function writeSettings(userDataDir, settings) {
 	fs.writeFileSync(

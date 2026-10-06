@@ -8,7 +8,7 @@
  * returns.
  */
 
-const { __, sprintf } = require('@wordpress/i18n');
+const { __, _x, sprintf } = require('@wordpress/i18n');
 
 /**
  * The line under "GitHub": whose account the app holds, or why none.
@@ -131,9 +131,9 @@ function quitItems() {
  */
 function themeItems() {
 	return [
-		{ value: 'light', label: __('Light') },
-		{ value: 'dark', label: __('Dark') },
-		{ value: 'system', label: __('System') }
+		{ value: 'light', label: _x('Light', 'the window’s theme') },
+		{ value: 'dark', label: _x('Dark', 'the window’s theme') },
+		{ value: 'system', label: _x('System', 'the window’s theme: the operating system’s') }
 	];
 }
 

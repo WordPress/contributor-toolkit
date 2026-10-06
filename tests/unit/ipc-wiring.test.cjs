@@ -50,6 +50,7 @@ const {
 // The applied-layer module turns the handler's measured status into the
 // attribution the renderer shows.
 const { attributeConflicts } = require('../../src/renderer/applied-layer.cjs');
+const { DARK_BACKGROUND, LIGHT_BACKGROUND } = require('../../src/theme.cjs');
 const { nodeExecPath } = require('../../src/node-shims.cjs');
 const SRC_DIR = path.join(__dirname, '..', '..', 'src');
 const MAIN_PATH = path.join(SRC_DIR, 'main.js');
@@ -90,6 +91,7 @@ function createElectronStub({ ready = false } = {}) {
 	const handlers = new Map();
 	const oneWay = new Map();
 	const appEvents = new Map();
+	const nativeThemeListeners = [];
 	const windows = [];
 	const calls = {
 		openExternal: [],
@@ -128,6 +130,7 @@ function createElectronStub({ ready = false } = {}) {
 		show() {}
 		focus() {}
 		restore() {}
+		setBackgroundColor(color) { this.options = { ...this.options, backgroundColor: color }; this.backgrounds = [...(this.backgrounds || []), color]; }
 		isMinimized() { return false; }
 		isDestroyed() { return false; }
 		close() {}
@@ -178,7 +181,9 @@ function createElectronStub({ ready = false } = {}) {
 		nativeTheme: {
 			themeSource: 'system',
 			get shouldUseDarkColors() { return this.themeSource === 'dark'; },
-			on() {}
+			on(event, listener) { nativeThemeListeners.push({ event, listener }); },
+			// What Electron would do: tell main the theme changed.
+			update() { for (const { event, listener } of nativeThemeListeners) if (event === 'updated') listener(); }
 		},
 		Menu: {
 			buildFromTemplate: (template) => ({ template }),
@@ -1932,14 +1937,40 @@ test('the ready path gives Electron the stored theme before the window is made, 
 
 	assert.equal(main.electron.nativeTheme.themeSource, 'dark');
 	assert.equal(main.windows.length, 1);
-	assert.equal(main.windows[0].options.backgroundColor, '#1e1e1e', 'a dark window is made dark, not white until its page paints');
+	assert.equal(main.windows[0].options.backgroundColor, DARK_BACKGROUND, 'a dark window is made dark, not white until its page paints');
+});
+
+// The colour the window was made with shows wherever its page has not
+// painted yet, so it follows the theme: Electron says the theme changed,
+// and the window is given the colour of the theme it is now in.
+test('the window is given the colour of the theme as it changes, a deep link\'s window included (#560)', async () => {
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { theme: 'dark' } }).stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
+	await menuBuilt(main);
+	const [window] = main.windows;
+
+	await main.invoke('settings:set', 'theme', 'light');
+	main.electron.nativeTheme.update();
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND]);
+
+	// The system's theme changing under 'system': Electron says so, and the
+	// window follows what it now says of the colours.
+	await main.invoke('settings:set', 'theme', 'system');
+	main.electron.nativeTheme.update();
+	Object.defineProperty(main.electron.nativeTheme, 'shouldUseDarkColors', { value: true, configurable: true });
+	main.electron.nativeTheme.update();
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND, LIGHT_BACKGROUND, DARK_BACKGROUND]);
+
+	// A window that is gone is left alone.
+	window.isDestroyed = () => true;
+	main.electron.nativeTheme.update();
+	assert.equal(window.backgrounds.length, 3);
 });
 
 test('the ready path makes a light window light, and a store that cannot be read leaves the system\'s theme (#560)', async () => {
 	const light = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { theme: 'light' } }).stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
 	await menuBuilt(light);
 	assert.equal(light.electron.nativeTheme.themeSource, 'light');
-	assert.equal(light.windows[0].options.backgroundColor, '#fcfcfc');
+	assert.equal(light.windows[0].options.backgroundColor, LIGHT_BACKGROUND);
 
 	const logged = [];
 	const broken = loadMain({

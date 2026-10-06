@@ -688,9 +688,9 @@ ipcMain.handle('deep-link:ready', () => {
 // Resolved once: main applies it at startup for its own strings (the menu, the
 // native dialogs, the sentences it sends), and the window gets the same reply,
 // so the two cannot end up in different languages. That is also why a change
-// in the settings shows after a relaunch and not before. This is the first
-// read of the store, before there is a window: a store that cannot be read
-// is logged and counts as no choice, since the window has to open to say so.
+// in the settings shows after a relaunch and not before. Read before there
+// is a window: a store that cannot be read is logged and counts as no
+// choice, since the window has to open to say so.
 const LANGUAGES_DIR = path.join(__dirname, 'languages');
 let localeReplyPromise = null;
 function localeReply() {
@@ -2671,7 +2671,14 @@ app.whenReady().then(async () => {
 	// renderer output into the log file, which only applies to windows created
 	// afterwards.
 	initLogging();
-	// Before the window: it is made in the theme.
+	// Before the window: it is made in the theme. And kept in it: the colour
+	// the window was made with shows wherever the page has not painted yet (a
+	// live resize, a reload), so it follows the theme as the page does, when
+	// the setting changes, when the system's theme does under 'system', and
+	// when a deep link opened the window before the stored theme was read.
+	nativeTheme.on('updated', () => {
+		if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(windowBackground(nativeTheme.shouldUseDarkColors));
+	});
 	await applyStoredTheme();
 	// Before the menu and the window: both build their labels from `__()`.
 	applyLocale(await localeReply(), { setLocaleData, addFilter });
