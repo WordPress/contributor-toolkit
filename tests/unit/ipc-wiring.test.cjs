@@ -1809,6 +1809,135 @@ test('provenance:get reads the remembered handle and event', async () => {
 	});
 });
 
+// --- settings:* -> src/settings.cjs (#559) --------------------------------
+
+// What a setting is and what it accepts is the module's; the handler is the
+// store and the disk. A read goes through the module too, so a value of the
+// wrong kind in the store is answered with the fallback and not sent as is.
+test('settings:get reads the store through settings.cjs', async () => {
+	const readSettings = spy(() => ({ newSiteLocation: '/sites' }));
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ preferences: { newSiteLocation: '/sites', wporgHandle: 'janedoe' } }).stubs,
+			'./settings.cjs': { readSettings, acceptSetting: () => { throw new Error('not asked'); } }
+		}
+	});
+
+	assert.deepEqual(await main.invoke('settings:get'), { ok: true, settings: { newSiteLocation: '/sites' } });
+	assert.deepEqual(readSettings.calls, [[{ newSiteLocation: '/sites', wporgHandle: 'janedoe' }]]);
+});
+
+test('settings:set asks settings.cjs before writing, writes what it returned, and answers with every setting', async () => {
+	const acceptSetting = spy(() => ({ ok: true, value: '/sites' }));
+	const readSettings = spy((preferences) => ({ newSiteLocation: preferences.newSiteLocation }));
+	const settings = fakeSettingsStore({ preferences: { wporgHandle: 'janedoe' } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './settings.cjs': { readSettings, acceptSetting } }
+	});
+
+	const result = await main.invoke('settings:set', 'newSiteLocation', '/sites/');
+
+	assert.deepEqual(result, { ok: true, settings: { newSiteLocation: '/sites' } });
+	assert.equal(acceptSetting.calls.length, 1);
+	const [key, value, deps] = acceptSetting.calls[0];
+	assert.equal(key, 'newSiteLocation');
+	assert.equal(value, '/sites/');
+	assert.equal(typeof deps.isAbsolute, 'function');
+	assert.equal(typeof deps.isDirectory, 'function');
+	// What the module returned, not what was sent; and the field beside it kept.
+	assert.deepEqual(settings.values.preferences, { wporgHandle: 'janedoe', newSiteLocation: '/sites' });
+});
+
+test('settings:set writes nothing on a refusal, and passes the refusal on', async () => {
+	const acceptSetting = spy(() => ({ ok: false, error: 'nope' }));
+	const settings = fakeSettingsStore();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, './settings.cjs': { readSettings: () => ({}), acceptSetting } }
+	});
+
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', '/gone'), { ok: false, error: 'nope' });
+	assert.equal(settings.values.preferences, undefined, 'a refused setting must not be written');
+});
+
+// The disk, as the handler asks it on the module's behalf: a folder that is
+// there is kept, one that is not is refused. The real module, on a real
+// folder.
+test('settings:set asks the disk whether the folder is there', async (t) => {
+	const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'wpct-settings-'));
+	t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+	const settings = fakeSettingsStore();
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { newSiteLocation: folder } });
+	const gone = await main.invoke('settings:set', 'newSiteLocation', path.join(folder, 'gone'));
+	assert.equal(gone.ok, false);
+	assert.equal(settings.values.preferences.newSiteLocation, folder);
+	const file = path.join(folder, 'a-file');
+	fs.writeFileSync(file, '');
+	assert.equal((await main.invoke('settings:set', 'newSiteLocation', file)).ok, false, 'a file is not a folder');
+});
+
+test('settings:set refuses a key that is not a setting without writing, whatever the value', async (t) => {
+	const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'wpct-settings-'));
+	t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+	const settings = fakeSettingsStore({ preferences: { wporgHandle: 'janedoe' } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.equal((await main.invoke('settings:set', 'theme', folder)).ok, false);
+	assert.equal((await main.invoke('settings:set', '__proto__', folder)).ok, false);
+	assert.equal((await main.invoke('settings:set', 'newSiteLocation', 'sites')).ok, false, 'a path that is not a full one');
+	assert.deepEqual(settings.values.preferences, { wporgHandle: 'janedoe' });
+});
+
+// The menu's Settings… reaches the main window and brings it forward, and
+// not whichever window Electron lists first: a patch window is one too.
+async function menuBuilt(main) {
+	for (let turn = 0; turn < 50 && main.calls.applicationMenu.length === 0; turn++) {
+		await new Promise((resolve) => setImmediate(resolve));
+	}
+	assert.equal(main.calls.applicationMenu.length, 1, 'the ready path built the menu');
+	const item = main.calls.applicationMenu[0].template
+		.flatMap((menu) => menu.submenu || [])
+		.find((entry) => entry.id === 'settings');
+	assert.ok(item, 'the menu has a Settings… item');
+	return item;
+}
+
+test('the menu\'s Settings… opens the dialog in the main window, listed first or not (#559)', async () => {
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog: async () => null } } });
+	const settings = await menuBuilt(main);
+	assert.equal(main.windows.length, 1, 'the ready path opened the main window');
+	const [mainWindow] = main.windows;
+	const brought = [];
+	mainWindow.isMinimized = () => true;
+	mainWindow.restore = () => brought.push('restore');
+	mainWindow.show = () => brought.push('show');
+	mainWindow.focus = () => brought.push('focus');
+	// A patch window, and Electron lists it first.
+	const patch = new main.electron.BrowserWindow({});
+	main.windows.reverse();
+
+	settings.click();
+
+	assert.deepEqual(mainWindow.sent, [{ channel: 'settings:open', payload: undefined }]);
+	assert.deepEqual(patch.sent, []);
+	assert.deepEqual(brought, ['restore', 'show', 'focus']);
+});
+
+test('the menu\'s Settings… with the main window closed opens one and sends nothing into it (#559)', async () => {
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog: async () => null } } });
+	const settings = await menuBuilt(main);
+	const [closed] = main.windows;
+	closed.isDestroyed = () => true;
+
+	settings.click();
+
+	assert.equal(main.windows.length, 2, 'a window was opened');
+	assert.deepEqual(closed.sent, []);
+	assert.deepEqual(main.windows[1].sent, [], 'a page that has not subscribed is sent nothing');
+});
+
 // --- main must not take the windowsHide patch (#181) ---------------------
 //
 // The inverse of tests/unit/runner-wiring.test.cjs, which pins that the four runners
@@ -6291,6 +6420,8 @@ const WIRED = new Set([
 	'wp-debug:reveal',
 	'provenance:set-handle',
 	'provenance:set-event',
+	'settings:get',
+	'settings:set',
 	'github:account',
 	'github:sign-in',
 	'github:open-pr'
