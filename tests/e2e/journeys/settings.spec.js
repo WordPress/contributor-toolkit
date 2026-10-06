@@ -20,7 +20,7 @@ const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite } = require( '../helpers/git-site.cjs' );
 const { pseudoLocalize } = require( '../../../src/renderer/pseudo-locale.cjs' );
-const { DARK_BACKGROUND } = require( '../../../src/theme.cjs' );
+const { DARK_BACKGROUND, LIGHT_BACKGROUND } = require( '../../../src/theme.cjs' );
 
 const openFromMenu = ( app ) => app.evaluate( ( { Menu } ) => Menu.getApplicationMenu().getMenuItemById( 'settings' ).click() );
 
@@ -257,6 +257,10 @@ test( 'the theme set in the settings is the one the window is painted in, and a 
 	// Playwright holds every other journey to.
 	const { app, page } = await session.start( { ...site.settings, preferences: { theme: 'dark' } }, { colorScheme: null } );
 	const themeSource = ( electronApp ) => electronApp.evaluate( ( { nativeTheme } ) => nativeTheme.themeSource );
+	// The colour the window itself was made with, which shows where the page
+	// has not painted yet; and the colour of the theme Electron says it is in.
+	const windowColour = ( electronApp ) => electronApp.evaluate( ( { BrowserWindow } ) => BrowserWindow.getAllWindows()[ 0 ].getBackgroundColor().toLowerCase() );
+	const systemColour = ( electronApp ) => electronApp.evaluate( ( { nativeTheme } ) => nativeTheme.shouldUseDarkColors ).then( ( dark ) => ( dark ? DARK_BACKGROUND : LIGHT_BACKGROUND ) );
 	const prefersDark = ( window ) => window.evaluate( () => window.matchMedia( '(prefers-color-scheme: dark)' ).matches );
 	const bodyColour = () => page.evaluate( () => window.getComputedStyle( document.body ).backgroundColor );
 	const tokenColour = ( token ) => ui.tokenColour( page, token );
@@ -302,12 +306,15 @@ test( 'the theme set in the settings is the one the window is painted in, and a 
 	expect( await bodyColour() ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral)' ) );
 	await expect.poll( terminalSurface ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral-weak)' ) );
 	expect( await terminalSurface() ).not.toBe( darkTerminal );
+	// And the window itself, where the page has not painted.
+	await expect.poll( () => windowColour( app ) ).toBe( LIGHT_BACKGROUND );
 
-	// INVARIANT — System is kept as the system's, and Electron is left to
-	// follow it.
+	// INVARIANT — System is kept as the system's, Electron is left to follow
+	// it, and the window is the colour of whichever theme that is.
 	await themes.getByRole( 'radio', { name: 'System', exact: true } ).click();
 	await expect.poll( () => session.readSettings().preferences?.theme ).toBe( 'system' );
 	await expect.poll( () => themeSource( app ) ).toBe( 'system' );
+	await expect.poll( () => windowColour( app ) ).toBe( await systemColour( app ) );
 
 	// INVARIANT — started again with dark kept, the window is made dark, so
 	// it is not white before its page paints, and the control says so.
@@ -316,7 +323,7 @@ test( 'the theme set in the settings is the one the window is painted in, and a 
 	await expect.poll( () => session.readSettings().preferences?.theme ).toBe( 'dark' );
 	const again = await session.restart();
 	expect( await themeSource( again.app ) ).toBe( 'dark' );
-	expect( ( await again.app.evaluate( ( { BrowserWindow } ) => BrowserWindow.getAllWindows()[ 0 ].getBackgroundColor() ) ).toLowerCase() ).toBe( DARK_BACKGROUND );
+	expect( await windowColour( again.app ) ).toBe( DARK_BACKGROUND );
 	await expect.poll( () => prefersDark( again.page ) ).toBe( true );
 	await ui.settingsButton( again.page ).click();
 	await expect( ui.settingsDialog( again.page ).getByRole( 'radio', { name: 'Dark', exact: true } ) ).toBeChecked();

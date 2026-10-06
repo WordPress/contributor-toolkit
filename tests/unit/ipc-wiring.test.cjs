@@ -1941,21 +1941,27 @@ test('the ready path gives Electron the stored theme before the window is made, 
 });
 
 // The colour the window was made with shows wherever its page has not
-// painted yet, so it follows the theme: Electron says the theme changed,
-// and the window is given the colour of the theme it is now in.
-test('the window is given the colour of the theme as it changes, a deep link\'s window included (#560)', async () => {
+// painted yet, so it follows the theme: the setting gives it as it is
+// changed, without waiting for Electron's `updated`, which is not promised
+// for a change to 'system'; and `updated` gives it when the system's theme
+// changes under 'system'.
+test('the window is given the colour of the theme as the setting changes, and as the system\'s theme does (#560)', async () => {
 	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { theme: 'dark' } }).stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
 	await menuBuilt(main);
 	const [window] = main.windows;
+	// Made in the stored theme, and not painted again for it: the ready path
+	// reads the store before it makes the window.
+	assert.equal(window.options.backgroundColor, DARK_BACKGROUND);
+	assert.equal(window.backgrounds, undefined);
 
+	// The setting, with no event from Electron.
 	await main.invoke('settings:set', 'theme', 'light');
-	main.electron.nativeTheme.update();
 	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND]);
+	await main.invoke('settings:set', 'theme', 'system');
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND, LIGHT_BACKGROUND], 'under system this machine is light');
 
 	// The system's theme changing under 'system': Electron says so, and the
 	// window follows what it now says of the colours.
-	await main.invoke('settings:set', 'theme', 'system');
-	main.electron.nativeTheme.update();
 	Object.defineProperty(main.electron.nativeTheme, 'shouldUseDarkColors', { value: true, configurable: true });
 	main.electron.nativeTheme.update();
 	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND, LIGHT_BACKGROUND, DARK_BACKGROUND]);
@@ -1963,6 +1969,7 @@ test('the window is given the colour of the theme as it changes, a deep link\'s 
 	// A window that is gone is left alone.
 	window.isDestroyed = () => true;
 	main.electron.nativeTheme.update();
+	await main.invoke('settings:set', 'theme', 'light');
 	assert.equal(window.backgrounds.length, 3);
 });
 

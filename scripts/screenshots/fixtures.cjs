@@ -341,11 +341,13 @@ function buildFixture(variant) {
 
 // The pictures are of the light theme whatever the maintainer's machine is
 // set to (#560), unless a dark one is asked for: `SHOTS_THEME=dark`. Anything
-// else is refused here: the app would fall back to the system's theme, which
-// is the one thing the pin exists to keep out of the pictures.
+// else is refused here, the system's theme by name included: a value the
+// app does not know falls back to the system's, which is the one thing the
+// pin exists to keep out of the pictures.
+const SHOTS_THEMES = THEMES.filter((theme) => theme !== 'system');
 const SHOTS_THEME = process.env.SHOTS_THEME || 'light';
-if (!THEMES.includes(SHOTS_THEME)) {
-	throw new Error(`SHOTS_THEME must be one of ${THEMES.join(', ')}, got "${SHOTS_THEME}"`);
+if (!SHOTS_THEMES.includes(SHOTS_THEME)) {
+	throw new Error(`SHOTS_THEME must be one of ${SHOTS_THEMES.join(', ')}, got "${SHOTS_THEME}"`);
 }
 
 function writeSettings(userDataDir, settings) {

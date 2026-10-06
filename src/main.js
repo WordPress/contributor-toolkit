@@ -727,6 +727,16 @@ async function applyStoredTheme() {
 	} catch (e) {
 		logError('theme', `the settings could not be read, so the theme is the system's: ${String(e && e.message ? e.message : e)}`);
 	}
+	// A deep link can have opened the window while the store was read.
+	paintWindowForTheme();
+}
+
+// The colour the window was made with shows wherever the page has not
+// painted yet (a live resize, a reload), so it is given again whenever the
+// theme is: by the setting, here and in `settings:set`, and by Electron's
+// `updated`, which is how the system's theme reaches it under 'system'.
+function paintWindowForTheme() {
+	if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(windowBackground(nativeTheme.shouldUseDarkColors));
 }
 
 // The languages the settings offer: what the build ships, read once.
@@ -2671,14 +2681,9 @@ app.whenReady().then(async () => {
 	// renderer output into the log file, which only applies to windows created
 	// afterwards.
 	initLogging();
-	// Before the window: it is made in the theme. And kept in it: the colour
-	// the window was made with shows wherever the page has not painted yet (a
-	// live resize, a reload), so it follows the theme as the page does, when
-	// the setting changes, when the system's theme does under 'system', and
-	// when a deep link opened the window before the stored theme was read.
-	nativeTheme.on('updated', () => {
-		if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(windowBackground(nativeTheme.shouldUseDarkColors));
-	});
+	// Before the window: it is made in the theme, and kept in it when the
+	// system's theme changes under 'system'.
+	nativeTheme.on('updated', paintWindowForTheme);
 	await applyStoredTheme();
 	// Before the menu and the window: both build their labels from `__()`.
 	applyLocale(await localeReply(), { setLocaleData, addFilter });
@@ -3599,8 +3604,13 @@ ipcMain.handle('settings:set', async (_e, key, value) => {
 	await setPreference(key, accepted.value);
 	const s = await getStore();
 	const settings = readSettings(s.get('preferences'));
-	// The theme applies at once (#560): Electron tells the window.
-	if (key === 'theme') nativeTheme.themeSource = settings.theme;
+	// The theme applies at once (#560): Electron tells the page, and the
+	// window's own colour is set here rather than left to Electron's
+	// `updated`, which is not promised for a change to 'system'.
+	if (key === 'theme') {
+		nativeTheme.themeSource = settings.theme;
+		paintWindowForTheme();
+	}
 	return { ok: true, settings };
 });
 

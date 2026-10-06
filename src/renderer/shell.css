@@ -690,12 +690,14 @@ body {
    in its own stylesheet, with no token behind the colour, so in the dark
    theme (#560) they would be the one light thing on the page. Painted here
    with the tokens the design system's own dialogs use, so they follow the
-   theme as everything else does. Their shadows stay as the library draws
-   them: a shadow is black under either theme, as the design system's own
-   are. The ring the popover draws in the same property as its shadow is a
-   light grey of its own, so in the dark theme, and only there, the two are
-   restated as the hairline and one soft layer; in the light theme the
-   popover is as the library draws it. */
+   theme as everything else does. The modal's shadow stays as the library
+   draws it: black, as the design system's own are under either theme. The
+   ring the popover draws in the same property as its shadow is a light grey
+   of its own, so in the dark theme, and only there, the two are restated:
+   the hairline, and one soft layer mixed from the text's colour, which on a
+   dark surface is a faint light glow rather than a black shadow, since a
+   black shadow on a near-black page is no edge at all. In the light theme
+   the popover is as the library draws it. */
 .components-modal__frame,
 .components-popover__content {
   background: var(--wpds-color-background-surface-neutral-strong);
