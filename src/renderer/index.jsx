@@ -6,7 +6,8 @@ import {
   SlotFillProvider
 } from '@wordpress/components';
 import { Page } from '@wordpress/admin-ui';
-import { __, _x, setLocaleData } from '@wordpress/i18n';
+import { createInterpolateElement } from '@wordpress/element';
+import { __, _n, _x, sprintf, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
 import { drawerLeft, globe } from '@wordpress/icons';
 import { Badge, Button as UiButton, Card as UiCard, EmptyState, IconButton, Notice, Spinner as UiSpinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
@@ -46,7 +47,7 @@ import { mergeInProgressNotice } from './merge-in-progress.cjs';
 import { describePrCheckout, describePrPreview, prSubmissionBlocked } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
-import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
+import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardConfirmMessage } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage } from './confirmations.cjs';
 import { ReasonedUiButton } from './components/reasoned-button.jsx';
@@ -608,7 +609,7 @@ function App() {
             <Notice.Title>{notice.title}</Notice.Title>
             <Notice.Description>{notice.body}</Notice.Description>
             <Notice.Actions>
-              <UiButton variant="outline" tone="neutral" size="compact" onClick={clearDeepLink}>Dismiss</UiButton>
+              <UiButton variant="outline" tone="neutral" size="compact" onClick={clearDeepLink}>{__('Dismiss')}</UiButton>
             </Notice.Actions>
           </Notice.Root>
         );
@@ -1347,7 +1348,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const carriedNotice = carriedWork ? (
     <Notice.Root intent="info" spokenMessage={SILENT}>
       <Notice.Description>
-        Your {carriedWork.files} uncommitted {carriedWork.files === 1 ? 'change' : 'changes'} came along into #{carriedWork.ticket}, and will go into its patch.
+        {sprintf(
+          // translators: 1: how many files had uncommitted changes. 2: the number of the ticket or issue they went into.
+          _n(
+            'Your %1$d uncommitted change came along into #%2$s, and will go into its patch.',
+            'Your %1$d uncommitted changes came along into #%2$s, and will go into its patch.',
+            carriedWork.files
+          ),
+          carriedWork.files,
+          carriedWork.ticket
+        )}
       </Notice.Description>
     </Notice.Root>
   ) : null;
@@ -1359,7 +1369,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const savedCleanNotice = patchSavedNotice ? (
     <Notice.Root intent="info" spokenMessage={SILENT}>
       <Notice.Description>
-        Your edits were saved to {patchSavedNotice} and are no longer in the working tree.
+        {sprintf(
+          // translators: %s: the path of the patch file the edits were saved to.
+          __('Your edits were saved to %s and are no longer in the working tree.'),
+          patchSavedNotice
+        )}
       </Notice.Description>
     </Notice.Root>
   ) : null;
@@ -1393,7 +1407,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       <Notice.Description>{dirtyQuestion.question}</Notice.Description>
       {patchSavedTo ? (
         <Notice.Description>
-          <strong>Saved to {patchSavedTo}. The edits are still in the working tree.</strong>
+          <strong>{sprintf(
+            // translators: %s: the path of the patch file the edits were saved to.
+            __('Saved to %s. The edits are still in the working tree.'),
+            patchSavedTo
+          )}</strong>
         </Notice.Description>
       ) : null}
       <Notice.Actions>
@@ -1414,7 +1432,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           tone="neutral"
           size="compact"
           reason={ticketActionsReason}
-          onClick={() => confirmAnd('Discard the uncommitted edits on trunk? This cannot be undone.', () => discardTrunkWorkAndSwitch(blockedByTrunkWork))}
+          onClick={() => confirmAnd(__('Discard the uncommitted edits on trunk? This cannot be undone.'), () => discardTrunkWorkAndSwitch(blockedByTrunkWork))}
         >{dirtyQuestion.discard}</ReasonedUiButton>
         {/* The way out that touches nothing — three consequential actions
             with no fourth door is its own trap (#234). */}
@@ -1673,7 +1691,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // native confirm blocks the renderer, so the states discardBlocked names
   // cannot flip while the dialog is up — a check after it would read the
   // same render-time values the disabled prop already enforced.
-  const discardAllChanges = () => confirmAnd(DISCARD_CONFIRM_MESSAGE, async () => {
+  const discardAllChanges = () => confirmAnd(discardConfirmMessage(), async () => {
     setDiscarding(true);
     setDiscardError(null);
     try {
@@ -1704,24 +1722,27 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   });
 
   // The sentence is one thing wherever it renders; only the wrapper differs.
+  // Its two links are marked in it, so it reaches a translator whole.
   const changesNoteBody = changesNote ? (
     <>
-      {changesNote.lead}
-      <Button variant="link" onClick={openPatchModal} disabled={isUpdating}>{changesNote.patchLabel}</Button>
-      {changesNote.middle}
-      <DiscardChangesLink
-        label={changesNote.discardLabel}
-        onClick={discardAllChanges}
-        reason={discardDisabledReason({
-          patchHasChanges: true,
-          isUpdating,
-          installing,
-          building,
-          devServerActive: isDevProcessActive,
-          discarding
+      <span>
+        {createInterpolateElement(changesNote.sentence, {
+          review: <Button variant="link" onClick={openPatchModal} disabled={isUpdating} />,
+          discard: (
+            <DiscardChangesLink
+              onClick={discardAllChanges}
+              reason={discardDisabledReason({
+                patchHasChanges: true,
+                isUpdating,
+                installing,
+                building,
+                devServerActive: isDevProcessActive,
+                discarding
+              })}
+            />
+          )
         })}
-      />
-      {changesNote.end}
+      </span>
       {discardError ? <Text variant="body-sm" className="error-text">{discardError}</Text> : null}
     </>
   ) : null;
@@ -2064,7 +2085,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         <Notice.Description>{editorNotice.message}</Notice.Description>
         {editorNotice.offerPicker ? (
           <Notice.Actions>
-            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => void openIn(null)}>Choose application…</UiButton>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => void openIn(null)}>{__('Choose application…')}</UiButton>
           </Notice.Actions>
         ) : null}
       </Notice.Root>
@@ -2074,7 +2095,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           <Notice.Title>{legacyNotice.title}</Notice.Title>
           <Notice.Description>{legacyNotice.body}</Notice.Description>
           <Notice.Actions>
-            <UiButton size="compact" onClick={onCreateSite}>Create site</UiButton>
+            <UiButton size="compact" onClick={onCreateSite}>{__('Create site')}</UiButton>
           </Notice.Actions>
         </Notice.Root>
       ) : null}
@@ -2153,7 +2174,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           <Notice.Title>{deepLinkNote.title}</Notice.Title>
           <Notice.Description>{deepLinkNote.body}</Notice.Description>
           <Notice.Actions>
-            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => setDeepLinkNoteHidden(true)}>Hide</UiButton>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => setDeepLinkNoteHidden(true)}>{__('Hide')}</UiButton>
           </Notice.Actions>
         </Notice.Root>
       ) : null}
@@ -2169,9 +2190,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             <ReasonedUiButton
               size="compact"
               onClick={acceptDeepLink}
-              reason={skipInit ? ticketActionsReason : 'Finish setting this site up first.'}
+              reason={skipInit ? ticketActionsReason : __('Finish setting this site up first.')}
             >{deepLinkPrompt.confirmLabel}</ReasonedUiButton>
-            <UiButton variant="minimal" tone="neutral" size="compact" onClick={dismissDeepLink}>Not now</UiButton>
+            <UiButton variant="minimal" tone="neutral" size="compact" onClick={dismissDeepLink}>{__('Not now')}</UiButton>
           </Notice.Actions>
         </Notice.Root>
       ) : null}

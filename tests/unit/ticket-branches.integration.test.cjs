@@ -48,6 +48,8 @@ const {
 	tempDir,
 	FIXTURE_AUTHOR: AUTHOR
 } = require('./helpers/git.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 // How many commits a ref has behind it, the question `git.log(...).length`
 // used to answer.
@@ -1044,4 +1046,38 @@ test('rebaseOntoTrunk tags a checkout that fails with the stage, the ref already
 	await resumeSwitch(dir, ref);
 	assert.equal(read(dir, 'doomed.php'), '<?php // v2\n');
 	assert.equal(read(dir, 'wp-login.php'), '<?php // work\n');
+});
+
+// These refusals reach the card as main's own sentence, so they are said in
+// the locale main applied: the noun's own string, and the plural.
+test('the refusals main shows are said in the locale it applied (#629)', async (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	addFilter('i18n.ngettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => {
+		removeFilter('i18n.gettext', 'test/pseudo-locale');
+		removeFilter('i18n.ngettext', 'test/pseudo-locale');
+	});
+
+	const { dir, baseOid } = await makeSite(t);
+	await startTicketBranch(dir, 71234, { prefix: 'issue/' });
+	await assert.rejects(() => startTicketBranch(dir, 71234, { prefix: 'issue/' }), (e) => {
+		assert.equal(e.message, pseudoLocalize('Already working on issue #%s in this site').replace('%s', '71234'));
+		return true;
+	});
+	await assert.rejects(() => switchToBranch(dir, 'ticket/404', { baseOid }), (e) => {
+		assert.equal(e.message, pseudoLocalize('No such branch: %s').replace('%s', 'ticket/404'));
+		return true;
+	});
+
+	await switchToBranch(dir, TRUNK, { baseOid });
+	const { ref } = await startTicketBranch(dir, 59234);
+	fs.writeFileSync(path.join(dir, 'wp-login.php'), '<?php // my version\n');
+	fs.writeFileSync(path.join(dir, 'doomed.php'), '<?php // my version\n');
+	await switchToBranch(dir, TRUNK, { baseOid });
+	moveTrunk(dir, { 'wp-login.php': '<?php // trunk version\n', 'doomed.php': '<?php // trunk version\n' }, { returnTo: ref });
+	await assert.rejects(rebaseOntoTrunk(dir, ref, { baseOid }), (e) => {
+		assert.equal(e.code, 'rebase-conflict');
+		assert.equal(e.message, pseudoLocalize("Trunk and this ticket's work disagree in %d files").replace('%d', '2'));
+		return true;
+	});
 });

@@ -84,7 +84,7 @@ const DEEP_LINK_CHANNEL = 'deep-link:ticket';
 // Trac parser is reached through it rather than directly, so no handler
 // here has to know which kind it is holding.
 const { workItemProvider } = require('./work-item.cjs');
-const { LEGACY_SITE_ERROR } = require('./renderer/legacy-site.cjs');
+const { legacySiteError } = require('./renderer/legacy-site.cjs');
 const { resolveCatalog, languageChoices } = require('./i18n.cjs');
 const { isPseudoLocale } = require('./renderer/pseudo-locale.cjs');
 const { applyLocale } = require('./renderer/locale-setup.cjs');
@@ -1600,7 +1600,7 @@ async function noOriginBlock(sitePath) {
 
 async function legacySiteBlock(sitePath) {
     if (!await isLegacySite(sitePath)) return null;
-    return { ok: false, code: 'legacy-site', error: LEGACY_SITE_ERROR };
+    return { ok: false, code: 'legacy-site', error: legacySiteError() };
 }
 
 /**
@@ -3233,7 +3233,7 @@ ipcMain.handle('sites:set-ticket', async (event, sitePath, ref, options) => with
 				// own work to restore, so loose edits cannot ride into it.
 				return {
 					ok: false,
-					error: 'There is uncommitted work on trunk — decide what happens to it before starting the ticket',
+					error: __('There is uncommitted work on trunk — decide what happens to it before starting the ticket'),
 					code: 'dirty-trunk',
 					canCarry: true,
 					files,
@@ -3327,11 +3327,11 @@ ipcMain.handle('branches:rebase', async (event, sitePath) => withRegisteredSite(
 	if (blocked) return blocked;
 	const { ref, meta } = await activeBranch(sitePath, { migrate: true });
 	if (ref === TRUNK) {
-		return { ok: false, code: 'on-trunk', error: 'Link a ticket first: trunk is what tickets are measured against, not a ticket.' };
+		return { ok: false, code: 'on-trunk', error: __('Link a ticket first: trunk is what tickets are measured against, not a ticket.') };
 	}
-	if (ticketIdFromRef(ref) === null) return { ok: false, code: 'not-a-ticket-branch', error: 'Only a ticket branch can be moved onto the current trunk.' };
+	if (ticketIdFromRef(ref) === null) return { ok: false, code: 'not-a-ticket-branch', error: __('Only a ticket branch can be moved onto the current trunk.') };
 	if (!meta || !meta.baseOid) {
-		return { ok: false, code: 'no-base', error: 'This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.' };
+		return { ok: false, code: 'no-base', error: __('This ticket has no recorded starting point, so the app cannot move its work onto the current trunk.') };
 	}
 	const progress = switchProgressReporter(event, sitePath);
 	let result;

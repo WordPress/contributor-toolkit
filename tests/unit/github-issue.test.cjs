@@ -7,6 +7,8 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { parseIssueRef, issueUrl } = require('../../src/renderer/github-issue.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 const GB = 'WordPress/gutenberg';
 
@@ -98,4 +100,21 @@ test('parseIssueRef: a URL’s number is bounds-checked like a typed one', () =>
 	assert.strictEqual(padded.ok, true);
 	assert.strictEqual(padded.id, 12);
 	assert.strictEqual(padded.url, url(12), 'the URL is rebuilt from the parsed id, not echoed back');
+});
+
+// Main parses what was typed and returns the refusal, so it is said in the
+// locale main applied, with the repository and the host as they are.
+test('parseIssueRef refuses in the locale applied (#629)', (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	addFilter('i18n.ngettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => {
+		removeFilter('i18n.gettext', 'test/pseudo-locale');
+		removeFilter('i18n.ngettext', 'test/pseudo-locale');
+	});
+
+	assert.equal(parseIssueRef('').error, pseudoLocalize('Enter an issue number or URL.'));
+	assert.equal(parseIssueRef('abc').error, pseudoLocalize('Enter an issue number like 1234, or a %s issue URL.').replace('%s', 'WordPress/gutenberg'));
+	assert.equal(parseIssueRef('https://example.com/a/b/issues/1').error, pseudoLocalize('Only %s issues are supported.').replace('%s', 'github.com'));
+	assert.equal(parseIssueRef('https://github.com/WordPress/gutenberg/pull/1').error, pseudoLocalize('That is a pull request. Link the issue it fixes instead.'));
+	assert.equal(parseIssueRef('https://github.com/other/repo/issues/1').error, pseudoLocalize('Only %s issues can be linked here.').replace('%s', 'WordPress/gutenberg'));
 });
