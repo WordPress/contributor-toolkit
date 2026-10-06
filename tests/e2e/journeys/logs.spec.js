@@ -374,6 +374,31 @@ test( 'a debug.log that first appears while the server runs is news from its fir
 	await expect( logs.getByText( 'PHP Notice: and the second', { exact: true } ) ).toBeVisible();
 	await expect( logs.getByText( MARKER, { exact: true } ) ).toHaveCount( 0 );
 	await expect( logsToggle ).toHaveAccessibleDescription( '' );
+
+	// INVARIANT — the file saved over itself, as an editor saves it, is not
+	// shown again: its two lines were seen, and only the one the save added
+	// is news. The save writes a new file at the old path, by a rename, which
+	// is what ends the watch on the old one; the tail has to find its place in
+	// the new file rather than start it from the top, or every line the file
+	// held would be told a second time and counted as unseen.
+	await logsToggle.click();
+	await expect( logs ).toHaveCount( 0 );
+	fs.writeFileSync( `${ logFile }.writing`, `${ fs.readFileSync( logFile, 'utf8' ) }PHP Notice: added by the save\n` );
+	fs.renameSync( `${ logFile }.writing`, logFile );
+	await expect( logsToggle ).toHaveAccessibleDescription( '1 unseen line in Debug.log' );
+	await heard( page );
+	expect( await debugTold( app ) ).toBe( 'PHP Fatal error: the first thing this run logged\nPHP Notice: and the second\nPHP Notice: added by the save\n' );
+	// INVARIANT — and the tail is on the new file: what WordPress writes to
+	// it next arrives, once.
+	fs.appendFileSync( logFile, 'PHP Warning: logged after the save\n' );
+	await expect( logsToggle ).toHaveAccessibleDescription( '2 unseen lines in Debug.log' );
+	await heard( page );
+	expect( await debugTold( app ) ).toBe( 'PHP Fatal error: the first thing this run logged\nPHP Notice: and the second\nPHP Notice: added by the save\nPHP Warning: logged after the save\n' );
+	await ui.openTray( page, 'Logs' );
+	await expect( logs.getByText( 'PHP Notice: added by the save', { exact: true } ) ).toHaveCount( 1 );
+	await expect( logs.getByText( 'PHP Notice: and the second', { exact: true } ) ).toHaveCount( 1 );
+	await expect( logs.getByText( 'PHP Warning: logged after the save', { exact: true } ) ).toHaveCount( 1 );
+	await expect( logsToggle ).toHaveAccessibleDescription( '' );
 } );
 
 test( 'what WordPress logs while the server is starting is news, and not what an earlier run left', async ( { session } ) => {
