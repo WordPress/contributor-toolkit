@@ -704,8 +704,18 @@ test( 'the Terminal is fully translatable: what it prints, a command it does not
 	const tray = page.getByRole( 'complementary', { name: pseudoLocalize( 'Terminal' ), exact: true } );
 	const screen = tray.locator( '.xterm-rows' ).filter( { visible: true } );
 	// What is typed at the prompt is the contributor's, and the prompt is a
-	// `$`: a line that starts with one is left out.
-	const printed = async () => ( await terminalLines( screen ) ).filter( ( line ) => ! line.startsWith( '$' ) && ! line.startsWith( '[' ) );
+	// `$`: a line that starts with one is left out. Every other line is one
+	// translated string from its first character to its last, so English
+	// after a translated string is caught too.
+	const whole = ( line ) => {
+		let depth = 0;
+		for ( let i = 0; i < line.length; i++ ) {
+			if ( line[ i ] === '[' ) depth++;
+			else if ( line[ i ] === ']' && --depth === 0 ) return i === line.length - 1;
+		}
+		return false;
+	};
+	const printed = async () => ( await terminalLines( screen ) ).filter( ( line ) => ! line.startsWith( '$' ) && ! ( line.startsWith( '[' ) && whole( line ) ) );
 
 	// The banner and the help it prints as it starts.
 	await expect( screen ).toContainText( pseudoLocalize( 'Available commands:' ), { timeout: 30_000 } );

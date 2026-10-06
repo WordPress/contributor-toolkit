@@ -190,6 +190,7 @@ test('the apply lines keep the English the chain spliced together before (#627)'
 	for (const [verb, noun] of [['Applied', 'patch'], ['Reverted', 'patch'], ['Checked out', 'pull request'], ['Restored', 'previous branch'], ['Restored', 'saved work']]) {
 		const lines = applyLines(verb, noun);
 		assert.strictEqual(lines.settled, `${verb}.`);
+		assert.strictEqual(lines.compiling, `${verb} — ${compilingMessage()}`);
 		assert.strictEqual(lines.buildFailed, `The ${noun} is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.`);
 		assert.strictEqual(lines.watchFailed, `The ${noun} is ${verb.toLowerCase()} but the build watch stopped before it finished rebuilding, so the site still runs the old assets.`);
 	}

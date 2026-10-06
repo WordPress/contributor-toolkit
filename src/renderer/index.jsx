@@ -49,7 +49,7 @@ import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
-import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage } from './confirmations.cjs';
+import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage, copyButtonLabel, setupStatusLine, setupEndMessage } from './confirmations.cjs';
 import { ReasonedUiButton } from './components/reasoned-button.jsx';
 import { DiscardChangesLink } from './components/discard-changes-link.jsx';
 import { LogText } from './components/log-text.jsx';
@@ -101,28 +101,6 @@ import { useSiteTicket } from './hooks/use-site-ticket.jsx';
 import { useApplyPatch } from './hooks/use-apply-patch.jsx';
 import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
-// What the Copy button says about the press just made. A switch rather than
-// nested ternaries, so a fourth state is a line here instead of another branch
-// in the middle of the JSX; and a function, so each is translated when it is
-// shown.
-function copyButtonLabel(state) {
-  switch (state) {
-    case 'copied': return __('Copied');
-    case 'failed': return __('Could not copy');
-    default: return __('Copy');
-  }
-}
-
-// The line the setup log gets for a status from main: one sentence per phase,
-// since the phase itself is a code. A phase this version does not know is
-// still a status.
-function setupStatusLine(phase) {
-  switch (phase) {
-    case 'cloning': return __('Status: cloning');
-    case 'done': return __('Status: done');
-    default: return __('Status update');
-  }
-}
 
 // A notice that is on the page as the page is drawn, or that already says
 // itself through its role, is told to say nothing of its own: left to, it
@@ -1537,17 +1515,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // between them. Every one of them ends by naming where the rest of the work
   // now lives, because the chain going quiet is otherwise indistinguishable
   // from the app having forgotten about the site.
-  const setupEndMessage = (outcome) => {
-    switch (outcome) {
-      case 'done': return __('Setup complete — start the dev server when you are ready.');
-      case 'stopped': return __('Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready.');
-      case 'failed-install':
-        // translators: %s: the command that installs dependencies, npm install.
-        return sprintf(__('%s failed — setup stopped here. Its output is above; retry the install from the checklist.'), 'npm install');
-      case 'failed-build': return __('The build failed — dependencies are installed. Its output is above; retry the build from the checklist.');
-      default: return '';
-    }
-  };
 
   const finishSetupChain = (outcome) => {
     markTerminalRunning(false);

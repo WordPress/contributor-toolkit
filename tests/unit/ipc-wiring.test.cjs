@@ -2259,6 +2259,31 @@ test('npm:install asks npm-runner whether an engine failure is worth retrying', 
 	assert.equal(cp.spawned.length, 2);
 });
 
+// The notice the terminal gets before an install is retried with engine
+// checks relaxed is said in the locale main applied, not the one it loaded in.
+test('npm:install says it is retrying with engine checks relaxed in the locale main applied (#627)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { shouldRetryWithRelaxedEngines: () => true }
+		}
+	});
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+
+	const event = createIpcEvent();
+	await main.invokeWith('npm:install', event, '/sites/wp');
+	cp.children[0].emit('close', 1, null);
+
+	const logs = event.sent.filter((m) => m.channel === 'npm:install:log').map((m) => m.payload.data).join('');
+	assert.ok(logs.includes(pseudoLocalize('This site requires a newer Node.js than this app bundles.')), logs);
+	assert.ok(logs.includes(pseudoLocalize('Retrying with engine checks relaxed…')), logs);
+});
+
 test('npm:run-script spawns the script runner through npm-runner too', async () => {
 	const env = { PATH: '/shims' };
 	const buildChildEnv = spy(() => env);
