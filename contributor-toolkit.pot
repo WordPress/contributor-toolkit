@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-06T16:05:25+00:00\n"
+"POT-Creation-Date: 2026-10-06T16:21:14+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -13,35 +13,35 @@ msgstr ""
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 
-#: src/main.js:1145
+#: src/main.js:1174
 msgid "Save Patch for Handoff"
 msgstr ""
 
-#: src/main.js:1145
+#: src/main.js:1174
 msgid "Save Diff File"
 msgstr ""
 
-#: src/main.js:2502
+#: src/main.js:2531
 msgid "Choose a patch file"
 msgstr ""
 
-#: src/main.js:2505
+#: src/main.js:2534
 msgid "Patch Files"
 msgstr ""
 
-#: src/main.js:2506
+#: src/main.js:2535
 msgid "All Files"
 msgstr ""
 
-#: src/main.js:3452
+#: src/main.js:3485
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3453
+#: src/main.js:3486
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3459
+#: src/main.js:3492
 msgid "Choose the application to open this folder in"
 msgstr ""
 
@@ -214,7 +214,7 @@ msgid "Open the feedback form ↗"
 msgstr ""
 
 #: src/renderer/components/app-footer.jsx:128
-#: src/renderer/components/settings-dialog.jsx:408
+#: src/renderer/components/settings-dialog.jsx:444
 msgid "Settings"
 msgstr ""
 
@@ -310,150 +310,172 @@ msgstr ""
 msgid "Rename"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:105
+#: src/renderer/components/settings-dialog.jsx:100
+msgid "Theme"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:101
+msgid "System follows your operating system’s light or dark setting."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:131
+msgid "Opening and quitting"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:133
+msgid "Start the server when I open a site"
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:134
+msgid ""
+"So the site and wp-admin are ready without a press. On WordPress Core the "
+"build watch starts with it."
+msgstr ""
+
+#: src/renderer/components/settings-dialog.jsx:140
 msgid "Start the build watch when I open a site"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:106
+#: src/renderer/components/settings-dialog.jsx:141
 msgid "So edits are compiled as they are saved."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:112
+#: src/renderer/components/settings-dialog.jsx:147
 msgid "When I quit, running servers and build watches"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:113
+#: src/renderer/components/settings-dialog.jsx:148
 msgid ""
 "Quitting always stops them; they can be started again when the app next "
 "opens."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:143
+#: src/renderer/components/settings-dialog.jsx:178
 msgid "Could not keep that folder."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:158
+#: src/renderer/components/settings-dialog.jsx:193
 msgid "Appearance"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:163
+#: src/renderer/components/settings-dialog.jsx:199
 msgid "New sites"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:165
+#: src/renderer/components/settings-dialog.jsx:201
 msgid "New sites go here"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:166
+#: src/renderer/components/settings-dialog.jsx:202
 msgid "Each new site is created in a subfolder of this location."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:174
+#: src/renderer/components/settings-dialog.jsx:210
 msgid "Forget this folder"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:196
+#: src/renderer/components/settings-dialog.jsx:232
 msgid "Could not keep that."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:201
+#: src/renderer/components/settings-dialog.jsx:237
 msgid "The PHP versions could not be read. Quit the app and open it again."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:205
+#: src/renderer/components/settings-dialog.jsx:241
 msgid "Development server"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:206
+#: src/renderer/components/settings-dialog.jsx:242
 msgid ""
 "Applies the next time a site’s server starts. A server that is running "
 "keeps what it started with."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:211
+#: src/renderer/components/settings-dialog.jsx:247
 msgid "PHP version"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:222
+#: src/renderer/components/settings-dialog.jsx:258
 msgid "Report notices and deprecations (WP_DEBUG)"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:223
+#: src/renderer/components/settings-dialog.jsx:259
 msgid ""
 "Off, notices and deprecations are not reported. Warnings and errors still "
 "reach debug.log and the browser, and error_log() calls still reach "
 "debug.log."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:229
+#: src/renderer/components/settings-dialog.jsx:265
 msgid "Use unminified scripts (SCRIPT_DEBUG)"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:230
+#: src/renderer/components/settings-dialog.jsx:266
 msgid ""
 "Core serves its JavaScript and CSS unminified, so they can be read and "
 "stepped through in the browser."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:276
+#: src/renderer/components/settings-dialog.jsx:312
 msgid "Could not save that username."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:281
+#: src/renderer/components/settings-dialog.jsx:317
 msgid "Could not save that event."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:311
+#: src/renderer/components/settings-dialog.jsx:347
 msgid "How you contribute"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:313
+#: src/renderer/components/settings-dialog.jsx:349
 msgid "WordPress.org username"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:314
+#: src/renderer/components/settings-dialog.jsx:350
 msgid "Goes on a patch you hand to a mentor, so the props land on you."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:320
+#: src/renderer/components/settings-dialog.jsx:356
 msgid "Event"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:321
+#: src/renderer/components/settings-dialog.jsx:357
 msgid ""
 "Where you are contributing from, if you are at an event. Leave it empty "
 "otherwise."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:333
+#: src/renderer/components/settings-dialog.jsx:369
 msgid "Saved."
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:337
+#: src/renderer/components/settings-dialog.jsx:373
 msgid "Saving"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:337
+#: src/renderer/components/settings-dialog.jsx:373
 msgid "Save"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:342
+#: src/renderer/components/settings-dialog.jsx:378
 msgid "GitHub"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:346
+#: src/renderer/components/settings-dialog.jsx:382
 msgid "Sign out"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:364
+#: src/renderer/components/settings-dialog.jsx:400
 msgid "General"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:365
+#: src/renderer/components/settings-dialog.jsx:401
 msgid "Sites"
 msgstr ""
 
-#: src/renderer/components/settings-dialog.jsx:366
+#: src/renderer/components/settings-dialog.jsx:402
 msgid "Account"
 msgstr ""
 
@@ -481,20 +503,6 @@ msgstr ""
 
 #: src/renderer/components/settings-dialog.jsx:76
 msgid "Relaunch now"
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:96
-msgid "Opening and quitting"
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:98
-msgid "Start the server when I open a site"
-msgstr ""
-
-#: src/renderer/components/settings-dialog.jsx:99
-msgid ""
-"So the site and wp-admin are ready without a press. On WordPress Core the "
-"build watch starts with it."
 msgstr ""
 
 #: src/renderer/components/site-details.jsx:101
@@ -1418,40 +1426,44 @@ msgstr ""
 msgid "Toggle Email"
 msgstr ""
 
-#: src/settings.cjs:141
+#: src/settings.cjs:102
+msgid "Choose a folder."
+msgstr ""
+
+#: src/settings.cjs:104
+msgid "Choose a folder by its full path."
+msgstr ""
+
+#: src/settings.cjs:105
+msgid "That folder does not exist."
+msgstr ""
+
+#: src/settings.cjs:154
 msgid "There is no such setting."
 msgstr ""
 
-#: src/settings.cjs:28
+#: src/settings.cjs:29
 msgid "Choose on or off."
 msgstr ""
 
-#: src/settings.cjs:45
+#: src/settings.cjs:46
 msgid "Choose a language."
 msgstr ""
 
-#: src/settings.cjs:46
+#: src/settings.cjs:47
 msgid "The app has no translation for that language."
 msgstr ""
 
-#: src/settings.cjs:56
+#: src/settings.cjs:57
 msgid "The app does not have that PHP version."
 msgstr ""
 
-#: src/settings.cjs:78
+#: src/settings.cjs:79
 msgid "Choose what happens when the app quits."
 msgstr ""
 
 #: src/settings.cjs:90
-msgid "Choose a folder."
-msgstr ""
-
-#: src/settings.cjs:92
-msgid "Choose a folder by its full path."
-msgstr ""
-
-#: src/settings.cjs:93
-msgid "That folder does not exist."
+msgid "Choose light, dark, or your system’s theme."
 msgstr ""
 
 #: src/wporg-handle.cjs:106
@@ -1472,4 +1484,19 @@ msgstr ""
 #: src/renderer/locale-setup.cjs:54
 msgctxt "text direction"
 msgid "ltr"
+msgstr ""
+
+#: src/renderer/settings-view.cjs:134
+msgctxt "the window’s theme"
+msgid "Light"
+msgstr ""
+
+#: src/renderer/settings-view.cjs:135
+msgctxt "the window’s theme"
+msgid "Dark"
+msgstr ""
+
+#: src/renderer/settings-view.cjs:136
+msgctxt "the window’s theme: the operating system’s"
+msgid "System"
 msgstr ""
