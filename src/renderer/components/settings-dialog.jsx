@@ -137,23 +137,17 @@ function GeneralTab({ settings, loaded, onChange }) {
 // versions the bundled Playground has, and the two debug constants that can
 // be turned off. Applied the next time a server starts; one that is running
 // keeps what it started with until it is started again.
-function SitesTab({ settings, onChange }) {
-  const [php, setPhp] = useState(null);
+function SitesTab({ settings, php, onChange }) {
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    window.api.listPhpVersions()
-      .then((res) => { if (!cancelled && res?.ok) setPhp({ versions: res.versions, fallback: res.fallback }); })
-      .catch(() => { if (!cancelled) setPhp({ versions: [], fallback: null }); });
-    return () => { cancelled = true; };
-  }, []);
 
   const keep = async (key, value) => {
     const result = await onChange(key, value);
     setError(result?.ok ? '' : (result?.error || __('Could not keep that.')));
   };
   const choice = phpVersionChoice({ versions: php?.versions, fallback: php?.fallback, stored: settings ? settings.phpVersion : null });
+  // The versions could not be read: said in place of a control with nothing
+  // on it, and the version stays as it is.
+  const unread = php?.error ? __('The PHP versions could not be read. Quit the app and open it again.') : '';
 
   return (
     <Stack direction="column" gap="xl">
@@ -164,9 +158,9 @@ function SitesTab({ settings, onChange }) {
         __next40pxDefaultSize
         isBlock
         label={__('PHP version')}
-        help={choice.note || undefined}
+        help={unread || choice.note || undefined}
         value={choice.value || undefined}
-        disabled={!settings || !php}
+        disabled={!settings || !php?.fallback}
         onChange={(value) => { if (value) keep('phpVersion', value); }}
       >
         {(php?.versions || []).map((version) => (
@@ -175,7 +169,7 @@ function SitesTab({ settings, onChange }) {
       </ToggleGroupControl>
       <SwitchControl
         label={__('Report notices and deprecations (WP_DEBUG)')}
-        description={__('Off, notices and deprecations are not reported. Warnings, errors and error_log() calls still reach debug.log and the browser.')}
+        description={__('Off, notices and deprecations are not reported. Warnings and errors still reach debug.log and the browser, and error_log() calls still reach debug.log.')}
         checked={settings ? settings.wpDebug : true}
         disabled={!settings}
         onCheckedChange={(checked) => keep('wpDebug', checked)}
@@ -309,7 +303,7 @@ function AccountTab({ wporg }) {
 // The tabs and what is on each. Inside the dialog's popup, which is there
 // while the dialog is open and not otherwise, so every opening starts on
 // General with nothing typed and not yet saved.
-function SettingsPanels({ settings, loaded, onChange, wporg }) {
+function SettingsPanels({ settings, loaded, php, onChange, wporg }) {
   const [tab, setTab] = useState('general');
   return (
     <Dialog.Content>
@@ -326,7 +320,7 @@ function SettingsPanels({ settings, loaded, onChange, wporg }) {
           <GeneralTab settings={settings} loaded={loaded} onChange={onChange} />
         </Tabs.Panel>
         <Tabs.Panel value="sites" tabIndex={-1} className="settings-panel">
-          <SitesTab settings={settings} onChange={onChange} />
+          <SitesTab settings={settings} php={php} onChange={onChange} />
         </Tabs.Panel>
         <Tabs.Panel value="account" tabIndex={-1} className="settings-panel">
           <AccountTab wporg={wporg} />
@@ -350,11 +344,12 @@ function SettingsPanels({ settings, loaded, onChange, wporg }) {
  * @param {boolean}  props.open     Whether the dialog is open.
  * @param {?Object}  props.settings The settings, or null while they are read.
  * @param {?Object}  props.loaded   The settings as the window first read them, for what takes a relaunch.
+ * @param {?Object}  props.php      The PHP versions the bundle has and the fallback (useSettings), null while unread, `{ error }` when it could not be.
  * @param {Function} props.onChange Changes one setting; resolves to `{ ok, settings }` or `{ ok: false, error }`.
  * @param {Object}   props.wporg    The contributor's details and how to change them.
  * @param {Function} props.onClose  Asked for by the close button, Escape, or a press outside.
  */
-export function SettingsDialog({ open, settings, loaded, onChange, wporg, onClose }) {
+export function SettingsDialog({ open, settings, loaded, php, onChange, wporg, onClose }) {
   return (
     <Dialog.Root open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
       <Dialog.Popup size="medium" className="settings-dialog">
@@ -362,7 +357,7 @@ export function SettingsDialog({ open, settings, loaded, onChange, wporg, onClos
           <Dialog.Title>{__('Settings')}</Dialog.Title>
           <Dialog.CloseIcon />
         </Dialog.Header>
-        <SettingsPanels settings={settings} loaded={loaded} onChange={onChange} wporg={wporg} />
+        <SettingsPanels settings={settings} loaded={loaded} php={php} onChange={onChange} wporg={wporg} />
       </Dialog.Popup>
     </Dialog.Root>
   );

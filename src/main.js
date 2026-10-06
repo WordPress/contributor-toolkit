@@ -728,6 +728,8 @@ ipcMain.handle('i18n:languages', async () => ({ ok: true, languages: await langu
 let phpVersionsList = null;
 function phpVersions() {
 	if (!phpVersionsList) {
+		// Not a declared dependency: it is @wp-playground/cli's, at whatever
+		// version that package pins, which is the one the runner serves with.
 		const { SupportedPHPVersions } = require('@php-wasm/universal');
 		phpVersionsList = [...SupportedPHPVersions];
 	}
@@ -3852,10 +3854,11 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	// The PHP version and the debug flags the settings hold (#559), read at
 	// each start so a change applies to the next. A version the bundled
 	// Playground no longer has, after a bump, is passed over for the fallback.
+	const logScope = playgroundLogScope(sitePath);
 	const settings = readSettings((await getStore()).get('preferences'));
 	const phpVersion = phpVersions().includes(settings.phpVersion) ? settings.phpVersion : SETTINGS.phpVersion.fallback;
 	if (phpVersion !== settings.phpVersion) {
-		logEvent(playgroundLogScope(sitePath), `PHP ${settings.phpVersion} is set but this build does not have it; starting on PHP ${phpVersion}`);
+		logEvent(logScope, `PHP ${settings.phpVersion} is set but this build does not have it; starting on PHP ${phpVersion}`);
 	}
 	const serveConfig = {
 		...(isPluginMount
@@ -3866,7 +3869,6 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	};
 	const serveCwd = isPluginMount ? sitePath : buildDir;
 	const runnerPath = path.join(__dirname, 'server-runner.js');
-	const logScope = playgroundLogScope(sitePath);
 	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} on PHP ${phpVersion}, WP_DEBUG ${settings.wpDebug ? 'on' : 'off'}, SCRIPT_DEBUG ${settings.scriptDebug ? 'on' : 'off'} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
 	const child = spawnRunner(runnerPath, [JSON.stringify(serveConfig)], {
 		cwd: serveCwd,

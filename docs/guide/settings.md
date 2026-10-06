@@ -12,7 +12,7 @@ The app's settings are in one dialog, opened from the cog at the bottom right of
 What every site's development server runs with. A change applies the next time a server starts; one that is running keeps what it started with until you stop and start it. The open site's details, in the right-hand column, show the PHP version beside the checkout and which debug constants are on.
 
 - **PHP version** — the PHP the site runs on, from the versions the bundled WordPress Playground has. 8.3 unless you choose another.
-- **Report notices and deprecations (WP_DEBUG)** — on, notices and deprecations are reported along with warnings and errors, written to `debug.log` and shown in the browser; see [Logs and debugging](./logs-and-debugging). Off, notices and deprecations are not reported; warnings, errors and `error_log()` calls still reach `debug.log` and the browser, which the app's PHP keeps on whatever WP_DEBUG says.
+- **Report notices and deprecations (WP_DEBUG)** — on, notices and deprecations are reported along with warnings and errors, written to `debug.log` and shown in the browser; see [Logs and debugging](./logs-and-debugging). Off, notices and deprecations are not reported; warnings and errors still reach `debug.log` and the browser, and `error_log()` calls still reach `debug.log`: the app's PHP keeps logging and display on whatever WP_DEBUG says.
 - **Use unminified scripts (SCRIPT_DEBUG)** — on, Core serves its JavaScript and CSS unminified.
 
 ## Account

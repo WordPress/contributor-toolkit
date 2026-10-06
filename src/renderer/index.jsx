@@ -83,6 +83,7 @@ import { TicketListCard } from './components/ticket-list.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useSettings } from './hooks/use-settings.jsx';
+import { phpVersionChoice } from './settings-view.cjs';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
 import { useSites } from './hooks/use-sites.jsx';
 import { usePullRequest } from './hooks/use-pull-request.jsx';
@@ -132,7 +133,10 @@ function App() {
   const wporg = useContributorProvenance();
   // The app's settings (#559), and the dialog they are changed in. The menu
   // asks for the dialog too, over a subscription the whole window holds.
-  const { settings, loaded: loadedSettings, change: changeSetting } = useSettings();
+  const { settings, loaded: loadedSettings, php: phpVersions, change: changeSetting } = useSettings();
+  // The PHP a server starts on: the one set where the bundle has it, and
+  // the fallback where it does not, decided where the dialog decides it.
+  const startingPhp = settings ? phpVersionChoice({ versions: phpVersions?.versions, fallback: phpVersions?.fallback, stored: settings.phpVersion }).value : null;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
@@ -685,6 +689,7 @@ function App() {
                         label={siteMeta?.[s]?.label}
                         projectType={siteMeta?.[s]?.projectType}
                         settings={settings}
+                        startingPhp={startingPhp}
                         onInitialized={onInitialized}
                         onSiteMetaPatch={onSiteMetaPatch}
                         onDelete={onDelete}
@@ -721,7 +726,7 @@ function App() {
         </div>
       )}
       <CreateSiteDialog open={createModalOpen} submitting={createSubmitting} defaultDir={settings ? settings.newSiteLocation : null} onCreate={startSiteSetup} onClose={closeCreateModal} />
-      <SettingsDialog open={settingsOpen} settings={settings} loaded={loadedSettings} onChange={changeSetting} wporg={wporg} onClose={closeSettings} />
+      <SettingsDialog open={settingsOpen} settings={settings} loaded={loadedSettings} php={phpVersions} onChange={changeSetting} wporg={wporg} onClose={closeSettings} />
     </div>
     </SlotFillProvider>
     {/* One toast region for the window (#253, #557). In the bottom corner,
@@ -740,7 +745,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -2240,8 +2245,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           trunk: age,
           path: sitePath,
           checkout: project.label,
-          // What every site's server starts with (#559), from the settings.
-          phpVersion: settings ? settings.phpVersion : null,
+          // What every site's server starts with (#559), from the settings:
+          // the PHP it will start on, which is not always the one set.
+          phpVersion: startingPhp,
           debug: settings ? { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug } : null
         }}
         pathCopied={pathCopied}

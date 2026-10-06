@@ -6,9 +6,15 @@ import { useCallback, useEffect, useState } from 'react';
 // dialog opened before then can say it is still reading them. `loaded` is
 // what main answered first and does not change: a setting that takes a
 // relaunch, the language, is one whose value now differs from it.
+// `php` is what the bundled Playground can run a site on, `{ versions,
+// fallback }`, read once with the settings: the dialog offers the versions
+// and the details say which one a server starts on, which is the fallback
+// where the one set is not among them. Null until read; `{ error }` when it
+// could not be, so the dialog can say so rather than offer nothing.
 export function useSettings() {
   const [settings, setSettings] = useState(null);
   const [loaded, setLoaded] = useState(null);
+  const [php, setPhp] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -20,6 +26,16 @@ export function useSettings() {
       })
       // eslint-disable-next-line no-console -- reaches the log file, see the note in useDetectedEditors.
       .catch((err) => console.error('Could not read the settings:', err));
+    window.api.listPhpVersions()
+      .then((res) => {
+        if (cancelled) return;
+        setPhp(res?.ok ? { versions: res.versions, fallback: res.fallback } : { error: true });
+      })
+      .catch((err) => {
+        // eslint-disable-next-line no-console -- see the note above.
+        console.error('Could not read the PHP versions:', err);
+        if (!cancelled) setPhp({ error: true });
+      });
     return () => { cancelled = true; };
   }, []);
 
@@ -39,5 +55,5 @@ export function useSettings() {
     return result;
   }, []);
 
-  return { settings, loaded, change };
+  return { settings, loaded, php, change };
 }
