@@ -588,8 +588,19 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 		return { ok: false, error, applied: [], skipped };
 	}
 	const written = await applyPatch(dir, applyText, { reverse, platform, prefix });
-	// translators: %s: the exit code of the command git apply.
-	let writeError = written.ok ? null : written.stderr.split(/\r?\n/).filter((line) => line.trim()).pop() || sprintf(__('git apply exited %s'), written.status);
+	// Why the write failed, as one whole sentence: Git's own last line when it
+	// printed one, the app's own words otherwise.
+	let message = null;
+	if (!written.ok) {
+		const stderr = written.stderr.split(/\r?\n/).filter((line) => line.trim()).pop();
+		if (stderr) {
+			// translators: %s: why writing the patch failed, Git's own message, in English.
+			message = sprintf(__('writing %s'), stderr);
+		} else {
+			// translators: %s: the exit code of the command git apply.
+			message = sprintf(__('writing git apply exited %s'), written.status);
+		}
+	}
 	// Windows Git can exit 0 without creating a file beneath a regular-file
 	// parent (#413). Check the actual destinations before claiming success.
 	// Git still decides the contents; this only detects an omitted write.
@@ -601,15 +612,13 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 				await fs.promises.lstat(path.join(dir, relPath));
 			} catch (e) {
 				// translators: 1: the path of a file the patch writes. 2: why it could not be read back, as the system said it.
-				writeError = sprintf(__('could not verify %1$s after git apply: %2$s'), relPath, e.message);
+				message = sprintf(__('writing could not verify %1$s after git apply: %2$s'), relPath, e.message);
 				break;
 			}
 		}
 	}
-	if (writeError) {
+	if (message) {
 		const recovery = rollback(dir, snapshot);
-		// translators: %s: why writing the patch failed, often Git's own message in English.
-		const message = sprintf(__('writing %s'), writeError);
 		if (recovery.length) {
 			// translators: %s: the files that could not be put back, and why, separated by semicolons.
 			onLog(`\n${sprintf(__('The patch could not be written, and the checkout could not be fully put back — it is in an unknown state. Could not undo: %s'), recovery.join('; '))}\n`);

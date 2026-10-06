@@ -125,7 +125,7 @@ test('a checkout\'s sentences are said in the locale: one per kind of work item,
 
 	const preview = describePrPreview({ number: 7, files: [{ path: 'a.php' }, { path: 'b.php' }], needsInstall: true, state: 'closed' });
 	assert.equal(preview.headline, pseudo('PR #%1$d changes %2$d files.', 7, 2));
-	assert.equal(preview.installNote, pseudo('It changes %s, so dependencies will be installed before the rebuild.', 'package-lock.json'));
+	assert.equal(preview.installNote, pseudoLocalize('It changes package-lock.json, so dependencies will be installed before the rebuild.'));
 	assert.equal(describePrPreview({ number: 7, files: [{ path: 'a.php' }] }).headline, pseudo('PR #%1$d changes %2$d file.', 7, 1));
 	assert.equal(describePrPreview({ number: 7, exists: true, moved: true, hasEdits: true }).actionLabel, pseudoLocalize('Return to saved copy'));
 });

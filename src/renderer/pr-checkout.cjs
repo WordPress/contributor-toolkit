@@ -96,8 +96,7 @@ function describePrPreview({ number, files = [], needsInstall = false, exists = 
 		headline,
 		actionLabel: exists && moved && hasEdits ? __('Return to saved copy') : __('Apply and rebuild'),
 		closedNote: state === 'closed' ? __('This pull request is closed. You can still check out its last head to investigate it.') : '',
-		// translators: %s: the name of a file, package-lock.json.
-		installNote: needsInstall ? sprintf(__('It changes %s, so dependencies will be installed before the rebuild.'), 'package-lock.json') : ''
+		installNote: needsInstall ? __('It changes package-lock.json, so dependencies will be installed before the rebuild.') : ''
 	};
 }
 

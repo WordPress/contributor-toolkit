@@ -176,7 +176,7 @@ async function fetchAttachment(url) {
 	// not the caller's string: the request rides the session cookie, so the URL
 	// fetched has to be the one that passed the check.
 	const safe = secureTracUrl(url);
-	if (!safe) return { ok: false, error: 'Only https core.trac.wordpress.org attachments are allowed' };
+	if (!safe) return { ok: false, error: __('Only https core.trac.wordpress.org attachments are allowed') };
 
 	let res;
 	try {
