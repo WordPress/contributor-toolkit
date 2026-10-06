@@ -326,7 +326,12 @@ test( 'the details stay in view while the cards scroll for as long as they fit t
 	// the cards scroll can only be told from details that go with them where
 	// the cards are the taller. With the terminal, the logs and the mail gone
 	// to the tray (#558) a site that is set up has it the other way round.
-	const { settings } = listedSites( session, [ { label: 'in-setup', skipInitWizard: false } ] );
+	// The site has no recorded creation date and no trunk date, so its
+	// details have two rows fewer: the facts gained a Debugging row (#559),
+	// and with every row the facts alone no longer fit over the tray at its
+	// smallest on the runners' screens, which the first half below needs
+	// them to, with a few pixels to spare and no more.
+	const { settings } = listedSites( session, [ { label: 'in-setup', skipInitWizard: false, createdAt: null, trunkDate: null } ] );
 	const { page } = await session.start( settings );
 	// Without the glide the app brings a site's next step into view with,
 	// which would still be moving the page while this reads where it is.
