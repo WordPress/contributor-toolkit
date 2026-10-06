@@ -49,12 +49,25 @@ const asked = ( app ) => app.evaluate( () => global.__e2eAuto );
 const tell = ( app, channel, payload ) => app.evaluate( ( { BrowserWindow }, [ to, what ] ) => {
 	for ( const win of BrowserWindow.getAllWindows() ) win.webContents.send( to, what );
 }, [ channel, payload ] );
-// A settled moment: the site's status has been read, which is when a start
-// would be asked for, and then a question asked of main and answered, so
-// that anything asked of main before it has been recorded by the stand-ins.
-// That is the signal for nothing having been asked.
-async function settled( page ) {
+// The signal for nothing having been started for the open site. A start is
+// asked of main only after awaits of its own, so a round trip to main is not
+// enough; what a start does first, before any await, is set the site's
+// controls to "starting". So: the site's status is read (the terminal's
+// hint says so), the settings are in the page (the details say what they
+// hold), the effects have run (a frame and a tick), and then both controls
+// still offer a start, and nothing was asked of main.
+async function nothingStarted( page, app ) {
 	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( page.getByRole( 'complementary', { name: /^Details of / } ).getByText( 'WordPress Core · PHP 8.3', { exact: true } ) ).toBeVisible();
+	await page.evaluate( () => new Promise( ( done ) => window.requestAnimationFrame( () => window.setTimeout( done, 0 ) ) ) );
+	await expect( ui.startDevServerButton( page ) ).toBeVisible();
+	await expect( ui.startBuildWatchButton( page ) ).toBeVisible();
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+	expect( await asked( app ) ).toEqual( { starts: [], scripts: [] } );
+}
+// The same settling, where something was started and nothing more should be.
+async function nothingMore( page ) {
+	await page.evaluate( () => new Promise( ( done ) => window.requestAnimationFrame( () => window.setTimeout( done, 0 ) ) ) );
 	await page.evaluate( () => window.api.getSitesWithMeta() );
 }
 
@@ -94,8 +107,12 @@ test( 'with the server set to start when a site is opened, opening one asks for 
 	await expect( ui.siteHeading( page, openedLabel ) ).toBeVisible();
 	await ui.sidebarEntry( page, otherLabel ).click();
 	await expect( ui.siteHeading( page, otherLabel ) ).toBeVisible();
-	await page.evaluate( () => window.api.getSitesWithMeta() );
+	await nothingMore( page );
 	expect( ( await asked( app ) ).starts ).toEqual( [ openedSite.dir, otherSite.dir ] );
+	// The server that runs was not stopped by a second toggle: its control
+	// still offers to stop it.
+	await ui.sidebarEntry( page, openedLabel ).click();
+	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
 } );
 
 test( 'with the watch set to start when a site is opened, opening one asks for the watch and not the server; with neither set, nothing', async ( { session } ) => {
@@ -103,11 +120,10 @@ test( 'with the watch set to start when a site is opened, opening one asks for t
 	await session.start( site.settings );
 	session.writeSettings( { ...site.settings, preferences: { autoStartWatch: true } } );
 	const { app, page } = await session.restart( { beforeWindow: standIn } );
-	await ui.openTray( page, 'Terminal' );
-	await settled( page );
 
 	// INVARIANT — the watch, by its project's script, and no server.
-	await expect.poll( async () => ( await asked( app ) ).scripts ).toEqual( [ { dir: site.dir, ...CORE_WATCH } ] );
+	await expect.poll( async () => ( await asked( app ) ).scripts, { timeout: 30_000 } ).toEqual( [ { dir: site.dir, ...CORE_WATCH } ] );
+	await nothingMore( page );
 	expect( ( await asked( app ) ).starts ).toEqual( [] );
 
 	// INVARIANT — turned off in the settings, opening the site again starts
@@ -120,8 +136,7 @@ test( 'with the watch set to start when a site is opened, opening one asks for t
 	await ui.closeDialogButton( dialog ).click();
 	const again = await session.restart( { beforeWindow: standIn } );
 	await ui.openTray( again.page, 'Terminal' );
-	await settled( again.page );
-	expect( await asked( again.app ) ).toEqual( { starts: [], scripts: [] } );
+	await nothingStarted( again.page, again.app );
 } );
 
 test( 'what the last quit stopped is started again at the next launch, once, and only while the quit setting says so', async ( { session } ) => {
@@ -131,8 +146,9 @@ test( 'what the last quit stopped is started again at the next launch, once, and
 	const settings = {
 		sites: [ served.dir, watched.dir, idle.dir ],
 		siteMeta: { ...served.settings.siteMeta, ...watched.settings.siteMeta, ...idle.settings.siteMeta },
-		// As a quit under 'restart' leaves the store.
-		preferences: { quitBehavior: 'restart', resume: { servers: [ served.dir ], watches: [ watched.dir ] } }
+		// As a quit under 'restart' leaves the store: a Core site whose server
+		// runs has its watch running too, and is under both.
+		preferences: { quitBehavior: 'restart', resume: { servers: [ served.dir ], watches: [ watched.dir, served.dir ] } }
 	};
 	// The first launch is given nothing, and the list is seeded for the
 	// launch that is watched only once that launch's main process is up: a
@@ -140,29 +156,31 @@ test( 'what the last quit stopped is started again at the next launch, once, and
 	// 'restart' and nothing running, would write an empty list over one
 	// seeded before it.
 	await session.start( { ...settings, preferences: { quitBehavior: 'stop' } } );
-	const { app } = await session.restart( { beforeWindow: async ( launched ) => { session.writeSettings( settings ); await standIn( launched ); } } );
+	const { app, page } = await session.restart( { beforeWindow: async ( launched ) => { session.writeSettings( settings ); await standIn( launched ); } } );
 
 	// INVARIANT — the served site's server and the watched site's watch are
 	// asked for, whichever site the window opened on, and the idle site's
-	// nothing; on Core the served site's watch comes with its server. And
-	// the list is forgotten as it is read.
+	// nothing; the served site's watch, listed too, is asked for once, since
+	// on Core it comes with its server. And the list is forgotten as it is
+	// read.
 	await expect.poll( async () => ( await asked( app ) ).starts, { timeout: 30_000 } ).toEqual( [ served.dir ] );
 	const byDir = ( scripts ) => [ ...scripts ].sort( ( a, b ) => a.dir.localeCompare( b.dir ) );
-	await expect.poll( async () => byDir( ( await asked( app ) ).scripts ) ).toEqual( byDir( [ { dir: watched.dir, ...CORE_WATCH }, { dir: served.dir, ...CORE_WATCH } ] ) );
+	const expectedWatches = byDir( [ { dir: watched.dir, ...CORE_WATCH }, { dir: served.dir, ...CORE_WATCH } ] );
+	await expect.poll( async () => byDir( ( await asked( app ) ).scripts ) ).toEqual( expectedWatches );
+	await nothingMore( page );
+	expect( byDir( ( await asked( app ) ).scripts ) ).toEqual( expectedWatches );
 	await expect.poll( () => 'resume' in ( session.readSettings().preferences || {} ) ).toBe( false );
 
 	// INVARIANT — opened again with nothing left by a quit, nothing starts.
 	const again = await session.restart( { beforeWindow: standIn } );
 	await ui.openTray( again.page, 'Terminal' );
-	await settled( again.page );
-	expect( await asked( again.app ) ).toEqual( { starts: [], scripts: [] } );
+	await nothingStarted( again.page, again.app );
 
 	// INVARIANT — a list left under 'restart' is not followed under 'stop'.
 	session.writeSettings( { ...settings, preferences: { quitBehavior: 'stop', resume: settings.preferences.resume } } );
 	const stopped = await session.restart( { beforeWindow: standIn } );
 	await ui.openTray( stopped.page, 'Terminal' );
-	await settled( stopped.page );
-	expect( await asked( stopped.app ) ).toEqual( { starts: [], scripts: [] } );
+	await nothingStarted( stopped.page, stopped.app );
 } );
 
 test( 'the quit setting is chosen in the settings and kept', async ( { session } ) => {

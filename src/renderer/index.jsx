@@ -1281,11 +1281,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     if (plan.consumeResume) autoStart.current.resumed = true;
     if (!plan.server && !plan.watch) return;
     const watchUp = () => ['watching', 'building'].includes(watchStateRef.current);
+    const serverTried = plan.server && !isDevProcessActive;
     (async () => {
-      if (plan.server && !isDevProcessActive) await starters.current.toggleDevServer();
-      if (plan.watch && !watchUp()) starters.current.startBuildWatch();
-    })().catch(() => {});
-  }, [isActive, resume, settings, statusLoading, skipInit, isPending, isDeleting, isUpdating, setupChainState, isDevProcessActive, watchStateRef]);
+      if (serverTried) await starters.current.toggleDevServer();
+      // A server's start that found the terminal held has already been
+      // refused the watch, and said so; the watch is not asked for again.
+      if (plan.watch && !watchUp() && !(serverTried && terminalStateRef.current.running)) starters.current.startBuildWatch();
+    })().catch((err) => {
+      // eslint-disable-next-line no-console -- reaches the log file, see the note in useDetectedEditors.
+      console.error('Could not start what opening the site asks for:', err);
+    });
+  }, [isActive, resume, settings, statusLoading, skipInit, isPending, isDeleting, isUpdating, setupChainState, isDevProcessActive, watchStateRef, terminalStateRef]);
 
   // What the page says about the site's two processes (#557), in the header
   // and in the details alike. Decided in site-processes.cjs, and worked out

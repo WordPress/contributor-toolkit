@@ -2591,14 +2591,16 @@ test('before-quit writes the sites to start again when the quit setting says res
 	}
 });
 
-test('before-quit sweeps every child even when what is running cannot be written down', async (t) => {
+test('before-quit sweeps every child even when what is running cannot be written down, and says so in the log', async (t) => {
 	const cp = stubbedSpawn();
 	const killChildTree = spy(() => {});
+	const logError = spy();
 	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} }, preferences: { quitBehavior: 'restart' } });
 	const store = settings.stubs['./settings-store'];
 	const main = loadMain({
 		stubs: {
 			...silentLogging(),
+			'./logging': { ...silentLogging()['./logging'], logError },
 			...noSmtpServer(),
 			'./settings-store': {
 				getStore: store.getStore,
@@ -2620,6 +2622,9 @@ test('before-quit sweeps every child even when what is running cannot be written
 	await main.emitAppEvent('before-quit');
 
 	assert.equal(killChildTree.calls.length, cp.children.length, 'the sweep reached every child');
+	assert.equal(logError.calls.length, 1);
+	assert.equal(logError.calls[0][0], 'quit');
+	assert.match(logError.calls[0][1], /settings\.json is locked/);
 });
 
 test('sites:resume hands the window the list once, and forgets it, only while the setting still says restart', async () => {
