@@ -5762,7 +5762,9 @@ test('wp-debug:start carries a debug.log replaced under the tail on from where i
 });
 
 // `grunt clean` removes the file; what appears at the path later is a new file,
-// read whole — the earlier offset would skip its first lines.
+// read whole — the earlier offset would skip its first lines. The new file is
+// longer than the old one on purpose: a shorter one is read from its start by
+// either rule, and the test would be green without the offset being forgotten.
 test('wp-debug:start reads a debug.log removed under the tail whole when a file comes back', async () => {
 	const logPath = path.join(SITE, 'build', 'wp-content', 'debug.log');
 	const { file, stubs, watcherOn } = fakeTailedFile(logPath, 20);
@@ -5780,11 +5782,11 @@ test('wp-debug:start reads a debug.log removed under the tail whole when a file 
 	assert.equal(file.ranges.length, 1, 'a file that is gone was read');
 
 	file.exists = true;
-	file.size = 5;
+	file.size = 25;
 	watcherOn(path.dirname(logPath))[0].listener('rename', 'debug.log');
 	await turn();
 
-	assert.deepEqual(file.ranges.at(-1), { start: 0, end: 4 }, 'the new file was read from the old offset');
+	assert.deepEqual(file.ranges.at(-1), { start: 0, end: 24 }, 'the new file was read from the old offset');
 	assert.equal(toldOf(event).at(-1).backlog, false, 'the new file\'s lines were told as an earlier run\'s');
 	assert.equal(watcherOn(logPath).length, 1);
 	assert.equal(watcherOn(path.dirname(logPath)).length, 0, 'the folder is still watched with the file back');

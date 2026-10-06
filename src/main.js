@@ -4049,9 +4049,9 @@ function startWpDebugTail(sitePath, webContents) {
 			// was reading, carried on from where it stopped, until its size says
 			// otherwise: an editor saving debug.log writes a new file at the old
 			// path, and replaying that would show every line a second time and
-			// count them all as unseen. `lastSize` is 0 only when there was no
-			// file before — the first attach, or one that was gone when the app
-			// looked (watchForFile) — and then the whole of it is read.
+			// count them all as unseen. With no offset — the first attach, a file
+			// that was gone when the app looked (watchForFile), or one that was
+			// empty or cleared — the file is new and read whole, up to the cap.
 			const plan = state.lastSize > 0 ? planTailRead(state.lastSize, stat.size) : planInitialRead(stat.size);
 			state.lastSize = plan.lastSize;
 			if (plan.read) {
