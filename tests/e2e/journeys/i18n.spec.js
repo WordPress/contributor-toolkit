@@ -717,8 +717,11 @@ test( 'the Terminal is fully translatable: what it prints, a command it does not
 	};
 	const printed = async () => ( await terminalLines( screen ) ).filter( ( line ) => ! line.startsWith( '$' ) && ! ( line.startsWith( '[' ) && whole( line ) ) );
 
-	// The banner and the help it prints as it starts.
-	await expect( screen ).toContainText( pseudoLocalize( 'Available commands:' ), { timeout: 30_000 } );
+	// The banner and the help it prints as it starts. Waited for by its last
+	// line: xterm draws only the rows on screen, and on a short window the
+	// help's first lines, longer in the pseudo-locale, have already scrolled
+	// out of them.
+	await expect( screen ).toContainText( pseudoLocalize( 'Run them here whenever you change files or add a dependency afterwards.' ), { timeout: 30_000 } );
 	expect( await printed() ).toEqual( [] );
 
 	// The help asked for, and a command it does not know. The terminal's
