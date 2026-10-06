@@ -670,3 +670,85 @@ for ( const [ named, label ] of [ [ 'by its name', '60001.diff' ], [ 'with no na
 		expect( await unwrappedInReview( dialog ) ).toEqual( [] );
 	} );
 }
+
+test( 'the apply card is fully translatable when a patch or a pull request will not go on, and once a patch is applied', async ( { session } ) => {
+	// Real patches applied by the real engine, so the sentence about a file
+	// that moved on is main's, in main's locale. What is the checkout's own
+	// stays as it is and is left out of the scan: the file's path, the line of
+	// code the panel names a place by, and the patch's lines.
+	const { read } = require( '../helpers/git-site.cjs' );
+	const FILE = 'src/wp-login.php';
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+	const card = ui.card( page, pseudoLocalize( 'Apply a patch or PR' ) );
+	await expect( card ).toBeVisible( { timeout: 30_000 } );
+	await card.getByRole( 'tab', { name: pseudoLocalize( 'Diff' ), exact: true } ).click();
+	const choose = card.getByRole( 'button', { name: pseudoLocalize( 'Choose a .diff or .patch file…' ), exact: true } );
+	const preview = page.getByRole( 'dialog' );
+	const apply = preview.getByRole( 'button', { name: pseudoLocalize( 'Apply and rebuild' ), exact: true } );
+	// "Near" and the line of code the place is found by are one sentence, cut
+	// at the code so that the code can go where a translation wants it: the
+	// pieces either side of it are bracketed only together.
+	const near = pseudoLocalize( 'Near %s' ).split( '%s' ).map( ( piece ) => piece.trim() );
+	const codeOf = async ( region ) => ( await region.locator( 'code, pre' ).allTextContents() ).map( ( text ) => text.trim() );
+	const inCard = async () => {
+		const theirs = [ FILE, ...near, ...( await codeOf( card ) ) ];
+		return ( await unwrapped( card ) ).filter( ( text ) => ! theirs.includes( text ) );
+	};
+
+	// A patch whose line the contributor has already changed: the preview
+	// says whose work it would land on, and applying it fails in that file.
+	write( site.dir, LOGIN, '<?php // I got here first\n' );
+	const misfit = makePatchFile( session, 'misfit.patch', [ { file: 'wp-login.php', from: '<?php // trunk', to: '<?php // patched' } ] );
+	await session.answerFileDialog( [ misfit ] );
+	await choose.click();
+	await expect( apply ).toBeVisible( { timeout: 30_000 } );
+	await expect( preview.getByText( pseudoLocalize( 'You have your own edits to %s. Save a patch of your work first if you want a copy.' ).replace( '%s', FILE ), { exact: true } ) ).toBeVisible();
+	expect( ( await unwrapped( preview ) ).filter( ( text ) => text !== FILE ) ).toEqual( [] );
+	await apply.click();
+	const failure = card.getByRole( 'alert' ).filter( { hasText: pseudoLocalize( 'The checkout was not changed.' ) } );
+	await expect( failure ).toBeVisible( { timeout: 60_000 } );
+	await expect( failure ).toContainText( FILE );
+	expect( await inCard() ).toEqual( [] );
+	await failure.getByRole( 'button', { name: pseudoLocalize( 'Dismiss' ), exact: true } ).click();
+	await expect( failure ).toHaveCount( 0 );
+
+	// A pull request address from somewhere else, refused before anything is
+	// asked of GitHub. The card gives a sentence a full stop when it ends
+	// without one, which a bracketed one always does: that stop is the card's
+	// (#630 drops it), and the sentence before it is checked whole.
+	await card.getByRole( 'tab', { name: pseudoLocalize( 'Pull request' ), exact: true } ).click();
+	await card.getByLabel( pseudoLocalize( 'Pull request URL or number' ), { exact: true } ).fill( 'https://gitlab.com/WordPress/wordpress-develop/pull/7' );
+	await card.getByRole( 'button', { name: pseudoLocalize( 'Apply PR' ), exact: true } ).click();
+	const elsewhere = `${ pseudoLocalize( 'Only github.com pull requests are supported.' ) }.`;
+	await expect( card.getByText( elsewhere, { exact: true } ) ).toBeVisible();
+	expect( ( await inCard() ).filter( ( text ) => text !== elsewhere ) ).toEqual( [] );
+
+	// A pull request's preview, read from a stand-in for its fetch: what it
+	// changes, and that dependencies will be installed.
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'git:preview-pr' );
+		ipcMain.handle( 'git:preview-pr', ( _event, _sitePath, number ) => ( {
+			ok: true, number, headOid: 'a'.repeat( 40 ), files: [ { kind: 'modify', path: 'src/wp-login.php' }, { kind: 'modify', path: 'package-lock.json' } ], needsInstall: true, exists: false, moved: false, hasEdits: false, returnTo: 'trunk',
+		} ) );
+	} );
+	await card.getByLabel( pseudoLocalize( 'Pull request URL or number' ), { exact: true } ).fill( '7' );
+	await card.getByRole( 'button', { name: pseudoLocalize( 'Apply PR' ), exact: true } ).click();
+	await expect( preview.getByText( pseudoLocalize( 'PR #%1$d changes %2$d files.' ).replace( '%1$d', '7' ).replace( '%2$d', '2' ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	expect( ( await unwrapped( preview ) ).filter( ( text ) => ! [ FILE, 'package-lock.json' ].includes( text ) ) ).toEqual( [] );
+	await preview.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ).click();
+	await expect( preview ).toHaveCount( 0 );
+
+	// A patch that fits, once it is applied: the notice that names it.
+	write( site.dir, LOGIN, '<?php // trunk\n' );
+	const fitting = makePatchFile( session, 'fitting.patch', [ { file: 'wp-login.php', from: '<?php // trunk', to: '<?php // patched' } ] );
+	await card.getByRole( 'tab', { name: pseudoLocalize( 'Diff' ), exact: true } ).click();
+	await session.answerFileDialog( [ fitting ] );
+	await choose.click();
+	await apply.click();
+	const revert = card.getByRole( 'button', { name: pseudoLocalize( 'Revert this patch' ), exact: true } );
+	await expect( revert ).toBeVisible( { timeout: 60_000 } );
+	expect( read( site.dir, LOGIN ) ).toBe( '<?php // patched\n' );
+	await expect( card.getByText( /^\[fitting\.patch / ) ).toBeVisible();
+	expect( await inCard() ).toEqual( [] );
+} );

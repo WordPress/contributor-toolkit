@@ -11,7 +11,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { describeApplyFailure, otherPatchCount, REASONS } = require('../../src/renderer/apply-conflict.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { sprintf } = require('@wordpress/i18n');
+const { describeApplyFailure, otherPatchCount, reasons } = require('../../src/renderer/apply-conflict.cjs');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 const FOO = 'src/wp-includes/foo.php';
 const BAR = 'src/wp-includes/bar.php';
@@ -178,8 +181,8 @@ test('describeApplyFailure: tells "already there" apart from "the code moved" (i
 	});
 
 	const [redundant, drifted] = result.items[0].regions;
-	assert.equal(redundant.reason, REASONS['already-applied']);
-	assert.equal(drifted.reason, REASONS.moved);
+	assert.equal(redundant.reason, reasons()['already-applied']);
+	assert.equal(drifted.reason, reasons().moved);
 	// Hedged, because matching searches for a fit and can find one in the wrong
 	// place. A sentence that sounds certain here would be the app overstating
 	// evidence it cannot have.
@@ -561,4 +564,72 @@ test('describeApplyFailure: carries the pull request only when the patch came fr
 	assert.equal(describeApplyFailure(payload, { prUrl: url }).prUrl, url);
 	// A .diff chosen off disk has no pull request to ask for a rebase on.
 	assert.equal(describeApplyFailure(payload).prUrl, null);
+});
+
+// --- in another language (#628) --------------------------------------------
+
+// Each sentence is written whole and translated whole: the plural follows the
+// count it is about, and a sentence that also names the files is its own
+// string. The pull request's framings are hard to reach in a journey, so they
+// are read here, in the pseudo-locale, against the exact string each should
+// have chosen.
+test('describeApplyFailure: every framing is said in the locale, as one whole sentence each (#628)', (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	addFilter('i18n.ngettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => {
+		removeFilter('i18n.gettext', 'test/pseudo-locale');
+		removeFilter('i18n.ngettext', 'test/pseudo-locale');
+	});
+	const pseudo = (format, ...args) => sprintf(pseudoLocalize(format), ...args);
+	const failing = (rows) => ({ ok: false, failures: rows.map((c) => c.error), conflicts: rows });
+	const PR = 'https://github.com/WordPress/wordpress-develop/pull/1';
+	const moved = (path, total, missed) => conflict(path, total, Array.from({ length: missed }, (_, index) => ({ index, line: index + 1, status: 'moved' })));
+	const there = (path, total) => conflict(path, total, Array.from({ length: total }, (_, index) => ({ index, line: index + 1, status: 'already-applied' })));
+
+	// A loose patch: one file, then two, and each region's reason.
+	const one = describeApplyFailure(failing([moved(FOO, 3, 1)]));
+	assert.equal(one.headline, pseudo('%1$d of this patch\'s %2$d changes no longer fit — the other %3$d do.', 1, 3, 2));
+	assert.equal(one.items[0].regions[0].reason, pseudoLocalize('the code around it has changed'));
+	assert.equal(describeApplyFailure(failing([there(FOO, 1)])).headline, pseudo('All %d of this patch\'s change look like they are already in your checkout.', 1));
+	assert.equal(describeApplyFailure(failing([moved(FOO, 2, 2), moved(BAR, 2, 2)])).headline, pseudo('None of this patch\'s %1$d changes across %2$d files still fit your checkout.', 4, 2));
+	assert.equal(describeApplyFailure(failing([there(FOO, 1)]), { reverting: '' }).items[0].regions[0].reason, pseudoLocalize('looks like that change is not in your checkout any more'));
+
+	// A revert, with the patch's name and without one.
+	const revert = describeApplyFailure(failing([moved(FOO, 2, 1)]), { reverting: 'PR #123' });
+	assert.equal(revert.headline, pseudo('%1$s cannot be lifted back out on its own: your own edits are on %2$d of its %3$d changes.', 'PR #123', 1, 2));
+	assert.match(revert.advice, /^\[/);
+	assert.equal(describeApplyFailure(failing([moved(FOO, 1, 1), moved(BAR, 1, 1)]), { reverting: '' }).headline, pseudo('That patch cannot be lifted back out on its own: your own edits are on %1$d of its %2$d changes, across %3$d files.', 2, 2, 2));
+
+	// A pull request whose changes are all in trunk already, open and closed.
+	assert.equal(describeApplyFailure(failing([there(FOO, 2)]), { prUrl: PR, prState: 'open' }).headline, pseudo('All %d of this pull request\'s changes look like they are already in trunk — there is nothing left to apply.', 2));
+	assert.equal(describeApplyFailure(failing([there(FOO, 1)]), { prUrl: PR, prState: 'closed' }).headline, pseudo('All %d of this pull request\'s change look like they are already in trunk — it was likely committed to core, which is why it is closed. There is nothing left to apply.', 1));
+
+	// Closed and stale, in one file.
+	const closed = describeApplyFailure(failing([moved(FOO, 3, 2)]), { prUrl: PR, prState: 'closed' });
+	assert.equal(closed.headline, pseudo('This pull request is closed and was written against an older trunk — it no longer fits: %1$d of its %2$d changes, in %3$d file, would need rework.', 2, 3, 1));
+	assert.equal(closed.prButton, pseudoLocalize('See why it was closed'));
+
+	// Open and stale, in more files than a sentence names.
+	const files = ['a.php', 'b.php', 'c.php', 'd.php', 'e.php'];
+	const stale = describeApplyFailure(failing(files.map((path) => moved(path, 1, 1))), { prUrl: PR, prState: 'open' });
+	assert.equal(stale.headline, pseudo('This pull request was written against an older trunk and no longer fits it: %1$d of its %2$d changes, in %3$d files, would need rework.', 5, 5, 5));
+	assert.equal(stale.prButton, pseudoLocalize('Ask its author for a rebase'));
+
+	// The contributor's own work in one file, a stranger's failures in more
+	// than a sentence names.
+	const mixed = describeApplyFailure(failing(files.map((path) => moved(path, 1, 1))), { prUrl: PR, prState: 'open', ownWorkPaths: ['a.php'] });
+	assert.equal(mixed.headline, [
+		pseudo('This pull request does not fit your checkout: %1$d of its %2$d changes, in %3$d files, would need rework.', 5, 5, 5),
+		pseudo('Your own work is also in %s and may be part of the failure.', 'a.php'),
+		pseudo('Other failures are in %s.', pseudo('%1$s and %2$d more file', 'b.php, c.php, d.php', 1))
+	].join(' '));
+
+	// A file the applied patch brought, and nothing else.
+	const layered = describeApplyFailure(failing([moved(FOO, 1, 1)]), { prUrl: PR, prState: 'open', ownWorkPaths: [FOO], appliedPatch: { label: '62010.diff', files: [FOO] } });
+	assert.equal(layered.headline, [
+		pseudo('This pull request does not fit your checkout: %1$d of its %2$d change, in %3$d file, would need rework.', 1, 1, 1),
+		pseudo('%1$s includes changes from %2$s and may also contain your own edits.', FOO, '62010.diff')
+	].join(' '));
+	assert.equal(layered.prButton, pseudoLocalize('Open the pull request'));
+	assert.match(layered.advice, /^\[/);
 });

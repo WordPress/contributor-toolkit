@@ -3276,6 +3276,35 @@ test('git:apply-patch refuses a second patch while one is already applied', asyn
 	assert.deepEqual(applyPatchToDir.calls, []);
 });
 
+test('git:apply-patch says its refusals and its progress in the locale main applied (#628)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { sprintf } = require('@wordpress/i18n');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	const pseudo = (format, ...args) => sprintf(pseudoLocalize(format), ...args);
+	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['src/a.php'], skipped: [] }));
+
+	// A second patch while one is applied, with the first one's name in it.
+	const busy = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { appliedPatch: { label: 'first.diff', text: 'X' } } } });
+	const refusing = loadMain({ stubs: { ...silentLogging(), ...busy.stubs, './patch-apply': { applyPatchToDir } } });
+	const second = createIpcEvent();
+	const { applyId: secondId } = await refusing.invokeWith('git:apply-patch', second, '/sites/wp', { patchText: 'SECOND' });
+	assert.equal((await applyDone(second, secondId)).error, pseudo('%s is already applied. Revert it before applying another patch.', 'first.diff'));
+
+	// A revert with nothing stored, then an apply and the line that opens it.
+	const empty = fakeSettingsStore({ sites: ['/sites/wp'] });
+	const main = loadMain({ stubs: { ...silentLogging(), ...empty.stubs, './patch-apply': { applyPatchToDir } } });
+	const revert = createIpcEvent();
+	const { applyId: revertId } = await main.invokeWith('git:apply-patch', revert, '/sites/wp', { reverse: true });
+	assert.equal((await applyDone(revert, revertId)).error, pseudoLocalize('There is no stored patch to revert.'));
+	const apply = createIpcEvent();
+	const { applyId } = await main.invokeWith('git:apply-patch', apply, '/sites/wp', { patchText: 'P', label: 'mine.diff' });
+	assert.equal((await applyDone(apply, applyId)).ok, true);
+	const logged = apply.sent.filter((s) => s.channel === 'git:apply-patch:log').map((s) => s.payload.data).join('');
+	assert.ok(logged.includes(pseudo('Applying %s…', 'mine.diff')), logged);
+});
+
 test('git:apply-patch reverts using the stored patch text and clears the record', async () => {
 	const applyPatchToDir = spy(async () => ({ ok: true, applied: ['src/a.php'], skipped: [] }));
 	const settings = fakeSettingsStore({

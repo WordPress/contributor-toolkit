@@ -7,7 +7,7 @@
 // as it is: what a pull request's preview and banner say (pr-checkout.cjs,
 // watch-activity.cjs), what an applied patch says (applied-layer.cjs), why a
 // patch did not fit (apply-conflict.cjs) and the steps of an apply
-// (update-plan.cjs). Those are not translated yet. What is here is.
+// (update-plan.cjs). Each is translated where it is written, not here.
 'use strict';
 
 const { __, _n, sprintf } = require('@wordpress/i18n');

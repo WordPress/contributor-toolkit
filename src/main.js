@@ -88,7 +88,7 @@ const { LEGACY_SITE_ERROR } = require('./renderer/legacy-site.cjs');
 const { resolveCatalog, languageChoices } = require('./i18n.cjs');
 const { isPseudoLocale } = require('./renderer/pseudo-locale.cjs');
 const { applyLocale } = require('./renderer/locale-setup.cjs');
-const { __, setLocaleData } = require('@wordpress/i18n');
+const { __, sprintf, setLocaleData } = require('@wordpress/i18n');
 const { addFilter } = require('@wordpress/hooks');
 const { mergeInProgressError, mergeCheckFailedError } = require('./renderer/merge-in-progress.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
@@ -2517,7 +2517,7 @@ ipcMain.handle('git:preview-patch', async (_e, sitePath, patchText) => {
             // app could not look — surface the failure instead. An unreadable
             // base arrives here as a throw for exactly that reason (#308).
             logError('git:preview-patch', String(e && e.stack ? e.stack : e));
-            return { ok: false, error: 'Could not check your work for conflicts, so the preview was not shown.' };
+            return { ok: false, error: __('Could not check your work for conflicts, so the preview was not shown.') };
         }
         const plan = planApply({ files: parsed.files, dirtyPaths });
         return { ok: true, ...plan, files: parsed.files.map((f) => ({ kind: f.kind, path: f.path })) };
@@ -2576,7 +2576,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             const { layout } = projectTypeForSite(await readSiteMeta(sitePath)).patch;
             if (reverse) {
                 if (!stored || !stored.text) {
-                    sendDone({ ok: false, error: 'There is no stored patch to revert.' });
+                    sendDone({ ok: false, error: __('There is no stored patch to revert.') });
                     return;
                 }
                 patchText = stored.text;
@@ -2584,10 +2584,20 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             } else if (stored) {
                 // Only one patch is tracked at a time, so a second apply would
                 // make the first one silently unrevertable and invisible.
-                sendDone({ ok: false, error: `${stored.label} is already applied. Revert it before applying another patch.` });
+                sendDone({
+                    ok: false,
+                    // translators: %s: the name of the applied patch, such as a file name.
+                    error: sprintf(__('%s is already applied. Revert it before applying another patch.'), stored.label)
+                });
                 return;
             }
-            sendLog(`\n${reverse ? 'Reverting' : 'Applying'} ${label}…\n`);
+            if (reverse) {
+                // translators: %s: the name of the patch, such as a file name.
+                sendLog(`\n${sprintf(__('Reverting %s…'), label)}\n`);
+            } else {
+                // translators: %s: the name of the patch, such as a file name.
+                sendLog(`\n${sprintf(__('Applying %s…'), label)}\n`);
+            }
 
             const result = await applyPatchToDir({ dir: sitePath, patchText, reverse, onLog: sendLog, layout });
             if (!result.ok) {
@@ -2616,7 +2626,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             } else {
                 const revertable = patchText.length <= REVERTABLE_PATCH_LIMIT;
                 if (!revertable) {
-                    sendLog('This patch is too large to keep for an undo, so Revert will not be offered.\n');
+                    sendLog(`${__('This patch is too large to keep for an undo, so Revert will not be offered.')}\n`);
                 }
                 try {
                     await writeWorkMeta(sitePath, {
@@ -2636,9 +2646,11 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
                     const undo = await applyPatchToDir({ dir: sitePath, patchText, reverse: true, onLog: sendLog, layout });
                     const why = String(persistErr && persistErr.message ? persistErr.message : persistErr);
                     if (undo.ok) {
-                        sendDone({ ok: false, error: `The patch applied but its revert record could not be saved, so it was undone. ${why}` });
+                        // translators: %s: why the record could not be saved, as the system said it.
+                        sendDone({ ok: false, error: sprintf(__('The patch applied but its revert record could not be saved, so it was undone. %s'), why) });
                     } else {
-                        sendDone({ ok: false, appliedButUntracked: true, files: result.applied, error: `The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. ${why}` });
+                        // translators: %s: why the record could not be saved, as the system said it.
+                        sendDone({ ok: false, appliedButUntracked: true, files: result.applied, error: sprintf(__('The patch applied but its revert record could not be saved and it could not be undone — the checkout has the patch and the app cannot revert it. %s'), why) });
                     }
                     return;
                 }
@@ -2646,7 +2658,8 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             sendDone({ ok: true, ...result, reverse });
         } catch (e) {
             logError('git:apply-patch', String(e && e.stack ? e.stack : e));
-            sendLog(`\nApplying the patch failed: ${String(e && e.message ? e.message : e)}\n`);
+            // translators: %s: what went wrong, as the system said it.
+            sendLog(`\n${sprintf(__('Applying the patch failed: %s'), String(e && e.message ? e.message : e))}\n`);
             sendDone({ ok: false, error: String(e) });
         }
     })();

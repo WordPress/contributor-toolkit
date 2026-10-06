@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { __, sprintf } from '@wordpress/i18n';
 import { parsePrRef } from '../../patch-sources.cjs';
 import { describeApplyFailure, otherPatchCount } from '../apply-conflict.cjs';
 import { applyDoneMessage } from '../confirmations.cjs';
@@ -206,12 +207,13 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
       const chosen = await window.api.choosePatchFile();
       if (!chosen) return;
       if (chosen.error) {
-        setApplyError(`Could not read that file: ${chosen.error}`);
+        // translators: %s: why the file could not be read, as the system said it.
+        setApplyError(sprintf(__('Could not read that file: %s'), chosen.error));
         return;
       }
       const preview = await window.api.previewPatch(sitePath, chosen.text);
       if (!preview || !preview.ok) {
-        setApplyError(preview?.error || 'Could not read that patch.');
+        setApplyError(preview?.error || __('Could not read that patch.'));
         return;
       }
       setApplyPreview({ ...preview, label: chosen.name, text: chosen.text });
@@ -346,12 +348,13 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     try {
       const res = await window.api.fetchTracAttachment(att.url);
       if (!res || !res.ok) {
-        setApplyError(res?.error || `Could not download ${att.filename}.`);
+        // translators: %s: the file name of a Trac attachment.
+        setApplyError(res?.error || sprintf(__('Could not download %s.'), att.filename));
         return;
       }
       const preview = await window.api.previewPatch(sitePath, res.text);
       if (!preview || !preview.ok) {
-        setApplyError(preview?.error || 'Could not read that patch.');
+        setApplyError(preview?.error || __('Could not read that patch.'));
         return;
       }
       setApplyPreview({ ...preview, label: att.filename, text: res.text });
@@ -454,7 +457,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     ticketSwitchLifecycleRef.current = {
       begin: async (ref) => {
         if (terminalStateRef.current.running) {
-          setTicketError('A command is already running. Stop it before switching tickets.');
+          setTicketError(__('A command is already running. Stop it before switching tickets.'));
           return false;
         }
         markTerminalRunning(true);
@@ -555,9 +558,11 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
           // nothing to install or build.
           if (res?.notApplied) {
             if (res.recordCleared) {
-              setApplyNotice(`${res.error} The applied-patch record has been cleared.`);
+              // translators: %s: why the patch could not be reverted, a sentence of its own.
+              setApplyNotice(sprintf(__('%s The applied-patch record has been cleared.'), res.error));
             } else {
-              setApplyError(`${res.error} The record of it could not be cleared, so this site still thinks it is applied.`);
+              // translators: %s: why the patch could not be reverted, a sentence of its own.
+              setApplyError(sprintf(__('%s The record of it could not be cleared, so this site still thinks it is applied.'), res.error));
             }
             // finishApply reloads the status, which is what takes the banner
             // down now that the main process has dropped the record.
@@ -568,7 +573,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
           // it is a dialog, and what went wrong is on the card behind it.
           // What the breakdown needs of it was read before the apply began.
           setApplyPreview(null);
-          setApplyError(res?.error || 'The patch could not be applied.');
+          setApplyError(res?.error || __('The patch could not be applied.'));
           // A conflict is where the panel used to stop: one file named, the
           // rest of the failures left in the terminal, and no sense of whether
           // one region of twenty missed or all of them. The breakdown is what
@@ -577,7 +582,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
           // patch's lines, so the ticket's other patches and the pull request's
           // author are both the wrong place to send them.
           setApplyConflict(describeApplyFailure(res, reverse
-            ? { reverting: appliedPatch?.label || 'That patch' }
+            ? { reverting: appliedPatch?.label || '' }
             : {
               otherPatchCount: otherPatchCount({
                 label: preview?.label,

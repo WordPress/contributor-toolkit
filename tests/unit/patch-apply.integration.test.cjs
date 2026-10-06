@@ -1390,3 +1390,36 @@ test('applyPatchToDir: a repo-relative layout applies to the path as named, and 
 	assert.strictEqual(back.ok, true, back.error);
 	assert.strictEqual(fs.readFileSync(path.join(dir, ROOTED), 'utf8'), FOO_BODY);
 });
+
+// Main words the failure and the terminal's lines in the locale it applied
+// (#628). The panel pairs each sentence in `failures` with its breakdown by
+// equality, so both have to come from the one translated sentence.
+test('applyPatchToDir: what it says is in the locale main applied, plural and all (#628)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { sprintf } = require('@wordpress/i18n');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	addFilter('i18n.ngettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => {
+		removeFilter('i18n.gettext', 'test/pseudo-locale');
+		removeFilter('i18n.ngettext', 'test/pseudo-locale');
+	});
+	const pseudo = (format, ...args) => sprintf(pseudoLocalize(format), ...args);
+
+	// One region of three missed: the sentence with both counts.
+	const dir = makeRepo(t, { [LONG]: LONG_BODY, [BAR]: BAR_BODY });
+	fs.writeFileSync(path.join(dir, LONG), LONG_BODY.replace('line 1\n', 'line one, rewritten\n'));
+	const log = [];
+	const res = await applyPatchToDir({ dir, patchText: LONG_PATCH + BAR_PATCH_THAT_FAILS, onLog: (line) => log.push(line) });
+	assert.strictEqual(res.ok, false);
+	assert.strictEqual(res.failures[0], pseudo('%1$s has moved on since the patch was written: %2$d of its %3$d changes no longer fit, and the other %4$d do', LONG, 1, 3, 2));
+	assert.strictEqual(res.conflicts[0].error, res.failures[0], 'the breakdown still lines up with its sentence');
+	assert.match(res.failures[1], /^\[/);
+	assert.ok(log.join('').includes(pseudoLocalize('The patch was not applied — the checkout is unchanged.')), log.join(''));
+
+	// Applied: the count of files, in the singular.
+	const clean = makeRepo(t, { [FOO]: FOO_BODY });
+	const applied = [];
+	assert.strictEqual((await applyPatchToDir({ dir: clean, patchText: FOO_PATCH, onLog: (line) => applied.push(line) })).ok, true);
+	assert.ok(applied.join('').includes(pseudo('Applied %d file.', 1)), applied.join(''));
+});

@@ -19,6 +19,7 @@
  */
 
 const { BrowserWindow, session } = require('electron');
+const { __, sprintf } = require('@wordpress/i18n');
 const { parseAttachments, secureTracUrl } = require('./trac-attachments.cjs');
 const { parseTicketInfo } = require('./trac-ticket-info.cjs');
 const { httpGet } = require('./github-prs');
@@ -184,7 +185,8 @@ async function fetchAttachment(url) {
 		return { ok: false, error: String(e && e.message ? e.message : e) };
 	}
 	if (res.status !== 200) {
-		return { ok: false, error: `Trac returned ${res.status} — try opening the ticket again to pass the check.` };
+		// translators: %s: an HTTP status code, such as 403.
+		return { ok: false, error: sprintf(__('Trac returned %s — try opening the ticket again to pass the check.'), res.status) };
 	}
 	return { ok: true, text: res.body };
 }

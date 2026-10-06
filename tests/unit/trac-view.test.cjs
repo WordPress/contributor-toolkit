@@ -51,3 +51,27 @@ test('openAndScrape: a navigation that never finishes still reaches the ready ti
 	assert.equal(result.status, 'challenge-timeout');
 	assert.equal(destroyed, true, 'the hidden Trac window is cleaned up after timing out');
 });
+
+test('fetchAttachment: a refused download is said in the locale main applied (#628)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+
+	// Trac's answer stands in for the network, as the window does above.
+	const originalLoad = Module._load;
+	Module._load = function (request, parent, isMain) {
+		if (request === './github-prs') return { httpGet: async () => ({ status: 403, body: '' }) };
+		return originalLoad.call(this, request, parent, isMain);
+	};
+	let fetchAttachment;
+	try {
+		({ fetchAttachment } = loadTracView({ BrowserWindow: class {}, session: {} }));
+	} finally {
+		Module._load = originalLoad;
+	}
+
+	const result = await fetchAttachment('https://core.trac.wordpress.org/raw-attachment/ticket/1/a.diff');
+	assert.equal(result.ok, false);
+	assert.equal(result.error, pseudoLocalize('Trac returned %s — try opening the ticket again to pass the check.').replace('%s', '403'));
+});
