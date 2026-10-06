@@ -31,6 +31,7 @@
 // scope that fails to arrive produces a token that signs in fine and cannot
 // push — a failure that surfaces at the last write of the whole flow.
 const { postForm, getJson } = require('./github-http.cjs');
+const { __, sprintf } = require('@wordpress/i18n');
 
 // The WordPress organisation's OAuth application, "WordPress Contributor
 // Toolkit". An empty value here means this build has no sign-in configured,
@@ -94,7 +95,7 @@ async function requestDeviceCode(deps = {}) {
 		return {
 			ok: false,
 			reason: 'not-configured',
-			error: 'This build has no GitHub application configured, so it cannot sign you in.'
+			error: __('This build has no GitHub application configured, so it cannot sign you in.')
 		};
 	}
 
@@ -112,11 +113,13 @@ async function requestDeviceCode(deps = {}) {
 		return {
 			ok: false,
 			reason: 'not-configured',
-			error: 'GitHub does not recognise this application, or device flow is not enabled on it.'
+			error: __('GitHub does not recognise this application, or device flow is not enabled on it.')
 		};
 	}
 	if (res.status !== 200 || !res.json || !res.json.device_code) {
-		const detail = res.json && res.json.error_description ? res.json.error_description : `GitHub returned ${res.status}`;
+		const detail = res.json && res.json.error_description ? res.json.error_description :
+			// translators: %s: an HTTP status code, such as 500.
+			sprintf(__('GitHub returned %s'), res.status);
 		return { ok: false, reason: 'error', error: detail };
 	}
 
@@ -163,13 +166,13 @@ async function pollForToken({ deviceCode, interval, expiresAt }, deps = {}) {
 	let waitSeconds = Number(interval) > 0 ? Number(interval) : DEFAULT_INTERVAL_SECONDS;
 
 	for (;;) {
-		if (isCanceled()) return { ok: false, reason: 'canceled', error: 'Sign-in was canceled.' };
+		if (isCanceled()) return { ok: false, reason: 'canceled', error: __('Sign-in was canceled.') };
 		await wait(waitSeconds * 1000);
-		if (isCanceled()) return { ok: false, reason: 'canceled', error: 'Sign-in was canceled.' };
+		if (isCanceled()) return { ok: false, reason: 'canceled', error: __('Sign-in was canceled.') };
 		// Checked after the wait rather than before it, so a code that expires
 		// mid-sleep is reported as expired instead of being polled once more.
 		if (now() >= expiresAt) {
-			return { ok: false, reason: 'expired', error: 'The code expired before it was entered.' };
+			return { ok: false, reason: 'expired', error: __('The code expired before it was entered.') };
 		}
 
 		let res;
@@ -198,14 +201,15 @@ async function pollForToken({ deviceCode, interval, expiresAt }, deps = {}) {
 				waitSeconds = Number(json.interval) > 0 ? Number(json.interval) : waitSeconds + SLOW_DOWN_BUMP_SECONDS;
 				break;
 			case 'expired_token':
-				return { ok: false, reason: 'expired', error: 'The code expired before it was entered.' };
+				return { ok: false, reason: 'expired', error: __('The code expired before it was entered.') };
 			case 'access_denied':
-				return { ok: false, reason: 'denied', error: 'The authorization was declined on GitHub.' };
+				return { ok: false, reason: 'denied', error: __('The authorization was declined on GitHub.') };
 			default:
 				return {
 					ok: false,
 					reason: 'error',
-					error: json.error_description || json.error || `GitHub returned ${res.status}`
+					// translators: %s: an HTTP status code, such as 500.
+					error: json.error_description || json.error || sprintf(__('GitHub returned %s'), res.status)
 				};
 		}
 	}
@@ -252,10 +256,11 @@ async function fetchViewer(token, deps = {}) {
 		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
 	}
 	if (res.status === 401) {
-		return { ok: false, reason: 'unauthorized', error: 'That sign-in is no longer valid.' };
+		return { ok: false, reason: 'unauthorized', error: __('That sign-in is no longer valid.') };
 	}
 	if (res.status !== 200 || !res.json || !res.json.login) {
-		return { ok: false, reason: 'error', error: `GitHub returned ${res.status}` };
+		// translators: %s: an HTTP status code, such as 500.
+		return { ok: false, reason: 'error', error: sprintf(__('GitHub returned %s'), res.status) };
 	}
 	// Only judged when GitHub states the scopes: the header is how OAuth
 	// tokens carry them, and its absence (some token types omit it) is not
@@ -265,7 +270,12 @@ async function fetchViewer(token, deps = {}) {
 		return {
 			ok: false,
 			reason: 'insufficient-scope',
-			error: 'GitHub granted this sign-in less access than opening a pull request needs — an older authorization of this app was likely reused. Revoke "WordPress Contributor Toolkit" under github.com → Settings → Applications, then sign in here again.'
+			error: sprintf(
+				// translators: 1: the name of this app's GitHub application, WordPress Contributor Toolkit. 2: where to revoke it, github.com → Settings → Applications.
+				__('GitHub granted this sign-in less access than opening a pull request needs — an older authorization of this app was likely reused. Revoke "%1$s" under %2$s, then sign in here again.'),
+				'WordPress Contributor Toolkit',
+				'github.com → Settings → Applications'
+			)
 		};
 	}
 	return { ok: true, login: String(res.json.login) };
