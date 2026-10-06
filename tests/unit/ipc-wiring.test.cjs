@@ -1878,6 +1878,66 @@ test('settings:set asks the disk whether the folder is there', async (t) => {
 	assert.equal((await main.invoke('settings:set', 'newSiteLocation', file)).ok, false, 'a file is not a folder');
 });
 
+test('settings:set refuses a key that is not a setting without writing, whatever the value', async (t) => {
+	const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'wpct-settings-'));
+	t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+	const settings = fakeSettingsStore({ preferences: { wporgHandle: 'janedoe' } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.equal((await main.invoke('settings:set', 'theme', folder)).ok, false);
+	assert.equal((await main.invoke('settings:set', '__proto__', folder)).ok, false);
+	assert.equal((await main.invoke('settings:set', 'newSiteLocation', 'sites')).ok, false, 'a path that is not a full one');
+	assert.deepEqual(settings.values.preferences, { wporgHandle: 'janedoe' });
+});
+
+// The menu's Settings… reaches the main window and brings it forward, and
+// not whichever window Electron lists first: a patch window is one too.
+async function menuBuilt(main) {
+	for (let turn = 0; turn < 50 && main.calls.applicationMenu.length === 0; turn++) {
+		await new Promise((resolve) => setImmediate(resolve));
+	}
+	assert.equal(main.calls.applicationMenu.length, 1, 'the ready path built the menu');
+	const item = main.calls.applicationMenu[0].template
+		.flatMap((menu) => menu.submenu || [])
+		.find((entry) => entry.id === 'settings');
+	assert.ok(item, 'the menu has a Settings… item');
+	return item;
+}
+
+test('the menu\'s Settings… opens the dialog in the main window, listed first or not (#559)', async () => {
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog: async () => null } } });
+	const settings = await menuBuilt(main);
+	assert.equal(main.windows.length, 1, 'the ready path opened the main window');
+	const [mainWindow] = main.windows;
+	const brought = [];
+	mainWindow.isMinimized = () => true;
+	mainWindow.restore = () => brought.push('restore');
+	mainWindow.show = () => brought.push('show');
+	mainWindow.focus = () => brought.push('focus');
+	// A patch window, and Electron lists it first.
+	const patch = new main.electron.BrowserWindow({});
+	main.windows.reverse();
+
+	settings.click();
+
+	assert.deepEqual(mainWindow.sent, [{ channel: 'settings:open', payload: undefined }]);
+	assert.deepEqual(patch.sent, []);
+	assert.deepEqual(brought, ['restore', 'show', 'focus']);
+});
+
+test('the menu\'s Settings… with the main window closed opens one and sends nothing into it (#559)', async () => {
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), './i18n.cjs': { resolveCatalog: async () => null } } });
+	const settings = await menuBuilt(main);
+	const [closed] = main.windows;
+	closed.isDestroyed = () => true;
+
+	settings.click();
+
+	assert.equal(main.windows.length, 2, 'a window was opened');
+	assert.deepEqual(closed.sent, []);
+	assert.deepEqual(main.windows[1].sent, [], 'a page that has not subscribed is sent nothing');
+});
+
 // --- main must not take the windowsHide patch (#181) ---------------------
 //
 // The inverse of tests/unit/runner-wiring.test.cjs, which pins that the four runners

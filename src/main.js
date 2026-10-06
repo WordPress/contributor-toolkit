@@ -91,7 +91,7 @@ const { __, setLocaleData } = require('@wordpress/i18n');
 const { addFilter } = require('@wordpress/hooks');
 const { mergeInProgressError, mergeCheckFailedError } = require('./renderer/merge-in-progress.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
-const { readSettings, acceptSetting } = require('./settings.cjs');
+const { SETTINGS, readSettings, acceptSetting } = require('./settings.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
@@ -3440,7 +3440,9 @@ ipcMain.handle('settings:get', async () => {
 // window holds the whole and replaces it, so what it shows is what was
 // written and not what it sent.
 ipcMain.handle('settings:set', async (_e, key, value) => {
-	const directory = typeof value === 'string' && await isDirectory(value);
+	// The disk is asked only about a full path for a setting there is: what
+	// the pure check would ask, and nothing a key that is not a setting sends.
+	const directory = Object.hasOwn(SETTINGS, key) && typeof value === 'string' && path.isAbsolute(value) && await isDirectory(value);
 	const accepted = acceptSetting(key, value, { isAbsolute: path.isAbsolute, isDirectory: () => directory });
 	if (!accepted.ok) return { ok: false, error: accepted.error };
 	await setPreference(key, accepted.value);
