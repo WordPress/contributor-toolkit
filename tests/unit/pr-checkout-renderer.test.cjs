@@ -28,7 +28,7 @@ test('submission refusal does not invent a ticket when the PR came from trunk', 
 });
 
 test('the pull request card submits a checkout that is all the contributor\'s own', () => {
-	assert.equal(prSubmissionBlocked({ pullRequest: null, appliedPatch: null, appliedPatchLabel: 'The patch you applied' }), '');
+	assert.equal(prSubmissionBlocked({ pullRequest: null, appliedPatch: null, appliedPatchLabel: '' }), '');
 });
 
 test('an applied patch blocks the pull request card, named the way the app names it', () => {
@@ -38,9 +38,16 @@ test('an applied patch blocks the pull request card, named the way the app names
 	);
 });
 
+test('an applied patch with no name blocks the card in a sentence of its own, not one with a phrase put in', () => {
+	assert.equal(
+		prSubmissionBlocked({ pullRequest: null, appliedPatch: {}, appliedPatchLabel: '' }),
+		'Revert the patch you applied before opening a pull request from this checkout.'
+	);
+});
+
 test('a checked-out pull request blocks the card with its own refusal, ahead of a patch applied on top', () => {
 	const refusal = prSubmissionRefusal(7);
-	assert.equal(prSubmissionBlocked({ pullRequest: { number: 7 }, appliedPatch: null, appliedPatchLabel: 'The patch you applied' }), refusal);
+	assert.equal(prSubmissionBlocked({ pullRequest: { number: 7 }, appliedPatch: null, appliedPatchLabel: '' }), refusal);
 	assert.equal(prSubmissionBlocked({ pullRequest: { number: 7 }, appliedPatch: { label: '62010.diff' }, appliedPatchLabel: '62010.diff' }), refusal);
 });
 

@@ -85,9 +85,9 @@ function highlightDiff(text) {
  *
  * The generator can now put `#` lines above the diff naming the binaries a text
  * diff cannot carry, and a handoff patch carries a `#` provenance header too
- * (#166). Both mean a plain `!== 'No changes.'` test reads a patch with nothing
- * in it as one with something in it — and the app would offer to attach an
- * empty diff to a ticket. A `#` at column 0 is never part of a unified diff, so
+ * (#166). Both mean a plain "is it empty" test reads a patch with nothing in it
+ * as one with something in it — and the app would offer to attach an empty
+ * diff to a ticket. A `#` at column 0 is never part of a unified diff, so
  * the question is whether any other content survives.
  *
  * @param {string} text The patch as generated.
@@ -97,7 +97,7 @@ function hasDiffLines(text) {
 	if (typeof text !== 'string') return false;
 	return text.split('\n').some((line) => {
 		const trimmed = line.trim();
-		return trimmed !== '' && trimmed !== 'No changes.' && !line.startsWith('#');
+		return trimmed !== '' && !line.startsWith('#');
 	});
 }
 

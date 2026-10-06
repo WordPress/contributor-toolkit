@@ -1004,7 +1004,7 @@ async function createMinimalPatchForDir(dir, baseOid = null) {
             gone && a.endsWith('\n')
         );
     }
-    return skippedNotice(binaries, unreadable) + (patch || 'No changes.');
+    return skippedNotice(binaries, unreadable) + patch;
 }
 
 /**
