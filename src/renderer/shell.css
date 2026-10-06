@@ -686,6 +686,36 @@ body {
   font-size: inherit;
 }
 
+/* The older library's dialogs and popovers are painted white with dark text
+   in its own stylesheet, with no token behind the colour, so in the dark
+   theme (#560) they would be the one light thing on the page. Painted here
+   with the tokens the design system's own dialogs use, so they follow the
+   theme as everything else does. Their shadows stay as the library draws
+   them: a shadow is black under either theme, as the design system's own
+   are. The ring the popover draws in the same property is restated as the
+   hairline, since it was a light grey of its own. */
+.components-modal__frame,
+.components-popover__content {
+  background: var(--wpds-color-background-surface-neutral-strong);
+  color: var(--wpds-color-foreground-content-neutral);
+}
+
+.components-modal__frame h1,
+.components-modal__frame h2,
+.components-modal__frame h3 {
+  color: var(--wpds-color-foreground-content-neutral);
+}
+
+.components-popover__content {
+  box-shadow:
+    0 0 0 var(--wpds-border-width-xs) var(--wpds-color-stroke-surface-neutral),
+    0 4px 12px color-mix(in srgb, var(--wpds-color-foreground-content-neutral) 10%, transparent);
+}
+
+.components-dropdown__content .components-menu-group + .components-menu-group {
+  border-top-color: var(--wpds-color-stroke-surface-neutral);
+}
+
 /* What a first-timer cannot know about pull requests, behind its question. */
 .destination-how {
   color: var(--wpds-color-foreground-content-neutral-weak);

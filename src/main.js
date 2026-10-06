@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell, screen } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell, screen, nativeTheme } = require('electron');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
@@ -93,6 +93,7 @@ const { addFilter } = require('@wordpress/hooks');
 const { mergeInProgressError, mergeCheckFailedError } = require('./renderer/merge-in-progress.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
 const { SETTINGS, readSettings, acceptSetting } = require('./settings.cjs');
+const { windowBackground } = require('./theme.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
@@ -561,6 +562,9 @@ function createWindow() {
     mainWindow = new BrowserWindow({
 		...mainWindowSize(screen.getPrimaryDisplay().workAreaSize),
         icon: process.platform === 'linux' ? path.join(__dirname, '..', 'build', 'icon.png') : undefined,
+		// The colour of the theme the window is made in (#560), so that a dark
+		// window is not white for the moment before its page has painted.
+		backgroundColor: windowBackground(nativeTheme.shouldUseDarkColors),
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
 			contextIsolation: true,
@@ -708,6 +712,21 @@ function localeReply() {
 		})();
 	}
 	return localeReplyPromise;
+}
+
+// The theme (#560), given to Electron. `nativeTheme` is the one place the
+// choice is made: Chromium answers the page's `prefers-color-scheme` from it,
+// and paints the window's chrome and the native form controls to match, so
+// the page only has to follow what it is told, as it would the operating
+// system's. Read from the store before the window is made, so the window is
+// made in it; a store that cannot be read leaves the system's theme, with a
+// line in the log, as it leaves the system's language.
+async function applyStoredTheme() {
+	try {
+		nativeTheme.themeSource = readSettings((await getStore()).get('preferences')).theme;
+	} catch (e) {
+		logError('theme', `the settings could not be read, so the theme is the system's: ${String(e && e.message ? e.message : e)}`);
+	}
 }
 
 // The languages the settings offer: what the build ships, read once.
@@ -2652,6 +2671,8 @@ app.whenReady().then(async () => {
 	// renderer output into the log file, which only applies to windows created
 	// afterwards.
 	initLogging();
+	// Before the window: it is made in the theme.
+	await applyStoredTheme();
 	// Before the menu and the window: both build their labels from `__()`.
 	applyLocale(await localeReply(), { setLocaleData, addFilter });
 	Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
@@ -3570,7 +3591,10 @@ ipcMain.handle('settings:set', async (_e, key, value) => {
 	if (!accepted.ok) return { ok: false, error: accepted.error };
 	await setPreference(key, accepted.value);
 	const s = await getStore();
-	return { ok: true, settings: readSettings(s.get('preferences')) };
+	const settings = readSettings(s.get('preferences'));
+	// The theme applies at once (#560): Electron tells the window.
+	if (key === 'theme') nativeTheme.themeSource = settings.theme;
+	return { ok: true, settings };
 });
 
 // The fallback that needs no configuration at all — see site-registry.js for why

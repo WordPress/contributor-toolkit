@@ -338,10 +338,14 @@ function buildFixture(variant) {
 	return { userDataDir, sites: { wizardSite, readySite, staleSite, incompleteSite } };
 }
 
+// The pictures are of the light theme whatever the maintainer's machine is
+// set to (#560), unless a dark one is asked for: `SHOTS_THEME=dark`.
+const SHOTS_THEME = process.env.SHOTS_THEME || 'light';
+
 function writeSettings(userDataDir, settings) {
 	fs.writeFileSync(
 		path.join(userDataDir, 'settings.json'),
-		JSON.stringify(settings, null, '\t')
+		JSON.stringify({ ...settings, preferences: { theme: SHOTS_THEME, ...(settings.preferences || {}) } }, null, '\t')
 	);
 }
 

@@ -9,7 +9,6 @@ import { Page } from '@wordpress/admin-ui';
 import { __, _x, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
 import { drawerLeft, globe } from '@wordpress/icons';
-import { ThemeProvider } from '@wordpress/theme';
 import { Badge, Button as UiButton, Card as UiCard, EmptyState, IconButton, Notice, Spinner as UiSpinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
 // The design system's tokens: every `--wpds-*` custom property, at its default,
 // on `:root`.
@@ -80,6 +79,7 @@ import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/ap
 import { applyHeldReason, previewShown } from './apply-card.cjs';
 import { TicketCard } from './components/ticket-card.jsx';
 import { TicketListCard } from './components/ticket-list.jsx';
+import { AppTheme } from './components/app-theme.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useSettings } from './hooks/use-settings.jsx';
@@ -2406,13 +2406,9 @@ async function loadLocale() {
   document.title = __('WordPress Contributor Toolkit');
 }
 
-// The design system's provider, at its defaults: the tokens stylesheet already
-// holds every value, so this changes nothing on screen. It is the one place
-// to set colour and corner radius from, for whatever comes to set them. `isRoot`
-// puts whatever it overrides on the document rather than on its own wrapper,
-// which is what reaches a modal or a popover: those are portalled to `body`,
-// outside this tree.
+// Under the design system's provider, in the theme the window is in (#560):
+// see app-theme.jsx.
 loadLocale().then(() => {
   const root = createRoot(document.getElementById('root'));
-  root.render(<ThemeProvider isRoot><App /></ThemeProvider>);
+  root.render(<AppTheme><App /></AppTheme>);
 });

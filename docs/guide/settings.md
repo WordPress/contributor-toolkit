@@ -4,6 +4,7 @@ The app's settings are in one dialog, opened from the cog at the bottom right of
 
 ## General
 
+- **Theme** — light, dark, or whatever your operating system is set to, which is the default. A change applies as you make it, to the whole window; nothing running is touched.
 - **Language** — which language the app is shown in: your system's language, which is the default, or one of the languages the app has a translation for. A change applies after a relaunch, which the dialog offers; relaunching stops running servers and builds, as quitting does. Translations come from [translate.wordpress.org](https://translate.wordpress.org/projects/meta/contributor-toolkit/) and ship with the app once they are mostly complete, so the list grows from release to release.
 - **Start the server when I open a site** and **Start the build watch when I open a site** — off unless you turn them on. On, opening a site that is set up starts its [development server](./running-the-site), its build watch, or both, as it would if you pressed Start; on WordPress Core the server's start brings the watch with it. Nothing starts for a site whose setup, update or deletion is under way, and nothing already running is started again.
 - **When I quit, running servers and build watches** — quitting always stops them, as it always has. **Stop them, and start them again next time** remembers which sites had a server or a watch running and starts them again when the app next opens, whichever site it opens on.

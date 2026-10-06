@@ -173,6 +173,13 @@ function createElectronStub({ ready = false } = {}) {
 			isReady: () => true
 		},
 		BrowserWindow: BrowserWindowStub,
+		// The theme (#560): what main sets, and what Electron would then say of
+		// it. Under 'system' this machine is taken to be light.
+		nativeTheme: {
+			themeSource: 'system',
+			get shouldUseDarkColors() { return this.themeSource === 'dark'; },
+			on() {}
+		},
 		Menu: {
 			buildFromTemplate: (template) => ({ template }),
 			setApplicationMenu: (menu) => { calls.applicationMenu.push(menu); }
@@ -348,7 +355,9 @@ function loadMain({ stubs = {}, ready = false } = {}) {
 // logging is stubbed everywhere: electron-log resolves its file path through
 // `app.getPath`, which the electron stub only pretends to have, and a test has
 // no business writing to the contributor's log file either way.
-function silentLogging() {
+// `overrides` replaces any of the functions, for a test that reads what was
+// logged.
+function silentLogging(overrides = {}) {
 	return {
 		'./logging': {
 			initLogging: () => {},
@@ -356,7 +365,8 @@ function silentLogging() {
 			logChildOutput: () => {},
 			flushChildOutput: () => {},
 			logEvent: () => {},
-			logError: () => {}
+			logError: () => {},
+			...overrides
 		}
 	};
 }
@@ -1872,7 +1882,7 @@ test('settings:set asks the disk whether the folder is there', async (t) => {
 	const settings = fakeSettingsStore();
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', newSiteLocation: folder } });
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', newSiteLocation: folder } });
 	const gone = await main.invoke('settings:set', 'newSiteLocation', path.join(folder, 'gone'));
 	assert.equal(gone.ok, false);
 	assert.equal(settings.values.preferences.newSiteLocation, folder);
@@ -1887,10 +1897,63 @@ test('settings:set refuses a key that is not a setting without writing, whatever
 	const settings = fakeSettingsStore({ preferences: { wporgHandle: 'janedoe' } });
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	assert.equal((await main.invoke('settings:set', 'theme', folder)).ok, false);
+	assert.equal((await main.invoke('settings:set', 'editor', folder)).ok, false);
 	assert.equal((await main.invoke('settings:set', '__proto__', folder)).ok, false);
 	assert.equal((await main.invoke('settings:set', 'newSiteLocation', 'sites')).ok, false, 'a path that is not a full one');
 	assert.deepEqual(settings.values.preferences, { wporgHandle: 'janedoe' });
+});
+
+// The theme (#560) is Electron's to apply: main gives it `nativeTheme`, and
+// Chromium answers the page's `prefers-color-scheme` from that.
+test('settings:set gives the theme to Electron as it is kept, and the fallback when it is forgotten (#560)', async () => {
+	const settings = fakeSettingsStore();
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.equal((await main.invoke('settings:set', 'theme', 'dark')).settings.theme, 'dark');
+	assert.equal(main.electron.nativeTheme.themeSource, 'dark');
+	assert.equal(settings.values.preferences.theme, 'dark');
+
+	// A refusal leaves it.
+	assert.equal((await main.invoke('settings:set', 'theme', 'custom')).ok, false);
+	assert.equal(main.electron.nativeTheme.themeSource, 'dark');
+
+	assert.equal((await main.invoke('settings:set', 'theme', null)).settings.theme, 'system');
+	assert.equal(main.electron.nativeTheme.themeSource, 'system');
+
+	// Another setting does not touch it.
+	await main.invoke('settings:set', 'theme', 'light');
+	await main.invoke('settings:set', 'wpDebug', false);
+	assert.equal(main.electron.nativeTheme.themeSource, 'light');
+});
+
+test('the ready path gives Electron the stored theme before the window is made, and makes the window in it (#560)', async () => {
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { theme: 'dark' } }).stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
+	await menuBuilt(main);
+
+	assert.equal(main.electron.nativeTheme.themeSource, 'dark');
+	assert.equal(main.windows.length, 1);
+	assert.equal(main.windows[0].options.backgroundColor, '#1e1e1e', 'a dark window is made dark, not white until its page paints');
+});
+
+test('the ready path makes a light window light, and a store that cannot be read leaves the system\'s theme (#560)', async () => {
+	const light = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore({ preferences: { theme: 'light' } }).stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
+	await menuBuilt(light);
+	assert.equal(light.electron.nativeTheme.themeSource, 'light');
+	assert.equal(light.windows[0].options.backgroundColor, '#fcfcfc');
+
+	const logged = [];
+	const broken = loadMain({
+		ready: true,
+		stubs: {
+			...silentLogging({ logError: (scope, message) => logged.push([scope, message]) }),
+			'./settings-store': { getStore: async () => { throw new Error('settings.json is not JSON'); }, peekStore: () => null },
+			'./i18n.cjs': { resolveCatalog: async () => null }
+		}
+	});
+	await menuBuilt(broken);
+	assert.equal(broken.electron.nativeTheme.themeSource, 'system');
+	assert.equal(broken.windows.length, 1, 'the window still opens');
+	assert.ok(logged.some(([scope, message]) => scope === 'theme' && message.includes('settings.json is not JSON')), `logged: ${JSON.stringify(logged)}`);
 });
 
 // The menu's Settings… reaches the main window and brings it forward, and
@@ -6544,10 +6607,10 @@ test('settings:set keeps a language the build has, and refuses one it has not (#
 		stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null, languageChoices: () => [{ tag: 'de', label: 'Deutsch' }, { tag: 'en', label: 'English' }] } }
 	});
 
-	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', newSiteLocation: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', newSiteLocation: null } });
 	assert.equal((await main.invoke('settings:set', 'locale', 'fr')).ok, false);
 	assert.equal(settings.values.preferences.locale, 'de');
-	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', newSiteLocation: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', newSiteLocation: null } });
 });
 
 test('app:relaunch relaunches through a quit, so the child sweep runs, without the launch\'s link or --lang (#559)', async (t) => {

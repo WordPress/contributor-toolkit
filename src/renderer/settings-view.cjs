@@ -124,6 +124,20 @@ function quitItems() {
 }
 
 /**
+ * The entries of the theme control (#560): light, dark, or the operating
+ * system's. The prototype's fourth, a custom pair of colours, is not offered.
+ *
+ * @return {Array<{value: string, label: string}>}
+ */
+function themeItems() {
+	return [
+		{ value: 'light', label: __('Light') },
+		{ value: 'dark', label: __('Dark') },
+		{ value: 'system', label: __('System') }
+	];
+}
+
+/**
  * What the next launch starts for a site, from the list the last quit left:
  * its server, its watch, both, or nothing.
  *
@@ -138,4 +152,4 @@ function resumeFor(resume, sitePath) {
 	return server || watch ? { server, watch } : null;
 }
 
-module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, resumeFor, SYSTEM_LANGUAGE };
+module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, resumeFor, SYSTEM_LANGUAGE };

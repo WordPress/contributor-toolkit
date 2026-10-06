@@ -12,19 +12,19 @@ const languages = (tags) => ({ isLanguage: (tag) => tags.includes(tag) });
 const php = (versions) => ({ isPhpVersion: (version) => versions.includes(version) });
 
 test('readSettings falls back for a store with nothing in it, and for values of the wrong kind', () => {
-	const fallbacks = { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', newSiteLocation: null };
+	const fallbacks = { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', newSiteLocation: null };
 	assert.deepEqual(readSettings(), fallbacks);
 	assert.deepEqual(readSettings(undefined), fallbacks);
 	assert.deepEqual(readSettings({}), fallbacks);
-	assert.deepEqual(readSettings({ newSiteLocation: 42, locale: ['de'], phpVersion: 8.4, wpDebug: 'false', scriptDebug: 0, autoStartServer: 'yes', autoStartWatch: 1, quitBehavior: 'leave' }), fallbacks);
+	assert.deepEqual(readSettings({ newSiteLocation: 42, locale: ['de'], phpVersion: 8.4, wpDebug: 'false', scriptDebug: 0, autoStartServer: 'yes', autoStartWatch: 1, quitBehavior: 'leave', theme: 'custom' }), fallbacks);
 	assert.deepEqual(readSettings({ newSiteLocation: '', locale: '', phpVersion: '', wpDebug: null, scriptDebug: null }), fallbacks);
 	assert.deepEqual(readSettings('not an object'), fallbacks);
 });
 
 test('readSettings gives back a stored folder without asking the disk about it', () => {
 	assert.deepEqual(
-		readSettings({ newSiteLocation: '/Users/jane/sites', locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false, autoStartServer: true, autoStartWatch: true, quitBehavior: 'restart' }),
-		{ locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false, autoStartServer: true, autoStartWatch: true, quitBehavior: 'restart', newSiteLocation: '/Users/jane/sites' }
+		readSettings({ newSiteLocation: '/Users/jane/sites', locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false, autoStartServer: true, autoStartWatch: true, quitBehavior: 'restart', theme: 'dark' }),
+		{ locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false, autoStartServer: true, autoStartWatch: true, quitBehavior: 'restart', theme: 'dark', newSiteLocation: '/Users/jane/sites' }
 	);
 });
 
@@ -54,7 +54,7 @@ test('a folder is refused when it is not a string, not a full path, or not on th
 
 test('a key that is not a setting is refused, and nothing is asked of the disk', () => {
 	let asked = 0;
-	const result = acceptSetting('theme', 'dark', { isAbsolute: () => { asked++; return true; }, isDirectory: () => { asked++; return true; } });
+	const result = acceptSetting('editor', 'vim', { isAbsolute: () => { asked++; return true; }, isDirectory: () => { asked++; return true; } });
 	assert.equal(result.ok, false);
 	assert.equal(asked, 0);
 });
@@ -89,6 +89,15 @@ test('a debug flag is on or off, nothing means the fallback, and a string is ref
 		assert.deepEqual(acceptSetting(key, null, {}), { ok: true, value: null }, key);
 		assert.deepEqual(acceptSetting(key, 'false', {}), { ok: false, error: 'Choose on or off.' }, key);
 	}
+});
+
+test('the theme is light, dark or system, nothing means the system\'s, and the prototype\'s custom is refused (#560)', () => {
+	for (const theme of ['light', 'dark', 'system']) assert.deepEqual(acceptSetting('theme', theme, {}), { ok: true, value: theme });
+	assert.deepEqual(acceptSetting('theme', null, {}), { ok: true, value: null });
+	assert.deepEqual(acceptSetting('theme', '', {}), { ok: true, value: null });
+	assert.deepEqual(acceptSetting('theme', 'custom', {}), { ok: false, error: 'Choose light, dark, or your system’s theme.' });
+	assert.equal(acceptSetting('theme', 'Dark', {}).ok, false);
+	assert.equal(acceptSetting('theme', true, {}).ok, false);
 });
 
 test('what happens on quit is stop or restart, nothing means the fallback, and anything else is refused', () => {
