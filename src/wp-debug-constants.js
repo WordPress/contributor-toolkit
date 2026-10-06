@@ -7,10 +7,13 @@
 // work actually runs on — were invisible, and a fatal was replaced by
 // WordPress's recovery screen.
 //
-// Not configurable, and deliberately so. A wordpress-develop checkout is a
-// development environment by definition; nobody sets one up through this app to
-// observe production behaviour. A settings panel here would be one more thing to
-// find, get wrong, and support at a Contributor Day.
+// Two of them, WP_DEBUG and SCRIPT_DEBUG, can be turned off in the settings
+// (#559), for the contributor whose work is about what a site does with them
+// off; the rest are not configurable, and deliberately so. A wordpress-develop
+// checkout is a development environment by definition; nobody sets one up
+// through this app to observe production behaviour, and a setting for each
+// constant would be one more thing to find, get wrong, and support at a
+// Contributor Day. `debugConstants` is the set as a server is booted with it.
 //
 // Kept free of Electron and Playground imports so it can be unit-tested: the
 // values are the whole of the behaviour, so a test that reads them is a test of
@@ -66,4 +69,23 @@ const WP_DEBUG_CONSTANTS = Object.freeze({
 	// does not install yet.
 });
 
-module.exports = { WP_DEBUG_CONSTANTS };
+/**
+ * The constants a server is booted with: the set above, with the two the
+ * settings can turn off turned off where they are. Everything else stays as
+ * it is: with WP_DEBUG off, WordPress reads neither WP_DEBUG_LOG nor
+ * WP_DEBUG_DISPLAY, and leaving them on costs nothing.
+ *
+ * @param {Object}  [debug]
+ * @param {boolean} [debug.wpDebug]     WP_DEBUG; on unless told otherwise.
+ * @param {boolean} [debug.scriptDebug] SCRIPT_DEBUG; on unless told otherwise.
+ * @return {Object} The constants, frozen.
+ */
+function debugConstants({ wpDebug = true, scriptDebug = true } = {}) {
+	return Object.freeze({
+		...WP_DEBUG_CONSTANTS,
+		WP_DEBUG: wpDebug !== false,
+		SCRIPT_DEBUG: scriptDebug !== false
+	});
+}
+
+module.exports = { WP_DEBUG_CONSTANTS, debugConstants };

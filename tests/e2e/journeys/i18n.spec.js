@@ -89,6 +89,12 @@ test( 'the settings dialog is fully translatable, on both of its tabs', async ( 
 	await expect( dialog.getByText( pseudoLocalize( 'Not set: the create-site dialog asks each time.' ), { exact: true } ) ).toBeVisible();
 	expect( await unwrapped( dialog ) ).toEqual( [] );
 
+	// The Sites tab, once it has the PHP versions: their numbers are not
+	// words and stay as they are.
+	await dialog.getByRole( 'tab', { name: pseudoLocalize( 'Sites' ), exact: true } ).click();
+	await expect( dialog.getByRole( 'radio', { name: '8.3', exact: true } ) ).toBeChecked();
+	expect( ( await unwrapped( dialog ) ).filter( ( text ) => ! /^\d+\.\d+$/.test( text ) ) ).toEqual( [] );
+
 	// The Account tab, once it has read the GitHub account: the line about it
 	// is main's answer put into words here.
 	await dialog.getByRole( 'tab', { name: pseudoLocalize( 'Account' ), exact: true } ).click();

@@ -1872,7 +1872,7 @@ test('settings:set asks the disk whether the folder is there', async (t) => {
 	const settings = fakeSettingsStore();
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, newSiteLocation: folder } });
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, newSiteLocation: folder } });
 	const gone = await main.invoke('settings:set', 'newSiteLocation', path.join(folder, 'gone'));
 	assert.equal(gone.ok, false);
 	assert.equal(settings.values.preferences.newSiteLocation, folder);
@@ -2628,9 +2628,10 @@ test('playground:start spawns the server runner with the environment npm-runner 
 	assert.equal(buildChildEnv.calls[0][0].extraEnv.WP_MAIL_SMTP_PORT, '25');
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'playground:start');
 	// The runner is told what to serve as one JSON argument: a Core site's
-	// build/ as the docroot, run from that directory as before (#251).
+	// build/ as the docroot, run from that directory as before (#251), and
+	// what the settings hold for a server, at their fallbacks here (#559).
 	const serve = JSON.parse(cp.spawned[0].args[1]);
-	assert.deepEqual(serve, { strategy: 'docroot', docroot: path.join('/sites/wp', 'build') });
+	assert.deepEqual(serve, { strategy: 'docroot', docroot: path.join('/sites/wp', 'build'), phpVersion: '8.3', debug: { wpDebug: true, scriptDebug: true } });
 	assert.equal(cp.spawned[0].options.cwd, path.join('/sites/wp', 'build'));
 });
 
@@ -2651,9 +2652,51 @@ test('playground:start serves a Gutenberg site as a plugin mounted from the chec
 
 	assert.equal(path.basename(cp.spawned[0].args[0]), 'server-runner.js');
 	const serve = JSON.parse(cp.spawned[0].args[1]);
-	assert.deepEqual(serve, { strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: 'gutenberg' });
+	assert.deepEqual(serve, { strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: 'gutenberg', phpVersion: '8.3', debug: { wpDebug: true, scriptDebug: true } });
 	// There is no build/ docroot to run from: the checkout is the plugin.
 	assert.equal(cp.spawned[0].options.cwd, '/sites/gb');
+});
+
+// The settings reach the server through the config the runner is handed
+// (#559), read at each start; a version the bundled Playground does not have,
+// left in the store by a bump, is passed over for the fallback.
+test('playground:start hands the runner the PHP version and the debug flags from the settings', async (t) => {
+	const settings = fakeSettingsStore({ preferences: { phpVersion: '8.4', wpDebug: false } });
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) } }
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground:start', '/sites/wp'));
+
+	const serve = JSON.parse(cp.spawned[0].args[1]);
+	assert.equal(serve.phpVersion, '8.4');
+	assert.deepEqual(serve.debug, { wpDebug: false, scriptDebug: true });
+});
+
+test('playground:start passes over a stored PHP version the bundled Playground no longer has', async (t) => {
+	const settings = fakeSettingsStore({ preferences: { phpVersion: '5.6' } });
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...noSmtpServer(), ...settings.stubs, 'child_process': { spawn: cp.spawn }, './npm-runner': { buildChildEnv: () => ({}) } }
+	});
+
+	await reachSpawn(t, cp, main.invoke('playground:start', '/sites/wp'));
+
+	assert.equal(JSON.parse(cp.spawned[0].args[1]).phpVersion, '8.3');
+});
+
+test('playground:php-versions lists what the bundled Playground has, and settings:set keeps only one of those (#559)', async () => {
+	const settings = fakeSettingsStore();
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	const { versions } = await main.invoke('playground:php-versions');
+	assert.ok(versions.includes('8.3'), 'the fallback is one the bundle has');
+	assert.deepEqual(await main.invoke('settings:set', 'phpVersion', versions[0]), { ok: true, settings: { ...(await main.invoke('settings:get')).settings, phpVersion: versions[0] } });
+	assert.equal((await main.invoke('settings:set', 'phpVersion', '5.6')).ok, false);
+	assert.equal(settings.values.preferences.phpVersion, versions[0]);
+	assert.deepEqual(await main.invoke('settings:set', 'wpDebug', false), { ok: true, settings: { ...(await main.invoke('settings:get')).settings, wpDebug: false } });
+	assert.equal((await main.invoke('settings:set', 'wpDebug', 'off')).ok, false);
 });
 
 test('playground-web:start spawns its runner through npm-runner too', async (t) => {
@@ -6404,10 +6447,10 @@ test('settings:set keeps a language the build has, and refuses one it has not (#
 		stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null, languageChoices: () => [{ tag: 'de', label: 'Deutsch' }, { tag: 'en', label: 'English' }] } }
 	});
 
-	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', newSiteLocation: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, newSiteLocation: null } });
 	assert.equal((await main.invoke('settings:set', 'locale', 'fr')).ok, false);
 	assert.equal(settings.values.preferences.locale, 'de');
-	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, newSiteLocation: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, newSiteLocation: null } });
 });
 
 test('app:relaunch relaunches through a quit, so the child sweep runs, without the launch\'s link or --lang (#559)', async (t) => {
@@ -6537,6 +6580,7 @@ const NO_DELEGATION = new Map([
 	['dialog:choose-dir', 'opens the directory dialog'],
 	['dialog:choose-patch-file', 'opens the file-open dialog and reads the chosen file'],
 	['playground-web:available', 'checks a path on disk'],
+	['playground:php-versions', 'reads the list the bundled Playground publishes; asserted with settings:set above'],
 	['provenance:get', 'electron-store read'],
 	['smtp:get', 'electron-store read'],
 	['smtp:clear', 'electron-store write'],

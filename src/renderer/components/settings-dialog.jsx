@@ -1,6 +1,11 @@
 import { useEffect, useId, useMemo, useState } from 'react';
+// The segmented control the design has for a choice of a few. The design
+// system has no other, and documents this one under these names: it is
+// stable in use and has not been given its final export yet.
+// eslint-disable-next-line @wordpress/no-unsafe-wp-apis -- see above.
+import { __experimentalToggleGroupControl as ToggleGroupControl, __experimentalToggleGroupControlOption as ToggleGroupControlOption } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { Button, Dialog, InputControl, Notice, SelectControl, Stack, Tabs, Text } from '@wordpress/ui';
+import { Button, Dialog, InputControl, Notice, SelectControl, Stack, SwitchControl, Tabs, Text } from '@wordpress/ui';
 import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, SYSTEM_LANGUAGE } from '../settings-view.cjs';
 import { FolderField } from './folder-field.jsx';
 
@@ -128,6 +133,70 @@ function GeneralTab({ settings, loaded, onChange }) {
   );
 }
 
+// What a site's development server runs with: the PHP it runs on, from the
+// versions the bundled Playground has, and the two debug constants that can
+// be turned off. Applied the next time a server starts; one that is running
+// keeps what it started with until it is started again.
+function SitesTab({ settings, onChange }) {
+  const [versions, setVersions] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    window.api.listPhpVersions()
+      .then((res) => { if (!cancelled && res?.ok) setVersions(res.versions); })
+      .catch(() => { if (!cancelled) setVersions([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const keep = async (key, value) => {
+    const result = await onChange(key, value);
+    setError(result?.ok ? '' : (result?.error || __('Could not keep that.')));
+  };
+  // The version set is offered even where the list does not have it, so
+  // the control shows what is set rather than nothing.
+  const offered = versions && settings && !versions.includes(settings.phpVersion) ? [settings.phpVersion, ...versions] : versions;
+
+  return (
+    <Stack direction="column" gap="xl">
+      <Text variant="heading-lg" render={<h3 />}>{__('Development server')}</Text>
+      <Text variant="body-sm">{__('Applies the next time a site’s server starts. A server that is running keeps what it started with.')}</Text>
+      <ToggleGroupControl
+        __nextHasNoMarginBottom
+        __next40pxDefaultSize
+        isBlock
+        label={__('PHP version')}
+        value={settings ? settings.phpVersion : undefined}
+        disabled={!settings || !offered}
+        onChange={(value) => { if (value) keep('phpVersion', value); }}
+      >
+        {(offered || []).map((version) => (
+          <ToggleGroupControlOption key={version} value={version} label={version} />
+        ))}
+      </ToggleGroupControl>
+      <SwitchControl
+        label={__('Show PHP errors (WP_DEBUG)')}
+        description={__('Notices, warnings and deprecations are reported, written to debug.log and shown in the browser. Off, the debug.log tab has nothing new to show.')}
+        checked={settings ? settings.wpDebug : true}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('wpDebug', checked)}
+      />
+      <SwitchControl
+        label={__('Use unminified scripts (SCRIPT_DEBUG)')}
+        description={__('Core serves its JavaScript and CSS unminified, so they can be read and stepped through in the browser.')}
+        checked={settings ? settings.scriptDebug : true}
+        disabled={!settings}
+        onCheckedChange={(checked) => keep('scriptDebug', checked)}
+      />
+      {error ? (
+        <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
+          <Notice.Description>{error}</Notice.Description>
+        </Notice.Root>
+      ) : null}
+    </Stack>
+  );
+}
+
 // Who the contributor is, as the mentor handoff asks it (#166) and through
 // the same answers (useContributorProvenance), so that the two never
 // disagree; and the GitHub account the app acts for (#167), which is signed
@@ -249,12 +318,16 @@ function SettingsPanels({ settings, loaded, onChange, wporg }) {
         <div className="settings-tabs-bar">
           <Tabs.List variant="minimal" className="settings-tabs">
             <Tabs.Tab value="general">{__('General')}</Tabs.Tab>
+            <Tabs.Tab value="sites">{__('Sites')}</Tabs.Tab>
             <Tabs.Tab value="account">{__('Account')}</Tabs.Tab>
           </Tabs.List>
           <hr className="card-divider" />
         </div>
         <Tabs.Panel value="general" tabIndex={-1} className="settings-panel">
           <GeneralTab settings={settings} loaded={loaded} onChange={onChange} />
+        </Tabs.Panel>
+        <Tabs.Panel value="sites" tabIndex={-1} className="settings-panel">
+          <SitesTab settings={settings} onChange={onChange} />
         </Tabs.Panel>
         <Tabs.Panel value="account" tabIndex={-1} className="settings-panel">
           <AccountTab wporg={wporg} />

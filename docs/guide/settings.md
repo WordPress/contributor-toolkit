@@ -7,6 +7,14 @@ The app's settings are in one dialog, opened from the cog at the bottom right of
 - **Language** — which language the app is shown in: your system's language, which is the default, or one of the languages the app has a translation for. A change applies after a relaunch, which the dialog offers; relaunching stops running servers and builds, as quitting does. Translations come from [translate.wordpress.org](https://translate.wordpress.org/projects/meta/contributor-toolkit/) and ship with the app once they are mostly complete, so the list grows from release to release.
 - **New sites go here** — the folder new sites are created in, each in a subfolder of its own. With one set, the [create-site dialog](./creating-a-site) starts on it; you can still pick another folder for one site without changing the setting. **Forget this folder** clears it, and the dialog goes back to asking each time. A folder that no longer exists is refused when you choose it.
 
+## Sites
+
+What every site's development server runs with. A change applies the next time a server starts; one that is running keeps what it started with until you stop and start it.
+
+- **PHP version** — the PHP the site runs on, from the versions the bundled WordPress Playground has. 8.3 unless you choose another.
+- **Show PHP errors (WP_DEBUG)** — on, notices, warnings and deprecations are reported, written to `debug.log` and shown in the browser; see [Logs and debugging](./logs-and-debugging). Off, the **debug.log** tab has nothing new to show.
+- **Use unminified scripts (SCRIPT_DEBUG)** — on, Core serves its JavaScript and CSS unminified.
+
 ## Account
 
 - **WordPress.org username** and **Event** — who a patch you [hand to a mentor](./submit-mentor) says it is from, and where it was written. The same two answers the handoff asks for, so changing them here changes them there. Leave the event empty when you are not at one. A profile link pasted as the username is kept as the username it names.

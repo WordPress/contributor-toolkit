@@ -111,6 +111,9 @@ contextBridge.exposeInMainWorld('api', {
 ,
 	relaunch: () => ipcRenderer.invoke('app:relaunch')
 ,
+	// The PHP versions a site's server can run on, for the settings.
+	listPhpVersions: () => ipcRenderer.invoke('playground:php-versions')
+,
 	// The menu's "Settings…" asked for the dialog.
 	subscribeSettingsOpen: (handler) => {
 		const h = () => handler && handler();

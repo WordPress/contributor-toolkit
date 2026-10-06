@@ -66,6 +66,7 @@ const EXPECTED_API_KEYS = [
 	'listBranches',
 	'listEditors',
 	'listLanguages',
+	'listPhpVersions',
 	'listTicketPatches',
 	'listTracAttachments',
 	'markSiteInitialized',
