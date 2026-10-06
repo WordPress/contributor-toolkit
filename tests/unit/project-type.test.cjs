@@ -92,7 +92,7 @@ test('every project type carries the full shape consumers depend on', () => {
 		}
 		// Every target opens pull requests (#251), so every target carries the
 		// whole destination's copy.
-		for (const key of ['prBlockedNote', 'prCost', 'prAfter', 'signInCannot', 'prNotesHelp', 'prLoopBack']) {
+		for (const key of ['prBlockedNote', 'prCost', 'prAfter', 'signInCannot', 'prNotesHelp', 'prLoopBack', 'prNeedsWorkItem']) {
 			assert.equal(typeof cfg.cards[key], 'string', `${id}: cards.${key}`);
 		}
 		assert.equal(typeof cfg.cards.prHow.summary, 'string', `${id}: cards.prHow.summary`);

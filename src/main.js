@@ -1291,7 +1291,7 @@ ipcMain.handle('github:sign-in', async (event) => {
 
 ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
     if (!githubToken || !githubLogin) {
-        return { ok: false, reason: 'unauthorized', error: 'Sign in to GitHub first.', stage: 'auth' };
+        return { ok: false, reason: 'unauthorized', error: __('Sign in to GitHub first.'), stage: 'auth' };
     }
 
     // The ticket is read from this site's stored metadata rather than taken
@@ -1307,7 +1307,7 @@ ipcMain.handle('github:open-pr', async (event, sitePath, options = {}) => {
     const project = projectTypeForSite(meta);
     const ticketId = meta.tracTicket;
     if (!ticketId) {
-        return { ok: false, reason: 'no-ticket', error: `Link a ${project.workItem.label} to this site first. A pull request has to cite one.`, stage: 'auth' };
+        return { ok: false, reason: 'no-ticket', error: project.cards.prNeedsWorkItem, stage: 'auth' };
     }
     const ownershipRefusal = await appliedPatchSubmissionRefusal(sitePath);
     if (ownershipRefusal) return { ...ownershipRefusal, stage: 'ownership' };
