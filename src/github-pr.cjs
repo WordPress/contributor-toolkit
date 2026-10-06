@@ -32,6 +32,7 @@
  * patch file, which is always still there — but not the same explanation.
  */
 
+const { __, _n, sprintf } = require('@wordpress/i18n');
 const { getJson, postJson } = require('./github-http.cjs');
 const { classifyHttpFailure } = require('./patch-sources.cjs');
 const { ticketUrl } = require('./renderer/trac-ticket.cjs');
@@ -159,8 +160,22 @@ function classifyFailure(res) {
  * @return {{ok: false, reason: string, error: string}}
  */
 function failure(res, what) {
-	const detail = res.json && res.json.message ? res.json.message : `GitHub returned ${res.status}`;
-	return { ok: false, reason: classifyFailure(res), error: `${what}: ${detail}${describeResponse(res)}` };
+	let detail = res.json && res.json.message;
+	if (!detail) {
+		// translators: %s: an HTTP status code, such as 500.
+		detail = sprintf(__('GitHub returned %s'), res.status);
+	}
+	return {
+		ok: false,
+		reason: classifyFailure(res),
+		error: sprintf(
+			// translators: 1: what failed, such as "Could not create the branch". 2: GitHub's reason, which is in English. 3: technical details in square brackets, for GitHub support.
+			__('%1$s: %2$s%3$s'),
+			what,
+			detail,
+			describeResponse(res)
+		)
+	};
 }
 
 /**
@@ -276,7 +291,12 @@ async function ensureFork({ token, login }, deps = {}) {
 	const notAFork = () => ({
 		ok: false,
 		reason: 'error',
-		error: `You already have a repository named ${up.repo} that is not a fork of ${up.owner}/${up.repo}, so there is nowhere to push this. The patch file still works.`
+		error: sprintf(
+			// translators: 1: a repository name, such as wordpress-develop. 2: the repository it should be a fork of, such as WordPress/wordpress-develop.
+			__('You already have a repository named %1$s that is not a fork of %2$s, so there is nowhere to push this. The patch file still works.'),
+			up.repo,
+			`${up.owner}/${up.repo}`
+		)
 	});
 
 	// Ready means the fork's own trunk ref answers — not that the repo
@@ -295,7 +315,7 @@ async function ensureFork({ token, login }, deps = {}) {
 		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
 	}
 	if (existing.status === 200 && !isOurFork(existing.json)) return notAFork();
-	if (existing.status !== 200 && existing.status !== 404) return failure(existing, 'Could not check for your fork');
+	if (existing.status !== 200 && existing.status !== 404) return failure(existing, __('Could not check for your fork'));
 
 	let created = false;
 	if (existing.status === 404) {
@@ -305,7 +325,11 @@ async function ensureFork({ token, login }, deps = {}) {
 		} catch (e) {
 			return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
 		}
-		if (forked.status !== 202 && forked.status !== 200) return failure(forked, `Could not fork ${up.repo}`);
+		if (forked.status !== 202 && forked.status !== 200) return failure(forked, sprintf(
+			// translators: %s: a repository name, such as wordpress-develop.
+			__('Could not fork %s'),
+			up.repo
+		));
 		created = true;
 	}
 
@@ -319,7 +343,7 @@ async function ensureFork({ token, login }, deps = {}) {
 			// 404 is the fork still initialising, the state this loop exists to
 			// wait out. Anything else — a token revoked mid-wait, a spent rate
 			// limit — will not resolve by waiting, so it is reported as itself.
-			if (ref.status !== 404) return failure(ref, 'Could not read your fork');
+			if (ref.status !== 404) return failure(ref, __('Could not read your fork'));
 			await wait(FORK_POLL_INTERVAL_MS);
 		}
 	} catch (e) {
@@ -329,7 +353,7 @@ async function ensureFork({ token, login }, deps = {}) {
 	return {
 		ok: false,
 		reason: 'error',
-		error: 'Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.'
+		error: __('Your fork is still being set up on GitHub — for a repository this size that can take a few minutes. Try again shortly; the patch file still works.')
 	};
 }
 
@@ -374,7 +398,11 @@ async function resolveBase({ token, login, baseSha }, deps = {}) {
 
 		const ref = await get(`${repo}/git/ref/heads/${base}`, { token });
 		if (ref.status !== 200 || !ref.json || !ref.json.object || !ref.json.object.sha) {
-			return failure(ref, `Could not read your fork’s ${base}`);
+			return failure(ref, sprintf(
+				// translators: %s: a branch name, such as trunk.
+				__('Could not read your fork’s %s'),
+				base
+			));
 		}
 		const tip = String(ref.json.object.sha);
 		return { ok: true, sha: tip, exact: tip === baseSha };
@@ -475,13 +503,17 @@ async function createTree({ token, login, baseTreeSha, files }, deps = {}) {
 				encoding: 'base64'
 			}, { token });
 			if (blob.status !== 201 || !blob.json || !blob.json.sha) {
-				return failure(blob, `Could not upload ${file.path}`);
+				return failure(blob, sprintf(
+					// translators: %s: the path of a file in the change.
+					__('Could not upload %s'),
+					file.path
+				));
 			}
 			entries.push({ path: file.path, mode: file.mode || DEFAULT_MODE, type: 'blob', sha: blob.json.sha });
 		}
 
 		const tree = await post(`${repo}/git/trees`, { base_tree: baseTreeSha, tree: entries }, { token });
-		if (tree.status !== 201 || !tree.json || !tree.json.sha) return failure(tree, 'Could not assemble the change');
+		if (tree.status !== 201 || !tree.json || !tree.json.sha) return failure(tree, __('Could not assemble the change'));
 		return { ok: true, sha: String(tree.json.sha) };
 	} catch (e) {
 		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
@@ -514,7 +546,7 @@ async function commitAndBranch({ token, login, ticketId, message, treeSha, paren
 			tree: treeSha,
 			parents: [parentSha]
 		}, { token });
-		if (commit.status !== 201 || !commit.json || !commit.json.sha) return failure(commit, 'Could not create the commit');
+		if (commit.status !== 201 || !commit.json || !commit.json.sha) return failure(commit, __('Could not create the commit'));
 		const sha = String(commit.json.sha);
 
 		let lastRes = null;
@@ -530,16 +562,20 @@ async function commitAndBranch({ token, login, ticketId, message, treeSha, paren
 				return {
 					ok: false,
 					reason: 'error',
-					error: `Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.${describeResponse(ref)}`
+					error: sprintf(
+						// translators: %s: technical details in square brackets, for GitHub support.
+						__('Your fork is still being set up on GitHub. Try again in a minute — the patch file still works.%s'),
+						describeResponse(ref)
+					)
 				};
 			}
 			// 422 is how GitHub says the reference already exists — the only
 			// status worth another name. Anything else is a real failure and
 			// retrying it nine more times would only slow down the report.
-			if (ref.status !== 422) return failure(ref, 'Could not create the branch');
+			if (ref.status !== 422) return failure(ref, __('Could not create the branch'));
 			lastRes = ref;
 		}
-		return failure(lastRes, 'Could not find an unused branch name');
+		return failure(lastRes, __('Could not find an unused branch name'));
 	} catch (e) {
 		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
 	}
@@ -568,7 +604,7 @@ async function createPullRequest({ token, login, branch, title, body }, deps = {
 			base: baseBranchFor(deps.project),
 			maintainer_can_modify: true
 		}, { token });
-		if (res.status !== 201 || !res.json || !res.json.html_url) return failure(res, 'Could not open the pull request');
+		if (res.status !== 201 || !res.json || !res.json.html_url) return failure(res, __('Could not open the pull request'));
 		return { ok: true, url: String(res.json.html_url), number: Number(res.json.number) };
 	} catch (e) {
 		return { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) };
@@ -609,7 +645,7 @@ async function openPullRequest({ token, login, ticketId, baseSha, files, title, 
 	const at = (stage, result) => ({ ...result, stage });
 
 	if (!files || files.length === 0) {
-		return { ok: false, reason: 'empty', error: 'There are no changes to open a pull request with.', stage: 'collect' };
+		return { ok: false, reason: 'empty', error: __('There are no changes to open a pull request with.'), stage: 'collect' };
 	}
 
 	report('forking');
@@ -633,7 +669,15 @@ async function openPullRequest({ token, login, ticketId, baseSha, files, title, 
 			return {
 				ok: false,
 				reason: 'stale',
-				error: `Trunk has moved under ${stale.clashes.length === 1 ? 'a file you edited' : 'files you edited'} (${stale.clashes.slice(0, 3).join(', ')}${stale.clashes.length > 3 ? ', …' : ''}). Update this site to the latest trunk, check your changes still apply, and try again.`,
+				error: sprintf(
+					// translators: %s: up to three file paths, separated by commas.
+					_n(
+						'Trunk has moved under a file you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.',
+						'Trunk has moved under files you edited (%s). Update this site to the latest trunk, check your changes still apply, and try again.',
+						stale.clashes.length
+					),
+					stale.clashes.slice(0, 3).join(', ') + (stale.clashes.length > 3 ? ', …' : '')
+				),
 				stage: 'syncing'
 			};
 		}
@@ -649,7 +693,7 @@ async function openPullRequest({ token, login, ticketId, baseSha, files, title, 
 		return at('syncing', { ok: false, reason: 'offline', error: String(e && e.message ? e.message : e) });
 	}
 	if (baseCommit.status !== 200 || !baseCommit.json || !baseCommit.json.tree) {
-		return at('syncing', failure(baseCommit, 'Could not read the base commit'));
+		return at('syncing', failure(baseCommit, __('Could not read the base commit')));
 	}
 
 	report('committing');
