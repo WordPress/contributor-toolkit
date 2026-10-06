@@ -3,9 +3,12 @@ import { useCallback, useEffect, useState } from 'react';
 // The app's settings (#559), held once for the window for the reason the
 // contributor's details are: they are about the person and the machine,
 // not about a checkout. `settings` is null until main has answered, so a
-// dialog opened before then can say it is still reading them.
+// dialog opened before then can say it is still reading them. `loaded` is
+// what main answered first and does not change: a setting that takes a
+// relaunch, the language, is one whose value now differs from it.
 export function useSettings() {
   const [settings, setSettings] = useState(null);
+  const [loaded, setLoaded] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -13,6 +16,7 @@ export function useSettings() {
       .then((res) => {
         if (cancelled || !res?.ok) return;
         setSettings(res.settings);
+        setLoaded(res.settings);
       })
       // eslint-disable-next-line no-console -- reaches the log file, see the note in useDetectedEditors.
       .catch((err) => console.error('Could not read the settings:', err));
@@ -35,5 +39,5 @@ export function useSettings() {
     return result;
   }, []);
 
-  return { settings, change };
+  return { settings, loaded, change };
 }

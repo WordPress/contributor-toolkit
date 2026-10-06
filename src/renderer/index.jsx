@@ -132,7 +132,7 @@ function App() {
   const wporg = useContributorProvenance();
   // The app's settings (#559), and the dialog they are changed in. The menu
   // asks for the dialog too, over a subscription the whole window holds.
-  const { settings, change: changeSetting } = useSettings();
+  const { settings, loaded: loadedSettings, change: changeSetting } = useSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
@@ -720,7 +720,7 @@ function App() {
         </div>
       )}
       <CreateSiteDialog open={createModalOpen} submitting={createSubmitting} defaultDir={settings ? settings.newSiteLocation : null} onCreate={startSiteSetup} onClose={closeCreateModal} />
-      <SettingsDialog open={settingsOpen} settings={settings} onChange={changeSetting} wporg={wporg} onClose={closeSettings} />
+      <SettingsDialog open={settingsOpen} settings={settings} loaded={loadedSettings} onChange={changeSetting} wporg={wporg} onClose={closeSettings} />
     </div>
     </SlotFillProvider>
     {/* One toast region for the window (#253, #557). In the bottom corner,

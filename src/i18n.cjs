@@ -140,4 +140,33 @@ async function resolveCatalog(locales, dir, log = () => {}) {
 	return null;
 }
 
-module.exports = { resolveCatalog, catalogCandidates, catalogsFromNames, slugTag };
+/**
+ * The languages the app can be asked to show (#559): English, which is the
+ * source, and one for each catalog among `names`, each named in itself
+ * ("Deutsch", "Português do Brasil") so that someone looking for their own
+ * finds it whatever the app is showing. Sorted by that name.
+ *
+ * A tag with no name of its own in the ICU data is shown as the tag. The
+ * slugs no operating system reports (`pirate`, `art-xemoji`) are not here,
+ * as they are not selectable from the OS list either.
+ *
+ * @param {string[]} names File names in the catalog directory.
+ * @return {Array<{tag: string, label: string}>}
+ */
+function languageChoices(names) {
+	const choices = [{ tag: 'en', label: 'English' }];
+	for (const tag of catalogsFromNames(names).keys()) {
+		if (tag === 'en') continue;
+		let label = tag;
+		try {
+			// ICU writes some names as they are mid-sentence ("português");
+			// a list's entries are written as its first word.
+			const named = new Intl.DisplayNames([tag], { type: 'language' }).of(tag) || tag;
+			label = named.charAt(0).toLocaleUpperCase(tag) + named.slice(1);
+		} catch {}
+		choices.push({ tag, label });
+	}
+	return choices.sort((a, b) => a.label.localeCompare(b.label, 'en'));
+}
+
+module.exports = { resolveCatalog, catalogCandidates, catalogsFromNames, slugTag, languageChoices };
