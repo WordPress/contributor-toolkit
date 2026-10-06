@@ -1,5 +1,7 @@
 'use strict';
 
+const { __, sprintf } = require('@wordpress/i18n');
+
 /**
  * What the card says while a pull request is being opened (#167). Each step is
  * named because they take visibly different amounts of time: forking is the
@@ -18,11 +20,13 @@
  */
 function prStageLabel(stage, repoPath) {
 	switch (stage) {
-		case 'forking': return `Creating your fork of ${repoPath}…`;
-		case 'syncing': return 'Bringing your fork up to date…';
-		case 'committing': return 'Uploading your changes…';
-		case 'opening': return 'Opening the pull request…';
-		default: return 'Working…';
+		case 'forking':
+			// translators: %s: the repository being forked, such as WordPress/gutenberg.
+			return sprintf(__('Creating your fork of %s…'), repoPath);
+		case 'syncing': return __('Bringing your fork up to date…');
+		case 'committing': return __('Uploading your changes…');
+		case 'opening': return __('Opening the pull request…');
+		default: return __('Working…');
 	}
 }
 

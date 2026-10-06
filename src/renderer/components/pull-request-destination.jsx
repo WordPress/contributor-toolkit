@@ -1,4 +1,6 @@
 import { Button, Spinner, TextControl, TextareaControl } from '@wordpress/components';
+import { createInterpolateElement } from '@wordpress/element';
+import { __, sprintf } from '@wordpress/i18n';
 import { Notice, Stack, Text } from '@wordpress/ui';
 import { copy as copyIcon, check as checkIcon } from '@wordpress/icons';
 import { prStageLabel } from '../pr-stage.cjs';
@@ -8,12 +10,15 @@ import { Destination } from './destination.jsx';
 // these still leaves the patch file, which is what the card offers underneath.
 // The no-ticket refusal is not here: the main process words it for the site's
 // work item (#251), and the fallback below shows that sentence as sent.
-const PR_FAILURE_MESSAGES = {
-  unauthorized: 'That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.',
-  'rate-limited': 'GitHub is rate-limiting this connection. It usually clears within the hour.',
-  offline: 'No connection to GitHub.',
-  empty: 'There are no changes to open a pull request with.'
-};
+function prFailureMessage(reason) {
+  switch (reason) {
+    case 'unauthorized': return __('That GitHub sign-in is no longer valid. Sign in again, or save the patch file instead.');
+    case 'rate-limited': return __('GitHub is rate-limiting this connection. It usually clears within the hour.');
+    case 'offline': return __('No connection to GitHub.');
+    case 'empty': return __('There are no changes to open a pull request with.');
+    default: return null;
+  }
+}
 
 // A notice here is not also spoken: the card it is in is being read.
 const SILENT = '';
@@ -53,12 +58,25 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
           */}
           {pr.result.dryRun ? (
             <Text variant="body-md" className="success-text">
-              Dry run — branch <Button variant="link" onClick={()=>window.api.openExternal(pr.result.url)}><code>{pr.result.branch}</code></Button> was created on your fork; no pull request was opened.
+              {createInterpolateElement(
+                // translators: <branch /> is the name of the branch pushed to the contributor's fork, as a link.
+                __('Dry run — branch <branch /> was created on your fork; no pull request was opened.'),
+                { branch: <Button variant="link" onClick={()=>window.api.openExternal(pr.result.url)}><code>{pr.result.branch}</code></Button> }
+              )}
             </Text>
           ) : (
           <Text variant="body-md" className="success-text">
-            Opened <Button variant="link" onClick={()=>window.api.openExternal(pr.result.url)}>pull request #{pr.result.number}</Button>
-            {' '}from <code>{pr.result.branch}</code>.
+            {createInterpolateElement(
+              sprintf(
+                // translators: %s: the number of the pull request, inside a link to it. <branch /> is the name of the branch it was opened from.
+                __('Opened <link>pull request #%s</link> from <branch />.'),
+                pr.result.number
+              ),
+              {
+                link: <Button variant="link" onClick={()=>window.api.openExternal(pr.result.url)} />,
+                branch: <code>{pr.result.branch}</code>
+              }
+            )}
           </Text>
           )}
           {/*
@@ -70,7 +88,7 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
           {pr.result.exactBase === false ? (
             <Notice.Root intent="warning" spokenMessage={SILENT}>
               <Notice.Description>
-                Your checkout was behind trunk, so the branch was based on today&apos;s trunk. None of your files were changed upstream in between — the pull request shows only your work.
+                {__('Your checkout was behind trunk, so the branch was based on today\'s trunk. None of your files were changed upstream in between — the pull request shows only your work.')}
               </Notice.Description>
             </Notice.Root>
           ) : null}
@@ -84,11 +102,15 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
             <>
               <Text variant="body-sm">{project.cards.prLoopBack}</Text>
               <Button variant="secondary" onClick={pr.copyLink} icon={pr.linkCopied ? checkIcon : copyIcon}>
-                {pr.linkCopied ? 'Link copied' : 'Copy the link'}
+                {pr.linkCopied ? __('Link copied') : __('Copy the link')}
               </Button>
               {ticket ? (
                 <Button variant="primary" onClick={()=>window.api.openExternal(workItem.urlFor(ticket))}>
-                  Open #{ticket} to comment
+                  {sprintf(
+                    // translators: %s: the number of the ticket or issue the pull request is for.
+                    __('Open #%s to comment'),
+                    ticket
+                  )}
                 </Button>
               ) : null}
             </>
@@ -100,13 +122,13 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
     // Not yet asked, which is not the same as signed out: offering "Sign in"
     // before the answer arrives makes the card flicker on every open.
     if (account === null) {
-      return <Text variant="body-sm" className="muted-label">Checking…</Text>;
+      return <Text variant="body-sm" className="muted-label">{__('Checking…')}</Text>;
     }
 
     if (account.configured === false) {
       return (
         <Text variant="body-sm" className="muted-label">
-          This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.
+          {__('This build has no GitHub application configured, so it cannot open a pull request. The other destinations still work.')}
         </Text>
       );
     }
@@ -115,17 +137,21 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
       return (
         <>
           <Text variant="body-sm">
-            Enter this code at <strong>github.com/login/device</strong>, which has been opened in your browser.
+            {createInterpolateElement(
+              // translators: <address /> is GitHub's sign-in page, github.com/login/device.
+              __('Enter this code at <strong><address /></strong>, which has been opened in your browser.'),
+              { strong: <strong />, address: <>github.com/login/device</> }
+            )}
           </Text>
           <div className="device-code">{pr.deviceCode.userCode}</div>
           <Button variant="secondary" onClick={pr.copyDeviceCode} icon={pr.codeCopied ? checkIcon : copyIcon}>
-            {pr.codeCopied ? 'Code copied' : 'Copy the code'}
+            {pr.codeCopied ? __('Code copied') : __('Copy the code')}
           </Button>
           <Stack direction="row" align="center" justify="center" gap="sm">
             <Spinner />
-            <Text variant="body-sm" className="muted-label">Waiting for you to finish in the browser…</Text>
+            <Text variant="body-sm" className="muted-label">{__('Waiting for you to finish in the browser…')}</Text>
           </Stack>
-          <Text variant="body-sm"><Button variant="link" onClick={pr.cancelSignIn}>Cancel</Button></Text>
+          <Text variant="body-sm"><Button variant="link" onClick={pr.cancelSignIn}>{__('Cancel')}</Button></Text>
         </>
       );
     }
@@ -147,13 +173,17 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
                 value={pr.title}
                 onChange={pr.setTitle}
                 disabled={Boolean(pr.stage)}
-                placeholder="Reject a theme zip in the plugin installer"
-                label="Title"
-                help="What the change does, in one line. Reviewers scan these."
+                placeholder={__('Reject a theme zip in the plugin installer')}
+                label={__('Title')}
+                help={__('What the change does, in one line. Reviewers scan these.')}
               />
               {!pr.title.trim() ? (
                 <Text variant="body-sm" className="muted-label">
-                  Left empty, it will be titled <strong>{workItem.defaultPrTitle(ticket)}</strong>.
+                  {createInterpolateElement(
+                    // translators: <title /> is the title an untitled pull request gets, such as "Ticket #60001".
+                    __('Left empty, it will be titled <strong><title /></strong>.'),
+                    { strong: <strong />, title: <>{workItem.defaultPrTitle(ticket)}</> }
+                  )}
                 </Text>
               ) : null}
               {/*
@@ -167,8 +197,12 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
                 onChange={pr.setNotes}
                 disabled={Boolean(pr.stage)}
                 rows={4}
-                label="Notes for reviewers (optional)"
-                placeholder={'What the change does, and why.\nHow to see it working — the steps you used.\nAnything you are unsure about.'}
+                label={__('Notes for reviewers (optional)')}
+                placeholder={[
+                  __('What the change does, and why.'),
+                  __('How to see it working — the steps you used.'),
+                  __('Anything you are unsure about.')
+                ].join('\n')}
                 help={project.cards.prNotesHelp}
               />
               {/*
@@ -197,7 +231,7 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
                 onClick={pr.open}
                 isBusy={Boolean(pr.stage)}
                 disabled={Boolean(pr.stage)}
-              >{account?.testMode?.dryRun ? 'Push branch (dry run)' : 'Open pull request'}</Button>
+              >{account?.testMode?.dryRun ? __('Push branch (dry run)') : __('Open pull request')}</Button>
             </>
           ) : (
             <Text variant="body-sm" className="muted-label">{project.cards.prBlockedNote}</Text>
@@ -216,12 +250,22 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
                 you" answers what, this answers where — which account the fork
                 and the branch land in.
               */}
-              Signed in as {account.login} — the fork and branch go to{' '}
-              <Button
-                variant="link"
-                onClick={()=>window.api.openExternal(`https://github.com/${account.login}/${project.upstream.repo}`)}
-              >{account.login}/{project.upstream.repo}</Button>.{' '}
-              <Button variant="link" onClick={pr.signOut}>Sign out</Button>
+              <span>
+                {createInterpolateElement(
+                  // translators: <login /> is the contributor's GitHub username. <fork /> is their fork, such as janedoe/wordpress-develop, as a link.
+                  __('Signed in as <login /> — the fork and branch go to <fork />.'),
+                  {
+                    login: <>{account.login}</>,
+                    fork: (
+                      <Button
+                        variant="link"
+                        onClick={()=>window.api.openExternal(`https://github.com/${account.login}/${project.upstream.repo}`)}
+                      >{`${account.login}/${project.upstream.repo}`}</Button>
+                    )
+                  }
+                )}
+              </span>{' '}
+              <Button variant="link" onClick={pr.signOut}>{__('Sign out')}</Button>
             </Text>
           )}
         </>
@@ -232,9 +276,9 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
       return (
         <>
           <Text variant="body-sm" className="muted-label">
-            Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.
+            {__('Nothing was signed in and nothing was sent. The patch file is still yours to save, and the other destinations are unchanged.')}
           </Text>
-          <Text variant="body-sm"><Button variant="link" onClick={pr.askAgain}>Show this again</Button></Text>
+          <Text variant="body-sm"><Button variant="link" onClick={pr.askAgain}>{__('Show this again')}</Button></Text>
         </>
       );
     }
@@ -247,18 +291,22 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
           cliff is sprung rather than named.
         */}
         <Text variant="body-sm">
-          Signing in lets the app fork {project.upstream.repo} to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.
+          {sprintf(
+            // translators: %s: the repository the app forks, such as wordpress-develop.
+            __('Signing in lets the app fork %s to your account, push this patch to a branch there, and open the pull request. It signs you in through your browser, never asks for your password, and forgets the authorization when you quit.'),
+            project.upstream.repo
+          )}
         </Text>
         <Text variant="body-sm" className="muted-label">{project.cards.signInCannot}</Text>
-        <Button variant="primary" onClick={pr.startSignIn}>Sign in with GitHub</Button>
-        <Text variant="body-sm"><Button variant="link" onClick={pr.decline}>Not now</Button></Text>
+        <Button variant="primary" onClick={pr.startSignIn}>{__('Sign in with GitHub')}</Button>
+        <Text variant="body-sm"><Button variant="link" onClick={pr.decline}>{__('Not now')}</Button></Text>
       </>
     );
   };
 
   return (
     <Destination
-      title="Open a pull request"
+      title={__('Open a pull request')}
       cost={project.cards.prCost}
       after={project.cards.prAfter}
     >
@@ -271,11 +319,15 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
       */}
       {account?.testMode ? (
         <Notice.Root intent="neutral" spokenMessage={SILENT}>
-          <Notice.Title>Test mode</Notice.Title>
+          <Notice.Title>{__('Test mode')}</Notice.Title>
           <Notice.Description>
             {account.testMode.dryRun
-              ? 'Dry run — a branch is pushed to your fork, no pull request is opened.'
-              : <>Pull requests go to <code>{account.testMode.target}</code>, not to {upstreamPath}.</>}
+              ? __('Dry run — a branch is pushed to your fork, no pull request is opened.')
+              : createInterpolateElement(
+                // translators: <target /> is the sandbox repository pull requests are redirected to. <upstream /> is the repository they would otherwise go to, such as WordPress/wordpress-develop.
+                __('Pull requests go to <target />, not to <upstream />.'),
+                { target: <code>{account.testMode.target}</code>, upstream: <>{upstreamPath}</> }
+              )}
           </Notice.Description>
         </Notice.Root>
       ) : null}
@@ -284,13 +336,13 @@ export function PullRequestDestination({ pr, project, workItem, ticket, refusal,
       {pr.error ? (
         <>
           <Text variant="body-sm" className="problem-text" role="alert">
-            {PR_FAILURE_MESSAGES[pr.error.reason] || pr.error.error}
+            {prFailureMessage(pr.error.reason) || pr.error.error}
           </Text>
           {/*
             Every failure lands here, and every failure has the same floor: the
             file exists regardless of what GitHub did.
           */}
-          <Button variant="secondary" onClick={onSavePatch}>Save the patch file instead</Button>
+          <Button variant="secondary" onClick={onSavePatch}>{__('Save the patch file instead')}</Button>
         </>
       ) : null}
     </Destination>
