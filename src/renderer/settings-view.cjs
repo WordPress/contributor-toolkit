@@ -86,4 +86,27 @@ function languageChanged(settings, loaded) {
 	return (settings.locale || null) !== (loaded.locale || null);
 }
 
-module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, SYSTEM_LANGUAGE };
+/**
+ * Which PHP version the control shows as chosen, and what it says of one
+ * that is set but not among the versions the build has: a release can bump
+ * the bundled Playground past a version a contributor chose. The server
+ * then starts on the fallback, and the control shows that and says why,
+ * rather than showing a choice that is not what runs.
+ *
+ * @param {Object}  root0
+ * @param {?Array}  root0.versions What the build has, or null while it has not answered.
+ * @param {?string} root0.fallback What a server starts on when nothing is chosen, or null likewise.
+ * @param {?string} root0.stored   What is set, or null for the fallback.
+ * @return {{value: ?string, note: string}} The version to show as chosen, and a note or ''.
+ */
+function phpVersionChoice({ versions, fallback, stored }) {
+	if (!versions || !fallback) return { value: null, note: '' };
+	if (!stored || versions.includes(stored)) return { value: stored || fallback, note: '' };
+	return {
+		value: fallback,
+		// translators: %1$s: a PHP version that was chosen; %2$s: the PHP version used instead.
+		note: sprintf(__('PHP %1$s was chosen, but this version of the app does not have it; servers start on PHP %2$s.'), stored, fallback)
+	};
+}
+
+module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, SYSTEM_LANGUAGE };

@@ -85,7 +85,7 @@ How the app works from a user's point of view — the toolchain it bundles, keep
 
 - Integrate Playground's XDebug.
 - Explore bundling MySQL server with the app.
-- Potentially integrate with Studio to benefit from PHP version selector, wp-cli integration and other Studio features.
+- Potentially integrate with Studio to benefit from wp-cli integration and other Studio features.
 - Resolve conflicts in the app. Branches, commits and pushes are already handled for each work item, but when a work item's branch cannot move onto current trunk, the app still hands it to a mentor.
 - Internationalization: the app's interface available in several languages, not only English.
 

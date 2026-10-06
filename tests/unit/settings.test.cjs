@@ -9,19 +9,23 @@ const { SETTINGS, readSettings, acceptSetting } = require('../../src/settings.cj
 // What the disk says, as the test decides it.
 const disk = (folders) => ({ isAbsolute: path.posix.isAbsolute, isDirectory: (p) => folders.includes(p) });
 const languages = (tags) => ({ isLanguage: (tag) => tags.includes(tag) });
+const php = (versions) => ({ isPhpVersion: (version) => versions.includes(version) });
 
 test('readSettings falls back for a store with nothing in it, and for values of the wrong kind', () => {
-	const fallbacks = { locale: null, newSiteLocation: null };
+	const fallbacks = { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, newSiteLocation: null };
 	assert.deepEqual(readSettings(), fallbacks);
 	assert.deepEqual(readSettings(undefined), fallbacks);
 	assert.deepEqual(readSettings({}), fallbacks);
-	assert.deepEqual(readSettings({ newSiteLocation: 42, locale: ['de'] }), fallbacks);
-	assert.deepEqual(readSettings({ newSiteLocation: '', locale: '' }), fallbacks);
+	assert.deepEqual(readSettings({ newSiteLocation: 42, locale: ['de'], phpVersion: 8.4, wpDebug: 'false', scriptDebug: 0 }), fallbacks);
+	assert.deepEqual(readSettings({ newSiteLocation: '', locale: '', phpVersion: '', wpDebug: null, scriptDebug: null }), fallbacks);
 	assert.deepEqual(readSettings('not an object'), fallbacks);
 });
 
 test('readSettings gives back a stored folder without asking the disk about it', () => {
-	assert.deepEqual(readSettings({ newSiteLocation: '/Users/jane/sites', locale: 'de' }), { locale: 'de', newSiteLocation: '/Users/jane/sites' });
+	assert.deepEqual(
+		readSettings({ newSiteLocation: '/Users/jane/sites', locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false }),
+		{ locale: 'de', phpVersion: '8.4', wpDebug: false, scriptDebug: false, newSiteLocation: '/Users/jane/sites' }
+	);
 });
 
 test('readSettings answers for every setting there is', () => {
@@ -67,4 +71,22 @@ test('a language the app has no catalog for is refused, and so is anything that 
 	assert.deepEqual(acceptSetting('locale', 'fr', languages(['de', 'en'])), { ok: false, error: 'The app has no translation for that language.' });
 	assert.equal(acceptSetting('locale', ['de'], languages(['de'])).ok, false);
 	assert.equal(acceptSetting('locale', 42, languages(['de'])).ok, false);
+});
+
+test('a PHP version the bundled Playground has is kept, nothing means the fallback, and any other is refused', () => {
+	assert.deepEqual(acceptSetting('phpVersion', '8.4', php(['8.5', '8.4', '8.3'])), { ok: true, value: '8.4' });
+	for (const value of [null, undefined, '']) {
+		assert.deepEqual(acceptSetting('phpVersion', value, php([])), { ok: true, value: null }, String(value));
+	}
+	assert.deepEqual(acceptSetting('phpVersion', '7.4', php(['8.5', '8.4', '8.3'])), { ok: false, error: 'The app does not have that PHP version.' });
+	assert.equal(acceptSetting('phpVersion', 8.4, php(['8.4'])).ok, false);
+});
+
+test('a debug flag is on or off, nothing means the fallback, and a string is refused', () => {
+	for (const key of ['wpDebug', 'scriptDebug']) {
+		assert.deepEqual(acceptSetting(key, false, {}), { ok: true, value: false }, key);
+		assert.deepEqual(acceptSetting(key, true, {}), { ok: true, value: true }, key);
+		assert.deepEqual(acceptSetting(key, null, {}), { ok: true, value: null }, key);
+		assert.deepEqual(acceptSetting(key, 'false', {}), { ok: false, error: 'Choose on or off.' }, key);
+	}
 });

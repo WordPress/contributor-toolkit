@@ -22,6 +22,8 @@ const { pseudoLocalize } = require( '../../../src/renderer/pseudo-locale.cjs' );
 
 // Names that stay as they are in every language.
 const UNTRANSLATED = new Set( [ 'WordPress Core', 'Gutenberg' ] );
+// So do the names of WordPress's constants, which the details list (#559).
+const CONSTANT_NAMES = /^(WP_DEBUG|SCRIPT_DEBUG)( · (WP_DEBUG|SCRIPT_DEBUG))*$/;
 
 /**
  * Every visible text node, aria-label and placeholder inside `root` that is not
@@ -46,7 +48,7 @@ async function unwrapped( locator ) {
 		}
 		return texts;
 	} );
-	return found.filter( ( text ) => text && ! /^\[[\s\S]*\]$/.test( text ) && ! UNTRANSLATED.has( text ) );
+	return found.filter( ( text ) => text && ! /^\[[\s\S]*\]$/.test( text ) && ! UNTRANSLATED.has( text ) && ! CONSTANT_NAMES.test( text ) );
 }
 
 test( 'the first-run screen and the create-site dialog are fully translatable', async ( { session } ) => {
@@ -88,6 +90,12 @@ test( 'the settings dialog is fully translatable, on both of its tabs', async ( 
 	await expect( dialog ).toBeVisible();
 	await expect( dialog.getByText( pseudoLocalize( 'Not set: the create-site dialog asks each time.' ), { exact: true } ) ).toBeVisible();
 	expect( await unwrapped( dialog ) ).toEqual( [] );
+
+	// The Sites tab, once it has the PHP versions: their numbers are not
+	// words and stay as they are.
+	await dialog.getByRole( 'tab', { name: pseudoLocalize( 'Sites' ), exact: true } ).click();
+	await expect( dialog.getByRole( 'radio', { name: '8.3', exact: true } ) ).toBeChecked();
+	expect( ( await unwrapped( dialog ) ).filter( ( text ) => ! /^\d+\.\d+$/.test( text ) ) ).toEqual( [] );
 
 	// The Account tab, once it has read the GitHub account: the line about it
 	// is main's answer put into words here.

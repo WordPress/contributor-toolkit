@@ -722,6 +722,22 @@ function languages() {
 
 ipcMain.handle('i18n:languages', async () => ({ ok: true, languages: await languages() }));
 
+// The PHP versions the bundled Playground can run a site on (#559): what
+// its own module says, read once it is asked for. The module is the server
+// runner's and not otherwise main's, so it is loaded then and not at start.
+let phpVersionsList = null;
+function phpVersions() {
+	if (!phpVersionsList) {
+		// Not a declared dependency: it is @wp-playground/cli's, at whatever
+		// version that package pins, which is the one the runner serves with.
+		const { SupportedPHPVersions } = require('@php-wasm/universal');
+		phpVersionsList = [...SupportedPHPVersions];
+	}
+	return phpVersionsList;
+}
+
+ipcMain.handle('playground:php-versions', () => ({ ok: true, versions: phpVersions(), fallback: SETTINGS.phpVersion.fallback }));
+
 // What the settings dialog offers after the language is changed. `quit`, not
 // `exit`: the quit sweep ends every child the app started, as it does on any
 // quit, and the relaunch is a quit. The new instance gets this one's
@@ -3501,7 +3517,8 @@ ipcMain.handle('settings:set', async (_e, key, value) => {
 	const accepted = acceptSetting(key, value, {
 		isAbsolute: path.isAbsolute,
 		isDirectory: () => directory,
-		isLanguage: (tag) => known.some((language) => language.tag === tag)
+		isLanguage: (tag) => known.some((language) => language.tag === tag),
+		isPhpVersion: (version) => phpVersions().includes(version)
 	});
 	if (!accepted.ok) return { ok: false, error: accepted.error };
 	await setPreference(key, accepted.value);
@@ -3834,13 +3851,25 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	const serve = projectTypeForSite(await readSiteMeta(sitePath)).serve;
 	const isPluginMount = serve.strategy === 'plugin-mount';
 	const buildDir = path.join(sitePath, 'build');
-	const serveConfig = isPluginMount
-		? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
-		: { strategy: 'docroot', docroot: buildDir };
+	// The PHP version and the debug flags the settings hold (#559), read at
+	// each start so a change applies to the next. A version the bundled
+	// Playground no longer has, after a bump, is passed over for the fallback.
+	const logScope = playgroundLogScope(sitePath);
+	const settings = readSettings((await getStore()).get('preferences'));
+	const phpVersion = phpVersions().includes(settings.phpVersion) ? settings.phpVersion : SETTINGS.phpVersion.fallback;
+	if (phpVersion !== settings.phpVersion) {
+		logEvent(logScope, `PHP ${settings.phpVersion} is set but this build does not have it; starting on PHP ${phpVersion}`);
+	}
+	const serveConfig = {
+		...(isPluginMount
+			? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
+			: { strategy: 'docroot', docroot: buildDir }),
+		phpVersion,
+		debug: { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug }
+	};
 	const serveCwd = isPluginMount ? sitePath : buildDir;
 	const runnerPath = path.join(__dirname, 'server-runner.js');
-	const logScope = playgroundLogScope(sitePath);
-	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
+	logEvent(logScope, `starting ${serve.strategy} server for ${serveCwd} on PHP ${phpVersion}, WP_DEBUG ${settings.wpDebug ? 'on' : 'off'}, SCRIPT_DEBUG ${settings.scriptDebug ? 'on' : 'off'} (smtp port ${(smtp && smtp.port) ? smtp.port : 25})`);
 	const child = spawnRunner(runnerPath, [JSON.stringify(serveConfig)], {
 		cwd: serveCwd,
 		extraEnv: {

@@ -47,3 +47,21 @@ test('only the path can be copied', () => {
 	const rows = siteDetailsRows({ ...BASE, initialized: true, created: 'then', trunk: old });
 	assert.deepEqual(rows.filter((row) => row.copyable).map((row) => row.id), ['path']);
 });
+
+// What the settings hold for a server (#559), where the window has read them.
+test('the checkout names the PHP a server starts on, and a Debugging row says which constants are on', () => {
+	const rows = siteDetailsRows({ ...BASE, phpVersion: '8.4', debug: { wpDebug: true, scriptDebug: true } });
+	assert.deepEqual(rows.slice(-2), [
+		{ id: 'checkout', label: 'Checkout', value: 'WordPress Core · PHP 8.4' },
+		{ id: 'debugging', label: 'Debugging', value: 'WP_DEBUG · SCRIPT_DEBUG' }
+	]);
+	assert.equal(siteDetailsRows({ ...BASE, debug: { wpDebug: false, scriptDebug: true } }).at(-1).value, 'SCRIPT_DEBUG');
+	assert.equal(siteDetailsRows({ ...BASE, debug: { wpDebug: true, scriptDebug: false } }).at(-1).value, 'WP_DEBUG');
+	assert.equal(siteDetailsRows({ ...BASE, debug: { wpDebug: false, scriptDebug: false } }).at(-1).value, 'Off');
+});
+
+test('until the settings are read, the checkout is named alone and there is no Debugging row', () => {
+	const rows = siteDetailsRows({ ...BASE });
+	assert.deepEqual(rows.at(-1), { id: 'checkout', label: 'Checkout', value: 'WordPress Core' });
+	assert.deepEqual(ids(siteDetailsRows({ ...BASE, phpVersion: null, debug: null })), ['setup', 'path', 'checkout']);
+});
