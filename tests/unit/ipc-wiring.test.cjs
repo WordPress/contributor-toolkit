@@ -2591,6 +2591,37 @@ test('before-quit writes the sites to start again when the quit setting says res
 	}
 });
 
+test('before-quit sweeps every child even when what is running cannot be written down', async (t) => {
+	const cp = stubbedSpawn();
+	const killChildTree = spy(() => {});
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} }, preferences: { quitBehavior: 'restart' } });
+	const store = settings.stubs['./settings-store'];
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noSmtpServer(),
+			'./settings-store': {
+				getStore: store.getStore,
+				peekStore: () => ({ get: (key) => structuredClone(settings.values[key]), set: () => { throw new Error('EPERM: settings.json is locked'); } })
+			},
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { buildChildEnv: () => ({}) },
+			'./kill-tree': { killChildTree }
+		}
+	});
+	await main.invoke('npm:run-script', '/sites/wp', 'build');
+	const pendingServer = main.invoke('playground:start', '/sites/wp');
+	await waitForSpawnCount(cp, 2);
+	t.after(async () => {
+		cp.children[1].emit('close', 0, null);
+		await pendingServer;
+	});
+
+	await main.emitAppEvent('before-quit');
+
+	assert.equal(killChildTree.calls.length, cp.children.length, 'the sweep reached every child');
+});
+
 test('sites:resume hands the window the list once, and forgets it, only while the setting still says restart', async () => {
 	const settings = fakeSettingsStore({ preferences: { quitBehavior: 'restart', resume: { servers: ['/sites/wp'], watches: ['/sites/gb'] }, locale: 'de' } });
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });

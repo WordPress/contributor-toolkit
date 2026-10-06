@@ -23,7 +23,7 @@ import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStart
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { toggleTray, trayAfterReveal, trayList } from './tray.cjs';
-import { formatElapsed, serveWithoutWatch, watchTabLabel } from './dev-server-command.cjs';
+import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { sitesListRows, siteToOpen } from './sites-list.cjs';
@@ -84,6 +84,7 @@ import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useSettings } from './hooks/use-settings.jsx';
 import { phpVersionChoice, resumeFor } from './settings-view.cjs';
+import { autoStartPlan } from './auto-start.cjs';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
 import { useSites } from './hooks/use-sites.jsx';
 import { usePullRequest } from './hooks/use-pull-request.jsx';
@@ -1259,42 +1260,36 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // through everything above, and because what follows reads whether an
   // update is under way.
   const { updateState, isUpdating, updateHeld, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
-  // What the page says about the site's two processes (#557), in the header
-  // and in the details alike. Decided in site-processes.cjs, and worked out
-  // here because an update of trunk holds both.
   // What opening the site starts (#559): the server, the watch, as the
   // settings say, and what the last quit left for this site to start again.
-  // Each is an edge, consumed once: the row becoming the open one, and the
-  // list being read. What they ask for waits until the site is ready for it,
-  // its status read and its setup done, and is dropped by a deactivation
-  // first. Nothing starts under an update, a setup or a deletion, and
-  // nothing that is already running or starting is started again; where the
-  // server's start brings the watch with it, the watch is not started twice.
+  // Which edge to consume and what to start is auto-start.cjs's; what is
+  // here is the gates and the calls. What an edge asks for waits until the
+  // site is ready for it, its status read and its setup done, and is
+  // dropped by a deactivation first. Nothing starts under an update, a
+  // setup or a deletion, and nothing that is already running or starting is
+  // started again: the watch is started after the server's start has
+  // answered, and only where that start did not bring it up.
   const autoStart = useRef({ open: false, resumed: false });
   useEffect(() => { autoStart.current.open = isActive; }, [isActive]);
   const starters = useRef({ toggleDevServer, startBuildWatch });
   useEffect(() => { starters.current = { toggleDevServer, startBuildWatch }; });
   useEffect(() => {
-    if (statusLoading || !skipInit || !settings || resume === undefined) return;
+    if (statusLoading || !skipInit || !settings) return;
     if (isPending || isDeleting || isUpdating || setupChainState !== 'idle') return;
-    const wants = { server: false, watch: false };
-    if (autoStart.current.open && isActive) {
-      autoStart.current.open = false;
-      wants.server = settings.autoStartServer;
-      wants.watch = settings.autoStartWatch;
-    }
-    if (!autoStart.current.resumed && resume) {
-      autoStart.current.resumed = true;
-      if (resume === 'server') wants.server = true;
-      if (resume === 'watch') wants.watch = true;
-    }
-    const watchUp = ['watching', 'building'].includes(watchStateRef.current);
-    const serverStart = wants.server && !isDevProcessActive;
-    if (serverStart) starters.current.toggleDevServer();
-    const watchComesWithServer = serverStart && !serveWithoutWatch({ hasBuilt, watchState: watchStateRef.current, buildInterrupted: buildInterruptedRef.current }, projectBuild);
-    if (wants.watch && !watchUp && !watchComesWithServer) starters.current.startBuildWatch();
-  }, [isActive, resume, settings, statusLoading, skipInit, isPending, isDeleting, isUpdating, setupChainState, isDevProcessActive, hasBuilt, projectBuild, watchStateRef, buildInterruptedRef]);
+    const plan = autoStartPlan({ open: autoStart.current.open, isActive, resumed: autoStart.current.resumed, resume, settings });
+    if (plan.consumeOpen) autoStart.current.open = false;
+    if (plan.consumeResume) autoStart.current.resumed = true;
+    if (!plan.server && !plan.watch) return;
+    const watchUp = () => ['watching', 'building'].includes(watchStateRef.current);
+    (async () => {
+      if (plan.server && !isDevProcessActive) await starters.current.toggleDevServer();
+      if (plan.watch && !watchUp()) starters.current.startBuildWatch();
+    })().catch(() => {});
+  }, [isActive, resume, settings, statusLoading, skipInit, isPending, isDeleting, isUpdating, setupChainState, isDevProcessActive, watchStateRef]);
 
+  // What the page says about the site's two processes (#557), in the header
+  // and in the details alike. Decided in site-processes.cjs, and worked out
+  // here because an update of trunk holds both.
   const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating, failure: serverFailure });
   const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
   const serverSectionState = serverSection({ url: serverUrl, running, starting: isServerStarting, elapsed: startElapsed });

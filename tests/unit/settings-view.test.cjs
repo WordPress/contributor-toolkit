@@ -75,9 +75,10 @@ test('the quit control offers stop and restart, and not the prototype\'s leaving
 });
 
 test('what the next launch starts for a site comes from the list the quit left', () => {
-	const resume = { servers: ['/a'], watches: ['/w'] };
-	assert.equal(resumeFor(resume, '/a'), 'server');
-	assert.equal(resumeFor(resume, '/w'), 'watch');
+	const resume = { servers: ['/a', '/both'], watches: ['/w', '/both'] };
+	assert.deepEqual(resumeFor(resume, '/a'), { server: true, watch: false });
+	assert.deepEqual(resumeFor(resume, '/w'), { server: false, watch: true });
+	assert.deepEqual(resumeFor(resume, '/both'), { server: true, watch: true });
 	assert.equal(resumeFor(resume, '/other'), null);
 	assert.equal(resumeFor(null, '/a'), null);
 	assert.equal(resumeFor({}, '/a'), null);

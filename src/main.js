@@ -2721,7 +2721,14 @@ ipcMain.handle('sites:resume', async () => {
 });
 
 app.on('before-quit', () => {
-	rememberRunningSites();
+	// Before the sweep, since it reads what is running; and unable to stop
+	// the sweep, since a store that cannot be written is no reason to leave
+	// every server and watch running.
+	try {
+		rememberRunningSites();
+	} catch (e) {
+		logError('quit', `could not remember what is running: ${String(e && e.message ? e.message : e)}`);
+	}
 	logEvent('quit', 'sweeping child processes');
 	const children = [
 		...Object.values(runningInstalls),

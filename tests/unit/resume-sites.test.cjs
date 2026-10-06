@@ -21,9 +21,9 @@ test('a site running its project\'s watch is listed under the watches, and a sit
 	assert.deepEqual(sitesToResume({ servers: [], scripts, watchFor }), { servers: [], watches: ['/w'] });
 });
 
-test('a site with a server is not also listed under the watches', () => {
+test('a site with both a server and its watch is listed under both', () => {
 	const scripts = [{ directoryPath: '/a', scriptName: 'grunt', scriptArgs: ['--', '_watch'] }];
-	assert.deepEqual(sitesToResume({ servers: ['/a'], scripts, watchFor }), { servers: ['/a'], watches: [] });
+	assert.deepEqual(sitesToResume({ servers: ['/a'], scripts, watchFor }), { servers: ['/a'], watches: ['/a'] });
 });
 
 test('the watch is the project\'s own: a Gutenberg site\'s is npm run dev', () => {

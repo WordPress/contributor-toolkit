@@ -13,10 +13,9 @@
 /**
  * The sites to start again, from what is running now.
  *
- * A site with a server is listed once, under the servers, and its watch is
- * not listed as well: on the projects whose server needs the watch, the
- * server's start brings the watch with it, and on the others the watch is
- * the contributor's to start.
+ * A site with both a server and its watch is listed under both: the next
+ * launch starts the server, and then the watch where the server's start
+ * did not bring it with it.
  *
  * @param {Object}                                                                   root0
  * @param {string[]}                                                                 root0.servers  The sites with a running server.
@@ -28,7 +27,7 @@ function sitesToResume({ servers = [], scripts = [], watchFor }) {
 	const withServer = [...new Set(servers)];
 	const watches = [];
 	for (const { directoryPath, scriptName, scriptArgs = [] } of scripts) {
-		if (withServer.includes(directoryPath) || watches.includes(directoryPath)) continue;
+		if (watches.includes(directoryPath)) continue;
 		const watch = watchFor(directoryPath);
 		if (!watch) continue;
 		const sameArgs = JSON.stringify(watch.args || []) === JSON.stringify(scriptArgs || []);

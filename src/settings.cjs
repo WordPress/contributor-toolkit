@@ -142,4 +142,4 @@ function acceptSetting(key, value, deps) {
 	return setting.accept(value, deps);
 }
 
-module.exports = { SETTINGS, QUIT_BEHAVIOURS, readSettings, acceptSetting };
+module.exports = { SETTINGS, readSettings, acceptSetting };

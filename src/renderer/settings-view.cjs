@@ -125,17 +125,17 @@ function quitItems() {
 
 /**
  * What the next launch starts for a site, from the list the last quit left:
- * its server, its watch, or nothing.
+ * its server, its watch, both, or nothing.
  *
  * @param {?{servers: string[], watches: string[]}} resume   The list, or null while it has not been read.
  * @param {string}                                  sitePath
- * @return {?('server'|'watch')}
+ * @return {?{server: boolean, watch: boolean}} What to start, or null for nothing.
  */
 function resumeFor(resume, sitePath) {
 	if (!resume) return null;
-	if ((resume.servers || []).includes(sitePath)) return 'server';
-	if ((resume.watches || []).includes(sitePath)) return 'watch';
-	return null;
+	const server = (resume.servers || []).includes(sitePath);
+	const watch = (resume.watches || []).includes(sitePath);
+	return server || watch ? { server, watch } : null;
 }
 
 module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, resumeFor, SYSTEM_LANGUAGE };

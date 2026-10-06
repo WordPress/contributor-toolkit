@@ -50,8 +50,13 @@ const tell = ( app, channel, payload ) => app.evaluate( ( { BrowserWindow }, [ t
 	for ( const win of BrowserWindow.getAllWindows() ) win.webContents.send( to, what );
 }, [ channel, payload ] );
 // A settled moment: the site's status has been read, which is when a start
-// would be asked for.
-const settled = ( page ) => expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
+// would be asked for, and then a question asked of main and answered, so
+// that anything asked of main before it has been recorded by the stand-ins.
+// That is the signal for nothing having been asked.
+async function settled( page ) {
+	await expect( ui.terminalHint( page, 'npm run build' ) ).toBeVisible( { timeout: 30_000 } );
+	await page.evaluate( () => window.api.getSitesWithMeta() );
+}
 
 test( 'with the server set to start when a site is opened, opening one asks for its server once, and not again while it runs', async ( { session } ) => {
 	const first = await makeSite( session, { label: 'first' } );
@@ -89,6 +94,7 @@ test( 'with the server set to start when a site is opened, opening one asks for 
 	await expect( ui.siteHeading( page, openedLabel ) ).toBeVisible();
 	await ui.sidebarEntry( page, otherLabel ).click();
 	await expect( ui.siteHeading( page, otherLabel ) ).toBeVisible();
+	await page.evaluate( () => window.api.getSitesWithMeta() );
 	expect( ( await asked( app ) ).starts ).toEqual( [ openedSite.dir, otherSite.dir ] );
 } );
 
@@ -115,7 +121,6 @@ test( 'with the watch set to start when a site is opened, opening one asks for t
 	const again = await session.restart( { beforeWindow: standIn } );
 	await ui.openTray( again.page, 'Terminal' );
 	await settled( again.page );
-	await again.page.waitForTimeout( 500 );
 	expect( await asked( again.app ) ).toEqual( { starts: [], scripts: [] } );
 } );
 
@@ -150,7 +155,6 @@ test( 'what the last quit stopped is started again at the next launch, once, and
 	const again = await session.restart( { beforeWindow: standIn } );
 	await ui.openTray( again.page, 'Terminal' );
 	await settled( again.page );
-	await again.page.waitForTimeout( 500 );
 	expect( await asked( again.app ) ).toEqual( { starts: [], scripts: [] } );
 
 	// INVARIANT — a list left under 'restart' is not followed under 'stop'.
@@ -158,7 +162,6 @@ test( 'what the last quit stopped is started again at the next launch, once, and
 	const stopped = await session.restart( { beforeWindow: standIn } );
 	await ui.openTray( stopped.page, 'Terminal' );
 	await settled( stopped.page );
-	await stopped.page.waitForTimeout( 500 );
 	expect( await asked( stopped.app ) ).toEqual( { starts: [], scripts: [] } );
 } );
 
