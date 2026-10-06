@@ -12,6 +12,8 @@
 // to nothing is news for the buttons that would give it somewhere to go.
 'use strict';
 
+const { __, sprintf } = require('@wordpress/i18n');
+
 // Byte-identical to the confirm the dirty-update modal has always used, so
 // the same action reads the same everywhere it can be triggered.
 const DISCARD_CONFIRM_MESSAGE = 'Discard all local changes? This cannot be undone.';
@@ -186,29 +188,39 @@ function discardBlocked({ isUpdating, installing, building, devServerActive, dis
  * @return {string|null}
  */
 function discardDisabledReason({ patchLoading, patchLoadFailed, patchHasChanges, isUpdating, installing, building, devServerActive, discarding } = {}) {
-	if (discarding) return 'Changes are already being discarded.';
-	if (patchLoading) return 'Wait for your changes to finish loading.';
-	if (patchLoadFailed) return 'Changes could not be loaded.';
-	if (!patchHasChanges) return 'There are no changes to discard.';
-	if (isUpdating) return 'Wait for the trunk update to finish before discarding changes.';
-	if (installing) return 'Wait for the installation to finish before discarding changes.';
-	if (building) return 'Wait for the build to finish before discarding changes.';
-	if (devServerActive) return 'Stop the dev server before discarding changes.';
+	if (discarding) return __('Changes are already being discarded.');
+	if (patchLoading) return __('Wait for your changes to finish loading.');
+	if (patchLoadFailed) return __('Changes could not be loaded.');
+	if (!patchHasChanges) return __('There are no changes to discard.');
+	if (isUpdating) return __('Wait for the trunk update to finish before discarding changes.');
+	if (installing) return __('Wait for the installation to finish before discarding changes.');
+	if (building) return __('Wait for the build to finish before discarding changes.');
+	if (devServerActive) return __('Stop the dev server before discarding changes.');
 	return null;
 }
 
-// The review always names the base used to measure the displayed changes;
-// `workItemNoun` as in changesNoteParts.
+// The heading over a linked work item's changes, one sentence per kind
+// (`workItemNoun` as in changesNoteParts).
+function workItemChangesHeading(workItemNoun, number) {
+	// translators: %d: a GitHub issue number.
+	if (workItemNoun === 'issue') return sprintf(__('Your changes for issue #%d'), number);
+	// translators: %d: a Trac ticket number.
+	return sprintf(__('Your changes for ticket #%d'), number);
+}
+
+// The review always names the base used to measure the displayed changes.
 function patchReviewContext({ pullRequest, tracTicket, workItemNoun = 'ticket' } = {}) {
 	if (pullRequest) return {
-		heading: `Your changes on top of PR #${pullRequest.number}`,
-		description: 'Edits to this local copy, compared with the original PR commits.',
-		empty: `There are no changes on top of PR #${pullRequest.number}.`
+		// translators: %d: a pull request number.
+		heading: sprintf(__('Your changes on top of PR #%d'), pullRequest.number),
+		description: __('Edits to this local copy, compared with the original PR commits.'),
+		// translators: %d: a pull request number.
+		empty: sprintf(__('There are no changes on top of PR #%d.'), pullRequest.number)
 	};
 	return {
-		heading: tracTicket ? `Your changes for ${workItemNoun} #${tracTicket}` : 'Your changes',
-		description: 'Everything this site has that its copy of trunk does not.',
-		empty: 'There is nothing to send yet — this site has no changes against its copy of trunk.'
+		heading: tracTicket ? workItemChangesHeading(workItemNoun, tracTicket) : __('Your changes'),
+		description: __('Everything this site has that its copy of trunk does not.'),
+		empty: __('There is nothing to send yet — this site has no changes against its copy of trunk.')
 	};
 }
 

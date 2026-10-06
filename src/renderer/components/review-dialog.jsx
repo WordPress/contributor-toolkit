@@ -1,4 +1,6 @@
 import { Modal } from '@wordpress/components';
+import { createInterpolateElement } from '@wordpress/element';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import { Notice, Stack, Text } from '@wordpress/ui';
 import { prSubmissionRefusal } from '../pr-checkout.cjs';
 
@@ -15,17 +17,40 @@ function OwnershipWarning({ pullRequest, appliedPatch, appliedPatchLabel }) {
     return (
       <Notice.Root intent="warning" role="alert" spokenMessage={SILENT}>
         <Notice.Description>
-          {prSubmissionRefusal(pullRequest.number)} You can still use <strong>Save</strong> to keep an unattributed copy of your edits.
+          {prSubmissionRefusal(pullRequest.number)}{' '}
+          <span>
+            {createInterpolateElement(
+              // translators: <strong>Save</strong> is the name of the Save button.
+              __('You can still use <strong>Save</strong> to keep an unattributed copy of your edits.'),
+              { strong: <strong /> }
+            )}
+          </span>
         </Notice.Description>
       </Notice.Root>
     );
   }
   if (appliedPatch) {
+    // The label is a file's name or a pull request's, and goes in as an
+    // element rather than into the string: a `<` in a file name would
+    // otherwise be read as markup.
+    const headline = appliedPatchLabel
+      ? createInterpolateElement(
+        // translators: <label /> is the name of an applied patch, such as a file name.
+        __('<strong><label /> is part of this checkout.</strong>'),
+        { strong: <strong />, label: <>{appliedPatchLabel}</> }
+      )
+      : createInterpolateElement(__('<strong>The patch you applied is part of this checkout.</strong>'), { strong: <strong /> });
     return (
       <Notice.Root intent="warning" role="alert" spokenMessage={SILENT}>
         <Notice.Description>
-          <strong>{appliedPatchLabel} is part of this checkout.</strong>{' '}
-          The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.
+          <span>{headline}</span>{' '}
+          <span>
+            {createInterpolateElement(
+              // translators: <strong>Save</strong> is the name of the Save button.
+              __('The app cannot safely separate its author’s changes from edits made afterward, so this combined patch cannot be submitted as your work. You can still use <strong>Save</strong> to keep an unattributed copy; revert the applied patch before submitting.'),
+              { strong: <strong /> }
+            )}
+          </span>
         </Notice.Description>
       </Notice.Root>
     );
@@ -64,7 +89,7 @@ export function ReviewDialog({
 }) {
   return (
     <Modal
-      title="Review & submit changes"
+      title={__('Review & submit changes')}
       onRequestClose={onClose}
       shouldCloseOnClickOutside
       isFullScreen
@@ -73,14 +98,22 @@ export function ReviewDialog({
         {!loading && age.stale && (
           <Notice.Root intent="warning" spokenMessage={SILENT}>
             <Notice.Description>
-              This site&apos;s WordPress code is {age.ageDays} days old — this patch may not apply on Trac. Consider updating to the latest trunk first.
+              {sprintf(
+                // translators: %d: how many days old the site's copy of WordPress is.
+                _n(
+                  "This site's WordPress code is %d day old — this patch may not apply on Trac. Consider updating to the latest trunk first.",
+                  "This site's WordPress code is %d days old — this patch may not apply on Trac. Consider updating to the latest trunk first.",
+                  age.ageDays
+                ),
+                age.ageDays
+              )}
             </Notice.Description>
           </Notice.Root>
         )}
         {!loading && loadFailed ? (
           <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
             <Notice.Description>
-              Could not load your changes. Close this panel and try again. The error is shown below.
+              {__('Could not load your changes. Close this panel and try again. The error is shown below.')}
             </Notice.Description>
           </Notice.Root>
         ) : null}
@@ -123,8 +156,8 @@ export function ReviewDialog({
           {!loading && hasChanges && (
             <div className="patch-destinations">
               <div>
-                <Text variant="heading-md" render={<div />}>Where this patch goes</Text>
-                <Text variant="body-sm" className="muted-label" render={<div />}>The pull request is the one the app sends for you. The others save a file for you to send.</Text>
+                <Text variant="heading-md" render={<div />}>{__('Where this patch goes')}</Text>
+                <Text variant="body-sm" className="muted-label" render={<div />}>{__('The pull request is the one the app sends for you. The others save a file for you to send.')}</Text>
               </div>
 
               <OwnershipWarning pullRequest={pullRequest} appliedPatch={appliedPatch} appliedPatchLabel={appliedPatchLabel} />

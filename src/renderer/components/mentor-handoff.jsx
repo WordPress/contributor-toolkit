@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Button, TextControl } from '@wordpress/components';
+import { createInterpolateElement } from '@wordpress/element';
+import { __, sprintf } from '@wordpress/i18n';
 import { Text } from '@wordpress/ui';
 import { Destination } from './destination.jsx';
 
@@ -35,12 +37,12 @@ export function MentorHandoff({ wporg, saveDisabled, onSave }) {
     try {
       const named = await wporg.rememberHandle(handleInput);
       if (!named?.ok) {
-        setHandleError(named?.error || 'Could not save that username.');
+        setHandleError(named?.error || __('Could not save that username.'));
         return;
       }
       const at = await wporg.rememberEvent(eventInput);
       if (!at?.ok) {
-        setHandleError(at?.error || 'Could not save that event.');
+        setHandleError(at?.error || __('Could not save that event.'));
         return;
       }
       setHandleInput('');
@@ -53,14 +55,17 @@ export function MentorHandoff({ wporg, saveDisabled, onSave }) {
 
   return (
     <Destination
-      title="Hand it to a mentor"
-      cost="No accounts at all. The patch carries your WordPress.org username, and the event you are at."
-      after="Someone else pushes it; the props still land on you."
+      title={__('Hand it to a mentor')}
+      cost={__('No accounts at all. The patch carries your WordPress.org username, and the event you are at.')}
+      after={__('Someone else pushes it; the props still land on you.')}
     >
       {wporg?.handle && !editingHandle ? (
         <>
           <Button variant="primary" onClick={onSave} disabled={saveDisabled}>
-            Save patch as {wporg.handle}
+            {
+              // translators: %s: the contributor's WordPress.org username.
+              sprintf(__('Save patch as %s'), wporg.handle)
+            }
           </Button>
           {/*
             The event is shown on every save rather than only when
@@ -68,7 +73,15 @@ export function MentorHandoff({ wporg, saveDisabled, onSave }) {
             otherwise keep stamping patches with nobody seeing it.
           */}
           <Text variant="body-sm" className="muted-label">
-            {wporg.event ? <>The patch will say it was written at <strong>{wporg.event}</strong>.</> : 'No event on the patch.'}
+            {wporg.event
+              ? createInterpolateElement(
+                // translators: <event /> is the name of the event the contributor is at, such as WordCamp Europe 2026.
+                __('The patch will say it was written at <strong><event /></strong>.'),
+                // The name goes in as an element, not into the string: it is
+                // free text, and a `<` in it would be read as markup.
+                { strong: <strong />, event: <>{wporg.event}</> }
+              )
+              : __('No event on the patch.')}
           </Text>
           <Text variant="body-sm">
             <Button
@@ -79,29 +92,29 @@ export function MentorHandoff({ wporg, saveDisabled, onSave }) {
                 setHandleError('');
                 setEditingHandle(true);
               }}
-            >Change these</Button>
+            >{__('Change these')}</Button>
           </Text>
         </>
       ) : (
         <>
           <Text variant="body-sm" className="muted-label">
-            Asked once and remembered for every site — these are facts about you, not about this checkout.
+            {__('Asked once and remembered for every site — these are facts about you, not about this checkout.')}
           </Text>
           <TextControl
             value={handleInput}
             onChange={(value) => { setHandleInput(value); setHandleError(''); }}
             onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); rememberContributor(); } }}
             disabled={handleSaving}
-            placeholder="WordPress.org username, e.g. janedoe"
-            aria-label="WordPress.org username"
+            placeholder={__('WordPress.org username, e.g. janedoe')}
+            aria-label={__('WordPress.org username')}
           />
           <TextControl
             value={eventInput}
             onChange={(value) => { setEventInput(value); setHandleError(''); }}
             onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); rememberContributor(); } }}
             disabled={handleSaving}
-            placeholder="Event, e.g. WordCamp Europe 2026 (optional)"
-            aria-label="Event this patch was written at"
+            placeholder={__('Event, e.g. WordCamp Europe 2026 (optional)')}
+            aria-label={__('Event this patch was written at')}
           />
           <Button
             variant="secondary"
@@ -113,7 +126,7 @@ export function MentorHandoff({ wporg, saveDisabled, onSave }) {
             // Before the first answer it would just be a button
             // that does nothing.
             disabled={handleSaving || (!handleInput.trim() && !wporg?.handle)}
-          >Remember this</Button>
+          >{__('Remember this')}</Button>
           {handleError ? <Text variant="body-sm" className="problem-text" role="alert">{handleError}</Text> : null}
         </>
       )}

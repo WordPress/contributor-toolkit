@@ -67,18 +67,19 @@ const TRUNK_FILES = {
 /**
  * Creates a repository the app will list, open, and consider ready to work in.
  *
- * @param {Object}  session          A Session from ./app.cjs. The directory is
- *                                   registered with it, so it is removed after the
- *                                   app has stopped — doing it earlier fails on
- *                                   Windows, where a directory with open handles
- *                                   cannot be deleted.
+ * @param {Object}  session             A Session from ./app.cjs. The directory is
+ *                                      registered with it, so it is removed after the
+ *                                      app has stopped — doing it earlier fails on
+ *                                      Windows, where a directory with open handles
+ *                                      cannot be deleted.
  * @param {Object}  [options]
- * @param {string}  [options.label]  The name shown in the sidebar.
- * @param {boolean} [options.legacy] Shape the repository the way the old engine's shallow clone did (#385).
- * @param {boolean} [options.origin] Give the site an `origin` it can fetch from: a clone of it on disk (#385).
+ * @param {string}  [options.label]     The name shown in the sidebar.
+ * @param {boolean} [options.legacy]    Shape the repository the way the old engine's shallow clone did (#385).
+ * @param {boolean} [options.origin]    Give the site an `origin` it can fetch from: a clone of it on disk (#385).
+ * @param {string}  [options.trunkDate] When trunk's one commit was made, as an ISO date; now by default.
  * @return {Promise<{dir: string, baseOid: string, origin: ?string, settings: Object}>}
  */
-async function makeSite( session, { label = 'e2e-site', legacy = false, origin = false } = {} ) {
+async function makeSite( session, { label = 'e2e-site', legacy = false, origin = false, trunkDate = null } = {} ) {
 	const dir = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-site-' ) ) );
 
 	// initRepo gives it the shape the clone writes (git-clone.cjs): a site the
@@ -89,7 +90,9 @@ async function makeSite( session, { label = 'e2e-site', legacy = false, origin =
 	for ( const [ file, content ] of Object.entries( TRUNK_FILES ) ) {
 		fs.writeFileSync( path.join( dir, file ), content );
 	}
-	const baseOid = commitFiles( dir, Object.keys( TRUNK_FILES ), 'trunk', { author: AUTHOR } );
+	// `trunkDate` backdates the commit: the app reads a site's trunk age from
+	// it, not from the site's record.
+	const baseOid = commitFiles( dir, Object.keys( TRUNK_FILES ), 'trunk', { author: AUTHOR, date: trunkDate } );
 
 	// What a site the old engine cloned looks like to the app (#385): the root
 	// commit listed in .git/shallow, and a remote with no promisor. The app

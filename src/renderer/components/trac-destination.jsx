@@ -1,4 +1,5 @@
 import { Button, TextControl } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { Text } from '@wordpress/ui';
 import { Destination } from './destination.jsx';
 import { ReasonedButton } from './reasoned-button.jsx';
@@ -27,26 +28,29 @@ export function TracDestination({
 }) {
   return (
     <Destination
-      title="Attach to Trac"
-      cost="A WordPress.org account — needed anyway, for props and to comment."
-      after="No automated checks. Often followed by a request to open a pull request."
+      title={__('Attach to Trac')}
+      cost={__('A WordPress.org account — needed anyway, for props and to comment.')}
+      after={__('No automated checks. Often followed by a request to open a pull request.')}
     >
       {ticket ? (
         <Button variant="primary" onClick={onSave} disabled={saveDisabled}>
-          Save, then open #{ticket}
+          {
+            // translators: %d: a Trac ticket number.
+            sprintf(__('Save, then open #%d'), ticket)
+          }
         </Button>
       ) : (
         <>
           <Text variant="body-sm" className="muted-label">
-            No ticket is linked to this site, so there is nowhere to attach it yet.
+            {__('No ticket is linked to this site, so there is nowhere to attach it yet.')}
           </Text>
           <TextControl
             value={ticketInput}
             onChange={onTicketInputChange}
             onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onLinkTicket(); } }}
             disabled={Boolean(linkReason)}
-            placeholder="Ticket number or URL, e.g. 62281"
-            aria-label="Trac ticket number or URL"
+            placeholder={__('Ticket number or URL, e.g. 62281')}
+            aria-label={__('Trac ticket number or URL')}
           />
           <ReasonedButton
             variant="secondary"
@@ -54,7 +58,7 @@ export function TracDestination({
             isBusy={linking}
             reason={linkReason}
             disabled={!ticketInput.trim()}
-          >Link ticket</ReasonedButton>
+          >{__('Link ticket')}</ReasonedButton>
           {ticketError ? <Text variant="body-sm" className="problem-text" role="alert">{ticketError}</Text> : null}
           {children}
         </>
