@@ -113,6 +113,7 @@ const EXPECTED_API_KEYS = [
 	'subscribeSetupStatus',
 	'subscribeSwitchProgress',
 	'switchBranch',
+	'takeResumeList',
 	'updateTrunk',
 ];
 

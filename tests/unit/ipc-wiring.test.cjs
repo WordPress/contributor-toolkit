@@ -416,7 +416,7 @@ function fakeSettingsStore(initial = {}) {
 		get: (key) => structuredClone(values[key]),
 		set: (key, value) => { values[key] = value; }
 	};
-	return { values, stubs: { './settings-store': { getStore: async () => store } } };
+	return { values, stubs: { './settings-store': { getStore: async () => store, peekStore: () => store } } };
 }
 
 // --- sites:delete -> src/site-registry.js --------------------------------
@@ -1872,7 +1872,7 @@ test('settings:set asks the disk whether the folder is there', async (t) => {
 	const settings = fakeSettingsStore();
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, newSiteLocation: folder } });
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', newSiteLocation: folder } });
 	const gone = await main.invoke('settings:set', 'newSiteLocation', path.join(folder, 'gone'));
 	assert.equal(gone.ok, false);
 	assert.equal(settings.values.preferences.newSiteLocation, folder);
@@ -2543,6 +2543,67 @@ test('quitting sweeps every kind of running child through kill-tree', async (t) 
 		assert.equal(swept.filter((c) => c === child).length, 1, 'each running child is swept exactly once');
 		assert.deepEqual(child.kill.calls, []);
 	}
+});
+
+// --- the quit remembers what to start again -> src/resume-sites.cjs (#559) ---
+
+// With the quit setting on 'restart', what is running is written down before
+// the sweep: the sites with a server, and those running their project's
+// watch. The decision of which script is a watch is the module's; what is
+// here is that the handler hands it what main tracks, and writes the answer.
+test('before-quit writes the sites to start again when the quit setting says restart, and nothing otherwise', async (t) => {
+	for (const quitBehavior of ['restart', 'stop']) {
+		const cp = stubbedSpawn();
+		const settings = fakeSettingsStore({
+			sites: ['/sites/wp', '/sites/gb'],
+			siteMeta: { '/sites/wp': {}, '/sites/gb': { projectType: 'gutenberg' } },
+			preferences: { quitBehavior, wporgHandle: 'janedoe' }
+		});
+		const main = loadMain({
+			stubs: {
+				...silentLogging(),
+				...noSmtpServer(),
+				...settings.stubs,
+				'child_process': { spawn: cp.spawn },
+				'./npm-runner': { buildChildEnv: () => ({}) },
+				'./kill-tree': { killChildTree: () => {} }
+			}
+		});
+		// A Gutenberg site running its watch, a Core site running a build, and
+		// a Core site's server.
+		await main.invoke('npm:run-script', '/sites/gb', 'dev');
+		await main.invoke('npm:run-script', '/sites/wp', 'build');
+		const pendingServer = main.invoke('playground:start', '/sites/wp');
+		await waitForSpawnCount(cp, 3);
+		t.after(async () => {
+			cp.children[2].emit('close', 0, null);
+			await pendingServer;
+		});
+
+		await main.emitAppEvent('before-quit');
+
+		if (quitBehavior === 'restart') {
+			assert.deepEqual(settings.values.preferences.resume, { servers: ['/sites/wp'], watches: ['/sites/gb'] });
+			assert.equal(settings.values.preferences.wporgHandle, 'janedoe', 'the rest of the preferences are kept');
+		} else {
+			assert.equal('resume' in settings.values.preferences, false);
+		}
+	}
+});
+
+test('sites:resume hands the window the list once, and forgets it, only while the setting still says restart', async () => {
+	const settings = fakeSettingsStore({ preferences: { quitBehavior: 'restart', resume: { servers: ['/sites/wp'], watches: ['/sites/gb'] }, locale: 'de' } });
+	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+
+	assert.deepEqual(await main.invoke('sites:resume'), { ok: true, servers: ['/sites/wp'], watches: ['/sites/gb'] });
+	assert.equal('resume' in settings.values.preferences, false, 'read once');
+	assert.equal(settings.values.preferences.locale, 'de');
+	assert.deepEqual(await main.invoke('sites:resume'), { ok: true, servers: [], watches: [] });
+
+	const stopped = fakeSettingsStore({ preferences: { quitBehavior: 'stop', resume: { servers: ['/sites/wp'], watches: [] } } });
+	const other = loadMain({ stubs: { ...silentLogging(), ...stopped.stubs } });
+	assert.deepEqual(await other.invoke('sites:resume'), { ok: true, servers: [], watches: [] });
+	assert.equal('resume' in stopped.values.preferences, false, 'a list left under restart is forgotten under stop');
 });
 
 // --- playground:* / playground-web:* -> the same two modules --------------
@@ -6447,10 +6508,10 @@ test('settings:set keeps a language the build has, and refuses one it has not (#
 		stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null, languageChoices: () => [{ tag: 'de', label: 'Deutsch' }, { tag: 'en', label: 'English' }] } }
 	});
 
-	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, newSiteLocation: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', newSiteLocation: null } });
 	assert.equal((await main.invoke('settings:set', 'locale', 'fr')).ok, false);
 	assert.equal(settings.values.preferences.locale, 'de');
-	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, newSiteLocation: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', newSiteLocation: null } });
 });
 
 test('app:relaunch relaunches through a quit, so the child sweep runs, without the launch\'s link or --lang (#559)', async (t) => {
@@ -6559,6 +6620,7 @@ const WIRED = new Set([
 	'provenance:set-event',
 	'settings:get',
 	'settings:set',
+	'sites:resume',
 	'i18n:languages',
 	'github:account',
 	'github:sign-in',

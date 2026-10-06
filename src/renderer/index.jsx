@@ -23,7 +23,7 @@ import { computeSetupStepState, setupStepStatuses, setupStepCopy, setupAutoStart
 import { deriveNextAction } from './next-action.cjs';
 import { computeTerminalBusy } from './terminal-hints.cjs';
 import { toggleTray, trayAfterReveal, trayList } from './tray.cjs';
-import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
+import { formatElapsed, serveWithoutWatch, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
 import { sitesListRows, siteToOpen } from './sites-list.cjs';
@@ -83,7 +83,7 @@ import { TicketListCard } from './components/ticket-list.jsx';
 import { useDetectedEditors } from './hooks/use-detected-editors.jsx';
 import { useContributorProvenance } from './hooks/use-contributor-provenance.jsx';
 import { useSettings } from './hooks/use-settings.jsx';
-import { phpVersionChoice } from './settings-view.cjs';
+import { phpVersionChoice, resumeFor } from './settings-view.cjs';
 import { useNextActionCue } from './hooks/use-next-action-cue.jsx';
 import { useSites } from './hooks/use-sites.jsx';
 import { usePullRequest } from './hooks/use-pull-request.jsx';
@@ -137,6 +137,16 @@ function App() {
   // The PHP a server starts on: the one set where the bundle has it, and
   // the fallback where it does not, decided where the dialog decides it.
   const startingPhp = settings ? phpVersionChoice({ versions: phpVersions?.versions, fallback: phpVersions?.fallback, stored: settings.phpVersion }).value : null;
+  // What the last quit stopped and is to start again (#559), read once as
+  // the window opens; main forgets it as it is read.
+  const [resume, setResume] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    window.api.takeResumeList()
+      .then((res) => { if (!cancelled) setResume(res?.ok ? { servers: res.servers, watches: res.watches } : { servers: [], watches: [] }); })
+      .catch(() => { if (!cancelled) setResume({ servers: [], watches: [] }); });
+    return () => { cancelled = true; };
+  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
@@ -690,6 +700,7 @@ function App() {
                         projectType={siteMeta?.[s]?.projectType}
                         settings={settings}
                         startingPhp={startingPhp}
+                        resume={resumeFor(resume, s)}
                         onInitialized={onInitialized}
                         onSiteMetaPatch={onSiteMetaPatch}
                         onDelete={onDelete}
@@ -745,7 +756,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1251,6 +1262,39 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // What the page says about the site's two processes (#557), in the header
   // and in the details alike. Decided in site-processes.cjs, and worked out
   // here because an update of trunk holds both.
+  // What opening the site starts (#559): the server, the watch, as the
+  // settings say, and what the last quit left for this site to start again.
+  // Each is an edge, consumed once: the row becoming the open one, and the
+  // list being read. What they ask for waits until the site is ready for it,
+  // its status read and its setup done, and is dropped by a deactivation
+  // first. Nothing starts under an update, a setup or a deletion, and
+  // nothing that is already running or starting is started again; where the
+  // server's start brings the watch with it, the watch is not started twice.
+  const autoStart = useRef({ open: false, resumed: false });
+  useEffect(() => { autoStart.current.open = isActive; }, [isActive]);
+  const starters = useRef({ toggleDevServer, startBuildWatch });
+  useEffect(() => { starters.current = { toggleDevServer, startBuildWatch }; });
+  useEffect(() => {
+    if (statusLoading || !skipInit || !settings || resume === undefined) return;
+    if (isPending || isDeleting || isUpdating || setupChainState !== 'idle') return;
+    const wants = { server: false, watch: false };
+    if (autoStart.current.open && isActive) {
+      autoStart.current.open = false;
+      wants.server = settings.autoStartServer;
+      wants.watch = settings.autoStartWatch;
+    }
+    if (!autoStart.current.resumed && resume) {
+      autoStart.current.resumed = true;
+      if (resume === 'server') wants.server = true;
+      if (resume === 'watch') wants.watch = true;
+    }
+    const watchUp = ['watching', 'building'].includes(watchStateRef.current);
+    const serverStart = wants.server && !isDevProcessActive;
+    if (serverStart) starters.current.toggleDevServer();
+    const watchComesWithServer = serverStart && !serveWithoutWatch({ hasBuilt, watchState: watchStateRef.current, buildInterrupted: buildInterruptedRef.current }, projectBuild);
+    if (wants.watch && !watchUp && !watchComesWithServer) starters.current.startBuildWatch();
+  }, [isActive, resume, settings, statusLoading, skipInit, isPending, isDeleting, isUpdating, setupChainState, isDevProcessActive, hasBuilt, projectBuild, watchStateRef, buildInterruptedRef]);
+
   const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating, failure: serverFailure });
   const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
   const serverSectionState = serverSection({ url: serverUrl, running, starting: isServerStarting, elapsed: startElapsed });
