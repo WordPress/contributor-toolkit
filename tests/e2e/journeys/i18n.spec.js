@@ -688,9 +688,11 @@ test( 'a mail the site sent is fully translatable, on its Rendered and its Raw t
 		headers: {},
 		raw: 'Subject: [Test Site] Password Reset\nX-Mailer: PHPMailer\n\nA password reset was requested.',
 	};
+	// No subject: the dialog has to be titled by the app instead.
+	const UNTITLED = { ...MAIL, id: 'e2e-untitled', subject: '', cc: undefined, sentAt: '2026-08-10T09:00:00.000Z', date: '2026-08-10T09:00:00.000Z' };
 	const theMails = ( text ) => [ MAIL.subject, MAIL.from, MAIL.to, MAIL.cc, MAIL.raw, 'Someone has requested a password reset.' ].some( ( part ) => part.includes( text ) ) || text.includes( '2026' );
 	const site = await makeSite( session );
-	const { app, page } = await session.start( { ...site.settings, [ `siteMail:${ site.dir }` ]: [ MAIL ] }, { lang: 'en-XA' } );
+	const { app, page } = await session.start( { ...site.settings, [ `siteMail:${ site.dir }` ]: [ MAIL, UNTITLED ] }, { lang: 'en-XA' } );
 	await app.evaluate( ( { ipcMain } ) => {
 		ipcMain.removeHandler( 'npm:run-script' );
 		ipcMain.handle( 'npm:run-script', async () => ( { runId: 'e2e-mail' } ) );
@@ -709,6 +711,12 @@ test( 'a mail the site sent is fully translatable, on its Rendered and its Raw t
 	await dialog.getByRole( 'tab', { name: pseudoLocalize( 'Raw' ), exact: true } ).click();
 	await expect( dialog.getByText( 'X-Mailer: PHPMailer' ) ).toBeVisible();
 	expect( ( await unwrapped( dialog ) ).filter( ( text ) => ! theMails( text ) ) ).toEqual( [] );
+
+	await page.keyboard.press( 'Escape' );
+	await page.getByRole( 'button', { name: new RegExp( `${ pseudoLocalize( '(no subject)' ).replace( /[[\]()]/g, '\\$&' ) }$` ) } ).click();
+	const untitled = page.getByRole( 'dialog', { name: pseudoLocalize( 'Email' ), exact: true } );
+	await expect( untitled ).toBeVisible();
+	expect( ( await unwrapped( untitled ) ).filter( ( text ) => ! theMails( text ) ) ).toEqual( [] );
 } );
 
 test( 'the Playground web server is fully translatable, stopped, starting, running and after it exits', async ( { session } ) => {
@@ -735,6 +743,9 @@ test( 'the Playground web server is fully translatable, stopped, starting, runni
 	await expect( page.getByText( pseudoLocalize( 'Playground web server' ), { exact: true } ) ).toBeVisible();
 	await expect( page.getByText( pseudoLocalize( 'Starting…' ), { exact: true } ).first() ).toBeVisible();
 	expect( await unwrapped( notices ) ).toEqual( [] );
+	// The button says it is starting through a live region, outside the
+	// notices, so that is read on its own.
+	await expect( page.locator( '#a11y-speak-polite' ) ).toHaveText( pseudoLocalize( 'Starting the Playground web server' ) );
 
 	await tell( 'playground-web:log', { type: 'stdout', data: `${ SERVER_OUTPUT }\n` } );
 	await tell( 'playground-web:url', { url: URL } );
