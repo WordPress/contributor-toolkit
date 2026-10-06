@@ -6,7 +6,7 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { __experimentalToggleGroupControl as ToggleGroupControl, __experimentalToggleGroupControlOption as ToggleGroupControlOption } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 import { Button, Dialog, InputControl, Notice, SelectControl, Stack, SwitchControl, Tabs, Text } from '@wordpress/ui';
-import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, SYSTEM_LANGUAGE } from '../settings-view.cjs';
+import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, SYSTEM_LANGUAGE } from '../settings-view.cjs';
 import { FolderField } from './folder-field.jsx';
 
 // A notice here is read by its role, and is not also spoken: the dialog it
@@ -138,14 +138,14 @@ function GeneralTab({ settings, loaded, onChange }) {
 // be turned off. Applied the next time a server starts; one that is running
 // keeps what it started with until it is started again.
 function SitesTab({ settings, onChange }) {
-  const [versions, setVersions] = useState(null);
+  const [php, setPhp] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
     window.api.listPhpVersions()
-      .then((res) => { if (!cancelled && res?.ok) setVersions(res.versions); })
-      .catch(() => { if (!cancelled) setVersions([]); });
+      .then((res) => { if (!cancelled && res?.ok) setPhp({ versions: res.versions, fallback: res.fallback }); })
+      .catch(() => { if (!cancelled) setPhp({ versions: [], fallback: null }); });
     return () => { cancelled = true; };
   }, []);
 
@@ -153,9 +153,7 @@ function SitesTab({ settings, onChange }) {
     const result = await onChange(key, value);
     setError(result?.ok ? '' : (result?.error || __('Could not keep that.')));
   };
-  // The version set is offered even where the list does not have it, so
-  // the control shows what is set rather than nothing.
-  const offered = versions && settings && !versions.includes(settings.phpVersion) ? [settings.phpVersion, ...versions] : versions;
+  const choice = phpVersionChoice({ versions: php?.versions, fallback: php?.fallback, stored: settings ? settings.phpVersion : null });
 
   return (
     <Stack direction="column" gap="xl">
@@ -166,17 +164,18 @@ function SitesTab({ settings, onChange }) {
         __next40pxDefaultSize
         isBlock
         label={__('PHP version')}
-        value={settings ? settings.phpVersion : undefined}
-        disabled={!settings || !offered}
+        help={choice.note || undefined}
+        value={choice.value || undefined}
+        disabled={!settings || !php}
         onChange={(value) => { if (value) keep('phpVersion', value); }}
       >
-        {(offered || []).map((version) => (
+        {(php?.versions || []).map((version) => (
           <ToggleGroupControlOption key={version} value={version} label={version} />
         ))}
       </ToggleGroupControl>
       <SwitchControl
-        label={__('Show PHP errors (WP_DEBUG)')}
-        description={__('Notices, warnings and deprecations are reported, written to debug.log and shown in the browser. Off, the debug.log tab has nothing new to show.')}
+        label={__('Report notices and deprecations (WP_DEBUG)')}
+        description={__('Off, notices and deprecations are not reported. Warnings, errors and error_log() calls still reach debug.log and the browser.')}
         checked={settings ? settings.wpDebug : true}
         disabled={!settings}
         onCheckedChange={(checked) => keep('wpDebug', checked)}

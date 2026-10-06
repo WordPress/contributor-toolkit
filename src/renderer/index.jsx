@@ -684,6 +684,7 @@ function App() {
                         createdAt={siteMeta?.[s]?.createdAt}
                         label={siteMeta?.[s]?.label}
                         projectType={siteMeta?.[s]?.projectType}
+                        settings={settings}
                         onInitialized={onInitialized}
                         onSiteMetaPatch={onSiteMetaPatch}
                         onDelete={onDelete}
@@ -739,7 +740,7 @@ function App() {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -2233,7 +2234,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         id={detailsId}
         open={detailsOpen}
         siteName={displayName}
-        facts={{ initialized, created: createdLabel, trunk: age, path: sitePath, checkout: project.label }}
+        facts={{
+          initialized,
+          created: createdLabel,
+          trunk: age,
+          path: sitePath,
+          checkout: project.label,
+          // What every site's server starts with (#559), from the settings.
+          phpVersion: settings ? settings.phpVersion : null,
+          debug: settings ? { wpDebug: settings.wpDebug, scriptDebug: settings.scriptDebug } : null
+        }}
         pathCopied={pathCopied}
         onCopyPath={copyPath}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}

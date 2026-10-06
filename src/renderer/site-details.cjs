@@ -22,9 +22,11 @@ const { __, _n, sprintf } = require('@wordpress/i18n');
  * @param {Object}  [root0.trunk]       From `trunkAgeInfo`.
  * @param {string}  root0.path          Where the checkout is.
  * @param {string}  root0.checkout      The project's name.
+ * @param {?string} [root0.phpVersion]  The PHP a server starts on, from the settings (#559), or null while they are not read.
+ * @param {?Object} [root0.debug]       `{ wpDebug, scriptDebug }` from the settings, or null likewise.
  * @return {Array<{id: string, label: string, value: string, note?: string, copyable?: boolean}>}
  */
-function siteDetailsRows({ initialized = false, created = '', trunk = null, path, checkout }) {
+function siteDetailsRows({ initialized = false, created = '', trunk = null, path, checkout, phpVersion = null, debug = null }) {
 	const rows = [
 		{ id: 'setup', label: __('Setup'), value: initialized ? __('Initialized') : __('Uninitialized') }
 	];
@@ -38,7 +40,20 @@ function siteDetailsRows({ initialized = false, created = '', trunk = null, path
 		rows.push(row);
 	}
 	rows.push({ id: 'path', label: __('Local path'), value: path, copyable: true });
-	rows.push({ id: 'checkout', label: __('Checkout'), value: checkout });
+	// What the settings hold for every site's server (#559): the PHP it
+	// starts on, beside what the checkout is, and the two debug constants
+	// that can be off. These are what the next start is given; a server that
+	// is running keeps what it started with.
+	rows.push({
+		id: 'checkout',
+		label: __('Checkout'),
+		// translators: %1$s: the project a site is a checkout of; %2$s: a PHP version.
+		value: phpVersion ? sprintf(__('%1$s · PHP %2$s'), checkout, phpVersion) : checkout
+	});
+	if (debug) {
+		const on = [debug.wpDebug ? 'WP_DEBUG' : null, debug.scriptDebug ? 'SCRIPT_DEBUG' : null].filter(Boolean);
+		rows.push({ id: 'debugging', label: __('Debugging'), value: on.length ? on.join(' · ') : __('Off') });
+	}
 	return rows;
 }
 

@@ -72,8 +72,12 @@ const WP_DEBUG_CONSTANTS = Object.freeze({
 /**
  * The constants a server is booted with: the set above, with the two the
  * settings can turn off turned off where they are. Everything else stays as
- * it is: with WP_DEBUG off, WordPress reads neither WP_DEBUG_LOG nor
- * WP_DEBUG_DISPLAY, and leaving them on costs nothing.
+ * it is, and so does what Playground does on its own: its php.ini keeps
+ * display_errors and log_errors on, and its mu-plugin points error_log at
+ * debug.log while WP_DEBUG_LOG is on. So WP_DEBUG off takes away notices and
+ * deprecations, which is what WP_DEBUG governs in WordPress's error_reporting,
+ * and warnings, errors and error_log() calls still reach the log and the
+ * browser. The settings say as much.
  *
  * @param {Object}  [debug]
  * @param {boolean} [debug.wpDebug]     WP_DEBUG; on unless told otherwise.

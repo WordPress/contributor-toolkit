@@ -258,12 +258,15 @@ test( 'the details say what the checkout is, copy its path, and can be put away 
 	await standInForClipboard( page );
 	await expect( ui.siteHeading( page, 'fresh-site' ) ).toBeVisible( { timeout: 30_000 } );
 
-	// INVARIANT — the details are the open site's: its folder, its project,
-	// and that its setup is done. A recent trunk has no age to report.
+	// INVARIANT — the details are the open site's: its folder, its project
+	// with the PHP a server starts on and which debug constants are on, both
+	// from the settings at their fallbacks (#559), and that its setup is
+	// done. A recent trunk has no age to report.
 	const fresh = details( page, 'fresh-site' );
 	await expect( fresh.getByRole( 'heading', { name: 'Details', exact: true } ) ).toBeVisible();
 	await expect( fresh.getByText( freshDir, { exact: true } ) ).toBeVisible();
-	await expect( fresh.getByText( 'WordPress Core', { exact: true } ) ).toBeVisible();
+	await expect( fresh.getByText( 'WordPress Core · PHP 8.3', { exact: true } ) ).toBeVisible();
+	await expect( fresh.getByText( 'WP_DEBUG · SCRIPT_DEBUG', { exact: true } ) ).toBeVisible();
 	await expect( fresh.getByText( 'Initialized', { exact: true } ) ).toBeVisible();
 	await expect( fresh.getByText( /days? old$/ ) ).toHaveCount( 0 );
 
@@ -284,7 +287,7 @@ test( 'the details say what the checkout is, copy its path, and can be put away 
 	await expect( ui.siteHeading( page, 'old-trunk' ) ).toBeVisible();
 	const old = details( page, 'old-trunk' );
 	await expect( old.getByText( oldDir, { exact: true } ) ).toBeVisible();
-	await expect( old.getByText( 'Gutenberg', { exact: true } ) ).toBeVisible();
+	await expect( old.getByText( 'Gutenberg · PHP 8.3', { exact: true } ) ).toBeVisible();
 	await expect( old.getByText( '30 days old', { exact: true } ) ).toBeVisible();
 	await expect( fresh ).toHaveCount( 0 );
 

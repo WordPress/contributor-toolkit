@@ -22,6 +22,8 @@ const { pseudoLocalize } = require( '../../../src/renderer/pseudo-locale.cjs' );
 
 // Names that stay as they are in every language.
 const UNTRANSLATED = new Set( [ 'WordPress Core', 'Gutenberg' ] );
+// So do the names of WordPress's constants, which the details list (#559).
+const CONSTANT_NAMES = /^(WP_DEBUG|SCRIPT_DEBUG)( · (WP_DEBUG|SCRIPT_DEBUG))*$/;
 
 /**
  * Every visible text node, aria-label and placeholder inside `root` that is not
@@ -46,7 +48,7 @@ async function unwrapped( locator ) {
 		}
 		return texts;
 	} );
-	return found.filter( ( text ) => text && ! /^\[[\s\S]*\]$/.test( text ) && ! UNTRANSLATED.has( text ) );
+	return found.filter( ( text ) => text && ! /^\[[\s\S]*\]$/.test( text ) && ! UNTRANSLATED.has( text ) && ! CONSTANT_NAMES.test( text ) );
 }
 
 test( 'the first-run screen and the create-site dialog are fully translatable', async ( { session } ) => {

@@ -734,7 +734,7 @@ function phpVersions() {
 	return phpVersionsList;
 }
 
-ipcMain.handle('playground:php-versions', () => ({ ok: true, versions: phpVersions() }));
+ipcMain.handle('playground:php-versions', () => ({ ok: true, versions: phpVersions(), fallback: SETTINGS.phpVersion.fallback }));
 
 // What the settings dialog offers after the language is changed. `quit`, not
 // `exit`: the quit sweep ends every child the app started, as it does on any
@@ -3854,6 +3854,9 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 	// Playground no longer has, after a bump, is passed over for the fallback.
 	const settings = readSettings((await getStore()).get('preferences'));
 	const phpVersion = phpVersions().includes(settings.phpVersion) ? settings.phpVersion : SETTINGS.phpVersion.fallback;
+	if (phpVersion !== settings.phpVersion) {
+		logEvent(playgroundLogScope(sitePath), `PHP ${settings.phpVersion} is set but this build does not have it; starting on PHP ${phpVersion}`);
+	}
 	const serveConfig = {
 		...(isPluginMount
 			? { strategy: 'plugin-mount', pluginDir: sitePath, pluginSlug: serve.pluginSlug }
