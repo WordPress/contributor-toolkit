@@ -88,10 +88,14 @@ test('a range ends at the last byte of the size it was planned from', () => {
 	assert.deepEqual(planTailRead(6, 1).read, { start: 0, end: 0 });
 });
 
+// Settled on `close`, not on `end`: the stream closes its file a turn after
+// the last byte, and the test's cleanup removes the folder as soon as the
+// test settles. On Windows a file still open cannot be removed, and the
+// folder is then "not empty" (ENOTEMPTY in `t.after`).
 const readAll = (stream) => new Promise((resolve, reject) => {
 	let text = '';
 	stream.on('data', (chunk) => { text += chunk.toString(); });
-	stream.on('end', () => resolve(text));
+	stream.on('close', () => resolve(text));
 	stream.on('error', reject);
 });
 
