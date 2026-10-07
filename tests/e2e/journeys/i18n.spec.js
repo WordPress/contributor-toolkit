@@ -827,6 +827,80 @@ test( 'the Open a pull request card on a Gutenberg site is fully translatable, i
 	expect( ( await inCard() ).filter( ( text ) => text !== link ) ).toEqual( [] );
 } );
 
+test( 'the setup checklist is fully translatable, with steps done and one ready', async ( { session } ) => {
+	// Installed and built, but not through the checklist: three steps done
+	// and the last one ready.
+	const built = await makeSite( session );
+	built.settings.siteMeta[ built.dir ].skipInitWizard = false;
+	const { page } = await session.start( built.settings, { lang: 'en-XA' } );
+	const checklist = page.getByRole( 'region', { name: pseudoLocalize( 'Initial setup checklist' ), exact: true } );
+	await expect( checklist.getByText( pseudoLocalize( 'Ready' ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( checklist.getByText( pseudoLocalize( 'Completed' ), { exact: true } ) ).toHaveCount( 3 );
+	expect( await unwrapped( checklist ) ).toEqual( [] );
+} );
+
+test( 'the checklist after a failed install is fully translatable', async ( { session } ) => {
+	// No node_modules and no build, and the last install failed.
+	const site = await makeSite( session );
+	fs.rmSync( path.join( site.dir, 'node_modules' ), { recursive: true, force: true } );
+	fs.rmSync( path.join( site.dir, 'build' ), { recursive: true, force: true } );
+	Object.assign( site.settings.siteMeta[ site.dir ], { skipInitWizard: false, installFailed: true } );
+	const { page } = await session.start( site.settings, { lang: 'en-XA' } );
+	const checklist = page.getByRole( 'region', { name: pseudoLocalize( 'Initial setup checklist' ), exact: true } );
+	await expect( checklist.getByRole( 'button', { name: pseudoLocalize( 'Retry %s' ).replace( '%s', 'npm install' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( checklist.getByText( pseudoLocalize( 'Failed' ), { exact: true } ) ).toBeVisible();
+	await expect( checklist.getByText( pseudoLocalize( 'Locked' ), { exact: true } ) ).toHaveCount( 2 );
+	expect( await unwrapped( checklist ) ).toEqual( [] );
+} );
+
+test( 'the trunk banners, the question before an update over edits, and the update card are fully translatable', async ( { session } ) => {
+	// A trunk 30 days old, with an edit in it.
+	const site = await makeSite( session, { trunkDate: new Date( Date.now() - 30 * 24 * 60 * 60 * 1000 ).toISOString() } );
+	write( site.dir, LOGIN, MY_EDIT );
+	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+
+	// The stale banner.
+	const stale = page.locator( '[data-next-action="update-trunk"]' );
+	await expect( stale.getByText( pseudoLocalize( "This site's WordPress code is %d days old" ).replace( '%d', '30' ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	expect( await unwrapped( stale ) ).toEqual( [] );
+
+	// The question an update asks over edits, with each answer chosen.
+	await stale.getByRole( 'button', { name: pseudoLocalize( 'Update to latest trunk' ), exact: true } ).click();
+	const question = page.getByRole( 'dialog', { name: pseudoLocalize( 'Update to latest trunk?' ), exact: true } );
+	await expect( question.getByRole( 'button', { name: pseudoLocalize( 'Save patch & update' ), exact: true } ) ).toBeVisible();
+	await expect( question.getByText( pseudoLocalize( "You've changed %d file in this site. Resetting to trunk would throw them away." ).replace( '%d', '1' ), { exact: true } ) ).toBeVisible();
+	// The file's path is the checkout's.
+	const inQuestion = async () => ( await unwrapped( question ) ).filter( ( text ) => text !== 'src/wp-login.php' );
+	expect( await inQuestion() ).toEqual( [] );
+	await question.getByRole( 'button', { name: new RegExp( pseudoLocalize( 'Discard them' ).replace( /[[\]()~]/g, '\\$&' ) ) } ).click();
+	await expect( question.getByRole( 'button', { name: pseudoLocalize( 'Discard & update' ), exact: true } ) ).toBeVisible();
+	expect( await inQuestion() ).toEqual( [] );
+	await question.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ).click();
+	await expect( question ).toHaveCount( 0 );
+
+	// The update under way, on its first step. The fetch is a stand-in that
+	// never finishes, so the card stays where it is.
+	await app.evaluate( ( { ipcMain } ) => {
+		ipcMain.removeHandler( 'git:update-trunk' );
+		ipcMain.handle( 'git:update-trunk', () => ( { updateId: 'e2e-update' } ) );
+	} );
+	gitOk( [ 'checkout', '-q', '--', LOGIN ], site.dir );
+	await stale.getByRole( 'button', { name: pseudoLocalize( 'Update to latest trunk' ), exact: true } ).click();
+	const card = page.locator( '[data-next-action="updating"]' );
+	await expect( card.getByText( pseudoLocalize( 'step %1$d of %2$d' ).replace( '%1$d', '1' ).replace( '%2$d', '3' ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( card.getByText( pseudoLocalize( 'Fetching and resetting to trunk…' ), { exact: true } ) ).toBeVisible();
+	expect( await unwrapped( card ) ).toEqual( [] );
+} );
+
+test( 'the banner after an update that did not finish is fully translatable', async ( { session } ) => {
+	const site = await makeSite( session );
+	site.settings.siteMeta[ site.dir ].updateIncomplete = true;
+	const { page } = await session.start( site.settings, { lang: 'en-XA' } );
+	const banner = page.locator( '[data-next-action="retry-install-build"]' );
+	await expect( banner.getByRole( 'button', { name: pseudoLocalize( 'Retry install & build' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	expect( await unwrapped( banner ) ).toEqual( [] );
+} );
+
 /**
  * The lines the visible terminal shows, each whole.
  *

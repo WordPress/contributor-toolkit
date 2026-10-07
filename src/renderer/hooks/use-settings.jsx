@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 
 // The app's settings (#559), held once for the window for the reason the
 // contributor's details are: they are about the person and the machine,
-// not about a checkout. `settings` is null until main has answered, so a
+// not about a checkout. They are read before the first render, since the
+// theme is one of them (#560), and handed in as `initial`; where that read
+// failed they are null until main has answered a second ask here, so a
 // dialog opened before then can say it is still reading them. `loaded` is
 // what main answered first and does not change: a setting that takes a
 // relaunch, the language, is one whose value now differs from it.
@@ -11,21 +13,23 @@ import { useCallback, useEffect, useState } from 'react';
 // and the details say which one a server starts on, which is the fallback
 // where the one set is not among them. Null until read; `{ error }` when it
 // could not be, so the dialog can say so rather than offer nothing.
-export function useSettings() {
-  const [settings, setSettings] = useState(null);
-  const [loaded, setLoaded] = useState(null);
+export function useSettings(initial = null) {
+  const [settings, setSettings] = useState(initial);
+  const [loaded, setLoaded] = useState(initial);
   const [php, setPhp] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    window.api.getSettings()
-      .then((res) => {
-        if (cancelled || !res?.ok) return;
-        setSettings(res.settings);
-        setLoaded(res.settings);
-      })
-      // eslint-disable-next-line no-console -- reaches the log file, see the note in useDetectedEditors.
-      .catch((err) => console.error('Could not read the settings:', err));
+    if (!initial) {
+      window.api.getSettings()
+        .then((res) => {
+          if (cancelled || !res?.ok) return;
+          setSettings(res.settings);
+          setLoaded(res.settings);
+        })
+        // eslint-disable-next-line no-console -- reaches the log file, see the note in useDetectedEditors.
+        .catch((err) => console.error('Could not read the settings:', err));
+    }
     window.api.listPhpVersions()
       .then((res) => {
         if (cancelled) return;
@@ -37,7 +41,7 @@ export function useSettings() {
         if (!cancelled) setPhp({ error: true });
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [initial]);
 
   // One setting written, and the whole replaced by what main then holds. A
   // refusal comes back as one rather than being raised, with the words for

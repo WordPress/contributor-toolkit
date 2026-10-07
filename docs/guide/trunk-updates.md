@@ -42,7 +42,7 @@ After the update, the work-item card may say **Trunk has moved since this ticket
 
 ## Staleness dots and notices
 
-The app flags sites that have fallen behind with a coloured dot next to the site name in the sidebar:
+The app flags sites that have fallen behind with a coloured dot next to the site name in the sidebar, after the grey or green dot that shows the site's development server:
 
 - **Amber** — the snapshot is more than 14 days old. The site view also shows a notice recommending an update before you prepare changes against old code, with an **Update to latest trunk** button.
 - **Red** — a previous update moved the code but never finished installing or rebuilding, so the built assets no longer match the source. Run the update again.

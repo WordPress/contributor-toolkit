@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { __ } from '@wordpress/i18n';
 import { check, closeSmall } from '@wordpress/icons';
 import { Badge, Button, Card, Icon, Notice, Spinner, Stack, Text } from '@wordpress/ui';
 import { setupStepBadge, setupStepLabel } from '../setup-steps.cjs';
@@ -36,8 +37,8 @@ export function SetupChecklist({ steps, cueId, running, stopped, onSkip }) {
   return (
     <Card.Root className="setup-checklist" render={<section aria-labelledby={titleId} />}>
       <Card.Header render={<Stack direction="column" gap="xs" />}>
-        <Card.Title id={titleId} render={<h2 />}>Initial setup checklist</Card.Title>
-        <Text variant="body-md" className="muted-label">Complete each step to prepare this site for development.</Text>
+        <Card.Title id={titleId} render={<h2 />}>{__('Initial setup checklist')}</Card.Title>
+        <Text variant="body-md" className="muted-label">{__('Complete each step to prepare this site for development.')}</Text>
       </Card.Header>
       <Card.Content render={<Stack direction="column" gap="md" />}>
         {/* Nobody pressed a button to start this, so the notice has to say
@@ -48,14 +49,14 @@ export function SetupChecklist({ steps, cueId, running, stopped, onSkip }) {
             <Notice.Title>{running.title}</Notice.Title>
             <Notice.Description>{running.body}</Notice.Description>
             <Notice.Actions>
-              <Button variant="outline" tone="neutral" size="compact" onClick={running.onStop}>Stop setup</Button>
+              <Button variant="outline" tone="neutral" size="compact" onClick={running.onStop}>{__('Stop setup')}</Button>
             </Notice.Actions>
           </Notice.Root>
         ) : null}
         {!running && stopped ? (
           <Notice.Root intent="warning" spokenMessage={SILENT}>
-            <Notice.Title>Setup stopped.</Notice.Title>
-            <Notice.Description>Nothing was lost — pick it back up with the buttons below whenever you want.</Notice.Description>
+            <Notice.Title>{__('Setup stopped.')}</Notice.Title>
+            <Notice.Description>{__('Nothing was lost — pick it back up with the buttons below whenever you want.')}</Notice.Description>
           </Notice.Root>
         ) : null}
         <ol className="setup-steps">
@@ -81,7 +82,7 @@ export function SetupChecklist({ steps, cueId, running, stopped, onSkip }) {
           })}
         </ol>
         <Stack direction="row">
-          <Button variant="minimal" tone="neutral" size="compact" onClick={onSkip}>Skip initialization wizard</Button>
+          <Button variant="minimal" tone="neutral" size="compact" onClick={onSkip}>{__('Skip initialization wizard')}</Button>
         </Stack>
       </Card.Content>
     </Card.Root>
