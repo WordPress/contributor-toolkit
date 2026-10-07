@@ -412,6 +412,25 @@ test( 'a custom theme is built from the two colours chosen, is kept, and a colou
 	expect( await again.app.evaluate( ( { nativeTheme } ) => nativeTheme.themeSource ) ).toBe( 'light' );
 	expect( await windowColour( again.app ) ).toBe( '#fff8e1' );
 	await expect.poll( () => bodyColour( again.page ) ).toBe( 'rgb(255, 248, 225)' );
+
+	// INVARIANT — the page is in the custom colours from the app's first
+	// render, not after a first render in the standard theme: the design
+	// system's tokens on the document at the moment the app mounts, which is
+	// before the app's first frame is painted, are the custom ones, not the
+	// standard theme's and not none. Read on a reload, which loads the page
+	// as a launch does, by a script put in the page before any of its own,
+	// which notes the document's own style as the app mounts.
+	await again.page.addInitScript( () => {
+		window.__styleAtMount = null;
+		new window.MutationObserver( () => {
+			const root = document.getElementById( 'root' );
+			if ( window.__styleAtMount === null && root && root.childElementCount > 0 ) {
+				window.__styleAtMount = document.documentElement.getAttribute( 'style' ) || '';
+			}
+		} ).observe( document, { childList: true, subtree: true } );
+	} );
+	await again.page.reload();
+	await expect.poll( () => again.page.evaluate( () => window.__styleAtMount ) ).toContain( '#fff8e1' );
 	await ui.settingsButton( again.page ).click();
 	const kept = ui.settingsDialog( again.page );
 	await expect( kept.getByRole( 'radio', { name: 'Custom', exact: true } ) ).toBeChecked();
