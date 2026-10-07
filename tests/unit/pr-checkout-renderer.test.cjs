@@ -97,3 +97,35 @@ test('a PR checked out from an issue branch says the issue work returns on rever
 	// The namespace alone is not enough to change the noun; a site says it.
 	assert.match(describePrCheckout({ returnTo: 'issue/71234' }).body, /Your ticket changes/);
 });
+
+// Main words a refusal with these too, for the terminal and the done event,
+// so they are read here rather than through a journey, which stubs main.
+test('a checkout\'s sentences are said in the locale: one per kind of work item, and the plural by count (#628)', (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { sprintf } = require('@wordpress/i18n');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	addFilter('i18n.ngettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => {
+		removeFilter('i18n.gettext', 'test/pseudo-locale');
+		removeFilter('i18n.ngettext', 'test/pseudo-locale');
+	});
+	const pseudo = (format, ...args) => sprintf(pseudoLocalize(format), ...args);
+
+	assert.deepEqual(describePrCheckout({ returnTo: 'issue/71234', noun: 'issue' }), {
+		body: pseudoLocalize('Your issue changes are saved separately and return when you revert this PR.'),
+		edits: pseudoLocalize('Edits you make here stay with your local copy of the PR.'),
+		backLabel: pseudoLocalize('Revert this PR')
+	});
+	assert.equal(describePrCheckout({ returnTo: 'ticket/1', noun: 'ticket' }).body, pseudoLocalize('Your ticket changes are saved separately and return when you revert this PR.'));
+	assert.equal(prCheckoutRefusal({ code: 'pr-branch-exists', number: 7 }), pseudo('This site already has a branch named pr/%d that the app did not make. Rename or delete that branch from a terminal before trying again.', 7));
+	assert.equal(prCheckoutRefusal({}), pseudoLocalize('Could not switch this pull request. Check the log and try again.'));
+	// An error main already worded comes back as it is.
+	assert.equal(prCheckoutRefusal({ code: 'merge-in-progress', error: 'worded in main' }), 'worded in main');
+
+	const preview = describePrPreview({ number: 7, files: [{ path: 'a.php' }, { path: 'b.php' }], needsInstall: true, state: 'closed' });
+	assert.equal(preview.headline, pseudo('PR #%1$d changes %2$d files.', 7, 2));
+	assert.equal(preview.installNote, pseudoLocalize('It changes package-lock.json, so dependencies will be installed before the rebuild.'));
+	assert.equal(describePrPreview({ number: 7, files: [{ path: 'a.php' }] }).headline, pseudo('PR #%1$d changes %2$d file.', 7, 1));
+	assert.equal(describePrPreview({ number: 7, exists: true, moved: true, hasEdits: true }).actionLabel, pseudoLocalize('Return to saved copy'));
+});

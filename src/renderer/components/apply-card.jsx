@@ -83,7 +83,7 @@ function AppliedPatch({ applied }) {
   const { layer } = applied;
   return (
     <Notice.Root intent={layer.canRevert ? 'success' : 'warning'} spokenMessage={SILENT}>
-      <Notice.Title>{layer.label} {layer.summary}</Notice.Title>
+      <Notice.Title>{layer.summary}</Notice.Title>
       <Notice.Description render={<div />}>
         <Stack direction="column" gap="xs">
           <span>{__('This patch is applied to your current work. Removing it may require undoing overlapping edits.')}</span>

@@ -235,3 +235,18 @@ test('parsePrRef: guards against the repository it is given, and names it in the
 	assert.match(res.error, /WordPress\/gutenberg/);
 	assert.strictEqual(parsePrRef('4496', { repoPath: GB }).number, 4496, 'a bare number needs no repository');
 });
+
+test('parsePrRef: a refusal is said in the locale, with the repository left as it is (#628)', (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+
+	assert.strictEqual(parsePrRef('').error, pseudoLocalize('Enter a pull request URL or number.'));
+	assert.strictEqual(parsePrRef('https://gitlab.com/a/b/pull/1').error, pseudoLocalize('Only github.com pull requests are supported.'));
+	assert.strictEqual(parsePrRef('https://github.com/WordPress/wordpress-develop/issues/1').error, pseudoLocalize('That does not look like a pull request URL.'));
+	assert.strictEqual(
+		parsePrRef('https://github.com/WordPress/wordpress-develop/pull/1', { repoPath: 'WordPress/gutenberg' }).error,
+		pseudoLocalize('Only %s pull requests can be applied here.').replace('%s', 'WordPress/gutenberg')
+	);
+});
