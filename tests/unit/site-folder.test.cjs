@@ -8,7 +8,6 @@ const assert = require('node:assert/strict');
 const {
 	sanitizeSiteFolder,
 	resolveTargetDir,
-	directoryFromFileEntry,
 	FALLBACK_FOLDER
 } = require('../../src/renderer/site-folder.cjs');
 
@@ -63,39 +62,4 @@ test('resolveTargetDir with no root is the folder name alone', () => {
 	// a path a contributor reaches.
 	assert.equal(resolveTargetDir('', 'my-site'), 'my-site');
 	assert.equal(resolveTargetDir(null, 'my-site'), 'my-site');
-});
-
-// What follows pins what this function does with the entries it actually gets,
-// which is not the same as what it was written for. The `path` property it
-// prefers was removed from `File` in Electron 32, this app pins Electron 43,
-// and no `webUtils` bridge replaces it — so every real entry takes the
-// fallback. Asserting the `path` shapes would be green and prove nothing.
-//
-// The only route that reaches this at all is dropping a folder on the control,
-// which the app deliberately does not support — #228, closed as not planned.
-// So these record where an unsupported route ends, and are the tests a change
-// of mind would have to rewrite.
-
-test('directoryFromFileEntry gets nothing from a real dropped entry', () => {
-	// A File in Electron 43. No `path`, and `webkitRelativePath` alone carries
-	// no absolute part to cut it off.
-	assert.equal(directoryFromFileEntry({ webkitRelativePath: 'sites/inner/file.txt' }, ''), '');
-	assert.equal(directoryFromFileEntry({}, ''), '');
-	assert.equal(directoryFromFileEntry(null, ''), '');
-	assert.equal(directoryFromFileEntry(undefined, undefined), '');
-});
-
-test('directoryFromFileEntry passes C:\\fakepath through — #228', () => {
-	// Recorded, not endorsed. A file input's `value` is either empty or this
-	// literal prefix on every platform, browsers substituting it for the real
-	// path, so the fallback's "typed path" is a fiction. The modal shows this
-	// as the chosen folder and submit hands it to setup.
-	assert.equal(directoryFromFileEntry({}, 'C:\\fakepath\\my-folder'), 'C:\\fakepath');
-});
-
-test('directoryFromFileEntry returns nothing rather than a wrong directory', () => {
-	// '' is what the caller checks before it clears the chosen directory — a
-	// bare segment is not a directory anyone chose.
-	assert.equal(directoryFromFileEntry({}, 'file.txt'), '');
-	assert.equal(directoryFromFileEntry({}, ''), '');
 });

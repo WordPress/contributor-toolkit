@@ -8,7 +8,6 @@ import { __ } from '@wordpress/i18n';
 import { Button, Dialog, InputControl, Notice, Stack } from '@wordpress/ui';
 import { DEFAULT_PROJECT_TYPE } from '../../project-type.cjs';
 import { createSiteProblem, projectChoices, projectHelp } from '../create-site.cjs';
-import { directoryFromFileEntry } from '../site-folder.cjs';
 import { FolderField } from './folder-field.jsx';
 
 // The dialog's three answers and the button that sends them. It is inside
@@ -33,21 +32,6 @@ function CreateSiteForm({ formId, submitting, defaultDir, onCreate }) {
         setError('');
       }
     } catch {}
-  }, []);
-
-  // Not reached by the intended route, which is the system's dialog above:
-  // a folder dropped on the input arrives here.
-  const takeFiles = useCallback((event) => {
-    const input = event.target;
-    const files = input.files;
-    if (files && files.length > 0) {
-      const resolved = directoryFromFileEntry(files[0], input.value);
-      setDir(resolved);
-      // Clearing the error only when there is a directory: a selection that
-      // resolved to nothing has not fixed anything the message was about.
-      if (resolved) setError('');
-    }
-    input.value = '';
   }, []);
 
   const submit = (event) => {
@@ -91,7 +75,6 @@ function CreateSiteForm({ formId, submitting, defaultDir, onCreate }) {
             value={dir}
             disabled={submitting}
             onChoose={chooseFolder}
-            onFiles={takeFiles}
           />
           {error ? (
             // An alert, which is said as it appears. The notice is told to

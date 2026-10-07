@@ -1310,21 +1310,10 @@ body {
 }
 
 /* A folder field (#557, #559), in the create-site dialog and the settings.
-   The folder is asked for with a file input, as wide as the dialog, and the
-   folder that was chosen is said under it: a path has no spaces to break
-   at. */
+   The folder that was chosen is said under its button: a path has no
+   spaces to break at. The button keeps its own width, not the field's. */
 .folder-field .file-field-control {
-  width: 100%;
-  min-height: var(--wpds-dimension-size-md);
-  font: inherit;
-  color: inherit;
-}
-
-/* The ring the design system's own controls have, where the browser would
-   draw its own. */
-.folder-field .file-field-control:focus-visible {
-  outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
-  outline-offset: var(--wpds-border-width-focus);
+  align-self: flex-start;
 }
 
 .folder-field .file-field-value {

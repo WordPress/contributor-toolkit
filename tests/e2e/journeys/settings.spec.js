@@ -41,7 +41,7 @@ test( 'the folder new sites go in is chosen in the settings, used by the create-
 
 	// INVARIANT — a folder chosen is shown, kept, and offered to be forgotten.
 	await session.answerFileDialog( [ parent ] );
-	const field = dialog.getByLabel( 'New sites go here', { exact: true } );
+	const field = dialog.getByRole( 'button', { name: 'New sites go here Choose folder…', exact: true } );
 	await field.press( 'Enter' );
 	await expect( dialog.getByText( parent, { exact: true } ) ).toBeVisible();
 	await expect( notSet ).toHaveCount( 0 );
@@ -67,7 +67,7 @@ test( 'the folder new sites go in is chosen in the settings, used by the create-
 	await expect( create.getByText( 'No folder selected yet.', { exact: true } ) ).toHaveCount( 0 );
 	const other = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-other-' ) ) );
 	await session.answerFileDialog( [ other ] );
-	await create.getByLabel( 'Location', { exact: true } ).press( 'Enter' );
+	await create.getByRole( 'button', { name: 'Location Choose folder…', exact: true } ).press( 'Enter' );
 	await expect( create.getByText( other, { exact: true } ) ).toBeVisible();
 	await ui.closeDialogButton( create ).click();
 	await expect( create ).toHaveCount( 0 );
