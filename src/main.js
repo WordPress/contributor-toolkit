@@ -1744,13 +1744,17 @@ async function appliedPatchSubmissionRefusal(sitePath) {
     const appliedPatch = (ref === TRUNK || !meta ? site : meta).appliedPatch;
     if (!appliedPatch) return null;
 
-    const label = typeof appliedPatch.label === 'string' && appliedPatch.label.trim()
-        ? appliedPatch.label.trim()
-        : 'The patch you applied';
+    const label = typeof appliedPatch.label === 'string' ? appliedPatch.label.trim() : '';
     return {
         ok: false,
         reason: 'applied-patch',
-        error: `${label} is applied. Revert it before submitting this checkout as your own work.`
+        error: label
+            ? sprintf(
+                // translators: %s: the name of the patch or pull request, such as 60001.diff or PR #6717.
+                __('%s is applied. Revert it before submitting this checkout as your own work.'),
+                label
+            )
+            : __('The patch you applied is applied. Revert it before submitting this checkout as your own work.')
     };
 }
 
@@ -4157,7 +4161,8 @@ ipcMain.handle('playground-web:start', async () => {
     ];
     const webDir = webDirCandidates.find((p) => { try { return fs.existsSync(p); } catch { return false; } });
     if (!webDir) {
-        return { ok: false, error: 'local-playground-web directory not found.' };
+        // translators: %s: the name of the folder the web server serves, local-playground-web.
+        return { ok: false, error: sprintf(__('%s directory not found.'), 'local-playground-web') };
     }
 
     const runnerPath = path.join(__dirname, 'playground-web-runner.js');
@@ -4205,7 +4210,7 @@ ipcMain.handle('playground-web:start', async () => {
         if (stillPending) {
             clearTimeout(timeoutId);
             if (probeIntervalId) clearInterval(probeIntervalId);
-            try { pendingResolve({ ok: false, error: 'Server exited before becoming ready' }); } catch {}
+            try { pendingResolve({ ok: false, error: __('Server exited before becoming ready') }); } catch {}
             pendingResolve = null;
         }
         broadcastToAll('playground-web:stopped', { code });
@@ -4237,7 +4242,7 @@ ipcMain.handle('playground-web:start', async () => {
         probeIntervalId = setInterval(probe, 600);
         timeoutId = setTimeout(() => {
             if (!resolved && typeof pendingResolve === 'function') {
-                pendingResolve({ ok: false, error: 'Timed out starting web server' });
+                pendingResolve({ ok: false, error: __('Timed out starting web server') });
                 pendingResolve = null;
             }
             if (probeIntervalId) clearInterval(probeIntervalId);

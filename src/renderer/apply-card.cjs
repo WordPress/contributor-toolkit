@@ -11,7 +11,7 @@
 // banner's and the steps' words are still English until their own batches.
 'use strict';
 
-const { __, _n, sprintf } = require('@wordpress/i18n');
+const { __, _n, _x, sprintf } = require('@wordpress/i18n');
 
 /**
  * The card's own words. A project that takes patch files (Core) is offered
@@ -177,9 +177,12 @@ function applyStepRows(steps = [], states = []) {
  * the breakdown's headline says the same as the error in counts, which is the
  * part that decides whether the patch is worth rescuing, so it replaces the
  * sentence; without one the sentence is the whole story, and is given the
- * full stop it may lack. A patch file is applied all or nothing, so its
- * failure also says that nothing was changed; a pull request's does not,
- * since a checkout that fails part-way can leave the site on another branch.
+ * full stop it may lack: Git's own line and a thrown error have none. The
+ * full stop is the translator's, since not every language ends a sentence
+ * with one, and a sentence already ended in any script's mark keeps it. A
+ * patch file is applied all or nothing, so its failure also says that nothing
+ * was changed; a pull request's does not, since a checkout that fails part-way
+ * can leave the site on another branch.
  *
  * @param {Object} root0
  * @param {string} [root0.error]    What went wrong, as it was reported.
@@ -189,7 +192,11 @@ function applyStepRows(steps = [], states = []) {
  */
 function applyFailureWords({ error = '', conflict = null, kind = '' } = {}) {
 	const sentence = String(error || '').trim();
-	const headline = (conflict && conflict.headline) || (/[.!?]$/.test(sentence) || !sentence ? sentence : `${sentence}.`);
+	const headline = (conflict && conflict.headline) || (/[\p{Sentence_Terminal}…]$/u.test(sentence) || !sentence ? sentence : sprintf(
+		// translators: %s: a sentence that did not end in a full stop. Use the mark your language ends a sentence with, or none.
+		_x('%s.', 'ends a sentence that lacks a full stop'),
+		sentence
+	));
 	return {
 		headline,
 		untouched: kind === 'patch' ? __('The checkout was not changed.') : ''

@@ -955,8 +955,8 @@ test( 'the Terminal is fully translatable: what it prints, a command it does not
 	expect( await printed() ).toEqual( [] );
 
 	// The help asked for, and a command it does not know. The terminal's
-	// input is named by xterm, which is not ours to translate.
-	const input = page.getByRole( 'textbox', { name: 'Terminal input' } );
+	// input is named by xterm, in the words the app gives it.
+	const input = page.getByRole( 'textbox', { name: pseudoLocalize( 'Terminal input' ), exact: true } );
 	await input.pressSequentially( 'help', { delay: 10 } );
 	await input.press( 'Enter' );
 	await input.pressSequentially( 'frobnicate', { delay: 10 } );
@@ -1072,14 +1072,14 @@ test( 'the apply card is fully translatable when a patch or a pull request will 
 
 	// A pull request address from somewhere else, refused before anything is
 	// asked of GitHub. The card gives a sentence a full stop when it ends
-	// without one, which a bracketed one always does: that stop is the card's
-	// (#630 drops it), and the sentence before it is checked whole.
+	// without one, which a bracketed one always does, and that full stop is
+	// translated too (#630): the whole line is one translated string.
 	await card.getByRole( 'tab', { name: pseudoLocalize( 'Pull request' ), exact: true } ).click();
 	await card.getByLabel( pseudoLocalize( 'Pull request URL or number' ), { exact: true } ).fill( 'https://gitlab.com/WordPress/wordpress-develop/pull/7' );
 	await card.getByRole( 'button', { name: pseudoLocalize( 'Apply PR' ), exact: true } ).click();
-	const elsewhere = `${ pseudoLocalize( 'Only github.com pull requests are supported.' ) }.`;
+	const elsewhere = pseudoLocalize( '%s.' ).replace( '%s', pseudoLocalize( 'Only github.com pull requests are supported.' ) );
 	await expect( card.getByText( elsewhere, { exact: true } ) ).toBeVisible();
-	expect( ( await inCard() ).filter( ( text ) => text !== elsewhere ) ).toEqual( [] );
+	expect( await inCard() ).toEqual( [] );
 
 	// A pull request's preview, read from a stand-in for its fetch: what it
 	// changes, and that dependencies will be installed.
