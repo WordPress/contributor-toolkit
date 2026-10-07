@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, resumeFor, SYSTEM_LANGUAGE } = require('../../src/renderer/settings-view.cjs');
+const { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE } = require('../../src/renderer/settings-view.cjs');
 
 test('the GitHub line says the account is still being read, and offers no sign-out, until it is', () => {
 	assert.deepEqual(githubAccountLine(null), { text: 'Reading…', canSignOut: false });
@@ -81,6 +81,22 @@ test('the theme control offers light, dark, system and custom, in that order (#5
 		{ value: 'system', label: 'System' },
 		{ value: 'custom', label: 'Custom' }
 	]);
+});
+
+test('a colour field shows the colour as kept after a keep, what was kept after a refusal, and newer typing over an older answer (#560)', () => {
+	assert.equal(colorFieldDraft({ current: 'F80', sent: 'F80', ok: true, kept: '#3858e9' }), '#ff8800');
+	assert.equal(colorFieldDraft({ current: '#ff8800', sent: '#ff8800', ok: true, kept: '#ff8800' }), '#ff8800');
+	assert.equal(colorFieldDraft({ current: 'navy', sent: 'navy', ok: false, kept: '#102030' }), '#102030');
+	// Main answered a draft the field no longer holds.
+	assert.equal(colorFieldDraft({ current: '#1020', sent: 'navy', ok: false, kept: '#102030' }), '#1020');
+	assert.equal(colorFieldDraft({ current: '#10203', sent: '#102030', ok: true, kept: '#102030' }), '#10203');
+});
+
+test('the picker holds the colour being typed, and the colour kept while what is typed is no colour (#560)', () => {
+	assert.equal(pickerValue('#204060', '#102030'), '#204060');
+	assert.equal(pickerValue('ABC', '#102030'), '#aabbcc');
+	assert.equal(pickerValue('nav', '#102030'), '#102030');
+	assert.equal(pickerValue('', '#102030'), '#102030');
 });
 
 test('what the next launch starts for a site comes from the list the quit left', () => {

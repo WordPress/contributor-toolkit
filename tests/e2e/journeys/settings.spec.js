@@ -356,6 +356,12 @@ test( 'a custom theme is built from the two colours chosen, is kept, and a colou
 	// INVARIANT — a dark background typed and entered is kept as the settings
 	// keep a colour, Electron is told the scheme it comes to, and the page
 	// and the window are painted in it at once.
+	// CHARACTERISATION — the body is the seed itself, and below the brand
+	// surface is the primary seed itself: the design system's ramps pin
+	// their first step to the seed (`surface2`, `bgFill1`, contrast 1
+	// against it) and move it only where the seed cannot meet a contrast
+	// target, which these do not. A design-system release that rescales
+	// differently moves these two numbers and nothing else here.
 	await background.fill( '#102030' );
 	await background.press( 'Enter' );
 	await expect.poll( () => stored( 'customBackground' ) ).toBe( '#102030' );

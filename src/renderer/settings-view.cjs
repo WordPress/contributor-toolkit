@@ -9,6 +9,7 @@
  */
 
 const { __, _x, sprintf } = require('@wordpress/i18n');
+const { normalizeHexColor } = require('../theme.cjs');
 
 /**
  * The line under "GitHub": whose account the app holds, or why none.
@@ -140,6 +141,38 @@ function themeItems() {
 }
 
 /**
+ * What a colour field shows after main has answered a keep (#560): the
+ * colour as kept where it was kept, so `F80` reads `#ff8800`; what was kept
+ * before where it was refused; and whatever is in the field now where that
+ * is no longer what was sent, since the contributor has typed on while main
+ * answered and the answer is to an older draft.
+ *
+ * @param {Object}  root0
+ * @param {string}  root0.current What the field holds now.
+ * @param {string}  root0.sent    What was sent to be kept.
+ * @param {boolean} root0.ok      Whether main kept it.
+ * @param {string}  root0.kept    The colour kept, as main holds it after the answer.
+ * @return {string} What the field shows.
+ */
+function colorFieldDraft({ current, sent, ok, kept }) {
+	if (current !== sent) return current;
+	return ok ? (normalizeHexColor(sent) ?? kept) : kept;
+}
+
+/**
+ * What the colour picker beside a field holds: the colour being typed, or
+ * the colour kept while what is typed is no colour, since a picker cannot
+ * hold anything else.
+ *
+ * @param {string} draft What the field holds.
+ * @param {string} kept  The colour kept.
+ * @return {string} `#rrggbb`.
+ */
+function pickerValue(draft, kept) {
+	return normalizeHexColor(draft) ?? kept;
+}
+
+/**
  * What the next launch starts for a site, from the list the last quit left:
  * its server, its watch, both, or nothing.
  *
@@ -154,4 +187,4 @@ function resumeFor(resume, sitePath) {
 	return server || watch ? { server, watch } : null;
 }
 
-module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, resumeFor, SYSTEM_LANGUAGE };
+module.exports = { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, resumeFor, SYSTEM_LANGUAGE };
