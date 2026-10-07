@@ -365,6 +365,18 @@ body {
   font-weight: var(--wpds-typography-font-weight-default);
 }
 
+/* The dot on the x-height of the words, as in the sites list: an inline box,
+   not a flex item of the button, which would centre it on the line box. */
+.process-menu-state {
+  white-space: nowrap;
+}
+
+.process-menu-state .process-status {
+  display: inline-block;
+  vertical-align: middle;
+  margin-inline-end: var(--wpds-dimension-gap-sm);
+}
+
 .dashboard-sidebar h3 {
   margin: 0;
 }
