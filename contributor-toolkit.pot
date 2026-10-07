@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-06T20:08:21+00:00\n"
+"POT-Creation-Date: 2026-10-07T08:34:22+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -141,39 +141,39 @@ msgstr[1] ""
 msgid "Could not read the base commit"
 msgstr ""
 
-#: src/main.js:1174
+#: src/main.js:1147
 msgid "Save Patch for Handoff"
 msgstr ""
 
-#: src/main.js:1174
+#: src/main.js:1147
 msgid "Save Diff File"
 msgstr ""
 
-#: src/main.js:1294
+#: src/main.js:1267
 msgid "Sign in to GitHub first."
 msgstr ""
 
-#: src/main.js:2531
+#: src/main.js:2504
 msgid "Choose a patch file"
 msgstr ""
 
-#: src/main.js:2534
+#: src/main.js:2507
 msgid "Patch Files"
 msgstr ""
 
-#: src/main.js:2535
+#: src/main.js:2508
 msgid "All Files"
 msgstr ""
 
-#: src/main.js:3485
+#: src/main.js:3458
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3486
+#: src/main.js:3459
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3492
+#: src/main.js:3465
 msgid "Choose the application to open this folder in"
 msgstr ""
 
