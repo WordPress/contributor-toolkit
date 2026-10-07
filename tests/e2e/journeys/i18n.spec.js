@@ -80,6 +80,10 @@ test( 'the first-run screen and the create-site dialog are fully translatable', 
 	await expect( createButton ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.locator( 'html' ) ).toHaveAttribute( 'lang', 'en-XA' );
 	await expect( page ).toHaveTitle( pseudoLocalize( 'WordPress Contributor Toolkit' ) );
+	// The line a screen reader says before each announcement, which
+	// @wordpress/a11y writes before the locale arrives (#648). It is hidden
+	// until something is announced, so the scans below never see it.
+	await expect( page.locator( '#a11y-speak-intro-text' ) ).toHaveText( pseudoLocalize( 'Notifications' ) );
 
 	// The window with no site in it, and its footer.
 	expect( await unwrapped( page.locator( '#root' ) ) ).toEqual( [] );

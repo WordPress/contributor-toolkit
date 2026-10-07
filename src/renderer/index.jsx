@@ -2490,6 +2490,11 @@ async function loadLocale() {
   document.documentElement.lang = applyLocale(reply, { setLocaleData, addFilter });
   document.documentElement.dir = textDirection(_x);
   document.title = __('WordPress Contributor Toolkit');
+  // @wordpress/a11y wrote the line a screen reader says before each
+  // announcement at DOM-ready, before there was a locale, so it is written
+  // again in this one (#648).
+  const announcementsIntro = document.getElementById('a11y-speak-intro-text');
+  if (announcementsIntro) announcementsIntro.textContent = __('Notifications');
 }
 
 // The settings load before the first render too, beside the locale (#560):
