@@ -7,6 +7,7 @@ import { __experimentalToggleGroupControl as ToggleGroupControl, __experimentalT
 import { __, sprintf } from '@wordpress/i18n';
 import { Button, Dialog, InputControl, Notice, SelectControl, Stack, SwitchControl, Tabs, Text } from '@wordpress/ui';
 import { useThemeWarnings } from './app-theme.jsx';
+import { normalizeHexColor } from '../../theme.cjs';
 import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, SYSTEM_LANGUAGE } from '../settings-view.cjs';
 import { FolderField } from './folder-field.jsx';
 
@@ -84,20 +85,23 @@ function LanguageControl({ settings, loaded, onChange }) {
 
 // One colour of the custom theme (#560): typed as hex, or picked with the
 // system's picker, which is the swatch before the field, showing the colour
-// kept. What is typed is kept when the field is left or Enter is pressed,
-// and main says what it accepts, so a colour that is not one is refused in
-// main's words and the field goes back to what is kept. The picker's choice
-// is kept when the picker is closed, not as it is dragged: each keep is a
-// write to the store, and the field shows the colour under the pointer
-// meanwhile.
-function ColorField({ label, value, disabled, onKeep }) {
+// being chosen. What is typed is kept when the field is left or Enter is
+// pressed, and main says what it accepts, so a colour that is not one is
+// refused in main's words and the field goes back to what is kept. The
+// picker's choice is kept when the picker is closed, not as it is dragged:
+// each keep is a write to the store, and the field shows the colour under
+// the pointer meanwhile. The picker is driven from the draft and not from
+// what is kept: a controlled input is put back to its prop after every
+// step of a drag, and the picker's closing would then read the old colour.
+function ColorField({ label, value, onKeep }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
-  // A refusal leaves what is kept as it was, so nothing above changes the
-  // draft back: it is put back here.
+  // What is kept is put back in the field after a refusal, which leaves
+  // what is kept as it was, and after a keep of a colour spelled another
+  // way (`F80` for `#ff8800`), which leaves it as it was too.
   const keep = async (text) => {
     const result = await onKeep(text);
-    if (!result?.ok) setDraft(value);
+    setDraft(result?.ok ? (normalizeHexColor(text) ?? value) : value);
   };
   const picker = useRef(null);
   useEffect(() => {
@@ -111,9 +115,9 @@ function ColorField({ label, value, disabled, onKeep }) {
   return (
     <InputControl
       className="color-field"
+      type="text"
       label={label}
       value={draft}
-      disabled={disabled}
       spellCheck={false}
       autoComplete="off"
       prefix={
@@ -123,8 +127,7 @@ function ColorField({ label, value, disabled, onKeep }) {
           className="color-swatch"
           // translators: %s: what the colour is for, "Background" or "Primary".
           aria-label={sprintf(__('%s colour picker'), label)}
-          value={value}
-          disabled={disabled}
+          value={normalizeHexColor(draft) ?? value}
           onChange={(event) => setDraft(event.currentTarget.value)}
         />
       }

@@ -371,6 +371,19 @@ test( 'a custom theme is built from the two colours chosen, is kept, and a colou
 	await expect.poll( () => stored( 'customPrimary' ) ).toBe( '#ff8800' );
 	await expect( primary ).toHaveValue( '#ff8800' );
 	await expect.poll( () => tokenColour( 'var(--wpds-color-background-interactive-brand-strong)' ) ).toBe( 'rgb(255, 136, 0)' );
+	// Spelled another way, the same colour is kept as it was, and the field
+	// shows it as kept.
+	await primary.fill( 'ff8800' );
+	await primary.press( 'Tab' );
+	await expect( primary ).toHaveValue( '#ff8800' );
+
+	// INVARIANT — a colour picked with the picker is kept when the picker is
+	// done, which is what a fill of a colour input is: the input, then the
+	// change.
+	await dialog.getByLabel( 'Primary colour picker', { exact: true } ).fill( '#204060' );
+	await expect.poll( () => stored( 'customPrimary' ) ).toBe( '#204060' );
+	await expect( primary ).toHaveValue( '#204060' );
+	await expect.poll( () => tokenColour( 'var(--wpds-color-background-interactive-brand-strong)' ) ).toBe( 'rgb(32, 64, 96)' );
 
 	// INVARIANT — a colour that is not one is refused in main's words, and
 	// what is kept stays, in the store and in the field.
@@ -397,5 +410,5 @@ test( 'a custom theme is built from the two colours chosen, is kept, and a colou
 	const kept = ui.settingsDialog( again.page );
 	await expect( kept.getByRole( 'radio', { name: 'Custom', exact: true } ) ).toBeChecked();
 	await expect( kept.getByLabel( 'Background', { exact: true } ) ).toHaveValue( '#fff8e1' );
-	await expect( kept.getByLabel( 'Primary', { exact: true } ) ).toHaveValue( '#ff8800' );
+	await expect( kept.getByLabel( 'Primary', { exact: true } ) ).toHaveValue( '#204060' );
 } );

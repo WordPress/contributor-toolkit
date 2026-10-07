@@ -48,6 +48,9 @@ test('a background is dark when white text reads better on it than black', () =>
 	assert.equal(isDarkColor('#ffffff'), false);
 	assert.equal(isDarkColor('#fcfcfc'), false);
 	assert.equal(isDarkColor('#808080'), false, 'a mid grey still takes black text');
+	// The crossover, where the design system's own ramp turns too.
+	assert.equal(isDarkColor('#757575'), true);
+	assert.equal(isDarkColor('#767676'), false);
 });
 
 test('Electron is given the setting for the three it knows, and a custom theme\'s scheme', () => {

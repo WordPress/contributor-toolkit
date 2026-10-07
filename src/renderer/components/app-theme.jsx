@@ -37,13 +37,13 @@ function usePrefersDark() {
 // they read, and for the app's own styles.
 //
 // `settings` is what main holds, or null until it has answered: until then
-// the window is painted for the scheme alone, which for a custom theme is
-// the standard theme of its scheme for the moment before the colours arrive.
+// the window is painted as under 'system', for the scheme alone, which for a
+// custom theme is the standard theme of its scheme for the moment before
+// the colours arrive.
 export function AppTheme({ settings, children }) {
   const prefersDark = usePrefersDark();
   const [warnings, setWarnings] = useState([]);
-  let theme = prefersDark ? 'dark' : 'light';
-  if (settings) theme = settings.theme;
+  const theme = settings ? settings.theme : 'system';
   const customBackground = settings ? settings.customBackground : undefined;
   const customPrimary = settings ? settings.customPrimary : undefined;
   const resolved = useMemo(

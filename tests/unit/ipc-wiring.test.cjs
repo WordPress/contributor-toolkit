@@ -1934,7 +1934,7 @@ test('settings:set gives the theme to Electron as it is kept, and the fallback w
 // A custom theme (#560) is given to Electron as the scheme its background
 // comes to, so the native controls match the page, and the window is made
 // and painted in that background, not the standard theme's.
-test('settings:set gives Electron a custom theme\'s scheme, and paints the window its background (#560)', async () => {
+test('settings:set gives Electron a custom theme\'s scheme, and paints the window its background (#560)', async (t) => {
 	const settings = fakeSettingsStore();
 	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
 	await menuBuilt(main);
@@ -1957,11 +1957,15 @@ test('settings:set gives Electron a custom theme\'s scheme, and paints the windo
 	assert.equal((await main.invoke('settings:set', 'customPrimary', 'orange')).ok, false);
 	assert.equal(settings.values.preferences.customPrimary, '#ff8800');
 
-	// The Trac window is given the theme's colour too.
+	// Started with a custom theme kept, the main window is made in its
+	// background, and the Trac window is opened in it too.
+	const core = await fixtureRepo(t);
 	const openAndScrape = spy(async () => ({ status: 'ok', items: [], ticket: {} }));
-	const trac = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} }, preferences: { theme: 'custom', customBackground: '#102030' } }).stubs, './i18n.cjs': { resolveCatalog: async () => null }, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
-	await menuBuilt(trac);
-	assert.equal(trac.windows[0].options.backgroundColor, '#102030', 'the window is made in the custom background');
+	const custom = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [core], siteMeta: { [core]: { tracTicket: 49661 } }, preferences: { theme: 'custom', customBackground: '#102030' } }).stubs, './i18n.cjs': { resolveCatalog: async () => null }, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+	await menuBuilt(custom);
+	assert.equal(custom.windows[0].options.backgroundColor, '#102030', 'the main window is made in the custom background');
+	await custom.invoke('trac:list-attachments', core);
+	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: '#102030' }]], 'the Trac window is opened in it');
 });
 
 test('the ready path gives Electron the stored theme before the window is made, and makes the window in it (#560)', async () => {
