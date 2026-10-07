@@ -5,13 +5,18 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-07T14:16:07+00:00\n"
+"POT-Creation-Date: 2026-10-07T14:41:30+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
+
+#: src/editor-launch.js:394
+#. %s: the exit code of the command that opens the editor, such as 1. Follows "The application would not start:", so it starts in lower case.
+msgid "the editor could not be opened (exit code %s)"
+msgstr ""
 
 #: src/github-auth.cjs:116
 msgid ""
@@ -260,6 +265,29 @@ msgstr ""
 #: src/main.js:2670
 #. %s: what went wrong, as the system said it.
 msgid "Applying the patch failed: %s"
+msgstr ""
+
+#: src/main.js:3257
+msgid ""
+"There is uncommitted work on trunk — decide what happens to it before "
+"starting the ticket"
+msgstr ""
+
+#: src/main.js:3351
+msgid ""
+"Link a ticket first: trunk is what tickets are measured against, not a "
+"ticket."
+msgstr ""
+
+#: src/main.js:3353
+#: src/renderer/ticket-trunk-notice.cjs:147
+msgid "Only a ticket branch can be moved onto the current trunk."
+msgstr ""
+
+#: src/main.js:3355
+msgid ""
+"This ticket has no recorded starting point, so the app cannot move its work "
+"onto the current trunk."
 msgstr ""
 
 #: src/main.js:3506
@@ -782,7 +810,8 @@ msgid ""
 msgstr ""
 
 #: src/renderer/applied-layer.cjs:49
-#. 1: file paths, separated by commas. 2: the last file path in the list.
+#: src/renderer/merge-in-progress.cjs:93
+#. 1: paths, separated by commas. 2: the last path.
 msgid "%1$s and %2$s"
 msgstr ""
 
@@ -1011,7 +1040,8 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: src/renderer/apply-conflict.cjs:175
-#. 1: up to three file paths, separated by commas. 2: how many more files there are.
+#: src/renderer/merge-in-progress.cjs:85
+#. 1: the first few paths, separated by commas. 2: how many more files there are.
 msgid "%1$s and %2$d more file"
 msgid_plural "%1$s and %2$d more files"
 msgstr[0] ""
@@ -1253,74 +1283,195 @@ msgstr ""
 msgid "it no longer fits"
 msgstr ""
 
+#: src/renderer/changes-note.cjs:106
+#. %s: a Trac ticket number. <review> and <discard> are links.
+msgid ""
+"You have unsubmitted changes for ticket #%s. You can <review>review and "
+"submit</review> or <discard>discard your changes</discard>."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:113
+#. 1: how many files have changes. 2: a GitHub issue number. <review> and <discard> are links.
+msgid ""
+"You have %1$d unsubmitted change for issue #%2$s. You can <review>review "
+"and submit</review> or <discard>discard your changes</discard>."
+msgid_plural ""
+"You have %1$d unsubmitted changes for issue #%2$s. You can <review>review "
+"and submit</review> or <discard>discard your changes</discard>."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/changes-note.cjs:124
+#. 1: how many files have changes. 2: a Trac ticket number. <review> and <discard> are links.
+msgid ""
+"You have %1$d unsubmitted change for ticket #%2$s. You can <review>review "
+"and submit</review> or <discard>discard your changes</discard>."
+msgid_plural ""
+"You have %1$d unsubmitted changes for ticket #%2$s. You can <review>review "
+"and submit</review> or <discard>discard your changes</discard>."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/changes-note.cjs:138
+#. <review> and <discard> are links.
+msgid ""
+"You have changes not assigned to any issue. You can <review>create and save "
+"a patch</review> or <discard>discard your changes</discard>."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:142
+#. <review> and <discard> are links.
+msgid ""
+"You have changes not assigned to any ticket. You can <review>create and "
+"save a patch</review> or <discard>discard your changes</discard>."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:147
+#. %d: how many files have changes. <review> and <discard> are links.
+msgid ""
+"You have %d change not assigned to any issue. You can <review>create and "
+"save a patch</review> or <discard>discard your changes</discard>."
+msgid_plural ""
+"You have %d changes not assigned to any issue. You can <review>create and "
+"save a patch</review> or <discard>discard your changes</discard>."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/changes-note.cjs:157
+#. %d: how many files have changes. <review> and <discard> are links.
+msgid ""
+"You have %d change not assigned to any ticket. You can <review>create and "
+"save a patch</review> or <discard>discard your changes</discard>."
+msgid_plural ""
+"You have %d changes not assigned to any ticket. You can <review>create and "
+"save a patch</review> or <discard>discard your changes</discard>."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/changes-note.cjs:190
+#: src/renderer/hooks/use-trunk-update.jsx:293
+#. %s: why the changes could not be discarded.
+msgid "Failed to discard changes: %s"
+msgstr ""
+
 #: src/renderer/changes-note.cjs:191
+#: src/renderer/hooks/use-trunk-update.jsx:291
+#: src/renderer/index.jsx:1832
+msgid "Unknown error"
+msgstr ""
+
+#: src/renderer/changes-note.cjs:20
+msgid "Discard all local changes? This cannot be undone."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:277
 msgid "Changes are already being discarded."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:192
+#: src/renderer/changes-note.cjs:278
 msgid "Wait for your changes to finish loading."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:193
+#: src/renderer/changes-note.cjs:279
 msgid "Changes could not be loaded."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:194
+#: src/renderer/changes-note.cjs:280
 msgid "There are no changes to discard."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:195
+#: src/renderer/changes-note.cjs:281
 msgid "Wait for the trunk update to finish before discarding changes."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:196
+#: src/renderer/changes-note.cjs:282
 msgid "Wait for the installation to finish before discarding changes."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:197
+#: src/renderer/changes-note.cjs:283
 msgid "Wait for the build to finish before discarding changes."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:198
+#: src/renderer/changes-note.cjs:284
 msgid "Stop the dev server before discarding changes."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:206
+#: src/renderer/changes-note.cjs:292
 #. %d: a GitHub issue number.
 msgid "Your changes for issue #%d"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:208
+#: src/renderer/changes-note.cjs:294
 #. %d: a Trac ticket number.
 msgid "Your changes for ticket #%d"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:215
+#: src/renderer/changes-note.cjs:301
 #. %d: a pull request number.
 msgid "Your changes on top of PR #%d"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:216
+#: src/renderer/changes-note.cjs:302
 msgid "Edits to this local copy, compared with the original PR commits."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:218
+#: src/renderer/changes-note.cjs:304
 #. %d: a pull request number.
 msgid "There are no changes on top of PR #%d."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:221
+#: src/renderer/changes-note.cjs:307
 msgid "Your changes"
 msgstr ""
 
-#: src/renderer/changes-note.cjs:222
+#: src/renderer/changes-note.cjs:308
 msgid "Everything this site has that its copy of trunk does not."
 msgstr ""
 
-#: src/renderer/changes-note.cjs:223
+#: src/renderer/changes-note.cjs:309
 msgid ""
 "There is nothing to send yet — this site has no changes against its copy of "
 "trunk."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:66
+msgid ""
+"Unlinking this issue doesn't affect your local changes for this issue — "
+"they remain attached to it in this site, ready for when you link it again."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:67
+msgid ""
+"Unlinking this ticket doesn't affect your local changes for this ticket — "
+"they remain attached to it in this site, ready for when you link it again."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:78
+#. %d: a pull request number. <review> and <discard> are links.
+msgid ""
+"You have changes on top of PR #%d. You can <review>review them</review> or "
+"<discard>discard your changes</discard>. They stay with this pull request's "
+"local copy when you revert this PR."
+msgstr ""
+
+#: src/renderer/changes-note.cjs:84
+#. 1: how many files have changes. 2: a pull request number. <review> and <discard> are links.
+msgid ""
+"You have %1$d change on top of PR #%2$d. You can <review>review "
+"them</review> or <discard>discard your changes</discard>. They stay with "
+"this pull request's local copy when you revert this PR."
+msgid_plural ""
+"You have %1$d changes on top of PR #%2$d. You can <review>review "
+"them</review> or <discard>discard your changes</discard>. They stay with "
+"this pull request's local copy when you revert this PR."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/changes-note.cjs:99
+#. %s: a GitHub issue number. <review> and <discard> are links.
+msgid ""
+"You have unsubmitted changes for issue #%s. You can <review>review and "
+"submit</review> or <discard>discard your changes</discard>."
 msgstr ""
 
 #: src/renderer/components/app-footer.jsx:111
@@ -1358,6 +1509,7 @@ msgstr ""
 #: src/renderer/components/confirm-dialog.jsx:40
 #: src/renderer/components/dirty-tree-modal.jsx:82
 #: src/renderer/components/pull-request-destination.jsx:154
+#: src/renderer/ticket-actions.cjs:165
 msgid "Cancel"
 msgstr ""
 
@@ -1392,7 +1544,7 @@ msgid "Setting up a site"
 msgstr ""
 
 #: src/renderer/components/create-site-dialog.jsx:153
-#: src/renderer/index.jsx:641
+#: src/renderer/index.jsx:2138
 msgid "Create site"
 msgstr ""
 
@@ -1739,7 +1891,7 @@ msgid "Sign in with GitHub"
 msgstr ""
 
 #: src/renderer/components/pull-request-destination.jsx:302
-#: src/renderer/index.jsx:2236
+#: src/renderer/index.jsx:2256
 msgid "Not now"
 msgstr ""
 
@@ -2290,6 +2442,7 @@ msgid "Trac ticket number or URL"
 msgstr ""
 
 #: src/renderer/components/trac-destination.jsx:61
+#: src/renderer/deep-link-notice.cjs:82
 #: src/renderer/ticket-card.cjs:43
 msgid "Link ticket"
 msgstr ""
@@ -2419,6 +2572,39 @@ msgid_plural "%d unseen lines in Debug.log"
 msgstr[0] ""
 msgstr[1] ""
 
+#: src/renderer/deep-link-notice.cjs:63
+#. 1: a Trac ticket number. 2: the name of the site that is open.
+msgid "Ticket #%1$s cannot be linked to %2$s."
+msgstr ""
+
+#: src/renderer/deep-link-notice.cjs:67
+msgid ""
+"A Trac ticket belongs on a WordPress Core site. Open one and the app will "
+"offer the ticket there."
+msgstr ""
+
+#: src/renderer/deep-link-notice.cjs:77
+#. 1: a Trac ticket number. 2: the name of the site that is open.
+msgid "Link ticket #%1$s to %2$s?"
+msgstr ""
+
+#: src/renderer/deep-link-notice.cjs:81
+msgid ""
+"The ticket number came from a link. Linking it parks whatever the site is "
+"on now and checks out this ticket’s branch, so the app asks first."
+msgstr ""
+
+#: src/renderer/deep-link-notice.cjs:90
+#. %s: a Trac ticket number.
+msgid "Ticket #%s is ready to link."
+msgstr ""
+
+#: src/renderer/deep-link-notice.cjs:93
+msgid ""
+"There is no site to work on it in yet. Create one from the sidebar and the "
+"app will offer this ticket when it is ready."
+msgstr ""
+
 #: src/renderer/dev-server-command.cjs:160
 msgid "Build watch (compiling)"
 msgstr ""
@@ -2444,11 +2630,34 @@ msgstr ""
 msgid "Build watch (exited %d)"
 msgstr ""
 
+#: src/renderer/github-issue.cjs:101
+msgid "That is a pull request. Link the issue it fixes instead."
+msgstr ""
+
+#: src/renderer/github-issue.cjs:105
+#. %s: a GitHub repository, such as WordPress/gutenberg.
+msgid "Only %s issues can be linked here."
+msgstr ""
+
+#: src/renderer/github-issue.cjs:53
+#. %s: a GitHub repository, such as WordPress/gutenberg.
+msgid "Enter an issue number like 1234, or a %s issue URL."
+msgstr ""
+
+#: src/renderer/github-issue.cjs:57
+msgid "Enter an issue number or URL."
+msgstr ""
+
+#: src/renderer/github-issue.cjs:94
+#. %s: GitHub's host name, github.com.
+msgid "Only %s issues are supported."
+msgstr ""
+
 #: src/renderer/hooks/use-apply-patch.jsx:132
 #: src/renderer/hooks/use-build-watch.jsx:141
 #: src/renderer/hooks/use-site-terminal.jsx:256
 #: src/renderer/hooks/use-trunk-update.jsx:99
-#: src/renderer/index.jsx:1590
+#: src/renderer/index.jsx:1607
 #. %s: the command being run, such as npm run build.
 msgid "Running %s…"
 msgstr ""
@@ -2542,7 +2751,7 @@ msgstr ""
 
 #: src/renderer/hooks/use-dev-server.jsx:149
 #: src/renderer/hooks/use-site-logs.jsx:192
-#. %s: why the file could not be shown.
+#: src/renderer/open-failure.cjs:30
 msgid "unknown error"
 msgstr ""
 
@@ -2657,6 +2866,22 @@ msgstr ""
 msgid "WordPress npm helper terminal."
 msgstr ""
 
+#: src/renderer/hooks/use-site-ticket.jsx:115
+msgid "Could not save the ticket."
+msgstr ""
+
+#: src/renderer/hooks/use-site-ticket.jsx:179
+msgid "Could not discard the changes."
+msgstr ""
+
+#: src/renderer/hooks/use-site-ticket.jsx:218
+msgid "Could not save the patch."
+msgstr ""
+
+#: src/renderer/hooks/use-site-ticket.jsx:246
+msgid "Could not delete the branch."
+msgstr ""
+
 #: src/renderer/hooks/use-trunk-update.jsx:105
 msgid "Update complete — this site is now on the latest trunk."
 msgstr ""
@@ -2698,18 +2923,8 @@ msgstr ""
 msgid "Saved your changes to %s and reset the working tree."
 msgstr ""
 
-#: src/renderer/hooks/use-trunk-update.jsx:291
-#: src/renderer/index.jsx:1812
-msgid "Unknown error"
-msgstr ""
-
-#: src/renderer/hooks/use-trunk-update.jsx:293
-#. %s: why the changes could not be discarded.
-msgid "Failed to discard changes: %s"
-msgstr ""
-
 #: src/renderer/hooks/use-trunk-update.jsx:298
-#: src/renderer/index.jsx:1719
+#: src/renderer/index.jsx:1736
 msgid "Discarded local changes."
 msgstr ""
 
@@ -2735,157 +2950,186 @@ msgstr ""
 msgid "Copied the path"
 msgstr ""
 
-#: src/renderer/index.jsx:1551
+#: src/renderer/index.jsx:1376
+#. 1: how many files had uncommitted changes. 2: the number of the ticket or issue they went into.
+msgid ""
+"Your %1$d uncommitted change came along into #%2$s, and will go into its "
+"patch."
+msgid_plural ""
+"Your %1$d uncommitted changes came along into #%2$s, and will go into its "
+"patch."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/index.jsx:1397
+#. %s: the path of the patch file the edits were saved to.
+msgid "Your edits were saved to %s and are no longer in the working tree."
+msgstr ""
+
+#: src/renderer/index.jsx:1435
+#. %s: the path of the patch file the edits were saved to.
+msgid "Saved to %s. The edits are still in the working tree."
+msgstr ""
+
+#: src/renderer/index.jsx:1458
+msgid "Discard the uncommitted edits on trunk? This cannot be undone."
+msgstr ""
+
+#: src/renderer/index.jsx:1568
 msgid "This site is ready to work on"
 msgstr ""
 
-#: src/renderer/index.jsx:1556
+#: src/renderer/index.jsx:1573
 msgid "Stopping setup…"
 msgstr ""
 
-#: src/renderer/index.jsx:1569
+#: src/renderer/index.jsx:1586
 #. %s: the command that installs dependencies, npm install.
 msgid "Setting this site up — running %s…"
 msgstr ""
 
-#: src/renderer/index.jsx:1720
+#: src/renderer/index.jsx:1737
 msgid "All changes discarded."
 msgstr ""
 
-#: src/renderer/index.jsx:1859
+#: src/renderer/index.jsx:1879
 msgid ""
 "Cloning the repository… install and build start on their own when it "
 "finishes."
 msgstr ""
 
-#: src/renderer/index.jsx:1866
+#: src/renderer/index.jsx:1886
 #: src/renderer/setup-steps.cjs:204
 msgid "Install npm dependencies"
 msgstr ""
 
-#: src/renderer/index.jsx:1882
+#: src/renderer/index.jsx:1902
 #: src/renderer/setup-steps.cjs:227
 #: src/renderer/update-plan.cjs:187
 msgid "Run full build"
 msgstr ""
 
-#: src/renderer/index.jsx:1898
+#: src/renderer/index.jsx:1918
 msgid "Start dev server & finish wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:1913
+#: src/renderer/index.jsx:1933
 msgid "Stop dev server"
 msgstr ""
 
-#: src/renderer/index.jsx:1913
+#: src/renderer/index.jsx:1933
 msgid "Start dev server and finish the wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:1918
+#: src/renderer/index.jsx:1938
 #. %s: how long the server has been starting, such as 12s.
 msgid "Starting… (%s)"
 msgstr ""
 
-#: src/renderer/index.jsx:2017
+#: src/renderer/index.jsx:2037
 #. %s: what to do next, a sentence.
 msgid "Next step: %s"
 msgstr ""
 
-#: src/renderer/index.jsx:2037
+#: src/renderer/index.jsx:2057
 #. <folder /> is the folder the project's source is in, such as src/. <command /> is the command that builds it, npm run build, which types it into the terminal when clicked.
 msgid ""
 "Edited files in <code><folder /></code>? Run <command /> so the site picks "
 "them up."
 msgstr ""
 
-#: src/renderer/index.jsx:2042
+#: src/renderer/index.jsx:2062
 #. <file /> is the file dependencies are listed in, package.json. <command /> is the command that installs them, npm install, which types it into the terminal when clicked.
 msgid "Added a dependency to <code><file /></code>? Run <command />."
 msgstr ""
 
-#: src/renderer/index.jsx:2050
+#: src/renderer/index.jsx:2070
 #. <command /> is the command that lists the others, help. <keys /> is the keys that stop a command, Ctrl+C.
 msgid ""
 "Type <code><command /></code> to list supported commands. Press <code><keys "
 "/></code> to stop the current command."
 msgstr ""
 
-#: src/renderer/index.jsx:2130
+#: src/renderer/index.jsx:2128
+msgid "Choose application…"
+msgstr ""
+
+#: src/renderer/index.jsx:2150
 msgid "Update incomplete"
 msgstr ""
 
-#: src/renderer/index.jsx:2131
+#: src/renderer/index.jsx:2151
 msgid ""
 "The code is new but the built assets are old. The site may not run "
 "correctly until install and build succeed."
 msgstr ""
 
-#: src/renderer/index.jsx:2133
+#: src/renderer/index.jsx:2153
 msgid "Retry install & build"
 msgstr ""
 
-#: src/renderer/index.jsx:2141
+#: src/renderer/index.jsx:2161
 #. %d: how many days old the site's copy of WordPress is.
 msgid "This site's WordPress code is %d day old"
 msgid_plural "This site's WordPress code is %d days old"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/index.jsx:2144
+#: src/renderer/index.jsx:2164
 msgid "Patches you create now may not apply on Trac. Updating takes a few minutes."
 msgstr ""
 
-#: src/renderer/index.jsx:2146
+#: src/renderer/index.jsx:2166
 #: src/renderer/site-menu.cjs:118
 msgid "Update to latest trunk"
 msgstr ""
 
-#: src/renderer/index.jsx:2155
+#: src/renderer/index.jsx:2175
 #. 1: the step the update is on. 2: how many steps it has.
 msgid "step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2156
+#: src/renderer/index.jsx:2176
 msgid ""
 "Most packages are already cached, so this is a download of the difference — "
 "not the whole tree."
 msgstr ""
 
-#: src/renderer/index.jsx:2161
+#: src/renderer/index.jsx:2181
 msgid "Up to date with trunk as of today."
 msgstr ""
 
-#: src/renderer/index.jsx:2173
+#: src/renderer/index.jsx:2193
 #. %s: the path of the patch file the changes were saved to.
 msgid "Your changes were saved to %s before the reset."
 msgstr ""
 
-#: src/renderer/index.jsx:2190
+#: src/renderer/index.jsx:2210
 #. 1: the step setup is on. 2: how many steps it has.
 msgid "Setting this site up for you — step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2195
+#: src/renderer/index.jsx:2215
 msgid ""
 "Installing dependencies. You can leave this running — the build follows on "
 "its own."
 msgstr ""
 
-#: src/renderer/index.jsx:2196
+#: src/renderer/index.jsx:2216
 msgid ""
 "Running the full build. This can take up to half an hour on Windows; the "
 "Terminal shows what it is doing."
 msgstr ""
 
-#: src/renderer/index.jsx:2218
+#: src/renderer/index.jsx:2238
 msgid "Hide"
 msgstr ""
 
-#: src/renderer/index.jsx:2234
+#: src/renderer/index.jsx:2254
 msgid "Finish setting this site up first."
 msgstr ""
 
-#: src/renderer/index.jsx:2467
+#: src/renderer/index.jsx:2487
 msgid "WordPress Contributor Toolkit"
 msgstr ""
 
@@ -2914,6 +3158,10 @@ msgstr ""
 msgid "Setting up new site…"
 msgstr ""
 
+#: src/renderer/index.jsx:616
+msgid "Dismiss"
+msgstr ""
+
 #: src/renderer/index.jsx:638
 msgid "No sites"
 msgstr ""
@@ -2932,6 +3180,97 @@ msgstr ""
 
 #: src/renderer/index.jsx:679
 msgid "Show sites list"
+msgstr ""
+
+#: src/renderer/legacy-site.cjs:20
+msgid ""
+"This site was created by an earlier version of the app and cannot be "
+"changed by this one. Create a new site to keep working; you can still "
+"export a patch of what is here, and delete this site."
+msgstr ""
+
+#: src/renderer/legacy-site.cjs:33
+msgid "This site was created by an earlier version of the app."
+msgstr ""
+
+#: src/renderer/legacy-site.cjs:34
+msgid ""
+"The app now runs on a different Git engine, so linking tickets, applying "
+"patches, discarding changes and updating trunk are refused here. Export "
+"your work as a patch, create a new site, apply the patch there, then delete "
+"this one."
+msgstr ""
+
+#: src/renderer/merge-in-progress.cjs:115
+#. 1: the files in conflict. 2: what to do in a terminal to finish. 3: the Git command that abandons it.
+msgid ""
+"It has conflicts in %1$s. Finish it from a terminal (%2$s) or abandon it "
+"(%3$s) before using the app on this site. Until then, linking tickets, "
+"applying patches, discarding changes and updating trunk are refused here."
+msgstr ""
+
+#: src/renderer/merge-in-progress.cjs:122
+#. 1: the Git command that finishes it. 2: the Git command that abandons it.
+msgid ""
+"Its conflicts are resolved but it is not finished. Finish it from a "
+"terminal (%1$s) or abandon it (%2$s) before using the app on this site. "
+"Until then, linking tickets, applying patches, discarding changes and "
+"updating trunk are refused here."
+msgstr ""
+
+#: src/renderer/merge-in-progress.cjs:152
+msgid ""
+"The app could not check whether a merge is in progress in this checkout, so "
+"nothing was changed. If a Git command is running in it from a terminal, let "
+"it finish, then try again."
+msgstr ""
+
+#: src/renderer/merge-in-progress.cjs:156
+#. %s: Git's own error message, which is in English.
+msgid ""
+"The app could not check whether a merge is in progress in this checkout, so "
+"nothing was changed. If a Git command is running in it from a terminal, let "
+"it finish, then try again. (%s)"
+msgstr ""
+
+#: src/renderer/merge-in-progress.cjs:18
+#. %s: the Git command that ends the operation, such as git commit. Leave "git add" as it is: it is a command.
+msgid "resolve the files, then git add them and run %s"
+msgstr ""
+
+#: src/renderer/merge-in-progress.cjs:32
+msgid "A rebase started outside the app is in progress."
+msgstr ""
+
+#: src/renderer/merge-in-progress.cjs:38
+msgid "A cherry-pick started outside the app is in progress."
+msgstr ""
+
+#: src/renderer/merge-in-progress.cjs:44
+msgid "A revert started outside the app is in progress."
+msgstr ""
+
+#: src/renderer/merge-in-progress.cjs:50
+msgid "A three-way patch apply started outside the app is in progress."
+msgstr ""
+
+#: src/renderer/merge-in-progress.cjs:52
+#. Leave "git add" as it is: it is a command.
+msgid "resolve the files, then git add them"
+msgstr ""
+
+#: src/renderer/merge-in-progress.cjs:54
+#. Leave "git add" as it is: it is a command.
+msgid "git add the files"
+msgstr ""
+
+#: src/renderer/merge-in-progress.cjs:58
+#. Stands in a Git command, inside angle brackets, for the files to type there.
+msgid "every file the patch touched, not only the ones in conflict"
+msgstr ""
+
+#: src/renderer/merge-in-progress.cjs:62
+msgid "A merge started outside the app is in progress."
 msgstr ""
 
 #: src/renderer/next-action.cjs:102
@@ -2977,6 +3316,37 @@ msgstr ""
 
 #: src/renderer/next-action.cjs:97
 msgid "The trunk snapshot is old; update before making a patch."
+msgstr ""
+
+#: src/renderer/open-failure.cjs:50
+msgid "That is not an application this app can open a folder in."
+msgstr ""
+
+#: src/renderer/open-failure.cjs:54
+msgid "That application is no longer where it was. Choose another."
+msgstr ""
+
+#: src/renderer/open-failure.cjs:58
+#. %s: the reason, usually the operating system's own message in English.
+msgid "The application would not start: %s"
+msgstr ""
+
+#: src/renderer/open-failure.cjs:64
+#. %s: the reason, usually the operating system's own message in English.
+msgid "The file manager would not open the folder: %s"
+msgstr ""
+
+#: src/renderer/open-failure.cjs:67
+msgid "This app has no record of that folder, so it will not open it."
+msgstr ""
+
+#: src/renderer/open-failure.cjs:71
+#. %s: the reason, in English.
+msgid "Could not reach the app's main process: %s"
+msgstr ""
+
+#: src/renderer/open-failure.cjs:76
+msgid "Could not open the folder."
 msgstr ""
 
 #: src/renderer/pr-checkout.cjs:15
@@ -3341,14 +3711,17 @@ msgid "Looking for applications…"
 msgstr ""
 
 #: src/renderer/site-menu.cjs:83
+#: src/renderer/ticket-actions.cjs:33
 msgid "Wait for the trunk update to finish."
 msgstr ""
 
 #: src/renderer/site-menu.cjs:84
+#: src/renderer/ticket-actions.cjs:35
 msgid "Wait for the installation to finish."
 msgstr ""
 
 #: src/renderer/site-menu.cjs:85
+#: src/renderer/ticket-actions.cjs:36
 #: src/renderer/watch-activity.cjs:295
 msgid "Wait for the build to finish."
 msgstr ""
@@ -3491,6 +3864,150 @@ msgstr ""
 #. %d: how many days old the site's copy of the WordPress code is.
 msgid "WordPress code is %d day old — update to latest trunk"
 msgid_plural "WordPress code is %d days old — update to latest trunk"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/ticket-actions.cjs:108
+msgid ""
+"You have uncommitted changes on this site, not on any issue yet. What "
+"should happen to them?"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:109
+msgid ""
+"You have uncommitted changes on this site, not on any ticket yet. What "
+"should happen to them?"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:114
+#. %d: a pull request number.
+msgid "PR #%d is a separate checkout, so these edits cannot come along into it."
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:121
+#. %d: a pull request number.
+msgid "Save them as a patch, then check out PR #%d…"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:123
+#. %d: a pull request number.
+msgid "Discard them and check out PR #%d"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:131
+#. %s: the number of the ticket or issue being linked.
+msgid "Take these edits into #%s"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:133
+msgid "Take these edits into the issue"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:133
+msgid "Take these edits into the ticket"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:138
+msgid "Save them as a patch, then start clean…"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:139
+msgid "Discard them and start clean"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:147
+#. %s: the number of the ticket or issue being switched to.
+msgid "Save them as a patch, then continue on #%s…"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:149
+#. %s: the number of the ticket or issue being switched to.
+msgid "Discard them and continue on #%s"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:151
+msgid "Save them as a patch, then continue on the issue…"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:152
+msgid "Discard them and continue on the issue"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:154
+msgid "Save them as a patch, then continue on the ticket…"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:155
+msgid "Discard them and continue on the ticket"
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:158
+msgid ""
+"This issue already has its own work here, so these edits cannot come along "
+"into it."
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:159
+msgid ""
+"This ticket already has its own work here, so these edits cannot come along "
+"into it."
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:31
+msgid "Wait for the current issue change to finish."
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:31
+msgid "Wait for the current ticket change to finish."
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:32
+msgid "Wait for the issue's work to finish deleting."
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:32
+msgid "Wait for the ticket's work to finish deleting."
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:34
+msgid "Wait for the PR or patch operation to finish."
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:57
+msgid "Wait for the discard to finish before updating the issue."
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:57
+msgid "Wait for the discard to finish before updating the ticket."
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:60
+msgid "Stop the dev server before updating the issue."
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:60
+msgid "Stop the dev server before updating the ticket."
+msgstr ""
+
+#: src/renderer/ticket-actions.cjs:89
+#. %d: how many files have uncommitted changes.
+msgid ""
+"You have %d uncommitted change on this site, not on any issue yet. What "
+"should happen to them?"
+msgid_plural ""
+"You have %d uncommitted changes on this site, not on any issue yet. What "
+"should happen to them?"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/ticket-actions.cjs:99
+#. %d: how many files have uncommitted changes.
+msgid ""
+"You have %d uncommitted change on this site, not on any ticket yet. What "
+"should happen to them?"
+msgid_plural ""
+"You have %d uncommitted changes on this site, not on any ticket yet. What "
+"should happen to them?"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -3746,6 +4263,137 @@ msgstr ""
 
 #: src/renderer/ticket-card.cjs:99
 msgid "Closed"
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:106
+msgid "Trunk and your work disagree."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:120
+msgid "Nothing was moved."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:127
+#. %s: the number of the ticket or issue.
+msgid ""
+"The app does not know which trunk #%s started from, so it cannot move the "
+"work safely."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:131
+msgid ""
+"The app does not know which trunk the issue started from, so it cannot move "
+"the work safely."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:133
+msgid ""
+"The app does not know which trunk the ticket started from, so it cannot "
+"move the work safely."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:141
+msgid "Link an issue first: trunk is what issues are measured against."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:142
+msgid "Link a ticket first: trunk is what tickets are measured against."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:146
+msgid "Only an issue branch can be moved onto the current trunk."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:150
+msgid "Could not move the issue onto the current trunk."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:150
+msgid "Could not move the ticket onto the current trunk."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:26
+msgid "Trunk has moved since this issue started."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:27
+msgid ""
+"Move your work onto the current trunk here. If the changes conflict, your "
+"branch stays intact so you can get help resolving them."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:28
+msgid "Update this issue to the current trunk"
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:32
+msgid "Trunk has moved since this ticket started."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:33
+msgid ""
+"Newer patches may not apply cleanly. Move your work onto the current trunk "
+"here, or save a copy of it and start the ticket again."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:34
+msgid "Update this ticket to the current trunk"
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:42
+msgid ""
+"Keep this issue's branch and save a copy through Review & submit changes. "
+"Ask a mentor to help move the work onto the current trunk; this app cannot "
+"resolve the conflict or import the saved copy."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:45
+msgid ""
+"Save a copy of your work, unlink the ticket, delete its work from the site, "
+"then link the ticket again and apply the copy."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:49
+#. %s: a Trac ticket number.
+msgid ""
+"Save a copy of your work, unlink the ticket, delete its work from the site, "
+"then link #%s again and apply the copy."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:65
+#. %s: the paths of the files in conflict, separated by commas.
+msgid "Trunk changed the same lines as your work in: %s."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:70
+#. %s: the paths of the files in conflict, separated by commas.
+msgid "Deleted on one side and changed on the other: %s."
+msgstr ""
+
+#: src/renderer/ticket-trunk-notice.cjs:75
+#. %s: the paths of the files in conflict, separated by commas.
+msgid "Trunk added a file your work also adds, with different content: %s."
+msgid_plural "Trunk added files your work also adds, with different content: %s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/ticket-trunk-notice.cjs:85
+#. %s: the paths of the files in conflict, separated by commas.
+msgid "Trunk and your work disagree in: %s."
+msgstr ""
+
+#: src/renderer/trac-ticket.cjs:106
+#. %s: the Trac host name, core.trac.wordpress.org.
+msgid "Only %s tickets are supported."
+msgstr ""
+
+#: src/renderer/trac-ticket.cjs:27
+#. %s: the Trac host name, core.trac.wordpress.org.
+msgid "Enter a ticket number like 62281, or a %s ticket URL."
+msgstr ""
+
+#: src/renderer/trac-ticket.cjs:81
+msgid "Enter a ticket number or URL."
 msgstr ""
 
 #: src/renderer/tray.cjs:35
@@ -4224,6 +4872,44 @@ msgid "%s file"
 msgid_plural "%s files"
 msgstr[0] ""
 msgstr[1] ""
+
+#: src/ticket-branches.js:151
+msgid "This site has no trunk branch"
+msgstr ""
+
+#: src/ticket-branches.js:313
+#. %s: a GitHub issue number.
+msgid "Already working on issue #%s in this site"
+msgstr ""
+
+#: src/ticket-branches.js:316
+#. %s: a Trac ticket number.
+msgid "Already working on ticket #%s in this site"
+msgstr ""
+
+#: src/ticket-branches.js:736
+#. %d: how many files are in conflict.
+msgid "Trunk and this ticket's work disagree in %d file"
+msgid_plural "Trunk and this ticket's work disagree in %d files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/ticket-branches.js:739
+msgid "Trunk and this ticket's work disagree"
+msgstr ""
+
+#: src/ticket-branches.js:796
+msgid "Refusing to delete trunk"
+msgstr ""
+
+#: src/ticket-branches.js:796
+msgid "Refusing to delete a branch the app did not create"
+msgstr ""
+
+#: src/ticket-branches.js:803
+#. %s: a Git branch name, such as ticket/60001.
+msgid "No such branch: %s"
+msgstr ""
 
 #: src/trac-view.js:184
 msgid "Only https core.trac.wordpress.org attachments are allowed"
