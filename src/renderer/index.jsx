@@ -109,7 +109,7 @@ const SILENT = '';
 
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScnMxicyDxZO2OoaS5ela8FArYWjCyLfC3hxRBBRSF7XLPzKg/viewform';
 
-function App() {
+function App({ settingsState }) {
   const { sites, siteMeta, refresh, setSiteMeta, applySetup } = useSites();
   // The confirmation queue for the whole window. It lives here, above every
   // SiteRow, because only one row is visible at a time and a per-row toast would
@@ -125,9 +125,10 @@ function App() {
   // machine has is a fact about the machine, not about a site.
   const detectedApplications = useDetectedEditors();
   const wporg = useContributorProvenance();
-  // The app's settings (#559), and the dialog they are changed in. The menu
-  // asks for the dialog too, over a subscription the whole window holds.
-  const { settings, loaded: loadedSettings, php: phpVersions, change: changeSetting } = useSettings();
+  // The app's settings (#559), read once above the theme, which is one of
+  // them, and the dialog they are changed in. The menu asks for the dialog
+  // too, over a subscription the whole window holds.
+  const { settings, loaded: loadedSettings, php: phpVersions, change: changeSetting } = settingsState;
   // The PHP a server starts on: the one set where the bundle has it, and
   // the fallback where it does not, decided where the dialog decides it.
   const startingPhp = settings ? phpVersionChoice({ versions: phpVersions?.versions, fallback: phpVersions?.fallback, stored: settings.phpVersion }).value : null;
@@ -2414,8 +2415,14 @@ async function loadLocale() {
 }
 
 // Under the design system's provider, in the theme the window is in (#560):
-// see app-theme.jsx.
+// see app-theme.jsx. The settings are read here, above the provider, since
+// the theme is one of them; the app is handed what was read.
+function Root() {
+  const settingsState = useSettings();
+  return <AppTheme settings={settingsState.settings}><App settingsState={settingsState} /></AppTheme>;
+}
+
 loadLocale().then(() => {
   const root = createRoot(document.getElementById('root'));
-  root.render(<AppTheme><App /></AppTheme>);
+  root.render(<Root />);
 });

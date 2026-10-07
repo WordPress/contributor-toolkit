@@ -93,7 +93,7 @@ const { addFilter } = require('@wordpress/hooks');
 const { mergeInProgressError, mergeCheckFailedError } = require('./renderer/merge-in-progress.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
 const { SETTINGS, readSettings, acceptSetting } = require('./settings.cjs');
-const { windowBackground } = require('./theme.cjs');
+const { resolveTheme, nativeThemeSource, THEME_KEYS } = require('./theme.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
 const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
@@ -564,7 +564,7 @@ function createWindow() {
         icon: process.platform === 'linux' ? path.join(__dirname, '..', 'build', 'icon.png') : undefined,
 		// The colour of the theme the window is made in (#560), so that a dark
 		// window is not white for the moment before its page has painted.
-		backgroundColor: windowBackground(nativeTheme.shouldUseDarkColors),
+		backgroundColor: currentTheme().background,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
 			contextIsolation: true,
@@ -582,7 +582,7 @@ function createWindow() {
 
 // The menu's "Settings…" (#559): the main window opens the dialog, and is
 // brought forward first, as it is for a deep link: the item can be pressed
-// with the window minimised or behind a patch window. On macOS the menu is
+// with the window minimised or behind the Trac window. On macOS the menu is
 // there with no window, and the item then only opens one: the page it loads
 // has not subscribed yet, and a request sent into it would be lost. Pressed
 // again once the window is there, it opens the dialog.
@@ -715,28 +715,41 @@ function localeReply() {
 }
 
 // The theme (#560), given to Electron. `nativeTheme` is the one place the
-// choice is made: Chromium answers the page's `prefers-color-scheme` from it,
-// and paints the window's chrome and the native form controls to match, so
-// the page only has to follow what it is told, as it would the operating
-// system's. Read from the store before the window is made, so the window is
-// made in it; a store that cannot be read leaves the system's theme, with a
-// line in the log, as it leaves the system's language.
+// scheme is decided: Chromium answers the page's `prefers-color-scheme` from
+// it, and paints the window's chrome and the native form controls to match,
+// so the page only has to follow what it is told, as it would the operating
+// system's. A custom theme is given as the scheme its background comes to.
+// Read from the store before the window is made, so the window is made in
+// it; a store that cannot be read leaves the system's theme, with a line in
+// the log, as it leaves the system's language.
+//
+// `themeSettings` is what the theme was last applied from, for the colour a
+// window is made with: the system's theme until the store is read.
+let themeSettings = { theme: 'system' };
+function applyTheme(settings) {
+	themeSettings = settings;
+	nativeTheme.themeSource = nativeThemeSource(settings);
+	paintWindowForTheme();
+}
+function currentTheme() {
+	return resolveTheme({ ...themeSettings, systemDark: nativeTheme.shouldUseDarkColors });
+}
 async function applyStoredTheme() {
 	try {
-		nativeTheme.themeSource = readSettings((await getStore()).get('preferences')).theme;
+		applyTheme(readSettings((await getStore()).get('preferences')));
 	} catch (e) {
 		logError('theme', `the settings could not be read, so the theme is the system's: ${String(e && e.message ? e.message : e)}`);
+		// A deep link can have opened the window while the store was read.
+		paintWindowForTheme();
 	}
-	// A deep link can have opened the window while the store was read.
-	paintWindowForTheme();
 }
 
 // The colour the window was made with shows wherever the page has not
 // painted yet (a live resize, a reload), so it is given again whenever the
-// theme is: by the setting, here and in `settings:set`, and by Electron's
+// theme is: by the setting, through `applyTheme`, and by Electron's
 // `updated`, which is how the system's theme reaches it under 'system'.
 function paintWindowForTheme() {
-	if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(windowBackground(nativeTheme.shouldUseDarkColors));
+	if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(currentTheme().background);
 }
 
 // The languages the settings offer: what the build ships, read once.
@@ -822,20 +835,6 @@ if (!gotSingleInstanceLock) {
 		receiveDeepLink(url);
 	});
 }
-function buildPatchHtml(content) {
-    return `<!doctype html><html><head><meta charset="utf-8"/><title>Patch</title>
-    <style>body{font-family:Menlo,monospace;padding:12px;} pre{white-space:pre-wrap;background:#111;color:#eee;padding:12px;border-radius:6px;height:85vh;overflow:auto} .bar{position:sticky;top:0;background:#fff;padding:8px 0} button{padding:6px 10px}</style>
-    </head><body>
-    <div class="bar"><button id="copy">Copy</button></div>
-    <pre id="pre"></pre>
-    <script>
-    const pre=document.getElementById('pre');
-    pre.textContent = ${JSON.stringify(content)};
-    document.getElementById('copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(pre.textContent); } catch {} });
-    </script>
-    </body></html>`;
-}
-
 // What this checkout has that its copy of trunk does not: one walk, read by
 // both destinations that need it.
 //
@@ -1107,19 +1106,6 @@ ipcMain.handle('git:get-patch', async (_e, sitePath) => {
         const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
         return { ok: true, patch };
     } catch (e) {
-        return { ok: false, error: String(e) };
-    }
-});
-
-ipcMain.handle('git:create-patch', async (_e, sitePath) => {
-    try {
-        const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
-        const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
-        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml(patch)));
-        return { ok: true };
-    } catch (e) {
-        const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
-        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml('Failed to generate diff: ' + String(e))));
         return { ok: false, error: String(e) };
     }
 });
@@ -2487,7 +2473,7 @@ ipcMain.handle('trac:list-attachments', async (_e, sitePath) => {
         if (projectTypeForSite(meta).workItem.provider !== 'trac') return { ok: true, status: 'not-trac', items: [] };
         const ticketId = meta.tracTicket;
         if (!ticketId) return { ok: true, status: 'no-ticket', items: [] };
-        const result = await openAndScrape(ticketId);
+        const result = await openAndScrape(ticketId, { backgroundColor: currentTheme().background });
         return { ok: true, ...result };
     } catch (e) {
         logError('trac:list-attachments', String(e && e.stack ? e.stack : e));
@@ -3629,10 +3615,7 @@ ipcMain.handle('settings:set', async (_e, key, value) => {
 	// The theme applies at once (#560): Electron tells the page, and the
 	// window's own colour is set here rather than left to Electron's
 	// `updated`, which is not promised for a change to 'system'.
-	if (key === 'theme') {
-		nativeTheme.themeSource = settings.theme;
-		paintWindowForTheme();
-	}
+	if (THEME_KEYS.includes(key)) applyTheme(settings);
 	return { ok: true, settings };
 });
 

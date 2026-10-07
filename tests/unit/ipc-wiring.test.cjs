@@ -1527,25 +1527,23 @@ test('a tree whose only change is binary still reports no changes (#85)', async 
 	assert.ok(!patch.includes('No changes.'), JSON.stringify(patch));
 });
 
-// The other two entry points into the same patch path. They differ only in what
-// they do with the result — a window, or a save dialog — so what is checked here
-// is that they go through it at all rather than assembling a diff of their own.
-// A real repository rather than a path that is not one: reading the ticket's
-// base is the handler's first step (#308), and a directory that is not a
+// The other entry point into the same patch path. It differs only in what it
+// does with the result, a save dialog, so what is checked here is that it
+// goes through it at all rather than assembling a diff of its own. A real
+// repository rather than a path that is not one: reading the ticket's base
+// is the handler's first step (#308), and a directory that is not a
 // repository now stops there with "the base could not be read" instead of
 // reaching the patch path this test is about.
-test('git:create-patch and git:save-patch generate the patch the same way', async (t) => {
+test('git:save-patch goes through the patch path, from the base the walk compares against', async (t) => {
 	const dir = await fixtureRepo(t);
-	for (const channel of ['git:create-patch', 'git:save-patch']) {
-		// Throwing ends the handler at its first read, the base the walk
-		// compares against — the same one for both channels.
-		const resolveRef = spy(async () => { throw new Error('not a repository'); });
-		const main = loadMain({ stubs: { ...silentLogging(), './git-read.cjs': { resolveRef } } });
+	// A base that cannot be read ends the handler in the shared walk, before
+	// any diff: reaching `resolveRef(dir, 'HEAD')` puts it on that path.
+	const resolveRef = spy(async () => { throw new Error('not a repository'); });
+	const main = loadMain({ stubs: { ...silentLogging(), './git-read.cjs': { resolveRef } } });
 
-		await main.invoke(channel, dir);
+	await main.invoke('git:save-patch', dir);
 
-		assert.deepEqual(resolveRef.calls[0], [dir, 'HEAD'], channel);
-	}
+	assert.deepEqual(resolveRef.calls[0], [dir, 'HEAD']);
 });
 
 // --- git:save-patch -> src/patch-provenance.cjs (#166) -------------------
@@ -1889,7 +1887,7 @@ test('settings:set asks the disk whether the folder is there', async (t) => {
 	const settings = fakeSettingsStore();
 	const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
 
-	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', newSiteLocation: folder } });
+	assert.deepEqual(await main.invoke('settings:set', 'newSiteLocation', folder), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: folder } });
 	const gone = await main.invoke('settings:set', 'newSiteLocation', path.join(folder, 'gone'));
 	assert.equal(gone.ok, false);
 	assert.equal(settings.values.preferences.newSiteLocation, folder);
@@ -1921,7 +1919,7 @@ test('settings:set gives the theme to Electron as it is kept, and the fallback w
 	assert.equal(settings.values.preferences.theme, 'dark');
 
 	// A refusal leaves it.
-	assert.equal((await main.invoke('settings:set', 'theme', 'custom')).ok, false);
+	assert.equal((await main.invoke('settings:set', 'theme', 'blue')).ok, false);
 	assert.equal(main.electron.nativeTheme.themeSource, 'dark');
 
 	assert.equal((await main.invoke('settings:set', 'theme', null)).settings.theme, 'system');
@@ -1931,6 +1929,43 @@ test('settings:set gives the theme to Electron as it is kept, and the fallback w
 	await main.invoke('settings:set', 'theme', 'light');
 	await main.invoke('settings:set', 'wpDebug', false);
 	assert.equal(main.electron.nativeTheme.themeSource, 'light');
+});
+
+// A custom theme (#560) is given to Electron as the scheme its background
+// comes to, so the native controls match the page, and the window is made
+// and painted in that background, not the standard theme's.
+test('settings:set gives Electron a custom theme\'s scheme, and paints the window its background (#560)', async () => {
+	const settings = fakeSettingsStore();
+	const main = loadMain({ ready: true, stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null } } });
+	await menuBuilt(main);
+	const [window] = main.windows;
+
+	await main.invoke('settings:set', 'customBackground', '#102030');
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND], 'a colour of a theme that is not the one in use changes nothing');
+	await main.invoke('settings:set', 'theme', 'custom');
+	assert.equal(main.electron.nativeTheme.themeSource, 'dark');
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND, '#102030']);
+
+	await main.invoke('settings:set', 'customBackground', '#FFF8E1');
+	assert.equal(main.electron.nativeTheme.themeSource, 'light');
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND, '#102030', '#fff8e1']);
+	assert.equal(settings.values.preferences.customBackground, '#fff8e1', 'kept as the settings keep a colour');
+
+	// The primary colour is the page's; the window's colour is unchanged.
+	await main.invoke('settings:set', 'customPrimary', '#ff8800');
+	assert.deepEqual(window.backgrounds, [LIGHT_BACKGROUND, '#102030', '#fff8e1', '#fff8e1']);
+	assert.equal((await main.invoke('settings:set', 'customPrimary', 'orange')).ok, false);
+	assert.equal(settings.values.preferences.customPrimary, '#ff8800');
+
+	// Started with a custom theme kept, the main window is made in its
+	// background, and the Trac window is opened in it too. The handler reads
+	// the site's record and never its folder, so a path is enough.
+	const openAndScrape = spy(async () => ({ status: 'ok', items: [], ticket: {} }));
+	const custom = loadMain({ ready: true, stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { tracTicket: 49661 } }, preferences: { theme: 'custom', customBackground: '#102030' } }).stubs, './i18n.cjs': { resolveCatalog: async () => null }, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+	await menuBuilt(custom);
+	assert.equal(custom.windows[0].options.backgroundColor, '#102030', 'the main window is made in the custom background');
+	await custom.invoke('trac:list-attachments', '/sites/wp');
+	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: '#102030' }]], 'the Trac window is opened in it');
 });
 
 test('the ready path gives Electron the stored theme before the window is made, and makes the window in it (#560)', async () => {
@@ -1997,7 +2032,7 @@ test('the ready path makes a light window light, and a store that cannot be read
 });
 
 // The menu's Settings… reaches the main window and brings it forward, and
-// not whichever window Electron lists first: a patch window is one too.
+// not whichever window Electron lists first: the Trac window is one too.
 async function menuBuilt(main) {
 	for (let turn = 0; turn < 50 && main.calls.applicationMenu.length === 0; turn++) {
 		await new Promise((resolve) => setImmediate(resolve));
@@ -2020,14 +2055,14 @@ test('the menu\'s Settings… opens the dialog in the main window, listed first 
 	mainWindow.restore = () => brought.push('restore');
 	mainWindow.show = () => brought.push('show');
 	mainWindow.focus = () => brought.push('focus');
-	// A patch window, and Electron lists it first.
-	const patch = new main.electron.BrowserWindow({});
+	// The Trac window, and Electron lists it first.
+	const trac = new main.electron.BrowserWindow({});
 	main.windows.reverse();
 
 	settings.click();
 
 	assert.deepEqual(mainWindow.sent, [{ channel: 'settings:open', payload: undefined }]);
-	assert.deepEqual(patch.sent, []);
+	assert.deepEqual(trac.sent, []);
 	assert.deepEqual(brought, ['restore', 'show', 'focus']);
 });
 
@@ -3489,7 +3524,7 @@ test('trac:list-attachments opens the Trac window for a Trac site, and refuses a
 	const coreMain = loadMain({ stubs: { ...silentLogging(), ...coreSettings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
 	const read = await coreMain.invoke('trac:list-attachments', core);
 	assert.equal(read.status, 'ok');
-	assert.deepEqual(openAndScrape.calls, [[49661]]);
+	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: LIGHT_BACKGROUND }]], 'opened in the colour of the app\'s theme');
 });
 
 // git:list-ticket-patches reads the stored ticket, then delegates to github-prs
@@ -6852,10 +6887,10 @@ test('settings:set keeps a language the build has, and refuses one it has not (#
 		stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null, languageChoices: () => [{ tag: 'de', label: 'Deutsch' }, { tag: 'en', label: 'English' }] } }
 	});
 
-	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', newSiteLocation: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', 'de'), { ok: true, settings: { locale: 'de', phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null } });
 	assert.equal((await main.invoke('settings:set', 'locale', 'fr')).ok, false);
 	assert.equal(settings.values.preferences.locale, 'de');
-	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', newSiteLocation: null } });
+	assert.deepEqual(await main.invoke('settings:set', 'locale', null), { ok: true, settings: { locale: null, phpVersion: '8.3', wpDebug: true, scriptDebug: true, autoStartServer: false, autoStartWatch: false, quitBehavior: 'stop', theme: 'system', customBackground: '#fcfcfc', customPrimary: '#3858e9', newSiteLocation: null } });
 });
 
 test('app:relaunch relaunches through a quit, so the child sweep runs, without the launch\'s link or --lang (#559)', async (t) => {
@@ -6932,7 +6967,6 @@ const WIRED = new Set([
 	'git:discard-to-base',
 	'git:update-trunk',
 	'git:get-patch',
-	'git:create-patch',
 	'git:save-patch',
 	'sites:add',
 	'sites:delete',
