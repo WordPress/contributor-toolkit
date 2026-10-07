@@ -18,10 +18,19 @@
  */
 
 const { __ } = require('@wordpress/i18n');
-const { THEMES } = require('./theme.cjs');
+const { THEMES, normalizeHexColor, isHexColor, LIGHT_BACKGROUND, PRIMARY } = require('./theme.cjs');
 
 // What the quit setting can be.
 const QUIT_BEHAVIOURS = ['stop', 'restart'];
+
+// A colour of the custom theme (#560): kept as `#rrggbb`, from three or six
+// hex digits as typed; nothing for the fallback.
+function acceptColor(value) {
+	if (value === null || value === undefined || value === '') return { ok: true, value: null };
+	const color = normalizeHexColor(value);
+	if (!color) return { ok: false, error: __('Choose a colour as six hex digits, like #3858e9.') };
+	return { ok: true, value: color };
+}
 
 // A switch: on or off, and nothing for the fallback.
 function acceptSwitch(value) {
@@ -80,17 +89,23 @@ const SETTINGS = {
 			return { ok: true, value };
 		}
 	},
-	// The window's theme (#560): light, dark, or the operating system's,
-	// which is the fallback. Main applies it to Electron's native theme, and
-	// the window follows what Chromium then says of the colour scheme.
+	// The window's theme (#560): light, dark, the operating system's, which
+	// is the fallback, or custom, the two colours below. Main applies it to
+	// Electron's native theme, and the window follows what Chromium then
+	// says of the colour scheme, and the colours.
 	theme: {
 		fallback: 'system',
 		accept(value) {
 			if (value === null || value === undefined || value === '') return { ok: true, value: null };
-			if (!THEMES.includes(value)) return { ok: false, error: __('Choose light, dark, or your system’s theme.') };
+			if (!THEMES.includes(value)) return { ok: false, error: __('Choose light, dark, your system’s theme, or custom.') };
 			return { ok: true, value };
 		}
 	},
+	// The custom theme's colours: the background its surfaces are built
+	// from, and the primary colour; the design system builds the rest. They
+	// start as the light theme's.
+	customBackground: { fallback: LIGHT_BACKGROUND, accept: acceptColor },
+	customPrimary: { fallback: PRIMARY, accept: acceptColor },
 	// The folder new sites are made in, each in a subfolder of its own. Unset,
 	// the create-site dialog asks for one every time, as it did before. The
 	// path is kept as the system's dialog gave it: a folder's name can end in
@@ -124,6 +139,7 @@ function readSettings(preferences = {}) {
 	const stored = preferences && typeof preferences === 'object' ? preferences : {};
 	const text = (key) => (typeof stored[key] === 'string' && stored[key] ? stored[key] : SETTINGS[key].fallback);
 	const flag = (key) => (typeof stored[key] === 'boolean' ? stored[key] : SETTINGS[key].fallback);
+	const color = (key) => (isHexColor(stored[key]) ? stored[key] : SETTINGS[key].fallback);
 	return {
 		locale: text('locale'),
 		phpVersion: text('phpVersion'),
@@ -133,6 +149,8 @@ function readSettings(preferences = {}) {
 		autoStartWatch: flag('autoStartWatch'),
 		quitBehavior: QUIT_BEHAVIOURS.includes(stored.quitBehavior) ? stored.quitBehavior : SETTINGS.quitBehavior.fallback,
 		theme: THEMES.includes(stored.theme) ? stored.theme : SETTINGS.theme.fallback,
+		customBackground: color('customBackground'),
+		customPrimary: color('customPrimary'),
 		newSiteLocation: text('newSiteLocation')
 	};
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Terminal } from '@xterm/xterm';
 import { terminalFont, terminalTheme, tokenName, TERMINAL_READABILITY } from '../terminal-theme.cjs';
 import { terminalGrid } from '../tray.cjs';
-import { useDarkScheme } from '../components/app-theme.jsx';
+import { useThemeKey } from '../components/app-theme.jsx';
 
 // What the terminal is painted with, read off the design system's tokens
 // where the terminal stands (#557). The terminal takes its colours and its
@@ -59,7 +59,7 @@ const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
 // None of them depends on the three runners, which may change as often as
 // they like.
 export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCurrent, shown }) {
-  const dark = useDarkScheme();
+  const themeKey = useThemeKey();
   // Read through a ref by the terminal's command handlers rather than closed
   // over: the xterm instance is created by an effect that depends on
   // `printHelp`, so a new array identity here would otherwise dispose and
@@ -384,7 +384,7 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     fitTerminal();
   });
 
-  // Painted again when the window's scheme changes (#560). The terminal was
+  // Painted again when the window's theme changes (#560). The terminal was
   // given its colours as values when it opened, and a change to the tokens
   // does not reach a value; so they are read again, after the provider has
   // put the new tokens on the document, which it does in a layout effect,
@@ -393,7 +393,7 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     const term = terminalRef.current;
     if (!term || !term.element || !container) return;
     term.options.theme = readTerminalLook(container).theme;
-  }, [dark, container]);
+  }, [themeKey, container]);
 
   // Fitted again whenever its element changes size: the tray dragged, the
   // window resized, and the element coming back on screen, which is a change
