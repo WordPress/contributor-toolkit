@@ -2406,15 +2406,31 @@ async function loadLocale() {
   document.title = __('WordPress Contributor Toolkit');
 }
 
+// The settings load before the first render too, beside the locale (#560):
+// the theme is one of them, and a custom theme painted after a first render
+// in the standard theme of its scheme was a flash of the wrong colours at
+// every launch. A failed read leaves them to be read again once mounted,
+// as they were.
+async function loadSettings() {
+  try {
+    const reply = await window.api.getSettings();
+    return reply?.ok ? reply.settings : null;
+  } catch (err) {
+    // eslint-disable-next-line no-console -- see the note in loadLocale.
+    console.error('Could not read the settings before the first render:', err);
+    return null;
+  }
+}
+
 // Under the design system's provider, in the theme the window is in (#560):
-// see app-theme.jsx. The settings are read here, above the provider, since
+// see app-theme.jsx. The settings are held here, above the provider, since
 // the theme is one of them; the app is handed what was read.
-function Root() {
-  const settingsState = useSettings();
+function Root({ initialSettings }) {
+  const settingsState = useSettings(initialSettings);
   return <AppTheme settings={settingsState.settings}><App settingsState={settingsState} /></AppTheme>;
 }
 
-loadLocale().then(() => {
+Promise.all([loadLocale(), loadSettings()]).then(([, initialSettings]) => {
   const root = createRoot(document.getElementById('root'));
-  root.render(<Root />);
+  root.render(<Root initialSettings={initialSettings} />);
 });
