@@ -35,10 +35,11 @@ function MenuAction({ item, onAction }) {
  * same, so the dot is for the eye only.
  *
  * @param {Object} props
- * @param {string} props.status 'online', 'busy', 'failed' or 'offline'.
+ * @param {string} props.status  'online', 'busy', 'failed' or 'offline'.
+ * @param {string} [props.title] What the dot stands for, for a pointer over it; the words beside it say it everywhere else.
  */
-export function ProcessStatus({ status }) {
-  return <span className={`process-status is-${status}`} aria-hidden="true" />;
+export function ProcessStatus({ status, title }) {
+  return <span className={`process-status is-${status}`} title={title} aria-hidden="true" />;
 }
 
 // One of the site's two processes, in the header (#557): what it is doing, and

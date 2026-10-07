@@ -3,9 +3,10 @@
 // The list is the one part of the window that describes every site at once,
 // including the ones that are not open, so everything it says has to come from
 // what the window keeps for all of them: the label, the project, the trunk's
-// date and whether an update was left incomplete. What a site's own view
-// knows, such as whether its server is running, is not reachable from here
-// yet.
+// date and whether an update was left incomplete. What only a site's own view
+// knows, whether its server is running, reaches the list the one way it can:
+// the view reports it to the window as it changes, and the window hands the
+// reports in here by path.
 'use strict';
 
 const { __, _n, sprintf } = require('@wordpress/i18n');
@@ -38,6 +39,29 @@ function siteAttention(meta = {}, now = Date.now()) {
 	return null;
 }
 
+// The words a server's dot can be, as `serverProcess` in site-processes.cjs
+// says them: grey, green, amber and red.
+const SERVER_STATUSES = new Set(['offline', 'online', 'busy', 'failed']);
+
+/**
+ * What a site's server dot reports, from what the site's own view last said
+ * of its server: the word for the dot's colour, and the words the dot stands
+ * for, which are said after the site's name. A site whose view has said
+ * nothing, which every site is until its view has rendered, is offline, and
+ * so is a report with a word the dot has no colour for. An offline server is
+ * the state every site opens in and the grey dot says it, so its words are
+ * '': said after every name, "Server stopped" would be the thing a reader of
+ * the list hears most and needs least.
+ *
+ * @param {{status?: string, text?: string}|null} [report] What the view said last.
+ * @return {{status: string, text: string}}
+ */
+function serverDot(report) {
+	const status = report && SERVER_STATUSES.has(report.status) ? report.status : 'offline';
+	const text = status === 'offline' ? '' : String((report && report.text) || '');
+	return { status, text };
+}
+
 /**
  * A site's id in the list. The list builds element ids from it and points
  * `aria-labelledby` at them, and that attribute is a list of ids separated by
@@ -62,10 +86,11 @@ function rowId(sitePath) {
  * @param {string[]} root0.sites      Site paths, already in display order.
  * @param {Object}   [root0.siteMeta] Records by path.
  * @param {string[]} [root0.deleting] Paths of the sites being deleted.
+ * @param {Object}   [root0.servers]  What each site's view last said of its server, by path: `{status, text}`.
  * @param {number}   [root0.now]      The time to measure trunk ages from.
- * @return {Array<{id: string, path: string, name: string, project: string, description: string, deleting: boolean, attention: ({kind: string, text: string}|null)}>}
+ * @return {Array<{id: string, path: string, name: string, project: string, description: string, deleting: boolean, attention: ({kind: string, text: string}|null), server: {status: string, text: string}}>}
  */
-function sitesListRows({ sites, siteMeta = {}, deleting = [], now = Date.now() }) {
+function sitesListRows({ sites, siteMeta = {}, deleting = [], servers = {}, now = Date.now() }) {
 	return (sites || []).map((sitePath) => {
 		const meta = (siteMeta && siteMeta[sitePath]) || {};
 		const isDeleting = deleting.includes(sitePath);
@@ -77,7 +102,8 @@ function sitesListRows({ sites, siteMeta = {}, deleting = [], now = Date.now() }
 			project,
 			description: isDeleting ? __('Deleting site…') : project,
 			deleting: isDeleting,
-			attention: siteAttention(meta, now)
+			attention: siteAttention(meta, now),
+			server: serverDot(servers && servers[sitePath])
 		};
 	});
 }
@@ -104,4 +130,4 @@ function siteToOpen({ selection, current, rows }) {
 	return next ? next.path : current;
 }
 
-module.exports = { sitesListRows, siteAttention, siteToOpen, rowId };
+module.exports = { sitesListRows, siteAttention, serverDot, siteToOpen, rowId };

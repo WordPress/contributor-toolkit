@@ -476,6 +476,27 @@ function App({ settingsState }) {
     setSiteMeta((m) => ({ ...(m || {}), [sitePath]: { ...(m?.[sitePath] || {}), ...patch } }));
   }, [setSiteMeta]);
 
+  // What each site's view last said of its server, by path, for the dot the
+  // sites list draws before every name. A server lives in its site's view,
+  // open or not, so the view is the one thing that knows, and it reports
+  // each change here; a report of null, from a view on its way out, takes
+  // the site's entry back. A report that says what the last one said is
+  // dropped before it can re-render the list.
+  const [serverReports, setServerReports] = useState({});
+  const onServerStatus = useCallback((sitePath, report) => {
+    setServerReports((current) => {
+      const last = current[sitePath];
+      if (!report) {
+        if (!last) return current;
+        const rest = { ...current };
+        delete rest[sitePath];
+        return rest;
+      }
+      if (last && last.status === report.status && last.text === report.text) return current;
+      return { ...current, [sitePath]: report };
+    });
+  }, []);
+
   const onDelete = useCallback(async (sitePath) => {
     if (deletingSitesRef.current.has(sitePath)) return;
     deletingSitesRef.current.add(sitePath);
@@ -531,8 +552,8 @@ function App({ settingsState }) {
   // The list reports its selection; which site that opens is decided in
   // sites-list.cjs.
   const sitesRows = useMemo(
-    () => sitesListRows({ sites: sortedSites, siteMeta, deleting: deletingSites }),
-    [sortedSites, siteMeta, deletingSites]
+    () => sitesListRows({ sites: sortedSites, siteMeta, deleting: deletingSites, servers: serverReports }),
+    [sortedSites, siteMeta, deletingSites, serverReports]
   );
   const openRow = sitesRows.find((row) => row.path === activeSite) || null;
   const handleChangeSelection = useCallback((selection) => {
@@ -705,6 +726,7 @@ function App({ settingsState }) {
                         resume={resumeFor(resume, s)}
                         onInitialized={onInitialized}
                         onSiteMetaPatch={onSiteMetaPatch}
+                        onServerStatus={onServerStatus}
                         onDelete={onDelete}
                         onRename={onRename}
                         onCreateSite={() => setCreateModalOpen(true)}
@@ -758,7 +780,7 @@ function App({ settingsState }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1300,6 +1322,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating, failure: serverFailure });
   const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
   const serverSectionState = serverSection({ url: serverUrl, running, starting: isServerStarting, elapsed: startElapsed });
+  // The sites list draws this server's dot before the site's name whether or
+  // not the site is open, and this is how it learns what to draw: the word
+  // the header's own dot is drawn from, and the words to say beside it,
+  // which for a server that went by itself are the sentence that says so.
+  // Reported on each change, and taken back when the view goes: the report
+  // before a change is taken back in the same commit as the new one is
+  // made, so the list sees one change, not a grey dot in between.
+  const serverDotStatus = serverState.status;
+  const serverDotText = serverState.detail || serverState.label;
+  useEffect(() => {
+    if (!onServerStatus) return undefined;
+    onServerStatus(sitePath, { status: serverDotStatus, text: serverDotText });
+    return () => onServerStatus(sitePath, null);
+  }, [onServerStatus, sitePath, serverDotStatus, serverDotText]);
   // A link to the running site is opened in the browser by the main process.
   const openSiteLink = (url) => window.api.openExternal(url);
 
