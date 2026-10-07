@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import { savedAndResetMessage } from '../confirmations.cjs';
-import { planUpdateSteps, updateStepStatuses, SKIP_INSTALL_MESSAGE, planWatchImpact } from '../update-plan.cjs';
+import { planUpdateSteps, updateStepStatuses, skipInstallMessage, planWatchImpact } from '../update-plan.cjs';
 import { planUpdateHandOff } from '../update-handoff.cjs';
 import { watchOccupiesBuild } from '../watch-waiters.cjs';
 import { discardOutcome, DISCARD_CONFIRM_MESSAGE } from '../changes-note.cjs';
@@ -172,7 +172,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
         }
       });
     } else {
-      writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
+      writeToTerminal(`\n${skipInstallMessage()}\n`);
       afterInstall();
     }
   };
@@ -255,12 +255,16 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
       const res = await window.api.savePatch(sitePath);
       if (res && res.canceled) return; // stay in the modal
       if (!res || !res.ok || !res.filePath) {
-        setDirtyError(`Error saving diff: ${res && res.error ? res.error : 'Unknown error'}`);
+        const why = res && res.error ? res.error : __('Unknown error');
+        // translators: %s: why the diff could not be saved.
+        setDirtyError(sprintf(__('Error saving diff: %s'), why));
         return;
       }
       const d = await window.api.discardChanges(sitePath);
       if (!d || !d.ok) {
-        setDirtyError(`Saved your changes to ${res.filePath}, but resetting the working tree failed: ${d && d.error ? d.error : 'Unknown error'}`);
+        const why = d && d.error ? d.error : __('Unknown error');
+        // translators: 1: the path of the saved patch file. 2: why the reset failed.
+        setDirtyError(sprintf(__('Saved your changes to %1$s, but resetting the working tree failed: %2$s'), res.filePath, why));
         return;
       }
       savedPatchPathRef.current = res.filePath;
@@ -280,7 +284,9 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
     setDirtyError(null);
     const d = await window.api.discardChanges(sitePath);
     if (!d || !d.ok) {
-      setDirtyError(`Failed to discard changes: ${d && d.error ? d.error : 'Unknown error'}`);
+      const why = d && d.error ? d.error : __('Unknown error');
+      // translators: %s: why the changes could not be discarded.
+      setDirtyError(sprintf(__('Failed to discard changes: %s'), why));
       return;
     }
     applyDiscardToNote(discardOutcome(d));

@@ -6,7 +6,7 @@ import {
   SlotFillProvider
 } from '@wordpress/components';
 import { Page } from '@wordpress/admin-ui';
-import { __, _x, sprintf, setLocaleData } from '@wordpress/i18n';
+import { __, _n, _x, sprintf, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
 import { drawerLeft, globe } from '@wordpress/icons';
 import { Badge, Button as UiButton, Card as UiCard, EmptyState, IconButton, Notice, Spinner as UiSpinner, Stack, Text, VisuallyHidden } from '@wordpress/ui';
@@ -25,7 +25,7 @@ import { toggleTray, trayAfterReveal, trayList } from './tray.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
-import { sitesListRows, siteToOpen } from './sites-list.cjs';
+import { serverReport, sitesListRows, siteToOpen, withServerReport } from './sites-list.cjs';
 import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
@@ -33,7 +33,7 @@ import { getProjectType } from '../project-type.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
-import { trunkAgeInfo, updateStepStatuses, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome, updateStepText } from './update-plan.cjs';
+import { trunkAgeInfo, updateStepStatuses, planSetupSteps, SETUP_STATE_TO_STEP, setupOutcome, updateStepText, updateSummarySentence } from './update-plan.cjs';
 import { pickLatest } from '../latest-patch.cjs';
 import { beginSetup, adoptSetupPath, discardSetup, rowPathAfterStatus } from './pending-setup.cjs';
 import { workItemProvider } from '../work-item.cjs';
@@ -477,6 +477,17 @@ function App({ settingsState }) {
     setSiteMeta((m) => ({ ...(m || {}), [sitePath]: { ...(m?.[sitePath] || {}), ...patch } }));
   }, [setSiteMeta]);
 
+  // What each site's view last said of its server, by path, for the dot the
+  // sites list draws before every name. A server lives in its site's view,
+  // open or not, so the view is the one thing that knows, and it reports
+  // each change here; a report of null, from a view on its way out, takes
+  // the site's entry back. What a report does to the reports is decided in
+  // sites-list.cjs.
+  const [serverReports, setServerReports] = useState({});
+  const onServerStatus = useCallback((sitePath, report) => {
+    setServerReports((current) => withServerReport(current, sitePath, report));
+  }, []);
+
   const onDelete = useCallback(async (sitePath) => {
     if (deletingSitesRef.current.has(sitePath)) return;
     deletingSitesRef.current.add(sitePath);
@@ -532,8 +543,8 @@ function App({ settingsState }) {
   // The list reports its selection; which site that opens is decided in
   // sites-list.cjs.
   const sitesRows = useMemo(
-    () => sitesListRows({ sites: sortedSites, siteMeta, deleting: deletingSites }),
-    [sortedSites, siteMeta, deletingSites]
+    () => sitesListRows({ sites: sortedSites, siteMeta, deleting: deletingSites, servers: serverReports }),
+    [sortedSites, siteMeta, deletingSites, serverReports]
   );
   const openRow = sitesRows.find((row) => row.path === activeSite) || null;
   const handleChangeSelection = useCallback((selection) => {
@@ -589,7 +600,7 @@ function App({ settingsState }) {
       {pendingSites.length > 0 && (
         <UiCard.Root className="window-notice">
           <UiCard.Content render={<Stack direction="column" gap="sm" />}>
-            <Text variant="heading-md">Setting up new site…</Text>
+            <Text variant="heading-md">{__('Setting up new site…')}</Text>
             {downloadPhase && <Text variant="body-sm" className="muted-label">{downloadPhase}</Text>}
             <div ref={termRef} className="log-pane is-short">{terminalMsgs}</div>
           </UiCard.Content>
@@ -706,6 +717,7 @@ function App({ settingsState }) {
                         resume={resumeFor(resume, s)}
                         onInitialized={onInitialized}
                         onSiteMetaPatch={onSiteMetaPatch}
+                        onServerStatus={onServerStatus}
                         onDelete={onDelete}
                         onRename={onRename}
                         onCreateSite={() => setCreateModalOpen(true)}
@@ -759,7 +771,7 @@ function App({ settingsState }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1305,6 +1317,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating, failure: serverFailure });
   const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
   const serverSectionState = serverSection({ url: serverUrl, running, starting: isServerStarting, elapsed: startElapsed });
+  // The sites list draws this server's dot before the site's name whether or
+  // not the site is open, and this is how it learns what to draw: what the
+  // report says is decided in sites-list.cjs. Reported on each change, and
+  // taken back when the view goes: the report before a change is taken back
+  // in the same commit as the new one is made, so the list sees one change,
+  // not a grey dot in between.
+  const { status: serverDotStatus, text: serverDotText } = serverReport(serverState);
+  useEffect(() => {
+    if (!onServerStatus) return undefined;
+    onServerStatus(sitePath, { status: serverDotStatus, text: serverDotText });
+    return () => onServerStatus(sitePath, null);
+  }, [onServerStatus, sitePath, serverDotStatus, serverDotText]);
   // A link to the running site is opened in the browser by the main process.
   const openSiteLink = (url) => window.api.openExternal(url);
 
@@ -1841,14 +1865,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       description: isPending
         // The clone is also the trigger for everything after it (#246), so the
         // step says what happens next rather than implying a click is coming.
-        ? 'Cloning the repository… install and build start on their own when it finishes.'
+        ? __('Cloning the repository… install and build start on their own when it finishes.')
         : project.setup.cloneDescription,
       ...stepState.download,
       running: isPending
     },
     {
       key: 'install',
-      label: 'Install npm dependencies',
+      label: __('Install npm dependencies'),
       description: installDescription,
       ...stepState.install,
       running: installing,
@@ -1864,7 +1888,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     },
     {
       key: 'build',
-      label: 'Run full build',
+      label: __('Run full build'),
       description: buildDescription,
       ...stepState.build,
       running: building,
@@ -1880,7 +1904,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     },
     {
       key: 'dev',
-      label: 'Start dev server & finish wizard',
+      label: __('Start dev server & finish wizard'),
       description: project.setup.serverDescription,
       ...stepState.dev,
       running: starting,
@@ -1895,10 +1919,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               await toggleDevServer();
             }}
             disabled={stepState.dev.disabled}
-          >{running ? 'Stop dev server' : 'Start dev server and finish the wizard'}</UiButton>
+          >{running ? __('Stop dev server') : __('Start dev server and finish the wizard')}</UiButton>
           {starting || serverUrl ? (
             <Text variant="body-sm">
-              {starting ? `Starting… (${formatElapsed(startElapsed)})` : null}
+              {starting ? sprintf(
+                // translators: %s: how long the server has been starting, such as 12s.
+                __('Starting… (%s)'),
+                formatElapsed(startElapsed)
+              ) : null}
               {!starting && serverUrl ? (
                 <>
                   <a href={serverUrl} onClick={(e) => { e.preventDefault(); window.api.openExternal(serverUrl); }}>{serverUrl}</a>
@@ -1936,7 +1964,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     pullRequest,
     hasChanges: Boolean(worktreeDirty && worktreeDirty.dirty),
     ticketLinked: Boolean(tracTicket),
-    workItemLabel: project.workItem.label
+    workItemNoun: workItem.noun
   });
   const nextActionId = nextAction ? nextAction.id : null;
   useNextActionCue(nextActionId, isActive, nextActionSectionRef);
@@ -1993,7 +2021,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           holds text, so only the visible site speaks; it clears to nothing when
           there is no next action. */}
       <VisuallyHidden role="status" aria-live="polite">
-        {isActive && nextAction ? `Next step: ${nextAction.reason}` : ''}
+        {isActive && nextAction ? sprintf(
+          // translators: %s: what to do next, a sentence.
+          __('Next step: %s'),
+          nextAction.reason
+        ) : ''}
       </VisuallyHidden>
       {/* What this site has in the tray along the bottom of the window (#558).
           Every site's is there, and all but the open site's are hidden: a
@@ -2092,19 +2124,23 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       ) : null}
       {updateIncomplete && !isUpdating ? (
         <Notice.Root {...cueProps('retry-install-build')} intent="error" spokenMessage={SILENT}>
-          <Notice.Title>Update incomplete</Notice.Title>
-          <Notice.Description>The code is new but the built assets are old. The site may not run correctly until install and build succeed.</Notice.Description>
+          <Notice.Title>{__('Update incomplete')}</Notice.Title>
+          <Notice.Description>{__('The code is new but the built assets are old. The site may not run correctly until install and build succeed.')}</Notice.Description>
           <Notice.Actions>
-            <UiButton variant="outline" tone="neutral" size="compact" onClick={retryInstallAndBuild} disabled={installing || building}>Retry install &amp; build</UiButton>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={retryInstallAndBuild} disabled={installing || building}>{__('Retry install & build')}</UiButton>
           </Notice.Actions>
         </Notice.Root>
       ) : null}
       {age.stale && !updateIncomplete && !isUpdating ? (
         <Notice.Root {...cueProps('update-trunk')} intent="warning" spokenMessage={SILENT}>
-          <Notice.Title>This site&apos;s WordPress code is {age.ageDays} days old</Notice.Title>
-          <Notice.Description>Patches you create now may not apply on Trac. Updating takes a few minutes.</Notice.Description>
+          <Notice.Title>{sprintf(
+            // translators: %d: how many days old the site's copy of WordPress is.
+            _n("This site's WordPress code is %d day old", "This site's WordPress code is %d days old", age.ageDays),
+            age.ageDays
+          )}</Notice.Title>
+          <Notice.Description>{__('Patches you create now may not apply on Trac. Updating takes a few minutes.')}</Notice.Description>
           <Notice.Actions>
-            <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={updateHeld} onClick={startTrunkUpdate}>Update to latest trunk</ReasonedUiButton>
+            <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={updateHeld} onClick={startTrunkUpdate}>{__('Update to latest trunk')}</ReasonedUiButton>
           </Notice.Actions>
         </Notice.Root>
       ) : null}
@@ -2112,17 +2148,29 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         <TrunkUpdateCard
           cue={cueProps('updating')}
           rows={updateStepStates.map((step) => ({ key: step.key, label: updateStepText(updateSteps, step), status: step.status }))}
-          count={`step ${Math.max(1, updateStepStates.filter((step) => step.status === 'complete' || step.status === 'skipped').length + 1)} of ${updateSteps.length}`}
-          note={updateState === 'installing' ? 'Most packages are already cached, so this is a download of the difference — not the whole tree.' : ''}
+          // translators: 1: the step the update is on. 2: how many steps it has.
+          count={sprintf(__('step %1$d of %2$d'), Math.max(1, updateStepStates.filter((step) => step.status === 'complete' || step.status === 'skipped').length + 1), updateSteps.length)}
+          note={updateState === 'installing' ? __('Most packages are already cached, so this is a download of the difference — not the whole tree.') : ''}
         />
       ) : null}
       {lastUpdateSummary && !isUpdating && !updateIncomplete ? (
         <Notice.Root intent="success" spokenMessage={SILENT}>
-          <Notice.Title>Up to date with trunk as of today.</Notice.Title>
+          <Notice.Title>{__('Up to date with trunk as of today.')}</Notice.Title>
           <Notice.Description>
-            {lastUpdateSummary.lockfileChanged ? 'Dependencies updated' : 'Dependencies unchanged'}
-            {typeof lastUpdateSummary.elapsedSeconds === 'number' ? `, rebuilt in ${formatElapsed(lastUpdateSummary.elapsedSeconds)}.` : ', rebuilt.'}
-            {lastUpdateSummary.savedPatchPath ? ` Your changes were saved to ${lastUpdateSummary.savedPatchPath} before the reset.` : ''}
+            {/* Each sentence whole, and in an element of its own. */}
+            <span>{updateSummarySentence({
+              lockfileChanged: lastUpdateSummary.lockfileChanged,
+              elapsed: typeof lastUpdateSummary.elapsedSeconds === 'number' ? formatElapsed(lastUpdateSummary.elapsedSeconds) : null
+            })}</span>
+            {lastUpdateSummary.savedPatchPath ? (
+              <>
+                {' '}
+                <span>{
+                  // translators: %s: the path of the patch file the changes were saved to.
+                  sprintf(__('Your changes were saved to %s before the reset.'), lastUpdateSummary.savedPatchPath)
+                }</span>
+              </>
+            ) : null}
           </Notice.Description>
           <Notice.CloseIcon onClick={() => setLastUpdateSummary(null)} />
         </Notice.Root>
@@ -2134,10 +2182,15 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           running={isSettingUp ? {
             // The step counter comes from the same `updateStepStatuses` the
             // update card uses.
-            title: `Setting this site up for you — step ${setupStepStates.filter((s) => s.status === 'complete').length + 1} of ${setupSteps.length}`,
+            title: sprintf(
+              // translators: 1: the step setup is on. 2: how many steps it has.
+              __('Setting this site up for you — step %1$d of %2$d'),
+              setupStepStates.filter((s) => s.status === 'complete').length + 1,
+              setupSteps.length
+            ),
             body: setupChainState === 'installing'
-              ? 'Installing dependencies. You can leave this running — the build follows on its own.'
-              : 'Running the full build. This can take up to half an hour on Windows; the Terminal shows what it is doing.',
+              ? __('Installing dependencies. You can leave this running — the build follows on its own.')
+              : __('Running the full build. This can take up to half an hour on Windows; the Terminal shows what it is doing.'),
             onStop: stopSetupChain
           } : null}
           stopped={setupChainEnd === 'stopped'}
@@ -2159,7 +2212,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           <Notice.Title>{deepLinkNote.title}</Notice.Title>
           <Notice.Description>{deepLinkNote.body}</Notice.Description>
           <Notice.Actions>
-            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => setDeepLinkNoteHidden(true)}>Hide</UiButton>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => setDeepLinkNoteHidden(true)}>{__('Hide')}</UiButton>
           </Notice.Actions>
         </Notice.Root>
       ) : null}
@@ -2175,9 +2228,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             <ReasonedUiButton
               size="compact"
               onClick={acceptDeepLink}
-              reason={skipInit ? ticketActionsReason : 'Finish setting this site up first.'}
+              reason={skipInit ? ticketActionsReason : __('Finish setting this site up first.')}
             >{deepLinkPrompt.confirmLabel}</ReasonedUiButton>
-            <UiButton variant="minimal" tone="neutral" size="compact" onClick={dismissDeepLink}>Not now</UiButton>
+            <UiButton variant="minimal" tone="neutral" size="compact" onClick={dismissDeepLink}>{__('Not now')}</UiButton>
           </Notice.Actions>
         </Notice.Root>
       ) : null}
@@ -2411,15 +2464,31 @@ async function loadLocale() {
   document.title = __('WordPress Contributor Toolkit');
 }
 
+// The settings load before the first render too, beside the locale (#560):
+// the theme is one of them, and a custom theme painted after a first render
+// in the standard theme of its scheme was a flash of the wrong colours at
+// every launch. A failed read leaves them to be read again once mounted,
+// as they were.
+async function loadSettings() {
+  try {
+    const reply = await window.api.getSettings();
+    return reply?.ok ? reply.settings : null;
+  } catch (err) {
+    // eslint-disable-next-line no-console -- see the note in loadLocale.
+    console.error('Could not read the settings before the first render:', err);
+    return null;
+  }
+}
+
 // Under the design system's provider, in the theme the window is in (#560):
-// see app-theme.jsx. The settings are read here, above the provider, since
+// see app-theme.jsx. The settings are held here, above the provider, since
 // the theme is one of them; the app is handed what was read.
-function Root() {
-  const settingsState = useSettings();
+function Root({ initialSettings }) {
+  const settingsState = useSettings(initialSettings);
   return <AppTheme settings={settingsState.settings}><App settingsState={settingsState} /></AppTheme>;
 }
 
-loadLocale().then(() => {
+Promise.all([loadLocale(), loadSettings()]).then(([, initialSettings]) => {
   const root = createRoot(document.getElementById('root'));
-  root.render(<Root />);
+  root.render(<Root initialSettings={initialSettings} />);
 });

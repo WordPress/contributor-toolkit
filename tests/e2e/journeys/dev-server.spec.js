@@ -43,6 +43,11 @@
  * admin and its database are and what to log in with. The first two journeys press the button in the
  * details; the third goes through the header.
  *
+ * The sites list says the same of every site before its name, with the
+ * header's dot: the first journey reads it there at each turn. The dot is
+ * drawn in the row that names the entry, not inside the entry, so it is
+ * found from the row, and what it stands for is in the entry's name.
+ *
  * The mail list and the Logs panel while a server runs are `mail.spec.js`
  * and `logs.spec.js`; the watch by itself is `build-watch.spec.js`.
  *
@@ -122,6 +127,9 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	const starting = page.getByRole( 'button', { name: 'Starting development server…', exact: true } );
 	const line = ( text ) => ui.tray( page, 'Logs' ).getByText( text, { exact: true } );
 	const siteLink = page.getByRole( 'link', { name: 'View site', exact: true } );
+	// The site's dot in the sites list, with what the list says of it: the
+	// entry is named by the site and what the dot stands for.
+	const listDot = ( entryName, status ) => page.getByRole( 'row' ).filter( { has: ui.sidebarEntry( page, entryName ) } ).locator( `.process-status.is-${ status }` );
 
 	// The hint under the terminal is a link only once the site's status has
 	// been read and says the site is built: the server's button needs to know
@@ -140,6 +148,8 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	await expect( starting ).toBeVisible();
 	await expect( page.getByText( /^Dev server is starting… \(/ ) ).toBeVisible();
 	await expect( ui.processMenuButton( page, 'Server starting…' ) ).toBeVisible();
+	// INVARIANT — the sites list says it too, before the site's name.
+	await expect( listDot( 'e2e-site (Server starting…)', 'busy' ) ).toHaveCount( 1 );
 
 	// INVARIANT — while it starts there is nothing to press, here or in the
 	// header's menu: that is what now keeps a second press from starting a
@@ -156,6 +166,7 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
 	await expect( siteLink ).toHaveAttribute( 'href', URL );
 	await expect( ui.processMenuButton( page, 'Server running' ) ).toBeVisible();
+	await expect( listDot( 'e2e-site (Server running)', 'online' ) ).toHaveCount( 1 );
 	await expect.poll( async () => ( await server.asked() ).opened ).toEqual( [ URL ] );
 	expect( ( await server.asked() ).starts ).toEqual( [ site.dir ] );
 
@@ -166,6 +177,9 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( siteLink ).toHaveCount( 0 );
 	await expect( ui.processMenuButton( page, 'Server stopped' ) ).toBeVisible();
+	// INVARIANT — a stopped server is the grey every site starts with, and
+	// the entry is named by the site alone again.
+	await expect( listDot( 'e2e-site', 'offline' ) ).toHaveCount( 1 );
 	await expect( ui.stopBuildWatchButton( page ) ).toBeVisible();
 
 	// INVARIANT — the exit that follows a stop that was asked for is not a
@@ -198,6 +212,8 @@ test( 'the dev server\'s button starts one server and cannot be pressed while it
 	// where its last lines are.
 	const wentByItself = page.getByText( 'The development server stopped by itself. Its last lines are in the Logs.', { exact: true } );
 	await expect( wentByItself ).toBeVisible();
+	// INVARIANT — and the sites list, with the sentence, from any site.
+	await expect( listDot( 'e2e-site (The development server stopped by itself. Its last lines are in the Logs.)', 'failed' ) ).toHaveCount( 1 );
 	await expect( ui.startDevServerButton( page ) ).toBeVisible();
 	await expect( ui.stopBuildWatchButton( page ) ).toBeVisible();
 	await server.heard();

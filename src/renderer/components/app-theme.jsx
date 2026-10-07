@@ -36,10 +36,10 @@ function usePrefersDark() {
 // from them, for its own components, for the older ones through the variables
 // they read, and for the app's own styles.
 //
-// `settings` is what main holds, or null until it has answered: until then
-// the window is painted as under 'system', for the scheme alone, which for a
-// custom theme is the standard theme of its scheme for the moment before
-// the colours arrive.
+// `settings` is what main holds, read before the first render so that a
+// custom theme is painted from the app's first render; null only where that
+// read failed, and then the window is painted as under 'system', for the
+// scheme alone, until main has answered again.
 export function AppTheme({ settings, children }) {
   const prefersDark = usePrefersDark();
   const [warnings, setWarnings] = useState([]);
