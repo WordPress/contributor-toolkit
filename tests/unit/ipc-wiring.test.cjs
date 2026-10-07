@@ -1742,6 +1742,28 @@ test('git:save-patch refuses submission destinations while a patch is applied, b
 	assert.equal(main.calls.showSaveDialog.length, 1, 'an unattributed backup remains available');
 });
 
+// The refusal is shown in the patch pane as it is, so it is said whole in the
+// locale main applied, with the patch's name put into it, or a sentence of its
+// own for a patch with no name on record (#630).
+test('git:save-patch words its refusal in the locale main applied, with and without the patch\'s name (#630)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	const said = [];
+	for (const appliedPatch of [{ label: 'PR #6717', text: 'STORED' }, { text: 'STORED' }]) {
+		const dir = await fixtureRepo(t);
+		const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { tracTicket: 62281, appliedPatch } } });
+		const main = loadMain({ stubs: { ...silentLogging(), ...settings.stubs } });
+		said.push((await main.invoke('git:save-patch', dir, { handoff: true })).error);
+	}
+
+	assert.deepEqual(said, [
+		pseudoLocalize('%s is applied. Revert it before submitting this checkout as your own work.').replace('%s', 'PR #6717'),
+		pseudoLocalize('The patch you applied is applied. Revert it before submitting this checkout as your own work.')
+	]);
+});
+
 // --- provenance:* -> src/wporg-handle.cjs + src/patch-provenance.cjs (#166) ---
 
 // The handle becomes a filename and a line in a file other people read, so it
@@ -3030,6 +3052,35 @@ test('playground:start words a server that died before its URL in the locale mai
 	const res = await pending;
 	assert.equal(res.ok, false);
 	assert.equal(res.error, pseudoLocalize('Server exited with code %1$s (signal %2$s) before reporting a URL').replace('%1$s', '1').replace('%2$s', 'SIGTERM'));
+});
+
+// Where the web server cannot start, the window shows main's sentence as it
+// is, so it is said in the locale main applied: with no folder to serve, and
+// with a server that exits before it is ready (#630).
+test('playground-web:start words its failures in the locale main applied (#630)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+
+	const noFolder = loadMain({ stubs: { ...silentLogging(), ...noWebProbe(), 'fs': { existsSync: () => false } } });
+	const missing = await noFolder.invoke('playground-web:start');
+	assert.deepEqual(missing, { ok: false, error: pseudoLocalize('%s directory not found.').replace('%s', 'local-playground-web') });
+
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noWebProbe(),
+			...webDirOnDisk(),
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTree: () => {} }
+		}
+	});
+	const pending = main.invoke('playground-web:start');
+	await waitForSpawnCount(cp, 1);
+	cp.children[0].emit('close', 1, null);
+	assert.deepEqual(await pending, { ok: false, error: pseudoLocalize('Server exited before becoming ready') });
 });
 
 test('playground-web:stop ends the web server tree rather than signalling the child', async (t) => {

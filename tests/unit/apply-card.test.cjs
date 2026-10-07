@@ -133,6 +133,15 @@ test('a failed patch file says what went wrong, ended as a sentence, and that no
 	assert.equal(applyFailureWords({ error: '  Why?  ', kind: 'patch' }).headline, 'Why?');
 });
 
+test('the full stop a sentence is given is the translator\'s, and one ended in another script\'s mark keeps it', (t) => {
+	const i18n = require('@wordpress/i18n');
+	t.after(() => i18n.resetLocaleData());
+	i18n.setLocaleData({ 'ends a sentence that lacks a full stop\u0004%s.': ['%s。'] });
+	assert.equal(applyFailureWords({ error: 'git: patch does not apply', kind: 'patch' }).headline, 'git: patch does not apply。');
+	assert.equal(applyFailureWords({ error: 'パッチを適用できません。', kind: 'patch' }).headline, 'パッチを適用できません。');
+	assert.equal(applyFailureWords({ error: 'هل تريد المتابعة؟', kind: 'pr' }).headline, 'هل تريد المتابعة؟');
+});
+
 test('a breakdown\'s headline replaces the sentence it says in counts', () => {
 	assert.equal(applyFailureWords({ error: 'The patch does not fit', conflict: { headline: '2 of 5 changes could not be applied.' }, kind: 'patch' }).headline, '2 of 5 changes could not be applied.');
 	// A breakdown with no headline of its own leaves the sentence.

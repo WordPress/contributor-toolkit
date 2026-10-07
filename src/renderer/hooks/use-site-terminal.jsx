@@ -340,6 +340,11 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
   }, [handleTerminalData]);
 
   useEffect(() => {
+    // xterm's own words, read by a screen reader: its input's label, and what
+    // it says when output comes too fast to read out. Set here, once the
+    // locale has arrived, and before the terminal draws its input.
+    Terminal.strings.promptLabel = __('Terminal input');
+    Terminal.strings.tooMuchOutput = __('Too much output to announce, navigate to rows manually to read');
     const term = new Terminal({
       rows: 12,
       cursorBlink: true,

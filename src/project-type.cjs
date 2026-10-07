@@ -138,11 +138,9 @@ const PROJECT_TYPES = {
 			// The local branch a work item gets its own namespace under. Core's
 			// is `ticket/`, unchanged since #108, so no existing site moves.
 			branchPrefix: 'ticket/',
-			// What the app calls it outside its card, in the next step's sentence
-			// and in the refusal to open a pull request with none linked, and
-			// where a newcomer goes to find one. The card's own words are in
-			// renderer/ticket-card.cjs.
-			label: 'Trac ticket',
+			// Where a newcomer goes to find one. What the app calls it is in
+			// renderer/ticket-card.cjs and the sentences that name it, one per
+			// kind of work item, so that each is translated whole.
 			browseUrl: 'https://core.trac.wordpress.org/tickets/good-first-bugs'
 		},
 
@@ -244,7 +242,6 @@ const PROJECT_TYPES = {
 			// their own client sees the noun the upstream uses, and a site
 			// cannot end up with two namespaces meaning the same thing.
 			branchPrefix: 'issue/',
-			label: 'GitHub issue',
 			browseUrl: 'https://github.com/WordPress/gutenberg/issues?q=is%3Aissue+is%3Aopen+label%3A%22Good+First+Issue%22'
 		},
 
