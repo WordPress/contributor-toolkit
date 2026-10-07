@@ -179,9 +179,10 @@ function applyStepRows(steps = [], states = []) {
  * sentence; without one the sentence is the whole story, and is given the
  * full stop it may lack: Git's own line and a thrown error have none. The
  * full stop is the translator's, since not every language ends a sentence
- * with one, and a sentence already ended in another script's mark keeps it. A patch file is applied all or nothing, so its
- * failure also says that nothing was changed; a pull request's does not,
- * since a checkout that fails part-way can leave the site on another branch.
+ * with one, and a sentence already ended in any script's mark keeps it. A
+ * patch file is applied all or nothing, so its failure also says that nothing
+ * was changed; a pull request's does not, since a checkout that fails part-way
+ * can leave the site on another branch.
  *
  * @param {Object} root0
  * @param {string} [root0.error]    What went wrong, as it was reported.
@@ -191,7 +192,7 @@ function applyStepRows(steps = [], states = []) {
  */
 function applyFailureWords({ error = '', conflict = null, kind = '' } = {}) {
 	const sentence = String(error || '').trim();
-	const headline = (conflict && conflict.headline) || (/[.!?。！？؟۔…]$/.test(sentence) || !sentence ? sentence : sprintf(
+	const headline = (conflict && conflict.headline) || (/[\p{Sentence_Terminal}…]$/u.test(sentence) || !sentence ? sentence : sprintf(
 		// translators: %s: a sentence that did not end in a full stop. Use the mark your language ends a sentence with, or none.
 		_x('%s.', 'ends a sentence that lacks a full stop'),
 		sentence

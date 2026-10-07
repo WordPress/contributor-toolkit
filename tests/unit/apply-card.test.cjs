@@ -140,6 +140,7 @@ test('the full stop a sentence is given is the translator\'s, and one ended in a
 	assert.equal(applyFailureWords({ error: 'git: patch does not apply', kind: 'patch' }).headline, 'git: patch does not apply。');
 	assert.equal(applyFailureWords({ error: 'パッチを適用できません。', kind: 'patch' }).headline, 'パッチを適用できません。');
 	assert.equal(applyFailureWords({ error: 'هل تريد المتابعة؟', kind: 'pr' }).headline, 'هل تريد المتابعة؟');
+	assert.equal(applyFailureWords({ error: 'पैच लागू नहीं हुआ।', kind: 'patch' }).headline, 'पैच लागू नहीं हुआ।');
 });
 
 test('a breakdown\'s headline replaces the sentence it says in counts', () => {
