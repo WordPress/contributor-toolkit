@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-07T13:20:30+00:00\n"
+"POT-Creation-Date: 2026-10-07T13:50:24+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -153,35 +153,151 @@ msgstr ""
 msgid "Sign in to GitHub first."
 msgstr ""
 
-#: src/main.js:2517
+#: src/main.js:2079
+#. %s: the branch the contributor's work is on, such as ticket/59234.
+msgid "Parking your work on %s before updating…"
+msgstr ""
+
+#: src/main.js:2165
+#. %s: the branch the contributor's work is on, such as ticket/59234.
+msgid "Returning to your work on %s…"
+msgstr ""
+
+#: src/main.js:2210
+#. %s: the error the checkout failed with.
+msgid "Update failed during checkout: %s"
+msgstr ""
+
+#: src/main.js:2213
+#. %s: the error the fetch failed with.
+msgid "Update failed during fetch: %s"
+msgstr ""
+
+#: src/main.js:2228
+#. 1: the ticket's number. 2: the branch the work is committed on, such as ticket/59234.
+msgid ""
+"Your work on #%1$s is safe — it is committed on %2$s. Link that ticket "
+"again to return to it."
+msgstr ""
+
+#: src/main.js:2231
+#. %s: the branch the work is committed on, such as pr/7701.
+msgid ""
+"Your work is safe — it is committed on %s. Apply that pull request again to "
+"return to it."
+msgstr ""
+
+#: src/main.js:2349
+msgid "Returning to your saved copy of the pull request…"
+msgstr ""
+
+#: src/main.js:2349
+msgid "Downloading the pull request's files and switching to its branch…"
+msgstr ""
+
+#: src/main.js:2364
+#. %s: the error Git gave.
+msgid "Could not remove the unused branch: %s"
+msgstr ""
+
+#: src/main.js:2385
+msgid "Restoring the files of your previous branch…"
+msgstr ""
+
+#: src/main.js:2539
 msgid "Choose a patch file"
 msgstr ""
 
-#: src/main.js:2520
+#: src/main.js:2542
 msgid "Patch Files"
 msgstr ""
 
-#: src/main.js:2521
+#: src/main.js:2543
 msgid "All Files"
 msgstr ""
 
-#: src/main.js:3471
+#: src/main.js:2627
+msgid "This patch is too large to keep for an undo, so Revert will not be offered."
+msgstr ""
+
+#: src/main.js:3493
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3472
+#: src/main.js:3494
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3478
+#: src/main.js:3500
 msgid "Choose the application to open this folder in"
 msgstr ""
+
+#: src/main.js:3641
+#. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
+msgid ""
+"npm exited with code %1$s (signal %2$s), but something it started is still "
+"running and holding its output. Letting go; that process runs on until it "
+"finishes on its own."
+msgstr ""
+
+#: src/main.js:3644
+#. %s: the code npm exited with.
+msgid ""
+"npm exited with code %s, but something it started is still running and "
+"holding its output. Letting go; that process runs on until it finishes on "
+"its own."
+msgstr ""
+
+#: src/main.js:3648
+#. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
+msgid ""
+"npm exited with code %1$s (signal %2$s), but something it started is still "
+"running and holding its output. Letting go and ending it."
+msgstr ""
+
+#: src/main.js:3651
+#. %s: the code npm exited with.
+msgid ""
+"npm exited with code %s, but something it started is still running and "
+"holding its output. Letting go and ending it."
+msgstr ""
+
+#: src/main.js:3655
+msgid "This site requires a newer Node.js than this app bundles."
+msgstr ""
+
+#: src/main.js:3655
+msgid "Retrying with engine checks relaxed…"
+msgstr ""
+
+#: src/main.js:3742
+#. %s: why npm could not be started.
+msgid "Failed to start: %s"
+msgstr ""
+
+#: src/main.js:4053
+#. 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
+msgid "Server exited with code %1$s (signal %2$s) before reporting a URL"
+msgstr ""
+
+#: src/main.js:4056
+#. %s: the code the server exited with.
+msgid "Server exited with code %s before reporting a URL"
+msgstr ""
+
+#: src/main.js:4086
+#. %d: how many seconds the server was given to start.
+msgid "Server did not start within %d second"
+msgid_plural "Server did not start within %d seconds"
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/menu.js:26
 msgid "Settings…"
 msgstr ""
 
 #: src/menu.js:63
+#: src/renderer/hooks/use-dev-server.jsx:137
 msgid "Open App Log"
 msgstr ""
 
@@ -626,7 +742,7 @@ msgid "Setting up a site"
 msgstr ""
 
 #: src/renderer/components/create-site-dialog.jsx:153
-#: src/renderer/index.jsx:648
+#: src/renderer/index.jsx:641
 msgid "Create site"
 msgstr ""
 
@@ -697,6 +813,34 @@ msgstr ""
 
 #: src/renderer/components/folder-field.jsx:47
 msgid "No folder selected yet."
+msgstr ""
+
+#: src/renderer/components/logs-panel.jsx:40
+#. <source /> is the folder edits are made in, src/. <build /> is the folder they are compiled into, build/.
+msgid ""
+"The build watch compiles <code><source /></code> edits into <code><build "
+"/></code>. It runs independently of the dev server — its output, and "
+"whether it is watching, paused, or stopped, appears here."
+msgstr ""
+
+#: src/renderer/components/logs-panel.jsx:56
+#. <function /> is the PHP function that writes to the log, error_log().
+msgid ""
+"No PHP notices or errors yet. Anything WordPress or your code writes — "
+"<code><function /></code>, notices, deprecations, fatals — appears here "
+"while the dev server runs."
+msgstr ""
+
+#: src/renderer/components/logs-panel.jsx:67
+msgid "The log file appears once the dev server has run."
+msgstr ""
+
+#: src/renderer/components/logs-panel.jsx:69
+msgid "Show in folder"
+msgstr ""
+
+#: src/renderer/components/logs-panel.jsx:71
+msgid "Clear"
 msgstr ""
 
 #: src/renderer/components/mail-panel.jsx:49
@@ -945,7 +1089,7 @@ msgid "Sign in with GitHub"
 msgstr ""
 
 #: src/renderer/components/pull-request-destination.jsx:302
-#: src/renderer/index.jsx:2228
+#: src/renderer/index.jsx:2236
 msgid "Not now"
 msgstr ""
 
@@ -1283,6 +1427,7 @@ msgid "Development server offline"
 msgstr ""
 
 #: src/renderer/components/site-details.jsx:111
+#: src/renderer/dev-server-command.cjs:170
 msgid "Build watch"
 msgstr ""
 
@@ -1300,14 +1445,17 @@ msgid "Details"
 msgstr ""
 
 #: src/renderer/components/site-details.jsx:199
+#: src/renderer/confirmations.cjs:185
 msgid "Copy"
 msgstr ""
 
 #: src/renderer/components/site-details.jsx:201
+#: src/renderer/confirmations.cjs:183
 msgid "Copied"
 msgstr ""
 
 #: src/renderer/components/site-details.jsx:70
+#: src/renderer/index.jsx:1241
 msgid "Server"
 msgstr ""
 
@@ -1524,32 +1672,71 @@ msgstr ""
 msgid "The site could not be created. %s"
 msgstr ""
 
+#: src/renderer/confirmations.cjs:149
+msgid "Status: cloning"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:150
+msgid "Status: done"
+msgstr ""
+
 #: src/renderer/confirmations.cjs:151
+msgid "Status update"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:165
+msgid "Setup complete — start the dev server when you are ready."
+msgstr ""
+
+#: src/renderer/confirmations.cjs:166
+msgid ""
+"Setup stopped. The remaining steps are in the checklist above — run them "
+"whenever you are ready."
+msgstr ""
+
+#: src/renderer/confirmations.cjs:169
+#. %s: the command that installs dependencies, npm install.
+msgid ""
+"%s failed — setup stopped here. Its output is above; retry the install from "
+"the checklist."
+msgstr ""
+
+#: src/renderer/confirmations.cjs:170
+msgid ""
+"The build failed — dependencies are installed. Its output is above; retry "
+"the build from the checklist."
+msgstr ""
+
+#: src/renderer/confirmations.cjs:184
+msgid "Could not copy"
+msgstr ""
+
+#: src/renderer/confirmations.cjs:201
 msgid "Applied the patch"
 msgstr ""
 
-#: src/renderer/confirmations.cjs:152
+#: src/renderer/confirmations.cjs:202
 msgid "Reverted the patch"
 msgstr ""
 
-#: src/renderer/confirmations.cjs:153
+#: src/renderer/confirmations.cjs:203
 msgid "Checked out the pull request"
 msgstr ""
 
-#: src/renderer/confirmations.cjs:154
+#: src/renderer/confirmations.cjs:204
 msgid "Restored the previous branch"
 msgstr ""
 
-#: src/renderer/confirmations.cjs:155
+#: src/renderer/confirmations.cjs:205
 msgid "Restored the saved work"
 msgstr ""
 
-#: src/renderer/confirmations.cjs:168
+#: src/renderer/confirmations.cjs:218
 #. %s: the name of a file.
 msgid "Patch saved to %s"
 msgstr ""
 
-#: src/renderer/confirmations.cjs:180
+#: src/renderer/confirmations.cjs:230
 #. %s: the name of a file.
 msgid "Saved your changes to %s and reset the working tree"
 msgstr ""
@@ -1582,10 +1769,122 @@ msgid_plural "%d unseen lines in Debug.log"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/hooks/use-dev-server.jsx:170
+#: src/renderer/dev-server-command.cjs:160
+msgid "Build watch (compiling)"
+msgstr ""
+
+#: src/renderer/dev-server-command.cjs:160
+msgid "Build watch (watching)"
+msgstr ""
+
+#: src/renderer/dev-server-command.cjs:161
+msgid "Build watch (building)"
+msgstr ""
+
+#: src/renderer/dev-server-command.cjs:162
+msgid "Build watch (paused)"
+msgstr ""
+
+#: src/renderer/dev-server-command.cjs:165
+msgid "Build watch (stopped)"
+msgstr ""
+
+#: src/renderer/dev-server-command.cjs:167
+#. %d: the code the build watch exited with.
+msgid "Build watch (exited %d)"
+msgstr ""
+
+#: src/renderer/hooks/use-apply-patch.jsx:132
+#: src/renderer/hooks/use-build-watch.jsx:141
+#: src/renderer/hooks/use-site-terminal.jsx:256
+#: src/renderer/hooks/use-trunk-update.jsx:99
+#: src/renderer/index.jsx:1590
+#. %s: the command being run, such as npm run build.
+msgid "Running %s…"
+msgstr ""
+
+#: src/renderer/hooks/use-build-watch.jsx:144
+#. 1: the watch command, such as npm run dev. 2: a folder, build/. 3: the line the watch prints once it is watching, which is in English.
+msgid ""
+"%1$s rebuilds %2$s before it watches. The dev server, if you started it, "
+"waits for \"%3$s\"."
+msgstr ""
+
+#: src/renderer/hooks/use-build-watch.jsx:176
+#: src/renderer/hooks/use-site-terminal.jsx:261
+#: src/renderer/index.jsx:1206
+#. 1: the command that ended, such as npm run build. 2: the code it exited with, a number.
+msgid "%1$s exited with code %2$s"
+msgstr ""
+
+#: src/renderer/hooks/use-build-watch.jsx:219
+msgid ""
+"A command is already running in the terminal — stop it before starting the "
+"build watch."
+msgstr ""
+
+#: src/renderer/hooks/use-build-watch.jsx:232
+#. %s: the command that builds the site, npm run build.
+msgid "No completed build found — running %s first…"
+msgstr ""
+
+#: src/renderer/hooks/use-build-watch.jsx:248
+#. %s: the command that builds the site, npm run build.
+msgid "%s was stopped — build watch not started."
+msgstr ""
+
+#: src/renderer/hooks/use-build-watch.jsx:256
+#. 1: the command that builds the site, npm run build. 2: the code it exited with, a number.
+msgid "%1$s failed with code %2$s — build watch not started."
+msgstr ""
+
+#: src/renderer/hooks/use-build-watch.jsx:303
+msgid "Paused while another operation uses the build."
+msgstr ""
+
+#: src/renderer/hooks/use-build-watch.jsx:312
+msgid "Resumed."
+msgstr ""
+
+#: src/renderer/hooks/use-dev-server.jsx:136
+#. %s: the item in the Help menu that opens the app's log, "Open App Log".
+msgid "Dev server stopped unexpectedly (see Help → %s for details)."
+msgstr ""
+
+#: src/renderer/hooks/use-dev-server.jsx:149
+#. %s: why the server did not start.
+msgid "Dev server failed to start: %s"
+msgstr ""
+
+#: src/renderer/hooks/use-dev-server.jsx:149
+#: src/renderer/hooks/use-site-logs.jsx:192
+#. %s: why the file could not be shown.
+msgid "unknown error"
+msgstr ""
+
+#: src/renderer/hooks/use-dev-server.jsx:157
+#. %s: why the server did not start.
+msgid "Failed to start PHP server: %s"
+msgstr ""
+
+#: src/renderer/hooks/use-dev-server.jsx:177
 msgid ""
 "Please complete the full build before starting the dev server. You can also "
 "skip the wizard."
+msgstr ""
+
+#: src/renderer/hooks/use-dev-server.jsx:194
+#. %s: the folder the site is served from, build/.
+msgid ""
+"%s is complete: starting the server without the build watch. Start build "
+"watch to compile edits on save."
+msgstr ""
+
+#: src/renderer/hooks/use-dev-server.jsx:210
+#. %s: the folder the site is served from, build/.
+msgid ""
+"Dev server start cancelled: the build watch stopped before %s was complete. "
+"Start it again once the watch is running."
 msgstr ""
 
 #: src/renderer/hooks/use-pull-request.jsx:144
@@ -1604,31 +1903,133 @@ msgstr ""
 msgid "Could not start sign-in."
 msgstr ""
 
-#: src/renderer/hooks/use-trunk-update.jsx:219
+#: src/renderer/hooks/use-site-logs.jsx:160
+#. 1: the name of the site's folder. 2: why the file could not be cleared.
+msgid ""
+"Could not clear %1$s's debug.log: %2$s. The panel was cleared; the file was "
+"not."
+msgstr ""
+
+#: src/renderer/hooks/use-site-logs.jsx:192
+#. %s: why the file could not be shown.
+msgid "Could not show the log file: %s"
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:180
+msgid "Available commands:"
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:182
+#. %s: the command help, padded with spaces so that this text lines up with the lines below it.
+msgid "%s Show this help text"
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:184
+#. 1: the command npm install, padded with spaces so that this text lines up with the lines around it. 2: the same command, npm install.
+msgid "%1$s Run %2$s in the site directory"
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:186
+#. 1: the command npm run <script>, padded with spaces so that this text lines up with the lines above it. 2: the names of the scripts it can run, separated by commas.
+msgid "%1$s Run one of: %2$s"
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:191
+#. 1: the command npm install. 2: the command npm run build.
+msgid "The setup checklist runs %1$s and %2$s once."
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:195
+msgid "Run them here whenever you change files or add a dependency afterwards."
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:242
+#. %s: an example of the command, npm run build.
+msgid "Missing script name. Example: %s"
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:249
+#. 1: the script asked for. 2: the names of the scripts that can be run, separated by commas.
+msgid "Unsupported script \"%1$s\". Allowed scripts: %2$s"
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:271
+#. %s: what was typed at the prompt.
+msgid "Unsupported command: %s"
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:273
+#. %s: the command that lists the others, help.
+msgid "Try \"%s\" for the list of supported commands."
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:34
+#: src/renderer/index.jsx:1176
+#. %s: the keys that stop a command, Ctrl+C.
+msgid "A command is already running. Press %s to stop it."
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:354
+msgid "WordPress npm helper terminal."
+msgstr ""
+
+#: src/renderer/hooks/use-trunk-update.jsx:105
+msgid "Update complete — this site is now on the latest trunk."
+msgstr ""
+
+#: src/renderer/hooks/use-trunk-update.jsx:107
+msgid ""
+"Update incomplete — the build failed. The code is new but the built assets "
+"are old; retry install & build from the banner above."
+msgstr ""
+
+#: src/renderer/hooks/use-trunk-update.jsx:165
+#. 1: the file dependencies are locked in, package-lock.json. 2: the command that installs them, npm install.
+msgid "%1$s changed — running %2$s (only the changed packages are downloaded)…"
+msgstr ""
+
+#: src/renderer/hooks/use-trunk-update.jsx:171
+#. %s: the command that installs dependencies, npm install.
+msgid ""
+"Update incomplete — %s failed. The code is new but dependencies and built "
+"assets are old; retry install & build from the banner above."
+msgstr ""
+
+#: src/renderer/hooks/use-trunk-update.jsx:222
 msgid "Already up to date with trunk"
 msgstr ""
 
-#: src/renderer/hooks/use-trunk-update.jsx:260
+#: src/renderer/hooks/use-trunk-update.jsx:263
 #. %s: why the diff could not be saved.
 msgid "Error saving diff: %s"
 msgstr ""
 
-#: src/renderer/hooks/use-trunk-update.jsx:267
+#: src/renderer/hooks/use-trunk-update.jsx:270
 #. 1: the path of the saved patch file. 2: why the reset failed.
 msgid "Saved your changes to %1$s, but resetting the working tree failed: %2$s"
 msgstr ""
 
-#: src/renderer/hooks/use-trunk-update.jsx:287
-#: src/renderer/index.jsx:1816
+#: src/renderer/hooks/use-trunk-update.jsx:277
+#. %s: the path of the patch file the changes were saved to.
+msgid "Saved your changes to %s and reset the working tree."
+msgstr ""
+
+#: src/renderer/hooks/use-trunk-update.jsx:291
+#: src/renderer/index.jsx:1812
 msgid "Unknown error"
 msgstr ""
 
-#: src/renderer/hooks/use-trunk-update.jsx:289
+#: src/renderer/hooks/use-trunk-update.jsx:293
 #. %s: why the changes could not be discarded.
 msgid "Failed to discard changes: %s"
 msgstr ""
 
-#: src/renderer/hooks/use-trunk-update.jsx:295
+#: src/renderer/hooks/use-trunk-update.jsx:298
+#: src/renderer/index.jsx:1719
+msgid "Discarded local changes."
+msgstr ""
+
+#: src/renderer/hooks/use-trunk-update.jsx:299
 msgid "Local changes discarded."
 msgstr ""
 
@@ -1636,157 +2037,216 @@ msgstr ""
 msgid "Updated to the latest trunk"
 msgstr ""
 
-#: src/renderer/index.jsx:1337
+#: src/renderer/index.jsx:1244
+#. %d: how many lines have arrived in WordPress's debug.log since it was last looked at.
+msgid "Debug.log (%d)"
+msgstr ""
+
+#: src/renderer/index.jsx:1244
+#. %d: how many lines have arrived in WordPress's debug.log since it was last looked at.
+msgid "Debug.log"
+msgstr ""
+
+#: src/renderer/index.jsx:1336
 msgid "Copied the path"
 msgstr ""
 
-#: src/renderer/index.jsx:1557
+#: src/renderer/index.jsx:1551
 msgid "This site is ready to work on"
 msgstr ""
 
-#: src/renderer/index.jsx:1724
+#: src/renderer/index.jsx:1556
+msgid "Stopping setup…"
+msgstr ""
+
+#: src/renderer/index.jsx:1569
+#. %s: the command that installs dependencies, npm install.
+msgid "Setting this site up — running %s…"
+msgstr ""
+
+#: src/renderer/index.jsx:1720
 msgid "All changes discarded."
 msgstr ""
 
-#: src/renderer/index.jsx:1863
+#: src/renderer/index.jsx:1859
 msgid ""
 "Cloning the repository… install and build start on their own when it "
 "finishes."
 msgstr ""
 
-#: src/renderer/index.jsx:1870
+#: src/renderer/index.jsx:1866
 #: src/renderer/setup-steps.cjs:204
 msgid "Install npm dependencies"
 msgstr ""
 
-#: src/renderer/index.jsx:1886
+#: src/renderer/index.jsx:1882
 #: src/renderer/setup-steps.cjs:227
 #: src/renderer/update-plan.cjs:187
 msgid "Run full build"
 msgstr ""
 
-#: src/renderer/index.jsx:1902
+#: src/renderer/index.jsx:1898
 msgid "Start dev server & finish wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:1917
+#: src/renderer/index.jsx:1913
 msgid "Stop dev server"
 msgstr ""
 
-#: src/renderer/index.jsx:1917
+#: src/renderer/index.jsx:1913
 msgid "Start dev server and finish the wizard"
 msgstr ""
 
-#: src/renderer/index.jsx:1922
+#: src/renderer/index.jsx:1918
 #. %s: how long the server has been starting, such as 12s.
 msgid "Starting… (%s)"
 msgstr ""
 
-#: src/renderer/index.jsx:2021
+#: src/renderer/index.jsx:2017
 #. %s: what to do next, a sentence.
 msgid "Next step: %s"
 msgstr ""
 
-#: src/renderer/index.jsx:2122
+#: src/renderer/index.jsx:2037
+#. <folder /> is the folder the project's source is in, such as src/. <command /> is the command that builds it, npm run build, which types it into the terminal when clicked.
+msgid ""
+"Edited files in <code><folder /></code>? Run <command /> so the site picks "
+"them up."
+msgstr ""
+
+#: src/renderer/index.jsx:2042
+#. <file /> is the file dependencies are listed in, package.json. <command /> is the command that installs them, npm install, which types it into the terminal when clicked.
+msgid "Added a dependency to <code><file /></code>? Run <command />."
+msgstr ""
+
+#: src/renderer/index.jsx:2050
+#. <command /> is the command that lists the others, help. <keys /> is the keys that stop a command, Ctrl+C.
+msgid ""
+"Type <code><command /></code> to list supported commands. Press <code><keys "
+"/></code> to stop the current command."
+msgstr ""
+
+#: src/renderer/index.jsx:2130
 msgid "Update incomplete"
 msgstr ""
 
-#: src/renderer/index.jsx:2123
+#: src/renderer/index.jsx:2131
 msgid ""
 "The code is new but the built assets are old. The site may not run "
 "correctly until install and build succeed."
 msgstr ""
 
-#: src/renderer/index.jsx:2125
+#: src/renderer/index.jsx:2133
 msgid "Retry install & build"
 msgstr ""
 
-#: src/renderer/index.jsx:2133
+#: src/renderer/index.jsx:2141
 #. %d: how many days old the site's copy of WordPress is.
 msgid "This site's WordPress code is %d day old"
 msgid_plural "This site's WordPress code is %d days old"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/index.jsx:2136
+#: src/renderer/index.jsx:2144
 msgid "Patches you create now may not apply on Trac. Updating takes a few minutes."
 msgstr ""
 
-#: src/renderer/index.jsx:2138
+#: src/renderer/index.jsx:2146
 #: src/renderer/site-menu.cjs:118
 msgid "Update to latest trunk"
 msgstr ""
 
-#: src/renderer/index.jsx:2147
+#: src/renderer/index.jsx:2155
 #. 1: the step the update is on. 2: how many steps it has.
 msgid "step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2148
+#: src/renderer/index.jsx:2156
 msgid ""
 "Most packages are already cached, so this is a download of the difference — "
 "not the whole tree."
 msgstr ""
 
-#: src/renderer/index.jsx:2153
+#: src/renderer/index.jsx:2161
 msgid "Up to date with trunk as of today."
 msgstr ""
 
-#: src/renderer/index.jsx:2165
+#: src/renderer/index.jsx:2173
 #. %s: the path of the patch file the changes were saved to.
 msgid "Your changes were saved to %s before the reset."
 msgstr ""
 
-#: src/renderer/index.jsx:2182
+#: src/renderer/index.jsx:2190
 #. 1: the step setup is on. 2: how many steps it has.
 msgid "Setting this site up for you — step %1$d of %2$d"
 msgstr ""
 
-#: src/renderer/index.jsx:2187
+#: src/renderer/index.jsx:2195
 msgid ""
 "Installing dependencies. You can leave this running — the build follows on "
 "its own."
 msgstr ""
 
-#: src/renderer/index.jsx:2188
+#: src/renderer/index.jsx:2196
 msgid ""
 "Running the full build. This can take up to half an hour on Windows; the "
 "Terminal shows what it is doing."
 msgstr ""
 
-#: src/renderer/index.jsx:2210
+#: src/renderer/index.jsx:2218
 msgid "Hide"
 msgstr ""
 
-#: src/renderer/index.jsx:2226
+#: src/renderer/index.jsx:2234
 msgid "Finish setting this site up first."
 msgstr ""
 
-#: src/renderer/index.jsx:2459
+#: src/renderer/index.jsx:2467
 msgid "WordPress Contributor Toolkit"
 msgstr ""
 
-#: src/renderer/index.jsx:602
+#: src/renderer/index.jsx:299
+msgid "Setup finished."
+msgstr ""
+
+#: src/renderer/index.jsx:301
+msgid "Cloning repository…"
+msgstr ""
+
+#: src/renderer/index.jsx:390
+msgid "Starting site setup…"
+msgstr ""
+
+#: src/renderer/index.jsx:408
+msgid "Site setup request completed."
+msgstr ""
+
+#: src/renderer/index.jsx:419
+#. %s: the error setup failed with.
+msgid "Setup failed: %s"
+msgstr ""
+
+#: src/renderer/index.jsx:595
 msgid "Setting up new site…"
 msgstr ""
 
-#: src/renderer/index.jsx:645
+#: src/renderer/index.jsx:638
 msgid "No sites"
 msgstr ""
 
-#: src/renderer/index.jsx:646
+#: src/renderer/index.jsx:639
 msgid "Create your first site to begin contributing"
 msgstr ""
 
-#: src/renderer/index.jsx:677
+#: src/renderer/index.jsx:670
 msgid "Site"
 msgstr ""
 
-#: src/renderer/index.jsx:686
+#: src/renderer/index.jsx:679
 msgid "Hide sites list"
 msgstr ""
 
-#: src/renderer/index.jsx:686
+#: src/renderer/index.jsx:679
 msgid "Show sites list"
 msgstr ""
 
@@ -1871,6 +2331,7 @@ msgid "Opening the pull request…"
 msgstr ""
 
 #: src/renderer/pr-stage.cjs:29
+#: src/switch-progress.cjs:227
 msgid "Working…"
 msgstr ""
 
@@ -1935,6 +2396,7 @@ msgid "In progress"
 msgstr ""
 
 #: src/renderer/setup-steps.cjs:157
+#: src/switch-progress.cjs:219
 msgid "Ready"
 msgstr ""
 
@@ -2110,6 +2572,7 @@ msgid "Wait for the installation to finish."
 msgstr ""
 
 #: src/renderer/site-menu.cjs:85
+#: src/renderer/watch-activity.cjs:295
 msgid "Wait for the build to finish."
 msgstr ""
 
@@ -2532,6 +2995,13 @@ msgstr ""
 msgid "Toggle Email"
 msgstr ""
 
+#: src/renderer/update-handoff.cjs:55
+#. %s: the folder the build watch writes, build/.
+msgid ""
+"The build watch rebuilds %s from scratch as it resumes — output in the "
+"Logs, under Build watch. The update completes when it is watching again."
+msgstr ""
+
 #: src/renderer/update-plan.cjs:105
 msgid "Fetch and reset to trunk"
 msgstr ""
@@ -2619,6 +3089,263 @@ msgstr ""
 msgid "Fetch latest trunk"
 msgstr ""
 
+#: src/renderer/watch-activity.cjs:122
+msgid "Reverted — open the site to try it out."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:123
+msgid "Reverted."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:124
+msgid ""
+"Reverted — The build watch is still compiling this change. Wait for it to "
+"go quiet before trying the site."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:125
+msgid "Reverted — the build watch has rebuilt. Open the site to try it out."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:128
+msgid ""
+"The patch is reverted but the build failed, so the site still runs the old "
+"assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:130
+#. %s: the command that installs dependencies, npm install.
+msgid ""
+"%s failed, so the build was skipped. The patch is reverted but dependencies "
+"are stale."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:131
+msgid ""
+"The patch is reverted but the build watch was stopped, so the site still "
+"runs the old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:132
+msgid ""
+"The patch is reverted but the build watch stopped before it finished "
+"rebuilding, so the site still runs the old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:136
+msgid "Checked out — open the site to try it out."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:137
+msgid "Checked out."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:138
+msgid ""
+"Checked out — The build watch is still compiling this change. Wait for it "
+"to go quiet before trying the site."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:139
+msgid "Checked out — the build watch has rebuilt. Open the site to try it out."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:141
+#. 1: the file dependencies are locked in, package-lock.json. 2: the command that installs them, npm install.
+msgid "The pull request changes %1$s — running %2$s…"
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:142
+msgid ""
+"The pull request is checked out but the build failed, so the site still "
+"runs the old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:144
+#. %s: the command that installs dependencies, npm install.
+msgid ""
+"%s failed, so the build was skipped. The pull request is checked out but "
+"dependencies are stale."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:145
+msgid ""
+"The pull request is checked out but the build watch was stopped, so the "
+"site still runs the old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:146
+msgid ""
+"The pull request is checked out but the build watch stopped before it "
+"finished rebuilding, so the site still runs the old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:155
+#. 1: the file dependencies are locked in, package-lock.json. 2: the command that installs them, npm install.
+msgid "The previous branch changes %1$s — running %2$s…"
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:156
+msgid ""
+"The previous branch is restored but the build failed, so the site still "
+"runs the old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:158
+#. %s: the command that installs dependencies, npm install.
+msgid ""
+"%s failed, so the build was skipped. The previous branch is restored but "
+"dependencies are stale."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:159
+msgid ""
+"The previous branch is restored but the build watch was stopped, so the "
+"site still runs the old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:160
+msgid ""
+"The previous branch is restored but the build watch stopped before it "
+"finished rebuilding, so the site still runs the old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:169
+#. 1: the file dependencies are locked in, package-lock.json. 2: the command that installs them, npm install.
+msgid "The saved work changes %1$s — running %2$s…"
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:170
+msgid ""
+"The saved work is restored but the build failed, so the site still runs the "
+"old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:172
+#. %s: the command that installs dependencies, npm install.
+msgid ""
+"%s failed, so the build was skipped. The saved work is restored but "
+"dependencies are stale."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:173
+msgid ""
+"The saved work is restored but the build watch was stopped, so the site "
+"still runs the old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:174
+msgid ""
+"The saved work is restored but the build watch stopped before it finished "
+"rebuilding, so the site still runs the old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:179
+msgid "Applied — open the site to try it out."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:180
+msgid "Applied."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:181
+msgid ""
+"Applied — The build watch is still compiling this change. Wait for it to go "
+"quiet before trying the site."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:182
+msgid "Applied — the build watch has rebuilt. Open the site to try it out."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:184
+#. 1: the file dependencies are locked in, package-lock.json. 2: the command that installs them, npm install.
+msgid "The patch changes %1$s — running %2$s…"
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:185
+msgid ""
+"The patch is applied but the build failed, so the site still runs the old "
+"assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:187
+#. %s: the command that installs dependencies, npm install.
+msgid ""
+"%s failed, so the build was skipped. The patch is applied but dependencies "
+"are stale."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:188
+msgid ""
+"The patch is applied but the build watch was stopped, so the site still "
+"runs the old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:189
+msgid ""
+"The patch is applied but the build watch stopped before it finished "
+"rebuilding, so the site still runs the old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:253
+msgid ""
+"The code is new but the built assets are old; retry install & build from "
+"the banner above."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:255
+msgid "Update incomplete — the build watch was stopped, so nothing rebuilt."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:259
+msgid ""
+"Update complete — the build watch has rebuilt, and this site is now on the "
+"latest trunk."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:260
+msgid "Update incomplete — the build watch stopped before it finished rebuilding."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:293
+#. %s: the number of the pull request.
+msgid "PR #%s is applied. The site is rebuilding."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:302
+#. %s: the number of the pull request.
+msgid "PR #%s is applied but not built."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:303
+msgid ""
+"The build watch stopped before it finished rebuilding, so the site still "
+"runs the old assets."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:310
+#. %s: the number of the pull request.
+msgid "PR #%s is applied."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:75
+msgid ""
+"The build watch is still compiling this change. Wait for it to go quiet "
+"before trying the site."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:9
+#. %s: the command that builds the site, npm run build.
+msgid "Start the build watch, or run %s in the Terminal."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:94
+msgid ""
+"The build watch is rebuilding after this change. Wait for it to be watching "
+"again before trying the site."
+msgstr ""
+
 #: src/settings.cjs:100
 msgid "Choose light, dark, your system’s theme, or custom."
 msgstr ""
@@ -2663,6 +3390,82 @@ msgstr ""
 msgid "Choose what happens when the app quits."
 msgstr ""
 
+#: src/switch-progress.cjs:171
+msgid "Saving your work…"
+msgstr ""
+
+#: src/switch-progress.cjs:174
+#. %s: the pull request being left, such as PR #7701.
+msgid "Saving your edits on %s…"
+msgstr ""
+
+#: src/switch-progress.cjs:177
+#. %s: the ticket or issue being left, such as #59234.
+msgid "Saving your work on %s…"
+msgstr ""
+
+#: src/switch-progress.cjs:180
+msgid "Moving your work onto the current trunk…"
+msgstr ""
+
+#: src/switch-progress.cjs:183
+#. %s: the pull request whose edits move, such as PR #7701.
+msgid "Moving your edits on %s onto the current trunk…"
+msgstr ""
+
+#: src/switch-progress.cjs:186
+#. %s: the ticket or issue whose work moves, such as #59234.
+msgid "Moving your work on %s onto the current trunk…"
+msgstr ""
+
+#: src/switch-progress.cjs:190
+msgid "Swapping files…"
+msgstr ""
+
+#: src/switch-progress.cjs:192
+#. %s: the ticket, issue or pull request being switched to, such as #59234 or PR #7701.
+msgid "Swapping files for %s…"
+msgstr ""
+
+#: src/switch-progress.cjs:210
+msgid "Checking which files change…"
+msgstr ""
+
+#: src/switch-progress.cjs:217
+#. %s: the pull request now checked out, such as PR #7701.
+msgid "Ready to try %s"
+msgstr ""
+
+#: src/switch-progress.cjs:221
+#. %s: the ticket or issue now checked out, such as #59234.
+msgid "Ready to work on %s"
+msgstr ""
+
+#: src/switch-progress.cjs:243
+#. %s: a number of files, such as 1,200.
+msgid "%s file"
+msgid_plural "%s files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/trunk-update.js:208
+msgid "Fetching latest trunk…"
+msgstr ""
+
+#: src/trunk-update.js:213
+msgid "Already up to date."
+msgstr ""
+
+#: src/trunk-update.js:230
+#. %s: the short hash of the commit trunk is reset to.
+msgid "Resetting to latest trunk (%s)…"
+msgstr ""
+
+#: src/trunk-update.js:249
+#. %s: the date of the newest commit on trunk.
+msgid "Now on trunk as of %s."
+msgstr ""
+
 #: src/wporg-handle.cjs:106
 #. %s: the host of WordPress.org profiles, profiles.wordpress.org.
 msgid "Only %s profile links are supported."
@@ -2701,4 +3504,48 @@ msgstr ""
 #: src/renderer/settings-view.cjs:139
 msgctxt "the window’s theme: two colours of one’s own"
 msgid "Custom"
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:150
+msgctxt "the previous branch"
+msgid "Restored — open the site to try it out."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:151
+msgctxt "the previous branch"
+msgid "Restored."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:152
+msgctxt "the previous branch"
+msgid ""
+"Restored — The build watch is still compiling this change. Wait for it to "
+"go quiet before trying the site."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:153
+msgctxt "the previous branch"
+msgid "Restored — the build watch has rebuilt. Open the site to try it out."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:164
+msgctxt "the saved work"
+msgid "Restored — open the site to try it out."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:165
+msgctxt "the saved work"
+msgid "Restored."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:166
+msgctxt "the saved work"
+msgid ""
+"Restored — The build watch is still compiling this change. Wait for it to "
+"go quiet before trying the site."
+msgstr ""
+
+#: src/renderer/watch-activity.cjs:167
+msgctxt "the saved work"
+msgid "Restored — the build watch has rebuilt. Open the site to try it out."
 msgstr ""
