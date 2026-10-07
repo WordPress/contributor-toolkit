@@ -24,7 +24,7 @@
  *     that half-happened (#381).
  */
 
-const { __, sprintf } = require('@wordpress/i18n');
+const { __, _x, sprintf } = require('@wordpress/i18n');
 
 // At most this many confirmations are kept on screen at once. A burst — a
 // double-click, a chain of steps finishing together — collapses to the most
@@ -204,7 +204,9 @@ function applyDoneMessage(verb, noun) {
 		'Restored previous branch': __('Restored the previous branch'),
 		'Restored saved work': __('Restored the saved work')
 	};
-	return sentences[`${verb} ${noun}`] || `${verb} the ${noun}`;
+	// A pair with no sentence of its own is still confirmed, without English
+	// words spliced into it.
+	return sentences[`${verb} ${noun}`] || _x('Done', 'an action that finished');
 }
 
 /**

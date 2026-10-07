@@ -159,8 +159,8 @@ test('each thing the apply flow can have done is confirmed in a sentence of its 
 	assert.strictEqual(applyDoneMessage('Restored', 'saved work'), 'Restored the saved work');
 });
 
-test('a pair it has no sentence for is still said, as the flow words it', () => {
-	assert.strictEqual(applyDoneMessage('Rebuilt', 'site'), 'Rebuilt the site');
+test('a pair it has no sentence for is still confirmed, in a word that splices nothing in', () => {
+	assert.strictEqual(applyDoneMessage('Rebuilt', 'site'), 'Done');
 });
 
 test('a saved patch and edits saved before an update are confirmed by the file\'s name', () => {
@@ -188,6 +188,7 @@ test('every sentence this module words goes through the translator, around what 
 		'Checked out the pull request': ['T checked out'],
 		'Restored the previous branch': ['T restored branch'],
 		'Restored the saved work': ['T restored work'],
+		'an action that finished\u0004Done': ['T done'],
 		'Patch saved to %s': ['T saved %s'],
 		'Saved your changes to %s and reset the working tree': ['T reset %s'],
 		'The site could not be created. %s': ['T not created: %s'],
@@ -203,6 +204,7 @@ test('every sentence this module words goes through the translator, around what 
 		applyDoneMessage('Checked out', 'pull request'),
 		applyDoneMessage('Restored', 'previous branch'),
 		applyDoneMessage('Restored', 'saved work'),
+		applyDoneMessage('Rebuilt', 'site'),
 		patchSavedMessage('a.diff'),
 		savedAndResetMessage('a.patch'),
 		setupFailureMessage('ENOSPC'),
@@ -212,7 +214,7 @@ test('every sentence this module words goes through the translator, around what 
 		deleteFailureMessage({ ok: false, reason: 'remove-failed', path: '/sites/demo', code: 'EBUSY' }),
 		deleteFailureMessage({ ok: false, reason: 'remove-failed', path: '/sites/demo' })
 	], [
-		'T applied', 'T reverted', 'T checked out', 'T restored branch', 'T restored work',
+		'T applied', 'T reverted', 'T checked out', 'T restored branch', 'T restored work', 'T done',
 		'T saved a.diff', 'T reset a.patch', 'T not created: ENOSPC',
 		'T dry run', 'T opened 9', 'T opened 9 at WordPress/gutenberg',
 		'T kept /sites/demo (EBUSY)', 'T kept /sites/demo'

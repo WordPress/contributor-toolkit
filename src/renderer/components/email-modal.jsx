@@ -1,4 +1,5 @@
 import { Modal, TabPanel } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 
 function formatEmailDate(email) {
   if (email.sentAt) return new Date(email.sentAt).toLocaleString();
@@ -14,19 +15,28 @@ function formatEmailDate(email) {
 export function EmailModal({ email, onClose }) {
   return (
     <Modal
-      title={email.subject || 'Email'}
+      title={email.subject || __('Email')}
       onRequestClose={onClose}
       shouldCloseOnClickOutside
       isFullScreen
     >
       <div className="email-view">
         <div className="email-view-headers">
-          <div><strong>From:</strong> {email.from || ''}</div>
-          <div><strong>To:</strong> {email.to || ''}</div>
-          {email.cc ? (<div><strong>CC:</strong> {email.cc}</div>) : null}
-          <div><strong>Date:</strong> {formatEmailDate(email)}</div>
+          <div><strong>{__('From:')}</strong> {email.from || ''}</div>
+          <div><strong>{__('To:')}</strong> {email.to || ''}</div>
+          {email.cc ? (<div><strong>{__('CC:')}</strong> {email.cc}</div>) : null}
+          <div><strong>{__('Date:')}</strong> {formatEmailDate(email)}</div>
         </div>
-        <TabPanel className="email-tabs" activeClass="is-active" tabs={[{name:'rendered',title:'Rendered'},{name:'raw',title:'Raw'}]}>
+        <TabPanel
+          className="email-tabs"
+          activeClass="is-active"
+          tabs={[
+            // translators: The tab that shows an email as a reader would see it.
+            { name: 'rendered', title: __('Rendered') },
+            // translators: The tab that shows an email as it was sent, headers and all.
+            { name: 'raw', title: __('Raw') }
+          ]}
+        >
           {(tab)=> tab.name==='rendered' ? (
             <div className="email-view-rendered">
               {email.html ? (
