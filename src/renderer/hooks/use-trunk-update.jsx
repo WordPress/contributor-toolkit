@@ -4,7 +4,7 @@ import { savedAndResetMessage } from '../confirmations.cjs';
 import { planUpdateSteps, updateStepStatuses, skipInstallMessage, planWatchImpact } from '../update-plan.cjs';
 import { planUpdateHandOff } from '../update-handoff.cjs';
 import { watchOccupiesBuild } from '../watch-waiters.cjs';
-import { discardOutcome, DISCARD_CONFIRM_MESSAGE } from '../changes-note.cjs';
+import { discardOutcome, discardConfirmMessage } from '../changes-note.cjs';
 import { pathBasename } from '../path-basename.cjs';
 import { updateHeldReason } from '../site-menu.cjs';
 
@@ -284,7 +284,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
     }
   };
 
-  const dirtyDiscardAndUpdate = () => confirmAnd(DISCARD_CONFIRM_MESSAGE, async () => {
+  const dirtyDiscardAndUpdate = () => confirmAnd(discardConfirmMessage(), async () => {
     setDirtyError(null);
     const d = await window.api.discardChanges(sitePath);
     if (!d || !d.ok) {

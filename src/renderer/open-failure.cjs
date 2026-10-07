@@ -11,9 +11,11 @@
 // meets it — a button that does nothing, explained by a sentence that explains
 // nothing.
 //
-// Pure and dependency-free for the same reason as setup-steps.cjs: the renderer
-// bundle imports it, `node --test` requires it directly, and neither needs a DOM.
+// Pure for the same reason as setup-steps.cjs: the renderer bundle imports it,
+// `node --test` requires it directly, and neither needs a DOM.
 'use strict';
+
+const { __, sprintf } = require('@wordpress/i18n');
 
 // An OS-supplied message is quoted rather than replaced — it is the only part of
 // these failures the app did not write, and usually the only part that says
@@ -25,7 +27,7 @@
 // has a `reason` — and that never reaches this function's fallback.
 function quote(error) {
 	const text = typeof error === 'string' ? error.trim() : '';
-	return text || 'unknown error';
+	return text || __('unknown error');
 }
 
 /**
@@ -45,30 +47,33 @@ function quote(error) {
 function describeOpenFailure(result, { picked = false } = {}) {
 	if (result?.reason === 'unlaunchable-editor') {
 		return picked
-			? 'That is not an application this app can open a folder in.'
-			: 'That application is no longer where it was. Choose another.';
+			? __('That is not an application this app can open a folder in.')
+			: __('That application is no longer where it was. Choose another.');
 	}
 	if (result?.reason === 'unknown-editor') {
-		return 'That application is no longer where it was. Choose another.';
+		return __('That application is no longer where it was. Choose another.');
 	}
 	if (result?.reason === 'spawn-failed') {
-		return `The application would not start: ${quote(result.error)}`;
+		// translators: %s: the reason, usually the operating system's own message in English.
+		return sprintf(__('The application would not start: %s'), quote(result.error));
 	}
 	// The file manager's own refusal, from `shell.openPath` — a different verb
 	// from the editor's, and the one case here that carries the OS's message.
 	if (result?.reason === 'open-failed') {
-		return `The file manager would not open the folder: ${quote(result.error)}`;
+		// translators: %s: the reason, usually the operating system's own message in English.
+		return sprintf(__('The file manager would not open the folder: %s'), quote(result.error));
 	}
 	if (result?.reason === 'unregistered-site') {
-		return 'This app has no record of that folder, so it will not open it.';
+		return __('This app has no record of that folder, so it will not open it.');
 	}
 	if (result?.reason === 'unavailable') {
-		return `Could not reach the app's main process: ${quote(result.error)}`;
+		// translators: %s: the reason, in English.
+		return sprintf(__("Could not reach the app's main process: %s"), quote(result.error));
 	}
 	// Both callers share this now, so it says nothing about an application —
 	// "could not open it in an application" is not what happened when the file
 	// manager is what failed.
-	return 'Could not open the folder.';
+	return __('Could not open the folder.');
 }
 
 // The reasons another application is a way out of. The notice's only affordance

@@ -3,6 +3,8 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { ticketTrunkNotice, rebaseRefusal } = require('../../src/renderer/ticket-trunk-notice.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 test('ticketTrunkNotice says what changed and offers the move (#305, #385)', () => {
 	assert.deepStrictEqual(ticketTrunkNotice({ ticketId: 123, behind: true }), {
@@ -87,4 +89,23 @@ test('rebaseRefusal words on-trunk and not-a-ticket-branch itself, with the noun
 	assert.equal(rebaseRefusal({ code: 'on-trunk', error: 'main says ticket' }), 'Link a ticket first: trunk is what tickets are measured against.');
 	assert.equal(rebaseRefusal({ code: 'on-trunk', error: 'main says ticket', noun: 'issue' }), 'Link an issue first: trunk is what issues are measured against.');
 	assert.equal(rebaseRefusal({ code: 'not-a-ticket-branch', noun: 'issue' }), 'Only an issue branch can be moved onto the current trunk.');
+});
+
+// Each sentence is its own string, the plural chosen by the count, and the
+// paths left as Git names them.
+test('rebaseRefusal is said in the locale applied, a sentence at a time (#629)', (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	addFilter('i18n.ngettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => {
+		removeFilter('i18n.gettext', 'test/pseudo-locale');
+		removeFilter('i18n.ngettext', 'test/pseudo-locale');
+	});
+
+	const sentence = rebaseRefusal({ code: 'rebase-conflict', conflicts: ['a.php', 'b.php'], kinds: { 'a.php': 'add/add', 'b.php': 'add/add' }, ticketId: 123 });
+	assert.equal(sentence, [
+		pseudoLocalize('Trunk added files your work also adds, with different content: %s.').replace('%s', 'a.php, b.php'),
+		pseudoLocalize('Nothing was moved.'),
+		pseudoLocalize('Save a copy of your work, unlink the ticket, delete its work from the site, then link #%s again and apply the copy.').replace('%s', '123')
+	].join(' '));
+	assert.equal(rebaseRefusal({ code: 'on-trunk', noun: 'issue' }), pseudoLocalize('Link an issue first: trunk is what issues are measured against.'));
 });

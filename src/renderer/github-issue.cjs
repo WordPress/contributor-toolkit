@@ -10,9 +10,11 @@
  * Keeping the two behind one interface is what lets the rest of the app ask
  * "which work item is this site on?" without knowing where the answer lives.
  *
- * Kept pure and dependency-free so it can be unit tested without a DOM: the
- * renderer bundle imports it and `node --test` requires it directly.
+ * Kept pure so it can be unit tested without a DOM: the renderer bundle
+ * imports it and `node --test` requires it directly.
  */
+
+const { __, sprintf } = require('@wordpress/i18n');
 
 const GITHUB_HOST = 'github.com';
 
@@ -46,9 +48,13 @@ function issueUrl(id, repoPath) {
  * @return {{ok: true, id: number, url: string}|{ok: false, error: string}}
  */
 function parseIssueRef(input, { repoPath = 'WordPress/gutenberg' } = {}) {
-	const notAnIssue = `Enter an issue number like 1234, or a ${repoPath} issue URL.`;
+	const notAnIssue = () => sprintf(
+		// translators: %s: a GitHub repository, such as WordPress/gutenberg.
+		__('Enter an issue number like 1234, or a %s issue URL.'),
+		repoPath
+	);
 	const raw = typeof input === 'string' ? input.trim() : '';
-	if (!raw) return { ok: false, error: 'Enter an issue number or URL.' };
+	if (!raw) return { ok: false, error: __('Enter an issue number or URL.') };
 
 	// Both branches below go through this, the way the Trac parser routes both of
 	// its own through fromDigits. A URL's digits are no more trustworthy than a
@@ -58,7 +64,7 @@ function parseIssueRef(input, { repoPath = 'WordPress/gutenberg' } = {}) {
 	const fromDigits = (digits) => {
 		const id = Number(digits);
 		if (!Number.isSafeInteger(id) || id < 1 || id > MAX_ISSUE_ID) {
-			return { ok: false, error: notAnIssue };
+			return { ok: false, error: notAnIssue() };
 		}
 		return { ok: true, id, url: issueUrl(id, repoPath) };
 	};
@@ -73,28 +79,30 @@ function parseIssueRef(input, { repoPath = 'WordPress/gutenberg' } = {}) {
 	// as a wrong host rather than as not-an-issue.
 	const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw);
 	if (!hasScheme && !raw.includes('/') && !raw.includes('.')) {
-		return { ok: false, error: notAnIssue };
+		return { ok: false, error: notAnIssue() };
 	}
 
 	let parsed;
 	try {
 		parsed = new URL(hasScheme ? raw : `https://${raw}`);
 	} catch {
-		return { ok: false, error: notAnIssue };
+		return { ok: false, error: notAnIssue() };
 	}
 
 	if (parsed.hostname.toLowerCase() !== GITHUB_HOST) {
-		return { ok: false, error: `Only ${GITHUB_HOST} issues are supported.` };
+		// translators: %s: GitHub's host name, github.com.
+		return { ok: false, error: sprintf(__('Only %s issues are supported.'), GITHUB_HOST) };
 	}
 
 	// Reading the id off the path drops ?foo= and #issuecomment- for free.
 	const match = /^\/([^/]+\/[^/]+)\/(issues|pull)\/(\d+)\/?$/.exec(parsed.pathname);
-	if (!match) return { ok: false, error: notAnIssue };
+	if (!match) return { ok: false, error: notAnIssue() };
 	if (match[2] === 'pull') {
-		return { ok: false, error: 'That is a pull request. Link the issue it fixes instead.' };
+		return { ok: false, error: __('That is a pull request. Link the issue it fixes instead.') };
 	}
 	if (match[1].toLowerCase() !== String(repoPath).toLowerCase()) {
-		return { ok: false, error: `Only ${repoPath} issues can be linked here.` };
+		// translators: %s: a GitHub repository, such as WordPress/gutenberg.
+		return { ok: false, error: sprintf(__('Only %s issues can be linked here.'), repoPath) };
 	}
 	return fromDigits(match[3]);
 }

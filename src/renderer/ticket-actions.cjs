@@ -1,5 +1,7 @@
 'use strict';
 
+const { __, _n, sprintf } = require('@wordpress/i18n');
+
 /**
  * Why a ticket action is unavailable, and what the dirty-trunk question says
  * (#409). Every ticket action on the card (link, switch, unlink, delete work,
@@ -26,12 +28,12 @@
  * @return {string|null} Null when nothing blocks the action.
  */
 function ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState = 'idle', installing, building, applyState = 'idle', noun = 'ticket' } = {}) {
-	if (ticketSaving) return `Wait for the current ${noun} change to finish.`;
-	if (deletingBranch) return `Wait for the ${noun}'s work to finish deleting.`;
-	if (updateState !== 'idle') return 'Wait for the trunk update to finish.';
-	if (applyState !== 'idle') return 'Wait for the PR or patch operation to finish.';
-	if (installing) return 'Wait for the installation to finish.';
-	if (building) return 'Wait for the build to finish.';
+	if (ticketSaving) return noun === 'issue' ? __('Wait for the current issue change to finish.') : __('Wait for the current ticket change to finish.');
+	if (deletingBranch) return noun === 'issue' ? __("Wait for the issue's work to finish deleting.") : __("Wait for the ticket's work to finish deleting.");
+	if (updateState !== 'idle') return __('Wait for the trunk update to finish.');
+	if (applyState !== 'idle') return __('Wait for the PR or patch operation to finish.');
+	if (installing) return __('Wait for the installation to finish.');
+	if (building) return __('Wait for the build to finish.');
 	return null;
 }
 
@@ -46,16 +48,16 @@ function ticketActionDisabledReason({ ticketSaving, deletingBranch, updateState 
  * @return {string|null}
  */
 function rebaseDisabledReason(state = {}) {
-	const noun = state.noun || 'ticket';
+	const issue = state.noun === 'issue';
 	// `discarding` leads, as it does in `discardDisabledReason`: a discard is
 	// already rewriting the tree, and reporting an install the contributor
 	// could wait out would name the wrong thing. The rest of the shared gate
 	// follows, then the dev server, which is the one the contributor has to
 	// act on rather than wait for.
-	if (state.discarding) return `Wait for the discard to finish before updating the ${noun}.`;
+	if (state.discarding) return issue ? __('Wait for the discard to finish before updating the issue.') : __('Wait for the discard to finish before updating the ticket.');
 	const shared = ticketActionDisabledReason(state);
 	if (shared) return shared;
-	if (state.devServerActive) return `Stop the dev server before updating the ${noun}.`;
+	if (state.devServerActive) return issue ? __('Stop the dev server before updating the issue.') : __('Stop the dev server before updating the ticket.');
 	return null;
 }
 
@@ -66,6 +68,10 @@ function rebaseDisabledReason(state = {}) {
  * existing ticket has parked work that the switch restores, so nothing
  * starts clean there and the answers say "continue on #N" instead.
  *
+ * Every sentence is whole and written once per kind of work item; the
+ * question is the count's sentence, then the one that says why the edits
+ * cannot come along, when there is one.
+ *
  * @param {Object}             root0
  * @param {number}             [root0.files]       How many files are dirty, 0 when unknown.
  * @param {boolean}            [root0.canCarry]    Whether the edits can ride into the ticket.
@@ -75,34 +81,88 @@ function rebaseDisabledReason(state = {}) {
  * @return {{question: string, carry: string|null, save: string, discard: string, cancel: string}}
  */
 function dirtyTrunkQuestion({ files = 0, canCarry = false, ticket = null, pullRequest = null, noun = 'ticket' } = {}) {
-	const count = files
-		? `You have ${files === 1 ? '1 uncommitted change' : `${files} uncommitted changes`} on this site, not on any ${noun} yet.`
-		: `You have uncommitted changes on this site, not on any ${noun} yet.`;
-	const name = ticket ? `#${ticket}` : `the ${noun}`;
+	const issue = noun === 'issue';
+	let asked;
+	if (files && issue) {
+		asked = sprintf(
+			// translators: %d: how many files have uncommitted changes.
+			_n(
+				'You have %d uncommitted change on this site, not on any issue yet. What should happen to them?',
+				'You have %d uncommitted changes on this site, not on any issue yet. What should happen to them?',
+				files
+			),
+			files
+		);
+	} else if (files) {
+		asked = sprintf(
+			// translators: %d: how many files have uncommitted changes.
+			_n(
+				'You have %d uncommitted change on this site, not on any ticket yet. What should happen to them?',
+				'You have %d uncommitted changes on this site, not on any ticket yet. What should happen to them?',
+				files
+			),
+			files
+		);
+	} else {
+		asked = issue
+			? __('You have uncommitted changes on this site, not on any issue yet. What should happen to them?')
+			: __('You have uncommitted changes on this site, not on any ticket yet. What should happen to them?');
+	}
 	if (Number.isInteger(pullRequest)) {
+		const separate = sprintf(
+			// translators: %d: a pull request number.
+			__('PR #%d is a separate checkout, so these edits cannot come along into it.'),
+			pullRequest
+		);
 		return {
-			question: `${count} What should happen to them? PR #${pullRequest} is a separate checkout, so these edits cannot come along into it.`,
+			question: `${asked} ${separate}`,
 			carry: null,
-			save: `Save them as a patch, then check out PR #${pullRequest}…`,
-			discard: `Discard them and check out PR #${pullRequest}`,
-			cancel: 'Cancel'
+			// translators: %d: a pull request number.
+			save: sprintf(__('Save them as a patch, then check out PR #%d…'), pullRequest),
+			// translators: %d: a pull request number.
+			discard: sprintf(__('Discard them and check out PR #%d'), pullRequest),
+			cancel: __('Cancel')
 		};
 	}
 	if (canCarry) {
+		let carry;
+		if (ticket) {
+			// translators: %s: the number of the ticket or issue being linked.
+			carry = sprintf(__('Take these edits into #%s'), ticket);
+		} else {
+			carry = issue ? __('Take these edits into the issue') : __('Take these edits into the ticket');
+		}
 		return {
-			question: `${count} What should happen to them?`,
-			carry: `Take these edits into ${name}`,
-			save: 'Save them as a patch, then start clean…',
-			discard: 'Discard them and start clean',
-			cancel: 'Cancel'
+			question: asked,
+			carry,
+			save: __('Save them as a patch, then start clean…'),
+			discard: __('Discard them and start clean'),
+			cancel: __('Cancel')
 		};
 	}
+	let save;
+	let discard;
+	if (ticket) {
+		// translators: %s: the number of the ticket or issue being switched to.
+		save = sprintf(__('Save them as a patch, then continue on #%s…'), ticket);
+		// translators: %s: the number of the ticket or issue being switched to.
+		discard = sprintf(__('Discard them and continue on #%s'), ticket);
+	} else if (issue) {
+		save = __('Save them as a patch, then continue on the issue…');
+		discard = __('Discard them and continue on the issue');
+	} else {
+		save = __('Save them as a patch, then continue on the ticket…');
+		discard = __('Discard them and continue on the ticket');
+	}
+	const ownWork = issue
+		? __('This issue already has its own work here, so these edits cannot come along into it.')
+		: __('This ticket already has its own work here, so these edits cannot come along into it.');
 	return {
-		question: `${count} What should happen to them? This ${noun} already has its own work here, so these edits cannot come along into it.`,
+		question: `${asked} ${ownWork}`,
 		carry: null,
-		save: `Save them as a patch, then continue on ${name}…`,
-		discard: `Discard them and continue on ${name}`,
-		cancel: 'Cancel'
+		save,
+		discard,
+		cancel: __('Cancel')
 	};
 }
 

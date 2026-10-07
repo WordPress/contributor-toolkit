@@ -1110,6 +1110,299 @@ test( 'the apply card is fully translatable when a patch or a pull request will 
 	expect( await inCard() ).toEqual( [] );
 } );
 
+// The ticket and branch notices (#629) read and write the checkout itself, so
+// these journeys build theirs with the same helpers the English ones use.
+const gitSite = require( '../helpers/git-site.cjs' );
+const { git, commitFiles } = require( '../../unit/helpers/git.cjs' );
+
+/**
+ * A string as the pseudo-locale shows it, with its placeholders filled in
+ * order, as `sprintf` fills them.
+ *
+ * @param {string}             text
+ * @param {...(string|number)} values
+ * @return {string}
+ */
+function filled( text, ...values ) {
+	let out = pseudoLocalize( text );
+	for ( const value of values ) out = out.replace( /%(?:\d\$)?[sd]/, String( value ) );
+	return out;
+}
+
+/**
+ * The words of a link inside a translated sentence, as the pseudo-locale
+ * shows them: accented, and without the sentence's brackets, which are the
+ * sentence's and not the link's.
+ *
+ * @param {string} text
+ * @return {string}
+ */
+function inSentence( text ) {
+	return pseudoLocalize( text ).replace( /^\[/, '' ).replace( /~*\]$/, '' );
+}
+
+/**
+ * Keeps every native confirm the page raises and answers it no, so what it
+ * asked can be read back and nothing it guards runs. Electron's confirm is
+ * not a Playwright dialog: see `acceptConfirms` in ../helpers/app.cjs.
+ *
+ * @param {Object} page
+ * @return {Promise<() => Promise<string[]>>} Reads back what was asked.
+ */
+async function keepConfirms( page ) {
+	await page.evaluate( () => {
+		window.__e2eAsked = [];
+		window.confirm = ( message ) => {
+			window.__e2eAsked.push( message );
+			return false;
+		};
+	} );
+	return () => page.evaluate( () => window.__e2eAsked );
+}
+
+test( 'the ticket card\'s questions and notices are fully translatable: a refused number, loose edits on trunk, the edits carried or saved, and a trunk that moved', async ( { session } ) => {
+	// A ticket's number is the ticket's, and is left out of the scan. So are
+	// the two links inside the changes note: their words are part of its
+	// sentence, which is checked whole.
+	const NUMBERS = [ '#60001', '#60002' ];
+	const LINKS = [ inSentence( 'review and submit' ), inSentence( 'discard your changes' ) ];
+	const site = await gitSite.makeSite( session );
+	const savedTo = path.join( session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-saved-' ) ) ), 'trunk-edits.diff' );
+	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+	await app.evaluate( ( { ipcMain, dialog }, saveTo ) => {
+		const answers = {
+			'git:list-ticket-patches': () => ( { ok: true, prs: { status: 'ok', items: [] } } ),
+			'trac:list-attachments': () => ( { ok: true, status: 'ok', ticket: null, items: [] } ),
+		};
+		for ( const [ channel, answer ] of Object.entries( answers ) ) {
+			ipcMain.removeHandler( channel );
+			ipcMain.handle( channel, answer );
+		}
+		dialog.showSaveDialog = async () => ( { canceled: false, filePath: saveTo } );
+	}, savedTo );
+	const asked = await keepConfirms( page );
+	const card = ui.workItemCard( page, pseudoLocalize( 'Trac ticket' ) );
+	const field = card.getByLabel( pseudoLocalize( 'Ticket number or URL' ), { exact: true } );
+	const linkButton = card.getByRole( 'button', { name: pseudoLocalize( 'Link ticket' ), exact: true } );
+	const button = ( name ) => card.getByRole( 'button', { name, exact: true } );
+	const unlink = button( pseudoLocalize( 'Unlink' ) );
+	const inCard = async () => ( await unwrapped( card ) ).filter( ( text ) => ! NUMBERS.includes( text ) && ! LINKS.includes( text ) );
+
+	// A number that is not one: main's refusal.
+	await expect( card ).toBeVisible( { timeout: 30_000 } );
+	await field.fill( 'not-a-ticket' );
+	await linkButton.click();
+	await expect( card.getByText( filled( 'Enter a ticket number like 62281, or a %s ticket URL.', 'core.trac.wordpress.org' ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	expect( await inCard() ).toEqual( [] );
+
+	// Loose edits on trunk, then a ticket: the question about them. Its
+	// discard asks first, in words of its own.
+	gitSite.write( site.dir, gitSite.LOGIN, '<?php // loose\n' );
+	await field.fill( '60001' );
+	await linkButton.click();
+	const carry = button( filled( 'Take these edits into #%s', 60001 ) );
+	await expect( carry ).toBeVisible( { timeout: 30_000 } );
+	await expect( card.getByText( filled( 'You have %d uncommitted change on this site, not on any ticket yet. What should happen to them?', 1 ), { exact: true } ) ).toBeVisible();
+	expect( await inCard() ).toEqual( [] );
+	await button( pseudoLocalize( 'Discard them and start clean' ) ).click();
+	expect( await asked() ).toEqual( [ pseudoLocalize( 'Discard the uncommitted edits on trunk? This cannot be undone.' ) ] );
+
+	// Carried: where they went, and the note about them on the ticket, whose
+	// sentence holds its two links. The note's discard asks first too.
+	await carry.click();
+	await expect( card.getByText( filled( 'Your %1$d uncommitted change came along into #%2$s, and will go into its patch.', 1, 60001 ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	const discard = button( LINKS[ 1 ] );
+	await expect( discard ).toBeVisible( { timeout: 30_000 } );
+	await expect( discard.locator( 'xpath=..' ) ).toHaveText( filled( 'You have %1$d unsubmitted change for ticket #%2$s. You can <review>review and submit</review> or <discard>discard your changes</discard>.', 1, 60001 ).replace( /<\/?(?:review|discard)>/g, '' ) );
+	await expect( card.getByText( pseudoLocalize( 'Unlinking this ticket doesn\'t affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.' ), { exact: true } ) ).toBeVisible();
+	expect( await inCard() ).toEqual( [] );
+	await discard.click();
+	expect( ( await asked() )[ 1 ] ).toBe( pseudoLocalize( 'Discard all local changes? This cannot be undone.' ) );
+
+	// Parked, with trunk moved on under it: the notice that offers the move.
+	await unlink.click();
+	await expect( linkButton ).toBeVisible( { timeout: 30_000 } );
+	gitSite.write( site.dir, gitSite.DOOMED, '<?php // trunk moved this\n' );
+	commitFiles( site.dir, [ gitSite.DOOMED ], 'trunk moves on' );
+	await page.getByRole( 'button', { name: `${ pseudoLocalize( 'Continue working' ) } #60001`, exact: true } ).click();
+	await expect( card.getByText( pseudoLocalize( 'Trunk has moved since this ticket started.' ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( button( pseudoLocalize( 'Update this ticket to the current trunk' ) ) ).toBeVisible();
+	expect( await inCard() ).toEqual( [] );
+
+	// Loose edits on trunk again, saved as a patch before another ticket
+	// starts clean: where they went.
+	await unlink.click();
+	await expect( linkButton ).toBeVisible( { timeout: 30_000 } );
+	gitSite.write( site.dir, gitSite.LOGIN, '<?php // loose again\n' );
+	await field.fill( '60002' );
+	await linkButton.click();
+	await button( pseudoLocalize( 'Save them as a patch, then start clean…' ) ).click( { timeout: 30_000 } );
+	await expect( card.getByText( filled( 'Your edits were saved to %s and are no longer in the working tree.', savedTo ), { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	expect( await inCard() ).toEqual( [] );
+} );
+
+test( 'what a ticket from a link says is fully translatable, with no site to put it in', async ( { session } ) => {
+	const { app, page } = await session.start( undefined, { lang: 'en-XA' } );
+	await expect( page.getByRole( 'button', { name: pseudoLocalize( 'Create site' ), exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await app.evaluate( ( { app: electronApp }, url ) => {
+		electronApp.emit( 'open-url', { preventDefault() {} }, url );
+	}, 'wpct://ticket/62281' );
+	const notice = page.getByRole( 'status' ).filter( { hasText: filled( 'Ticket #%s is ready to link.', 62281 ) } );
+	await expect( notice ).toBeVisible( { timeout: 30_000 } );
+	await expect( notice.getByRole( 'button', { name: pseudoLocalize( 'Dismiss' ), exact: true } ) ).toBeVisible();
+	expect( await unwrapped( notice ) ).toEqual( [] );
+} );
+
+test( 'what a ticket from a link says is fully translatable, on a Core site that can take it and on a Gutenberg site that cannot', async ( { session } ) => {
+	// Two sites: the link asks to be linked on the Core one, and is refused
+	// by name on the Gutenberg one. The sites' names are in the sentences,
+	// which are each one string.
+	const core = await gitSite.makeSite( session, { label: 'core-site' } );
+	const gutenberg = await gitSite.makeSite( session, { label: 'gutenberg-site' } );
+	const settings = {
+		sites: [ core.dir, gutenberg.dir ],
+		siteMeta: {
+			...core.settings.siteMeta,
+			[ gutenberg.dir ]: { ...gutenberg.settings.siteMeta[ gutenberg.dir ], projectType: 'gutenberg' },
+		},
+		preferences: {},
+	};
+	const { app, page } = await session.start( settings, { lang: 'en-XA' } );
+	const arrive = () => app.evaluate( ( { app: electronApp }, url ) => {
+		electronApp.emit( 'open-url', { preventDefault() {} }, url );
+	}, 'wpct://ticket/62281' );
+
+	// The Core site: the question, and its two answers.
+	await ui.sidebarEntry( page, 'core-site' ).click( { timeout: 30_000 } );
+	await expect( page.getByRole( 'heading', { name: 'core-site', exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await arrive();
+	const ask = page.getByRole( 'status' ).filter( { hasText: filled( 'Link ticket #%1$s to %2$s?', 62281, 'core-site' ) } );
+	await expect( ask ).toBeVisible( { timeout: 30_000 } );
+	await expect( ask.getByRole( 'button', { name: pseudoLocalize( 'Link ticket' ), exact: true } ) ).toBeVisible();
+	await expect( ask.getByRole( 'button', { name: pseudoLocalize( 'Not now' ), exact: true } ) ).toBeVisible();
+	expect( await unwrapped( ask ) ).toEqual( [] );
+	await ask.getByRole( 'button', { name: pseudoLocalize( 'Not now' ), exact: true } ).click();
+	await expect( ask ).toHaveCount( 0 );
+
+	// The Gutenberg site: the refusal, and the button that hides it.
+	await ui.sidebarEntry( page, 'gutenberg-site' ).click();
+	await expect( page.getByRole( 'heading', { name: 'gutenberg-site', exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await arrive();
+	const refused = page.getByRole( 'status' ).filter( { hasText: filled( 'Ticket #%1$s cannot be linked to %2$s.', 62281, 'gutenberg-site' ) } );
+	await expect( refused ).toBeVisible( { timeout: 30_000 } );
+	await expect( refused.getByRole( 'button', { name: pseudoLocalize( 'Hide' ), exact: true } ) ).toBeVisible();
+	expect( await unwrapped( refused ) ).toEqual( [] );
+} );
+
+test( 'the notices for a merge left open by a terminal and for a site an earlier version made are fully translatable', async ( { session } ) => {
+	// A merge stopped on its conflict, made by the bundled Git the way a
+	// terminal would make it (as in merge-in-progress.spec.js), and a site
+	// shaped the way the old engine cloned it (as in legacy-site.spec.js).
+	const merging = await gitSite.makeSite( session, { label: 'merging-site' } );
+	gitOk( [ 'checkout', '-q', '-b', 'mentor/fix' ], merging.dir );
+	gitSite.write( merging.dir, gitSite.LOGIN, '<?php // the mentor\'s fix\n' );
+	commitFiles( merging.dir, [ gitSite.LOGIN ], 'the mentor\'s fix' );
+	gitOk( [ 'checkout', '-q', 'trunk' ], merging.dir );
+	gitSite.write( merging.dir, gitSite.LOGIN, '<?php // trunk moved too\n' );
+	commitFiles( merging.dir, [ gitSite.LOGIN ], 'trunk moves' );
+	expect( git( [ '-c', 'user.name=mentor', '-c', 'user.email=mentor@example.com', 'merge', 'mentor/fix' ], merging.dir ).status ).toBe( 1 );
+	const legacy = await gitSite.makeSite( session, { label: 'legacy-site', legacy: true } );
+	const { page } = await session.start( {
+		sites: [ merging.dir, legacy.dir ],
+		siteMeta: { ...merging.settings.siteMeta, ...legacy.settings.siteMeta },
+		preferences: {},
+	}, { lang: 'en-XA' } );
+
+	await ui.sidebarEntry( page, 'merging-site' ).click( { timeout: 30_000 } );
+	const merge = page.getByRole( 'alert' ).filter( { hasText: pseudoLocalize( 'A merge started outside the app is in progress.' ) } );
+	await expect( merge ).toBeVisible( { timeout: 30_000 } );
+	await expect( merge.getByText( filled(
+		'It has conflicts in %1$s. Finish it from a terminal (%2$s) or abandon it (%3$s) before using the app on this site. Until then, linking tickets, applying patches, discarding changes and updating trunk are refused here.',
+		'src/wp-login.php',
+		filled( 'resolve the files, then git add them and run %s', 'git commit' ),
+		'git merge --abort'
+	), { exact: true } ) ).toBeVisible();
+	expect( await unwrapped( merge ) ).toEqual( [] );
+
+	await ui.sidebarEntry( page, 'legacy-site' ).click();
+	const old = page.getByRole( 'alert' ).filter( { hasText: pseudoLocalize( 'This site was created by an earlier version of the app.' ) } );
+	await expect( old ).toBeVisible( { timeout: 30_000 } );
+	await expect( old.getByRole( 'button', { name: pseudoLocalize( 'Create site' ), exact: true } ) ).toBeVisible();
+	expect( await unwrapped( old ) ).toEqual( [] );
+} );
+
+test( 'what the window says when a folder will not open is fully translatable, for each reason', async ( { session } ) => {
+	// The application is answered by a stand-in, as in site-header.spec.js,
+	// and each attempt to open the folder with it by the reason under test.
+	// The application's name is its own, and the operating system's reason
+	// is quoted inside the app's sentence.
+	const site = await gitSite.makeSite( session );
+	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+	await app.evaluate( ( { ipcMain } ) => {
+		global.__e2eOpenAnswer = null;
+		const answers = {
+			'editor:list': () => ( { detected: [ { name: 'Example Editor', path: '/example' } ] } ),
+			'editor:open': () => {
+				if ( global.__e2eOpenAnswer === 'throw' ) throw new Error( 'stand-in failure' );
+				return global.__e2eOpenAnswer;
+			},
+			'dir:show': () => ( { ok: false, reason: 'open-failed', error: 'stand-in reason' } ),
+		};
+		for ( const [ channel, answer ] of Object.entries( answers ) ) {
+			ipcMain.removeHandler( channel );
+			ipcMain.handle( channel, answer );
+		}
+	} );
+	const menuButton = page.getByRole( 'button', { name: pseudoLocalize( 'Site actions' ), exact: true } );
+	await expect( menuButton ).toBeVisible( { timeout: 30_000 } );
+	const menu = page.getByRole( 'menu', { name: pseudoLocalize( 'Site actions' ) } );
+	const openWith = async ( answer ) => {
+		await app.evaluate( ( electron, value ) => {
+			global.__e2eOpenAnswer = value;
+		}, answer );
+		await menuButton.click();
+		// Rested on, as a pointer does, and not clicked: see site-header.spec.js.
+		await menu.getByRole( 'menuitem', { name: pseudoLocalize( 'Open in' ), exact: true } ).hover();
+		await page.getByRole( 'menuitem', { name: 'Example Editor', exact: true } ).click();
+	};
+	const notice = ( text ) => page.getByRole( 'alert' ).filter( { has: page.getByText( text, { exact: true } ) } );
+	const scanned = async ( text ) => {
+		await expect( notice( text ) ).toBeVisible( { timeout: 30_000 } );
+		expect( await unwrapped( notice( text ) ) ).toEqual( [] );
+	};
+
+	await openWith( { ok: false, reason: 'unknown-editor' } );
+	await scanned( pseudoLocalize( 'That application is no longer where it was. Choose another.' ) );
+	await expect( notice( pseudoLocalize( 'That application is no longer where it was. Choose another.' ) ).getByRole( 'button', { name: pseudoLocalize( 'Choose application…' ), exact: true } ) ).toBeVisible();
+
+	// Picked with the button the notice offers: not an application at all.
+	await app.evaluate( () => {
+		global.__e2eOpenAnswer = { ok: false, reason: 'unlaunchable-editor' };
+	} );
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Choose application…' ), exact: true } ).click();
+	await scanned( pseudoLocalize( 'That is not an application this app can open a folder in.' ) );
+
+	await openWith( { ok: false, reason: 'spawn-failed', error: 'stand-in reason' } );
+	await scanned( filled( 'The application would not start: %s', 'stand-in reason' ) );
+	await openWith( { ok: false, reason: 'spawn-failed' } );
+	await scanned( filled( 'The application would not start: %s', pseudoLocalize( 'unknown error' ) ) );
+	await openWith( { ok: false, reason: 'unregistered-site' } );
+	await scanned( pseudoLocalize( 'This app has no record of that folder, so it will not open it.' ) );
+	await openWith( { ok: false, reason: 'something-else' } );
+	await scanned( pseudoLocalize( 'Could not open the folder.' ) );
+	// A handler that throws: Electron's own words for that are quoted, so
+	// the notice is found by the start of the app's sentence.
+	await openWith( 'throw' );
+	const unreachable = page.getByRole( 'alert' ).filter( { hasText: pseudoLocalize( 'Could not reach the app\'s main process: %s' ).split( '%s' )[ 0 ] } );
+	await expect( unreachable ).toBeVisible( { timeout: 30_000 } );
+	expect( await unwrapped( unreachable ) ).toEqual( [] );
+
+	// The file manager's own refusal, from the menu's other way in.
+	await menuButton.click();
+	await menu.getByRole( 'menuitem', { name: /^\[Šĥóŵ íñ / } ).click();
+	await scanned( filled( 'The file manager would not open the folder: %s', 'stand-in reason' ) );
+} );
+
 test( 'a mail the site sent is fully translatable, on its Rendered and its Raw tab', async ( { session } ) => {
 	// One mail in the store, loaded when the server starts, which is answered
 	// by stand-ins as in mail.spec.js. What the mail says is the site's, and

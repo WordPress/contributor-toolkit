@@ -104,3 +104,23 @@ test('the three sentences take the site\'s noun', () => {
 	assert.doesNotMatch(JSON.stringify(q), /ticket/);
 	assert.equal(dirtyTrunkQuestion({ canCarry: true, noun: 'issue' }).carry, 'Take these edits into the issue');
 });
+
+// Each kind's sentences are their own strings now (#629), so each is pinned
+// whole rather than through the ticket's.
+test('dirtyTrunkQuestion words every issue sentence in full (#629)', () => {
+	assert.equal(
+		dirtyTrunkQuestion({ files: 1, canCarry: true, noun: 'issue' }).question,
+		'You have 1 uncommitted change on this site, not on any issue yet. What should happen to them?'
+	);
+	assert.equal(
+		dirtyTrunkQuestion({ canCarry: true, noun: 'issue' }).question,
+		'You have uncommitted changes on this site, not on any issue yet. What should happen to them?'
+	);
+	const parked = dirtyTrunkQuestion({ canCarry: false, noun: 'issue' });
+	assert.equal(
+		parked.question,
+		'You have uncommitted changes on this site, not on any issue yet. What should happen to them? This issue already has its own work here, so these edits cannot come along into it.'
+	);
+	assert.equal(parked.save, 'Save them as a patch, then continue on the issue…');
+	assert.equal(parked.discard, 'Discard them and continue on the issue');
+});

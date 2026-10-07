@@ -30,6 +30,7 @@
 const path = require('path');
 const { describeRefused } = require('./safe-log');
 const { isActionableSite } = require('./site-registry');
+const { __, sprintf } = require('@wordpress/i18n');
 
 // Path semantics follow the platform being asked about, not the platform the
 // test happens to run on: `path.isAbsolute('C:\\x')` is false under POSIX, and a
@@ -385,7 +386,15 @@ function awaitLaunch(child, { platform } = {}) {
 			child.on('close', (code) => {
 				settle(code === 0
 					? { ok: true }
-					: { ok: false, reason: REFUSAL_REASONS.SPAWN_FAILED, error: `the editor could not be opened (exit code ${code})` });
+					: {
+						ok: false,
+						reason: REFUSAL_REASONS.SPAWN_FAILED,
+						error: sprintf(
+							// translators: %s: the exit code of the command that opens the editor, such as 1. Follows "The application would not start:", so it starts in lower case.
+							__('the editor could not be opened (exit code %s)'),
+							code
+						)
+					});
 			});
 			return;
 		}
