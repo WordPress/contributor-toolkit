@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-07T10:42:33+00:00\n"
+"POT-Creation-Date: 2026-10-07T13:01:17+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -575,7 +575,7 @@ msgid "Setting up a site"
 msgstr ""
 
 #: src/renderer/components/create-site-dialog.jsx:153
-#: src/renderer/index.jsx:637
+#: src/renderer/index.jsx:648
 msgid "Create site"
 msgstr ""
 
@@ -589,7 +589,7 @@ msgid "My WordPress site"
 msgstr ""
 
 #: src/renderer/components/create-site-dialog.jsx:78
-#: src/renderer/components/sites-sidebar.jsx:40
+#: src/renderer/components/sites-sidebar.jsx:53
 msgid "Project"
 msgstr ""
 
@@ -961,7 +961,7 @@ msgid ""
 msgstr ""
 
 #: src/renderer/components/review-dialog.jsx:92
-#: src/renderer/components/site-header-actions.jsx:110
+#: src/renderer/components/site-header-actions.jsx:115
 msgid "Review & submit changes"
 msgstr ""
 
@@ -1214,45 +1214,45 @@ msgstr ""
 msgid "Show password"
 msgstr ""
 
-#: src/renderer/components/site-header-actions.jsx:109
+#: src/renderer/components/site-header-actions.jsx:114
 msgid "Review"
 msgstr ""
 
-#: src/renderer/components/site-header-actions.jsx:120
+#: src/renderer/components/site-header-actions.jsx:125
 msgid "Hide details"
 msgstr ""
 
-#: src/renderer/components/site-header-actions.jsx:120
+#: src/renderer/components/site-header-actions.jsx:125
 msgid "Show details"
 msgstr ""
 
-#: src/renderer/components/site-header-actions.jsx:134
+#: src/renderer/components/site-header-actions.jsx:139
 msgid "Site actions"
 msgstr ""
 
-#: src/renderer/components/sites-sidebar.jsx:19
+#: src/renderer/components/sites-sidebar.jsx:102
+msgid "Finish creating the current site first"
+msgstr ""
+
+#: src/renderer/components/sites-sidebar.jsx:104
+msgid "Create new site"
+msgstr ""
+
+#: src/renderer/components/sites-sidebar.jsx:109
+msgid "My sites"
+msgstr ""
+
+#: src/renderer/components/sites-sidebar.jsx:23
 msgid "Name"
 msgstr ""
 
-#: src/renderer/components/sites-sidebar.jsx:29
+#: src/renderer/components/sites-sidebar.jsx:42
 #. %s: what a site has to report, such as that its update is incomplete. It follows the site's name.
 msgid "(%s)"
 msgstr ""
 
-#: src/renderer/components/sites-sidebar.jsx:33
+#: src/renderer/components/sites-sidebar.jsx:46
 msgid "(Deleting)"
-msgstr ""
-
-#: src/renderer/components/sites-sidebar.jsx:89
-msgid "Finish creating the current site first"
-msgstr ""
-
-#: src/renderer/components/sites-sidebar.jsx:91
-msgid "Create new site"
-msgstr ""
-
-#: src/renderer/components/sites-sidebar.jsx:96
-msgid "My sites"
 msgstr ""
 
 #: src/renderer/components/ticket-card.jsx:116
@@ -1489,43 +1489,43 @@ msgstr ""
 msgid "Updated to the latest trunk"
 msgstr ""
 
-#: src/renderer/index.jsx:1313
+#: src/renderer/index.jsx:1337
 msgid "Copied the path"
 msgstr ""
 
-#: src/renderer/index.jsx:1533
+#: src/renderer/index.jsx:1557
 msgid "This site is ready to work on"
 msgstr ""
 
-#: src/renderer/index.jsx:1700
+#: src/renderer/index.jsx:1724
 msgid "All changes discarded."
 msgstr ""
 
-#: src/renderer/index.jsx:1792
+#: src/renderer/index.jsx:1816
 msgid "Unknown error"
 msgstr ""
 
-#: src/renderer/index.jsx:2406
+#: src/renderer/index.jsx:2430
 msgid "WordPress Contributor Toolkit"
 msgstr ""
 
-#: src/renderer/index.jsx:634
+#: src/renderer/index.jsx:645
 msgid "No sites"
 msgstr ""
 
-#: src/renderer/index.jsx:635
+#: src/renderer/index.jsx:646
 msgid "Create your first site to begin contributing"
 msgstr ""
 
-#: src/renderer/index.jsx:666
+#: src/renderer/index.jsx:677
 msgid "Site"
 msgstr ""
 
-#: src/renderer/index.jsx:675
+#: src/renderer/index.jsx:686
 msgid "Hide sites list"
 msgstr ""
 
-#: src/renderer/index.jsx:675
+#: src/renderer/index.jsx:686
 msgid "Show sites list"
 msgstr ""
 
@@ -1874,20 +1874,20 @@ msgstr ""
 msgid "Build watching"
 msgstr ""
 
-#: src/renderer/sites-list.cjs:28
+#: src/renderer/sites-list.cjs:139
+msgid "Deleting site…"
+msgstr ""
+
+#: src/renderer/sites-list.cjs:29
 msgid "Update incomplete — code is new, built assets are old"
 msgstr ""
 
-#: src/renderer/sites-list.cjs:35
+#: src/renderer/sites-list.cjs:36
 #. %d: how many days old the site's copy of the WordPress code is.
 msgid "WordPress code is %d day old — update to latest trunk"
 msgid_plural "WordPress code is %d days old — update to latest trunk"
 msgstr[0] ""
 msgstr[1] ""
-
-#: src/renderer/sites-list.cjs:78
-msgid "Deleting site…"
-msgstr ""
 
 #: src/renderer/ticket-branch-list.cjs:169
 #. a verb, on a button beside the number of a ticket or an issue: go to the work on it.
