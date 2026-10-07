@@ -720,3 +720,13 @@ test('layoutMapper: a layout the registry does not define throws rather than gue
 	assert.throws(() => layoutMapper('flat'), /Unknown patch layout: flat/);
 	assert.throws(() => parsePatchFiles(OLD_LAYOUT_DIFF, { layout: 'flat' }), /Unknown patch layout/);
 });
+
+test('parsePatchFiles: a patch it cannot read is said in the locale main applied (#628)', (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+
+	assert.strictEqual(parsePatchFiles('  ').error, pseudoLocalize('The patch is empty.'));
+	assert.strictEqual(parsePatchFiles('just some words\n').error, pseudoLocalize('No file changes found in the patch.'));
+});

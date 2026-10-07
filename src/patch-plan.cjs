@@ -19,6 +19,7 @@
  */
 
 const JsDiff = require('diff');
+const { __, sprintf } = require('@wordpress/i18n');
 const { normalizeEol } = require('./git-update.cjs');
 
 // Files that stayed at the repo root when core moved everything else under
@@ -224,7 +225,7 @@ function rewritePatchPaths(text, { layout } = {}) {
 		// (`\t(revision 59234)`, or a bare tab); the name ends at the tab.
 		const stripped = raw.replace(/\t.*$/, '');
 		if (stripped === '/dev/null') return stripped;
-		if (stripped.startsWith('"')) throw new Error('The empty file path is quoted or ambiguous.');
+		if (stripped.startsWith('"')) throw new Error(__('The empty file path is quoted or ambiguous.'));
 		const { newPath } = stripPathPrefix(`a/${stripped.replace(/^[ab]\//, '')}`, `b/${stripped.replace(/^[ab]\//, '')}`);
 		const mapped = map(newPath);
 		return letter ? `${letter}/${mapped}` : mapped;
@@ -234,7 +235,7 @@ function rewritePatchPaths(text, { layout } = {}) {
 		const git = /^diff --git (.+)$/.exec(line);
 		if (git) {
 			const rest = git[1];
-			if (rest.startsWith('"')) throw new Error('The empty file path is quoted or ambiguous.');
+			if (rest.startsWith('"')) throw new Error(__('The empty file path is quoted or ambiguous.'));
 			let sides = null;
 			// The one unambiguous split of `a/X b/Y`: when both sides are
 			// the same path (an add, a delete, a modify) the length fixes
@@ -353,7 +354,7 @@ function supplyEmptyFileHeaders(text) {
 		// partial success. Decoding Git's quoted C-style paths is deliberately
 		// outside the narrow 1.0 reader (#316).
 		if (mode && !opaque && !filePath) {
-			throw new Error('The empty file path is quoted or ambiguous.');
+			throw new Error(__('The empty file path is quoted or ambiguous.'));
 		}
 		if (filePath) {
 			out.push(
@@ -391,7 +392,7 @@ function classify(file, oldPath, newPath) {
  */
 function parsePatchFiles(text, { layout } = {}) {
 	const raw = typeof text === 'string' ? text : '';
-	if (!raw.trim()) return { ok: false, error: 'The patch is empty.' };
+	if (!raw.trim()) return { ok: false, error: __('The patch is empty.') };
 
 	// Normalise line endings on the way in so hunk context matches what the
 	// applier reads off disk, which is normalised the same way.
@@ -402,7 +403,7 @@ function parsePatchFiles(text, { layout } = {}) {
 	// it, so parsing the whole text would drop files; cut first, parse each,
 	// and the file list is the section list.
 	const sections = splitPatchSections(normalized);
-	if (!sections.length) return { ok: false, error: 'No file changes found in the patch.' };
+	if (!sections.length) return { ok: false, error: __('No file changes found in the patch.') };
 
 	const map = layoutMapper(layout);
 	const files = [];
@@ -419,10 +420,11 @@ function parsePatchFiles(text, { layout } = {}) {
 			// here is what lets this section be seen at all.
 			parsed = JsDiff.parsePatch(supplyEmptyFileHeaders(section.text));
 		} catch (e) {
-			return { ok: false, error: `Could not read the patch: ${String(e && e.message ? e.message : e)}` };
+			// translators: %s: why the patch could not be read, often in English from the library that reads it.
+			return { ok: false, error: sprintf(__('Could not read the patch: %s'), String(e && e.message ? e.message : e)) };
 		}
 		const file = parsed && parsed[0];
-		if (!file) return { ok: false, error: 'No file changes found in the patch.' };
+		if (!file) return { ok: false, error: __('No file changes found in the patch.') };
 
 		if (!file.hunks || file.hunks.length === 0) {
 			// An empty file added or deleted has no line on either side, so its
@@ -451,7 +453,7 @@ function parsePatchFiles(text, { layout } = {}) {
 				files.push({ kind: 'rename', oldPath, newPath, path: newPath, hunks: [], patch: file });
 				continue;
 			}
-			return { ok: false, error: 'That does not look like a patch — no file changes found.' };
+			return { ok: false, error: __('That does not look like a patch — no file changes found.') };
 		}
 
 		const oldName = file.oldFileName || file.index || '';
@@ -501,7 +503,7 @@ function planApply({ files, dirtyPaths = [] } = {}) {
 		// applied from a text diff; one that carries its bytes is applied like
 		// any other file (#385). Naming the first kind is the difference
 		// between "this patch is partly unapplied" and a silent gap.
-		unsupported: list.filter((f) => f.kind === 'binary' && !f.hasBinaryData).map((f) => f.path || '(unnamed binary file)'),
+		unsupported: list.filter((f) => f.kind === 'binary' && !f.hasBinaryData).map((f) => f.path || __('(unnamed binary file)')),
 		// Same rule the trunk update uses (#94): the lockfile moving is what
 		// makes an install necessary rather than merely possible.
 		needsInstall: touched.has('package-lock.json')
