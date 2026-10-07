@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-07T15:03:27+00:00\n"
+"POT-Creation-Date: 2026-10-07T15:47:38+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -158,151 +158,162 @@ msgstr ""
 msgid "Sign in to GitHub first."
 msgstr ""
 
-#: src/main.js:2079
+#: src/main.js:1754
+#. %s: the name of the patch or pull request, such as 60001.diff or PR #6717.
+msgid "%s is applied. Revert it before submitting this checkout as your own work."
+msgstr ""
+
+#: src/main.js:1757
+msgid ""
+"The patch you applied is applied. Revert it before submitting this checkout "
+"as your own work."
+msgstr ""
+
+#: src/main.js:2083
 #. %s: the branch the contributor's work is on, such as ticket/59234.
 msgid "Parking your work on %s before updating…"
 msgstr ""
 
-#: src/main.js:2165
+#: src/main.js:2169
 #. %s: the branch the contributor's work is on, such as ticket/59234.
 msgid "Returning to your work on %s…"
 msgstr ""
 
-#: src/main.js:2210
+#: src/main.js:2214
 #. %s: the error the checkout failed with.
 msgid "Update failed during checkout: %s"
 msgstr ""
 
-#: src/main.js:2213
+#: src/main.js:2217
 #. %s: the error the fetch failed with.
 msgid "Update failed during fetch: %s"
 msgstr ""
 
-#: src/main.js:2228
+#: src/main.js:2232
 #. 1: the ticket's number. 2: the branch the work is committed on, such as ticket/59234.
 msgid ""
 "Your work on #%1$s is safe — it is committed on %2$s. Link that ticket "
 "again to return to it."
 msgstr ""
 
-#: src/main.js:2231
+#: src/main.js:2235
 #. %s: the branch the work is committed on, such as pr/7701.
 msgid ""
 "Your work is safe — it is committed on %s. Apply that pull request again to "
 "return to it."
 msgstr ""
 
-#: src/main.js:2349
+#: src/main.js:2353
 msgid "Returning to your saved copy of the pull request…"
 msgstr ""
 
-#: src/main.js:2349
+#: src/main.js:2353
 msgid "Downloading the pull request's files and switching to its branch…"
 msgstr ""
 
-#: src/main.js:2364
+#: src/main.js:2368
 #. %s: the error Git gave.
 msgid "Could not remove the unused branch: %s"
 msgstr ""
 
-#: src/main.js:2385
+#: src/main.js:2389
 msgid "Restoring the files of your previous branch…"
 msgstr ""
 
-#: src/main.js:2528
+#: src/main.js:2532
 msgid "Could not check your work for conflicts, so the preview was not shown."
 msgstr ""
 
-#: src/main.js:2539
+#: src/main.js:2543
 msgid "Choose a patch file"
 msgstr ""
 
-#: src/main.js:2542
+#: src/main.js:2546
 msgid "Patch Files"
 msgstr ""
 
-#: src/main.js:2543
+#: src/main.js:2547
 msgid "All Files"
 msgstr ""
 
-#: src/main.js:2587
+#: src/main.js:2591
 msgid "There is no stored patch to revert."
 msgstr ""
 
-#: src/main.js:2598
+#: src/main.js:2602
 #. %s: the name of the applied patch, such as a file name.
 msgid "%s is already applied. Revert it before applying another patch."
 msgstr ""
 
-#: src/main.js:2604
+#: src/main.js:2608
 #. %s: the name of the patch, such as a file name.
 msgid "Reverting %s…"
 msgstr ""
 
-#: src/main.js:2607
+#: src/main.js:2611
 #. %s: the name of the patch, such as a file name.
 msgid "Applying %s…"
 msgstr ""
 
-#: src/main.js:2637
+#: src/main.js:2641
 msgid "This patch is too large to keep for an undo, so Revert will not be offered."
 msgstr ""
 
-#: src/main.js:2658
+#: src/main.js:2662
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved, so it was "
 "undone. %s"
 msgstr ""
 
-#: src/main.js:2661
+#: src/main.js:2665
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved and it could not "
 "be undone — the checkout has the patch and the app cannot revert it. %s"
 msgstr ""
 
-#: src/main.js:2670
+#: src/main.js:2674
 #. %s: what went wrong, as the system said it.
 msgid "Applying the patch failed: %s"
 msgstr ""
 
-#: src/main.js:3257
+#: src/main.js:3261
 msgid ""
 "There is uncommitted work on trunk — decide what happens to it before "
 "starting the ticket"
 msgstr ""
 
-#: src/main.js:3351
+#: src/main.js:3355
 msgid ""
 "Link a ticket first: trunk is what tickets are measured against, not a "
 "ticket."
 msgstr ""
 
-#: src/main.js:3353
+#: src/main.js:3357
 #: src/renderer/ticket-trunk-notice.cjs:147
 msgid "Only a ticket branch can be moved onto the current trunk."
 msgstr ""
 
-#: src/main.js:3355
+#: src/main.js:3359
 msgid ""
 "This ticket has no recorded starting point, so the app cannot move its work "
 "onto the current trunk."
 msgstr ""
 
-#: src/main.js:3506
+#: src/main.js:3510
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3507
+#: src/main.js:3511
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3513
+#: src/main.js:3517
 msgid "Choose the application to open this folder in"
 msgstr ""
 
-#: src/main.js:3654
+#: src/main.js:3658
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
@@ -310,7 +321,7 @@ msgid ""
 "finishes on its own."
 msgstr ""
 
-#: src/main.js:3657
+#: src/main.js:3661
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
@@ -318,49 +329,62 @@ msgid ""
 "its own."
 msgstr ""
 
-#: src/main.js:3661
+#: src/main.js:3665
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
 "running and holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:3664
+#: src/main.js:3668
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
 "holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:3668
+#: src/main.js:3672
 msgid "This site requires a newer Node.js than this app bundles."
 msgstr ""
 
-#: src/main.js:3668
+#: src/main.js:3672
 msgid "Retrying with engine checks relaxed…"
 msgstr ""
 
-#: src/main.js:3755
+#: src/main.js:3759
 #. %s: why npm could not be started.
 msgid "Failed to start: %s"
 msgstr ""
 
-#: src/main.js:4066
+#: src/main.js:4070
 #. 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
 msgid "Server exited with code %1$s (signal %2$s) before reporting a URL"
 msgstr ""
 
-#: src/main.js:4069
+#: src/main.js:4073
 #. %s: the code the server exited with.
 msgid "Server exited with code %s before reporting a URL"
 msgstr ""
 
-#: src/main.js:4099
+#: src/main.js:4103
 #. %d: how many seconds the server was given to start.
 msgid "Server did not start within %d second"
 msgid_plural "Server did not start within %d seconds"
 msgstr[0] ""
 msgstr[1] ""
+
+#: src/main.js:4165
+#. %s: the name of the folder the web server serves, local-playground-web.
+msgid "%s directory not found."
+msgstr ""
+
+#: src/main.js:4213
+msgid "Server exited before becoming ready"
+msgstr ""
+
+#: src/main.js:4245
+msgid "Timed out starting web server"
+msgstr ""
 
 #: src/menu.js:26
 msgid "Settings…"
@@ -614,90 +638,90 @@ msgstr ""
 msgid "Link a Trac ticket to this site first. A pull request has to cite one."
 msgstr ""
 
-#: src/project-type.cjs:162
+#: src/project-type.cjs:160
 msgid ""
 "The block editor, built and run as a plugin in a stock WordPress: GitHub "
 "issues, and pull requests by checkout."
 msgstr ""
 
-#: src/project-type.cjs:196
+#: src/project-type.cjs:194
 msgid ""
 "No issue is linked to this site. A pull request has to cite one: link it in "
 "the GitHub issue card."
 msgstr ""
 
-#: src/project-type.cjs:197
+#: src/project-type.cjs:195
 msgid ""
 "A GitHub account. The fork is made for you; no password is typed into this "
 "app and no credential is written to disk."
 msgstr ""
 
-#: src/project-type.cjs:198
+#: src/project-type.cjs:196
 msgid ""
 "Automated checks run on it, and it is reviewed and merged right there: on "
 "Gutenberg the pull request is the venue."
 msgstr ""
 
-#: src/project-type.cjs:199
+#: src/project-type.cjs:197
 msgid "It cannot create the GitHub account for you."
 msgstr ""
 
-#: src/project-type.cjs:200
+#: src/project-type.cjs:198
 msgid ""
 "Goes at the top of the description. The Fixes line that links the issue and "
 "your WordPress.org username are added underneath."
 msgstr ""
 
-#: src/project-type.cjs:201
+#: src/project-type.cjs:199
 msgid ""
 "The Fixes line already lists it on the issue. A comment there still tells "
 "the people watching it."
 msgstr ""
 
-#: src/project-type.cjs:207
+#: src/project-type.cjs:205
 msgid "How pull requests work in Gutenberg"
 msgstr ""
 
-#: src/project-type.cjs:209
+#: src/project-type.cjs:207
 msgid ""
 "The pull request is where the change is reviewed and, once approved, "
 "merged. Nothing has to be posted anywhere else for it to be seen."
 msgstr ""
 
-#: src/project-type.cjs:210
+#: src/project-type.cjs:208
 msgid ""
 "Reviewers ask for testing steps. Put them in the notes: what to open, what "
 "to click, what should happen."
 msgstr ""
 
-#: src/project-type.cjs:212
+#: src/project-type.cjs:210
 msgid "The Gutenberg contributing guide"
 msgstr ""
 
-#: src/project-type.cjs:216
+#: src/project-type.cjs:214
 msgid "Link a GitHub issue to this site first. A pull request has to cite one."
 msgstr ""
 
-#: src/project-type.cjs:222
+#: src/project-type.cjs:220
 msgid "Download Gutenberg"
 msgstr ""
 
-#: src/project-type.cjs:223
+#: src/project-type.cjs:221
 msgid "Clone the Gutenberg repository."
 msgstr ""
 
-#: src/project-type.cjs:224
+#: src/project-type.cjs:222
 msgid "Compile the Gutenberg packages. Later updates rebuild automatically."
 msgstr ""
 
-#: src/project-type.cjs:227
+#: src/project-type.cjs:225
 #. %s: the build command, npm run build.
 msgid ""
 "Built. Edited a package since? Run %s in the Terminal so the site picks it "
 "up; updates rebuild on their own."
 msgstr ""
 
-#: src/project-type.cjs:229
+#: src/project-type.cjs:227
 msgid ""
 "Launch a WordPress with this checkout as its Gutenberg plugin, once, to "
 "finish the setup."
@@ -856,30 +880,30 @@ msgid ""
 "with Ctrl+C in the terminal."
 msgstr ""
 
-#: src/renderer/apply-card.cjs:195
+#: src/renderer/apply-card.cjs:202
 msgid "The checkout was not changed."
 msgstr ""
 
-#: src/renderer/apply-card.cjs:220
+#: src/renderer/apply-card.cjs:227
 #. 1: a file's path. 2: how many of its changes failed. 3: how many it has.
 msgid "%1$s — %2$d of %3$d change"
 msgid_plural "%1$s — %2$d of %3$d changes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/apply-card.cjs:226
+#: src/renderer/apply-card.cjs:233
 #. %s: a line of code from a file, which is shown in a code font. Keep the %s.
 msgid "Near %s"
 msgstr ""
 
-#: src/renderer/apply-card.cjs:229
+#: src/renderer/apply-card.cjs:236
 #. %d: how many lines of a file are not shown.
 msgid "… %d more line"
 msgid_plural "… %d more lines"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/renderer/apply-card.cjs:235
+#: src/renderer/apply-card.cjs:242
 #. %d: a line number in a patch file.
 msgid "line %d of the patch"
 msgstr ""
@@ -2893,7 +2917,15 @@ msgstr ""
 msgid "A command is already running. Press %s to stop it."
 msgstr ""
 
-#: src/renderer/hooks/use-site-terminal.jsx:354
+#: src/renderer/hooks/use-site-terminal.jsx:346
+msgid "Terminal input"
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:347
+msgid "Too much output to announce, navigate to rows manually to read"
+msgstr ""
+
+#: src/renderer/hooks/use-site-terminal.jsx:359
 msgid "WordPress npm helper terminal."
 msgstr ""
 
@@ -5013,6 +5045,12 @@ msgstr ""
 
 #: src/wporg-handle.cjs:85
 msgid "Enter your WordPress.org username."
+msgstr ""
+
+#: src/renderer/apply-card.cjs:197
+#. %s: a sentence that did not end in a full stop. Use the mark your language ends a sentence with, or none.
+msgctxt "ends a sentence that lacks a full stop"
+msgid "%s."
 msgstr ""
 
 #: src/renderer/confirmations.cjs:209
