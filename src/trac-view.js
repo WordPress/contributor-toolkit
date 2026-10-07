@@ -96,8 +96,8 @@ async function openAndScrape(ticketId, deps = {}) {
 		height: 800,
 		show: false,
 		title: `Trac #${id}`,
-		// In the app's theme (#560) for the moment it is shown before Trac
-		// has painted; Trac's own page is Trac's.
+		// In the app's theme (#560), so the frame is not white where Trac's
+		// page does not paint; Trac's own page is Trac's.
 		backgroundColor: windowBackground(nativeTheme.shouldUseDarkColors),
 		webPreferences: {
 			contextIsolation: true,

@@ -1534,10 +1534,10 @@ test('a tree whose only change is binary still reports no changes (#85)', async 
 // is the handler's first step (#308), and a directory that is not a
 // repository now stops there with "the base could not be read" instead of
 // reaching the patch path this test is about.
-test('git:save-patch generates the patch the same way as git:get-patch', async (t) => {
+test('git:save-patch goes through the patch path, from its first read', async (t) => {
 	const dir = await fixtureRepo(t);
 	// Throwing ends the handler at its first read, the base the walk
-	// compares against, the same one for both channels.
+	// compares against: reached, the handler is on the shared path.
 	const resolveRef = spy(async () => { throw new Error('not a repository'); });
 	const main = loadMain({ stubs: { ...silentLogging(), './git-read.cjs': { resolveRef } } });
 
@@ -1995,7 +1995,7 @@ test('the ready path makes a light window light, and a store that cannot be read
 });
 
 // The menu's Settings… reaches the main window and brings it forward, and
-// not whichever window Electron lists first: a patch window is one too.
+// not whichever window Electron lists first: the Trac window is one too.
 async function menuBuilt(main) {
 	for (let turn = 0; turn < 50 && main.calls.applicationMenu.length === 0; turn++) {
 		await new Promise((resolve) => setImmediate(resolve));
@@ -2018,7 +2018,7 @@ test('the menu\'s Settings… opens the dialog in the main window, listed first 
 	mainWindow.restore = () => brought.push('restore');
 	mainWindow.show = () => brought.push('show');
 	mainWindow.focus = () => brought.push('focus');
-	// A patch window, and Electron lists it first.
+	// The Trac window, and Electron lists it first.
 	const patch = new main.electron.BrowserWindow({});
 	main.windows.reverse();
 

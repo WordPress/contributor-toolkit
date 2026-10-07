@@ -582,7 +582,7 @@ function createWindow() {
 
 // The menu's "Settings…" (#559): the main window opens the dialog, and is
 // brought forward first, as it is for a deep link: the item can be pressed
-// with the window minimised or behind a patch window. On macOS the menu is
+// with the window minimised or behind the Trac window. On macOS the menu is
 // there with no window, and the item then only opens one: the page it loads
 // has not subscribed yet, and a request sent into it would be lost. Pressed
 // again once the window is there, it opens the dialog.

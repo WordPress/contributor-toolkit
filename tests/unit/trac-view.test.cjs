@@ -53,9 +53,9 @@ test('openAndScrape: a navigation that never finishes still reaches the ready ti
 	assert.equal(destroyed, true, 'the hidden Trac window is cleaned up after timing out');
 });
 
-// The window is shown when Trac's check needs a click, and until Trac has
-// painted it is the colour it was made with: the app's theme (#560), not
-// white on a dark desktop.
+// The window is shown when Trac's check needs a click, and where Trac's page
+// does not paint it is the colour it was made with: the app's theme (#560),
+// not white on a dark desktop. A deadline already passed skips the poll.
 test('openAndScrape: the Trac window is made in the colour of the app\'s theme', async () => {
 	const { DARK_BACKGROUND, LIGHT_BACKGROUND } = require('../../src/theme.cjs');
 	for (const [dark, colour] of [[true, DARK_BACKGROUND], [false, LIGHT_BACKGROUND]]) {
@@ -81,7 +81,7 @@ test('openAndScrape: the Trac window is made in the colour of the app\'s theme',
 		};
 		const { openAndScrape } = loadTracView(electron);
 
-		await openAndScrape(56320, { readyTimeoutMs: 5 });
+		await openAndScrape(56320, { readyTimeoutMs: 0 });
 
 		assert.equal(made.length, 1);
 		assert.equal(made[0].backgroundColor, colour, `dark: ${dark}`);
