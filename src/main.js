@@ -822,20 +822,6 @@ if (!gotSingleInstanceLock) {
 		receiveDeepLink(url);
 	});
 }
-function buildPatchHtml(content) {
-    return `<!doctype html><html><head><meta charset="utf-8"/><title>Patch</title>
-    <style>body{font-family:Menlo,monospace;padding:12px;} pre{white-space:pre-wrap;background:#111;color:#eee;padding:12px;border-radius:6px;height:85vh;overflow:auto} .bar{position:sticky;top:0;background:#fff;padding:8px 0} button{padding:6px 10px}</style>
-    </head><body>
-    <div class="bar"><button id="copy">Copy</button></div>
-    <pre id="pre"></pre>
-    <script>
-    const pre=document.getElementById('pre');
-    pre.textContent = ${JSON.stringify(content)};
-    document.getElementById('copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(pre.textContent); } catch {} });
-    </script>
-    </body></html>`;
-}
-
 // What this checkout has that its copy of trunk does not: one walk, read by
 // both destinations that need it.
 //
@@ -1107,19 +1093,6 @@ ipcMain.handle('git:get-patch', async (_e, sitePath) => {
         const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
         return { ok: true, patch };
     } catch (e) {
-        return { ok: false, error: String(e) };
-    }
-});
-
-ipcMain.handle('git:create-patch', async (_e, sitePath) => {
-    try {
-        const patch = await createMinimalPatchForDir(sitePath, await patchBaseOid(sitePath));
-        const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
-        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml(patch)));
-        return { ok: true };
-    } catch (e) {
-        const win = new BrowserWindow({ width: 900, height: 700, webPreferences: { contextIsolation: true, nodeIntegration: false } });
-        win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(buildPatchHtml('Failed to generate diff: ' + String(e))));
         return { ok: false, error: String(e) };
     }
 });

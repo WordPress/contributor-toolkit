@@ -44,7 +44,6 @@ const EXPECTED_API_KEYS = [
 	'choosePatchFile',
 	'clearEmails',
 	'clearWpDebug',
-	'createPatchWindow',
 	'deepLinkReady',
 	'deleteBranch',
 	'deleteSite',
