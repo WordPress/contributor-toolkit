@@ -88,7 +88,7 @@ const { LEGACY_SITE_ERROR } = require('./renderer/legacy-site.cjs');
 const { resolveCatalog, languageChoices } = require('./i18n.cjs');
 const { isPseudoLocale } = require('./renderer/pseudo-locale.cjs');
 const { applyLocale } = require('./renderer/locale-setup.cjs');
-const { __, setLocaleData } = require('@wordpress/i18n');
+const { __, _n, sprintf, setLocaleData } = require('@wordpress/i18n');
 const { addFilter } = require('@wordpress/hooks');
 const { mergeInProgressError, mergeCheckFailedError } = require('./renderer/merge-in-progress.cjs');
 const { parseHandle } = require('./wporg-handle.cjs');
@@ -2075,7 +2075,8 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             branchBefore = active.ref;
             ticketBefore = branchBefore === TRUNK ? null : ticketIdFromRef(branchBefore);
             if (branchBefore !== TRUNK) {
-                sendLog(`Parking your work on ${branchBefore} before updating…\n`);
+                // translators: %s: the branch the contributor's work is on, such as ticket/59234.
+                sendLog(`${sprintf(__('Parking your work on %s before updating…'), branchBefore)}\n`);
                 // The same progress the ticket panel shows (#173), but into the
                 // terminal this flow already streams to rather than onto the
                 // switch channel: one operation with two progress surfaces is
@@ -2160,7 +2161,8 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
             // onto the new trunk is `branches:rebase`, offered by the ticket
             // card's notice — the app never silently rebases anyone.
             if (branchBefore !== TRUNK) {
-                sendLog(`\nReturning to your work on ${branchBefore}…\n`);
+                // translators: %s: the branch the contributor's work is on, such as ticket/59234.
+                sendLog(`\n${sprintf(__('Returning to your work on %s…'), branchBefore)}\n`);
                 const returnLog = updateSwitchLogger(sendLog);
                 try {
                     await withSwitchMarker(sitePath, () => switchToBranch(sitePath, branchBefore, { onProgress: returnLog.emit, onChild: trackGitChild(sitePath) }));
@@ -2199,7 +2201,18 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
                 // so. Neither is a case of writing where nobody will read.
                 try { await writeWorkMeta(sitePath, patch); } catch {}
             }
-            sendLog(`\nUpdate failed during ${stage}: ${String(e && e.message ? e.message : e)}\n`);
+            // One sentence per stage, which is a code: the fetch, or the
+            // checkout that follows it.
+            const why = String(e && e.message ? e.message : e);
+            let failed;
+            if (stage === 'checkout') {
+                // translators: %s: the error the checkout failed with.
+                failed = sprintf(__('Update failed during checkout: %s'), why);
+            } else {
+                // translators: %s: the error the fetch failed with.
+                failed = sprintf(__('Update failed during fetch: %s'), why);
+            }
+            sendLog(`\n${failed}\n`);
             // The ticket was parked and the site left on trunk before this went
             // wrong. Saying so is the whole difference between "my work is gone"
             // and "my work is over there": the registry must not keep naming a
@@ -2209,9 +2222,15 @@ ipcMain.handle('git:update-trunk', async (event, sitePath) => {
                 const { ref: nowOn } = await activeBranch(sitePath);
                 if (nowOn === TRUNK && branchBefore !== TRUNK) {
                     await mergeSiteMeta(sitePath, { currentBranch: TRUNK, tracTicket: null });
-                    sendLog(ticketBefore !== null
-                        ? `Your work on #${ticketBefore} is safe — it is committed on ${branchBefore}. Link that ticket again to return to it.\n`
-                        : `Your work is safe — it is committed on ${branchBefore}. Apply that pull request again to return to it.\n`);
+                    let safe;
+                    if (ticketBefore !== null) {
+                        // translators: 1: the ticket's number. 2: the branch the work is committed on, such as ticket/59234.
+                        safe = sprintf(__('Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.'), ticketBefore, branchBefore);
+                    } else {
+                        // translators: %s: the branch the work is committed on, such as pr/7701.
+                        safe = sprintf(__('Your work is safe — it is committed on %s. Apply that pull request again to return to it.'), branchBefore);
+                    }
+                    sendLog(`${safe}\n`);
                 }
             } catch {}
             sendDone({ ok: false, upToDate: false, error: String(e), stage, parkedOn: branchBefore === TRUNK ? null : branchBefore });
@@ -2327,7 +2346,7 @@ ipcMain.handle('git:checkout-pr', (event, sitePath, value) => streamPrOperation(
         else if (localCopy) destination = branchState.tip;
         else if (recorded.headOid === headOid) destination = await resolveRef(sitePath, ref) || headOid;
         const needsInstall = await prNeedsInstall(sitePath, destination);
-        sendLog(localCopy ? 'Returning to your saved copy of the pull request…\n' : "Downloading the pull request's files and switching to its branch…\n");
+        sendLog(`${localCopy ? __('Returning to your saved copy of the pull request…') : __('Downloading the pull request\'s files and switching to its branch…')}\n`);
         let switchOperation = () => checkoutPullRequest(sitePath, number, { headOid, recordedHeadOid: recorded.headOid, fromBaseOid: active.meta?.baseOid, onProgress, onChild });
         if (resume) switchOperation = () => resumeSwitch(sitePath, ref, { onProgress, onChild });
         else if (localCopy) switchOperation = () => switchToBranch(sitePath, ref, { baseOid: active.meta?.baseOid, onProgress, onChild });
@@ -2340,7 +2359,10 @@ ipcMain.handle('git:checkout-pr', (event, sitePath, value) => streamPrOperation(
         // it now is what makes the next attempt ours rather than a foreign PR.
         if (e.created || e.moved) await recordPrHead(sitePath, ref, number, e.headOid, returnTo);
         logError('git:checkout-pr', String(e.stack || e));
-        if (e.cleanupError) sendLog(`Could not remove the unused branch: ${e.cleanupError.message}\n`);
+        if (e.cleanupError) {
+            // translators: %s: the error Git gave.
+            sendLog(`${sprintf(__('Could not remove the unused branch: %s'), e.cleanupError.message)}\n`);
+        }
         return { ok: false, number, code: e.code, error: e.message, ...(e.code === 'dirty-trunk' ? { files: await countChangesAgainst(sitePath) } : {}) };
     }
 }));
@@ -2360,7 +2382,7 @@ ipcMain.handle('git:leave-pr', (event, sitePath) => streamPrOperation(event, sit
     if (blocked) return blocked;
     if (!recorded.headOid) return { ok: false, code: 'no-pr-head' };
     const needsInstall = await prNeedsInstall(sitePath, returnTo);
-    sendLog('Restoring the files of your previous branch…\n');
+    sendLog(`${__('Restoring the files of your previous branch…')}\n`);
     const result = await withSwitchMarker(sitePath, () => resume
         ? resumeSwitch(sitePath, returnTo, { onProgress, onChild })
         : leavePullRequest(sitePath, { returnTo, headOid: recorded.headOid, onProgress, onChild }));
@@ -2602,7 +2624,7 @@ ipcMain.handle('git:apply-patch', async (event, sitePath, options = {}) => {
             } else {
                 const revertable = patchText.length <= REVERTABLE_PATCH_LIMIT;
                 if (!revertable) {
-                    sendLog('This patch is too large to keep for an undo, so Revert will not be offered.\n');
+                    sendLog(`${__('This patch is too large to keep for an undo, so Revert will not be offered.')}\n`);
                 }
                 try {
                     await writeWorkMeta(sitePath, {
@@ -3609,7 +3631,28 @@ ipcMain.handle('dir:show', async (_e, sitePath) => {
 	});
 });
 
-const ENGINE_RETRY_NOTICE = '\n⚠ This site requires a newer Node.js than this app bundles.\n  Retrying with engine checks relaxed…\n\n';
+// What the terminal says when npm has exited but something it started still
+// holds its output: one sentence per platform, and per whether a signal ended
+// it, since Windows lets that process run on and elsewhere it is ended.
+function npmLetGoLine(code, signal) {
+	if (process.platform === 'win32') {
+		if (signal) {
+			// translators: 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
+			return sprintf(__('npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.'), code, signal);
+		}
+		// translators: %s: the code npm exited with.
+		return sprintf(__('npm exited with code %s, but something it started is still running and holding its output. Letting go; that process runs on until it finishes on its own.'), code);
+	}
+	if (signal) {
+		// translators: 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
+		return sprintf(__('npm exited with code %1$s (signal %2$s), but something it started is still running and holding its output. Letting go and ending it.'), code, signal);
+	}
+	// translators: %s: the code npm exited with.
+	return sprintf(__('npm exited with code %s, but something it started is still running and holding its output. Letting go and ending it.'), code);
+}
+
+// A function, so that it is said in the locale applied at startup.
+const engineRetryNotice = () => `\n⚠ ${__('This site requires a newer Node.js than this app bundles.')}\n  ${__('Retrying with engine checks relaxed…')}\n\n`;
 
 // Spawns an npm runner, and if it fails specifically because a dependency
 // demands a newer Node than Electron bundles, retries once with engine checks
@@ -3654,7 +3697,8 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 			logError(logScope, `could not start: ${String(err)}`);
 			if (initial) throw err;
 			logEvent(logScope, 'never started; shims not written');
-			onLog('stderr', `\nFailed to start: ${err && err.message ? err.message : String(err)}\n`);
+			// translators: %s: why npm could not be started.
+			onLog('stderr', `\n${sprintf(__('Failed to start: %s'), err && err.message ? err.message : String(err))}\n`);
 			setTimeout(() => onDone(null), 0);
 			return;
 		}
@@ -3693,7 +3737,11 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 			// Also surfaced in the app's terminal: the log file explains a failure
 			// after the fact, but the person who just clicked the button needs to
 			// see that the run never started.
-			onLog('stderr', `\nFailed to start: ${err && err.message ? err.message : String(err)}\n`);
+			onLog('stderr', `\n${sprintf(
+				// translators: %s: why npm could not be started.
+				__('Failed to start: %s'),
+				err && err.message ? err.message : String(err)
+			)}\n`);
 			// Deferred by a turn so that close — which knows about the engines
 			// retry — wins whenever it does arrive. A spawn failure is the very
 			// case this logging exists to expose, so it must not also become a
@@ -3727,7 +3775,7 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 				if (settled) return;
 				const exit = `code ${code}${signal ? ` (signal ${signal})` : ''}`;
 				logEvent(logScope, `exited with ${exit} but a descendant still holds its output; letting go`);
-				onLog('stderr', `\nnpm exited with ${exit}, but something it started is still running and holding its output. Letting go${process.platform === 'win32' ? '; that process runs on until it finishes on its own' : ' and ending it'}.\n`);
+				onLog('stderr', `\n${npmLetGoLine(code, signal)}\n`);
 				// Group only: the leader is dead (this is its exit), so a group that
 				// is gone too leaves nothing to kill and a pid that may be reissued.
 				if (process.platform !== 'win32') killTreeByPid(child.pid, 'SIGKILL', { groupOnly: true });
@@ -3753,7 +3801,7 @@ function runNpmWithEngineRetry({ runnerPath, args, cwd, onLog, onDone, register,
 				cancelled: cancelledChildren.has(child)
 			});
 			if (retry) {
-				onLog('stdout', ENGINE_RETRY_NOTICE);
+				onLog('stdout', engineRetryNotice());
 				start(true);
 				return;
 			}
@@ -3999,7 +4047,15 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 		// settles on close the same way.
 		if (typeof pendingResolve === 'function') {
 			clearTimeout(timeoutId);
-			pendingResolve({ ok: false, error: `Server exited with code ${code}${signal ? ` (signal ${signal})` : ''} before reporting a URL` });
+			let error;
+			if (signal) {
+				// translators: 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
+				error = sprintf(__('Server exited with code %1$s (signal %2$s) before reporting a URL'), code, signal);
+			} else {
+				// translators: %s: the code the server exited with.
+				error = sprintf(__('Server exited with code %s before reporting a URL'), code);
+			}
+			pendingResolve({ ok: false, error });
 			pendingResolve = null;
 		}
 		event.sender.send('playground:stopped', { sitePath, code });
@@ -4025,7 +4081,9 @@ ipcMain.handle('playground:start', async (event, sitePath) => {
 				// The tree, not the runner alone: a server that hung on the way up
 				// still has its worker underneath it.
 				killChildTree(child);
-				pendingResolve({ ok: false, error: `Server did not start within ${START_TIMEOUT_MS / 1000} seconds` });
+				const seconds = START_TIMEOUT_MS / 1000;
+				// translators: %d: how many seconds the server was given to start.
+				pendingResolve({ ok: false, error: sprintf(_n('Server did not start within %d second', 'Server did not start within %d seconds', seconds), seconds) });
 				pendingResolve = null;
 			}
 		}, START_TIMEOUT_MS);

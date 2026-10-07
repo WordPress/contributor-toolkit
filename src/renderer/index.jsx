@@ -6,6 +6,7 @@ import {
   SlotFillProvider
 } from '@wordpress/components';
 import { Page } from '@wordpress/admin-ui';
+import { createInterpolateElement } from '@wordpress/element';
 import { __, _n, _x, sprintf, setLocaleData } from '@wordpress/i18n';
 import { addFilter } from '@wordpress/hooks';
 import { drawerLeft, globe } from '@wordpress/icons';
@@ -48,7 +49,7 @@ import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, DISCARD_CONFIRM_MESSAGE } from './changes-note.cjs';
 import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
-import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage } from './confirmations.cjs';
+import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage, copyButtonLabel, setupStatusLine, setupEndMessage } from './confirmations.cjs';
 import { ReasonedUiButton } from './components/reasoned-button.jsx';
 import { DiscardChangesLink } from './components/discard-changes-link.jsx';
 import { LogText } from './components/log-text.jsx';
@@ -100,14 +101,6 @@ import { useSiteTicket } from './hooks/use-site-ticket.jsx';
 import { useApplyPatch } from './hooks/use-apply-patch.jsx';
 import { ConfirmationContext, useConfirmation } from './hooks/use-confirmation.jsx';
 
-// What the Copy button says about the press just made. Keyed rather than
-// nested ternaries, so a fourth state is a line here instead of another branch
-// in the middle of the JSX.
-const COPY_BUTTON_LABELS = {
-  idle: 'Copy',
-  copied: 'Copied',
-  failed: 'Could not copy'
-};
 
 // A notice that is on the page as the page is drawn, or that already says
 // itself through its role, is told to say nothing of its own: left to, it
@@ -302,11 +295,10 @@ function App({ settingsState }) {
       if (s.target && s.phase !== 'done') addPendingSite(s.target);
       const key = s.sitePath || s.target;
       if (key) {
-        const phaseLabel = s.phase ? `Status: ${s.phase}` : 'Status update';
-        appendSetupLog(key, `${phaseLabel}\n`);
-        if (s.phase === 'done') appendSetupLog(key, 'Setup finished.\n');
+        appendSetupLog(key, `${setupStatusLine(s.phase)}\n`);
+        if (s.phase === 'done') appendSetupLog(key, `${__('Setup finished.')}\n`);
       }
-      if (s.phase === 'cloning') setDownloadPhase('Cloning repository…');
+      if (s.phase === 'cloning') setDownloadPhase(__('Cloning repository…'));
       else if (s.phase === 'done') { setDownloadPhase(''); clearPendingSites(); setTerminalMsgs(''); }
     });
     return () => { if (unsubProg) unsubProg(); if (unsubStat) unsubStat(); };
@@ -395,7 +387,7 @@ function App({ settingsState }) {
       setCreateSubmitting(true);
       setTerminalMsgs('');
       addPendingSite(targetDir);
-      appendSetupLog(targetDir, 'Starting site setup…\n');
+      appendSetupLog(targetDir, `${__('Starting site setup…')}\n`);
       const createdPath = await window.api.setupWordPress(createSiteDir, { siteName: cleanFolder, siteLabel: nameTrimmed, projectType: chosenType });
       if (createdPath) {
         finalSitePath = createdPath;
@@ -413,7 +405,7 @@ function App({ settingsState }) {
       }
       await refresh();
       setActiveSite(finalSitePath);
-      appendSetupLog(finalSitePath, 'Site setup request completed.\n');
+      appendSetupLog(finalSitePath, `${__('Site setup request completed.')}\n`);
     } catch (e) {
       // Whatever the row is *now*, which is not necessarily what it started as:
       // once the clone reports its directory the guess no longer exists, and
@@ -423,7 +415,8 @@ function App({ settingsState }) {
       // that asked for the site closed minutes ago, and the row that showed
       // the setup is about to go.
       confirm(setupFailureMessage(e), { tone: 'error' });
-      appendSetupLog(rowPath, `Setup failed: ${String(e)}\n`);
+      // translators: %s: the error setup failed with.
+      appendSetupLog(rowPath, `${sprintf(__('Setup failed: %s'), String(e))}\n`);
       applySetup((state) => discardSetup(state, rowPath));
     } finally {
       setupRowPathRef.current = null;
@@ -1179,7 +1172,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // terminal. The line is printed there and nowhere else, so the terminal is
   // brought up with it: a refusal nobody sees is a button that did nothing.
   const refuseInTerminal = useCallback(() => {
-    writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+    // translators: %s: the keys that stop a command, Ctrl+C.
+    writeToTerminal(`${sprintf(__('A command is already running. Press %s to stop it.'), 'Ctrl+C')}\n`);
     revealTerminal();
   }, [revealTerminal, writeToTerminal]);
   // The scroll root for the next-action cue (#252): the whole detail section, so
@@ -1190,22 +1184,26 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // notice goes away here rather than lingering over work already resumed.
   const runInstallWithTerminal = useCallback(() => {
     setSetupChainEnd(null);
-    writeToTerminal('Running npm install…\n');
+    // translators: %s: the command being run, such as npm install.
+    writeToTerminal(`${sprintf(__('Running %s…'), 'npm install')}\n`);
     runInstall({
       onLog: (chunk) => writeToTerminal(chunk),
       onDone: ({ code }) => {
-        writeToTerminal(`npm install exited with code ${code}\n`);
+        // translators: 1: the command that ended, such as npm install. 2: the code it exited with, a number.
+        writeToTerminal(`${sprintf(__('%1$s exited with code %2$s'), 'npm install', code)}\n`);
       }
     });
   }, [runInstall, writeToTerminal]);
 
   const runBuildWithTerminal = useCallback(() => {
     setSetupChainEnd(null);
-    writeToTerminal('Running npm run build…\n');
+    // translators: %s: the command being run, such as npm run build.
+    writeToTerminal(`${sprintf(__('Running %s…'), 'npm run build')}\n`);
     runScript('build', {
       onLog: (chunk) => writeToTerminal(chunk),
       onDone: ({ code }) => {
-        writeToTerminal(`npm run build exited with code ${code}\n`);
+        // translators: 1: the command that ended, such as npm run build. 2: the code it exited with, a number.
+        writeToTerminal(`${sprintf(__('%1$s exited with code %2$s'), 'npm run build', code)}\n`);
       }
     });
   }, [runScript, writeToTerminal]);
@@ -1240,9 +1238,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // contributor is not looking at: a notice landing while they read the server
   // output is the case this panel exists for.
   const logTabs = useMemo(() => ([
-    { name: 'runtime', title: 'Server' },
+    { name: 'runtime', title: __('Server') },
     { name: 'watch', title: watchTabLabel(watchState, watchExitCode, watchCompiling) },
-    { name: 'debug', title: logs.debugUnread ? `Debug.log (${logs.debugUnread})` : 'Debug.log' }
+    // translators: %d: how many lines have arrived in WordPress's debug.log since it was last looked at.
+    { name: 'debug', title: logs.debugUnread ? sprintf(__('Debug.log (%d)'), logs.debugUnread) : __('Debug.log') }
   ]), [logs.debugUnread, watchState, watchExitCode, watchCompiling]);
 
   // The dev server (#554): its state, its guards and its one button. It is
@@ -1541,25 +1540,20 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // between them. Every one of them ends by naming where the rest of the work
   // now lives, because the chain going quiet is otherwise indistinguishable
   // from the app having forgotten about the site.
-  const SETUP_END_MESSAGES = {
-    done: '\nSetup complete — start the dev server when you are ready.\n',
-    stopped: '\nSetup stopped. The remaining steps are in the checklist above — run them whenever you are ready.\n',
-    'failed-install': '\nnpm install failed — setup stopped here. Its output is above; retry the install from the checklist.\n',
-    'failed-build': '\nThe build failed — dependencies are installed. Its output is above; retry the build from the checklist.\n'
-  };
 
   const finishSetupChain = (outcome) => {
     markTerminalRunning(false);
     terminalKillRef.current = null;
     setSetupChainState('idle');
     setSetupChainEnd(outcome);
-    writeToTerminal(SETUP_END_MESSAGES[outcome] || '');
+    const ended = setupEndMessage(outcome);
+    if (ended) writeToTerminal(`\n${ended}\n`);
     if (outcome === 'done') confirm(__('This site is ready to work on'));
   };
 
   const stopSetupChain = () => {
     setupStoppedRef.current = true;
-    writeToTerminal('\nStopping setup…\n');
+    writeToTerminal(`\n${__('Stopping setup…')}\n`);
     killCurrent().catch(() => {});
   };
 
@@ -1571,7 +1565,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     markTerminalRunning(true);
     terminalKillRef.current = () => { stopSetupChain(); };
     setSetupChainState('installing');
-    writeToTerminal('\nSetting this site up — running npm install…\n');
+    // translators: %s: the command that installs dependencies, npm install.
+    writeToTerminal(`\n${sprintf(__('Setting this site up — running %s…'), 'npm install')}\n`);
     runInstall({
       onLog: (chunk) => writeToTerminal(chunk),
       onDone: ({ code }) => {
@@ -1591,7 +1586,8 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           return;
         }
         setSetupChainState('building');
-        writeToTerminal('\nRunning npm run build…\n');
+        // translators: %s: the command being run, such as npm run build.
+        writeToTerminal(`\n${sprintf(__('Running %s…'), 'npm run build')}\n`);
         runScript('build', {
           onLog: (chunk) => writeToTerminal(chunk),
           onDone: ({ code: buildCode }) => {
@@ -1720,7 +1716,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       setApplyError(feedback.applyError);
       setApplyConflict(feedback.applyConflict);
       setApplyNotice(feedback.applyNotice);
-      writeToTerminal('\nDiscarded local changes.\n');
+      writeToTerminal(`\n${__('Discarded local changes.')}\n`);
       confirm(__('All changes discarded.'));
       if (isPatchOpen) await loadPatchText();
     } finally {
@@ -2036,12 +2032,24 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             <Stack direction="column" gap="xs" className="tray-notes">
               {showTerminalHints ? (
                 <>
-                  <Text variant="body-sm" className="muted-label">Edited files in <code>{project.cards.sourceDir}</code>? Run <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> so the site picks them up.</Text>
-                  <Text variant="body-sm" className="muted-label">Added a dependency to <code>package.json</code>? Run <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} />.</Text>
+                  <Text variant="body-sm" className="muted-label">{createInterpolateElement(
+                    // translators: <folder /> is the folder the project's source is in, such as src/. <command /> is the command that builds it, npm run build, which types it into the terminal when clicked.
+                    __('Edited files in <code><folder /></code>? Run <command /> so the site picks them up.'),
+                    { code: <code />, folder: <>{project.cards.sourceDir}</>, command: <TerminalCommandLink command="npm run build" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> }
+                  )}</Text>
+                  <Text variant="body-sm" className="muted-label">{createInterpolateElement(
+                    // translators: <file /> is the file dependencies are listed in, package.json. <command /> is the command that installs them, npm install, which types it into the terminal when clicked.
+                    __('Added a dependency to <code><file /></code>? Run <command />.'),
+                    { code: <code />, file: <>package.json</>, command: <TerminalCommandLink command="npm install" onPrefill={prefillTerminalCommand} disabled={terminalBusy} /> }
+                  )}</Text>
                 </>
               ) : null}
               <Text variant="body-sm" className="muted-label">
-                Type <code>help</code> to list supported commands. Press <code>Ctrl+C</code> to stop the current command.
+                {createInterpolateElement(
+                  // translators: <command /> is the command that lists the others, help. <keys /> is the keys that stop a command, Ctrl+C.
+                  __('Type <code><command /></code> to list supported commands. Press <code><keys /></code> to stop the current command.'),
+                  { code: <code />, command: <>help</>, keys: <>Ctrl+C</> }
+                )}
               </Text>
             </Stack>
           </div>
@@ -2049,7 +2057,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             hidden={tray !== 'logs'}
             tabs={logTabs}
             logs={logs}
-            copyLabel={COPY_BUTTON_LABELS[logs.debugCopied] || COPY_BUTTON_LABELS.idle}
+            copyLabel={copyButtonLabel(logs.debugCopied)}
           />
           <MailPanel hidden={tray !== 'email'} mail={mail} />
         </div>
@@ -2386,7 +2394,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
               patchLoadFailed={patchLoadFailed}
               patchSaved={patchSaved}
               patchSaveError={patchSaveError}
-              copyLabel={COPY_BUTTON_LABELS[patchCopied] || COPY_BUTTON_LABELS.idle}
+              copyLabel={copyButtonLabel(patchCopied)}
               copied={patchCopied === 'copied'}
               discardReason={modalDiscardReason}
               discardError={discardError}
