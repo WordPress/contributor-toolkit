@@ -20,7 +20,7 @@ const { test, expect } = require( '../helpers/app.cjs' );
 const ui = require( '../helpers/ui.cjs' );
 const { makeSite } = require( '../helpers/git-site.cjs' );
 const { pseudoLocalize } = require( '../../../src/renderer/pseudo-locale.cjs' );
-const { DARK_BACKGROUND, LIGHT_BACKGROUND } = require( '../../../src/theme.cjs' );
+const { DARK_BACKGROUND, LIGHT_BACKGROUND, PRIMARY } = require( '../../../src/theme.cjs' );
 
 const openFromMenu = ( app ) => app.evaluate( ( { Menu } ) => Menu.getApplicationMenu().getMenuItemById( 'settings' ).click() );
 
@@ -327,4 +327,75 @@ test( 'the theme set in the settings is the one the window is painted in, and a 
 	await expect.poll( () => prefersDark( again.page ) ).toBe( true );
 	await ui.settingsButton( again.page ).click();
 	await expect( ui.settingsDialog( again.page ).getByRole( 'radio', { name: 'Dark', exact: true } ) ).toBeChecked();
+} );
+
+test( 'a custom theme is built from the two colours chosen, is kept, and a colour that is not one is refused (#560)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings, { colorScheme: null } );
+	const themeSource = () => app.evaluate( ( { nativeTheme } ) => nativeTheme.themeSource );
+	const windowColour = ( electronApp ) => electronApp.evaluate( ( { BrowserWindow } ) => BrowserWindow.getAllWindows()[ 0 ].getBackgroundColor().toLowerCase() );
+	const bodyColour = ( window ) => window.evaluate( () => window.getComputedStyle( document.body ).backgroundColor );
+	const tokenColour = ( token ) => ui.tokenColour( page, token );
+	const stored = ( key ) => session.readSettings().preferences?.[ key ];
+
+	await ui.settingsButton( page ).click();
+	const dialog = ui.settingsDialog( page );
+	const themes = dialog.getByRole( 'radiogroup', { name: 'Theme', exact: true } );
+	const background = dialog.getByLabel( 'Background', { exact: true } );
+	const primary = dialog.getByLabel( 'Primary', { exact: true } );
+
+	// INVARIANT — the colours are asked for under Custom alone, and start as
+	// the light theme's.
+	await expect( background ).toHaveCount( 0 );
+	await themes.getByRole( 'radio', { name: 'Custom', exact: true } ).click();
+	await expect.poll( () => stored( 'theme' ) ).toBe( 'custom' );
+	await expect( background ).toHaveValue( LIGHT_BACKGROUND );
+	await expect( primary ).toHaveValue( PRIMARY );
+	await expect( dialog.getByLabel( 'Background colour picker', { exact: true } ) ).toHaveValue( LIGHT_BACKGROUND );
+
+	// INVARIANT — a dark background typed and entered is kept as the settings
+	// keep a colour, Electron is told the scheme it comes to, and the page
+	// and the window are painted in it at once.
+	await background.fill( '#102030' );
+	await background.press( 'Enter' );
+	await expect.poll( () => stored( 'customBackground' ) ).toBe( '#102030' );
+	await expect.poll( themeSource ).toBe( 'dark' );
+	await expect.poll( () => bodyColour( page ) ).toBe( 'rgb(16, 32, 48)' );
+	expect( await bodyColour( page ) ).toBe( await tokenColour( 'var(--wpds-color-background-surface-neutral)' ) );
+	await expect.poll( () => windowColour( app ) ).toBe( '#102030' );
+
+	// INVARIANT — the primary colour, in three digits, is kept in six, and
+	// the field shows it as kept; the brand surface is built from it.
+	await primary.fill( 'F80' );
+	await primary.press( 'Tab' );
+	await expect.poll( () => stored( 'customPrimary' ) ).toBe( '#ff8800' );
+	await expect( primary ).toHaveValue( '#ff8800' );
+	await expect.poll( () => tokenColour( 'var(--wpds-color-background-interactive-brand-strong)' ) ).toBe( 'rgb(255, 136, 0)' );
+
+	// INVARIANT — a colour that is not one is refused in main's words, and
+	// what is kept stays, in the store and in the field.
+	await background.fill( 'navy' );
+	await background.press( 'Enter' );
+	await expect( dialog.getByRole( 'alert' ) ).toHaveText( 'Choose a colour as six hex digits, like #3858e9.' );
+	await expect( background ).toHaveValue( '#102030' );
+	expect( stored( 'customBackground' ) ).toBe( '#102030' );
+
+	// INVARIANT — a light background makes a light theme again, with the
+	// native controls to match.
+	await background.fill( '#fff8e1' );
+	await background.press( 'Enter' );
+	await expect.poll( themeSource ).toBe( 'light' );
+	await expect.poll( () => bodyColour( page ) ).toBe( 'rgb(255, 248, 225)' );
+
+	// INVARIANT — started again, the theme is the custom one, the window is
+	// made in its background, and the fields show the colours kept.
+	const again = await session.restart();
+	expect( await again.app.evaluate( ( { nativeTheme } ) => nativeTheme.themeSource ) ).toBe( 'light' );
+	expect( await windowColour( again.app ) ).toBe( '#fff8e1' );
+	await expect.poll( () => bodyColour( again.page ) ).toBe( 'rgb(255, 248, 225)' );
+	await ui.settingsButton( again.page ).click();
+	const kept = ui.settingsDialog( again.page );
+	await expect( kept.getByRole( 'radio', { name: 'Custom', exact: true } ) ).toBeChecked();
+	await expect( kept.getByLabel( 'Background', { exact: true } ) ).toHaveValue( '#fff8e1' );
+	await expect( kept.getByLabel( 'Primary', { exact: true } ) ).toHaveValue( '#ff8800' );
 } );

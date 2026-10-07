@@ -1,17 +1,18 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { ThemeProvider } from '@wordpress/theme';
-import { themeColorSeeds } from '../../theme.cjs';
+import { resolveTheme } from '../../theme.cjs';
 
 // What Chromium says of the window's colour scheme. It says it from the theme
 // main gave Electron (#560), or from the operating system under 'system', so
-// this is the one thing the window reads: not the setting, which would be a
-// second answer to the same question.
+// the scheme is read here and not decided again from the setting: for the
+// three named themes it is the answer, and for a custom one the setting's
+// colours are what is painted, in the scheme main decided from them.
 const DARK_SCHEME = '(prefers-color-scheme: dark)';
 
-// Whether the window is in the dark scheme, for whatever paints with values
-// rather than with a stylesheet (the terminal) and so has to be told when it
-// changes.
-const DarkSchemeContext = createContext(false);
+// The theme as painted, for whatever paints with values rather than with a
+// stylesheet (the terminal) and so has to be told when it changes: a name
+// that changes with it, and what the design system said of the colours.
+const ThemeContext = createContext({ key: 'light', warnings: [] });
 
 function usePrefersDark() {
   const [dark, setDark] = useState(() => window.matchMedia(DARK_SCHEME).matches);
@@ -30,18 +31,42 @@ function usePrefersDark() {
 // it overrides on the document rather than on its own wrapper, which is what
 // reaches a modal or a popover: those are portalled to `body`, outside this
 // tree. In the light scheme it is given no colour, so the tokens stylesheet's
-// values stand as they ship; in the dark scheme it is given the dark seed and
-// builds every colour token from it, for its own components, for the older
-// ones through the variables they read, and for the app's own styles.
-export function AppTheme({ children }) {
-  const dark = usePrefersDark();
+// values stand as they ship; in the dark scheme it is given the dark seed, and
+// under a custom theme the two colours chosen, and builds every colour token
+// from them, for its own components, for the older ones through the variables
+// they read, and for the app's own styles.
+//
+// `settings` is what main holds, or null until it has answered: until then
+// the window is painted for the scheme alone, which for a custom theme is
+// the standard theme of its scheme for the moment before the colours arrive.
+export function AppTheme({ settings, children }) {
+  const prefersDark = usePrefersDark();
+  const [warnings, setWarnings] = useState([]);
+  let theme = prefersDark ? 'dark' : 'light';
+  if (settings) theme = settings.theme;
+  const customBackground = settings ? settings.customBackground : undefined;
+  const customPrimary = settings ? settings.customPrimary : undefined;
+  const resolved = useMemo(
+    () => resolveTheme({ theme, customBackground, customPrimary, systemDark: prefersDark }),
+    [theme, customBackground, customPrimary, prefersDark]
+  );
+  const value = useMemo(() => ({ key: resolved.key, warnings }), [resolved.key, warnings]);
   return (
-    <DarkSchemeContext.Provider value={dark}>
-      <ThemeProvider isRoot color={themeColorSeeds(dark)}>{children}</ThemeProvider>
-    </DarkSchemeContext.Provider>
+    <ThemeContext.Provider value={value}>
+      <ThemeProvider isRoot color={resolved.seeds} onColorWarnings={setWarnings}>{children}</ThemeProvider>
+    </ThemeContext.Provider>
   );
 }
 
-export function useDarkScheme() {
-  return useContext(DarkSchemeContext);
+// A name for the theme as painted, which changes whenever what is painted
+// does.
+export function useThemeKey() {
+  return useContext(ThemeContext).key;
+}
+
+// What the design system said of the colours it was given: a contrast it
+// could not reach is one, so that a custom theme can say when its text may
+// be hard to read.
+export function useThemeWarnings() {
+  return useContext(ThemeContext).warnings;
 }

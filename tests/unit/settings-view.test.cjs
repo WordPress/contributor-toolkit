@@ -74,11 +74,12 @@ test('the quit control offers stop and restart, and not the prototype\'s leaving
 	assert.ok(quitItems().every((item) => item.label));
 });
 
-test('the theme control offers light, dark and system, in that order, and not the prototype\'s custom colours (#560)', () => {
+test('the theme control offers light, dark, system and custom, in that order (#560)', () => {
 	assert.deepEqual(themeItems(), [
 		{ value: 'light', label: 'Light' },
 		{ value: 'dark', label: 'Dark' },
-		{ value: 'system', label: 'System' }
+		{ value: 'system', label: 'System' },
+		{ value: 'custom', label: 'Custom' }
 	]);
 });
 

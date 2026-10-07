@@ -1,11 +1,12 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 // The segmented control the design has for a choice of a few. The design
 // system has no other, and documents this one under these names: it is
 // stable in use and has not been given its final export yet.
 // eslint-disable-next-line @wordpress/no-unsafe-wp-apis -- see above.
 import { __experimentalToggleGroupControl as ToggleGroupControl, __experimentalToggleGroupControlOption as ToggleGroupControlOption } from '@wordpress/components';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import { Button, Dialog, InputControl, Notice, SelectControl, Stack, SwitchControl, Tabs, Text } from '@wordpress/ui';
+import { useThemeWarnings } from './app-theme.jsx';
 import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, SYSTEM_LANGUAGE } from '../settings-view.cjs';
 import { FolderField } from './folder-field.jsx';
 
@@ -81,16 +82,75 @@ function LanguageControl({ settings, loaded, onChange }) {
   );
 }
 
-// The window's theme (#560): light, dark, or the operating system's. Main
-// gives the choice to Electron, and the window follows what Chromium then
-// says of the colour scheme, so the change is on screen as the control is
-// pressed.
+// One colour of the custom theme (#560): typed as hex, or picked with the
+// system's picker, which is the swatch before the field, showing the colour
+// kept. What is typed is kept when the field is left or Enter is pressed,
+// and main says what it accepts, so a colour that is not one is refused in
+// main's words and the field goes back to what is kept. The picker's choice
+// is kept when the picker is closed, not as it is dragged: each keep is a
+// write to the store, and the field shows the colour under the pointer
+// meanwhile.
+function ColorField({ label, value, disabled, onKeep }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  // A refusal leaves what is kept as it was, so nothing above changes the
+  // draft back: it is put back here.
+  const keep = async (text) => {
+    const result = await onKeep(text);
+    if (!result?.ok) setDraft(value);
+  };
+  const picker = useRef(null);
+  useEffect(() => {
+    const input = picker.current;
+    if (!input) return undefined;
+    const picked = () => keep(input.value);
+    input.addEventListener('change', picked);
+    return () => input.removeEventListener('change', picked);
+  });
+  const commit = () => { if (draft !== value) keep(draft); };
+  return (
+    <InputControl
+      className="color-field"
+      label={label}
+      value={draft}
+      disabled={disabled}
+      spellCheck={false}
+      autoComplete="off"
+      prefix={
+        <input
+          ref={picker}
+          type="color"
+          className="color-swatch"
+          // translators: %s: what the colour is for, "Background" or "Primary".
+          aria-label={sprintf(__('%s colour picker'), label)}
+          value={value}
+          disabled={disabled}
+          onChange={(event) => setDraft(event.currentTarget.value)}
+        />
+      }
+      onChange={(event) => setDraft(event.currentTarget.value)}
+      onBlur={commit}
+      onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit(); } }}
+    />
+  );
+}
+
+// The window's theme (#560): light, dark, the operating system's, or custom,
+// a background and a primary colour of the contributor's own, from which
+// the design system builds every other colour. Main gives the choice to
+// Electron, and the window follows what Chromium then says of the colour
+// scheme and what main holds, so the change is on screen as the control is
+// pressed. Under custom, the design system says when a colour it built
+// cannot be read on another, and the control passes that on.
 function ThemeControl({ settings, onChange }) {
   const [error, setError] = useState('');
-  const keep = async (value) => {
-    const result = await onChange('theme', value);
+  const warnings = useThemeWarnings();
+  const keep = async (key, value) => {
+    const result = await onChange(key, value);
     setError(result?.ok ? '' : (result?.error || __('Could not keep that.')));
+    return result;
   };
+  const custom = settings?.theme === 'custom';
   return (
     <>
       <ToggleGroupControl
@@ -98,15 +158,26 @@ function ThemeControl({ settings, onChange }) {
         __next40pxDefaultSize
         isBlock
         label={__('Theme')}
-        help={__('System follows your operating system’s light or dark setting.')}
+        help={__('System follows your operating system’s light or dark setting. Custom builds the theme from two colours of your own.')}
         value={settings ? settings.theme : undefined}
         disabled={!settings}
-        onChange={(value) => { if (value) keep(value); }}
+        onChange={(value) => { if (value) keep('theme', value); }}
       >
         {themeItems().map((item) => (
           <ToggleGroupControlOption key={item.value} value={item.value} label={item.label} />
         ))}
       </ToggleGroupControl>
+      {custom ? (
+        <div className="theme-colors">
+          <ColorField label={__('Background')} value={settings.customBackground} onKeep={(value) => keep('customBackground', value)} />
+          <ColorField label={__('Primary')} value={settings.customPrimary} onKeep={(value) => keep('customPrimary', value)} />
+        </div>
+      ) : null}
+      {custom && warnings.length ? (
+        <Notice.Root intent="warning" role="status" spokenMessage={SILENT}>
+          <Notice.Description>{__('Some text may be hard to read with these colours. They are kept as they are; choose others if it is.')}</Notice.Description>
+        </Notice.Root>
+      ) : null}
       {error ? (
         <Notice.Root intent="error" role="alert" spokenMessage={SILENT}>
           <Notice.Description>{error}</Notice.Description>

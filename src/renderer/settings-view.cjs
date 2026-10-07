@@ -124,8 +124,9 @@ function quitItems() {
 }
 
 /**
- * The entries of the theme control (#560): light, dark, or the operating
- * system's. The prototype's fourth, a custom pair of colours, is not offered.
+ * The entries of the theme control (#560): light, dark, the operating
+ * system's, or custom, a background and a primary colour of the
+ * contributor's own.
  *
  * @return {Array<{value: string, label: string}>}
  */
@@ -133,7 +134,8 @@ function themeItems() {
 	return [
 		{ value: 'light', label: _x('Light', 'the window’s theme') },
 		{ value: 'dark', label: _x('Dark', 'the window’s theme') },
-		{ value: 'system', label: _x('System', 'the window’s theme: the operating system’s') }
+		{ value: 'system', label: _x('System', 'the window’s theme: the operating system’s') },
+		{ value: 'custom', label: _x('Custom', 'the window’s theme: two colours of one’s own') }
 	];
 }
 

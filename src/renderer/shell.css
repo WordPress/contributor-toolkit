@@ -1307,6 +1307,48 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* The custom theme's two colours (#560), side by side, each typed as hex in
+   the terminal's type after a swatch of the colour kept. The swatch is the
+   system's colour input itself, which draws the colour it holds, with the
+   browser's padding and border around that colour taken off so it fills
+   the swatch; pressing it opens the picker. */
+.theme-colors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--wpds-dimension-gap-xl);
+}
+
+.theme-colors > * {
+  min-width: 0;
+}
+
+.color-field input[type="text"] {
+  font-family: var(--wpds-typography-font-family-mono);
+}
+
+.color-swatch {
+  display: block;
+  box-sizing: border-box;
+  width: var(--wpds-dimension-size-sm);
+  height: var(--wpds-dimension-size-sm);
+  margin-inline-start: var(--wpds-dimension-gap-xs);
+  padding: 0;
+  overflow: hidden;
+  border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-sm);
+  background: none;
+  cursor: pointer;
+}
+
+.color-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-swatch::-webkit-color-swatch {
+  border: 0;
+  border-radius: 0;
+}
+
 /* The settings dialog (#559): its tabs under its title, and each tab's
    sections one under another. */
 .settings-dialog .settings-panel {
