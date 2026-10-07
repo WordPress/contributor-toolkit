@@ -18,7 +18,8 @@
  * engine (#11), which defends against path traversal.
  */
 
-const { BrowserWindow, session } = require('electron');
+const { BrowserWindow, nativeTheme, session } = require('electron');
+const { windowBackground } = require('./theme.cjs');
 const { parseAttachments, secureTracUrl } = require('./trac-attachments.cjs');
 const { parseTicketInfo } = require('./trac-ticket-info.cjs');
 const { httpGet } = require('./github-prs');
@@ -95,6 +96,9 @@ async function openAndScrape(ticketId, deps = {}) {
 		height: 800,
 		show: false,
 		title: `Trac #${id}`,
+		// In the app's theme (#560), so the frame is not white where Trac's
+		// page does not paint; Trac's own page is Trac's.
+		backgroundColor: windowBackground(nativeTheme.shouldUseDarkColors),
 		webPreferences: {
 			contextIsolation: true,
 			nodeIntegration: false,

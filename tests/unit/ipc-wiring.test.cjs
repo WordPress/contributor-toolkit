@@ -1527,25 +1527,23 @@ test('a tree whose only change is binary still reports no changes (#85)', async 
 	assert.ok(!patch.includes('No changes.'), JSON.stringify(patch));
 });
 
-// The other two entry points into the same patch path. They differ only in what
-// they do with the result — a window, or a save dialog — so what is checked here
-// is that they go through it at all rather than assembling a diff of their own.
-// A real repository rather than a path that is not one: reading the ticket's
-// base is the handler's first step (#308), and a directory that is not a
+// The other entry point into the same patch path. It differs only in what it
+// does with the result, a save dialog, so what is checked here is that it
+// goes through it at all rather than assembling a diff of its own. A real
+// repository rather than a path that is not one: reading the ticket's base
+// is the handler's first step (#308), and a directory that is not a
 // repository now stops there with "the base could not be read" instead of
 // reaching the patch path this test is about.
-test('git:create-patch and git:save-patch generate the patch the same way', async (t) => {
+test('git:save-patch goes through the patch path, from the base the walk compares against', async (t) => {
 	const dir = await fixtureRepo(t);
-	for (const channel of ['git:create-patch', 'git:save-patch']) {
-		// Throwing ends the handler at its first read, the base the walk
-		// compares against — the same one for both channels.
-		const resolveRef = spy(async () => { throw new Error('not a repository'); });
-		const main = loadMain({ stubs: { ...silentLogging(), './git-read.cjs': { resolveRef } } });
+	// A base that cannot be read ends the handler in the shared walk, before
+	// any diff: reaching `resolveRef(dir, 'HEAD')` puts it on that path.
+	const resolveRef = spy(async () => { throw new Error('not a repository'); });
+	const main = loadMain({ stubs: { ...silentLogging(), './git-read.cjs': { resolveRef } } });
 
-		await main.invoke(channel, dir);
+	await main.invoke('git:save-patch', dir);
 
-		assert.deepEqual(resolveRef.calls[0], [dir, 'HEAD'], channel);
-	}
+	assert.deepEqual(resolveRef.calls[0], [dir, 'HEAD']);
 });
 
 // --- git:save-patch -> src/patch-provenance.cjs (#166) -------------------
@@ -1997,7 +1995,7 @@ test('the ready path makes a light window light, and a store that cannot be read
 });
 
 // The menu's Settings… reaches the main window and brings it forward, and
-// not whichever window Electron lists first: a patch window is one too.
+// not whichever window Electron lists first: the Trac window is one too.
 async function menuBuilt(main) {
 	for (let turn = 0; turn < 50 && main.calls.applicationMenu.length === 0; turn++) {
 		await new Promise((resolve) => setImmediate(resolve));
@@ -2020,14 +2018,14 @@ test('the menu\'s Settings… opens the dialog in the main window, listed first 
 	mainWindow.restore = () => brought.push('restore');
 	mainWindow.show = () => brought.push('show');
 	mainWindow.focus = () => brought.push('focus');
-	// A patch window, and Electron lists it first.
-	const patch = new main.electron.BrowserWindow({});
+	// The Trac window, and Electron lists it first.
+	const trac = new main.electron.BrowserWindow({});
 	main.windows.reverse();
 
 	settings.click();
 
 	assert.deepEqual(mainWindow.sent, [{ channel: 'settings:open', payload: undefined }]);
-	assert.deepEqual(patch.sent, []);
+	assert.deepEqual(trac.sent, []);
 	assert.deepEqual(brought, ['restore', 'show', 'focus']);
 });
 
@@ -6837,7 +6835,6 @@ const WIRED = new Set([
 	'git:discard-to-base',
 	'git:update-trunk',
 	'git:get-patch',
-	'git:create-patch',
 	'git:save-patch',
 	'sites:add',
 	'sites:delete',
