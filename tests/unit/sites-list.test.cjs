@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { sitesListRows, siteAttention, siteToOpen, rowId } = require('../../src/renderer/sites-list.cjs');
+const { sitesListRows, siteAttention, serverDot, serverReport, withServerReport, siteToOpen, rowId } = require('../../src/renderer/sites-list.cjs');
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse('2026-10-01T12:00:00.000Z');
@@ -135,4 +135,57 @@ test('an id the list does not hold opens nothing', () => {
 test('with nothing open yet, the first site reported is opened', () => {
 	assert.equal(siteToOpen({ selection: ids('/a'), current: null, rows: ROWS }), '/a');
 	assert.equal(siteToOpen({ selection: [], current: null, rows: ROWS }), null);
+});
+
+test('each row carries what its view last said of its server, and a site whose view has said nothing is offline', () => {
+	const rows = sitesListRows({
+		sites: ['/quiet', '/up', '/starting', '/crashed'],
+		siteMeta: {},
+		servers: {
+			'/up': { status: 'online', text: 'Server running' },
+			'/starting': { status: 'busy', text: 'Server starting…' },
+			'/crashed': { status: 'failed', text: 'The development server stopped by itself. Its last lines are in the Logs.' }
+		},
+		now: NOW
+	});
+	assert.deepEqual(rows.map((row) => row.server), [
+		{ status: 'offline', text: '' },
+		{ status: 'online', text: 'Server running' },
+		{ status: 'busy', text: 'Server starting…' },
+		{ status: 'failed', text: 'The development server stopped by itself. Its last lines are in the Logs.' }
+	]);
+	assert.deepEqual(sitesListRows({ sites: ['/a'], siteMeta: {}, now: NOW })[0].server, { status: 'offline', text: '' });
+});
+
+test('a stopped server says nothing after the name, whatever words came with it', () => {
+	assert.deepEqual(serverDot({ status: 'offline', text: 'Server stopped' }), { status: 'offline', text: '' });
+	assert.deepEqual(serverDot(null), { status: 'offline', text: '' });
+	assert.deepEqual(serverDot(undefined), { status: 'offline', text: '' });
+});
+
+test('a report with a word the dot has no colour for is offline, and one without words is the colour alone', () => {
+	assert.deepEqual(serverDot({ status: 'exploded', text: 'Server running' }), { status: 'offline', text: '' });
+	assert.deepEqual(serverDot({ status: 'online' }), { status: 'online', text: '' });
+});
+
+test('a view reports its server with the header\'s word and the words beside it, and the sentence of a failure in their place', () => {
+	assert.deepEqual(serverReport({ status: 'online', label: 'Server running', detail: '' }), { status: 'online', text: 'Server running' });
+	assert.deepEqual(serverReport({ status: 'offline', label: 'Server stopped', detail: '' }), { status: 'offline', text: 'Server stopped' });
+	assert.deepEqual(
+		serverReport({ status: 'failed', label: 'Server stopped', detail: 'The development server stopped by itself. Its last lines are in the Logs.' }),
+		{ status: 'failed', text: 'The development server stopped by itself. Its last lines are in the Logs.' }
+	);
+});
+
+test('a report replaces the site\'s entry, a report of null takes it out, and a report that says what the last one said changes nothing', () => {
+	const up = { status: 'online', text: 'Server running' };
+	const one = withServerReport({}, '/a', up);
+	assert.deepEqual(one, { '/a': up });
+	assert.equal(withServerReport(one, '/a', { status: 'online', text: 'Server running' }), one);
+	const two = withServerReport(one, '/b', { status: 'busy', text: 'Server starting…' });
+	assert.deepEqual(Object.keys(two), ['/a', '/b']);
+	assert.deepEqual(withServerReport(two, '/a', { status: 'offline', text: 'Server stopped' })['/a'], { status: 'offline', text: 'Server stopped' });
+	assert.deepEqual(withServerReport(two, '/a', null), { '/b': two['/b'] });
+	assert.equal(withServerReport(two, '/gone', null), two);
+	assert.equal(withServerReport(one, '/a', up), one);
 });

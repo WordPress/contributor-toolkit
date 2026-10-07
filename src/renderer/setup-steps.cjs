@@ -1,5 +1,6 @@
 'use strict';
 
+const { __, sprintf } = require('@wordpress/i18n');
 const { getProjectType } = require('../project-type.cjs');
 
 /**
@@ -145,15 +146,15 @@ function setupStepStatuses(steps = []) {
 function setupStepLabel(status, isRunning) {
 	switch (status) {
 		case 'complete':
-			return 'Completed';
+			return __('Completed');
 		case 'failed':
-			return 'Failed';
+			return __('Failed');
 		case 'pending':
-			return 'Pending';
+			return __('Pending');
 		case 'locked':
-			return 'Locked';
+			return __('Locked');
 		default:
-			return isRunning ? 'In progress' : 'Ready';
+			return isRunning ? __('In progress') : __('Ready');
 	}
 }
 
@@ -200,30 +201,38 @@ function setupStepCopy(flags = {}, setup = getProjectType().setup) {
 	const installFailed = Boolean(flags.installFailed);
 	const hasBuilt = state.build.done;
 
-	let installLabel = 'Install npm dependencies';
-	if (state.install.done) installLabel = 'Dependencies installed';
-	else if (installFailed) installLabel = 'Retry npm install';
+	let installLabel = __('Install npm dependencies');
+	if (state.install.done) installLabel = __('Dependencies installed');
+	else if (installFailed) {
+		// translators: %s: the command that installs dependencies, npm install.
+		installLabel = sprintf(__('Retry %s'), 'npm install');
+	}
 
-	let installDescription = 'Install npm packages so commands can run.';
+	let installDescription = __('Install npm packages so commands can run.');
 	if (state.install.done) {
 		// Once done, this button never re-enables (#182), so the step says where a
 		// later install lives rather than leaving a dead control unexplained.
-		installDescription = 'Installed. Added a dependency to package.json since? Run npm install in the Terminal.';
+		installDescription = sprintf(
+			// translators: 1: a file name, package.json. 2: the command that installs dependencies, npm install.
+			__('Installed. Added a dependency to %1$s since? Run %2$s in the Terminal.'),
+			'package.json',
+			'npm install'
+		);
 	} else if (state.install.failed) {
 		// A failure the contributor did not start (the chain runs install on its
 		// own now) has to say where the evidence is, or "Failed" is all they get.
-		installDescription = 'The install did not finish. Its output is in the Terminal — retry when you have read it.';
+		installDescription = __('The install did not finish. Its output is in the Terminal — retry when you have read it.');
 	}
 
-	let buildLabel = 'Run full build';
-	if (hasBuilt) buildLabel = 'Build complete';
-	else if (state.build.failed) buildLabel = 'Retry the build';
+	let buildLabel = __('Run full build');
+	if (hasBuilt) buildLabel = __('Build complete');
+	else if (state.build.failed) buildLabel = __('Retry the build');
 
 	let buildDescription = setup.buildDescription;
 	if (hasBuilt) {
 		buildDescription = setup.builtDescription;
 	} else if (state.build.failed) {
-		buildDescription = 'The build did not finish. Its output is in the Terminal — retry when you have read it.';
+		buildDescription = __('The build did not finish. Its output is in the Terminal — retry when you have read it.');
 	}
 
 	return { installLabel, installDescription, buildLabel, buildDescription };
