@@ -33,6 +33,8 @@ Buildkite builds signed Windows, macOS and Linux artifacts for the pull request'
 
 Update the branch with trunk first if it has fallen behind, and check the artifacts again on the new head. Download the three files from the build you checked last. They are what the release ships.
 
+The Windows file may download as `dist_wordpress-contributor-toolkit-X.Y.Z-win-x64.exe`, because the Windows build uploads it from `dist\`. Rename it to remove the `dist_` prefix before you attach it to the release, so its name matches the other two and the one in step 2.
+
 Then squash-merge. The merged commit has the same content as that build, and it is the one you tag.
 
 ## 4. Publish the GitHub release
