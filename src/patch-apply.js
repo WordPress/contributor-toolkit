@@ -41,6 +41,7 @@
 const fs = require('fs');
 const path = require('path');
 const JsDiff = require('diff');
+const { __, _n, sprintf } = require('@wordpress/i18n');
 const { normalizeEol } = require('./git-update.cjs');
 const { parsePatchFiles, splitPatchSections, rewritePatchPaths } = require('./patch-plan.cjs');
 const { applyPatch } = require('./git-write.cjs');
@@ -211,14 +212,17 @@ function diagnoseHunks(text, file) {
  */
 function conflictSentence(label, diagnosis) {
 	if (!diagnosis) {
-		return `${label} has moved on since the patch was written, so it no longer applies`;
+		// translators: %s: the path of a file in the checkout.
+		return sprintf(__('%s has moved on since the patch was written, so it no longer applies'), label);
 	}
 	const failed = diagnosis.regions.length;
 	const { total } = diagnosis;
 	if (failed === total) {
-		return `${label} has moved on since the patch was written, so none of its ${total} change${total === 1 ? '' : 's'} still fits`;
+		// translators: 1: the path of a file in the checkout. 2: how many changes the patch makes to it.
+		return sprintf(_n('%1$s has moved on since the patch was written, so none of its %2$d change still fits', '%1$s has moved on since the patch was written, so none of its %2$d changes still fits', total), label, total);
 	}
-	return `${label} has moved on since the patch was written: ${failed} of its ${total} changes no longer fit, and the other ${total - failed} do`;
+	// translators: 1: the path of a file in the checkout. 2: how many of the patch's changes to it no longer fit. 3: how many changes the patch makes to it. 4: how many of them still fit.
+	return sprintf(_n('%1$s has moved on since the patch was written: %2$d of its %3$d change no longer fit, and the other %4$d do', '%1$s has moved on since the patch was written: %2$d of its %3$d changes no longer fit, and the other %4$d do', total), label, failed, total, total - failed);
 }
 
 /**
@@ -275,23 +279,41 @@ function explainRefusal(dir, file) {
 	const currentText = (relPath) => normalizeEol(fs.readFileSync(path.join(dir, relPath), 'utf8'));
 
 	if (!staysInside(dir, file.path) || (file.kind === 'rename' && !staysInside(dir, file.oldPath))) {
-		return { error: `${file.path} points outside the site folder` };
+		// translators: %s: the path of a file named in the patch.
+		return { error: sprintf(__('%s points outside the site folder'), file.path) };
 	}
 	if (file.kind === 'delete') {
-		if (!exists(file.path)) return { error: `${file.path} is already gone, so the patch cannot remove it` };
+		// translators: %s: the path of a file named in the patch.
+		if (!exists(file.path)) return { error: sprintf(__('%s is already gone, so the patch cannot remove it'), file.path) };
 		return conflict(file.path, currentText(file.path));
 	}
 	if (file.kind === 'add') {
-		if (exists(file.path)) return { error: `${file.path} already exists, so the patch cannot add it` };
-		return { error: `${file.path} could not be created from the patch` };
+		// translators: %s: the path of a file named in the patch.
+		if (exists(file.path)) return { error: sprintf(__('%s already exists, so the patch cannot add it'), file.path) };
+		// translators: %s: the path of a file named in the patch.
+		return { error: sprintf(__('%s could not be created from the patch'), file.path) };
 	}
 	if (file.kind === 'rename') {
-		if (!exists(file.oldPath)) return { error: `${file.oldPath} is not in this checkout, so the patch cannot move it` };
-		if (exists(file.newPath)) return { error: `${file.newPath} already exists, so the patch cannot move ${file.oldPath} onto it` };
+		// translators: %s: the path of a file named in the patch.
+		if (!exists(file.oldPath)) return { error: sprintf(__('%s is not in this checkout, so the patch cannot move it'), file.oldPath) };
+		// translators: 1: the path the patch moves a file to. 2: the path of the file it moves.
+		if (exists(file.newPath)) return { error: sprintf(__('%1$s already exists, so the patch cannot move %2$s onto it'), file.newPath, file.oldPath) };
 		return conflict(file.oldPath, currentText(file.oldPath));
 	}
-	if (!exists(file.path)) return { error: `${file.path} is not in this checkout, so the patch does not fit it` };
+	// translators: %s: the path of a file named in the patch.
+	if (!exists(file.path)) return { error: sprintf(__('%s is not in this checkout, so the patch does not fit it'), file.path) };
 	return conflict(file.path, currentText(file.path));
+}
+
+/**
+ * The terminal's line for binary files a patch names but cannot carry.
+ *
+ * @param {string[]} skipped Their paths.
+ * @return {string}
+ */
+function skippedSentence(skipped) {
+	// translators: 1: how many binary files were skipped. 2: their paths, separated by commas.
+	return sprintf(_n('Skipped %1$d binary file the app cannot apply: %2$s', 'Skipped %1$d binary files the app cannot apply: %2$s', skipped.length), skipped.length, skipped.join(', '));
 }
 
 /**
@@ -460,14 +482,15 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 	try {
 		text = rewritePatchPaths(normalizeEol(patchText), { layout });
 	} catch (e) {
-		return { ok: false, error: `Could not read the patch: ${String(e && e.message ? e.message : e)}` };
+		// translators: %s: why the patch could not be read, often in English from the library that reads it.
+		return { ok: false, error: sprintf(__('Could not read the patch: %s'), String(e && e.message ? e.message : e)) };
 	}
 	const sections = splitPatchSections(text);
 	const skipped = [];
 	const applicable = [];
 	for (const section of sections) {
 		if (section.isBinary && !section.hasBinaryData) {
-			skipped.push(section.path || '(unnamed binary file)');
+			skipped.push(section.path || __('(unnamed binary file)'));
 			continue;
 		}
 		applicable.push(section);
@@ -479,10 +502,10 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 	const fileFor = (section) => wordable.find((file) => file.path === section.path || file.oldPath === section.path) || null;
 
 	if (!applicable.length) {
-		if (!skipped.length) return { ok: false, error: 'The patch does not change any files.', applied: [], skipped };
+		if (!skipped.length) return { ok: false, error: __('The patch does not change any files.'), applied: [], skipped };
 		// Only binaries with no data: nothing for Git to do, and nothing wrong
 		// with the patch either. Named, not refused, as the docs promise.
-		onLog(`\nSkipped ${skipped.length} binary file${skipped.length === 1 ? '' : 's'} the app cannot apply: ${skipped.join(', ')}\n`);
+		onLog(`\n${skippedSentence(skipped)}\n`);
 		return { ok: true, applied: [], skipped };
 	}
 	const applyText = applicable.map((section) => section.text).join('');
@@ -500,7 +523,8 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 		for (const section of applicable) {
 			if (checked >= SECTION_DETAIL_LIMIT) {
 				const rest = applicable.length - checked;
-				failures.push(`${rest} more file${rest === 1 ? ' was' : 's were'} not checked one by one`);
+				// translators: %d: how many more files the patch changes.
+				failures.push(sprintf(_n('%d more file was not checked one by one', '%d more files were not checked one by one', rest), rest));
 				break;
 			}
 			checked += 1;
@@ -508,7 +532,15 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 			if (own.ok) continue;
 			failing += 1;
 			const file = fileFor(section);
-			const explained = file ? explainRefusal(dir, file) : { error: `${section.path || 'a file'} has moved on since the patch was written, so it no longer applies` };
+			let explained;
+			if (file) {
+				explained = explainRefusal(dir, file);
+			} else if (section.path) {
+				// translators: %s: the path of a file in the checkout.
+				explained = { error: sprintf(__('%s has moved on since the patch was written, so it no longer applies'), section.path) };
+			} else {
+				explained = { error: __('a file has moved on since the patch was written, so it no longer applies') };
+			}
 			failures.push(explained.error);
 			if (explained.conflict) conflicts.push(explained.conflict);
 		}
@@ -516,7 +548,7 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 			// Every section passes alone and the whole does not: two sections
 			// that touch the same file, or a shape Git only refuses in
 			// combination. Git's own last line is the truest thing to say.
-			failures.push(check.stderr.split(/\r?\n/).filter((line) => line.trim()).pop() || 'The patch does not apply.');
+			failures.push(check.stderr.split(/\r?\n/).filter((line) => line.trim()).pop() || __('The patch does not apply.'));
 		}
 		// A reverse that fails on a checkout still holding the pre-patch content
 		// is not a conflict: the patch is gone and only the record of it is left.
@@ -528,12 +560,12 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 		if (reverse && checked === applicable.length && failing === applicable.length) {
 			const forward = await applyPatch(dir, applyText, { check: true, reverse: false, platform, prefix });
 			if (forward.ok) {
-				const error = 'That patch is not in this checkout any more — something reset it, probably a trunk update or a discard. Nothing was reverted.';
+				const error = __('That patch is not in this checkout any more — something reset it, probably a trunk update or a discard. Nothing was reverted.');
 				onLog(`\n${error}\n`);
 				return { ok: false, notApplied: true, error, applied: [], skipped };
 			}
 		}
-		onLog(`\nThe patch was not applied — the checkout is unchanged.\n${failures.map((f) => `  • ${f}\n`).join('')}`);
+		onLog(`\n${__('The patch was not applied — the checkout is unchanged.')}\n${failures.map((f) => `  • ${f}\n`).join('')}`);
 		// `failures` carries every file, not just the first: the panel used to show
 		// `error` alone and send the rest to the terminal, where a contributor has
 		// no reason to be looking (#282). `conflicts` is the same failures with
@@ -550,12 +582,25 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 	let snapshot;
 	try { snapshot = snapshotFiles(dir, touched); }
 	catch (e) {
-		const error = `Could not snapshot the checkout before applying the patch: ${e.message}`;
+		// translators: %s: why the files could not be copied, as the system said it.
+		const error = sprintf(__('Could not snapshot the checkout before applying the patch: %s'), e.message);
 		onLog(`\n${error}\n`);
 		return { ok: false, error, applied: [], skipped };
 	}
 	const written = await applyPatch(dir, applyText, { reverse, platform, prefix });
-	let writeError = written.ok ? null : written.stderr.split(/\r?\n/).filter((line) => line.trim()).pop() || `git apply exited ${written.status}`;
+	// Why the write failed, as one whole sentence: Git's own last line when it
+	// printed one, the app's own words otherwise.
+	let message = null;
+	if (!written.ok) {
+		const stderr = written.stderr.split(/\r?\n/).filter((line) => line.trim()).pop();
+		if (stderr) {
+			// translators: %s: why writing the patch failed, Git's own message, in English.
+			message = sprintf(__('writing %s'), stderr);
+		} else {
+			// translators: %s: the exit code of the command git apply.
+			message = sprintf(__('writing git apply exited %s'), written.status);
+		}
+	}
 	// Windows Git can exit 0 without creating a file beneath a regular-file
 	// parent (#413). Check the actual destinations before claiming success.
 	// Git still decides the contents; this only detects an omitted write.
@@ -566,19 +611,21 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 				// A symlink is itself a written entry, even if its target is absent.
 				await fs.promises.lstat(path.join(dir, relPath));
 			} catch (e) {
-				writeError = `could not verify ${relPath} after git apply: ${e.message}`;
+				// translators: 1: the path of a file the patch writes. 2: why it could not be read back, as the system said it.
+				message = sprintf(__('writing could not verify %1$s after git apply: %2$s'), relPath, e.message);
 				break;
 			}
 		}
 	}
-	if (writeError) {
+	if (message) {
 		const recovery = rollback(dir, snapshot);
-		const message = `writing ${writeError}`;
 		if (recovery.length) {
-			onLog(`\nThe patch could not be written, and the checkout could not be fully put back — it is in an unknown state. Could not undo: ${recovery.join('; ')}\n`);
+			// translators: %s: the files that could not be put back, and why, separated by semicolons.
+			onLog(`\n${sprintf(__('The patch could not be written, and the checkout could not be fully put back — it is in an unknown state. Could not undo: %s'), recovery.join('; '))}\n`);
 			return { ok: false, error: message, applied: [], skipped, rolledBack: false, recovery };
 		}
-		onLog(`\nThe patch could not be written, so the checkout was put back as it was: ${message}\n`);
+		// translators: %s: why writing the patch failed.
+		onLog(`\n${sprintf(__('The patch could not be written, so the checkout was put back as it was: %s'), message)}\n`);
 		return { ok: false, error: message, applied: [], skipped, rolledBack: true };
 	}
 
@@ -590,9 +637,15 @@ async function applyPatchToDir({ dir, patchText, reverse = false, onLog = () => 
 		const file = fileFor(section);
 		return file ? file.path : section.path;
 	});
-	onLog(`\n${reverse ? 'Reverted' : 'Applied'} ${applied.length} file${applied.length === 1 ? '' : 's'}.\n`);
+	if (reverse) {
+		// translators: %d: how many files the patch changed.
+		onLog(`\n${sprintf(_n('Reverted %d file.', 'Reverted %d files.', applied.length), applied.length)}\n`);
+	} else {
+		// translators: %d: how many files the patch changed.
+		onLog(`\n${sprintf(_n('Applied %d file.', 'Applied %d files.', applied.length), applied.length)}\n`);
+	}
 	if (skipped.length) {
-		onLog(`Skipped ${skipped.length} binary file${skipped.length === 1 ? '' : 's'} the app cannot apply: ${skipped.join(', ')}\n`);
+		onLog(`${skippedSentence(skipped)}\n`);
 	}
 
 	return { ok: true, applied, skipped };
