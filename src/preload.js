@@ -194,8 +194,6 @@ contextBridge.exposeInMainWorld('api', {
 		return () => ipcRenderer.removeListener('download:status', h);
 	}
 ,
-	createPatchWindow: (sitePath) => ipcRenderer.invoke('git:create-patch', sitePath)
-,
 	getPatch: (sitePath) => ipcRenderer.invoke('git:get-patch', sitePath)
 ,
 	// With `{ handoff: true }` the saved file carries the provenance header and a
