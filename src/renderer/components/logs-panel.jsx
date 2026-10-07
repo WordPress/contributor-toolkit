@@ -1,3 +1,5 @@
+import { createInterpolateElement } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 import { Button, Stack, Tabs } from '@wordpress/ui';
 import { LogText } from './log-text.jsx';
 
@@ -33,7 +35,11 @@ export function LogsPanel({ hidden, tabs, logs, copyLabel }) {
       <Tabs.Panel value="watch" tabIndex={-1} className="tray-log-panel">
         <div ref={watchPane} onScroll={logs.makeOnScroll('watch')} className="log-pane">
           {logs.watchLogs ? <LogText text={logs.watchLogs} /> : (
-            <span className="log-pane-note">The build watch compiles <code>src/</code> edits into <code>build/</code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.</span>
+            <span className="log-pane-note">{createInterpolateElement(
+              // translators: <source /> is the folder edits are made in, src/. <build /> is the folder they are compiled into, build/.
+              __('The build watch compiles <code><source /></code> edits into <code><build /></code>. It runs independently of the dev server — its output, and whether it is watching, paused, or stopped, appears here.'),
+              { code: <code />, source: <>src/</>, build: <>build/</> }
+            )}</span>
           )}
         </div>
       </Tabs.Panel>
@@ -45,7 +51,11 @@ export function LogsPanel({ hidden, tabs, logs, copyLabel }) {
             // it instead. In the app's own font, not the terminal's:
             // this is interface copy rather than log output, and it is
             // what keeps the `<code>` bits in it distinguishable.
-            <span className="log-pane-note">No PHP notices or errors yet. Anything WordPress or your code writes — <code>error_log()</code>, notices, deprecations, fatals — appears here while the dev server runs.</span>
+            <span className="log-pane-note">{createInterpolateElement(
+              // translators: <function /> is the PHP function that writes to the log, error_log().
+              __('No PHP notices or errors yet. Anything WordPress or your code writes — <code><function /></code>, notices, deprecations, fatals — appears here while the dev server runs.'),
+              { code: <code />, function: <>error_log()</> }
+            )}</span>
           )}
         </div>
         <Stack direction="row" align="center" justify="space-between" gap="sm" wrap="wrap" className="tray-notes">
@@ -54,11 +64,11 @@ export function LogsPanel({ hidden, tabs, logs, copyLabel }) {
               it is what someone needs to tail it in a terminal or attach
               it to a ticket. Selectable rather than truncated with an
               ellipsis: a path you cannot copy is decoration. */}
-          <code className="log-path">{logs.debugLogPath || 'The log file appears once the dev server has run.'}</code>
+          <code className="log-path">{logs.debugLogPath || __('The log file appears once the dev server has run.')}</code>
           <Stack direction="row" gap="sm">
-            <Button variant="outline" tone="neutral" size="compact" onClick={logs.revealDebugLog} disabled={!logs.debugLogPath}>Show in folder</Button>
+            <Button variant="outline" tone="neutral" size="compact" onClick={logs.revealDebugLog} disabled={!logs.debugLogPath}>{__('Show in folder')}</Button>
             <Button variant="outline" tone="neutral" size="compact" onClick={logs.copyDebugLog} disabled={!logs.debugLogs}>{copyLabel}</Button>
-            <Button variant="outline" tone="neutral" size="compact" onClick={logs.clearDebugLog} disabled={!logs.debugLogs}>Clear</Button>
+            <Button variant="outline" tone="neutral" size="compact" onClick={logs.clearDebugLog} disabled={!logs.debugLogs}>{__('Clear')}</Button>
           </Stack>
         </Stack>
       </Tabs.Panel>

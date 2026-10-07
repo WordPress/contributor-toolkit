@@ -2294,6 +2294,31 @@ test('npm:install asks npm-runner whether an engine failure is worth retrying', 
 	assert.equal(cp.spawned.length, 2);
 });
 
+// The notice the terminal gets before an install is retried with engine
+// checks relaxed is said in the locale main applied, not the one it loaded in.
+test('npm:install says it is retrying with engine checks relaxed in the locale main applied (#627)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { shouldRetryWithRelaxedEngines: () => true }
+		}
+	});
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+
+	const event = createIpcEvent();
+	await main.invokeWith('npm:install', event, '/sites/wp');
+	cp.children[0].emit('close', 1, null);
+
+	const logs = event.sent.filter((m) => m.channel === 'npm:install:log').map((m) => m.payload.data).join('');
+	assert.ok(logs.includes(pseudoLocalize('This site requires a newer Node.js than this app bundles.')), logs);
+	assert.ok(logs.includes(pseudoLocalize('Retrying with engine checks relaxed…')), logs);
+});
+
 test('npm:run-script spawns the script runner through npm-runner too', async () => {
 	const env = { PATH: '/shims' };
 	const buildChildEnv = spy(() => env);
@@ -2977,6 +3002,34 @@ test('playground:stop ends the server tree rather than signalling the child', as
 	// #83).
 	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
 	assert.deepEqual(cp.children[0].kill.calls, []);
+});
+
+// A server that dies before it reports a URL fails the start with main's own
+// sentence, which the window shows after "Dev server failed to start:". It is
+// said in the locale main applied at startup, with the code put into it.
+test('playground:start words a server that died before its URL in the locale main applied (#627)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	const cp = stubbedSpawn();
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...noSmtpServer(),
+			...fakeSettingsStore().stubs,
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTree: () => {} }
+		}
+	});
+
+	const pending = main.invoke('playground:start', '/sites/wp');
+	await waitForSpawnCount(cp, 1);
+	cp.children[0].emit('close', 1, 'SIGTERM');
+
+	const res = await pending;
+	assert.equal(res.ok, false);
+	assert.equal(res.error, pseudoLocalize('Server exited with code %1$s (signal %2$s) before reporting a URL').replace('%1$s', '1').replace('%2$s', 'SIGTERM'));
 });
 
 test('playground-web:stop ends the web server tree rather than signalling the child', async (t) => {
@@ -4312,6 +4365,48 @@ test('git:update-trunk says where the work went when the update fails (issue #10
 		event.sent.some((m) => m.channel === 'git:update-trunk:log' && /is safe/.test(m.payload.data)),
 		'the contributor is told their work is parked on the branch, not lost'
 	);
+});
+
+// The lines the update's failure prints in the terminal are main's, and said
+// in the locale it applied: one sentence for the stage it failed in, which is
+// a code, and one for where the parked work is, with the error, the ticket and
+// the branch put into them.
+test('git:update-trunk says its failure, and where the work went, in the locale main applied (#627)', async (t) => {
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	let onTrunk = false;
+	const switchToBranch = spy(async () => { onTrunk = true; return { switched: true, parked: true }; });
+	const currentBranchName = spy(async () => (onTrunk ? 'trunk' : 'ticket/59234'));
+	const updateToLatestTrunk = spy(async () => { throw Object.assign(new Error('network is down'), { stage: 'fetch' }); });
+	const settings = fakeSettingsStore({
+		sites: ['/sites/wp'],
+		siteMeta: {
+			'/sites/wp': {
+				tracTicket: 59234,
+				currentBranch: 'ticket/59234',
+				branches: { 'ticket/59234': { tracTicket: 59234, baseOid: 'abc' } }
+			}
+		}
+	});
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'./trunk-update': { updateToLatestTrunk },
+			'./ticket-branches': { switchToBranch, currentBranchName }
+		}
+	});
+
+	const event = createIpcEvent();
+	await main.invokeWith('git:update-trunk', event, '/sites/wp');
+	await new Promise((resolve) => setImmediate(resolve));
+
+	const logs = event.sent.filter((m) => m.channel === 'git:update-trunk:log').map((m) => m.payload.data).join('');
+	assert.ok(logs.includes(pseudoLocalize('Parking your work on %s before updating…').replace('%s', 'ticket/59234')), logs);
+	assert.ok(logs.includes(pseudoLocalize('Update failed during fetch: %s').replace('%s', 'network is down')), logs);
+	assert.ok(logs.includes(pseudoLocalize('Your work on #%1$s is safe — it is committed on %2$s. Link that ticket again to return to it.').replace('%1$s', '59234').replace('%2$s', 'ticket/59234')), logs);
 });
 
 // --- Ticket branches (#108) ----------------------------------------------
