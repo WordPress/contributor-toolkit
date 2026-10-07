@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { __, sprintf } from '@wordpress/i18n';
 import { planDevServerStart, createWatchReadyDetector } from '../dev-server-command.cjs';
 import { createWatchWaiters, createRunGeneration, watchOccupiesBuild } from '../watch-waiters.cjs';
 import { createWatchActivity } from '../watch-activity.cjs';
@@ -136,8 +137,12 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
     const token = generation.next();
     markWatchState(readiness.immediate ? 'watching' : 'building');
     watchWasActiveRef.current = true;
-    appendWatch(`Running ${plan.watch.label}…\n`);
-    if (!readiness.immediate) appendWatch(`${plan.watch.label} rebuilds build/ before it watches. The dev server, if you started it, waits for "${plan.watch.readyPattern}".\n`);
+    // translators: %s: the command being run, such as npm run dev.
+    appendWatch(`${sprintf(__('Running %s…'), plan.watch.label)}\n`);
+    if (!readiness.immediate) {
+      // translators: 1: the watch command, such as npm run dev. 2: a folder, build/. 3: the line the watch prints once it is watching, which is in English.
+      appendWatch(`${sprintf(__('%1$s rebuilds %2$s before it watches. The dev server, if you started it, waits for "%3$s".'), plan.watch.label, 'build/', plan.watch.readyPattern)}\n`);
+    }
     if (readiness.immediate) settleWatchWaiters(true);
     runScript(plan.watch.script, {
       args: plan.watch.args,
@@ -167,7 +172,8 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
         }
       },
       onDone: ({ code }) => {
-        appendWatch(`\n${plan.watch.label} exited with code ${code}\n`);
+        // translators: 1: the command that ended, such as npm run dev. 2: the code it exited with, a number.
+        appendWatch(`\n${sprintf(__('%1$s exited with code %2$s'), plan.watch.label, code)}\n`);
         // A replaced run's exit says nothing about the run that replaced it.
         if (!generation.isCurrent(token)) return;
         watchRunIdRef.current = null;
@@ -210,7 +216,7 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
         // with it as it is for every action a running command turns away: a
         // refusal nobody sees is a button that did nothing, and the terminal
         // is where the command to stop is.
-        appendWatch('A command is already running in the terminal — stop it before starting the build watch.\n');
+        appendWatch(`${__('A command is already running in the terminal — stop it before starting the build watch.')}\n`);
         refuseInTerminal();
         settleWatchWaiters(false);
         return;
@@ -222,7 +228,8 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
       // Ctrl+C in the terminal stops this build as the watch's own button
       // does: it says the watch is idle before it kills.
       terminalKillRef.current = () => { markWatchState('idle'); killCurrent().catch(() => {}); };
-      appendWatch('No completed build found — running npm run build first…\n');
+      // translators: %s: the command that builds the site, npm run build.
+      appendWatch(`${sprintf(__('No completed build found — running %s first…'), 'npm run build')}\n`);
       runScript('build', {
         mirrorToNpm: false,
         // It prints in the watch's log, and that is where its failure says
@@ -237,14 +244,18 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
           // it. Its end is not a failure, whatever the kill left it with: no
           // code at all on macOS and Linux, a code of its own on Windows.
           if (watchStateRef.current === 'idle') {
-            appendWatch('\nnpm run build was stopped — build watch not started.\n');
+            // translators: %s: the command that builds the site, npm run build.
+            appendWatch(`\n${sprintf(__('%s was stopped — build watch not started.'), 'npm run build')}\n`);
             watchWasActiveRef.current = false;
             settleWatchWaiters(false);
             return;
           }
           if (code !== 0 || watchStateRef.current !== 'building') {
-            if (code !== 0) { appendWatch(`\nnpm run build failed with code ${code} — build watch not started.\n`); markWatchState('exited', code, 'build'); }
-            else markWatchState('idle');
+            if (code !== 0) {
+              // translators: 1: the command that builds the site, npm run build. 2: the code it exited with, a number.
+              appendWatch(`\n${sprintf(__('%1$s failed with code %2$s — build watch not started.'), 'npm run build', code)}\n`);
+              markWatchState('exited', code, 'build');
+            } else markWatchState('idle');
             watchWasActiveRef.current = false;
             settleWatchWaiters(false);
             return;
@@ -289,7 +300,7 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
     watchGenerationRef.current.invalidate();
     applyHandOffRef.current.invalidate();
     clearWatchActivity();
-    appendWatch('\nPaused while another operation uses the build.\n');
+    appendWatch(`\n${__('Paused while another operation uses the build.')}\n`);
     try { await killWatcher(); } catch {}
     return true;
   }, [appendWatch, clearWatchActivity, killWatcher, markWatchState]);
@@ -298,7 +309,7 @@ export function useBuildWatch({ sitePath, projectBuild, hasBuilt, runScript, kil
   // or a manual stop mid-operation (which sets 'idle') is never resurrected.
   const resumeWatcher = useCallback(() => {
     if (watchStateRef.current !== 'paused') return;
-    appendWatch('\nResumed.\n');
+    appendWatch(`\n${__('Resumed.')}\n`);
     startWatchProcess();
   }, [appendWatch, startWatchProcess]);
 

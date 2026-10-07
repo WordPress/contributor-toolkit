@@ -21,6 +21,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const { __, sprintf } = require('@wordpress/i18n');
 const {
 	isDirtyFromStatusMatrix,
 	staleStagedPaths,
@@ -204,12 +205,12 @@ async function updateToLatestTrunk({ dir, onLog = () => {}, onChild = null }) {
 	let worktreeReset = false;
 	try {
 		const oldOid = await resolveRef(dir, 'HEAD');
-		onLog('Fetching latest trunk…\n');
+		onLog(`${__('Fetching latest trunk…')}\n`);
 		const { oid: newOid } = await fetchBranch(dir, 'origin', 'trunk', { onStderr: onLog, onChild });
 
 		if (newOid === oldOid) {
 			const { trunkDate } = await readTrunkInfo(dir);
-			onLog('\nAlready up to date.\n');
+			onLog(`\n${__('Already up to date.')}\n`);
 			return { upToDate: true, oldOid, newOid, lockfileChanged: false, trunkDate };
 		}
 
@@ -225,7 +226,8 @@ async function updateToLatestTrunk({ dir, onLog = () => {}, onChild = null }) {
 		// absent from the target tree, so drop those index entries first
 		// (index-only — the workdir files survive).
 		await unstagePaths(dir, staleStagedPaths(await statusRows(dir)));
-		onLog(`\nResetting to latest trunk (${newOid.slice(0, 7)})…\n`);
+		// translators: %s: the short hash of the commit trunk is reset to.
+		onLog(`\n${sprintf(__('Resetting to latest trunk (%s)…'), newOid.slice(0, 7))}\n`);
 		// `expected` makes a trunk that moved under this update (a second
 		// writer) a loud failure with the tree untouched, not an overwrite.
 		// Guarded with the ref's own value, not `oldOid`: the caller parks to
@@ -243,7 +245,8 @@ async function updateToLatestTrunk({ dir, onLog = () => {}, onChild = null }) {
 		});
 
 		const { trunkDate } = await readTrunkInfo(dir);
-		onLog(`\nNow on trunk as of ${trunkDate}.\n`);
+		// translators: %s: the date of the newest commit on trunk.
+		onLog(`\n${sprintf(__('Now on trunk as of %s.'), trunkDate)}\n`);
 		return { upToDate: false, oldOid, newOid, lockfileChanged, trunkDate };
 	} catch (e) {
 		if (e && typeof e === 'object') {

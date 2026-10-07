@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
+import { __, sprintf } from '@wordpress/i18n';
 import { terminalFont, terminalTheme, tokenName, TERMINAL_READABILITY } from '../terminal-theme.cjs';
 import { terminalGrid } from '../tray.cjs';
 import { useThemeKey } from '../components/app-theme.jsx';
@@ -26,6 +27,16 @@ function readTerminalLook(host) {
   return look;
 }
 const TERMINAL_INSTALL_ALIASES = ['npm install', 'npm i', 'install'];
+
+// What a busy terminal says to a command, or to a hint, it turns away.
+function alreadyRunningLine() {
+  // translators: %s: the keys that stop a command, Ctrl+C.
+  return sprintf(__('A command is already running. Press %s to stop it.'), 'Ctrl+C') + '\n';
+}
+
+// A command in the help, padded so that what it does starts in the same
+// column on every line.
+const helpCommand = (command) => command.padEnd(27);
 
 // The site's terminal (#554): the xterm instance, the line being typed and its
 // history, the handful of commands it knows, and the one lock that says a
@@ -143,7 +154,7 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     // silently, matching every other busy guard in this file. A guard that
     // swallows the click is how a link becomes a control that does nothing.
     if (terminalStateRef.current.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      writeToTerminal(alreadyRunningLine());
       return;
     }
     replaceTerminalInput(command);
@@ -166,11 +177,22 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
   }, []);
 
   const printHelp = useCallback(() => {
-    writeToTerminal('Available commands:\n');
-    writeToTerminal('  help                        Show this help text\n');
-    writeToTerminal('  npm install                 Run npm install in the site directory\n');
-    writeToTerminal('  npm run <script>            Run one of: ' + allowedScriptsRef.current.join(', ') + '\n');
-    writeToTerminal('\nThe setup checklist runs npm install and npm run build once. Run them here\nwhenever you change files or add a dependency afterwards.\n');
+    writeToTerminal(`${__('Available commands:')}\n`);
+    // translators: %s: the command help, padded with spaces so that this text lines up with the lines below it.
+    writeToTerminal(`  ${sprintf(__('%s Show this help text'), helpCommand('help'))}\n`);
+    // translators: 1: the command npm install, padded with spaces so that this text lines up with the lines around it. 2: the same command, npm install.
+    writeToTerminal(`  ${sprintf(__('%1$s Run %2$s in the site directory'), helpCommand('npm install'), 'npm install')}\n`);
+    // translators: 1: the command npm run <script>, padded with spaces so that this text lines up with the lines above it. 2: the names of the scripts it can run, separated by commas.
+    writeToTerminal(`  ${sprintf(__('%1$s Run one of: %2$s'), helpCommand('npm run <script>'), allowedScriptsRef.current.join(', '))}\n`);
+    // Two sentences, each on its own line: a translation cannot carry a line
+    // break, and the terminal wraps a line that is wider than it is.
+    writeToTerminal(`\n${sprintf(
+      // translators: 1: the command npm install. 2: the command npm run build.
+      __('The setup checklist runs %1$s and %2$s once.'),
+      'npm install',
+      'npm run build'
+    )}\n`);
+    writeToTerminal(`${__('Run them here whenever you change files or add a dependency afterwards.')}\n`);
   }, [writeToTerminal]);
 
   const executeTerminalCommand = useCallback((rawCommand) => {
@@ -184,7 +206,7 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     addCommandToHistory(command);
 
     if (state.running) {
-      writeToTerminal('A command is already running. Press Ctrl+C to stop it.\n');
+      writeToTerminal(alreadyRunningLine());
       return;
     }
 
@@ -198,11 +220,13 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     if (TERMINAL_INSTALL_ALIASES.includes(lower)) {
       markTerminalRunning(true);
       terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-      writeToTerminal('Running npm install…\n');
+      // translators: %s: the command being run, such as npm install.
+      writeToTerminal(`${sprintf(__('Running %s…'), 'npm install')}\n`);
       runInstall({
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
-          writeToTerminal(`npm install exited with code ${code}\n`);
+          // translators: 1: the command that ended, such as npm install. 2: the code it exited with, a number.
+          writeToTerminal(`${sprintf(__('%1$s exited with code %2$s'), 'npm install', code)}\n`);
           markTerminalRunning(false);
           terminalKillRef.current = null;
           showPrompt(false);
@@ -214,23 +238,27 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     if (lower.startsWith('npm run ')) {
       const script = command.slice(8).trim();
       if (!script) {
-        writeToTerminal('Missing script name. Example: npm run build\n');
+        // translators: %s: an example of the command, npm run build.
+        writeToTerminal(`${sprintf(__('Missing script name. Example: %s'), 'npm run build')}\n`);
         showPrompt(false);
         return;
       }
       const allowed = allowedScriptsRef.current;
       if (!allowed.includes(script)) {
-        writeToTerminal(`Unsupported script "${script}". Allowed scripts: ${allowed.join(', ')}\n`);
+        // translators: 1: the script asked for. 2: the names of the scripts that can be run, separated by commas.
+        writeToTerminal(`${sprintf(__('Unsupported script "%1$s". Allowed scripts: %2$s'), script, allowed.join(', '))}\n`);
         showPrompt(false);
         return;
       }
       markTerminalRunning(true);
       terminalKillRef.current = () => { killCurrent().catch(() => {}); };
-      writeToTerminal(`Running npm run ${script}…\n`);
+      // translators: %s: the command being run, such as npm run build.
+      writeToTerminal(`${sprintf(__('Running %s…'), `npm run ${script}`)}\n`);
       runScript(script, {
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
-          writeToTerminal(`npm run ${script} exited with code ${code}\n`);
+          // translators: 1: the command that ended, such as npm run build. 2: the code it exited with, a number.
+          writeToTerminal(`${sprintf(__('%1$s exited with code %2$s'), `npm run ${script}`, code)}\n`);
           markTerminalRunning(false);
           terminalKillRef.current = null;
           showPrompt(false);
@@ -239,7 +267,10 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
       return;
     }
 
-    writeToTerminal(`Unsupported command: ${command}\nTry "help" for the list of supported commands.\n`);
+    // translators: %s: what was typed at the prompt.
+    writeToTerminal(`${sprintf(__('Unsupported command: %s'), command)}\n`);
+    // translators: %s: the command that lists the others, help.
+    writeToTerminal(`${sprintf(__('Try "%s" for the list of supported commands.'), 'help')}\n`);
     showPrompt(false);
   }, [addCommandToHistory, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
 
@@ -320,7 +351,7 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     // Not opened here, and not given its colours and font here: see the
     // effect below. Everything written before it opens is kept in the
     // terminal's buffer and drawn when it does.
-    term.write(normalizeForTerminal('WordPress npm helper terminal.\n'));
+    term.write(normalizeForTerminal(`${__('WordPress npm helper terminal.')}\n`));
     printHelp();
     showPrompt(false);
     const dataDisposable = term.onData((d) => terminalInputHandlerRef.current(d));

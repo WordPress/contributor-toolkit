@@ -3,6 +3,8 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { planUpdateHandOff } = require('../../src/renderer/update-handoff.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 // #507: the three outcomes of a trunk update that leaves its build to the
 // watch it paused. The messages are watch-activity's and covered there; what
@@ -64,4 +66,10 @@ test('only the ready line completes the update (#507)', () => {
 	assert.deepStrictEqual(completing, [plan.ready]);
 	// The no-wait outcome carries no such flag at all: nothing rebuilt.
 	assert.strictEqual('completesUpdate' in planUpdateHandOff('idle').finish, false);
+});
+
+test('the line the hand-off waits with is translated when it is said (#627)', (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	assert.strictEqual(planUpdateHandOff('paused').waiting.message, `\n${pseudoLocalize('The build watch rebuilds %s from scratch as it resumes — output in the Logs, under Build watch. The update completes when it is watching again.').replace('%s', 'build/')}\n`);
 });

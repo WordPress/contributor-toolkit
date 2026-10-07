@@ -18,6 +18,7 @@
  * watcher starts.
  */
 
+const { __, sprintf } = require('@wordpress/i18n');
 const { getProjectType } = require('../project-type.cjs');
 
 /**
@@ -156,15 +157,17 @@ function formatElapsed(seconds) {
  */
 function watchTabLabel(state, exitCode, compiling = false) {
 	switch (state) {
-		case 'watching': return compiling ? 'Build watch (compiling)' : 'Build watch (watching)';
-		case 'building': return 'Build watch (building)';
-		case 'paused': return 'Build watch (paused)';
+		case 'watching': return compiling ? __('Build watch (compiling)') : __('Build watch (watching)');
+		case 'building': return __('Build watch (building)');
+		case 'paused': return __('Build watch (paused)');
 		case 'exited': {
 			const code = Number.isFinite(exitCode) ? exitCode : null;
-			return code === null ? 'Build watch (stopped)' : `Build watch (exited ${code})`;
+			if (code === null) return __('Build watch (stopped)');
+			// translators: %d: the code the build watch exited with.
+			return sprintf(__('Build watch (exited %d)'), code);
 		}
 		case 'idle':
-		default: return 'Build watch';
+		default: return __('Build watch');
 	}
 }
 

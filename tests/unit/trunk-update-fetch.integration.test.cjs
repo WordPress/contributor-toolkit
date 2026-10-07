@@ -18,6 +18,8 @@ const { pathToFileURL } = require('node:url');
 const { updateToLatestTrunk } = require('../../src/trunk-update.js');
 const { cloneSite } = require('../../src/git-clone.cjs');
 const { git, tempDir } = require('./helpers/git.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 const IDENTITY = ['-c', 'user.name=T', '-c', 'user.email=t@example.com'];
 
@@ -251,4 +253,21 @@ test('updateToLatestTrunk: a fetch failure reports the worktree untouched (issue
 		() => updateToLatestTrunk({ dir }),
 		(e) => e.worktreeReset === false
 	);
+});
+
+test('updateToLatestTrunk: its own lines are said in the locale main applied, around what Git prints (#627)', async (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	const { origin, dir } = await makeSiteAndOrigin(t);
+	const newOid = commitInOrigin(origin, { 'wp-config.php': 'second\n' }, 'second');
+	const log = [];
+
+	const result = await updateToLatestTrunk({ dir, onLog: (line) => log.push(line) });
+
+	const text = log.join('');
+	assert.ok(text.startsWith(`${pseudoLocalize('Fetching latest trunk…')}\n`), text);
+	assert.ok(text.includes(pseudoLocalize('Resetting to latest trunk (%s)…').replace('%s', newOid.slice(0, 7))), text);
+	assert.ok(text.includes(pseudoLocalize('Now on trunk as of %s.').replace('%s', result.trunkDate)), text);
+	// Git's own lines are Git's.
+	assert.match(text, /-> FETCH_HEAD/);
 });

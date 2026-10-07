@@ -6,7 +6,7 @@ import { applyDoneMessage } from '../confirmations.cjs';
 import { prCheckoutRefusal } from '../pr-checkout.cjs';
 import { savedPrForSwitch } from '../ticket-branch-list.cjs';
 import { planApplySteps, updateStepStatuses, planWatchImpact, planTicketSwitchImpact, skipInstallMessage, APPLY_STATE_TO_STEP } from '../update-plan.cjs';
-import { compilingMessage, applyFinishMessage, resumedWatchHandOff } from '../watch-activity.cjs';
+import { applyLines, applyFinishMessage, resumedWatchHandOff } from '../watch-activity.cjs';
 import { watchOccupiesBuild } from '../watch-waiters.cjs';
 
 // Putting someone else's work on a site (#11, #458, #554): the patches and
@@ -105,7 +105,9 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
   // tests rely on the full list); the filtering is purely what's shown.
   const patchAttachments = (tracAttachments?.items || []).filter((a) => a.applyable);
 
-  const finishApply = (message) => {
+  // `settled` is what the terminal says instead of `message` while a resumed
+  // watch is still rebuilding (applyFinishMessage).
+  const finishApply = (message, settled) => {
     markTerminalRunning(false);
     terminalKillRef.current = null;
     setApplyState('idle');
@@ -116,15 +118,18 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
     // leaves the site unusable until it is watching again, and the banner
     // above is already up (#492). The banner says so; so does the terminal,
     // in place of "open the site to try it out".
-    if (message) writeToTerminal(applyFinishMessage(message, watchStateRef.current));
+    if (message) writeToTerminal(applyFinishMessage(message, watchStateRef.current, settled));
     loadStatus().catch(() => {});
     refreshDirty();
   };
 
   const runApplyInstallAndBuild = (needsInstall, verb, { buildBy = null, noun = 'patch' } = {}) => {
+    const lines = applyLines(verb, noun);
+    const finishTryIt = () => finishApply(`\n${lines.tryIt}\n`, `\n${lines.settled}\n`);
     const runBuildStep = () => {
       setApplyState('building');
-      writeToTerminal('\nRunning npm run build…\n');
+      // translators: %s: the command being run, such as npm run build.
+      writeToTerminal(`\n${sprintf(__('Running %s…'), 'npm run build')}\n`);
       runScript('build', {
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
@@ -132,10 +137,12 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
           // site is rebuilt around it, so "open the site to try it out" is true
           // (#253). A failed build leaves stale assets and its own banner, so it
           // gets no success confirmation.
-          if (code === 0) confirm(applyDoneMessage(verb, noun));
-          finishApply(code === 0
-            ? `\n${verb} — open the site to try it out.\n`
-            : `\nThe ${noun} is ${verb.toLowerCase()} but the build failed, so the site still runs the old assets.\n`);
+          if (code === 0) {
+            confirm(applyDoneMessage(verb, noun));
+            finishTryIt();
+          } else {
+            finishApply(`\n${lines.buildFailed}\n`);
+          }
         }
       });
     };
@@ -168,7 +175,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
           revealTerminal();
         }
       );
-      finishApply(`\n${verb} — open the site to try it out.\n`);
+      finishTryIt();
     };
     const afterInstall = buildBy === 'resumed-watch' ? handOffToResumedWatch : runBuildStep;
     if (buildBy === 'live-watch') {
@@ -176,17 +183,17 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
       // no install and no build of our own to run — just hand off to it (#262).
       confirm(applyDoneMessage(verb, noun));
       handOffToWatch();
-      finishApply(`\n${verb} — ${compilingMessage()}\n`);
+      finishApply(`\n${lines.compiling}\n`);
       return;
     }
     if (needsInstall) {
       setApplyState('installing');
-      writeToTerminal(`\nThe ${noun} changes package-lock.json — running npm install…\n`);
+      writeToTerminal(`\n${lines.installing}\n`);
       runInstall({
         onLog: (chunk) => writeToTerminal(chunk),
         onDone: ({ code }) => {
           if (code !== 0) {
-            finishApply(`\nnpm install failed, so the build was skipped. The ${noun} is ${verb.toLowerCase()} but dependencies are stale.\n`);
+            finishApply(`\n${lines.installFailed}\n`);
             return;
           }
           afterInstall();
