@@ -366,7 +366,10 @@ body {
 }
 
 /* The dot on the x-height of the words, as in the sites list: an inline box,
-   not a flex item of the button, which would centre it on the line box. */
+   not a flex item of the button, which would centre it on the line box. The
+   space between them is the words' own, so that it goes with the words when
+   they give way to the dot in a short header, leaving the button's one gap
+   between the dot and the chevron. */
 .process-menu-state {
   white-space: nowrap;
 }
@@ -374,7 +377,10 @@ body {
 .process-menu-state .process-status {
   display: inline-block;
   vertical-align: middle;
-  margin-inline-end: var(--wpds-dimension-gap-sm);
+}
+
+.process-menu-state .header-wide-only {
+  margin-inline-start: var(--wpds-dimension-gap-sm);
 }
 
 .dashboard-sidebar h3 {

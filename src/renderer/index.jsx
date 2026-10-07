@@ -25,7 +25,7 @@ import { toggleTray, trayAfterReveal, trayList } from './tray.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
-import { sitesListRows, siteToOpen } from './sites-list.cjs';
+import { serverReport, sitesListRows, siteToOpen, withServerReport } from './sites-list.cjs';
 import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
@@ -480,21 +480,11 @@ function App({ settingsState }) {
   // sites list draws before every name. A server lives in its site's view,
   // open or not, so the view is the one thing that knows, and it reports
   // each change here; a report of null, from a view on its way out, takes
-  // the site's entry back. A report that says what the last one said is
-  // dropped before it can re-render the list.
+  // the site's entry back. What a report does to the reports is decided in
+  // sites-list.cjs.
   const [serverReports, setServerReports] = useState({});
   const onServerStatus = useCallback((sitePath, report) => {
-    setServerReports((current) => {
-      const last = current[sitePath];
-      if (!report) {
-        if (!last) return current;
-        const rest = { ...current };
-        delete rest[sitePath];
-        return rest;
-      }
-      if (last && last.status === report.status && last.text === report.text) return current;
-      return { ...current, [sitePath]: report };
-    });
+    setServerReports((current) => withServerReport(current, sitePath, report));
   }, []);
 
   const onDelete = useCallback(async (sitePath) => {
@@ -1323,14 +1313,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
   const serverSectionState = serverSection({ url: serverUrl, running, starting: isServerStarting, elapsed: startElapsed });
   // The sites list draws this server's dot before the site's name whether or
-  // not the site is open, and this is how it learns what to draw: the word
-  // the header's own dot is drawn from, and the words to say beside it,
-  // which for a server that went by itself are the sentence that says so.
-  // Reported on each change, and taken back when the view goes: the report
-  // before a change is taken back in the same commit as the new one is
-  // made, so the list sees one change, not a grey dot in between.
-  const serverDotStatus = serverState.status;
-  const serverDotText = serverState.detail || serverState.label;
+  // not the site is open, and this is how it learns what to draw: what the
+  // report says is decided in sites-list.cjs. Reported on each change, and
+  // taken back when the view goes: the report before a change is taken back
+  // in the same commit as the new one is made, so the list sees one change,
+  // not a grey dot in between.
+  const { status: serverDotStatus, text: serverDotText } = serverReport(serverState);
   useEffect(() => {
     if (!onServerStatus) return undefined;
     onServerStatus(sitePath, { status: serverDotStatus, text: serverDotText });

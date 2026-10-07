@@ -63,6 +63,42 @@ function serverDot(report) {
 }
 
 /**
+ * What a site's view reports of its server: the word the header's own dot
+ * is drawn from, and the words to say beside it, which for a server that
+ * went by itself or could not start are the sentence that says so, since
+ * "Server stopped" would not say what the red dot means.
+ *
+ * @param {{status: string, label: string, detail?: string}} process From `serverProcess` in site-processes.cjs.
+ * @return {{status: string, text: string}}
+ */
+function serverReport(process) {
+	return { status: process.status, text: process.detail || process.label };
+}
+
+/**
+ * The window's reports, by path, after one site has reported: its entry
+ * replaced, or taken out for a report of null, from a view on its way out.
+ * The same object comes back when nothing changed, so a report that says
+ * what the last one said does not re-render the list.
+ *
+ * @param {Object}                              current  Reports by path.
+ * @param {string}                              sitePath
+ * @param {{status: string, text: string}|null} report
+ * @return {Object}
+ */
+function withServerReport(current, sitePath, report) {
+	const last = current[sitePath];
+	if (!report) {
+		if (!last) return current;
+		const rest = { ...current };
+		delete rest[sitePath];
+		return rest;
+	}
+	if (last && last.status === report.status && last.text === report.text) return current;
+	return { ...current, [sitePath]: report };
+}
+
+/**
  * A site's id in the list. The list builds element ids from it and points
  * `aria-labelledby` at them, and that attribute is a list of ids separated by
  * spaces: a path with a space in it, which a Windows home folder has for
@@ -130,4 +166,4 @@ function siteToOpen({ selection, current, rows }) {
 	return next ? next.path : current;
 }
 
-module.exports = { sitesListRows, siteAttention, serverDot, siteToOpen, rowId };
+module.exports = { sitesListRows, siteAttention, serverDot, serverReport, withServerReport, siteToOpen, rowId };
