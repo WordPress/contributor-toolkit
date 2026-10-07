@@ -35,10 +35,11 @@ function MenuAction({ item, onAction }) {
  * same, so the dot is for the eye only.
  *
  * @param {Object} props
- * @param {string} props.status 'online', 'busy', 'failed' or 'offline'.
+ * @param {string} props.status  'online', 'busy', 'failed' or 'offline'.
+ * @param {string} [props.title] What the dot stands for, for a pointer over it; the words beside it say it everywhere else.
  */
-export function ProcessStatus({ status }) {
-  return <span className={`process-status is-${status}`} aria-hidden="true" />;
+export function ProcessStatus({ status, title }) {
+  return <span className={`process-status is-${status}`} title={title} aria-hidden="true" />;
 }
 
 // One of the site's two processes, in the header (#557): what it is doing, and
@@ -51,10 +52,14 @@ function ProcessMenu({ process, onToggle, links = [], onOpenLink = null }) {
       <Menu.Trigger
         render={
           <Button className="process-menu-trigger" variant="minimal" tone="neutral" size="compact" title={process.label}>
-            <ProcessStatus status={process.status} />
-            {/* The words give way to the dot when the header is short of
-                room (shell.css); they are still the button's name. */}
-            <span className="header-wide-only">{process.label}</span>
+            {/* The dot and the words are one line, so that the dot can sit
+                on the words' x-height (shell.css). The words give way to
+                the dot when the header is short of room; they are still the
+                button's name. */}
+            <span className="process-menu-state">
+              <ProcessStatus status={process.status} />
+              <span className="header-wide-only">{process.label}</span>
+            </span>
             <Icon icon={chevronDown} size={16} />
           </Button>
         }

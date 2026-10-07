@@ -152,18 +152,25 @@ body {
   background: transparent;
 }
 
+/* One line, the dots then the name, cut with an ellipsis when the name is
+   too long. The dots are inline boxes and not flex items so that
+   `vertical-align: middle` can place them: it centres a box on the parent's
+   x-height, which is where a dot beside lowercase letters belongs, whatever
+   the font. Centred on the line box instead, as a flex item is, each sat
+   1.5px above the letters. */
 .sites-sidebar-name {
-  display: flex;
-  align-items: center;
-  gap: var(--wpds-dimension-gap-sm);
-  min-width: 0;
-}
-
-.sites-sidebar-name-text {
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sites-sidebar-name .process-status,
+.sites-sidebar-dot {
+  display: inline-block;
+  vertical-align: middle;
+  margin-inline-end: var(--wpds-dimension-gap-sm);
 }
 
 .sites-sidebar-description {
@@ -173,7 +180,6 @@ body {
 
 /* What a site has to report before it is opened (#94). */
 .sites-sidebar-dot {
-  flex: none;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -357,6 +363,24 @@ body {
 
 .process-menu-trigger {
   font-weight: var(--wpds-typography-font-weight-default);
+}
+
+/* The dot on the x-height of the words, as in the sites list: an inline box,
+   not a flex item of the button, which would centre it on the line box. The
+   space between them is the words' own, so that it goes with the words when
+   they give way to the dot in a short header, leaving the button's one gap
+   between the dot and the chevron. */
+.process-menu-state {
+  white-space: nowrap;
+}
+
+.process-menu-state .process-status {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.process-menu-state .header-wide-only {
+  margin-inline-start: var(--wpds-dimension-gap-sm);
 }
 
 .dashboard-sidebar h3 {

@@ -38,7 +38,9 @@ Each site is an ordinary folder on your disk: the parent folder you chose in **S
 
 Every site appears in the sidebar, newest first. Click a site to switch to it; the button for the active site is highlighted. Every site carries its project as a tag on its row and next to its status, **Core** or **Gutenberg**, so the two kinds are told apart at a glance; on a Gutenberg site the checklist, the terminal and the cards on its page follow suit (a GitHub issue instead of a Trac ticket, and pull-request checkout instead of Trac attachments or a local patch-file picker). The chevron at the top collapses the sidebar to a narrow strip showing only each site's initial.
 
-A colored dot next to a site name warns that it has fallen behind trunk:
+A dot before each site name shows its development server, so you can see which sites are running without opening each: grey while it is stopped, green while it is running, amber while it starts, and red when it stopped by itself or could not start. The red dot's reason is in the open site's details and in its Logs.
+
+A second colored dot, after it, warns that a site has fallen behind trunk:
 
 - **Amber** — the checkout is more than 14 days old.
 - **Red** — a previous update moved the code but never finished installing or rebuilding.
