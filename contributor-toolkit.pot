@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-07T13:01:17+00:00\n"
+"POT-Creation-Date: 2026-10-07T13:20:30+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -202,124 +202,174 @@ msgstr ""
 msgid "The event name has to fit on one line."
 msgstr ""
 
-#: src/project-type.cjs:104
+#: src/project-type.cjs:100
+msgid ""
+"Goes at the top of the description. The ticket link and your WordPress.org "
+"username are added underneath."
+msgstr ""
+
+#: src/project-type.cjs:101
+msgid "Triage and props live on the ticket, so the link belongs there too."
+msgstr ""
+
+#: src/project-type.cjs:108
 msgid "How pull requests work in core"
 msgstr ""
 
-#: src/project-type.cjs:106
+#: src/project-type.cjs:110
 msgid ""
 "Nobody watches the pull request list. Yours is seen because its link is on "
 "the ticket — which is why this flow ends by sending you back there."
 msgstr ""
 
-#: src/project-type.cjs:107
+#: src/project-type.cjs:111
 msgid ""
 "Nothing is merged on GitHub either. A committer applies the change "
 "themselves, and the ticket is where they decide to."
 msgstr ""
 
-#: src/project-type.cjs:109
+#: src/project-type.cjs:113
 msgid "The handbook page on pull requests"
 msgstr ""
 
-#: src/project-type.cjs:115
+#: src/project-type.cjs:119
 msgid "Link a Trac ticket to this site first. A pull request has to cite one."
 msgstr ""
 
-#: src/project-type.cjs:158
+#: src/project-type.cjs:162
 msgid ""
 "The block editor, built and run as a plugin in a stock WordPress: GitHub "
 "issues, and pull requests by checkout."
 msgstr ""
 
-#: src/project-type.cjs:192
+#: src/project-type.cjs:196
 msgid ""
 "No issue is linked to this site. A pull request has to cite one: link it in "
 "the GitHub issue card."
 msgstr ""
 
-#: src/project-type.cjs:193
+#: src/project-type.cjs:197
 msgid ""
 "A GitHub account. The fork is made for you; no password is typed into this "
 "app and no credential is written to disk."
 msgstr ""
 
-#: src/project-type.cjs:194
+#: src/project-type.cjs:198
 msgid ""
 "Automated checks run on it, and it is reviewed and merged right there: on "
 "Gutenberg the pull request is the venue."
 msgstr ""
 
-#: src/project-type.cjs:195
+#: src/project-type.cjs:199
 msgid "It cannot create the GitHub account for you."
 msgstr ""
 
-#: src/project-type.cjs:196
+#: src/project-type.cjs:200
 msgid ""
 "Goes at the top of the description. The Fixes line that links the issue and "
 "your WordPress.org username are added underneath."
 msgstr ""
 
-#: src/project-type.cjs:197
+#: src/project-type.cjs:201
 msgid ""
 "The Fixes line already lists it on the issue. A comment there still tells "
 "the people watching it."
 msgstr ""
 
-#: src/project-type.cjs:203
+#: src/project-type.cjs:207
 msgid "How pull requests work in Gutenberg"
 msgstr ""
 
-#: src/project-type.cjs:205
+#: src/project-type.cjs:209
 msgid ""
 "The pull request is where the change is reviewed and, once approved, "
 "merged. Nothing has to be posted anywhere else for it to be seen."
 msgstr ""
 
-#: src/project-type.cjs:206
+#: src/project-type.cjs:210
 msgid ""
 "Reviewers ask for testing steps. Put them in the notes: what to open, what "
 "to click, what should happen."
 msgstr ""
 
-#: src/project-type.cjs:208
+#: src/project-type.cjs:212
 msgid "The Gutenberg contributing guide"
 msgstr ""
 
-#: src/project-type.cjs:212
+#: src/project-type.cjs:216
 msgid "Link a GitHub issue to this site first. A pull request has to cite one."
+msgstr ""
+
+#: src/project-type.cjs:222
+msgid "Download Gutenberg"
+msgstr ""
+
+#: src/project-type.cjs:223
+msgid "Clone the Gutenberg repository."
+msgstr ""
+
+#: src/project-type.cjs:224
+msgid "Compile the Gutenberg packages. Later updates rebuild automatically."
+msgstr ""
+
+#: src/project-type.cjs:227
+#. %s: the build command, npm run build.
+msgid ""
+"Built. Edited a package since? Run %s in the Terminal so the site picks it "
+"up; updates rebuild on their own."
+msgstr ""
+
+#: src/project-type.cjs:229
+msgid ""
+"Launch a WordPress with this checkout as its Gutenberg plugin, once, to "
+"finish the setup."
 msgstr ""
 
 #: src/project-type.cjs:42
 msgid "The wordpress-develop repository: Trac tickets, patches and pull requests."
 msgstr ""
 
-#: src/project-type.cjs:87
+#: src/project-type.cjs:75
+msgid "Download WordPress development version"
+msgstr ""
+
+#: src/project-type.cjs:76
+msgid "Clone the WordPress develop repository."
+msgstr ""
+
+#: src/project-type.cjs:77
+msgid ""
+"Compile WordPress Core to generate the dist files. Later updates rebuild "
+"automatically."
+msgstr ""
+
+#: src/project-type.cjs:80
+#. 1: a folder, src/. 2: the build command, npm run build.
+msgid ""
+"Built. Edited files in %1$s since? Run %2$s in the Terminal so the site "
+"picks them up — updates and applied patches rebuild on their own."
+msgstr ""
+
+#: src/project-type.cjs:82
+msgid "Launch the development server once to complete the WordPress setup wizard."
+msgstr ""
+
+#: src/project-type.cjs:91
 msgid ""
 "No ticket is linked to this site. A pull request has to cite one — link it "
 "in the Trac card."
 msgstr ""
 
-#: src/project-type.cjs:94
+#: src/project-type.cjs:98
 msgid ""
 "Automated checks run on it. Nobody watches GitHub, though — posting the "
 "link on the ticket is what gets it seen."
 msgstr ""
 
-#: src/project-type.cjs:95
+#: src/project-type.cjs:99
 msgid ""
 "It cannot create the GitHub account for you, and it cannot post to Trac on "
 "your behalf."
-msgstr ""
-
-#: src/project-type.cjs:96
-msgid ""
-"Goes at the top of the description. The ticket link and your WordPress.org "
-"username are added underneath."
-msgstr ""
-
-#: src/project-type.cjs:97
-msgid "Triage and props live on the ticket, so the link belongs there too."
 msgstr ""
 
 #: src/renderer/apply-card.cjs:136
@@ -540,6 +590,7 @@ msgstr ""
 
 #: src/renderer/components/apply-card.jsx:333
 #: src/renderer/components/confirm-dialog.jsx:40
+#: src/renderer/components/dirty-tree-modal.jsx:82
 #: src/renderer/components/pull-request-destination.jsx:154
 msgid "Cancel"
 msgstr ""
@@ -601,6 +652,47 @@ msgstr ""
 msgid ""
 "Choose the parent folder where you want this new site created. A new "
 "subdirectory will be created for the site."
+msgstr ""
+
+#: src/renderer/components/dirty-tree-modal.jsx:22
+msgid "Update to latest trunk?"
+msgstr ""
+
+#: src/renderer/components/dirty-tree-modal.jsx:30
+#. %d: how many files the contributor has changed.
+msgid ""
+"You've changed %d file in this site. Resetting to trunk would throw them "
+"away."
+msgid_plural ""
+"You've changed %d files in this site. Resetting to trunk would throw them "
+"away."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/components/dirty-tree-modal.jsx:49
+msgid "Save them as a patch first (as a local file)"
+msgstr ""
+
+#: src/renderer/components/dirty-tree-modal.jsx:51
+#. Said after "Save them as a patch first (as a local file)", on the same line.
+msgid "— a .diff on your machine — nothing is sent to Trac"
+msgstr ""
+
+#: src/renderer/components/dirty-tree-modal.jsx:55
+msgid "Discard them"
+msgstr ""
+
+#: src/renderer/components/dirty-tree-modal.jsx:57
+#. Said after "Discard them", on the same line.
+msgid "— your changes are lost; this cannot be undone"
+msgstr ""
+
+#: src/renderer/components/dirty-tree-modal.jsx:89
+msgid "Discard & update"
+msgstr ""
+
+#: src/renderer/components/dirty-tree-modal.jsx:89
+msgid "Save patch & update"
 msgstr ""
 
 #: src/renderer/components/folder-field.jsx:47
@@ -853,6 +945,7 @@ msgid "Sign in with GitHub"
 msgstr ""
 
 #: src/renderer/components/pull-request-destination.jsx:302
+#: src/renderer/index.jsx:2228
 msgid "Not now"
 msgstr ""
 
@@ -1161,6 +1254,30 @@ msgstr ""
 msgid "Relaunch now"
 msgstr ""
 
+#: src/renderer/components/setup-checklist.jsx:40
+msgid "Initial setup checklist"
+msgstr ""
+
+#: src/renderer/components/setup-checklist.jsx:41
+msgid "Complete each step to prepare this site for development."
+msgstr ""
+
+#: src/renderer/components/setup-checklist.jsx:52
+msgid "Stop setup"
+msgstr ""
+
+#: src/renderer/components/setup-checklist.jsx:58
+msgid "Setup stopped."
+msgstr ""
+
+#: src/renderer/components/setup-checklist.jsx:59
+msgid "Nothing was lost — pick it back up with the buttons below whenever you want."
+msgstr ""
+
+#: src/renderer/components/setup-checklist.jsx:85
+msgid "Skip initialization wizard"
+msgstr ""
+
 #: src/renderer/components/site-details.jsx:101
 msgid "Development server offline"
 msgstr ""
@@ -1379,6 +1496,10 @@ msgstr ""
 msgid "Link ticket"
 msgstr ""
 
+#: src/renderer/components/trunk-update-card.jsx:25
+msgid "Updating to latest trunk"
+msgstr ""
+
 #: src/renderer/confirmations.cjs:101
 #. %s: the number of a pull request.
 msgid "Opened pull request #%s"
@@ -1461,6 +1582,12 @@ msgid_plural "%d unseen lines in Debug.log"
 msgstr[0] ""
 msgstr[1] ""
 
+#: src/renderer/hooks/use-dev-server.jsx:170
+msgid ""
+"Please complete the full build before starting the dev server. You can also "
+"skip the wizard."
+msgstr ""
+
 #: src/renderer/hooks/use-pull-request.jsx:144
 msgid "The pull request could not be opened."
 msgstr ""
@@ -1481,7 +1608,27 @@ msgstr ""
 msgid "Already up to date with trunk"
 msgstr ""
 
+#: src/renderer/hooks/use-trunk-update.jsx:260
+#. %s: why the diff could not be saved.
+msgid "Error saving diff: %s"
+msgstr ""
+
+#: src/renderer/hooks/use-trunk-update.jsx:267
+#. 1: the path of the saved patch file. 2: why the reset failed.
+msgid "Saved your changes to %1$s, but resetting the working tree failed: %2$s"
+msgstr ""
+
+#: src/renderer/hooks/use-trunk-update.jsx:287
+#: src/renderer/index.jsx:1816
+msgid "Unknown error"
+msgstr ""
+
 #: src/renderer/hooks/use-trunk-update.jsx:289
+#. %s: why the changes could not be discarded.
+msgid "Failed to discard changes: %s"
+msgstr ""
+
+#: src/renderer/hooks/use-trunk-update.jsx:295
 msgid "Local changes discarded."
 msgstr ""
 
@@ -1501,12 +1648,126 @@ msgstr ""
 msgid "All changes discarded."
 msgstr ""
 
-#: src/renderer/index.jsx:1816
-msgid "Unknown error"
+#: src/renderer/index.jsx:1863
+msgid ""
+"Cloning the repository… install and build start on their own when it "
+"finishes."
 msgstr ""
 
-#: src/renderer/index.jsx:2430
+#: src/renderer/index.jsx:1870
+#: src/renderer/setup-steps.cjs:204
+msgid "Install npm dependencies"
+msgstr ""
+
+#: src/renderer/index.jsx:1886
+#: src/renderer/setup-steps.cjs:227
+#: src/renderer/update-plan.cjs:187
+msgid "Run full build"
+msgstr ""
+
+#: src/renderer/index.jsx:1902
+msgid "Start dev server & finish wizard"
+msgstr ""
+
+#: src/renderer/index.jsx:1917
+msgid "Stop dev server"
+msgstr ""
+
+#: src/renderer/index.jsx:1917
+msgid "Start dev server and finish the wizard"
+msgstr ""
+
+#: src/renderer/index.jsx:1922
+#. %s: how long the server has been starting, such as 12s.
+msgid "Starting… (%s)"
+msgstr ""
+
+#: src/renderer/index.jsx:2021
+#. %s: what to do next, a sentence.
+msgid "Next step: %s"
+msgstr ""
+
+#: src/renderer/index.jsx:2122
+msgid "Update incomplete"
+msgstr ""
+
+#: src/renderer/index.jsx:2123
+msgid ""
+"The code is new but the built assets are old. The site may not run "
+"correctly until install and build succeed."
+msgstr ""
+
+#: src/renderer/index.jsx:2125
+msgid "Retry install & build"
+msgstr ""
+
+#: src/renderer/index.jsx:2133
+#. %d: how many days old the site's copy of WordPress is.
+msgid "This site's WordPress code is %d day old"
+msgid_plural "This site's WordPress code is %d days old"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/renderer/index.jsx:2136
+msgid "Patches you create now may not apply on Trac. Updating takes a few minutes."
+msgstr ""
+
+#: src/renderer/index.jsx:2138
+#: src/renderer/site-menu.cjs:118
+msgid "Update to latest trunk"
+msgstr ""
+
+#: src/renderer/index.jsx:2147
+#. 1: the step the update is on. 2: how many steps it has.
+msgid "step %1$d of %2$d"
+msgstr ""
+
+#: src/renderer/index.jsx:2148
+msgid ""
+"Most packages are already cached, so this is a download of the difference — "
+"not the whole tree."
+msgstr ""
+
+#: src/renderer/index.jsx:2153
+msgid "Up to date with trunk as of today."
+msgstr ""
+
+#: src/renderer/index.jsx:2165
+#. %s: the path of the patch file the changes were saved to.
+msgid "Your changes were saved to %s before the reset."
+msgstr ""
+
+#: src/renderer/index.jsx:2182
+#. 1: the step setup is on. 2: how many steps it has.
+msgid "Setting this site up for you — step %1$d of %2$d"
+msgstr ""
+
+#: src/renderer/index.jsx:2187
+msgid ""
+"Installing dependencies. You can leave this running — the build follows on "
+"its own."
+msgstr ""
+
+#: src/renderer/index.jsx:2188
+msgid ""
+"Running the full build. This can take up to half an hour on Windows; the "
+"Terminal shows what it is doing."
+msgstr ""
+
+#: src/renderer/index.jsx:2210
+msgid "Hide"
+msgstr ""
+
+#: src/renderer/index.jsx:2226
+msgid "Finish setting this site up first."
+msgstr ""
+
+#: src/renderer/index.jsx:2459
 msgid "WordPress Contributor Toolkit"
+msgstr ""
+
+#: src/renderer/index.jsx:602
+msgid "Setting up new site…"
 msgstr ""
 
 #: src/renderer/index.jsx:645
@@ -1527,6 +1788,51 @@ msgstr ""
 
 #: src/renderer/index.jsx:686
 msgid "Show sites list"
+msgstr ""
+
+#: src/renderer/next-action.cjs:102
+msgid "Start the dev server to work on the site."
+msgstr ""
+
+#: src/renderer/next-action.cjs:107
+#. %d: a pull request number.
+msgid "PR #%d is applied; revert it before applying another change."
+msgstr ""
+
+#: src/renderer/next-action.cjs:113
+msgid "You have uncommitted changes ready to review and submit."
+msgstr ""
+
+#: src/renderer/next-action.cjs:119
+msgid "Link a GitHub issue to give your work a home."
+msgstr ""
+
+#: src/renderer/next-action.cjs:120
+msgid "Link a Trac ticket to give your work a home."
+msgstr ""
+
+#: src/renderer/next-action.cjs:57
+msgid "The next step in the setup checklist."
+msgstr ""
+
+#: src/renderer/next-action.cjs:71
+msgid "A patch is being applied or reverted."
+msgstr ""
+
+#: src/renderer/next-action.cjs:75
+msgid "The trunk update in progress."
+msgstr ""
+
+#: src/renderer/next-action.cjs:84
+msgid "A patch is staged — apply and rebuild, or cancel."
+msgstr ""
+
+#: src/renderer/next-action.cjs:90
+msgid "The update left the build stale; install and build to recover."
+msgstr ""
+
+#: src/renderer/next-action.cjs:97
+msgid "The trunk snapshot is old; update before making a patch."
 msgstr ""
 
 #: src/renderer/pr-checkout.cjs:27
@@ -1606,6 +1912,69 @@ msgstr ""
 
 #: src/renderer/settings-view.cjs:60
 msgid "Your system’s language"
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:149
+msgid "Completed"
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:151
+msgid "Failed"
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:153
+msgid "Pending"
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:155
+msgid "Locked"
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:157
+msgid "In progress"
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:157
+msgid "Ready"
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:205
+#: src/renderer/update-plan.cjs:106
+msgid "Dependencies installed"
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:208
+#. %s: the command that installs dependencies, npm install.
+msgid "Retry %s"
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:211
+msgid "Install npm packages so commands can run."
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:217
+#. 1: a file name, package.json. 2: the command that installs dependencies, npm install.
+msgid "Installed. Added a dependency to %1$s since? Run %2$s in the Terminal."
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:224
+msgid ""
+"The install did not finish. Its output is in the Terminal — retry when you "
+"have read it."
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:228
+msgid "Build complete"
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:229
+msgid "Retry the build"
+msgstr ""
+
+#: src/renderer/setup-steps.cjs:235
+msgid ""
+"The build did not finish. Its output is in the Terminal — retry when you "
+"have read it."
 msgstr ""
 
 #: src/renderer/site-details.cjs:31
@@ -1693,10 +2062,6 @@ msgstr ""
 
 #: src/renderer/site-mail.cjs:50
 msgid "(no subject)"
-msgstr ""
-
-#: src/renderer/site-menu.cjs:118
-msgid "Update to latest trunk"
 msgstr ""
 
 #: src/renderer/site-menu.cjs:120
@@ -2165,6 +2530,93 @@ msgstr ""
 
 #: src/renderer/tray.cjs:37
 msgid "Toggle Email"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:105
+msgid "Fetch and reset to trunk"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:105
+msgid "Fetching and resetting to trunk…"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:105
+msgid "Fetched and reset to trunk"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:106
+msgid "Dependencies changed — installing the difference…"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:107
+msgid "Rebuilding — output in the Terminal"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:107
+msgid "Rebuilt"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:137
+msgid "The build watch will recompile the change"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:138
+msgid "The build watch rebuilds when it resumes"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:156
+msgid "Apply the pull request"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:156
+msgid "Revert the pull request"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:159
+msgid "Apply the patch"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:161
+msgid "Rebuild"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:185
+msgid "Download WordPress"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:186
+msgid "Install dependencies"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:377
+#. %s: how long the rebuild took, such as 2m 05s.
+msgid "Dependencies updated, rebuilt in %s."
+msgstr ""
+
+#: src/renderer/update-plan.cjs:381
+#. %s: how long the rebuild took, such as 2m 05s.
+msgid "Dependencies unchanged, rebuilt in %s."
+msgstr ""
+
+#: src/renderer/update-plan.cjs:383
+msgid "Dependencies updated, rebuilt."
+msgstr ""
+
+#: src/renderer/update-plan.cjs:383
+msgid "Dependencies unchanged, rebuilt."
+msgstr ""
+
+#: src/renderer/update-plan.cjs:59
+#. %s: the command that installs dependencies, npm install.
+msgid "Dependencies unchanged — skipping %s"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:63
+msgid "The build watch is rebuilding — output in the Logs, under Build watch"
+msgstr ""
+
+#: src/renderer/update-plan.cjs:84
+msgid "Fetch latest trunk"
 msgstr ""
 
 #: src/settings.cjs:100
