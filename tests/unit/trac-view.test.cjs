@@ -55,7 +55,7 @@ test('openAndScrape: a navigation that never finishes still reaches the ready ti
 
 // The window is shown when Trac's check needs a click, and where Trac's page
 // does not paint it is the colour it was made with: the app's theme (#560),
-// not white on a dark desktop. A deadline already passed skips the poll.
+// not white on a dark desktop. A deadline of now skips the poll.
 test('openAndScrape: the Trac window is made in the colour of the app\'s theme', async () => {
 	const { DARK_BACKGROUND, LIGHT_BACKGROUND } = require('../../src/theme.cjs');
 	for (const [dark, colour] of [[true, DARK_BACKGROUND], [false, LIGHT_BACKGROUND]]) {

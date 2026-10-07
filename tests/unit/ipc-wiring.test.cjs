@@ -1534,10 +1534,10 @@ test('a tree whose only change is binary still reports no changes (#85)', async 
 // is the handler's first step (#308), and a directory that is not a
 // repository now stops there with "the base could not be read" instead of
 // reaching the patch path this test is about.
-test('git:save-patch goes through the patch path, from its first read', async (t) => {
+test('git:save-patch goes through the patch path, from the base the walk compares against', async (t) => {
 	const dir = await fixtureRepo(t);
-	// Throwing ends the handler at its first read, the base the walk
-	// compares against: reached, the handler is on the shared path.
+	// A base that cannot be read ends the handler in the shared walk, before
+	// any diff: reaching `resolveRef(dir, 'HEAD')` puts it on that path.
 	const resolveRef = spy(async () => { throw new Error('not a repository'); });
 	const main = loadMain({ stubs: { ...silentLogging(), './git-read.cjs': { resolveRef } } });
 
@@ -2019,13 +2019,13 @@ test('the menu\'s Settings… opens the dialog in the main window, listed first 
 	mainWindow.show = () => brought.push('show');
 	mainWindow.focus = () => brought.push('focus');
 	// The Trac window, and Electron lists it first.
-	const patch = new main.electron.BrowserWindow({});
+	const trac = new main.electron.BrowserWindow({});
 	main.windows.reverse();
 
 	settings.click();
 
 	assert.deepEqual(mainWindow.sent, [{ channel: 'settings:open', payload: undefined }]);
-	assert.deepEqual(patch.sent, []);
+	assert.deepEqual(trac.sent, []);
 	assert.deepEqual(brought, ['restore', 'show', 'focus']);
 });
 
