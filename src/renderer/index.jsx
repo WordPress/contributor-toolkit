@@ -25,7 +25,7 @@ import { toggleTray, trayAfterReveal, trayList } from './tray.cjs';
 import { formatElapsed, watchTabLabel } from './dev-server-command.cjs';
 import { watchBusyMessage, appliedBannerState } from './watch-activity.cjs';
 import { pathBasename } from './path-basename.cjs';
-import { sitesListRows, siteToOpen } from './sites-list.cjs';
+import { serverReport, sitesListRows, siteToOpen, withServerReport } from './sites-list.cjs';
 import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
@@ -476,6 +476,17 @@ function App({ settingsState }) {
     setSiteMeta((m) => ({ ...(m || {}), [sitePath]: { ...(m?.[sitePath] || {}), ...patch } }));
   }, [setSiteMeta]);
 
+  // What each site's view last said of its server, by path, for the dot the
+  // sites list draws before every name. A server lives in its site's view,
+  // open or not, so the view is the one thing that knows, and it reports
+  // each change here; a report of null, from a view on its way out, takes
+  // the site's entry back. What a report does to the reports is decided in
+  // sites-list.cjs.
+  const [serverReports, setServerReports] = useState({});
+  const onServerStatus = useCallback((sitePath, report) => {
+    setServerReports((current) => withServerReport(current, sitePath, report));
+  }, []);
+
   const onDelete = useCallback(async (sitePath) => {
     if (deletingSitesRef.current.has(sitePath)) return;
     deletingSitesRef.current.add(sitePath);
@@ -531,8 +542,8 @@ function App({ settingsState }) {
   // The list reports its selection; which site that opens is decided in
   // sites-list.cjs.
   const sitesRows = useMemo(
-    () => sitesListRows({ sites: sortedSites, siteMeta, deleting: deletingSites }),
-    [sortedSites, siteMeta, deletingSites]
+    () => sitesListRows({ sites: sortedSites, siteMeta, deleting: deletingSites, servers: serverReports }),
+    [sortedSites, siteMeta, deletingSites, serverReports]
   );
   const openRow = sitesRows.find((row) => row.path === activeSite) || null;
   const handleChangeSelection = useCallback((selection) => {
@@ -705,6 +716,7 @@ function App({ settingsState }) {
                         resume={resumeFor(resume, s)}
                         onInitialized={onInitialized}
                         onSiteMetaPatch={onSiteMetaPatch}
+                        onServerStatus={onServerStatus}
                         onDelete={onDelete}
                         onRename={onRename}
                         onCreateSite={() => setCreateModalOpen(true)}
@@ -758,7 +770,7 @@ function App({ settingsState }) {
   );
 }
 
-function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
+function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, settings = null, startingPhp = null, resume = null, onInitialized, onSiteMetaPatch, onServerStatus = null, onDelete, onRename, onCreateSite, editor, wporg, isPending = false, isDeleting = false, setupLogs = '', isActive = false, switchProgress = null, carriedWork = null, onClearSwitchNotices = null, deepLink = null, onDeepLinkDone = null, detailsOpen = true, onToggleDetails = null, tray = null, onShowTray = null }) {
   // The window's confirmation queue (#253): confirm(message) after an action
   // completes, so the outcome is announced rather than left silent or buried in
   // the terminal.
@@ -1300,6 +1312,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   const serverState = serverProcess({ active: isDevProcessActive, starting: isServerStarting, isUpdating, failure: serverFailure });
   const watchProcessState = watchProcess({ state: watchState, compiling: watchCompiling, exitCode: watchExitCode, exitOf: watchExitOf, isUpdating, updateWaitingOnWatch, sourceDir: project.cards.sourceDir });
   const serverSectionState = serverSection({ url: serverUrl, running, starting: isServerStarting, elapsed: startElapsed });
+  // The sites list draws this server's dot before the site's name whether or
+  // not the site is open, and this is how it learns what to draw: what the
+  // report says is decided in sites-list.cjs. Reported on each change, and
+  // taken back when the view goes: the report before a change is taken back
+  // in the same commit as the new one is made, so the list sees one change,
+  // not a grey dot in between.
+  const { status: serverDotStatus, text: serverDotText } = serverReport(serverState);
+  useEffect(() => {
+    if (!onServerStatus) return undefined;
+    onServerStatus(sitePath, { status: serverDotStatus, text: serverDotText });
+    return () => onServerStatus(sitePath, null);
+  }, [onServerStatus, sitePath, serverDotStatus, serverDotText]);
   // A link to the running site is opened in the browser by the main process.
   const openSiteLink = (url) => window.api.openExternal(url);
 
