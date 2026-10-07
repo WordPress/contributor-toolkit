@@ -16,19 +16,25 @@ name: Unit tests
 
 on:
   pull_request:
+    # `edited` re-runs `changes` when the PR's base moves (see the `changes` job).
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [trunk]
 
 permissions:
   contents: read
 
-# A new push supersedes the previous run on the same ref.
+# A new push supersedes the previous run on the same ref. A title or description edit
+# gets a group of its own, so it cannot cancel a run that is still testing the code.
 concurrency:
-  group: unit-tests-${{ github.ref }}
+  group: unit-tests-${{ github.ref }}${{ github.event.action == 'edited' && !github.event.changes.base && '-edit' || '' }}
   cancel-in-progress: true
 
 jobs:
   changes:
+    # Moving the PR's base changes its diff: a Markdown-only PR moved onto trunk from a
+    # stacked branch now carries that branch's code. Any other edit changes nothing here.
+    if: github.event.action != 'edited' || github.event.changes.base
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
