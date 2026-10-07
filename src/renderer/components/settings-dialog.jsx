@@ -5,7 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 // eslint-disable-next-line @wordpress/no-unsafe-wp-apis -- see above.
 import { __experimentalToggleGroupControl as ToggleGroupControl, __experimentalToggleGroupControlOption as ToggleGroupControlOption } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
-import { Button, Dialog, InputControl, Notice, SelectControl, Stack, SwitchControl, Tabs, Text } from '@wordpress/ui';
+import { Button, Dialog, InputControl, InputLayout, Notice, SelectControl, Stack, SwitchControl, Tabs, Text } from '@wordpress/ui';
 import { useThemeWarnings } from './app-theme.jsx';
 import { githubAccountLine, newSiteLocationNote, languageItems, languageValue, languageChanged, phpVersionChoice, quitItems, themeItems, colorFieldDraft, pickerValue, SYSTEM_LANGUAGE } from '../settings-view.cjs';
 import { FolderField } from './folder-field.jsx';
@@ -121,15 +121,17 @@ function ColorField({ label, value, onKeep }) {
       spellCheck={false}
       autoComplete="off"
       prefix={
-        <input
-          ref={picker}
-          type="color"
-          className="color-swatch"
-          // translators: %s: what the colour is for, "Background" or "Primary".
-          aria-label={sprintf(__('%s colour picker'), label)}
-          value={pickerValue(draft, value)}
-          onChange={(event) => setDraft(event.currentTarget.value)}
-        />
+        <InputLayout.Slot padding="minimal">
+          <input
+            ref={picker}
+            type="color"
+            className="color-swatch"
+            // translators: %s: what the colour is for, "Background" or "Primary".
+            aria-label={sprintf(__('%s colour picker'), label)}
+            value={pickerValue(draft, value)}
+            onChange={(event) => setDraft(event.currentTarget.value)}
+          />
+        </InputLayout.Slot>
       }
       onChange={(event) => setDraft(event.currentTarget.value)}
       onBlur={commit}
