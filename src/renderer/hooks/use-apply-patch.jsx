@@ -5,7 +5,7 @@ import { describeApplyFailure, otherPatchCount } from '../apply-conflict.cjs';
 import { applyDoneMessage } from '../confirmations.cjs';
 import { prCheckoutRefusal } from '../pr-checkout.cjs';
 import { savedPrForSwitch } from '../ticket-branch-list.cjs';
-import { planApplySteps, updateStepStatuses, planWatchImpact, planTicketSwitchImpact, SKIP_INSTALL_MESSAGE, APPLY_STATE_TO_STEP } from '../update-plan.cjs';
+import { planApplySteps, updateStepStatuses, planWatchImpact, planTicketSwitchImpact, skipInstallMessage, APPLY_STATE_TO_STEP } from '../update-plan.cjs';
 import { compilingMessage, applyFinishMessage, resumedWatchHandOff } from '../watch-activity.cjs';
 import { watchOccupiesBuild } from '../watch-waiters.cjs';
 
@@ -193,7 +193,7 @@ export function useApplyPatch({ sitePath, project, workItem, showTracCards, isAc
         }
       });
     } else {
-      writeToTerminal(`\n${SKIP_INSTALL_MESSAGE}\n`);
+      writeToTerminal(`\n${skipInstallMessage()}\n`);
       afterInstall();
     }
   };

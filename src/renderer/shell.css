@@ -152,18 +152,25 @@ body {
   background: transparent;
 }
 
+/* One line, the dots then the name, cut with an ellipsis when the name is
+   too long. The dots are inline boxes and not flex items so that
+   `vertical-align: middle` can place them: it centres a box on the parent's
+   x-height, which is where a dot beside lowercase letters belongs, whatever
+   the font. Centred on the line box instead, as a flex item is, each sat
+   1.5px above the letters. */
 .sites-sidebar-name {
-  display: flex;
-  align-items: center;
-  gap: var(--wpds-dimension-gap-sm);
-  min-width: 0;
-}
-
-.sites-sidebar-name-text {
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sites-sidebar-name .process-status,
+.sites-sidebar-dot {
+  display: inline-block;
+  vertical-align: middle;
+  margin-inline-end: var(--wpds-dimension-gap-sm);
 }
 
 .sites-sidebar-description {
@@ -173,7 +180,6 @@ body {
 
 /* What a site has to report before it is opened (#94). */
 .sites-sidebar-dot {
-  flex: none;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -357,6 +363,24 @@ body {
 
 .process-menu-trigger {
   font-weight: var(--wpds-typography-font-weight-default);
+}
+
+/* The dot on the x-height of the words, as in the sites list: an inline box,
+   not a flex item of the button, which would centre it on the line box. The
+   space between them is the words' own, so that it goes with the words when
+   they give way to the dot in a short header, leaving the button's one gap
+   between the dot and the chevron. */
+.process-menu-state {
+  white-space: nowrap;
+}
+
+.process-menu-state .process-status {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.process-menu-state .header-wide-only {
+  margin-inline-start: var(--wpds-dimension-gap-sm);
 }
 
 .dashboard-sidebar h3 {
@@ -1305,6 +1329,52 @@ body {
 
 .folder-field .file-field-value {
   overflow-wrap: anywhere;
+}
+
+/* The custom theme's two colours (#560), side by side, each typed as hex in
+   the terminal's type after a swatch of the colour kept. The swatch is the
+   system's colour input itself, which draws the colour it holds, with the
+   browser's padding and border around that colour taken off so it fills
+   the swatch; pressing it opens the picker. It stands in the design
+   system's own slot for a prefix, which centres it and pads it as the
+   field's text is padded; a square of its own size, which the field's row
+   is not to shrink. */
+.theme-colors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--wpds-dimension-gap-xl);
+}
+
+.theme-colors > * {
+  min-width: 0;
+}
+
+.color-field input[type="text"] {
+  font-family: var(--wpds-typography-font-family-mono);
+}
+
+.color-swatch {
+  display: block;
+  flex: none;
+  box-sizing: border-box;
+  width: var(--wpds-dimension-size-sm);
+  height: var(--wpds-dimension-size-sm);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
+  border-radius: var(--wpds-border-radius-sm);
+  background: none;
+  cursor: pointer;
+}
+
+.color-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-swatch::-webkit-color-swatch {
+  border: 0;
+  border-radius: 0;
 }
 
 /* The settings dialog (#559): its tabs under its title, and each tab's

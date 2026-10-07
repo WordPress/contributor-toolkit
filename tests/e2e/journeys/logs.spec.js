@@ -264,7 +264,9 @@ test( 'debug.log shows what the file holds, counts what arrived unseen on its ta
 	// one has not been seen either: it is in the count when its site is
 	// come back to.
 	wordpressWrites( 'PHP Notice: written while another site was open\n' );
-	await ui.sidebarEntry( page, 'logs-site' ).click();
+	// Its server was started and never given an address here, so it is still
+	// starting, and its entry in the list says so after its name.
+	await ui.sidebarEntry( page, 'logs-site (Server starting…)' ).click();
 	await expect( ui.siteHeading( page, 'logs-site' ) ).toBeVisible();
 	await expect( logsToggle ).toHaveAccessibleDescription( '3 unseen lines in Debug.log' );
 	// INVARIANT — the logs coming back on the tab is the lines being seen.

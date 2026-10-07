@@ -98,20 +98,25 @@ test( 'with the server set to start when a site is opened, opening one asks for 
 
 	// INVARIANT — opening another site asks for that site's server; coming
 	// back to one whose server runs asks for nothing more.
+	// An entry in the list is named by its site and what its server's dot
+	// says: the opened site's server is running, and the other's, never
+	// given an address here, stays starting once it has been opened.
 	const otherLabel = otherSite.settings.siteMeta[ otherSite.dir ].label;
 	const openedLabel = openedSite.settings.siteMeta[ openedSite.dir ].label;
+	const openedEntry = ui.sidebarEntry( page, `${ openedLabel } (Server running)` );
+	const otherEntry = ui.sidebarEntry( page, `${ otherLabel } (Server starting…)` );
 	await ui.sidebarEntry( page, otherLabel ).click();
 	await expect( ui.siteHeading( page, otherLabel ) ).toBeVisible();
 	await expect.poll( async () => ( await asked( app ) ).starts ).toEqual( [ openedSite.dir, otherSite.dir ] );
-	await ui.sidebarEntry( page, openedLabel ).click();
+	await openedEntry.click();
 	await expect( ui.siteHeading( page, openedLabel ) ).toBeVisible();
-	await ui.sidebarEntry( page, otherLabel ).click();
+	await otherEntry.click();
 	await expect( ui.siteHeading( page, otherLabel ) ).toBeVisible();
 	await nothingMore( page );
 	expect( ( await asked( app ) ).starts ).toEqual( [ openedSite.dir, otherSite.dir ] );
 	// The server that runs was not stopped by a second toggle: its control
 	// still offers to stop it.
-	await ui.sidebarEntry( page, openedLabel ).click();
+	await openedEntry.click();
 	await expect( ui.stopDevServerButton( page ) ).toBeVisible();
 } );
 
