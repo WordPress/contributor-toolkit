@@ -137,6 +137,56 @@ function setupFailureMessage(error) {
 }
 
 /**
+ * The line the setup log gets for a status from main: one sentence per phase,
+ * since the phase itself is a code. A phase this version does not know is
+ * still a status.
+ *
+ * @param {string} [phase] The phase main reported, 'cloning' or 'done'.
+ * @return {string} The sentence.
+ */
+function setupStatusLine(phase) {
+	switch (phase) {
+		case 'cloning': return __('Status: cloning');
+		case 'done': return __('Status: done');
+		default: return __('Status update');
+	}
+}
+
+/**
+ * What the terminal says as the setup chain ends, for the way it ended
+ * (`setupOutcome` in update-plan.cjs): each names where the rest of the work
+ * now lives. Empty for an outcome this version does not know.
+ *
+ * @param {string} outcome 'done', 'stopped', 'failed-install' or 'failed-build'.
+ * @return {string} The sentence, or ''.
+ */
+function setupEndMessage(outcome) {
+	switch (outcome) {
+		case 'done': return __('Setup complete — start the dev server when you are ready.');
+		case 'stopped': return __('Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready.');
+		case 'failed-install':
+			// translators: %s: the command that installs dependencies, npm install.
+			return sprintf(__('%s failed — setup stopped here. Its output is above; retry the install from the checklist.'), 'npm install');
+		case 'failed-build': return __('The build failed — dependencies are installed. Its output is above; retry the build from the checklist.');
+		default: return '';
+	}
+}
+
+/**
+ * What a Copy button says about the press just made.
+ *
+ * @param {string} [state] 'copied', 'failed', or anything else for not yet pressed.
+ * @return {string} The label.
+ */
+function copyButtonLabel(state) {
+	switch (state) {
+		case 'copied': return __('Copied');
+		case 'failed': return __('Could not copy');
+		default: return __('Copy');
+	}
+}
+
+/**
  * The confirmation for a patch or a pull request that is in the checkout and
  * built, or taken back out. The apply flow names what it did with a verb and
  * a noun, which it also prints in the terminal; here each pair it has is a
@@ -200,4 +250,4 @@ function toastView(notice = {}) {
 	};
 }
 
-module.exports = { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage, setupFailureMessage, applyDoneMessage, patchSavedMessage, savedAndResetMessage, toastView, MAX_NOTICES, TOAST_LIFETIME_MS };
+module.exports = { initialConfirmations, confirmationReducer, prConfirmationMessage, deleteFailureMessage, setupFailureMessage, setupStatusLine, setupEndMessage, copyButtonLabel, applyDoneMessage, patchSavedMessage, savedAndResetMessage, toastView, MAX_NOTICES, TOAST_LIFETIME_MS };

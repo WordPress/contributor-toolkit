@@ -7,6 +7,8 @@ const {
 	mapCheckoutPhase,
 	describeSwitchProgress
 } = require('../../src/switch-progress.cjs');
+const { addFilter, removeFilter } = require('@wordpress/hooks');
+const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
 
 // A clock the tests move by hand: throttling asserted without timers, so none
 // of this can go flaky on a loaded CI runner.
@@ -220,4 +222,21 @@ test('describeSwitchProgress names an issue/ branch by its number, like a ticket
 	const entering = describeSwitchProgress({ stage: 'apply', from: 'trunk', to: 'issue/71300' });
 	assert.match(entering, /for #71300/);
 	assert.strictEqual(describeSwitchProgress({ stage: 'done', from: 'trunk', to: 'issue/71300' }), describeSwitchProgress({ stage: 'done', from: 'trunk', to: 'ticket/71300' }));
+});
+
+test('describeSwitchProgress says each stage in the locale applied, one whole sentence per case (#627)', (t) => {
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	addFilter('i18n.ngettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => {
+		removeFilter('i18n.gettext', 'test/pseudo-locale');
+		removeFilter('i18n.ngettext', 'test/pseudo-locale');
+	});
+	const said = (sentence, value) => pseudoLocalize(sentence).replace('%s', value);
+
+	assert.strictEqual(describeSwitchProgress({ stage: 'scan', from: 'pr/7701' }), said('Saving your edits on %s…', 'PR #7701'));
+	assert.strictEqual(describeSwitchProgress({ stage: 'rebase', from: 'ticket/59234' }), said('Moving your work on %s onto the current trunk…', '#59234'));
+	assert.strictEqual(describeSwitchProgress({ stage: 'apply', to: 'issue/71300', loaded: 25, total: 100 }), `${said('Swapping files for %s…', '#71300')} 25%`);
+	assert.strictEqual(describeSwitchProgress({ stage: 'apply', loaded: 1200 }), `${pseudoLocalize('Swapping files…')} ${said('%s files', (1200).toLocaleString())}`);
+	assert.strictEqual(describeSwitchProgress({ stage: 'done', to: 'ticket/59234' }), said('Ready to work on %s', '#59234'));
+	assert.strictEqual(describeSwitchProgress({ stage: 'something-new' }), pseudoLocalize('Working…'));
 });

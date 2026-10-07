@@ -9,6 +9,9 @@ const {
 	prConfirmationMessage,
 	deleteFailureMessage,
 	setupFailureMessage,
+	setupStatusLine,
+	setupEndMessage,
+	copyButtonLabel,
 	applyDoneMessage,
 	patchSavedMessage,
 	savedAndResetMessage,
@@ -216,4 +219,24 @@ test('every sentence this module words goes through the translator, around what 
 		'T dry run', 'T opened 9', 'T opened 9 at WordPress/gutenberg',
 		'T kept /sites/demo (EBUSY)', 'T kept /sites/demo'
 	]);
+});
+
+// What the setup log, the end of the setup chain and a Copy button say, moved
+// out of index.jsx so they can be reached here (#627).
+test('the setup lines and the Copy label keep their English and are translated when they are said (#627)', (t) => {
+	assert.strictEqual(setupStatusLine('cloning'), 'Status: cloning');
+	assert.strictEqual(setupStatusLine('done'), 'Status: done');
+	assert.strictEqual(setupStatusLine(undefined), 'Status update');
+	assert.strictEqual(setupEndMessage('failed-install'), 'npm install failed — setup stopped here. Its output is above; retry the install from the checklist.');
+	assert.strictEqual(setupEndMessage('something-new'), '');
+	assert.strictEqual(copyButtonLabel('copied'), 'Copied');
+	assert.strictEqual(copyButtonLabel(''), 'Copy');
+
+	const { addFilter, removeFilter } = require('@wordpress/hooks');
+	const { pseudoLocalize } = require('../../src/renderer/pseudo-locale.cjs');
+	addFilter('i18n.gettext', 'test/pseudo-locale', (text) => pseudoLocalize(text));
+	t.after(() => removeFilter('i18n.gettext', 'test/pseudo-locale'));
+	assert.strictEqual(setupStatusLine('cloning'), pseudoLocalize('Status: cloning'));
+	assert.strictEqual(setupEndMessage('stopped'), pseudoLocalize('Setup stopped. The remaining steps are in the checklist above — run them whenever you are ready.'));
+	assert.strictEqual(copyButtonLabel('failed'), pseudoLocalize('Could not copy'));
 });

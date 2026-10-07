@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { __, sprintf } from '@wordpress/i18n';
 import { appendBounded, debugLogOnScreen, unseenIn } from '../debug-log.cjs';
 import { pathBasename } from '../path-basename.cjs';
 
@@ -154,7 +155,10 @@ export function useSiteLogs({ sitePath, shown }) {
     } catch (e) {
       cleared = { ok: false, error: e && e.message ? e.message : String(e) };
     }
-    if (!cleared?.ok) appendDebug(`Could not clear ${pathBasename(sitePath)}'s debug.log: ${cleared?.error || cleared?.reason || 'unknown error'}. The panel was cleared; the file was not.\n`);
+    if (!cleared?.ok) {
+      // translators: 1: the name of the site's folder. 2: why the file could not be cleared.
+      appendDebug(`${sprintf(__('Could not clear %1$s\'s debug.log: %2$s. The panel was cleared; the file was not.'), pathBasename(sitePath), cleared?.error || cleared?.reason || __('unknown error'))}\n`);
+    }
   }, [appendDebug, sitePath]);
   // Same shape as the patch's Copy, and for the same reason: a clipboard write
   // has no visible result, so the button has to report one. This log goes
@@ -183,7 +187,10 @@ export function useSiteLogs({ sitePath, shown }) {
     }
     // Nothing on screen moves when a file manager opens behind the app, so a
     // refusal that says nothing is a button that did nothing.
-    if (!revealed?.ok) appendDebug(`Could not show the log file: ${revealed?.error || revealed?.reason || 'unknown error'}\n`);
+    if (!revealed?.ok) {
+      // translators: %s: why the file could not be shown.
+      appendDebug(`${sprintf(__('Could not show the log file: %s'), revealed?.error || revealed?.reason || __('unknown error'))}\n`);
+    }
   }, [appendDebug, sitePath]);
 
   // For the moment a dev server is about to start. Reset before subscribing: the

@@ -1,5 +1,6 @@
 'use strict';
 
+const { __, sprintf } = require('@wordpress/i18n');
 const { resumedWatchUpdateHandOff } = require('./watch-activity.cjs');
 
 /**
@@ -50,7 +51,8 @@ function planUpdateHandOff(watchState) {
 		waiting: {
 			updateState: 'building',
 			waitingOnWatch: true,
-			message: '\nThe build watch rebuilds build/ from scratch as it resumes — output in the Logs, under Build watch. The update completes when it is watching again.\n'
+			// translators: %s: the folder the build watch writes, build/.
+			message: `\n${sprintf(__('The build watch rebuilds %s from scratch as it resumes — output in the Logs, under Build watch. The update completes when it is watching again.'), 'build/')}\n`
 		},
 		ready: {
 			updateState: 'idle',

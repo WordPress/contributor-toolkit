@@ -901,6 +901,133 @@ test( 'the banner after an update that did not finish is fully translatable', as
 	expect( await unwrapped( banner ) ).toEqual( [] );
 } );
 
+/**
+ * The lines the visible terminal shows, each whole.
+ *
+ * The terminal draws a row per line of its width, and a line longer than
+ * that, as a pseudo-localised one often is, goes on in the rows after it.
+ * A translated line opens with `[` and closes with `]`, so a row is joined
+ * to the line before it while that line is open. A row that does not open
+ * with `[` and follows a closed line is a line of its own, and a string
+ * nobody wrapped.
+ *
+ * @param {Object} screen The terminal's rows.
+ * @return {Promise<string[]>} The non-empty lines, trimmed.
+ */
+async function terminalLines( screen ) {
+	const rows = await screen.evaluate( ( element ) => [ ...element.children ].map( ( row ) => row.textContent.replace( /\u00a0/g, ' ' ).trimEnd() ) );
+	const lines = [];
+	for ( const row of rows ) {
+		const last = lines.length ? lines[ lines.length - 1 ].trim() : '';
+		if ( last.startsWith( '[' ) && ! last.endsWith( ']' ) ) lines[ lines.length - 1 ] += row;
+		else lines.push( row );
+	}
+	return lines.map( ( line ) => line.trim() ).filter( Boolean );
+}
+
+test( 'the Terminal is fully translatable: what it prints, a command it does not know, and the hints under it', async ( { session } ) => {
+	// A built site, so that the hints under the terminal offer their
+	// commands.
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings, { lang: 'en-XA' } );
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Toggle Terminal' ), exact: true } ).click();
+	const tray = page.getByRole( 'complementary', { name: pseudoLocalize( 'Terminal' ), exact: true } );
+	const screen = tray.locator( '.xterm-rows' ).filter( { visible: true } );
+	// What is typed at the prompt is the contributor's, and the prompt is a
+	// `$`: a line that starts with one is left out. Every other line is one
+	// translated string from its first character to its last, so English
+	// after a translated string is caught too.
+	const whole = ( line ) => {
+		let depth = 0;
+		for ( let i = 0; i < line.length; i++ ) {
+			if ( line[ i ] === '[' ) depth++;
+			else if ( line[ i ] === ']' && --depth === 0 ) return i === line.length - 1;
+		}
+		return false;
+	};
+	const printed = async () => ( await terminalLines( screen ) ).filter( ( line ) => ! line.startsWith( '$' ) && ! ( line.startsWith( '[' ) && whole( line ) ) );
+
+	// The banner and the help it prints as it starts. Waited for by its last
+	// line: xterm draws only the rows on screen, and on a short window the
+	// help's first lines, longer in the pseudo-locale, have already scrolled
+	// out of them.
+	await expect( screen ).toContainText( pseudoLocalize( 'Run them here whenever you change files or add a dependency afterwards.' ), { timeout: 30_000 } );
+	expect( await printed() ).toEqual( [] );
+
+	// The help asked for, and a command it does not know. The terminal's
+	// input is named by xterm, which is not ours to translate.
+	const input = page.getByRole( 'textbox', { name: 'Terminal input' } );
+	await input.pressSequentially( 'help', { delay: 10 } );
+	await input.press( 'Enter' );
+	await input.pressSequentially( 'frobnicate', { delay: 10 } );
+	await input.press( 'Enter' );
+	await expect( screen ).toContainText( pseudoLocalize( 'Try "%s" for the list of supported commands.' ).replace( '%s', 'help' ) );
+	expect( await terminalLines( screen ) ).toContain( pseudoLocalize( 'Unsupported command: %s' ).replace( '%s', 'frobnicate' ) );
+	expect( await printed() ).toEqual( [] );
+
+	// The hints under it, on a built site: a sentence each, with the command
+	// in it a link that types it, and the command's own words left as they
+	// are.
+	const notes = tray.locator( '.tray-notes' ).filter( { visible: true } );
+	await expect( notes.getByRole( 'button', { name: 'npm run build', exact: true } ) ).toBeVisible();
+	await expect( notes.getByRole( 'button', { name: 'npm install', exact: true } ) ).toBeVisible();
+	expect( ( await unwrapped( notes ) ).filter( ( text ) => ! [ 'npm run build', 'npm install' ].includes( text ) ) ).toEqual( [] );
+} );
+
+test( 'the Logs are fully translatable: their tabs, the notes in an empty pane, and what the app writes in the server\'s and the watch\'s', async ( { session } ) => {
+	// A Core site, built. The server and the watch are answered by
+	// stand-ins, as in the processes test above: the watch starts, and the
+	// server refuses, with a reason that is the stand-in's and left out.
+	const REFUSAL = 'the stand-in server refused';
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+	await app.evaluate( ( { ipcMain }, refusal ) => {
+		const answers = {
+			'playground:start': () => ( { ok: false, error: refusal } ),
+			'playground:stop': () => ( { ok: true } ),
+			'npm:run-script': () => ( { runId: 'e2e-run-1' } ),
+			'npm:kill': () => ( { ok: true } ),
+			'url:open': () => true,
+		};
+		for ( const [ channel, answer ] of Object.entries( answers ) ) {
+			ipcMain.removeHandler( channel );
+			ipcMain.handle( channel, answer );
+		}
+	}, REFUSAL );
+	await page.getByRole( 'button', { name: pseudoLocalize( 'Toggle Logs' ), exact: true } ).click();
+	const tray = page.getByRole( 'complementary', { name: pseudoLocalize( 'Logs' ), exact: true } );
+	const tab = ( label ) => tray.getByRole( 'tab', { name: label, exact: true } );
+	// debug.log's path, once there is one, is the machine's.
+	const inTray = async () => ( await unwrapped( tray ) ).filter( ( text ) => ! text.startsWith( site.dir ) );
+
+	// The watch's pane and debug.log's, empty: each says what fills it.
+	await tab( pseudoLocalize( 'Build watch' ) ).click();
+	await expect( tray.locator( '.log-pane-note' ) ).toBeVisible( { timeout: 30_000 } );
+	expect( await inTray() ).toEqual( [] );
+	await tab( pseudoLocalize( 'Debug.log' ) ).click();
+	await expect( tray.getByText( pseudoLocalize( 'The log file appears once the dev server has run.' ), { exact: true } ) ).toBeVisible();
+	expect( await inTray() ).toEqual( [] );
+
+	// The server started: the watch starts with it, and the server's
+	// refusal brings the Logs up on the server's tab.
+	await ui.processMenuButton( page, pseudoLocalize( 'Server stopped' ) ).click();
+	await page.getByRole( 'menuitem', { name: pseudoLocalize( 'Start development server' ), exact: true } ).click();
+	await expect( tray.getByText( pseudoLocalize( 'Dev server failed to start: %s' ).replace( '%s', REFUSAL ), { exact: true } ) ).toBeVisible();
+	expect( await inTray() ).toEqual( [] );
+
+	// The watch's pane, with what the app said of its start, and then of
+	// its end.
+	await tab( pseudoLocalize( 'Build watch (watching)' ) ).click();
+	await expect( tray.getByText( pseudoLocalize( 'Running %s…' ).replace( '%s', 'npm run grunt -- _watch' ), { exact: true } ) ).toBeVisible();
+	expect( await inTray() ).toEqual( [] );
+	await app.evaluate( ( { BrowserWindow } ) => {
+		BrowserWindow.getAllWindows()[ 0 ].webContents.send( 'npm:run-script:done', { runId: 'e2e-run-1', code: 3 } );
+	} );
+	await expect( tab( pseudoLocalize( 'Build watch (exited %d)' ).replace( '%d', '3' ) ) ).toBeVisible();
+	await expect( tray.getByText( pseudoLocalize( '%1$s exited with code %2$s' ).replace( '%1$s', 'npm run grunt -- _watch' ).replace( '%2$s', '3' ), { exact: true } ) ).toBeVisible();
+	expect( await inTray() ).toEqual( [] );
+} );
+
 test( 'a mail the site sent is fully translatable, on its Rendered and its Raw tab', async ( { session } ) => {
 	// One mail in the store, loaded when the server starts, which is answered
 	// by stand-ins as in mail.spec.js. What the mail says is the site's, and
