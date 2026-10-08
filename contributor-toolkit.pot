@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-08T09:35:58+00:00\n"
+"POT-Creation-Date: 2026-10-08T12:52:16+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -1563,37 +1563,37 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: src/renderer/components/create-site-dialog.jsx:106
-msgid "Setting up a site"
-msgstr ""
-
-#: src/renderer/components/create-site-dialog.jsx:153
+#: src/renderer/components/create-site-dialog.jsx:136
 #: src/renderer/index.jsx:2143
 msgid "Create site"
 msgstr ""
 
-#: src/renderer/components/create-site-dialog.jsx:68
+#: src/renderer/components/create-site-dialog.jsx:52
 #: src/renderer/components/rename-site-dialog.jsx:51
 msgid "Site name"
 msgstr ""
 
-#: src/renderer/components/create-site-dialog.jsx:69
+#: src/renderer/components/create-site-dialog.jsx:53
 msgid "My WordPress site"
 msgstr ""
 
-#: src/renderer/components/create-site-dialog.jsx:78
+#: src/renderer/components/create-site-dialog.jsx:62
 #: src/renderer/components/sites-sidebar.jsx:53
 msgid "Project"
 msgstr ""
 
-#: src/renderer/components/create-site-dialog.jsx:89
+#: src/renderer/components/create-site-dialog.jsx:73
 msgid "Location"
 msgstr ""
 
-#: src/renderer/components/create-site-dialog.jsx:90
+#: src/renderer/components/create-site-dialog.jsx:74
 msgid ""
 "Choose the parent folder where you want this new site created. A new "
 "subdirectory will be created for the site."
+msgstr ""
+
+#: src/renderer/components/create-site-dialog.jsx:89
+msgid "Setting up a site"
 msgstr ""
 
 #: src/renderer/components/dirty-tree-modal.jsx:22
@@ -1672,7 +1672,11 @@ msgstr ""
 msgid "Mail"
 msgstr ""
 
-#: src/renderer/components/folder-field.jsx:47
+#: src/renderer/components/folder-field.jsx:33
+msgid "Choose folder…"
+msgstr ""
+
+#: src/renderer/components/folder-field.jsx:38
 msgid "No folder selected yet."
 msgstr ""
 
