@@ -68,6 +68,12 @@ function describeOpenFailure(result, { picked = false } = {}) {
 	if (result?.reason === 'missing-file') {
 		return __('That file is not in the site. The change may have deleted it.');
 	}
+	// There, but not readable (#669): a folder on the way that cannot be
+	// opened, a loop of links. Said as itself, with the system's code.
+	if (result?.reason === 'unreadable-file') {
+		// translators: %s: the system's code for why the file could not be read, such as EACCES.
+		return sprintf(__('That file could not be read: %s'), quote(result.error));
+	}
 	if (result?.reason === 'unregistered-site') {
 		return __('This app has no record of that folder, so it will not open it.');
 	}

@@ -3666,24 +3666,27 @@ ipcMain.handle('settings:set', async (_e, key, value) => {
 // at all for a path that is not there, which would be a link that did nothing.
 ipcMain.handle('dir:show', async (_e, sitePath, relPath = null) => {
 	const s = await getStore();
-	let missing = false;
+	let refused = null;
 	const result = await revealRegisteredSite(sitePath, {
 		sites: s.get('sites'),
 		pending: setupTracker.paths(),
 		reveal: async (target) => {
 			if (relPath === null) return shell.openPath(target);
-			const file = await existingSiteFile(target, relPath, editorLaunchDeps());
-			if (!file) {
-				missing = true;
-				logEvent('sites', `refused to reveal ${describeRefused(relPath)} — ${REVEAL_REASONS.MISSING_FILE}`);
-				return REVEAL_REASONS.MISSING_FILE;
+			const { file, error } = await existingSiteFile(target, relPath, editorLaunchDeps());
+			if (error) {
+				refused = { ok: false, reason: REVEAL_REASONS.UNREADABLE_FILE, error };
+			} else if (!file) {
+				refused = { ok: false, reason: REVEAL_REASONS.MISSING_FILE };
+			} else {
+				shell.showItemInFolder(file);
+				return '';
 			}
-			shell.showItemInFolder(file);
-			return '';
+			logEvent('sites', `refused to reveal ${describeRefused(relPath)} — ${refused.reason}${error ? ` (${error})` : ''}`);
+			return refused.reason;
 		},
 		onRefused: (description) => logEvent('sites', `refused to reveal ${description} — not a registered site`)
 	});
-	return missing ? { ok: false, reason: REVEAL_REASONS.MISSING_FILE } : result;
+	return refused || result;
 });
 
 // What the terminal says when npm has exited but something it started still

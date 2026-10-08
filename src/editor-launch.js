@@ -295,8 +295,8 @@ function resolveSiteFile(sitePath, relPath, { platform } = {}) {
 	return target;
 }
 
-// The file to open, or null: `resolveSiteFile`, and then the same question
-// asked of where the file really is. A symbolic link is judged by where it
+// The file to open: `resolveSiteFile`, and then the same question asked of
+// where the file really is. A symbolic link is judged by where it
 // leads, so a link a patch added inside the site that names a file outside it
 // is not a file of the site; Git writes links in a checkout added from disk on
 // macOS or Linux, unlike the ones the app clones. Both sides are resolved, so
@@ -304,22 +304,29 @@ function resolveSiteFile(sitePath, relPath, { platform } = {}) {
 // files. A path with nothing there does not resolve, which is how a file the
 // patch deleted is refused.
 //
+// `{ file, error }`: `file` is the path to open, or null. `error` is the code
+// realpath failed with when the failure was not "nothing there" (a folder that
+// cannot be read, a loop of links), so the caller can say that rather than
+// report a file the patch only changed as one it may have deleted.
+//
 // `realPath` is injected and awaited like `statPath`: fs.promises.realpath in
 // main, a map in the tests.
+const NOT_THERE = new Set(['ENOENT', 'ENOTDIR']);
 async function existingSiteFile(sitePath, relPath, { platform, realPath } = {}) {
 	const target = resolveSiteFile(sitePath, relPath, { platform });
-	if (!target || typeof realPath !== 'function') return null;
+	if (!target || typeof realPath !== 'function') return { file: null, error: null };
 	let realSite;
 	let realTarget;
 	try {
 		[realSite, realTarget] = await Promise.all([realPath(sitePath), realPath(target)]);
-	} catch {
-		return null;
+	} catch (e) {
+		const code = typeof e?.code === 'string' ? e.code : 'UNKNOWN';
+		return { file: null, error: NOT_THERE.has(code) ? null : code };
 	}
 	const p = pathApi(platform);
 	const inside = p.relative(realSite, realTarget);
-	if (inside === '' || inside === '..' || inside.startsWith(`..${p.sep}`) || p.isAbsolute(inside)) return null;
-	return target;
+	if (inside === '' || inside === '..' || inside.startsWith(`..${p.sep}`) || p.isAbsolute(inside)) return { file: null, error: null };
+	return { file: target, error: null };
 }
 
 // Every `reason` this module can answer `editor:open` with, refusals and
@@ -331,6 +338,7 @@ const REFUSAL_REASONS = {
 	UNLAUNCHABLE_EDITOR: 'unlaunchable-editor',
 	UNKNOWN_EDITOR: 'unknown-editor',
 	MISSING_FILE: 'missing-file',
+	UNREADABLE_FILE: 'unreadable-file',
 	SPAWN_FAILED: 'spawn-failed'
 };
 
@@ -385,7 +393,14 @@ async function openSiteInEditor(sitePath, editorPath, {
 	// which reads as the file having been emptied.
 	let filePath = null;
 	if (file !== null) {
-		filePath = await existingSiteFile(sitePath, file, { platform, realPath });
+		const found = await existingSiteFile(sitePath, file, { platform, realPath });
+		filePath = found.file;
+		if (found.error) {
+			if (typeof onRefused === 'function') {
+				onRefused(REFUSAL_REASONS.UNREADABLE_FILE, `${describeRefused(file)} (${found.error})`);
+			}
+			return { ok: false, reason: REFUSAL_REASONS.UNREADABLE_FILE, error: found.error };
+		}
 		if (!filePath) {
 			if (typeof onRefused === 'function') {
 				onRefused(REFUSAL_REASONS.MISSING_FILE, describeRefused(file));

@@ -6081,6 +6081,27 @@ test('dir:show refuses a file that is not there, or not in the site, and logs it
 	assert.match(logEvent.calls[0][1], /refused to reveal src\/deleted\.php/);
 });
 
+// A file that is there but cannot be read is said as itself, with the
+// system's code, and logged: not reported as one the change may have deleted.
+test('dir:show refuses a file it cannot read as unreadable, and logs why (#669)', async (t) => {
+	const site = tempDir(t, 'wpct-show-file-');
+	const logEvent = spy();
+	const existingSiteFile = spy(async () => ({ file: null, error: 'EACCES' }));
+	const main = loadMain({
+		stubs: {
+			'./logging': { ...silentLogging()['./logging'], logEvent },
+			...fakeSettingsStore({ sites: [site] }).stubs,
+			'./editor-launch': { ...require(path.join(SRC_DIR, 'editor-launch.js')), existingSiteFile }
+		}
+	});
+	const { REVEAL_REASONS } = require(path.join(SRC_DIR, 'site-registry.js'));
+
+	assert.deepEqual(await main.invoke('dir:show', site, 'src/wp-login.php'), { ok: false, reason: REVEAL_REASONS.UNREADABLE_FILE, error: 'EACCES' });
+	assert.equal(REVEAL_REASONS.UNREADABLE_FILE, 'unreadable-file');
+	assert.deepEqual(main.calls.showItemInFolder, []);
+	assert.match(logEvent.calls[0][1], /EACCES/);
+});
+
 // A link in the site that names a file outside it is judged by where it
 // leads, as in editor-launch. Windows makes links only with a privilege the
 // test may not have, and the decision itself is covered from every platform
