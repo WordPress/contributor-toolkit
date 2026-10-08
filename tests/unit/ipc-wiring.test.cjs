@@ -7940,6 +7940,34 @@ test('deleting a return ticket redirects PRs to trunk without changing their hea
 	assert.equal(m.currentBranch, 'pr/7');
 });
 
+// The files the pull request changed, recorded with the head they describe
+// (#669): the same list its preview showed, measured locally from the head
+// the branch was put at, and what "Affected files" lists while it is out.
+test('git:checkout-pr records the files the pull request changed, and site:status hands them on (#669)', async () => {
+	const describePullRequestHead = spy(async () => ({ files: [{ path: 'src/wp-login.php', kind: 'modified' }, { path: 'src/old.php', kind: 'deleted' }], needsInstall: false, base: 'c'.repeat(40) }));
+	const f = prWiring({ pr: { describePullRequestHead } });
+	const { done } = await runPr(f.main, 'checkout', 7);
+	assert.equal(done.ok, true);
+
+	const m = f.settings.values.siteMeta['/sites/wp'];
+	assert.deepEqual(m.branches['pr/7'].files, ['src/wp-login.php', 'src/old.php']);
+	assert.equal(describePullRequestHead.calls.at(-1)[1], f.oid, 'measured from the head the branch was put at');
+
+	f.settings.values.sites = [];
+	const status = await f.main.invoke('site:status', '/sites/wp');
+	assert.deepEqual(status.pullRequest.files, ['src/wp-login.php', 'src/old.php']);
+});
+
+// A list that could not be measured is no list, never the one an earlier head
+// left behind: that would name files this head may not change.
+test('git:checkout-pr records no files when the head cannot be described, and still checks it out (#669)', async () => {
+	const f = prWiring({ pr: { describePullRequestHead: async () => { throw new Error('merge-base failed'); } } });
+	f.settings.values.siteMeta['/sites/wp'].branches['pr/7'].files = ['src/earlier-head.php'];
+	const { done } = await runPr(f.main, 'checkout', 7);
+	assert.equal(done.ok, true);
+	assert.equal(f.settings.values.siteMeta['/sites/wp'].branches['pr/7'].files, null);
+});
+
 test('site:status identifies a checked-out PR and suppresses the ticket rebase notice', async () => {
 	const f = prWiring({ head: 'pr/7', meta: { trunkOid: 'b'.repeat(40) } });
 	// An unregistered read skips .git/info/exclude on this fake path.
