@@ -131,14 +131,16 @@ const EDITOR = { name: 'Example Editor', path: path.join( os.tmpdir(), 'example-
 
 /**
  * Stands in for the handlers that reach other applications, and keeps what
- * each was asked. Detection finds `editors`, which may be none.
+ * each was asked. Detection finds `editors`, which may be none; opening in an
+ * editor answers with `answers` in turn, then `{ ok: true }`.
  *
  * @param {Object}   app
- * @param {Object[]} editors `{ name, path }`.
+ * @param {Object[]} editors   `{ name, path }`.
+ * @param {Object[]} [answers] What `editor:open` says, first call first.
  * @return {Promise<Function>} Resolves to what was asked so far.
  */
-async function standInForApplications( app, editors ) {
-	await app.evaluate( ( { ipcMain }, detected ) => {
+async function standInForApplications( app, editors, answers = [] ) {
+	await app.evaluate( ( { ipcMain }, { detected, queued } ) => {
 		const asked = { opens: [], shows: [] };
 		global.__e2eApplications = asked;
 		const replace = ( channel, handler ) => {
@@ -148,13 +150,13 @@ async function standInForApplications( app, editors ) {
 		replace( 'editor:list', () => ( { detected } ) );
 		replace( 'editor:open', ( event, sitePath, editorPath, relPath ) => {
 			asked.opens.push( { sitePath, editorPath, relPath } );
-			return { ok: true };
+			return queued.shift() || { ok: true };
 		} );
 		replace( 'dir:show', ( event, sitePath, relPath ) => {
 			asked.shows.push( { sitePath, relPath } );
 			return { ok: true };
 		} );
-	}, editors );
+	}, { detected: editors, queued: answers } );
 	return () => app.evaluate( () => global.__e2eApplications );
 }
 
@@ -188,6 +190,29 @@ test( 'each file the applied patch changed opens in the editor from the details 
 	// INVARIANT — the list goes with the patch.
 	await ui.revertPatchButton( page ).click();
 	await expect( affectedFile( page, 'src/wp-login.php' ) ).toHaveCount( 0, { timeout: 60_000 } );
+} );
+
+test( 'choosing another application after a file would not open opens that file in it (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	const asked = await standInForApplications( app, [ EDITOR ], [ { ok: false, reason: 'spawn-failed', error: 'EACCES' } ] );
+	await ui.linkTicket( page, '60001' );
+
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
+	] );
+	await applyPatchFile( session, patch );
+	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );
+
+	await affectedFile( page, 'src/wp-login.php' ).click();
+	await page.getByRole( 'button', { name: 'Choose application…', exact: true } ).click();
+
+	// INVARIANT — the way out the notice offers opens the same file, in the
+	// application picked (null: main's file dialog), not the bare site.
+	await expect.poll( async () => ( await asked() ).opens ).toEqual( [
+		{ sitePath: site.dir, editorPath: EDITOR.path, relPath: 'src/wp-login.php' },
+		{ sitePath: site.dir, editorPath: null, relPath: 'src/wp-login.php' },
+	] );
 } );
 
 test( 'with no editor on the machine, an applied file is shown in the file manager (#669)', async ( { session } ) => {
