@@ -40,6 +40,7 @@ const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { pinToOwnPage } = require('./window-navigation');
 const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
+const { phpunitSiteFolder } = require('./phpunit-folder.cjs');
 const { removeTree } = require('./remove-tree');
 const { removePersistentPlaygroundSite } = require('./playground-storage.cjs');
 const { createSetupTracker } = require('./setup-tracker');
@@ -3070,6 +3071,10 @@ ipcMain.handle('sites:delete', async (_e, sitePath) => {
 					await removePersistentPlaygroundSite(p);
 				}
 				await removeTree(p);
+				// The site's PHP unit test files, outside its folder. Left behind
+				// is clutter, not harm, so a failure here does not keep the site.
+				await fs.promises.rm(phpunitSiteFolder(phpTestsDir(), p), { recursive: true, force: true })
+					.catch((err) => logError('sites', `could not remove the PHP test files of ${p}: ${String(err)}`));
 			},
 			onRefused: (description) => logEvent('sites', `refused to delete ${description}: not a registered site, or still being created`)
 		});
@@ -3932,6 +3937,12 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 	return { runId };
 });
 
+// Where every site's PHP unit test files live, one folder per site
+// (phpunit-folder.cjs), beside the Composer they share.
+function phpTestsDir() {
+	return path.join(app.getPath('userData'), 'php-tests');
+}
+
 // Core's PHP unit tests on the bundled Playground PHP, against SQLite: no
 // Docker, no MySQL (phpunit-plan.cjs says what differs and why). The first run
 // on a checkout installs PHPUnit with Composer, so it takes minutes; the rest
@@ -3951,7 +3962,7 @@ ipcMain.handle('phpunit:run', async (event, sitePath, args = []) => {
 		const phpVersion = phpVersions().includes(settings.phpVersion) ? settings.phpVersion : SETTINGS.phpVersion.fallback;
 		const config = {
 			site: sitePath,
-			toolkitDir: path.join(app.getPath('userData'), 'php-tests'),
+			toolkitDir: phpTestsDir(),
 			phpVersion,
 			args
 		};

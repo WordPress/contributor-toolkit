@@ -533,6 +533,24 @@ function fakeSettingsStore(initial = {}) {
 
 // --- sites:delete -> src/site-registry.js --------------------------------
 
+// The site's PHP unit test files are outside its folder, under the app's data
+// (phpunit-folder.cjs), so removing the folder does not take them with it.
+test('sites:delete removes the site\'s PHP unit test files too', async () => {
+	const { phpunitSiteFolder } = require('../../src/phpunit-folder.cjs');
+	const registered = '/sites/wp-php-tests';
+	// The electron stub's userData is the temp directory.
+	const folder = phpunitSiteFolder(path.join(os.tmpdir(), 'php-tests'), registered);
+	fs.mkdirSync(path.join(folder, 'database'), { recursive: true });
+	fs.writeFileSync(path.join(folder, 'wp-tests-config.php'), '<?php');
+	const settings = fakeSettingsStore({ sites: [registered], siteMeta: { [registered]: {} } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, ...noSmtpServer(), './remove-tree': { removeTree: async () => {} } }
+	});
+
+	assert.deepEqual(await main.invoke('sites:delete', registered), { ok: true });
+	assert.equal(fs.existsSync(folder), false);
+});
+
 test('sites:delete asks site-registry whether the path may be removed', async () => {
 	const deleteRegisteredSite = spy(async () => true);
 	const settings = fakeSettingsStore({ sites: ['/sites/wp'] });

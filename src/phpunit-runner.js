@@ -5,6 +5,7 @@ const { hideChildWindows } = require('./hide-child-windows');
 const { bindLoopbackOnly } = require('./bind-loopback');
 const { formatErrorChain } = require('./error-chain');
 const plan = require('./phpunit-plan.cjs');
+const { phpunitSiteFolder } = require('./phpunit-folder.cjs');
 
 // Must run before the Playground CLI is required, so anything it spawns is
 // covered too.
@@ -69,8 +70,7 @@ function removeMountPoints(sitePath) {
 async function run({ sitePath, toolkitDir, phpVersion, args }) {
 	// Each site's files live in a folder of their own, and that folder is all
 	// of the toolkit directory its PHP is shown.
-	const siteKey = crypto.createHash('sha256').update(sitePath).digest('hex').slice(0, 16);
-	const siteDir = path.join(toolkitDir, siteKey);
+	const siteDir = phpunitSiteFolder(toolkitDir, sitePath);
 	fs.mkdirSync(path.join(siteDir, 'database'), { recursive: true });
 
 	const { runCLI } = require('@wp-playground/cli');

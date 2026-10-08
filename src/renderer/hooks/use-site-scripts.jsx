@@ -147,8 +147,8 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
     stopRequestedRef.current = false;
     phpunitOutputRef.current = '';
     setPhpunitRun({ command, running: true });
-    const ended = (code) => {
-      setPhpunitRun({ command, running: false, code, stopped: stopRequestedRef.current, output: phpunitOutputRef.current });
+    const ended = (code, notStarted = false) => {
+      setPhpunitRun({ command, running: false, code, notStarted, stopped: stopRequestedRef.current, output: phpunitOutputRef.current });
     };
     const settle = (answer) => {
       const { runId, error } = phpunitStart(answer);
@@ -158,7 +158,7 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
       }
       currentRunIdRef.current = null;
       appendNpm(`\nFailed to start phpunit: ${error}\n`);
-      ended(-1);
+      ended(-1, true);
       if (onLog) onLog(`\n${error}\n`);
       if (onDone) onDone({ code: -1 });
     };

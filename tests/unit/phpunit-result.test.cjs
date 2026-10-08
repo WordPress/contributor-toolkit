@@ -14,13 +14,16 @@ const FAILED = 'FAILURES!\n\u001b[37;41mTests: 2133\u001b[0m\u001b[37;41m, Asser
 const ERRORS = 'ERRORS!\nTests: 25948, Assertions: 4560440, Errors: 5, Failures: 131, Warnings: 81, Skipped: 100.\n';
 const SKIPPED = 'OK, but incomplete, skipped, or risky tests!\nTests: 10, Assertions: 20, Skipped: 2.\n';
 const NONE = 'No tests executed!\n';
+const WARNED = 'WARNINGS!\nTests: 12, Assertions: 30, Warnings: 1.\n';
 
 test('phpunitSummary reads the counts PHPUnit ends a run with', () => {
-	assert.deepEqual(phpunitSummary(PASSED), { tests: 21, failures: 0, errors: 0, skipped: 0 });
-	assert.deepEqual(phpunitSummary(FAILED), { tests: 2133, failures: 4, errors: 0, skipped: 0 });
-	assert.deepEqual(phpunitSummary(ERRORS), { tests: 25948, failures: 131, errors: 5, skipped: 100 });
-	assert.deepEqual(phpunitSummary(SKIPPED), { tests: 10, failures: 0, errors: 0, skipped: 2 });
-	assert.deepEqual(phpunitSummary(NONE), { tests: 0, failures: 0, errors: 0, skipped: 0 });
+	const none = { tests: 0, failures: 0, errors: 0, warnings: 0, skipped: 0, incomplete: 0 };
+	assert.deepEqual(phpunitSummary(PASSED), { ...none, tests: 21 });
+	assert.deepEqual(phpunitSummary(FAILED), { ...none, tests: 2133, failures: 4, warnings: 5 });
+	assert.deepEqual(phpunitSummary(ERRORS), { ...none, tests: 25948, failures: 131, errors: 5, warnings: 81, skipped: 100 });
+	assert.deepEqual(phpunitSummary(SKIPPED), { ...none, tests: 10, skipped: 2 });
+	assert.deepEqual(phpunitSummary(WARNED), { ...none, tests: 12, warnings: 1 });
+	assert.deepEqual(phpunitSummary(NONE), none);
 	assert.equal(phpunitSummary('[PHP tests] Installing the test site…\n'), null);
 	// The last summary is the run's, when the output holds more than one.
 	assert.deepEqual(phpunitSummary(`${FAILED}\n${PASSED}`).tests, 21);
@@ -30,13 +33,17 @@ test('phpunitResult gives each kind of run its dot and its sentence', () => {
 	assert.deepEqual(phpunitResult(null), { status: 'offline', text: 'Not run yet.' });
 	assert.deepEqual(phpunitResult({ running: true }), { status: 'busy', text: 'Running…' });
 	assert.deepEqual(phpunitResult({ running: false, code: 0, output: PASSED }), { status: 'online', text: '21 tests passed.' });
-	assert.deepEqual(phpunitResult({ running: false, code: 0, output: SKIPPED }), { status: 'online', text: '10 tests passed. 2 skipped.' });
+	// Skipped tests are not counted as passed.
+	assert.deepEqual(phpunitResult({ running: false, code: 0, output: SKIPPED }), { status: 'online', text: '8 of 10 tests passed. 2 skipped.' });
+	// PHPUnit exits 1 over a warning, but nothing failed: every test ran.
+	assert.deepEqual(phpunitResult({ running: false, code: 1, output: WARNED }), { status: 'online', text: '11 of 12 tests passed. 1 had a warning.' });
 	assert.deepEqual(phpunitResult({ running: false, code: 1, output: FAILED }), { status: 'failed', text: '4 of 2133 tests failed.' });
 	assert.deepEqual(phpunitResult({ running: false, code: 2, output: ERRORS }), { status: 'failed', text: '136 of 25948 tests failed.' });
 	assert.deepEqual(phpunitResult({ running: false, code: 1, output: NONE }), { status: 'offline', text: 'No tests matched.' });
 });
 
-test('a run stopped with Ctrl+C, or one that never printed a summary, is not a pass', () => {
+test('a run stopped with Ctrl+C, one that never started, or one that never printed a summary, is not a pass', () => {
+	assert.deepEqual(phpunitResult({ running: false, code: -1, notStarted: true }), { status: 'failed', text: 'The tests could not be started.' });
 	assert.deepEqual(phpunitResult({ running: false, code: 130, stopped: true, output: PASSED }), { status: 'offline', text: 'Stopped before it finished.' });
 	assert.deepEqual(phpunitResult({ running: false, code: 1, output: 'Composer could not install PHPUnit (exit code 1).' }), { status: 'failed', text: 'The run did not finish (exit code 1).' });
 	assert.deepEqual(phpunitResult({ running: false, code: 0, output: '' }), { status: 'failed', text: 'The run did not finish (exit code 0).' });
