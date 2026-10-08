@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _x, sprintf } from '@wordpress/i18n';
 import { file as fileIcon, globe, offline, seen, table, unseen, wordpress } from '@wordpress/icons';
 import { Button, EmptyState, Icon, IconButton, Link, Stack, Text, VisuallyHidden } from '@wordpress/ui';
 import { siteDetailsRows } from '../site-details.cjs';
@@ -115,26 +115,49 @@ function WatchSection({ watch }) {
   );
 }
 
-// The files the applied change touched (#669), each opening in the editor
-// with one click. Drawn as links and built as buttons, like the terminal's
-// command links: a click opens an application rather than going anywhere. A
-// file's icon beside each, like the server's links, and the brand colour and
-// an underline, which a button does not get from the browser the way a link
-// does: without them the paths read as plain text.
-function AffectedFilesSection({ affected }) {
+// One changed file: a file's icon, the path, and a mark after it. Drawn as a
+// link and built as a button, like the terminal's command links: a click opens
+// an application rather than going anywhere. The brand colour and an
+// underline, which a button does not get from the browser the way a link does:
+// without them the paths read as plain text. The mark is outside the button,
+// so the button's name stays the path.
+function ChangedFile({ path, mark, onOpenFile }) {
+  return (
+    <Stack direction="row" align="start" gap="xs">
+      <Icon icon={fileIcon} size={16} className="affected-file-icon" />
+      <Link render={<button type="button" />} className="link-button affected-file apply-break-all" tone="brand" onClick={() => onOpenFile(path)}>
+        {path}
+      </Link>
+      {mark ? <Text variant="body-sm" className="muted-label affected-file-mark">{mark}</Text> : null}
+    </Stack>
+  );
+}
+
+// "Changed files" (#669): the applied patch's or pull request's own files, and
+// the contributor's, each under a heading of its own. Which file is in which,
+// and the groups' names, are changedFileGroups' in affected-files.cjs.
+function ChangedFilesSection({ changed }) {
+  const { change, yours, onOpenFile } = changed;
   return (
     <Stack direction="column" gap="md">
-      <Text variant="heading-lg" render={<h2 />}>{__('Affected files')}</Text>
-      <Stack direction="column" gap="sm">
-        {affected.files.map((file) => (
-          <Stack key={file} direction="row" align="start" gap="xs">
-            <Icon icon={fileIcon} size={16} className="affected-file-icon" />
-            <Link render={<button type="button" />} className="link-button affected-file apply-break-all" tone="brand" onClick={() => affected.onOpenFile(file)}>
-              {file}
-            </Link>
-          </Stack>
-        ))}
-      </Stack>
+      <Text variant="heading-lg" render={<h2 />}>{__('Changed files')}</Text>
+      {change ? (
+        <Stack direction="column" gap="sm">
+          <Text variant="heading-sm" render={<h3 />}>{change.label}</Text>
+          {change.files.map((file) => (
+            // translators: after the path of a file a patch or pull request changed, which the contributor has changed since.
+            <ChangedFile key={file.path} path={file.path} mark={file.alsoEdited ? __('also edited') : ''} onOpenFile={onOpenFile} />
+          ))}
+        </Stack>
+      ) : null}
+      {yours.length ? (
+        <Stack direction="column" gap="sm">
+          <Text variant="heading-sm" render={<h3 />}>{__('Your changes')}</Text>
+          {yours.map((file) => (
+            <ChangedFile key={file.path} path={file.path} mark={file.added ? _x('new', 'a file the contributor created, after its path') : ''} onOpenFile={onOpenFile} />
+          ))}
+        </Stack>
+      ) : null}
     </Stack>
   );
 }
@@ -172,7 +195,7 @@ function useStickyWhileItFits(active) {
 
 /**
  * The details of the open site (#556), beside the cards: the files the
- * applied change touched when there is one (#669), the facts about the
+ * applied change and the contributor changed (#669), the facts about the
  * checkout, and under them its two processes (#557). What the facts say is
  * decided in site-details.cjs, and what is said of the processes in
  * site-processes.cjs; this draws them. They can be put away; hidden, they are
@@ -187,9 +210,9 @@ function useStickyWhileItFits(active) {
  * @param {Function} props.onCopyPath
  * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
  * @param {Object}   [props.watch]    The build watch's section, or null likewise: `{ process, onToggle }`.
- * @param {Object}   [props.affected] The files the applied change touched: `{ files, onOpenFile }`. No files, no section.
+ * @param {Object}   [props.changed]  The changed files, from `changedFileGroups`, with `onOpenFile`: `{ change, yours, onOpenFile }`. No files, no section.
  */
-export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null, affected = null }) {
+export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null, changed = null }) {
   const { sidebarRef, unstuck } = useStickyWhileItFits(open);
   return (
     <div id={id} className="dashboard-sidebar-slot" inert={open ? undefined : ''}>
@@ -203,9 +226,9 @@ export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath,
         <Stack direction="column" gap="xl">
           {/* First while a change is applied: its files are what the
               contributor came for, and the facts below do not change. */}
-          {affected?.files.length ? (
+          {changed && (changed.change || changed.yours.length) ? (
             <>
-              <AffectedFilesSection affected={affected} />
+              <ChangedFilesSection changed={changed} />
               <hr className="card-divider" />
             </>
           ) : null}

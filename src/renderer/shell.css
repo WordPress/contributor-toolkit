@@ -410,6 +410,12 @@ body {
   margin-block-start: 0.2em;
 }
 
+/* "also edited" or "new" after a path (#669): kept on one line beside it. */
+.affected-file-mark {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .sidebar-empty-state {
   box-sizing: border-box;
   display: flex;
