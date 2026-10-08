@@ -508,11 +508,24 @@ test( 'the rename dialog and the questions asked before a deletion are fully tra
 	expect( await unwrapped( question ) ).toEqual( [] );
 } );
 
-test( 'the Help menu and the native file dialogs are translated in main', async ( { session } ) => {
+test( 'the app menu and the native file dialogs are translated in main', async ( { session } ) => {
 	// Main's own strings, which the window never renders: they are only
 	// translated if main applied the locale before it built them.
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings, { lang: 'en-XA' } );
+
+	// Every menu and every item in it that is not a separator, the ones a
+	// role does the work of included: a role's own label is Electron's
+	// English (#657). The app menu on macOS is titled with the app's name.
+	const untranslated = await app.evaluate( ( { Menu } ) => {
+		const walk = ( items, where ) => items.flatMap( ( item ) => {
+			const here = `${ where } › ${ item.label }`;
+			const bracketed = item.type === 'separator' || item.role === 'appmenu' || /^\[.*\]$/.test( item.label );
+			return [ ...( bracketed ? [] : [ here ] ), ...( item.submenu ? walk( item.submenu.items, here ) : [] ) ];
+		} );
+		return walk( Menu.getApplicationMenu().items, 'menu' );
+	} );
+	expect( untranslated ).toEqual( [] );
 
 	const help = await app.evaluate( ( { Menu } ) => Menu.getApplicationMenu().items
 		.find( ( item ) => item.role === 'help' ).submenu.items
