@@ -83,6 +83,10 @@ function httpRequest(method, url, headers = {}, opts = {}) {
 		// something in the path does, when it fails closed instead of forwarding
 		// a credential.
 		if (opts.token) requestOptions.redirect = 'error';
+		// Nor is it answered from Chromium's HTTP cache. GitHub's 307 for a fork's
+		// old name was cached, and every later request read it from disk without
+		// asking GitHub, failing as "No connection to GitHub" (#494).
+		if (opts.token) requestOptions.cache = 'no-store';
 		if (opts.partition) {
 			requestOptions.partition = opts.partition;
 			requestOptions.useSessionCookies = opts.useSessionCookies !== false;

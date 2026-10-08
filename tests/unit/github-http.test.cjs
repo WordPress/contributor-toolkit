@@ -82,6 +82,19 @@ test('httpRequest refuses redirects only when carrying a token', async () => {
 	assert.strictEqual('redirect' in without.sent.options, false);
 });
 
+// A token-bearing request always reaches GitHub: a cached 307 for a fork's old
+// name was otherwise read from disk on every later attempt (#494).
+// Anonymous requests keep Chromium's cache.
+test('httpRequest bypasses the HTTP cache only when carrying a token', async () => {
+	const withToken = fakeNet((req) => respond(req, { status: 200, body: '{}' }));
+	await httpRequest('GET', 'https://api.github.com/repos/me/gutenberg', {}, { net: withToken.client, token: 'gho_x' });
+	assert.strictEqual(withToken.sent.options.cache, 'no-store');
+
+	const without = fakeNet((req) => respond(req, { status: 200, body: '{}' }));
+	await httpRequest('GET', 'https://api.github.com/x', {}, { net: without.client });
+	assert.strictEqual('cache' in without.sent.options, false);
+});
+
 test('httpRequest writes no body when none was given', async () => {
 	const net = fakeNet((req) => respond(req, { status: 204 }));
 	await httpRequest('POST', 'https://api.github.com/x', {}, { net: net.client });
