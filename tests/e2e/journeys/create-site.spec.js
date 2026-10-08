@@ -48,7 +48,7 @@ test( 'the create-site dialog refuses a missing name or location, starts clean e
 
 	const dialog = ui.createSiteDialog( page );
 	const name = dialog.getByLabel( 'Site name', { exact: true } );
-	const location = dialog.getByLabel( 'Location', { exact: true } );
+	const location = dialog.getByRole( 'button', { name: 'Location Choose folder…', exact: true } );
 	const core = dialog.getByRole( 'radio', { name: 'WordPress Core', exact: true } );
 	const gutenberg = dialog.getByRole( 'radio', { name: 'Gutenberg', exact: true } );
 	const create = dialog.getByRole( 'button', { name: 'Create site', exact: true } );
@@ -64,6 +64,10 @@ test( 'the create-site dialog refuses a missing name or location, starts clean e
 	const projects = dialog.getByRole( 'radiogroup', { name: 'Project', exact: true } );
 	await expect( projects ).toHaveAccessibleDescription( `${ projectHelp( 'core' ).about } ${ projectHelp( 'core' ).lasting }` );
 	expect( projectHelp( 'core' ).lasting ).toBe( 'A site’s project cannot be changed later.' );
+	// The folder is said where its button is, before what the field is for
+	// (#655).
+	const LOCATION_HELP = 'Choose the parent folder where you want this new site created. A new subdirectory will be created for the site.';
+	await expect( location ).toHaveAccessibleDescription( `No folder selected yet. ${ LOCATION_HELP }` );
 
 	// INVARIANT — it says which answer is missing, one at a time, as an
 	// alert, and starts nothing while one is: a name of spaces is no name.
@@ -80,6 +84,7 @@ test( 'the create-site dialog refuses a missing name or location, starts clean e
 	// about it away.
 	await location.press( 'Enter' );
 	await expect( dialog.getByText( parent, { exact: true } ) ).toBeVisible();
+	await expect( location ).toHaveAccessibleDescription( `${ parent } ${ LOCATION_HELP }` );
 	await expect( dialog.getByText( 'Please choose where to create the site.', { exact: true } ) ).toHaveCount( 0 );
 	await gutenberg.click();
 	await expect( gutenberg ).toBeChecked();

@@ -102,6 +102,10 @@ test( 'the first-run screen and the create-site dialog are fully translatable', 
 	await expect( dialog ).toBeVisible();
 	await expect( dialog.getByRole( 'button', { name: /^\[/ } ).first() ).toBeVisible();
 	expect( await unwrapped( dialog ) ).toEqual( [] );
+	// The folder's button is the app's own, not a file input, whose button
+	// and "No file chosen" Chromium draws in its own language, where the scan
+	// cannot see them (#655).
+	await expect( dialog.getByRole( 'button', { name: `${ pseudoLocalize( 'Location' ) } ${ pseudoLocalize( 'Choose folder…' ) }`, exact: true } ) ).toHaveText( pseudoLocalize( 'Choose folder…' ) );
 
 	// A validation error is wrapped too.
 	await dialog.getByRole( 'button', { name: pseudoLocalize( 'Create site' ), exact: true } ).click();
@@ -116,6 +120,7 @@ test( 'the settings dialog is fully translatable, on both of its tabs', async ( 
 	await expect( dialog ).toBeVisible();
 	await expect( dialog.getByText( pseudoLocalize( 'Not set: the create-site dialog asks each time.' ), { exact: true } ) ).toBeVisible();
 	expect( await unwrapped( dialog ) ).toEqual( [] );
+	await expect( dialog.getByRole( 'button', { name: `${ pseudoLocalize( 'New sites go here' ) } ${ pseudoLocalize( 'Choose folder…' ) }`, exact: true } ) ).toHaveText( pseudoLocalize( 'Choose folder…' ) );
 
 	// The Sites tab, once it has the PHP versions: their numbers are not
 	// words and stay as they are.

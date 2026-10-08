@@ -72,7 +72,7 @@ for ( const target of TARGETS ) {
 					await name.fill( 'real-setup' );
 					await expect( name ).toHaveValue( 'real-setup', { timeout: 2_000 } );
 				} ).toPass( { timeout: 30_000 } );
-				await modal.getByLabel( 'Location', { exact: true } ).press( 'Enter' );
+				await modal.getByRole( 'button', { name: 'Location Choose folder…', exact: true } ).press( 'Enter' );
 				await modal.getByRole( 'button', { name: 'Create site', exact: true } ).click();
 			} );
 
