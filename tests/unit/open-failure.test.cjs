@@ -70,7 +70,7 @@ test('a cancelled dialog is not a notice either', () => {
 // back with the identical sentence.
 test('the picker is only offered where picking another application would help', () => {
 	const helps = ['unlaunchable-editor', 'unknown-editor', 'spawn-failed'];
-	const doesNot = ['unregistered-site', 'open-failed', 'unavailable'];
+	const doesNot = ['unregistered-site', 'open-failed', 'unavailable', 'missing-file'];
 
 	for (const reason of helps) {
 		assert.equal(noticeForOpenResult({ ok: false, reason }).offerPicker, true, reason);

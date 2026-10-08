@@ -115,6 +115,24 @@ function WatchSection({ watch }) {
   );
 }
 
+// The files the applied change touched (#669), each opening in the editor
+// with one click. Drawn as links and built as buttons, like the terminal's
+// command links: a click opens an application rather than going anywhere.
+function AffectedFilesSection({ affected }) {
+  return (
+    <Stack direction="column" gap="md">
+      <Text variant="heading-lg" render={<h2 />}>{__('Affected files')}</Text>
+      <Stack direction="column" gap="sm">
+        {affected.files.map((file) => (
+          <Link key={file} render={<button type="button" />} className="link-button apply-break-all" tone="neutral" onClick={() => affected.onOpenFile(file)}>
+            {file}
+          </Link>
+        ))}
+      </Stack>
+    </Stack>
+  );
+}
+
 // The details stay in view while the cards scroll past them, for as long as
 // they fit in what is in view. Taller than that, a column that stayed put
 // would keep its own end out of reach until the page's end, so it is let go
@@ -162,8 +180,9 @@ function useStickyWhileItFits(active) {
  * @param {Function} props.onCopyPath
  * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
  * @param {Object}   [props.watch]    The build watch's section, or null likewise: `{ process, onToggle }`.
+ * @param {Object}   [props.affected] The files the applied change touched: `{ files, onOpenFile }`. No files, no section.
  */
-export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null }) {
+export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null, affected = null }) {
   const { sidebarRef, unstuck } = useStickyWhileItFits(open);
   return (
     <div id={id} className="dashboard-sidebar-slot" inert={open ? undefined : ''}>
@@ -214,6 +233,12 @@ export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath,
             <>
               <hr className="card-divider" />
               <WatchSection watch={watch} />
+            </>
+          ) : null}
+          {affected?.files.length ? (
+            <>
+              <hr className="card-divider" />
+              <AffectedFilesSection affected={affected} />
             </>
           ) : null}
         </Stack>
