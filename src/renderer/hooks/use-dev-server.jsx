@@ -161,12 +161,13 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
       serverStartRequestedRef.current = false;
       runningRef.current = false;
       // This way out does not go through stopDevServer, which is what ends
-      // the tail everywhere else.
+      // the tail and the mail subscription everywhere else.
       stopDebugTail();
+      stopListeningForMail();
       return;
     }
     await loadMail();
-  }, [appendRuntime, ensureStick, listenForMail, loadMail, revealServerLog, setRunning, setServerUrl, setStarting, sitePath, startDebugTail, stopDebugTail, stopDevServer]);
+  }, [appendRuntime, ensureStick, listenForMail, loadMail, revealServerLog, setRunning, setServerUrl, setStarting, sitePath, startDebugTail, stopDebugTail, stopDevServer, stopListeningForMail]);
 
   const toggleDevServer = async ()=>{
     if (!running) {

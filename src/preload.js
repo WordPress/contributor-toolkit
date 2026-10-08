@@ -339,11 +339,14 @@ contextBridge.exposeInMainWorld('api', {
 		const urlHandler = (_e, payload) => {
 			if (payload.sitePath === sitePath && onUrl) onUrl(payload.url);
 		};
+		const cleanup = () => {
+			ipcRenderer.removeListener('playground:log', logHandler);
+			ipcRenderer.removeListener('playground:url', urlHandler);
+			ipcRenderer.removeListener('playground:stopped', stoppedHandler);
+		};
 		const stoppedHandler = (_e, payload) => {
 			if (payload.sitePath === sitePath) {
-				ipcRenderer.removeListener('playground:log', logHandler);
-				ipcRenderer.removeListener('playground:url', urlHandler);
-				ipcRenderer.removeListener('playground:stopped', stoppedHandler);
+				cleanup();
 				if (onStopped) onStopped();
 			}
 		};
@@ -351,8 +354,15 @@ contextBridge.exposeInMainWorld('api', {
 		ipcRenderer.on('playground:url', urlHandler);
 		ipcRenderer.on('playground:stopped', stoppedHandler);
 
-		// Invoke AFTER listeners are attached so early logs/URL are captured
-		return await ipcRenderer.invoke('playground:start', sitePath);
+		// Invoke AFTER listeners are attached so early logs/URL are captured.
+		// A start that throws has no server, so no 'stopped' is coming to
+		// remove them: left on, they answer the site's next server too (#604).
+		try {
+			return await ipcRenderer.invoke('playground:start', sitePath);
+		} catch (e) {
+			cleanup();
+			throw e;
+		}
 	},
 	stopServer: async (sitePath) => {
 		return await ipcRenderer.invoke('playground:stop', sitePath);

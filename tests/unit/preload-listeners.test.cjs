@@ -454,6 +454,66 @@ test('startWpDebug survives a reply carrying no path', async () => {
 	assert.equal(ipcRenderer.listenerCount('wp:debug-log:data'), 0);
 });
 
+// --- the dev server (#604) -------------------------------------------------
+//
+// startServer subscribes before it invokes, like the sign-in, so the server's
+// first lines and its address are not missed. Its listeners are removed when
+// the server announces it has stopped, and a server that never existed
+// announces nothing: a start that throws, rather than answering
+// `{ ok: false }`, left all three behind, and the site's next server would
+// open the site once for every start that had thrown before it. Today the
+// button refuses a second start after a throw, so nothing reaches that next
+// server; #603 makes the retry possible, and this is what keeps it clean.
+
+function startServerCallbacks() {
+	const seen = { logs: [], urls: [], stopped: 0 };
+	return {
+		seen,
+		onLog: (p) => seen.logs.push(p.data),
+		onUrl: (url) => seen.urls.push(url),
+		onStopped: () => { seen.stopped += 1; }
+	};
+}
+
+const SERVER_CHANNELS = ['playground:log', 'playground:url', 'playground:stopped'];
+
+test('startServer removes its listeners when the server stops', async () => {
+	const { api, ipcRenderer } = loadPreload({ invokeResults: { 'playground:start': () => ({ ok: true }) } });
+	const run = startServerCallbacks();
+
+	await api.startServer('/sites/wp', run.onLog, run.onUrl, run.onStopped);
+	for (const channel of SERVER_CHANNELS) assert.equal(ipcRenderer.listenerCount(channel), 1);
+
+	// Another site's server stopping is not this one's.
+	ipcRenderer.emit('playground:stopped', { sitePath: '/sites/other', code: 0 });
+	assert.equal(run.seen.stopped, 0);
+	for (const channel of SERVER_CHANNELS) assert.equal(ipcRenderer.listenerCount(channel), 1);
+
+	ipcRenderer.emit('playground:stopped', { sitePath: '/sites/wp', code: 0 });
+	assert.equal(run.seen.stopped, 1);
+	for (const channel of SERVER_CHANNELS) assert.equal(ipcRenderer.listenerCount(channel), 0, `${channel} outlived the server`);
+});
+
+test('startServer leaves no listener behind when the start throws, and the next server is heard once', async () => {
+	let throwNext = true;
+	const { api, ipcRenderer } = loadPreload({ invokeResults: { 'playground:start': () => {
+		if (throwNext) { throwNext = false; throw new Error('forced failure'); }
+		return { ok: true };
+	} } });
+	const failed = startServerCallbacks();
+	const next = startServerCallbacks();
+
+	await assert.rejects(api.startServer('/sites/wp', failed.onLog, failed.onUrl, failed.onStopped), /forced failure/);
+	for (const channel of SERVER_CHANNELS) assert.equal(ipcRenderer.listenerCount(channel), 0, `${channel} outlived a start that threw`);
+
+	await api.startServer('/sites/wp', next.onLog, next.onUrl, next.onStopped);
+	ipcRenderer.emit('playground:log', { sitePath: '/sites/wp', type: 'stdout', data: 'booting\n' });
+	ipcRenderer.emit('playground:url', { sitePath: '/sites/wp', url: 'http://127.0.0.1:9400/' });
+
+	assert.deepEqual(failed.seen, { logs: [], urls: [], stopped: 0 });
+	assert.deepEqual(next.seen, { logs: ['booting\n'], urls: ['http://127.0.0.1:9400/'], stopped: 0 });
+});
+
 // The guard for the paragraph above isElectronPackage: if the stub ever stops
 // covering a path, this fails here rather than as a mystery download in another
 // file's test on a cold checkout.
