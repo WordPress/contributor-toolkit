@@ -63,6 +63,11 @@ function describeOpenFailure(result, { picked = false } = {}) {
 		// translators: %s: the reason, usually the operating system's own message in English.
 		return sprintf(__('The file manager would not open the folder: %s'), quote(result.error));
 	}
+	// A file the site does not hold (#669): most often one the applied change
+	// deleted, which is still listed among the files it changed.
+	if (result?.reason === 'missing-file') {
+		return __('That file is not in the site. The change may have deleted it.');
+	}
 	if (result?.reason === 'unregistered-site') {
 		return __('This app has no record of that folder, so it will not open it.');
 	}

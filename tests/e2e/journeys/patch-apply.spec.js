@@ -127,6 +127,90 @@ test( 'reverting puts the checkout back and leaves unrelated work alone', async 
 	expect( meta.branches[ 'ticket/60001' ].appliedPatch ).toBeFalsy();
 } );
 
+const EDITOR = { name: 'Example Editor', path: path.join( os.tmpdir(), 'example-editor' ) };
+
+/**
+ * Stands in for the handlers that reach other applications, and keeps what
+ * each was asked. Detection finds `editors`, which may be none.
+ *
+ * @param {Object}   app
+ * @param {Object[]} editors `{ name, path }`.
+ * @return {Promise<Function>} Resolves to what was asked so far.
+ */
+async function standInForApplications( app, editors ) {
+	await app.evaluate( ( { ipcMain }, detected ) => {
+		const asked = { opens: [], shows: [] };
+		global.__e2eApplications = asked;
+		const replace = ( channel, handler ) => {
+			ipcMain.removeHandler( channel );
+			ipcMain.handle( channel, handler );
+		};
+		replace( 'editor:list', () => ( { detected } ) );
+		replace( 'editor:open', ( event, sitePath, editorPath, relPath ) => {
+			asked.opens.push( { sitePath, editorPath, relPath } );
+			return { ok: true };
+		} );
+		replace( 'dir:show', ( event, sitePath, relPath ) => {
+			asked.shows.push( { sitePath, relPath } );
+			return { ok: true };
+		} );
+	}, editors );
+	return () => app.evaluate( () => global.__e2eApplications );
+}
+
+// The file in the open site's details, and nowhere else: the preview names
+// the same path while it is up. Drawn as a link, it is a button, because it
+// opens an application rather than going anywhere.
+const affectedFile = ( page, file ) => page
+	.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } )
+	.getByRole( 'button', { name: file, exact: true } );
+
+test( 'each file the applied patch changed opens in the editor from the details (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	const asked = await standInForApplications( app, [ EDITOR ] );
+	await ui.linkTicket( page, '60001' );
+
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
+	] );
+	await applyPatchFile( session, patch );
+	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );
+
+	// INVARIANT — the file is listed once the patch is applied, and one click
+	// opens it in the editor detection found, inside the site. The site's menu
+	// is never opened first: the click must not depend on it having been.
+	await affectedFile( page, 'src/wp-login.php' ).click();
+	await expect.poll( async () => ( await asked() ).opens ).toEqual( [
+		{ sitePath: site.dir, editorPath: EDITOR.path, relPath: 'src/wp-login.php' },
+	] );
+
+	// INVARIANT — the list goes with the patch.
+	await ui.revertPatchButton( page ).click();
+	await expect( affectedFile( page, 'src/wp-login.php' ) ).toHaveCount( 0, { timeout: 60_000 } );
+} );
+
+test( 'with no editor on the machine, an applied file is shown in the file manager (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	const asked = await standInForApplications( app, [] );
+	await ui.linkTicket( page, '60001' );
+
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
+	] );
+	await applyPatchFile( session, patch );
+	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );
+
+	// INVARIANT — a link that does nothing is the failure this replaces, so
+	// with nothing to open it in, the file is shown where it is.
+	await affectedFile( page, 'src/wp-login.php' ).click();
+	await expect.poll( async () => ( await asked() ).shows ).toEqual( [
+		{ sitePath: site.dir, relPath: 'src/wp-login.php' },
+	] );
+	expect( ( await asked() ).opens ).toEqual( [] );
+} );
+
 test( 'a patch that does not fit is refused, and writes nothing', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { page } = await session.start( site.settings );
