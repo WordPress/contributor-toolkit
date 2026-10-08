@@ -16,6 +16,10 @@
 #
 # No `playwright install` step in either job. These tests launch Electron; no
 # browser is ever downloaded.
+#
+# A pull request that changes only Markdown files skips both jobs. Their checks are
+# required, so the `*-skipped` jobs report the same names as passed on a cheap Linux
+# runner; unit-tests.yml explains why it is done this way and not with `paths-ignore`.
 
 name: E2E
 
@@ -24,22 +28,65 @@ on:
     # `ready_for_review` is not in the default set. Without it, a PR opened as a draft
     # and later marked ready never runs this workflow at all — the draft guard below
     # would skip the only run it ever gets.
-    types: [opened, synchronize, reopened, ready_for_review]
+    # `edited` re-runs `changes` when the PR's base moves (see the `changes` job).
+    types: [opened, synchronize, reopened, ready_for_review, edited]
   push:
     branches: [trunk]
 
 permissions:
   contents: read
 
-# A new push supersedes the previous run on the same ref.
+# A new push supersedes the previous run on the same ref. A title or description edit
+# gets a group of its own, so it cannot cancel a run that is still testing the code.
 concurrency:
-  group: e2e-${{ github.ref }}
+  group: e2e-${{ github.ref }}${{ github.event.action == 'edited' && !github.event.changes.base && '-edit' || '' }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    # Moving the PR's base changes its diff: a Markdown-only PR moved onto trunk from a
+    # stacked branch now carries that branch's code. Any other edit changes nothing here.
+    if: github.event.action != 'edited' || github.event.changes.base
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+    steps:
+      # A push to trunk always runs both jobs. On a pull request, any file that is
+      # not Markdown (including the old name of a renamed file) counts as code.
+      - id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            echo code=true >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" \
+            --jq '.[] | .filename, (.previous_filename // empty)')
+          if printf '%s\n' "$files" | grep -v '\.md$' > /dev/null; then
+            echo code=true >> "$GITHUB_OUTPUT"
+          else
+            echo code=false >> "$GITHUB_OUTPUT"
+          fi
+
+  journeys-skipped:
+    name: Journeys (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.code == 'false'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - run: echo "Only Markdown changed; the journey suite does not run."
+
   journeys:
     name: Journeys (${{ matrix.os }})
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
@@ -79,10 +126,22 @@ jobs:
             test-results
           retention-days: 7
 
+  packaged-skipped:
+    name: Packaged smoke (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.code == 'false'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - run: echo "Only Markdown changed; the packaged smoke test does not run."
+
   packaged:
     name: Packaged smoke (${{ matrix.os }})
     # Packaging takes several minutes per platform; don't spend it on drafts.
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
