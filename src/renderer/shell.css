@@ -857,6 +857,20 @@ body {
   background: var(--wpds-color-background-surface-neutral-strong);
 }
 
+/* An HTML mail is a page of its own, white in either theme, and fills the box
+   to its rounded edge: the padding is inside the frame (email-modal.jsx). */
+.email-view-rendered.is-framed {
+  padding: 0;
+  overflow: hidden;
+}
+
+.email-view-frame {
+  display: block;
+  width: 100%;
+  height: 60vh;
+  border: 0;
+}
+
 .email-view-rendered > pre {
   margin: 0;
   white-space: pre-wrap;

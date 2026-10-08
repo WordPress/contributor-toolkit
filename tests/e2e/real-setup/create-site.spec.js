@@ -94,7 +94,7 @@ for ( const target of TARGETS ) {
 
 			await test.step( 'Start the dev server and verify WordPress over HTTP', async () => {
 				await page.getByRole( 'button', { name: 'Start dev server and finish the wizard', exact: true } ).click();
-				const adminLink = page.getByRole( 'link', { name: 'wp-admin', exact: true } );
+				const adminLink = ui.adminLink( page );
 				await expect( adminLink ).toBeVisible( { timeout: 3 * 60_000 } );
 				const adminUrl = new URL( await adminLink.getAttribute( 'href' ) );
 				// INVARIANT: probe only the local server this app just started.

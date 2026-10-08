@@ -98,6 +98,15 @@ export default [
 			// suite can load a component to see it, so this rule is the check, and
 			// it holds in whichever file the component ends up.
 			'react-hooks/refs': 'error',
+
+			// Markup the app did not write never goes into the app's own document.
+			// This is the window with the preload bridge, and a link, a form or a
+			// style in injected markup acts on the whole page around it. Such
+			// markup is drawn in a frame of its own instead, the way
+			// components/email-modal.jsx draws a mail. Nothing in the suite can
+			// load a component to see a new `dangerouslySetInnerHTML`, so this rule
+			// is the check.
+			'react/no-danger': 'error',
 		},
 	},
 

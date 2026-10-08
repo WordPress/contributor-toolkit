@@ -34,6 +34,7 @@ const Module = require('node:module');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { EventEmitter } = require('node:events');
 const { AsyncLocalStorage } = require('node:async_hooks');
 const {
@@ -112,19 +113,44 @@ function createElectronStub({ ready = false } = {}) {
 			this.options = options;
 			this.loaded = [];
 			this.sent = [];
+			// What the window was told to do about navigation: the listeners on
+			// its webContents, the handler for a new window, and the address it
+			// is on. Recorded rather than ignored, so that a window left free to
+			// go anywhere is something a test can see.
+			this.url = '';
+			this.windowOpenHandler = null;
+			this.webContentsListeners = new Map();
 			const self = this;
 			this.webContents = {
 				send: (channel, payload) => { self.sent.push({ channel, payload }); },
 				isDestroyed: () => false,
-				on() {},
+				getURL: () => self.url,
+				on(name, listener) {
+					if (!self.webContentsListeners.has(name)) self.webContentsListeners.set(name, []);
+					self.webContentsListeners.get(name).push(listener);
+				},
 				once() {},
-				setWindowOpenHandler() {},
+				setWindowOpenHandler(handler) { self.windowOpenHandler = handler; },
 				openDevTools() {}
 			};
 			windows.push(this);
 		}
-		loadFile(file) { this.loaded.push({ type: 'file', file }); }
-		loadURL(url) { this.loaded.push({ type: 'url', url }); }
+		loadFile(file) {
+			this.loaded.push({ type: 'file', file });
+			this.url = pathToFileURL(file).href;
+		}
+		loadURL(url) {
+			this.loaded.push({ type: 'url', url });
+			this.url = url;
+		}
+		// Replays a navigation the page asked for, as the event Electron emits
+		// for it. Returns whether a listener cancelled it.
+		emitNavigation(name, url) {
+			let prevented = false;
+			const event = { url, isMainFrame: true, preventDefault() { prevented = true; } };
+			for (const listener of this.webContentsListeners.get(name) || []) listener(event, url);
+			return prevented;
+		}
 		on() {}
 		once() {}
 		show() {}
@@ -414,6 +440,77 @@ test('url:open refuses a file: address and opens an http one', async () => {
 	// The parsed href, not the caller's string: what was checked is what is
 	// opened (see external-url.js).
 	assert.deepEqual(main.calls.openExternal, ['https://wordpress.org/']);
+});
+
+// --- the main window -> src/window-navigation.js ------------------------
+//
+// Not an IPC channel but the same gap, one step earlier: which page may use
+// the channels at all. The main window is the one with the preload bridge, so
+// a main window that stops being pinned to its own page leaves
+// window-navigation.js's suite green and the bridge open to whatever page the
+// window is sent to. The window is opened the way a `wpct://` link with no
+// window open opens one, which is the one road to `createWindow` that does not
+// go through `whenReady`.
+
+async function openMainWindow(main) {
+	await main.emitAppEvent('open-url', { preventDefault: spy() }, 'wpct://ticket/62281');
+	assert.equal(main.windows.length, 1);
+	return main.windows[0];
+}
+
+// The hand-off to the browser is a promise that the navigation events, being
+// synchronous, cannot wait for.
+const handedOff = () => new Promise((resolve) => setImmediate(resolve));
+
+// The end of the wire, with the real modules in place. It fails if the main
+// window stops asking window-navigation.js, and if what that module is given
+// to open a refused address with stops going through external-url.js.
+test('the main window leaves its page for nothing and opens no other, and only a web address reaches the browser', async () => {
+	const logEvent = spy();
+	const main = loadMain({ stubs: { './logging': { ...silentLogging()['./logging'], logEvent } } });
+	const win = await openMainWindow(main);
+
+	// A web address is refused the window and handed to the browser instead,
+	// by every road: a link, a redirect, a request for a new window.
+	assert.equal(win.emitNavigation('will-navigate', 'https://wordpress.org'), true);
+	assert.equal(win.emitNavigation('will-redirect', 'https://core.trac.wordpress.org/ticket/62281'), true);
+	assert.deepEqual(win.windowOpenHandler({ url: 'http://127.0.0.1:8881/wp-admin/' }), { action: 'deny' });
+	// Anything else is refused the window and goes nowhere at all.
+	assert.equal(win.emitNavigation('will-navigate', 'file:///etc/passwd'), true);
+	assert.deepEqual(win.windowOpenHandler({ url: 'file:///etc/hosts' }), { action: 'deny' });
+	await handedOff();
+
+	// The parsed href, as for `url:open`: these went through the same gate.
+	assert.deepEqual(main.calls.openExternal, [
+		'https://wordpress.org/',
+		'https://core.trac.wordpress.org/ticket/62281',
+		'http://127.0.0.1:8881/wp-admin/'
+	]);
+	// And the two it refused are in the log, not dropped.
+	const refusals = logEvent.calls.filter(([scope]) => scope === 'url').map(([, message]) => message);
+	assert.equal(refusals.length, 2);
+	assert.match(refusals[0], /file:\/\/\/etc\/passwd/);
+	assert.match(refusals[1], /file:\/\/\/etc\/hosts/);
+
+	// The one navigation it lets through is the page reloading itself.
+	assert.match(win.url, /renderer\/index\.html$/);
+	assert.equal(win.emitNavigation('will-navigate', win.url), false);
+});
+
+test('a browser that could not be opened for an address the main window refused is logged', async () => {
+	// Nothing awaits a navigation event, so nothing else is in a position to
+	// report this: unlogged, it is a link that did nothing and left no trace.
+	const logError = spy();
+	const main = loadMain({ stubs: { './logging': { ...silentLogging()['./logging'], logError } } });
+	main.electron.shell.openExternal = async () => { throw new Error('no application is registered'); };
+	const win = await openMainWindow(main);
+
+	assert.equal(win.emitNavigation('will-navigate', 'https://wordpress.org'), true);
+	await handedOff();
+
+	assert.equal(logError.calls.length, 1);
+	assert.equal(logError.calls[0][0], 'url');
+	assert.match(logError.calls[0][1], /https:\/\/wordpress\.org.*no application is registered/);
 });
 
 // The settings store is an ESM-only dependency loaded through a dynamic import,

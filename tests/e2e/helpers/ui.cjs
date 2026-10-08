@@ -163,6 +163,8 @@ const stopBuildWatchButton = ( page ) => page.getByRole( 'button', { name: 'Stop
 // the process is doing: "Server stopped", "Build watching". With little room
 // the header shows its dot alone; its name is the same.
 const processMenuButton = ( page, label ) => page.getByRole( 'button', { name: label, exact: true } );
+// The link to the running site's dashboard, shown once the server is up.
+const adminLink = ( page ) => page.getByRole( 'link', { name: 'wp-admin', exact: true } );
 // In the page's header.
 const reviewChangesButton = ( page ) => page.getByRole( 'button', { name: 'Review & submit changes', exact: true } );
 const retryInstallButton = ( page ) => page.getByRole( 'button', { name: 'Retry install & build', exact: true } );
@@ -541,6 +543,7 @@ module.exports = {
 	startBuildWatchButton,
 	stopBuildWatchButton,
 	processMenuButton,
+	adminLink,
 	reviewChangesButton,
 	retryInstallButton,
 	terminalInput,
