@@ -166,4 +166,18 @@ function dirtyTrunkQuestion({ files = 0, canCarry = false, ticket = null, pullRe
 	};
 }
 
-module.exports = { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion };
+/**
+ * What is asked before the edits on trunk are discarded, on the answer to
+ * the dirty-trunk question that throws them away.
+ *
+ * @return {{title: string, description: string, confirm: string}} The question, and what its button says.
+ */
+function discardTrunkEditsQuestion() {
+	return {
+		title: __('Discard the uncommitted edits on trunk?'),
+		description: __('This can’t be undone.'),
+		confirm: __('Discard edits')
+	};
+}
+
+module.exports = { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion };

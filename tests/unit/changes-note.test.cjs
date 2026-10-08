@@ -11,7 +11,7 @@ const {
 	noteAfterProbe,
 	discardBlocked,
 	discardDisabledReason,
-	discardConfirmMessage
+	discardQuestion
 } = require('../../src/renderer/changes-note.cjs');
 const { WORK_ITEM_BRANCH_PREFIXES } = require('../../src/ticket-branches.js');
 
@@ -130,10 +130,12 @@ test('changesNoteParts always offers a discard, in the same words', () => {
 	}
 });
 
-test('the confirm message matches the dirty-update modal byte for byte', () => {
-	// index.jsx used this literal before the note existed; one action, one
-	// wording, wherever it is triggered from.
-	assert.equal(discardConfirmMessage(), 'Discard all local changes? This cannot be undone.');
+test('the question before a discard asks it, and its button says what it does', () => {
+	assert.deepEqual(discardQuestion(), {
+		title: 'Discard all local changes?',
+		description: 'This can’t be undone.',
+		confirm: 'Discard changes'
+	});
 });
 
 test('discardOutcome passes a success through', () => {

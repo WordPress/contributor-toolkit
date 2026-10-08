@@ -47,7 +47,6 @@ test( 'the review pane shows the tree\'s diff, saves it to the file chosen, says
 	const saveDir = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-review-' ) ) );
 	const savedFile = path.join( saveDir, 'my-fix.diff' );
 	const { app, page } = await session.start( site.settings );
-	const confirmsAnswered = await session.acceptConfirms();
 	// The save dialog is the operating system's; the test answers for it, and
 	// counts how often it was asked.
 	const answerSaveDialog = ( answer ) => app.evaluate( ( { dialog }, result ) => {
@@ -142,14 +141,21 @@ test( 'the review pane shows the tree\'s diff, saves it to the file chosen, says
 	await copyButton.click();
 	await expect( copyButton ).toHaveAccessibleName( 'Could not copy' );
 
-	// INVARIANT — discarding asks first, puts the file back, and the pane then
-	// shows what is left to send: nothing, and it says so rather than showing
-	// an empty box.
+	// INVARIANT — discarding asks first, in the app's own dialog over this
+	// one, and touches nothing while it asks.
 	await dialog.getByRole( 'button', { name: 'Discard all changes', exact: true } ).click();
+	const question = ui.confirmDialog( page );
+	await expect( question ).toHaveAccessibleName( 'Discard all local changes?' );
+	expect( read( site.dir, LOGIN ) ).toBe( MY_EDIT );
+
+	// INVARIANT — the answer that says so puts the file back, and the pane
+	// then shows what is left to send: nothing, and it says so rather than
+	// showing an empty box.
+	await ui.confirmYesButton( page, 'Discard changes' ).click();
+	await expect( question ).toHaveCount( 0 );
 	await expect( dialog.getByText( 'No changes.', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( dialog.getByText( 'There is nothing to send yet — this site has no changes against its copy of trunk.', { exact: true } ) ).toBeVisible();
 	await expect( dialog.getByText( '+<?php // my fix', { exact: true } ) ).toHaveCount( 0 );
-	expect( await confirmsAnswered() ).toBe( 1 );
 	expect( read( site.dir, LOGIN ) ).toBe( '<?php // trunk\n' );
 
 	// INVARIANT — with nothing to discard, the control is off and says why,

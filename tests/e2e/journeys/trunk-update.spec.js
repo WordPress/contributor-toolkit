@@ -29,7 +29,6 @@ test( 'an update fetches from the site\'s origin, resets the checkout, rebuilds,
 	const site = await makeSite( session, { origin: true } );
 	const newTip = advanceOrigin( site.origin, { 'src/wp-login.php': NEWER_LOGIN } );
 	const { page } = await session.start( site.settings );
-	await session.acceptConfirms();
 
 	await expect( ui.siteMenuButton( page ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.siteMenuButton( page ).click();
@@ -94,7 +93,6 @@ test( 'an update run from a linked ticket leaves no incomplete marker behind on 
 	const site = await makeSite( session, { origin: true } );
 	const newTip = advanceOrigin( site.origin, { 'src/wp-login.php': NEWER_LOGIN } );
 	const { page } = await session.start( site.settings );
-	await session.acceptConfirms();
 
 	await expect( ui.siteMenuButton( page ) ).toBeVisible( { timeout: 30_000 } );
 	await ui.linkTicket( page, '60002' );
@@ -152,7 +150,6 @@ test( 'an update asks before it resets edits in the tree: cancelling keeps them,
 	const patchDir = session.track( fs.mkdtempSync( path.join( os.tmpdir(), 'wpct-e2e-saved-' ) ) );
 	const patchFile = path.join( patchDir, 'saved.diff' );
 	const { app, page } = await session.start( site.settings );
-	const confirmsAnswered = await session.acceptConfirms();
 	await expect( ui.siteMenuButton( page ) ).toBeVisible( { timeout: 30_000 } );
 
 	const startUpdate = async () => {
@@ -231,7 +228,7 @@ test( 'an update asks before it resets edits in the tree: cancelling keeps them,
 	expect( ( await ui.paintOf( discardChoice.getByText( /this cannot be undone$/ ) ) ).text ).toBe( wrong );
 	await dialog.getByRole( 'button', { name: 'Cancel', exact: true } ).click();
 	await expect( dialog ).toHaveCount( 0 );
-	expect( await confirmsAnswered() ).toBe( 0 );
+	await expect( ui.confirmDialog( page ) ).toHaveCount( 0 );
 	await startUpdate();
 	await expect( dialog.getByText( 'src/doomed.php', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	expect( read( site.dir, DOOMED ) ).toBe( MY_EDIT );
@@ -280,19 +277,30 @@ test( 'an update asks before it resets edits in the tree: cancelling keeps them,
 	await expect( page.getByText( `Your changes were saved to ${ patchFile } before the reset.` ) ).toBeVisible();
 	expect( read( site.dir, DOOMED ) ).toBe( '<?php // to be deleted\n' );
 	expect( read( site.dir, LOGIN ) ).toBe( NEWER_LOGIN );
-	expect( await confirmsAnswered() ).toBe( 0 );
+	await expect( ui.confirmDialog( page ) ).toHaveCount( 0 );
 
-	// INVARIANT — discarding asks once more before it does, loses the edit
-	// and no other file, and then the update runs.
+	// INVARIANT — discarding asks once more before it does, and saying no
+	// there leaves the edit and the question it came from where they were.
 	advanceOrigin( site.origin, { 'src/wp-login.php': NEWEST_LOGIN }, 'trunk moves on again' );
 	write( site.dir, DOOMED, SECOND_EDIT );
 	await startUpdate();
 	await expect( dialog ).toBeVisible( { timeout: 30_000 } );
 	await discardChoice.click();
 	await discardAndUpdate.click();
+	const question = ui.confirmDialog( page );
+	await expect( question ).toHaveAccessibleName( 'Discard all local changes?' );
+	await ui.confirmNoButton( page ).click();
+	await expect( question ).toHaveCount( 0 );
+	await expect( dialog ).toBeVisible();
+	expect( read( site.dir, DOOMED ) ).toBe( SECOND_EDIT );
+	expect( read( site.dir, LOGIN ) ).toBe( NEWER_LOGIN );
+
+	// INVARIANT — saying yes loses the edit and no other file, and then the
+	// update runs.
+	await discardAndUpdate.click();
+	await ui.confirmYesButton( page, 'Discard changes' ).click();
 	await expect.poll( () => read( site.dir, LOGIN ), { timeout: 120_000 } ).toBe( NEWEST_LOGIN );
 	await expect( dialog ).toHaveCount( 0 );
-	expect( await confirmsAnswered() ).toBe( 1 );
 	expect( read( site.dir, DOOMED ) ).toBe( '<?php // to be deleted\n' );
 	expect( read( site.dir, SUBSTRATE ) ).toBe( SUBSTRATE_CONTENT );
 } );
