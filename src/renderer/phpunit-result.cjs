@@ -77,7 +77,7 @@ function phpunitResult(run) {
 		return {
 			status: 'failed',
 			// translators: 1: how many tests failed. 2: how many tests ran.
-			text: sprintf(_n('%1$d of %2$d tests failed.', '%1$d of %2$d tests failed.', failed), failed, summary.tests)
+			text: sprintf(_n('%1$d of %2$d test failed.', '%1$d of %2$d tests failed.', summary.tests), failed, summary.tests)
 		};
 	}
 	const notRun = summary.skipped + summary.incomplete;

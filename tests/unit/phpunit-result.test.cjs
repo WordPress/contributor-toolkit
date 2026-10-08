@@ -15,6 +15,7 @@ const ERRORS = 'ERRORS!\nTests: 25948, Assertions: 4560440, Errors: 5, Failures:
 const SKIPPED = 'OK, but incomplete, skipped, or risky tests!\nTests: 10, Assertions: 20, Skipped: 2.\n';
 const NONE = 'No tests executed!\n';
 const WARNED = 'WARNINGS!\nTests: 12, Assertions: 30, Warnings: 1.\n';
+const ONE_FAILED = 'FAILURES!\nTests: 1, Assertions: 1, Failures: 1.\n';
 
 test('phpunitSummary reads the counts PHPUnit ends a run with', () => {
 	const none = { tests: 0, failures: 0, errors: 0, warnings: 0, skipped: 0, incomplete: 0 };
@@ -39,6 +40,9 @@ test('phpunitResult gives each kind of run its dot and its sentence', () => {
 	assert.deepEqual(phpunitResult({ running: false, code: 1, output: WARNED }), { status: 'online', text: '11 of 12 tests passed. 1 had a warning.' });
 	assert.deepEqual(phpunitResult({ running: false, code: 1, output: FAILED }), { status: 'failed', text: '4 of 2133 tests failed.' });
 	assert.deepEqual(phpunitResult({ running: false, code: 2, output: ERRORS }), { status: 'failed', text: '136 of 25948 tests failed.' });
+	// The plural follows the tests that ran, as the passing sentence's does: a
+	// run filtered down to one test is "1 of 1 test".
+	assert.deepEqual(phpunitResult({ running: false, code: 1, output: ONE_FAILED }), { status: 'failed', text: '1 of 1 test failed.' });
 	assert.deepEqual(phpunitResult({ running: false, code: 1, output: NONE }), { status: 'offline', text: 'No tests matched.' });
 });
 
