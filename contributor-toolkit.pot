@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-08T14:01:34+00:00\n"
+"POT-Creation-Date: 2026-10-08T14:03:38+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -278,42 +278,42 @@ msgstr ""
 msgid "Applying the patch failed: %s"
 msgstr ""
 
-#: src/main.js:3283
+#: src/main.js:3284
 msgid ""
 "There is uncommitted work on trunk — decide what happens to it before "
 "starting the ticket"
 msgstr ""
 
-#: src/main.js:3377
+#: src/main.js:3378
 msgid ""
 "Link a ticket first: trunk is what tickets are measured against, not a "
 "ticket."
 msgstr ""
 
-#: src/main.js:3379
+#: src/main.js:3380
 #: src/renderer/ticket-trunk-notice.cjs:147
 msgid "Only a ticket branch can be moved onto the current trunk."
 msgstr ""
 
-#: src/main.js:3381
+#: src/main.js:3382
 msgid ""
 "This ticket has no recorded starting point, so the app cannot move its work "
 "onto the current trunk."
 msgstr ""
 
-#: src/main.js:3526
+#: src/main.js:3527
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3527
+#: src/main.js:3528
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3533
+#: src/main.js:3534
 msgid "Choose the application to open this folder in"
 msgstr ""
 
-#: src/main.js:3674
+#: src/main.js:3675
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
@@ -321,7 +321,7 @@ msgid ""
 "finishes on its own."
 msgstr ""
 
-#: src/main.js:3677
+#: src/main.js:3678
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
@@ -329,74 +329,240 @@ msgid ""
 "its own."
 msgstr ""
 
-#: src/main.js:3681
+#: src/main.js:3682
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
 "running and holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:3684
+#: src/main.js:3685
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
 "holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:3688
+#: src/main.js:3689
 msgid "This site requires a newer Node.js than this app bundles."
 msgstr ""
 
-#: src/main.js:3688
+#: src/main.js:3689
 msgid "Retrying with engine checks relaxed…"
 msgstr ""
 
-#: src/main.js:3775
+#: src/main.js:3776
 #. %s: why npm could not be started.
 msgid "Failed to start: %s"
 msgstr ""
 
-#: src/main.js:4086
+#: src/main.js:4087
 #. 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
 msgid "Server exited with code %1$s (signal %2$s) before reporting a URL"
 msgstr ""
 
-#: src/main.js:4089
+#: src/main.js:4090
 #. %s: the code the server exited with.
 msgid "Server exited with code %s before reporting a URL"
 msgstr ""
 
-#: src/main.js:4119
+#: src/main.js:4120
 #. %d: how many seconds the server was given to start.
 msgid "Server did not start within %d second"
 msgid_plural "Server did not start within %d seconds"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.js:4181
+#: src/main.js:4182
 #. %s: the name of the folder the web server serves, local-playground-web.
 msgid "%s directory not found."
 msgstr ""
 
-#: src/main.js:4229
+#: src/main.js:4230
 msgid "Server exited before becoming ready"
 msgstr ""
 
-#: src/main.js:4261
+#: src/main.js:4262
 msgid "Timed out starting web server"
 msgstr ""
 
-#: src/menu.js:26
-msgid "Settings…"
+#: src/menu.js:103
+msgid "Delete"
 msgstr ""
 
-#: src/menu.js:63
+#: src/menu.js:105
+msgid "Select All"
+msgstr ""
+
+#: src/menu.js:111
+msgid "View"
+msgstr ""
+
+#: src/menu.js:113
+msgid "Reload"
+msgstr ""
+
+#: src/menu.js:114
+msgid "Force Reload"
+msgstr ""
+
+#: src/menu.js:117
+msgid "Actual Size"
+msgstr ""
+
+#: src/menu.js:118
+msgid "Zoom In"
+msgstr ""
+
+#: src/menu.js:119
+msgid "Zoom Out"
+msgstr ""
+
+#: src/menu.js:121
+msgid "Toggle Full Screen"
+msgstr ""
+
+#: src/menu.js:126
+msgid "Window"
+msgstr ""
+
+#: src/menu.js:128
+msgid "Minimize"
+msgstr ""
+
+#: src/menu.js:131
+msgid "Bring All to Front"
+msgstr ""
+
+#: src/menu.js:132
+#: src/renderer/components/bottom-tray.jsx:137
+msgid "Close"
+msgstr ""
+
+#: src/menu.js:137
+msgid "Help"
+msgstr ""
+
+#: src/menu.js:143
 #: src/renderer/hooks/use-dev-server.jsx:138
 msgid "Open App Log"
 msgstr ""
 
-#: src/menu.js:67
+#: src/menu.js:147
 msgid "Show Logs Folder"
+msgstr ""
+
+#: src/menu.js:33
+msgid "Settings…"
+msgstr ""
+
+#: src/menu.js:37
+msgid "Toggle Developer Tools"
+msgstr ""
+
+#: src/menu.js:47
+#. %s: the app's name, WordPress Contributor Toolkit.
+msgid "About %s"
+msgstr ""
+
+#: src/menu.js:51
+msgid "Services"
+msgstr ""
+
+#: src/menu.js:54
+#. %s: the app's name, WordPress Contributor Toolkit.
+msgid "Hide %s"
+msgstr ""
+
+#: src/menu.js:55
+msgid "Hide Others"
+msgstr ""
+
+#: src/menu.js:56
+msgid "Show All"
+msgstr ""
+
+#: src/menu.js:59
+#. %s: the app's name, WordPress Contributor Toolkit.
+msgid "Quit %s"
+msgstr ""
+
+#: src/menu.js:64
+msgid "File"
+msgstr ""
+
+#: src/menu.js:66
+msgid "Close Window"
+msgstr ""
+
+#: src/menu.js:68
+msgid "Exit"
+msgstr ""
+
+#: src/menu.js:68
+msgid "Quit"
+msgstr ""
+
+#: src/menu.js:72
+msgid "Edit"
+msgstr ""
+
+#: src/menu.js:74
+msgid "Undo"
+msgstr ""
+
+#: src/menu.js:75
+msgid "Redo"
+msgstr ""
+
+#: src/menu.js:77
+msgid "Cut"
+msgstr ""
+
+#: src/menu.js:78
+#: src/renderer/components/site-details.jsx:199
+#: src/renderer/confirmations.cjs:185
+msgid "Copy"
+msgstr ""
+
+#: src/menu.js:79
+msgid "Paste"
+msgstr ""
+
+#: src/menu.js:81
+msgid "Paste and Match Style"
+msgstr ""
+
+#: src/menu.js:86
+msgid "Substitutions"
+msgstr ""
+
+#: src/menu.js:88
+msgid "Show Substitutions"
+msgstr ""
+
+#: src/menu.js:90
+msgid "Smart Quotes"
+msgstr ""
+
+#: src/menu.js:91
+msgid "Smart Dashes"
+msgstr ""
+
+#: src/menu.js:92
+msgid "Text Replacement"
+msgstr ""
+
+#: src/menu.js:96
+msgid "Speech"
+msgstr ""
+
+#: src/menu.js:98
+msgid "Start Speaking"
+msgstr ""
+
+#: src/menu.js:99
+msgid "Stop Speaking"
 msgstr ""
 
 #: src/patch-apply.js:222
@@ -1568,10 +1734,6 @@ msgstr ""
 msgid "Resize tray"
 msgstr ""
 
-#: src/renderer/components/bottom-tray.jsx:137
-msgid "Close"
-msgstr ""
-
 #: src/renderer/components/create-site-dialog.jsx:136
 #: src/renderer/index.jsx:2134
 msgid "Create site"
@@ -2316,11 +2478,6 @@ msgstr ""
 
 #: src/renderer/components/site-details.jsx:179
 msgid "Details"
-msgstr ""
-
-#: src/renderer/components/site-details.jsx:199
-#: src/renderer/confirmations.cjs:185
-msgid "Copy"
 msgstr ""
 
 #: src/renderer/components/site-details.jsx:201
@@ -5067,6 +5224,11 @@ msgstr ""
 
 #: src/wporg-handle.cjs:85
 msgid "Enter your WordPress.org username."
+msgstr ""
+
+#: src/menu.js:129
+msgctxt "the Window menu: make the window fill the screen, or back"
+msgid "Zoom"
 msgstr ""
 
 #: src/renderer/apply-card.cjs:197
