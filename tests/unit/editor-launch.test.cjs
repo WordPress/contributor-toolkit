@@ -354,12 +354,17 @@ test('a path that leaves the site, or is not a path in it, resolves to nothing',
 });
 
 // Where each path really is, symlinks followed, like fs.promises.realpath:
-// a path with no entry rejects. `links` maps a path to where it leads.
-function fakeRealPath(present, links = {}) {
+// a path with no entry rejects with ENOENT. `links` maps a path, or a folder
+// on the way to one, to where it leads; `errors` maps a path to the code its
+// realpath rejects with instead.
+function fakeRealPath(present, links = {}, errors = {}) {
 	return async (p) => {
+		if (errors[p]) throw Object.assign(new Error(`${errors[p]}: ${p}`), { code: errors[p] });
 		if (links[p]) return links[p];
 		for (const [from, to] of Object.entries(links)) {
-			if (p.startsWith(`${from}/`)) return `${to}${p.slice(from.length)}`;
+			for (const sep of ['/', '\\']) {
+				if (p.startsWith(`${from}${sep}`)) return `${to}${p.slice(from.length)}`;
+			}
 		}
 		if (present.includes(p)) return p;
 		throw Object.assign(new Error(`ENOENT: ${p}`), { code: 'ENOENT' });
@@ -368,7 +373,7 @@ function fakeRealPath(present, links = {}) {
 
 test('a file that is there and in the site is the file to open', async () => {
 	const realPath = fakeRealPath(['/Users/dev/sites/wp', '/Users/dev/sites/wp/src/wp-login.php']);
-	assert.equal(await existingSiteFile('/Users/dev/sites/wp', 'src/wp-login.php', { platform: 'darwin', realPath }), '/Users/dev/sites/wp/src/wp-login.php');
+	assert.deepEqual(await existingSiteFile('/Users/dev/sites/wp', 'src/wp-login.php', { platform: 'darwin', realPath }), { file: '/Users/dev/sites/wp/src/wp-login.php', error: null });
 });
 
 // A symbolic link is judged by where it leads, not by its name. A patch can
@@ -376,21 +381,61 @@ test('a file that is there and in the site is the file to open', async () => {
 // on macOS or Linux), a link inside the site can name a file outside it.
 test('a link in the site that leads out of it is not a file of the site', async () => {
 	const realPath = fakeRealPath(['/Users/dev/sites/wp', '/Users/dev/.ssh/id_rsa'], { '/Users/dev/sites/wp/src/x': '/Users/dev/.ssh/id_rsa' });
-	assert.equal(await existingSiteFile('/Users/dev/sites/wp', 'src/x', { platform: 'darwin', realPath }), null);
+	assert.deepEqual(await existingSiteFile('/Users/dev/sites/wp', 'src/x', { platform: 'darwin', realPath }), { file: null, error: null });
 });
 
 // The other way round is fine: macOS puts temporary folders behind /var, a
 // link to /private/var, and a site there is still the site.
 test('a site whose own folder is behind a link still holds its files', async () => {
 	const realPath = fakeRealPath(['/private/var/sites/wp', '/private/var/sites/wp/src/wp-login.php'], { '/var': '/private/var' });
-	assert.equal(await existingSiteFile('/var/sites/wp', 'src/wp-login.php', { platform: 'darwin', realPath }), '/var/sites/wp/src/wp-login.php');
+	assert.deepEqual(await existingSiteFile('/var/sites/wp', 'src/wp-login.php', { platform: 'darwin', realPath }), { file: '/var/sites/wp/src/wp-login.php', error: null });
 });
 
 test('a file that is not there, or whose path leaves the site, is nothing', async () => {
 	const realPath = fakeRealPath(['/Users/dev/sites/wp', '/Users/dev/outside.php']);
 	for (const relPath of ['src/deleted.php', '../outside.php']) {
-		assert.equal(await existingSiteFile('/Users/dev/sites/wp', relPath, { platform: 'darwin', realPath }), null, relPath);
+		assert.deepEqual(await existingSiteFile('/Users/dev/sites/wp', relPath, { platform: 'darwin', realPath }), { file: null, error: null }, relPath);
 	}
+});
+
+// Windows, from any machine: a junction or link in the site that lands on
+// another drive, or elsewhere on the same one, is not a file of the site.
+// Another drive is the case only the absolute-path check catches, since the
+// relative path between two drives is the whole of the second one.
+test('on Windows, a junction in the site that leads to another drive, or out of it, is not a file of the site', async () => {
+	const realPath = fakeRealPath(
+		['C:\\sites\\wp', 'D:\\secrets\\x.txt', 'C:\\other\\vendor\\y.php'],
+		{ 'C:\\sites\\wp\\src\\x.txt': 'D:\\secrets\\x.txt', 'C:\\sites\\wp\\vendor': 'C:\\other\\vendor' }
+	);
+	for (const relPath of ['src/x.txt', 'vendor/y.php', '..\\other\\vendor\\y.php']) {
+		assert.deepEqual(await existingSiteFile('C:\\sites\\wp', relPath, { platform: 'win32', realPath }), { file: null, error: null }, relPath);
+	}
+});
+
+// Windows answers realpath with the drive letter it has, which need not be
+// the one the site was recorded with. The same folder in either case is the
+// same folder.
+test('on Windows, a site recorded with a lower-case drive still holds its files', async () => {
+	const realPath = fakeRealPath([], {
+		'c:\\sites\\wp': 'C:\\sites\\wp',
+		'c:\\sites\\wp\\src\\wp-login.php': 'C:\\sites\\wp\\src\\wp-login.php'
+	});
+	assert.deepEqual(
+		await existingSiteFile('c:\\sites\\wp', 'src/wp-login.php', { platform: 'win32', realPath }),
+		{ file: 'c:\\sites\\wp\\src\\wp-login.php', error: null }
+	);
+});
+
+// "Not there" is the one failure that means what missing-file says. Anything
+// else, a folder that cannot be read for one, is said as itself, so a file
+// the patch only changed is not reported as one it may have deleted.
+test('a file that cannot be read is told apart from one that is not there', async () => {
+	for (const code of ['EACCES', 'EPERM', 'ELOOP']) {
+		const realPath = fakeRealPath(['/Users/dev/sites/wp'], {}, { '/Users/dev/sites/wp/src/wp-login.php': code });
+		assert.deepEqual(await existingSiteFile('/Users/dev/sites/wp', 'src/wp-login.php', { platform: 'darwin', realPath }), { file: null, error: code }, code);
+	}
+	const notDir = fakeRealPath(['/Users/dev/sites/wp'], {}, { '/Users/dev/sites/wp/src/wp-login.php/x': 'ENOTDIR' });
+	assert.deepEqual(await existingSiteFile('/Users/dev/sites/wp', 'src/wp-login.php/x', { platform: 'darwin', realPath: notDir }), { file: null, error: null });
 });
 
 // --- the guard -----------------------------------------------------------
@@ -455,6 +500,17 @@ test('a file that is not there, or not in the site, is not opened', async () => 
 		assert.deepEqual(calls, []);
 		assert.equal(refusals.length, 1);
 	}
+});
+
+test('a file that cannot be read is refused as unreadable, with the reason (#669)', async () => {
+	const realPath = fakeRealPath([SITE], {}, { [`${SITE}/src/wp-login.php`]: 'EACCES' });
+	const { calls, refusals, options } = launchDeps({ file: 'src/wp-login.php', realPath });
+
+	const result = await openSiteInEditor(SITE, EDITOR, options);
+
+	assert.deepEqual(result, { ok: false, reason: REFUSAL_REASONS.UNREADABLE_FILE, error: 'EACCES' });
+	assert.deepEqual(calls, []);
+	assert.equal(refusals[0].reason, REFUSAL_REASONS.UNREADABLE_FILE);
 });
 
 // The same boundary `sites:delete` uses: the app's own record of what it created
