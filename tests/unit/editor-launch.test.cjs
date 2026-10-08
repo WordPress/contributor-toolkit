@@ -24,6 +24,7 @@ const {
 	isLaunchableEditorPath,
 	resolveLaunch,
 	resolveSiteFile,
+	existingSiteFile,
 	openSiteInEditor
 } = require('../../src/editor-launch.js');
 const { addFilter, removeFilter } = require('@wordpress/hooks');
@@ -352,6 +353,46 @@ test('a path that leaves the site, or is not a path in it, resolves to nothing',
 	}
 });
 
+// Where each path really is, symlinks followed, like fs.promises.realpath:
+// a path with no entry rejects. `links` maps a path to where it leads.
+function fakeRealPath(present, links = {}) {
+	return async (p) => {
+		if (links[p]) return links[p];
+		for (const [from, to] of Object.entries(links)) {
+			if (p.startsWith(`${from}/`)) return `${to}${p.slice(from.length)}`;
+		}
+		if (present.includes(p)) return p;
+		throw Object.assign(new Error(`ENOENT: ${p}`), { code: 'ENOENT' });
+	};
+}
+
+test('a file that is there and in the site is the file to open', async () => {
+	const realPath = fakeRealPath(['/Users/dev/sites/wp', '/Users/dev/sites/wp/src/wp-login.php']);
+	assert.equal(await existingSiteFile('/Users/dev/sites/wp', 'src/wp-login.php', { platform: 'darwin', realPath }), '/Users/dev/sites/wp/src/wp-login.php');
+});
+
+// A symbolic link is judged by where it leads, not by its name. A patch can
+// add a link, and in a checkout whose Git writes links (one added from disk,
+// on macOS or Linux), a link inside the site can name a file outside it.
+test('a link in the site that leads out of it is not a file of the site', async () => {
+	const realPath = fakeRealPath(['/Users/dev/sites/wp', '/Users/dev/.ssh/id_rsa'], { '/Users/dev/sites/wp/src/x': '/Users/dev/.ssh/id_rsa' });
+	assert.equal(await existingSiteFile('/Users/dev/sites/wp', 'src/x', { platform: 'darwin', realPath }), null);
+});
+
+// The other way round is fine: macOS puts temporary folders behind /var, a
+// link to /private/var, and a site there is still the site.
+test('a site whose own folder is behind a link still holds its files', async () => {
+	const realPath = fakeRealPath(['/private/var/sites/wp', '/private/var/sites/wp/src/wp-login.php'], { '/var': '/private/var' });
+	assert.equal(await existingSiteFile('/var/sites/wp', 'src/wp-login.php', { platform: 'darwin', realPath }), '/var/sites/wp/src/wp-login.php');
+});
+
+test('a file that is not there, or whose path leaves the site, is nothing', async () => {
+	const realPath = fakeRealPath(['/Users/dev/sites/wp', '/Users/dev/outside.php']);
+	for (const relPath of ['src/deleted.php', '../outside.php']) {
+		assert.equal(await existingSiteFile('/Users/dev/sites/wp', relPath, { platform: 'darwin', realPath }), null, relPath);
+	}
+});
+
 // --- the guard -----------------------------------------------------------
 
 const SITE = '/Users/dev/sites/wp';
@@ -389,7 +430,7 @@ test('a registered site opens in the chosen editor', async () => {
 
 test('a file of a registered site opens in the editor, inside the site (#669)', async () => {
 	const { calls, refusals, options } = launchDeps({
-		statPath: fakeFs({ [EDITOR]: 'dir', [`${SITE}/src/wp-login.php`]: 'file' }).statPath,
+		realPath: fakeRealPath([SITE, `${SITE}/src/wp-login.php`]),
 		file: 'src/wp-login.php'
 	});
 
@@ -404,8 +445,9 @@ test('a file of a registered site opens in the editor, inside the site (#669)', 
 // site is not one to open: either way nothing is spawned, and the window is
 // told why.
 test('a file that is not there, or not in the site, is not opened', async () => {
-	for (const file of ['src/deleted.php', '../outside.php']) {
-		const { calls, refusals, options } = launchDeps({ file });
+	for (const file of ['src/deleted.php', '../outside.php', 'src/x']) {
+		const realPath = fakeRealPath([SITE, '/Users/dev/sites/outside.php', '/Users/dev/.ssh/id_rsa'], { [`${SITE}/src/x`]: '/Users/dev/.ssh/id_rsa' });
+		const { calls, refusals, options } = launchDeps({ file, realPath });
 
 		const result = await openSiteInEditor(SITE, EDITOR, options);
 

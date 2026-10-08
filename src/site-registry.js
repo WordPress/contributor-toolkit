@@ -29,7 +29,10 @@ const { describeRefused } = require('./safe-log');
 // a copy that could go stale.
 const REVEAL_REASONS = {
 	UNREGISTERED_SITE: 'unregistered-site',
-	OPEN_FAILED: 'open-failed'
+	OPEN_FAILED: 'open-failed',
+	// A file of the site that is not there, or not in it (#669). Decided in
+	// main.js with editor-launch's `existingSiteFile`, after this module's gate.
+	MISSING_FILE: 'missing-file'
 };
 
 // True only for a path the app has on record. Exact string match, the same

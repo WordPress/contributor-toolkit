@@ -295,6 +295,33 @@ function resolveSiteFile(sitePath, relPath, { platform } = {}) {
 	return target;
 }
 
+// The file to open, or null: `resolveSiteFile`, and then the same question
+// asked of where the file really is. A symbolic link is judged by where it
+// leads, so a link a patch added inside the site that names a file outside it
+// is not a file of the site; Git writes links in a checkout added from disk on
+// macOS or Linux, unlike the ones the app clones. Both sides are resolved, so
+// a site whose own folder is behind a link (macOS's /var) still holds its
+// files. A path with nothing there does not resolve, which is how a file the
+// patch deleted is refused.
+//
+// `realPath` is injected and awaited like `statPath`: fs.promises.realpath in
+// main, a map in the tests.
+async function existingSiteFile(sitePath, relPath, { platform, realPath } = {}) {
+	const target = resolveSiteFile(sitePath, relPath, { platform });
+	if (!target || typeof realPath !== 'function') return null;
+	let realSite;
+	let realTarget;
+	try {
+		[realSite, realTarget] = await Promise.all([realPath(sitePath), realPath(target)]);
+	} catch {
+		return null;
+	}
+	const p = pathApi(platform);
+	const inside = p.relative(realSite, realTarget);
+	if (inside === '' || inside === '..' || inside.startsWith(`..${p.sep}`) || p.isAbsolute(inside)) return null;
+	return target;
+}
+
 // Every `reason` this module can answer `editor:open` with, refusals and
 // failures alike. Exported as the complete list on purpose: the renderer's
 // open-failure.cjs owes each of these a sentence, and its tests check that
@@ -335,6 +362,7 @@ async function openSiteInEditor(sitePath, editorPath, {
 	statPath,
 	spawn,
 	onRefused,
+	realPath,
 	file = null
 } = {}) {
 	if (!isActionableSite(sitePath, { sites, pending })) {
@@ -357,16 +385,8 @@ async function openSiteInEditor(sitePath, editorPath, {
 	// which reads as the file having been emptied.
 	let filePath = null;
 	if (file !== null) {
-		filePath = resolveSiteFile(sitePath, file, { platform });
-		let stats = null;
-		if (filePath) {
-			try {
-				stats = await statPath(filePath);
-			} catch {
-				stats = null;
-			}
-		}
-		if (!stats) {
+		filePath = await existingSiteFile(sitePath, file, { platform, realPath });
+		if (!filePath) {
 			if (typeof onRefused === 'function') {
 				onRefused(REFUSAL_REASONS.MISSING_FILE, describeRefused(file));
 			}
@@ -457,5 +477,6 @@ module.exports = {
 	isLaunchableEditorPath,
 	resolveLaunch,
 	resolveSiteFile,
+	existingSiteFile,
 	openSiteInEditor
 };

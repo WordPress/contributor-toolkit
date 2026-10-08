@@ -101,17 +101,23 @@ const PICKING_HELPS = new Set(['unlaunchable-editor', 'unknown-editor', 'spawn-f
  * A closed dialog is not a failure: saying something about it would be the app
  * arguing with a decision the contributor just made.
  *
- * @param {Object}  result           What the main process returned.
+ * `relPath` is the file of the site that was being opened, if one was
+ * (#669). The notice keeps it, so "Choose application…" opens that file in
+ * the application picked rather than the bare site.
+ *
+ * @param {Object}  result            What the main process returned.
  * @param {Object}  [options]
  * @param {boolean} [options.picked]
- * @return {?{message: string, offerPicker: boolean}}
+ * @param {?string} [options.relPath]
+ * @return {?{message: string, offerPicker: boolean, relPath: ?string}}
  */
-function noticeForOpenResult(result, { picked = false } = {}) {
+function noticeForOpenResult(result, { picked = false, relPath = null } = {}) {
 	if (result?.ok || result?.reason === 'cancelled') return null;
 
 	return {
 		message: describeOpenFailure(result, { picked }),
-		offerPicker: PICKING_HELPS.has(result?.reason)
+		offerPicker: PICKING_HELPS.has(result?.reason),
+		relPath
 	};
 }
 

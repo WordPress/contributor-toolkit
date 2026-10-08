@@ -946,7 +946,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       console.error('Could not open the site directory:', err);
       result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
-    const notice = noticeForOpenResult(result, { picked: editorPath === null });
+    const notice = noticeForOpenResult(result, { picked: editorPath === null, relPath });
     setEditorNotice(notice);
     // An application that was detected and then failed is one detection should be
     // asked about again, so the next menu does not offer it as if nothing had
@@ -2141,7 +2141,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         <Notice.Description>{editorNotice.message}</Notice.Description>
         {editorNotice.offerPicker ? (
           <Notice.Actions>
-            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => void openIn(null)}>{__('Choose application…')}</UiButton>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => void openIn(null, editorNotice.relPath)}>{__('Choose application…')}</UiButton>
           </Notice.Actions>
         ) : null}
       </Notice.Root>

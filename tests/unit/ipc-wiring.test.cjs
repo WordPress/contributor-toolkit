@@ -6044,6 +6044,9 @@ test('editor:open hands a named file to editor-launch alongside the site', async
 	assert.equal(sitePath, SITE);
 	assert.equal(editorPath, EDITOR);
 	assert.equal(options.file, 'src/wp-login.php');
+	// How the guard follows a link to where it leads, so a link in the site
+	// that names a file outside it is refused.
+	assert.equal(typeof options.realPath, 'function');
 });
 
 // Showing a file selects it in its folder, rather than opening it: the file
@@ -6060,15 +6063,42 @@ test('dir:show with a file of the site selects that file in the file manager (#6
 	assert.deepEqual(main.calls.openPath, []);
 });
 
-test('dir:show refuses a file that is not there, or not in the site (#669)', async (t) => {
+// Logged like the same refusal from `editor:open`, and answered with a reason
+// site-registry lists, which is the list open-failure.cjs owes sentences to.
+test('dir:show refuses a file that is not there, or not in the site, and logs it (#669)', async (t) => {
 	const site = tempDir(t, 'wpct-show-file-');
-	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [site] }).stubs } });
+	const logEvent = spy();
+	const main = loadMain({ stubs: { './logging': { ...silentLogging()['./logging'], logEvent }, ...fakeSettingsStore({ sites: [site] }).stubs } });
+	const { REVEAL_REASONS } = require(path.join(SRC_DIR, 'site-registry.js'));
 
 	for (const relPath of ['src/deleted.php', '../outside.php']) {
-		assert.deepEqual(await main.invoke('dir:show', site, relPath), { ok: false, reason: 'missing-file' }, relPath);
+		assert.deepEqual(await main.invoke('dir:show', site, relPath), { ok: false, reason: REVEAL_REASONS.MISSING_FILE }, relPath);
 	}
+	assert.equal(REVEAL_REASONS.MISSING_FILE, 'missing-file');
 	assert.deepEqual(main.calls.showItemInFolder, []);
 	assert.deepEqual(main.calls.openPath, []);
+	assert.equal(logEvent.calls.length, 2);
+	assert.match(logEvent.calls[0][1], /refused to reveal src\/deleted\.php/);
+});
+
+// A link in the site that names a file outside it is judged by where it
+// leads, as in editor-launch. Windows makes links only with a privilege the
+// test may not have, and the decision itself is covered from every platform
+// in editor-launch.test.cjs.
+test('dir:show refuses a link in the site that leads out of it (#669)', async (t) => {
+	const site = tempDir(t, 'wpct-show-file-');
+	const outside = tempDir(t, 'wpct-show-outside-');
+	fs.writeFileSync(path.join(outside, 'secret.txt'), 'secret\n');
+	try {
+		fs.symlinkSync(path.join(outside, 'secret.txt'), path.join(site, 'link.txt'), 'file');
+	} catch (e) {
+		if (e.code === 'EPERM') return t.skip('no privilege to make a symbolic link here');
+		throw e;
+	}
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [site] }).stubs } });
+
+	assert.deepEqual(await main.invoke('dir:show', site, 'link.txt'), { ok: false, reason: 'missing-file' });
+	assert.deepEqual(main.calls.showItemInFolder, []);
 });
 
 // --- creating a site, and opening it while it is still being created -----
