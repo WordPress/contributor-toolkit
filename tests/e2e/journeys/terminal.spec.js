@@ -372,6 +372,12 @@ test( 'phpunit runs the arguments it is given, and the Tests section runs the su
 		await terminal.press( 'Enter' );
 	};
 
+	// INVARIANT — the Tests section says how the last run went, and before
+	// any run says there has been none.
+	const tests = page.getByRole( 'complementary' );
+	const lastRun = tests.getByRole( 'group', { name: 'PHP unit tests' } ).getByRole( 'status' );
+	await expect( lastRun ).toHaveText( 'Not run yet.' );
+
 	// CHARACTERISATION — the help names the command on a core site.
 	await enter( 'help' );
 	await expect( screen ).toContainText( 'Run WordPress PHP unit tests, for example phpunit --group 12345' );
@@ -381,6 +387,7 @@ test( 'phpunit runs the arguments it is given, and the Tests section runs the su
 	await enter( 'phpunit --filter Tests_Formatting_wpAutop' );
 	await expect( screen ).toContainText( 'Running phpunit --filter Tests_Formatting_wpAutop…' );
 	expect( ( await asked() ).runs ).toEqual( [ { dir: site.dir, args: [ '--filter', 'Tests_Formatting_wpAutop' ] } ] );
+	await expect( lastRun ).toHaveText( 'Running…' );
 
 	// INVARIANT — its output and its end are the terminal's, as a script's are.
 	await tell( 'npm:run-script:log', { runId: 'e2e-php-1', type: 'stdout', data: 'OK (25 tests, 34 assertions)\n' } );
@@ -388,16 +395,24 @@ test( 'phpunit runs the arguments it is given, and the Tests section runs the su
 	await tell( 'npm:run-script:done', { runId: 'e2e-php-1', code: 0 } );
 	await expect( screen ).toContainText( 'phpunit --filter Tests_Formatting_wpAutop exited with code 0' );
 
+	// INVARIANT — a typed run counts as much as a button's: the section says
+	// it passed, with how many, and which command that was.
+	await expect( lastRun ).toHaveText( '25 tests passed.' );
+	await expect( tests.getByText( 'phpunit --filter Tests_Formatting_wpAutop', { exact: true } ) ).toBeVisible();
+
 	// INVARIANT — the Tests section's "Run all" runs the whole suite: no
 	// arguments, so core's own configuration decides what runs.
-	const tests = page.getByRole( 'complementary' );
 	await expect( tests.getByRole( 'heading', { level: 2, name: 'Tests', exact: true } ) ).toBeVisible();
 	await expect( tests.getByRole( 'button', { name: 'Run this ticket\'s tests', exact: true } ) ).toHaveCount( 0 );
 	await tests.getByRole( 'button', { name: 'Run all PHP unit tests', exact: true } ).click();
 	await expect( screen ).toContainText( 'Running phpunit…' );
 	expect( ( await asked() ).runs[ 1 ] ).toEqual( { dir: site.dir, args: [] } );
-	await tell( 'npm:run-script:done', { runId: 'e2e-php-2', code: 0 } );
-	await expect( screen ).toContainText( 'phpunit exited with code 0' );
+	// INVARIANT — a run with failures says how many of how many, from
+	// PHPUnit's own summary.
+	await tell( 'npm:run-script:log', { runId: 'e2e-php-2', type: 'stdout', data: 'FAILURES!\nTests: 2133, Assertions: 1118406, Failures: 4.\n' } );
+	await tell( 'npm:run-script:done', { runId: 'e2e-php-2', code: 1 } );
+	await expect( screen ).toContainText( 'phpunit exited with code 1' );
+	await expect( lastRun ).toHaveText( '4 of 2133 tests failed.' );
 
 	// INVARIANT — with a ticket linked, the section also runs the tests
 	// tagged with it, as the terminal command, in the terminal.
@@ -414,6 +429,8 @@ test( 'phpunit runs the arguments it is given, and the Tests section runs the su
 	await expect.poll( async () => ( await asked() ).kills.length ).toBe( 1 );
 	await tell( 'npm:run-script:done', { runId: 'e2e-php-3', code: 130 } );
 	await expect( screen ).toContainText( 'phpunit --group 60001 exited with code 130' );
+	// INVARIANT — a run stopped part-way is not reported as a pass or a fail.
+	await expect( lastRun ).toHaveText( 'Stopped before it finished.' );
 	await expect( runTests ).not.toHaveAttribute( 'aria-disabled', 'true' );
 } );
 

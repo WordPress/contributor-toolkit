@@ -127,14 +127,29 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
     });
   }, [appendNpm, ensureStick, loadStatus, markBuildInterrupted, onRunFailed, sitePath]);
 
+  // The last PHP unit test run on this site, for the Tests section to say how
+  // it went (phpunit-result.cjs): the command, whether it is still running,
+  // and once it ends its code, whether it was stopped, and the end of what it
+  // printed, where PHPUnit's summary is. Kept for the session only. The output
+  // gathers in a ref while the run streams, so the view is drawn twice per
+  // run and not once per line.
+  const [phpunitRun, setPhpunitRun] = useState(null);
+  const phpunitOutputRef = useRef('');
+
   // Core's PHP unit tests, tracked like a script so killCurrent/Ctrl+C reach
   // them. What main's answer means is phpunit-start.cjs's to say; a run that
   // did not start gets no done event, so it is settled here with -1.
   const runPhpUnit = useCallback((args, options = {}) => {
     const { onLog, onDone } = options;
+    const command = ['phpunit', ...args].join(' ');
     ensureStick('npm');
     currentRunIdRef.current = null;
     stopRequestedRef.current = false;
+    phpunitOutputRef.current = '';
+    setPhpunitRun({ command, running: true });
+    const ended = (code) => {
+      setPhpunitRun({ command, running: false, code, stopped: stopRequestedRef.current, output: phpunitOutputRef.current });
+    };
     const settle = (answer) => {
       const { runId, error } = phpunitStart(answer);
       if (runId) {
@@ -143,15 +158,19 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
       }
       currentRunIdRef.current = null;
       appendNpm(`\nFailed to start phpunit: ${error}\n`);
+      ended(-1);
       if (onLog) onLog(`\n${error}\n`);
       if (onDone) onDone({ code: -1 });
     };
     return window.api.runPhpUnit(sitePath, args, ({ data }) => {
       appendNpm(data);
+      // The summary is the last thing PHPUnit prints; the end is enough.
+      phpunitOutputRef.current = (phpunitOutputRef.current + data).slice(-8000);
       if (onLog) onLog(data);
     }, ({ code }) => {
       appendNpm(`\nphpunit exited with code ${code}\n`);
       currentRunIdRef.current = null;
+      ended(code);
       if (onDone) onDone({ code });
     }).then(settle, settle);
   }, [appendNpm, ensureStick, sitePath]);
@@ -177,6 +196,7 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
     runInstall,
     runScript,
     runPhpUnit,
+    phpunitRun,
     killCurrent
   };
 }

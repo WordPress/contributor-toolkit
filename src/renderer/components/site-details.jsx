@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { __, sprintf } from '@wordpress/i18n';
 import { globe, offline, seen, table, unseen, wordpress } from '@wordpress/icons';
 import { Button, EmptyState, Icon, IconButton, Link, Stack, Text, VisuallyHidden } from '@wordpress/ui';
@@ -119,13 +119,25 @@ function WatchSection({ watch }) {
 // The site's test suites, each run in the terminal, where their output is.
 // One suite so far, core's PHP unit tests; more join it as each is proven to
 // run without a host toolchain. `reason` holds every button while something
-// rewrites the tree or holds the terminal.
+// rewrites the tree or holds the terminal. The dot and the sentence are the
+// last run's (phpunit-result.cjs), with the command it was, since a ticket's
+// tests passing says nothing about the rest. The sentence is a status, so a
+// screen reader hears a run end without going to look.
 function TestsSection({ tests }) {
+  const { lastRun } = tests;
+  const phpHeadingId = useId();
   return (
     <Stack direction="column" gap="md">
-      <Text variant="heading-lg" render={<h2 />}>{__('Tests')}</Text>
-      <Stack direction="column" gap="sm">
-        <Text variant="heading-sm" render={<h3 />}>{__('PHP unit tests')}</Text>
+      <Stack direction="row" align="center" gap="sm">
+        <ProcessStatus status={lastRun.status} />
+        <Text variant="heading-lg" render={<h2 />}>{__('Tests')}</Text>
+      </Stack>
+      <Stack direction="column" gap="sm" role="group" aria-labelledby={phpHeadingId}>
+        <Text id={phpHeadingId} variant="heading-sm" render={<h3 />}>{__('PHP unit tests')}</Text>
+        <Stack direction="column" gap="xs">
+          <Text variant="body-md" role="status" className={lastRun.status === 'failed' ? 'problem-text' : undefined}>{lastRun.text}</Text>
+          {lastRun.command ? <Text variant="body-sm" className="muted-label"><code>{lastRun.command}</code></Text> : null}
+        </Stack>
         <Stack direction="row" gap="sm" wrap="wrap">
           {tests.onRunTicket ? (
             <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={tests.reason} onClick={tests.onRunTicket}>
@@ -189,7 +201,7 @@ function useStickyWhileItFits(active) {
  * @param {Function} props.onCopyPath
  * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
  * @param {Object}   [props.watch]    The build watch's section, or null likewise: `{ process, onToggle }`.
- * @param {Object}   [props.tests]    The Tests section, or null where the site has no suite to run: `{ onRunTicket, onRunAllPhp, reason }`, `onRunTicket` null with no ticket linked.
+ * @param {Object}   [props.tests]    The Tests section, or null where the site has no suite to run: `{ onRunTicket, onRunAllPhp, reason, lastRun }`, `onRunTicket` null with no ticket linked, and `lastRun` the last run's `{ status, text, command }`.
  */
 export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null, tests = null }) {
   const { sidebarRef, unstuck } = useStickyWhileItFits(open);

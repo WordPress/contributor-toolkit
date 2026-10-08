@@ -32,6 +32,7 @@ import { serverProcess, watchProcess, serverSection } from './site-processes.cjs
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
 import { ticketArgs } from '../phpunit-plan.cjs';
+import { phpunitResult } from './phpunit-result.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
@@ -1166,7 +1167,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The npm runs this view starts (#554): the install and the scripts, and the
   // flags the rest of the view reads about them. Called here because it needs
   // `loadStatus` above; the terminal and the build watch below run through it.
-  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, runPhpUnit, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
+  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, runPhpUnit, phpunitRun, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
 
   // The site's terminal (#554): the xterm instance, what is typed in it and
   // the commands it runs through the three runners above. The lock, the kill
@@ -2392,6 +2393,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         tests={skipInit && projectBuild.phpUnit ? {
           onRunTicket: tracTicket ? runTicketTests : null,
           onRunAllPhp: runAllPhpTests,
+          lastRun: phpunitRun ? { command: phpunitRun.command, ...phpunitResult(phpunitRun) } : { command: '', ...phpunitResult(null) },
           reason: testsDisabledReason({ terminalRunning, discarding, ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun })
         } : null}
       />
