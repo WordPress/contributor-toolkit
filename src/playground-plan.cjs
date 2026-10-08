@@ -66,15 +66,45 @@ function planPlaygroundLaunch(config) {
 	};
 }
 
-// The wp-config constants a strategy needs on top of the shared debug/SMTP set.
+// The wp-config constants that depend on what the site is, on top of the shared
+// debug/SMTP set.
 //
-// Only 'plugin-mount' asks for any, and it asks for the two that make the
-// mounted directory read-only from inside WordPress. The mount is a read-write
-// NODEFS mount of the *source checkout*, not a regenerable build/, so
-// Plugins → Delete on the mounted plugin, or the plugin file editor, writes
-// straight through to the contributor's working tree, uncommitted work and .git
-// included. Core's docroot strategy exposes only build/, which the app rebuilds,
-// so it keeps WordPress's defaults.
+// Every strategy gets the environment Core's own Docker environment sets up
+// (#598): `.env.example` in wordpress-develop defaults WP_ENVIRONMENT_TYPE to
+// `local` and WP_DEVELOPMENT_MODE to `core`, and the handbook documents that
+// environment. Left undefined, the type falls back to `production`, and Core
+// offers Application Passwords only over HTTPS or on a `local` site, so on the
+// dev server's plain http://127.0.0.1 a ticket about them could not be tested.
+// Any type but `production` also changes what a site does, and a contributor
+// can meet it: pingbacks and trackbacks are off, in and out, and Site Health
+// skips its page cache and object cache tests, drops the HTTPS test, and rates
+// errors shown to visitors as recommended rather than critical. Core's Docker
+// environment has all of that too, and a ticket about one of them needs the
+// type changed on purpose: Core's own filters, from an mu-plugin in build/, do
+// that per ticket better than a setting here would for every site. `local` itself also lets the screen that authorizes an
+// application accept a plain-HTTP redirect URL, and would turn WP_DEBUG on by
+// default, which the debug set decides anyway. Both values are strings,
+// which is what Core compares them with, so they live here rather than in
+// wp-debug-constants.js, whose values are all booleans; and the development
+// mode follows from the strategy.
+//
+// The development mode is what the site is: a wordpress-develop checkout is
+// Core development, and a Gutenberg checkout mounted into a stock WordPress is
+// plugin development. `core` makes Core list its own blocks' stylesheets on
+// every load instead of from a cached list kept until the version changes, so a
+// block stylesheet added to or removed from build/ is picked up at once.
+// `plugin` changes nothing in Core or Gutenberg today; it is set because it is
+// the honest answer, and `core` would describe a Core checkout the site does
+// not have. Neither value is a setting: there is nothing to choose that the
+// site type does not already answer.
+//
+// 'plugin-mount' also asks for the two constants that make the mounted
+// directory read-only from inside WordPress. The mount is a read-write NODEFS
+// mount of the *source checkout*, not a regenerable build/, so Plugins → Delete
+// on the mounted plugin, or the plugin file editor, writes straight through to
+// the contributor's working tree, uncommitted work and .git included. Core's
+// docroot strategy exposes only build/, which the app rebuilds, so it keeps
+// WordPress's defaults.
 //
 // The cost is real and deliberate: DISALLOW_FILE_MODS also blocks installing a
 // second plugin or theme into the preview. Losing an afternoon of uncommitted
@@ -82,9 +112,14 @@ function planPlaygroundLaunch(config) {
 function planServeConstants(config) {
 	const cfg = config || {};
 	if (cfg.strategy === 'plugin-mount') {
-		return { DISALLOW_FILE_MODS: true, DISALLOW_FILE_EDIT: true };
+		return {
+			WP_ENVIRONMENT_TYPE: 'local',
+			WP_DEVELOPMENT_MODE: 'plugin',
+			DISALLOW_FILE_MODS: true,
+			DISALLOW_FILE_EDIT: true
+		};
 	}
-	return {};
+	return { WP_ENVIRONMENT_TYPE: 'local', WP_DEVELOPMENT_MODE: 'core' };
 }
 
 module.exports = { planPlaygroundLaunch, planServeConstants, WORDPRESS_VFS_ROOT, PLUGINS_VFS_BASE };

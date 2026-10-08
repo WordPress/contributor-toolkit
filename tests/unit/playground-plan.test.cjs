@@ -12,7 +12,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { planPlaygroundLaunch, PLUGINS_VFS_BASE } = require('../../src/playground-plan.cjs');
+const { planPlaygroundLaunch, planServeConstants, PLUGINS_VFS_BASE } = require('../../src/playground-plan.cjs');
 const { getProjectType } = require('../../src/project-type.cjs');
 
 test('docroot strategy mounts the build dir as WordPress and skips the download', () => {
@@ -72,4 +72,28 @@ test('a plugin-mount slug that is not a plain name is refused before it becomes 
 	for (const bad of ['../gutenberg', 'a/b', 'a\\b', 'a b']) {
 		assert.throws(() => planPlaygroundLaunch({ strategy: 'plugin-mount', pluginDir: '/sites/gb', pluginSlug: bad }), /plain slug/, `expected a refusal for ${JSON.stringify(bad)}`);
 	}
+});
+
+// The environment Core's own Docker environment sets up (#598). Undefined, the
+// type falls back to `production`, and Core offers Application Passwords only
+// over HTTPS or on a `local` site: on the dev server's plain HTTP the feature
+// was gone, and a ticket about it could not be tested.
+test('a Core site runs as a local environment in core development mode', () => {
+	assert.deepEqual(planServeConstants({ strategy: 'docroot', docroot: '/sites/wp/build' }), {
+		WP_ENVIRONMENT_TYPE: 'local',
+		WP_DEVELOPMENT_MODE: 'core'
+	});
+	// The default strategy is docroot, so it gets the same.
+	assert.deepEqual(planServeConstants({}), planServeConstants({ strategy: 'docroot' }));
+});
+
+// A Gutenberg checkout is a plugin mounted into a stock WordPress: plugin
+// development, not Core. The file locks stay beside the environment.
+test('a Gutenberg site runs as a local environment in plugin development mode, with file changes locked', () => {
+	assert.deepEqual(planServeConstants({ strategy: 'plugin-mount', pluginDir: '/sites/gutenberg', pluginSlug: 'gutenberg' }), {
+		WP_ENVIRONMENT_TYPE: 'local',
+		WP_DEVELOPMENT_MODE: 'plugin',
+		DISALLOW_FILE_MODS: true,
+		DISALLOW_FILE_EDIT: true
+	});
 });

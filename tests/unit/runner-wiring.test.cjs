@@ -217,6 +217,10 @@ test('a docroot config reaches runCLI as the options a Core site always got', ()
 	assert.equal('additional-blueprint-steps' in cliOptions, false);
 	assert.equal(cliOptions.wordpressInstallMode, 'install-from-existing-files-if-needed');
 	assert.equal(cliOptions.blueprint.constants.DISALLOW_FILE_MODS, undefined, 'a Core docroot keeps WordPress\'s file defaults');
+	// The environment Core's Docker environment has (#598); without `local`,
+	// Application Passwords are gone on the dev server's plain HTTP.
+	assert.equal(cliOptions.blueprint.constants.WP_ENVIRONMENT_TYPE, 'local');
+	assert.equal(cliOptions.blueprint.constants.WP_DEVELOPMENT_MODE, 'core');
 });
 
 test('a plugin-mount config mounts the checkout as a plugin into a stock install, and locks file modifications', () => {
@@ -232,6 +236,8 @@ test('a plugin-mount config mounts the checkout as a plugin into a stock install
 	// Plugins > Delete in the served site removes it.
 	assert.equal(cliOptions.blueprint.constants.DISALLOW_FILE_MODS, true);
 	assert.equal(cliOptions.blueprint.constants.DISALLOW_FILE_EDIT, true);
+	assert.equal(cliOptions.blueprint.constants.WP_ENVIRONMENT_TYPE, 'local');
+	assert.equal(cliOptions.blueprint.constants.WP_DEVELOPMENT_MODE, 'plugin');
 	// And they are added to the shared constants, not in place of them.
 	assert.equal(cliOptions.blueprint.constants.WP_MAIL_SMTP_HOST, '127.0.0.1');
 });
