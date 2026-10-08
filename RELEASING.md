@@ -17,8 +17,9 @@ Versions are `X.Y.Z` for a stable release and `X.Y.Z-beta.N` for a beta. Tags ad
    python3 -c "import json;d=json.load(open('package-lock.json'));print(d['version'], d['packages']['']['version'])"
    ```
 
-4. Run `npm run lint` and `npm test`.
-5. Open the pull request, titled `Bump version to X.Y.Z`. [#533](https://github.com/WordPress/contributor-toolkit/pull/533) is a good model. `git diff trunk` must show exactly three changed lines.
+4. Run `npm run i18n:download` and commit `src/languages/`. It writes a catalog for every locale at least 80% translated on translate.wordpress.org, removes every other catalog in `src/languages/` (an untracked one included), and prints a coverage table. Right-to-left locales are held back even at 80%, and the output lists them after the table under `Not shipped:`. When no locale reaches 80% and there is no catalog to remove, it prints `No locales downloaded.` instead of a table. If it exits with an error, nothing in `src/languages/` changed; run it again. Skipping this step ships the previous release's translations, or none, and nothing fails. See [Translatable strings](CONTRIBUTING.md#translatable-strings) in `CONTRIBUTING.md`.
+5. Run `npm run lint` and `npm test`.
+6. Open the pull request, titled `Bump version to X.Y.Z`, and paste the coverage table into its description, or the script's message if it printed no table. [#533](https://github.com/WordPress/contributor-toolkit/pull/533) is a good model. `git diff trunk` must show exactly three changed lines outside `src/languages/`.
 
 ## 2. Check the signed artifacts
 
@@ -31,6 +32,8 @@ Buildkite builds signed Windows, macOS and Linux artifacts for the pull request'
 ## 3. Merge
 
 Update the branch with trunk first if it has fallen behind, and check the artifacts again on the new head. Download the three files from the build you checked last. They are what the release ships.
+
+The Windows file may download as `dist_wordpress-contributor-toolkit-X.Y.Z-win-x64.exe`, because the Windows build uploads it from `dist\`. Rename it to remove the `dist_` prefix before you attach it to the release, so its name matches the other two and the one in step 2.
 
 Then squash-merge. The merged commit has the same content as that build, and it is the one you tag.
 
