@@ -2737,7 +2737,8 @@ app.whenReady().then(async () => {
 	Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
 		onOpenLog: () => shell.openPath(getLogFilePath()),
 		onShowLogsFolder: () => shell.showItemInFolder(getLogFilePath()),
-		onOpenSettings: openSettingsFromMenu
+		onOpenSettings: openSettingsFromMenu,
+		appName: app.name
 	})));
 
 	// A `wpct://` link that arrived while the locale was being read has already
