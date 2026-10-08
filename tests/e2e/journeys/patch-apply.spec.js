@@ -179,10 +179,22 @@ test( 'each file the applied patch changed opens in the editor from the details 
 	await applyPatchFile( session, patch );
 	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );
 
+	// INVARIANT — the file looks like something to click: underlined, with a
+	// file's icon beside it. A button drawn as a link has no underline of its
+	// own, and without one the path read as plain text.
+	const file = affectedFile( page, 'src/wp-login.php' );
+	await expect( file ).toHaveCSS( 'text-decoration-line', 'underline' );
+	// And it leads the details, above the facts about the checkout: while a
+	// change is applied, its files are what the contributor came for.
+	await expect(
+		page.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } ).getByRole( 'heading', { level: 2 } ).first()
+	).toHaveText( 'Affected files' );
+	await expect( file.locator( '..' ).locator( 'svg' ) ).toHaveCount( 1 );
+
 	// INVARIANT — the file is listed once the patch is applied, and one click
 	// opens it in the editor detection found, inside the site. The site's menu
 	// is never opened first: the click must not depend on it having been.
-	await affectedFile( page, 'src/wp-login.php' ).click();
+	await file.click();
 	await expect.poll( async () => ( await asked() ).opens ).toEqual( [
 		{ sitePath: site.dir, editorPath: EDITOR.path, relPath: 'src/wp-login.php' },
 	] );

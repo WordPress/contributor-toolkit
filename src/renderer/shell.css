@@ -398,6 +398,18 @@ body {
   color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
+/* A file under "Affected files" (#669): a button drawn as a link, which the
+   browser does not underline the way it does an <a>. The icon sits on the
+   path's first line when a long one wraps. */
+.affected-file {
+  text-decoration-line: underline;
+}
+
+.affected-file-icon {
+  flex-shrink: 0;
+  margin-block-start: 0.2em;
+}
+
 .sidebar-empty-state {
   box-sizing: border-box;
   display: flex;
