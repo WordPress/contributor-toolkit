@@ -1207,6 +1207,14 @@ body {
   outline: none;
 }
 
+/* The question asked before a discard can come from inside one of the older
+   library's modals, whose overlay is at 100000 and would otherwise cover it.
+   The same height, set on the dialog's own layer when it opens: a later body
+   portal wins the tie, and the notices of the stack stay over it. */
+.confirm-dialog-layer {
+  --wp-ui-dialog-z-index: 100000;
+}
+
 /* A tooltip is over everything, a notice of the stack included: the one a
    notice's own button has would otherwise be under the notice above it. */
 :root {

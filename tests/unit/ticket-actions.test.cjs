@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } = require('../../src/renderer/ticket-actions.cjs');
+const { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } = require('../../src/renderer/ticket-actions.cjs');
 
 // A disabled control with no reason is the bug (#409): the ticketActionsBlocked
 // gate used to disable the card's buttons silently. Every branch of it has a
@@ -123,4 +123,12 @@ test('dirtyTrunkQuestion words every issue sentence in full (#629)', () => {
 	);
 	assert.equal(parked.save, 'Save them as a patch, then continue on the issue…');
 	assert.equal(parked.discard, 'Discard them and continue on the issue');
+});
+
+test('the question before the edits on trunk are discarded asks it, and its button says what it does', () => {
+	assert.deepEqual(discardTrunkEditsQuestion(), {
+		title: 'Discard the uncommitted edits on trunk?',
+		description: 'This can’t be undone.',
+		confirm: 'Discard edits'
+	});
 });

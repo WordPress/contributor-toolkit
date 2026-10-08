@@ -47,8 +47,8 @@ import { mergeInProgressNotice } from './merge-in-progress.cjs';
 import { describePrCheckout, describePrPreview, prSubmissionBlocked } from './pr-checkout.cjs';
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
-import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardConfirmMessage } from './changes-note.cjs';
-import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion } from './ticket-actions.cjs';
+import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion } from './changes-note.cjs';
+import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage, copyButtonLabel, setupStatusLine, setupEndMessage } from './confirmations.cjs';
 import { ReasonedUiButton } from './components/reasoned-button.jsx';
 import { DiscardChangesLink } from './components/discard-changes-link.jsx';
@@ -873,15 +873,14 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       await navigator.clipboard.writeText(sitePath);
       return true;
     } catch (err) {
-      // eslint-disable-next-line no-alert -- see the note above confirmAnd.
-      alert(sprintf(
+      confirm(sprintf(
         // translators: %s: why the path could not be copied, a sentence.
         __('Unable to copy path: %s'),
         err?.message ?? String(err)
-      ));
+      ), { tone: 'error' });
       return false;
     }
-  }, [sitePath]);
+  }, [confirm, sitePath]);
   // The details' button, which says "Copied" on itself for a moment.
   const copyPath = useCallback(async () => {
     if (!(await writePathToClipboard())) return;
@@ -1252,23 +1251,16 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The dev server (#554): its state, its guards and its one button. It is
   // called here because starting it needs everything above: the build watch,
   // the logs, the mail, the terminal's lock and the script runner.
-  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, serverFailure, startElapsed, toggleDevServer } = useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
+  const { serverUrl, starting, running, isServerStarting, isDevProcessActive, serverFailure, startElapsed, toggleDevServer } = useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning });
   const markSkipWizard = useCallback(async () => {
     await window.api.setSkipInitWizard(sitePath, true);
     setSkipInit(true);
   }, [sitePath, setSkipInit]);
-  // The system's own alert and confirm are an older convention of this
-  // file, and what is left of it is three questions and two failures: the
-  // discards ask through `confirmAnd`, and a path that could not be copied
-  // and a server started before there is a build say so in an alert. A
-  // deletion asks in the app's own dialog, below. Moving the rest there
-  // changes what a contributor is shown, which is a change of its own and
-  // not a lint cleanup's.
-  // eslint-disable-next-line no-alert -- see the note above.
-  const confirmAnd = async (m,a)=>{ if(window.confirm(m)) await a(); };
   // The question asked before a site or a ticket's work is deleted (#557),
-  // in a dialog of the app's own: what is asked, and what a yes does. The
-  // discards still ask through the system's, above.
+  // or before local changes are discarded (#658), in a dialog of the app's
+  // own: what is asked, and what a yes does. The system's confirm is not
+  // used, because Electron draws its buttons in English whatever the
+  // language.
   const [asking, setAsking] = useState(null);
   const askFirst = (question, action) => setAsking({ question, action });
 
@@ -1276,7 +1268,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // about edits in the tree, and the retry. Called here because it runs
   // through everything above, and because what follows reads whether an
   // update is under way.
-  const { updateState, isUpdating, updateHeld, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
+  const { updateState, isUpdating, updateHeld, updateWaitingOnWatch, updateSteps, updateStepStates, lastUpdateSummary, setLastUpdateSummary, dirtyModalOpen, setDirtyModalOpen, dirtySaving, dirtyFiles, dirtyError, startTrunkUpdate, dirtySaveAndUpdate, dirtyDiscardAndUpdate, retryInstallAndBuild } = useTrunkUpdate({ sitePath, confirm, askFirst, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote });
   // What opening the site starts (#559): the server, the watch, as the
   // settings say, and what the last quit left for this site to start again.
   // Which edge to consume and what to start is auto-start.cjs's; what is
@@ -1460,7 +1452,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           tone="neutral"
           size="compact"
           reason={ticketActionsReason}
-          onClick={() => confirmAnd(__('Discard the uncommitted edits on trunk? This cannot be undone.'), () => discardTrunkWorkAndSwitch(blockedByTrunkWork))}
+          onClick={() => askFirst(discardTrunkEditsQuestion(), () => discardTrunkWorkAndSwitch(blockedByTrunkWork))}
         >{dirtyQuestion.discard}</ReasonedUiButton>
         {/* The way out that touches nothing — three consequential actions
             with no fourth door is its own trap (#234). */}
@@ -1710,13 +1702,12 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   };
 
   // One discard for both entry points — the note's link and the modal's. The
-  // confirm is the same native one the dirty-update modal uses; the user has
+  // question is the same one the dirty-update modal asks; the user has
   // already chosen, this is the last chance to notice they chose wrong.
   // Both links disable through discardBlocked; no re-check in here. The
-  // native confirm blocks the renderer, so the states discardBlocked names
-  // cannot flip while the dialog is up — a check after it would read the
-  // same render-time values the disabled prop already enforced.
-  const discardAllChanges = () => confirmAnd(discardConfirmMessage(), async () => {
+  // question's dialog is modal, so nothing the contributor can press starts
+  // what discardBlocked names while it is up.
+  const discardAllChanges = () => askFirst(discardQuestion(), async () => {
     setDiscarding(true);
     setDiscardError(null);
     try {

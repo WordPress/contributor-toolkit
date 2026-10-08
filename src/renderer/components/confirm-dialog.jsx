@@ -12,7 +12,9 @@ import { AlertDialog } from '@wordpress/ui';
  * is left, a yes included, and is where the question is put away.
  *
  * The design system's alert dialog is not closed by a press outside it, and
- * opens on its Cancel button.
+ * opens on its Cancel button. A discard can be asked from inside the older
+ * library's modals, the review and the question before an update, so the
+ * dialog's layer is lifted to theirs (see shell.css).
  *
  * @param {Object}   props
  * @param {?Object}  props.question  `{ title, description, confirm }`, or null for no question.
@@ -32,6 +34,7 @@ export function ConfirmDialog({ question, onConfirm, onClose }) {
     >
       {shown ? (
         <AlertDialog.Popup
+          portal={<AlertDialog.Portal className="confirm-dialog-layer" />}
           className="confirm-dialog"
           intent="irreversible"
           title={shown.title}

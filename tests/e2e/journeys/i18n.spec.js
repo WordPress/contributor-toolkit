@@ -884,6 +884,15 @@ test( 'the trunk banners, the question before an update over edits, and the upda
 	await question.getByRole( 'button', { name: new RegExp( pseudoLocalize( 'Discard them' ).replace( /[[\]()~]/g, '\\$&' ) ) } ).click();
 	await expect( question.getByRole( 'button', { name: pseudoLocalize( 'Discard & update' ), exact: true } ) ).toBeVisible();
 	expect( await inQuestion() ).toEqual( [] );
+
+	// The question a discard asks before it does.
+	await question.getByRole( 'button', { name: pseudoLocalize( 'Discard & update' ), exact: true } ).click();
+	const discard = ui.confirmDialog( page );
+	await expect( discard ).toHaveAccessibleName( pseudoLocalize( 'Discard all local changes?' ) );
+	await expect( discard.getByRole( 'button', { name: pseudoLocalize( 'Discard changes' ), exact: true } ) ).toBeVisible();
+	expect( await unwrapped( discard ) ).toEqual( [] );
+	await discard.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ).click();
+	await expect( discard ).toHaveCount( 0 );
 	await question.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ).click();
 	await expect( question ).toHaveCount( 0 );
 
@@ -1150,25 +1159,6 @@ function inSentence( text ) {
 	return pseudoLocalize( text ).replace( /^\[/, '' ).replace( /~*\]$/, '' );
 }
 
-/**
- * Keeps every native confirm the page raises and answers it no, so what it
- * asked can be read back and nothing it guards runs. Electron's confirm is
- * not a Playwright dialog: see `acceptConfirms` in ../helpers/app.cjs.
- *
- * @param {Object} page
- * @return {Promise<() => Promise<string[]>>} Reads back what was asked.
- */
-async function keepConfirms( page ) {
-	await page.evaluate( () => {
-		window.__e2eAsked = [];
-		window.confirm = ( message ) => {
-			window.__e2eAsked.push( message );
-			return false;
-		};
-	} );
-	return () => page.evaluate( () => window.__e2eAsked );
-}
-
 test( 'the ticket card\'s questions and notices are fully translatable: a refused number, loose edits on trunk, the edits carried or saved, and a trunk that moved', async ( { session } ) => {
 	// A ticket's number is the ticket's, and is left out of the scan. So are
 	// the two links inside the changes note: their words are part of its
@@ -1189,7 +1179,7 @@ test( 'the ticket card\'s questions and notices are fully translatable: a refuse
 		}
 		dialog.showSaveDialog = async () => ( { canceled: false, filePath: saveTo } );
 	}, savedTo );
-	const asked = await keepConfirms( page );
+	const question = ui.confirmDialog( page );
 	const card = ui.workItemCard( page, pseudoLocalize( 'Trac ticket' ) );
 	const field = card.getByLabel( pseudoLocalize( 'Ticket number or URL' ), { exact: true } );
 	const linkButton = card.getByRole( 'button', { name: pseudoLocalize( 'Link ticket' ), exact: true } );
@@ -1214,7 +1204,11 @@ test( 'the ticket card\'s questions and notices are fully translatable: a refuse
 	await expect( card.getByText( filled( 'You have %d uncommitted change on this site, not on any ticket yet. What should happen to them?', 1 ), { exact: true } ) ).toBeVisible();
 	expect( await inCard() ).toEqual( [] );
 	await button( pseudoLocalize( 'Discard them and start clean' ) ).click();
-	expect( await asked() ).toEqual( [ pseudoLocalize( 'Discard the uncommitted edits on trunk? This cannot be undone.' ) ] );
+	await expect( question ).toHaveAccessibleName( pseudoLocalize( 'Discard the uncommitted edits on trunk?' ) );
+	await expect( question.getByRole( 'button', { name: pseudoLocalize( 'Discard edits' ), exact: true } ) ).toBeVisible();
+	expect( await unwrapped( question ) ).toEqual( [] );
+	await question.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ).click();
+	await expect( question ).toHaveCount( 0 );
 
 	// Carried: where they went, and the note about them on the ticket, whose
 	// sentence holds its two links. The note's discard asks first too.
@@ -1226,7 +1220,11 @@ test( 'the ticket card\'s questions and notices are fully translatable: a refuse
 	await expect( card.getByText( pseudoLocalize( 'Unlinking this ticket doesn\'t affect your local changes for this ticket — they remain attached to it in this site, ready for when you link it again.' ), { exact: true } ) ).toBeVisible();
 	expect( await inCard() ).toEqual( [] );
 	await discard.click();
-	expect( ( await asked() )[ 1 ] ).toBe( pseudoLocalize( 'Discard all local changes? This cannot be undone.' ) );
+	await expect( question ).toHaveAccessibleName( pseudoLocalize( 'Discard all local changes?' ) );
+	await expect( question.getByRole( 'button', { name: pseudoLocalize( 'Discard changes' ), exact: true } ) ).toBeVisible();
+	expect( await unwrapped( question ) ).toEqual( [] );
+	await question.getByRole( 'button', { name: pseudoLocalize( 'Cancel' ), exact: true } ).click();
+	await expect( question ).toHaveCount( 0 );
 
 	// Parked, with trunk moved on under it: the notice that offers the move.
 	await unlink.click();

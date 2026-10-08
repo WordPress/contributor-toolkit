@@ -14,10 +14,19 @@
 
 const { __, _n, sprintf } = require('@wordpress/i18n');
 
-// Byte-identical to the confirm the dirty-update modal has always used, so
-// the same action reads the same everywhere it can be triggered.
-function discardConfirmMessage() {
-	return __('Discard all local changes? This cannot be undone.');
+/**
+ * What is asked before local changes are discarded, from the note, the review
+ * or the question an update asks over edits: one action, so one question
+ * wherever it is triggered from.
+ *
+ * @return {{title: string, description: string, confirm: string}} The question, and what its button says.
+ */
+function discardQuestion() {
+	return {
+		title: __('Discard all local changes?'),
+		description: __('This can’t be undone.'),
+		confirm: __('Discard changes')
+	};
 }
 
 // The branch namespaces a work item gets (#251): `ticket/` on a Core site,
@@ -310,4 +319,4 @@ function patchReviewContext({ pullRequest, tracTicket, workItemNoun = 'ticket' }
 	};
 }
 
-module.exports = { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardConfirmMessage };
+module.exports = { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion };

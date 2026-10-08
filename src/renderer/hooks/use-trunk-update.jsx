@@ -4,7 +4,7 @@ import { savedAndResetMessage } from '../confirmations.cjs';
 import { planUpdateSteps, updateStepStatuses, skipInstallMessage, planWatchImpact } from '../update-plan.cjs';
 import { planUpdateHandOff } from '../update-handoff.cjs';
 import { watchOccupiesBuild } from '../watch-waiters.cjs';
-import { discardOutcome, discardConfirmMessage } from '../changes-note.cjs';
+import { discardOutcome, discardQuestion } from '../changes-note.cjs';
 import { pathBasename } from '../path-basename.cjs';
 import { updateHeldReason } from '../site-menu.cjs';
 
@@ -29,8 +29,8 @@ import { updateHeldReason } from '../site-menu.cjs';
 // some projects does the update's build (#507). `loadStatus` and
 // `refreshDirty` re-read the site once the tree has changed, and
 // `applyDiscardToNote` tells the unsubmitted-changes note that edits were
-// thrown away. `confirm` announces an outcome, and `confirmAnd` asks before
-// one that loses work.
+// thrown away. `confirm` announces an outcome, and `askFirst` asks before
+// one that loses work, in the app's own dialog.
 //
 // None of the functions here is memoised, as none was: they are called from
 // handlers and from each other, never listed as a dependency.
@@ -38,7 +38,7 @@ import { updateHeldReason } from '../site-menu.cjs';
 // Not here: the date of the site's trunk and the marker that an update is
 // incomplete. Both are read from the site's status with everything else the
 // status says, and this hook only asks for the status to be read again.
-export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote }) {
+export function useTrunkUpdate({ sitePath, confirm, askFirst, installing, building, runInstall, runScript, killCurrent, terminalStateRef, terminalKillRef, markTerminalRunning, writeToTerminal, refuseInTerminal, revealTerminal, watchStateRef, watchWaitersRef, pauseWatcher, resumeWatcher, watchRebuildsOnStart, loadStatus, refreshDirty, applyDiscardToNote }) {
   const [updateState, setUpdateState] = useState('idle'); // idle | fetching | installing | building
   // Who runs the update's build: null for the chain itself, 'resumed-watch'
   // when the watch paused for the reset rebuilds from scratch as it resumes and
@@ -284,7 +284,7 @@ export function useTrunkUpdate({ sitePath, confirm, confirmAnd, installing, buil
     }
   };
 
-  const dirtyDiscardAndUpdate = () => confirmAnd(discardConfirmMessage(), async () => {
+  const dirtyDiscardAndUpdate = () => askFirst(discardQuestion(), async () => {
     setDirtyError(null);
     const d = await window.api.discardChanges(sitePath);
     if (!d || !d.ok) {

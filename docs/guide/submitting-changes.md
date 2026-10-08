@@ -21,7 +21,7 @@ If there are no changes to send, the screen says so. If the checkout is old, a w
 
 ## Discarding it all
 
-Next to the heading is **Discard all changes**. It asks first — *Discard all local changes? This cannot be undone* — and then throws away exactly what the diff above it shows, which on a linked ticket or issue means the whole of that work: your uncommitted edits *and* anything parked in a commit the last time you switched away from it.
+Next to the heading is **Discard all changes**. It asks first — *Discard all local changes? This can’t be undone.* — and **Discard changes** then throws away exactly what the diff above it shows, which on a linked ticket or issue means the whole of that work: your uncommitted edits *and* anything parked in a commit the last time you switched away from it.
 
 The work item itself survives. Its branch stays, the link stays, and you carry on working on it from a clean base. Throwing that work away along with its branch is a different gesture — **Delete this ticket's work** or **Delete this issue's work**, on the work-items card. See [Deleting a work item's changes](ticket-branches#deleting-a-work-item-s-changes).
 

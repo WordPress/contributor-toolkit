@@ -27,13 +27,14 @@ import { serveWithoutWatch } from '../dev-server-command.cjs';
 // `terminalKillRef`, `markTerminalRunning` and `currentRunIdRef` are the
 // terminal's lock and the script runner's current run, which a stop clears.
 // `hasBuilt`, `setHasBuilt` and `skipInit` are what the site's status says,
-// and `projectBuild` is the project's build plan.
+// and `projectBuild` is the project's build plan. `confirm` says, in the
+// window's notices, that a start was refused for want of a build.
 //
 // `toggleDevServer` is what each of them does. `isServerStarting`,
 // `isDevProcessActive` and `serverFailure` are what the page's words about
 // the server are decided from, in site-processes.cjs, and `startElapsed` is
 // how long a start has been going.
-export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning }) {
+export function useDevServer({ sitePath, confirm, projectBuild, hasBuilt, setHasBuilt, skipInit, appendRuntime, revealServerLog, ensureStick, startDebugTail, stopDebugTail, listenForMail, stopListeningForMail, loadMail, startBuildWatch, watchStateRef, buildInterruptedRef, currentRunIdRef, terminalKillRef, markTerminalRunning }) {
   const [serverUrl, setServerUrl] = useState('');
   const [starting, setStarting] = useState(false);
   const [running, setRunning] = useState(false);
@@ -173,8 +174,7 @@ export function useDevServer({ sitePath, projectBuild, hasBuilt, setHasBuilt, sk
       // A start is already queued behind the watch (or in flight): a second
       // click must not queue a second server start (#488).
       if (devServerActiveRef.current) return;
-      // eslint-disable-next-line no-alert -- see the note above confirmAnd in index.jsx.
-      if (!skipInit && !hasBuilt) { alert(__('Please complete the full build before starting the dev server. You can also skip the wizard.')); return; }
+      if (!skipInit && !hasBuilt) { confirm(__('Please complete the full build before starting the dev server. You can also skip the wizard.'), { tone: 'error' }); return; }
       serverStartRequestedRef.current = false;
       devServerActiveRef.current = true;
       setServerFailure('');

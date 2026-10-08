@@ -137,7 +137,6 @@ test( 'discarding loose trunk edits continues into the requested PR checkout', a
 	const site = await makeSite( session, { origin: true } );
 	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );
 	const { page } = await session.start( site.settings );
-	const confirmsAnswered = await session.acceptConfirms();
 	write( site.dir, DOOMED, TICKET_EDIT );
 
 	await ui.prField( page ).fill( String( PR ) );
@@ -152,13 +151,16 @@ test( 'discarding loose trunk edits continues into the requested PR checkout', a
 	// not in front of it.
 	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
 	await discard.click();
+	// INVARIANT — the discard asks once more, and touches nothing while it asks.
+	await expect( ui.confirmDialog( page ) ).toHaveAccessibleName( 'Discard the uncommitted edits on trunk?' );
+	expect( read( site.dir, DOOMED ) ).toBe( TICKET_EDIT );
+	await ui.confirmYesButton( page, 'Discard edits' ).click();
 	await expect
 		.poll( () => currentBranch( site.dir ), { timeout: 60_000 } )
 		.toBe( `pr/${ PR }` );
 
 	expect( read( site.dir, LOGIN ) ).toBe( PR_CONTENT );
 	expect( read( site.dir, DOOMED ) ).toBe( '<?php // to be deleted\n' );
-	expect( await confirmsAnswered() ).toBe( 1 );
 } );
 
 test( 'a failed finish remains visible and offers no new patch source', async ( { session } ) => {

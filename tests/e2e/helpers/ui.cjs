@@ -136,8 +136,9 @@ const updateTrunkMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Upd
 const deleteSiteMenuItem = ( page ) => page.getByRole( 'menuitem', { name: 'Delete site', exact: true } );
 
 /**
- * The question asked before something is deleted for good: a site, or a
- * ticket's work. It is named by what it asks, and one is asked at a time.
+ * The question asked before something is deleted or discarded for good: a
+ * site, a ticket's work, or local changes. It is named by what it asks, and
+ * one is asked at a time.
  *
  * @param {Object} page
  * @return {Object} The locator.
