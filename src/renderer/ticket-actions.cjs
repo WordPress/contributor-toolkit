@@ -1,6 +1,7 @@
 'use strict';
 
 const { __, _n, sprintf } = require('@wordpress/i18n');
+const { applyHeldReason } = require('./apply-card.cjs');
 
 /**
  * Why a ticket action is unavailable, and what the dirty-trunk question says
@@ -180,4 +181,23 @@ function discardTrunkEditsQuestion() {
 	};
 }
 
-module.exports = { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion };
+/**
+ * Why "Run this ticket's tests" is unavailable: the shared gate, because the
+ * tests read the checked-out tree and every action it waits for rewrites it,
+ * then a discard in flight, which does too, then the terminal, which the run
+ * is printed in and which holds one command at a time. Some actions above
+ * release the terminal while they still rewrite the tree, so the terminal is
+ * not enough on its own.
+ *
+ * @param {{terminalRunning?: boolean, discarding?: boolean, ticketSaving?: boolean,
+ *          deletingBranch?: string|null, updateState?: string, installing?: boolean,
+ *          building?: boolean, applyState?: string, noun?: string}} state
+ * @return {string} The reason, or '' when the tests can run.
+ */
+function ticketTestsDisabledReason({ terminalRunning = false, discarding = false, ...state } = {}) {
+	return ticketActionDisabledReason(state)
+		|| (discarding ? __('Wait for the discard to finish.') : '')
+		|| applyHeldReason({ terminalRunning });
+}
+
+module.exports = { ticketActionDisabledReason, rebaseDisabledReason, ticketTestsDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion };

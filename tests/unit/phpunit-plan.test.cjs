@@ -55,7 +55,8 @@ test('testsConfig points the sample at the mounted checkout, the bundled PHP and
 	assert.match(config, /define\( 'ABSPATH', '\/site\/src\/' \);/);
 	assert.doesNotMatch(config, /dirname\( __FILE__ \)/);
 	assert.match(config, /define\( 'WP_PHP_BINARY', '\/internal\/shared\/bin\/php' \);/);
-	assert.match(config, /define\( 'DB_DIR', '\/site\/src\/wp-content\/database\/' \);/);
+	// The database is outside the checkout, in the site's toolkit folder.
+	assert.match(config, /define\( 'DB_DIR', '\/toolkit\/database\/' \);/);
 	assert.match(config, /define\( 'DB_FILE', 'phpunit\.sqlite' \);/);
 	// Everything else is the sample's own.
 	assert.match(config, /define\( 'WP_TESTS_TITLE', 'Test Blog' \);/);
@@ -66,10 +67,10 @@ test('testsConfig refuses a sample it cannot rewrite rather than writing one tha
 	assert.throws(() => plan.testsConfig("<?php\ndefine( 'ABSPATH', dirname( __FILE__ ) . '/src/' );\n"), /WP_PHP_BINARY/);
 });
 
-test('dropIn marks the drop-in as the app\'s, names the plugin, and leaves the path to db.copy\'s fallback', () => {
+test('dropIn names the plugin and leaves the path to db.copy\'s fallback, which finds it where it is mounted', () => {
 	const dbCopy = "<?php\n$path = '{SQLITE_IMPLEMENTATION_FOLDER_PATH}';\nactivate_plugin( '{SQLITE_PLUGIN}' );\n";
 	const dropIn = plan.dropIn(dbCopy);
-	assert.ok(dropIn.startsWith(`<?php\n${plan.DROP_IN_MARKER}\n`));
+	assert.ok(dropIn.startsWith('<?php\n'));
 	assert.match(dropIn, /activate_plugin\( 'sqlite-database-integration\/load\.php' \);/);
 	assert.match(dropIn, /\{SQLITE_IMPLEMENTATION_FOLDER_PATH\}/);
 	assert.throws(() => plan.dropIn('not php'), /<\?php/);
@@ -83,20 +84,30 @@ test('phpunitWrapper skips the install the runner already did and clears Playgro
 });
 
 test('runOptions mounts before install, installs nothing, and serves the domain the tests expect', () => {
-	const options = plan.runOptions({ sitePath: '/sites/core', toolkitDir: '/data/php-tests', phpVersion: '8.2', args: ['/site/x.php', '--a'] });
+	const options = plan.runOptions({ sitePath: '/sites/core', siteDir: '/data/php-tests/abc', phpVersion: '8.2', args: ['/site/x.php', '--a'] });
 	assert.equal(options.command, 'php');
 	assert.deepEqual(options._, ['php', '/site/x.php', '--a']);
 	// A spawned PHP sees only before-install mounts while WordPress is never booted.
 	assert.deepEqual(options['mount-before-install'], [
 		{ hostPath: '/sites/core', vfsPath: '/site' },
-		{ hostPath: '/data/php-tests', vfsPath: '/toolkit' }
+		{ hostPath: '/data/php-tests/abc', vfsPath: '/toolkit' }
 	]);
 	assert.equal(options.mount, undefined);
 	assert.equal(options.wordpressInstallMode, 'do-not-attempt-installing');
 	assert.equal(options.skipSqliteSetup, true);
 	assert.equal(options['site-url'], 'http://example.org');
 	assert.equal(options.php, '8.2');
-	assert.equal('php' in plan.runOptions({ sitePath: '/s', toolkitDir: '/t', args: [] }), false);
+	assert.equal('php' in plan.runOptions({ sitePath: '/s', siteDir: '/t', args: [] }), false);
+});
+
+test('runOptions mounts Composer, and the SQLite drop-in and plugin over src/wp-content, only when asked', () => {
+	const composer = plan.runOptions({ sitePath: '/s', siteDir: '/t', composerPath: '/data/composer.phar', args: [] });
+	assert.deepEqual(composer['mount-before-install'][2], { hostPath: '/data/composer.phar', vfsPath: '/composer.phar' });
+	const sqlite = plan.runOptions({ sitePath: '/s', siteDir: '/t', sqlite: true, args: [] });
+	assert.deepEqual(sqlite['mount-before-install'].slice(2), [
+		{ hostPath: '/t/db.php', vfsPath: '/site/src/wp-content/db.php' },
+		{ hostPath: '/t/sqlite-database-integration', vfsPath: '/site/src/wp-content/plugins/sqlite-database-integration' }
+	]);
 });
 
 test('COMPOSER names one exact version and its checksum', () => {

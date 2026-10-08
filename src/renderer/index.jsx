@@ -49,7 +49,7 @@ import { describePrCheckout, describePrPreview, prSubmissionBlocked } from './pr
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion } from './changes-note.cjs';
-import { ticketActionDisabledReason, rebaseDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
+import { ticketActionDisabledReason, rebaseDisabledReason, ticketTestsDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage, copyButtonLabel, setupStatusLine, setupEndMessage } from './confirmations.cjs';
 import { ReasonedUiButton } from './components/reasoned-button.jsx';
 import { DiscardChangesLink } from './components/discard-changes-link.jsx';
@@ -2308,7 +2308,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           latestIsAttachment={latestIsAttachment}
           tests={projectBuild.phpUnit ? {
             onRun: runTicketTests,
-            reason: terminalRunning ? __('A command is running in the terminal. Wait for it to finish, or press Ctrl+C there to stop it.') : ''
+            reason: ticketTestsDisabledReason({ terminalRunning, discarding, ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun })
           } : null}
         />
       ) : null}

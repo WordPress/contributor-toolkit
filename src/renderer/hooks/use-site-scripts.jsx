@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { phpunitStart } from '../phpunit-start.cjs';
 import { runFailedInTerminal } from '../terminal-hints.cjs';
 
 // The npm runs a site's view starts (#554): npm install and the site's npm
@@ -127,16 +128,22 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
   }, [appendNpm, ensureStick, loadStatus, markBuildInterrupted, onRunFailed, sitePath]);
 
   // Core's PHP unit tests, tracked like a script so killCurrent/Ctrl+C reach
-  // them. A refusal from main (a site with no PHP tests) starts nothing, so it
-  // is reported through onLog and settled here with -1, as a start failure is.
+  // them. What main's answer means is phpunit-start.cjs's to say; a run that
+  // did not start gets no done event, so it is settled here with -1.
   const runPhpUnit = useCallback((args, options = {}) => {
     const { onLog, onDone } = options;
     ensureStick('npm');
     currentRunIdRef.current = null;
     stopRequestedRef.current = false;
-    const notStarted = (message) => {
-      appendNpm(`\nFailed to start phpunit: ${message}\n`);
-      if (onLog) onLog(`\n${message}\n`);
+    const settle = (answer) => {
+      const { runId, error } = phpunitStart(answer);
+      if (runId) {
+        currentRunIdRef.current = runId;
+        return;
+      }
+      currentRunIdRef.current = null;
+      appendNpm(`\nFailed to start phpunit: ${error}\n`);
+      if (onLog) onLog(`\n${error}\n`);
       if (onDone) onDone({ code: -1 });
     };
     return window.api.runPhpUnit(sitePath, args, ({ data }) => {
@@ -146,16 +153,7 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
       appendNpm(`\nphpunit exited with code ${code}\n`);
       currentRunIdRef.current = null;
       if (onDone) onDone({ code });
-    }).then((result) => {
-      if (result && result.ok) {
-        currentRunIdRef.current = result.runId;
-        return;
-      }
-      notStarted(result && result.error ? result.error : String(result));
-    }).catch((error) => {
-      currentRunIdRef.current = null;
-      notStarted(error && error.message ? error.message : String(error));
-    });
+    }).then(settle, settle);
   }, [appendNpm, ensureStick, sitePath]);
 
   const killCurrent = useCallback(async () => {

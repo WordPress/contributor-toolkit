@@ -32,26 +32,34 @@ const COMPOSER = {
 	get fileName() { return `composer-${this.version}.phar`; }
 };
 
-// Where the two host directories appear inside PHP.
+// Where the checkout and this site's own toolkit folder appear inside PHP.
+// The toolkit folder is one site's, never the shared one above it, so the
+// code under test can reach no other site's files and not the Composer the
+// next run starts.
 const SITE_VFS = '/site';
 const TOOLKIT_VFS = '/toolkit';
+// Composer, mounted for the one call that runs it.
+const COMPOSER_VFS = '/composer.phar';
 
 // The CLI's own PHP binary, which a spawned `php` resolves to.
 const PHP_BINARY_VFS = '/internal/shared/bin/php';
 
-// The test database, in a directory core's .gitignore already covers and
-// Grunt never copies into build/.
-const DB_DIR_REL = 'src/wp-content/database';
+// The test database, in the site's toolkit folder: nothing of the run's
+// database is written into the checkout.
 const DB_FILE = 'phpunit.sqlite';
 
-// What the drop-in and the plugin are called inside src/wp-content. Both are
-// ignored by core's .gitignore, so neither reaches a contributor's patch.
+// The SQLite drop-in and its plugin live in the site's toolkit folder too, and
+// are mounted over src/wp-content only inside PHP, for the install and the
+// tests. Written into the checkout they would stay there, and core's Docker
+// environment, which serves src/, would quietly run on SQLite from then on.
+// The host's own db.php, if it has one, is hidden for the run and left as it
+// is. The mount does leave an empty file and an empty folder where it was
+// made; the runner removes those, and an empty db.php would do nothing anyway
+// (WordPress falls back to MySQL when the drop-in defines no $wpdb).
 const SQLITE_PLUGIN_SLUG = 'sqlite-database-integration';
 const SQLITE_ZIP_ROOT = 'plugin-sqlite-database-integration';
-
-// The first line after `<?php` in a db.php this app wrote. A db.php without it
-// belongs to someone else and is never replaced.
-const DROP_IN_MARKER = '// Written by WordPress Contributor Toolkit for the PHP unit tests.';
+const DROP_IN_REL = 'src/wp-content/db.php';
+const PLUGIN_REL = `src/wp-content/plugins/${SQLITE_PLUGIN_SLUG}`;
 
 // The arguments after `phpunit` in a terminal line, or null when the line is
 // not a phpunit command. Split on whitespace: quoting is not supported.
@@ -94,8 +102,8 @@ function testsConfig(sample) {
 		text,
 		/define\(\s*'WP_PHP_BINARY',[^;]*;/,
 		`define( 'WP_PHP_BINARY', '${PHP_BINARY_VFS}' );\n\n` +
-			`// The SQLite database the drop-in in src/wp-content/db.php uses in place of MySQL.\n` +
-			`define( 'DB_DIR', '${SITE_VFS}/${DB_DIR_REL}/' );\n` +
+			`// The SQLite database the drop-in uses in place of MySQL, outside the checkout.\n` +
+			`define( 'DB_DIR', '${TOOLKIT_VFS}/database/' );\n` +
 			`define( 'DB_FILE', '${DB_FILE}' );`,
 		'WP_PHP_BINARY'
 	);
@@ -104,23 +112,23 @@ function testsConfig(sample) {
 
 // The db.php drop-in, from the plugin's own db.copy. The implementation path
 // is left as its placeholder on purpose: db.copy then finds the plugin beside
-// it in wp-content/plugins, so no path from this machine is written into it.
+// it in wp-content/plugins, where it is mounted.
 function dropIn(dbCopy) {
 	const text = String(dbCopy);
 	if (!text.startsWith('<?php')) throw new Error('db.copy does not start with <?php');
-	return `<?php\n${DROP_IN_MARKER}\n${text.slice('<?php'.length).replace(/\{SQLITE_PLUGIN\}/g, `${SQLITE_PLUGIN_SLUG}/load.php`)}`;
+	return text.replace(/\{SQLITE_PLUGIN\}/g, `${SQLITE_PLUGIN_SLUG}/load.php`);
 }
 
-// Unzips the SQLite plugin with PHP's ZipArchive: nothing in the app's
-// production dependencies unzips in Node.
-function unzipScript({ zipPath, pluginsDir }) {
+// Unzips the SQLite plugin into the site's toolkit folder with PHP's
+// ZipArchive: nothing in the app's production dependencies unzips in Node.
+function unzipScript({ zipPath }) {
+	const into = TOOLKIT_VFS;
 	return `<?php
 $zip = new ZipArchive();
 if ( true !== $zip->open( ${JSON.stringify(zipPath)} ) ) { fwrite( STDERR, "Could not open the SQLite plugin archive.\\n" ); exit( 1 ); }
-if ( ! is_dir( ${JSON.stringify(pluginsDir)} ) ) { mkdir( ${JSON.stringify(pluginsDir)}, 0777, true ); }
-$ok = $zip->extractTo( ${JSON.stringify(pluginsDir)} );
+$ok = $zip->extractTo( ${JSON.stringify(into)} );
 $zip->close();
-if ( ! $ok || ! rename( ${JSON.stringify(`${pluginsDir}/${SQLITE_ZIP_ROOT}`)}, ${JSON.stringify(`${pluginsDir}/${SQLITE_PLUGIN_SLUG}`)} ) ) { fwrite( STDERR, "Could not unpack the SQLite plugin.\\n" ); exit( 1 ); }
+if ( ! $ok || ! rename( ${JSON.stringify(`${into}/${SQLITE_ZIP_ROOT}`)}, ${JSON.stringify(`${into}/${SQLITE_PLUGIN_SLUG}`)} ) ) { fwrite( STDERR, "Could not unpack the SQLite plugin.\\n" ); exit( 1 ); }
 `;
 }
 
@@ -139,16 +147,24 @@ require '${SITE_VFS}/vendor/bin/phpunit';
 `;
 }
 
-// The runCLI options for one PHP call: the checkout and the toolkit's own
-// directory mounted before install, WordPress neither installed nor given
-// SQLite by the CLI (the drop-in does that), and the site URL the tests expect.
-function runOptions({ sitePath, toolkitDir, phpVersion, args }) {
+// The runCLI options for one PHP call: the checkout and the site's toolkit
+// folder mounted before install, WordPress neither installed nor given SQLite
+// by the CLI (the drop-in does that), and the site URL the tests expect.
+// `composerPath` mounts Composer, for the call that runs it; `sqlite` mounts
+// the drop-in and the plugin over src/wp-content, for the install and the
+// tests. Paths joined with '/', which Node accepts on Windows as well.
+function runOptions({ sitePath, siteDir, composerPath = null, sqlite = false, phpVersion, args }) {
 	return {
 		command: 'php',
 		_: ['php', ...args],
 		'mount-before-install': [
 			{ hostPath: sitePath, vfsPath: SITE_VFS },
-			{ hostPath: toolkitDir, vfsPath: TOOLKIT_VFS }
+			{ hostPath: siteDir, vfsPath: TOOLKIT_VFS },
+			...(composerPath ? [{ hostPath: composerPath, vfsPath: COMPOSER_VFS }] : []),
+			...(sqlite ? [
+				{ hostPath: `${siteDir}/db.php`, vfsPath: `${SITE_VFS}/${DROP_IN_REL}` },
+				{ hostPath: `${siteDir}/${SQLITE_PLUGIN_SLUG}`, vfsPath: `${SITE_VFS}/${PLUGIN_REL}` }
+			] : [])
 		],
 		wordpressInstallMode: 'do-not-attempt-installing',
 		skipSqliteSetup: true,
@@ -162,10 +178,11 @@ module.exports = {
 	COMPOSER,
 	SITE_VFS,
 	TOOLKIT_VFS,
-	DB_DIR_REL,
+	COMPOSER_VFS,
 	DB_FILE,
 	SQLITE_PLUGIN_SLUG,
-	DROP_IN_MARKER,
+	DROP_IN_REL,
+	PLUGIN_REL,
 	phpunitCommandArgs,
 	ticketArgs,
 	phpunitArgs,
