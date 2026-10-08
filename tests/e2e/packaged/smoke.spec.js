@@ -85,6 +85,7 @@ const EXPECTED_API_KEYS = [
 	'revealWpDebug',
 	'runNpmInstall',
 	'runNpmScript',
+	'runPhpUnit',
 	'savePatch',
 	'setContributionEvent',
 	'setSetting',
