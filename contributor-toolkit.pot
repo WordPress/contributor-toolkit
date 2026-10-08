@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: WordPress Contributor Toolkit\n"
 "Report-Msgid-Bugs-To: "
 "https://github.com/WordPress/contributor-toolkit/issues\n"
-"POT-Creation-Date: 2026-10-08T08:54:53+00:00\n"
+"POT-Creation-Date: 2026-10-08T09:35:58+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -146,174 +146,174 @@ msgstr[1] ""
 msgid "Could not read the base commit"
 msgstr ""
 
-#: src/main.js:1160
+#: src/main.js:1182
 msgid "Save Patch for Handoff"
 msgstr ""
 
-#: src/main.js:1160
+#: src/main.js:1182
 msgid "Save Diff File"
 msgstr ""
 
-#: src/main.js:1280
+#: src/main.js:1302
 msgid "Sign in to GitHub first."
 msgstr ""
 
-#: src/main.js:1754
+#: src/main.js:1776
 #. %s: the name of the patch or pull request, such as 60001.diff or PR #6717.
 msgid "%s is applied. Revert it before submitting this checkout as your own work."
 msgstr ""
 
-#: src/main.js:1757
+#: src/main.js:1779
 msgid ""
 "The patch you applied is applied. Revert it before submitting this checkout "
 "as your own work."
 msgstr ""
 
-#: src/main.js:2083
+#: src/main.js:2105
 #. %s: the branch the contributor's work is on, such as ticket/59234.
 msgid "Parking your work on %s before updating…"
 msgstr ""
 
-#: src/main.js:2169
+#: src/main.js:2191
 #. %s: the branch the contributor's work is on, such as ticket/59234.
 msgid "Returning to your work on %s…"
 msgstr ""
 
-#: src/main.js:2214
+#: src/main.js:2236
 #. %s: the error the checkout failed with.
 msgid "Update failed during checkout: %s"
 msgstr ""
 
-#: src/main.js:2217
+#: src/main.js:2239
 #. %s: the error the fetch failed with.
 msgid "Update failed during fetch: %s"
 msgstr ""
 
-#: src/main.js:2232
+#: src/main.js:2254
 #. 1: the ticket's number. 2: the branch the work is committed on, such as ticket/59234.
 msgid ""
 "Your work on #%1$s is safe — it is committed on %2$s. Link that ticket "
 "again to return to it."
 msgstr ""
 
-#: src/main.js:2235
+#: src/main.js:2257
 #. %s: the branch the work is committed on, such as pr/7701.
 msgid ""
 "Your work is safe — it is committed on %s. Apply that pull request again to "
 "return to it."
 msgstr ""
 
-#: src/main.js:2353
+#: src/main.js:2375
 msgid "Returning to your saved copy of the pull request…"
 msgstr ""
 
-#: src/main.js:2353
+#: src/main.js:2375
 msgid "Downloading the pull request's files and switching to its branch…"
 msgstr ""
 
-#: src/main.js:2368
+#: src/main.js:2390
 #. %s: the error Git gave.
 msgid "Could not remove the unused branch: %s"
 msgstr ""
 
-#: src/main.js:2389
+#: src/main.js:2411
 msgid "Restoring the files of your previous branch…"
 msgstr ""
 
-#: src/main.js:2532
+#: src/main.js:2554
 msgid "Could not check your work for conflicts, so the preview was not shown."
 msgstr ""
 
-#: src/main.js:2543
+#: src/main.js:2565
 msgid "Choose a patch file"
 msgstr ""
 
-#: src/main.js:2546
+#: src/main.js:2568
 msgid "Patch Files"
 msgstr ""
 
-#: src/main.js:2547
+#: src/main.js:2569
 msgid "All Files"
 msgstr ""
 
-#: src/main.js:2591
+#: src/main.js:2613
 msgid "There is no stored patch to revert."
 msgstr ""
 
-#: src/main.js:2602
+#: src/main.js:2624
 #. %s: the name of the applied patch, such as a file name.
 msgid "%s is already applied. Revert it before applying another patch."
 msgstr ""
 
-#: src/main.js:2608
+#: src/main.js:2630
 #. %s: the name of the patch, such as a file name.
 msgid "Reverting %s…"
 msgstr ""
 
-#: src/main.js:2611
+#: src/main.js:2633
 #. %s: the name of the patch, such as a file name.
 msgid "Applying %s…"
 msgstr ""
 
-#: src/main.js:2641
+#: src/main.js:2663
 msgid "This patch is too large to keep for an undo, so Revert will not be offered."
 msgstr ""
 
-#: src/main.js:2662
+#: src/main.js:2684
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved, so it was "
 "undone. %s"
 msgstr ""
 
-#: src/main.js:2665
+#: src/main.js:2687
 #. %s: why the record could not be saved, as the system said it.
 msgid ""
 "The patch applied but its revert record could not be saved and it could not "
 "be undone — the checkout has the patch and the app cannot revert it. %s"
 msgstr ""
 
-#: src/main.js:2674
+#: src/main.js:2696
 #. %s: what went wrong, as the system said it.
 msgid "Applying the patch failed: %s"
 msgstr ""
 
-#: src/main.js:3261
+#: src/main.js:3283
 msgid ""
 "There is uncommitted work on trunk — decide what happens to it before "
 "starting the ticket"
 msgstr ""
 
-#: src/main.js:3355
+#: src/main.js:3377
 msgid ""
 "Link a ticket first: trunk is what tickets are measured against, not a "
 "ticket."
 msgstr ""
 
-#: src/main.js:3357
+#: src/main.js:3379
 #: src/renderer/ticket-trunk-notice.cjs:147
 msgid "Only a ticket branch can be moved onto the current trunk."
 msgstr ""
 
-#: src/main.js:3359
+#: src/main.js:3381
 msgid ""
 "This ticket has no recorded starting point, so the app cannot move its work "
 "onto the current trunk."
 msgstr ""
 
-#: src/main.js:3510
+#: src/main.js:3526
 msgid "Applications"
 msgstr ""
 
-#: src/main.js:3511
+#: src/main.js:3527
 msgid "Programs"
 msgstr ""
 
-#: src/main.js:3517
+#: src/main.js:3533
 msgid "Choose the application to open this folder in"
 msgstr ""
 
-#: src/main.js:3658
+#: src/main.js:3674
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
@@ -321,7 +321,7 @@ msgid ""
 "finishes on its own."
 msgstr ""
 
-#: src/main.js:3661
+#: src/main.js:3677
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
@@ -329,60 +329,60 @@ msgid ""
 "its own."
 msgstr ""
 
-#: src/main.js:3665
+#: src/main.js:3681
 #. 1: the code npm exited with. 2: the signal that ended it, such as SIGTERM.
 msgid ""
 "npm exited with code %1$s (signal %2$s), but something it started is still "
 "running and holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:3668
+#: src/main.js:3684
 #. %s: the code npm exited with.
 msgid ""
 "npm exited with code %s, but something it started is still running and "
 "holding its output. Letting go and ending it."
 msgstr ""
 
-#: src/main.js:3672
+#: src/main.js:3688
 msgid "This site requires a newer Node.js than this app bundles."
 msgstr ""
 
-#: src/main.js:3672
+#: src/main.js:3688
 msgid "Retrying with engine checks relaxed…"
 msgstr ""
 
-#: src/main.js:3759
+#: src/main.js:3775
 #. %s: why npm could not be started.
 msgid "Failed to start: %s"
 msgstr ""
 
-#: src/main.js:4070
+#: src/main.js:4086
 #. 1: the code the server exited with. 2: the signal that ended it, such as SIGTERM.
 msgid "Server exited with code %1$s (signal %2$s) before reporting a URL"
 msgstr ""
 
-#: src/main.js:4073
+#: src/main.js:4089
 #. %s: the code the server exited with.
 msgid "Server exited with code %s before reporting a URL"
 msgstr ""
 
-#: src/main.js:4103
+#: src/main.js:4119
 #. %d: how many seconds the server was given to start.
 msgid "Server did not start within %d second"
 msgid_plural "Server did not start within %d seconds"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.js:4165
+#: src/main.js:4181
 #. %s: the name of the folder the web server serves, local-playground-web.
 msgid "%s directory not found."
 msgstr ""
 
-#: src/main.js:4213
+#: src/main.js:4229
 msgid "Server exited before becoming ready"
 msgstr ""
 
-#: src/main.js:4245
+#: src/main.js:4261
 msgid "Timed out starting web server"
 msgstr ""
 
@@ -1637,35 +1637,39 @@ msgstr ""
 msgid "Save patch & update"
 msgstr ""
 
-#: src/renderer/components/email-modal.jsx:18
+#: src/renderer/components/email-modal.jsx:44
 #: src/renderer/tray.cjs:37
 msgid "Email"
 msgstr ""
 
-#: src/renderer/components/email-modal.jsx:25
+#: src/renderer/components/email-modal.jsx:51
 msgid "From:"
 msgstr ""
 
-#: src/renderer/components/email-modal.jsx:26
+#: src/renderer/components/email-modal.jsx:52
 msgid "To:"
 msgstr ""
 
-#: src/renderer/components/email-modal.jsx:27
+#: src/renderer/components/email-modal.jsx:53
 msgid "CC:"
 msgstr ""
 
-#: src/renderer/components/email-modal.jsx:28
+#: src/renderer/components/email-modal.jsx:54
 msgid "Date:"
 msgstr ""
 
-#: src/renderer/components/email-modal.jsx:35
+#: src/renderer/components/email-modal.jsx:61
 #. The tab that shows an email as a reader would see it.
 msgid "Rendered"
 msgstr ""
 
-#: src/renderer/components/email-modal.jsx:37
+#: src/renderer/components/email-modal.jsx:63
 #. The tab that shows an email as it was sent, headers and all.
 msgid "Raw"
+msgstr ""
+
+#: src/renderer/components/email-modal.jsx:70
+msgid "Mail"
 msgstr ""
 
 #: src/renderer/components/folder-field.jsx:47
