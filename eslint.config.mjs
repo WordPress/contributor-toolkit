@@ -161,6 +161,7 @@ export default [
 			'src/install-runner.js',
 			'src/script-runner.js',
 			'src/server-runner.js',
+			'src/phpunit-runner.js',
 			'src/playground-web-runner.js',
 			'scripts/**/*.cjs',
 		],

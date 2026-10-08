@@ -66,7 +66,10 @@ const PROJECT_TYPES = {
 			// build with no watcher.
 			watch: { script: 'grunt', args: ['--', '_watch'], label: 'npm run grunt -- _watch' },
 			// What the terminal's `npm run <script>` accepts.
-			allowedScripts: ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt']
+			allowedScripts: ['build', 'build:dev', 'dev', 'test', 'watch', 'grunt'],
+			// The terminal's `phpunit` and the ticket card's test button: core's
+			// PHPUnit suite on the bundled PHP, against SQLite (phpunit-plan.cjs).
+			phpUnit: true
 		},
 
 		// What the setup checklist says about the steps that differ per target.
@@ -187,7 +190,9 @@ const PROJECT_TYPES = {
 			watch: { script: 'dev', args: [], label: 'npm run dev', readyPattern: 'Watching for changes' },
 			// Gutenberg's bare `test` runs PHP and e2e suites that need Docker;
 			// the unit suite and the linters are what a checkout without it can run.
-			allowedScripts: ['build', 'dev', 'test:unit', 'lint', 'lint:js']
+			allowedScripts: ['build', 'dev', 'test:unit', 'lint', 'lint:js'],
+			// Gutenberg's PHP tests run in wp-env, which needs Docker.
+			phpUnit: false
 		},
 
 		cards: {

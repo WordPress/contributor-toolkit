@@ -3932,6 +3932,56 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 	return { runId };
 });
 
+// Core's PHP unit tests on the bundled Playground PHP, against SQLite: no
+// Docker, no MySQL (phpunit-plan.cjs says what differs and why). The first run
+// on a checkout installs PHPUnit with Composer, so it takes minutes; the rest
+// take seconds. It streams on the script channels and registers as a script, so
+// the terminal shows it, npm:kill stops it and deleting the site ends it. It is
+// left out of scriptByRunId, which only says which watch to start again after a
+// quit: a test run is not one.
+ipcMain.handle('phpunit:run', async (event, sitePath, args = []) => {
+	if (!Array.isArray(args) || !args.every((arg) => typeof arg === 'string')) {
+		throw new Error('args must be an array of strings');
+	}
+	return withRegisteredSite(sitePath, async () => {
+		if (!projectTypeForSite(await readSiteMeta(sitePath)).build.phpUnit) {
+			return { ok: false, error: 'This site has no PHP unit tests to run' };
+		}
+		const settings = readSettings((await getStore()).get('preferences'));
+		const phpVersion = phpVersions().includes(settings.phpVersion) ? settings.phpVersion : SETTINGS.phpVersion.fallback;
+		const config = {
+			site: sitePath,
+			toolkitDir: path.join(app.getPath('userData'), 'php-tests'),
+			phpVersion,
+			args
+		};
+		const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+		runNpmWithEngineRetry({
+			runnerPath: path.join(__dirname, 'phpunit-runner.js'),
+			args: [JSON.stringify(config)],
+			cwd: sitePath,
+			logScope: `phpunit#${runId.slice(-4)}`,
+			register: (child) => {
+				runningScripts[runId] = child;
+				runIdByDirectory[sitePath] = runId;
+				trackDirectoryChild(sitePath, child);
+			},
+			onLog: (type, data) => {
+				event.sender.send('npm:run-script:log', { runId, type, data });
+			},
+			onDone: (code) => {
+				event.sender.send('npm:run-script:done', { runId, code });
+				untrackDirectoryChild(sitePath, runningScripts[runId]);
+				delete runningScripts[runId];
+				if (runIdByDirectory[sitePath] === runId) {
+					delete runIdByDirectory[sitePath];
+				}
+			}
+		});
+		return { ok: true, runId };
+	});
+});
+
 ipcMain.handle('npm:kill', async (_event, { runId, directoryPath }) => {
 	let child;
 	if (runId && runningScripts[runId]) {

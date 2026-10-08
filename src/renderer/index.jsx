@@ -31,6 +31,7 @@ import { deleteSiteQuestion } from './site-dialogs.cjs';
 import { serverProcess, watchProcess, serverSection } from './site-processes.cjs';
 import { applyLocale, textDirection } from './locale-setup.cjs';
 import { getProjectType } from '../project-type.cjs';
+import { ticketArgs } from '../phpunit-plan.cjs';
 import { sanitizeSiteFolder, resolveTargetDir } from './site-folder.cjs';
 import { noticeForOpenResult } from './open-failure.cjs';
 import { describeAppliedLayer, attributeConflicts, layerExitFailure } from './applied-layer.cjs';
@@ -1165,13 +1166,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The npm runs this view starts (#554): the install and the scripts, and the
   // flags the rest of the view reads about them. Called here because it needs
   // `loadStatus` above; the terminal and the build watch below run through it.
-  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
+  const { installing, building, buildFailed, buildInterrupted, buildInterruptedRef, markBuildInterrupted, currentRunIdRef, runInstall, runScript, runPhpUnit, killCurrent } = useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, onInitialized, onRunFailed: revealTerminal });
 
   // The site's terminal (#554): the xterm instance, what is typed in it and
   // the commands it runs through the three runners above. The lock, the kill
   // handler and the writer are taken out by name because every chain below
   // holds the lock and writes its progress there, as it always has.
-  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, runInstall, runScript, killCurrent, shown: isActive && tray === 'terminal' });
+  const { terminalContainerRef, terminalStateRef, terminalKillRef, terminalRunning, markTerminalRunning, writeToTerminal, prefillTerminalCommand, runTerminalCommand } = useSiteTerminal({ allowedScripts: projectBuild.allowedScripts, phpUnit: projectBuild.phpUnit, runInstall, runScript, runPhpUnit, killCurrent, shown: isActive && tray === 'terminal' });
   // What a chain says when it is asked to start while a command holds the
   // terminal. The line is printed there and nowhere else, so the terminal is
   // brought up with it: a refusal nobody sees is a button that did nothing.
@@ -1198,6 +1199,13 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
       }
     });
   }, [runInstall, writeToTerminal]);
+
+  // The ticket card's test button: the tests tagged with the linked ticket,
+  // run in the terminal exactly as typing the command there would.
+  const runTicketTests = useCallback(() => {
+    revealTerminal();
+    runTerminalCommand(['phpunit', ...ticketArgs(tracTicket)].join(' '));
+  }, [revealTerminal, runTerminalCommand, tracTicket]);
 
   const runBuildWithTerminal = useCallback(() => {
     setSetupChainEnd(null);
@@ -2298,6 +2306,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             apply: { hidden: Boolean(pullRequest), disabled: patchReadBlocked, fetching: fetchingAttachment, onApply: previewAttachment }
           } : null}
           latestIsAttachment={latestIsAttachment}
+          tests={projectBuild.phpUnit ? {
+            onRun: runTicketTests,
+            reason: terminalRunning ? __('A command is running in the terminal. Wait for it to finish, or press Ctrl+C there to stop it.') : ''
+          } : null}
         />
       ) : null}
       {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (

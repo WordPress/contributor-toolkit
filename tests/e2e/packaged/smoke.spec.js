@@ -419,6 +419,31 @@ test( 'the packaged payload has no .codesigning directory outside app.asar', () 
 	expect( offenders ).toEqual( [] );
 } );
 
+/**
+ * phpunit-runner.js unpacks the SQLite plugin the Playground CLI ships beside
+ * itself, the same file the CLI reads for the dev server, to run core's PHP
+ * unit tests without MySQL. The CLI's `exports` allow no subpath, so the
+ * runner finds it next to the resolved package, and so does this.
+ */
+test( 'the packaged app can read the SQLite plugin the PHP unit tests use', async () => {
+	const found = await electronApp.evaluate( ( { app } ) => {
+		const nodeRequire = process.mainModule ? process.mainModule.require : require;
+		const { createRequire } = nodeRequire( 'module' );
+		const { join, dirname } = nodeRequire( 'path' );
+		const { readFileSync } = nodeRequire( 'fs' );
+		const req = createRequire( join( app.getAppPath(), 'package.json' ) );
+		try {
+			const zip = join( dirname( req.resolve( '@wp-playground/cli' ) ), 'sqlite-database-integration.zip' );
+			return { ok: true, bytes: readFileSync( zip ).length };
+		} catch ( error ) {
+			return { ok: false, error: String( error && error.message ) };
+		}
+	} );
+
+	expect( found, found.error ).toHaveProperty( 'ok', true );
+	expect( found.bytes ).toBeGreaterThan( 0 );
+} );
+
 for ( const moduleName of REQUIRED_MODULES ) {
 	test( `the packaged app can resolve ${ moduleName }`, async () => {
 		const resolved = await electronApp.evaluate( ( { app }, name ) => {

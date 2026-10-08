@@ -126,6 +126,38 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
     });
   }, [appendNpm, ensureStick, loadStatus, markBuildInterrupted, onRunFailed, sitePath]);
 
+  // Core's PHP unit tests, tracked like a script so killCurrent/Ctrl+C reach
+  // them. A refusal from main (a site with no PHP tests) starts nothing, so it
+  // is reported through onLog and settled here with -1, as a start failure is.
+  const runPhpUnit = useCallback((args, options = {}) => {
+    const { onLog, onDone } = options;
+    ensureStick('npm');
+    currentRunIdRef.current = null;
+    stopRequestedRef.current = false;
+    const notStarted = (message) => {
+      appendNpm(`\nFailed to start phpunit: ${message}\n`);
+      if (onLog) onLog(`\n${message}\n`);
+      if (onDone) onDone({ code: -1 });
+    };
+    return window.api.runPhpUnit(sitePath, args, ({ data }) => {
+      appendNpm(data);
+      if (onLog) onLog(data);
+    }, ({ code }) => {
+      appendNpm(`\nphpunit exited with code ${code}\n`);
+      currentRunIdRef.current = null;
+      if (onDone) onDone({ code });
+    }).then((result) => {
+      if (result && result.ok) {
+        currentRunIdRef.current = result.runId;
+        return;
+      }
+      notStarted(result && result.error ? result.error : String(result));
+    }).catch((error) => {
+      currentRunIdRef.current = null;
+      notStarted(error && error.message ? error.message : String(error));
+    });
+  }, [appendNpm, ensureStick, sitePath]);
+
   const killCurrent = useCallback(async () => {
     const runId = currentRunIdRef.current;
     stopRequestedRef.current = true;
@@ -146,6 +178,7 @@ export function useSiteScripts({ sitePath, appendNpm, ensureStick, loadStatus, o
     currentRunIdRef,
     runInstall,
     runScript,
+    runPhpUnit,
     killCurrent
   };
 }

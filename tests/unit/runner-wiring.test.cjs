@@ -257,3 +257,38 @@ test('server-runner exits before loading the CLI when the serve config is not JS
 	assert.deepEqual(exits, [1]);
 	assert.ok(!events.includes('load:@wp-playground/cli'), 'the CLI must not load for a config the runner could not read');
 });
+
+// phpunit-runner.js runs `php`, which still binds a port for its request
+// handler, so it opens the same way. Composer is put in place first so the
+// runner's first wait is on runCLI (which never settles here), not on a
+// download.
+test('phpunit-runner patches loopback and hides child windows before loading the Playground CLI', () => {
+	const fs = require('node:fs');
+	const os = require('node:os');
+	const { COMPOSER } = require('../../src/phpunit-plan.cjs');
+	const toolkitDir = fs.mkdtempSync(path.join(os.tmpdir(), 'phpunit-wiring-'));
+	fs.writeFileSync(path.join(toolkitDir, COMPOSER.fileName), '');
+	try {
+		const { events, cliOptions } = loadRunner(path.join(SRC_DIR, 'phpunit-runner.js'), [JSON.stringify({ site: path.join(toolkitDir, 'site'), toolkitDir, args: [] })]);
+		assertPatchesPrecedeCli(events, 'phpunit-runner');
+		assert.equal(realPackageLoaded(), false, 'phpunit-runner loaded a real electron/Playground package instead of the stub');
+		// Its first call is Composer, through the CLI's php command.
+		assert.equal(cliOptions.command, 'php');
+	} finally {
+		fs.rmSync(toolkitDir, { recursive: true, force: true });
+	}
+});
+
+test('phpunit-runner exits before loading the CLI when its config is not JSON', () => {
+	const originalExit = process.exit;
+	const exits = [];
+	process.exit = (code) => { exits.push(code); };
+	let events = [];
+	try {
+		({ events } = loadRunner(path.join(SRC_DIR, 'phpunit-runner.js'), ['not json']));
+	} finally {
+		process.exit = originalExit;
+	}
+	assert.deepEqual(exits, [1]);
+	assert.ok(!events.includes('load:@wp-playground/cli'), 'the CLI must not load for a config the runner could not read');
+});

@@ -333,3 +333,89 @@ test( 'the terminal of a site that was not on screen at launch fits its text in 
 	await expect( ui.siteHeading( page, 'open-at-launch' ) ).toBeVisible();
 	expect( await helpLineOverflow( page ) ).toBeLessThanOrEqual( 0 );
 } );
+
+// Core's PHP unit tests, typed or started from the ticket card. The handler
+// that starts them is a stub, as the script handlers are above: a real run
+// installs PHPUnit with Composer first, which takes minutes and the network.
+// That run, and the tests passing on the bundled PHP, are the PR's manual
+// steps. What is pinned here is the wiring: what reaches main, and that the
+// button is the terminal's command and not a second way of running it.
+test( 'phpunit runs the arguments it is given, and the ticket card runs the linked ticket\'s tests through the terminal', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { app, page } = await session.start( site.settings );
+	await ui.openTray( page, 'Terminal' );
+	await app.evaluate( ( { ipcMain } ) => {
+		const asked = { runs: [], kills: [] };
+		global.__e2ePhpUnit = asked;
+		ipcMain.removeHandler( 'phpunit:run' );
+		ipcMain.handle( 'phpunit:run', ( event, dir, args ) => {
+			asked.runs.push( { dir, args } );
+			return { ok: true, runId: `e2e-php-${ asked.runs.length }` };
+		} );
+		ipcMain.removeHandler( 'npm:kill' );
+		ipcMain.handle( 'npm:kill', ( event, params ) => {
+			asked.kills.push( params );
+			return { ok: true };
+		} );
+	} );
+	const asked = () => app.evaluate( () => global.__e2ePhpUnit );
+	const tell = ( channel, payload ) => app.evaluate( ( { BrowserWindow }, [ to, what ] ) => {
+		for ( const win of BrowserWindow.getAllWindows() ) {
+			win.webContents.send( to, what );
+		}
+	}, [ channel, payload ] );
+	const terminal = ui.terminalInput( page );
+	const screen = page.locator( '.xterm-rows' );
+	const enter = async ( text ) => {
+		await terminal.pressSequentially( text, { delay: 10 } );
+		await terminal.press( 'Enter' );
+	};
+
+	// CHARACTERISATION — the help names the command on a core site.
+	await enter( 'help' );
+	await expect( screen ).toContainText( 'Run WordPress PHP unit tests, for example phpunit --group 12345' );
+
+	// INVARIANT — what follows `phpunit` reaches main as it was typed, for
+	// this site, and nothing else is asked for.
+	await enter( 'phpunit --filter Tests_Formatting_wpAutop' );
+	await expect( screen ).toContainText( 'Running phpunit --filter Tests_Formatting_wpAutop…' );
+	expect( ( await asked() ).runs ).toEqual( [ { dir: site.dir, args: [ '--filter', 'Tests_Formatting_wpAutop' ] } ] );
+
+	// INVARIANT — its output and its end are the terminal's, as a script's are.
+	await tell( 'npm:run-script:log', { runId: 'e2e-php-1', type: 'stdout', data: 'OK (25 tests, 34 assertions)\n' } );
+	await expect( screen ).toContainText( 'OK (25 tests, 34 assertions)' );
+	await tell( 'npm:run-script:done', { runId: 'e2e-php-1', code: 0 } );
+	await expect( screen ).toContainText( 'phpunit --filter Tests_Formatting_wpAutop exited with code 0' );
+
+	// INVARIANT — with a ticket linked, the card's button runs the tests
+	// tagged with it, as the terminal command, in the terminal.
+	await ui.linkTicket( page, '60001' );
+	const runTests = page.getByRole( 'button', { name: 'Run this ticket\'s tests', exact: true } );
+	await runTests.click();
+	await expect( screen ).toContainText( 'Running phpunit --group 60001…' );
+	expect( ( await asked() ).runs[ 1 ] ).toEqual( { dir: site.dir, args: [ '--group', '60001' ] } );
+
+	// INVARIANT — while it runs, the button says why it cannot start another,
+	// and Ctrl+C in the terminal stops this one.
+	await expect( runTests ).toHaveAttribute( 'aria-disabled', 'true' );
+	await terminal.press( 'Control+C' );
+	await expect.poll( async () => ( await asked() ).kills.length ).toBe( 1 );
+	await tell( 'npm:run-script:done', { runId: 'e2e-php-2', code: 130 } );
+	await expect( screen ).toContainText( 'phpunit --group 60001 exited with code 130' );
+	await expect( runTests ).not.toHaveAttribute( 'aria-disabled', 'true' );
+} );
+
+test( 'a Gutenberg site has no phpunit command and no ticket test button', async ( { session } ) => {
+	const site = await makeSite( session );
+	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
+	const { page } = await session.start( site.settings );
+	await ui.openTray( page, 'Terminal' );
+	const terminal = ui.terminalInput( page );
+	const screen = page.locator( '.xterm-rows' );
+
+	// INVARIANT — its PHP tests need wp-env, so the command is refused by name.
+	await terminal.pressSequentially( 'phpunit --group 1', { delay: 10 } );
+	await terminal.press( 'Enter' );
+	await expect( screen ).toContainText( 'Unsupported command: phpunit --group 1' );
+	await expect( page.getByRole( 'button', { name: 'Run this ticket\'s tests', exact: true } ) ).toHaveCount( 0 );
+} );

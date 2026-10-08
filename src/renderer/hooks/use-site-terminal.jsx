@@ -4,6 +4,7 @@ import { __, sprintf } from '@wordpress/i18n';
 import { terminalFont, terminalTheme, tokenName, TERMINAL_READABILITY } from '../terminal-theme.cjs';
 import { terminalGrid } from '../tray.cjs';
 import { useThemeKey } from '../components/app-theme.jsx';
+import { phpunitCommandArgs } from '../../phpunit-plan.cjs';
 
 // What the terminal is painted with, read off the design system's tokens
 // where the terminal stands (#557). The terminal takes its colours and its
@@ -46,6 +47,8 @@ const helpCommand = (command) => command.padEnd(27);
 // one at a time, through the three functions it is given: `runInstall` and
 // `runScript` start a run and report its output and its end, and `killCurrent`
 // stops the run that was started last. `allowedScripts` is the project's list.
+// Where the project has PHP unit tests (`phpUnit`), it also runs `phpunit`
+// with whatever arguments follow, through `runPhpUnit`.
 //
 // The lock is not the terminal's alone. Every chain that runs an install or a
 // build (the setup, a trunk update, applying a patch, switching tickets) takes
@@ -61,15 +64,16 @@ const helpCommand = (command) => command.padEnd(27);
 // site is the open one and the tray is showing its terminal (#558): the
 // terminal is made when the site's view mounts, put on the page the first
 // time it is shown, and fitted to its element whenever that changes size.
-// `writeToTerminal` prints, and `prefillTerminalCommand` puts a command at the
-// prompt without running it. Every function returned keeps its identity for
+// `writeToTerminal` prints, `prefillTerminalCommand` puts a command at the
+// prompt without running it, and `runTerminalCommand` runs one as if it had
+// been typed, for a button whose run belongs in the terminal. Every function returned keeps its identity for
 // the life of the component. The effect that creates the xterm instance
 // depends on `normalizeForTerminal`, on the help it prints and on the prompt
 // it shows, and through the help on `writeToTerminal`; were any of those to
 // change, it would dispose the terminal and make another, scrollback and all.
 // None of them depends on the three runners, which may change as often as
 // they like.
-export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCurrent, shown }) {
+export function useSiteTerminal({ allowedScripts, phpUnit = false, runInstall, runScript, runPhpUnit, killCurrent, shown }) {
   const themeKey = useThemeKey();
   // Read through a ref by the terminal's command handlers rather than closed
   // over: the xterm instance is created by an effect that depends on
@@ -81,6 +85,11 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
   useLayoutEffect(() => {
     allowedScriptsRef.current = allowedScripts;
   }, [allowedScripts]);
+  // The same, for whether `phpunit` is a command here.
+  const phpUnitRef = useRef(phpUnit);
+  useLayoutEffect(() => {
+    phpUnitRef.current = phpUnit;
+  }, [phpUnit]);
   // The element the terminal is drawn in, kept as state and not as a ref:
   // it is in the tray (#558), which the window draws and this site's view
   // fills, so it arrives a render after the view does. The effects that put
@@ -176,7 +185,10 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     state.historyIndex = nextHistory.length;
   }, []);
 
-  const printHelp = useCallback(() => {
+  // `everything` is false for the help the terminal opens on, which has to fit
+  // its first screen, and true when it is asked for: the `phpunit` line is in
+  // the second only. The ticket card's test button is where it shows first.
+  const printHelp = useCallback(({ everything = false } = {}) => {
     writeToTerminal(`${__('Available commands:')}\n`);
     // translators: %s: the command help, padded with spaces so that this text lines up with the lines below it.
     writeToTerminal(`  ${sprintf(__('%s Show this help text'), helpCommand('help'))}\n`);
@@ -184,6 +196,10 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     writeToTerminal(`  ${sprintf(__('%1$s Run %2$s in the site directory'), helpCommand('npm install'), 'npm install')}\n`);
     // translators: 1: the command npm run <script>, padded with spaces so that this text lines up with the lines above it. 2: the names of the scripts it can run, separated by commas.
     writeToTerminal(`  ${sprintf(__('%1$s Run one of: %2$s'), helpCommand('npm run <script>'), allowedScriptsRef.current.join(', '))}\n`);
+    if (everything && phpUnitRef.current) {
+      // translators: 1: the command phpunit <args>, padded with spaces so that this text lines up with the lines above it. 2: an example of the command, phpunit --group 12345.
+      writeToTerminal(`  ${sprintf(__('%1$s Run WordPress PHP unit tests, for example %2$s'), helpCommand('phpunit <args>'), 'phpunit --group 12345')}\n`);
+    }
     // Two sentences, each on its own line: a translation cannot carry a line
     // break, and the terminal wraps a line that is wider than it is.
     writeToTerminal(`\n${sprintf(
@@ -211,7 +227,7 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     }
 
     if (command === 'help') {
-      printHelp();
+      printHelp({ everything: true });
       showPrompt(false);
       return;
     }
@@ -267,12 +283,46 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
       return;
     }
 
+    const phpunitArgs = phpUnitRef.current ? phpunitCommandArgs(command) : null;
+    if (phpunitArgs) {
+      const commandLine = ['phpunit', ...phpunitArgs].join(' ');
+      markTerminalRunning(true);
+      terminalKillRef.current = () => { killCurrent().catch(() => {}); };
+      // translators: %s: the command being run, such as phpunit --group 12345.
+      writeToTerminal(`${sprintf(__('Running %s…'), commandLine)}\n`);
+      runPhpUnit(phpunitArgs, {
+        onLog: (chunk) => writeToTerminal(chunk),
+        onDone: ({ code }) => {
+          // translators: 1: the command that ended, such as phpunit --group 12345. 2: the code it exited with, a number.
+          writeToTerminal(`${sprintf(__('%1$s exited with code %2$s'), commandLine, code)}\n`);
+          markTerminalRunning(false);
+          terminalKillRef.current = null;
+          showPrompt(false);
+        }
+      });
+      return;
+    }
+
     // translators: %s: what was typed at the prompt.
     writeToTerminal(`${sprintf(__('Unsupported command: %s'), command)}\n`);
     // translators: %s: the command that lists the others, help.
     writeToTerminal(`${sprintf(__('Try "%s" for the list of supported commands.'), 'help')}\n`);
     showPrompt(false);
-  }, [addCommandToHistory, killCurrent, markTerminalRunning, printHelp, runInstall, runScript, showPrompt, writeToTerminal]);
+  }, [addCommandToHistory, killCurrent, markTerminalRunning, printHelp, runInstall, runPhpUnit, runScript, showPrompt, writeToTerminal]);
+
+  // Runs a command as though it had been typed at the prompt and Enter
+  // pressed: it shows at the prompt, goes into the history, and its output,
+  // its busy state and Ctrl+C are the terminal's, the same as typing it.
+  const runTerminalCommand = useCallback((command) => {
+    if (terminalStateRef.current.running) {
+      writeToTerminal(alreadyRunningLine());
+      return;
+    }
+    replaceTerminalInput(command);
+    terminalStateRef.current.input = '';
+    writeToTerminal('\n');
+    executeTerminalCommand(command);
+  }, [executeTerminalCommand, replaceTerminalInput, writeToTerminal]);
 
   const handleTerminalData = useCallback((data) => {
     const term = terminalRef.current;
@@ -448,6 +498,7 @@ export function useSiteTerminal({ allowedScripts, runInstall, runScript, killCur
     terminalRunning,
     markTerminalRunning,
     writeToTerminal,
-    prefillTerminalCommand
+    prefillTerminalCommand,
+    runTerminalCommand
   };
 }
