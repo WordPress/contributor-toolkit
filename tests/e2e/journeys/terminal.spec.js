@@ -334,13 +334,14 @@ test( 'the terminal of a site that was not on screen at launch fits its text in 
 	expect( await helpLineOverflow( page ) ).toBeLessThanOrEqual( 0 );
 } );
 
-// Core's PHP unit tests, typed or started from the ticket card. The handler
+// Core's PHP unit tests, typed or started from the Tests section beside the
+// cards. The handler
 // that starts them is a stub, as the script handlers are above: a real run
 // installs PHPUnit with Composer first, which takes minutes and the network.
 // That run, and the tests passing on the bundled PHP, are the PR's manual
 // steps. What is pinned here is the wiring: what reaches main, and that the
 // button is the terminal's command and not a second way of running it.
-test( 'phpunit runs the arguments it is given, and the ticket card runs the linked ticket\'s tests through the terminal', async ( { session } ) => {
+test( 'phpunit runs the arguments it is given, and the Tests section runs the suite and the linked ticket\'s tests through the terminal', async ( { session } ) => {
 	const site = await makeSite( session );
 	const { app, page } = await session.start( site.settings );
 	await ui.openTray( page, 'Terminal' );
@@ -387,25 +388,36 @@ test( 'phpunit runs the arguments it is given, and the ticket card runs the link
 	await tell( 'npm:run-script:done', { runId: 'e2e-php-1', code: 0 } );
 	await expect( screen ).toContainText( 'phpunit --filter Tests_Formatting_wpAutop exited with code 0' );
 
-	// INVARIANT — with a ticket linked, the card's button runs the tests
+	// INVARIANT — the Tests section's "Run all" runs the whole suite: no
+	// arguments, so core's own configuration decides what runs.
+	const tests = page.getByRole( 'complementary' );
+	await expect( tests.getByRole( 'heading', { level: 2, name: 'Tests', exact: true } ) ).toBeVisible();
+	await expect( tests.getByRole( 'button', { name: 'Run this ticket\'s tests', exact: true } ) ).toHaveCount( 0 );
+	await tests.getByRole( 'button', { name: 'Run all PHP unit tests', exact: true } ).click();
+	await expect( screen ).toContainText( 'Running phpunit…' );
+	expect( ( await asked() ).runs[ 1 ] ).toEqual( { dir: site.dir, args: [] } );
+	await tell( 'npm:run-script:done', { runId: 'e2e-php-2', code: 0 } );
+	await expect( screen ).toContainText( 'phpunit exited with code 0' );
+
+	// INVARIANT — with a ticket linked, the section also runs the tests
 	// tagged with it, as the terminal command, in the terminal.
 	await ui.linkTicket( page, '60001' );
-	const runTests = page.getByRole( 'button', { name: 'Run this ticket\'s tests', exact: true } );
+	const runTests = tests.getByRole( 'button', { name: 'Run this ticket\'s tests', exact: true } );
 	await runTests.click();
 	await expect( screen ).toContainText( 'Running phpunit --group 60001…' );
-	expect( ( await asked() ).runs[ 1 ] ).toEqual( { dir: site.dir, args: [ '--group', '60001' ] } );
+	expect( ( await asked() ).runs[ 2 ] ).toEqual( { dir: site.dir, args: [ '--group', '60001' ] } );
 
 	// INVARIANT — while it runs, the button says why it cannot start another,
 	// and Ctrl+C in the terminal stops this one.
 	await expect( runTests ).toHaveAttribute( 'aria-disabled', 'true' );
 	await terminal.press( 'Control+C' );
 	await expect.poll( async () => ( await asked() ).kills.length ).toBe( 1 );
-	await tell( 'npm:run-script:done', { runId: 'e2e-php-2', code: 130 } );
+	await tell( 'npm:run-script:done', { runId: 'e2e-php-3', code: 130 } );
 	await expect( screen ).toContainText( 'phpunit --group 60001 exited with code 130' );
 	await expect( runTests ).not.toHaveAttribute( 'aria-disabled', 'true' );
 } );
 
-test( 'a Gutenberg site has no phpunit command and no ticket test button', async ( { session } ) => {
+test( 'a Gutenberg site has no phpunit command and no Tests section', async ( { session } ) => {
 	const site = await makeSite( session );
 	site.settings.siteMeta[ site.dir ].projectType = 'gutenberg';
 	const { page } = await session.start( site.settings );
@@ -417,5 +429,6 @@ test( 'a Gutenberg site has no phpunit command and no ticket test button', async
 	await terminal.pressSequentially( 'phpunit --group 1', { delay: 10 } );
 	await terminal.press( 'Enter' );
 	await expect( screen ).toContainText( 'Unsupported command: phpunit --group 1' );
-	await expect( page.getByRole( 'button', { name: 'Run this ticket\'s tests', exact: true } ) ).toHaveCount( 0 );
+	await expect( page.getByRole( 'complementary' ).getByRole( 'heading', { name: 'Tests', exact: true } ) ).toHaveCount( 0 );
+	await expect( page.getByRole( 'button', { name: 'Run all PHP unit tests', exact: true } ) ).toHaveCount( 0 );
 } );

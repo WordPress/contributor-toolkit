@@ -4,6 +4,7 @@ import { globe, offline, seen, table, unseen, wordpress } from '@wordpress/icons
 import { Button, EmptyState, Icon, IconButton, Link, Stack, Text, VisuallyHidden } from '@wordpress/ui';
 import { siteDetailsRows } from '../site-details.cjs';
 import { ProcessStatus } from './site-header-actions.jsx';
+import { ReasonedUiButton } from './reasoned-button.jsx';
 
 // A section's heading, with its process's dot and the button that starts and
 // stops it. The button shows one word and is named by the whole of what it
@@ -115,6 +116,32 @@ function WatchSection({ watch }) {
   );
 }
 
+// The site's test suites, each run in the terminal, where their output is.
+// One suite so far, core's PHP unit tests; more join it as each is proven to
+// run without a host toolchain. `reason` holds every button while something
+// rewrites the tree or holds the terminal.
+function TestsSection({ tests }) {
+  return (
+    <Stack direction="column" gap="md">
+      <Text variant="heading-lg" render={<h2 />}>{__('Tests')}</Text>
+      <Stack direction="column" gap="sm">
+        <Text variant="heading-sm" render={<h3 />}>{__('PHP unit tests')}</Text>
+        <Stack direction="row" gap="sm" wrap="wrap">
+          {tests.onRunTicket ? (
+            <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={tests.reason} onClick={tests.onRunTicket}>
+              {__('Run this ticket\'s tests')}
+            </ReasonedUiButton>
+          ) : null}
+          <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={tests.reason} aria-label={__('Run all PHP unit tests')} onClick={tests.onRunAllPhp}>
+            {__('Run all')}
+          </ReasonedUiButton>
+        </Stack>
+        <Text variant="body-sm" className="muted-label">{__('The first run installs PHPUnit, which takes a few minutes. All of them take about 10 minutes.')}</Text>
+      </Stack>
+    </Stack>
+  );
+}
+
 // The details stay in view while the cards scroll past them, for as long as
 // they fit in what is in view. Taller than that, a column that stayed put
 // would keep its own end out of reach until the page's end, so it is let go
@@ -148,7 +175,7 @@ function useStickyWhileItFits(active) {
 
 /**
  * The details of the open site (#556), beside the cards: the facts about the
- * checkout, and under them its two processes (#557). What the facts say is
+ * checkout, under them its two processes (#557), and then its tests. What the facts say is
  * decided in site-details.cjs, and what is said of the processes in
  * site-processes.cjs; this draws them. They can be put away; hidden, they are
  * out of the tab order and the accessibility tree as well as out of sight.
@@ -162,8 +189,9 @@ function useStickyWhileItFits(active) {
  * @param {Function} props.onCopyPath
  * @param {Object}   [props.server]   The server's section, or null while the site's setup is not done: `{ process, section, onToggle, onOpen }`, the first two from site-processes.cjs.
  * @param {Object}   [props.watch]    The build watch's section, or null likewise: `{ process, onToggle }`.
+ * @param {Object}   [props.tests]    The Tests section, or null where the site has no suite to run: `{ onRunTicket, onRunAllPhp, reason }`, `onRunTicket` null with no ticket linked.
  */
-export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null }) {
+export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath, server = null, watch = null, tests = null }) {
   const { sidebarRef, unstuck } = useStickyWhileItFits(open);
   return (
     <div id={id} className="dashboard-sidebar-slot" inert={open ? undefined : ''}>
@@ -214,6 +242,12 @@ export function SiteDetails({ id, open, siteName, facts, pathCopied, onCopyPath,
             <>
               <hr className="card-divider" />
               <WatchSection watch={watch} />
+            </>
+          ) : null}
+          {tests ? (
+            <>
+              <hr className="card-divider" />
+              <TestsSection tests={tests} />
             </>
           ) : null}
         </Stack>

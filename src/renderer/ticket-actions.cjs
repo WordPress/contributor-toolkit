@@ -182,8 +182,8 @@ function discardTrunkEditsQuestion() {
 }
 
 /**
- * Why "Run this ticket's tests" is unavailable: the shared gate, because the
- * tests read the checked-out tree and every action it waits for rewrites it,
+ * Why the Tests section's buttons are unavailable: the shared gate, because
+ * the tests read the checked-out tree and every action it waits for rewrites it,
  * then a discard in flight, which does too, then the terminal, which the run
  * is printed in and which holds one command at a time. Some actions above
  * release the terminal while they still rewrite the tree, so the terminal is
@@ -194,10 +194,10 @@ function discardTrunkEditsQuestion() {
  *          building?: boolean, applyState?: string, noun?: string}} state
  * @return {string} The reason, or '' when the tests can run.
  */
-function ticketTestsDisabledReason({ terminalRunning = false, discarding = false, ...state } = {}) {
+function testsDisabledReason({ terminalRunning = false, discarding = false, ...state } = {}) {
 	return ticketActionDisabledReason(state)
 		|| (discarding ? __('Wait for the discard to finish.') : '')
 		|| applyHeldReason({ terminalRunning });
 }
 
-module.exports = { ticketActionDisabledReason, rebaseDisabledReason, ticketTestsDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion };
+module.exports = { ticketActionDisabledReason, rebaseDisabledReason, testsDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion };

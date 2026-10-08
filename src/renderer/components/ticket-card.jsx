@@ -210,9 +210,8 @@ function Attachments({ attachments, onOpen }) {
  * @param {Object}   props.pullRequestsRef    Put on the pull requests' section, which "try another patch" scrolls to.
  * @param {?Object}  props.attachments        On Trac: `{ result, loading, items, latest, onLoad, loadDisabled, apply }`. Null elsewhere.
  * @param {boolean}  props.latestIsAttachment The ticket's most recent patch is a file on Trac.
- * @param {?Object}  props.tests              Running the PHP unit tests tagged with the ticket: `{ onRun, reason }`. Null where the project has none.
  */
-export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, unlink, details, staleNotice, feedback, changesNote, banner, pullRequests, pullRequestsRef, attachments, latestIsAttachment, tests }) {
+export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, unlink, details, staleNotice, feedback, changesNote, banner, pullRequests, pullRequestsRef, attachments, latestIsAttachment }) {
   const words = ticketCardWords(provider);
   const titleId = useId();
   const cardClass = ['ticket-card', cue.className].filter(Boolean).join(' ');
@@ -293,16 +292,6 @@ export function TicketCard({ cue, provider, ticketId, ticketUrl, onOpen, link, u
               <Button variant="outline" tone="neutral" size="compact" loading={details.loading} loadingAnnouncement={__('Reading the ticket on Trac')} onClick={details.onRead}>
                 {__('Read details from Trac')}
               </Button>
-            </Stack>
-          ) : null}
-          {tests ? (
-            <Stack direction="row">
-              {/* Runs in the terminal, as `phpunit --group <ticket>` typed
-                  there would, so it shares the terminal's one-at-a-time lock
-                  and says why while something else holds it. */}
-              <ReasonedUiButton variant="outline" tone="neutral" size="compact" reason={tests.reason} onClick={tests.onRun}>
-                {__('Run this ticket\'s tests')}
-              </ReasonedUiButton>
             </Stack>
           ) : null}
           {staleNotice ? (

@@ -49,7 +49,7 @@ import { describePrCheckout, describePrPreview, prSubmissionBlocked } from './pr
 import { describeSwitchProgress } from '../switch-progress.cjs';
 import { hasDiffLines } from './diff-highlight.cjs';
 import { patchReviewContext, changesNoteParts, discardOutcome, applyFeedbackAfterDiscard, noteAfterDiscard, noteAfterProbe, discardBlocked, discardDisabledReason, discardQuestion } from './changes-note.cjs';
-import { ticketActionDisabledReason, rebaseDisabledReason, ticketTestsDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
+import { ticketActionDisabledReason, rebaseDisabledReason, testsDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } from './ticket-actions.cjs';
 import { initialConfirmations, confirmationReducer, deleteFailureMessage, setupFailureMessage, patchSavedMessage, copyButtonLabel, setupStatusLine, setupEndMessage } from './confirmations.cjs';
 import { ReasonedUiButton } from './components/reasoned-button.jsx';
 import { DiscardChangesLink } from './components/discard-changes-link.jsx';
@@ -1200,12 +1200,17 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     });
   }, [runInstall, writeToTerminal]);
 
-  // The ticket card's test button: the tests tagged with the linked ticket,
-  // run in the terminal exactly as typing the command there would.
+  // The Tests section's buttons: the tests tagged with the linked ticket, or
+  // the whole suite, run in the terminal exactly as typing the command there
+  // would.
   const runTicketTests = useCallback(() => {
     revealTerminal();
     runTerminalCommand(['phpunit', ...ticketArgs(tracTicket)].join(' '));
   }, [revealTerminal, runTerminalCommand, tracTicket]);
+  const runAllPhpTests = useCallback(() => {
+    revealTerminal();
+    runTerminalCommand('phpunit');
+  }, [revealTerminal, runTerminalCommand]);
 
   const runBuildWithTerminal = useCallback(() => {
     setSetupChainEnd(null);
@@ -2306,10 +2311,6 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
             apply: { hidden: Boolean(pullRequest), disabled: patchReadBlocked, fetching: fetchingAttachment, onApply: previewAttachment }
           } : null}
           latestIsAttachment={latestIsAttachment}
-          tests={projectBuild.phpUnit ? {
-            onRun: runTicketTests,
-            reason: ticketTestsDisabledReason({ terminalRunning, discarding, ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun })
-          } : null}
         />
       ) : null}
       {skipInit && (!pullRequest || isApplying || Boolean(applyError)) ? (
@@ -2388,6 +2389,11 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onCopyPath={copyPath}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
+        tests={skipInit && projectBuild.phpUnit ? {
+          onRunTicket: tracTicket ? runTicketTests : null,
+          onRunAllPhp: runAllPhpTests,
+          reason: testsDisabledReason({ terminalRunning, discarding, ticketSaving, deletingBranch, updateState, installing, building, applyState, noun: workItem.noun })
+        } : null}
       />
       </div>
       {dirtyModalOpen ? (

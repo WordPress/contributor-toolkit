@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { ticketActionDisabledReason, rebaseDisabledReason, ticketTestsDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } = require('../../src/renderer/ticket-actions.cjs');
+const { ticketActionDisabledReason, rebaseDisabledReason, testsDisabledReason, dirtyTrunkQuestion, discardTrunkEditsQuestion } = require('../../src/renderer/ticket-actions.cjs');
 
 // A disabled control with no reason is the bug (#409): the ticketActionsBlocked
 // gate used to disable the card's buttons silently. Every branch of it has a
@@ -133,18 +133,18 @@ test('the question before the edits on trunk are discarded asks it, and its butt
 	});
 });
 
-// The tests read the checked-out tree, so the button waits for everything that
+// The tests read the checked-out tree, so the Tests section's buttons wait for everything that
 // rewrites it, not only for the terminal: a move onto trunk, a branch deletion
 // and parts of a trunk update or an apply hold no terminal while they write.
-test('ticketTestsDisabledReason waits for every tree rewrite, then for the terminal', () => {
-	assert.equal(ticketTestsDisabledReason(), '');
-	assert.equal(ticketTestsDisabledReason({ terminalRunning: false, discarding: false, updateState: 'idle', applyState: 'idle' }), '');
-	assert.match(ticketTestsDisabledReason({ ticketSaving: true }), /ticket change to finish/);
-	assert.match(ticketTestsDisabledReason({ deletingBranch: 'ticket/1' }), /finish deleting/);
-	assert.match(ticketTestsDisabledReason({ updateState: 'building' }), /trunk update/);
-	assert.match(ticketTestsDisabledReason({ applyState: 'applying' }), /PR or patch operation/);
-	assert.match(ticketTestsDisabledReason({ discarding: true }), /discard to finish/);
-	assert.match(ticketTestsDisabledReason({ terminalRunning: true }), /Ctrl\+C in the terminal/);
+test('testsDisabledReason waits for every tree rewrite, then for the terminal', () => {
+	assert.equal(testsDisabledReason(), '');
+	assert.equal(testsDisabledReason({ terminalRunning: false, discarding: false, updateState: 'idle', applyState: 'idle' }), '');
+	assert.match(testsDisabledReason({ ticketSaving: true }), /ticket change to finish/);
+	assert.match(testsDisabledReason({ deletingBranch: 'ticket/1' }), /finish deleting/);
+	assert.match(testsDisabledReason({ updateState: 'building' }), /trunk update/);
+	assert.match(testsDisabledReason({ applyState: 'applying' }), /PR or patch operation/);
+	assert.match(testsDisabledReason({ discarding: true }), /discard to finish/);
+	assert.match(testsDisabledReason({ terminalRunning: true }), /Ctrl\+C in the terminal/);
 	// The rewrite underway is named before the terminal it may also hold.
-	assert.match(ticketTestsDisabledReason({ ticketSaving: true, terminalRunning: true }), /ticket change to finish/);
+	assert.match(testsDisabledReason({ ticketSaving: true, terminalRunning: true }), /ticket change to finish/);
 });
