@@ -76,7 +76,7 @@ import { LogsPanel } from './components/logs-panel.jsx';
 import { MailPanel, MailTrayActions } from './components/mail-panel.jsx';
 import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
-import { affectedFiles, fileOpenTarget } from './affected-files.cjs';
+import { changedFileGroups, fileOpenTarget } from './affected-files.cjs';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
 import { applyHeldReason, previewShown } from './apply-card.cjs';
 import { TicketCard } from './components/ticket-card.jsx';
@@ -797,6 +797,9 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // The unsubmitted-changes note. Null until the first probe answers, so a
   // card never opens on a note that a clean tree then takes away.
   const [worktreeDirty, setWorktreeDirty] = useState(null);
+  // Which files the branch has changed, from the same probe, for "Changed
+  // files" (#669): `{ entries, editedSinceChange }`, or null before an answer.
+  const [unsubmitted, setUnsubmitted] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState(null);
   // Opening a pull request (#167): the account, the sign-in, the form and the
@@ -1037,6 +1040,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
           const res = await window.api.hasUnsubmittedWork(sitePath);
           if (probe.generation === generation) {
             setWorktreeDirty((current) => noteAfterProbe(current, res));
+            setUnsubmitted(res?.ok ? { entries: res.entries || [], editedSinceChange: res.editedSinceChange || [] } : null);
           }
         } catch {}
       } while (probe.again);
@@ -2396,7 +2400,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onCopyPath={copyPath}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
-        affected={{ files: affectedFiles({ appliedPatch, pullRequest }), onOpenFile: openAffectedFile }}
+        changed={{ ...changedFileGroups({ appliedPatch, pullRequest, unsubmitted }), onOpenFile: openAffectedFile }}
       />
       </div>
       {dirtyModalOpen ? (
