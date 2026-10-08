@@ -178,19 +178,22 @@ body {
   font-size: var(--wpds-typography-font-size-sm);
 }
 
-/* What a site has to report before it is opened (#94). */
+/* What a site has to report before it is opened (#94). A dot is a glyph,
+   as an icon is, so it takes the foreground role the icons beside it do, and
+   is filled with that colour. */
 .sites-sidebar-dot {
-  width: 8px;
-  height: 8px;
+  width: var(--wpds-dimension-size-4xs);
+  height: var(--wpds-dimension-size-4xs);
   border-radius: 50%;
+  background: currentColor;
 }
 
 .sites-sidebar-dot.is-stale {
-  background: var(--wpds-color-stroke-surface-warning-strong);
+  color: var(--wpds-color-foreground-content-warning-weak);
 }
 
 .sites-sidebar-dot.is-incomplete {
-  background: var(--wpds-color-stroke-surface-error-strong);
+  color: var(--wpds-color-foreground-content-error-weak);
 }
 
 /* The open site's page: it scrolls, and nothing else in the shell does. */
@@ -339,26 +342,28 @@ body {
 }
 
 /* A process's dot: grey for stopped, green for running, amber while it is
-   getting there, red for one that ended with an error. */
+   getting there, red for one that ended with an error. Painted as the
+   sites list's dots are, in the foreground role. */
 .process-status {
   display: block;
   flex-shrink: 0;
-  width: 8px;
-  height: 8px;
+  width: var(--wpds-dimension-size-4xs);
+  height: var(--wpds-dimension-size-4xs);
   border-radius: 50%;
-  background: var(--wpds-color-foreground-content-neutral-weak);
+  background: currentColor;
+  color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 .process-status.is-online {
-  background: var(--wpds-color-foreground-content-success-weak);
+  color: var(--wpds-color-foreground-content-success-weak);
 }
 
 .process-status.is-busy {
-  background: var(--wpds-color-stroke-surface-warning-strong);
+  color: var(--wpds-color-foreground-content-warning-weak);
 }
 
 .process-status.is-failed {
-  background: var(--wpds-color-stroke-surface-error-strong);
+  color: var(--wpds-color-foreground-content-error-weak);
 }
 
 .process-menu-trigger {
@@ -391,7 +396,7 @@ body {
   width: 100%;
   margin: 0;
   border: 0;
-  border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+  border-block-start: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
 }
 
 .sidebar-link {
@@ -535,7 +540,7 @@ body {
 }
 
 .app-footer-feedback {
-  width: 320px;
+  width: var(--wpds-dimension-surface-width-sm);
   padding: var(--wpds-dimension-padding-lg);
 }
 
@@ -724,10 +729,10 @@ body {
    theme as everything else does. The modal's shadow stays as the library
    draws it: black, as the design system's own are under either theme. The
    ring the popover draws in the same property as its shadow is a light grey
-   of its own, so in the dark theme, and only there, the two are restated:
-   the hairline, and one soft layer mixed from the text's colour, which on a
-   dark surface is a faint light glow rather than a black shadow, since a
-   black shadow on a near-black page is no edge at all. In the light theme
+   of its own, so in the dark theme, and only there, it is restated as the
+   design system's own popover draws its edge: the surface's hairline and
+   nothing more. A black shadow on a near-black page is no edge, so the
+   hairline is the edge, there as on the system's popover. In the light theme
    the popover is as the library draws it. */
 .components-modal__frame,
 .components-popover__content {
@@ -743,9 +748,7 @@ body {
 
 @media (prefers-color-scheme: dark) {
   .components-popover__content {
-    box-shadow:
-      0 0 0 var(--wpds-border-width-xs) var(--wpds-color-stroke-surface-neutral),
-      0 4px 12px color-mix(in srgb, var(--wpds-color-foreground-content-neutral) 10%, transparent);
+    box-shadow: 0 0 0 var(--wpds-border-width-xs) var(--wpds-color-stroke-surface-neutral);
   }
 }
 
@@ -758,7 +761,7 @@ body {
 
 .destination-how > summary {
   color: var(--wpds-color-foreground-interactive-brand);
-  cursor: pointer;
+  cursor: var(--wpds-cursor-control);
 }
 
 .destination-how[open] > summary {
@@ -806,7 +809,7 @@ body {
   color: var(--wpds-color-foreground-content-neutral);
   font: inherit;
   text-align: start;
-  cursor: pointer;
+  cursor: var(--wpds-cursor-control);
 }
 
 .dirty-tree-choice[aria-pressed="true"] {
@@ -1312,13 +1315,13 @@ body {
 .ticket-pr::before {
   top: calc(var(--wpds-typography-line-height-sm) / 2);
   width: var(--wpds-dimension-padding-md);
-  border-top: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border-top: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
 }
 
 .ticket-pr:not(:last-child)::after {
   top: calc(var(--wpds-typography-line-height-sm) / 2);
   bottom: calc(-1 * var(--wpds-dimension-gap-lg));
-  border-inline-start: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border-inline-start: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
 }
 
 .ticket-pr:last-child::before {
@@ -1329,8 +1332,8 @@ body {
   top: 0;
   width: var(--wpds-dimension-padding-md);
   height: calc(var(--wpds-typography-line-height-sm) / 2);
-  border-inline-start: 1px solid var(--wpds-color-stroke-surface-neutral);
-  border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border-inline-start: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
+  border-bottom: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
   border-end-start-radius: var(--wpds-border-radius-md);
 }
 
@@ -1383,7 +1386,7 @@ body {
   border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
   border-radius: var(--wpds-border-radius-sm);
   background: none;
-  cursor: pointer;
+  cursor: var(--wpds-cursor-control);
 }
 
 .color-swatch::-webkit-color-swatch-wrapper {
@@ -1443,7 +1446,7 @@ body {
 }
 
 .ticket-list-row + .ticket-list-row {
-  border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+  border-block-start: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
 }
 
 .ticket-list-number {
@@ -1465,7 +1468,7 @@ body {
 .settings-tabs {
   overflow: visible;
   mask-image: none;
-  margin-block-end: -1px;
+  margin-block-end: calc(-1 * var(--wpds-border-width-xs));
 }
 
 /* The steps of an apply, or of an update of trunk, each with room before it
@@ -1475,7 +1478,7 @@ body {
   list-style: none;
   margin: 0;
   padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
-  border: 1px solid var(--wpds-color-stroke-surface-neutral);
+  border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
   border-radius: var(--wpds-border-radius-md);
   display: flex;
   flex-direction: column;
@@ -1503,8 +1506,8 @@ body {
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: var(--wpds-dimension-size-2xs);
+  height: var(--wpds-dimension-size-2xs);
 }
 
 .step-list-step.is-complete .step-list-mark {
@@ -1578,7 +1581,7 @@ body {
   flex-direction: column;
   gap: var(--wpds-dimension-gap-xs);
   padding-inline-start: var(--wpds-dimension-padding-md);
-  border-inline-start: 2px solid var(--wpds-color-stroke-surface-error);
+  border-inline-start: var(--wpds-border-width-sm) solid var(--wpds-color-stroke-surface-error);
 }
 
 .apply-conflict-lines {
