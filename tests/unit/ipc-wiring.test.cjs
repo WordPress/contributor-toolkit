@@ -6026,6 +6026,51 @@ test('dir:show refuses a path the registry does not hold, and logs it', async ()
 	assert.deepEqual(main.calls.openPath, [SITE]);
 });
 
+// A file of the site, named by the window (#669), reaches the guard with the
+// site rather than in its place: the registry still decides first.
+test('editor:open hands a named file to editor-launch alongside the site', async () => {
+	const openSiteInEditor = spy(async () => ({ ok: true }));
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...fakeSettingsStore({ sites: [SITE] }).stubs,
+			'./editor-launch': { openSiteInEditor, matchDetectedEditor: matching({ id: 'cursor', name: 'Cursor', path: EDITOR }) }
+		}
+	});
+
+	await main.invoke('editor:open', SITE, EDITOR, 'src/wp-login.php');
+
+	const [sitePath, editorPath, options] = openSiteInEditor.calls[0];
+	assert.equal(sitePath, SITE);
+	assert.equal(editorPath, EDITOR);
+	assert.equal(options.file, 'src/wp-login.php');
+});
+
+// Showing a file selects it in its folder, rather than opening it: the file
+// manager's "open" of a .php file is whatever the OS has registered for it.
+test('dir:show with a file of the site selects that file in the file manager (#669)', async (t) => {
+	const site = tempDir(t, 'wpct-show-file-');
+	fs.mkdirSync(path.join(site, 'src'));
+	fs.writeFileSync(path.join(site, 'src', 'wp-login.php'), '<?php\n');
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [site] }).stubs } });
+
+	assert.deepEqual(await main.invoke('dir:show', site, 'src/wp-login.php'), { ok: true });
+
+	assert.deepEqual(main.calls.showItemInFolder, [path.join(site, 'src', 'wp-login.php')]);
+	assert.deepEqual(main.calls.openPath, []);
+});
+
+test('dir:show refuses a file that is not there, or not in the site (#669)', async (t) => {
+	const site = tempDir(t, 'wpct-show-file-');
+	const main = loadMain({ stubs: { ...silentLogging(), ...fakeSettingsStore({ sites: [site] }).stubs } });
+
+	for (const relPath of ['src/deleted.php', '../outside.php']) {
+		assert.deepEqual(await main.invoke('dir:show', site, relPath), { ok: false, reason: 'missing-file' }, relPath);
+	}
+	assert.deepEqual(main.calls.showItemInFolder, []);
+	assert.deepEqual(main.calls.openPath, []);
+});
+
 // --- creating a site, and opening it while it is still being created -----
 //
 // This handler was listed as NOT_REACHABLE, on the grounds that it clones

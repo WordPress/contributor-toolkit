@@ -268,11 +268,31 @@ async function isLaunchableEditorPath(editorPath, { platform, statPath } = {}) {
 // bundle is a directory rather than something executable. Everywhere else the
 // executable takes the folder as its argument, which is what every editor in the
 // table above supports.
-function resolveLaunch(editorPath, sitePath, { platform } = {}) {
+//
+// A `file`, absolute and already checked by `resolveSiteFile`, goes after the
+// folder: the editor opens the site and shows the file in it, rather than a
+// window of its own with no project around it (#669).
+function resolveLaunch(editorPath, sitePath, { platform, file = null } = {}) {
+	const targets = file ? [sitePath, file] : [sitePath];
 	if (platform === 'darwin') {
-		return { command: '/usr/bin/open', args: ['-a', editorPath, sitePath] };
+		return { command: '/usr/bin/open', args: ['-a', editorPath, ...targets] };
 	}
-	return { command: editorPath, args: [sitePath] };
+	return { command: editorPath, args: targets };
+}
+
+// The absolute path of a file of the site, or null for anything that is not
+// one. The window names the file, and the window is where injected content
+// ends up, so "open this file of the site" is bounded by the site the way
+// "open this site" is bounded by the registry: an absolute path, a path that
+// climbs out, and a path on another drive all resolve to nothing.
+function resolveSiteFile(sitePath, relPath, { platform } = {}) {
+	if (typeof relPath !== 'string' || relPath === '') return null;
+	const p = pathApi(platform);
+	if (p.isAbsolute(relPath)) return null;
+	const target = p.resolve(sitePath, relPath);
+	const inside = p.relative(sitePath, target);
+	if (inside === '' || inside === '..' || inside.startsWith(`..${p.sep}`) || p.isAbsolute(inside)) return null;
+	return target;
 }
 
 // Every `reason` this module can answer `editor:open` with, refusals and
@@ -283,6 +303,7 @@ const REFUSAL_REASONS = {
 	UNREGISTERED_SITE: 'unregistered-site',
 	UNLAUNCHABLE_EDITOR: 'unlaunchable-editor',
 	UNKNOWN_EDITOR: 'unknown-editor',
+	MISSING_FILE: 'missing-file',
 	SPAWN_FAILED: 'spawn-failed'
 };
 
@@ -313,7 +334,8 @@ async function openSiteInEditor(sitePath, editorPath, {
 	platform,
 	statPath,
 	spawn,
-	onRefused
+	onRefused,
+	file = null
 } = {}) {
 	if (!isActionableSite(sitePath, { sites, pending })) {
 		if (typeof onRefused === 'function') {
@@ -329,7 +351,30 @@ async function openSiteInEditor(sitePath, editorPath, {
 		return { ok: false, reason: REFUSAL_REASONS.UNLAUNCHABLE_EDITOR };
 	}
 
-	const { command, args } = resolveLaunch(editorPath, sitePath, { platform });
+	// A third gate when a file of the site is named (#669): inside the site,
+	// and there. A patch that deleted a file still lists it, and an editor
+	// handed a path that is not there opens an empty buffer under that name,
+	// which reads as the file having been emptied.
+	let filePath = null;
+	if (file !== null) {
+		filePath = resolveSiteFile(sitePath, file, { platform });
+		let stats = null;
+		if (filePath) {
+			try {
+				stats = await statPath(filePath);
+			} catch {
+				stats = null;
+			}
+		}
+		if (!stats) {
+			if (typeof onRefused === 'function') {
+				onRefused(REFUSAL_REASONS.MISSING_FILE, describeRefused(file));
+			}
+			return { ok: false, reason: REFUSAL_REASONS.MISSING_FILE };
+		}
+	}
+
+	const { command, args } = resolveLaunch(editorPath, sitePath, { platform, file: filePath });
 
 	let child;
 	try {
@@ -411,5 +456,6 @@ module.exports = {
 	knownEditorName,
 	isLaunchableEditorPath,
 	resolveLaunch,
+	resolveSiteFile,
 	openSiteInEditor
 };

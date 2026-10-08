@@ -23,6 +23,7 @@ const {
 	knownEditorName,
 	isLaunchableEditorPath,
 	resolveLaunch,
+	resolveSiteFile,
 	openSiteInEditor
 } = require('../../src/editor-launch.js');
 const { addFilter, removeFilter } = require('@wordpress/hooks');
@@ -320,6 +321,37 @@ test('elsewhere the executable takes the folder as an argument', () => {
 	);
 });
 
+// A file goes after the folder, so the editor opens the site and shows the
+// file in it, rather than a window of its own with no project around it (#669).
+test('a file is named after the folder it opens in', () => {
+	assert.deepEqual(
+		resolveLaunch('/Applications/Cursor.app', '/Users/dev/sites/wp', { platform: 'darwin', file: '/Users/dev/sites/wp/src/wp-login.php' }).args,
+		['-a', '/Applications/Cursor.app', '/Users/dev/sites/wp', '/Users/dev/sites/wp/src/wp-login.php']
+	);
+	assert.deepEqual(
+		resolveLaunch('C:\\Program Files\\Microsoft VS Code\\Code.exe', 'C:\\sites\\my wp', { platform: 'win32', file: 'C:\\sites\\my wp\\src\\wp-login.php' }).args,
+		['C:\\sites\\my wp', 'C:\\sites\\my wp\\src\\wp-login.php']
+	);
+});
+
+// --- a file inside the site ----------------------------------------------
+
+test('a path inside the site resolves to the file in it', () => {
+	assert.equal(resolveSiteFile('/Users/dev/sites/wp', 'src/wp-login.php', { platform: 'darwin' }), '/Users/dev/sites/wp/src/wp-login.php');
+	assert.equal(resolveSiteFile('C:\\sites\\my wp', 'src/wp-login.php', { platform: 'win32' }), 'C:\\sites\\my wp\\src\\wp-login.php');
+});
+
+// The renderer names the file, and the renderer is where injected content
+// ends up: "open this file of the site" must not become "open any file".
+test('a path that leaves the site, or is not a path in it, resolves to nothing', () => {
+	for (const relPath of ['../secrets.txt', 'src/../../secrets.txt', '/etc/passwd', '', '.', null, 42]) {
+		assert.equal(resolveSiteFile('/Users/dev/sites/wp', relPath, { platform: 'darwin' }), null, `${relPath} should not resolve`);
+	}
+	for (const relPath of ['C:\\Windows\\win.ini', '..\\secrets.txt', 'D:secrets.txt']) {
+		assert.equal(resolveSiteFile('C:\\sites\\wp', relPath, { platform: 'win32' }), null, `${relPath} should not resolve`);
+	}
+});
+
 // --- the guard -----------------------------------------------------------
 
 const SITE = '/Users/dev/sites/wp';
@@ -353,6 +385,34 @@ test('a registered site opens in the chosen editor', async () => {
 	assert.equal(calls.length, 1);
 	assert.equal(calls[0].command, '/usr/bin/open');
 	assert.deepEqual(calls[0].args, ['-a', EDITOR, SITE]);
+});
+
+test('a file of a registered site opens in the editor, inside the site (#669)', async () => {
+	const { calls, refusals, options } = launchDeps({
+		statPath: fakeFs({ [EDITOR]: 'dir', [`${SITE}/src/wp-login.php`]: 'file' }).statPath,
+		file: 'src/wp-login.php'
+	});
+
+	const result = await openSiteInEditor(SITE, EDITOR, options);
+
+	assert.deepEqual(result, { ok: true });
+	assert.deepEqual(refusals, []);
+	assert.deepEqual(calls[0].args, ['-a', EDITOR, SITE, `${SITE}/src/wp-login.php`]);
+});
+
+// A patch that deleted a file still lists it, and a path that leaves the
+// site is not one to open: either way nothing is spawned, and the window is
+// told why.
+test('a file that is not there, or not in the site, is not opened', async () => {
+	for (const file of ['src/deleted.php', '../outside.php']) {
+		const { calls, refusals, options } = launchDeps({ file });
+
+		const result = await openSiteInEditor(SITE, EDITOR, options);
+
+		assert.deepEqual(result, { ok: false, reason: REFUSAL_REASONS.MISSING_FILE }, file);
+		assert.deepEqual(calls, []);
+		assert.equal(refusals.length, 1);
+	}
 });
 
 // The same boundary `sites:delete` uses: the app's own record of what it created
