@@ -180,6 +180,9 @@ test( 'a mail the site sent opens as the one that was clicked, in its rendered a
 	await expect( second.getByRole( 'tab', { name: 'Rendered', exact: true } ) ).toHaveAttribute( 'aria-selected', 'true' );
 	await expect( second.getByText( COMMENT.text, { exact: true } ) ).toBeVisible();
 	await expect( second.getByText( 'password reset' ) ).toHaveCount( 0 );
+	// The last mail's HTML part would be in a frame, which a search of the
+	// dialog does not enter. This mail has no HTML part, so it has no frame.
+	await expect( second.locator( 'iframe' ) ).toHaveCount( 0 );
 } );
 
 test( 'mail that arrives while the dev server runs joins the list newest first, for this site only; the list hears nothing once the server stops, hears each mail once after a restart, and can be cleared', async ( { session } ) => {

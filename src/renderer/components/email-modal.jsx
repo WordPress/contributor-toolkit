@@ -7,8 +7,9 @@ function formatEmailDate(email) {
   return '';
 }
 
-// What goes in front of every mail's HTML part. The mail's own markup follows
-// it and wins wherever it says otherwise.
+// What goes in front of every mail's HTML part. The mail's own styles follow
+// it and win wherever they say otherwise; its own <base> does not, since a
+// document takes the target of the first one.
 //
 // The style is the look a mail had when it was drawn in the dialog's own
 // document: the app's font and size, and the box's padding, which the frame

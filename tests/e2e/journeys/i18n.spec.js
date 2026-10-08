@@ -1443,6 +1443,9 @@ test( 'a mail the site sent is fully translatable, on its Rendered and its Raw t
 	await expect( dialog.getByRole( 'tab', { name: pseudoLocalize( 'Rendered' ), exact: true } ) ).toHaveAttribute( 'aria-selected', 'true' );
 	await expect( dialog.getByText( pseudoLocalize( 'CC:' ), { exact: true } ) ).toBeVisible();
 	expect( ( await unwrapped( dialog ) ).filter( ( text ) => ! theMails( text ) ) ).toEqual( [] );
+	// The HTML part is drawn in a frame, named by its title, which is an
+	// attribute unwrapped() does not collect.
+	await expect( dialog.locator( 'iframe' ) ).toHaveAttribute( 'title', pseudoLocalize( 'Mail' ) );
 
 	await dialog.getByRole( 'tab', { name: pseudoLocalize( 'Raw' ), exact: true } ).click();
 	await expect( dialog.getByText( 'X-Mailer: PHPMailer' ) ).toBeVisible();
