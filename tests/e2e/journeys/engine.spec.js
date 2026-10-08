@@ -227,10 +227,11 @@ test( 'the main process says what a launch came to', async ( { session } ) => {
 
 	// Read here on a launch that worked, because the launch it is for cannot be
 	// staged: it is what the helper puts in the error when no window opens.
+	// A run with TOOLKIT_HIDE_WINDOWS=1 makes the window hidden on purpose.
 	await expect.poll( () => launchState( app ) ).toEqual( {
 		ready: true,
 		windows: [ {
-			visible: true,
+			visible: process.env.TOOLKIT_HIDE_WINDOWS !== '1',
 			url: expect.stringMatching( /\/src\/renderer\/index\.html$/ ),
 			loading: false,
 			crashed: false,

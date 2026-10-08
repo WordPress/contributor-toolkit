@@ -195,6 +195,9 @@ function createElectronStub({ ready = false } = {}) {
 			// covered by that module's own suite.
 			requestSingleInstanceLock: () => true,
 			setAsDefaultProtocolClient: () => true,
+			// Module scope too, for the one load below that is a hidden e2e run.
+			setPath() {},
+			setActivationPolicy() {},
 			// True, not false: `showWindowForDeepLink` refuses to open a window
 			// before the app is ready, and with this false the whole main-process
 			// half of the deep-link flow returned on its first line in every test
@@ -324,6 +327,27 @@ function spy(implementation = () => undefined) {
 	};
 	fn.calls = calls;
 	return fn;
+}
+
+// TOOLKIT_HIDE_WINDOWS=1, exported for a hidden e2e run (AGENTS.md), changes
+// what main.js does with its window; these tests assert the window a
+// contributor gets, so they never see the variable, except through
+// `loadHiddenMain`.
+delete process.env.TOOLKIT_HIDE_WINDOWS;
+
+// main.js as a hidden e2e run loads it: the variable, and the throwaway profile
+// it is honoured only beside. Both are read once, at load.
+function loadHiddenMain(options) {
+	const profile = process.env.TOOLKIT_USER_DATA_DIR;
+	process.env.TOOLKIT_HIDE_WINDOWS = '1';
+	process.env.TOOLKIT_USER_DATA_DIR = os.tmpdir();
+	try {
+		return loadMain(options);
+	} finally {
+		delete process.env.TOOLKIT_HIDE_WINDOWS;
+		if (profile === undefined) delete process.env.TOOLKIT_USER_DATA_DIR;
+		else process.env.TOOLKIT_USER_DATA_DIR = profile;
+	}
 }
 
 // Returns the recorders plus `invoke`, which calls a handler the way ipcMain
@@ -2084,7 +2108,7 @@ test('settings:set gives Electron a custom theme\'s scheme, and paints the windo
 	await menuBuilt(custom);
 	assert.equal(custom.windows[0].options.backgroundColor, '#102030', 'the main window is made in the custom background');
 	await custom.invoke('trac:list-attachments', '/sites/wp');
-	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: '#102030' }]], 'the Trac window is opened in it');
+	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: '#102030', hidden: false }]], 'the Trac window is opened in it');
 });
 
 test('the ready path gives Electron the stored theme before the window is made, and makes the window in it (#560)', async () => {
@@ -2183,6 +2207,32 @@ test('the menu\'s Settings… opens the dialog in the main window, listed first 
 	assert.deepEqual(mainWindow.sent, [{ channel: 'settings:open', payload: undefined }]);
 	assert.deepEqual(trac.sent, []);
 	assert.deepEqual(brought, ['restore', 'show', 'focus']);
+});
+
+// A hidden e2e run (TOOLKIT_HIDE_WINDOWS, TESTING.md) must not take the screen or
+// the focus from whoever is at the machine. Each path below would: the window
+// made visible, Settings… and a second instance bringing it forward, and Trac's
+// check showing its own window. What they do for the page still happens.
+test('a hidden e2e run makes the window hidden and brings nothing forward: not Settings…, not a second instance, not the Trac window', async (t) => {
+	const dir = await fixtureRepo(t);
+	const openAndScrape = spy(async () => ({ status: 'ok', items: [] }));
+	const settings = fakeSettingsStore({ sites: [dir], siteMeta: { [dir]: { tracTicket: 49661 } } });
+	const main = loadHiddenMain({ ready: true, stubs: { ...silentLogging(), ...settings.stubs, './i18n.cjs': { resolveCatalog: async () => null }, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
+	const settingsItem = await menuBuilt(main);
+	const [mainWindow] = main.windows;
+	assert.equal(mainWindow.options.show, false);
+	assert.equal(mainWindow.options.webPreferences.backgroundThrottling, false, 'a page nobody can see is not slowed down');
+	const brought = [];
+	mainWindow.show = () => brought.push('show');
+	mainWindow.focus = () => brought.push('focus');
+
+	settingsItem.click();
+	await main.emitAppEvent('second-instance', {}, ['C:\\app.exe']);
+
+	assert.deepEqual(brought, []);
+	assert.deepEqual(mainWindow.sent, [{ channel: 'settings:open', payload: undefined }], 'Settings… still opens the dialog');
+	await main.invoke('trac:list-attachments', dir);
+	assert.equal(openAndScrape.calls[0][1].hidden, true);
 });
 
 test('the menu\'s Settings… with the main window closed opens one and sends nothing into it (#559)', async () => {
@@ -3701,7 +3751,7 @@ test('trac:list-attachments opens the Trac window for a Trac site, and refuses a
 	const coreMain = loadMain({ stubs: { ...silentLogging(), ...coreSettings.stubs, './trac-view': { openAndScrape, fetchAttachment: async () => ({}) } } });
 	const read = await coreMain.invoke('trac:list-attachments', core);
 	assert.equal(read.status, 'ok');
-	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: LIGHT_BACKGROUND }]], 'opened in the colour of the app\'s theme');
+	assert.deepEqual(openAndScrape.calls, [[49661, { backgroundColor: LIGHT_BACKGROUND, hidden: false }]], 'opened in the colour of the app\'s theme');
 });
 
 // git:list-ticket-patches reads the stored ticket, then delegates to github-prs

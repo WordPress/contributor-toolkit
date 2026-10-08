@@ -98,8 +98,9 @@ async function launchApp(env) {
 		colorScheme: null,
 		args: [...ELECTRON_SWITCHES, repoRoot],
 		// Dates rendered by the app must not rewrite screenshots according to the
-		// maintainer's locale or timezone.
-		env: { ...process.env, TZ: 'UTC', ...env }
+		// maintainer's locale or timezone. A TOOLKIT_HIDE_WINDOWS left exported
+		// from a hidden e2e run would take the pictures of a hidden window.
+		env: { ...process.env, TZ: 'UTC', TOOLKIT_HIDE_WINDOWS: undefined, ...env }
 	});
 	const page = await app.firstWindow();
 	await app.evaluate(({ BrowserWindow }, bounds) => {

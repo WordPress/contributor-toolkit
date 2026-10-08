@@ -85,6 +85,7 @@ function pinToTrac(wc) {
  * @param {Object}        [deps]
  * @param {number}        [deps.readyTimeoutMs]  Override for tests.
  * @param {string}        [deps.backgroundColor] The colour of the app's theme (#560), which main holds.
+ * @param {boolean}       [deps.hidden]          A hidden e2e run (TOOLKIT_HIDE_WINDOWS): the window is never shown.
  * @return {Promise<{status: string, items: Array, error?: string}>}
  */
 async function openAndScrape(ticketId, deps = {}) {
@@ -114,8 +115,9 @@ async function openAndScrape(ticketId, deps = {}) {
 
 	let shown = false;
 	const showOnce = () => {
-		// Once the challenge needs interaction, the window has to be visible.
-		if (!shown && !win.isDestroyed()) { shown = true; win.show(); }
+		// Once the challenge needs interaction, the window has to be visible,
+		// except in a hidden e2e run, where showing it would take the focus.
+		if (!shown && !deps.hidden && !win.isDestroyed()) { shown = true; win.show(); }
 	};
 
 	try {

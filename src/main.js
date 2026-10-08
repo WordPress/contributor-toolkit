@@ -181,6 +181,22 @@ if (!app.isPackaged && process.env.TOOLKIT_USER_DATA_DIR) {
 	}
 }
 
+// Local e2e runs only (TESTING.md): with TOOLKIT_HIDE_WINDOWS=1 the main window
+// is made hidden and the app stays out of the Dock, so a run does not take the
+// screen and the focus from whoever is at the machine. Playwright drives the
+// page over the DevTools protocol, which needs neither. The hidden window is
+// not throttled, because Chromium slows the timers of a page nobody can see and
+// the journeys wait on them. Guarded to dev runs like the variable above, and
+// honoured only with a throwaway profile beside it, which the journeys always
+// have: a variable left exported in a shell must not turn a plain `npm start`
+// into an app with no window that holds the installed app's single-instance
+// lock, so the installed app and its links would do nothing while it runs.
+const hideWindowsForTests = !app.isPackaged && process.env.TOOLKIT_HIDE_WINDOWS === '1' && Boolean(process.env.TOOLKIT_USER_DATA_DIR);
+if (hideWindowsForTests) {
+	process.stderr.write('TOOLKIT_HIDE_WINDOWS: the window is hidden for an e2e run\n');
+	if (process.platform === 'darwin') app.setActivationPolicy('accessory');
+}
+
 // Which upstream a site is a checkout of (#251). The registry is the one place
 // the per-target facts live; `projectTypeForSite` answers Core for any record
 // that predates the field.
@@ -578,10 +594,12 @@ function createWindow() {
 		// The colour of the theme the window is made in (#560), so that a dark
 		// window is not white for the moment before its page has painted.
 		backgroundColor: currentTheme().background,
+		show: !hideWindowsForTests,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
 			contextIsolation: true,
-			nodeIntegration: false
+			nodeIntegration: false,
+			backgroundThrottling: !hideWindowsForTests
 		}
 	});
 
@@ -615,8 +633,11 @@ function openSettingsFromMenu() {
 	}
 	try {
 		if (mainWindow.isMinimized?.()) mainWindow.restore();
-		mainWindow.show();
-		mainWindow.focus();
+		// A hidden e2e run stays hidden: focus() would activate the app.
+		if (!hideWindowsForTests) {
+			mainWindow.show();
+			mainWindow.focus();
+		}
 	} catch {}
 	mainWindow.webContents.send('settings:open');
 }
@@ -665,8 +686,11 @@ function showWindowForDeepLink() {
 	}
 	try {
 		if (mainWindow.isMinimized?.()) mainWindow.restore();
-		mainWindow.show();
-		mainWindow.focus();
+		// A hidden e2e run stays hidden: focus() would activate the app.
+		if (!hideWindowsForTests) {
+			mainWindow.show();
+			mainWindow.focus();
+		}
 	} catch {}
 }
 
@@ -2499,7 +2523,7 @@ ipcMain.handle('trac:list-attachments', async (_e, sitePath) => {
         if (projectTypeForSite(meta).workItem.provider !== 'trac') return { ok: true, status: 'not-trac', items: [] };
         const ticketId = meta.tracTicket;
         if (!ticketId) return { ok: true, status: 'no-ticket', items: [] };
-        const result = await openAndScrape(ticketId, { backgroundColor: currentTheme().background });
+        const result = await openAndScrape(ticketId, { backgroundColor: currentTheme().background, hidden: hideWindowsForTests });
         return { ok: true, ...result };
     } catch (e) {
         logError('trac:list-attachments', String(e && e.stack ? e.stack : e));
