@@ -188,7 +188,7 @@ test( 'each file the applied patch changed opens in the editor from the details 
 	// change is applied, its files are what the contributor came for.
 	await expect(
 		page.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } ).getByRole( 'heading', { level: 2 } ).first()
-	).toHaveText( 'Affected files' );
+	).toHaveText( 'Changed files' );
 	await expect( file.locator( '..' ).locator( 'svg' ) ).toHaveCount( 1 );
 
 	// INVARIANT — the file is listed once the patch is applied, and one click
@@ -246,6 +246,66 @@ test( 'with no editor on the machine, an applied file is shown in the file manag
 		{ sitePath: site.dir, relPath: 'src/wp-login.php' },
 	] );
 	expect( ( await asked() ).opens ).toEqual( [] );
+} );
+
+// The open site's details, and a file in them by its path.
+const details = ( page ) => page.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } );
+const group = ( page, name ) => details( page ).getByRole( 'heading', { level: 3, name, exact: true } );
+// Asks for the answer the app asks for when its window gets focus back,
+// which is when a contributor returns from their editor.
+const refocus = ( page ) => page.evaluate( () => window.dispatchEvent( new Event( 'focus' ) ) );
+
+test( 'files edited or added after a patch are told apart from the patch\'s own (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+	await ui.linkTicket( page, '60001' );
+
+	const patch = makePatchFile( session, 'ticket-60001.patch', [
+		{ file: 'wp-login.php', from: TRUNK_LOGIN, to: PATCHED_LOGIN },
+	] );
+	await applyPatchFile( session, patch );
+	await expect( ui.revertPatchButton( page ) ).toBeVisible( { timeout: 60_000 } );
+
+	// INVARIANT — straight after the apply, everything changed is the patch's:
+	// nothing under "Your changes", and the patched file is not "also edited".
+	await expect( group( page, 'From the patch' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( group( page, 'Your changes' ) ).toHaveCount( 0 );
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'also edited', { exact: true } ) ).toHaveCount( 0 );
+
+	// The contributor works on top: an edit to the patched file, and a file
+	// of their own.
+	write( site.dir, LOGIN, '<?php // fixed by the patch, then by me\n' );
+	write( site.dir, 'src/new-helper.php', '<?php // mine\n' );
+	await refocus( page );
+
+	// INVARIANT — the patched file stays the patch's, marked as edited since;
+	// the new file is the contributor's, marked new. Each is listed once.
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'also edited', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( affectedFile( page, 'src/new-helper.php' ).locator( '..' ).getByText( 'new', { exact: true } ) ).toBeVisible();
+	await expect( affectedFile( page, 'src/wp-login.php' ) ).toHaveCount( 1 );
+	expect( await ui.inDocumentOrder( page, [
+		group( page, 'From the patch' ),
+		affectedFile( page, 'src/wp-login.php' ),
+		group( page, 'Your changes' ),
+		affectedFile( page, 'src/new-helper.php' ),
+	] ) ).toBe( true );
+} );
+
+test( 'a ticket with no patch lists only the contributor\'s own changes (#669)', async ( { session } ) => {
+	const site = await makeSite( session );
+	const { page } = await session.start( site.settings );
+	await ui.linkTicket( page, '60001' );
+
+	write( site.dir, LOGIN, '<?php // my fix\n' );
+	write( site.dir, 'src/new-helper.php', '<?php // mine\n' );
+	await refocus( page );
+
+	// INVARIANT — the section is there for work with nothing applied, with the
+	// one group, and the new file marked new and the edited one not.
+	await expect( group( page, 'Your changes' ) ).toBeVisible( { timeout: 30_000 } );
+	await expect( details( page ).getByRole( 'heading', { level: 3 } ) ).toHaveCount( 1 );
+	await expect( affectedFile( page, 'src/new-helper.php' ).locator( '..' ).getByText( 'new', { exact: true } ) ).toBeVisible();
+	await expect( affectedFile( page, 'src/wp-login.php' ).locator( '..' ).getByText( 'new', { exact: true } ) ).toHaveCount( 0 );
 } );
 
 test( 'a patch that does not fit is refused, and writes nothing', async ( { session } ) => {

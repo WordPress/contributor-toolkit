@@ -196,6 +196,23 @@ test( 'each file a checked-out pull request changed opens in the editor from the
 		{ sitePath: site.dir, editorPath: editor.path, relPath: 'src/wp-login.php' },
 	] );
 
+	// INVARIANT — work on top of the pull request is told apart from it (#669):
+	// its file, edited since, stays under the pull request, marked; a new
+	// file is the contributor's.
+	write( site.dir, LOGIN, PR_EDIT );
+	write( site.dir, 'src/new-helper.php', '<?php // mine\n' );
+	await page.evaluate( () => window.dispatchEvent( new Event( 'focus' ) ) );
+	const details = page.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } );
+	await expect( file.locator( '..' ).getByText( 'also edited', { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	const mine = details.getByRole( 'button', { name: 'src/new-helper.php', exact: true } );
+	await expect( mine.locator( '..' ).getByText( 'new', { exact: true } ) ).toBeVisible();
+	expect( await ui.inDocumentOrder( page, [
+		details.getByRole( 'heading', { level: 3, name: `From PR #${ PR }`, exact: true } ),
+		file,
+		details.getByRole( 'heading', { level: 3, name: 'Your changes', exact: true } ),
+		mine,
+	] ) ).toBe( true );
+
 	// INVARIANT — and the list goes when the contributor leaves the pull request.
 	await ui.revertPrButton( page ).click();
 	await expect( ui.prField( page ) ).toBeVisible( { timeout: 60_000 } );
