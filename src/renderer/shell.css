@@ -550,16 +550,23 @@ body {
 
 /* The cue that points a contributor at the next thing to do (#252). The
    render puts `.next-action-cue` on exactly one block, whichever the resolver
-   named, and the cue hook scrolls it into view. A soft amber ring marks it:
-   no motion, and over the block's own background, so a coloured notice keeps
-   its meaning. The block's own text names the step, so the ring carries no
-   label. The ring is the design system's warning stroke, and rounded as its
-   cards and notices are. */
+   named, and the cue hook scrolls it into view. A ring outside the block marks
+   it: no motion, and over the block's own background, so a coloured notice
+   keeps its meaning. The block's own text names the step, so the ring carries
+   no label.
+
+   The ring is the design system's brand surface stroke, at its medium border
+   width, drawn against the block's edge. Brand, because pointing at the next
+   step is guidance and not a warning; and not the warning stroke it used to
+   be, which is the border a warning notice already has, so on the update
+   notice the ring was that border again and could not be seen. Not the
+   strong brand stroke either: that is the focus ring's colour, and at the
+   focus ring's width and offset the cue was keyboard focus to look at, on a
+   block or around a button that did not have it. The soft stroke and the
+   wider band are both unlike focus. An outline follows the block's own
+   corners, whatever they are, and leaves its border alone. */
 .next-action-cue {
-  border-radius: var(--wpds-border-radius-lg);
-  box-shadow:
-    0 0 0 3px var(--wpds-color-stroke-surface-warning),
-    0 0 14px 3px color-mix(in srgb, var(--wpds-color-stroke-surface-warning) 60%, transparent);
+  outline: var(--wpds-border-width-md) solid var(--wpds-color-stroke-surface-brand);
 }
 
 /* The review dialog's two columns (#186): the diff takes the room and where
