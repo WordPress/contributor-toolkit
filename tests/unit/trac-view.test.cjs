@@ -110,3 +110,43 @@ test('openAndScrape: the Trac window is made in the colour of the app\'s theme',
 		assert.equal(made[0].backgroundColor, colour, `given: ${given}`);
 	}
 });
+
+// A journey that links a ticket reaches the real Trac, whose check is the page
+// that shows the window. In a hidden e2e run (TOOLKIT_HIDE_WINDOWS) that window
+// would take the focus from whoever is at the machine, so it stays hidden.
+test('openAndScrape: Trac\'s check shows the window, except in a hidden e2e run', async () => {
+	for (const hidden of [false, true]) {
+		let shows = 0;
+		let destroyed = false;
+		// One poll that finds the check and not the ticket, then one that finds
+		// the ticket, then empty scrapes: the stub ends the loop, so no deadline
+		// decides whether the window was reached at all.
+		const answers = [false, true];
+		class BrowserWindowStub {
+			constructor() {
+				this.webContents = {
+					setWindowOpenHandler() {},
+					on() {},
+					executeJavaScript() {
+						return Promise.resolve(answers.length ? answers.shift() : '');
+					}
+				};
+			}
+			loadURL() { return Promise.resolve(); }
+			isDestroyed() { return destroyed; }
+			destroy() { destroyed = true; }
+			show() { shows++; }
+		}
+		const electron = {
+			BrowserWindow: BrowserWindowStub,
+			session: { fromPartition: () => ({ setUserAgent() {} }) }
+		};
+		const { openAndScrape } = loadTracView(electron);
+
+		const result = await openAndScrape(56320, { readyTimeoutMs: 60_000, hidden });
+
+		assert.equal(result.status, 'no-attachments');
+		assert.equal(answers.length, 0, 'the check was found, then the ticket');
+		assert.equal(shows, hidden ? 0 : 1, `hidden: ${hidden}`);
+	}
+});

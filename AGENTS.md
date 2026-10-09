@@ -92,6 +92,8 @@ See `package.json` scripts. To run a single test file (not exposed as a script):
 
 Do not run Electron or E2E tests from a worktree without its own `node_modules`. Install dependencies in that worktree first, and do not rely on `NODE_PATH` from another worktree for Electron tests.
 
+Run the E2E journeys locally with `TOOLKIT_HIDE_WINDOWS=1` set, so the app does not take the screen and the focus from the person at the machine. [TESTING.md](TESTING.md) says what a hidden run cannot see.
+
 Prefer the simplest fix for reproducible user-facing failures. Do not add defensive state or branches for hypothetical edge cases unless a test demonstrates a realistic path.
 
 **Scope guards by what the app itself can do.** A state the app cannot produce through its own flows is out of scope by default: a rebase, a multi-commit cherry-pick or a `git am` left half done from a terminal, a checkout adopted from a linked worktree. The app must not destroy such a state when it meets one (#352), and saying "I do not understand this repository" is a valid answer; modelling each one, or offering to finish it, is not. Prefer one honest refusal over a family of cases, and record the cases you deliberately left out in the PR's Risks section rather than as issues.
