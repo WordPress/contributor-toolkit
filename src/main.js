@@ -2291,12 +2291,23 @@ async function prNeedsInstall(sitePath, target) {
     return lockfileChangedFromBlobOids(before, after);
 }
 
+// `files` are the paths the pull request changed at this head (#669), the
+// list its preview showed, for "Affected files" while it is checked out.
+// Measured before the store is read, so nothing yields between that read and
+// the write (#172). A head that cannot be described records no list rather
+// than keeping the one an earlier head left.
 async function recordPrHead(sitePath, ref, number, headOid, returnTo) {
+    let files = null;
+    try {
+        files = (await describePullRequestHead(sitePath, headOid)).files.map((file) => file.path);
+    } catch (e) {
+        logError('git:checkout-pr', `could not list the files of ${ref}: ${String(e && e.message || e)}`);
+    }
     await changeSiteMeta(sitePath, (m) => {
         const branches = { ...(m.branches || {}) };
         const previous = branches[ref] || {};
         branches[ref] = {
-            ...previous, pullRequest: number, headOid, baseOid: headOid,
+            ...previous, pullRequest: number, headOid, baseOid: headOid, files,
             returnTo: previous.returnTo || returnTo, lastUsedAt: new Date().toISOString()
         };
         return { ...m, branches };
@@ -2869,7 +2880,10 @@ ipcMain.handle('site:status', async (_e, sitePath) => {
 		const prNumber = prNumberFromRef(active.ref);
 		const pullRequest = prNumber === null ? null : {
 			number: prNumber, returnTo: work.returnTo || TRUNK, headOid: work.headOid || null,
-			hasEdits: Boolean(work.headOid && (await resolveRef(sitePath, active.ref)) !== work.headOid)
+			hasEdits: Boolean(work.headOid && (await resolveRef(sitePath, active.ref)) !== work.headOid),
+			// What it changed, for "Affected files" (#669); null for a branch
+			// checked out before the app recorded it.
+			files: Array.isArray(work.files) ? work.files : null
 		};
 		// A site the old engine made (#385): the card says so and the write
 		// handlers refuse. A detector that fails answers false, the same as a

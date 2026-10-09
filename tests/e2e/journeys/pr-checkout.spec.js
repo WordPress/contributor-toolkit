@@ -163,6 +163,45 @@ test( 'discarding loose trunk edits continues into the requested PR checkout', a
 	expect( read( site.dir, DOOMED ) ).toBe( '<?php // to be deleted\n' );
 } );
 
+test( 'each file a checked-out pull request changed opens in the editor from the details (#669)', async ( { session } ) => {
+	const site = await makeSite( session, { origin: true } );
+	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );
+	const { app, page } = await session.start( site.settings );
+	const editor = { name: 'Example Editor', path: '/Applications/Example Editor.app' };
+	await app.evaluate( ( { ipcMain }, detected ) => {
+		global.__e2eOpens = [];
+		ipcMain.removeHandler( 'editor:list' );
+		ipcMain.handle( 'editor:list', () => ( { detected: [ detected ] } ) );
+		ipcMain.removeHandler( 'editor:open' );
+		ipcMain.handle( 'editor:open', ( event, sitePath, editorPath, relPath ) => {
+			global.__e2eOpens.push( { sitePath, editorPath, relPath } );
+			return { ok: true };
+		} );
+	}, editor );
+
+	await ui.prField( page ).fill( String( PR ) );
+	await ui.applyPrButton( page ).last().click();
+	await expect( page.getByText( `PR #${ PR } changes 1 file.`, { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
+	await ui.applyAndRebuildButton( page ).click();
+	await expect( ui.revertPrButton( page ) ).toBeVisible( { timeout: 60_000 } );
+
+	// INVARIANT — the pull request's files are listed while it is checked
+	// out, as an applied patch's are, and one click opens the file in the
+	// editor detection found, inside the site.
+	const file = page
+		.getByRole( 'complementary', { name: 'Details of e2e-site', exact: true } )
+		.getByRole( 'button', { name: 'src/wp-login.php', exact: true } );
+	await file.click();
+	await expect.poll( () => app.evaluate( () => global.__e2eOpens ) ).toEqual( [
+		{ sitePath: site.dir, editorPath: editor.path, relPath: 'src/wp-login.php' },
+	] );
+
+	// INVARIANT — and the list goes when the contributor leaves the pull request.
+	await ui.revertPrButton( page ).click();
+	await expect( ui.prField( page ) ).toBeVisible( { timeout: 60_000 } );
+	await expect( file ).toHaveCount( 0 );
+} );
+
 test( 'a failed finish remains visible and offers no new patch source', async ( { session } ) => {
 	const site = await makeSite( session, { origin: true } );
 	addPullRequestToOrigin( site.origin, PR, { [ LOGIN ]: PR_CONTENT } );

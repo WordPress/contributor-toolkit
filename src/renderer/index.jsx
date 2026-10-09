@@ -2396,7 +2396,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onCopyPath={copyPath}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
-        affected={{ files: affectedFiles({ appliedPatch }), onOpenFile: openAffectedFile }}
+        affected={{ files: affectedFiles({ appliedPatch, pullRequest }), onOpenFile: openAffectedFile }}
       />
       </div>
       {dirtyModalOpen ? (

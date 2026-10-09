@@ -20,6 +20,19 @@ test('with no patch applied there is nothing to list', () => {
 	assert.deepEqual(affectedFiles({ appliedPatch: { label: 'x.patch', files: [] } }), []);
 });
 
+// A checked-out pull request lists what it changed, the same way (#669).
+test('the files a checked-out pull request changed are listed', () => {
+	const pullRequest = { number: 7, files: ['src/wp-login.php', 'src/old.php'] };
+	assert.deepEqual(affectedFiles({ pullRequest }), ['src/wp-login.php', 'src/old.php']);
+	assert.deepEqual(affectedFiles({ appliedPatch: null, pullRequest }), ['src/wp-login.php', 'src/old.php']);
+});
+
+// One checked out before the app recorded its files has none to list.
+test('a pull request with no recorded files lists nothing', () => {
+	assert.deepEqual(affectedFiles({ pullRequest: { number: 7, files: null } }), []);
+	assert.deepEqual(affectedFiles({ pullRequest: { number: 7 } }), []);
+});
+
 // Detection's order is the site menu's order, which puts Visual Studio Code
 // first where it is installed: the file opens in the editor that menu offers
 // first.

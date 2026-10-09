@@ -4,15 +4,19 @@
 'use strict';
 
 /**
- * The paths to list, in the order the patch changed them, or none when
- * nothing is applied. An empty list is no section at all.
+ * The paths to list, in the order the change made them, or none when nothing
+ * is applied. An empty list is no section at all. The change is the applied
+ * patch, or the pull request checked out, which lists what it changed from
+ * trunk; a pull request checked out before the app recorded that has no list.
  *
  * @param {Object}  root0
  * @param {?Object} [root0.appliedPatch] From `site:status`: `{ label, files, ... }`.
+ * @param {?Object} [root0.pullRequest]  From `site:status`: `{ number, files, ... }`.
  * @return {string[]}
  */
-function affectedFiles({ appliedPatch = null } = {}) {
-	return Array.isArray(appliedPatch?.files) ? appliedPatch.files : [];
+function affectedFiles({ appliedPatch = null, pullRequest = null } = {}) {
+	if (Array.isArray(appliedPatch?.files)) return appliedPatch.files;
+	return Array.isArray(pullRequest?.files) ? pullRequest.files : [];
 }
 
 /**
