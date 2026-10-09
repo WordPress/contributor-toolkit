@@ -64,13 +64,28 @@ test('a cancelled dialog is not a notice either', () => {
 	assert.equal(noticeForOpenResult({ ok: false, reason: 'cancelled' }), null);
 });
 
+// A file that is there but cannot be read is not reported as one the change
+// may have deleted, and the system's reason is said (#669).
+test('a file that cannot be read says so, with the reason', () => {
+	const sentence = describeOpenFailure({ ok: false, reason: 'unreadable-file', error: 'EACCES' });
+	assert.match(sentence, /EACCES/);
+	assert.doesNotMatch(sentence, /deleted/);
+});
+
+// The picker re-opens what failed (#669): a file that would not open in the
+// detected editor opens in the one picked, not the bare site.
+test('the picker offered after a file would not open carries the file', () => {
+	assert.equal(noticeForOpenResult({ ok: false, reason: 'spawn-failed' }, { relPath: 'src/wp-login.php' }).relPath, 'src/wp-login.php');
+	assert.equal(noticeForOpenResult({ ok: false, reason: 'unknown-editor' }).relPath, null);
+});
+
 // "Choose application…" answers "that editor did not work". It is not an answer
 // to a refusal the application had nothing to do with: `openSiteInEditor`
 // checks the folder before it looks at the editor, so picking another one comes
 // back with the identical sentence.
 test('the picker is only offered where picking another application would help', () => {
 	const helps = ['unlaunchable-editor', 'unknown-editor', 'spawn-failed'];
-	const doesNot = ['unregistered-site', 'open-failed', 'unavailable'];
+	const doesNot = ['unregistered-site', 'open-failed', 'unavailable', 'missing-file', 'unreadable-file'];
 
 	for (const reason of helps) {
 		assert.equal(noticeForOpenResult({ ok: false, reason }).offerPicker, true, reason);

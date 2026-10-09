@@ -63,6 +63,17 @@ function describeOpenFailure(result, { picked = false } = {}) {
 		// translators: %s: the reason, usually the operating system's own message in English.
 		return sprintf(__('The file manager would not open the folder: %s'), quote(result.error));
 	}
+	// A file the site does not hold (#669): most often one the applied change
+	// deleted, which is still listed among the files it changed.
+	if (result?.reason === 'missing-file') {
+		return __('That file is not in the site. The change may have deleted it.');
+	}
+	// There, but not readable (#669): a folder on the way that cannot be
+	// opened, a loop of links. Said as itself, with the system's code.
+	if (result?.reason === 'unreadable-file') {
+		// translators: %s: the system's code for why the file could not be read, such as EACCES.
+		return sprintf(__('That file could not be read: %s'), quote(result.error));
+	}
 	if (result?.reason === 'unregistered-site') {
 		return __('This app has no record of that folder, so it will not open it.');
 	}
@@ -96,17 +107,23 @@ const PICKING_HELPS = new Set(['unlaunchable-editor', 'unknown-editor', 'spawn-f
  * A closed dialog is not a failure: saying something about it would be the app
  * arguing with a decision the contributor just made.
  *
- * @param {Object}  result           What the main process returned.
+ * `relPath` is the file of the site that was being opened, if one was
+ * (#669). The notice keeps it, so "Choose application…" opens that file in
+ * the application picked rather than the bare site.
+ *
+ * @param {Object}  result            What the main process returned.
  * @param {Object}  [options]
  * @param {boolean} [options.picked]
- * @return {?{message: string, offerPicker: boolean}}
+ * @param {?string} [options.relPath]
+ * @return {?{message: string, offerPicker: boolean, relPath: ?string}}
  */
-function noticeForOpenResult(result, { picked = false } = {}) {
+function noticeForOpenResult(result, { picked = false, relPath = null } = {}) {
 	if (result?.ok || result?.reason === 'cancelled') return null;
 
 	return {
 		message: describeOpenFailure(result, { picked }),
-		offerPicker: PICKING_HELPS.has(result?.reason)
+		offerPicker: PICKING_HELPS.has(result?.reason),
+		relPath
 	};
 }
 

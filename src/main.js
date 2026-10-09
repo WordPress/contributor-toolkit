@@ -39,7 +39,7 @@ const { cloneSite } = require('./git-clone.cjs');
 const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { pinToOwnPage } = require('./window-navigation');
-const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
+const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog, REVEAL_REASONS } = require('./site-registry');
 const { removeTree } = require('./remove-tree');
 const { removePersistentPlaygroundSite } = require('./playground-storage.cjs');
 const { createSetupTracker } = require('./setup-tracker');
@@ -97,7 +97,7 @@ const { SETTINGS, readSettings, acceptSetting } = require('./settings.cjs');
 const { resolveTheme, nativeThemeSource, THEME_KEYS } = require('./theme.cjs');
 const { parseEventName, buildProvenanceHeader, handoffFilename } = require('./patch-provenance.cjs');
 const { describeRefused } = require('./safe-log');
-const { detectEditors, matchDetectedEditor, openSiteInEditor, REFUSAL_REASONS } = require('./editor-launch');
+const { detectEditors, matchDetectedEditor, openSiteInEditor, existingSiteFile, REFUSAL_REASONS } = require('./editor-launch');
 const { handleDeepLink, pickDeepLinkArg, createDeepLinkQueue, protocolRegistration } = require('./deep-link.cjs');
 const { mainWindowSize } = require('./window-size.cjs');
 
@@ -3483,7 +3483,7 @@ async function statPath(targetPath) {
 	return { isDirectory: stats.isDirectory(), isFile: stats.isFile(), isExecutable };
 }
 
-const editorLaunchDeps = () => ({ platform: process.platform, statPath });
+const editorLaunchDeps = () => ({ platform: process.platform, statPath, realPath: (p) => fs.promises.realpath(p) });
 
 const detectionDeps = () => ({
 	platform: process.platform,
@@ -3509,7 +3509,10 @@ ipcMain.handle('editor:list', async () => ({ detected: await detectEditors(detec
 // plus the one a human picked in a native dialog.
 //
 // Everything after that is unchanged from when the path came out of the store.
-ipcMain.handle('editor:open', async (_e, sitePath, editorPath) => {
+//
+// `relPath`, when there is one, is a file of the site to open in it (#669):
+// editor-launch checks it is inside the site and there.
+ipcMain.handle('editor:open', async (_e, sitePath, editorPath, relPath = null) => {
 	let target = typeof editorPath === 'string' && editorPath !== '' ? editorPath : null;
 
 	if (target) {
@@ -3548,7 +3551,8 @@ ipcMain.handle('editor:open', async (_e, sitePath, editorPath) => {
 		sites: s.get('sites'),
 		pending: setupTracker.paths(),
 		spawn,
-		onRefused: (reason, description) => logEvent('editor', `refused to open ${description} — ${reason}`)
+		onRefused: (reason, description) => logEvent('editor', `refused to open ${description} — ${reason}`),
+		file: relPath ?? null
 	});
 });
 
@@ -3655,14 +3659,34 @@ ipcMain.handle('settings:set', async (_e, key, value) => {
 
 // The fallback that needs no configuration at all — see site-registry.js for why
 // it is behind the same boundary as `sites:delete`.
-ipcMain.handle('dir:show', async (_e, sitePath) => {
+//
+// With `relPath`, a file of the site is selected in its folder instead (#669),
+// behind the same boundary and then the one editor-launch puts on a file:
+// inside the site, links followed, and there. `showItemInFolder` does nothing
+// at all for a path that is not there, which would be a link that did nothing.
+ipcMain.handle('dir:show', async (_e, sitePath, relPath = null) => {
 	const s = await getStore();
-	return revealRegisteredSite(sitePath, {
+	let refused = null;
+	const result = await revealRegisteredSite(sitePath, {
 		sites: s.get('sites'),
 		pending: setupTracker.paths(),
-		reveal: (target) => shell.openPath(target),
+		reveal: async (target) => {
+			if (relPath === null) return shell.openPath(target);
+			const { file, error } = await existingSiteFile(target, relPath, editorLaunchDeps());
+			if (error) {
+				refused = { ok: false, reason: REVEAL_REASONS.UNREADABLE_FILE, error };
+			} else if (!file) {
+				refused = { ok: false, reason: REVEAL_REASONS.MISSING_FILE };
+			} else {
+				shell.showItemInFolder(file);
+				return '';
+			}
+			logEvent('sites', `refused to reveal ${describeRefused(relPath)} — ${refused.reason}${error ? ` (${error})` : ''}`);
+			return refused.reason;
+		},
 		onRefused: (description) => logEvent('sites', `refused to reveal ${description} — not a registered site`)
 	});
+	return refused || result;
 });
 
 // What the terminal says when npm has exited but something it started still

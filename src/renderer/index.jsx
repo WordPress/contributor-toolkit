@@ -76,6 +76,7 @@ import { LogsPanel } from './components/logs-panel.jsx';
 import { MailPanel, MailTrayActions } from './components/mail-panel.jsx';
 import { SiteHeaderActions, SiteHeaderActionsSlot } from './components/site-header-actions.jsx';
 import { SiteDetails } from './components/site-details.jsx';
+import { affectedFiles, fileOpenTarget } from './affected-files.cjs';
 import { ApplyCard, ApplyPreviewDialog, PrCheckoutNotice } from './components/apply-card.jsx';
 import { applyHeldReason, previewShown } from './apply-card.cjs';
 import { TicketCard } from './components/ticket-card.jsx';
@@ -934,16 +935,18 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // down — and a rejection here would leave the notice unset: the menu item
   // would appear to do nothing, which is the one outcome this feature is not
   // allowed to produce.
-  const openIn = useCallback(async (editorPath = null) => {
+  //
+  // `relPath` is a file of the site to open with it (#669).
+  const openIn = useCallback(async (editorPath = null, relPath = null) => {
     let result;
     try {
-      result = await window.api.openInEditor(sitePath, editorPath);
+      result = await window.api.openInEditor(sitePath, editorPath, relPath);
     } catch (err) {
       // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
       console.error('Could not open the site directory:', err);
       result = { ok: false, reason: 'unavailable', error: String(err?.message ?? err) };
     }
-    const notice = noticeForOpenResult(result, { picked: editorPath === null });
+    const notice = noticeForOpenResult(result, { picked: editorPath === null, relPath });
     setEditorNotice(notice);
     // An application that was detected and then failed is one detection should be
     // asked about again, so the next menu does not offer it as if nothing had
@@ -954,10 +957,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
   // Through the same function as `openIn` above, deliberately: this used to
   // build its own sentence out of `error` alone, so a refusal — which carries a
   // `reason` and no `error` — came out as the words "unknown error" (#180).
-  const showInFileManager = useCallback(async () => {
+  const showInFileManager = useCallback(async (relPath = null) => {
     let result;
     try {
-      result = await window.api.showSiteInFileManager(sitePath);
+      result = await window.api.showSiteInFileManager(sitePath, relPath);
     } catch (err) {
       // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
       console.error('Could not reveal the site folder:', err);
@@ -965,6 +968,23 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     }
     setEditorNotice(noticeForOpenResult(result));
   }, [sitePath]);
+
+  // A file under "Affected files" (#669): one click, into the first editor
+  // detection finds, or the file manager when it finds none. Detection is asked
+  // here rather than read from `detectedEditors`, which holds nothing until the
+  // site's menu has been opened once; it stats a dozen paths and spawns nothing.
+  const openAffectedFile = useCallback(async (relPath) => {
+    let editors = [];
+    try {
+      editors = (await window.api.listEditors())?.detected || [];
+    } catch (err) {
+      // eslint-disable-next-line no-console -- see the note on the console.error in hooks/use-detected-editors.jsx.
+      console.error('Could not list the editors on this machine:', err);
+    }
+    const target = fileOpenTarget({ editors });
+    if (target.kind === 'editor') await openIn(target.path, relPath);
+    else await showInFileManager(relPath);
+  }, [openIn, showInFileManager]);
 
   // The note's probe. It asks the wide question — unsubmitted work measured
   // from the ticket's branch point, the same measurement the patch makes —
@@ -2121,7 +2141,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         <Notice.Description>{editorNotice.message}</Notice.Description>
         {editorNotice.offerPicker ? (
           <Notice.Actions>
-            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => void openIn(null)}>{__('Choose application…')}</UiButton>
+            <UiButton variant="outline" tone="neutral" size="compact" onClick={() => void openIn(null, editorNotice.relPath)}>{__('Choose application…')}</UiButton>
           </Notice.Actions>
         ) : null}
       </Notice.Root>
@@ -2376,6 +2396,7 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
         onCopyPath={copyPath}
         server={skipInit ? { process: serverState, section: serverSectionState, onToggle: toggleDevServer, onOpen: openSiteLink } : null}
         watch={skipInit ? { process: watchProcessState, onToggle: toggleWatch } : null}
+        affected={{ files: affectedFiles({ appliedPatch }), onOpenFile: openAffectedFile }}
       />
       </div>
       {dirtyModalOpen ? (
