@@ -213,10 +213,15 @@ test( 'each file a checked-out pull request changed opens in the editor from the
 		mine,
 	] ) ).toBe( true );
 
-	// INVARIANT — and the list goes when the contributor leaves the pull request.
+	// INVARIANT — and the list goes when the contributor leaves the pull
+	// request, from details that can be read rather than behind a dialog.
 	await ui.revertPrButton( page ).click();
 	await expect( ui.prField( page ) ).toBeVisible( { timeout: 60_000 } );
+	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
+	await expect( ui.confirmDialog( page ) ).toHaveCount( 0 );
+	await expect( details.getByRole( 'heading', { level: 2, name: 'Details', exact: true } ) ).toBeVisible();
 	await expect( file ).toHaveCount( 0 );
+	await expect( mine ).toHaveCount( 0 );
 } );
 
 test( 'a failed finish remains visible and offers no new patch source', async ( { session } ) => {
