@@ -161,20 +161,31 @@ const RUNS = [
 		logChannel: 'npm:run-script:log',
 		doneChannel: 'npm:run-script:done',
 		start: (api, callbacks) => api.runNpmScript('/sites/wp', 'build', [], callbacks.onLog, callbacks.onDone)
+	},
+	{
+		// Streams on the script channels; main answers `ok` with the id, since
+		// it can also refuse without starting anything.
+		name: 'runPhpUnit',
+		idKey: 'runId',
+		answer: { ok: true },
+		invokeChannel: 'phpunit:run',
+		logChannel: 'npm:run-script:log',
+		doneChannel: 'npm:run-script:done',
+		start: (api, callbacks) => api.runPhpUnit('/sites/wp', ['--group', '1'], callbacks.onLog, callbacks.onDone)
 	}
 ];
 
 // Hands out a fresh id per invoke, so two overlapping runs in one test get
 // different ones without the test having to sequence the invokes itself.
-function idSequence(idKey, ids) {
+function idSequence(idKey, ids, answer = {}) {
 	let next = 0;
-	return () => ({ [idKey]: ids[next++] });
+	return () => ({ ...answer, [idKey]: ids[next++] });
 }
 
 for (const run of RUNS) {
 	test(`${run.name} drops events belonging to another run`, async () => {
 		const { api, ipcRenderer } = loadPreload({
-			invokeResults: { [run.invokeChannel]: idSequence(run.idKey, ['mine']) }
+			invokeResults: { [run.invokeChannel]: idSequence(run.idKey, ['mine'], run.answer) }
 		});
 		const mine = recorder();
 
@@ -198,7 +209,7 @@ for (const run of RUNS) {
 	for (const code of [0, 1]) {
 		test(`${run.name} removes both listeners when the run ends with code ${code}`, async () => {
 			const { api, ipcRenderer } = loadPreload({
-				invokeResults: { [run.invokeChannel]: idSequence(run.idKey, ['mine']) }
+				invokeResults: { [run.invokeChannel]: idSequence(run.idKey, ['mine'], run.answer) }
 			});
 			const mine = recorder();
 
@@ -222,7 +233,7 @@ for (const run of RUNS) {
 
 	test(`${run.name} keeps two overlapping runs apart`, async () => {
 		const { api, ipcRenderer } = loadPreload({
-			invokeResults: { [run.invokeChannel]: idSequence(run.idKey, ['first', 'second']) }
+			invokeResults: { [run.invokeChannel]: idSequence(run.idKey, ['first', 'second'], run.answer) }
 		});
 		const first = recorder();
 		const second = recorder();
@@ -258,7 +269,7 @@ for (const run of RUNS) {
 	// neither must not leave the listeners behind on a global channel.
 	test(`${run.name} still unsubscribes when no callbacks were given`, async () => {
 		const { api, ipcRenderer } = loadPreload({
-			invokeResults: { [run.invokeChannel]: idSequence(run.idKey, ['mine']) }
+			invokeResults: { [run.invokeChannel]: idSequence(run.idKey, ['mine'], run.answer) }
 		});
 
 		await run.start(api, {});
@@ -532,6 +543,16 @@ test('runNpmScript returns the run id to the caller', async () => {
 	const { api } = loadPreload({ invokeResults: { 'npm:run-script': () => ({ runId: 'r1' }) } });
 
 	assert.deepEqual(await api.runNpmScript('/sites/wp', 'build', [], () => {}, () => {}), { runId: 'r1' });
+});
+
+// A refusal starts nothing, so nothing is subscribed: no listener is left
+// waiting on a run that will never send a done.
+test('runPhpUnit hands back a refusal and listens for nothing', async () => {
+	const { api, ipcRenderer } = loadPreload({ invokeResults: { 'phpunit:run': () => ({ ok: false, error: 'Site is not registered' }) } });
+
+	assert.deepEqual(await api.runPhpUnit('/sites/x', [], () => {}, () => {}), { ok: false, error: 'Site is not registered' });
+	assert.equal(ipcRenderer.listenerCount('npm:run-script:log'), 0);
+	assert.equal(ipcRenderer.listenerCount('npm:run-script:done'), 0);
 });
 
 // Both run kinds subscribe only after the invoke has answered with an id, so

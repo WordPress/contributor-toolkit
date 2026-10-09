@@ -533,6 +533,24 @@ function fakeSettingsStore(initial = {}) {
 
 // --- sites:delete -> src/site-registry.js --------------------------------
 
+// The site's PHP unit test files are outside its folder, under the app's data
+// (phpunit-folder.cjs), so removing the folder does not take them with it.
+test('sites:delete removes the site\'s PHP unit test files too', async () => {
+	const { phpunitSiteFolder } = require('../../src/phpunit-folder.cjs');
+	const registered = '/sites/wp-php-tests';
+	// The electron stub's userData is the temp directory.
+	const folder = phpunitSiteFolder(path.join(os.tmpdir(), 'php-tests'), registered);
+	fs.mkdirSync(path.join(folder, 'database'), { recursive: true });
+	fs.writeFileSync(path.join(folder, 'wp-tests-config.php'), '<?php');
+	const settings = fakeSettingsStore({ sites: [registered], siteMeta: { [registered]: {} } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, ...noSmtpServer(), './remove-tree': { removeTree: async () => {} } }
+	});
+
+	assert.deepEqual(await main.invoke('sites:delete', registered), { ok: true });
+	assert.equal(fs.existsSync(folder), false);
+});
+
 test('sites:delete asks site-registry whether the path may be removed', async () => {
 	const deleteRegisteredSite = spy(async () => true);
 	const settings = fakeSettingsStore({ sites: ['/sites/wp'] });
@@ -2460,6 +2478,78 @@ test('npm:run-script spawns the script runner through npm-runner too', async () 
 	// The build path: the one a runaway would actually be launched from (#275).
 	assertShimsPreloadCompat('npm:run-script');
 	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'npm:run-script');
+});
+
+// Core's PHP unit tests (phpunit-runner.js): spawned the way every runner is,
+// for a registered core site only, and stoppable through npm:kill like a script.
+test('phpunit:run spawns the PHP test runner with the site, its arguments and the PHP version', async () => {
+	const env = { PATH: '/shims' };
+	const buildChildEnv = spy(() => env);
+	const cp = stubbedSpawn();
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': { projectType: 'core' } } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'child_process': { spawn: cp.spawn },
+			'./npm-runner': { buildChildEnv }
+		}
+	});
+
+	const result = await main.invoke('phpunit:run', '/sites/wp', ['--group', '12821']);
+
+	assert.equal(result.ok, true);
+	assert.equal(typeof result.runId, 'string');
+	assert.equal(cp.spawned.length, 1);
+	assert.equal(path.basename(cp.spawned[0].args[0]), 'phpunit-runner.js');
+	const config = JSON.parse(cp.spawned[0].args[1]);
+	assert.equal(config.site, '/sites/wp');
+	assert.deepEqual(config.args, ['--group', '12821']);
+	assert.equal(path.basename(config.toolkitDir), 'php-tests');
+	assert.equal(typeof config.phpVersion, 'string');
+	assert.equal(cp.spawned[0].options.cwd, '/sites/wp');
+	assert.equal(cp.spawned[0].options.env, env);
+	assertCrossPlatformSpawnOptions(cp.spawned[0].options, 'phpunit:run');
+});
+
+test('phpunit:run starts nothing for an unregistered site, a Gutenberg site or arguments that are not strings', async () => {
+	const cp = stubbedSpawn();
+	const settings = fakeSettingsStore({ sites: ['/sites/gb'], siteMeta: { '/sites/gb': { projectType: 'gutenberg' } } });
+	const main = loadMain({
+		stubs: { ...silentLogging(), ...settings.stubs, 'child_process': { spawn: cp.spawn } }
+	});
+
+	assert.equal((await main.invoke('phpunit:run', '/sites/elsewhere', [])).ok, false);
+	assert.equal((await main.invoke('phpunit:run', '/sites/gb', [])).ok, false);
+	await assert.rejects(main.invoke('phpunit:run', '/sites/gb', [42]), /array of strings/);
+	assert.equal(cp.spawned.length, 0);
+});
+
+test('npm:kill stops a PHP test run, which streams and settles on the script channels', async (t) => {
+	const cp = stubbedSpawn();
+	const killChildTree = spy(() => true);
+	const settings = fakeSettingsStore({ sites: ['/sites/wp'], siteMeta: { '/sites/wp': {} } });
+	const main = loadMain({
+		stubs: {
+			...silentLogging(),
+			...settings.stubs,
+			'child_process': { spawn: cp.spawn },
+			'./kill-tree': { killChildTree, killTreeByPid: spy() }
+		}
+	});
+
+	const event = createIpcEvent();
+	const { runId } = await main.invokeWith('phpunit:run', event, '/sites/wp', []);
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	assert.deepEqual(await main.invoke('npm:kill', { directoryPath: '/sites/wp' }), { ok: true });
+	assert.deepEqual(killChildTree.calls, [[cp.children[0]]]);
+
+	cp.children[0].stdout.emit('data', Buffer.from('OK (1 test, 1 assertion)'));
+	cp.children[0].emit('close', 0, null);
+	assert.deepEqual(event.sent.find((m) => m.channel === 'npm:run-script:log').payload, { runId, type: 'stdout', data: 'OK (1 test, 1 assertion)' });
+	assert.deepEqual(event.sent.find((m) => m.channel === 'npm:run-script:done').payload, { runId, code: 0 });
+	// Gone from the registry once it closes: a second kill finds nothing.
+	assert.equal((await main.invoke('npm:kill', { directoryPath: '/sites/wp' })).ok, false);
 });
 
 // The other half of the same wire: a preload that cannot be installed must not
@@ -7150,6 +7240,7 @@ const WIRED = new Set([
 	'site:status',
 	'npm:install',
 	'npm:run-script',
+	'phpunit:run',
 	'npm:kill',
 	'playground:start',
 	'playground:stop',

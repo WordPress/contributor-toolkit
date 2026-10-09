@@ -40,6 +40,7 @@ const { openAndScrape, fetchAttachment } = require('./trac-view');
 const { openExternalUrl, ALLOWED_URL_SCHEMES } = require('./external-url');
 const { pinToOwnPage } = require('./window-navigation');
 const { deleteRegisteredSite, revealRegisteredSite, clearRegisteredSiteLog } = require('./site-registry');
+const { phpunitSiteFolder } = require('./phpunit-folder.cjs');
 const { removeTree } = require('./remove-tree');
 const { removePersistentPlaygroundSite } = require('./playground-storage.cjs');
 const { createSetupTracker } = require('./setup-tracker');
@@ -3070,6 +3071,10 @@ ipcMain.handle('sites:delete', async (_e, sitePath) => {
 					await removePersistentPlaygroundSite(p);
 				}
 				await removeTree(p);
+				// The site's PHP unit test files, outside its folder. Left behind
+				// is clutter, not harm, so a failure here does not keep the site.
+				await fs.promises.rm(phpunitSiteFolder(phpTestsDir(), p), { recursive: true, force: true })
+					.catch((err) => logError('sites', `could not remove the PHP test files of ${p}: ${String(err)}`));
 			},
 			onRefused: (description) => logEvent('sites', `refused to delete ${description}: not a registered site, or still being created`)
 		});
@@ -3930,6 +3935,62 @@ ipcMain.handle('npm:run-script', async (event, directoryPath, scriptName, script
 	});
 
 	return { runId };
+});
+
+// Where every site's PHP unit test files live, one folder per site
+// (phpunit-folder.cjs), beside the Composer they share.
+function phpTestsDir() {
+	return path.join(app.getPath('userData'), 'php-tests');
+}
+
+// Core's PHP unit tests on the bundled Playground PHP, against SQLite: no
+// Docker, no MySQL (phpunit-plan.cjs says what differs and why). The first run
+// on a checkout installs PHPUnit with Composer, so it takes minutes; the rest
+// take seconds. It streams on the script channels and registers as a script, so
+// the terminal shows it, npm:kill stops it and deleting the site ends it. It is
+// left out of scriptByRunId, which only says which watch to start again after a
+// quit: a test run is not one.
+ipcMain.handle('phpunit:run', async (event, sitePath, args = []) => {
+	if (!Array.isArray(args) || !args.every((arg) => typeof arg === 'string')) {
+		throw new Error('args must be an array of strings');
+	}
+	return withRegisteredSite(sitePath, async () => {
+		if (!projectTypeForSite(await readSiteMeta(sitePath)).build.phpUnit) {
+			return { ok: false, error: 'This site has no PHP unit tests to run' };
+		}
+		const settings = readSettings((await getStore()).get('preferences'));
+		const phpVersion = phpVersions().includes(settings.phpVersion) ? settings.phpVersion : SETTINGS.phpVersion.fallback;
+		const config = {
+			site: sitePath,
+			toolkitDir: phpTestsDir(),
+			phpVersion,
+			args
+		};
+		const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+		runNpmWithEngineRetry({
+			runnerPath: path.join(__dirname, 'phpunit-runner.js'),
+			args: [JSON.stringify(config)],
+			cwd: sitePath,
+			logScope: `phpunit#${runId.slice(-4)}`,
+			register: (child) => {
+				runningScripts[runId] = child;
+				runIdByDirectory[sitePath] = runId;
+				trackDirectoryChild(sitePath, child);
+			},
+			onLog: (type, data) => {
+				event.sender.send('npm:run-script:log', { runId, type, data });
+			},
+			onDone: (code) => {
+				event.sender.send('npm:run-script:done', { runId, code });
+				untrackDirectoryChild(sitePath, runningScripts[runId]);
+				delete runningScripts[runId];
+				if (runIdByDirectory[sitePath] === runId) {
+					delete runIdByDirectory[sitePath];
+				}
+			}
+		});
+		return { ok: true, runId };
+	});
 });
 
 ipcMain.handle('npm:kill', async (_event, { runId, directoryPath }) => {
