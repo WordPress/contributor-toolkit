@@ -1523,7 +1523,10 @@ function SiteRow({ sitePath, initialized, createdAt, label, projectType = null, 
     exists: applyPreview.exists,
     moved: applyPreview.moved,
     hasEdits: applyPreview.hasEdits,
-    state: applyPreview.prState
+    state: applyPreview.prState,
+    setAside: applyPreview.setAside,
+    returnTo: applyPreview.returnTo,
+    noun: workItem.noun
   }) : null;
   // The layer exits reach the same two operations the changes note does, so
   // they go through the same guard: a discard is a force checkout, and running

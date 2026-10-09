@@ -80,7 +80,7 @@ test('nothing to preview is nothing to say', () => {
 
 test('a patch file\'s preview names the file, counts what it changes, and applies and rebuilds', () => {
 	const one = previewWords({ preview: { kind: 'patch', label: '65933.diff', paths: ['src/wp-login.php'], unsupported: [], needsInstall: false } });
-	assert.deepEqual(one, { title: 'Apply 65933.diff', headline: '65933.diff changes 1 file.', action: 'Apply and rebuild', closedNote: '', skipped: '', installNote: '' });
+	assert.deepEqual(one, { title: 'Apply 65933.diff', headline: '65933.diff changes 1 file.', action: 'Apply and rebuild', closedNote: '', setAsideNote: '', skipped: '', installNote: '' });
 	const two = previewWords({ preview: { kind: 'patch', label: '65933.diff', paths: ['a.php', 'b.php'] } });
 	assert.equal(two.headline, '65933.diff changes 2 files.');
 });
@@ -99,9 +99,10 @@ test('a patch file that changes the lockfile says dependencies will be installed
 });
 
 test('a pull request\'s preview is titled by its number and says what the checkout module says of it', () => {
-	const pr = describePrPreview({ number: 7, files: ['src/wp-login.php'], needsInstall: true, state: 'closed' });
+	const pr = describePrPreview({ number: 7, files: ['src/wp-login.php'], needsInstall: true, state: 'closed', setAside: { ref: 'ticket/62010', files: 2 }, returnTo: 'ticket/62010' });
 	const words = previewWords({ preview: { kind: 'pr', number: 7, paths: ['src/wp-login.php'], unsupported: ['ignored.png'], needsInstall: true }, pr });
-	assert.deepEqual(words, { title: 'Apply PR #7', headline: pr.headline, action: pr.actionLabel, closedNote: pr.closedNote, skipped: '', installNote: pr.installNote });
+	assert.deepEqual(words, { title: 'Apply PR #7', headline: pr.headline, action: pr.actionLabel, closedNote: pr.closedNote, setAsideNote: pr.setAsideNote, skipped: '', installNote: pr.installNote });
+	assert.notEqual(words.setAsideNote, '');
 	assert.equal(words.headline, 'PR #7 changes 1 file.');
 	// A copy with edits on a pull request that moved is gone back to, not
 	// applied again, and the button says so.

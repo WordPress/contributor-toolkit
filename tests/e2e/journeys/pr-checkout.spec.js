@@ -56,6 +56,9 @@ test( 'a PR checkout keeps ticket work and later PR edits on their own branches'
 
 	await expect( page.getByText( `PR #${ PR } changes 1 file.`, { exact: true } ) ).toBeVisible( { timeout: 30_000 } );
 	await expect( page.getByText( 'src/wp-login.php', { exact: true } ) ).toBeVisible();
+	// INVARIANT — the checkout takes the ticket's edit out of the files, so the
+	// preview says where it goes before it does (#672).
+	await expect( page.getByText( `Your edits to 1 file stay with ticket #${ TICKET } and come back when you revert this PR.`, { exact: true } ) ).toBeVisible();
 	await ui.applyAndRebuildButton( page ).click();
 
 	await expect
